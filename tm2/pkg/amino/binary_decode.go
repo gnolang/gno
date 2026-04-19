@@ -1011,27 +1011,17 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 		}
 	}
 
-	// Consume any remaining fields.
-	var (
-		fnum uint32
-		typ3 Typ3
-	)
-	for len(bz) > 0 {
-		fnum, typ3, _n, err = decodeFieldNumberAndTyp3(bz)
-		if slide(&bz, &n, _n) && err != nil {
+	// Reject unknown trailing fields. All registered fields should have been
+	// consumed above. Unknown fields indicate a version mismatch or corruption.
+	if len(bz) > 0 {
+		var fnum uint32
+		fnum, _, _n, err = decodeFieldNumberAndTyp3(bz)
+		if err != nil {
 			return
 		}
-		if fnum <= lastFieldNum {
-			err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
-				fnum, lastFieldNum, bz)
-			return
-		}
-		lastFieldNum = fnum
-
-		_n, err = consumeAny(typ3, bz)
-		if slide(&bz, &n, _n) && err != nil {
-			return
-		}
+		_ = _n
+		err = fmt.Errorf("unknown field number %d for %v", fnum, info.Type)
+		return
 	}
 	return n, err
 }

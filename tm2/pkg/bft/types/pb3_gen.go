@@ -134,15 +134,12 @@ func (goo Proposal) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Proposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Proposal) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Proposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	goo.Timestamp = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -201,7 +198,7 @@ func (goo *Proposal) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyD
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.BlockID.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.BlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 6:
@@ -233,11 +230,7 @@ func (goo *Proposal) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyD
 				goo.Signature = v
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Proposal", fnum)
 		}
 	}
 	return nil
@@ -320,14 +313,11 @@ func (goo Block) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Block) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Block) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Block) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -346,7 +336,7 @@ func (goo *Block) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDept
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.Header.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.Header.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 2:
@@ -358,7 +348,7 @@ func (goo *Block) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDept
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.Data.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.Data.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 3:
@@ -372,17 +362,13 @@ func (goo *Block) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDept
 					return err
 				}
 				bz = bz[n:]
-				if err := pv.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.LastCommit = &pv
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Block", fnum)
 		}
 	}
 	return nil
@@ -547,15 +533,12 @@ func (goo Header) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Header) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Header) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Header) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	goo.Time = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -648,7 +631,7 @@ func (goo *Header) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.LastBlockID.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.LastBlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 9:
@@ -764,11 +747,7 @@ func (goo *Header) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Header", fnum)
 		}
 	}
 	return nil
@@ -793,14 +772,11 @@ func (goo Data) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Data) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Data) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Data) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -854,11 +830,7 @@ func (goo *Data) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth
 				goo.Txs = append(goo.Txs, ev)
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Data", fnum)
 		}
 	}
 	return nil
@@ -924,14 +896,11 @@ func (goo Commit) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Commit) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Commit) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Commit) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -950,7 +919,7 @@ func (goo *Commit) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.BlockID.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.BlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 2:
@@ -963,7 +932,7 @@ func (goo *Commit) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 				return err
 			}
 			bz = bz[n:]
-			if err := ev.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 			goo.Precommits = append(goo.Precommits, &ev)
@@ -987,17 +956,13 @@ func (goo *Commit) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 					return err
 				}
 				bz = bz[n:]
-				if err := ev.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.Precommits = append(goo.Precommits, &ev)
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Commit", fnum)
 		}
 	}
 	return nil
@@ -1043,14 +1008,11 @@ func (goo BlockID) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *BlockID) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *BlockID) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *BlockID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1083,15 +1045,11 @@ func (goo *BlockID) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDe
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.PartsHeader.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.PartsHeader.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for BlockID", fnum)
 		}
 	}
 	return nil
@@ -1200,15 +1158,12 @@ func (goo CommitSig) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *CommitSig) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *CommitSig) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *CommitSig) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	goo.Timestamp = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1257,7 +1212,7 @@ func (goo *CommitSig) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, any
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.BlockID.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.BlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 5:
@@ -1313,11 +1268,7 @@ func (goo *CommitSig) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, any
 				goo.Signature = v
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for CommitSig", fnum)
 		}
 	}
 	return nil
@@ -1426,15 +1377,12 @@ func (goo Vote) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Vote) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Vote) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Vote) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	goo.Timestamp = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1483,7 +1431,7 @@ func (goo *Vote) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.BlockID.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.BlockID.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 5:
@@ -1539,11 +1487,7 @@ func (goo *Vote) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth
 				goo.Signature = v
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Vote", fnum)
 		}
 	}
 	return nil
@@ -1596,14 +1540,11 @@ func (goo Part) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Part) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Part) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Part) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1646,15 +1587,11 @@ func (goo *Part) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.Proof.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.Proof.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Part", fnum)
 		}
 	}
 	return nil
@@ -1670,14 +1607,11 @@ func (goo PartSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *PartSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *PartSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *PartSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1688,11 +1622,7 @@ func (goo *PartSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDe
 		bz = bz[n:]
 		switch fnum {
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for PartSet", fnum)
 		}
 	}
 	return nil
@@ -1722,14 +1652,11 @@ func (goo PartSetHeader) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *PartSetHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *PartSetHeader) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *PartSetHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1764,11 +1691,7 @@ func (goo *PartSetHeader) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte,
 				goo.Hash = v
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for PartSetHeader", fnum)
 		}
 	}
 	return nil
@@ -1834,14 +1757,11 @@ func (goo Validator) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Validator) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Validator) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Validator) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1875,7 +1795,7 @@ func (goo *Validator) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, any
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAnyBinary2WithDepth(fbz, &goo.PubKey, anyDepth); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.PubKey, anyDepth); err != nil {
 					return err
 				}
 			}
@@ -1900,11 +1820,7 @@ func (goo *Validator) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, any
 			bz = bz[n:]
 			goo.ProposerPriority = int64(v)
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Validator", fnum)
 		}
 	}
 	return nil
@@ -1967,14 +1883,11 @@ func (goo ValidatorSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *ValidatorSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *ValidatorSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *ValidatorSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -1994,7 +1907,7 @@ func (goo *ValidatorSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, 
 				return err
 			}
 			bz = bz[n:]
-			if err := ev.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 			goo.Validators = append(goo.Validators, &ev)
@@ -2018,7 +1931,7 @@ func (goo *ValidatorSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, 
 					return err
 				}
 				bz = bz[n:]
-				if err := ev.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.Validators = append(goo.Validators, &ev)
@@ -2034,17 +1947,13 @@ func (goo *ValidatorSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, 
 					return err
 				}
 				bz = bz[n:]
-				if err := pv.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.Proposer = &pv
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for ValidatorSet", fnum)
 		}
 	}
 	return nil
@@ -2127,14 +2036,11 @@ func (goo EventNewBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *EventNewBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *EventNewBlock) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *EventNewBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2155,7 +2061,7 @@ func (goo *EventNewBlock) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte,
 					return err
 				}
 				bz = bz[n:]
-				if err := pv.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.Block = &pv
@@ -2169,7 +2075,7 @@ func (goo *EventNewBlock) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte,
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.ResultBeginBlock.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.ResultBeginBlock.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 3:
@@ -2181,15 +2087,11 @@ func (goo *EventNewBlock) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte,
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.ResultEndBlock.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.ResultEndBlock.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for EventNewBlock", fnum)
 		}
 	}
 	return nil
@@ -2274,14 +2176,11 @@ func (goo EventNewBlockHeader) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *EventNewBlockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *EventNewBlockHeader) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *EventNewBlockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2300,7 +2199,7 @@ func (goo *EventNewBlockHeader) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz [
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.Header.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.Header.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 2:
@@ -2312,7 +2211,7 @@ func (goo *EventNewBlockHeader) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz [
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.ResultBeginBlock.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.ResultBeginBlock.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 3:
@@ -2324,15 +2223,11 @@ func (goo *EventNewBlockHeader) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz [
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.ResultEndBlock.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.ResultEndBlock.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for EventNewBlockHeader", fnum)
 		}
 	}
 	return nil
@@ -2371,14 +2266,11 @@ func (goo EventTx) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *EventTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *EventTx) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *EventTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2397,15 +2289,11 @@ func (goo *EventTx) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDe
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.Result.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.Result.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for EventTx", fnum)
 		}
 	}
 	return nil
@@ -2442,14 +2330,11 @@ func (goo EventVote) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *EventVote) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *EventVote) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *EventVote) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2470,17 +2355,13 @@ func (goo *EventVote) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, any
 					return err
 				}
 				bz = bz[n:]
-				if err := pv.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.Vote = &pv
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for EventVote", fnum)
 		}
 	}
 	return nil
@@ -2514,11 +2395,7 @@ func (goo EventString) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *EventString) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var repr EventString
 	if len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -2567,14 +2444,11 @@ func (goo EventValidatorSetUpdates) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *EventValidatorSetUpdates) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *EventValidatorSetUpdates) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *EventValidatorSetUpdates) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2594,7 +2468,7 @@ func (goo *EventValidatorSetUpdates) UnmarshalBinary2WithDepth(cdc *amino.Codec,
 				return err
 			}
 			bz = bz[n:]
-			if err := ev.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 			goo.ValidatorUpdates = append(goo.ValidatorUpdates, ev)
@@ -2618,17 +2492,13 @@ func (goo *EventValidatorSetUpdates) UnmarshalBinary2WithDepth(cdc *amino.Codec,
 					return err
 				}
 				bz = bz[n:]
-				if err := ev.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.ValidatorUpdates = append(goo.ValidatorUpdates, ev)
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for EventValidatorSetUpdates", fnum)
 		}
 	}
 	return nil
@@ -2707,14 +2577,11 @@ func (goo DuplicateVoteEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *DuplicateVoteEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *DuplicateVoteEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *DuplicateVoteEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2734,7 +2601,7 @@ func (goo *DuplicateVoteEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz
 			}
 			bz = bz[n:]
 			if len(fbz) > 0 {
-				if err := cdc.UnmarshalAnyBinary2WithDepth(fbz, &goo.PubKey, anyDepth); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.PubKey, anyDepth); err != nil {
 					return err
 				}
 			}
@@ -2749,7 +2616,7 @@ func (goo *DuplicateVoteEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz
 					return err
 				}
 				bz = bz[n:]
-				if err := pv.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.VoteA = &pv
@@ -2765,17 +2632,13 @@ func (goo *DuplicateVoteEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz
 					return err
 				}
 				bz = bz[n:]
-				if err := pv.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 					return err
 				}
 				goo.VoteB = &pv
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for DuplicateVoteEvidence", fnum)
 		}
 	}
 	return nil
@@ -2813,14 +2676,11 @@ func (goo MockGoodEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *MockGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *MockGoodEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *MockGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2855,11 +2715,7 @@ func (goo *MockGoodEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []by
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for MockGoodEvidence", fnum)
 		}
 	}
 	return nil
@@ -2898,14 +2754,11 @@ func (goo MockRandomGoodEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *MockRandomGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *MockRandomGoodEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *MockRandomGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2924,15 +2777,11 @@ func (goo *MockRandomGoodEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, b
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.MockGoodEvidence.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.MockGoodEvidence.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for MockRandomGoodEvidence", fnum)
 		}
 	}
 	return nil
@@ -2971,14 +2820,11 @@ func (goo MockBadEvidence) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *MockBadEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *MockBadEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *MockBadEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -2997,15 +2843,11 @@ func (goo *MockBadEvidence) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byt
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.MockGoodEvidence.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.MockGoodEvidence.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for MockBadEvidence", fnum)
 		}
 	}
 	return nil
@@ -3065,14 +2907,11 @@ func (goo TxResult) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *TxResult) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *TxResult) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *TxResult) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -3125,15 +2964,11 @@ func (goo *TxResult) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyD
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.Response.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.Response.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for TxResult", fnum)
 		}
 	}
 	return nil
@@ -3156,14 +2991,11 @@ func (goo MockAppState) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *MockAppState) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *MockAppState) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *MockAppState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -3184,11 +3016,7 @@ func (goo *MockAppState) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, 
 			bz = bz[n:]
 			goo.AccountOwner = string(v)
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for MockAppState", fnum)
 		}
 	}
 	return nil
@@ -3204,14 +3032,11 @@ func (goo VoteSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *VoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *VoteSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *VoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -3222,11 +3047,7 @@ func (goo *VoteSet) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDe
 		bz = bz[n:]
 		switch fnum {
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for VoteSet", fnum)
 		}
 	}
 	return nil

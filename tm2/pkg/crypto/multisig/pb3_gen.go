@@ -62,14 +62,11 @@ func (goo PubKeyMultisigThreshold) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *PubKeyMultisigThreshold) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -100,7 +97,7 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2WithDepth(cdc *amino.Codec, 
 			bz = bz[n:]
 			if len(fbz) > 0 {
 				var ev crypto.PubKey
-				if err := cdc.UnmarshalAnyBinary2(fbz, &ev); err != nil {
+				if err := cdc.UnmarshalAnyBinary2(fbz, &ev, anyDepth); err != nil {
 					return err
 				}
 				goo.PubKeys = append(goo.PubKeys, ev)
@@ -128,7 +125,7 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2WithDepth(cdc *amino.Codec, 
 				bz = bz[n:]
 				if len(fbz) > 0 {
 					var ev crypto.PubKey
-					if err := cdc.UnmarshalAnyBinary2(fbz, &ev); err != nil {
+					if err := cdc.UnmarshalAnyBinary2(fbz, &ev, anyDepth); err != nil {
 						return err
 					}
 					goo.PubKeys = append(goo.PubKeys, ev)
@@ -137,11 +134,7 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2WithDepth(cdc *amino.Codec, 
 				}
 			}
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for PubKeyMultisigThreshold", fnum)
 		}
 	}
 	return nil

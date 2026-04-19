@@ -46,11 +46,7 @@ func (goo PubKeyEd25519) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *PubKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *PubKeyEd25519) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *PubKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	return cdc.UnmarshalReflect(bz, goo)
 }
 
@@ -81,11 +77,7 @@ func (goo PrivKeyEd25519) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *PrivKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *PrivKeyEd25519) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *PrivKeyEd25519) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	return cdc.UnmarshalReflect(bz, goo)
 }
 

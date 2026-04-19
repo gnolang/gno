@@ -65,14 +65,11 @@ func (goo Result) SizeBinary2(cdc *amino.Codec) (int, error) {
 	return s, nil
 }
 
-func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte) error {
-	return goo.UnmarshalBinary2WithDepth(cdc, bz, 0)
-}
-
-func (goo *Result) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDepth int) error {
+func (goo *Result) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
 		if err != nil {
 			return err
 		}
@@ -91,7 +88,7 @@ func (goo *Result) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 				return err
 			}
 			bz = bz[n:]
-			if err := goo.ResponseBase.UnmarshalBinary2WithDepth(cdc, fbz, anyDepth); err != nil {
+			if err := goo.ResponseBase.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
 				return err
 			}
 		case 2:
@@ -115,11 +112,7 @@ func (goo *Result) UnmarshalBinary2WithDepth(cdc *amino.Codec, bz []byte, anyDep
 			bz = bz[n:]
 			goo.GasUsed = int64(v)
 		default:
-			n, err = amino.SkipField(bz, typ3)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
+			return fmt.Errorf("unknown field number %d for Result", fnum)
 		}
 	}
 	return nil

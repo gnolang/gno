@@ -194,10 +194,7 @@ func (ctx *P3Context2) writeSliceReprUnmarshal(sb *strings.Builder, info *amino.
 		sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 		sb.WriteString("\t\tbz = bz[n:]\n")
 		sb.WriteString("\t\tif fnum != 1 {\n")
-		sb.WriteString("\t\t\tn, err = amino.SkipField(bz, typ3)\n")
-		sb.WriteString("\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
-		sb.WriteString("\t\t\tbz = bz[n:]\n")
-		sb.WriteString("\t\t\tcontinue\n")
+		sb.WriteString("\t\t\treturn fmt.Errorf(\"unknown field number %d in unpacked slice repr (expected 1)\", fnum)\n")
 		sb.WriteString("\t\t}\n")
 		sb.WriteString("\t\tif typ3 != amino.Typ3ByteLength {\n")
 		sb.WriteString("\t\t\treturn fmt.Errorf(\"unpacked slice repr: expected field 1 ByteLength, got typ=%v\", typ3)\n")
@@ -234,6 +231,7 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 	sb.WriteString("\tvar lastFieldNum uint32\n")
 	sb.WriteString("\tfor len(bz) > 0 {\n")
 	sb.WriteString("\t\tfnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
+	sb.WriteString("\t\t_ = typ3\n")
 	sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
 	sb.WriteString("\t\tif fnum < lastFieldNum {\n")
 	sb.WriteString("\t\t\treturn fmt.Errorf(\"encountered fieldNum: %v, but we have already seen fnum: %v\", fnum, lastFieldNum)\n")
@@ -289,9 +287,7 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 	}
 
 	sb.WriteString("\t\tdefault:\n")
-	sb.WriteString("\t\t\tn, err = amino.SkipField(bz, typ3)\n")
-	sb.WriteString("\t\t\tif err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
-	sb.WriteString("\t\t\tbz = bz[n:]\n")
+	sb.WriteString(fmt.Sprintf("\t\t\treturn fmt.Errorf(\"unknown field number %%d for %s\", fnum)\n", info.Type.Name()))
 	sb.WriteString("\t\t}\n")
 	sb.WriteString("\t}\n")
 

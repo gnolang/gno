@@ -552,6 +552,58 @@ func TestGenproto2DepthLimitRejected(t *testing.T) {
 	}
 }
 
+// Unknown field numbers in binary wire must be rejected (not silently skipped).
+func TestBinaryRejectsUnknownFields_Genproto2(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// EmptyStruct has zero fields. Any field on wire is unknown.
+	// Send field 1 as varint: tag=(1<<3)|0=0x08, value=0x00.
+	bz := []byte{0x08, 0x00}
+	var dst EmptyStruct
+	err := dst.UnmarshalBinary2(cdc, bz, 0)
+	assertErrContains(t, err, "unknown field number")
+}
+
+func TestBinaryRejectsUnknownFields_Reflect(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// PrimitivesStruct has fields 1-20. Send field 99 as varint.
+	// tag=(99<<3)|0 = 792 → varint 0x98 0x06, value=0x00.
+	bz := []byte{0x98, 0x06, 0x00}
+	var dst PrimitivesStruct
+	err := cdc.UnmarshalReflect(bz, &dst)
+	assertErrContains(t, err, "unknown field number")
+}
+
+func TestBinaryRejectsUnknownFields_AfterKnown(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Marshal a valid PrimitivesStruct, then append an unknown field.
+	orig := PrimitivesStruct{Int8: 42}
+	bz, err := cdc.Marshal(&orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Append field 99 varint: tag=0x98 0x06, value=0x00.
+	bz = append(bz, 0x98, 0x06, 0x00)
+
+	// Genproto2 path.
+	var dst1 PrimitivesStruct
+	err = dst1.UnmarshalBinary2(cdc, bz, 0)
+	assertErrContains(t, err, "unknown field number")
+
+	// Reflect path.
+	var dst2 PrimitivesStruct
+	err = cdc.UnmarshalReflect(bz, &dst2)
+	assertErrContains(t, err, "unknown field number")
+}
+
 // AminoMarshalerStruct2.MarshalAmino → []ReprElem2 (unpacked slice repr).
 // Each element is wrapped as field 1 ByteLength. If a repeated entry has a
 // wrong typ3, the unpacked-slice-repr decoder should reject it.
