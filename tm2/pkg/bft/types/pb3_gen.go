@@ -790,7 +790,7 @@ func (goo *Data) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) err
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
 			}
-			var ev []uint8
+			var ev Tx
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
@@ -816,7 +816,7 @@ func (goo *Data) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) err
 					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
-				var ev []uint8
+				var ev Tx
 				v, n, err := amino.DecodeByteSlice(bz)
 				if err != nil {
 					return err

@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -22,8 +23,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -52,9 +57,14 @@ func execGen(_ context.Context, _ []string) error {
 		blockchain.Package,
 		hd.Package,
 		multisig.Package,
+		secp256k1.Package,
 		std.Package,
 		sdk.Package,
+		auth.Package,
 		bank.Package,
+		params.Package,
+		conn.Package,
+		gnoland.Package,
 		vm.Package,
 		gno.Package,
 		tests.Package,
