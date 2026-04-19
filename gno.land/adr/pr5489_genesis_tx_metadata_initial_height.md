@@ -17,7 +17,7 @@ from one chain. Instead, we use a `PastChainIDs` allowlist and a per-tx
 
 ### `GnoTxMetadata` extensions
 
-Six fields on `GnoTxMetadata` (populated by the hardfork export tool):
+Seven fields on `GnoTxMetadata` (populated by the hardfork export tool):
 
 - **`Timestamp`** (`int64`): Unix timestamp of the original block. When
   non-zero, overrides the block header time during replay. Zero means "use
@@ -31,7 +31,9 @@ Six fields on `GnoTxMetadata` (populated by the hardfork export tool):
 - **`Failed`** (`bool`): True if the tx had a non-zero return code on the
   source chain. Failed txs are included in the genesis for sequence tracking
   but are NOT re-executed during replay (skipped to prevent double spends or
-  unexpected behavior if VM fixes cause them to succeed).
+  unexpected behavior if VM fixes cause them to succeed). The replay emits
+  a non-empty `ResponseDeliverTx` with an error marker so downstream
+  consumers (indexers, explorers) don't mistake the skip for success.
 - **`SignerInfo`** (`[]SignerAccountInfo`): Per-signer account metadata for
   signature verification during replay. Each entry contains:
   - `Address`: the signer's address
@@ -41,25 +43,44 @@ Six fields on `GnoTxMetadata` (populated by the hardfork export tool):
   Before each historical tx is delivered during replay, the replay loop
   force-sets each signer's account number and sequence from `SignerInfo`.
   This ensures signatures verify correctly even if prior txs diverged
-  (e.g., due to VM fixes or tx deletions).
+  (e.g., due to VM fixes or tx deletions). If the account doesn't exist
+  yet, `auth.NewAccountWithNumber` creates it with the specified number,
+  bypassing the auto-increment counter.
 
   Sequences are determined during export via a single-pass algorithm with
   brute-force recovery: for each sender, a counter starts at 0 and
   increments per successful tx. When failed txs create ambiguity (ante-fail
   doesn't increment sequence, msg-fail does), the next successful tx's
   signature is verified against candidate sequences to resolve the gap.
+- **`GasUsed`** (`int64`): Gas the tx actually consumed on the source chain.
+  Used by `GasReplayMode="source"` (see below) and the replay report.
+- **`GasWanted`** (`int64`): Gas the tx requested on the source chain.
+  Informational; used by the replay report.
 
 ### `GnoGenesisState` extensions
 
-Two new fields on `GnoGenesisState`:
+Three new fields on `GnoGenesisState`:
 
 - **`PastChainIDs`** (`[]string`): Allowlist of chain IDs from which
   historical transactions originated. Only chain IDs present in this slice
   can override the context chain ID during replay. Empty = no overrides.
-- **`InitialHeight`** (`int64`): Informational field for tooling. Records the
-  block height the new chain should start from. The actual enforcement is at
-  the consensus layer via `GenesisDoc.InitialHeight`; this field is not read
-  by the app during InitChain.
+  Genesis-mode txs (no metadata or `BlockHeight == 0`) that were signed
+  with the source chain's chain ID verify against `PastChainIDs[0]` when
+  a hardfork is in progress.
+- **`InitialHeight`** (`int64`): The block height the new chain should
+  start from. Must match `GenesisDoc.InitialHeight` (authoritative at the
+  consensus layer); `loadAppState` cross-checks this via the
+  `RequestInitChain.InitialHeight` field and rejects the genesis on
+  divergence. Setting it is optional (zero = don't check); setting it is
+  the simpler and recommended path for genesis-generator tools.
+- **`GasReplayMode`** (`string`): Controls how historical txs are metered
+  during replay:
+  - `""` or `"strict"` (default) — new VM's gas meter is authoritative.
+    Historical txs may fail if gas requirements changed between chains.
+  - `"source"` — historical txs (`metadata.BlockHeight > 0`) bypass the
+    new VM's gas meter via `auth.SkipGasMeteringKey`, preserving source-
+    chain outcomes even when gas metering changed. Response records
+    `metadata.GasUsed` for audit.
 
 ### `GenesisDoc.InitialHeight` (tm2)
 
@@ -67,26 +88,81 @@ Added to `tm2/pkg/bft/types.GenesisDoc`. When > 1, the consensus `Handshaker`
 sets `state.LastBlockHeight = InitialHeight - 1` after `InitChain`, so the
 first produced block has height `InitialHeight`. Validated to be non-negative.
 
+### `RequestInitChain.InitialHeight` (tm2 ABCI)
+
+New field on `abci.RequestInitChain`, populated by the consensus handshaker
+from `GenesisDoc.InitialHeight`. Allows the app to cross-check against
+`GnoGenesisState.InitialHeight`.
+
+### `auth.SkipGasMeteringKey` (tm2)
+
+Context key that makes `auth.SetGasMeter` install an infinite gas meter
+even for non-genesis blocks. Used by `GasReplayMode="source"` to bypass
+gas metering for historical txs.
+
+### Replay report
+
+A structured per-tx outcome report is emitted via logger at the end of
+`InitChain`. Categories:
+- `ok` — tx replayed successfully, gas matched source (or no source gas
+  recorded)
+- `ok_gas_differs` — tx succeeded but gas consumption differs from source
+- `failed` — tx delivery failed during replay (detail logged per-failure)
+- `skipped_failed` — tx was marked `Failed` on source, correctly skipped
+
+Summary counts are emitted at info level; each failure also gets its own
+warn line with source height, gas delta, and error. Outcomes are exposed
+via `replayReport.Outcomes()` for tooling that wants to write a structured
+`replay-report.json`.
+
+### Hardfork tooling (`misc/hardfork/`)
+
+The `hardfork` CLI generates the new genesis from a source chain:
+- **`hardfork genesis`** — subcommand that reads the source (RPC URL,
+  local data dir, or exported tarball), runs `bruteForceSignerSequence`
+  to recover each signer's pre-tx sequence, and emits the new genesis
+  populated with `PastChainIDs`, `InitialHeight`, and per-tx metadata.
+- **`--patch-realm PKGPATH=SRCDIR`** (repeatable) — rewrites the
+  genesis-mode `addpkg` tx for `PKGPATH` in-place with files from
+  `SRCDIR` before writing. Source genesis on disk stays untouched — the
+  patch lives only in the in-memory `GnoGenesisState` used for output.
+  Motivation: you cannot re-`addpkg` post-deploy, so patching the original
+  deployment tx is the only way to land a realm code change as part of a
+  fork.
+- **`hardfork test`** — subcommand for local genesis replay smoke-test.
+
 ### How genesis replay works
 
-1. Genesis txs **without** metadata (or `BlockHeight = 0`) → current genesis
+1. `InitChain` → `loadAppState` validates `GnoGenesisState.InitialHeight`
+   matches `RequestInitChain.InitialHeight` (if the app-level field is set)
+   and that `GasReplayMode` is a recognised value.
+2. Genesis txs **without** metadata (or `BlockHeight = 0`) → current genesis
    mode: package deploys, infinite gas, auto-account creation, no sig
-   verification.
-2. Genesis txs **with** `metadata.BlockHeight > 0` → normal mode: full sig
+   verification. Sig verification of genesis-mode txs signed with the
+   source chain's chain ID is done against `PastChainIDs[0]` when a
+   hardfork is in progress.
+3. Genesis txs **with** `metadata.BlockHeight > 0` → normal mode: full sig
    verification, real account numbers and sequences.
-3. Chain ID override applies only when all three conditions hold:
+4. Chain ID override applies only when all three conditions hold:
    `BlockHeight > 0` AND `metadata.ChainID != ""` AND
    `metadata.ChainID ∈ PastChainIDs`.
-4. Timestamp override applies when `metadata.Timestamp != 0`.
-5. If `SignerInfo` is present, each signer's account number and pre-tx
+5. Timestamp override applies when `metadata.Timestamp != 0`.
+6. If `SignerInfo` is present, each signer's account number and pre-tx
    sequence are force-set before the tx is delivered. If the account doesn't
    exist, it is created with the specified account number (via
    `NewAccountWithNumber`, which bypasses the auto-increment counter).
-6. If `Failed` is true, the tx is skipped (not re-executed). The force-set
-   from step 5 ensures the correct sequence state for the next tx. Failed
+7. If `GasReplayMode == "source"` and `BlockHeight > 0`, the ctx carries
+   `auth.SkipGasMeteringKey=true`, so `auth.SetGasMeter` installs an
+   infinite gas meter for this tx. Otherwise the new VM's gas meter applies.
+8. If `Failed` is true, the tx is skipped (not re-executed) and the
+   `ResponseDeliverTx` carries an explicit error marker. The force-set
+   from step 6 ensures the correct sequence state for the next tx. Failed
    txs are included in the genesis for sequence tracking and auditability.
-7. After `InitChain`, the consensus layer reads `GenesisDoc.InitialHeight` and
-   advances `state.LastBlockHeight` so blocks start at the correct height.
+9. At the end of the loop, the replay report is emitted via logger with
+   summary counts and per-failure detail.
+10. After `InitChain`, the consensus layer reads `GenesisDoc.InitialHeight`
+    and advances `state.LastBlockHeight` so blocks start at the correct
+    height.
 
 ### Key properties
 
@@ -144,47 +220,76 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
    skip when commit is also nil/empty (legitimate genesis), and explicitly
    reject zero `LastBlockID` with non-empty commit.
 
+4. **`BaseApp.validateHeight` panicked with InitialHeight > 1** (PR #5540).
+   Store version counter (auto-increments from 0) lags block height. First
+   block at 101 while store at version 0 → `expected 2, got 102`. Fixed:
+   when store version lags, accept the jump as long as height is monotonic.
+
+5. **`BaseApp.Info()` returned store version as `LastBlockHeight`** (PR #5540).
+   On restart, handshaker saw `appHeight=1` but `storeHeight=102` and tried
+   to replay from height 2. Fixed: prefer persisted header height when it
+   records a higher value.
+
+6. **`BaseApp.Info()` panicked on unloaded multistore.** Fixed: guard.
+
 ### Hardfork tooling (fixed)
 
-4. **`applyOverlay` silent no-op.** The overlay mechanism listed scripts but
+7. **`applyOverlay` silent no-op.** The overlay mechanism listed scripts but
    never executed them, returning success. Fixed: returns an error when
    scripts are found but execution is not implemented.
 
-5. **JSONL serialization used `encoding/json` instead of amino.** Interface
+8. **JSONL serialization used `encoding/json` instead of amino.** Interface
    type info (`std.Msg`) was lost, breaking round-trip. Fixed: both writer
    (`writeTxsJSONL`) and reader (`dirSource.FetchTxs`) now use amino.
 
-6. **`verifyGenesisFile` failure returned success.** Fixed: verification
+9. **`verifyGenesisFile` failure returned success.** Fixed: verification
    failure now returns an error and aborts the tool (use `--no-verify` to
    opt out).
 
-7. **Zero unit tests for `bruteForceSignerSequence`.** Fixed: added 10
-   table-driven tests covering boundaries, error cases, multiple key types,
-   and tamper detection.
+10. **Zero unit tests for `bruteForceSignerSequence`.** Fixed: added 10
+    table-driven tests covering boundaries, error cases, multiple key types,
+    and tamper detection.
 
 ### App-level fixes
 
-8. **Failed-tx `ResponseDeliverTx` was empty (looked like success).**
-   Fixed: skipped failed txs now carry an explicit error marker so
-   indexers and explorers can distinguish them from successful txs.
+11. **Failed-tx `ResponseDeliverTx` was empty (looked like success).**
+    Fixed: skipped failed txs now carry an explicit error marker so
+    indexers and explorers can distinguish them from successful txs.
 
-9. **`GnoGenesisState.InitialHeight` wasn't cross-checked against
-   `GenesisDoc.InitialHeight`.** Fixed: added `InitialHeight` to
-   `abci.RequestInitChain` and validate in `loadAppState`.
+12. **`GnoGenesisState.InitialHeight` wasn't cross-checked against
+    `GenesisDoc.InitialHeight`.** Fixed: added `InitialHeight` to
+    `abci.RequestInitChain` and validate in `loadAppState`.
 
-### Known unfixed (architectural)
+13. **No gas-change tolerance for historical txs.** If VM gas metering
+    changed between chains, replayed txs may exhaust gas and fail even
+    though they succeeded on the source chain. Fixed: new `GasReplayMode`
+    field on `GnoGenesisState` with `"source"` option that bypasses the
+    new VM's gas meter for historical txs via `auth.SkipGasMeteringKey`.
 
-10. **RPC source has no retry/resume.** A single transient error aborts the
+14. **No visibility into replay outcomes.** Fixed: structured replay
+    report with per-tx categorization emitted via logger at end of
+    `InitChain`.
+
+### Docs infrastructure (fixed — side issue unblocking CI)
+
+15. **Docs linter flaked on transient remote-link failures.** Added
+    `staging.gno.land` and `archive.org` to the skip list; added retry
+    with backoff and 15s HTTP timeout. Keeps CI green when external hosts
+    are temporarily unreachable.
+
+### Known unfixed (follow-up PRs)
+
+16. **RPC source has no retry/resume.** A single transient error aborts the
     entire multi-block fetch. Needs exponential backoff and checkpointing.
 
-11. **All txs accumulated in memory.** The full tx history is held in a single
-    slice. Will OOM on large chains. Needs streaming to disk.
+17. **All txs accumulated in memory.** The full tx history is held in a
+    single slice. Will OOM on large chains. Needs streaming to disk.
 
-12. **`NewAccountWithNumber` has no duplicate check.** See PR comment for
+18. **`NewAccountWithNumber` has no duplicate check.** See PR comment for
     discussion; preferred approach is a pre-flight validation pass in
     `loadAppState`.
 
-13. **`queryAccountAtHeight` silent nil.** All error paths return nil
+19. **`queryAccountAtHeight` silent nil.** All error paths return nil
     with no indication; flaky RPC → wrong sequence metadata.
 
 ## Open items
@@ -193,16 +298,13 @@ first produced block has height `InitialHeight`. Validated to be non-negative.
   records each signer's account number and pre-tx sequence. During replay,
   account state is force-set before each tx. If an account doesn't exist,
   `NewAccountWithNumber` creates it with the correct number (bypassing the
-  auto-increment counter). Tested end-to-end against gnoland1 (2637 txs,
-  0 replay failures).
+  auto-increment counter).
+- ~~Replay tolerance for gas-requirement changes~~: **Resolved** via
+  `GasReplayMode="source"` (item 13 above).
+- ~~Replay report~~: **Resolved** via the structured logger output at end
+  of `InitChain` (item 14 above).
 - End-to-end test with a real chain halt → export → genesis assembly →
-  new chain start. (Partially done: export and in-memory replay validated
-  against gnoland1. Full multi-validator halt test remains.)
-- **Replay tolerance for gas-requirement changes.** If the VM changes gas
-  metering between chains, replayed txs may consume different gas than on
-  the source chain. Need a flag / mode that accepts "tx passes even though
-  gas differs" — e.g. by reusing the source chain's recorded gas instead of
-  recomputing, or by allowing up to max(old, new).
-- **Replay report.** Categorised summary of txs that used to work on the
-  source chain but no longer do (and why: gas change, VM fix, missing
-  dependency, etc.) so operators can review and selectively ignore.
+  new chain start: **Validated** via the hf-glue testbed
+  (https://github.com/gnolang/gno/pull/5486) against gnoland1 halt@704052
+  with 0 / 2715 replay failures. Full multi-validator halt test still a
+  follow-up item.
