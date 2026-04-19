@@ -777,8 +777,9 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	}
 	pbm2, ok := crv.Addr().Interface().(PBMessager2)
 	if !ok || !HasNativeGenproto2(cinfo.Type) {
-		// Fallback: use reflect-based decoding.
-		return cdc.UnmarshalAny2(typeURL, value, ptr)
+		// Fallback: use reflect-based decoding. Propagate anyDepth so the
+		// depth guard is not reset when switching paths mid-recursion.
+		return cdc.unmarshalAny2Depth(typeURL, value, ptr, anyDepth)
 	}
 
 	// Check assignability.
@@ -1215,6 +1216,14 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 
 // like UnmarshalAny() but with typeURL and value destructured.
 func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err error) {
+	return cdc.unmarshalAny2Depth(typeURL, value, ptr, 0)
+}
+
+// unmarshalAny2Depth is the depth-aware variant of UnmarshalAny2. The
+// anyDepth parameter is propagated so that a genproto2 → reflect fallback
+// (e.g. from unmarshalAnyBinary2Depth) does not reset the Any nesting
+// counter to zero, which would bypass the maxAnyDepth guard.
+func (cdc *Codec) unmarshalAny2Depth(typeURL string, value []byte, ptr any, anyDepth int) (err error) {
 	cdc.doAutoseal()
 
 	// Empty typeURL means nil interface (e.g. from proto3 zero-value Any).
@@ -1227,7 +1236,7 @@ func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err erro
 		return ErrNoPointer
 	}
 	rv = rv.Elem()
-	_, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, FieldOptions{}, 0)
+	_, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, FieldOptions{}, anyDepth)
 	return
 }
 
