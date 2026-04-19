@@ -561,7 +561,8 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return nil, err
 	}
 
-	// Encode as interface.
+	// Encode as interface (reflect path).
+	atomic.AddInt64(&cdc.stats.ReflectEncodes, 1)
 	buf := poolBytesBuffer.Get()
 	defer poolBytesBuffer.Put(buf)
 	err = cdc.encodeReflectBinaryInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{}, true)
@@ -1098,6 +1099,7 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 
 	// Try genproto2 fast path.
 	if ok, err2 := cdc.unmarshalAnyBinary2(bz, rv); ok {
+		atomic.AddInt64(&cdc.stats.Genproto2Decodes, 1)
 		return err2
 	}
 
@@ -1107,6 +1109,7 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 		return err
 	}
 
+	atomic.AddInt64(&cdc.stats.ReflectDecodes, 1)
 	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true, 0)
 	return
 }
