@@ -537,18 +537,20 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return nil, errors.New("MarshalAny() requires non-nil argument")
 	}
 
-	// Try genproto2 fast path.
-	if pbm2, ok := o.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
-		return cdc.marshalAnyBinary2(pbm2)
-	}
-
-	// Dereference value if pointer.
+	// Dereference value if pointer (before interface checks so *T and
+	// **T both resolve to T, which satisfies PBMarshaler2 via value receivers).
 	rv, _, _ := maybeDerefValue(reflect.ValueOf(o))
 	rt := rv.Type()
 
 	// rv cannot be an interface.
 	if rv.Kind() == reflect.Interface {
 		return nil, errors.New("MarshalAny() requires registered concrete type")
+	}
+
+	// Try genproto2 fast path on the dereffed value.
+	if pbm2, ok := rv.Interface().(PBMarshaler2); ok && HasNativeGenproto2(rt) {
+		atomic.AddInt64(&cdc.stats.Genproto2Encodes, 1)
+		return cdc.marshalAnyBinary2(pbm2)
 	}
 
 	// Make a temporary interface var, to contain the value of o.
@@ -573,7 +575,7 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 
 // marshalAnyBinary2 encodes a PBMessager2 value as google.protobuf.Any
 // using genproto2 for the inner value.
-func (cdc *Codec) marshalAnyBinary2(o PBMessager2) ([]byte, error) {
+func (cdc *Codec) marshalAnyBinary2(o PBMarshaler2) ([]byte, error) {
 	// Get concrete type for TypeURL.
 	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
