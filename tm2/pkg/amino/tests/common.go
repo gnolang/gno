@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 )
 
 // ----------------------------------------
@@ -413,6 +415,32 @@ type ContainerWithAminoLists struct {
 	TopAddrs [3]SimpleAddress // array, string repr
 }
 
+// CrossPkgPointerSlice: []*AminoMarshaler where the element type lives in
+// a different package and has a packed (non-ByteLength) repr. Without the
+// gen_marshal.go:442 fix, generated code emits `new(SmallCount)` (bare name)
+// which fails to compile in the tests package.
+
+type CrossPkgPointerSlice struct {
+	Counts []*crosspkg.SmallCount
+}
+
+// CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
+// in a different package. Without the gen_unmarshal.go:72 fix, generated
+// code declares `var repr Inner` (bare name) which fails to compile.
+
+type CrossPkgBoxedRepr struct {
+	Val int64
+}
+
+func (c CrossPkgBoxedRepr) MarshalAmino() (crosspkg.Inner, error) {
+	return crosspkg.Inner{N: c.Val}, nil
+}
+
+func (c *CrossPkgBoxedRepr) UnmarshalAmino(r crosspkg.Inner) error {
+	c.Val = r.N
+	return nil
+}
+
 // ----------------------------------------
 
 type ComplexSt struct {
@@ -501,6 +529,12 @@ var StructTypes = []any{
 	// AminoMarshaler list element types (slice/array of AminoMarshaler with
 	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
 	(*ContainerWithAminoLists)(nil),
+	// Cross-package AminoMarshaler: verifies generated code uses qualified
+	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
+	// excluded from property fuzz because random nil elements in a
+	// pointer-slice without nil_elements tag yield lossy null-vs-zero JSON
+	// roundtrips; it is covered by an explicit TestCrossPkgPointerSliceRoundtrip.
+	(*CrossPkgBoxedRepr)(nil),
 	// Interface-heavy benchmark type.
 	(*InterfaceHeavy)(nil),
 }

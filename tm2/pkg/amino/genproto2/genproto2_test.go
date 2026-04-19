@@ -234,3 +234,59 @@ func TestGenerateProtobuf3_UsesNamedTypes(t *testing.T) {
 		t.Fatalf("generated source does not parse: %v", err)
 	}
 }
+
+// TestGenerateProtobuf3_CrossPkgQualifiedNames verifies that generated code
+// uses package-qualified names for cross-package types in the specific code
+// paths that previously used .Name() (which would drop the package prefix).
+//
+// Canary for two bugs:
+//   - gen_marshal.go:442 / writeListEncode `new(...)` for pointer elements
+//   - gen_unmarshal.go:72 writeReprUnmarshal `var repr ...` for struct reprs
+//
+// Both must emit e.g. `crosspkg.SmallCount` / `crosspkg.Inner`, not bare
+// `SmallCount` / `Inner`.
+func TestGenerateProtobuf3_CrossPkgQualifiedNames(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// Fix for gen_unmarshal.go writeReprUnmarshal: struct repr declaration
+	// must use the qualified name when cross-package.
+	if !strings.Contains(src, "var repr crosspkg.Inner") {
+		t.Errorf("expected `var repr crosspkg.Inner` (cross-package struct repr) in generated source")
+	}
+	if strings.Contains(src, "var repr Inner\n") {
+		t.Errorf("REGRESSION: generated source contains bare `var repr Inner` — fix in gen_unmarshal.go:72 was likely removed")
+	}
+
+	// Fix for gen_marshal.go `var de ...` / `new(...)` patterns in pointer-slice
+	// element init: must use the qualified name. writeListEncode emits
+	// `var de crosspkg.SmallCount` for the packed-list pointer deref.
+	if !strings.Contains(src, "var de crosspkg.SmallCount") {
+		t.Errorf("expected `var de crosspkg.SmallCount` in generated source")
+	}
+	if strings.Contains(src, "var de SmallCount\n") {
+		t.Errorf("REGRESSION: generated source contains bare `var de SmallCount` — goTypeName fix likely removed")
+	}
+
+	// For unpacked-list decode (byte-repr path) with pointer elements, the
+	// generator declares `var elem <ValueType>` and appends &elem. Must use
+	// the qualified value type name.
+	if !strings.Contains(src, "var elem crosspkg.SmallCount") {
+		t.Errorf("expected `var elem crosspkg.SmallCount` in generated source")
+	}
+
+	// Syntactic validity.
+	fset := token.NewFileSet()
+	if _, err := parser.ParseFile(fset, "pb3_gen.go", src, parser.AllErrors); err != nil {
+		t.Fatalf("generated source does not parse: %v", err)
+	}
+}

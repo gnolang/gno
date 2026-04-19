@@ -69,7 +69,7 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 	if rinfo.IsStructOrUnpacked(fopts) {
 		switch rt.Kind() {
 		case reflect.Struct:
-			sb.WriteString(fmt.Sprintf("\tvar repr %s\n", rt.Name()))
+			sb.WriteString(fmt.Sprintf("\tvar repr %s\n", ctx.goTypeName(rt)))
 			if rinfo.Registered {
 				sb.WriteString("\tif err := repr.UnmarshalBinary2(cdc, bz, anyDepth); err != nil {\n\t\treturn err\n\t}\n")
 			} else {
@@ -103,12 +103,23 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 			// Each element is a raw byte.
 			sb.WriteString("\t\tfor _, b := range fbz {\n")
 			if einfo.IsAminoMarshaler {
-				sb.WriteString(fmt.Sprintf("\t\t\tvar elem %s\n", ctx.goTypeName(ert)))
+				// For pointer element type, declare elem as the value type to
+				// give UnmarshalAmino a valid receiver, then append &elem.
+				elemType := ert
+				if ert.Kind() == reflect.Ptr {
+					elemType = ert.Elem()
+				}
+				sb.WriteString(fmt.Sprintf("\t\t\tvar elem %s\n", ctx.goTypeName(elemType)))
 				sb.WriteString("\t\t\tif err := elem.UnmarshalAmino(b); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
+				if ert.Kind() == reflect.Ptr {
+					sb.WriteString("\t\t\trepr = append(repr, &elem)\n")
+				} else {
+					sb.WriteString("\t\t\trepr = append(repr, elem)\n")
+				}
 			} else {
 				sb.WriteString(fmt.Sprintf("\t\t\telem := %s(b)\n", ctx.goTypeName(ert)))
+				sb.WriteString("\t\t\trepr = append(repr, elem)\n")
 			}
-			sb.WriteString("\t\t\trepr = append(repr, elem)\n")
 			sb.WriteString("\t\t}\n")
 		} else {
 			sb.WriteString("\t\tfor len(fbz) > 0 {\n")
@@ -116,13 +127,23 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 				reprType := einfo.ReprType.Type
 				sb.WriteString(fmt.Sprintf("\t\t\tvar rv %s\n", ctx.goTypeName(reprType)))
 				ctx.writePrimitiveDecodeFrom(sb, "rv", einfo.ReprType, fopts, "\t\t\t", "fbz")
-				sb.WriteString(fmt.Sprintf("\t\t\tvar elem %s\n", ctx.goTypeName(ert)))
+				// Pointer element: declare elem as value type for UnmarshalAmino.
+				elemType := ert
+				if ert.Kind() == reflect.Ptr {
+					elemType = ert.Elem()
+				}
+				sb.WriteString(fmt.Sprintf("\t\t\tvar elem %s\n", ctx.goTypeName(elemType)))
 				sb.WriteString("\t\t\tif err := elem.UnmarshalAmino(rv); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n")
+				if ert.Kind() == reflect.Ptr {
+					sb.WriteString("\t\t\trepr = append(repr, &elem)\n")
+				} else {
+					sb.WriteString("\t\t\trepr = append(repr, elem)\n")
+				}
 			} else {
 				sb.WriteString(fmt.Sprintf("\t\t\tvar elem %s\n", ctx.goTypeName(ert)))
 				ctx.writePrimitiveDecodeFrom(sb, "elem", einfo, fopts, "\t\t\t", "fbz")
+				sb.WriteString("\t\t\trepr = append(repr, elem)\n")
 			}
-			sb.WriteString("\t\t\trepr = append(repr, elem)\n")
 			sb.WriteString("\t\t}\n")
 		}
 		sb.WriteString("\t}\n")
@@ -393,7 +414,14 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 					sb.WriteString(fmt.Sprintf("%s\tif idx >= %d {\n%s\t\tbreak\n%s\t}\n", indent, arrayLen, indent, indent))
 				}
 				if einfo.IsAminoMarshaler {
-					sb.WriteString(fmt.Sprintf("%s\tvar elem %s\n", indent, ctx.goTypeName(ert)))
+					// For pointer elements, declare elem as the value type so
+					// UnmarshalAmino has a valid (non-nil) receiver; later we
+					// append &elem to the pointer-slice accessor.
+					elemType := ert
+					if ert.Kind() == reflect.Ptr {
+						elemType = ert.Elem()
+					}
+					sb.WriteString(fmt.Sprintf("%s\tvar elem %s\n", indent, ctx.goTypeName(elemType)))
 					sb.WriteString(fmt.Sprintf("%s\tif err := elem.UnmarshalAmino(b); err != nil {\n%s\t\treturn err\n%s\t}\n", indent, indent, indent))
 				} else if ert.Kind() == reflect.Ptr {
 					sb.WriteString(fmt.Sprintf("%s\tev := %s(b)\n", indent, ctx.goTypeName(ert.Elem())))
@@ -401,10 +429,19 @@ func (ctx *P3Context2) writeFieldUnmarshal(sb *strings.Builder, accessor string,
 					sb.WriteString(fmt.Sprintf("%s\tev := %s(b)\n", indent, ctx.goTypeName(ert)))
 				}
 				if einfo.IsAminoMarshaler {
-					if isArray {
-						sb.WriteString(fmt.Sprintf("%s\t%s[idx] = elem\n%s\tidx++\n", indent, accessor, indent))
+					if ert.Kind() == reflect.Ptr {
+						// Slice is []*T; store &elem.
+						if isArray {
+							sb.WriteString(fmt.Sprintf("%s\t%s[idx] = &elem\n%s\tidx++\n", indent, accessor, indent))
+						} else {
+							sb.WriteString(fmt.Sprintf("%s\t%s = append(%s, &elem)\n", indent, accessor, accessor))
+						}
 					} else {
-						sb.WriteString(fmt.Sprintf("%s\t%s = append(%s, elem)\n", indent, accessor, accessor))
+						if isArray {
+							sb.WriteString(fmt.Sprintf("%s\t%s[idx] = elem\n%s\tidx++\n", indent, accessor, indent))
+						} else {
+							sb.WriteString(fmt.Sprintf("%s\t%s = append(%s, elem)\n", indent, accessor, accessor))
+						}
 					}
 				} else if ert.Kind() == reflect.Ptr {
 					if isArray {

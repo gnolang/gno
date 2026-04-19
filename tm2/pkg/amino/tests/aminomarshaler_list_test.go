@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 )
 
 // These tests exercise genproto2 code-gen fixes for AminoMarshaler list
@@ -133,6 +134,56 @@ func TestAminoMarshalerAminoGenproto2BytesMatch(t *testing.T) {
 	}
 	if !bytes.Equal(bz1, bz2) {
 		t.Errorf("reflect and genproto2 bytes differ:\n  reflect:   %x\n  genproto2: %x", bz1, bz2)
+	}
+}
+
+// TestCrossPkgBoxedReprRoundtrip exercises gen_unmarshal.go's writeReprUnmarshal
+// with a cross-package struct repr. Before the fix, the generator emitted
+// `var repr Inner` (bare name) which fails to compile since Inner lives in
+// a different package.
+func TestCrossPkgBoxedReprRoundtrip(t *testing.T) {
+	cdc := newAminoListsCodec()
+	orig := &CrossPkgBoxedRepr{Val: 12345}
+
+	bz, err := cdc.MarshalBinary2(orig)
+	if err != nil {
+		t.Fatalf("MarshalBinary2: %v", err)
+	}
+	decoded := &CrossPkgBoxedRepr{}
+	if err := decoded.UnmarshalBinary2(cdc, bz, 0); err != nil {
+		t.Fatalf("UnmarshalBinary2: %v", err)
+	}
+	if decoded.Val != orig.Val {
+		t.Errorf("roundtrip mismatch: got %d, want %d", decoded.Val, orig.Val)
+	}
+}
+
+// TestCrossPkgPointerSliceRoundtrip exercises the pointer-slice AminoMarshaler
+// path in gen_marshal.go writeListEncode with cross-package element type.
+// The fix at line 374 (and the related line 442 for UnpackedList fields)
+// requires ctx.goTypeName(ert.Elem()) so that the generated `new(...)`
+// uses the qualified type name (e.g. crosspkg.SmallCount).
+func TestCrossPkgPointerSliceRoundtrip(t *testing.T) {
+	cdc := newAminoListsCodec()
+	c1 := crosspkg.SmallCount(1)
+	c2 := crosspkg.SmallCount(255)
+	orig := &CrossPkgPointerSlice{Counts: []*crosspkg.SmallCount{&c1, &c2}}
+
+	bz, err := cdc.MarshalBinary2(orig)
+	if err != nil {
+		t.Fatalf("MarshalBinary2: %v", err)
+	}
+	decoded := &CrossPkgPointerSlice{}
+	if err := decoded.UnmarshalBinary2(cdc, bz, 0); err != nil {
+		t.Fatalf("UnmarshalBinary2: %v", err)
+	}
+	if len(decoded.Counts) != len(orig.Counts) {
+		t.Fatalf("len mismatch: got %d, want %d", len(decoded.Counts), len(orig.Counts))
+	}
+	for i := range orig.Counts {
+		if *decoded.Counts[i] != *orig.Counts[i] {
+			t.Errorf("element %d: got %d, want %d", i, *decoded.Counts[i], *orig.Counts[i])
+		}
 	}
 }
 

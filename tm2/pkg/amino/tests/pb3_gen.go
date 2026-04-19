@@ -4,6 +4,7 @@ package tests
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 	"errors"
 	"fmt"
 	"reflect"
@@ -91,6 +92,8 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*HostRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CounterRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ContainerWithAminoLists)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgPointerSlice)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgBoxedRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
 }
 
@@ -15577,6 +15580,113 @@ func (goo *ContainerWithAminoLists) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		}
 	}
 	return nil
+}
+
+func (goo CrossPkgPointerSlice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if len(goo.Counts) != 0 {
+		{
+			before := offset
+			for i := len(goo.Counts) - 1; i >= 0; i-- {
+				e := goo.Counts[i]
+				var de crosspkg.SmallCount
+				if e != nil {
+					de = *e
+				}
+				er, err := de.MarshalAmino()
+				if err != nil {
+					return offset, err
+				}
+				offset = amino.PrependByte(buf, offset, uint8(er))
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
+	}
+	return offset, err
+}
+
+func (goo CrossPkgPointerSlice) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if len(goo.Counts) != 0 {
+		{
+			var cs int
+			cs = len(goo.Counts)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	return s, nil
+}
+
+func (goo *CrossPkgPointerSlice) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			for _, b := range fbz {
+				var elem crosspkg.SmallCount
+				if err := elem.UnmarshalAmino(b); err != nil {
+					return err
+				}
+				goo.Counts = append(goo.Counts, &elem)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for CrossPkgPointerSlice", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo CrossPkgBoxedRepr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
+	if repr.N != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(repr.N))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+	}
+	return offset, err
+}
+
+func (goo CrossPkgBoxedRepr) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
+	if repr.N != 0 {
+		s += 1 + amino.VarintSize(int64(repr.N))
+	}
+	return s, nil
+}
+
+func (goo *CrossPkgBoxedRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var repr crosspkg.Inner
+	if err := cdc.Unmarshal(bz, &repr); err != nil {
+		return err
+	}
+	return goo.UnmarshalAmino(repr)
 }
 
 func (goo InterfaceHeavy) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {

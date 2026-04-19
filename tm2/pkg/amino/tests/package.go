@@ -101,6 +101,9 @@ var Package = pkg.NewPackage(
 	HostRepr{},
 	CounterRepr(0),
 	ContainerWithAminoLists{},
+	// Cross-package AminoMarshaler regression types.
+	CrossPkgPointerSlice{},
+	CrossPkgBoxedRepr{},
 	// Interface-heavy benchmark type.
 	InterfaceHeavy{},
 )

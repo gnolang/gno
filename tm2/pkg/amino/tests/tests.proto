@@ -566,6 +566,14 @@ message ContainerWithAminoLists {
 	repeated string top_addrs = 2 [json_name = "TopAddrs"];
 }
 
+message CrossPkgPointerSlice {
+	bytes counts = 1 [json_name = "Counts"];
+}
+
+message CrossPkgBoxedRepr {
+	sint64 n = 1 [json_name = "N"];
+}
+
 message InterfaceHeavy {
 	google.protobuf.Any field1 = 1 [json_name = "Field1"];
 	google.protobuf.Any field2 = 2 [json_name = "Field2"];

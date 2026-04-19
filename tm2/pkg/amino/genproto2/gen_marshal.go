@@ -439,7 +439,7 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 		sb.WriteString(fmt.Sprintf("\t\t\telem := %s[i]\n", accessor))
 		if ert.Kind() == reflect.Ptr {
 			sb.WriteString("\t\t\tif elem == nil {\n")
-			sb.WriteString("\t\t\t\telem = new(" + ert.Elem().Name() + ")\n")
+			sb.WriteString("\t\t\t\telem = new(" + ctx.goTypeName(ert.Elem()) + ")\n")
 			sb.WriteString("\t\t\t}\n")
 			ctx.writePrimitiveEncode(sb, "(*elem)", einfo, fopts, "\t\t\t")
 		} else {
