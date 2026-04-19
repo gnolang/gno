@@ -48,7 +48,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_Varint(t *testing.T) {
 	bz := []byte{tag(1, typ3ByteLength), 0x01, 0x42}
 
 	var s PrimitivesStruct
-	err := s.UnmarshalBinary2(cdc, bz)
+	err := s.UnmarshalBinary2(cdc, bz, 0)
 	assertErrContains(t, err, "field 1: expected typ3")
 }
 
@@ -64,7 +64,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_ByteLength(t *testing.T) {
 	bz := []byte{0x80, 0x01, 0x00}
 
 	var s PrimitivesStruct
-	err := s.UnmarshalBinary2(cdc, bz)
+	err := s.UnmarshalBinary2(cdc, bz, 0)
 	assertErrContains(t, err, "field 16: expected typ3")
 }
 
@@ -80,7 +80,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_Time(t *testing.T) {
 	bz := []byte{0x91, 0x01, 0, 0, 0, 0, 0, 0, 0, 0}
 
 	var s PrimitivesStruct
-	err := s.UnmarshalBinary2(cdc, bz)
+	err := s.UnmarshalBinary2(cdc, bz, 0)
 	assertErrContains(t, err, "field 18: expected typ3")
 }
 
@@ -110,7 +110,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_UnpackedListContinuation(t *testing.T
 	// looking up the field num dynamically: scan for a sequence that could
 	// be that tag. The deterministic way: roundtrip to confirm baseline.
 	var orig2 GnoVMBlock
-	if err := orig2.UnmarshalBinary2(cdc, bz); err != nil {
+	if err := orig2.UnmarshalBinary2(cdc, bz, 0); err != nil {
 		t.Fatalf("baseline roundtrip failed: %v", err)
 	}
 
@@ -149,7 +149,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_UnpackedListContinuation(t *testing.T
 	}
 
 	var corrupted GnoVMBlock
-	err = corrupted.UnmarshalBinary2(cdc, bz)
+	err = corrupted.UnmarshalBinary2(cdc, bz, 0)
 	if err == nil {
 		t.Fatalf("expected error on corrupted typ3, got nil")
 	}
@@ -180,7 +180,7 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_AminoMarshalerRepr(t *testing.T) {
 	bz := []byte{0x0A, 0x01, 0x00}
 
 	var s AminoMarshalerStruct3
-	err := s.UnmarshalBinary2(cdc, bz)
+	err := s.UnmarshalBinary2(cdc, bz, 0)
 	assertErrContains(t, err, "repr field 1")
 }
 
@@ -199,7 +199,7 @@ func TestUnmarshalAnyBinary2_RejectsTrailingBytes(t *testing.T) {
 	// Trailing bytes past field 2: tag(3, ByteLength) | length=0
 	bz = append(bz, 0x1a, 0x00)
 
-	err := cdc.UnmarshalAnyBinary2(bz, new(Interface1))
+	err := cdc.UnmarshalAnyBinary2(bz, new(Interface1), 0)
 	assertErrContains(t, err, "trailing bytes")
 }
 
@@ -231,7 +231,7 @@ func TestDecodeFieldNumberAndTyp3_RejectsField0(t *testing.T) {
 
 	// Route through a top-level unmarshal: any struct should reject.
 	var s PrimitivesStruct
-	err := s.UnmarshalBinary2(cdc, bz)
+	err := s.UnmarshalBinary2(cdc, bz, 0)
 	assertErrContains(t, err, "invalid field num 0")
 }
 
@@ -270,7 +270,7 @@ func TestUnmarshalBinary2_RejectsImplicitStructTrailingBytes(t *testing.T) {
 	// This targets the first nested-list field (Int8SlSl = field 1).
 	malformed := []byte{0x0a, 0x06, 0x0a, 0x00, 0x12, 0x02, 0x00, 0x00}
 	var bad SlicesSlicesStruct
-	err = bad.UnmarshalBinary2(cdc, malformed)
+	err = bad.UnmarshalBinary2(cdc, malformed, 0)
 	assertErrContains(t, err, "trailing bytes after field 1")
 	_ = bz // referenced to avoid unused-var warning if the assertion is satisfied before
 }
@@ -482,7 +482,7 @@ func TestUnmarshalAnyBinary2_AcceptsTypeURLOnly(t *testing.T) {
 	bz = append(bz, []byte(typeURL)...)
 
 	var iface Interface1
-	err := cdc.UnmarshalAnyBinary2(bz, &iface)
+	err := cdc.UnmarshalAnyBinary2(bz, &iface, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -543,7 +543,7 @@ func TestGenproto2DepthLimitRejected(t *testing.T) {
 	}
 
 	var dst ConcreteRecursive
-	err = dst.UnmarshalBinary2(cdc, bz)
+	err = dst.UnmarshalBinary2(cdc, bz, 0)
 	if err == nil {
 		t.Fatal("expected error on deeply nested genproto2 Any")
 	}
@@ -565,6 +565,6 @@ func TestUnmarshalBinary2_RejectsWrongTyp3_UnpackedSliceRepr(t *testing.T) {
 	bz := []byte{0x0A, 0x00, 0x08, 0x00}
 
 	var s AminoMarshalerStruct2
-	err := s.UnmarshalBinary2(cdc, bz)
+	err := s.UnmarshalBinary2(cdc, bz, 0)
 	assertErrContains(t, err, "unpacked slice repr")
 }

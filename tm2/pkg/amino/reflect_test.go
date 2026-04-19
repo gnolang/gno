@@ -282,7 +282,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			// Unmarshal with genproto2 and re-marshal to check roundtrip.
 			rv5 := reflect.New(rt)
 			ptr5 := rv5.Interface()
-			err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz)
+			err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz, 0)
 			require.NoError(t, err,
 				"UnmarshalBinary2 failed: %v\nbz: %X\n", err, bz)
 			bz2rt, err := cdc.MarshalBinary2(ptr5.(amino.PBMessager2))
@@ -440,7 +440,7 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyD
 
 		rv5 := reflect.New(rt)
 		ptr5 := rv5.Interface()
-		err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz)
+		err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz, 0)
 		require.NoError(t, err, "UnmarshalBinary2 failed: %v\nbz: %X\n", err, bz)
 		bz2rt, err := cdc.MarshalBinary2(ptr5.(amino.PBMessager2))
 		require.NoError(t, err)

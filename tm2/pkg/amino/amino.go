@@ -698,16 +698,10 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 // genproto2. For use within generated UnmarshalBinary2 methods.
 // Unlike unmarshalAnyBinary2, this errors (not falls through) if the
 // concrete type does not implement PBMessager2.
-func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
-	return cdc.UnmarshalAnyBinary2WithDepth(bz, ptr, 0)
-}
-
-// UnmarshalAnyBinary2WithDepth is the depth-aware variant called from
-// generated UnmarshalBinary2WithDepth methods. It increments depth by 1
-// (the sole increment point), checks the limit, resolves the concrete
-// type, and dispatches to the concrete type's WithDepth method via type
-// assertion (falling back to UnmarshalBinary2 if not available).
-func (cdc *Codec) UnmarshalAnyBinary2WithDepth(bz []byte, ptr any, anyDepth int) error {
+// UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value.
+// anyDepth is incremented by 1 (the sole increment point for depth
+// tracking); exceeding maxAnyDepth returns an error.
+func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any, anyDepth int) error {
 	return cdc.unmarshalAnyBinary2Depth(bz, ptr, anyDepth+1)
 }
 
@@ -784,19 +778,10 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rv.Type())
 	}
 
-	// Decode inner value, using WithDepth if available to track nesting.
+	// Decode inner value with depth tracking.
 	if len(value) > 0 {
-		type withDepth interface {
-			UnmarshalBinary2WithDepth(cdc *Codec, bz []byte, anyDepth int) error
-		}
-		if wdm, ok := crv.Addr().Interface().(withDepth); ok {
-			if err := wdm.UnmarshalBinary2WithDepth(cdc, value, anyDepth); err != nil {
-				return err
-			}
-		} else {
-			if err := pbm2.UnmarshalBinary2(cdc, value); err != nil {
-				return err
-			}
+		if err := pbm2.UnmarshalBinary2(cdc, value, anyDepth); err != nil {
+			return err
 		}
 	}
 
@@ -952,7 +937,7 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 
 	// Try genproto2 direct decoding (fastest path).
 	if pbm2, ok := ptr.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(ptr)) {
-		return pbm2.UnmarshalBinary2(cdc, bz)
+		return pbm2.UnmarshalBinary2(cdc, bz, 0)
 	}
 
 	if cdc.usePBBindings {
@@ -1180,19 +1165,10 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		return true, fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
 	}
 
-	// Decode inner value via genproto2, using WithDepth if available.
+	// Decode inner value via genproto2 with depth=1 (top-level Any entry).
 	if len(value) > 0 {
-		type withDepth interface {
-			UnmarshalBinary2WithDepth(cdc *Codec, bz []byte, anyDepth int) error
-		}
-		if wdm, ok := crv.Addr().Interface().(withDepth); ok {
-			if err = wdm.UnmarshalBinary2WithDepth(cdc, value, 1); err != nil {
-				return true, err
-			}
-		} else {
-			if err = pbm2.UnmarshalBinary2(cdc, value); err != nil {
-				return true, err
-			}
+		if err = pbm2.UnmarshalBinary2(cdc, value, 1); err != nil {
+			return true, err
 		}
 	}
 
@@ -1441,5 +1417,5 @@ type PBMarshaler2 interface {
 
 type PBMessager2 interface {
 	PBMarshaler2
-	UnmarshalBinary2(cdc *Codec, bz []byte) error
+	UnmarshalBinary2(cdc *Codec, bz []byte, anyDepth int) error
 }

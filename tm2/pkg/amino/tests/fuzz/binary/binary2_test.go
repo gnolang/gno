@@ -48,27 +48,27 @@ func FuzzUnmarshalBinary2(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Primitive fields only (no codec needed).
 		var s tests.PrimitivesStruct
-		_ = s.UnmarshalBinary2(nil, data)
+		_ = s.UnmarshalBinary2(nil, data, 0)
 
 		// Embedded structs, no interface fields.
 		var cs tests.ComplexSt
-		_ = cs.UnmarshalBinary2(cdc, data)
+		_ = cs.UnmarshalBinary2(cdc, data, 0)
 
 		// Interface-heavy types that exercise UnmarshalAnyBinary2.
 		var tv tests.GnoVMTypedValue
-		_ = tv.UnmarshalBinary2(cdc, data)
+		_ = tv.UnmarshalBinary2(cdc, data, 0)
 
 		var blk tests.GnoVMBlock
-		_ = blk.UnmarshalBinary2(cdc, data)
+		_ = blk.UnmarshalBinary2(cdc, data, 0)
 
 		var node tests.GnoVMNode
-		_ = node.UnmarshalBinary2(cdc, data)
+		_ = node.UnmarshalBinary2(cdc, data, 0)
 
 		var ih tests.InterfaceHeavy
-		_ = ih.UnmarshalBinary2(cdc, data)
+		_ = ih.UnmarshalBinary2(cdc, data, 0)
 
 		// Custom AminoMarshaler (repr type conversion path).
 		var am tests.AminoMarshalerStruct1
-		_ = am.UnmarshalBinary2(cdc, data)
+		_ = am.UnmarshalBinary2(cdc, data, 0)
 	})
 }

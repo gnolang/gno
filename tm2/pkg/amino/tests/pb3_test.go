@@ -739,7 +739,7 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	rt := reflect.TypeOf(orig)
 	decoded := reflect.New(rt)
 	umsg := decoded.Interface().(amino.PBMessager2)
-	if err := umsg.UnmarshalBinary2(cdc, bz1); err != nil {
+	if err := umsg.UnmarshalBinary2(cdc, bz1, 0); err != nil {
 		t.Fatalf("%s: UnmarshalBinary2: %v", name, err)
 	}
 

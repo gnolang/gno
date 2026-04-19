@@ -111,7 +111,7 @@ func BenchmarkDecode(b *testing.B) {
 				rv := reflect.New(rt)
 				p := rv.Interface()
 				if pbm2, ok := p.(amino.PBMessager2); ok {
-					pbm2.UnmarshalBinary2(cdc, bd.bzs[i%benchN])
+					pbm2.UnmarshalBinary2(cdc, bd.bzs[i%benchN], 0)
 				} else {
 					cdc.UnmarshalReflect(bd.bzs[i%benchN], p)
 				}
