@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -935,19 +936,36 @@ func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr any) error {
 func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 	cdc.doAutoseal()
 
+	// Handle **T → *T: supports the ergonomic pattern
+	//   var p *T; amino.Unmarshal(bz, &p)
+	// where &p is **T which doesn't satisfy PBMessager2/PBMessager.
+	// Peel one pointer level, allocating the inner pointer if nil,
+	// so all paths below see *T uniformly.
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Ptr {
+		inner := rv.Elem()
+		if inner.IsNil() {
+			inner.Set(reflect.New(inner.Type().Elem()))
+		}
+		ptr = inner.Interface()
+	}
+
 	// Try genproto2 direct decoding (fastest path).
 	if pbm2, ok := ptr.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(ptr)) {
+		atomic.AddInt64(&cdc.stats.Genproto2Decodes, 1)
 		return pbm2.UnmarshalBinary2(cdc, bz, 0)
 	}
 
 	if cdc.usePBBindings {
 		pbm, ok := ptr.(PBMessager)
 		if ok && HasNativePbbindings(reflect.TypeOf(ptr)) {
+			atomic.AddInt64(&cdc.stats.PbbindingsDecodes, 1)
 			return cdc.unmarshalPBBindings(bz, pbm)
 		}
 		// Else, fall back to using reflection for native primitive types.
 	}
 
+	atomic.AddInt64(&cdc.stats.ReflectDecodes, 1)
 	return cdc.UnmarshalReflect(bz, ptr)
 }
 

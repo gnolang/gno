@@ -189,6 +189,21 @@ type Codec struct {
 	fullnameToTypeInfo map[string]*TypeInfo
 	packages           pkg.PackageSet
 	usePBBindings      bool
+	stats              codecStats
+}
+
+// codecStats records how many decodes went through each path.
+// All fields are atomically updated and safe for concurrent use.
+type codecStats struct {
+	Genproto2Decodes  int64
+	PbbindingsDecodes int64
+	ReflectDecodes    int64
+}
+
+// GetStats returns a pointer to the codec's decode-path counters
+// for testing and observability.
+func (cdc *Codec) GetStats() *codecStats {
+	return &cdc.stats
 }
 
 func NewCodec() *Codec {
