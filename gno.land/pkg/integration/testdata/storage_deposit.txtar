@@ -4,14 +4,14 @@
 gnoland start
 
 gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 502500ugnot -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{\"bytes_delta\":5025,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":502500},\"pkg_path\":\"gno.land/r/foo\"}\]'
-stdout 'STORAGE DELTA:  5025 bytes'
-stdout 'STORAGE FEE:    502500ugnot'
-stdout 'TOTAL TX COST:  1502500ugnot'
+stdout 'EVENTS:     \[{\"bytes_delta\":4946,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":494600},\"pkg_path\":\"gno.land/r/foo\"}\]'
+stdout 'STORAGE DELTA:  4946 bytes'
+stdout 'STORAGE FEE:    494600ugnot'
+stdout 'TOTAL TX COST:  1494600ugnot'
 
 gnokey query vm/qstorage --data gno.land/r/foo
 
-stdout 'storage: 5025, deposit: 502500'
+stdout 'storage: 4946, deposit: 494600'
 
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
 gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -chainid=tendermint_test test1
@@ -22,7 +22,7 @@ stdout 'STORAGE REFUND: 200ugnot'
 stdout 'TOTAL TX COST:  999800ugnot'
 
 gnokey query vm/qstorage --data gno.land/r/foo
-stdout 'storage: 5023, deposit: 502300'
+stdout 'storage: 4944, deposit: 494400'
 
 
 ## remove an object
@@ -35,22 +35,22 @@ stdout 'storage: 5023, deposit: 502300'
  stdout 'TOTAL TX COST:  997300ugnot'
 
  gnokey query vm/qstorage --data gno.land/r/foo
- stdout 'storage: 4996, deposit: 499600'
+ stdout 'storage: 4917, deposit: 491700'
 
 
  gnokey query auth/accounts/$test1_user_addr
- stdout '"coins": "9999996500400ugnot"'
+ stdout '"coins": "9999996508300ugnot"'
 
 ## test storage deposit for package gno.land/p/foo
 gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 1000000ugnot -gas-wanted 20000000 -max-deposit 302900ugnot -chainid=tendermint_test test1
 stdout OK!
-stdout 'EVENTS:     \[{\"bytes_delta\":3029,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":302900},\"pkg_path\":\"gno.land/p/foo\"}\]'
-stdout 'STORAGE DELTA:  3029 bytes'
-stdout 'STORAGE FEE:    302900ugnot'
-stdout 'TOTAL TX COST:  1302900ugnot'
+stdout 'EVENTS:     \[{\"bytes_delta\":2950,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":295000},\"pkg_path\":\"gno.land/p/foo\"}\]'
+stdout 'STORAGE DELTA:  2950 bytes'
+stdout 'STORAGE FEE:    295000ugnot'
+stdout 'TOTAL TX COST:  1295000ugnot'
 
 gnokey query vm/qstorage --data gno.land/p/foo
-stdout 'storage: 3029, deposit: 302900'
+stdout 'storage: 2950, deposit: 295000'
 
 -- realm/gnomod.toml --
 module = "gno.land/r/foo"
