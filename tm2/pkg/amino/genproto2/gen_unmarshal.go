@@ -600,6 +600,13 @@ func (ctx *P3Context2) writeByteSliceElementDecode(sb *strings.Builder, accessor
 			sb.WriteString(fmt.Sprintf("%sif err := %s.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {\n%s\treturn err\n%s}\n",
 				indent, accessor, indent, indent))
 		}
+	} else if einfo.IsAminoMarshaler {
+		// AminoMarshaler element: decode repr, then UnmarshalAmino.
+		reprType := einfo.ReprType.Type
+		sb.WriteString(fmt.Sprintf("%svar rv %s\n", indent, ctx.goTypeName(reprType)))
+		ctx.writePrimitiveDecodeFrom(sb, "rv", einfo.ReprType, fopts, indent, "bz")
+		sb.WriteString(fmt.Sprintf("%sif err := %s.UnmarshalAmino(rv); err != nil {\n%s\treturn err\n%s}\n",
+			indent, accessor, indent, indent))
 	} else {
 		// Non-struct ByteLength element (string, []byte):
 		// decode directly from bz (decode functions consume own length prefix).

@@ -184,6 +184,15 @@ func (ctx *P3Context2) goTypeName(rt reflect.Type) string {
 		return "time.Duration"
 	}
 
+	// Named types (e.g. crypto.Address = [20]byte) should use their
+	// qualified name, not the structural representation.
+	if rt.Name() != "" && rt.PkgPath() != "" {
+		if rt.PkgPath() != ctx.targetPkgPath {
+			return ctx.qualifiedName(rt)
+		}
+		return rt.Name()
+	}
+
 	switch rt.Kind() {
 	case reflect.Ptr:
 		return "*" + ctx.goTypeName(rt.Elem())

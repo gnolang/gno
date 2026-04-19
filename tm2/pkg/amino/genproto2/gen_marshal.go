@@ -372,9 +372,21 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 			sb.WriteString(fmt.Sprintf("%s\t\te := %s[i]\n", indent, accessor))
 			if ert.Kind() == reflect.Ptr {
 				sb.WriteString(fmt.Sprintf("%s\t\tif e == nil {\n%s\t\t\te = new(%s)\n%s\t\t}\n", indent, indent, ctx.goTypeName(ert.Elem()), indent))
-				ctx.writePrimitiveEncode(sb, "(*e)", einfo, eFopts, indent+"\t\t")
+				if einfo.IsAminoMarshaler {
+					sb.WriteString(fmt.Sprintf("%s\t\ter, err := (*e).MarshalAmino()\n", indent))
+					sb.WriteString(fmt.Sprintf("%s\t\tif err != nil {\n%s\t\t\treturn offset, err\n%s\t\t}\n", indent, indent, indent))
+					ctx.writePrimitiveEncode(sb, "er", einfo.ReprType, eFopts, indent+"\t\t")
+				} else {
+					ctx.writePrimitiveEncode(sb, "(*e)", einfo, eFopts, indent+"\t\t")
+				}
 			} else {
-				ctx.writePrimitiveEncode(sb, "e", einfo, eFopts, indent+"\t\t")
+				if einfo.IsAminoMarshaler {
+					sb.WriteString(fmt.Sprintf("%s\t\ter, err := e.MarshalAmino()\n", indent))
+					sb.WriteString(fmt.Sprintf("%s\t\tif err != nil {\n%s\t\t\treturn offset, err\n%s\t\t}\n", indent, indent, indent))
+					ctx.writePrimitiveEncode(sb, "er", einfo.ReprType, eFopts, indent+"\t\t")
+				} else {
+					ctx.writePrimitiveEncode(sb, "e", einfo, eFopts, indent+"\t\t")
+				}
 			}
 			sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
 		}
@@ -616,7 +628,13 @@ func (ctx *P3Context2) writeElementEncode(sb *strings.Builder, accessor string, 
 			sb.WriteString(fmt.Sprintf("%s}\n", indent))
 		}
 	default:
-		ctx.writePrimitiveEncode(sb, accessor, einfo, fopts, indent)
+		if einfo.IsAminoMarshaler {
+			sb.WriteString(fmt.Sprintf("%ser, err := %s.MarshalAmino()\n", indent, accessor))
+			sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn offset, err\n%s}\n", indent, indent, indent))
+			ctx.writePrimitiveEncode(sb, "er", einfo.ReprType, fopts, indent)
+		} else {
+			ctx.writePrimitiveEncode(sb, accessor, einfo, fopts, indent)
+		}
 	}
 }
 

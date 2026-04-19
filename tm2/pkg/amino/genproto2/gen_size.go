@@ -426,6 +426,12 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 			// Struct/Duration/nested-list element: length-prefixed.
 			ctx.writeElementContentSize(sb, "cs", elemAccessor, einfo, fopts, extraIndent)
 			sb.WriteString(fmt.Sprintf("%ss += %d + amino.UvarintSize(uint64(cs)) + cs\n", extraIndent, fks))
+		} else if einfo.IsAminoMarshaler {
+			// AminoMarshaler element: size the repr value after MarshalAmino.
+			sb.WriteString(fmt.Sprintf("%ser, err := %s.MarshalAmino()\n", extraIndent, elemAccessor))
+			sb.WriteString(fmt.Sprintf("%sif err != nil {\n%s\treturn 0, err\n%s}\n", extraIndent, extraIndent, extraIndent))
+			sb.WriteString(fmt.Sprintf("%svs := %s\n", extraIndent, ctx.primitiveValueSizeExpr("er", einfo.ReprType, fopts)))
+			sb.WriteString(fmt.Sprintf("%ss += %d + vs\n", extraIndent, fks))
 		} else {
 			// Non-struct ByteLength element (string, []byte): includes own length prefix.
 			sb.WriteString(fmt.Sprintf("%svs := %s\n", extraIndent, ctx.primitiveValueSizeExpr(elemAccessor, einfo, fopts)))
