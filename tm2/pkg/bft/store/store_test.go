@@ -213,14 +213,14 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			parts:             validPartSet,
 			seenCommit:        seenCommit1,
 			corruptCommitInDB: true, // Corrupt the DB's commit entry
-			wantPanic:         "unmarshal to types.Commit failed",
+			wantPanic:         "Error reading block commit",
 		},
 
 		{
 			block:            newBlock(header1, commitAtH10),
 			parts:            validPartSet,
 			seenCommit:       seenCommit1,
-			wantPanic:        "unmarshal to types.BlockMeta failed",
+			wantPanic:        "Error reading block meta",
 			corruptBlockInDB: true, // Corrupt the DB's block entry
 		},
 
@@ -239,7 +239,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			seenCommit: seenCommit1,
 
 			corruptSeenCommitInDB: true,
-			wantPanic:             "unmarshal to types.Commit failed",
+			wantPanic:             "Error reading block seen commit",
 		},
 
 		{
@@ -352,7 +352,7 @@ func TestLoadBlockPart(t *testing.T) {
 	db.Set(calcBlockPartKey(height, index), []byte("Tendermint"))
 	res, _, panicErr = doFn(loadPart)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")
-	require.Contains(t, panicErr.Error(), "unmarshal to types.Part failed")
+	require.Contains(t, panicErr.Error(), "unknown field number")
 
 	// 3. A good block serialized and saved to the DB should be retrievable
 	db.Set(calcBlockPartKey(height, index), amino.MustMarshal(part1))
@@ -383,7 +383,7 @@ func TestLoadBlockMeta(t *testing.T) {
 	db.Set(calcBlockMetaKey(height), []byte("Tendermint-Meta"))
 	res, _, panicErr = doFn(loadMeta)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")
-	require.Contains(t, panicErr.Error(), "unmarshal to types.BlockMeta")
+	require.Contains(t, panicErr.Error(), "unknown field number")
 
 	// 3. A good blockMeta serialized and saved to the DB should be retrievable
 	meta := &types.BlockMeta{}
