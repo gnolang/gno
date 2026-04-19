@@ -2,8 +2,9 @@
 # Generate gnoland-1 hardfork genesis.
 #
 # This script is the gnoland-1-specific wrapper around the generic
-# `misc/hardfork` tool. It sets the chain-specific defaults (chain IDs,
-# halt height, overlay directory) and delegates to `hardfork genesis`.
+# `gnogenesis fork generate` tool. It sets the chain-specific defaults
+# (chain IDs, halt height, overlay directory) and delegates to
+# `gnogenesis fork generate`.
 #
 # Usage:
 #   ./generate-genesis.sh [SOURCE] [OPTIONS]
@@ -48,7 +49,7 @@ HALT_HEIGHT="${HALT_HEIGHT:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-HARDFORK_DIR="$REPO_ROOT/misc/hardfork"
+GNOGENESIS_DIR="$REPO_ROOT/contribs/gnogenesis"
 OVERLAY_DIR="$SCRIPT_DIR/overlay"
 OUTPUT="${OUTPUT:-$SCRIPT_DIR/genesis.json}"
 
@@ -96,24 +97,25 @@ run() {
     "$@"
 }
 
-# Build the hardfork binary if not already available
+# Build the gnogenesis binary if not already available
 HARDFORK_BIN=""
-if command -v hardfork >/dev/null 2>&1; then
-    HARDFORK_BIN="hardfork"
+if command -v gnogenesis >/dev/null 2>&1; then
+    HARDFORK_BIN="gnogenesis"
 else
-    WORK_BIN="$SCRIPT_DIR/genesis-work/bin/hardfork"
+    WORK_BIN="$SCRIPT_DIR/genesis-work/bin/gnogenesis"
     if [[ ! -x "$WORK_BIN" ]]; then
-        printf "Building hardfork tool...\n"
+        printf "Building gnogenesis tool...\n"
         mkdir -p "$(dirname "$WORK_BIN")"
-        run go build -C "$HARDFORK_DIR" -o "$WORK_BIN" .
+        run go build -C "$GNOGENESIS_DIR" -o "$WORK_BIN" .
         printf "  ok\n"
     fi
     HARDFORK_BIN="$WORK_BIN"
 fi
 
-# Build hardfork genesis command
+# Build `gnogenesis fork generate` command
 CMD_ARGS=(
-    genesis
+    fork
+    generate
     --source "$SOURCE"
     --chain-id "$CHAIN_ID"
     --original-chain-id "$ORIGINAL_CHAIN_ID"

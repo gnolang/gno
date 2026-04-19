@@ -305,6 +305,8 @@ func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
 	res.LastBlockHeight = lastCommitID.Version
 	res.LastBlockAppHash = lastCommitID.Hash
 
+	// When InitialHeight > 1 (chain upgrades), the multistore version counter
+	// starts from 0 and auto-increments, so it may be lower than the actual
 	// block height. If we have a persisted header from a previous Commit, use
 	// its height as the authoritative value.
 	//
