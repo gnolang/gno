@@ -76,6 +76,9 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 	}
 
 	for _, pkg := range pkgs {
+		if pkg == nil {
+			continue
+		}
 		if err := lw.write(pkg); err != nil {
 			return err
 		}
