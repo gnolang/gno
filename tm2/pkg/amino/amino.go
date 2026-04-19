@@ -553,6 +553,10 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return cdc.marshalAnyBinary2(pbm2)
 	}
 
+	// TODO: add pbbindings path here (between genproto2 and reflect).
+	// Requires a marshalAnyPBBindings helper that wraps the pbbindings-encoded
+	// value in an Any envelope. Low priority since genproto2 covers most types.
+
 	// Make a temporary interface var, to contain the value of o.
 	ivar := rv.Interface()
 	var iinfo *TypeInfo
@@ -1102,6 +1106,11 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 		atomic.AddInt64(&cdc.stats.Genproto2Decodes, 1)
 		return err2
 	}
+
+	// TODO: add pbbindings path here (between genproto2 and reflect).
+	// Requires parsing the Any envelope (TypeURL + Value), resolving the
+	// concrete type, then decoding via EmptyPBMessage/proto.Unmarshal/
+	// FromPBMessage. Low priority since genproto2 covers most types.
 
 	// Get interface *TypeInfo.
 	iinfo, err := cdc.getTypeInfoWLock(rv.Type())
