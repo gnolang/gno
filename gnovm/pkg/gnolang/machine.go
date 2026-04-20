@@ -85,12 +85,12 @@ type MachineOptions struct {
 }
 
 const (
-	startingOpsCap     = 1024
-	startingValuesCap  = 512
-	startingExprsCap   = 128
-	startingStmtsCap   = 128
-	startingBlocksCap  = 64
-	startingFramesCap  = 32
+	startingOpsCap    = 1024
+	startingValuesCap = 512
+	startingExprsCap  = 128
+	startingStmtsCap  = 128
+	startingBlocksCap = 64
+	startingFramesCap = 32
 )
 
 // the machine constructor gets spammed
@@ -1258,12 +1258,12 @@ const (
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
 	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
 	OpCPUDefer               = 71
-	OpCPUCallDeferNativeBody = 172  // XXX arbitrary, not properly benchmarked
-	OpCPUGo                  = 1    // XXX not yet implemented
-	OpCPUSelect              = 1    // XXX not yet implemented
+	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
+	OpCPUGo                  = 1   // XXX not yet implemented
+	OpCPUSelect              = 1   // XXX not yet implemented
 	OpCPUSwitchClause        = 87
-	OpCPUSwitchClauseCase    = 109  // max(match=109, miss=106)
-	OpCPUTypeSwitch          = 280  // parameterized; base from fit (280.5); per-clause added in handler
+	OpCPUSwitchClauseCase    = 109 // max(match=109, miss=106)
+	OpCPUTypeSwitch          = 280 // parameterized; base from fit (280.5); per-clause added in handler
 	OpCPUIfCond              = 87  // max(true=86, false=87)
 	OpCPUPopValue            = 1
 	OpCPUPopResults          = 1
@@ -1277,19 +1277,19 @@ const (
 	OpCPUReturnToBlock       = 119
 
 	/* Unary & binary operators */
-	OpCPUUpos  = 64
-	OpCPUUneg  = 69
-	OpCPUUnot  = 70
-	OpCPUUxor  = 69
-	OpCPUUrecv = 1  // XXX not yet implemented
-	OpCPULor   = 83
-	OpCPULand  = 86 // benchmark: true=69, false=66; 86 includes dispatch overhead not isolated by benchops
-	OpCPUEql   = 93 // max(int=85, float64=93); parameterized cases added in handler
-	OpCPUNeq   = 83
-	OpCPULss   = 73
-	OpCPULeq   = 72
-	OpCPUGtr   = 72
-	OpCPUGeq   = 72
+	OpCPUUpos      = 64
+	OpCPUUneg      = 69
+	OpCPUUnot      = 70
+	OpCPUUxor      = 69
+	OpCPUUrecv     = 1 // XXX not yet implemented
+	OpCPULor       = 83
+	OpCPULand      = 86 // benchmark: true=69, false=66; 86 includes dispatch overhead not isolated by benchops
+	OpCPUEql       = 93 // max(int=85, float64=93); parameterized cases added in handler
+	OpCPUNeq       = 83
+	OpCPULss       = 73
+	OpCPULeq       = 72
+	OpCPUGtr       = 72
+	OpCPUGeq       = 72
 	OpCPUAddInt    = 81  // int add (81.0 ns)
 	OpCPUAddFloat  = 148 // float64 add (148.0 ns)
 	OpCPUAddString = 186 // string concat (191.5 ns - 5 alloc)
@@ -1302,34 +1302,34 @@ const (
 	OpCPUQuoInt    = 138 // int quo (137.7 ns)
 	OpCPUQuoFloat  = 234 // float64 quo (234.1 ns)
 	OpCPURem       = 142
-	OpCPUShl   = 80
-	OpCPUShr   = 79
-	OpCPUBand  = 71
-	OpCPUBandn = 71
+	OpCPUShl       = 80
+	OpCPUShr       = 79
+	OpCPUBand      = 71
+	OpCPUBandn     = 71
 
 	/* Other expression operators */
-	OpCPUEval        = 82  // parameterized for NameExpr; base from fit (81.7)
-	OpCPUBinary1     = 69  // max(LAND true=69, LAND false=66)
-	OpCPUIndex1      = 106 // max(array=102, slice=106, map/string similar)
-	OpCPUIndex2      = 1014
+	OpCPUEval                = 82  // parameterized for NameExpr; base from fit (81.7)
+	OpCPUBinary1             = 69  // max(LAND true=69, LAND false=66)
+	OpCPUIndex1              = 106 // max(array=102, slice=106, map/string similar)
+	OpCPUIndex2              = 1014
 	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
 	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
 	OpCPUSelectorInterface   = 751 // base; VPInterface, per-method added in handler
-	OpCPUSlice       = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
-	OpCPUStar        = 102
-	OpCPURef         = 210
-	OpCPUTypeAssert1 = 83  // concrete; interface case parameterized in handler
-	OpCPUTypeAssert2 = 96  // max(hit=85, miss=96)
+	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
+	OpCPUStar                = 102
+	OpCPURef                 = 210
+	OpCPUTypeAssert1         = 83 // concrete; interface case parameterized in handler
+	OpCPUTypeAssert2         = 96 // max(hit=85, miss=96)
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
-	OpCPUStaticTypeOf = 520 // XXX arbitrary
-	OpCPUCompositeLit = 76
-	OpCPUArrayLit     = 292  // base from fit; per-element added in handler
-	OpCPUSliceLit     = 342  // base from fit; per-element added in handler
-	OpCPUSliceLit2    = 966  // base from fit; per-alloc-size added in handler
-	OpCPUMapLit       = 536  // base; per-entry added in handler (fit base negative, clamped to ~536)
-	OpCPUStructLit    = 326  // base from fit; per-field added in handler (max of unnamed=307, named=326)
-	OpCPUFuncLit      = 269  // base from fit; per-capture added in handler
+	OpCPUStaticTypeOf    = 520 // XXX arbitrary
+	OpCPUCompositeLit    = 76
+	OpCPUArrayLit        = 292 // base from fit; per-element added in handler
+	OpCPUSliceLit        = 342 // base from fit; per-element added in handler
+	OpCPUSliceLit2       = 966 // base from fit; per-alloc-size added in handler
+	OpCPUMapLit          = 536 // base; per-entry added in handler (fit base negative, clamped to ~536)
+	OpCPUStructLit       = 326 // base from fit; per-field added in handler (max of unnamed=307, named=326)
+	OpCPUFuncLit         = 269 // base from fit; per-capture added in handler
 	OpCPUConvertNumeric  = 151 // int->int64 and similar (151.2 ns)
 	OpCPUConvertStrBytes = 363 // string->[]byte (381.7 ns - 19 alloc)
 
@@ -1337,15 +1337,15 @@ const (
 	OpCPUFieldType     = 164 // (164.4 ns)
 	OpCPUArrayType     = 153
 	OpCPUSliceType     = 152
-	OpCPUPointerType   = 1    // dead code (no dispatch case)
-	OpCPUInterfaceType = 382  // base from fit; per-method added in handler
+	OpCPUPointerType   = 1   // dead code (no dispatch case)
+	OpCPUInterfaceType = 382 // base from fit; per-method added in handler
 	OpCPUChanType      = 153
-	OpCPUFuncType      = 283  // base from fit (283.2); per-param+result added in handler
+	OpCPUFuncType      = 283 // base from fit (283.2); per-param+result added in handler
 	OpCPUMapType       = 150
-	OpCPUStructType    = 321  // base from fit; per-field added in handler
+	OpCPUStructType    = 321 // base from fit; per-field added in handler
 
 	/* Statement operators */
-	OpCPUAssign      = 89  // base from fit; per-LHS added in handler
+	OpCPUAssign      = 89 // base from fit; per-LHS added in handler
 	OpCPUAddAssign   = 97
 	OpCPUSubAssign   = 88
 	OpCPUMulAssign   = 86
@@ -1407,18 +1407,18 @@ const (
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
-	OpCPUSlopeBigIntAdd   = 46  // fit: 0.0449 ns/bit * 1024 = 46.0
-	OpCPUSlopeBigIntSub   = 68  // fit: 0.0664 ns/bit * 1024 = 68.0
-	OpCPUSlopeBigIntBand  = 58  // fit: 0.0562 ns/bit * 1024 = 57.6
-	OpCPUSlopeBigIntBor   = 59  // fit: 0.0581 ns/bit * 1024 = 59.5
-	OpCPUSlopeBigIntXor   = 69  // fit: 0.0671 ns/bit * 1024 = 68.7
-	OpCPUSlopeBigIntBandn = 68  // fit: 0.0669 ns/bit * 1024 = 68.5
-	OpCPUSlopeBigIntUneg  = 43  // fit: 0.0422 ns/bit * 1024 = 43.2
-	OpCPUSlopeBigIntUxor  = 46  // fit: 0.0446 ns/bit * 1024 = 45.6
-	OpCPUSlopeBigIntInc   = 62  // fit: 0.0604 ns/bit * 1024 = 61.9
-	OpCPUSlopeBigIntDec   = 62  // fit: 0.0606 ns/bit * 1024 = 62.1
-	OpCPUSlopeBigIntEql   = 10  // fit: 0.0097 ns/bit * 1024 = 9.9
-	OpCPUSlopeBigIntLss   = 9   // fit: 0.0089 ns/bit * 1024 = 9.1
+	OpCPUSlopeBigIntAdd   = 46 // fit: 0.0449 ns/bit * 1024 = 46.0
+	OpCPUSlopeBigIntSub   = 68 // fit: 0.0664 ns/bit * 1024 = 68.0
+	OpCPUSlopeBigIntBand  = 58 // fit: 0.0562 ns/bit * 1024 = 57.6
+	OpCPUSlopeBigIntBor   = 59 // fit: 0.0581 ns/bit * 1024 = 59.5
+	OpCPUSlopeBigIntXor   = 69 // fit: 0.0671 ns/bit * 1024 = 68.7
+	OpCPUSlopeBigIntBandn = 68 // fit: 0.0669 ns/bit * 1024 = 68.5
+	OpCPUSlopeBigIntUneg  = 43 // fit: 0.0422 ns/bit * 1024 = 43.2
+	OpCPUSlopeBigIntUxor  = 46 // fit: 0.0446 ns/bit * 1024 = 45.6
+	OpCPUSlopeBigIntInc   = 62 // fit: 0.0604 ns/bit * 1024 = 61.9
+	OpCPUSlopeBigIntDec   = 62 // fit: 0.0606 ns/bit * 1024 = 62.1
+	OpCPUSlopeBigIntEql   = 10 // fit: 0.0097 ns/bit * 1024 = 9.9
+	OpCPUSlopeBigIntLss   = 9  // fit: 0.0089 ns/bit * 1024 = 9.1
 	// Quadratic: gas = (bits/32) * (bits/32) * slope / 32.
 	// Fit includes both same-width and cross-width benchmarks.
 	// Cross-width ops (e.g. 4096÷64) are cheaper per Q-unit than same-width,
