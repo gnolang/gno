@@ -25,6 +25,8 @@ const (
 	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
 	minSetReadDepth100Default = int64(200) // 2.0 SET read ops
 	minWriteDepth100Default   = int64(440) // 4.4 write ops (batched)
+	// Iterator step flat cost; mirrors store.DefaultGasConfig().IterNextCostFlat.
+	iterNextCostFlatDefault = int64(1_000)
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -43,10 +45,11 @@ type Params struct {
 	FixedGetReadDepth100  int64          `json:"fixed_get_read_depth_100" yaml:"fixed_get_read_depth_100"`
 	FixedSetReadDepth100  int64          `json:"fixed_set_read_depth_100" yaml:"fixed_set_read_depth_100"`
 	FixedWriteDepth100    int64          `json:"fixed_write_depth_100" yaml:"fixed_write_depth_100"`
+	IterNextCostFlat      int64          `json:"iter_next_cost_flat" yaml:"iter_next_cost_flat"`
 }
 
 // NewParams creates a new Params object
-func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100 int64) Params {
+func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePrice string, storageFeeCollector crypto.Address, minGetReadDepth100, minSetReadDepth100, minWriteDepth100, iterNextCostFlat int64) Params {
 	return Params{
 		SysNamesPkgPath:      namesPkgPath,
 		SysCLAPkgPath:        claPkgPath,
@@ -60,6 +63,7 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		FixedGetReadDepth100: minGetReadDepth100,
 		FixedSetReadDepth100: minSetReadDepth100,
 		FixedWriteDepth100:   minWriteDepth100,
+		IterNextCostFlat:     iterNextCostFlat,
 	}
 }
 
@@ -67,7 +71,8 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 func DefaultParams() Params {
 	return NewParams(sysNamesPkgDefault, sysCLAPkgDefault, chainDomainDefault,
 		depositDefault, storagePriceDefault, crypto.AddressFromPreimage([]byte(storageFeeCollectorNameDefault)),
-		minGetReadDepth100Default, minSetReadDepth100Default, minWriteDepth100Default)
+		minGetReadDepth100Default, minSetReadDepth100Default, minWriteDepth100Default,
+		iterNextCostFlatDefault)
 }
 
 // String implements the stringer interface.
@@ -122,6 +127,11 @@ func (p Params) ApplyToGasConfig(cfg *store.GasConfig) {
 	cfg.FixedGetReadDepth100 = p.FixedGetReadDepth100
 	cfg.FixedSetReadDepth100 = p.FixedSetReadDepth100
 	cfg.FixedWriteDepth100 = p.FixedWriteDepth100
+	// Zero means "inherit the tm2 default" — avoids wiping the default
+	// on Params records that pre-date the IterNextCostFlat field.
+	if p.IterNextCostFlat > 0 {
+		cfg.IterNextCostFlat = p.IterNextCostFlat
+	}
 }
 
 func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
@@ -194,6 +204,8 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.FixedSetReadDepth100 = sdkparams.MustParamInt64("fixed_set_read_depth_100", value)
 	case "p:fixed_write_depth_100":
 		params.FixedWriteDepth100 = sdkparams.MustParamInt64("fixed_write_depth_100", value)
+	case "p:iter_next_cost_flat":
+		params.IterNextCostFlat = sdkparams.MustParamInt64("iter_next_cost_flat", value)
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))
