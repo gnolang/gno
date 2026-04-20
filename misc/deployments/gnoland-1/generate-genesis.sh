@@ -10,11 +10,19 @@
 #                 /path/to/*.json  exported genesis
 #   HALT_HEIGHT   block height at which gnoland1 was halted
 #                 (empty = auto-detect from source)
+#   PV_KEY        path to the new validator's priv_validator_key.json.
+#                 When set, a valset-reset migration tx is built and
+#                 appended at the end of replay (updates r/sys/validators/v2
+#                 to match the new GenesisDoc.Validators). Leave empty to
+#                 skip migrations.
+#   CALLER        govDAO T1 address that runs the migration MsgRun
+#                 (default: g1manfred47...)
 #
 # Usage:
 #   ./generate-genesis.sh
 #   SOURCE=http://rpc.gno.land:26657 ./generate-genesis.sh
 #   HALT_HEIGHT=704052 ./generate-genesis.sh
+#   PV_KEY=./my-valkey.json ./generate-genesis.sh
 
 set -euo pipefail
 
@@ -49,6 +57,22 @@ CMD_ARGS=(
     --output "$OUTPUT"
 )
 [[ -n "$HALT_HEIGHT" ]] && CMD_ARGS+=(--halt-height "$HALT_HEIGHT")
+
+# Build the post-replay migration jsonl if a new-valset priv_validator_key
+# is provided. This appends a govDAO proposal tx (MsgRun) at the end of
+# appState.Txs that resets r/sys/validators/v2 to match the new
+# GenesisDoc.Validators — reconciling the in-gno side with the tm2 side.
+if [[ -n "${PV_KEY:-}" ]]; then
+    MIG_JSONL="$SCRIPT_DIR/migrations/migrations.jsonl"
+    printf "Building migrations (PV_KEY=%s)...\n" "$PV_KEY"
+    CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
+    PV_KEY="$PV_KEY" \
+    OUT_JSONL="$MIG_JSONL" \
+    CHAIN_ID="$CHAIN_ID" \
+    REPO_ROOT="$REPO_ROOT" \
+      "$SCRIPT_DIR/migrations/build.sh"
+    CMD_ARGS+=(--migration-tx "$MIG_JSONL")
+fi
 
 "$BIN" "${CMD_ARGS[@]}"
 
