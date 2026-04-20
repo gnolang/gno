@@ -324,6 +324,15 @@ func (store *cacheStore) clear() {
 // Used by BaseApp to snapshot ante handler state before msg execution.
 // setCacheValue always allocates a new *cValue, so the cloned map's
 // pointers remain valid after subsequent Set/Delete calls.
+//
+// The GasMeter's consumed counter is intentionally NOT snapshotted.
+// On msg failure/OOG, WriteCheckpoint rewinds writes but the meter
+// keeps everything charged during the msg — the SDK "failed tx burns
+// gas" invariant. Rewinding the meter would refund gas for a
+// rolled-back attempt and let an attacker retry expensive operations
+// for the cost of the ante alone. chargedGas being tx-local (one
+// cacheStore per tx) means no later tx sees the restored map, so
+// there's no cross-tx write-dedup inconsistency from the asymmetry.
 func (store *cacheStore) Checkpoint() {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
