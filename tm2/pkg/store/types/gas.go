@@ -211,11 +211,16 @@ func (g *basicGasMeter) RefundGas(amount Gas, descriptor string) {
 	if amount < 0 {
 		panic("gas must not be negative")
 	}
+	// Cap the refund at the currently-consumed amount so consumed
+	// never goes negative (that would make IsPastLimit permanently
+	// false and allow unlimited gas). Track the actually-applied
+	// refund in totalRefund so the DebugTotals invariant
+	// totalCharge - totalRefund == consumed continues to hold.
+	if amount > g.consumed {
+		amount = g.consumed
+	}
 	g.totalRefund += amount
 	g.consumed -= amount
-	if g.consumed < 0 {
-		g.consumed = 0
-	}
 }
 
 func (g *basicGasMeter) DebugTotals() (charge, refund Gas) {
