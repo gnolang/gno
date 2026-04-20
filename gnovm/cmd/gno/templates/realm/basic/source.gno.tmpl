@@ -1,0 +1,10 @@
+package {{.PkgName}}
+
+func init() {
+}
+
+// Render is called when browsing the realm in a web browser.
+// The path argument contains the URL path after the realm's base path.
+func Render(path string) string {
+	return "# {{.PkgName}}\n\nHello, world!\n"
+}

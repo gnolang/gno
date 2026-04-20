@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"go.uber.org/multierr"
 	"golang.org/x/mod/module"
+	"golang.org/x/term"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -38,7 +41,6 @@ func newModCmd(io commands.IO) *commands.Command {
 		newModDownloadCmd(io),
 		// edit
 		newModGraphCmd(io),
-		newModInitCmd(),
 		newModTidy(io),
 		// vendor
 		// verify
@@ -79,18 +81,409 @@ func newModGraphCmd(io commands.IO) *commands.Command {
 	)
 }
 
-func newModInitCmd() *commands.Command {
+// --- gno init (top-level command) ---
+
+type moduleKind int
+
+const (
+	kindPackage moduleKind = iota
+	kindRealm
+	kindRun
+)
+
+var errGoBack = fmt.Errorf("go back")
+
+type modInitCfg struct {
+	bare bool
+}
+
+func (c *modInitCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(&c.bare, "bare", false, "only create gnomod.toml, skip template files")
+}
+
+func newInitCmd(io commands.IO) *commands.Command {
+	cfg := &modInitCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init <module-path>",
-			ShortHelp:  "initialize gno.mod file in current directory",
+			ShortUsage: "init [flags] [<module-path>]",
+			ShortHelp:  "initialize a new Gno module",
+			LongHelp: `Initialize a new Gno module in the current directory.
+
+If run interactively, a wizard will guide you through creating a realm,
+package, or run script with template files.
+
+If a module path is given as an argument, gnomod.toml and template files
+are created without prompting (when possible).
+
+Use --bare to create only gnomod.toml without any template files.`,
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execModInit(args)
+			return execModInit(cfg, args, io)
 		},
 	)
+}
+
+func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
+	if len(args) > 1 {
+		return flag.ErrHelp
+	}
+
+	rootDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	if !filepath.IsAbs(rootDir) {
+		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
+	}
+
+	// Early check: if gnomod.toml already exists, bail out immediately.
+	modFilePath := filepath.Join(rootDir, "gnomod.toml")
+	if _, err := os.Stat(modFilePath); err == nil {
+		return fmt.Errorf("gnomod.toml already exists")
+	}
+
+	// Non-interactive: bare flag or no TTY
+	if cfg.bare || !isTerminal() {
+		if len(args) == 0 {
+			return fmt.Errorf("module path is required (non-interactive mode)")
+		}
+		return writeGnomod(rootDir, args[0])
+	}
+
+	// Interactive with argument: create gnomod.toml + auto-select first template
+	if len(args) == 1 {
+		modPath := args[0]
+		if err := writeGnomod(rootDir, modPath); err != nil {
+			return err
+		}
+		kind := kindFromPath(modPath)
+		templates := templatesForKind(kind)
+		if kind == kindRun {
+			return execInitRun(rootDir, templates[0], io)
+		}
+		return writeModule(rootDir, modPath, &templates[0], io)
+	}
+
+	// Full interactive wizard
+	step := 0
+	var kind moduleKind
+	var modPath string
+
+	for {
+		switch step {
+		case 0: // Module kind
+			kind, err = promptModuleKind(io)
+			if err != nil {
+				return err
+			}
+			if kind == kindRun {
+				templates := templatesForKind(kindRun)
+				return execInitRun(rootDir, templates[0], io)
+			}
+			step = 1
+
+		case 1: // Namespace + name → module path
+			modPath, err = promptModulePath(kind, rootDir, io)
+			if err == errGoBack {
+				step = 0
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			step = 2
+
+		case 2: // Template selection
+			templates := templatesForKind(kind)
+			tmpl, selErr := selectTemplate(templates, io)
+			if selErr == errGoBack {
+				step = 1
+				continue
+			}
+			if selErr != nil {
+				return selErr
+			}
+
+			if err := writeGnomod(rootDir, modPath); err != nil {
+				return err
+			}
+			return writeModule(rootDir, modPath, tmpl, io)
+		}
+	}
+}
+
+func writeGnomod(rootDir, modPath string) error {
+	if err := module.CheckImportPath(modPath); err != nil {
+		return fmt.Errorf("create gnomod.toml: %w", err)
+	}
+	if !gno.IsUserlib(modPath) {
+		return fmt.Errorf("create gnomod.toml: %q is not a valid package path URL", modPath)
+	}
+
+	modfile := new(gnomod.File)
+	modfile.Module = modPath
+	modfile.Gno = gno.GnoVerLatest
+	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
+	return nil
+}
+
+func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
+	pkgName := filepath.Base(modPath)
+	data := templateData{PkgName: pkgName}
+
+	kindLabel := "package"
+	if gno.IsRealmPath(modPath) {
+		kindLabel = "realm"
+	}
+
+	var created []string
+
+	// Source file
+	src, err := renderTemplate(tmpl.FS, tmpl.SourcePath, data)
+	if err != nil {
+		return fmt.Errorf("render source template: %w", err)
+	}
+	srcFile := pkgName + ".gno"
+	if err := os.WriteFile(filepath.Join(rootDir, srcFile), src, 0o644); err != nil {
+		return err
+	}
+	created = append(created, srcFile)
+
+	// Test file (optional)
+	if tmpl.TestPath != "" {
+		test, err := renderTemplate(tmpl.FS, tmpl.TestPath, data)
+		if err != nil {
+			return fmt.Errorf("render test template: %w", err)
+		}
+		testFile := pkgName + "_test.gno"
+		if err := os.WriteFile(filepath.Join(rootDir, testFile), test, 0o644); err != nil {
+			return err
+		}
+		created = append(created, testFile)
+	}
+
+	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel, modPath, tmpl.Name)
+	fmt.Fprintf(io.Err(), "  gnomod.toml\n")
+	for _, f := range created {
+		fmt.Fprintf(io.Err(), "  %s\n", f)
+	}
+
+	return nil
+}
+
+func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
+	runDir := filepath.Join(rootDir, "run")
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		return err
+	}
+
+	data := templateData{PkgName: "main"}
+	src, err := renderTemplate(tmpl.FS, tmpl.SourcePath, data)
+	if err != nil {
+		return fmt.Errorf("render run template: %w", err)
+	}
+	mainFile := filepath.Join(runDir, "main.gno")
+	if err := os.WriteFile(mainFile, src, 0o644); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(io.Err(), "Initialized run script\n")
+	fmt.Fprintf(io.Err(), "  run/main.gno\n")
+	return nil
+}
+
+// --- Wizard helpers ---
+
+func promptModuleKind(io commands.IO) (moduleKind, error) {
+	for {
+		prompt(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ")
+		ans, err := readLine(io)
+		if err != nil {
+			return kindPackage, err
+		}
+		switch strings.ToLower(ans) {
+		case "", "p", "package":
+			return kindPackage, nil
+		case "r", "realm":
+			return kindRealm, nil
+		case "m", "main", "run":
+			return kindRun, nil
+		default:
+			fmt.Fprintf(io.Err(), "invalid module kind: %q\n", ans)
+		}
+	}
+}
+
+func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
+	// Step 1: namespace (retry on empty or invalid)
+	var namespace string
+	for {
+		prompt(io, "Address or namespace: ")
+		var err error
+		namespace, err = readLine(io)
+		if err != nil {
+			return "", err
+		}
+		if namespace == "<" {
+			return "", errGoBack
+		}
+		if namespace == "" {
+			fmt.Fprintf(io.Err(), "address or namespace cannot be empty\n")
+			continue
+		}
+		if !isValidName(namespace) {
+			fmt.Fprintf(io.Err(), "invalid namespace %q (must be lowercase letters, digits, and underscores)\n", namespace)
+			continue
+		}
+		break
+	}
+
+	// Step 2: module name (retry on invalid)
+	defaultName := sanitizeModuleName(filepath.Base(rootDir))
+	var name string
+	for {
+		prompt(io, fmt.Sprintf("Module name [%s]: ", defaultName))
+		var err error
+		name, err = readLine(io)
+		if err != nil {
+			return "", err
+		}
+		if name == "<" {
+			return "", errGoBack
+		}
+		if name == "" {
+			name = defaultName
+		}
+		if !isValidName(name) {
+			fmt.Fprintf(io.Err(), "invalid module name %q (must be lowercase letters, digits, and underscores)\n", name)
+			name = ""
+			continue
+		}
+		break
+	}
+
+	basePath := fmt.Sprintf("gno.land/%s/%s", namespace, name)
+	return insertPathLetter(basePath, kind)
+}
+
+func selectTemplate(templates []initTemplate, io commands.IO) (*initTemplate, error) {
+	if len(templates) == 0 {
+		return nil, fmt.Errorf("no templates available")
+	}
+	if len(templates) == 1 {
+		return &templates[0], nil
+	}
+
+	for {
+		// Show numbered menu
+		prompt(io, "Template:\n")
+		for i, t := range templates {
+			fmt.Fprintf(io.Err(), "  %d. %s — %s\n", i+1, t.Name, t.Description)
+		}
+		prompt(io, fmt.Sprintf("Choose [1]: "))
+
+		ans, err := readLine(io)
+		if err != nil {
+			return nil, err
+		}
+		if ans == "<" {
+			return nil, errGoBack
+		}
+		if ans == "" {
+			return &templates[0], nil
+		}
+
+		// Try number
+		if n, err := strconv.Atoi(ans); err == nil {
+			if n >= 1 && n <= len(templates) {
+				return &templates[n-1], nil
+			}
+			fmt.Fprintf(io.Err(), "invalid template number: %d\n", n)
+			continue
+		}
+
+		// Try name
+		for i := range templates {
+			if strings.EqualFold(templates[i].Name, ans) {
+				return &templates[i], nil
+			}
+		}
+		fmt.Fprintf(io.Err(), "unknown template: %q\n", ans)
+	}
+}
+
+func kindFromPath(modPath string) moduleKind {
+	if gno.IsRealmPath(modPath) {
+		return kindRealm
+	}
+	return kindPackage
+}
+
+func templatesForKind(kind moduleKind) []initTemplate {
+	switch kind {
+	case kindRealm:
+		return realmTemplates
+	case kindRun:
+		return runTemplates
+	default:
+		return packageTemplates
+	}
+}
+
+func insertPathLetter(path string, kind moduleKind) (string, error) {
+	// path is like "gno.land/namespace/name"
+	// insert /r/ or /p/ after the domain
+	idx := strings.Index(path, "/")
+	if idx == -1 || idx == len(path)-1 {
+		return "", fmt.Errorf("invalid module path: %q", path)
+	}
+	domain := path[:idx]
+	rest := path[idx+1:]
+
+	var letter string
+	switch kind {
+	case kindRealm:
+		letter = "r"
+	default:
+		letter = "p"
+	}
+	return fmt.Sprintf("%s/%s/%s", domain, letter, rest), nil
+}
+
+var reModName = regexp.MustCompile(`[^a-z0-9_]`)
+
+// reValidName matches the same pattern as gnolang's Re_name: optional leading _,
+// must start with a lowercase letter, then lowercase letters, digits, underscores.
+var reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
+
+func isValidName(s string) bool {
+	return reValidName.MatchString(s)
+}
+
+func sanitizeModuleName(name string) string {
+	name = strings.ToLower(name)
+	name = strings.ReplaceAll(name, "-", "_")
+	name = reModName.ReplaceAllString(name, "")
+	return name
+}
+
+func prompt(io commands.IO, msg string) {
+	fmt.Fprint(io.Err(), msg)
+}
+
+// readLine reads a line from io using GetString and trims whitespace.
+func readLine(io commands.IO) (string, error) {
+	s, err := io.GetString("")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(s), nil
+}
+
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 func newModTidy(io commands.IO) *commands.Command {
@@ -290,44 +683,6 @@ func parseRemoteOverrides(arg string) (map[string]string, error) {
 		res[domain] = rpcURL
 	}
 	return res, nil
-}
-
-func execModInit(args []string) error {
-	if len(args) > 1 {
-		return flag.ErrHelp
-	}
-	var modPath string
-	if len(args) == 1 {
-		modPath = args[0]
-	}
-	rootDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	if !filepath.IsAbs(rootDir) {
-		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
-	}
-
-	modFilePath := filepath.Join(rootDir, "gnomod.toml")
-	if _, err := os.Stat(modFilePath); err == nil {
-		return errors.New("create gnomod.toml: file already exists")
-	}
-
-	if err := module.CheckImportPath(modPath); err != nil {
-		return fmt.Errorf("create gnomod.toml: %w", err)
-	}
-
-	if !gno.IsUserlib(modPath) {
-		return fmt.Errorf("create gnomod.toml: %q is not a valid package path URL", modPath)
-	}
-
-	modfile := new(gnomod.File)
-	modfile.Module = modPath
-	modfile.Gno = gno.GnoVerLatest
-	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
-
-	return nil
 }
 
 type modTidyCfg struct {
