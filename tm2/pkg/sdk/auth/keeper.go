@@ -318,8 +318,14 @@ func maxBig(x, y *big.Int) *big.Int {
 // It returns the gas price for the last block.
 func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	stor := ctx.Store(gk.key)
-	// nil GasContext: this read occurs before SetGasMeter creates
-	// the per-tx gas meter, so no gas can be meaningfully charged.
+	// nil GasContext: LastGasPrice is infrastructure/control-plane —
+	// it reads the last block's gas price to feed the anteHandler
+	// wrapper, the vm/qgasprice query handler, or the EndBlocker.
+	// All three callers run under a context whose gas meter is
+	// either the default InfiniteGasMeter (queries, EndBlock) or
+	// about to be replaced by SetGasMeter inside the auth
+	// anteHandler (wrapper path). Charging here would be meaningless
+	// or lost; pass nil to skip it.
 	bz := stor.Get(nil, []byte(GasPriceKey))
 	if bz == nil {
 		return std.GasPrice{}
