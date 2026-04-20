@@ -133,6 +133,47 @@ func BenchmarkOpAdd_String_100(b *testing.B)   { benchOpAdd_String(b, 100) }
 func BenchmarkOpAdd_String_1000(b *testing.B)  { benchOpAdd_String(b, 1000) }
 func BenchmarkOpAdd_String_10000(b *testing.B) { benchOpAdd_String(b, 10000) }
 
+// Asymmetric sizes to probe whether flat OpCPUAddString undercharges large
+// concatenations. ns/op(pure) should scale with len(A)+len(B) (underlying
+// Go string concat copies both halves). Plotted against sum(len(A), len(B))
+// in plot_fits.py as family "Add (string, asym)".
+func benchOpAdd_StringAsym(b *testing.B, lenA, lenB int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	s1 := strings.Repeat("a", lenA)
+	s2 := strings.Repeat("b", lenB)
+	sv1 := m.Alloc.NewString(s1)
+	sv2 := m.Alloc.NewString(s2)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: StringType, V: sv1})
+		m.PushValue(TypedValue{T: StringType, V: sv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpAdd()
+		bm.SwitchOpCode(bmSetup)
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpAdd_String_1KB_1MB(b *testing.B) {
+	benchOpAdd_StringAsym(b, 1024, 1024*1024)
+}
+func BenchmarkOpAdd_String_1MB_10MB(b *testing.B) {
+	benchOpAdd_StringAsym(b, 1024*1024, 10*1024*1024)
+}
+func BenchmarkOpAdd_String_10MB_100MB(b *testing.B) {
+	benchOpAdd_StringAsym(b, 10*1024*1024, 100*1024*1024)
+}
+func BenchmarkOpAdd_String_100MB_10MB(b *testing.B) {
+	benchOpAdd_StringAsym(b, 100*1024*1024, 10*1024*1024)
+}
+
 func BenchmarkOpAdd_Float64(b *testing.B) {
 	m := benchMachine()
 	defer m.Release()

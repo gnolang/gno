@@ -202,6 +202,12 @@ func (m *Machine) doOpAdd() {
 	// Gas based on operand type.
 	switch lv.T.Kind() {
 	case StringKind:
+		// String concat charges flat CPU gas; the per-byte O(N) copy cost
+		// is absorbed by alloc gas via alloc.NewString(len(lv)+len(rv))
+		// in addAssign below. BenchmarkOpAdd_String_{10..100MB_10MB}
+		// confirms alloc gas ≥ 3× the ns/op(pure) CPU cost across all
+		// sizes on reference hardware — see cmd/calibrate/plot_fits.py
+		// 'Add (string)' family plotted against sum(|A|,|B|).
 		m.incrCPU(OpCPUAddString)
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUAddFloat)

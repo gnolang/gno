@@ -221,9 +221,16 @@ FLAT_FAMILIES = [
     ('Selector (field)', 'fields', [
         ('BenchmarkOpSelector_1field', 1), ('BenchmarkOpSelector_10fields', 10),
         ('BenchmarkOpSelector_100fields', 100), ('BenchmarkOpSelector_1000fields', 1000)]),
-    ('Add (string)', 'total chars', [
-        ('BenchmarkOpAdd_String_10', 10), ('BenchmarkOpAdd_String_100', 100),
-        ('BenchmarkOpAdd_String_1000', 1000), ('BenchmarkOpAdd_String_10000', 10000)]),
+    ('Add (string)', 'sum(|A|,|B|) bytes', [
+        ('BenchmarkOpAdd_String_10', 20),
+        ('BenchmarkOpAdd_String_100', 200),
+        ('BenchmarkOpAdd_String_1000', 2000),
+        ('BenchmarkOpAdd_String_10000', 20000),
+        ('BenchmarkOpAdd_String_1KB_1MB', 1024+1024*1024),
+        ('BenchmarkOpAdd_String_1MB_10MB', 1024*1024+10*1024*1024),
+        ('BenchmarkOpAdd_String_10MB_100MB', 10*1024*1024+100*1024*1024),
+        ('BenchmarkOpAdd_String_100MB_10MB', 100*1024*1024+10*1024*1024),
+    ]),
     ('Slice (string)', 'string len', [
         ('BenchmarkOpSlice_String_10', 10), ('BenchmarkOpSlice_String_100', 100),
         ('BenchmarkOpSlice_String_1000', 1000), ('BenchmarkOpSlice_String_10000', 10000)]),
