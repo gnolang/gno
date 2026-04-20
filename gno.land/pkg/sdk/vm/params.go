@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -109,6 +110,18 @@ func (p Params) Validate() error {
 // Equals returns a boolean determining if two Params types are identical.
 func (p Params) Equals(p2 Params) bool {
 	return amino.DeepEqual(p, p2)
+}
+
+// ApplyToGasConfig overwrites the governed depth fields of cfg with
+// the values in p. Shared by the anteHandler (tx path) and
+// newGnoTransactionStore (query path) so the two never drift.
+func (p Params) ApplyToGasConfig(cfg *store.GasConfig) {
+	cfg.MinGetReadDepth100 = p.MinGetReadDepth100
+	cfg.MinSetReadDepth100 = p.MinSetReadDepth100
+	cfg.MinWriteDepth100 = p.MinWriteDepth100
+	cfg.FixedGetReadDepth100 = p.FixedGetReadDepth100
+	cfg.FixedSetReadDepth100 = p.FixedSetReadDepth100
+	cfg.FixedWriteDepth100 = p.FixedWriteDepth100
 }
 
 func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {

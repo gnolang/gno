@@ -358,14 +358,8 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 		// a Config that a future caller (or a cached/pooled gctx)
 		// might share — an in-place write there would race across
 		// concurrent transactions and could break consensus.
-		params := vm.GetParams(ctx)
 		cfg := gctx.Config
-		cfg.MinGetReadDepth100 = params.MinGetReadDepth100
-		cfg.MinSetReadDepth100 = params.MinSetReadDepth100
-		cfg.MinWriteDepth100 = params.MinWriteDepth100
-		cfg.FixedGetReadDepth100 = params.FixedGetReadDepth100
-		cfg.FixedSetReadDepth100 = params.FixedSetReadDepth100
-		cfg.FixedWriteDepth100 = params.FixedWriteDepth100
+		vm.GetParams(ctx).ApplyToGasConfig(&cfg)
 		gctx = &store.GasContext{Meter: gctx.Meter, Config: cfg}
 	}
 	gasMeter := ctx.GasMeter()
