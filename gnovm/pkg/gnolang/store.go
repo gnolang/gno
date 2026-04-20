@@ -1122,6 +1122,8 @@ func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Stor
 		start := []byte(prefix)
 		endPrefix := prefix[:len(prefix)-1] + string(rune(prefix[len(prefix)-1]+1))
 		end := []byte(endPrefix)
+		// nil gctx: stdlib-cache population runs at node startup only,
+		// never under a tx or query meter — must remain gas-free.
 		iter := baseStore.Iterator(nil, start, end)
 		for ; iter.Valid(); iter.Next() {
 			key := string(iter.Key())
@@ -1138,6 +1140,7 @@ func (ds *defaultStore) populateStdlibCache(paths []string, baseStore store.Stor
 		tprefix := "tid:" + path + "."
 		tstart := []byte(tprefix)
 		tend := []byte("tid:" + path + "/")
+		// nil gctx: see comment above.
 		titer := baseStore.Iterator(nil, tstart, tend)
 		for ; titer.Valid(); titer.Next() {
 			key := string(titer.Key())

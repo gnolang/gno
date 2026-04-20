@@ -54,6 +54,9 @@ func (dsa Store) Delete(gctx *types.GasContext, key []byte) {
 }
 
 // Iterator over a domain of keys in ascending order.
+//
+// Does not charge gas. Gas is charged by cache.Store, which wraps this
+// store on gas-metered production paths.
 func (dsa Store) Iterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	it, err := dsa.DB.Iterator(start, end)
 	if err != nil {
@@ -63,6 +66,8 @@ func (dsa Store) Iterator(gctx *types.GasContext, start, end []byte) types.Itera
 }
 
 // Iterator over a domain of keys in descending order.
+//
+// Does not charge gas. See Iterator.
 func (dsa Store) ReverseIterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	it, err := dsa.DB.ReverseIterator(start, end)
 	if err != nil {

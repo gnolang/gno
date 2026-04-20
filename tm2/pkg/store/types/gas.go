@@ -82,20 +82,27 @@ func (gctx *GasContext) ConsumeGas(amount Gas, descriptor string) {
 	gctx.Meter.ConsumeGas(amount, descriptor)
 }
 
-// WillIterator charges flat seek cost for iterator creation.
+// WillIterator charges flat seek cost — modelled as one flat Get
+// because opening an iterator performs a tree walk to the first key.
+// Charged unconditionally: the walk happens even when the range is
+// empty.
 func (gctx *GasContext) WillIterator() {
 	if gctx == nil {
 		return
 	}
-	gctx.Meter.ConsumeGas(gctx.Config.IterNextCostFlat, GasIterNextCostFlatDesc)
+	gctx.Meter.ConsumeGas(gctx.Config.ReadCostFlat, GasReadCostFlatDesc)
 }
 
-// WillIterNext charges flat cost per iteration step.
-func (gctx *GasContext) WillIterNext() {
+// WillIterNext charges per-step cost plus per-byte on the value the
+// iterator is now positioned at. Only call when the iterator is
+// Valid() after advancing.
+func (gctx *GasContext) WillIterNext(value []byte) {
 	if gctx == nil {
 		return
 	}
 	gctx.Meter.ConsumeGas(gctx.Config.IterNextCostFlat, GasIterNextCostFlatDesc)
+	perByte := overflow.Mulp(gctx.Config.ReadCostPerByte, Gas(len(value)))
+	gctx.Meter.ConsumeGas(perByte, GasValuePerByteDesc)
 }
 
 // DepthEstimator is implemented by stores that have depth-dependent

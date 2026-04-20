@@ -395,7 +395,7 @@ func (store *cacheStore) iterator(gctx *types.GasContext, start, end []byte, asc
 	store.dirtyItems(start, end)
 	cache = newMemIterator(start, end, store.sortedCache, ascending)
 
-	return newCacheMergeIterator(parent, cache, ascending)
+	return newGasIterator(gctx, newCacheMergeIterator(parent, cache, ascending))
 }
 
 // Constructs a slice of dirty items, to use w/ memIterator.

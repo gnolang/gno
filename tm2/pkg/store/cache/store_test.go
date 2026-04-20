@@ -587,6 +587,147 @@ func (krc *keyRangeCounter) key() int {
 }
 
 // --------------------------------------------------------
+// Iterator gas tests
+
+// newCacheStoreWithGas returns a cache store plus a fresh gas context
+// and meter (effectively unlimited) for tests that assert on gas
+// consumption.
+func newCacheStoreWithGas() (types.Store, *types.GasContext, types.GasMeter) {
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	cs := cache.New(mem)
+	meter := types.NewGasMeter(1 << 62)
+	gctx := &types.GasContext{Meter: meter, Config: types.DefaultGasConfig()}
+	return cs, gctx, meter
+}
+
+// TestIteratorChargesGas verifies the per-step formula:
+// 1 × ReadCostFlat (seek) + N × (IterNextCostFlat + len(value) × ReadCostPerByte).
+func TestIteratorChargesGas(t *testing.T) {
+	t.Parallel()
+	st, gctx, meter := newCacheStoreWithGas()
+	cfg := gctx.Config
+
+	st.Set(nil, bz("a"), bz("val1"))    // 4 bytes
+	st.Set(nil, bz("b"), bz("value22")) // 7 bytes
+
+	before := meter.GasConsumed()
+	iter := st.Iterator(gctx, nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	got := meter.GasConsumed() - before
+
+	want := cfg.ReadCostFlat +
+		2*cfg.IterNextCostFlat +
+		11*cfg.ReadCostPerByte
+	require.Equal(t, want, got)
+}
+
+// TestIteratorNilGctx — no panic, no wrapping, no gas consumed when
+// gctx is nil.
+func TestIteratorNilGctx(t *testing.T) {
+	t.Parallel()
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	st := cache.New(mem)
+	st.Set(nil, bz("a"), bz("v"))
+	iter := st.Iterator(nil, nil, nil)
+	count := 0
+	for ; iter.Valid(); iter.Next() {
+		count++
+	}
+	iter.Close()
+	require.Equal(t, 1, count)
+}
+
+// TestIteratorEmptyRange — only the seek cost is charged when the
+// range is empty. WillIterator fires unconditionally; WillIterNext
+// does not.
+func TestIteratorEmptyRange(t *testing.T) {
+	t.Parallel()
+	st, gctx, meter := newCacheStoreWithGas()
+	cfg := gctx.Config
+
+	before := meter.GasConsumed()
+	iter := st.Iterator(gctx, bz("z"), bz("zz"))
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	require.Equal(t, cfg.ReadCostFlat, meter.GasConsumed()-before)
+}
+
+// TestIteratorValidCloseIdempotent — repeated Valid()/Value()/Close()
+// on the same position do not double-charge.
+func TestIteratorValidCloseIdempotent(t *testing.T) {
+	t.Parallel()
+	st, gctx, meter := newCacheStoreWithGas()
+	cfg := gctx.Config
+
+	st.Set(nil, bz("a"), bz("v"))
+
+	before := meter.GasConsumed()
+	iter := st.Iterator(gctx, nil, nil)
+	_ = iter.Valid()
+	_ = iter.Valid()
+	_ = iter.Value()
+	_ = iter.Value()
+	iter.Close()
+	iter.Close()
+	got := meter.GasConsumed() - before
+
+	want := cfg.ReadCostFlat + cfg.IterNextCostFlat + 1*cfg.ReadCostPerByte
+	require.Equal(t, want, got)
+}
+
+// TestIteratorNestedCacheWrap — CacheWrap of a cache store charges
+// gas only at the outermost wrap. cache.Store.iterator passes nil to
+// its parent's Iterator, so the inner newGasIterator is a no-op.
+func TestIteratorNestedCacheWrap(t *testing.T) {
+	t.Parallel()
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	outer := cache.New(mem)
+	outer.Set(nil, bz("a"), bz("val"))
+	inner := outer.CacheWrap()
+
+	meter := types.NewGasMeter(1 << 62)
+	gctx := &types.GasContext{Meter: meter, Config: types.DefaultGasConfig()}
+	cfg := gctx.Config
+
+	before := meter.GasConsumed()
+	iter := inner.Iterator(gctx, nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	got := meter.GasConsumed() - before
+
+	want := cfg.ReadCostFlat + cfg.IterNextCostFlat + 3*cfg.ReadCostPerByte
+	require.Equal(t, want, got)
+}
+
+// TestIteratorDirectBareStore — calling Iterator directly on a
+// non-cache store consumes zero gas even with a real gctx. Gas is
+// only charged at the cache layer.
+func TestIteratorDirectBareStore(t *testing.T) {
+	t.Parallel()
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
+	mem.Set(nil, bz("a"), bz("v1"))
+	mem.Set(nil, bz("b"), bz("v2"))
+
+	meter := types.NewGasMeter(1 << 62)
+	gctx := &types.GasContext{Meter: meter, Config: types.DefaultGasConfig()}
+
+	before := meter.GasConsumed()
+	iter := mem.Iterator(gctx, nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		_ = iter.Value()
+	}
+	iter.Close()
+	require.Equal(t, types.Gas(0), meter.GasConsumed()-before)
+}
+
+// --------------------------------------------------------
 
 func bz(s string) []byte { return []byte(s) }
 

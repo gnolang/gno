@@ -359,6 +359,91 @@ func BenchmarkStoreDeleteAndInsert(b *testing.B) {
 }
 
 // ----------------------------------------
+// Iterator benchmarks
+//
+// Measures the cost of iterator operations to calibrate IterNextCostFlat
+// in tm2/pkg/store/types/gas.go. Two separate measurements:
+//
+//   - BenchmarkIterNext: per-step cost of Iterator.Next()+Value() after
+//     the iterator is positioned. This is what IterNextCostFlat models.
+//   - BenchmarkIterSeek: cost of opening a fresh iterator (tree walk to
+//     the first leaf). Useful for deciding whether seek and step should
+//     use a single constant or split.
+//
+// Usage:
+//
+//	go test ./gnovm/cmd/benchstore/ -bench=IterNext -timeout=30m -db=lmdb
+//	go test ./gnovm/cmd/benchstore/ -bench=IterSeek -timeout=30m -db=lmdb
+
+var iterKeySizes = []int{10_000, 100_000, 1_000_000, 10_000_000, 100_000_000}
+
+func BenchmarkIterNext(b *testing.B) {
+	requireDB(b)
+	for _, n := range iterKeySizes {
+		n := n
+		if *flagMaxKeys > 0 && n > *flagMaxKeys {
+			continue
+		}
+		var env *benchEnv
+		b.Run(fmt.Sprintf("keys=%d", n), func(b *testing.B) {
+			if env == nil {
+				env = newBenchEnv(b, n, 256)
+			}
+			iter, _ := env.db.Iterator(nil, nil)
+			var sinkK, sinkV []byte
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if !iter.Valid() {
+					iter.Close()
+					iter, _ = env.db.Iterator(nil, nil)
+				}
+				sinkK = iter.Key()
+				sinkV = iter.Value()
+				iter.Next()
+			}
+			b.StopTimer()
+			iter.Close()
+			runtime.KeepAlive(sinkK)
+			runtime.KeepAlive(sinkV)
+		})
+		if env != nil {
+			env.Close()
+		}
+	}
+}
+
+func BenchmarkIterSeek(b *testing.B) {
+	requireDB(b)
+	for _, n := range iterKeySizes {
+		n := n
+		if *flagMaxKeys > 0 && n > *flagMaxKeys {
+			continue
+		}
+		var env *benchEnv
+		b.Run(fmt.Sprintf("keys=%d", n), func(b *testing.B) {
+			if env == nil {
+				env = newBenchEnv(b, n, 256)
+			}
+			rng := rand.New(rand.NewSource(42))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				start := make([]byte, 8)
+				binary.BigEndian.PutUint64(start, uint64(rng.Intn(n)))
+				iter, _ := env.db.Iterator(start, nil)
+				// Force positioning; without Valid()/Value() the backend may lazy-seek.
+				if iter.Valid() {
+					_ = iter.Value()
+				}
+				iter.Close()
+			}
+		})
+		if env != nil {
+			env.Close()
+		}
+	}
+}
+
+// ----------------------------------------
 // PebbleDB cache sweep (PebbleDB only)
 
 func BenchmarkStoreGetCacheSweep(b *testing.B) {

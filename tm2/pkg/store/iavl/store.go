@@ -212,6 +212,9 @@ func (st *Store) Delete(gctx *types.GasContext, key []byte) {
 }
 
 // Implements types.Store.
+//
+// Iterator does not charge gas. Gas is charged by cache.Store, which
+// wraps this store on gas-metered production paths.
 func (st *Store) Iterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	var iTree *iavl.ImmutableTree
 
@@ -226,6 +229,8 @@ func (st *Store) Iterator(gctx *types.GasContext, start, end []byte) types.Itera
 }
 
 // Implements types.Store.
+//
+// ReverseIterator does not charge gas. See Iterator.
 func (st *Store) ReverseIterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	var iTree *iavl.ImmutableTree
 
