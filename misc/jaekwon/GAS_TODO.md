@@ -123,8 +123,8 @@ Fixed: all packages loaded before `bm.Init()` creates the exporter. Export funct
 ### L2. GC silent failure returns `(-1, false)` with no diagnostics
 **File:** `garbage_collector.go:70-95`
 
-### L3. Stats division by zero if an opcode has 0 records
-**File:** `gnovm/cmd/benchops/stats.go:182` — `float64(len(crs))` unguarded
+### L3. ~~Stats division by zero if an opcode has 0 records~~ OBSOLETE
+**File:** `gnovm/cmd/benchops/stats.go:182` — cmd/benchops has been deleted.
 
 ---
 
@@ -140,5 +140,5 @@ Fixed: all packages loaded before `bm.Init()` creates the exporter. Export funct
 | `gnovm/pkg/gnolang/preprocess.go` | C3 |
 | `gnovm/pkg/benchops/bench.go` | M1 |
 | `gnovm/pkg/benchops/exporter.go` | M2, M3 |
-| `gnovm/cmd/benchops/run.go` | M4 |
-| `gnovm/cmd/benchops/stats.go` | L3 |
+| ~~`gnovm/cmd/benchops/run.go`~~ | ~~M4~~ (deleted) |
+| ~~`gnovm/cmd/benchops/stats.go`~~ | ~~L3~~ (deleted) |

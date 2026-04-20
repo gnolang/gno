@@ -1,8 +1,8 @@
-NOTE: These issues describe the *benchops contract-level* system (cmd/benchops).
-Most are now superseded by 350 Go-level microbenchmarks in bench_ops_test.go
-with full parameterization (BigInt bit-lengths, string lengths, interface method
-counts, array sizes, etc.). The benchops system remains useful for end-to-end
-measurement but is no longer the primary calibration source.
+NOTE: These issues described the *benchops contract-level* system (cmd/benchops),
+which has since been DELETED. Superseded by 350 Go-level microbenchmarks in
+bench_ops_test.go with full parameterization (BigInt bit-lengths, string lengths,
+interface method counts, array sizes, etc.) and by gnovm/cmd/calibrate. The notes
+below are preserved for historical context only.
 
 ---
 
