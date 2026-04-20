@@ -1467,6 +1467,10 @@ const (
 	OpCPUSlopeBigDecMulQ = 6 // per (digits/10)^2 / 10
 	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
 	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
+
+	// OpCPUComputeMapKey is the base gas cost for the ComputeMapKey function.
+	// TODO: fix an accurate value with benchmarks
+	OpCPUComputeMapKey = 10
 )
 
 //----------------------------------------
