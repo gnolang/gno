@@ -162,9 +162,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				return
 			}
 
-			// Session message restrictions (gno.land layer).
-			if res, abort = checkSessionRestrictions(newCtx, tx); abort {
-				return newCtx, res, true
+			// Session message restrictions (gno.land layer). Only
+			// overwrite res when the check aborts — on success,
+			// preserve the ante's res (which carries GasWanted from
+			// tx.Fee). checkSessionRestrictions returns sdk.Result{}
+			// on success, which would otherwise zero out GasWanted.
+			if sessRes, sessAbort := checkSessionRestrictions(newCtx, tx); sessAbort {
+				return newCtx, sessRes, true
 			}
 			return
 		},
