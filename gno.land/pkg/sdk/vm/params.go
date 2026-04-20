@@ -109,6 +109,9 @@ func (p Params) Validate() error {
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")
 	}
+	if p.IterNextCostFlat <= 0 {
+		return fmt.Errorf("IterNextCostFlat must be positive, got %d", p.IterNextCostFlat)
+	}
 	return nil
 }
 
@@ -127,11 +130,7 @@ func (p Params) ApplyToGasConfig(cfg *store.GasConfig) {
 	cfg.FixedGetReadDepth100 = p.FixedGetReadDepth100
 	cfg.FixedSetReadDepth100 = p.FixedSetReadDepth100
 	cfg.FixedWriteDepth100 = p.FixedWriteDepth100
-	// Zero means "inherit the tm2 default" — avoids wiping the default
-	// on Params records that pre-date the IterNextCostFlat field.
-	if p.IterNextCostFlat > 0 {
-		cfg.IterNextCostFlat = p.IterNextCostFlat
-	}
+	cfg.IterNextCostFlat = p.IterNextCostFlat
 }
 
 func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
