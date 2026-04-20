@@ -106,9 +106,6 @@ const (
 	GasAminoEncodeDesc = "AminoEncodePerByte"
 )
 
-// GasConfig defines gas cost for each operation on KVStores.
-// Per-byte costs cover serialization and are charged at each call site.
-// TODO: flat I/O costs (DB lookup, page fault, fsync) should be charged
 // GasConfig defines amino compute gas costs for GnoVM stores.
 // Storage I/O gas is handled separately by the cache.Store via GasContext.
 type GasConfig struct {
