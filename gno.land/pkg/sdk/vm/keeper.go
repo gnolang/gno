@@ -353,14 +353,20 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 	iavl := ctx.Store(vm.iavlKey)
 	gctx := ctx.GasContext()
 	if gctx != nil {
-		// Apply depth governance parameters.
+		// Apply depth governance parameters. Write to a value-copy
+		// of Config and build a fresh GasContext so we never mutate
+		// a Config that a future caller (or a cached/pooled gctx)
+		// might share — an in-place write there would race across
+		// concurrent transactions and could break consensus.
 		params := vm.GetParams(ctx)
-		gctx.Config.MinGetReadDepth100 = params.MinGetReadDepth100
-		gctx.Config.MinSetReadDepth100 = params.MinSetReadDepth100
-		gctx.Config.MinWriteDepth100 = params.MinWriteDepth100
-		gctx.Config.FixedGetReadDepth100 = params.FixedGetReadDepth100
-		gctx.Config.FixedSetReadDepth100 = params.FixedSetReadDepth100
-		gctx.Config.FixedWriteDepth100 = params.FixedWriteDepth100
+		cfg := gctx.Config
+		cfg.MinGetReadDepth100 = params.MinGetReadDepth100
+		cfg.MinSetReadDepth100 = params.MinSetReadDepth100
+		cfg.MinWriteDepth100 = params.MinWriteDepth100
+		cfg.FixedGetReadDepth100 = params.FixedGetReadDepth100
+		cfg.FixedSetReadDepth100 = params.FixedSetReadDepth100
+		cfg.FixedWriteDepth100 = params.FixedWriteDepth100
+		gctx = &store.GasContext{Meter: gctx.Meter, Config: cfg}
 	}
 	gasMeter := ctx.GasMeter()
 
