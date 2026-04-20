@@ -24,7 +24,7 @@ Example:
 			title,
 			body,
 			publicationDate,
-			std.OriginCaller().String(),
+			runtime.OriginCaller().String(),
 			authorsField,
 			tagsField,
 		)

@@ -5544,23 +5544,6 @@ func BenchmarkOpInterfaceType_10(b *testing.B)   { benchOpInterfaceType(b, 10) }
 func BenchmarkOpInterfaceType_100(b *testing.B)  { benchOpInterfaceType(b, 100) }
 func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000) }
 
-func BenchmarkOpChanType(b *testing.B) {
-	m := benchMachine()
-	defer m.Release()
-	x := &ChanTypeExpr{Dir: SEND | RECV}
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(asValue(IntType))
-		m.PushExpr(x)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpChanType()
-		bm.SwitchOpCode(bmSetup)
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
-
 // ---------------------------------------------------------------------------
 // Helper: encode int64/uint64 into [8]byte (little-endian, matching unsafe cast)
 // ---------------------------------------------------------------------------
