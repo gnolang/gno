@@ -11,6 +11,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/tm2/pkg/store/trace"
@@ -136,17 +137,17 @@ func (store *cacheStore) Get(gctx *types.GasContext, key []byte) (value []byte) 
 			var gas types.Gas
 			if store.hasEstimator {
 				d := store.effectiveGetReadDepth100(gctx)
-				gas = d * gctx.Config.ReadCostFlat / 100
+				gas = overflow.Mulp(d, gctx.Config.ReadCostFlat) / 100
 				gctx.ConsumeGas(gas, "DepthReadFlat")
 			} else {
 				gctx.WillGet() // flat ReadCostFlat (non-depth store)
 				gas = gctx.Config.ReadCostFlat
 			}
 			value = store.parent.Get(nil, key)
-			perByte := gctx.Config.ReadCostPerByte * types.Gas(len(value))
+			perByte := overflow.Mulp(gctx.Config.ReadCostPerByte, types.Gas(len(value)))
 			gctx.DidGet(value) // ReadCostPerByte (nil-safe)
 			if trace.StoreGasEnabled {
-				trace.Store("GET", gas+perByte, key, len(value),
+				trace.Store("GET", overflow.Addp(gas, perByte), key, len(value),
 					fmt.Sprintf("depth=%v", store.hasEstimator))
 			}
 		} else {
@@ -182,9 +183,10 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 		if store.hasEstimator {
 			rd := store.effectiveSetReadDepth100(gctx)
 			wd := store.effectiveWriteDepth100(gctx)
-			gas = rd*gctx.Config.ReadCostFlat/100 +
-				wd*gctx.Config.WriteCostFlat/100 +
-				gctx.Config.WriteCostPerByte*types.Gas(len(value))
+			rdGas := overflow.Mulp(rd, gctx.Config.ReadCostFlat) / 100
+			wdGas := overflow.Mulp(wd, gctx.Config.WriteCostFlat) / 100
+			pbGas := overflow.Mulp(gctx.Config.WriteCostPerByte, types.Gas(len(value)))
+			gas = overflow.Addp(overflow.Addp(rdGas, wdGas), pbGas)
 			gctx.ConsumeGas(gas, "DepthSet")
 		} else {
 			gas = gctx.WillSet(value)
@@ -224,8 +226,9 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 		if store.hasEstimator {
 			rd := store.effectiveSetReadDepth100(gctx)
 			wd := store.effectiveWriteDepth100(gctx)
-			gas = rd*gctx.Config.ReadCostFlat/100 +
-				wd*gctx.Config.WriteCostFlat/100
+			rdGas := overflow.Mulp(rd, gctx.Config.ReadCostFlat) / 100
+			wdGas := overflow.Mulp(wd, gctx.Config.WriteCostFlat) / 100
+			gas = overflow.Addp(rdGas, wdGas)
 			gctx.ConsumeGas(gas, "DepthDelete")
 		} else {
 			gas = gctx.WillDelete() // DeleteCost
