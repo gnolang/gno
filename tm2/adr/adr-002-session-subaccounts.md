@@ -130,11 +130,18 @@ One unified flow for master and session signatures:
 
 ```
 AnteHandler (tm2):      sig verify, sequence, gas fees + spend check, expiry
-Ante wrapper (gno.land): msg type restriction ("exec" only), AllowPaths
-Bank handler (tm2):     spend limit check on MsgSend
-VM keeper (gno.land):   spend limit check on MsgCall/Run/AddPackage Send
-Realm code (gno):       optional fine-grained authz via GetSessionInfo()
+Ante wrapper (gno.land): msg type allowlist, AllowPaths
+Bank keeper (tm2):      spend limit check on all SendCoins + InputOutputCoins
+VM keeper (gno.land):   spend limit check on lockStorageDeposit
+Realm code (gno):       optional business-logic authz via GetSessionInfo()
 ```
+
+`SpendLimit` is authoritative at the bank-keeper layer: any outflow
+from master's balance that goes through `bank.Keeper.SendCoins` or
+`bank.Keeper.InputOutputCoins` is debited against the session. This
+covers outer `msg.Send`, `bank.MsgSend`, `bank.MsgMultiSend`, and
+in-realm `std.Send` from gno code. `SendCoinsUnrestricted` (gas
+collection, storage deposit refunds) is the only intentional bypass.
 
 ### Replay protection
 
@@ -171,16 +178,44 @@ MsgRevokeAllSessions{Creator}
 
 ### Spend limits
 
-`SpendLimit` must include the gas fee denom (e.g., ugnot) or the
-session can't pay gas — spending is checked per-denom, and a missing
-denom means zero allowance (fail-closed). Empty `SpendLimit` means
-no spending at all, useful when another signer pays gas.
+`SpendLimit` must include the gas fee / storage deposit denom
+(e.g., `ugnot`) or the session can't pay gas and can't grow realm
+storage — spending is checked per-denom, and a missing denom means
+zero allowance (fail-closed). Empty `SpendLimit` means no spending at
+all, useful when another signer pays gas.
+
+`SpendLimit` is the session's high-water mark, not a net-balance
+counter. Refunds (e.g., storage deposit refund when state is freed)
+credit coins back to master but do **not** reverse `SpendUsed`. This
+prevents a compromised session from churning state to extend its
+effective spending past `SpendLimit`. The refunded coins still reach
+master; the session's remaining budget stays at its high-water mark.
+
+#### Enforcement points
+
+- **`bank.Keeper.SendCoins`**: calls `CheckAndDeductSessionSpend`
+  after `canSendCoins`. Covers outer `msg.Send` on MsgCall/MsgRun,
+  `bank.MsgSend`, and in-realm `std.Send`/`banker.SendCoins` from gno
+  code inside a session-signed MsgCall or MsgRun.
+- **`bank.Keeper.InputOutputCoins`**: per-input check, for
+  `bank.MsgMultiSend`.
+- **`VMKeeper.lockStorageDeposit`**: explicit check before the
+  `SendCoinsUnrestricted` transfer. Storage deposits must bypass the
+  restricted-denom check (they're an always-valid system transfer),
+  but session accounting still applies.
+- **AnteHandler Phase 2**: gas fee deducted via `DeductSessionSpend`
+  in memory; the fee transfer itself uses `SendCoinsUnrestricted` so
+  it doesn't double-count through the bank-keeper hook.
+
+Intentional bypasses: `bank.Keeper.SendCoinsUnrestricted` (gas fee
+collection, storage deposit refunds). Anything that must move coins
+as a system-internal transfer should use the unrestricted path.
 
 `DeductSessionSpend` operates on the `DelegatedAccount` directly.
 `CheckAndDeductSessionSpend` is a context wrapper that looks up the
 session from context and persists after deduction, accepting a
 `SessionAccountSetter` interface (not the concrete `AccountKeeper`)
-so it can be called from the VM keeper without circular imports.
+so it can be called from the bank keeper without circular imports.
 
 ### Query endpoints
 
@@ -226,8 +261,23 @@ isSession)` using a local `pathRestricted` interface to read
 - Empty `SpendLimit` means "no spending allowed" — useful when another
   signer pays gas.
 - `ExpiresAt = 0` means "no expiry" — valid until revoked.
-- Sessions can only send MsgCall ("exec") at the gno.land layer. Other
-  msg types are denied regardless of `AllowPaths`.
+- At the gno.land layer, sessions can send `exec` (MsgCall), `run`
+  (MsgRun), `send` (bank.MsgSend), and `multisend` (bank.MsgMultiSend).
+  Other msg types are denied. `add_package` is permanently blocked
+  (sessions must not claim namespace under master); session-lifecycle
+  msgs (`create_session`, `revoke_session`, `revoke_all_sessions`)
+  are permanently blocked to prevent privilege escalation.
+- **Device login** is a primary use case for sessions without
+  `AllowPaths`. A user creates a session on a less-secure device,
+  leaves `AllowPaths` empty, and relies on `SpendLimit` + time expiry
+  to bound damage if the device is compromised. Because `SpendLimit`
+  is authoritative across every outflow (bank-keeper hook + storage
+  deposit hook), this is safe even when the session can call
+  arbitrary attacker-deployed realms.
+- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8), and
+  `MaxSessionDuration` (30 days) are compile-time constants in
+  `tm2/pkg/std/account.go`, not tunable params. Changing them
+  requires a coordinated upgrade of all nodes.
 
 ## References
 

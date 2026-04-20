@@ -524,7 +524,14 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
-	// Check session spend limits for coin transfers.
+	// Defense-in-depth spend check. MsgAddPackage is currently blocked
+	// from session signers at the gno.land session allowlist
+	// (checkSessionRestrictions in app.go), so this check is unreachable
+	// for session txs today. Kept here so that if the allowlist is ever
+	// relaxed, spend accounting still holds. NOTE: if AddPackage is
+	// added to the session allowlist, this pre-check must be removed
+	// or converted to a check-only variant — otherwise it will
+	// double-count with the bank.Keeper.SendCoins session hook.
 	if !msg.Send.IsZero() {
 		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Creator, msg.Send); err != nil {
 			return err
@@ -685,12 +692,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
-	// Check session spend limits for coin transfers.
-	if !msg.Send.IsZero() {
-		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Caller, msg.Send); err != nil {
-			return "", err
-		}
-	}
+	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins
+	// (tm2/pkg/sdk/bank/keeper.go), which is where the actual coin
+	// transfer happens. No pre-check needed here.
 	params := vm.GetParams(ctx)
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
@@ -854,12 +858,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
-	// Check session spend limits for coin transfers.
-	if !msg.Send.IsZero() {
-		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Caller, msg.Send); err != nil {
-			return "", err
-		}
-	}
+	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins.
 	caller := msg.Caller
 	pkgAddr := caller
 	gnostore := vm.getGnoTransactionStore(ctx)
@@ -1355,6 +1354,18 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
+
+	// Count storage deposit against a session's SpendLimit. The transfer
+	// itself uses SendCoinsUnrestricted (deposits must bypass
+	// restricted-denom checks), so we perform the session deduction
+	// explicitly here. Refunds via refundStorageDeposit do NOT reverse
+	// SpendUsed — once budget is consumed, it stays consumed, so that
+	// a compromised session cannot churn state (allocate → free →
+	// allocate) to drain master beyond SpendLimit.
+	if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, caller, d); err != nil {
+		return fmt.Errorf("unable to lock deposit %s, %w", rlm.Path, err)
+	}
+
 	err := vm.bank.SendCoinsUnrestricted(ctx, caller, storageDepositAddr, d)
 	if err != nil {
 		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)

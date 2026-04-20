@@ -31,7 +31,7 @@ func PreviousRealm() Realm {
 //   - pubKeyAddr is the session key's address (for per-session tracking)
 //   - expiresAt is the unix timestamp when the session expires (0 = no expiry)
 //   - allowPaths is the list of realm path prefixes this session can call;
-//     nil means unrestricted (any realm). Realms that want to enforce
+//     nil or empty means unrestricted (any realm). Realms that want to enforce
 //     session-specific limits should check isSession and apply their own
 //     authorization logic.
 func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string, isSession bool) {

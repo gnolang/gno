@@ -34,17 +34,27 @@ This prevents `gno.land/r/demo` from matching `gno.land/r/demo_evil`.
 
 After the tm2 AnteHandler passes, a gno.land-specific check runs:
 
-1. **Message type restriction.** All session-signed messages must have
-   `msg.Type() == "exec"` (MsgCall). MsgAddPackage, MsgRun, MsgSend,
-   and all other types are denied. This check uses the
+1. **Message type restriction.** Session-signed messages must have
+   `msg.Type()` in the allowlist:
+   - `"exec"` (MsgCall)
+   - `"run"`  (MsgRun)
+   - `"send"` (bank.MsgSend)
+   - `"multisend"` (bank.MsgMultiSend)
+
+   MsgAddPackage and all auth msgs (create_session, revoke_session,
+   revoke_all_sessions) are denied. This check uses the
    `DelegatedAccount` presence in the context map, not a type assertion
    to `*GnoSessionAccount`, so it cannot be bypassed by alternative
    session account types.
 
 2. **AllowPaths restriction.** If `AllowPaths` is non-empty, the
-   MsgCall's `PkgPath` must match one of the allowed prefixes. Read
-   via a local `pathRestricted` interface to avoid tm2 importing
-   gno.land types.
+   msg's `PkgPath` must match one of the allowed prefixes. Read via a
+   local `pathRestricted` interface to avoid tm2 importing gno.land
+   types. Path-less msgs — MsgRun, MsgSend, and MsgMultiSend — do not
+   implement `pkgPather`, so a session with non-empty `AllowPaths`
+   rejects them. This is intentional: a session with AllowPaths set
+   is realm-scoped, and path-less msgs (arbitrary code execution,
+   direct value transfers) would escape that scope.
 
 ### AllowPaths validation at creation
 
@@ -53,13 +63,52 @@ After the tm2 AnteHandler passes, a gno.land-specific check runs:
 - No empty strings
 - No trailing slashes (would silently make paths unreachable)
 
-### Spend limit enforcement in VM keeper
+### Spend limit enforcement
 
-`VMKeeper.Call()`, `Run()`, and `AddPackage()` all call
-`auth.CheckAndDeductSessionSpend()` when `msg.Send` is non-zero.
-This is defense-in-depth — `Run` and `AddPackage` are already blocked
-by the "exec only" restriction, but the spend check protects against
-future relaxation.
+`SpendLimit` is **authoritative** across every tx-initiated outflow
+from master's balance. Enforcement happens at the tm2 bank keeper:
+
+- `bank.Keeper.SendCoins` calls `auth.CheckAndDeductSessionSpend`
+  after its `canSendCoins` check.
+- `bank.Keeper.InputOutputCoins` does the same per input (for
+  `MsgMultiSend`).
+
+This single gate covers:
+
+- Outer `msg.Send` on MsgCall / MsgRun (VM keeper routes the transfer
+  through `bank.Keeper.SendCoins`).
+- `bank.MsgSend` and `bank.MsgMultiSend`.
+- In-realm `std.Send` / `banker.SendCoins` from gno code running inside
+  a session-signed MsgCall or MsgRun.
+- Storage deposits (see below).
+
+Deliberate bypasses (via `bank.Keeper.SendCoinsUnrestricted`):
+
+- Gas fee collection in the ante handler.
+- Storage deposit refunds in `refundStorageDeposit` (a credit to
+  master, not a debit).
+
+Storage deposits get an explicit `CheckAndDeductSessionSpend` in
+`VMKeeper.lockStorageDeposit` before the `SendCoinsUnrestricted`
+transfer — the transfer itself needs to bypass restricted-denom
+checks, but session accounting still applies. Refunds do **not**
+reverse `SpendUsed`: a session's cumulative spend is a high-water
+mark, not a net balance, so a compromised session cannot churn state
+(allocate → free → allocate) to drain master beyond `SpendLimit`.
+The refunded coins still reach master; only the session's remaining
+budget stays at its high-water mark.
+
+`VMKeeper.AddPackage()` retains a redundant pre-check as
+defense-in-depth. AddPackage is currently blocked from session signers
+at the gno.land allowlist, so the pre-check never fires for sessions
+today. If the allowlist is ever relaxed, the pre-check must be
+removed or converted to a check-only variant to avoid double-counting
+with the bank-keeper hook.
+
+Sessions that intend to spend the chain's gas / storage denom
+(`ugnot`) must include it in `SpendLimit` — any outflow whose denom
+is absent from `SpendLimit` fails. See `tm2/adr/adr-002` for the gas
+fee denom note that applies here as well.
 
 ### VM integration
 
@@ -73,23 +122,34 @@ func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string,
 
 Return values:
 - `isSession == false`: not a session tx (master key signed)
-- `isSession == true, allowPaths == nil`: session with no path restrictions
-- `isSession == true, allowPaths != nil`: session restricted to these paths
+- `isSession == true, len(allowPaths) == 0`: session with no path restrictions
+  (nil or empty slice — both mean unrestricted)
+- `isSession == true, len(allowPaths) > 0`: session restricted to these paths
 
 `pubKeyAddr` is the session key's address (for per-session tracking).
 The master address is available via `OriginCaller()` as usual.
 
-Realms that want session-specific authorization should check
-`isSession` and apply their own limits:
+`SpendLimit` is enforced at the protocol level for all coin
+movements, so realms **do not** need to check session status for
+basic spending bounds. Realms that want to apply additional
+business-logic restrictions beyond `SpendLimit` (e.g., rate limits on
+trade volume, different limits for session vs master) can check
+`isSession`:
 
 ```gno
 func Trade(cur realm, pair string, amount int64) {
     _, _, _, isSession := runtime.GetSessionInfo()
     if isSession {
-        // enforce session-specific trade limits
+        // optional: enforce realm-specific trade limits for sessions
     }
 }
 ```
+
+Note that `banker.RemoveCoin` cannot reach master's native coins:
+the gno-side banker at `gnovm/stdlibs/chain/banker/banker.gno`
+requires `BankerTypeRealmIssue` and enforces that the denom is
+prefixed with the current realm's path. Master's `ugnot` has no such
+prefix, so no realm can burn it.
 
 ### Session prototype
 
@@ -122,9 +182,18 @@ tm2 unaware of AllowPaths as a concept.
 
 ### Neutral
 
-- Unrestricted sessions (empty AllowPaths) can call any realm. The
-  user chose to authorize this; the session's other constraints
-  (expiry, spend limit) still apply.
+- Unrestricted sessions (empty AllowPaths) can call any realm.
+  **Device login is the primary use case for this mode**: a user
+  creates a session on a less-secure device (browser, mobile app),
+  leaves `AllowPaths` empty, and relies on time expiry + `SpendLimit`
+  to bound damage if the device is compromised. Because `SpendLimit`
+  is authoritative across all outflows (see "Spend limit enforcement"
+  above), this is safe even when the session can call arbitrary
+  attacker-deployed realms.
+- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8), and
+  `MaxSessionDuration` (30 days) are compile-time constants in
+  `tm2/pkg/std/account.go`, not tunable params. Changing them
+  requires a coordinated upgrade of all nodes.
 
 ## References
 

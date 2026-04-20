@@ -181,6 +181,46 @@ func (msg MockMsgCall) GetReceived() std.Coins {
 	return msg.Send
 }
 
+// MockMsgRun mimics vm.MsgRun for testing session allowlist behavior.
+// Intentionally does NOT implement GetPkgPath — MsgRun has no realm path
+// at the protocol level (the path is auto-derived from Caller), so the
+// session AllowPaths check should treat it as path-less.
+type MockMsgRun struct {
+	Caller crypto.Address
+	Send   std.Coins
+}
+
+var _ std.Msg = MockMsgRun{}
+
+func (msg MockMsgRun) Route() string        { return "vm" }
+func (msg MockMsgRun) Type() string         { return "run" }
+func (msg MockMsgRun) ValidateBasic() error { return nil }
+func (msg MockMsgRun) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgRun) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// MockMsgSend mimics bank.MsgSend for testing session allowlist behavior.
+type MockMsgSend struct {
+	From   crypto.Address
+	To     crypto.Address
+	Amount std.Coins
+}
+
+var _ std.Msg = MockMsgSend{}
+
+func (msg MockMsgSend) Route() string        { return "bank" }
+func (msg MockMsgSend) Type() string         { return "send" }
+func (msg MockMsgSend) ValidateBasic() error { return nil }
+func (msg MockMsgSend) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgSend) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.From}
+}
+
 // NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
 func NewSessionTestTx(
 	t *testing.T,

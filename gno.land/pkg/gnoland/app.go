@@ -596,8 +596,9 @@ func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error)
 }
 
 // checkSessionRestrictions enforces gno.land session key restrictions:
-// sessions can only send MsgCall ("exec"), and if AllowPaths is set,
-// the target path must match one of the allowed prefixes.
+// sessions can only send msg types in the allowlist below, and if
+// AllowPaths is set, the target path must match one of the allowed
+// prefixes (which blocks path-less msgs in that mode — see below).
 func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 	sa := ctx.Value(std.SessionAccountsContextKey{})
 	if sa == nil {
@@ -610,17 +611,51 @@ func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 			if !ok {
 				continue
 			}
-			// All session types (regardless of concrete type) can only
-			// send MsgCall ("exec"). This check uses the DelegatedAccount
-			// presence in the map, NOT a type assertion to *GnoSessionAccount,
-			// so it cannot be bypassed by a different session account type.
-			if msg.Type() != "exec" {
+			// Allowlist of msg types a session key may send.
+			// Allowed:
+			//   - "exec" (MsgCall)       — coin moves via bank.SendCoins
+			//   - "run"  (MsgRun)        — coin moves via bank.SendCoins
+			//   - "send" (bank.MsgSend)  — coin moves via bank.SendCoins
+			//   - "multisend" (bank.MsgMultiSend) — coin moves via
+			//     bank.InputOutputCoins
+			//
+			// Session spend for all of these is enforced inside the tm2
+			// bank keeper: SendCoins calls auth.CheckAndDeductSessionSpend
+			// after its canSendCoins check, and InputOutputCoins does the
+			// same per input. Storage deposits (via lockStorageDeposit)
+			// also call CheckAndDeductSessionSpend before their
+			// SendCoinsUnrestricted transfer. So SpendLimit is
+			// authoritative across every tx-initiated outflow, including
+			// in-realm std.Send calls from gno code.
+			//
+			// Permanently blocked (design, not TODO):
+			//   - "add_package" — sessions must not claim realm paths
+			//     in master's namespace.
+			//   - "create_session" / "revoke_session" /
+			//     "revoke_all_sessions" — privilege escalation; a session
+			//     that can mint or revoke sessions is equivalent to the
+			//     master key.
+			//
+			// This check uses DelegatedAccount presence in the map, NOT
+			// a type assertion to *GnoSessionAccount, so it cannot be
+			// bypassed by a different session account type.
+			switch msg.Type() {
+			case "exec", "run", "send", "multisend":
+				// allowed
+			default:
 				return sdk.ABCIResultFromError(
-					std.ErrSessionNotAllowed("session keys can only send MsgCall")), true
+					std.ErrSessionNotAllowed("msg type not allowed for session key")), true
 			}
 			// AllowPaths check — only applies to GnoSessionAccount.
 			// Other DelegatedAccount types have no path restrictions
-			// (but are still restricted to "exec" above).
+			// (but are still restricted to the allowlist above).
+			//
+			// Note: MsgRun, MsgSend, and MsgMultiSend do not implement
+			// pkgPather, so when AllowPaths is non-empty,
+			// pathAllowedForSession returns false and they are blocked.
+			// This is intentional: a session with AllowPaths set is
+			// realm-scoped; path-less msgs (arbitrary code execution,
+			// direct value transfers) would escape that scope.
 			type pathRestricted interface{ GetAllowPaths() []string }
 			if pr, ok := sessions[signer].(pathRestricted); ok {
 				if paths := pr.GetAllowPaths(); len(paths) > 0 && !pathAllowedForSession(paths, msg) {
