@@ -62,7 +62,10 @@ type cacheStore struct {
 	writeDepth100   int64
 }
 
-var _ types.Store = (*cacheStore)(nil)
+var (
+	_ types.Store         = (*cacheStore)(nil)
+	_ types.Checkpointable = (*cacheStore)(nil)
+)
 
 func New(parent types.Store) *cacheStore {
 	cs := &cacheStore{
