@@ -360,8 +360,7 @@ above it falls back to flat cost (1x `ReadCostFlat` / `WriteCostFlat`).
 
 ### Iterators
 
-`Iterator` and `ReverseIterator` gain `*GasContext` as the first parameter
-for signature uniformity:
+`Iterator` and `ReverseIterator` gain `*GasContext` as the first parameter:
 
 ```go
 type Store interface {
@@ -371,31 +370,11 @@ type Store interface {
 }
 ```
 
-**Iterator operations are intentionally not gas-charged in this refactor.**
-`GasContext.WillIterator()` and `WillIterNext()` remain defined for
-forward-compatibility, and `GasConfig.IterNextCostFlat` is preserved, but
-none of the concrete `Iterator` implementations invoke them. Realms
-cannot reach store iteration directly — the only in-tree call sites are:
-
-1. `defaultStore.FindPathsByPrefix` (`gnovm/pkg/gnolang/store.go`), used
-   exclusively by `VMKeeper.QueryPaths` to serve the `vm/qpaths` ABCI
-   query. Queries run under a non-tx gas meter, and the path list is
-   bounded by the caller-supplied limit.
-2. `defaultStore.populateStdlibCache` — node-startup only, explicitly
-   passes `nil` gctx.
-3. `auth.AccountKeeper.IterateAccounts` — invoked from genesis export
-   and `auth`-prefixed ABCI queries, never from tx handler code.
-4. Test helpers (`CopyFromCachedStore`, iavl store_test).
-
-Realm-level iteration (`avl.Tree.Iterate`, etc.) walks in-memory Gno
-objects reached via `ObjectRefGet`, which is charged through the normal
-`Get` path — iteration cost is therefore already metered per visited
-node via object loads, not via the underlying KV iterator.
-
-If a future change exposes store iteration to tx-handler code, the
-`WillIterator`/`WillIterNext` hooks must be wired up in the concrete
-`Iterator` wrappers (cache, iavl, dbadapter, prefix) and calibrated
-against flat-seek and per-step LMDB benchmarks.
+The returned `Iterator` stores the `gctx` and calls
+`gctx.WillIterator()` on creation (flat seek cost) and
+`gctx.WillIterNext()` on each `Next()` call. The per-step cost is charged
+at the point of iteration (matching the current `gasIterator` behavior,
+minus the wrapper).
 
 ### Full call path
 
