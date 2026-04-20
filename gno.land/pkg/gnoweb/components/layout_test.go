@@ -46,6 +46,11 @@ func TestIndexLayout(t *testing.T) {
 			mode:     ViewModePackage,
 			viewType: DirectoryViewType,
 		},
+		{
+			name:     "Playground view",
+			mode:     ViewModePlayground,
+			viewType: "test-view",
+		},
 	}
 
 	for _, tt := range tests {
@@ -169,7 +174,6 @@ func TestIsActive(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := isActive(tc.query, tc.label)
 			assert.Equal(t, tc.expected, result)
@@ -234,6 +238,18 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
+func TestStaticHeaderDevLinks_WithPlaygroundMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/_/play",
+	}
+
+	// Test playground mode
+	links := StaticHeaderDevLinks(u, ViewModePlayground, false)
+	assert.Empty(t, links, "expected no links in playground mode")
+}
+
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	t.Parallel()
 
@@ -268,13 +284,14 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 
 func TestViewModePredicates(t *testing.T) {
 	cases := []struct {
-		mode         ViewMode
-		name         string
-		wantExplorer bool
-		wantRealm    bool
-		wantPackage  bool
-		wantHome     bool
-		wantUser     bool
+		mode           ViewMode
+		name           string
+		wantExplorer   bool
+		wantRealm      bool
+		wantPackage    bool
+		wantHome       bool
+		wantUser       bool
+		wantPlayground bool
 	}{
 		{
 			mode:         ViewModeExplorer,
@@ -301,16 +318,21 @@ func TestViewModePredicates(t *testing.T) {
 			name:     "User",
 			wantUser: true,
 		},
+		{
+			mode:           ViewModePlayground,
+			name:           "Playground",
+			wantPlayground: true,
+		},
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.wantExplorer, tc.mode.IsExplorer(), "IsExplorer")
 			assert.Equal(t, tc.wantRealm, tc.mode.IsRealm(), "IsRealm")
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
+			assert.Equal(t, tc.wantPlayground, tc.mode.IsPlayground(), "IsPlayground")
 		})
 	}
 }
@@ -342,7 +364,6 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

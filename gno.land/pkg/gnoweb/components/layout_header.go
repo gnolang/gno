@@ -97,6 +97,8 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		return []HeaderLink{contentLink}
 	case mode == ViewModePackage:
 		return []HeaderLink{contentLink, sourceLink, forkLink}
+	case mode == ViewModePlayground:
+		return []HeaderLink{}
 	default:
 		return []HeaderLink{contentLink, sourceLink, actionsLink, evalLink, forkLink, runLink}
 	}

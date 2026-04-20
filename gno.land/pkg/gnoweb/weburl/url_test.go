@@ -246,6 +246,17 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			Name:  "playground",
+			Input: "https://gno.land/_/play",
+			Expected: &GnoURL{
+				Path:     "/_/play",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+				Domain:   "gno.land",
+			},
+		},
+
+		{
 			Name:     "invalid path",
 			Input:    "https://gno.land/r/dem)o:$?",
 			Expected: nil,

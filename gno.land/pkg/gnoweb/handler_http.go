@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"go/token"
@@ -21,6 +22,13 @@ import (
 )
 
 const ReadmeFileName = "README.md"
+
+const defaultPlaygroundCode = `package main
+
+func Render(path string) string {
+	return "Hello, Playground!"
+}
+`
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -157,12 +165,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Handle playground page
-	if r.URL.Path == "/_/play" {
-		h.servePlayground(w, r)
-		return
-	}
-
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
@@ -177,6 +179,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModePackage
 	case gnourl.IsUser():
 		indexData.Mode = components.ViewModeUser
+	case gnourl.IsPlayground():
+		indexData.Mode = components.ViewModePlayground
 	default:
 		indexData.Mode = components.ViewModeRealm
 	}
@@ -271,10 +275,12 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
-		indexData.HeaderData.Static = true
+		indexData.HeaderData.Static = true // TODO: Move inside GetMarkdownView
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
-	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
+	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser(), gnourl.IsPackageFork():
 		return h.GetPackageView(ctx, gnourl, indexData)
+	case gnourl.IsPlayground():
+		return h.GetPlaygroundView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -740,58 +746,28 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Write(source) // write raw file
 }
 
-// servePlayground renders the standalone playground page.
-func (h *HTTPHandler) servePlayground(w http.ResponseWriter, r *http.Request) {
-	var theme string
-	if c, err := r.Cookie("theme"); err == nil {
-		if c.Value == "light" || c.Value == "dark" {
-			theme = c.Value
-		}
+// GetPlaygroundView renders the standalone playground page.
+func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	indexData.HeadData.Title = "Playground — " + h.Static.Domain
+
+	// Check if we have initial code from query (e.g. shared snippet).
+	// Code can be given as a base64 encoded string or plaintext.
+	initialCode := gnourl.Query.Get("code")
+	if decoded, err := base64.StdEncoding.DecodeString(initialCode); err == nil {
+		initialCode = string(decoded)
 	}
 
-	// Check if we have initial code from query (e.g. shared snippet)
-	initialCode := r.URL.Query().Get("code")
-	forkFrom := r.URL.Query().Get("from")
+	// Use default code when no code is provided
 	if initialCode == "" {
-		initialCode = `package main
-
-func Render(path string) string {
-	return "Hello, Playground!"
-}
-`
+		initialCode = defaultPlaygroundCode
 	}
 
-	indexData := components.IndexData{
-		HeadData: components.HeadData{
-			Title:      "Playground — " + h.Static.Domain,
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
-		},
-		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
-		},
-		Theme:  theme,
-		Banner: h.Static.Banner,
-		Mode:   components.ViewModeRealm,
-	}
-
-	indexData.BodyView = components.PlaygroundView(components.PlaygroundData{
+	return http.StatusOK, components.PlaygroundView(components.PlaygroundData{
 		InitialCode: initialCode,
-		ForkFrom:    forkFrom,
 		Remote:      h.Static.RemoteHelp,
 		ChainId:     h.Static.ChainId,
 		Domain:      h.Static.Domain,
 	})
-
-	w.WriteHeader(http.StatusOK)
-	if err := components.IndexLayout(indexData).Render(w); err != nil {
-		h.Logger.Error("failed to render playground", "error", err)
-	}
 }
 
 // GetEvalView renders the expression evaluator page for a package/realm.

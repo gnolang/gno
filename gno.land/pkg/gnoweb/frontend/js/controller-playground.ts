@@ -128,7 +128,13 @@ export default function PlaygroundController(element: HTMLElement): void {
 			files.length === 1
 				? files[0].content
 				: files.map((f) => `// --- ${f.name} ---\n${f.content}`).join("\n\n");
-		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(code)}`;
+
+		// Encode as base64; TextEncoder produces UTF-8 bytes, which are mapped to a
+		// Latin-1 binary string so btoa() can handle non-ASCII chars, then the
+		// resulting base64 is percent-encoded to be safe in a URL query parameter.
+		const bytes = new TextEncoder().encode(code);
+		const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
+		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}`;
 		navigator.clipboard
 			.writeText(url)
 			.then(() => {
