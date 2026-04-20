@@ -146,10 +146,12 @@ func (p Params) Validate() error {
 			return fmt.Errorf("%s must be <= %d, got %d", f.name, maxDepth100, f.v)
 		}
 	}
-	// IterNextCostFlat is a raw gas amount, not a 100x depth. Cap at a
-	// value well above any realistic iteration step cost while still
-	// far below int64 overflow in downstream multiplications.
-	const maxIterNextCostFlat = int64(1_000_000_000) // 1B gas / step
+	// IterNextCostFlat is a raw gas amount per iterator step. Cap at
+	// 100_000 — 100x the tm2 default of 1_000, well above any
+	// realistic per-step cost while far below the block gas limit
+	// (~3B) so that a single adversarial proposal can't make one
+	// iterator step drain an entire block's gas budget.
+	const maxIterNextCostFlat = int64(100_000)
 	if p.IterNextCostFlat <= 0 {
 		return fmt.Errorf("IterNextCostFlat must be positive, got %d", p.IterNextCostFlat)
 	}

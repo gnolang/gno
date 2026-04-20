@@ -1,5 +1,13 @@
 # Storage Charging: Design Review
 
+> **HISTORICAL.** This review was written against the pre-refactor storage-gas
+> model (see [STORAGE_CHARGING.md](STORAGE_CHARGING.md)). The issues flagged
+> below — especially P2 (read/write cost parity), P3 (no flat I/O cost), and
+> P9 (depth invisible to gas) — are resolved by the gas refactor landed on
+> this branch; `cache.Store` now charges a depth-aware I/O cost and flat
+> constants are calibrated per-backend. See `gno.land/adr/gas_refactor.md`
+> for the current design. This document is kept for historical context.
+
 Review of the current storage gas and deposit design documented in
 [STORAGE_CHARGING.md](STORAGE_CHARGING.md).
 

@@ -70,43 +70,63 @@ for methods that return `Gas`).
 
 ### DepthEstimator
 
-A small interface for stores that have depth-dependent I/O cost:
+Stores with depth-dependent I/O cost expose three estimates, one per
+op shape. Values are fixed-point ×100 so the gas formula can work in
+integer arithmetic while still representing fractional depths.
 
 ```go
 type DepthEstimator interface {
-    ExpectedDepth() int64
+    ExpectedGetReadDepth100() int64 // reads on Get: full leaf+value fetch
+    ExpectedSetReadDepth100() int64 // reads on Set: leaf lookup, no value
+    ExpectedWriteDepth100() int64   // writes on Set/Delete: COW path
 }
 ```
 
-`iavl.Store` implements it:
+`iavl.Store` implements all three. The three depths differ in how
+much of the tree walks cost is attributable to the operation — a
+Get pays the full read descent plus value-page fetch, a Set's
+read-half touches only interior nodes, and the write-half depends
+on the COW/path-copy amortization. See `tm2/pkg/store/iavl/store.go`
+for the current formulas; they are calibrated for IAVL B+32 at
+100M keys.
 
-```go
-func (st *Store) ExpectedDepth() int64 {
-    size := st.tree.Size()
-    if size <= 1 {
-        return 1
-    }
-    return int64(bits.Len64(uint64(size))) // floor(log2(size)) + 1
-}
-```
-
-`dbadapter.Store` does not implement it (no depth, flat I/O cost).
-
-The estimator is propagated upward through `CacheWrap()`:
-- `iavl.Store.CacheWrap()` → sets estimator to `self`
-- `cache.Store.CacheWrap()` → propagates parent's estimator
-- `prefix.Store.CacheWrap()` → propagates parent's estimator
+`dbadapter.Store` does not implement `DepthEstimator` (no depth,
+flat I/O cost). `cache.Store` propagates its parent's estimator
+through nested `CacheWrap()` calls so the right depths apply even
+when multiple cache layers are stacked.
 
 `tree.Size()` is consensus state — it does not change during block
 execution (cache layers buffer all writes above the IAVL tree until
 `Commit()`). All transactions in a block see the same depth estimate.
 
-| Size | ExpectedDepth | Height (worst) | Savings vs height |
-|------|--------------|----------------|-------------------|
-| 1K | 11 | 14 | 21% |
-| 100K | 18 | 24 | 25% |
-| 10M | 24 | 33 | 27% |
-| 1B | 31 | 43 | 28% |
+Governance (`vm.Params`) overlays two controls on each of the three
+shapes:
+
+- `Min{Get,Set,Write}ReadDepth100` — a floor below which the tree
+  estimate is ignored. Default 0 in tm2 (use raw estimate);
+  gno.land's `DefaultParams` sets 300/200/440 — calibrated for B+32
+  at 100M items with 10K cache and batched 1000 mutations.
+- `Fixed{Get,Set,Write}ReadDepth100` — an override that replaces
+  the tree estimate entirely. Default 0 in tm2 ("no override"); 
+  gno.land defaults to the same values as the Min floors so an
+  empty-tree genesis starts at sane depths.
+
+`Validate()` rejects negative values and caps each depth at
+`10_000` (= 100 tree levels, well beyond any plausible B+tree /
+IAVL height) to prevent governance-set absurd values from tripping
+`overflow.Mulp` in `cache.Store`'s charge calc.
+
+| Tree size | log2(size) | min_*_read_depth_100 (default) | Effective depth |
+|---|---|---|---|
+| 1K       | 10 | 300 (Get) / 200 (Set) / 440 (Write) | 3.0 / 2.0 / 4.4 |
+| 100K     | 17 | 300 / 200 / 440 | 3.0 / 2.0 / 4.4 |
+| 10M      | 24 | raw estimate prevails above the floor |
+| 100M     | 27 | raw estimate prevails above the floor |
+
+The three-depth split was introduced by commit `359308d6f`
+("feat(store): split DepthEstimator into three depths (read/write)").
+Earlier design iterations used a single `ExpectedDepth()` / `MinDepth`
+field; those predate the split.
 
 ### Signature change
 
@@ -980,9 +1000,81 @@ The byte cache approach was chosen over an object cache because:
 5. Amino constants — 8 per-operation → 2 universal encode/decode
 6. gas.Store deleted — `GasStore()` removed from sdk.Context
 7. Calibrated constants — LMDB benchmarks applied to DefaultGasConfig
-8. MinDepth governance — `p:min_depth` param, default 12 for gno.land
+8. Three-depth governance — six `p:{min,fixed}_{get_read,set_read,write}_depth_100`
+   params (split out by commit `359308d6f` from the earlier single-`MinDepth`
+   design)
 9. PkgID flag nibble — IsStdlib/IsImmutable/IsInternal bits
 10. Immutable package guard — skip refcount mutations in DidUpdate
 11. Stdlib byte cache — gas-free stdlib object reads
 12. Debug cleanup — all instrumentation removed
-13. ADR update — this section
+13. Iterator gas at cache layer — `gasIterator`, `WillIterator` /
+    `WillIterNext(value)`, 5 VM query handlers bounded by `maxGasQuery`
+14. `IterNextCostFlat` governance parameter (`p:iter_next_cost_flat`)
+15. ADR update — this section
+
+## Follow-ups
+
+Items identified during implementation that are intentionally deferred
+out of this PR. Capture as issues when merging:
+
+1. **100M-key iterator benchmark calibration.** Run
+   `BenchmarkIterNext` / `BenchmarkIterSeek` at the 100M reference scale
+   on LMDB and adjust `IterNextCostFlat` if needed. Defaults in this PR
+   are conservative placeholders chosen to over-charge warm-cache steps
+   rather than under-charge cold-cache.
+
+2. **Dedicated `DeleteCost` benchmark.** Currently `DeleteCost` is set
+   equal to `ReadCostFlat` on the premise "delete must find the key"
+   — validate with a direct benchmark once LMDB delete timings are in
+   hand.
+
+3. **`ReadCostPerByte` / `WriteCostPerByte` re-validation on local
+   NVMe.** The current slopes come from networked SSD (Xeon 8358); local
+   NVMe has faster sequential I/O and the per-byte costs may be lower.
+   Re-run the value-size sweep and re-calibrate.
+
+4. **`GasDecodePerByte` dedicated benchmark.** Currently assumed equal
+   to `GasEncodePerByte` (~2.8 ns/byte); amino unmarshal may have a
+   different slope.
+
+5. **Remove zero-caller helpers.** `tm2/pkg/store/types/utils.go`
+   `DiffStores` and `tm2/pkg/store/firstlast.go`'s `First`/`Last` have
+   no production callers today. Both currently pass `nil` gctx, so
+   any future caller that wired a bounded meter to them would iterate
+   gas-free. Delete or adopt.
+
+6. **gnoweb OOG handling.** `vm/qpaths` now returns OOG on large
+   prefixes under `maxGasQuery`. Long-lived gnoweb clients
+   (`gno.land/pkg/gnoweb/client.go`) should handle the error
+   gracefully — today they may surface a bare internal error.
+
+7. **`qpaths_oog.txtar` DoS-validation fixture.** Deferred because a
+   txtar exercising the bounded meter needs ~1.6M paths
+   (`maxGasQuery / per-step gas`). Either make `maxGasQuery`
+   test-overridable or accept the gap.
+
+8. **Re-calibrate constants after any backend migration.** Current
+   defaults are calibrated for LMDB; if gno.land runs on PebbleDB or
+   MDBX in production the values may over- or under-charge.
+
+9. **`Params.Validate` test coverage.** `params_test.go` should
+   include failing cases for negative depth values and zero / huge
+   `IterNextCostFlat` to lock in the current rejection semantics.
+
+10. **`/subspace` ABCI query bounding.** `iavl.Store.Query` at the
+    `/subspace` branch (`iavl/store.go:329-341`) materializes the full
+    prefix into memory before amino-marshalling. Pre-existing, but
+    worth a simple hard-cap on result count or total byte size now
+    that the rest of the store path is metered.
+
+11. **`handleQueryCustom` meter bounding.** Custom-querier paths
+    (auth/bank/params) run under `InfiniteGasMeter`. Single-Get
+    queries are small; `auth.IterateAccounts` through a custom route
+    is the exposure. Either bound or document the decision.
+
+12. **`immut.Store` DepthEstimator forwarding.** Historical-query
+    `MultiImmutableCacheWrapWithVersion` currently charges flat
+    `ReadCostFlat` instead of the depth-based cost because
+    `immut.Store` doesn't forward `DepthEstimator` to the cache wrap
+    above it. Either forward it or document historical queries as
+    intentionally flat.
