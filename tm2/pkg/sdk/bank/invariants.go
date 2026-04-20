@@ -5,7 +5,15 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
+
+// maxInvariantGas bounds the gas an invariant may consume. Invariants
+// iterate broad state (e.g. all accounts) so they need a generous
+// budget, but an unbounded meter would let a pathological state grow
+// unbounded invariant runtime and silently break determinism if the
+// operator ever enables invariants in production.
+const maxInvariantGas = 3_000_000_000
 
 // RegisterInvariants registers the bank module invariants
 func RegisterInvariants(ir sdk.InvariantRegistry, acck auth.AccountKeeper) {
@@ -19,6 +27,10 @@ func NonnegativeBalanceInvariant(acck auth.AccountKeeper) sdk.Invariant {
 		var msg string
 		var count int
 
+		// Install a bounded meter so account iteration through the
+		// cache.Store gas layer actually enforces (production ctx
+		// arrives with NewInfiniteGasMeter).
+		ctx = ctx.WithGasMeter(store.NewGasMeter(maxInvariantGas))
 		accts := acck.GetAllAccounts(ctx)
 		for _, acc := range accts {
 			coins := acc.GetCoins()

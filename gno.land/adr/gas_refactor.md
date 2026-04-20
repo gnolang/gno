@@ -777,7 +777,8 @@ These constants are calibrated for **LMDB** from `gnovm/cmd/benchstore`:
   delete benchmarks in `gnovm/cmd/benchstore`.
 - `IterNextCostFlat = 1_000`: estimated at ~1µs per step — LMDB leaf
   pages are linked, so sequential iteration is much cheaper than random
-  reads (~59µs). TODO: validate with dedicated iterator benchmarks.
+  reads (~59µs). See the _Iterator constants_ subsection below for the
+  benchmark command to re-validate at 100M-key scale.
 
 **Caveats:**
 - The flat costs (59K/24K) are from **local NVMe** benchmarks. The per-byte
