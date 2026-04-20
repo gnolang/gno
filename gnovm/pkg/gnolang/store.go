@@ -80,9 +80,9 @@ type Store interface {
 	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
-	SetNativeResolver(NativeResolver)                     // for native functions
-	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
-	PopulateStdlibCache(paths []string)                          // populate stdlib byte cache at node start
+	SetNativeResolver(NativeResolver)                              // for native functions
+	GetNative(pkgPath string, name Name) func(m *Machine)          // for native functions
+	PopulateStdlibCache(paths []string)                            // populate stdlib byte cache at node start
 	PopulateStdlibCacheFrom(paths []string, baseStore store.Store) // populate from a specific store
 	SetLogStoreOps(dst io.Writer)
 	LogFinalizeRealm(rlmpath string) // to mark finalization of realm boundaries
