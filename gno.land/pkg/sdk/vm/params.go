@@ -120,10 +120,14 @@ func (p Params) Validate() error {
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")
 	}
-	// Depth floors / overrides must be non-negative. Zero is a legitimate
-	// value meaning "no floor / use tree estimate"; negative values would
-	// silently pass through the downstream `> 0` guards as no-ops, making
-	// a governance proposal appear to succeed while having no effect.
+	// Depth floors / overrides are 100x fixed-point. The cap is 10_000
+	// (= 100 tree levels), well beyond any plausible B+tree / IAVL
+	// depth. Upper bound prevents a governance proposal from setting
+	// absurd values that would trip overflow.Mulp in the cache.Store
+	// gas calculation and silently brick writes. Zero remains
+	// legitimate (no floor / use tree estimate); negative is rejected
+	// because downstream `> 0` guards would make it a silent no-op.
+	const maxDepth100 = int64(10_000)
 	for _, f := range []struct {
 		name string
 		v    int64
@@ -138,9 +142,19 @@ func (p Params) Validate() error {
 		if f.v < 0 {
 			return fmt.Errorf("%s must be non-negative, got %d", f.name, f.v)
 		}
+		if f.v > maxDepth100 {
+			return fmt.Errorf("%s must be <= %d, got %d", f.name, maxDepth100, f.v)
+		}
 	}
+	// IterNextCostFlat is a raw gas amount, not a 100x depth. Cap at a
+	// value well above any realistic iteration step cost while still
+	// far below int64 overflow in downstream multiplications.
+	const maxIterNextCostFlat = int64(1_000_000_000) // 1B gas / step
 	if p.IterNextCostFlat <= 0 {
 		return fmt.Errorf("IterNextCostFlat must be positive, got %d", p.IterNextCostFlat)
+	}
+	if p.IterNextCostFlat > maxIterNextCostFlat {
+		return fmt.Errorf("IterNextCostFlat must be <= %d, got %d", maxIterNextCostFlat, p.IterNextCostFlat)
 	}
 	return nil
 }

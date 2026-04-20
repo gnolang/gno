@@ -1154,12 +1154,14 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 }
 
 // incrCPUBigIntQuad charges quadratic CPU gas for BigInt Mul.
-// gas = (bits/32)^2 * slope / 32.
+// gas = (bits/32)^2 * slope / 32. Uses overflow.Mulp so a future
+// maxAllocTx bump (current 500MB caps bit-length at ~4B, safe under
+// int64) can't silently wrap into a negative charge.
 func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigintType {
 		lb := int64(lv.GetBigInt().BitLen()) / 32
 		rb := int64(rv.GetBigInt().BitLen()) / 32
-		m.incrCPU(lb * rb * slope / 32)
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 32)
 	}
 }
 
@@ -1173,12 +1175,13 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 }
 
 // incrCPUBigDecQuad charges quadratic CPU gas for BigDec Mul/Quo.
-// gas = (digits/10)^2 * slope / 10.
+// gas = (digits/10)^2 * slope / 10. overflow.Mulp keeps the compute
+// safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
 		lb := lv.GetBigDec().NumDigits() / 10
 		rb := rv.GetBigDec().NumDigits() / 10
-		m.incrCPU(lb * rb * slope / 10)
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
 
