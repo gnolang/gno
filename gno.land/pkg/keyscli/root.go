@@ -157,8 +157,10 @@ func isGnowebReachable(baseURL string) bool {
 	}
 	defer resp.Body.Close()
 
-	// Read enough to find the "gno.land" marker in the HTML head.
-	buf := make([]byte, 1024)
-	n, _ := io.ReadAtLeast(resp.Body, buf, 256)
-	return strings.Contains(string(buf[:n]), "gno.land")
+	// Read up to 1KB — the "gno.land" marker appears early in the HTML.
+	buf, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(buf), "gno.land")
 }
