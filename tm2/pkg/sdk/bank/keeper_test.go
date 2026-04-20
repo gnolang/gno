@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 func TestKeeper(t *testing.T) {
@@ -330,6 +331,234 @@ func TestNonSessionSendCoinsNoOp(t *testing.T) {
 	recipient := crypto.AddressFromPreimage([]byte("recipient"))
 	require.NoError(t, env.bankk.SendCoins(ctx, addr, recipient, std.NewCoins(std.NewCoin("foo", 500))))
 	assert.Equal(t, int64(500), env.bankk.GetCoins(ctx, addr).AmountOf("foo"))
+}
+
+// TestSessionSendCoinsRollsBackOnTxFailure verifies that SpendUsed
+// changes made via CheckAndDeductSessionSpend go through the tx cache
+// and are discarded when the cache is not committed — matching
+// baseapp's msCache.MultiWrite() behavior on tx failure. If this test
+// fails, an attacker could pump SpendUsed to exhaustion via failing
+// txs without moving coins.
+func TestSessionSendCoinsRollsBackOnTxFailure(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, _ := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 500)))
+
+	// Simulate baseapp's runMsgs path: wrap the ctx in a cache and
+	// ONLY commit on success.
+	cacheCtx, writeCache := ctx.CacheContext()
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	require.NoError(t, env.bankk.SendCoins(cacheCtx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 200))))
+
+	// Inside the cache, the session account's SpendUsed reflects the deduction.
+	sessionAddr := crypto.AddressFromPreimage([]byte("session"))
+	cachedSA := env.acck.GetSessionAccount(cacheCtx, masterAddr, sessionAddr)
+	require.NotNil(t, cachedSA)
+	assert.Equal(t, int64(200), cachedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("foo"),
+		"SpendUsed should reflect deduction inside the cache")
+
+	// Simulate tx failure: DO NOT call writeCache. The cache is discarded.
+	_ = writeCache
+
+	// Back in the outer ctx (main store), SpendUsed must be unchanged.
+	outerSA := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	require.NotNil(t, outerSA)
+	assert.Equal(t, int64(0), outerSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("foo"),
+		"SpendUsed must NOT persist to main store when tx cache is discarded")
+
+	// Master's balance in main store is also unchanged (coins never moved).
+	assert.Equal(t, int64(1000), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
+	assert.Equal(t, int64(0), env.bankk.GetCoins(ctx, recipient).AmountOf("foo"))
+}
+
+// TestSessionSendCoinsCommitsOnTxSuccess is the positive complement: when
+// the cache IS committed (tx success), SpendUsed and the coin movement
+// both persist.
+func TestSessionSendCoinsCommitsOnTxSuccess(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, _ := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 500)))
+
+	cacheCtx, writeCache := ctx.CacheContext()
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	require.NoError(t, env.bankk.SendCoins(cacheCtx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 200))))
+
+	writeCache() // tx success → commit
+
+	sessionAddr := crypto.AddressFromPreimage([]byte("session"))
+	outerSA := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	require.NotNil(t, outerSA)
+	assert.Equal(t, int64(200), outerSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("foo"),
+		"SpendUsed must persist to main store after writeCache()")
+	assert.Equal(t, int64(800), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
+	assert.Equal(t, int64(200), env.bankk.GetCoins(ctx, recipient).AmountOf("foo"))
+}
+
+// TestSessionSendCoinsConsumesGas verifies the session spend check is
+// gas-metered — specifically, the SetSessionAccount write goes through
+// ctx.GasStore which wraps in a gas-metered store. Without metering, an
+// attacker could DoS by triggering the hook repeatedly in failing txs
+// at no gas cost.
+func TestSessionSendCoinsConsumesGas(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, _ := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 500)))
+
+	// Attach a finite gas meter.
+	meter := store.NewGasMeter(1_000_000)
+	ctx = ctx.WithGasMeter(meter)
+
+	baseline := meter.GasConsumed()
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	require.NoError(t, env.bankk.SendCoins(ctx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 100))))
+	after := meter.GasConsumed()
+
+	assert.Greater(t, after, baseline,
+		"session spend check should consume gas (SetSessionAccount write goes through ctx.GasStore)")
+}
+
+// TestSessionContextPropagatesThroughWithMultiStore verifies
+// SessionAccountsContextKey survives ctx.WithMultiStore — which baseapp
+// uses to wrap ctx in a cache for tx execution. Go context semantics say
+// child contexts inherit parent values, but this test locks in that the
+// tm2 sdk.Context wrapper preserves Value propagation correctly.
+func TestSessionContextPropagatesThroughWithMultiStore(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, _ := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 500)))
+
+	// Confirm the key is present.
+	v1 := ctx.Value(std.SessionAccountsContextKey{})
+	require.NotNil(t, v1)
+
+	// Wrap via WithMultiStore (the same operation baseapp does in
+	// cacheTxContext).
+	cached := ctx.MultiStore().MultiCacheWrap()
+	derived := ctx.WithMultiStore(cached)
+
+	v2 := derived.Value(std.SessionAccountsContextKey{})
+	require.NotNil(t, v2, "SessionAccountsContextKey should propagate through WithMultiStore")
+
+	// And a session-gated SendCoins on the derived ctx should still
+	// trigger the hook.
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	err := env.bankk.SendCoins(derived, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 1000)))
+	require.Error(t, err, "spend over limit on derived ctx should be rejected by the hook")
+	assert.Contains(t, err.Error(), "session not allowed")
+}
+
+// TestSessionInputOutputCoinsDuplicateSigner verifies a MsgMultiSend
+// where the session's master appears in multiple inputs compounds
+// SpendUsed correctly across the loop iterations (shared pointer in
+// the sessions map).
+func TestSessionInputOutputCoinsDuplicateSigner(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 300)))
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+
+	// Two inputs from the same master, each within limit but together
+	// exceeding it. Loop should reject on second iteration.
+	inputs := []Input{
+		NewInput(masterAddr, std.NewCoins(std.NewCoin("foo", 200))),
+		NewInput(masterAddr, std.NewCoins(std.NewCoin("foo", 150))),
+	}
+	outputs := []Output{NewOutput(recipient, std.NewCoins(std.NewCoin("foo", 350)))}
+
+	err := env.bankk.InputOutputCoins(ctx, inputs, outputs)
+	require.Error(t, err, "duplicate-signer inputs whose sum exceeds SpendLimit should reject")
+	assert.Contains(t, err.Error(), "session not allowed")
+
+	// SpendUsed reflects the first input's deduction in-memory, which
+	// is fine: the overall tx would abort and cache discard rolls this
+	// back (covered by TestSessionSendCoinsRollsBackOnTxFailure).
+	assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("foo"),
+		"first input's deduction compounded via shared sessions map pointer")
+}
+
+// TestSessionHandlerMsgSend runs a real bank.MsgSend through the bank
+// handler and verifies the session hook at bank.Keeper.SendCoins fires.
+// This is the end-to-end path a session-signed MsgSend follows once it
+// passes the gno.land allowlist.
+func TestSessionHandlerMsgSend(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 300)))
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	handler := NewHandler(env.bankk)
+
+	t.Run("within limit", func(t *testing.T) {
+		msg := MsgSend{FromAddress: masterAddr, ToAddress: recipient, Amount: std.NewCoins(std.NewCoin("foo", 100))}
+		res := handler.Process(ctx, msg)
+		require.True(t, res.IsOK(), res.Log)
+		assert.Equal(t, int64(100), da.GetSpendUsed().AmountOf("foo"))
+	})
+
+	t.Run("exceeding limit", func(t *testing.T) {
+		msg := MsgSend{FromAddress: masterAddr, ToAddress: recipient, Amount: std.NewCoins(std.NewCoin("foo", 500))}
+		res := handler.Process(ctx, msg)
+		require.False(t, res.IsOK(), "expected rejection")
+		assert.Contains(t, res.Log, "session spend limit exceeded")
+		// SpendUsed unchanged from the within-limit run.
+		assert.Equal(t, int64(100), da.GetSpendUsed().AmountOf("foo"))
+	})
+}
+
+// TestSessionHandlerMsgMultiSend runs a real bank.MsgMultiSend through
+// the bank handler and verifies per-input session enforcement.
+func TestSessionHandlerMsgMultiSend(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 250)))
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	handler := NewHandler(env.bankk)
+
+	t.Run("within limit", func(t *testing.T) {
+		msg := MsgMultiSend{
+			Inputs:  []Input{NewInput(masterAddr, std.NewCoins(std.NewCoin("foo", 200)))},
+			Outputs: []Output{NewOutput(recipient, std.NewCoins(std.NewCoin("foo", 200)))},
+		}
+		res := handler.Process(ctx, msg)
+		require.True(t, res.IsOK(), res.Log)
+		assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("foo"))
+	})
+
+	t.Run("exceeding limit", func(t *testing.T) {
+		msg := MsgMultiSend{
+			Inputs:  []Input{NewInput(masterAddr, std.NewCoins(std.NewCoin("foo", 100)))},
+			Outputs: []Output{NewOutput(recipient, std.NewCoins(std.NewCoin("foo", 100)))},
+		}
+		res := handler.Process(ctx, msg)
+		require.False(t, res.IsOK(), "expected rejection: 200+100 > 250")
+		assert.Contains(t, res.Log, "session spend limit exceeded")
+		assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("foo"))
+	})
 }
 
 // Test SetRestrictedDenoms
