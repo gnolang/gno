@@ -118,8 +118,8 @@ func TestPrefixStoreIterate(t *testing.T) {
 
 	setRandomKVPairs(prefixStore)
 
-	bIter := types.PrefixIterator(baseStore, prefix)
-	pIter := types.PrefixIterator(prefixStore, nil)
+	bIter := types.PrefixIterator(nil, baseStore, prefix)
+	pIter := types.PrefixIterator(nil, prefixStore, nil)
 
 	for bIter.Valid() && pIter.Valid() {
 		require.Equal(t, bIter.Key(), append(prefix, pIter.Key()...))

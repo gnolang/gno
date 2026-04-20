@@ -111,7 +111,7 @@ func (ak AccountKeeper) RemoveAccount(ctx sdk.Context, acc std.Account) {
 // IterateAccounts implements AccountKeeper.
 func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) (stop bool)) {
 	stor := ctx.Store(ak.key)
-	iter := store.PrefixIterator(stor, []byte(AddressStoreKeyPrefix))
+	iter := store.PrefixIterator(ctx.GasContext(), stor, []byte(AddressStoreKeyPrefix))
 	defer iter.Close()
 	for {
 		if !iter.Valid() {

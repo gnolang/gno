@@ -4,14 +4,16 @@ import (
 	"bytes"
 )
 
-// Iterator over all the keys with a certain prefix in ascending order
-func PrefixIterator(kvs Store, prefix []byte) Iterator {
-	return kvs.Iterator(nil, prefix, PrefixEndBytes(prefix))
+// Iterator over all the keys with a certain prefix in ascending order.
+// gctx may be nil for gas-free iteration (node startup, test helpers).
+func PrefixIterator(gctx *GasContext, kvs Store, prefix []byte) Iterator {
+	return kvs.Iterator(gctx, prefix, PrefixEndBytes(prefix))
 }
 
 // Iterator over all the keys with a certain prefix in descending order.
-func ReversePrefixIterator(kvs Store, prefix []byte) Iterator {
-	return kvs.ReverseIterator(nil, prefix, PrefixEndBytes(prefix))
+// gctx may be nil for gas-free iteration (node startup, test helpers).
+func ReversePrefixIterator(gctx *GasContext, kvs Store, prefix []byte) Iterator {
+	return kvs.ReverseIterator(gctx, prefix, PrefixEndBytes(prefix))
 }
 
 // Compare two stores, return either the first key/value pair
