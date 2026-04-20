@@ -298,6 +298,7 @@ func BenchmarkStoreSetInsert(b *testing.B) {
 					env = newBenchEnv(b, n, 256)
 				}
 				val := make([]byte, 256)
+				//nolint:staticcheck // math/rand.Read deterministic is fine for bench payload
 				rand.Read(val)
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
@@ -453,8 +454,9 @@ func BenchmarkStoreGetCacheSweep(b *testing.B) {
 	if *flagCacheSweep == "" {
 		b.Skip("use -cache-sweep=500,1024,... to run")
 	}
-	var cacheSizes []int
-	for _, s := range strings.Split(*flagCacheSweep, ",") {
+	sweep := strings.Split(*flagCacheSweep, ",")
+	cacheSizes := make([]int, 0, len(sweep))
+	for _, s := range sweep {
 		mb, err := strconv.Atoi(strings.TrimSpace(s))
 		if err != nil {
 			b.Fatalf("bad cache size %q: %v", s, err)

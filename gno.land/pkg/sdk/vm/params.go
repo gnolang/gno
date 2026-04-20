@@ -33,18 +33,18 @@ var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-
 
 // Params defines the parameters for the vm module.
 type Params struct {
-	SysNamesPkgPath     string         `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
-	SysCLAPkgPath       string         `json:"syscla_pkgpath" yaml:"syscla_pkgpath"`
-	ChainDomain         string         `json:"chain_domain" yaml:"chain_domain"`
-	DefaultDeposit      string         `json:"default_deposit" yaml:"default_deposit"`
-	StoragePrice        string         `json:"storage_price" yaml:"storage_price"`
-	StorageFeeCollector crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
-	MinGetReadDepth100    int64          `json:"min_get_read_depth_100" yaml:"min_get_read_depth_100"`
-	MinSetReadDepth100    int64          `json:"min_set_read_depth_100" yaml:"min_set_read_depth_100"`
-	MinWriteDepth100      int64          `json:"min_write_depth_100" yaml:"min_write_depth_100"`
-	FixedGetReadDepth100  int64          `json:"fixed_get_read_depth_100" yaml:"fixed_get_read_depth_100"`
-	FixedSetReadDepth100  int64          `json:"fixed_set_read_depth_100" yaml:"fixed_set_read_depth_100"`
-	FixedWriteDepth100    int64          `json:"fixed_write_depth_100" yaml:"fixed_write_depth_100"`
+	SysNamesPkgPath      string         `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
+	SysCLAPkgPath        string         `json:"syscla_pkgpath" yaml:"syscla_pkgpath"`
+	ChainDomain          string         `json:"chain_domain" yaml:"chain_domain"`
+	DefaultDeposit       string         `json:"default_deposit" yaml:"default_deposit"`
+	StoragePrice         string         `json:"storage_price" yaml:"storage_price"`
+	StorageFeeCollector  crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
+	MinGetReadDepth100   int64          `json:"min_get_read_depth_100" yaml:"min_get_read_depth_100"`
+	MinSetReadDepth100   int64          `json:"min_set_read_depth_100" yaml:"min_set_read_depth_100"`
+	MinWriteDepth100     int64          `json:"min_write_depth_100" yaml:"min_write_depth_100"`
+	FixedGetReadDepth100 int64          `json:"fixed_get_read_depth_100" yaml:"fixed_get_read_depth_100"`
+	FixedSetReadDepth100 int64          `json:"fixed_set_read_depth_100" yaml:"fixed_set_read_depth_100"`
+	FixedWriteDepth100   int64          `json:"fixed_write_depth_100" yaml:"fixed_write_depth_100"`
 	// IterNextCostFlat must be > 0; Validate rejects zero. Asymmetric
 	// with the six depth fields above (where 0 legitimately means
 	// "no floor / use tree estimate") because zero iter-step cost

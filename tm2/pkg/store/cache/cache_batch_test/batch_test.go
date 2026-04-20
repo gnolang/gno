@@ -21,7 +21,6 @@ func TestCacheBatchWritePebbleDB(t *testing.T) {
 	testCacheBatchWrite(t, db)
 }
 
-
 func testCacheBatchWrite(t *testing.T, db dbm.DB) {
 	t.Helper()
 	parent := dbadapter.Store{DB: db}
@@ -65,7 +64,6 @@ func TestCacheBatchWriteOverwritePebbleDB(t *testing.T) {
 	testCacheBatchWriteOverwrite(t, db)
 }
 
-
 func testCacheBatchWriteOverwrite(t *testing.T, db dbm.DB) {
 	t.Helper()
 	parent := dbadapter.Store{DB: db}
@@ -94,7 +92,6 @@ func TestCacheBatchWriteEmptyPebbleDB(t *testing.T) {
 	cs.Write()
 }
 
-
 func TestCacheBatchWriteSetThenDeletePebbleDB(t *testing.T) {
 	t.Parallel()
 	db, err := dbm.NewDB("test_pebble_sd", dbm.PebbleDBBackend, t.TempDir())
@@ -102,7 +99,6 @@ func TestCacheBatchWriteSetThenDeletePebbleDB(t *testing.T) {
 	defer db.Close()
 	testCacheBatchWriteSetThenDelete(t, db)
 }
-
 
 func testCacheBatchWriteSetThenDelete(t *testing.T, db dbm.DB) {
 	t.Helper()
@@ -116,7 +112,6 @@ func testCacheBatchWriteSetThenDelete(t *testing.T, db dbm.DB) {
 	got := parent.Get(nil, []byte("k"))
 	require.Nil(t, got)
 }
-
 
 // nonBatchStore wraps a DB but does NOT implement GetDB(),
 // forcing the cache to use the non-batch fallback path.
@@ -142,9 +137,9 @@ func (s nonBatchStore) ReverseIterator(gctx *store.GasContext, start, end []byte
 	it, _ := s.db.ReverseIterator(start, end)
 	return it
 }
-func (s nonBatchStore) CacheWrap() store.Store   { return cache.New(s) }
-func (s nonBatchStore) Write()                   { panic("unexpected") }
-func (s nonBatchStore) Flush()                   {}
+func (s nonBatchStore) CacheWrap() store.Store               { return cache.New(s) }
+func (s nonBatchStore) Write()                               { panic("unexpected") }
+func (s nonBatchStore) Flush()                               {}
 func (s nonBatchStore) SetStoreOptions(_ store.StoreOptions) {}
 func (s nonBatchStore) GetStoreOptions() store.StoreOptions  { return store.StoreOptions{} }
 
@@ -170,7 +165,6 @@ func TestCacheFallbackWritePebbleDB(t *testing.T) {
 	require.Nil(t, v)
 }
 
-
 func TestCacheClearedAfterWritePebbleDB(t *testing.T) {
 	t.Parallel()
 	db, err := dbm.NewDB("test_clear_pebble", dbm.PebbleDBBackend, t.TempDir())
@@ -190,4 +184,3 @@ func TestCacheClearedAfterWritePebbleDB(t *testing.T) {
 	got := cs.Get(nil, []byte("k"))
 	require.Equal(t, []byte("v2"), got)
 }
-

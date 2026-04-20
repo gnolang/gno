@@ -63,7 +63,7 @@ type cacheStore struct {
 }
 
 var (
-	_ types.Store         = (*cacheStore)(nil)
+	_ types.Store          = (*cacheStore)(nil)
 	_ types.Checkpointable = (*cacheStore)(nil)
 )
 

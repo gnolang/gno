@@ -78,10 +78,6 @@ const (
 	_allocType   = 200 // estimated: average Type implementation
 	_allocAny    = 200 // estimated: generic fallback
 
-	// Go primitives.
-	_allocSlice = 24 // Go slice header (ptr + len + cap)
-	_allocValue = 16 // Go interface (type ptr + data ptr)
-	_allocName  = 16 // Go string header (ptr + len)
 )
 
 const (
@@ -565,7 +561,7 @@ func (b *Block) GetShallowSize() int64 {
 	// RefNode is not value, put it here
 	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
-		ss += allocRefValue
+		ss += allocRefNode
 	}
 
 	ss += allocBlock + allocBlockItem*int64(len(b.Values))

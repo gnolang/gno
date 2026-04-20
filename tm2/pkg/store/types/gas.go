@@ -358,16 +358,16 @@ func (g passthroughGasMeter) IsOutOfGas() bool {
 // depends on this to avoid in-place mutation of a potentially-shared
 // GasContext.
 type GasConfig struct {
-	HasCost          Gas
-	DeleteCost       Gas
-	ReadCostFlat     Gas
-	ReadCostPerByte  Gas
-	WriteCostFlat    Gas
-	WriteCostPerByte Gas
-	IterNextCostFlat    Gas
-	MinGetReadDepth100  Gas // floor for GET read depth (100x fixed-point, 0 = no floor)
-	MinSetReadDepth100  Gas // floor for SET read depth
-	MinWriteDepth100    Gas // floor for write depth (batched)
+	HasCost              Gas
+	DeleteCost           Gas
+	ReadCostFlat         Gas
+	ReadCostPerByte      Gas
+	WriteCostFlat        Gas
+	WriteCostPerByte     Gas
+	IterNextCostFlat     Gas
+	MinGetReadDepth100   Gas // floor for GET read depth (100x fixed-point, 0 = no floor)
+	MinSetReadDepth100   Gas // floor for SET read depth
+	MinWriteDepth100     Gas // floor for write depth (batched)
 	FixedGetReadDepth100 Gas // override for GET read depth (0 = use tree estimate)
 	FixedSetReadDepth100 Gas // override for SET read depth (0 = use tree estimate)
 	FixedWriteDepth100   Gas // override for write depth (0 = use tree estimate)
@@ -378,15 +378,15 @@ type GasConfig struct {
 // See gno.land/adr/gas_refactor.md Calibration section.
 func DefaultGasConfig() GasConfig {
 	return GasConfig{
-		HasCost:             59_000, // same as ReadCostFlat (Has traverses the tree)
-		DeleteCost:          24_000, // same as WriteCostFlat (delete modifies the tree)
-		ReadCostFlat:        59_000, // ~59µs per random read at 100M keys
-		ReadCostPerByte:     17,     // ~17 ns/byte (LMDB overflow page reads)
-		WriteCostFlat:       24_000, // ~24µs per write (amortized, batch=1000)
-		WriteCostPerByte:    14,     // ~14 ns/byte (LMDB overflow page writes)
-		IterNextCostFlat:    1_000,  // ~1µs per iteration step (sequential leaf scan)
-		MinGetReadDepth100:  0,      // tm2 default: no floor
-		MinSetReadDepth100:  0,
-		MinWriteDepth100:    0,
+		HasCost:            59_000, // same as ReadCostFlat (Has traverses the tree)
+		DeleteCost:         24_000, // same as WriteCostFlat (delete modifies the tree)
+		ReadCostFlat:       59_000, // ~59µs per random read at 100M keys
+		ReadCostPerByte:    17,     // ~17 ns/byte (LMDB overflow page reads)
+		WriteCostFlat:      24_000, // ~24µs per write (amortized, batch=1000)
+		WriteCostPerByte:   14,     // ~14 ns/byte (LMDB overflow page writes)
+		IterNextCostFlat:   1_000,  // ~1µs per iteration step (sequential leaf scan)
+		MinGetReadDepth100: 0,      // tm2 default: no floor
+		MinSetReadDepth100: 0,
+		MinWriteDepth100:   0,
 	}
 }
