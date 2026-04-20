@@ -14,7 +14,7 @@
 
 > [Full installation guide](TODO)
 
-<!-- TODO: replace with one-line installer (curl | sh) once available -->
+<!-- TODO: replace with one-line installer (curl | sh) once available (gnolang/gno#5492) -->
 
 ```bash
 git clone git@github.com:gnolang/gno.git
@@ -26,7 +26,8 @@ cd gno && make install
 > [Writing Gno code](anatomy-of-a-gno-package.md)
 
 ```bash
-gno init gno.land/r/example/counter
+mkdir counter && cd counter
+gno mod init gno.land/r/example/counter
 ```
 
 <!-- TODO: replace with `gno init` once it generates a starter realm -->
@@ -90,7 +91,7 @@ gnokey maketx call \
   MyKey
 ```
 
-## Scripting
+## Scripting (maketx run)
 
 > [Using `gnokey`](../users/interact-with-gnokey.md#run)
 
@@ -98,6 +99,7 @@ gnokey maketx call \
 
 ```bash
 # gno init --main gno.land/r/example/counter/run
+mkdir run && cd run
 gno mod init gno.land/r/example/counter/run
 
 # write your program in main.gno, then run it
