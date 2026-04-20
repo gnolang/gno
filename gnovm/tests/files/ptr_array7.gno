@@ -2,8 +2,12 @@ package main
 
 func main() {
 	var p *[3]int
-	_ = p[0:1]
+	n := 0
+	for range p {
+		n++
+	}
+	println(n)
 }
 
-// Error:
-// runtime error: nil pointer dereference
+// Output:
+// 3

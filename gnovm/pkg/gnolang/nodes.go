@@ -1016,6 +1016,8 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 
 func (x *bodyStmt) LastStmt() Stmt {
 	if x.NextBodyIndex <= 0 {
+		// During init/elem-assign phases no body stmt has executed yet;
+		// return Body[0] as a best-effort line for stacktraces.
 		if len(x.Body) == 0 {
 			return nil
 		}
