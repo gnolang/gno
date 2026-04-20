@@ -20,14 +20,21 @@ var Redirects = map[string]string{
 
 // RedirectMiddleware redirects all incoming requests whose path matches
 // any of the Redirects to the corresponding URL, and renders a redirect view.
-func RedirectMiddleware(next http.Handler, analytics bool) http.Handler {
+func RedirectMiddleware(next http.Handler, meta StaticMetadata) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if the request path matches a redirect
 		if newPath, ok := Redirects[r.URL.Path]; ok {
 			http.Redirect(w, r, newPath, http.StatusFound)
 			components.RedirectView(components.RedirectData{
-				To:            newPath,
-				WithAnalytics: analytics,
+				To: newPath,
+				Analytics: components.AnalyticsData{
+					Enabled:    meta.Analytics,
+					PageType:   "redirect",
+					Context:    components.AnalyticsContextNeutral,
+					ChainId:    meta.ChainId,
+					AssetsPath: meta.AssetsPath,
+					BuildTime:  meta.BuildTime,
+				},
 			}).Render(w)
 			return
 		}

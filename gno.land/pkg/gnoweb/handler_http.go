@@ -135,9 +135,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			BuildTime:  h.Static.BuildTime,
 		},
 		FooterData: components.FooterData{
-			Analytics:  h.Static.Analytics,
-			AssetsPath: h.Static.AssetsPath,
-			BuildTime:  h.Static.BuildTime,
+			Analytics: components.AnalyticsData{
+				Enabled: h.Static.Analytics,
+			},
 		},
 		Theme:  theme,
 		Banner: h.Static.Banner,

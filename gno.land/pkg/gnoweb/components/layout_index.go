@@ -181,6 +181,11 @@ func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
 
+	data.FooterData.Analytics.PageType, data.FooterData.Analytics.Context = ClassifyView(data.Mode, data.BodyView.Type)
+	data.FooterData.Analytics.ChainId = data.HeadData.ChainId
+	data.FooterData.Analytics.AssetsPath = data.HeadData.AssetsPath
+	data.FooterData.Analytics.BuildTime = data.HeadData.BuildTime
+
 	dataLayout := indexLayoutParams{
 		IndexData: data,
 		ViewType:  data.BodyView.String(),

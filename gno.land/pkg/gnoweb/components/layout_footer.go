@@ -1,9 +1,7 @@
 package components
 
 type FooterData struct {
-	Analytics   bool
-	AssetsPath  string
-	BuildTime   string
+	Analytics   AnalyticsData
 	Sections    []FooterSection
 	LegalNotice string
 	LegalLinks  []FooterLink

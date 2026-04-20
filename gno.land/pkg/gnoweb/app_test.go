@@ -203,7 +203,13 @@ func TestAnalytics(t *testing.T) {
 
 				router.ServeHTTP(response, request)
 
-				assert.Contains(t, response.Body.String(), "sa.gno.services")
+				body := response.Body.String()
+				assert.Contains(t, body, "sa.gno.services")
+				assert.Contains(t, body, "js/analytics.js")
+				assert.Contains(t, body, "auto-events.js")
+				assert.Contains(t, body, "window.sa_metadata")
+				assert.Regexp(t, `page_type:\s*"[a-z]+"`, body, "page_type must populate with a non-empty enum value")
+				assert.Regexp(t, `context:\s*"(builder|neutral)"`, body, "context must be builder or neutral")
 			})
 		}
 	})
@@ -224,6 +230,37 @@ func TestAnalytics(t *testing.T) {
 				router.ServeHTTP(response, request)
 
 				assert.NotContains(t, response.Body.String(), "sa.gno.services")
+			})
+		}
+	})
+
+	t.Run("page_type", func(t *testing.T) {
+		// Verifies ClassifyView's output reaches window.sa_metadata for
+		// representative routes.
+		expected := map[string]string{
+			"/":                         "home",
+			"/r/gnoland/blog":           "realm",
+			"/r/gnoland/blog$help":      "help",
+			"/r/gnoland/blog/admin.gno": "source",
+			"/r/sys/users":              "realm",
+		}
+
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = remoteAddr
+		cfg.Analytics = true
+		logger := log.NewTestingLogger(t)
+		router, err := NewRouter(logger, cfg)
+		require.NoError(t, err)
+
+		for route, pageType := range expected {
+			t.Run(route, func(t *testing.T) {
+				request := httptest.NewRequest(http.MethodGet, route, nil)
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, request)
+
+				body := response.Body.String()
+				want := fmt.Sprintf(`page_type: %q`, pageType)
+				assert.Contains(t, body, want, "route %q should emit %s", route, want)
 			})
 		}
 	})

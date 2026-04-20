@@ -144,15 +144,22 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// Handle web handler with redirect middleware
-	mux.Handle("/", RedirectMiddleware(httphandler, cfg.Analytics))
+	mux.Handle("/", RedirectMiddleware(httphandler, staticMeta))
 
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
 			components.RedirectView(components.RedirectData{
-				To:            cfg.FaucetURL,
-				WithAnalytics: cfg.Analytics,
+				To: cfg.FaucetURL,
+				Analytics: components.AnalyticsData{
+					Enabled:    staticMeta.Analytics,
+					PageType:   "redirect",
+					Context:    components.AnalyticsContextNeutral,
+					ChainId:    staticMeta.ChainId,
+					AssetsPath: staticMeta.AssetsPath,
+					BuildTime:  staticMeta.BuildTime,
+				},
 			}).Render(w)
 		}))
 	}

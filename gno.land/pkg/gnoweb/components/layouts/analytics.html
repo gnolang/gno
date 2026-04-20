@@ -1,6 +1,15 @@
 {{- define "layout/analytics" -}}
 <!-- 100% privacy-first analytics -->
-<script async="" defer="" src="https://sa.gno.services/latest.js"></script>
+<script>
+  window.sa_metadata = {
+    page_type: {{ .PageType }},
+    context: {{ .Context }},
+    chain_id: {{ .ChainId }}
+  };
+</script>
+<script async defer src="https://sa.gno.services/latest.js"></script>
+<script async defer src="https://sa.gno.services/auto-events.js"></script>
+<script type="module" src="{{ .AssetsPath }}js/analytics.js?v={{ .BuildTime }}"></script>
 <noscript>
   <img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade" />
 </noscript>
