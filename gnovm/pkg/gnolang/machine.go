@@ -1307,6 +1307,10 @@ const (
 	OpCPUBand      = 71
 	OpCPUBandn     = 71
 
+	/* Per-unit scaling costs (multiplied by size) */
+	// TODO: OpCPUCmpPerByte is an arbitrary number; needs benchmarking.
+	OpCPUCmpPerByte = 1 // per-byte cost for string comparisons (hardware-optimized memcmp)
+
 	/* Other expression operators */
 	OpCPUEval                = 82  // parameterized for NameExpr; base from fit (81.7)
 	OpCPUBinary1             = 69  // max(LAND true=69, LAND false=66)
