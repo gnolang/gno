@@ -121,6 +121,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// runs like cross(fn)(...) which
 			// meains fri.WithCross would have been
 			// found below.
+			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -129,6 +130,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// everything under it is also valid.
 			// fri.DidCrossing && !fri.WithCross
 			// can happen with an implicit switch.
+			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
 			fr1.SetDidCrossing()
 			return
 		}

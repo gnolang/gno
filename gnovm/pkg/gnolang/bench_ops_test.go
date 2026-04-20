@@ -4189,6 +4189,57 @@ func BenchmarkOpCall_0Params_100Captures(b *testing.B)  { benchOpCall(b, 0, 100)
 func BenchmarkOpCall_0Params_1000Captures(b *testing.B) { benchOpCall(b, 0, 1000) }
 func BenchmarkOpCall_10Params_10Captures(b *testing.B)  { benchOpCall(b, 10, 10) }
 
+// --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
+// Scales with call stack depth until the first crossing ancestor. The handler's
+// inner loop calls PeekCallFrame(i) for i=1..depth, each O(i), so total work is
+// O(depth^2) (see op_call.go:111 "TODO: O(n^2), optimize"). The benchmark
+// constructs `depth` call frames with only the deepest marked WithCross=true,
+// forcing the loop to walk the full depth.
+
+func benchOpEnterCrossing(b *testing.B, depth int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Make m.Package a realm and set a non-nil m.Realm so
+	// fri.LastRealm == m.Realm holds for intermediate frames.
+	m.Package = &PackageValue{PkgPath: "gno.land/r/bench"}
+	m.Realm = &Realm{Path: "gno.land/r/bench"}
+
+	// Dummy *FuncValue so Frame.IsCall() returns true.
+	fv := &FuncValue{PkgPath: "gno.land/r/bench"}
+
+	// Build `depth` call frames. The first pushed frame is the DEEPEST
+	// (PeekCallFrame walks from the end of m.Frames backward, so the
+	// first slot is last found). Only the deepest has WithCross=true —
+	// this is what terminates the loop at iteration N.
+	m.Frames = m.Frames[:0]
+	for i := 0; i < depth; i++ {
+		fr := Frame{Func: fv, LastRealm: m.Realm}
+		if i == 0 {
+			fr.WithCross = true
+		}
+		m.Frames = append(m.Frames, fr)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		// doOpEnterCrossing calls fr1.SetDidCrossing, which panics if
+		// DidCrossing is already true. Reset before each iteration.
+		m.Frames[len(m.Frames)-1].DidCrossing = false
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEnterCrossing()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEnterCrossing_1(b *testing.B)    { benchOpEnterCrossing(b, 1) }
+func BenchmarkOpEnterCrossing_10(b *testing.B)   { benchOpEnterCrossing(b, 10) }
+func BenchmarkOpEnterCrossing_100(b *testing.B)  { benchOpEnterCrossing(b, 100) }
+func BenchmarkOpEnterCrossing_1000(b *testing.B) { benchOpEnterCrossing(b, 1000) }
+
 // --- doOpReturn: unwind stack + realm check ---
 
 func BenchmarkOpReturn(b *testing.B) {

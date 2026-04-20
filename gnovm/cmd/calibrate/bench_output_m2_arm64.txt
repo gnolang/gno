@@ -189,3 +189,21 @@ BenchmarkAlloc_1073741824-8   	      55	 179237665 ns/op	1073741832 B/op	       
 BenchmarkAlloc_1073741824-8   	       6	 183594028 ns/op	1073741840 B/op	       1 allocs/op
 PASS
 ok  	github.com/gnolang/gno/gnovm/cmd/calibrate	296.433s
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M2
+BenchmarkOpEnterCrossing_1-8      	 4382079	       544.3 ns/op	         0 alloc-gas/op	       503.4 ns/op(pure)
+BenchmarkOpEnterCrossing_1-8      	 4394974	       544.1 ns/op	         0 alloc-gas/op	       503.1 ns/op(pure)
+BenchmarkOpEnterCrossing_1-8      	 4410666	       544.4 ns/op	         0 alloc-gas/op	       503.5 ns/op(pure)
+BenchmarkOpEnterCrossing_10-8     	 4165647	       575.7 ns/op	         0 alloc-gas/op	       534.9 ns/op(pure)
+BenchmarkOpEnterCrossing_10-8     	 4162605	       576.6 ns/op	         0 alloc-gas/op	       535.8 ns/op(pure)
+BenchmarkOpEnterCrossing_10-8     	 4162598	       575.7 ns/op	         0 alloc-gas/op	       534.9 ns/op(pure)
+BenchmarkOpEnterCrossing_100-8    	  664548	      3611 ns/op	         0 alloc-gas/op	      3570 ns/op(pure)
+BenchmarkOpEnterCrossing_100-8    	  669544	      3607 ns/op	         0 alloc-gas/op	      3567 ns/op(pure)
+BenchmarkOpEnterCrossing_100-8    	  665548	      3611 ns/op	         0 alloc-gas/op	      3571 ns/op(pure)
+BenchmarkOpEnterCrossing_1000-8   	    7534	    298367 ns/op	         0 alloc-gas/op	    298313 ns/op(pure)
+BenchmarkOpEnterCrossing_1000-8   	    8038	    298185 ns/op	         0 alloc-gas/op	    298136 ns/op(pure)
+BenchmarkOpEnterCrossing_1000-8   	    8030	    305684 ns/op	         0 alloc-gas/op	    305633 ns/op(pure)
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	32.668s

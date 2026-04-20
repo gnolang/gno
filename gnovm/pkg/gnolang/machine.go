@@ -1254,7 +1254,7 @@ const (
 	OpCPUPrecallTypeConv     = 72   // type conversion
 	OpCPUPrecallFunc         = 178  // function call
 	OpCPUPrecallBoundMethod  = 199  // bound method call
-	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
+	OpCPUEnterCrossing       = 1000 // base; adds quadratic per-depth via OpCPUSlopeEnterCrossingQuad
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
 	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
 	OpCPUDefer               = 71
@@ -1404,6 +1404,10 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// Quadratic: gas = depth * depth * slope / 10.
+	// doOpEnterCrossing walks PeekCallFrame(i) for i=1..depth; each O(i).
+	// See op_call.go:111 "TODO: O(n^2), optimize".
+	OpCPUSlopeEnterCrossingQuad = 6 // fit: depth^2/10 × 6 ≈ 0.6*depth^2 ns
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).

@@ -62,7 +62,8 @@ def least_squares(points):
 # For the plot, we fit ns = a + b * Q where Q is the code's scaling variable.
 QUADRATIC_BIGINT = {'Mul (BigInt)', 'Quo (BigInt)', 'Rem (BigInt)'}  # Q = (bits/32)^2 / 32
 QUADRATIC_BIGDEC = {'Mul (BigDec)', 'Quo (BigDec)'}                 # Q = (digits/10)^2 / 10
-QUADRATIC_FAMILIES = QUADRATIC_BIGINT | QUADRATIC_BIGDEC
+QUADRATIC_VMOP = {'EnterCrossing (depth)'}                          # Q = depth^2 / 10
+QUADRATIC_FAMILIES = QUADRATIC_BIGINT | QUADRATIC_BIGDEC | QUADRATIC_VMOP
 
 # All parameterized families: (name, param_label, [(bench_name, N), ...])
 FAMILIES = [
@@ -115,6 +116,9 @@ FAMILIES = [
     ('ReturnCallDefers', 'defers', [
         ('BenchmarkOpReturnCallDefers_1', 1), ('BenchmarkOpReturnCallDefers_10', 10),
         ('BenchmarkOpReturnCallDefers_100', 100), ('BenchmarkOpReturnCallDefers_1000', 1000)]),
+    ('EnterCrossing (depth)', 'call depth', [
+        ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
+        ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
     ('TypeSwitch (concrete)', 'clauses', [
         ('BenchmarkOpTypeSwitch_1', 1), ('BenchmarkOpTypeSwitch_10', 10),
         ('BenchmarkOpTypeSwitch_100', 100), ('BenchmarkOpTypeSwitch_1000', 1000)]),
@@ -286,6 +290,11 @@ def main():
             # Q = (digits/10)^2 / 10
             quad_points = [((x/10)**2/10, y) for x, y in points]
             a, b, r2 = least_squares(quad_points)
+        elif name in QUADRATIC_VMOP:
+            # Code formula: gas = depth^2 * slope / 10
+            # Q = depth^2 / 10
+            quad_points = [(x*x/10, y) for x, y in points]
+            a, b, r2 = least_squares(quad_points)
         else:
             a, b, r2 = least_squares(points)
 
@@ -319,6 +328,11 @@ def main():
             q_fit = (x_fit / 10)**2 / 10
             y_fit = a + b * q_fit
             eq = f'{a:.0f} + {b:.1f}*Q  [Q=(N/10)\u00b2/10]'
+            color = '#4CAF50' if r2 >= 0.95 else '#FF9800' if r2 >= 0.8 else '#F44336'
+        elif name in QUADRATIC_VMOP:
+            q_fit = x_fit * x_fit / 10
+            y_fit = a + b * q_fit
+            eq = f'{a:.0f} + {b:.1f}*Q  [Q=N\u00b2/10]'
             color = '#4CAF50' if r2 >= 0.95 else '#FF9800' if r2 >= 0.8 else '#F44336'
         else:
             y_fit = a + b * x_fit
