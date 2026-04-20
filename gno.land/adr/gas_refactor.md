@@ -798,6 +798,11 @@ IterNextCostFlat = 1_000   // per-step sequential leaf scan
 // WillIterator uses ReadCostFlat (= 59_000) — seek does a Get-equivalent tree walk.
 ```
 
+`IterNextCostFlat` is a **governance parameter** (`p:iter_next_cost_flat`);
+the tm2 default above is applied via `vm.DefaultParams()` at genesis.
+`Validate()` rejects zero or negative values. `ReadCostFlat` (and the
+other flat/per-byte constants) remain compile-time constants today.
+
 **Calibration target: 100M keys on the reference hardware.** The other
 storage constants (`ReadCostFlat`, `ReadCostPerByte`, etc.) are
 calibrated at that scale in the Storage I/O section above; the
