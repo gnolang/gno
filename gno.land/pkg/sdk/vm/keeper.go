@@ -1206,6 +1206,12 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 		// OrigSendSpent: nil,
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
 		Params:      NewSDKParams(vm.prmk, ctx),
+		// Safe for the same reason: baseapp.go's handleQueryCustom calls
+		// NewContext() per query, and tm2/pkg/sdk/context.go's NewContext
+		// unconditionally allocates a fresh NewEventLogger. Any events
+		// emitted by a qeval_json expression land in that per-query
+		// logger and are discarded with the ctx — they never reach block
+		// state (only runMsgs harvests events, on the tx path).
 		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
