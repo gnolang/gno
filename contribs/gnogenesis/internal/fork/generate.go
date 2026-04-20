@@ -25,7 +25,6 @@ type generateCfg struct {
 	haltHeight      int64
 	output          string
 	txsOutput       string
-	overlayDir      string
 	patchRealms     patchRealmList
 	skipTxs         bool
 	noVerify        bool
@@ -85,7 +84,6 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(&c.haltHeight, "halt-height", 0, "block height at which source chain halted (auto-detected from source if 0)")
 	fs.StringVar(&c.output, "output", "genesis.json", "output genesis file path")
 	fs.StringVar(&c.txsOutput, "txs-output", "", "also write extracted txs to this .jsonl file (optional)")
-	fs.StringVar(&c.overlayDir, "overlay-dir", "", "directory of overlay scripts to apply before tx replay (optional)")
 	fs.Var(&c.patchRealms, "patch-realm", "patch a genesis-mode addpkg tx in place: repeatable, PKGPATH=SRCDIR. "+
 		"Replaces Package.Files with the *.gno + gnomod.toml files found in SRCDIR. "+
 		"Source genesis on disk is NOT modified; the patch is applied in memory "+
@@ -196,14 +194,6 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 		}
 	}
 	newGenDoc.AppState = *appState
-
-	// Apply overlay if provided
-	if cfg.overlayDir != "" {
-		io.Printf("  Applying overlay from: %s\n", cfg.overlayDir)
-		if err := applyOverlay(cfg.overlayDir, cfg.output, io); err != nil {
-			return fmt.Errorf("applying overlay: %w", err)
-		}
-	}
 
 	// -------------------------------------------------------------------------
 	// Step 4: Write and verify output
@@ -451,30 +441,4 @@ func gnoPackageNameFromFileBody(_ string, body string) string {
 		}
 	}
 	return ""
-}
-
-// applyOverlay runs overlay scripts from a directory against the genesis file.
-// This is a simple wrapper around the shell scripts in the overlay directory.
-func applyOverlay(overlayDir, genesisPath string, io commands.IO) error {
-	entries, err := os.ReadDir(overlayDir)
-	if err != nil {
-		return fmt.Errorf("reading overlay dir: %w", err)
-	}
-
-	var scripts []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sh") {
-			scripts = append(scripts, e.Name())
-		}
-	}
-
-	if len(scripts) == 0 {
-		io.Printf("  No overlay scripts found in %s\n", overlayDir)
-		return nil
-	}
-
-	// Overlay script execution is not yet implemented in the Go binary.
-	// Return an error so the caller knows the genesis is incomplete.
-	// Use generate-genesis.sh for full overlay support.
-	return fmt.Errorf("overlay not yet implemented: found %d scripts in %s; use generate-genesis.sh instead", len(scripts), overlayDir)
 }

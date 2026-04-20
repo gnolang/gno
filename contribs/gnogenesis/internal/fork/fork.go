@@ -1,10 +1,9 @@
 // Package fork provides the `gnogenesis fork` subcommands for building and
 // smoke-testing hardfork genesis files.
 //
-// A hardfork genesis has three components:
+// A hardfork genesis is built from:
 //  1. SOURCE CHAIN  — provides historical state (genesis + tx history)
 //  2. NEW BINARY    — the updated gnoland built from this repo
-//  3. OVERLAY       — a directory of scripts applied to genesis before tx replay
 //
 // Source modes (auto-detected from --source):
 //
