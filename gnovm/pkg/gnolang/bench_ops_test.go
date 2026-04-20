@@ -5644,66 +5644,93 @@ func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000)
 // ---------------------------------------------------------------------------
 // Copy helpers: calibrate OpCPUSlopeCopyPrimitive and OpCPUSlopeCopyElement.
 //
-// Primitive: copyDataToList / copyListToData / Assign2 DataByteType fast path.
-// Element:   unrefCopy (non-RefValue) / Assign2 general path.
+// Primitive slope (OpCPUSlopeCopyPrimitive): per-byte/Uint8-element cost for
+//   copyDataToList, copyListToData, raw memcpy, and Assign2 DataByteType path.
+//   Calibrated via BenchmarkOpCopyDataToList_* (slower helper).
+//
+// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for unrefCopy
+//   and Assign2 general path. Calibrated via BenchmarkOpUnrefCopy_Int_*
+//   (non-RefValue case); under-charges worst-case RefValue store-hit.
+//
+// These benchmarks use the standard benchMachine / reportBenchops wiring so
+// they emit ns/op(pure) and are picked up by cmd/calibrate/plot_fits.py and
+// gen_analysis.py. The linear fit against N gives the slope in ns/elem.
 // ---------------------------------------------------------------------------
 
-func benchCopyDataToList(b *testing.B, n int) {
+func benchOpCopyDataToList(b *testing.B, n int) {
 	b.Helper()
+	m := benchMachine()
+	defer m.Release()
 	data := make([]byte, n)
 	for i := range data {
 		data[i] = byte(i)
 	}
 	dst := make([]TypedValue, n)
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
 	for range b.N {
+		bm.SwitchOpCode(bmTarget)
 		copyDataToList(dst, data, Uint8Type)
+		bm.SwitchOpCode(bmSetup)
 	}
-	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/elem")
+	reportBenchops(b)
 }
 
-func BenchmarkCopyDataToList_1k(b *testing.B)   { benchCopyDataToList(b, 1024) }
-func BenchmarkCopyDataToList_10k(b *testing.B)  { benchCopyDataToList(b, 10*1024) }
-func BenchmarkCopyDataToList_100k(b *testing.B) { benchCopyDataToList(b, 100*1024) }
-func BenchmarkCopyDataToList_1m(b *testing.B)   { benchCopyDataToList(b, 1024*1024) }
+func BenchmarkOpCopyDataToList_1k(b *testing.B)   { benchOpCopyDataToList(b, 1024) }
+func BenchmarkOpCopyDataToList_10k(b *testing.B)  { benchOpCopyDataToList(b, 10*1024) }
+func BenchmarkOpCopyDataToList_100k(b *testing.B) { benchOpCopyDataToList(b, 100*1024) }
+func BenchmarkOpCopyDataToList_1m(b *testing.B)   { benchOpCopyDataToList(b, 1024*1024) }
 
-func benchCopyListToData(b *testing.B, n int) {
+func benchOpCopyListToData(b *testing.B, n int) {
 	b.Helper()
+	m := benchMachine()
+	defer m.Release()
 	dst := make([]byte, n)
 	tvs := make([]TypedValue, n)
 	for i := range tvs {
 		tvs[i] = TypedValue{T: Uint8Type}
 		tvs[i].SetUint8(byte(i))
 	}
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
 	for range b.N {
+		bm.SwitchOpCode(bmTarget)
 		copyListToData(dst, tvs)
+		bm.SwitchOpCode(bmSetup)
 	}
-	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/elem")
+	reportBenchops(b)
 }
 
-func BenchmarkCopyListToData_1k(b *testing.B)   { benchCopyListToData(b, 1024) }
-func BenchmarkCopyListToData_10k(b *testing.B)  { benchCopyListToData(b, 10*1024) }
-func BenchmarkCopyListToData_100k(b *testing.B) { benchCopyListToData(b, 100*1024) }
-func BenchmarkCopyListToData_1m(b *testing.B)   { benchCopyListToData(b, 1024*1024) }
+func BenchmarkOpCopyListToData_1k(b *testing.B)   { benchOpCopyListToData(b, 1024) }
+func BenchmarkOpCopyListToData_10k(b *testing.B)  { benchOpCopyListToData(b, 10*1024) }
+func BenchmarkOpCopyListToData_100k(b *testing.B) { benchOpCopyListToData(b, 100*1024) }
+func BenchmarkOpCopyListToData_1m(b *testing.B)   { benchOpCopyListToData(b, 1024*1024) }
 
-// UnrefCopy on non-RefValue (common case: IntType primitive).
-func benchUnrefCopyInt(b *testing.B, n int) {
+// UnrefCopy on non-RefValue (common case: IntType primitive). RefValue case
+// is more expensive due to store hit, but charged via store gas downstream.
+func benchOpUnrefCopyInt(b *testing.B, n int) {
 	b.Helper()
+	m := benchMachine()
+	defer m.Release()
 	src := make([]TypedValue, n)
 	for i := range src {
 		src[i] = TypedValue{T: IntType, N: i2n(int64(i))}
 	}
-	alloc := NewAllocator(math.MaxInt64)
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
 	for range b.N {
+		bm.SwitchOpCode(bmTarget)
 		for i := range src {
-			_ = src[i].unrefCopy(alloc, nil)
+			_ = src[i].unrefCopy(m.Alloc, nil)
 		}
+		bm.SwitchOpCode(bmSetup)
 	}
-	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/elem")
+	reportBenchops(b)
 }
 
-func BenchmarkUnrefCopy_Int_1k(b *testing.B)   { benchUnrefCopyInt(b, 1024) }
-func BenchmarkUnrefCopy_Int_10k(b *testing.B)  { benchUnrefCopyInt(b, 10*1024) }
-func BenchmarkUnrefCopy_Int_100k(b *testing.B) { benchUnrefCopyInt(b, 100*1024) }
+func BenchmarkOpUnrefCopy_Int_1k(b *testing.B)   { benchOpUnrefCopyInt(b, 1024) }
+func BenchmarkOpUnrefCopy_Int_10k(b *testing.B)  { benchOpUnrefCopyInt(b, 10*1024) }
+func BenchmarkOpUnrefCopy_Int_100k(b *testing.B) { benchOpUnrefCopyInt(b, 100*1024) }
 
 // ---------------------------------------------------------------------------
 // Helper: encode int64/uint64 into [8]byte (little-endian, matching unsafe cast)
