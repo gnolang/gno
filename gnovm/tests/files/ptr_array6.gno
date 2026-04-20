@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// nil pointer dereference
+// runtime error: nil pointer dereference
