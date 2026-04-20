@@ -494,6 +494,135 @@ func TestSessionInputOutputCoinsDuplicateSigner(t *testing.T) {
 		"first input's deduction compounded via shared sessions map pointer")
 }
 
+// TestSessionHighWaterMarkAfterRefund verifies that SendCoinsUnrestricted
+// flowing funds BACK to master (the refund pattern used by
+// refundStorageDeposit) does not reverse SpendUsed. An attacker who can
+// trigger refunds must not be able to churn state to extend their
+// spending past SpendLimit.
+func TestSessionHighWaterMarkAfterRefund(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 300)))
+
+	// Give the "refund source" a balance so SendCoinsUnrestricted can
+	// credit master without requiring minting.
+	refundSrc := crypto.AddressFromPreimage([]byte("storage-deposit-addr"))
+	acc := env.acck.NewAccountWithAddress(ctx, refundSrc)
+	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 500)))
+	env.acck.SetAccount(ctx, acc)
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+
+	// Step 1: session spends 200 via SendCoins — SpendUsed = 200.
+	require.NoError(t, env.bankk.SendCoins(ctx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 200))))
+	assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("foo"))
+
+	// Step 2: refund pattern — coins flow back to master via Unrestricted.
+	// This is what refundStorageDeposit does; it bypasses the session hook
+	// intentionally, so SpendUsed must NOT decrement.
+	require.NoError(t, env.bankk.SendCoinsUnrestricted(ctx, refundSrc, masterAddr, std.NewCoins(std.NewCoin("foo", 200))))
+	assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("foo"),
+		"refund via SendCoinsUnrestricted must NOT reverse SpendUsed")
+
+	// Master's balance is made whole (800 + 200 refund = 1000).
+	assert.Equal(t, int64(1000), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
+
+	// Step 3: session tries to spend 200 more — remaining budget is 100
+	// (300 - 200 = 100), so 200 should be rejected.
+	err := env.bankk.SendCoins(ctx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 200)))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "session not allowed")
+
+	// And 100 should succeed, exhausting the budget exactly.
+	require.NoError(t, env.bankk.SendCoins(ctx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 100))))
+	assert.Equal(t, int64(300), da.GetSpendUsed().AmountOf("foo"))
+}
+
+// TestSessionDenomNotInSpendLimit verifies fail-closed behavior when the
+// spend attempt's denom is absent from SpendLimit. SpendLimit is
+// per-denom; a missing denom means zero allowance for that denom.
+func TestSessionDenomNotInSpendLimit(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	// SpendLimit only covers "atom", but master has ugnot balance and
+	// attempts to send ugnot.
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("ugnot", 1000)),
+		std.NewCoins(std.NewCoin("atom", 1000)))
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	err := env.bankk.SendCoins(ctx, masterAddr, recipient, std.NewCoins(std.NewCoin("ugnot", 1)))
+	require.Error(t, err, "session must reject spend of denom absent from SpendLimit")
+	assert.Contains(t, err.Error(), "session not allowed")
+
+	// No coins moved; SpendUsed unchanged.
+	assert.Equal(t, int64(1000), env.bankk.GetCoins(ctx, masterAddr).AmountOf("ugnot"))
+	assert.Equal(t, int64(0), da.GetSpendUsed().AmountOf("atom"))
+	assert.Equal(t, int64(0), da.GetSpendUsed().AmountOf("ugnot"))
+}
+
+// TestSessionMultiMsgRollback simulates a multi-msg tx where msg[0]
+// succeeds and bumps SpendUsed, then msg[1] fails. Under baseapp's
+// cache-tx-context flow, the whole tx's cache is discarded on failure.
+// This test verifies that if we DON'T commit the cache, the SpendUsed
+// change from msg[0] does not leak to the main store.
+func TestSessionMultiMsgRollback(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, _ := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 500)))
+
+	cacheCtx, writeCache := ctx.CacheContext()
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+
+	// msg[0]: within limit, succeeds.
+	require.NoError(t, env.bankk.SendCoins(cacheCtx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 200))))
+
+	// msg[1]: over limit, fails. In baseapp flow this would cause the
+	// entire tx to abort and the cache to be discarded.
+	err := env.bankk.SendCoins(cacheCtx, masterAddr, recipient, std.NewCoins(std.NewCoin("foo", 400)))
+	require.Error(t, err)
+
+	// Simulate tx abort: DO NOT call writeCache.
+	_ = writeCache
+
+	// Main store reflects no changes — msg[0]'s SpendUsed bump and
+	// coin movement both rolled back.
+	sessionAddr := crypto.AddressFromPreimage([]byte("session"))
+	outerSA := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	require.NotNil(t, outerSA)
+	assert.Equal(t, int64(0), outerSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("foo"),
+		"msg[0]'s SpendUsed change must roll back when tx aborts")
+	assert.Equal(t, int64(1000), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
+	assert.Equal(t, int64(0), env.bankk.GetCoins(ctx, recipient).AmountOf("foo"))
+}
+
+// TestSessionSendZeroAmountNoOp confirms that a SendCoins with a
+// zero-total amount short-circuits in DeductSessionSpend (via IsZero)
+// and leaves SpendUsed untouched. Relevant because bank keeper may be
+// called with empty Coins in edge cases.
+func TestSessionSendZeroAmountNoOp(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 100)))
+
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	// Empty Coins — zero total.
+	require.NoError(t, env.bankk.SendCoins(ctx, masterAddr, recipient, std.NewCoins()))
+	assert.Equal(t, int64(0), da.GetSpendUsed().AmountOf("foo"),
+		"zero-amount SendCoins must not touch SpendUsed")
+}
+
 // TestSessionHandlerMsgSend runs a real bank.MsgSend through the bank
 // handler and verifies the session hook at bank.Keeper.SendCoins fires.
 // This is the end-to-end path a session-signed MsgSend follows once it

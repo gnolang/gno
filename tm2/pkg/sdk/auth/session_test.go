@@ -1114,3 +1114,195 @@ func TestSessionCreateWithZeroExpiry(t *testing.T) {
 	// Should pass — ExpiresAt=0 means no expiry.
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
+
+// TestSessionEmptySpendLimitRejected confirms that DeductSessionSpend
+// rejects any nonzero amount when SpendLimit is explicitly empty. This
+// is the "session cannot spend anything, useful when another signer
+// pays gas" semantic documented in the ADR.
+func TestSessionEmptySpendLimitRejected(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(ctx.BlockTime().Unix() + 3600)
+	da.SetSpendLimit(std.Coins{}) // explicitly empty
+	da.SetSpendReset(ctx.BlockTime().Unix())
+
+	// Zero amount: allowed (short-circuit before the empty-limit check).
+	err := DeductSessionSpend(da, std.Coins{}, ctx.BlockTime().Unix())
+	require.NoError(t, err, "zero amount should short-circuit even with empty SpendLimit")
+
+	// Nonzero amount: rejected with "session has no spend limit".
+	err = DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 1)}, ctx.BlockTime().Unix())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "session not allowed")
+}
+
+// TestSessionSpendPeriodZeroLifetime confirms that SpendPeriod=0 means
+// "lifetime cap" — SpendUsed is never reset regardless of how much time
+// passes between calls.
+func TestSessionSpendPeriodZeroLifetime(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	blockTime0 := ctx.BlockTime().Unix()
+
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(0)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 1000)})
+	da.SetSpendPeriod(0) // lifetime cap
+	da.SetSpendReset(blockTime0)
+
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 400)}, blockTime0))
+	assert.Equal(t, int64(400), da.GetSpendUsed().AmountOf("atom"))
+
+	// Advance 10 years — SpendPeriod=0, so no reset should happen.
+	far := blockTime0 + 10*365*24*60*60
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 300)}, far))
+	assert.Equal(t, int64(700), da.GetSpendUsed().AmountOf("atom"),
+		"SpendPeriod=0 must not reset SpendUsed even across long time gaps")
+
+	// One more add that would exceed the lifetime cap.
+	err := DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 400)}, far+1)
+	require.Error(t, err, "lifetime cap exceeded must reject")
+	assert.Equal(t, int64(700), da.GetSpendUsed().AmountOf("atom"))
+}
+
+// TestSessionSpendResetExactBoundary confirms the >= semantic of the
+// period-reset check: at exactly blockTime == SpendReset + SpendPeriod,
+// the reset DOES fire.
+func TestSessionSpendResetExactBoundary(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	blockTime0 := ctx.BlockTime().Unix()
+
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(0)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 1000)})
+	da.SetSpendPeriod(3600)
+	da.SetSpendReset(blockTime0)
+
+	// First spend: uses 900 at t=0.
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 900)}, blockTime0))
+	assert.Equal(t, int64(900), da.GetSpendUsed().AmountOf("atom"))
+
+	// Right before the boundary: still in the old period, 150 would exceed.
+	err := DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 150)}, blockTime0+3599)
+	require.Error(t, err, "just before reset boundary, limit still applies")
+
+	// Exactly at boundary: reset fires, 150 succeeds.
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 150)}, blockTime0+3600))
+	assert.Equal(t, int64(150), da.GetSpendUsed().AmountOf("atom"),
+		"reset at boundary clears SpendUsed")
+}
+
+// TestSessionGasDenomNotInSpendLimit confirms the fail-closed denom
+// behavior when the gas fee denom is absent from SpendLimit: the ante
+// rejects the tx at Phase 2 (gas deduction) cleanly.
+func TestSessionGasDenomNotInSpendLimit(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	// Create session with SpendLimit in "xyz" but gas fee uses "atom".
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(ctx.BlockTime().Unix() + 3600)
+	da.SetSpendLimit(std.Coins{std.NewCoin("xyz", 1_000_000)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(env.ctx, masterAddr, sa)
+
+	sessionAccNum := sa.GetAccountNumber()
+	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
+	fee := tu.NewTestFee() // atom-denominated
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	// Rejected: gas denom not in SpendLimit → IsAllGTE fails.
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.SessionNotAllowedError{})
+}
+
+// TestSessionCreateMaxDurationBoundary confirms the ExpiresAt max-duration
+// boundary: blockTime + MaxSessionDuration is allowed; +1 is rejected.
+func TestSessionCreateMaxDurationBoundary(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	h := NewHandler(env.acck, env.gk)
+	blockTime := ctx.BlockTime().Unix()
+
+	t.Run("exactly at max duration", func(t *testing.T) {
+		_, sessionPub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr,
+			SessionKey: sessionPub,
+			ExpiresAt:  blockTime + std.MaxSessionDuration,
+			SpendLimit: sessionSpendLimit(),
+		}
+		res := h.Process(ctx, msg)
+		require.True(t, res.IsOK(), "ExpiresAt exactly at max duration must be accepted: %s", res.Log)
+	})
+
+	t.Run("one second past max duration", func(t *testing.T) {
+		_, sessionPub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr,
+			SessionKey: sessionPub,
+			ExpiresAt:  blockTime + std.MaxSessionDuration + 1,
+			SpendLimit: sessionSpendLimit(),
+		}
+		res := h.Process(ctx, msg)
+		require.False(t, res.IsOK(), "ExpiresAt past max duration must be rejected")
+		assert.Contains(t, res.Log, "duration exceeds maximum")
+	})
+}
+
+// TestSessionSequenceIndependenceFromMaster confirms session and master
+// each have their own independent sequence number — a session signing
+// at sequence 0 does not conflict with master signing at sequence 0.
+func TestSessionSequenceIndependenceFromMaster(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, masterPriv, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	// Create a session.
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createSessionDirect(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600)
+	sessionAccNum := sa.GetAccountNumber()
+
+	masterAcc := env.acck.GetAccount(ctx, masterAddr)
+	masterAccNum := masterAcc.GetAccountNumber()
+	// Both start at sequence 0.
+	require.Equal(t, uint64(0), masterAcc.GetSequence())
+	require.Equal(t, uint64(0), sa.GetSequence())
+
+	fee := tu.NewTestFee()
+
+	// Session signs at its sequence 0.
+	sessionTx := tu.NewSessionTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(masterAddr)}, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+	checkValidTx(t, anteHandler, ctx, sessionTx, false)
+
+	// Master signs at its sequence 0 (independent from session).
+	masterTx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(masterAddr)}, []crypto.PrivKey{masterPriv}, []uint64{masterAccNum}, []uint64{0}, fee)
+	checkValidTx(t, anteHandler, ctx, masterTx, false)
+
+	// After both, each should be at sequence 1 independently.
+	reloadedMaster := env.acck.GetAccount(ctx, masterAddr)
+	reloadedSession := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	assert.Equal(t, uint64(1), reloadedMaster.GetSequence())
+	assert.Equal(t, uint64(1), reloadedSession.GetSequence())
+}

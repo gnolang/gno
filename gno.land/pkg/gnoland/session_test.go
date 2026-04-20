@@ -341,6 +341,40 @@ func TestSessionDeniesMsgSendWithAllowPaths(t *testing.T) {
 	assert.Contains(t, res.Log, "not allowed")
 }
 
+// TestSessionCreateRejectsFromSession confirms that a session-signed
+// tx carrying a MsgCreateSession is rejected at the gno.land allowlist.
+// Sessions must not be able to create other sessions — that would be
+// privilege escalation equivalent to the master key.
+func TestSessionCreateRejectsFromSession(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600, nil)
+	sessionAccNum := sa.GetAccountNumber()
+
+	// Build MsgCreateSession signed by the session key (via the session's
+	// SessionTestTx helper). Creator is the master address (same as any
+	// MsgCreateSession) but the tx is signed by the session, not the
+	// master. The allowlist must reject it.
+	_, subPub, _ := tu.KeyTestPubAddr()
+	createMsg := auth.MsgCreateSession{
+		Creator:    masterAddr,
+		SessionKey: subPub,
+		ExpiresAt:  ctx.BlockTime().Unix() + 600,
+		SpendLimit: std.Coins{std.NewCoin("atom", 10)},
+	}
+
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), []std.Msg{createMsg}, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.True(t, abort, "session-signed MsgCreateSession must be rejected")
+	assert.Contains(t, res.Log, "not allowed for session")
+}
+
 func TestSessionDeniesDisallowedMsg(t *testing.T) {
 	t.Parallel()
 
