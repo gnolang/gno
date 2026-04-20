@@ -85,6 +85,13 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit))
 	sb.WriteString(fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice))
 	sb.WriteString(fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector.String()))
+	sb.WriteString(fmt.Sprintf("MinGetReadDepth100: %d\n", p.MinGetReadDepth100))
+	sb.WriteString(fmt.Sprintf("MinSetReadDepth100: %d\n", p.MinSetReadDepth100))
+	sb.WriteString(fmt.Sprintf("MinWriteDepth100: %d\n", p.MinWriteDepth100))
+	sb.WriteString(fmt.Sprintf("FixedGetReadDepth100: %d\n", p.FixedGetReadDepth100))
+	sb.WriteString(fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100))
+	sb.WriteString(fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100))
+	sb.WriteString(fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat))
 	return sb.String()
 }
 
@@ -109,6 +116,25 @@ func (p Params) Validate() error {
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")
 	}
+	// Depth floors / overrides must be non-negative. Zero is a legitimate
+	// value meaning "no floor / use tree estimate"; negative values would
+	// silently pass through the downstream `> 0` guards as no-ops, making
+	// a governance proposal appear to succeed while having no effect.
+	for _, f := range []struct {
+		name string
+		v    int64
+	}{
+		{"MinGetReadDepth100", p.MinGetReadDepth100},
+		{"MinSetReadDepth100", p.MinSetReadDepth100},
+		{"MinWriteDepth100", p.MinWriteDepth100},
+		{"FixedGetReadDepth100", p.FixedGetReadDepth100},
+		{"FixedSetReadDepth100", p.FixedSetReadDepth100},
+		{"FixedWriteDepth100", p.FixedWriteDepth100},
+	} {
+		if f.v < 0 {
+			return fmt.Errorf("%s must be non-negative, got %d", f.name, f.v)
+		}
+	}
 	if p.IterNextCostFlat <= 0 {
 		return fmt.Errorf("IterNextCostFlat must be positive, got %d", p.IterNextCostFlat)
 	}
@@ -120,9 +146,16 @@ func (p Params) Equals(p2 Params) bool {
 	return amino.DeepEqual(p, p2)
 }
 
-// ApplyToGasConfig overwrites the governed depth fields of cfg with
+// ApplyToGasConfig overwrites the governed gas fields of cfg with
 // the values in p. Shared by the anteHandler (tx path) and
 // newGnoTransactionStore (query path) so the two never drift.
+//
+// Every write is unconditional. For the six depth fields that's safe
+// because store.DefaultGasConfig() initializes them to 0 and zero is
+// a legitimate value ("no floor / use tree estimate"); overwriting
+// 0 with 0 is a no-op. IterNextCostFlat is required to be positive
+// (Validate rejects zero), so a Params that reached this code is
+// guaranteed to have a meaningful value for it.
 func (p Params) ApplyToGasConfig(cfg *store.GasConfig) {
 	cfg.MinGetReadDepth100 = p.MinGetReadDepth100
 	cfg.MinSetReadDepth100 = p.MinSetReadDepth100
