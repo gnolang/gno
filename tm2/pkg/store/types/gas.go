@@ -346,6 +346,12 @@ func (g passthroughGasMeter) IsOutOfGas() bool {
 //----------------------------------------
 
 // GasConfig defines gas cost for each operation on KVStores.
+//
+// All fields must remain value-only types (no pointers, slices, or
+// maps). Callers rely on `cfg := gctx.Config` being a complete
+// independent copy — newGnoTransactionStore in gno.land/pkg/sdk/vm
+// depends on this to avoid in-place mutation of a potentially-shared
+// GasContext.
 type GasConfig struct {
 	HasCost          Gas
 	DeleteCost       Gas
