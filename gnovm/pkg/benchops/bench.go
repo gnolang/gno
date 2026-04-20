@@ -137,3 +137,25 @@ func StopNative(nativeCode NativeOp, old CPUOp) {
 	measure.curStoreOp = StoreOpInvalid
 	measure.curNativeOp = NativeOpInvalid
 }
+
+// BeginOpCode starts timing the first op in a run loop.
+func BeginOpCode(code CPUOp) {
+	if code == CPUOpInvalid {
+		panic("the OpCode is invalid")
+	}
+	measure.curCPUOp = code
+	measure.curStoreOp = StoreOpInvalid
+	measure.curNativeOp = NativeOpInvalid
+	measure.curStart = time.Now()
+	measure.opCounts[byte(code)]++
+}
+
+// OpAccumDur returns the accumulated duration for a CPU op code.
+func OpAccumDur(code CPUOp) time.Duration {
+	return measure.opAccumDur[byte(code)]
+}
+
+// OpCount returns the invocation count for a CPU op code.
+func OpCount(code CPUOp) int64 {
+	return measure.opCounts[byte(code)]
+}

@@ -117,14 +117,14 @@ Fixed: all packages loaded before `bm.Init()` creates the exporter. Export funct
 
 ## LOW: Minor Issues
 
-### L1. GC visitor `VisitCpuFactor = 8` is approximate
-**File:** `garbage_collector.go:14` — "TODO: more accurate benchmark"
+### L1. ~~GC visitor `VisitCpuFactor = 8` is approximate~~ DONE
+**File:** `garbage_collector.go` — Replaced with `gcVisitGasTable`: 25-entry lookup table indexed by log2(visitCount), calibrated from BenchmarkGCVisit on DO Xeon 8168. Per-visit cost scales from ~6 gas (L1/L2 cache) to ~135 gas (DRAM+TLB).
 
 ### L2. GC silent failure returns `(-1, false)` with no diagnostics
 **File:** `garbage_collector.go:70-95`
 
-### L3. Stats division by zero if an opcode has 0 records
-**File:** `gnovm/cmd/benchops/stats.go:182` — `float64(len(crs))` unguarded
+### L3. ~~Stats division by zero if an opcode has 0 records~~ OBSOLETE
+**File:** `gnovm/cmd/benchops/stats.go:182` — cmd/benchops has been deleted.
 
 ---
 
@@ -140,5 +140,5 @@ Fixed: all packages loaded before `bm.Init()` creates the exporter. Export funct
 | `gnovm/pkg/gnolang/preprocess.go` | C3 |
 | `gnovm/pkg/benchops/bench.go` | M1 |
 | `gnovm/pkg/benchops/exporter.go` | M2, M3 |
-| `gnovm/cmd/benchops/run.go` | M4 |
-| `gnovm/cmd/benchops/stats.go` | L3 |
+| ~~`gnovm/cmd/benchops/run.go`~~ | ~~M4~~ (deleted) |
+| ~~`gnovm/cmd/benchops/stats.go`~~ | ~~L3~~ (deleted) |
