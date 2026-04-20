@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
+	// adminAddr = runtime.OriginCaller() // FIXME: find a way to use this from the main's genesis.
 	adminAddr = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 }
 

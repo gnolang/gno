@@ -59,7 +59,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			CacheStdlibLoad:        true,
 		},
 		SkipGenesisSigVerification: true,
-		PruneStrategy:              types.PruneNothingStrategy,
+		PruneStrategy:              types.PruneSyncableStrategy,
 	}
 }
 
