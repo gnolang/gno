@@ -209,7 +209,6 @@ func TestAnalytics(t *testing.T) {
 				assert.Contains(t, body, "auto-events.js")
 				assert.Contains(t, body, "window.sa_metadata")
 				assert.Regexp(t, `page_type:\s*"[a-z]+"`, body, "page_type must populate with a non-empty enum value")
-				assert.Regexp(t, `context:\s*"(builder|neutral)"`, body, "context must be builder or neutral")
 			})
 		}
 	})
@@ -235,7 +234,7 @@ func TestAnalytics(t *testing.T) {
 	})
 
 	t.Run("page_type", func(t *testing.T) {
-		// Verifies ClassifyView's output reaches window.sa_metadata for
+		// Verifies ClassifyPageType's output reaches window.sa_metadata for
 		// representative routes.
 		expected := map[string]string{
 			"/":                         "home",

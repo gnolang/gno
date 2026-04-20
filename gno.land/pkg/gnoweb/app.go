@@ -155,7 +155,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 				Analytics: components.AnalyticsData{
 					Enabled:    staticMeta.Analytics,
 					PageType:   "redirect",
-					Context:    components.AnalyticsContextNeutral,
 					ChainId:    staticMeta.ChainId,
 					AssetsPath: staticMeta.AssetsPath,
 					BuildTime:  staticMeta.BuildTime,

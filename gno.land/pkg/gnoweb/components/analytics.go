@@ -1,50 +1,41 @@
 package components
 
-// AnalyticsContext is the audience-context label on AnalyticsData.
-type AnalyticsContext string
-
-const (
-	AnalyticsContextBuilder AnalyticsContext = "builder"
-	AnalyticsContextNeutral AnalyticsContext = "neutral"
-)
-
 // AnalyticsData holds the SimpleAnalytics metadata rendered into the page.
 type AnalyticsData struct {
 	Enabled    bool
 	PageType   string
-	Context    AnalyticsContext
 	ChainId    string
 	AssetsPath string
 	BuildTime  string
 }
 
-// ClassifyView returns the page-type label and AnalyticsContext for a given
-// mode and view. View type takes precedence when both match: a Source view
-// inside a Realm mode is "source", not "realm".
-func ClassifyView(mode ViewMode, view ViewType) (string, AnalyticsContext) {
+// ClassifyPageType returns the page-type label for a given mode and view.
+// View type takes precedence when both match: a Source view inside a Realm
+// mode is "source", not "realm".
+func ClassifyPageType(mode ViewMode, view ViewType) string {
 	switch view {
 	case SourceViewType:
-		return "source", AnalyticsContextBuilder
+		return "source"
 	case HelpViewType:
-		return "help", AnalyticsContextBuilder
+		return "help"
 	case DirectoryViewType:
-		return "directory", AnalyticsContextBuilder
+		return "directory"
 	case StatusViewType:
-		return "status", AnalyticsContextNeutral
+		return "status"
 	case RedirectViewType:
-		return "redirect", AnalyticsContextNeutral
+		return "redirect"
 	}
 	switch mode {
 	case ViewModeHome:
-		return "home", AnalyticsContextNeutral
+		return "home"
 	case ViewModeUser:
-		return "user", AnalyticsContextBuilder
+		return "user"
 	case ViewModePackage:
-		return "package", AnalyticsContextBuilder
+		return "package"
 	case ViewModeRealm:
-		return "realm", AnalyticsContextNeutral
+		return "realm"
 	case ViewModeExplorer:
-		return "explorer", AnalyticsContextBuilder
+		return "explorer"
 	}
-	return "other", AnalyticsContextNeutral
+	return "other"
 }

@@ -30,7 +30,6 @@ func RedirectMiddleware(next http.Handler, meta StaticMetadata) http.Handler {
 				Analytics: components.AnalyticsData{
 					Enabled:    meta.Analytics,
 					PageType:   "redirect",
-					Context:    components.AnalyticsContextNeutral,
 					ChainId:    meta.ChainId,
 					AssetsPath: meta.AssetsPath,
 					BuildTime:  meta.BuildTime,
