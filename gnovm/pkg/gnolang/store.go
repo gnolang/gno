@@ -704,8 +704,13 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 }
 
 func (ds *defaultStore) loadForLog(oid ObjectID) Object {
+	// Pass nil gctx: this read exists only to render the opslog diff,
+	// which is a test-only observability feature (filetest harness).
+	// Charging gas here would make tx gas depend on whether opslog is
+	// enabled, breaking determinism if the feature is ever wired into
+	// production diagnostics.
 	key := backendObjectKey(oid)
-	hashbz := ds.baseStore.Get(ds.gctx, []byte(key))
+	hashbz := ds.baseStore.Get(nil, []byte(key))
 	if hashbz == nil {
 		return nil
 	}
