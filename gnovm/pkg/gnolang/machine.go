@@ -1404,6 +1404,19 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
+	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
+	// path. Groups all byte-level copy work under one slope at the cost of a
+	// ~40× overcharge on pure memcpy (acceptable: source bytes are gas-charged
+	// on the way into the VM already). Calibrated to the slower helper
+	// (copyListToData, ~2 ns/elem M2 → ~4 ns/elem DO Xeon 8168).
+	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element (fit: ~2 ns M2 × 2)
+	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
+	// copy path — unrefCopy and Assign2 general case. Calibrated to
+	// unrefCopy on IntType (~20 ns/elem M2 → ~40 ns/elem DO). Under-charges
+	// the RefValue case where unrefCopy hits the store; that worst-case is
+	// paid via store gas when GetObject is called.
+	OpCPUSlopeCopyElement = 40 // per element (fit: ~20 ns M2 × 2)
 	// Quadratic: gas = depth * depth * slope / 10.
 	// doOpEnterCrossing walks PeekCallFrame(i) for i=1..depth; each O(i).
 	// PERF/TODO: if doOpEnterCrossing is rewritten to walk m.Frames once

@@ -5642,6 +5642,70 @@ func BenchmarkOpInterfaceType_100(b *testing.B)  { benchOpInterfaceType(b, 100) 
 func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000) }
 
 // ---------------------------------------------------------------------------
+// Copy helpers: calibrate OpCPUSlopeCopyPrimitive and OpCPUSlopeCopyElement.
+//
+// Primitive: copyDataToList / copyListToData / Assign2 DataByteType fast path.
+// Element:   unrefCopy (non-RefValue) / Assign2 general path.
+// ---------------------------------------------------------------------------
+
+func benchCopyDataToList(b *testing.B, n int) {
+	b.Helper()
+	data := make([]byte, n)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	dst := make([]TypedValue, n)
+	for range b.N {
+		copyDataToList(dst, data, Uint8Type)
+	}
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/elem")
+}
+
+func BenchmarkCopyDataToList_1k(b *testing.B)   { benchCopyDataToList(b, 1024) }
+func BenchmarkCopyDataToList_10k(b *testing.B)  { benchCopyDataToList(b, 10*1024) }
+func BenchmarkCopyDataToList_100k(b *testing.B) { benchCopyDataToList(b, 100*1024) }
+func BenchmarkCopyDataToList_1m(b *testing.B)   { benchCopyDataToList(b, 1024*1024) }
+
+func benchCopyListToData(b *testing.B, n int) {
+	b.Helper()
+	dst := make([]byte, n)
+	tvs := make([]TypedValue, n)
+	for i := range tvs {
+		tvs[i] = TypedValue{T: Uint8Type}
+		tvs[i].SetUint8(byte(i))
+	}
+	for range b.N {
+		copyListToData(dst, tvs)
+	}
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/elem")
+}
+
+func BenchmarkCopyListToData_1k(b *testing.B)   { benchCopyListToData(b, 1024) }
+func BenchmarkCopyListToData_10k(b *testing.B)  { benchCopyListToData(b, 10*1024) }
+func BenchmarkCopyListToData_100k(b *testing.B) { benchCopyListToData(b, 100*1024) }
+func BenchmarkCopyListToData_1m(b *testing.B)   { benchCopyListToData(b, 1024*1024) }
+
+// UnrefCopy on non-RefValue (common case: IntType primitive).
+func benchUnrefCopyInt(b *testing.B, n int) {
+	b.Helper()
+	src := make([]TypedValue, n)
+	for i := range src {
+		src[i] = TypedValue{T: IntType, N: i2n(int64(i))}
+	}
+	alloc := NewAllocator(math.MaxInt64)
+	for range b.N {
+		for i := range src {
+			_ = src[i].unrefCopy(alloc, nil)
+		}
+	}
+	b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N)/float64(n), "ns/elem")
+}
+
+func BenchmarkUnrefCopy_Int_1k(b *testing.B)   { benchUnrefCopyInt(b, 1024) }
+func BenchmarkUnrefCopy_Int_10k(b *testing.B)  { benchUnrefCopyInt(b, 10*1024) }
+func BenchmarkUnrefCopy_Int_100k(b *testing.B) { benchUnrefCopyInt(b, 100*1024) }
+
+// ---------------------------------------------------------------------------
 // Helper: encode int64/uint64 into [8]byte (little-endian, matching unsafe cast)
 // ---------------------------------------------------------------------------
 
