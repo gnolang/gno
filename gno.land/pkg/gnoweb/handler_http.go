@@ -319,6 +319,11 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetForkView(ctx, gnourl)
 	}
 
+	// Handle Run page (maketx run scratchpad)
+	if gnourl.WebQuery.Has("run") {
+		return h.GetRunView(ctx, gnourl)
+	}
+
 	// Handle Source page
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
 		return h.GetSourceView(ctx, gnourl)
@@ -841,6 +846,16 @@ func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Remote:      h.Static.RemoteHelp,
 		ChainId:     h.Static.ChainId,
 		Domain:      h.Static.Domain,
+	})
+}
+
+// GetRunView renders the maketx run scratchpad for a realm/package.
+func (h *HTTPHandler) GetRunView(_ context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	return http.StatusOK, components.RunView(components.RunData{
+		PkgPath: path.Join(h.Static.Domain, gnourl.Path),
+		Domain:  h.Static.Domain,
+		Remote:  h.Static.RemoteHelp,
+		ChainId: h.Static.ChainId,
 	})
 }
 

@@ -1,0 +1,123 @@
+{{/* ===================================================================================
+LAYOUT - Run view wrapper
+=================================================================================== */}}
+{{ define "renderRun" }}
+{{ template "layout/article" .Article }}
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Run (maketx run) scratchpad
+=================================================================================== */}}
+{{ define "renderRunContent" }}
+<div class="b-run"
+  data-controller="run"
+  data-run-pkg-path-value="{{ .PkgPath }}"
+  data-run-pkg-alias-value="{{ .PkgAlias }}"
+  data-run-remote-value="{{ .Remote }}"
+  data-run-chain-id-value="{{ .ChainId }}">
+
+  <div class="b-run-header">
+    <h2 class="b-content-h2">Run Script</h2>
+    <p class="u-color-muted">
+      Write a <code class="u-font-mono">package main</code> script that imports
+      <code class="u-font-mono">{{ .PkgPath }}</code> and runs it with
+      <code class="u-font-mono">gnokey maketx run</code>.
+    </p>
+  </div>
+
+  <!-- Code editor -->
+  <div class="b-run-editor-area">
+    <div class="b-run-editor-toolbar">
+      <div class="b-run-tabs" data-run-target="tabs"></div>
+      <div class="b-run-toolbar-actions">
+        <button class="b-btn b-btn--ghost" data-action="click->run#resetCode" title="Reset to template">
+          <svg class="c-icon"><use href="#ico-refresh"></use></svg>
+          <span>Reset</span>
+        </button>
+        <button class="b-btn b-btn--ghost" data-action="click->run#downloadCode" title="Download as .gno file">
+          <svg class="c-icon"><use href="#ico-download"></use></svg>
+          <span>Download .gno</span>
+        </button>
+      </div>
+    </div>
+    <textarea
+      data-run-target="code"
+      class="b-run-code u-font-mono"
+      spellcheck="false"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+    ></textarea>
+  </div>
+
+  <!-- Command settings -->
+  <div class="b-run-settings">
+    <h3 class="b-content-h3">Command Settings</h3>
+    <div class="b-run-settings-grid">
+      <div class="b-input">
+        <label for="run-key">Key name or address</label>
+        <input type="text" id="run-key" data-run-target="key"
+          placeholder="mykey" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-gas-wanted">Gas wanted</label>
+        <input type="text" id="run-gas-wanted" data-run-target="gasWanted"
+          value="2000000" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-gas-fee">Gas fee</label>
+        <input type="text" id="run-gas-fee" data-run-target="gasFee"
+          value="1000000ugnot" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-send">Send coins (optional)</label>
+        <input type="text" id="run-send" data-run-target="send"
+          placeholder="0ugnot" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Generated commands -->
+  <div class="b-run-commands">
+    <h3 class="b-content-h3">Generated Commands</h3>
+    <p class="u-color-muted">
+      Save the code above as <code class="u-font-mono">script.gno</code> (use
+      <strong>Download .gno</strong> above), then run one of these commands:
+    </p>
+
+    <!-- Dry run -->
+    <div class="b-run-command-block">
+      <div class="b-run-command-header">
+        <span class="b-run-command-label">Dry Run</span>
+        <span class="u-color-muted u-text-sm">simulates without broadcasting</span>
+        <button class="b-btn b-btn--ghost b-run-copy-btn"
+          data-action="click->run#copyDryRun" title="Copy to clipboard">
+          <svg class="c-icon"><use href="#ico-copy"></use></svg>
+          <span>Copy</span>
+        </button>
+      </div>
+      <pre class="b-run-command-pre u-font-mono" data-run-target="dryRunCmd"></pre>
+    </div>
+
+    <!-- Execute -->
+    <div class="b-run-command-block">
+      <div class="b-run-command-header">
+        <span class="b-run-command-label">Execute</span>
+        <span class="u-color-muted u-text-sm">broadcasts and runs on-chain</span>
+        <button class="b-btn b-btn--ghost b-run-copy-btn"
+          data-action="click->run#copyExecute" title="Copy to clipboard">
+          <svg class="c-icon"><use href="#ico-copy"></use></svg>
+          <span>Copy</span>
+        </button>
+      </div>
+      <pre class="b-run-command-pre u-font-mono" data-run-target="executeCmd"></pre>
+    </div>
+  </div>
+
+</div>
+{{ end }}

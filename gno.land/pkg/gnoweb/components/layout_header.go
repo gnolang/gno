@@ -38,12 +38,13 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 }
 
 func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
-	contentURL, sourceURL, helpURL, evalURL, forkURL := u, u, u, u, u
+	contentURL, sourceURL, helpURL, evalURL, forkURL, runURL := u, u, u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
 	evalURL.WebQuery = url.Values{"eval": {""}}
 	forkURL.WebQuery = url.Values{"fork": {""}}
+	runURL.WebQuery = url.Values{"run": {""}}
 
 	contentLink := HeaderLink{
 		Label:    "Content",
@@ -80,6 +81,13 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		IsActive: isActive(u.WebQuery, "Fork"),
 	}
 
+	runLink := HeaderLink{
+		Label:    "Run",
+		URL:      runURL.EncodeWebURL(),
+		Icon:     "ico-tx-link",
+		IsActive: isActive(u.WebQuery, "Run"),
+	}
+
 	switch {
 	case static:
 		return []HeaderLink{contentLink}
@@ -90,7 +98,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case mode == ViewModePackage:
 		return []HeaderLink{contentLink, sourceLink, forkLink}
 	default:
-		return []HeaderLink{contentLink, sourceLink, actionsLink, evalLink, forkLink}
+		return []HeaderLink{contentLink, sourceLink, actionsLink, evalLink, forkLink, runLink}
 	}
 }
 
@@ -109,7 +117,7 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("eval") && !webQuery.Has("fork")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("eval") && !webQuery.Has("fork") && !webQuery.Has("run")
 	case "Source":
 		return webQuery.Has("source")
 	case "Actions":
@@ -118,6 +126,8 @@ func isActive(webQuery url.Values, label string) bool {
 		return webQuery.Has("eval")
 	case "Fork":
 		return webQuery.Has("fork")
+	case "Run":
+		return webQuery.Has("run")
 	default:
 		return false
 	}
