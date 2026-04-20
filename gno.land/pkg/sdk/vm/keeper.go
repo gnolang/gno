@@ -1168,17 +1168,6 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 	return res, nil
 }
 
-// queryEvalInternal evaluates a gno expression and returns the resulting
-// TypedValues after releasing the machine. Because the machine is released
-// before returning, callers MUST NOT invoke methods (e.g. .Error()) on the
-// returned values — use withQueryEvalMachine for that.
-func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
-	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rs []gno.TypedValue) {
-		rtvs = rs
-	})
-	return rtvs, err
-}
-
 // withQueryEvalMachine parses and evaluates expr under pkgPath, then calls fn
 // with the live machine and its result values before releasing the machine.
 // Callers that need to invoke methods on result values (e.g. call .Error() on
@@ -1204,8 +1193,8 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm.prmk, ctx),
+		Banker: NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params: NewSDKParams(vm.prmk, ctx),
 		// Safe for the same reason: baseapp.go's handleQueryCustom calls
 		// NewContext() per query, and tm2/pkg/sdk/context.go's NewContext
 		// unconditionally allocates a fresh NewEventLogger. Any events
