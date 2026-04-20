@@ -78,25 +78,19 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
-var (
-	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
-	// TODO: later on switch this to an LRU if needed to ensure
-	// fixed memory caps. For now though it isn't a problem:
-	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
-	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
-)
+// pkgIDFromPkgPathCache is a read-optimized concurrent cache.
+// sync.Map is lock-free on the read path (cache hits dominate).
+// TODO: switch to an LRU if needed to ensure fixed memory caps.
+// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+var pkgIDFromPkgPathCache sync.Map
 
 func PkgIDFromPkgPath(path string) PkgID {
-	pkgIDFromPkgPathCacheMu.Lock()
-	defer pkgIDFromPkgPathCacheMu.Unlock()
-
-	pkgID, ok := pkgIDFromPkgPathCache[path]
-	if !ok {
-		pkgID = new(PkgID)
-		*pkgID = PkgID{HashBytes([]byte(path))}
-		pkgIDFromPkgPathCache[path] = pkgID
+	if v, ok := pkgIDFromPkgPathCache.Load(path); ok {
+		return *v.(*PkgID)
 	}
-	return *pkgID
+	pkgID := &PkgID{HashBytes([]byte(path))}
+	actual, _ := pkgIDFromPkgPathCache.LoadOrStore(path, pkgID)
+	return *actual.(*PkgID)
 }
 
 // Returns the ObjectID of the PackageValue associated with path.
@@ -397,7 +391,6 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// or via escaped-object persistence in
 	// the iavl tree.
 	rlm.saveUnsavedObjects(store)
-	// TODO saved newly escaped to iavl.
 	rlm.saveNewEscaped(store)
 	// delete all deleted objects.
 	rlm.removeDeletedObjects(store)
@@ -624,7 +617,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 			escaped = append(escaped, eo)
 
 			// add to escaped, and mark dirty previous owner.
-			po := getOwner(store, eo)
+			po := eo.GetOwner()
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
@@ -690,8 +683,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			} // else, rc == 1
 
-			po := getOwner(store, oo)
-
+			po := oo.GetOwner()
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -1341,9 +1333,7 @@ func copyValueWithRefs(val Value) Value {
 	case BigdecValue:
 		return cv
 	case DataByteValue:
-		// DataByteValue is a view into an ArrayValue.Data,
-		// it is copied with its parent array.
-		panic("DataByteValue should not be copied independently")
+		panic("cannot copy data byte value with references")
 	case PointerValue:
 		if cv.Base == nil {
 			panic("should not happen")
@@ -1722,11 +1712,11 @@ func toRefValue(val Value) RefValue {
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
 		}
-
-		// NOTE: A dirty object here is valid when a parent is being
-		// converted to a RefValue while its child is still dirty
-		// (e.g. dirty map elements). See map31b.gno and zrealm17.gno.
-
+		// This can happen with some circular
+		// references.
+		// else if oo.GetIsDirty() {
+		// panic("unexpected dirty object")
+		// }
 		if oo.GetIsNewEscaped() {
 			// NOTE: oo.GetOwnerID() will become zero.
 			return RefValue{
@@ -1737,7 +1727,7 @@ func toRefValue(val Value) RefValue {
 		} else if oo.GetIsEscaped() {
 			if debugRealm {
 				if !oo.GetOwnerID().IsZero() {
-					panic("escaped object should not have an owner ID")
+					panic("cannot convert escaped object to ref value without an owner ID")
 				}
 			}
 			return RefValue{
@@ -1748,10 +1738,10 @@ func toRefValue(val Value) RefValue {
 		} else {
 			if debugRealm {
 				if oo.GetRefCount() > 1 {
-					panic("non-escaped object should not have refcount > 1")
+					panic("unexpected references when converting to ref value")
 				}
 				if oo.GetHash().IsZero() {
-					panic("non-escaped object should not have zero hash")
+					panic("hash missing when converting to ref value")
 				}
 			}
 			return RefValue{
@@ -1809,18 +1799,6 @@ func prettyJSON(jstr []byte) []byte {
 		return nil
 	}
 	return js
-}
-
-func getOwner(store Store, oo Object) Object {
-	po := oo.GetOwner()
-	poid := oo.GetOwnerID()
-	if po == nil {
-		if !poid.IsZero() {
-			po = store.GetObject(poid)
-			oo.SetOwner(po)
-		}
-	}
-	return po
 }
 
 // XXX this would be a lot faster if the PkgID itself included a private bit;

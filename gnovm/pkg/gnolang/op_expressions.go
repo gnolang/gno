@@ -66,6 +66,20 @@ func (m *Machine) doOpIndex2() {
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1) // the base .X -- package, struct, etc.
+	// Charge gas based on selector variant.
+	switch sx.Path.Type {
+	case VPInterface, VPDerefInterface:
+		// Interface dispatch cost scales with number of methods.
+		if it, ok := baseOf(xv.T).(*InterfaceType); ok {
+			m.incrCPU(OpCPUSelectorInterface + int64(len(it.Methods))*OpCPUSlopeSelectorIface)
+		} else {
+			m.incrCPU(OpCPUSelectorInterface)
+		}
+	case VPValMethod, VPDerefValMethod, VPPtrMethod, VPDerefPtrMethod:
+		m.incrCPU(OpCPUSelectorVPValMethod)
+	default:
+		m.incrCPU(OpCPUSelectorField)
+	}
 	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
@@ -230,6 +244,7 @@ func (m *Machine) doOpTypeAssert1() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -310,6 +325,7 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			m.incrCPU(OpCPUSlopeTypeAssertIface * int64(len(it.Methods)))
 			// An interface type assertion on a value that doesn't have a concrete base
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
@@ -417,9 +433,9 @@ func (m *Machine) doOpCompositeLit() {
 }
 
 func (m *Machine) doOpArrayLit() {
-	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	ne := len(x.Elts)
+	m.incrCPU(OpCPUSlopeArrayLit * int64(ne))
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
 	bt := baseOf(at).(*ArrayType)
@@ -476,9 +492,9 @@ func (m *Machine) doOpArrayLit() {
 }
 
 func (m *Machine) doOpSliceLit() {
-	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
+	m.incrCPU(OpCPUSlopeSliceLit * int64(el))
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
@@ -501,7 +517,6 @@ func (m *Machine) doOpSliceLit() {
 }
 
 func (m *Machine) doOpSliceLit2() {
-	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
 	tvs := m.PopValues(el * 2)
@@ -516,6 +531,7 @@ func (m *Machine) doOpSliceLit2() {
 			maxVal = idx
 		}
 	}
+	m.incrCPU(OpCPUSlopeSliceLit2 * (maxVal + 1))
 	// construct element buf slice.
 	// alloc before the underlying array constructed
 	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
@@ -556,6 +572,7 @@ func (m *Machine) doOpSliceLit2() {
 func (m *Machine) doOpMapLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
 	ne := len(x.Elts)
+	m.incrCPU(OpCPUSlopeMapLit * int64(ne))
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
 	// bt := baseOf(at).(*MapType)
@@ -588,9 +605,9 @@ func (m *Machine) doOpMapLit() {
 }
 
 func (m *Machine) doOpStructLit() {
-	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts) // may be incomplete
+	m.incrCPU(OpCPUSlopeStructLit * int64(el))
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
@@ -662,6 +679,7 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+	m.incrCPU(OpCPUSlopeFuncLit * int64(len(x.HeapCaptures)))
 
 	// First copy closure captured heap values
 	// to *FuncValue. Later during doOpCall a block
@@ -708,6 +726,16 @@ func (m *Machine) doOpConvert() {
 	xv := m.PopValue().Copy(m.Alloc)
 	t := m.PopValue().GetType()
 
+	// Gas based on conversion variant.
+	// string<->[]byte both allocate and copy, so charge the same.
+	if xv.T != nil && xv.T.Kind() == StringKind && t.Kind() == SliceKind {
+		m.incrCPU(OpCPUConvertStrBytes) // string -> []byte
+	} else if xv.T != nil && xv.T.Kind() == SliceKind && t.Kind() == StringKind {
+		m.incrCPU(OpCPUConvertStrBytes) // []byte -> string
+	} else {
+		m.incrCPU(OpCPUConvertNumeric)
+	}
+
 	// BEGIN conversion checks
 	// These protect against inter-realm conversion exploits.
 
@@ -737,6 +765,22 @@ func (m *Machine) doOpConvert() {
 		}
 	}
 	// END conversion checks
+
+	// Per-N CPU gas for parameterized conversions.
+	if xv.T != nil {
+		if xv.T.Kind() == StringKind {
+			// string → runes ([]int32)
+			if st, ok := baseOf(t).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
+				m.incrCPU(OpCPUSlopeConvertStrRunes * int64(len(xv.GetString())))
+			}
+		} else if t.Kind() == StringKind {
+			// runes ([]int32) → string
+			if st, ok := baseOf(xv.T).(*SliceType); ok && st.Elt.Kind() == Int32Kind {
+				sv := xv.V.(*SliceValue)
+				m.incrCPU(OpCPUSlopeConvertRunesStr * int64(sv.GetLength()))
+			}
+		}
+	}
 
 	ConvertTo(m.Alloc, m.Store, &xv, t, false)
 	m.PushValue(xv)

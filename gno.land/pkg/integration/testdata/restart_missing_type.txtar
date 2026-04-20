@@ -97,7 +97,7 @@ gnoland restart
           }
         ]
       },
-      "deposit": ""
+      "send": ""
     }
   ],
   "fee": {
@@ -176,7 +176,7 @@ gnoland restart
           }
         ]
       },
-      "deposit": ""
+      "send": ""
     }
   ],
   "fee": {
@@ -211,7 +211,7 @@ gnoland restart
           }
         ]
       },
-      "deposit": ""
+      "send": ""
     }
   ],
   "fee": {

@@ -1560,12 +1560,6 @@ func (tv *TypedValue) Sign() int {
 	}
 }
 
-func (tv *TypedValue) AssertNonNegative(msg string) {
-	if tv.Sign() < 0 {
-		panic(fmt.Sprintf("%s: %v", msg, tv))
-	}
-}
-
 // maxComputeMapKeyDepth is the maximum nesting depth for ComputeMapKey.
 // 10 000 levels is far above any legitimate use case and well below the
 // Go goroutine stack limit.
