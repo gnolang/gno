@@ -7,19 +7,12 @@ with the essential operations.
 
 ## Installing gnokey
 
-To build and install from source, you'll need:
+See the [Installation](../builders/installation.md) page for prerequisites and install methods.
 
-- Git
-- Go 1.24+
-- Make
+After installing, verify that `gnokey` is available:
 
-```bash
-# Clone the repository
-git clone https://github.com/gnolang/gno.git
-cd gno
-
-# Install gnokey
-make install
+```sh
+gnokey version
 ```
 
 ## Managing key pairs
