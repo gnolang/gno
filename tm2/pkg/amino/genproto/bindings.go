@@ -41,9 +41,13 @@ func GenerateProtoBindingsForTypes(pkg *amino.Package, rtz ...reflect.Type) (fil
 	scope := ast.NewScope(nil)
 	imports := _imports(
 		"proto", "google.golang.org/protobuf/proto",
-		"amino", "github.com/gnolang/gno/tm2/pkg/amino")
+		"amino", "github.com/gnolang/gno/tm2/pkg/amino",
+		"reflect", "reflect")
 	addImportAuto(imports, scope, pkg.GoPkgName+"pb", pkg.P3GoPkgPath)
 	file.Decls = append(file.Decls, imports)
+
+	// Collect concrete type names for init() registration.
+	var concreteTypeNames []string
 
 	// Generate Decls
 	for _, type_ := range rtz {
@@ -61,7 +65,41 @@ func GenerateProtoBindingsForTypes(pkg *amino.Package, rtz ...reflect.Type) (fil
 			return file, err
 		}
 		file.Decls = append(file.Decls, methods...)
+		tname := info.Type.Name()
+		if tname != "" {
+			concreteTypeNames = append(concreteTypeNames, tname)
+		}
 	}
+
+	// Generate init() to register pbbindings-native types.
+	if len(concreteTypeNames) > 0 {
+		var initBody []ast.Stmt
+		for _, tname := range concreteTypeNames {
+			// amino.RegisterPbbindingsType(reflect.TypeOf((*T)(nil)).Elem())
+			call := &ast.ExprStmt{X: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{X: _i("amino"), Sel: _i("RegisterPbbindingsType")},
+				Args: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X: &ast.CallExpr{
+								Fun:  &ast.SelectorExpr{X: _i("reflect"), Sel: _i("TypeOf")},
+								Args: []ast.Expr{&ast.CallExpr{Fun: &ast.ParenExpr{X: &ast.StarExpr{X: _i(tname)}}, Args: []ast.Expr{_i("nil")}}},
+							},
+							Sel: _i("Elem"),
+						},
+					},
+				},
+			}}
+			initBody = append(initBody, call)
+		}
+		initFunc := &ast.FuncDecl{
+			Name: _i("init"),
+			Type: &ast.FuncType{Params: &ast.FieldList{}},
+			Body: &ast.BlockStmt{List: initBody},
+		}
+		file.Decls = append(file.Decls, initFunc)
+	}
+
 	return file, nil
 }
 

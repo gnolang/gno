@@ -17,6 +17,11 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// GasPrice
 	&GasPrice{}, "GasPrice",
 
+	// Tx
+	Tx{}, "Tx",
+	Fee{}, "Fee",
+	Signature{}, "Signature",
+
 	// MemFile/MemPackage
 	MemFile{}, "MemFile",
 	MemPackage{}, "MemPackage",
