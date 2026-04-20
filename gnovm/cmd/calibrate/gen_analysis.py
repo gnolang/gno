@@ -218,6 +218,76 @@ PARAM_FAMILIES = [
         ('BenchmarkOpCall_0Params_0Captures', 0), ('BenchmarkOpCall_0Params_1Captures', 1),
         ('BenchmarkOpCall_0Params_10Captures', 10), ('BenchmarkOpCall_0Params_100Captures', 100),
         ('BenchmarkOpCall_0Params_1000Captures', 1000)]),
+    # OpCPUSlopeCallReturn (new): per-result-slot cost in OpCall. Fit with
+    # params=0 and captures=0 held constant so the slope isolates result work.
+    ('Call (0 params, 0 captures, results)', 'results', [
+        ('BenchmarkOpCall_0Params_0Captures_0Results', 0),
+        ('BenchmarkOpCall_0Params_0Captures_1Results', 1),
+        ('BenchmarkOpCall_0Params_0Captures_5Results', 5),
+        ('BenchmarkOpCall_0Params_0Captures_10Results', 10),
+        ('BenchmarkOpCall_0Params_0Captures_50Results', 50),
+        ('BenchmarkOpCall_0Params_0Captures_100Results', 100),
+        ('BenchmarkOpCall_0Params_0Captures_1000Results', 1000)]),
+    # OpCPUCmpPerByte: per-byte string equality. Uses distinct backing
+    # storage so runtime.memequal doesn't short-circuit on pointer identity.
+    ('Eql (string, distinct)', 'bytes', [
+        ('BenchmarkOpEql_StringDistinct_8', 8),
+        ('BenchmarkOpEql_StringDistinct_64', 64),
+        ('BenchmarkOpEql_StringDistinct_512', 512),
+        ('BenchmarkOpEql_StringDistinct_4096', 4096),
+        ('BenchmarkOpEql_StringDistinct_32768', 32768),
+        ('BenchmarkOpEql_StringDistinct_262144', 262144),
+        ('BenchmarkOpEql_StringDistinct_1M', 1 << 20)]),
+    # OpCPUCmpPerByte: per-byte string ordering. min(len) memcmp; differs
+    # at last byte so loop runs to completion.
+    ('Lss (string)', 'bytes', [
+        ('BenchmarkOpLss_String_8', 8),
+        ('BenchmarkOpLss_String_64', 64),
+        ('BenchmarkOpLss_String_512', 512),
+        ('BenchmarkOpLss_String_4096', 4096),
+        ('BenchmarkOpLss_String_32768', 32768),
+        ('BenchmarkOpLss_String_262144', 262144),
+        ('BenchmarkOpLss_String_1M', 1 << 20)]),
+    # ComputeMapKey per-byte (string payload): linear in string length.
+    ('ComputeMapKey (string)', 'bytes', [
+        ('BenchmarkComputeMapKey_StringLen/len=1', 1),
+        ('BenchmarkComputeMapKey_StringLen/len=8', 8),
+        ('BenchmarkComputeMapKey_StringLen/len=32', 32),
+        ('BenchmarkComputeMapKey_StringLen/len=128', 128),
+        ('BenchmarkComputeMapKey_StringLen/len=1024', 1024),
+        ('BenchmarkComputeMapKey_StringLen/len=16384', 16384),
+        ('BenchmarkComputeMapKey_StringLen/len=1048576', 1 << 20)]),
+    # ComputeMapKey per-byte ([]byte payload): same shape as string.
+    ('ComputeMapKey (bytes)', 'bytes', [
+        ('BenchmarkComputeMapKey_Bytes/len=8', 8),
+        ('BenchmarkComputeMapKey_Bytes/len=32', 32),
+        ('BenchmarkComputeMapKey_Bytes/len=128', 128),
+        ('BenchmarkComputeMapKey_Bytes/len=1024', 1024),
+        ('BenchmarkComputeMapKey_Bytes/len=1048576', 1 << 20)]),
+    # ComputeMapKey per-element (array recursion).
+    ('ComputeMapKey (int array)', 'elements', [
+        ('BenchmarkComputeMapKey_IntArray/len=1', 1),
+        ('BenchmarkComputeMapKey_IntArray/len=8', 8),
+        ('BenchmarkComputeMapKey_IntArray/len=32', 32),
+        ('BenchmarkComputeMapKey_IntArray/len=128', 128),
+        ('BenchmarkComputeMapKey_IntArray/len=1024', 1024),
+        ('BenchmarkComputeMapKey_IntArray/len=8192', 8192)]),
+    # ComputeMapKey per-field (struct recursion).
+    ('ComputeMapKey (struct)', 'fields', [
+        ('BenchmarkComputeMapKey_Struct/fields=1', 1),
+        ('BenchmarkComputeMapKey_Struct/fields=4', 4),
+        ('BenchmarkComputeMapKey_Struct/fields=16', 16),
+        ('BenchmarkComputeMapKey_Struct/fields=64', 64),
+        ('BenchmarkComputeMapKey_Struct/fields=256', 256),
+        ('BenchmarkComputeMapKey_Struct/fields=1024', 1024)]),
+    # ComputeMapKey recursion-depth: confirms per-call base gas bounds DoS.
+    ('ComputeMapKey (nested array)', 'depth', [
+        ('BenchmarkComputeMapKey_NestedArray/depth=1', 1),
+        ('BenchmarkComputeMapKey_NestedArray/depth=2', 2),
+        ('BenchmarkComputeMapKey_NestedArray/depth=4', 4),
+        ('BenchmarkComputeMapKey_NestedArray/depth=8', 8),
+        ('BenchmarkComputeMapKey_NestedArray/depth=16', 16),
+        ('BenchmarkComputeMapKey_NestedArray/depth=32', 32)]),
     ('FuncLit (captures)', 'captures', [
         ('BenchmarkOpFuncLit_Captures_0', 0), ('BenchmarkOpFuncLit_Captures_1', 1),
         ('BenchmarkOpFuncLit_Captures_10', 10), ('BenchmarkOpFuncLit_Captures_100', 100),
