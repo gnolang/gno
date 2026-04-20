@@ -260,7 +260,13 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(exportCopyTypeWithRefs(cv.Type, seen))
+		// Export the type as a reference, not inline. Consumers that
+		// need the full definition (e.g. struct field names, method set)
+		// resolve the TypeID via the vm/qtype_json query endpoint.
+		// Keeping this symmetric with field-position types (which also
+		// go through exportRefOrCopyType at Layer 1) gives a uniform
+		// wire shape and smaller JSON payloads.
+		return toTypeValue(exportRefOrCopyType(cv.Type, seen))
 	case *PackageValue:
 		return RefValue{PkgPath: cv.PkgPath}
 	case *Block:
@@ -348,6 +354,18 @@ func exportCopyTypeWithRefs(typ Type, seen map[Object]int) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
+		// Likely dead code. Every path that could hand a *DeclaredType
+		// to this function now routes through exportRefOrCopyType at
+		// Layer 1 instead, which collapses DeclaredTypes to RefType{ID}
+		// before reaching this switch: field/element types via
+		// exportCopyFieldsWithRefs, TypeValue positions in
+		// exportCopyValue, and tv.T in exportValue. *FuncValue.Type and
+		// method mtv.T are *FuncType, never DeclaredType.
+		// DeclaredType.Base is invariantly non-DeclaredType per the
+		// types.go:1441 doc comment (enforced by declareWith/baseOf).
+		// Kept as defensive code; if a future caller hands in a
+		// DeclaredType directly, the inlined form here + exportCopyMethods
+		// below both still produce correct output.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -394,6 +412,15 @@ func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int) []FieldTy
 	return fieldsCpy
 }
 
+// exportCopyMethods is reached only from the *DeclaredType branch of
+// exportCopyTypeWithRefs, which is itself likely dead code post-fix
+// (see comment there). Kept as defensive code. One caveat if it does
+// ever fire: V is expanded via exportCopyValue rather than
+// exportToRefOrCopy, so if the same *FuncValue is reachable elsewhere
+// in the exported tree (e.g. via a BoundMethodValue holding it), it
+// gets re-expanded inline rather than deduplicated. Acceptable because
+// the inlined copies are byte-identical; a consumer sees duplication
+// but not inconsistency.
 func exportCopyMethods(methods []TypedValue, seen map[Object]int) []TypedValue {
 	res := make([]TypedValue, len(methods))
 	for i, mtv := range methods {
