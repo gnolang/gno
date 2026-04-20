@@ -65,9 +65,25 @@ func (b *Block) ValidateBasic() error {
 	}
 
 	// Validate the last commit and its hash.
-	if b.Header.Height > 1 {
+	// The genesis block (height 1 for standard genesis, or InitialHeight for
+	// chains starting at a higher height) has an empty last commit and a zero
+	// LastBlockID. Non-genesis blocks must have a valid commit.
+	//
+	// ValidateBasic is stateless: it cannot know InitialHeight, so we allow
+	// a zero-LastBlockID block to skip full commit validation ONLY when the
+	// commit is also nil/empty. This prevents an attacker from zeroing
+	// LastBlockID on a real block while keeping a crafted commit with
+	// precommits. Full genesis validation is done in the stateful
+	// ValidateBlock (validation.go) via state.LastBlockID.IsZero().
+	isGenesisBlock := b.Height == 1 || (b.Header.LastBlockID.IsZero() && (b.LastCommit == nil || b.LastCommit.Size() == 0))
+	if !isGenesisBlock {
 		if b.LastCommit == nil {
 			return errors.New("nil LastCommit")
+		}
+		// A zero LastBlockID with a non-empty commit is inconsistent:
+		// genesis blocks have no previous block to commit to.
+		if b.Header.LastBlockID.IsZero() && b.LastCommit.Size() > 0 {
+			return errors.New("zero LastBlockID with non-empty LastCommit")
 		}
 		if err := b.LastCommit.ValidateBasic(); err != nil {
 			return fmt.Errorf("wrong LastCommit")

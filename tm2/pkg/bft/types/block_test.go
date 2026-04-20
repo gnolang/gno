@@ -62,12 +62,58 @@ func TestBlockValidateBasic(t *testing.T) {
 			t.Parallel()
 
 			block := MakeBlock(h, txs, commit)
+			block.Header.LastBlockID = lastID
 			block.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
 			err = block.ValidateBasic()
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})
 	}
+}
+
+// TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight tests that
+// ValidateBasic rejects blocks that try to bypass LastCommit validation.
+//
+// An attacker could try to skip commit validation by:
+// 1. Zeroing LastBlockID and setting nil LastCommit (mimics genesis)
+// 2. Setting a real LastBlockID but nil LastCommit
+// 3. Zeroing LastBlockID but keeping precommits in LastCommit
+//
+// Case 1 is indistinguishable from a legitimate genesis block in a stateless
+// check — it's caught by the stateful ValidateBlock instead.
+// Cases 2 and 3 must be caught by ValidateBasic.
+func TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-zero LastBlockID with nil LastCommit", func(t *testing.T) {
+		t.Parallel()
+
+		block := MakeBlock(50, []Tx{Tx("tx1")}, nil)
+		// Set a real LastBlockID — this is NOT a genesis block.
+		block.Header.LastBlockID = makeBlockIDRandom()
+
+		err := block.ValidateBasic()
+		require.Error(t, err, "should reject block with real LastBlockID but nil LastCommit")
+		assert.Contains(t, err.Error(), "nil LastCommit")
+	})
+
+	t.Run("zero LastBlockID with non-empty LastCommit", func(t *testing.T) {
+		t.Parallel()
+
+		// Create a valid block first, then tamper with it.
+		lastID := makeBlockIDRandom()
+		voteSet, _, vals := randVoteSet(49, 1, PrecommitType, 10, 1)
+		commit, err := MakeCommit(lastID, 49, 1, voteSet, vals)
+		require.NoError(t, err)
+
+		block := MakeBlock(50, []Tx{Tx("tx1")}, commit)
+		// Zero out LastBlockID to try to look like genesis, but keep
+		// the real commit with precommits.
+		block.Header.LastBlockID = BlockID{}
+
+		err = block.ValidateBasic()
+		require.Error(t, err, "should reject block with zeroed LastBlockID but non-empty LastCommit")
+	})
 }
 
 func TestBlockHash(t *testing.T) {

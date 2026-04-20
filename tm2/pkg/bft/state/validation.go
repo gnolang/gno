@@ -92,9 +92,14 @@ func (state State) ValidateBlock(block *types.Block) error {
 	}
 
 	// Validate block LastCommit.
-	if block.Height == 1 {
+	// The genesis block (height 1, or InitialHeight > 1 where there is no real
+	// previous block) has an empty LastCommit; all other blocks must have a valid
+	// commit from the previous round. We detect the genesis case by checking
+	// whether state.LastBlockID is zero (no previous block exists).
+	isGenesisBlock := state.LastBlockID.IsZero()
+	if isGenesisBlock {
 		if len(block.LastCommit.Precommits) != 0 {
-			return errors.New("block at height 1 can't have LastCommit precommits")
+			return errors.New("genesis block can't have LastCommit precommits")
 		}
 	} else {
 		if len(block.LastCommit.Precommits) != state.LastValidators.Size() {
@@ -108,7 +113,7 @@ func (state State) ValidateBlock(block *types.Block) error {
 	}
 
 	// Validate block Time
-	if block.Height > 1 {
+	if !isGenesisBlock {
 		if !block.Time.After(state.LastBlockTime) {
 			return fmt.Errorf("block time %v not greater than last block time %v",
 				block.Time,
@@ -123,7 +128,7 @@ func (state State) ValidateBlock(block *types.Block) error {
 				block.Time,
 			)
 		}
-	} else if block.Height == 1 {
+	} else {
 		genesisTime := state.LastBlockTime
 		if !block.Time.Equal(genesisTime) {
 			return fmt.Errorf("block time %v is not equal to genesis time %v",

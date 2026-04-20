@@ -127,8 +127,11 @@ func (state State) MakeBlock(
 	block := types.MakeBlock(height, txs, commit)
 
 	// Set time.
+	// The genesis block (height 1, or the first block after InitialHeight > 1)
+	// uses the genesis time from state. We detect the genesis case by whether the
+	// commit references a real previous block (non-zero BlockID).
 	var timestamp time.Time
-	if height == 1 {
+	if commit.BlockID.IsZero() {
 		timestamp = state.LastBlockTime // genesis time
 	} else {
 		timestamp = MedianTime(commit, state.LastValidators)

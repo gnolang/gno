@@ -106,17 +106,24 @@ func SaveState(db dbm.DB, state State) {
 
 func saveState(db dbm.DB, state State, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
-	// If first block, save validators for block 1.
-	if nextHeight == 1 {
+	// If first block (standard genesis at height 1 or InitialHeight > 1),
+	// save the full validator set and consensus params at nextHeight.
+	// This is needed so that LoadValidators/LoadConsensusParams can find
+	// the data when processing the first real block.
+	isFirstBlock := nextHeight == 1 || loadValidatorsInfo(db, nextHeight) == nil
+	if isFirstBlock {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
-		lastHeightVoteChanged := int64(1)
-		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
+		saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators)
+		// Save full consensus params (not just a reference) by setting
+		// changeHeight == nextHeight.
+		saveConsensusParamsInfo(db, nextHeight, nextHeight, state.ConsensusParams)
+	} else {
+		// Save next consensus params (may be just a reference if unchanged).
+		saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	}
 	// Save next validators.
 	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
-	// Save next consensus params.
-	saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.SetSync(key, state.Bytes())
 }
 

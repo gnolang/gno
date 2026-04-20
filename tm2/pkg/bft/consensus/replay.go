@@ -302,6 +302,7 @@ func (h *Handshaker) ReplayBlocks(
 			ConsensusParams: &csParams,
 			Validators:      nextVals,
 			AppState:        h.genDoc.AppState,
+			InitialHeight:   h.genDoc.InitialHeight,
 		}
 		res, err := proxyApp.Consensus().InitChainSync(req)
 		if err != nil {
@@ -329,6 +330,18 @@ func (h *Handshaker) ReplayBlocks(
 			if res.ConsensusParams != nil {
 				state.ConsensusParams = state.ConsensusParams.Update(*res.ConsensusParams)
 			}
+
+			// If InitialHeight is set, the chain starts at that height.
+			// This is used for chain upgrades where historical txs are replayed
+			// during genesis and the chain should continue from the halted height.
+			if h.genDoc.InitialHeight > 1 {
+				state.LastBlockHeight = h.genDoc.InitialHeight - 1
+				h.logger.Info("Setting initial height from genesis",
+					"initial_height", h.genDoc.InitialHeight,
+					"last_block_height", state.LastBlockHeight,
+				)
+			}
+
 			sm.SaveState(h.stateDB, state)
 		}
 	}

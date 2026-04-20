@@ -4,7 +4,7 @@
 
 | Network           | RPC Endpoint                             |  Chain ID    |
 |-------------------|------------------------------------------|--------------|
-| Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
+| Betanet (current) | https://rpc.gno.land:443                 | `gnoland-1`  |
 | Staging           | https://rpc.staging.gno.land:443         | `staging`    |
 | Test11            | https://rpc.test11.testnets.gno.land:443 | `test11`     |
 

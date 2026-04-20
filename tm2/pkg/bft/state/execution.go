@@ -268,7 +268,12 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 	voteInfos := make([]abci.VoteInfo, block.LastCommit.Size())
 	var lastValSet *types.ValidatorSet
 	var err error
-	if block.Height > 1 {
+	// For a genesis block (standard height-1 or InitialHeight > 1) the commit
+	// has no precommits, so there are no previous validators to attribute votes
+	// to.  We detect this by checking whether the commit is empty: when the chain
+	// has just started the last-commit passed to the genesis block is always
+	// types.NewCommit(BlockID{}, nil) which has Size() == 0.
+	if block.LastCommit.Size() > 0 {
 		lastValSet, err = LoadValidators(stateDB, block.Height-1)
 		if err != nil {
 			panic(err) // shouldn't happen
