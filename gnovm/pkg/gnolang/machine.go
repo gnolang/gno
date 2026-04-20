@@ -1376,10 +1376,16 @@ const (
 	OpCPURangeIterMap      = 73  // flat (called once per entry)
 	OpCPURangeIterArrayPtr = 239
 	OpCPUReturnCallDefers  = 724 // base from fit; per-defer charging happens via sticky-op re-dispatch
+	// OpCPUComputeMapKey is the base gas cost per ComputeMapKey call (each level).
+	// TODO: calibrate with benchmarks.
+	OpCPUComputeMapKey = 10
 
 	// Per-N slope constants for parameterized ops.
 	// Each value is the CPU gas cost per unit of the parameter N.
 	// 1 gas = 1 ns on reference hardware.
+	// OpCPUCmpPerByte is the per-byte cost for string comparisons (O(N) memcmp).
+	// TODO: calibrate with benchmarks.
+	OpCPUCmpPerByte           = 1   // per byte
 	OpCPUSlopeDefine          = 79  // per LHS variable (fit: 79.2)
 	OpCPUSlopeAssign          = 86  // per LHS variable (fit: 86.2)
 	OpCPUSlopeMapLit          = 335 // per map entry (fit: 335.0)
