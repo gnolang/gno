@@ -1174,7 +1174,6 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
 	t.Helper()
 	gen := GnoGenesisState{}
 	genBytes := []byte(`{
-    "@type": "/gno.GenesisState",
     "auth": {
       "params": {
         "gas_price_change_compressor": "8",

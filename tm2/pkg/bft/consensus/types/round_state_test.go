@@ -27,7 +27,7 @@ func BenchmarkRoundStateDeepCopy(b *testing.B) {
 	sig := make([]byte, ed25519.SignatureSize)
 	for i := range nval {
 		precommits[i] = (&types.Vote{
-			ValidatorAddress: crypto.AddressFromBytes(random.RandBytes(20)),
+			ValidatorAddress: crypto.MustAddressFromBytes(random.RandBytes(20)),
 			Timestamp:        tmtime.Now(),
 			BlockID:          blockID,
 			Signature:        sig,

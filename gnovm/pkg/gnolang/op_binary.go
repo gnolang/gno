@@ -202,6 +202,12 @@ func (m *Machine) doOpAdd() {
 	// Gas based on operand type.
 	switch lv.T.Kind() {
 	case StringKind:
+		// String concat charges flat CPU gas; the per-byte O(N) copy cost
+		// is absorbed by alloc gas via alloc.NewString(len(lv)+len(rv))
+		// in addAssign below. BenchmarkOpAdd_String_{10..100MB_10MB}
+		// confirms alloc gas ≥ 3× the ns/op(pure) CPU cost across all
+		// sizes on reference hardware — see cmd/calibrate/plot_fits.py
+		// 'Add (string)' family plotted against sum(|A|,|B|).
 		m.incrCPU(OpCPUAddString)
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUAddFloat)
@@ -912,7 +918,7 @@ func mulAssign(lv, rv *TypedValue) {
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("division by zero"),
+		Value: typedString("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1011,7 +1017,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) *Exception {
 	expt := &Exception{
-		Value: typedString("division by zero"),
+		Value: typedString("runtime error: division by zero"),
 	}
 
 	// set the result in lv.
@@ -1272,7 +1278,9 @@ func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
 
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
-	rv.AssertNonNegative("runtime error: negative shift amount")
+	if rv.Sign() < 0 {
+		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+	}
 
 	shift := rv.GetUint()
 
@@ -1354,7 +1362,9 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
-	rv.AssertNonNegative("runtime error: negative shift amount")
+	if rv.Sign() < 0 {
+		m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+	}
 
 	shift := rv.GetUint()
 

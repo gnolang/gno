@@ -745,6 +745,11 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 			trace.Store("IAVL_DEL_ESCAPED", 0, key, 0, "none")
 		}
 	}
+	// delete escaped hash from iavl.
+	if oo.GetIsEscaped() && ds.iavlStore != nil {
+		key := []byte(oid.String())
+		ds.iavlStore.Delete(ds.gctx, key)
+	}
 	// make realm op log entry
 	if ds.opslog != nil {
 		fmt.Fprintf(ds.opslog, "d[%v](%d)\n", oo.GetObjectID(), -size)

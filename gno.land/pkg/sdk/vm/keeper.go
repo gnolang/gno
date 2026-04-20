@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	goerrors "errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -26,6 +28,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -54,6 +57,9 @@ type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
+	QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
+	QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error)
+	QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
@@ -149,10 +155,11 @@ func (vm *VMKeeper) Initialize(
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
-			_, err := gno.TypeCheckMemPackage(mp, opts)
+			pkg, err := gno.TypeCheckMemPackage(mp, opts)
 			if err != nil {
 				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
 			}
+			opts.Cache[stdlib] = pkg
 		}
 
 		// Populate stdlib byte cache for gas-free stdlib reads.
@@ -217,10 +224,11 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 			Cache:      cachedInitTypeCheckCache,
 		}
 		for _, lib := range stdlibs.InitOrder() {
-			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 			if err != nil {
 				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 			}
+			opts.Cache[lib] = pkg
 		}
 		cachedStdlib.gno = gs
 	})
@@ -247,13 +255,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		Getter:     gs,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
 		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Cache:      vm.typeCheckCache,
 	}
 	for _, lib := range stdlibs.InitOrder() {
-		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 		if err != nil {
 			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 		}
+		opts.Cache[lib] = pkg
 	}
 }
 
@@ -753,19 +762,39 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
-	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
-	if cx.Varg {
-		panic("variadic calls not yet supported")
+	hasVarg := ft.HasVarg()
+	// NOTE: nargs = `cur` + user's len(args)
+	nargs := len(msg.Args) + 1
+	var vargType gno.Type
+	// If function is not variadic, it must have the same number of arguments.
+	if !hasVarg {
+		if nargs != len(ft.Params) {
+			panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
+		}
+	} else {
+		if nargs < len(ft.Params)-1 {
+			// If function is variadic, it must have at least the number of arguments-1.
+			// on the function we can simply avoid the variadic argument.
+			panic(fmt.Sprintf("insufficient number of arguments in call to %s: must be at least %d, got %d", fnc, len(ft.Params)-1, nargs))
+		}
+
+		// For the variadic argument, we need to use the type of the
+		// elements contained on the slice.
+		vargType = ft.Params[len(ft.Params)-1].Type.(*gno.SliceType).Elt
 	}
-	if nargs := len(msg.Args) + 1; nargs != len(ft.Params) { // NOTE: nargs = `cur` + user's len(args)
-		panic(fmt.Sprintf("wrong number of arguments in call to %s: want %d got %d", fnc, len(ft.Params), nargs))
-	}
+
+	// Convert Args to gno values.
 	for i, arg := range msg.Args {
-		argType := ft.Params[i+1].Type
-		atv := convertArgToGno(arg, argType)
-		cx.Args[i+1] = &gno.ConstExpr{
-			TypedValue: atv,
+		paramIndex := i + 1
+		var argType gno.Type
+		if hasVarg && paramIndex >= len(ft.Params)-1 {
+			argType = vargType
+		} else {
+			argType = ft.Params[paramIndex].Type
+		}
+		cx.Args[paramIndex] = &gno.ConstExpr{
+			TypedValue: convertArgToGno(arg, argType),
 		}
 	}
 	defer m.Release()
@@ -844,6 +873,27 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		fmt.Errorf("%v", r),
 		"VM panic: %v\nStacktrace:\n%s\n",
 		r, m.Stacktrace().String(),
+	)
+}
+
+// doRecoverQueryNoMachine is like doRecoverQuery but for query paths that
+// don't run a gno.Machine; uses debug.Stack() instead of Machine.Stacktrace().
+func doRecoverQueryNoMachine(e *error) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	if err, ok := r.(error); ok {
+		var oog stypes.OutOfGasError
+		if goerrors.As(err, &oog) {
+			*e = oog
+			return
+		}
+	}
+	*e = errors.Wrapf(
+		fmt.Errorf("%v", r),
+		"VM panic: %v\nStacktrace:\n%s\n",
+		r, string(debug.Stack()),
 	)
 }
 
@@ -1112,16 +1162,16 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+		for i, rtv := range rtvs {
+			res += rtv.String()
+			if i < len(rtvs)-1 {
+				res += "\n"
+			}
+		}
+	})
 	if err != nil {
 		return "", err
-	}
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
 	}
 	return res, nil
 }
@@ -1129,29 +1179,41 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
 // The result is expected to be a single string (not a tuple).
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	var cbErr error
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+		if len(rtvs) != 1 {
+			cbErr = errors.New("expected 1 string result, got %d", len(rtvs))
+			return
+		}
+		if rtvs[0].T.Kind() != gno.StringKind {
+			cbErr = errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
+			return
+		}
+		res = rtvs[0].GetString()
+	})
 	if err != nil {
 		return "", err
 	}
-	if len(rtvs) != 1 {
-		return "", errors.New("expected 1 string result, got %d", len(rtvs))
-	} else if rtvs[0].T.Kind() != gno.StringKind {
-		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
+	if cbErr != nil {
+		return "", cbErr
 	}
-	res = rtvs[0].GetString()
 	return res, nil
 }
 
-func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
+// withQueryEvalMachine parses and evaluates expr under pkgPath, then calls fn
+// with the live machine and its result values before releasing the machine.
+// Callers that need to invoke methods on result values (e.g. call .Error() on
+// an error-implementing return) must use this helper so the machine is still
+// alive when fn runs.
+func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue)) (err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
-		err = ErrInvalidPkgPath(fmt.Sprintf(
+		return ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-		return nil, err
 	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -1163,8 +1225,14 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm.prmk, ctx),
+		Banker: NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params: NewSDKParams(vm.prmk, ctx),
+		// Safe for the same reason: baseapp.go's handleQueryCustom calls
+		// NewContext() per query, and tm2/pkg/sdk/context.go's NewContext
+		// unconditionally allocates a fresh NewEventLogger. Any events
+		// emitted by a qeval_json expression land in that per-query
+		// logger and are discarded with the ctx — they never reach block
+		// state (only runMsgs harvests events, on the tx path).
 		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
@@ -1178,12 +1246,12 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		})
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
-	// Parse expression.
 	xx, err := m.ParseExpr(expr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return m.Eval(xx), err
+	fn(m, m.Eval(xx))
+	return nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
@@ -1241,6 +1309,73 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 	res := fmt.Sprintf("storage: %d, deposit: %d", rlm.Storage, rlm.Deposit)
 
 	return res, nil
+}
+
+// QueryEvalJSON evaluates a gno expression and returns JSON (Amino-encoded) results.
+func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) {
+		res = stringifyJSONResults(m, rtvs, nil)
+	})
+	if err != nil {
+		return "", err
+	}
+	return res, nil
+}
+
+// exportObject retrieves and exports an object by ObjectID string.
+func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	var oid gno.ObjectID
+	if err := oid.UnmarshalAmino(oidStr); err != nil {
+		return nil, ErrInvalidExpr(fmt.Sprintf("invalid object id %q: %v", oidStr, err))
+	}
+
+	obj := gnostore.GetObjectSafe(oid)
+	if obj == nil {
+		return nil, ErrObjectNotFound(fmt.Sprintf("object not found: %s", oidStr))
+	}
+
+	return gno.ExportObject(obj), nil
+}
+
+// QueryObjectJSON retrieves an object by ObjectID and returns its Amino JSON representation.
+func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	exported, err := vm.exportObject(ctx, oidStr)
+	if err != nil {
+		return "", err
+	}
+
+	jsonBytes, err := amino.MarshalJSONAny(exported)
+	if err != nil {
+		return "", err
+	}
+
+	// Build the envelope via json.Marshal rather than fmt.Sprintf %q so
+	// the objectid string is JSON-escaped (not Go-escaped). %q can emit
+	// \v and other Go-only escapes that are invalid JSON.
+	envelope := struct {
+		ObjectID string          `json:"objectid"`
+		Value    json.RawMessage `json:"value"`
+	}{ObjectID: oidStr, Value: jsonBytes}
+	out, err := json.Marshal(envelope)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+// QueryObjectBinary retrieves an object by ObjectID and returns its Amino binary representation.
+func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	exported, err := vm.exportObject(ctx, oidStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return amino.MarshalAny(exported)
 }
 
 // processStorageDeposit processes storage deposit adjustments for package realms based on
