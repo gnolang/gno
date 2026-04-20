@@ -61,8 +61,8 @@ func (gctx *GasContext) WillSet(bz []byte) Gas   // WriteCostFlat + WriteCostPer
 func (gctx *GasContext) WillDelete() Gas         // DeleteCost; returns amount charged
 func (gctx *GasContext) RefundGas(amount Gas)    // refunds previously charged gas
 func (gctx *GasContext) ConsumeGas(amount Gas, descriptor string)  // charges gas
-func (gctx *GasContext) WillIterator()       // (flat seek cost)
-func (gctx *GasContext) WillIterNext()       // IterNextCostFlat
+func (gctx *GasContext) WillIterator()                  // ReadCostFlat (one Get-equivalent tree walk)
+func (gctx *GasContext) WillIterNext(value []byte)      // IterNextCostFlat + ReadCostPerByte * len(value)
 ```
 
 All methods are nil-safe: if `gctx == nil`, they are no-ops (returning 0
@@ -370,11 +370,52 @@ type Store interface {
 }
 ```
 
-The returned `Iterator` stores the `gctx` and calls
-`gctx.WillIterator()` on creation (flat seek cost) and
-`gctx.WillIterNext()` on each `Next()` call. The per-step cost is charged
-at the point of iteration (matching the current `gasIterator` behavior,
-minus the wrapper).
+**Gas is charged at the `cache.Store` layer only.** Parents
+(`iavl.Store`, `dbadapter.Store`) return un-wrapped iterators and rely
+on the cache wrap above them to charge — wrapping at multiple layers
+would double-count. `prefix.Store` and `immut.Store` delegate, so they
+transparently receive the gas-wrapped iterator when their parent is a
+`cache.Store`.
+
+**Cost model:**
+- **Seek** (iterator creation): `ReadCostFlat`. A seek tree-walks from
+  the root to the first leaf — equivalent work to a flat `Get`.
+  Charged **unconditionally**, even if the range turns out empty —
+  the DB still did the walk.
+- **Step** (each `Next()` that lands on a valid item):
+  `IterNextCostFlat + ReadCostPerByte × len(value)`. The per-byte
+  component uses descriptor `GasValuePerByteDesc` so traces
+  distinguish iterator-returned bytes from Get-returned bytes.
+
+The step charge fires eagerly on advance (matching the physical cost
+— the backend has already fetched the page), not lazily on `Value()`.
+
+**Reachability.** Realms cannot reach store iteration directly. Live
+call sites:
+1. `vm/qpaths` → `FindPathsByPrefix` (cache-wrapped iavl). Consensus
+   observable only via the query meter, now bounded below.
+2. `auth.IterateAccounts` via `PrefixIterator`. Threaded through, but
+   today all production query contexts carry `NewInfiniteGasMeter()`
+   — the charge fires with no enforcement until a future caller
+   passes a bounded meter.
+3. `iavl.Store` ABCI subspace query at `iavl/store.go:330` — passes
+   `nil` gctx on a bare (non-cache) iavl parent, gas-free.
+4. Node-startup / test helpers (`CopyFromCachedStore`,
+   `populateStdlibCache`) pass `nil` gctx deliberately; comments at
+   the call sites document the intent.
+
+**Query gas metering.** All five VM query handlers — `QueryPaths`,
+`QueryFuncs`, `QueryFile`, `QueryDoc`, `QueryStorage` — now install
+`store.NewGasMeter(maxGasQuery)` before building the throwaway tx
+store. Previously only `queryEvalInternal` did this; the others ran
+against an infinite meter, making iteration gas unenforceable on
+those handlers.
+
+**`PrefixIterator` / `ReversePrefixIterator`** in
+`tm2/pkg/store/types/utils.go` now take `*GasContext` as first
+argument so caller-threaded gas propagates through a cache-wrapped
+parent. `DiffStores` (zero callers) and the `First`/`Last` helpers in
+`firstlast.go` (zero callers) are not touched — follow-up cleanup.
 
 ### Full call path
 
@@ -422,6 +463,21 @@ Gno: ds.baseStore.Get(gctx, key)
 Callers without gas (tests):
 ```
 stor.Get(nil, key)               // same path, all gas calls are no-ops
+```
+
+**Iterator (all stores):**
+```
+caller: stor.Iterator(gctx, start, end)
+  cache.Store.iterator(gctx, start, end)
+    parent := cache.parent.Iterator(nil, start, end)     parent gets nil — not wrapped
+    cache := newMemIterator(...)                          dirty-cache overlay
+    merged := newCacheMergeIterator(parent, cache)        merge parent + dirty
+    return newGasIterator(gctx, merged)                   single gas wrap
+      WillIterator()                                      ReadCostFlat (seek)
+      if merged.Valid(): WillIterNext(merged.Value())     1st step (if any)
+caller.Next():
+  merged.Next()
+  if merged.Valid(): WillIterNext(merged.Value())         IterNextFlat + perByte(value)
 ```
 
 ### GnoVM integration
@@ -733,6 +789,33 @@ These constants are calibrated for **LMDB** from `gnovm/cmd/benchstore`:
   migration to LMDB is planned. These constants are calibrated for LMDB
   and may overcharge or undercharge on PebbleDB. The constants should be
   re-validated after the LMDB migration.
+
+### Iterator constants
+
+```go
+IterNextCostFlat = 1_000   // ~1 µs per step (sequential leaf scan)
+// WillIterator uses ReadCostFlat (= 59_000) — seek does a Get-equivalent tree walk.
+```
+
+Measured via `BenchmarkIterNext` / `BenchmarkIterSeek` in
+`gnovm/cmd/benchstore` on LMDB, warm cache (Apple M2):
+
+| Keys | `Next()` ns/op | `Seek(rand)` ns/op |
+|---|---|---|
+| 10K | 137 | 1,375 |
+| 100K | 142 | 1,687 |
+| 1M   | 143 | 2,084 |
+
+Interpretation: `IterNextCostFlat=1_000` over-charges warm-cache step
+by ~7× — a safety margin absorbing cold-cache or larger-key variance.
+`ReadCostFlat=59_000` over-charges warm-cache seek by ~30× but
+matches the cold-cache and 100M-key cost of a random `Get`, which is
+the right correspondence for "seek does the work of one Get." The
+combined (seek + N steps) cost is therefore slightly over-charged
+end-to-end, which is conservative.
+
+Calibration is warm-cache only in this PR; cold-cache and 100M-key
+follow-up is tracked separately.
 
 ### Amino compute constants
 
