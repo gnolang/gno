@@ -24,6 +24,11 @@ gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 
 stdout 'OK'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":207700\}.*\]'
 
+## fee is charged and sequence number increased
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "1"'
+stdout '"coins": "9999999792017ugnot"'
+
 # Tx Call -simulate only, estimate gas used and gas fee
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
 stdout 'GAS USED:   114159'
