@@ -480,9 +480,89 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		ds.cacheObjects[oid] = oo
 		oo.GetObjectInfo().LastObjectSize = int64(size)
 		_ = fillTypesOfValue(ds, oo)
+		// Restore owner for inline arrays after deserialization.
+		restoreInlineArrayOwners(oo)
 		return oo
 	}
 	return nil
+}
+
+// restoreInlineArrayOwners sets the runtime owner field for inline
+// ArrayValues deserialized as part of a parent Object. This enables
+// DidUpdate to walk up to the real ancestor when array elements are
+// modified (e.g. z[0] = value in u256 arithmetic).
+//
+// In practice, nested StructValues are always separate Objects loaded
+// independently, so direct-field scanning suffices. The recursive
+// helper restoreInlineArrayOwnersTV is added defensively for any
+// non-Object value containers that may embed inline arrays.
+func restoreInlineArrayOwners(parent Object) {
+	switch pv := parent.(type) {
+	case *StructValue:
+		for i := range pv.Fields {
+			restoreInlineArrayOwnersTV(&pv.Fields[i], parent)
+		}
+	case *Block:
+		for i := range pv.Values {
+			restoreInlineArrayOwnersTV(&pv.Values[i], parent)
+		}
+	case *HeapItemValue:
+		restoreInlineArrayOwnersTV(&pv.Value, parent)
+	case *MapValue:
+		if pv.List != nil {
+			for cur := pv.List.Head; cur != nil; cur = cur.Next {
+				restoreInlineArrayOwnersTV(&cur.Key, parent)
+				restoreInlineArrayOwnersTV(&cur.Value, parent)
+			}
+		}
+	case *ArrayValue:
+		// Non-inline Object array whose elements may contain
+		// inline arrays (e.g. [2][4]uint64).
+		for i := range pv.List {
+			restoreInlineArrayOwnersTV(&pv.List[i], parent)
+		}
+	}
+}
+
+// restoreInlineArrayOwnersTV checks a single TypedValue for inline
+// arrays and recursively walks non-Object value containers.
+// Object values (real StructValue, MapValue, etc.) are loaded
+// independently via loadObjectSafe and handled there.
+func restoreInlineArrayOwnersTV(tv *TypedValue, owner Object) {
+	switch cv := tv.V.(type) {
+	case *ArrayValue:
+		if cv.IsInlineable() {
+			cv.SetOwner(owner)
+			return
+		}
+		// Non-inline Object array — recurse into elements in case
+		// they contain inline arrays (e.g. [2][4]uint64 where the
+		// inner arrays are inline). Only for non-Object embedded
+		// arrays (zero ObjectID); real arrays are loaded independently.
+		if !cv.GetIsReal() && cv.GetObjectID().IsZero() {
+			for i := range cv.List {
+				restoreInlineArrayOwnersTV(&cv.List[i], owner)
+			}
+		}
+	case *StructValue:
+		// Only non-Object embedded structs (zero ObjectID).
+		// Real StructValues are stored as RefValues and loaded
+		// independently via loadObjectSafe.
+		if !cv.GetIsReal() && cv.GetObjectID().IsZero() {
+			for i := range cv.Fields {
+				restoreInlineArrayOwnersTV(&cv.Fields[i], owner)
+			}
+		}
+	case *MapValue:
+		// Only non-Object embedded maps (zero ObjectID).
+		// Real MapValues are loaded independently via loadObjectSafe.
+		if !cv.GetIsReal() && cv.GetObjectID().IsZero() && cv.List != nil {
+			for cur := cv.List.Head; cur != nil; cur = cur.Next {
+				restoreInlineArrayOwnersTV(&cur.Key, owner)
+				restoreInlineArrayOwnersTV(&cur.Value, owner)
+			}
+		}
+	}
 }
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {

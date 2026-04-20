@@ -126,6 +126,9 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
+	// IsInlineable returns true if this object should be serialized
+	// inline within its parent rather than as a separate KV entry.
+	IsInlineable() bool
 
 	GetLastGCCycle() int64
 	SetLastGCCycle(int64)
@@ -372,11 +375,20 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
+// IsInlineable returns false by default. Only *ArrayValue
+// overrides this to return true for small primitive arrays.
+func (oi *ObjectInfo) IsInlineable() bool {
+	return false
+}
+
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
 		return cv.GetBase(store)
 	case *ArrayValue:
+		if cv.IsInlineable() {
+			return nil
+		}
 		return cv
 	case *SliceValue:
 		return cv.GetBase(store)

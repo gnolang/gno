@@ -35,7 +35,7 @@ func main(cur realm,) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](-260)=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:10](-255)=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -45,7 +45,7 @@ func main(cur realm,) {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Hash": "ff7ee2df0e65a933be3dce7550bf361d29e83bc0",
+//     -                    "Hash": "3134a68821a6d7c80c104f92236905eb94722bc0",
 //     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //     -                },
 //     -                "Index": "0",
@@ -62,7 +62,7 @@ func main(cur realm,) {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Hash": "ff020e571a6e197bf9ed4e90057ba19a576e0622",
+//     -                    "Hash": "f4ac4fe4af48d77e9914567d632dd5530e02a902",
 //     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13"
 //     -                },
 //     -                "Index": "0",
@@ -71,9 +71,9 @@ func main(cur realm,) {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
-//              "LastObjectSize": "582",
-//     -        "ModTime": "10",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
+//              "LastObjectSize": "578",
+//     -        "ModTime": "0",
 //     +        "ModTime": "14",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "RefCount": "1"
@@ -90,7 +90,7 @@ func main(cur realm,) {
 //          },
 //          "Value": {
 //              "T": {
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](-335)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:11](-336)
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12](-444)
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:13](-335)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:13](-336)
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:14](-444)

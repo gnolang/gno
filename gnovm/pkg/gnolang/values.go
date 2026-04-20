@@ -231,6 +231,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
+		setInlineOwner(pv.Base.(Object), pv.TV)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
 	}
@@ -255,6 +256,12 @@ type ArrayValue struct {
 	ObjectInfo
 	List []TypedValue
 	Data []byte
+}
+
+// IsInlineable overrides ObjectInfo.IsInlineable for small
+// primitive arrays that should be serialized within their parent.
+func (av *ArrayValue) IsInlineable() bool {
+	return shouldInlineArray(av)
 }
 
 // NOTE: Result should not be written to,

@@ -199,8 +199,15 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			panic("cannot attach to a deleted object")
 		}
 	}
-	if po == nil || !po.GetIsReal() {
-		return // do nothing.
+	if po == nil {
+		return
+	}
+	if !po.GetIsReal() {
+		if po.GetOwner() != nil {
+			rlm.markInlineAncestorDirty(po)
+			rlm.maybePromoteToReal(po)
+		}
+		return
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
 		// Invariant violation: all mutation paths must have a pre-mutation
@@ -229,6 +236,16 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		if co.GetIsReal() {
 			rlm.MarkDirty(co)
 		} else {
+			// If the object was previously owned by a different
+			// real parent (e.g. an inline array inside a
+			// HeapItemValue that is now being referenced by a
+			// MapValue via PointerValue.Base), the old parent
+			// must be resaved to replace the stale inline copy
+			// with a RefValue.
+			prevOwner := co.GetOwner()
+			if prevOwner != nil && prevOwner != po && prevOwner.GetIsReal() {
+				rlm.MarkDirty(prevOwner)
+			}
 			co.SetOwner(po)
 			rlm.MarkNewReal(co)
 		}
@@ -243,6 +260,58 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		} else if xo.GetIsReal() {
 			rlm.MarkDirty(xo)
 		}
+	}
+}
+
+//----------------------------------------
+// inline object helpers
+
+// markInlineAncestorDirty walks from a non-real owned object (e.g.
+// an inline array restored by restoreInlineArrayOwners) up the
+// ownership chain to the nearest real ancestor, and marks that
+// ancestor dirty so it gets resaved with the updated inline content.
+func (rlm *Realm) markInlineAncestorDirty(po Object) {
+	ancestor := po.GetOwner()
+	for ancestor != nil && !ancestor.GetIsReal() {
+		ancestor = ancestor.GetOwner()
+	}
+	if ancestor != nil && ancestor.GetObjectID().PkgID == rlm.ID {
+		rlm.MarkDirty(ancestor)
+	}
+}
+
+// maybePromoteToReal checks whether a previously-inlined array can
+// no longer be inlined (e.g. it gained non-primitive elements like
+// PointerValues). If so, it promotes the array to a real, independently
+// persisted KV entry. Its children will be discovered during
+// processNewCreatedMarks via incRefCreatedDescendants.
+//
+// Only ArrayValues support inline semantics, so other Object types
+// are ignored.
+func (rlm *Realm) maybePromoteToReal(po Object) {
+	if _, ok := po.(*ArrayValue); !ok {
+		return
+	}
+	if !po.IsInlineable() && !po.GetIsNewReal() {
+		po.IncRefCount() // referenced by its parent
+		rlm.MarkNewReal(po)
+	}
+}
+
+// setInlineOwner sets the owner on a newly-assigned inlineable object
+// so that subsequent element-level DidUpdate calls can walk up to the
+// real ancestor via markInlineAncestorDirty.
+//
+// This is needed because a freshly created inlineable array (e.g. from
+// a struct field assignment) has no owner yet, and restoreInlineArrayOwners
+// only runs after finalization — too late for mutations within the same
+// transaction.
+func setInlineOwner(base Object, tv *TypedValue) {
+	if !base.GetIsReal() {
+		return
+	}
+	if obj, ok := tv.V.(Object); ok && obj.IsInlineable() {
+		obj.SetOwner(base)
 	}
 }
 
@@ -374,6 +443,16 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store, 0)
+	// Restore owner pointers for inline arrays within newly created
+	// objects. This is needed so that DidUpdate (during init or main)
+	// can walk up from an inline array to its real ancestor, AND so
+	// that if the inline array later gets MarkNewReal (e.g. via
+	// &arr[i] stored in a map), we can detect and dirty-mark the
+	// previous parent. restoreInlineArrayOwners is also called from
+	// loadObjectSafe for objects loaded from store.
+	for _, co := range rlm.created {
+		restoreInlineArrayOwners(co)
+	}
 	// decrement recursively for deleted descendants.
 	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
@@ -1057,13 +1136,33 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 //----------------------------------------
 // getSelfOrChildObjects
 
+// collectMode controls how getSelfOrChildObjects handles
+// inlineable objects (e.g. small primitive arrays).
+type collectMode int
+
+const (
+	// skipInlined causes getSelfOrChildObjects to skip objects
+	// whose IsInlineable() returns true — they are serialized
+	// within their parent and need no independent KV entry.
+	skipInlined collectMode = iota
+
+	// alwaysCollect forces collection of all objects regardless
+	// of inlineability. Required for pointer/slice bases, which
+	// are referenced by ObjectID in serialization (toRefValue)
+	// and must remain independently tracked.
+	alwaysCollect
+)
+
 // Get self (if object) or child objects.
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
-func getSelfOrChildObjects(val Value, more []Value) []Value {
+func getSelfOrChildObjects(val Value, more []Value, mode collectMode) []Value {
 	if _, ok := val.(RefValue); ok {
 		return append(more, val)
-	} else if _, ok := val.(Object); ok {
+	} else if obj, ok := val.(Object); ok {
+		if mode == skipInlined && obj.IsInlineable() {
+			return more // skip — inlined in parent
+		}
 		return append(more, val)
 	} else {
 		return getChildObjects(val, more)
@@ -1088,58 +1187,62 @@ func getChildObjects(val Value, more []Value) []Value {
 		if cv.Base == nil {
 			panic("should not happen")
 		}
-		more = getSelfOrChildObjects(cv.Base, more)
+		// Pointer/slice bases are referenced by ObjectID in
+		// serialization — must always be collected as real Objects.
+		more = getSelfOrChildObjects(cv.Base, more, alwaysCollect)
 		return more
 	case *ArrayValue:
 		for _, ctv := range cv.List {
-			more = getSelfOrChildObjects(ctv.V, more)
+			more = getSelfOrChildObjects(ctv.V, more, skipInlined)
 		}
 		return more
 	case *SliceValue:
-		more = getSelfOrChildObjects(cv.Base, more)
+		// Slice bases are referenced by ObjectID — must always
+		// be collected as real Objects.
+		more = getSelfOrChildObjects(cv.Base, more, alwaysCollect)
 		return more
 	case *StructValue:
 		for _, ctv := range cv.Fields {
-			more = getSelfOrChildObjects(ctv.V, more)
+			more = getSelfOrChildObjects(ctv.V, more, skipInlined)
 		}
 		return more
 	case *FuncValue:
 		if bv, ok := cv.Parent.(*Block); ok {
-			more = getSelfOrChildObjects(bv, more)
+			more = getSelfOrChildObjects(bv, more, skipInlined)
 		}
 		for _, c := range cv.Captures {
-			more = getSelfOrChildObjects(c.V, more)
+			more = getSelfOrChildObjects(c.V, more, skipInlined)
 		}
 		return more
 	case *BoundMethodValue:
-		more = getSelfOrChildObjects(cv.Func, more)
-		more = getSelfOrChildObjects(cv.Receiver.V, more)
+		more = getSelfOrChildObjects(cv.Func, more, skipInlined)
+		more = getSelfOrChildObjects(cv.Receiver.V, more, skipInlined)
 		return more
 	case *MapValue:
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			more = getSelfOrChildObjects(cur.Key.V, more)
-			more = getSelfOrChildObjects(cur.Value.V, more)
+			more = getSelfOrChildObjects(cur.Key.V, more, skipInlined)
+			more = getSelfOrChildObjects(cur.Value.V, more, skipInlined)
 		}
 		return more
 	case TypeValue:
 		return more
 	case *PackageValue:
-		more = getSelfOrChildObjects(cv.Block, more)
+		more = getSelfOrChildObjects(cv.Block, more, skipInlined)
 		for _, fb := range cv.FBlocks {
-			more = getSelfOrChildObjects(fb, more)
+			more = getSelfOrChildObjects(fb, more, skipInlined)
 		}
 		return more
 	case *Block:
 		for _, ctv := range cv.Values {
-			more = getSelfOrChildObjects(ctv.V, more)
+			more = getSelfOrChildObjects(ctv.V, more, skipInlined)
 		}
 		// Generally the parent block must also be persisted.
 		// Otherwise NamePath may not resolve when referencing
 		// a parent block.
-		more = getSelfOrChildObjects(cv.Parent, more)
+		more = getSelfOrChildObjects(cv.Parent, more, skipInlined)
 		return more
 	case *HeapItemValue:
-		more = getSelfOrChildObjects(cv.Value.V, more)
+		more = getSelfOrChildObjects(cv.Value.V, more, skipInlined)
 		return more
 	default:
 		panic(fmt.Sprintf(
@@ -1771,11 +1874,79 @@ func ensureUniq(oozz ...[]Object) {
 	}
 }
 
+const (
+	// maxInlineArrayElements is the maximum number of typed elements
+	// for an array to be inlined within its parent's KV entry.
+	maxInlineArrayElements = 4
+
+	// maxInlineArrayDataBytes is the maximum byte length for a
+	// Data-encoded byte array to be inlined within its parent.
+	maxInlineArrayDataBytes = 64
+)
+
+// shouldInlineArray returns true if the given ArrayValue should be
+// serialized inline within its parent Object rather than as a
+// separate KV entry.
+func shouldInlineArray(av *ArrayValue) bool {
+	// Already-persisted arrays retain separate KV entries.
+	if av.GetIsReal() {
+		return false
+	}
+	if av.GetIsEscaped() || av.GetIsNewEscaped() {
+		return false
+	}
+	if av.GetRefCount() > 1 {
+		return false
+	}
+	// Byte arrays using compact Data encoding.
+	if av.Data != nil {
+		return len(av.Data) <= maxInlineArrayDataBytes
+	}
+	// Only inline small typed arrays.
+	if len(av.List) > maxInlineArrayElements {
+		return false
+	}
+	// Every element must be a pure primitive (V == nil, value in N).
+	// Non-nil V can be PointerValue, SliceValue, etc. which hold
+	// Object references that need independent ownership tracking.
+	for _, tv := range av.List {
+		if tv.V != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// copyArrayInline creates a serialization-ready copy of an inline
+// ArrayValue. The copy has ZERO ObjectInfo — the signal that this
+// array is inlined in the parent and has no independent KV entry.
+func copyArrayInline(av *ArrayValue) *ArrayValue {
+	if av.Data != nil {
+		return &ArrayValue{
+			// ObjectInfo intentionally zero.
+			Data: cp(av.Data),
+		}
+	}
+	list := make([]TypedValue, len(av.List))
+	for i, etv := range av.List {
+		// Elements are guaranteed non-Object by shouldInlineArray.
+		list[i] = refOrCopyValue(etv)
+	}
+	return &ArrayValue{
+		// ObjectInfo intentionally zero.
+		List: list,
+	}
+}
+
 func refOrCopyValue(tv TypedValue) TypedValue {
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}
 	if obj, ok := tv.V.(Object); ok {
+		if obj.IsInlineable() {
+			tv.V = copyArrayInline(obj.(*ArrayValue))
+			return tv
+		}
 		tv.V = toRefValue(obj)
 		return tv
 	} else {
