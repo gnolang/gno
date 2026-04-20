@@ -45,7 +45,11 @@ type Params struct {
 	FixedGetReadDepth100  int64          `json:"fixed_get_read_depth_100" yaml:"fixed_get_read_depth_100"`
 	FixedSetReadDepth100  int64          `json:"fixed_set_read_depth_100" yaml:"fixed_set_read_depth_100"`
 	FixedWriteDepth100    int64          `json:"fixed_write_depth_100" yaml:"fixed_write_depth_100"`
-	IterNextCostFlat      int64          `json:"iter_next_cost_flat" yaml:"iter_next_cost_flat"`
+	// IterNextCostFlat must be > 0; Validate rejects zero. Asymmetric
+	// with the six depth fields above (where 0 legitimately means
+	// "no floor / use tree estimate") because zero iter-step cost
+	// would effectively disable iteration gas charging.
+	IterNextCostFlat int64 `json:"iter_next_cost_flat" yaml:"iter_next_cost_flat"`
 }
 
 // NewParams creates a new Params object

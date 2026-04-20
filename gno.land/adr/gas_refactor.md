@@ -803,6 +803,21 @@ the tm2 default above is applied via `vm.DefaultParams()` at genesis.
 `Validate()` rejects zero or negative values. `ReadCostFlat` (and the
 other flat/per-byte constants) remain compile-time constants today.
 
+**Upgrade note.** A chain whose Params were serialized before this field
+existed will amino-decode `IterNextCostFlat == 0`. `GetParams` does
+not re-validate on read, so the chain starts, but:
+
+- `ApplyToGasConfig` will write zero into the live `GasConfig`,
+  effectively disabling iterator-step gas until Params is re-set.
+- `WillSetParam` (invoked by governance proposals) re-validates the
+  full Params struct, so *any* proposal on unrelated fields will panic
+  with `IterNextCostFlat must be positive`.
+
+Operators upgrading from a pre-field snapshot must either (a) reset
+genesis via `DefaultParams()`, or (b) submit `p:iter_next_cost_flat =
+1000` as the *first* governance proposal after upgrade — no other
+proposal will land until that value is set.
+
 **Calibration target: 100M keys on the reference hardware.** The other
 storage constants (`ReadCostFlat`, `ReadCostPerByte`, etc.) are
 calibrated at that scale in the Storage I/O section above; the
