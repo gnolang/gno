@@ -551,7 +551,7 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
 
-	app.blockEvents = app.blockEvents[:0]
+	app.blockEvents = app.blockEvents[:0:min(cap(app.blockEvents), 64)]
 
 	if app.beginBlocker != nil {
 		res = app.beginBlocker(app.deliverState.ctx, req)
