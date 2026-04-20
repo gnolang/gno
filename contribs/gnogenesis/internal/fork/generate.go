@@ -26,6 +26,7 @@ type generateCfg struct {
 	output          string
 	txsOutput       string
 	patchRealms     patchRealmList
+	migrationTxs    stringList
 	skipTxs         bool
 	noVerify        bool
 }
@@ -38,6 +39,15 @@ type patchRealmList []string
 func (p *patchRealmList) String() string { return strings.Join(*p, ",") }
 func (p *patchRealmList) Set(v string) error {
 	*p = append(*p, v)
+	return nil
+}
+
+// stringList accepts repeated string flags.
+type stringList []string
+
+func (s *stringList) String() string { return strings.Join(*s, ",") }
+func (s *stringList) Set(v string) error {
+	*s = append(*s, v)
 	return nil
 }
 
@@ -84,6 +94,13 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(&c.haltHeight, "halt-height", 0, "block height at which source chain halted (auto-detected from source if 0)")
 	fs.StringVar(&c.output, "output", "genesis.json", "output genesis file path")
 	fs.StringVar(&c.txsOutput, "txs-output", "", "also write extracted txs to this .jsonl file (optional)")
+	fs.Var(&c.migrationTxs, "migration-tx", "append migration txs at the END of appState.Txs "+
+		"(after historical replay). Repeatable. FILE is a .jsonl where each "+
+		"line is an amino-JSON gnoland.TxWithMetadata. These are genesis-mode "+
+		"txs (BlockHeight==0) that run through the same --skip-genesis-sig-"+
+		"verification code path as original genesis-mode txs, but are placed "+
+		"after the historical stream so they can mutate replayed state "+
+		"(e.g. govDAO prop to update r/sys/validators/v2 to the new valset).")
 	fs.Var(&c.patchRealms, "patch-realm", "patch a genesis-mode addpkg tx in place: repeatable, PKGPATH=SRCDIR. "+
 		"Replaces Package.Files with the *.gno + gnomod.toml files found in SRCDIR. "+
 		"Source genesis on disk is NOT modified; the patch is applied in memory "+
@@ -193,6 +210,18 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 			io.Printf("  patched %s from %s (%d tx rewritten)\n", pkgPath, srcDir, n)
 		}
 	}
+	// Append --migration-tx files at the END of appState.Txs (post-history).
+	// Each file is a .jsonl of gnoland.TxWithMetadata. We force BlockHeight=0
+	// so they go through the genesis-mode path (chain-id via PastChainIDs[0],
+	// sig verify skipped under --skip-genesis-sig-verification).
+	for _, path := range cfg.migrationTxs {
+		migTxs, err := readMigrationTxs(path)
+		if err != nil {
+			return fmt.Errorf("migration-tx %s: %w", path, err)
+		}
+		appState.Txs = append(appState.Txs, migTxs...)
+		io.Printf("  appended %d migration tx(s) from %s\n", len(migTxs), path)
+	}
 	newGenDoc.AppState = *appState
 
 	// -------------------------------------------------------------------------
@@ -288,6 +317,34 @@ func writeGenesis(path string, genDoc *bftypes.GenesisDoc, _ *gnoland.GnoGenesis
 		return fmt.Errorf("marshalling genesis: %w", err)
 	}
 	return os.WriteFile(path, data, 0o644)
+}
+
+// readMigrationTxs reads a .jsonl file of gnoland.TxWithMetadata entries.
+// BlockHeight is forced to 0 so each line is treated as a genesis-mode tx
+// when replayed (uses PastChainIDs[0] for chain-id; sig verify skipped under
+// --skip-genesis-sig-verification). Blank lines and # comments are ignored.
+func readMigrationTxs(path string) ([]gnoland.TxWithMetadata, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var out []gnoland.TxWithMetadata
+	for i, line := range strings.Split(string(data), "\n") {
+		trim := strings.TrimSpace(line)
+		if trim == "" || strings.HasPrefix(trim, "#") {
+			continue
+		}
+		var tx gnoland.TxWithMetadata
+		if err := amino.UnmarshalJSON([]byte(line), &tx); err != nil {
+			return nil, fmt.Errorf("line %d: %w", i+1, err)
+		}
+		if tx.Metadata == nil {
+			tx.Metadata = &gnoland.GnoTxMetadata{}
+		}
+		tx.Metadata.BlockHeight = 0 // always genesis-mode
+		out = append(out, tx)
+	}
+	return out, nil
 }
 
 // writeTxsJSONL writes transactions to a file, one amino JSON per line.
