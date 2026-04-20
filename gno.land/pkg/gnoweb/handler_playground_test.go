@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
@@ -165,6 +166,50 @@ func TestHandlerPlaygroundFuncs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRateLimiter tests that the per-IP rate limiter enforces burst limits.
+func TestRateLimiter(t *testing.T) {
+	t.Parallel()
+
+	logger := slog.New(slog.NewTextHandler(io_discard{}, nil))
+	cli := NewMockClient(&MockPackage{
+		Domain: "gno.land",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"mock.gno": `package mock`},
+	})
+
+	// Burst of 2, refill every 10 seconds (won't refill during test).
+	rl := newRateLimiter(2, 10*time.Second)
+	h := &playgroundAPIHandler{
+		logger:  logger,
+		client:  cli,
+		domain:  "gno.land",
+		limiter: rl,
+	}
+	handler := http.HandlerFunc(h.serveEval)
+
+	body := `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`
+	ip := "192.0.2.1:1234"
+
+	// First two requests should succeed (burst=2).
+	for i := range 2 {
+		req := httptest.NewRequest(http.MethodPost, "/_/api/eval", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = ip
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code, "request %d should succeed", i+1)
+	}
+
+	// Third request should be rate-limited.
+	req := httptest.NewRequest(http.MethodPost, "/_/api/eval", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = ip
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusTooManyRequests, rr.Code, "third request should be rate-limited")
+	assert.Contains(t, rr.Body.String(), "rate limit")
 }
 
 // io_discard is an io.Writer that discards all output, used for test loggers.
