@@ -983,6 +983,7 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 		return nil, errors.New("cannot have negative limit value")
 	}
 
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	// Determine effective limit to return
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
@@ -1049,6 +1050,7 @@ func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
 
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
@@ -1185,6 +1187,7 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
@@ -1209,6 +1212,7 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 }
 
 func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocumentation, error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	memPkg := store.GetMemPackage(pkgPath)
@@ -1226,6 +1230,7 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 
 // QueryStorage returns storage and deposit for a realm.
 func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	rlm := store.GetPackageRealm(pkgPath)
 	if rlm == nil {
