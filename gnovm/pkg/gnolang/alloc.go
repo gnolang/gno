@@ -68,7 +68,7 @@ const (
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 272 // unsafe.Sizeof(PackageValue{})
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
-	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
+	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{})
 
 	// Estimated heap sizes for pointed-to objects.
 	// BigintValue and BigdecValue are just 8-byte pointers;
@@ -144,6 +144,7 @@ func init() {
 	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
 	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
 	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
+	check("_allocRefNode", _allocRefNode, unsafe.Sizeof(RefNode{}))
 }
 
 // allocGasTable[k] = gas for a Go heap allocation of 2^k bytes.
