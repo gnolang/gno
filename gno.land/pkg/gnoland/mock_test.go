@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -206,10 +207,14 @@ func (m *mockGasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice    { ret
 func (m *mockGasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {}
 func (m *mockGasPriceKeeper) UpdateGasPrice(ctx sdk.Context)               {}
 
-type loggerDelegate func() *slog.Logger
+type (
+	loggerDelegate      func() *slog.Logger
+	blockEventsDelegate func() []abci.Event
+)
 
 type mockEndBlockerApp struct {
-	loggerFn loggerDelegate
+	loggerFn      loggerDelegate
+	blockEventsFn blockEventsDelegate
 }
 
 func (m *mockEndBlockerApp) Logger() *slog.Logger {
@@ -218,4 +223,12 @@ func (m *mockEndBlockerApp) Logger() *slog.Logger {
 	}
 
 	return log.NewNoopLogger()
+}
+
+func (m *mockEndBlockerApp) BlockEvents() []abci.Event {
+	if m.blockEventsFn != nil {
+		return m.blockEventsFn()
+	}
+
+	return nil
 }

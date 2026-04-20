@@ -168,35 +168,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
 
-	// hasValEvent tracks whether the current block contains a validator
-	// add/remove event. It is set in the EndTxHook (per-tx, synchronously
-	// during block execution) and consumed + reset by the EndBlocker.
-	// Because ABCI block processing is single-threaded, no synchronisation
-	// is needed.
-	hasValEvent := false
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
 		if result.IsOK() {
 			vmk.CommitGnoTransactionStore(ctx)
-			if !hasValEvent {
-				hasValEvent = hasValidatorChangeEvent(result.Events)
-			}
 		}
 	})
 
 	// Set EndBlocker
-	baseApp.SetEndBlocker(
-		EndBlocker(
-			func() bool {
-				had := hasValEvent
-				hasValEvent = false
-				return had
-			},
-			acck,
-			gpk,
-			vmk,
-			baseApp,
-		),
-	)
+	baseApp.SetEndBlocker(EndBlocker(acck, gpk, vmk, baseApp))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
@@ -445,16 +424,12 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 // endBlockerApp is the app abstraction required by any EndBlocker
 type endBlockerApp interface {
-	// Logger returns the logger reference
 	Logger() *slog.Logger
+	BlockEvents() []abci.Event
 }
 
 // EndBlocker defines the logic executed after every block.
-// hasValidatorEvents is called to determine whether the current block
-// contained any validator set changes; it must also reset its internal
-// state so the next block starts clean.
 func EndBlocker(
-	hasValidatorEvents func() bool,
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
@@ -473,7 +448,7 @@ func EndBlocker(
 			auth.EndBlocker(ctx, gpk)
 		}
 
-		if !hasValidatorEvents() {
+		if !hasValidatorChangeEvent(app.BlockEvents()) {
 			return abci.ResponseEndBlock{}
 		}
 

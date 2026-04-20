@@ -51,6 +51,7 @@ type BaseApp struct {
 	checkState   *state          // for CheckTx
 	deliverState *state          // for DeliverTx
 	voteInfos    []abci.VoteInfo // absent validators from begin block
+	blockEvents  []abci.Event    // accumulated events from all DeliverTx calls in the current block
 
 	// consensus params
 	// TODO: Move this in the future to baseapp param store on main store.
@@ -550,6 +551,8 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
 
+	app.blockEvents = app.blockEvents[:0]
+
 	if app.beginBlocker != nil {
 		res = app.beginBlocker(app.deliverState.ctx, req)
 	}
@@ -582,7 +585,16 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
 	res.GasUsed = result.GasUsed
+	if result.IsOK() {
+		app.blockEvents = append(app.blockEvents, result.Events...)
+	}
 	return
+}
+
+// BlockEvents returns the accumulated events from all successful DeliverTx
+// calls in the current block. The slice is reset at the start of each block.
+func (app *BaseApp) BlockEvents() []abci.Event {
+	return app.blockEvents
 }
 
 // validateBasicTxMsgs executes basic validator calls for messages.

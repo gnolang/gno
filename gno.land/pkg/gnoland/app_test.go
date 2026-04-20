@@ -14,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -511,12 +512,16 @@ func TestEndBlocker(t *testing.T) {
 		return builder.String()
 	}
 
-	noEvents := func() bool { return false }
+	valEvents := func() []abci.Event {
+		return []abci.Event{
+			chain.Event{Type: validatorAddedEvent, PkgPath: valRealm},
+		}
+	}
 
 	t.Run("no validator events", func(t *testing.T) {
 		t.Parallel()
 
-		eb := EndBlocker(noEvents, nil, nil, nil, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, nil, &mockEndBlockerApp{})
 
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
@@ -543,7 +548,7 @@ func TestEndBlocker(t *testing.T) {
 			}
 		)
 
-		eb := EndBlocker(func() bool { return true }, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, mockVMKeeper, &mockEndBlockerApp{blockEventsFn: valEvents})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -570,7 +575,7 @@ func TestEndBlocker(t *testing.T) {
 			}
 		)
 
-		eb := EndBlocker(func() bool { return true }, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, mockVMKeeper, &mockEndBlockerApp{blockEventsFn: valEvents})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -603,7 +608,7 @@ func TestEndBlocker(t *testing.T) {
 			}
 		}
 
-		eb := EndBlocker(func() bool { return true }, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, mockVMKeeper, &mockEndBlockerApp{blockEventsFn: valEvents})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -641,7 +646,7 @@ func TestEndBlocker(t *testing.T) {
 			},
 		}
 
-		eb := EndBlocker(func() bool { return true }, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, mockVMKeeper, &mockEndBlockerApp{blockEventsFn: valEvents})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -676,7 +681,7 @@ func TestEndBlocker(t *testing.T) {
 			},
 		}
 
-		eb := EndBlocker(func() bool { return true }, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, mockVMKeeper, &mockEndBlockerApp{blockEventsFn: valEvents})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -702,7 +707,7 @@ func TestEndBlocker(t *testing.T) {
 			},
 		}
 
-		eb := EndBlocker(func() bool { return true }, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(nil, nil, mockVMKeeper, &mockEndBlockerApp{blockEventsFn: valEvents})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},
@@ -918,16 +923,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		},
 	)
 
-	// Set EndBlocker (no validator events in this test app)
-	baseApp.SetEndBlocker(
-		EndBlocker(
-			func() bool { return false },
-			acck,
-			gpk,
-			nil,
-			baseApp,
-		),
-	)
+	baseApp.SetEndBlocker(EndBlocker(acck, gpk, nil, baseApp))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
