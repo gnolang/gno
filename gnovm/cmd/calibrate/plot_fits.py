@@ -63,6 +63,8 @@ def least_squares(points):
 QUADRATIC_BIGINT = {'Mul (BigInt)', 'Quo (BigInt)', 'Rem (BigInt)'}  # Q = (bits/32)^2 / 32
 QUADRATIC_BIGDEC = {'Mul (BigDec)', 'Quo (BigDec)'}                 # Q = (digits/10)^2 / 10
 QUADRATIC_VMOP = {'EnterCrossing (depth)'}                          # Q = depth^2 / 10
+# TODO: if doOpEnterCrossing is rewritten to O(depth) (cursor walk of m.Frames),
+# move 'EnterCrossing (depth)' out of QUADRATIC_VMOP and rely on the linear fit.
 QUADRATIC_FAMILIES = QUADRATIC_BIGINT | QUADRATIC_BIGDEC | QUADRATIC_VMOP
 
 # All parameterized families: (name, param_label, [(bench_name, N), ...])

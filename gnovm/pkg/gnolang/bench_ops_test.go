@@ -4192,9 +4192,14 @@ func BenchmarkOpCall_10Params_10Captures(b *testing.B)  { benchOpCall(b, 10, 10)
 // --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
 // Scales with call stack depth until the first crossing ancestor. The handler's
 // inner loop calls PeekCallFrame(i) for i=1..depth, each O(i), so total work is
-// O(depth^2) (see op_call.go:111 "TODO: O(n^2), optimize"). The benchmark
-// constructs `depth` call frames with only the deepest marked WithCross=true,
-// forcing the loop to walk the full depth.
+// O(depth^2) (see op_call.go PERF note). The benchmark constructs `depth` call
+// frames with only the deepest marked WithCross=true, forcing the loop to walk
+// the full depth.
+//
+// PERF/TODO: if the handler is rewritten to be O(depth) (walk m.Frames once
+// with a cursor), this benchmark stays valid but the expected shape becomes
+// linear. Update QUADRATIC_VMOP in plot_fits.py and the quadratic fit in
+// gen_analysis.py to linear at the same time.
 
 func benchOpEnterCrossing(b *testing.B, depth int) {
 	b.Helper()

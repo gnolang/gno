@@ -107,8 +107,16 @@ func (m *Machine) doOpEnterCrossing() {
 	// NOTE: fr.WithCross may or may not be true,
 	// crossing() (which sets fr.DidCrossing) can be
 	// stacked.
+	//
+	// PERF: O(n^2) in call-stack depth. PeekCallFrame(i) restarts from the
+	// top of m.Frames every iteration; outer loop runs until the first
+	// crossing ancestor, visiting 1+2+...+D = O(D^2) frames. Fix is to
+	// walk m.Frames once with a cursor, yielding each call frame in
+	// order, which makes the handler O(D). If/when that lands, drop
+	// OpCPUSlopeEnterCrossingQuad and switch this handler to a linear
+	// per-depth charge (OpCPUSlopeEnterCrossing * depth).
 	for i := 1; ; i++ {
-		fri := m.PeekCallFrame(i) // TODO: O(n^2), optimize.
+		fri := m.PeekCallFrame(i) // see PERF note above.
 		if 1 < i && fri == nil {
 			// For stage add, meaning init() AND
 			// global var decls inherit a faux

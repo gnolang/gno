@@ -1406,7 +1406,9 @@ const (
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
 	// Quadratic: gas = depth * depth * slope / 10.
 	// doOpEnterCrossing walks PeekCallFrame(i) for i=1..depth; each O(i).
-	// See op_call.go:111 "TODO: O(n^2), optimize".
+	// PERF/TODO: if doOpEnterCrossing is rewritten to walk m.Frames once
+	// with a cursor (linear in depth), drop this constant and replace with
+	// a linear OpCPUSlopeEnterCrossing charged once per frame visited.
 	OpCPUSlopeEnterCrossingQuad = 6 // fit: depth^2/10 × 6 ≈ 0.6*depth^2 ns
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
