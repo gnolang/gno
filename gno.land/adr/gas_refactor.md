@@ -793,29 +793,32 @@ These constants are calibrated for **LMDB** from `gnovm/cmd/benchstore`:
 ### Iterator constants
 
 ```go
-IterNextCostFlat = 1_000   // ~1 µs per step (sequential leaf scan)
+IterNextCostFlat = 1_000   // per-step sequential leaf scan
 // WillIterator uses ReadCostFlat (= 59_000) — seek does a Get-equivalent tree walk.
 ```
 
-Measured via `BenchmarkIterNext` / `BenchmarkIterSeek` in
-`gnovm/cmd/benchstore` on LMDB, warm cache (Apple M2):
+**Calibration target: 100M keys on the reference hardware.** The other
+storage constants (`ReadCostFlat`, `ReadCostPerByte`, etc.) are
+calibrated at that scale in the Storage I/O section above; the
+iterator constants should be re-validated there too.
 
-| Keys | `Next()` ns/op | `Seek(rand)` ns/op |
-|---|---|---|
-| 10K | 137 | 1,375 |
-| 100K | 142 | 1,687 |
-| 1M   | 143 | 2,084 |
+Run:
+```
+go test ./gnovm/cmd/benchstore/ -bench='IterNext|IterSeek' \
+    -timeout=2h -db=lmdb
+```
 
-Interpretation: `IterNextCostFlat=1_000` over-charges warm-cache step
-by ~7× — a safety margin absorbing cold-cache or larger-key variance.
-`ReadCostFlat=59_000` over-charges warm-cache seek by ~30× but
-matches the cold-cache and 100M-key cost of a random `Get`, which is
-the right correspondence for "seek does the work of one Get." The
-combined (seek + N steps) cost is therefore slightly over-charged
-end-to-end, which is conservative.
+`BenchmarkIterNext` reports `ns/op` for `Next()+Key()+Value()`.
+`BenchmarkIterSeek` reports `ns/op` for opening a random-start
+iterator and positioning to the first key. Both should be run at the
+full `keySizes` sweep up to 100M keys; only the 100M row drives the
+calibrated value, the smaller rows are sanity-check points showing
+step cost stays roughly flat while seek grows with tree depth.
 
-Calibration is warm-cache only in this PR; cold-cache and 100M-key
-follow-up is tracked separately.
+Until the 100M-key numbers are in, the defaults above are chosen
+conservatively: step at 1_000 gas (~1 µs) and seek at 59_000 gas
+(one flat Get). Both may over-charge warm-cache hits but should not
+under-charge cold-cache reads at the target scale.
 
 ### Amino compute constants
 
