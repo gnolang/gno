@@ -163,6 +163,48 @@ func TestViewKeeper(t *testing.T) {
 	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
 }
 
+// SendCoins short-circuits when amt.IsZero(): no state change, no error,
+// and no restriction check (so a zero-amount transfer of a restricted
+// denom from a non-whitelisted account still succeeds as a no-op).
+func TestBankKeeperSendCoinsZero(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+	bankk := env.bankk
+
+	from := crypto.AddressFromPreimage([]byte("zero-from"))
+	to := crypto.AddressFromPreimage([]byte("zero-to"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, from))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, to))
+
+	// Seed `from` with a restricted denom so we can prove the restriction
+	// check is bypassed for zero-amount sends.
+	bankk.SetCoins(ctx, from, std.NewCoins(std.NewCoin("rstr", 100)))
+	env.prmk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"rstr"})
+	require.Contains(t, bankk.GetParams(ctx).RestrictedDenoms, "rstr")
+
+	// Case 1: empty Coins → no error, no state change.
+	require.NoError(t, bankk.SendCoins(ctx, from, to, std.NewCoins()))
+	require.True(t, bankk.GetCoins(ctx, from).IsEqual(std.NewCoins(std.NewCoin("rstr", 100))))
+	require.True(t, bankk.GetCoins(ctx, to).IsEqual(std.NewCoins()))
+
+	// Case 2: non-empty Coins but all-zero amounts. Uses the struct
+	// literal because std.NewCoin disallows non-positive values.
+	require.NoError(t, bankk.SendCoins(ctx, from, to, sdk.Coins{sdk.Coin{Denom: "rstr", Amount: 0}}))
+	require.True(t, bankk.GetCoins(ctx, from).IsEqual(std.NewCoins(std.NewCoin("rstr", 100))))
+	require.True(t, bankk.GetCoins(ctx, to).IsEqual(std.NewCoins()))
+
+	// Sanity: the restriction *does* fire for a non-zero send of the
+	// same denom from the same non-whitelisted account, so Case 2's
+	// success is specifically attributable to the IsZero shortcut
+	// (not to `from` being whitelisted or the denom being unrestricted).
+	require.ErrorIs(t,
+		bankk.SendCoins(ctx, from, to, std.NewCoins(std.NewCoin("rstr", 1))),
+		std.RestrictedTransferError{},
+	)
+}
+
 // Test SetRestrictedDenoms
 func TestSetRestrictedDenoms(t *testing.T) {
 	env := setupTestEnv()
