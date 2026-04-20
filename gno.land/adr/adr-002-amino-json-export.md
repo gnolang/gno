@@ -6,11 +6,12 @@ Accepted
 
 ## Context
 
-The VM query endpoints (`qeval`, `qobject`) need to return structured JSON
-representations of Gno values. Previously, this was implemented with a set of
-custom JSON types (`JSONField`, `JSONStructValue`, `JSONArrayValue`,
-`JSONMapValue`, `JSONMapEntry`, `JSONObjectInfo`) that duplicated much of the
-existing Amino encoding logic with a different output format.
+Three new VM query endpoints (`qeval_json`, `qobject_json`, `qobject_binary`)
+need to return structured representations of Gno values. An earlier draft
+implemented this with a set of custom JSON types (`JSONField`,
+`JSONStructValue`, `JSONArrayValue`, `JSONMapValue`, `JSONMapEntry`,
+`JSONObjectInfo`) that duplicated much of the existing Amino encoding logic
+with a different output format.
 
 This created two problems:
 
@@ -41,7 +42,7 @@ process is:
 
 ### Query Endpoints
 
-**qeval** returns:
+**qeval_json** returns:
 ```json
 {
   "results": [
@@ -61,7 +62,9 @@ process is:
 }
 ```
 
-**qobject** returns:
+**qobject_json** returns the Amino-JSON envelope below.
+**qobject_binary** returns the same envelope Amino-binary-encoded (see
+"Amino Type Registry for `qobject_binary`" below).
 ```json
 {
   "objectid": "hash:N",
@@ -104,7 +107,7 @@ realm-level mutations between queries.
   positional list of `{Key, Value}` tuples — not a JSON object. See
   "Map Encoding" below.
 - **Persisted objects**: Replaced with `RefValue{ObjectID: "hash:N"}` which can
-  be followed via `qobject`.
+  be followed via `qobject_json` or `qobject_binary`.
 - **Nil pointers**: `V` field is omitted (Amino omitempty).
 - **Declared types**: `T` field uses `RefType{ID: "pkg.TypeName"}` instead of
   the full type definition.
@@ -194,8 +197,8 @@ implement `error`, the value was nil, or `.Error()` itself failed.
 ### Object Graph Traversal
 
 Clients can traverse the persisted object graph by:
-1. Calling `qeval` to get the root value (contains `RefValue` references)
-2. Following `ObjectID` references via `qobject`
+1. Calling `qeval_json` to get the root value (contains `RefValue` references)
+2. Following `ObjectID` references via `qobject_json` (or `qobject_binary`)
 3. For pointer fields: `HeapItemValue` -> `StructValue` (alternating)
 
 ### Ephemeral Reference Resolution
@@ -254,7 +257,7 @@ To resolve `:N` back to its inline expansion, a consumer walks the exported
 tree in this same order, counts each inline ephemeral Object (per the kind
 list above) as it is encountered, and looks up the Nth one. Persisted
 `RefValue{ObjectID: "hash:N"}` references are not part of this counter —
-they are resolved separately via `qobject`.
+they are resolved separately via `qobject_json` / `qobject_binary`.
 
 ## Consequences
 
