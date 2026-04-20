@@ -278,6 +278,13 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
+		if alloc.collect == nil {
+			// Forked allocators (e.g. the store's tx-scoped allocator
+			// before NewMachineWithOptions installs a GC callback, and
+			// query-path store allocators which never get one) have no
+			// collect function — there's nothing to GC, so cap is final.
+			panic("allocation limit exceeded (no GC)")
+		}
 		if left, ok := alloc.collect(); !ok {
 			// GC could not free enough.
 			panic("allocation limit exceeded")
