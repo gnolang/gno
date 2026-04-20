@@ -275,8 +275,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
-		indexData.HeaderData.Static = true // TODO: Move inside GetMarkdownView
-		return h.GetMarkdownView(gnourl, aliasTarget.Value)
+		return h.GetMarkdownView(gnourl, indexData, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser(), gnourl.IsPackageFork():
 		return h.GetPackageView(ctx, gnourl, indexData)
 	case gnourl.IsPlayground():
@@ -288,7 +287,9 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, indexData *components.IndexData, mdContent string) (int, *components.View) {
+	indexData.HeaderData.Static = true
+
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
