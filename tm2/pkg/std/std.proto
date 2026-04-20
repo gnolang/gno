@@ -24,6 +24,23 @@ message GasPrice {
 	string price = 2;
 }
 
+message Tx {
+	repeated google.protobuf.Any msgs = 1 [json_name = "msg"];
+	Fee fee = 2;
+	repeated Signature signatures = 3;
+	string memo = 4;
+}
+
+message Fee {
+	sint64 gas_wanted = 1;
+	string gas_fee = 2;
+}
+
+message Signature {
+	google.protobuf.Any pub_key = 1;
+	bytes signature = 2;
+}
+
 message MemFile {
 	string name = 1;
 	string body = 2;

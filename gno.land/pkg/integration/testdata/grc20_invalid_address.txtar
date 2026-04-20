@@ -4,10 +4,10 @@ loadpkg gno.land/r/demo/defi/foo20
 gnoland start
 
 # execute Faucet
-gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -gas-fee 10000000ugnot -gas-wanted 40000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Faucet -gas-fee 10000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
 stdout 'OK!'
 
 # execute Transfer for invalid address
 # This is expected to fail at the transaction simulation stage.
-! gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Transfer -args g1ubwj0apf60hd90txhnh855fkac34rxlsvua0aa -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -simulate only -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/defi/foo20 -func Transfer -args g1ubwj0apf60hd90txhnh855fkac34rxlsvua0aa -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -simulate only -chainid=tendermint_test test1
 stderr '"gnokey" error: --= Error =--\nData: invalid address'

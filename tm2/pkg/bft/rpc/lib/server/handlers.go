@@ -144,11 +144,19 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			return
 		}
 
-		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of Requests ---
-		var requests types.RPCRequests
-		if err := json.Unmarshal(b, &requests); err == nil {
+		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of raw messages ---
+		var rawRequests []json.RawMessage
+		if err := json.Unmarshal(b, &rawRequests); err == nil {
 			var responses types.RPCResponses
-			for _, req := range requests {
+			for _, raw := range rawRequests {
+				var req types.RPCRequest
+				if err := json.Unmarshal(raw, &req); err != nil {
+					responses = append(responses, types.RPCInvalidRequestError(
+						types.JSONRPCStringID(""),
+						errors.Wrap(err, "error unmarshalling request"),
+					))
+					continue
+				}
 				if resp := processRequest(r, req, funcMap, logger); resp != nil {
 					responses = append(responses, *resp)
 				}
@@ -665,8 +673,22 @@ func (wsc *wsConnection) readRoutine() {
 				responses types.RPCResponses
 			)
 
-			// Try to unmarshal the requests as a batch
-			if err := json.Unmarshal(in, &requests); err != nil {
+			// Try to unmarshal as a batch of raw messages first, so that one
+			// malformed element does not prevent valid requests from being processed.
+			var rawRequests []json.RawMessage
+			if err := json.Unmarshal(in, &rawRequests); err == nil {
+				for _, raw := range rawRequests {
+					var req types.RPCRequest
+					if err := json.Unmarshal(raw, &req); err != nil {
+						responses = append(responses, types.RPCInvalidRequestError(
+							types.JSONRPCStringID(""),
+							errors.Wrap(err, "error unmarshalling request"),
+						))
+						continue
+					}
+					requests = append(requests, req)
+				}
+			} else {
 				// Next, try to unmarshal as a single request
 				var request types.RPCRequest
 				if err := json.Unmarshal(in, &request); err != nil {
@@ -728,17 +750,17 @@ func (wsc *wsConnection) readRoutine() {
 				}
 
 				responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
+			}
 
-				if len(responses) > 0 {
-					wsc.WriteRPCResponses(responses)
+			if len(responses) > 0 {
+				wsc.WriteRPCResponses(responses)
 
-					// Log telemetry
-					if telemetryEnabled {
-						metrics.WSRequestTime.Record(
-							context.Background(),
-							time.Since(responseStart).Milliseconds(),
-						)
-					}
+				// Log telemetry
+				if telemetryEnabled {
+					metrics.WSRequestTime.Record(
+						context.Background(),
+						time.Since(responseStart).Milliseconds(),
+					)
 				}
 			}
 		}

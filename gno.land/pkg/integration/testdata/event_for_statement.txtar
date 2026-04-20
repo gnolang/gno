@@ -4,7 +4,7 @@ loadpkg gno.land/r/demo/foree $WORK
 # start a new node
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/foree -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/foree -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   [0-9]+'
@@ -12,7 +12,7 @@ stdout 'HEIGHT:     [0-9]+'
 stdout 'EVENTS:     \[{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land/r/demo/foree\"}\]'
 stdout 'TX HASH:    '
 
-gnokey maketx call -pkgpath gno.land/r/demo/foree -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/foree -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   [0-9]+'

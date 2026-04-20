@@ -53,11 +53,10 @@ func TestForwardCompatibility(t *testing.T) {
 
 	t.Logf("Serialized newModuleParams: %s\n", bz)
 
-	// Deserialize JSON into oldModuleParams
+	// Deserialize JSON into oldModuleParams.
+	// Strict mode: unknown fields ("max") are rejected.
 	oldParams := &oldModuleParams{}
 	err = amino.UnmarshalJSON(bz, oldParams)
-	require.NoError(t, err, "Failed to unmarshal into oldModuleParams")
-
-	// Validate compatibility
-	require.Equal(t, newParams.LimitedTokens, oldParams.LimitedTokens, "LimitedTokens mismatch")
+	require.Error(t, err, "strict amino should reject unknown JSON fields")
+	require.Contains(t, err.Error(), "unknown JSON field")
 }
