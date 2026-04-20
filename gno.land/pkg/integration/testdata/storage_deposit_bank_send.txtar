@@ -3,7 +3,7 @@
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 450001ugnot -gas-wanted 4_500_000 -max-deposit 1500000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 420001ugnot -gas-wanted 4_200_000 -max-deposit 1500000ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 

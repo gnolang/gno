@@ -4,7 +4,7 @@ gnoland start
 
 # ---- 1 Test sys/params.SetSysParamXXX when called from gno.land/r/sys/params
 
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 420001ugnot -gas-wanted 4_200_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 390001ugnot -gas-wanted 3_900_000 -broadcast -chainid=tendermint_test test1
 
 ## lock transfer
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 180001ugnot -gas-wanted 1_800_000 -broadcast -chainid=tendermint_test test1
@@ -38,7 +38,7 @@ gnokey query params/bank:p:restricted_denoms
 stdout 'data: \[\]' # still the same, value was not written.
 
 # ---- 2 Test sys/params.SetSysParamXXX when called outside of gno.land/r/sys/params
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 420001ugnot -gas-wanted 4_200_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 390001ugnot -gas-wanted 3_900_000 -broadcast -chainid=tendermint_test test1
 
 ## can not call SetSysParamXXX out side of gno.land/r/params
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetSysParamString -args "foo" -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1

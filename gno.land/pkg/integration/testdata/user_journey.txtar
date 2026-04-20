@@ -105,7 +105,7 @@ gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\
 stdout '1000 int64'
 
 # Approve disperse Realm to spend 500 MAT on behalf of user1
-gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args MAT -args "$DISPERSE_REALM_ADDR" -args 500 -gas-fee 860001ugnot -gas-wanted 8_600_000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args MAT -args "$DISPERSE_REALM_ADDR" -args 500 -gas-fee 870001ugnot -gas-wanted 8_700_000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 # Check disperse Realm allowance to spend MAT on behalf of user1
@@ -147,13 +147,13 @@ stdout '220 int64'
 # Register users for boards (boards requires registered users for board creation)
 gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "user333" -args "$user3_user_addr" -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "user222" -args "$user2_user_addr" -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "user222" -args "$user2_user_addr" -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test user2
 stdout 'OK!'
 
 # user3 creates a new board and a thread
 gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1700001ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test user3
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1 -args 'My first thread' -args 'Hey Guys!' -gas-fee 1200001ugnot -gas-wanted 12_000_000 -broadcast -chainid=tendermint_test user3
 stdout 'OK!'
 
 # user1 tries to reply to the thread without registering
@@ -169,7 +169,7 @@ gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateThread -args 1
 stdout 'OK!'
 
 # user1 replies to user3's thread anonymously
-gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateReply -args 1 -args 1 -args 1 -args 'I prefer not to register' -send 100000000ugnot -gas-fee 1400001ugnot -gas-wanted 14_000_000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 ######################
@@ -177,7 +177,7 @@ stdout 'OK!'
 ######################
 
 # Enable `sys/names` to enforce namespace restrictions
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 2_600_000 -broadcast -chainid tendermint_test test1
 stdout 'OK!'
 
 # user2 publishes a custom home package to its address namespace

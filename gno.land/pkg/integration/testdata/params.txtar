@@ -13,7 +13,7 @@ gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: $'
 
 # add params to gno.land/r/myrealm
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 380001ugnot -gas-wanted 3_800_000 -broadcast -chainid=tendermint_test test1
 
 # query after adding the package, but before setting values
 gnokey query params/vm:gno.land/r/myrealm:foo

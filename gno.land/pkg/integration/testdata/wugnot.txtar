@@ -72,7 +72,7 @@ stdout 'Known accounts..: 1' # user3 is no longer known, as they withdrew all th
 # ============================================
 
 # Deploy the malicious intermediary realm
-gnokey maketx addpkg -pkgdir $WORK/mitm -pkgpath gno.land/r/test/mitm -gas-fee 830001ugnot -gas-wanted 8_300_000 -broadcast -chainid=tendermint_test user1
+gnokey maketx addpkg -pkgdir $WORK/mitm -pkgpath gno.land/r/test/mitm -gas-fee 860001ugnot -gas-wanted 8_600_000 -broadcast -chainid=tendermint_test user1
 stdout 'OK!'
 
 # user1 tries to deposit through the malicious intermediary - this should FAIL

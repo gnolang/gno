@@ -35,14 +35,14 @@ stdout 'OK!'
 # ============================================================
 
 # Create proposal to set required CLA hash and URL
-gnokey maketx run -gas-fee 3100001ugnot -gas-wanted 31_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla1.gno
+gnokey maketx run -gas-fee 2800001ugnot -gas-wanted 28_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/propose_cla1.gno
 stdout OK!
 
 # Vote and execute proposal 0
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2200001ugnot -gas-wanted 22_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # Alice's signature is now invalid (hasn't signed)
@@ -51,7 +51,7 @@ stdout 'false bool'
 
 # Alice tries to deploy without signing CLA - should FAIL
 ! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg2 -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test alice
-stderr 'has not signed the required CLA'
+stderr 'A Contributor License Agreement'
 
 # ============================================================
 # Test 3: Sign CLA, then deploy successfully
@@ -90,7 +90,7 @@ stdout 'false bool'
 
 # Alice tries to deploy - should FAIL
 ! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$alice_user_addr/pkg4 -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test alice
-stderr 'has not signed the required CLA'
+stderr 'A Contributor License Agreement'
 
 # Alice re-signs with new hash
 gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 560001ugnot -gas-wanted 5_600_000 -broadcast -chainid tendermint_test alice

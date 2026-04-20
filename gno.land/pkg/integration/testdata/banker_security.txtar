@@ -21,7 +21,7 @@ gnokey query bank/balances/${attacker_user_addr}
 stdout '1000000000ugnot'
 
 ## Deploy the malicious realm that attempts to steal coins
-gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 410001ugnot -gas-wanted 4_100_000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious -pkgpath gno.land/r/test/malicious -gas-fee 380001ugnot -gas-wanted 3_800_000 -broadcast -chainid=tendermint_test attacker
 stdout OK!
 
 ## ============================================
@@ -71,11 +71,11 @@ stdout OK!
 ## Deploy a "helper" realm that the malicious realm tries to use to steal coins
 ## ============================================
 
-gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/helper -pkgpath gno.land/r/test/helper -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test attacker
 stdout OK!
 
 ## Update malicious realm to have access to helper
-gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 440001ugnot -gas-wanted 4_400_000 -broadcast -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/malicious_v2 -pkgpath gno.land/r/test/malicious_v2 -gas-fee 400001ugnot -gas-wanted 4_000_000 -broadcast -chainid=tendermint_test attacker
 stdout OK!
 
 ## Try cross-realm attack - helper realm should not be able to create OriginSend banker

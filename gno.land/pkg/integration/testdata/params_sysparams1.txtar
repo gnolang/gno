@@ -4,7 +4,7 @@ gnoland start
 
 # Test sys/params.SetSysParamXXX when called from gno.land/r/sys/params
 
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 380001ugnot -gas-wanted 3_800_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test test1
 
 ## before set lock transfer
 gnokey query params/bank:p:restricted_denoms
