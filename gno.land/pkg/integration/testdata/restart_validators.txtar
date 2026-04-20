@@ -1,0 +1,74 @@
+# Test that validator changes survive a node restart.
+#
+# With same-block processing the EndBlocker detects validator events via the
+# EndTxHook and queries GetChanges(N,N) in the same block the tx runs. The
+# resulting ValidatorUpdates are persisted by Tendermint as part of that
+# block's EndBlock response, so they survive a restart without any special
+# recovery logic.
+
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gnops/valopers/proposal
+
+gnoland start
+
+# Init GovDAO with test1 as member
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# Register a valoper
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 1000000ugnot -gas-wanted 30000000 -send 20000000ugnot -args myval -args 'Test validator' -args on-prem -args g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqg0lte6srklm3tuyja9489n3dsnx4wcadq43wrwnz6nln8s7lf9uyptc3nm -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Create proposal, vote YES, execute — adds validator to the realm
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/add_validator.gno
+stdout OK!
+
+# Verify validator is in realm before restart
+gnokey query vm/qeval --data "gno.land/r/sys/validators/v2.IsValidator(address(\"g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr\"))"
+stdout 'true'
+
+# Restart the node. Because EndBlock already returned the ValidatorUpdate in
+# the same block as the proposal, Tendermint has it persisted and restores it
+# from its state DB — no recovery block needed.
+gnoland restart
+
+# Send any tx so there is a live block to query against.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/trigger.gno
+stdout OK!
+
+# Verify the validator is still in the consensus set after restart.
+gnorpc validators -wait g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr
+stdout 'g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr'
+
+-- run/init_govdao.gno --
+package main
+
+import i "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+}
+
+-- run/add_validator.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
+)
+
+func main() {
+	pr := proposal.NewValidatorProposalRequest(cross, address("g1td0cgmt9uz7kq4hcv7fkkwvp3z4lq4dsewffwr"))
+	pid := dao.MustCreateProposal(cross, pr)
+	dao.MustVoteOnProposalSimple(cross, int64(pid), "YES")
+	dao.ExecuteProposal(cross, pid)
+}
+
+-- run/trigger.gno --
+package main
+
+func main() {
+	println("trigger block")
+}

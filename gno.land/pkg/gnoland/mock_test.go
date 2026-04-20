@@ -206,22 +206,10 @@ func (m *mockGasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice    { ret
 func (m *mockGasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {}
 func (m *mockGasPriceKeeper) UpdateGasPrice(ctx sdk.Context)               {}
 
-type (
-	lastBlockHeightDelegate func() int64
-	loggerDelegate          func() *slog.Logger
-)
+type loggerDelegate func() *slog.Logger
 
 type mockEndBlockerApp struct {
-	lastBlockHeightFn lastBlockHeightDelegate
-	loggerFn          loggerDelegate
-}
-
-func (m *mockEndBlockerApp) LastBlockHeight() int64 {
-	if m.lastBlockHeightFn != nil {
-		return m.lastBlockHeightFn()
-	}
-
-	return 0
+	loggerFn loggerDelegate
 }
 
 func (m *mockEndBlockerApp) Logger() *slog.Logger {

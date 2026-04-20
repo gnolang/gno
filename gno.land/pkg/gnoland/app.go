@@ -70,8 +70,6 @@ func (c AppOptions) validate() error {
 		return fmt.Errorf("no db provided")
 	case c.Logger == nil:
 		return fmt.Errorf("no logger provided")
-	case c.EventSwitch == nil:
-		return fmt.Errorf("no event switch provided")
 	}
 	return nil
 }
@@ -169,22 +167,30 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// Create Gno transaction store.
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
+
+	// hasValEvent tracks whether the current block contains a validator
+	// add/remove event. It is set in the EndTxHook (per-tx, synchronously
+	// during block execution) and consumed + reset by the EndBlocker.
+	// Because ABCI block processing is single-threaded, no synchronisation
+	// is needed.
+	hasValEvent := false
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
 		if result.IsOK() {
 			vmk.CommitGnoTransactionStore(ctx)
+			if !hasValEvent {
+				hasValEvent = hasValidatorChangeEvent(result.Events)
+			}
 		}
 	})
-
-	// Set up the event collector
-	c := newCollector[validatorUpdate](
-		cfg.EventSwitch,      // global event switch filled by the node
-		validatorEventFilter, // filter fn that keeps the collector valid
-	)
 
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
 		EndBlocker(
-			c,
+			func() bool {
+				had := hasValEvent
+				hasValEvent = false
+				return had
+			},
 			acck,
 			gpk,
 			vmk,
@@ -439,18 +445,16 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 // endBlockerApp is the app abstraction required by any EndBlocker
 type endBlockerApp interface {
-	// LastBlockHeight returns the latest app height
-	LastBlockHeight() int64
-
 	// Logger returns the logger reference
 	Logger() *slog.Logger
 }
 
 // EndBlocker defines the logic executed after every block.
-// Currently, it parses events that happened during execution to calculate
-// validator set changes
+// hasValidatorEvents is called to determine whether the current block
+// contained any validator set changes; it must also reset its internal
+// state so the next block starts clean.
 func EndBlocker(
-	collector *collector[validatorUpdate],
+	hasValidatorEvents func() bool,
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
@@ -459,7 +463,7 @@ func EndBlocker(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
@@ -469,18 +473,19 @@ func EndBlocker(
 			auth.EndBlocker(ctx, gpk)
 		}
 
-		// Check if there was a valset change
-		if len(collector.getEvents()) == 0 {
-			// No valset updates
+		if !hasValidatorEvents() {
 			return abci.ResponseEndBlock{}
 		}
 
-		// Run the VM to get the validator changes for the last committed block.
-		lastHeight := app.LastBlockHeight()
+		// Query the validator changes for the current block.
+		// The deliver-state ctx already reflects all committed txs in this
+		// block, so GetChanges(req.Height, req.Height) finds changes written
+		// by those txs — eliminating the one-block delay of the old collector
+		// approach and making restarts inherently safe.
 		response, err := vmk.QueryEval(
 			ctx,
 			valRealm,
-			fmt.Sprintf("%s(%d,%d)", valChangesFn, lastHeight, lastHeight),
+			fmt.Sprintf("%s(%d,%d)", valChangesFn, req.Height, req.Height),
 		)
 		if err != nil {
 			app.Logger().Error("unable to call VM during EndBlocker", "err", err)

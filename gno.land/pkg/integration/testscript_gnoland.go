@@ -228,6 +228,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 	cmds := map[string]func(ts *testscript.TestScript, neg bool, args []string){
 		"gnoland":     gnolandCmd(t, nodesManager, gnoRootDir),
 		"gnokey":      gnokeyCmd(nodesManager),
+		"gnorpc":      gnorpcCmd(nodesManager),
 		"adduser":     adduserCmd(nodesManager),
 		"adduserfrom": adduserfromCmd(nodesManager),
 		"patchpkg":    patchpkgCmd(),
@@ -698,7 +699,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
 		}
 
-		var qret gnoland.GnoAccount
+		var qret struct{ BaseAccount std.BaseAccount }
 		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
 		}
@@ -873,6 +874,104 @@ func GeneratePrivKeyFromMnemonic(mnemonic, bip39Passphrase string, account, inde
 
 func getNodeSID(ts *testscript.TestScript) string {
 	return ts.Getenv("SID")
+}
+
+// gnorpcCmd provides RPC query access to the running gnoland node.
+// Usage: gnorpc validators
+func gnorpcCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if len(args) == 0 {
+			ts.Fatalf("gnorpc requires a subcommand; supported: validators")
+		}
+
+		sid := getNodeSID(ts)
+		n, ok := nodes.Get(sid)
+		if !ok {
+			ts.Fatalf("gnorpc: node not running")
+		}
+
+		raddr := n.Address()
+		if raddr == "" {
+			ts.Fatalf("gnorpc: node has no address")
+		}
+
+		rpcClient, err := rpcclient.NewHTTPClient(raddr)
+		if err != nil {
+			tsValidateError(ts, "gnorpc", neg, err)
+			return
+		}
+
+		switch args[0] {
+		case "validators":
+			var (
+				waitAddr string
+				timeout  = 1 * time.Second
+			)
+			rest := args[1:]
+			for i := 0; i < len(rest); i++ {
+				switch rest[i] {
+				case "-wait":
+					i++
+					if i >= len(rest) {
+						ts.Fatalf("gnorpc validators: -wait requires an address")
+					}
+					waitAddr = rest[i]
+				case "-timeout":
+					i++
+					if i >= len(rest) {
+						ts.Fatalf("gnorpc validators: -timeout requires a duration")
+					}
+					d, err := time.ParseDuration(rest[i])
+					if err != nil {
+						ts.Fatalf("gnorpc validators: invalid -timeout %q: %v", rest[i], err)
+					}
+					timeout = d
+				default:
+					ts.Fatalf("gnorpc validators: unknown argument %q", rest[i])
+				}
+			}
+
+			printResult := func(res *ctypes.ResultValidators) {
+				for _, v := range res.Validators {
+					fmt.Fprintf(ts.Stdout(), "%s power=%d\n", v.Address, v.VotingPower)
+				}
+			}
+
+			if waitAddr == "" {
+				res, err := rpcClient.Validators(context.Background(), nil)
+				if err != nil {
+					tsValidateError(ts, "gnorpc", neg, err)
+					return
+				}
+				printResult(res)
+				return
+			}
+
+			const pollInterval = 100 * time.Millisecond
+			deadline := time.Now().Add(timeout)
+			var lastErr error
+			for {
+				res, err := rpcClient.Validators(context.Background(), nil)
+				if err == nil {
+					for _, v := range res.Validators {
+						if v.Address.String() == waitAddr {
+							printResult(res)
+							return
+						}
+					}
+				} else {
+					lastErr = err
+				}
+				if time.Now().After(deadline) {
+					ts.Fatalf("gnorpc validators: timeout after %s waiting for %s to appear (last err: %v)",
+						timeout, waitAddr, lastErr)
+				}
+				time.Sleep(pollInterval)
+			}
+		default:
+			ts.Fatalf("gnorpc: unknown subcommand %q", args[0])
+		}
+	}
 }
 
 func inputCmd() func(ts *testscript.TestScript, neg bool, args []string) {
