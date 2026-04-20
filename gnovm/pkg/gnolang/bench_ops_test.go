@@ -896,6 +896,94 @@ func BenchmarkOpEql_String_100(b *testing.B)   { benchOpEql_String(b, 100) }
 func BenchmarkOpEql_String_1000(b *testing.B)  { benchOpEql_String(b, 1000) }
 func BenchmarkOpEql_String_10000(b *testing.B) { benchOpEql_String(b, 10000) }
 
+// --- Per-byte string comparison (OpCPUCmpPerByte) calibration ---
+// The existing benchOpEql_String uses the SAME *StringValue twice, which
+// runtime.memequal short-circuits via pointer-identity. The variants below
+// force two distinct string instances so the full O(N) memcmp runs.
+//
+// Equal content, distinct backing storage: worst case for ==.
+func benchOpEql_StringDistinct(b *testing.B, length int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	s1 := strings.Repeat("x", length)
+	s2 := strings.Repeat("x", length) // distinct allocation, identical content
+	sv1 := m.Alloc.NewString(s1)
+	sv2 := m.Alloc.NewString(s2)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: StringType, V: sv1})
+		m.PushValue(TypedValue{T: StringType, V: sv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEql()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if !res.GetBool() {
+			b.Fatal("expected true")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEql_StringDistinct_8(b *testing.B)      { benchOpEql_StringDistinct(b, 8) }
+func BenchmarkOpEql_StringDistinct_64(b *testing.B)     { benchOpEql_StringDistinct(b, 64) }
+func BenchmarkOpEql_StringDistinct_512(b *testing.B)    { benchOpEql_StringDistinct(b, 512) }
+func BenchmarkOpEql_StringDistinct_4096(b *testing.B)   { benchOpEql_StringDistinct(b, 4096) }
+func BenchmarkOpEql_StringDistinct_32768(b *testing.B)  { benchOpEql_StringDistinct(b, 32768) }
+func BenchmarkOpEql_StringDistinct_262144(b *testing.B) { benchOpEql_StringDistinct(b, 262144) }
+func BenchmarkOpEql_StringDistinct_1M(b *testing.B)     { benchOpEql_StringDistinct(b, 1 << 20) }
+
+// Early-exit: strings differ at byte 0. Best case for ==. Confirms the
+// length-prefix short-circuit and that slope doesn't double-charge when
+// the comparison returns false immediately.
+func benchOpEql_StringDiffFirst(b *testing.B, length int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+	expr := &BinaryExpr{}
+	s1 := "a" + strings.Repeat("x", length-1)
+	s2 := "b" + strings.Repeat("x", length-1)
+	sv1 := m.Alloc.NewString(s1)
+	sv2 := m.Alloc.NewString(s2)
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: StringType, V: sv1})
+		m.PushValue(TypedValue{T: StringType, V: sv2})
+		m.PushExpr(expr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEql()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.GetBool() {
+			b.Fatal("expected false")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEql_StringDiffFirst_8(b *testing.B)     { benchOpEql_StringDiffFirst(b, 8) }
+func BenchmarkOpEql_StringDiffFirst_4096(b *testing.B)  { benchOpEql_StringDiffFirst(b, 4096) }
+func BenchmarkOpEql_StringDiffFirst_32768(b *testing.B) { benchOpEql_StringDiffFirst(b, 32768) }
+func BenchmarkOpEql_StringDiffFirst_1M(b *testing.B)    { benchOpEql_StringDiffFirst(b, 1 << 20) }
+
+// Additional OpLss_String lengths (reuses existing benchOpLss_String helper
+// defined below). Extends the slope fit up to 1M bytes.
+func BenchmarkOpLss_String_8(b *testing.B)      { benchOpLss_String(b, 8) }
+func BenchmarkOpLss_String_64(b *testing.B)     { benchOpLss_String(b, 64) }
+func BenchmarkOpLss_String_512(b *testing.B)    { benchOpLss_String(b, 512) }
+func BenchmarkOpLss_String_4096(b *testing.B)   { benchOpLss_String(b, 4096) }
+func BenchmarkOpLss_String_32768(b *testing.B)  { benchOpLss_String(b, 32768) }
+func BenchmarkOpLss_String_262144(b *testing.B) { benchOpLss_String(b, 262144) }
+func BenchmarkOpLss_String_1M(b *testing.B)     { benchOpLss_String(b, 1 << 20) }
+
 // ---------------------------------------------------------------------------
 // doOpNeq: PopExpr, PopValue(rv), PeekValue(lv); lv = (lv != rv)
 // ---------------------------------------------------------------------------
@@ -4161,20 +4249,25 @@ func benchFuncDeclNode(numNames int, heapIdxs []int) *FuncDecl {
 	return fd
 }
 
-func benchOpCall(b *testing.B, nParams int, nCaptures int) {
+func benchOpCall(b *testing.B, nParams, nCaptures, nResults int) {
 	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
-	// Build FuncType with nParams int params.
+	// Build FuncType with nParams int params and nResults int results.
 	params := make([]FieldType, nParams)
 	for i := range nParams {
 		params[i] = FieldType{Name: Name("p"), Type: IntType}
 	}
-	ft := &FuncType{Params: params, Results: []FieldType{}}
+	results := make([]FieldType, nResults)
+	for i := range nResults {
+		results[i] = FieldType{Name: Name("r"), Type: IntType}
+	}
+	ft := &FuncType{Params: params, Results: results}
 
-	// FuncDecl as source with slots for params + captures.
-	numNames := nParams + nCaptures
+	// FuncDecl as source with slots for params + results + captures.
+	// (result slots are part of the block the handler allocates via NumNames)
+	numNames := nParams + nCaptures + nResults
 	fd := benchFuncDeclNode(numNames, nil)
 
 	// Build captures (HeapItemValues).
@@ -4219,16 +4312,33 @@ func benchOpCall(b *testing.B, nParams int, nCaptures int) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpCall_0Params_0Captures(b *testing.B)    { benchOpCall(b, 0, 0) }
-func BenchmarkOpCall_1Params_0Captures(b *testing.B)    { benchOpCall(b, 1, 0) }
-func BenchmarkOpCall_10Params_0Captures(b *testing.B)   { benchOpCall(b, 10, 0) }
-func BenchmarkOpCall_100Params_0Captures(b *testing.B)  { benchOpCall(b, 100, 0) }
-func BenchmarkOpCall_1000Params_0Captures(b *testing.B) { benchOpCall(b, 1000, 0) }
-func BenchmarkOpCall_0Params_1Captures(b *testing.B)    { benchOpCall(b, 0, 1) }
-func BenchmarkOpCall_0Params_10Captures(b *testing.B)   { benchOpCall(b, 0, 10) }
-func BenchmarkOpCall_0Params_100Captures(b *testing.B)  { benchOpCall(b, 0, 100) }
-func BenchmarkOpCall_0Params_1000Captures(b *testing.B) { benchOpCall(b, 0, 1000) }
-func BenchmarkOpCall_10Params_10Captures(b *testing.B)  { benchOpCall(b, 10, 10) }
+func BenchmarkOpCall_0Params_0Captures(b *testing.B)    { benchOpCall(b, 0, 0, 0) }
+func BenchmarkOpCall_1Params_0Captures(b *testing.B)    { benchOpCall(b, 1, 0, 0) }
+func BenchmarkOpCall_10Params_0Captures(b *testing.B)   { benchOpCall(b, 10, 0, 0) }
+func BenchmarkOpCall_100Params_0Captures(b *testing.B)  { benchOpCall(b, 100, 0, 0) }
+func BenchmarkOpCall_1000Params_0Captures(b *testing.B) { benchOpCall(b, 1000, 0, 0) }
+func BenchmarkOpCall_0Params_1Captures(b *testing.B)    { benchOpCall(b, 0, 1, 0) }
+func BenchmarkOpCall_0Params_10Captures(b *testing.B)   { benchOpCall(b, 0, 10, 0) }
+func BenchmarkOpCall_0Params_100Captures(b *testing.B)  { benchOpCall(b, 0, 100, 0) }
+func BenchmarkOpCall_0Params_1000Captures(b *testing.B) { benchOpCall(b, 0, 1000, 0) }
+func BenchmarkOpCall_10Params_10Captures(b *testing.B)  { benchOpCall(b, 10, 10, 0) }
+
+// --- Result-slot dimension for OpCPUSlopeCallReturn calibration. ---
+// Holds params/captures at 0 to isolate per-result cost (block sizing +
+// TypedValue init for each result slot). Fit target: linear in nResults.
+func BenchmarkOpCall_0Params_0Captures_0Results(b *testing.B)    { benchOpCall(b, 0, 0, 0) }
+func BenchmarkOpCall_0Params_0Captures_1Results(b *testing.B)    { benchOpCall(b, 0, 0, 1) }
+func BenchmarkOpCall_0Params_0Captures_5Results(b *testing.B)    { benchOpCall(b, 0, 0, 5) }
+func BenchmarkOpCall_0Params_0Captures_10Results(b *testing.B)   { benchOpCall(b, 0, 0, 10) }
+func BenchmarkOpCall_0Params_0Captures_50Results(b *testing.B)   { benchOpCall(b, 0, 0, 50) }
+func BenchmarkOpCall_0Params_0Captures_100Results(b *testing.B)  { benchOpCall(b, 0, 0, 100) }
+func BenchmarkOpCall_0Params_0Captures_1000Results(b *testing.B) { benchOpCall(b, 0, 0, 1000) }
+
+// Cross-dimension sanity: confirm results-slope is independent of params-slope.
+func BenchmarkOpCall_10Params_0Captures_10Results(b *testing.B) { benchOpCall(b, 10, 0, 10) }
+func BenchmarkOpCall_10Params_10Captures_10Results(b *testing.B) {
+	benchOpCall(b, 10, 10, 10)
+}
 
 // --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
 // Scales with call stack depth until the first crossing ancestor. The handler's

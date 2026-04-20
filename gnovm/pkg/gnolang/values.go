@@ -1567,6 +1567,7 @@ func (tv *TypedValue) Sign() int {
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
+	store.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1578,6 +1579,10 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
+	childrenLength := 0
+	defer func() {
+		store.GetAllocator().Allocate(int64(len(bz) - childrenLength))
+	}()
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
@@ -1632,6 +1637,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 				if isNaN {
 					return "", true
 				}
+				childrenLength += len(mk)
 				bz = binary.AppendUvarint(bz, uint64(len(mk)))
 				bz = append(bz, mk...)
 				if i != al-1 {
@@ -1655,6 +1661,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			if isNaN {
 				return "", true
 			}
+			childrenLength += len(mk)
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
 			if i != sl-1 {
@@ -1662,6 +1669,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 		}
 		bz = append(bz, '}')
+
 	case *ChanType:
 		panic("channel type is not yet supported")
 	default:
