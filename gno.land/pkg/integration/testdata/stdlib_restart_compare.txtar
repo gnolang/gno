@@ -4,7 +4,7 @@
 
 env ADDPKG_GAS=4_800_000
 env SETUP_GAS=3_200_000
-env EXACT_GAS=2472404
+env EXACT_GAS=2069942
 
 gnoland start
 
