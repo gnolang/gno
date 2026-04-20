@@ -58,19 +58,38 @@ done
 # hf_overlay_txs "$SCRIPT_DIR/../overlays/20260417_add_moderator.jsonl"
 
 # -------------------------------------------------------------------------
-# 5) MIGRATION TXS (post-history, not yet supported)
+# 5) MIGRATION TXS (post-history)
 # -------------------------------------------------------------------------
-# Future: txs that run AFTER historical replay — "reproduce history,
-# then mutate". Critical for valset swap: gnoland1 seeds its valset
-# via govdao_prop1.gno, so a hardfork inherits the *original* 7
-# validators inside r/sys/validators/v2 even though tm2 consensus is
-# driven by GenesisDoc.Validators (which fixvalidator rewrites to our
-# single local key). To reconcile the two, a migration tx should call
-# r/sys/validators/v2.NewPropRequest via the govDAO flow to register
-# the new valset, signed by a T1 member (manfred, under
-# --skip-genesis-sig-verification).
+# These run AFTER historical replay — "reproduce history, then mutate".
 #
-# hf_migration_tx "$SCRIPT_DIR/../migrations/set_valset.msgrun.json"
+# Valset swap: gnoland1 seeds its valset via govdao_prop1.gno, so the
+# post-fork r/sys/validators/v2 still lists the *original* 7 validators
+# even though tm2 consensus is driven by GenesisDoc.Validators (which
+# `gnogenesis fork` rewrites to our local validator via fixvalidator).
+# The migration below reconciles the two: it wipes the 7 originals and
+# registers the new valset via a govDAO proposal signed as manfred
+# (T1 member) under --skip-genesis-sig-verification.
+#
+# Delegates to misc/deployments/gnoland-1/migrations/build.sh, which
+# renders the template with the local priv_validator_key.json and
+# produces a signed jsonl under $OUT/migrations.jsonl.
+PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
+PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
+if [[ -f "$PV_KEY" ]]; then
+  hf_banner "step 5 — post-replay migration (valset swap)"
+  hf_kv "pv_key" "$PV_KEY"
+  MIG_JSONL="$OUT/migrations.jsonl"
+  CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
+  PV_KEY="$PV_KEY" \
+  OUT_JSONL="$MIG_JSONL" \
+  CHAIN_ID="$CHAIN_ID" \
+  REPO_ROOT="$REPO" \
+    bash "$REPO/misc/deployments/gnoland-1/migrations/build.sh"
+  hf_migration_tx "$MIG_JSONL"
+else
+  hf_banner "step 5 — post-replay migration (skipped)"
+  hf_kv "reason" "no priv_validator_key.json at $PV_KEY — run 'make init' first"
+fi
 
 # -------------------------------------------------------------------------
 # 6) ASSEMBLE the hardfork genesis

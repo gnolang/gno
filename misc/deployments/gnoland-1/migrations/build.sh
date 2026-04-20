@@ -82,13 +82,19 @@ trap 'rm -rf "$WORK"' EXIT
 
 if [[ -z "${NEW_VALSET_JSON:-}" ]]; then
   : "${PV_KEY:?either NEW_VALSET_JSON or PV_KEY is required}"
+  # r/sys/validators/v2 wants the bech32 (gpub1...) pubkey — priv_validator_key.json
+  # stores the raw base64 under pub_key.value. Use `gnoland secrets get` to convert.
+  SECRETS_DIR="$(dirname "$PV_KEY")"
+  BECH_PUBKEY="$(go run -C "$REPO_ROOT" ./gno.land/cmd/gnoland secrets get validator_key.pub_key --raw -data-dir "$SECRETS_DIR" | tail -n 1 | tr -d '[:space:]')"
+  [[ "$BECH_PUBKEY" == gpub1* ]] || { echo "ERROR: failed to derive bech32 pubkey from $PV_KEY (got: $BECH_PUBKEY)" >&2; exit 1; }
+  ADDR="$(jq -r '.address' "$PV_KEY")"
   NEW_VALSET_JSON="$WORK/new_valset.json"
-  jq '[{
-    address:      .address,
-    pub_key:      .pub_key.value,
+  jq -n --arg addr "$ADDR" --arg pub "$BECH_PUBKEY" '[{
+    address:      $addr,
+    pub_key:      $pub,
     voting_power: 10,
     name:         "hf-local"
-  }]' "$PV_KEY" > "$NEW_VALSET_JSON"
+  }]' > "$NEW_VALSET_JSON"
 fi
 
 # ---- render template ----
@@ -100,9 +106,12 @@ done
 NEW_GO=$(jq -r '.[] | "{Address: \"\(.address)\", PubKey: \"\(.pub_key)\", VotingPower: \(.voting_power)},"' "$NEW_VALSET_JSON" | awk 'BEGIN{ORS="\n\t\t\t\t"}{print}')
 
 RENDERED="$WORK/01_reset_valset.gno"
-sed -e "s|{{OLD_VALIDATORS_GO}}|$OLD_GO|" \
-    -e "s|{{NEW_VALIDATORS_GO}}|$NEW_GO|" \
-    "$SCRIPT_DIR/01_reset_valset.gno.tmpl" > "$RENDERED"
+# awk-based substitution (BSD sed can't handle newlines in replacement).
+OLD_GO="$OLD_GO" NEW_GO="$NEW_GO" awk '
+  { gsub(/\{\{OLD_VALIDATORS_GO\}\}/, ENVIRON["OLD_GO"])
+    gsub(/\{\{NEW_VALIDATORS_GO\}\}/, ENVIRON["NEW_GO"])
+    print }
+' "$SCRIPT_DIR/01_reset_valset.gno.tmpl" > "$RENDERED"
 
 # ---- build the MsgRun tx ----
 # We use any local ephemeral key to sign; only the serialized form matters
@@ -112,8 +121,11 @@ sed -e "s|{{OLD_VALIDATORS_GO}}|$OLD_GO|" \
 GK_HOME="$WORK/gnokey-home"
 mkdir -p "$GK_HOME"
 EPHEMERAL_MNEMONIC="source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
-echo "$EPHEMERAL_MNEMONIC" | "$GNOKEY_BIN" add --recover --insecure-password-stdin --home "$GK_HOME" ephemeral >/dev/null 2>&1 || \
-  printf 'y\n\n' | "$GNOKEY_BIN" add --recover --insecure-password-stdin --home "$GK_HOME" ephemeral <<<"$EPHEMERAL_MNEMONIC" >/dev/null 2>&1
+# stdin order for `gnokey add --recover --insecure-password-stdin`:
+#   1. passphrase (empty line = no passphrase, no confirm prompt)
+#   2. mnemonic
+printf '\n%s\n' "$EPHEMERAL_MNEMONIC" | \
+  "$GNOKEY_BIN" add --recover --insecure-password-stdin --home "$GK_HOME" ephemeral >/dev/null
 
 TX_JSON="$WORK/tx.json"
 "$GNOKEY_BIN" maketx run \

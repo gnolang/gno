@@ -178,48 +178,38 @@ hf_overlay_txs() {
 }
 
 # hf_migration_tx PATH
-#   Future: inject a migration tx that runs AFTER historical replay
+#   Inject a migration tx jsonl that runs AFTER historical replay
 #   (e.g. to update r/sys/validators/v2 to the new valset, to reset
-#   chain params, etc). Conceptually the last step of the hardfork —
-#   "reproduce history, then mutate".
+#   chain params, etc). "Reproduce history, then mutate".
 #
-#   Currently a no-op placeholder so callers can express intent. Will
-#   fail loudly from hf_assemble once any migration tx is registered.
+#   Each jsonl line is an amino-JSON TxWithMetadata; BlockHeight is
+#   forced to 0 at replay (genesis-mode execution).
 #
 #   Valset-swap note: gnoland1 seeds its valset via govdao_prop1.gno
 #   at genesis. A hardfork inherits that state, so r/sys/validators/v2
 #   still lists the original 7 validators even though tm2 consensus is
-#   driven by whatever is in GenesisDoc.Validators. For a coherent fork
-#   we want a migration tx that:
-#     (a) registers the new valset via a govDAO proposal
-#         (r/sys/validators/v2.NewPropRequest + MustCreateProposal +
-#          MustVoteOnProposal + ExecuteProposal — signed by a T1 member)
-#     (b) optionally drops unneeded members / realms
-#   The testbed works today because consensus only reads
-#   GenesisDoc.Validators; queries to r/sys/validators/v2 will still
-#   return the stale set until this lands.
+#   driven by GenesisDoc.Validators (which `gnogenesis fork` rewrites).
+#   The migration tx reconciles the two sides.
 hf_migration_tx() {
   local src="$1"
+  [[ -f "$src" ]] || hf_die "migration tx jsonl not found: $src"
   _HF_MIGRATIONS+=("$src")
 }
 
 # ---- step 3: assemble -----------------------------------------------------
 # hf_assemble
-#   Runs `misc/hardfork genesis` against the staged source dir, applying
-#   any accumulated --patch-realm entries.
+#   Runs `gnogenesis fork generate` against the staged source dir,
+#   applying any accumulated --patch-realm and --migration-tx entries.
 hf_assemble() {
   hf_banner "step 3 — assemble hardfork genesis"
   : "${HALT_HEIGHT:?HALT_HEIGHT must be set (auto-detected earlier, or pass explicitly)}"
 
   if [[ ${#_HF_OVERLAYS[@]} -gt 0 ]]; then
-    hf_die "hf_overlay_txs is not supported by misc/hardfork yet (${#_HF_OVERLAYS[@]} requested)"
-  fi
-  if [[ ${#_HF_MIGRATIONS[@]} -gt 0 ]]; then
-    hf_die "hf_migration_tx is not supported by misc/hardfork yet (${#_HF_MIGRATIONS[@]} requested)"
+    hf_die "hf_overlay_txs is not supported by gnogenesis fork yet (${#_HF_OVERLAYS[@]} requested)"
   fi
 
   local args=(
-    genesis
+    fork generate
     --source            "$_HF_STAGE"
     --chain-id          "$CHAIN_ID"
     --original-chain-id "$ORIGINAL_CHAIN_ID"
@@ -232,8 +222,14 @@ hf_assemble() {
     hf_kv "patch" "$p"
     args+=(--patch-realm "$p")
   done
+  local m
+  for m in "${_HF_MIGRATIONS[@]:-}"; do
+    [[ -z "$m" ]] && continue
+    hf_kv "migration" "$m"
+    args+=(--migration-tx "$m")
+  done
 
-  ( cd "$REPO/misc/hardfork" && go run . "${args[@]}" )
+  ( cd "$REPO/contribs/gnogenesis" && go run . "${args[@]}" )
 
   echo ""
   if command -v sha256sum >/dev/null 2>&1; then
