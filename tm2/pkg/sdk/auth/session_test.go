@@ -17,7 +17,7 @@ import (
 
 // setupSessionEnv creates a test environment with a funded master account
 // and a block time set to avoid genesis special-casing.
-func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, crypto.PubKey, crypto.Address) {
+func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, crypto.Address) {
 	t.Helper()
 
 	env := setupTestEnv()
@@ -38,7 +38,7 @@ func setupSessionEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey, cr
 		Time:    now,
 	})
 
-	return env, anteHandler, masterPriv, masterPub, masterAddr
+	return env, anteHandler, masterPriv, masterAddr
 }
 
 // sessionSpendLimit returns a spend limit large enough to cover test fees.
@@ -62,7 +62,7 @@ func createSessionDirect(t *testing.T, env testEnv, masterAddr crypto.Address, s
 func TestSessionBasicAuth(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create session key pair.
@@ -99,7 +99,7 @@ func TestSessionBasicAuth(t *testing.T) {
 func TestSessionExpiry(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -118,7 +118,7 @@ func TestSessionExpiry(t *testing.T) {
 func TestSessionUnknown(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Use a session address that was never created.
@@ -134,7 +134,7 @@ func TestSessionUnknown(t *testing.T) {
 func TestSessionMasterStillWorks(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, masterPriv, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, masterPriv, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create a session (should not interfere with master signing).
@@ -156,7 +156,7 @@ func TestSessionMasterStillWorks(t *testing.T) {
 func TestSessionReplayProtection(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -181,7 +181,7 @@ func TestSessionReplayProtection(t *testing.T) {
 func TestSessionRevoke(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -227,7 +227,7 @@ func TestSessionRevoke(t *testing.T) {
 func TestSessionRevokeAll(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	h := NewHandler(env.acck, env.gk)
@@ -278,9 +278,8 @@ func TestSessionRevokeAll(t *testing.T) {
 }
 
 func TestSessionCreateValidation(t *testing.T) {
-	t.Parallel()
-
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	// Subtests share env/ctx/master state, so the outer test is sequential.
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	h := NewHandler(env.acck, env.gk)
@@ -346,7 +345,7 @@ func TestSessionCreateValidation(t *testing.T) {
 func TestSessionReplayAfterRevoke(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -405,7 +404,7 @@ func TestSessionReplayAfterRevoke(t *testing.T) {
 func TestSessionGasFeeDeductsFromMaster(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Record master's coins before.
@@ -437,7 +436,7 @@ func TestSessionGasFeeDeductsFromMaster(t *testing.T) {
 func TestSessionGasExceedsSpendLimit(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create session with a tiny spend limit (1 atom).
@@ -463,7 +462,7 @@ func TestSessionGasExceedsSpendLimit(t *testing.T) {
 func TestSessionNoSpendLimitRejectsGas(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create session with NO spend limit.
@@ -488,7 +487,7 @@ func TestSessionNoSpendLimitRejectsGas(t *testing.T) {
 func TestNonSessionTxStillChargesFees(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, masterPriv, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, masterPriv, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Record master's coins before.
@@ -514,7 +513,7 @@ func TestNonSessionTxStillChargesFees(t *testing.T) {
 func TestSessionMasterInsufficientFunds(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Drain master's coins so it can't pay fees.
@@ -543,7 +542,7 @@ func TestSessionCrossAccountAttack(t *testing.T) {
 	// The session is keyed under masterA, but the msg claims to be from masterB.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddrA := setupSessionEnv(t)
+	env, anteHandler, _, masterAddrA := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create a second master account (masterB).
@@ -574,7 +573,7 @@ func TestSessionSelfReferentialMaster(t *testing.T) {
 	// a regular account, so GetSignerAcc would fail.
 	t.Parallel()
 
-	env, anteHandler, _, _, _ := setupSessionEnv(t)
+	env, anteHandler, _, _ := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -600,7 +599,7 @@ func TestSessionExpiryBoundary(t *testing.T) {
 	// ExpiresAt == blockTime. The check is `>=`, so this should be expired.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	blockTime := ctx.BlockTime().Unix()
 
@@ -622,7 +621,7 @@ func TestSessionZeroExpiry(t *testing.T) {
 	// ExpiresAt = 0 means "no expiry" — the session is valid until revoked.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -645,7 +644,7 @@ func TestSessionNoExpiry(t *testing.T) {
 	// ExpiresAt = 0 means "no expiry" — verify it works even at a much later block time.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -676,7 +675,7 @@ func TestSessionWrongSignature(t *testing.T) {
 	// Attack: valid SessionAddr, but signed by a completely different key.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	_, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -697,7 +696,7 @@ func TestSessionFutureSequence(t *testing.T) {
 	// the real sequence catches up.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -718,7 +717,7 @@ func TestSessionCannotCreateSubSession(t *testing.T) {
 	// Sessions should not be able to create other sessions.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -754,7 +753,7 @@ func TestSessionSpendPeriodReset(t *testing.T) {
 	// Verify that spend tracking resets after the period expires.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -799,7 +798,7 @@ func TestSessionMultipleMsgsSameSession(t *testing.T) {
 	// The session should only count once in the signers list.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -824,7 +823,7 @@ func TestSessionPubKeyMismatchAttack(t *testing.T) {
 	// This tests the pubkey mismatch check.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	_, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -866,7 +865,7 @@ func TestSessionChainIDReplay(t *testing.T) {
 	// Sign bytes include chainID, so this should fail.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -888,7 +887,7 @@ func TestIterateAccountsExcludesSessions(t *testing.T) {
 	// "/a/" prefix but are filtered by key length.
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create a few sessions.
@@ -1010,9 +1009,8 @@ func TestSessionMultiSignerMixed(t *testing.T) {
 
 func TestSessionAllowPathsValidation(t *testing.T) {
 	// Test that handleMsgCreateSession rejects invalid AllowPaths entries.
-	t.Parallel()
-
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	// Subtests share env/ctx/master state, so the outer test is sequential.
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	h := NewHandler(env.acck, env.gk)
 
@@ -1044,9 +1042,8 @@ func TestSessionAllowPathsValidation(t *testing.T) {
 }
 
 func TestSessionSpendPeriodValidation(t *testing.T) {
-	t.Parallel()
-
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	// Subtests share env/ctx/master state, so the outer test is sequential.
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	h := NewHandler(env.acck, env.gk)
 
@@ -1082,7 +1079,7 @@ func TestSessionCreateWithZeroExpiry(t *testing.T) {
 	// through the real message path.
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	h := NewHandler(env.acck, env.gk)
 
@@ -1123,7 +1120,7 @@ func TestSessionCreateWithZeroExpiry(t *testing.T) {
 func TestSessionEmptySpendLimitRejected(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	_, sessionPub, _ := tu.KeyTestPubAddr()
@@ -1149,7 +1146,7 @@ func TestSessionEmptySpendLimitRejected(t *testing.T) {
 func TestSessionSpendPeriodZeroLifetime(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	blockTime0 := ctx.BlockTime().Unix()
 
@@ -1182,7 +1179,7 @@ func TestSessionSpendPeriodZeroLifetime(t *testing.T) {
 func TestSessionSpendResetExactBoundary(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	blockTime0 := ctx.BlockTime().Unix()
 
@@ -1214,7 +1211,7 @@ func TestSessionSpendResetExactBoundary(t *testing.T) {
 func TestSessionGasDenomNotInSpendLimit(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create session with SpendLimit in "xyz" but gas fee uses "atom".
@@ -1238,9 +1235,8 @@ func TestSessionGasDenomNotInSpendLimit(t *testing.T) {
 // TestSessionCreateMaxDurationBoundary confirms the ExpiresAt max-duration
 // boundary: blockTime + MaxSessionDuration is allowed; +1 is rejected.
 func TestSessionCreateMaxDurationBoundary(t *testing.T) {
-	t.Parallel()
-
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	// Subtests share env/ctx/master state, so the outer test is sequential.
+	env, _, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 	h := NewHandler(env.acck, env.gk)
 	blockTime := ctx.BlockTime().Unix()
@@ -1277,7 +1273,7 @@ func TestSessionCreateMaxDurationBoundary(t *testing.T) {
 func TestSessionSequenceIndependenceFromMaster(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, masterPriv, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, masterPriv, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Create a session.
@@ -1316,7 +1312,7 @@ func TestSessionSequenceIndependenceFromMaster(t *testing.T) {
 func TestCheckSessionSpendEmptyAmount(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1332,7 +1328,7 @@ func TestCheckSessionSpendEmptyAmount(t *testing.T) {
 func TestCheckSessionSpendEmptyLimitRejects(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1348,7 +1344,7 @@ func TestCheckSessionSpendEmptyLimitRejects(t *testing.T) {
 func TestCheckSessionSpendDoesNotMutate(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1371,7 +1367,7 @@ func TestCheckSessionSpendDoesNotMutate(t *testing.T) {
 func TestCheckSessionSpendPeriodResetConceptual(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1405,7 +1401,7 @@ func TestCheckSessionSpendPeriodResetConceptual(t *testing.T) {
 func TestSessionAntePreCheckRejectsOverLimitWithoutGasBleed(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// Record master's starting balance.
@@ -1456,7 +1452,7 @@ func TestSessionAntePreCheckRejectsOverLimitWithoutGasBleed(t *testing.T) {
 func TestSessionAntePreCheckAllowsInLimit(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	// SpendLimit = 1000 atom. gas (150) + msg.Send (500) = 650 <= 1000 → passes.
@@ -1495,7 +1491,7 @@ func TestSessionAntePreCheckAllowsInLimit(t *testing.T) {
 func TestSessionAntePreCheckMsgCallSend(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
@@ -1527,7 +1523,7 @@ func TestSessionAntePreCheckMsgCallSend(t *testing.T) {
 func TestDeductSessionSpendErrorIncludesContext(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1562,7 +1558,7 @@ func TestDeductSessionSpendErrorIncludesContext(t *testing.T) {
 func TestDeductSessionSpendNoLimitErrorIncludesAmount(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1579,7 +1575,7 @@ func TestDeductSessionSpendNoLimitErrorIncludesAmount(t *testing.T) {
 func TestCheckSessionSpendErrorIncludesContext(t *testing.T) {
 	t.Parallel()
 
-	env, _, _, _, masterAddr := setupSessionEnv(t)
+	env, _, _, masterAddr := setupSessionEnv(t)
 	_, sessionPub, _ := tu.KeyTestPubAddr()
 	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
 	da := sa.(std.DelegatedAccount)
@@ -1599,7 +1595,7 @@ func TestCheckSessionSpendErrorIncludesContext(t *testing.T) {
 func TestSessionExpiredErrorIncludesTimestamps(t *testing.T) {
 	t.Parallel()
 
-	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
 	ctx := env.ctx
 
 	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()

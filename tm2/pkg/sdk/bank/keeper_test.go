@@ -601,8 +601,8 @@ func TestSessionSendZeroAmountNoOp(t *testing.T) {
 // This is the end-to-end path a session-signed MsgSend follows once it
 // passes the gno.land allowlist.
 func TestSessionHandlerMsgSend(t *testing.T) {
-	t.Parallel()
-
+	// Subtests share env/ctx/da state and run cumulatively, so the outer
+	// test is sequential.
 	env := setupTestEnv()
 	ctx, masterAddr, da := setupSessionCtx(t, env,
 		std.NewCoins(std.NewCoin("foo", 1000)),
@@ -631,8 +631,8 @@ func TestSessionHandlerMsgSend(t *testing.T) {
 // TestSessionHandlerMsgMultiSend runs a real bank.MsgMultiSend through
 // the bank handler and verifies per-input session enforcement.
 func TestSessionHandlerMsgMultiSend(t *testing.T) {
-	t.Parallel()
-
+	// Subtests share env/ctx/da state and run cumulatively, so the outer
+	// test is sequential.
 	env := setupTestEnv()
 	ctx, masterAddr, da := setupSessionCtx(t, env,
 		std.NewCoins(std.NewCoin("foo", 1000)),
