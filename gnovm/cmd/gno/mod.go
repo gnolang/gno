@@ -275,6 +275,12 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 		return fmt.Errorf("render template: %w", err)
 	}
 
+	for name := range files {
+		if _, err := os.Stat(filepath.Join(rootDir, name)); err == nil {
+			return fmt.Errorf("file already exists: %s", name)
+		}
+	}
+
 	var created []string
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(rootDir, name), content, 0o644); err != nil {
@@ -293,15 +299,30 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 }
 
 func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
+	defaultName := sanitizeModuleName(filepath.Base(rootDir))
+	if defaultName == "" {
+		defaultName = "main"
+	}
+	scriptName, err := commands.PromptString(io, "Script name", defaultName, validateName)
+	if err != nil {
+		return err
+	}
+
 	runDir := filepath.Join(rootDir, "run")
 	if err := os.MkdirAll(runDir, 0o755); err != nil {
 		return err
 	}
 
-	data := templateData{PkgName: "main"}
+	data := templateData{PkgName: "main", ScriptName: scriptName}
 	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
 		return fmt.Errorf("render run template: %w", err)
+	}
+
+	for name := range files {
+		if _, err := os.Stat(filepath.Join(runDir, name)); err == nil {
+			return fmt.Errorf("file already exists: run/%s", name)
+		}
 	}
 
 	var created []string
@@ -337,16 +358,6 @@ func promptModuleKind(io commands.IO) (moduleKind, error) {
 }
 
 func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
-	validateName := func(s string) error {
-		if s == "" {
-			return fmt.Errorf("value cannot be empty")
-		}
-		if !isValidName(s) {
-			return fmt.Errorf("invalid value %q (must be lowercase letters, digits, and underscores)", s)
-		}
-		return nil
-	}
-
 	// Step 1: namespace (retry on empty or invalid)
 	namespace, err := commands.PromptString(io, "Address or namespace", "", validateName)
 	if err != nil {
@@ -423,6 +434,16 @@ var reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
 
 func isValidName(s string) bool {
 	return reValidName.MatchString(s)
+}
+
+func validateName(s string) error {
+	if s == "" {
+		return fmt.Errorf("value cannot be empty")
+	}
+	if !isValidName(s) {
+		return fmt.Errorf("invalid value %q (must be lowercase letters, digits, and underscores)", s)
+	}
+	return nil
 }
 
 // normalizeModulePath expands short-form module paths to their fully-qualified

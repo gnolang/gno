@@ -1,0 +1,14 @@
+// Run with:
+//   gnokey maketx run \
+//     --gas-fee 1gnot \
+//     --gas-wanted 10000 \
+//     --broadcast \
+//     -chainid "dev" -remote "tcp://127.0.0.1:26657" \
+//     <keyname> \
+//     ./{{.ScriptName}}.gno
+
+package main
+
+func main() {
+	println("Hello, Gno!")
+}

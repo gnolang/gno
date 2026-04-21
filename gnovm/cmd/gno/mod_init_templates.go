@@ -43,7 +43,8 @@ var runTemplatesFS embed.FS
 
 // templateData holds the data passed to template files.
 type templateData struct {
-	PkgName string // Package name, derived from the last segment of the module path
+	PkgName    string // Package name, derived from the last segment of the module path
+	ScriptName string // Run script filename (without .gno), e.g. "create_proposal"
 }
 
 // initTemplate describes a single scaffold template directory.

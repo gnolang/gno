@@ -444,12 +444,14 @@ func TestRenderTemplateDir(t *testing.T) {
 	})
 
 	t.Run("run", func(t *testing.T) {
+		data := templateData{PkgName: "main", ScriptName: "create_proposal"}
 		files, err := renderTemplateDir(runTemplatesFS, "templates/run/basic", data)
 		require.NoError(t, err)
-		src, ok := files["main.gno"]
-		require.True(t, ok, "expected main.gno in output")
+		src, ok := files["create_proposal.gno"]
+		require.True(t, ok, "expected create_proposal.gno in output")
 		require.Contains(t, string(src), "package main")
 		require.Contains(t, string(src), "func main()")
+		require.Contains(t, string(src), "./create_proposal.gno")
 	})
 }
 
