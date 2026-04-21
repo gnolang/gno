@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -105,7 +106,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -169,6 +170,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
+			if abort {
+				return
+			}
+
+			// Session message restrictions (gno.land layer). Only
+			// overwrite res when the check aborts — on success,
+			// preserve the ante's res (which carries GasWanted from
+			// tx.Fee). checkSessionRestrictions returns sdk.Result{}
+			// on success, which would otherwise zero out GasWanted.
+			if sessRes, sessAbort := checkSessionRestrictions(newCtx, tx); sessAbort {
+				return newCtx, sessRes, true
+			}
 			return
 		},
 	)
@@ -603,4 +616,109 @@ func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error)
 	}
 
 	return updates, nil
+}
+
+// checkSessionRestrictions enforces gno.land session key restrictions:
+// sessions can only send msg types in the allowlist below, and if
+// AllowPaths is set, the target path must match one of the allowed
+// prefixes (which blocks path-less msgs in that mode — see below).
+func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
+	sa := ctx.Value(std.SessionAccountsContextKey{})
+	if sa == nil {
+		return sdk.Result{}, false
+	}
+	sessions := sa.(map[crypto.Address]std.DelegatedAccount)
+	for _, msg := range tx.GetMsgs() {
+		for _, signer := range msg.GetSigners() {
+			_, ok := sessions[signer]
+			if !ok {
+				continue
+			}
+			// Allowlist of msg types a session key may send.
+			// Allowed:
+			//   - "exec" (MsgCall)       — coin moves via bank.SendCoins
+			//   - "run"  (MsgRun)        — coin moves via bank.SendCoins
+			//   - "send" (bank.MsgSend)  — coin moves via bank.SendCoins
+			//   - "multisend" (bank.MsgMultiSend) — coin moves via
+			//     bank.InputOutputCoins
+			//
+			// Session spend for all of these is enforced inside the tm2
+			// bank keeper: SendCoins calls auth.CheckAndDeductSessionSpend
+			// after its canSendCoins check, and InputOutputCoins does the
+			// same per input. Storage deposits (via lockStorageDeposit)
+			// also call CheckAndDeductSessionSpend before their
+			// SendCoinsUnrestricted transfer. So SpendLimit is
+			// authoritative across every tx-initiated outflow, including
+			// in-realm std.Send calls from gno code.
+			//
+			// Permanently blocked (design, not TODO):
+			//   - "add_package" — sessions must not claim realm paths
+			//     in master's namespace.
+			//   - "create_session" / "revoke_session" /
+			//     "revoke_all_sessions" — privilege escalation; a session
+			//     that can mint or revoke sessions is equivalent to the
+			//     master key.
+			//
+			// This check uses DelegatedAccount presence in the map, NOT
+			// a type assertion to *GnoSessionAccount, so it cannot be
+			// bypassed by a different session account type.
+			switch msg.Type() {
+			case "exec", "run", "send", "multisend":
+				// allowed
+			default:
+				return sdk.ABCIResultFromError(
+					std.ErrSessionNotAllowed(fmt.Sprintf(
+						"msg type %q not allowed for session key (allowed: exec, run, send, multisend)",
+						msg.Type()))), true
+			}
+			// AllowPaths check — only applies to GnoSessionAccount.
+			// Other DelegatedAccount types have no path restrictions
+			// (but are still restricted to the allowlist above).
+			//
+			// Note: MsgRun, MsgSend, and MsgMultiSend do not implement
+			// pkgPather, so when AllowPaths is non-empty,
+			// pathAllowedForSession returns false and they are blocked.
+			// This is intentional: a session with AllowPaths set is
+			// realm-scoped; path-less msgs (arbitrary code execution,
+			// direct value transfers) would escape that scope.
+			type pathRestricted interface{ GetAllowPaths() []string }
+			if pr, ok := sessions[signer].(pathRestricted); ok {
+				if paths := pr.GetAllowPaths(); len(paths) > 0 && !pathAllowedForSession(paths, msg) {
+					type pkgPather interface{ GetPkgPath() string }
+					attemptedPath := ""
+					if pp, ok := msg.(pkgPather); ok {
+						attemptedPath = pp.GetPkgPath()
+					}
+					if attemptedPath == "" {
+						// Path-less msg (MsgRun / MsgSend / MsgMultiSend).
+						return sdk.ABCIResultFromError(
+							std.ErrSessionNotAllowed(fmt.Sprintf(
+								"msg type %q has no realm path but session has AllowPaths set (%v); path-less msgs are blocked for realm-scoped sessions",
+								msg.Type(), paths))), true
+					}
+					return sdk.ABCIResultFromError(
+						std.ErrSessionNotAllowed(fmt.Sprintf(
+							"path %q not in session AllowPaths %v", attemptedPath, paths))), true
+				}
+			}
+		}
+	}
+	return sdk.Result{}, false
+}
+
+// pathAllowedForSession checks if a message's target path is allowed
+// by the session's AllowPaths.
+func pathAllowedForSession(allowPaths []string, msg std.Msg) bool {
+	type pkgPather interface{ GetPkgPath() string }
+	pp, ok := msg.(pkgPather)
+	if !ok {
+		return false
+	}
+	path := pp.GetPkgPath()
+	for _, prefix := range allowPaths {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
