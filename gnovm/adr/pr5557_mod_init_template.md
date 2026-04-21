@@ -1,4 +1,4 @@
-# PRxxxx: Interactive `gno init` with Template Scaffolding
+# PR5557: Interactive `gno init` with Template Scaffolding
 
 ## Context
 
@@ -57,10 +57,21 @@ When stdin is not a TTY (CI, piped input) or `--bare` is passed, behavior is
 identical to the original `gno mod init`: only `gnomod.toml` is created, module
 path must be provided as argument. This preserves backward compatibility.
 
+### Shared prompt primitives in `tm2/pkg/commands/`
+
+Interactive prompts (string input, single-key choice, numbered select, confirm)
+are extracted into `tm2/pkg/commands/prompt.go` as reusable primitives. This
+allows other CLI tools (e.g. `gnokey maketx`) to build their own interactive
+wizards without duplicating prompt logic or adding external dependencies.
+
+Key functions: `IsInteractive()`, `PromptString()`, `PromptChoice()`,
+`PromptSelect()`, `PromptConfirm()`, and the `ErrGoBack` sentinel for
+wizard go-back navigation.
+
 ### TTY detection
 
-Uses `golang.org/x/term.IsTerminal()` on `os.Stdin.Fd()`. Already a dependency
-via `tm2/pkg/commands/utils.go`.
+Uses `commands.IsInteractive()`, which wraps `golang.org/x/term.IsTerminal()`
+on `os.Stdin.Fd()`. Already a dependency via `tm2/pkg/commands/utils.go`.
 
 ### Template files are embedded, not hardcoded
 
@@ -99,11 +110,20 @@ existing examples don't include READMEs, and a placeholder README adds noise.
    interactive prompt for all three kinds, which is more consistent and extensible.
 5. **Prompt for "include tests?"** — Rejected for v1. Tests should always be
    encouraged. Can be added later if users request it.
+6. **External TUI library (Bubble Tea, huh, survey)** — Rejected. Every mature
+   Go prompt library pulls in the Charm stack (~15 transitive deps). The
+   `commands` package already has `GetString`/`GetPassword`/`GetConfirmation`
+   and `golang.org/x/term`; building on those keeps the dependency footprint
+   at zero new imports. The shared primitives in `prompt.go` are ~180 lines
+   of code, fully testable via `commands.IO`, and sufficient for sequential
+   wizard flows.
 
 ## Key Files
 
 | File | Role |
 |------|------|
+| `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `PromptConfirm`, `IsInteractive`, `ErrGoBack`) |
+| `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
 | `gnovm/cmd/gno/mod.go` | `newInitCmd`, `execModInit`, `execInitRun`, `promptModuleKind`, `selectTemplate`, `insertPathLetter` |
 | `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplate` |
@@ -118,3 +138,6 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 - The `--bare` flag provides an explicit escape hatch.
 - Template content is minimal and opinionated — may need iteration based on feedback.
 - Adding new templates (e.g. dao, grc20) only requires `.tmpl` files + one registry entry.
+- The shared prompt primitives in `tm2/pkg/commands/prompt.go` can be reused by
+  other CLI wizards (e.g. an interactive `gnokey maketx` flow) without code
+  duplication or new dependencies.
