@@ -45,6 +45,7 @@ var runTemplatesFS embed.FS
 type templateData struct {
 	PkgName    string // Package name, derived from the last segment of the module path
 	ScriptName string // Run script filename (without .gno), e.g. "create_proposal"
+	ScriptPath string // Run script path from project root, e.g. "run/create_proposal.gno"
 }
 
 // initTemplate describes a single scaffold template directory.

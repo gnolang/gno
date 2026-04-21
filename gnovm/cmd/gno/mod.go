@@ -322,7 +322,7 @@ func execInitRunScript(rootDir, gnoPath string, tmpl initTemplate, io commands.I
 	}
 
 	scriptName := strings.TrimSuffix(filepath.Base(gnoPath), ".gno")
-	data := templateData{PkgName: "main", ScriptName: scriptName}
+	data := templateData{PkgName: "main", ScriptName: scriptName, ScriptPath: gnoPath}
 
 	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
@@ -367,7 +367,7 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 		return err
 	}
 
-	data := templateData{PkgName: "main", ScriptName: scriptName}
+	data := templateData{PkgName: "main", ScriptName: scriptName, ScriptPath: "run/" + scriptName + ".gno"}
 	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
 		return fmt.Errorf("render run template: %w", err)

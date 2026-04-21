@@ -444,14 +444,14 @@ func TestRenderTemplateDir(t *testing.T) {
 	})
 
 	t.Run("run", func(t *testing.T) {
-		data := templateData{PkgName: "main", ScriptName: "create_proposal"}
+		data := templateData{PkgName: "main", ScriptName: "create_proposal", ScriptPath: "run/create_proposal.gno"}
 		files, err := renderTemplateDir(runTemplatesFS, "templates/run/basic", data)
 		require.NoError(t, err)
 		src, ok := files["create_proposal.gno"]
 		require.True(t, ok, "expected create_proposal.gno in output")
 		require.Contains(t, string(src), "package main")
 		require.Contains(t, string(src), "func main()")
-		require.Contains(t, string(src), "./create_proposal.gno")
+		require.Contains(t, string(src), "./run/create_proposal.gno")
 	})
 }
 
@@ -572,7 +572,7 @@ func TestModInitGnoFile(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join(tmpDir, "run", "create_proposal.gno"))
 	require.NoError(t, err)
 	require.Contains(t, string(content), "package main")
-	require.Contains(t, string(content), "./create_proposal.gno")
+	require.Contains(t, string(content), "./run/create_proposal.gno")
 
 	// No gnomod.toml for run scripts
 	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
