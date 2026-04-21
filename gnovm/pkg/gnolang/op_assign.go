@@ -100,6 +100,7 @@ func (m *Machine) doOpQuoAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
+	m.incrCPUBigIntQuad(lv.TV, rv, OpCPUSlopeBigIntQuoQ)
 	m.incrCPUBigDecQuad(lv.TV, rv, OpCPUSlopeBigDecQuoQ)
 
 	// lv /= rv

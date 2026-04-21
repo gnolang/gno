@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/store"
 
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -129,6 +130,10 @@ func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 		m.commitGnoTransactionStoreFn(ctx)
 	}
 }
+
+func (m *mockVMKeeper) PopulateStdlibCache() {}
+
+func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
