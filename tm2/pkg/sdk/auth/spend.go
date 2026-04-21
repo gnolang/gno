@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"fmt"
+
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -17,7 +19,8 @@ func DeductSessionSpend(da std.DelegatedAccount, amount std.Coins, blockTime int
 
 	// No spend limit set — no spending allowed.
 	if len(da.GetSpendLimit()) == 0 {
-		return std.ErrSessionNotAllowed("session has no spend limit")
+		return std.ErrSessionNotAllowed(fmt.Sprintf(
+			"session has no spend limit (attempted %s)", amount))
 	}
 
 	// Reset period if expired.
@@ -29,7 +32,9 @@ func DeductSessionSpend(da std.DelegatedAccount, amount std.Coins, blockTime int
 	// Check limit.
 	newUsed := da.GetSpendUsed().Add(amount)
 	if !da.GetSpendLimit().IsAllGTE(newUsed) {
-		return std.ErrSessionNotAllowed("session spend limit exceeded")
+		return std.ErrSessionNotAllowed(fmt.Sprintf(
+			"session spend limit exceeded: attempted=%s, used=%s, limit=%s",
+			amount, da.GetSpendUsed(), da.GetSpendLimit()))
 	}
 
 	// Deduct in memory.
@@ -52,7 +57,8 @@ func CheckSessionSpend(da std.DelegatedAccount, amount std.Coins, blockTime int6
 		return nil
 	}
 	if len(da.GetSpendLimit()) == 0 {
-		return std.ErrSessionNotAllowed("session has no spend limit")
+		return std.ErrSessionNotAllowed(fmt.Sprintf(
+			"session has no spend limit (attempted %s)", amount))
 	}
 
 	// Compute the effective SpendUsed after any pending period reset.
@@ -64,7 +70,9 @@ func CheckSessionSpend(da std.DelegatedAccount, amount std.Coins, blockTime int6
 
 	newUsed := spendUsed.Add(amount)
 	if !da.GetSpendLimit().IsAllGTE(newUsed) {
-		return std.ErrSessionNotAllowed("session spend limit would be exceeded")
+		return std.ErrSessionNotAllowed(fmt.Sprintf(
+			"session spend limit would be exceeded: attempted=%s, used=%s, limit=%s",
+			amount, spendUsed, da.GetSpendLimit()))
 	}
 	return nil
 }

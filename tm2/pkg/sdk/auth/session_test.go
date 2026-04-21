@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -1516,4 +1517,107 @@ func TestSessionAntePreCheckMsgCallSend(t *testing.T) {
 
 	// 150 + 300 = 450 > 200 → reject.
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.SessionNotAllowedError{})
+}
+
+// ------------------------------------------------------------------------
+// Enriched error message tests — verify that spend-related errors include
+// attempted/used/limit context so users and operators can diagnose quickly.
+// ------------------------------------------------------------------------
+
+func TestDeductSessionSpendErrorIncludesContext(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 100)})
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+
+	// Prime with some usage.
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 60)}, env.ctx.BlockTime().Unix()))
+
+	// Attempt that would exceed: 60 + 50 = 110 > 100.
+	err := DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 50)}, env.ctx.BlockTime().Unix())
+	require.Error(t, err)
+
+	msg := err.Error()
+	// The error is the wrapped abci error; its .Error() returns the generic
+	// type string. Inspect the wrapped message traces for the context.
+	// The Msg Trace from errors.Wrap includes the full context string.
+	// Fall back to checking the abci-wrapped error structure below.
+	_ = msg
+
+	// The context-rich message is embedded in the error's format output.
+	// Use %+v to surface the wrapped message.
+	fullErrText := fmt.Sprintf("%+v", err)
+	assert.Contains(t, fullErrText, "attempted=")
+	assert.Contains(t, fullErrText, "used=")
+	assert.Contains(t, fullErrText, "limit=")
+	assert.Contains(t, fullErrText, "50atom", "attempted amount should appear")
+	assert.Contains(t, fullErrText, "60atom", "used amount should appear")
+	assert.Contains(t, fullErrText, "100atom", "limit should appear")
+}
+
+func TestDeductSessionSpendNoLimitErrorIncludesAmount(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	// No SpendLimit set.
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+
+	err := DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 42)}, env.ctx.BlockTime().Unix())
+	require.Error(t, err)
+	fullErrText := fmt.Sprintf("%+v", err)
+	assert.Contains(t, fullErrText, "no spend limit")
+	assert.Contains(t, fullErrText, "42atom", "attempted amount should appear in error")
+}
+
+func TestCheckSessionSpendErrorIncludesContext(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 100)})
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 30)}, env.ctx.BlockTime().Unix()))
+
+	err := CheckSessionSpend(da, std.Coins{std.NewCoin("atom", 80)}, env.ctx.BlockTime().Unix())
+	require.Error(t, err, "30 + 80 > 100 should reject")
+	fullErrText := fmt.Sprintf("%+v", err)
+	assert.Contains(t, fullErrText, "would be exceeded")
+	assert.Contains(t, fullErrText, "80atom", "attempted amount should appear")
+	assert.Contains(t, fullErrText, "30atom", "used amount should appear")
+	assert.Contains(t, fullErrText, "100atom", "limit should appear")
+}
+
+func TestSessionExpiredErrorIncludesTimestamps(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	// Session that expires 1 second ago.
+	expiresAt := ctx.BlockTime().Unix() - 1
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(expiresAt)
+	da.SetSpendLimit(sessionSpendLimit())
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(env.ctx, masterAddr, sa)
+
+	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sa.GetAccountNumber(), 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.True(t, abort)
+	assert.Contains(t, res.Log, "expires_at=", "expiry error should include expires_at")
+	assert.Contains(t, res.Log, "block_time=", "expiry error should include block_time")
 }

@@ -139,7 +139,7 @@ func TestSessionAllowPathsDenied(t *testing.T) {
 
 	_, res, abort := anteHandler(ctx, tx, false)
 	require.True(t, abort, "should reject disallowed path")
-	assert.Contains(t, res.Log, "not allowed")
+	assert.Contains(t, res.Log, "AllowPaths")
 }
 
 func TestSessionAllowPathsPrefixAttack(t *testing.T) {
@@ -161,7 +161,7 @@ func TestSessionAllowPathsPrefixAttack(t *testing.T) {
 
 	_, res, abort := anteHandler(ctx, tx, false)
 	require.True(t, abort, "should reject prefix attack path")
-	assert.Contains(t, res.Log, "not allowed")
+	assert.Contains(t, res.Log, "AllowPaths")
 }
 
 func TestSessionAllowPathsUnrestricted(t *testing.T) {
@@ -218,7 +218,7 @@ func TestSessionAllowPathsMultipleEntries(t *testing.T) {
 		tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 2, fee)
 		_, res, abort := anteHandler(ctx, tx, false)
 		require.True(t, abort, "should reject disallowed path")
-		assert.Contains(t, res.Log, "not allowed")
+		assert.Contains(t, res.Log, "AllowPaths")
 	})
 }
 
@@ -262,7 +262,7 @@ func TestSessionDeniesMsgRunWithAllowPaths(t *testing.T) {
 
 	_, res, abort := anteHandler(ctx, tx, false)
 	require.True(t, abort, "session with AllowPaths set should reject MsgRun")
-	assert.Contains(t, res.Log, "not allowed")
+	assert.Contains(t, res.Log, "AllowPaths")
 }
 
 // TestSessionAllowsMsgSend confirms bank.MsgSend passes the session
@@ -338,7 +338,7 @@ func TestSessionDeniesMsgSendWithAllowPaths(t *testing.T) {
 
 	_, res, abort := anteHandler(ctx, tx, false)
 	require.True(t, abort, "session with AllowPaths set should reject MsgSend")
-	assert.Contains(t, res.Log, "not allowed")
+	assert.Contains(t, res.Log, "AllowPaths")
 }
 
 // TestSessionCreateRejectsFromSession confirms that a session-signed

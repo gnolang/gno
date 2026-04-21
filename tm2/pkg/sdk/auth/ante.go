@@ -130,7 +130,9 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				}
 				da := sa.(std.DelegatedAccount)
 				if da.GetExpiresAt() > 0 && newCtx.BlockTime().Unix() >= da.GetExpiresAt() {
-					return newCtx, abciResult(std.ErrSessionExpired("session expired")), true
+					return newCtx, abciResult(std.ErrSessionExpired(fmt.Sprintf(
+						"session expired: expires_at=%d, block_time=%d",
+						da.GetExpiresAt(), newCtx.BlockTime().Unix()))), true
 				}
 				sessionAccounts[signerAddr] = da
 			}

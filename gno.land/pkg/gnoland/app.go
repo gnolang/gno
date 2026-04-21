@@ -648,7 +648,9 @@ func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 				// allowed
 			default:
 				return sdk.ABCIResultFromError(
-					std.ErrSessionNotAllowed("msg type not allowed for session key")), true
+					std.ErrSessionNotAllowed(fmt.Sprintf(
+						"msg type %q not allowed for session key (allowed: exec, run, send, multisend)",
+						msg.Type()))), true
 			}
 			// AllowPaths check — only applies to GnoSessionAccount.
 			// Other DelegatedAccount types have no path restrictions
@@ -663,8 +665,21 @@ func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 			type pathRestricted interface{ GetAllowPaths() []string }
 			if pr, ok := sessions[signer].(pathRestricted); ok {
 				if paths := pr.GetAllowPaths(); len(paths) > 0 && !pathAllowedForSession(paths, msg) {
+					type pkgPather interface{ GetPkgPath() string }
+					attemptedPath := ""
+					if pp, ok := msg.(pkgPather); ok {
+						attemptedPath = pp.GetPkgPath()
+					}
+					if attemptedPath == "" {
+						// Path-less msg (MsgRun / MsgSend / MsgMultiSend).
+						return sdk.ABCIResultFromError(
+							std.ErrSessionNotAllowed(fmt.Sprintf(
+								"msg type %q has no realm path but session has AllowPaths set (%v); path-less msgs are blocked for realm-scoped sessions",
+								msg.Type(), paths))), true
+					}
 					return sdk.ABCIResultFromError(
-						std.ErrSessionNotAllowed("message path not allowed for this session")), true
+						std.ErrSessionNotAllowed(fmt.Sprintf(
+							"path %q not in session AllowPaths %v", attemptedPath, paths))), true
 				}
 			}
 		}

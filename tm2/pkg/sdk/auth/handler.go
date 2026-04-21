@@ -47,10 +47,14 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 	blockTime := ctx.BlockTime().Unix()
 	if msg.ExpiresAt != 0 {
 		if msg.ExpiresAt <= blockTime {
-			return abciResult(std.ErrUnauthorized("session already expired"))
+			return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+				"session already expired: expires_at=%d, block_time=%d",
+				msg.ExpiresAt, blockTime)))
 		}
 		if msg.ExpiresAt > blockTime+std.MaxSessionDuration {
-			return abciResult(std.ErrUnauthorized("session duration exceeds maximum"))
+			return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+				"session duration exceeds maximum: expires_at=%d, max=%d (block_time+%ds)",
+				msg.ExpiresAt, blockTime+std.MaxSessionDuration, std.MaxSessionDuration)))
 		}
 	}
 
@@ -71,22 +75,29 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 		return count >= std.MaxSessionsPerAccount
 	})
 	if count >= std.MaxSessionsPerAccount {
-		return abciResult(std.ErrSessionLimit("too many sessions"))
+		return abciResult(std.ErrSessionLimit(fmt.Sprintf(
+			"too many sessions: count=%d, max=%d", count, std.MaxSessionsPerAccount)))
 	}
 	// Check SpendPeriod max.
 	if msg.SpendPeriod > std.MaxSessionDuration {
-		return abciResult(std.ErrUnauthorized("spend_period exceeds maximum"))
+		return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+			"spend_period exceeds maximum: got=%d, max=%d",
+			msg.SpendPeriod, std.MaxSessionDuration)))
 	}
 	// Check AllowPaths count.
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
-		return abciResult(std.ErrUnauthorized("too many allow paths"))
+		return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+			"too many allow paths: count=%d, max=%d",
+			len(msg.AllowPaths), std.MaxAllowPathsPerSession)))
 	}
-	for _, path := range msg.AllowPaths {
+	for i, path := range msg.AllowPaths {
 		if path == "" {
-			return abciResult(std.ErrUnauthorized("empty allow_path entry"))
+			return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+				"empty allow_path entry at index %d", i)))
 		}
 		if strings.HasSuffix(path, "/") {
-			return abciResult(std.ErrUnauthorized("allow_path must not end with /"))
+			return abciResult(std.ErrUnauthorized(fmt.Sprintf(
+				"allow_path must not end with /: got %q at index %d", path, i)))
 		}
 	}
 
