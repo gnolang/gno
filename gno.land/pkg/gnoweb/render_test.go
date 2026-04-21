@@ -34,6 +34,40 @@ func newTestRenderer() *HTMLRenderer {
 	return NewHTMLRenderer(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), NewDefaultRenderConfig(), nil)
 }
 
+func TestHTMLRenderer_RenderDocumentation_FencedBlock(t *testing.T) {
+	t.Parallel()
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	err := r.RenderDocumentation(&buf, []byte("Intro.\n\n```go\nfmt.Println(\"hi\")\n```\n"))
+	require.NoError(t, err)
+	out := buf.String()
+	require.Contains(t, out, "Intro")
+	require.Contains(t, out, `<details class="doc-example">`)
+}
+
+func TestHTMLRenderer_RenderDocumentation_StripsRawHTML(t *testing.T) {
+	t.Parallel()
+	// Goldmark's default safe mode replaces raw HTML with an omitted-comment.
+	// Critical security assertion: the raw <script> tag must never reach the
+	// output. Relying on upstream safe mode rather than a custom extension
+	// keeps the attack surface minimal.
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	err := r.RenderDocumentation(&buf, []byte("<script>alert('xss')</script>"))
+	require.NoError(t, err)
+	out := buf.String()
+	require.NotContains(t, out, "<script>", "raw <script> tag must never survive")
+	require.NotContains(t, out, "alert('xss')", "script payload must not leak either")
+}
+
+func TestHTMLRenderer_RenderDocumentation_EmptyInput(t *testing.T) {
+	t.Parallel()
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	require.NoError(t, r.RenderDocumentation(&buf, nil))
+	require.Empty(t, buf.String())
+}
+
 func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	r := newTestRenderer()
 	w := &bytes.Buffer{}

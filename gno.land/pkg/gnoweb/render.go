@@ -19,10 +19,16 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-// Renderer defines the interface for rendering realms and source files.
+// Renderer defines the interface for rendering realms, source files, and
+// doc-context markdown (function/type/package documentation).
 type Renderer interface {
 	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+	// RenderDocumentation renders doc-context markdown (from vm/qdoc) to HTML.
+	// Fenced and indented code blocks are wrapped in collapsible <details>
+	// disclosures with Chroma highlighting. Safe on untrusted input — all
+	// output goes through Goldmark's HTML escaping.
+	RenderDocumentation(w io.Writer, src []byte) error
 }
 
 // RealmRenderContext holds context information for rendering realms
@@ -38,8 +44,9 @@ type HTMLRenderer struct {
 	cfg    *RenderConfig
 	client ClientAdapter
 
-	gm goldmark.Markdown
-	ch *chromahtml.Formatter
+	gm              goldmark.Markdown // realm context
+	documentationGM goldmark.Markdown // doc context
+	ch              *chromahtml.Formatter
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter) *HTMLRenderer {
@@ -48,12 +55,32 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
 		),
 	))
+
+	// Doc-context renderer: minimal extensions, plus our collapsible code
+	// block extension. Uses its own Chroma formatter so highlighting inside
+	// <details> matches realm highlighting without sharing mutable state.
+	// Raw HTML in doc strings is handled by Goldmark's default safe mode,
+	// which replaces untrusted markup with "<!-- raw HTML omitted -->".
+	// parser.WithAttribute() consumes the Pandoc-style {#id} suffix that
+	// gnovm/pkg/doc emits on headings (e.g. "### Foo {#hdr-Foo}"), turning
+	// it into an id attribute on the rendered <h3> instead of leaking the
+	// raw `{#hdr-Foo}` text into the heading content.
+	docFormatter := chromahtml.New(cfg.ChromaOptions...)
+	docOpts := []goldmark.Option{
+		goldmark.WithExtensions(
+			markdown.NewHighlighting(markdown.WithFormatOptions(cfg.ChromaOptions...)),
+			md.ExtCodeExpand(docFormatter, cfg.ChromaStyle),
+		),
+		goldmark.WithParserOptions(parser.WithAttribute()),
+	}
+
 	return &HTMLRenderer{
-		logger: logger,
-		cfg:    &cfg,
-		client: client,
-		gm:     goldmark.New(gmOpts...),
-		ch:     chromahtml.New(cfg.ChromaOptions...),
+		logger:          logger,
+		cfg:             &cfg,
+		client:          client,
+		gm:              goldmark.New(gmOpts...),
+		documentationGM: goldmark.New(docOpts...),
+		ch:              chromahtml.New(cfg.ChromaOptions...),
 	}
 }
 
@@ -112,6 +139,18 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 		return fmt.Errorf("unable to format source file %q: %w", name, err)
 	}
 
+	return nil
+}
+
+// RenderDocumentation writes the HTML representation of doc-context markdown
+// to w. It is safe on arbitrary input and escapes HTML by default.
+func (r *HTMLRenderer) RenderDocumentation(w io.Writer, src []byte) error {
+	if len(src) == 0 {
+		return nil
+	}
+	if err := r.documentationGM.Convert(src, w); err != nil {
+		return fmt.Errorf("render documentation: %w", err)
+	}
 	return nil
 }
 
