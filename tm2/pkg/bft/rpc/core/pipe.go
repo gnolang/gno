@@ -118,6 +118,18 @@ func SetLogger(l *slog.Logger) {
 	logger = l
 }
 
+// SetEventSwitch wires the event switch into rpc/core and (re)creates the
+// package-level txDispatcher bound to it.
+//
+// NOTE: rpc/core holds process-wide singletons (evsw, mempool, blockStore,
+// consensusState, gTxDispatcher, …). Running multiple nodes in the same
+// process — e.g. INMEMORY_TS integration tests, or in-process tests using
+// TestingInMemoryNode with t.Parallel — is not safe: whoever calls the Set*
+// functions last owns every global, so RPC handlers like BroadcastTxCommit
+// can route through another node's state. Subprocess-isolated test modes
+// (commandKindTesting, the default in CI) sidestep this. A proper fix
+// requires threading per-node state through the RPC handlers; until then,
+// treat rpc/core as single-node-per-process.
 func SetEventSwitch(sw events.EventSwitch) {
 	// A previous node in this process may have left a running dispatcher
 	// behind; stop it before replacing it to avoid leaking its goroutine.
