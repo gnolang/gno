@@ -149,12 +149,12 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		if len(args) == 0 {
 			return fmt.Errorf("module path is required (non-interactive mode)")
 		}
-		return writeGnomod(rootDir, args[0])
+		return writeGnomod(rootDir, normalizeModulePath(args[0]))
 	}
 
 	// Interactive with argument: create gnomod.toml + auto-select first template
 	if len(args) == 1 {
-		modPath := args[0]
+		modPath := normalizeModulePath(args[0])
 		if err := writeGnomod(rootDir, modPath); err != nil {
 			return err
 		}
@@ -460,6 +460,31 @@ var reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
 
 func isValidName(s string) bool {
 	return reValidName.MatchString(s)
+}
+
+// normalizeModulePath expands short-form module paths to their fully-qualified
+// gno.land equivalents. For example:
+//   - "p/nt/hello"  -> "gno.land/p/nt/hello"
+//   - "r/demo/foo"  -> "gno.land/r/demo/foo"
+//   - "gno.land/p/nt/hello" -> unchanged
+//
+// Paths that don't start with "p/" or "r/" and don't contain "." in the first
+// segment (i.e. no domain) are returned unchanged so the validator can report
+// a clear error.
+func normalizeModulePath(modPath string) string {
+	if modPath == "" {
+		return modPath
+	}
+	// Already has a domain (contains a dot in the first segment).
+	first, _, _ := strings.Cut(modPath, "/")
+	if strings.Contains(first, ".") {
+		return modPath
+	}
+	// Short form: "p/..." or "r/..." — prepend gno.land.
+	if first == "p" || first == "r" {
+		return "gno.land/" + modPath
+	}
+	return modPath
 }
 
 func sanitizeModuleName(name string) string {

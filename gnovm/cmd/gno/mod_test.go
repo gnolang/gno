@@ -552,3 +552,20 @@ func TestSanitizeModuleName(t *testing.T) {
 	require.Equal(t, "has_123", sanitizeModuleName("has-123"))
 	require.Equal(t, "nodots", sanitizeModuleName("no.dots"))
 }
+
+func TestNormalizeModulePath(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"p/nt/hello", "gno.land/p/nt/hello"},
+		{"r/demo/foo", "gno.land/r/demo/foo"},
+		{"gno.land/p/nt/hello", "gno.land/p/nt/hello"},
+		{"gno.land/r/demo/foo", "gno.land/r/demo/foo"},
+		{"example.com/x/y", "example.com/x/y"},
+		{"nt/hello", "nt/hello"}, // no p/ or r/ prefix, left as-is
+		{"", ""},
+	}
+	for _, tt := range tests {
+		require.Equal(t, tt.want, normalizeModulePath(tt.in), "input: %q", tt.in)
+	}
+}
