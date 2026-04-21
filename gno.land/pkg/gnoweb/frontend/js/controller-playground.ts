@@ -161,8 +161,7 @@ export default function PlaygroundController(element: HTMLElement): void {
 			e.preventDefault();
 			const start = codeEl.selectionStart;
 			const end = codeEl.selectionEnd;
-			codeEl.value =
-				codeEl.value.substring(0, start) + "\t" + codeEl.value.substring(end);
+			codeEl.value = `${codeEl.value.substring(0, start)}\t${codeEl.value.substring(end)}`;
 			codeEl.selectionStart = codeEl.selectionEnd = start + 1;
 		}
 	});

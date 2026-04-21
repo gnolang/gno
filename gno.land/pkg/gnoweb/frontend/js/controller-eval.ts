@@ -29,7 +29,7 @@ export default function EvalController(element: HTMLElement): void {
 		resultEl.classList.remove("u-color-danger");
 
 		try {
-			const relPath = pkgPath.startsWith(domain + "/")
+			const relPath = pkgPath.startsWith(`${domain}/`)
 				? pkgPath.slice(domain.length + 1)
 				: pkgPath;
 
@@ -39,7 +39,8 @@ export default function EvalController(element: HTMLElement): void {
 				body: JSON.stringify({ pkg_path: relPath, expression }),
 			});
 
-			if (response.status === 429) throw new Error("rate limit exceeded — please wait a moment");
+			if (response.status === 429)
+				throw new Error("rate limit exceeded — please wait a moment");
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const json = await response.json();
 
@@ -73,7 +74,9 @@ export default function EvalController(element: HTMLElement): void {
 		if (!historyListEl) return;
 
 		// Reveal the history section on first entry.
-		const historySection = historyListEl.closest("[data-eval-target='history']") as HTMLElement;
+		const historySection = historyListEl.closest(
+			"[data-eval-target='history']",
+		) as HTMLElement;
 		if (historySection) historySection.removeAttribute("hidden");
 
 		const entry = document.createElement("div");
@@ -100,7 +103,7 @@ export default function EvalController(element: HTMLElement): void {
 		const resultPre = document.createElement("pre");
 		resultPre.className = `b-eval-history-result${isError ? " u-color-danger" : ""}`;
 		resultPre.textContent =
-			result.length > 200 ? result.substring(0, 200) + "..." : result;
+			result.length > 200 ? `${result.substring(0, 200)}...` : result;
 
 		entry.appendChild(exprDiv);
 		entry.appendChild(resultPre);

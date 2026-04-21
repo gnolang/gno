@@ -1,12 +1,26 @@
 // Run (maketx run) controller — pre-fills editor with import template, generates gnokey commands
 export default function RunController(element: HTMLElement): void {
-	const codeEl = element.querySelector('[data-run-target="code"]') as HTMLTextAreaElement;
-	const keyEl = element.querySelector('[data-run-target="key"]') as HTMLInputElement;
-	const gasWantedEl = element.querySelector('[data-run-target="gasWanted"]') as HTMLInputElement;
-	const gasFeeEl = element.querySelector('[data-run-target="gasFee"]') as HTMLInputElement;
-	const sendEl = element.querySelector('[data-run-target="send"]') as HTMLInputElement;
-	const dryRunCmdEl = element.querySelector('[data-run-target="dryRunCmd"]') as HTMLElement;
-	const executeCmdEl = element.querySelector('[data-run-target="executeCmd"]') as HTMLElement;
+	const codeEl = element.querySelector(
+		'[data-run-target="code"]',
+	) as HTMLTextAreaElement;
+	const keyEl = element.querySelector(
+		'[data-run-target="key"]',
+	) as HTMLInputElement;
+	const gasWantedEl = element.querySelector(
+		'[data-run-target="gasWanted"]',
+	) as HTMLInputElement;
+	const gasFeeEl = element.querySelector(
+		'[data-run-target="gasFee"]',
+	) as HTMLInputElement;
+	const sendEl = element.querySelector(
+		'[data-run-target="send"]',
+	) as HTMLInputElement;
+	const dryRunCmdEl = element.querySelector(
+		'[data-run-target="dryRunCmd"]',
+	) as HTMLElement;
+	const executeCmdEl = element.querySelector(
+		'[data-run-target="executeCmd"]',
+	) as HTMLElement;
 
 	if (!codeEl || !dryRunCmdEl || !executeCmdEl) return;
 
@@ -24,7 +38,7 @@ export default function RunController(element: HTMLElement): void {
 			e.preventDefault();
 			const start = codeEl.selectionStart;
 			const end = codeEl.selectionEnd;
-			codeEl.value = codeEl.value.substring(0, start) + "\t" + codeEl.value.substring(end);
+			codeEl.value = `${codeEl.value.substring(0, start)}\t${codeEl.value.substring(end)}`;
 			codeEl.selectionStart = codeEl.selectionEnd = start + 1;
 		}
 	});
@@ -116,23 +130,28 @@ func main() {
 	});
 
 	function copyToClipboard(text: string, btn: HTMLElement): void {
-		navigator.clipboard.writeText(text).then(() => {
-			const span = btn.querySelector("span");
-			if (!span) return;
-			const orig = span.textContent;
-			span.textContent = "Copied!";
-			setTimeout(() => { span.textContent = orig; }, 1500);
-		}).catch(() => {
-			// fallback: select the pre element content
-			const pre = btn.closest(".b-run-command-block")?.querySelector("pre");
-			if (pre) {
-				const sel = window.getSelection();
-				const range = document.createRange();
-				range.selectNodeContents(pre);
-				sel?.removeAllRanges();
-				sel?.addRange(range);
-			}
-		});
+		navigator.clipboard
+			.writeText(text)
+			.then(() => {
+				const span = btn.querySelector("span");
+				if (!span) return;
+				const orig = span.textContent;
+				span.textContent = "Copied!";
+				setTimeout(() => {
+					span.textContent = orig;
+				}, 1500);
+			})
+			.catch(() => {
+				// fallback: select the pre element content
+				const pre = btn.closest(".b-run-command-block")?.querySelector("pre");
+				if (pre) {
+					const sel = window.getSelection();
+					const range = document.createRange();
+					range.selectNodeContents(pre);
+					sel?.removeAllRanges();
+					sel?.addRange(range);
+				}
+			});
 	}
 
 	updateCommands();
