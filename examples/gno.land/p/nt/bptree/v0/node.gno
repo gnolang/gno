@@ -22,8 +22,8 @@ func newLeafNode(fanout int) *leafNode {
 	}
 }
 
-func (n *leafNode) isLeaf() bool  { return true }
-func (n *leafNode) nodeSize() int { return len(n.keys) }
+func (n *leafNode) isLeaf() bool   { return true }
+func (n *leafNode) nodeSize() int  { return len(n.keys) }
 func (n *leafNode) minKey() string { return n.keys[0] }
 
 // find returns the index where key is or would be inserted,

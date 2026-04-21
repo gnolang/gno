@@ -39,7 +39,6 @@ func NewBPTree32() *BPTree {
 	return NewBPTreeN(32)
 }
 
-
 func (t *BPTree) Size() int {
 	return t.size
 }
