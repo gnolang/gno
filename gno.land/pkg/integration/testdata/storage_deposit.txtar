@@ -10,14 +10,14 @@ gnoland start
 #   qstorage "storage/deposit" echoes the on-chain values
 #   TOTAL TX COST == gas-fee +/- STORAGE FEE/REFUND
 gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/foo -gas-fee 380001ugnot -gas-wanted 3_800_000 -max-deposit 900000ugnot -broadcast -chainid=tendermint_test test1
-stdout 'EVENTS:     \[{\"bytes_delta\":5009,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":500900},\"pkg_path\":\"gno.land/r/foo\"}\]'
-stdout 'STORAGE DELTA:  5009 bytes'
-stdout 'STORAGE FEE:    500900ugnot'
-stdout 'TOTAL TX COST:  880901ugnot'
+stdout 'EVENTS:     \[{\"bytes_delta\":4930,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":493000},\"pkg_path\":\"gno.land/r/foo\"}\]'
+stdout 'STORAGE DELTA:  4930 bytes'
+stdout 'STORAGE FEE:    493000ugnot'
+stdout 'TOTAL TX COST:  873001ugnot'
 
 gnokey query vm/qstorage --data gno.land/r/foo
 
-stdout 'storage: 5009, deposit: 500900'
+stdout 'storage: 4930, deposit: 493000'
 
 ## Set an object with a smaller size. Exactly 2 bytes are released when we update the realm record from 'hello' to 'foo'.
 gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo"  -gas-fee 260001ugnot -gas-wanted 2_600_000  -broadcast -chainid=tendermint_test test1
@@ -28,7 +28,7 @@ stdout 'STORAGE REFUND: 200ugnot'
 stdout 'TOTAL TX COST:  259801ugnot'
 
 gnokey query vm/qstorage --data gno.land/r/foo
-stdout 'storage: 5007, deposit: 500700'
+stdout 'storage: 4928, deposit: 492800'
 
 
 ## remove an object
@@ -41,22 +41,22 @@ stdout 'storage: 5007, deposit: 500700'
  stdout 'TOTAL TX COST:  257301ugnot'
 
  gnokey query vm/qstorage --data gno.land/r/foo
- stdout 'storage: 4980, deposit: 498000'
+ stdout 'storage: 4901, deposit: 490100'
 
 
  gnokey query auth/accounts/$test1_user_addr
- stdout '"coins": "9999998601997ugnot"'
+ stdout '"coins": "9999998609897ugnot"'
 
 ## test storage deposit for package gno.land/p/foo
 gnokey maketx addpkg -pkgdir $WORK/package -pkgpath gno.land/p/foo -gas-fee 370001ugnot -gas-wanted 3_700_000 -max-deposit 500000ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'EVENTS:     \[{\"bytes_delta\":3019,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":301900},\"pkg_path\":\"gno.land/p/foo\"}\]'
-stdout 'STORAGE DELTA:  3019 bytes'
-stdout 'STORAGE FEE:    301900ugnot'
-stdout 'TOTAL TX COST:  671901ugnot'
+stdout 'EVENTS:     \[{\"bytes_delta\":2940,\"fee_delta\":{\"denom\":\"ugnot\",\"amount\":294000},\"pkg_path\":\"gno.land/p/foo\"}\]'
+stdout 'STORAGE DELTA:  2940 bytes'
+stdout 'STORAGE FEE:    294000ugnot'
+stdout 'TOTAL TX COST:  664001ugnot'
 
 gnokey query vm/qstorage --data gno.land/p/foo
-stdout 'storage: 3019, deposit: 301900'
+stdout 'storage: 2940, deposit: 294000'
 
 -- realm/gnomod.toml --
 module = "gno.land/r/foo"

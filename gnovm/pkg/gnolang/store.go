@@ -831,13 +831,12 @@ func (ds *defaultStore) SetType(tt Type) {
 		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
 	}
 	tid := tt.TypeID()
-	// return if tid already known.
-	if tt2, exists := ds.cacheTypes[tid]; exists {
-		if tt != tt2 {
-			// this can happen for a variety of reasons.
-			// TODO classify them and optimize.
-			return
-		}
+	// Idempotent: if this TypeID is already known in-cache, do nothing.
+	// The cache is populated either by a previous SetType (which also
+	// persisted to backend) or by loading from backend on GetType — either
+	// way the backend already has the canonical entry.
+	if _, exists := ds.cacheTypes[tid]; exists {
+		return
 	}
 	// save type to backend.
 	if ds.baseStore != nil {

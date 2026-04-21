@@ -1275,6 +1275,18 @@ func refOrCopyType(typ Type) Type {
 	}
 }
 
+// PersistedTypeFormForTypeValue returns the shape a Type takes when it is
+// about to be persisted at a TypeValue position within a block — i.e. the
+// same pipeline used by copyValueWithRefs's TypeValue case. Exposed so
+// filetests (e.g. the "// Types:" directive) can render the on-the-wire
+// form instead of the post-fillType canonical form.
+//
+// Not intended for production callers: this is test-infrastructure only.
+// The persistence pipeline itself calls refOrCopyType directly.
+func PersistedTypeFormForTypeValue(typ Type) Type {
+	return refOrCopyType(typ)
+}
+
 func copyFieldsWithRefs(fields []FieldType) []FieldType {
 	fieldsCpy := make([]FieldType, len(fields))
 	for i, field := range fields {
@@ -1337,10 +1349,12 @@ func copyTypeWithRefs(typ Type) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
-		if ct.PkgPath == uversePkgPath {
-			// This happens with a type alias to a uverse type.
-			return RefType{ID: ct.TypeID()}
-		}
+		// Invariant: uverse DeclaredTypes never reach here. Callers either
+		// collapse DeclaredTypes to RefType at Layer 1 via refOrCopyType
+		// (field types, method types, the TypeValue case in copyValueWithRefs),
+		// or route through SetType which short-circuits on a cache hit
+		// before calling copyTypeWithRefs. Uverse types are preloaded in
+		// cacheTypes, so SetType's early-return always fires for them.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -1489,7 +1503,13 @@ func copyValueWithRefs(val Value) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(copyTypeWithRefs(cv.Type))
+		// Persist the type as a reference, not inline. The authoritative
+		// definition lives at /t/<TypeID> (written by SetType) or in the
+		// uverse registry (for uverse types). Block bytes shrink from the
+		// full inlined DeclaredType to a small RefType{ID}. On decode,
+		// fillType's RefType branch resolves it via store.GetType(tid),
+		// which hits the cache (uverse) or the backend entry (user types).
+		return toTypeValue(refOrCopyType(cv.Type))
 	case *PackageValue:
 		block := toRefValue(cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
