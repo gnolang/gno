@@ -119,12 +119,27 @@ func SetLogger(l *slog.Logger) {
 }
 
 func SetEventSwitch(sw events.EventSwitch) {
+	// A previous node in this process may have left a running dispatcher
+	// behind; stop it before replacing it to avoid leaking its goroutine.
+	if gTxDispatcher != nil && gTxDispatcher.IsRunning() {
+		gTxDispatcher.Stop()
+	}
 	evsw = sw
 	gTxDispatcher = newTxDispatcher(evsw)
 }
 
 func Start() {
 	gTxDispatcher.Start()
+}
+
+// Stop tears down the package-level resources created by SetEventSwitch.
+// It should be called before the associated event switch is stopped so the
+// txDispatcher goroutine exits via its own Quit channel rather than racing
+// the event switch's shutdown.
+func Stop() {
+	if gTxDispatcher != nil && gTxDispatcher.IsRunning() {
+		gTxDispatcher.Stop()
+	}
 }
 
 // SetConfig sets an RPCConfig.
