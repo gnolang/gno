@@ -1,4 +1,4 @@
-# ADR-prxxxx: Dedupe type persistence at TypeValue position
+# ADR-5544: Dedupe type persistence at TypeValue position
 
 ## Status
 

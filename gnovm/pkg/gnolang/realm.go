@@ -1280,6 +1280,9 @@ func refOrCopyType(typ Type) Type {
 // same pipeline used by copyValueWithRefs's TypeValue case. Exposed so
 // filetests (e.g. the "// Types:" directive) can render the on-the-wire
 // form instead of the post-fillType canonical form.
+//
+// Not intended for production callers: this is test-infrastructure only.
+// The persistence pipeline itself calls refOrCopyType directly.
 func PersistedTypeFormForTypeValue(typ Type) Type {
 	return refOrCopyType(typ)
 }
