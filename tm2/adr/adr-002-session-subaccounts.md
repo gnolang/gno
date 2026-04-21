@@ -91,7 +91,7 @@ type GnoSessionAccount struct {
 ```
 
 `AllowPaths` is gno.land-specific. tm2 never interprets it — it's set
-via a local `pathRestricter` interface at creation time and read via a
+via a local `allowPathsSetter` interface at creation time and read via a
 local `pathRestricted` interface in the VM native function.
 
 ### Tx format

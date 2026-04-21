@@ -110,9 +110,15 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 	da.SetSpendReset(blockTime)
 
 	// Set AllowPaths via local interface — concrete type is GnoSessionAccount.
-	type pathRestricter interface{ SetAllowPaths([]string) }
-	if pr, ok := sa.(pathRestricter); ok && len(msg.AllowPaths) > 0 {
-		pr.SetAllowPaths(msg.AllowPaths)
+	// This is the CREATION-time writer. The READ-side interface (pathRestricted,
+	// which exposes GetAllowPaths) lives in gno.land/pkg/gnoland/app.go and
+	// is called at tx-time by checkSessionRestrictions. The two interfaces are
+	// deliberately separated — tm2 must not import gno.land types, so each
+	// layer defines its own local interface against the same concrete methods
+	// on *GnoSessionAccount.
+	type allowPathsSetter interface{ SetAllowPaths([]string) }
+	if ps, ok := sa.(allowPathsSetter); ok && len(msg.AllowPaths) > 0 {
+		ps.SetAllowPaths(msg.AllowPaths)
 	}
 
 	ah.acck.SetSessionAccount(ctx, msg.Creator, sa)

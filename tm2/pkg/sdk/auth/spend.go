@@ -104,6 +104,12 @@ func CheckAndDeductSessionSpend(ctx sdk.Context, ak SessionAccountSetter, signer
 	}
 
 	// Persist the updated spend to store.
+	//
+	// The `da.(std.Account)` assertion is guaranteed safe: DelegatedAccount
+	// embeds Account (see std/account.go DelegatedAccount interface), so any
+	// concrete type satisfying DelegatedAccount also satisfies Account.
+	// The assertion is here only because SetSessionAccount's signature takes
+	// std.Account — Go can't auto-widen through the interface map value.
 	ak.SetSessionAccount(ctx, signerAddr, da.(std.Account))
 	return nil
 }

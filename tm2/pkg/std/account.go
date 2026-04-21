@@ -174,14 +174,23 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 // require coin transfers. SpendLimit must include the gas fee denom
 // (e.g., ugnot) or the session won't be able to pay gas fees — spending
 // is checked per-denom, and a missing denom means zero allowance.
+//
+// Zero-value semantics (important — each field has a special meaning when zero):
+//   - ExpiresAt == 0:  no expiry; session is valid until revoked.
+//   - SpendPeriod == 0: SpendLimit is a lifetime cap (no periodic reset).
+//   - SpendLimit nil/empty: no spending allowed (including gas); useful only
+//     when another signer pays gas. NOT "unrestricted" — fails closed.
+//   - SpendUsed nil/empty: zero spent (Coins treats nil the same as empty).
+//   - SpendReset == 0: initial state (no period has elapsed yet). Set to
+//     BlockTime at session creation by the handler.
 type BaseSessionAccount struct {
 	BaseAccount
 	MasterAddress crypto.Address `json:"master_address" yaml:"master_address"`
-	ExpiresAt     int64          `json:"expires_at" yaml:"expires_at"`
-	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"` // empty = no spending allowed
-	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"` // seconds; 0 = lifetime cap
-	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`
-	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`
+	ExpiresAt     int64          `json:"expires_at" yaml:"expires_at"`                             // unix ts; 0 = no expiry
+	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"`       // nil/empty = no spending allowed (fail-closed, NOT unrestricted)
+	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"`     // seconds; 0 = lifetime cap (no reset)
+	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`         // nil/empty = 0 spent
+	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`       // unix ts; start of current period
 }
 
 // GetCoins always returns nil — session accounts do not hold coins.
@@ -214,8 +223,35 @@ type DelegatedAccount interface {
 	SetSpendReset(int64) error
 }
 
-// SessionAccountsContextKey is the context key for the session accounts map.
-// The value is map[crypto.Address]DelegatedAccount (signer addr → session).
+// SessionAccountsContextKey is the context key used by the auth ante handler
+// to propagate the set of session accounts it resolved during Phase 1 into
+// downstream handler execution (bank keeper hooks, VM keeper, gno runtime).
+//
+// The value stored under this key has the exact type:
+//
+//	map[crypto.Address]DelegatedAccount
+//
+// Each entry maps a signer address (the master account address returned by
+// msg.GetSigners(), NOT the session pubkey address) to the DelegatedAccount
+// that was loaded for it via the Signature.SessionAddr field.
+//
+// Contract for readers:
+//   - A nil value or absent key means "not a session tx" — treat as master.
+//   - A zero-length map means "no session signers in this tx" — equivalent
+//     to nil for all practical purposes.
+//   - Presence of (signerAddr, da) in the map means the ante has already
+//     verified the session exists, is unexpired, and the tx signer is
+//     authorized as that session; downstream code can rely on these
+//     invariants without re-checking.
+//   - The DelegatedAccount values are SHARED POINTERS — mutations to
+//     da.SpendUsed propagate across all readers within the same tx.
+//     Callers of auth.DeductSessionSpend / CheckAndDeductSessionSpend
+//     rely on this for cumulative spend tracking.
+//
+// Contract for writers: only the auth ante should populate this key. It is
+// set in Phase 4 of the ante (after signature verification succeeds) and
+// read by any keeper hook that needs to attribute coin movement or other
+// authority to a session rather than a master account.
 type SessionAccountsContextKey struct{}
 
 const (

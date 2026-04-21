@@ -160,7 +160,7 @@ acck := auth.NewAccountKeeper(mainKey, prmk, ProtoGnoAccount, ProtoGnoSessionAcc
 ```
 
 The tm2 handler creates sessions via `acck.NewSessionAccount()` and
-sets `AllowPaths` through a local `pathRestricter` interface, keeping
+sets `AllowPaths` through a local `allowPathsSetter` interface, keeping
 tm2 unaware of AllowPaths as a concept.
 
 ## Consequences

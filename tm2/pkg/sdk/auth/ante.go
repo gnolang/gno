@@ -208,6 +208,22 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				pubKey = sigAcc.GetPubKey()
 			} else if sigAcc.GetPubKey() == nil {
 				// First tx: set pubkey on account.
+				//
+				// Asymmetry between master and session accounts is intentional.
+				// For MASTER accounts, we MUST verify that the supplied pubkey
+				// hashes to the signer address, because master addresses are
+				// derived lazily on first interaction — the first signer to
+				// claim a never-seen address can fix its pubkey, so we must
+				// reject an address-mismatched pubkey to prevent pubkey squats.
+				//
+				// For SESSION accounts, the address was set at CREATION time
+				// via keeper.NewSessionAccount using msg.SessionKey.Address()
+				// (see auth/keeper.go:NewSessionAccount). The handler already
+				// enforced that sessionAddr == msg.SessionKey.Address() and
+				// rejected collisions with existing accounts. So by the time
+				// we reach this branch for a session, sigAcc.GetAddress() is
+				// guaranteed to equal the pubkey's derived address — there's
+				// nothing to verify.
 				if !isSession {
 					// For master accounts, verify pubkey matches address.
 					if pubKey.Address() != sigAcc.GetAddress() {
