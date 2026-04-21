@@ -585,16 +585,48 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 			fmt.Fprintf(sb, "%s\t%s", indent, storeElem("nil"))
 			fmt.Fprintf(sb, "%s}\n", indent)
 		} else if ertIsPointer {
-			fmt.Fprintf( // Amino never encodes nil pointers in unpacked lists — nil elements are
-				// skipped entirely. So 0x00 is always a valid length-prefix (empty message),
-				// not a nil marker. Just decode the element unconditionally.
-				sb, "%svar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
-			if writeImplicit {
-				ctx.writeImplicitStructDecode(sb, "ev", einfo, fopts, indent)
+			rt := einfo.ReprType.Type
+			isStructLike := rt.Kind() == reflect.Struct ||
+				rt == reflect.TypeOf(time.Duration(0)) ||
+				(isListType(rt) && rt.Elem().Kind() != reflect.Uint8)
+			if fopts.NilElements {
+				if writeImplicit || isStructLike {
+					fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)
+					fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
+					fmt.Fprintf(sb, "%sbz = bz[n:]\n", indent)
+					fmt.Fprintf(sb, "%sif len(fbz) == 0 {\n", indent)
+					fmt.Fprintf(sb, "%s\t%s", indent, storeElem("nil"))
+					fmt.Fprintf(sb, "%s} else {\n", indent)
+					fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
+					if writeImplicit {
+						ctx.writeImplicitStructPayloadDecode(sb, "ev", einfo, fopts, indent+"\t", "fbz")
+					} else {
+						ctx.writeByteSliceElementPayloadDecode(sb, "ev", einfo, fopts, indent+"\t", "fbz")
+					}
+					fmt.Fprintf(sb, "%s\t%s", indent, storeElem("&ev"))
+					fmt.Fprintf(sb, "%s}\n", indent)
+				} else {
+					fmt.Fprintf(sb, "%sif len(bz) > 0 && bz[0] == 0x00 {\n", indent)
+					fmt.Fprintf(sb, "%s\tbz = bz[1:]\n", indent)
+					fmt.Fprintf(sb, "%s\t%s", indent, storeElem("nil"))
+					fmt.Fprintf(sb, "%s} else {\n", indent)
+					fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
+					ctx.writeByteSliceElementDecode(sb, "ev", einfo, fopts, indent+"\t")
+					fmt.Fprintf(sb, "%s\t%s", indent, storeElem("&ev"))
+					fmt.Fprintf(sb, "%s}\n", indent)
+				}
 			} else {
-				ctx.writeByteSliceElementDecode(sb, "ev", einfo, fopts, indent)
+				fmt.Fprintf( // Amino never encodes nil pointers in unpacked lists unless
+					// amino:"nil_elements" is set. Without that tag, 0x00 is a valid
+					// length-prefix for an empty message, not a nil marker.
+					sb, "%svar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
+				if writeImplicit {
+					ctx.writeImplicitStructDecode(sb, "ev", einfo, fopts, indent)
+				} else {
+					ctx.writeByteSliceElementDecode(sb, "ev", einfo, fopts, indent)
+				}
+				fmt.Fprintf(sb, "%s%s", indent, storeElem("&ev"))
 			}
-			fmt.Fprintf(sb, "%s%s", indent, storeElem("&ev"))
 		} else {
 			fmt.Fprintf(sb, "%svar ev %s\n", indent, ctx.goTypeName(ert))
 			if writeImplicit {
@@ -618,21 +650,7 @@ func (ctx *P3Context2) writeByteSliceElementDecode(sb *strings.Builder, accessor
 		fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 		fmt.Fprintf(sb, "%sbz = bz[n:]\n", indent)
-
-		switch {
-		case rt == reflect.TypeOf(time.Time{}):
-			fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeTime(fbz)\n", indent, accessor)
-			fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
-		case rt == reflect.TypeOf(time.Duration(0)):
-			fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeDuration(fbz)\n", indent, accessor)
-			fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
-		case isNestedList:
-			fmt.Fprintf(sb, "%sif err := cdc.Unmarshal(fbz, &%s); err != nil {\n%s\treturn err\n%s}\n",
-				indent, accessor, indent, indent)
-		default:
-			fmt.Fprintf(sb, "%sif err := %s.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {\n%s\treturn err\n%s}\n",
-				indent, accessor, indent, indent)
-		}
+		ctx.writeByteSliceElementPayloadDecode(sb, accessor, einfo, fopts, indent, "fbz")
 	} else if einfo.IsAminoMarshaler {
 		// AminoMarshaler element: decode repr, then UnmarshalAmino.
 		reprType := einfo.ReprType.Type
@@ -652,20 +670,54 @@ func (ctx *P3Context2) writeImplicitStructDecode(sb *strings.Builder, accessor s
 	fmt.Fprintf(sb, "%sibz, n, err := amino.DecodeByteSlice(bz)\n", indent)
 	fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 	fmt.Fprintf(sb, "%sbz = bz[n:]\n", indent)
-	fmt.Fprintf(sb, "%sif len(ibz) > 0 {\n", indent)
+	ctx.writeImplicitStructPayloadDecode(sb, accessor, einfo, fopts, indent, "ibz")
+}
+
+func (ctx *P3Context2) writeByteSliceElementPayloadDecode(sb *strings.Builder, accessor string, einfo *amino.TypeInfo, fopts amino.FieldOptions, indent, srcVar string) {
+	rinfo := einfo.ReprType
+	rt := rinfo.Type
+
+	isNestedList := isListType(rt) && rt.Elem().Kind() != reflect.Uint8
+	switch {
+	case rt == reflect.TypeOf(time.Time{}):
+		fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeTime(%s)\n", indent, accessor, srcVar)
+		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
+	case rt == reflect.TypeOf(time.Duration(0)):
+		fmt.Fprintf(sb, "%s%s, _, err = amino.DecodeDuration(%s)\n", indent, accessor, srcVar)
+		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
+	case isNestedList:
+		fmt.Fprintf(sb, "%sif err := cdc.Unmarshal(%s, &%s); err != nil {\n%s\treturn err\n%s}\n",
+			indent, srcVar, accessor, indent, indent)
+	case rt.Kind() == reflect.Struct:
+		fmt.Fprintf(sb, "%sif err := %s.UnmarshalBinary2(cdc, %s, anyDepth); err != nil {\n%s\treturn err\n%s}\n",
+			indent, accessor, srcVar, indent, indent)
+	case einfo.IsAminoMarshaler:
+		reprType := einfo.ReprType.Type
+		fmt.Fprintf(sb, "%svar rv %s\n", indent, ctx.goTypeName(reprType))
+		ctx.writePrimitiveDecodeFrom(sb, "rv", einfo.ReprType, fopts, indent, srcVar)
+		fmt.Fprintf(sb, "%sif err := %s.UnmarshalAmino(rv); err != nil {\n%s\treturn err\n%s}\n",
+			indent, accessor, indent, indent)
+	default:
+		ctx.writePrimitiveDecodeFrom(sb, accessor, einfo, fopts, indent, srcVar)
+	}
+}
+
+func (ctx *P3Context2) writeImplicitStructPayloadDecode(sb *strings.Builder, accessor string, einfo *amino.TypeInfo, fopts amino.FieldOptions, indent, srcVar string) {
+	fmt.Fprintf(sb, "%sif len(%s) > 0 {\n", indent, srcVar)
 	// Read field 1 key from ibz and validate it's the expected ByteLength wrapper.
-	fmt.Fprintf(sb, "%s\t_fnum, _typ3, _n, _err := amino.DecodeFieldNumberAndTyp3(ibz)\n", indent)
+	fmt.Fprintf(sb, "%s\t_fnum, _typ3, _n, _err := amino.DecodeFieldNumberAndTyp3(%s)\n", indent, srcVar)
 	fmt.Fprintf(sb, "%s\tif _err != nil {\n%s\t\treturn _err\n%s\t}\n", indent, indent, indent)
 	fmt.Fprintf(sb, "%s\tif _fnum != 1 || _typ3 != amino.Typ3ByteLength {\n", indent)
 	fmt.Fprintf(sb, "%s\t\treturn fmt.Errorf(\"implicit struct: expected field 1 ByteLength, got num=%%v typ=%%v\", _fnum, _typ3)\n", indent)
 	fmt.Fprintf(sb, "%s\t}\n", indent)
-	fmt.Fprintf(sb, "%s\tibz = ibz[_n:]\n", indent)
-	// Read inner ByteSlice (packed data).
-	fmt.Fprintf(sb, "%s\tfbz, _fbn, _err2 := amino.DecodeByteSlice(ibz)\n", indent)
+	fmt.Fprintf(sb, "%s\t%s = %s[_n:]\n", indent, srcVar, srcVar)
+	// Read inner ByteSlice (packed data). Use a distinct variable name here:
+	// srcVar may already be named "fbz" in the caller.
+	fmt.Fprintf(sb, "%s\t_inner, _fbn, _err2 := amino.DecodeByteSlice(%s)\n", indent, srcVar)
 	fmt.Fprintf(sb, "%s\tif _err2 != nil {\n%s\t\treturn _err2\n%s\t}\n", indent, indent, indent)
 	// The implicit struct has only field 1 — reject anything past it.
-	fmt.Fprintf(sb, "%s\tif len(ibz)-_fbn > 0 {\n", indent)
-	fmt.Fprintf(sb, "%s\t\treturn fmt.Errorf(\"implicit struct: %%d trailing bytes after field 1\", len(ibz)-_fbn)\n", indent)
+	fmt.Fprintf(sb, "%s\tif len(%s)-_fbn > 0 {\n", indent, srcVar)
+	fmt.Fprintf(sb, "%s\t\treturn fmt.Errorf(\"implicit struct: %%d trailing bytes after field 1\", len(%s)-_fbn)\n", indent, srcVar)
 	fmt.Fprintf(sb, "%s\t}\n", indent)
 	// Decode elements from packed data.
 	innerEinfo := einfo.Elem
@@ -674,15 +726,15 @@ func (ctx *P3Context2) writeImplicitStructDecode(sb *strings.Builder, accessor s
 		for i := 0; i < length; i++ {
 			elemAccessor := fmt.Sprintf("%s[%d]", accessor, i)
 			fmt.Fprintf(sb, "%s\t{\n", indent)
-			ctx.writePrimitiveDecodeFrom(sb, elemAccessor, innerEinfo, fopts, indent+"\t\t", "fbz")
+			ctx.writePrimitiveDecodeFrom(sb, elemAccessor, innerEinfo, fopts, indent+"\t\t", "_inner")
 			fmt.Fprintf(sb, "%s\t}\n", indent)
 		}
 	} else {
 		// Slice: decode while data remains.
 		ert := einfo.Type.Elem()
-		fmt.Fprintf(sb, "%s\tfor len(fbz) > 0 {\n", indent)
+		fmt.Fprintf(sb, "%s\tfor len(_inner) > 0 {\n", indent)
 		fmt.Fprintf(sb, "%s\t\tvar _elem %s\n", indent, ctx.goTypeName(ert))
-		ctx.writePrimitiveDecodeFrom(sb, "_elem", innerEinfo, fopts, indent+"\t\t", "fbz")
+		ctx.writePrimitiveDecodeFrom(sb, "_elem", innerEinfo, fopts, indent+"\t\t", "_inner")
 		fmt.Fprintf(sb, "%s\t\t%s = append(%s, _elem)\n", indent, accessor, accessor)
 		fmt.Fprintf(sb, "%s\t}\n", indent)
 	}

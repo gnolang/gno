@@ -70,6 +70,50 @@ func TestBlockValidateBasic(t *testing.T) {
 	}
 }
 
+func TestBlockBinary2RoundTripPreservesNilLastCommitEntries(t *testing.T) {
+	t.Parallel()
+
+	height := int64(7)
+	lastBlockID := makeBlockIDRandom()
+	voteSet, _, privVals := randVoteSet(height-1, 0, PrecommitType, 4, 1)
+
+	for i := range 3 {
+		vote := &Vote{
+			ValidatorAddress: privVals[i].PubKey().Address(),
+			ValidatorIndex:   i,
+			Height:           height - 1,
+			Round:            0,
+			Type:             PrecommitType,
+			BlockID:          lastBlockID,
+			Timestamp:        tmtime.Now(),
+		}
+
+		signed, err := signAddVote(privVals[i], vote, voteSet)
+		require.NoError(t, err)
+		require.True(t, signed)
+	}
+
+	commit := voteSet.MakeCommit()
+	require.Len(t, commit.Precommits, 4)
+	require.Nil(t, commit.Precommits[3])
+
+	block := MakeBlock(height, nil, commit)
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	bz, err := cdc.MarshalBinary2(block)
+	require.NoError(t, err)
+
+	var decoded Block
+	err = decoded.UnmarshalBinary2(cdc, bz, 0)
+	require.NoError(t, err)
+	require.NotNil(t, decoded.LastCommit)
+	require.Len(t, decoded.LastCommit.Precommits, 4)
+	require.Nil(t, decoded.LastCommit.Precommits[3])
+	require.NoError(t, decoded.ValidateBasic())
+}
+
 func TestBlockHash(t *testing.T) {
 	t.Parallel()
 

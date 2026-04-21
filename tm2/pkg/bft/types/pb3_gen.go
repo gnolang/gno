@@ -927,16 +927,20 @@ func (goo *Commit) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
 			}
-			var ev CommitSig
 			fbz, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
 			}
 			bz = bz[n:]
-			if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
-				return err
+			if len(fbz) == 0 {
+				goo.Precommits = append(goo.Precommits, nil)
+			} else {
+				var ev CommitSig
+				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+					return err
+				}
+				goo.Precommits = append(goo.Precommits, &ev)
 			}
-			goo.Precommits = append(goo.Precommits, &ev)
 			for len(bz) > 0 {
 				var nextFnum uint32
 				var nextTyp3 amino.Typ3
@@ -951,16 +955,20 @@ func (goo *Commit) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 					return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
 				}
 				bz = bz[n:]
-				var ev CommitSig
 				fbz, n, err := amino.DecodeByteSlice(bz)
 				if err != nil {
 					return err
 				}
 				bz = bz[n:]
-				if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
-					return err
+				if len(fbz) == 0 {
+					goo.Precommits = append(goo.Precommits, nil)
+				} else {
+					var ev CommitSig
+					if err := ev.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+						return err
+					}
+					goo.Precommits = append(goo.Precommits, &ev)
 				}
-				goo.Precommits = append(goo.Precommits, &ev)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for Commit", fnum)

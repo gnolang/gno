@@ -309,6 +309,27 @@ func TestRoundtripBinary2_PointerSlicesStruct(t *testing.T) {
 	compareEncoding(t, cdc, "PointerSlicesStruct", orig)
 }
 
+func TestRoundtripBinary2_FuzzNilElements(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	orig := FuzzNilElements{
+		Entries: []*FuzzFieldInfo{
+			{Name: "present", Embedded: true, Tag: "json:\"present\"", Index: 1},
+			nil,
+			{Name: "tail", Tag: "json:\"tail\"", Index: 2},
+		},
+		Poses: []*GnoVMPos{
+			{Line: 7, Column: 9},
+			nil,
+		},
+		Name: "nil-elements",
+	}
+
+	compareEncoding(t, cdc, "FuzzNilElements", orig)
+}
+
 func TestRoundtripBinary2_EmbeddedSt2(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
