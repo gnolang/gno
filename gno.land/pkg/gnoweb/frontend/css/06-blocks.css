@@ -2581,7 +2581,7 @@ main.dev-mode .b-toc a {
 	border: none;
 	background: none;
 	cursor: pointer;
-	font-size: var(--g-font-size-50);
+	font-size: var(--g-font-size-100);
 	font-family: var(--g-font-mono);
 	font-weight: var(--g-font-semibold);
 	color: var(--s-color-text-tertiary);
