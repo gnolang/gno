@@ -482,6 +482,12 @@ func TestReverseIterate(t *testing.T) {
 		return tr.ReverseIterate("c", "", cb)
 	})
 	assertSliceEqual(t, got, []string{"e", "d", "c"})
+
+	// end > max key → e, d, c, b, a.
+	got = collectKeys(tree, func(tr *BPTree, cb IterCbFn) bool {
+		return tr.ReverseIterate("a", "z", cb)
+	})
+	assertSliceEqual(t, got, []string{"e", "d", "c", "b", "a"})
 }
 
 func TestIterateByOffset(t *testing.T) {
@@ -559,6 +565,30 @@ func TestReverseIterateByOffset(t *testing.T) {
 		return tr.ReverseIterateByOffset(0, 0, cb)
 	})
 	assertSliceEqual(t, got, nil)
+
+	// negative offset
+	got = collectKeys(tree, func(tr *BPTree, cb IterCbFn) bool {
+		return tr.ReverseIterateByOffset(-1, 3, cb)
+	})
+	assertSliceEqual(t, got, []string{"e", "d", "c"})
+}
+
+func TestReverseIterateEarlyStop(t *testing.T) {
+	tree := NewBPTreeN(4)
+	tree.Set("a", 1)
+	tree.Set("b", 2)
+	tree.Set("c", 3)
+	count := 0
+	stopped := tree.ReverseIterate("", "", func(k string, v any) bool {
+		count++
+		return true
+	})
+	if !stopped {
+		t.Error("Expected true from early-stopped ReverseIterate")
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 callback, got %d", count)
+	}
 }
 
 //----------------------------------------
