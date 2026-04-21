@@ -194,7 +194,7 @@ func (bdb *boltDBBatch) Write() error {
 			key := nonEmptyKey(internal.NonNilBytes(op.Key))
 			switch op.OpType {
 			case internal.OpTypeSet:
-				if putErr := b.Put(key, op.Value); putErr != nil {
+				if putErr := b.Put(key, internal.NonNilBytes(op.Value)); putErr != nil {
 					return putErr
 				}
 			case internal.OpTypeDelete:

@@ -72,6 +72,7 @@ func (m *Machine) doOpSliceType() {
 
 func (m *Machine) doOpFuncType() {
 	x := m.PopExpr().(*FuncTypeExpr)
+	m.incrCPU(OpCPUSlopeFuncType * int64(len(x.Params)+len(x.Results)))
 	// Allocate space for data.
 	params := make([]FieldType, len(x.Params))
 	results := make([]FieldType, len(x.Results))
@@ -109,6 +110,7 @@ func (m *Machine) doOpMapType() {
 
 func (m *Machine) doOpStructType() {
 	x := m.PopExpr().(*StructTypeExpr)
+	m.incrCPU(OpCPUSlopeStructType * int64(len(x.Fields)))
 	// pop fields
 	ftvs := m.PopValues(len(x.Fields))
 	// allocate (minimum) space for fields
@@ -132,6 +134,7 @@ func (m *Machine) doOpStructType() {
 
 func (m *Machine) doOpInterfaceType() {
 	x := m.PopExpr().(*InterfaceTypeExpr)
+	m.incrCPU(OpCPUSlopeInterfaceType * int64(len(x.Methods)))
 	// allocate space
 	methods := make([]FieldType, len(x.Methods))
 	// pop methods
@@ -403,17 +406,12 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
-		// Compute the static type of &x as *typeof(x).
-		// The result is cached as ATTR_TYPEOF_VALUE on the
-		// RefExpr by evalStaticTypeOfRaw, and the inner xt
-		// is cached on x.X.  doOpRef reads x.X's cached type
-		// at runtime to build the correct pointer type.
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		// The static type of &x is *typeof(x).
+		// ATTR_REF_ELEM_TYPE is set during preprocessing.
+		xt, ok := x.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+		if !ok {
+			panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
+		}
 		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:
 		if x.HasOK {
