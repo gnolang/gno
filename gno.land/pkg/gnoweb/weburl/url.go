@@ -168,8 +168,7 @@ func (gnoURL GnoURL) IsDir() bool {
 
 // IsPlayground checks if the URL path represents the integrated playground.
 func (gnoURL GnoURL) IsPlayground() bool {
-	// Package fork source code is displayed within the playground
-	return gnoURL.Path == "/_/play" || gnoURL.IsPackageFork()
+	return gnoURL.Path == "/_/play"
 }
 
 // IsPackageFork checks if the URL represents a package fork.
