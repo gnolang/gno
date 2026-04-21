@@ -55,7 +55,7 @@ root_cause_fails=$(grep -v 'could not import' "$tmp" \
 {
   echo "# Genesis Replay Report"
   echo ""
-  echo "_Generated $(date -u +%Y-%m-%dT%H:%M:%SZ) from $LOG_"
+  echo "_Generated $(date -u +%Y-%m-%dT%H:%M:%SZ) from ${LOG}_"
   echo ""
   echo "## Summary"
   echo ""
