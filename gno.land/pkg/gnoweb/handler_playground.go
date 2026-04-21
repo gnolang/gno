@@ -77,13 +77,6 @@ func (rl *playgroundRateLimiter) pruneLoop() {
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // playgroundAPIHandler handles playground JSON API endpoints.
 type playgroundAPIHandler struct {
 	logger  *slog.Logger
