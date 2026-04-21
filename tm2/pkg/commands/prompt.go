@@ -11,7 +11,6 @@
 //   - [PromptString]: free-text input with optional default and validation
 //   - [PromptChoice]: single-key choice menu (e.g. [r]ealm, [P]ackage)
 //   - [PromptSelect]: numbered list menu with name matching
-//   - [PromptConfirm]: yes/no confirmation
 //
 // Use [IsInteractive] to check whether stdin is a terminal before entering
 // an interactive flow.
@@ -157,28 +156,6 @@ func PromptSelect(io IO, prompt string, items []SelectItem) (int, error) {
 		}
 		fmt.Fprintf(io.Err(), "unknown choice: %q\n", ans)
 	}
-}
-
-// PromptConfirm asks the user a yes/no question. Returns true for yes.
-// Empty input defaults to the specified default value.
-func PromptConfirm(io IO, prompt string, defaultYes bool) (bool, error) {
-	hint := "[y/N]"
-	if defaultYes {
-		hint = "[Y/n]"
-	}
-
-	fmt.Fprintf(io.Err(), "%s %s: ", prompt, hint)
-	ans, err := readLine(io)
-	if err != nil {
-		return false, err
-	}
-
-	if ans == "" {
-		return defaultYes, nil
-	}
-
-	lower := strings.ToLower(ans)
-	return lower == "y" || lower == "yes", nil
 }
 
 // readLine reads a single line from io.In() via GetString and trims whitespace.
