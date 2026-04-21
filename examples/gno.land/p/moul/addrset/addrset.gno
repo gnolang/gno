@@ -9,7 +9,6 @@
 // Example usage:
 //
 //	import (
-//	    "std"
 //	    "gno.land/p/moul/addrset"
 //	)
 //
