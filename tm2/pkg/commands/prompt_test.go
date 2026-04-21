@@ -77,33 +77,34 @@ func TestPromptString(t *testing.T) {
 func TestPromptChoice(t *testing.T) {
 	t.Parallel()
 
-	choices := []Choice{
-		{Key: "r", Aliases: []string{"realm"}, Description: "realm", IsDefault: false},
-		{Key: "p", Aliases: []string{"package"}, Description: "package", IsDefault: true},
-		{Key: "m", Aliases: []string{"main", "run"}, Description: "run script", IsDefault: false},
+	choices := map[string]Choice{
+		"r": {Aliases: []string{"realm"}, Description: "realm"},
+		"p": {Aliases: []string{"package"}, Description: "package"},
+		"m": {Aliases: []string{"main", "run"}, Description: "run script"},
 	}
 
 	tests := []struct {
-		name  string
-		input string
-		want  int
+		name       string
+		input      string
+		defaultKey string
+		want       string
 	}{
-		{"key r", "r\n", 0},
-		{"alias realm", "realm\n", 0},
-		{"key p", "p\n", 1},
-		{"alias package", "package\n", 1},
-		{"key m", "m\n", 2},
-		{"alias main", "main\n", 2},
-		{"alias run", "run\n", 2},
-		{"empty selects default", "\n", 1},
-		{"case insensitive", "R\n", 0},
+		{"key r", "r\n", "", "r"},
+		{"alias realm", "realm\n", "", "r"},
+		{"key p", "p\n", "", "p"},
+		{"alias package", "package\n", "", "p"},
+		{"key m", "m\n", "", "m"},
+		{"alias main", "main\n", "", "m"},
+		{"alias run", "run\n", "", "m"},
+		{"empty selects default", "\n", "p", "p"},
+		{"case insensitive", "R\n", "", "r"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			io, _ := newMockIO(tt.input)
-			got, err := PromptChoice(io, "Pick: ", choices)
+			got, err := PromptChoice(io, "Pick: ", choices, tt.defaultKey)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -112,9 +113,17 @@ func TestPromptChoice(t *testing.T) {
 	t.Run("invalid retries then EOF", func(t *testing.T) {
 		t.Parallel()
 		io, stderr := newMockIO("xyz\n")
-		_, err := PromptChoice(io, "Pick: ", choices)
+		_, err := PromptChoice(io, "Pick: ", choices, "")
 		require.Error(t, err)
 		assert.Contains(t, stderr.String(), `invalid choice: "xyz"`)
+	})
+
+	t.Run("empty no default", func(t *testing.T) {
+		t.Parallel()
+		io, stderr := newMockIO("\n")
+		_, err := PromptChoice(io, "Pick: ", choices, "")
+		require.Error(t, err)
+		assert.Contains(t, stderr.String(), "please enter a valid choice")
 	})
 }
 
@@ -134,7 +143,7 @@ func TestPromptSelect(t *testing.T) {
 		io, _ := newMockIO("")
 		got, err := PromptSelect(io, "Template:", single)
 		require.NoError(t, err)
-		assert.Equal(t, 0, got)
+		assert.Equal(t, "basic", got)
 	})
 
 	t.Run("empty returns no items error", func(t *testing.T) {
@@ -145,12 +154,12 @@ func TestPromptSelect(t *testing.T) {
 		assert.Contains(t, err.Error(), "no items")
 	})
 
-	t.Run("multi default", func(t *testing.T) {
+	t.Run("multi default first", func(t *testing.T) {
 		t.Parallel()
 		io, _ := newMockIO("\n")
 		got, err := PromptSelect(io, "Template:", multi)
 		require.NoError(t, err)
-		assert.Equal(t, 0, got)
+		assert.Equal(t, "basic", got)
 	})
 
 	t.Run("multi by number", func(t *testing.T) {
@@ -158,7 +167,7 @@ func TestPromptSelect(t *testing.T) {
 		io, _ := newMockIO("2\n")
 		got, err := PromptSelect(io, "Template:", multi)
 		require.NoError(t, err)
-		assert.Equal(t, 1, got)
+		assert.Equal(t, "dao", got)
 	})
 
 	t.Run("multi by name", func(t *testing.T) {
@@ -166,7 +175,7 @@ func TestPromptSelect(t *testing.T) {
 		io, _ := newMockIO("dao\n")
 		got, err := PromptSelect(io, "Template:", multi)
 		require.NoError(t, err)
-		assert.Equal(t, 1, got)
+		assert.Equal(t, "dao", got)
 	})
 
 	t.Run("invalid number retries then EOF", func(t *testing.T) {

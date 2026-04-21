@@ -35,16 +35,8 @@ func IsInteractive() bool {
 
 // Choice represents a single option in a PromptChoice menu.
 type Choice struct {
-	Key         string   // Short key the user can type (e.g. "r", "p", "m")
 	Aliases     []string // Additional accepted inputs (e.g. "realm", "package")
 	Description string   // Human-readable label shown in the prompt
-	IsDefault   bool     // If true, this choice is selected when the user presses Enter
-}
-
-// SelectItem represents a single option in a numbered PromptSelect menu.
-type SelectItem struct {
-	Name        string // Short name (e.g. "basic", "dao")
-	Description string // One-line description shown next to the name
 }
 
 // PromptString prompts the user for a string value with an optional default.
@@ -76,35 +68,31 @@ func PromptString(io IO, prompt string, defaultVal string, validate func(string)
 }
 
 // PromptChoice presents a single-key choice menu (e.g. "[r]ealm, [P]ackage, [m]ain")
-// and returns the index of the selected choice. The prompt string is displayed
-// before the choices.
-func PromptChoice(io IO, prompt string, choices []Choice) (int, error) {
+// and returns the selected key. The map key is the short key the user types;
+// defaultKey is the key selected on empty input (empty = no default).
+func PromptChoice(io IO, prompt string, choices map[string]Choice, defaultKey string) (string, error) {
 	for {
 		fmt.Fprint(io.Err(), prompt)
 		ans, err := readLine(io)
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 
-		lower := strings.ToLower(ans)
-
-		if lower == "" {
-			for i, c := range choices {
-				if c.IsDefault {
-					return i, nil
-				}
+		if ans == "" {
+			if defaultKey != "" {
+				return defaultKey, nil
 			}
 			fmt.Fprintf(io.Err(), "please enter a valid choice\n")
 			continue
 		}
 
-		for i, c := range choices {
-			if strings.EqualFold(c.Key, lower) {
-				return i, nil
+		for key, c := range choices {
+			if strings.EqualFold(key, ans) {
+				return key, nil
 			}
 			for _, alias := range c.Aliases {
-				if strings.EqualFold(alias, lower) {
-					return i, nil
+				if strings.EqualFold(alias, ans) {
+					return key, nil
 				}
 			}
 		}
@@ -113,15 +101,21 @@ func PromptChoice(io IO, prompt string, choices []Choice) (int, error) {
 	}
 }
 
-// PromptSelect presents a numbered list menu and returns the index of the
-// selected item. If there is only one item, it is auto-selected without
-// prompting.
-func PromptSelect(io IO, prompt string, items []SelectItem) (int, error) {
+// SelectItem represents a single option in a numbered PromptSelect menu.
+type SelectItem struct {
+	Name        string // Short name (e.g. "basic", "dao")
+	Description string // One-line description shown next to the name
+}
+
+// PromptSelect presents a numbered list menu and returns the selected item's Name.
+// Items are displayed in slice order (first = default, often most important).
+// If there is only one item, it is auto-selected without prompting.
+func PromptSelect(io IO, prompt string, items []SelectItem) (string, error) {
 	if len(items) == 0 {
-		return 0, fmt.Errorf("no items available")
+		return "", fmt.Errorf("no items available")
 	}
 	if len(items) == 1 {
-		return 0, nil
+		return items[0].Name, nil
 	}
 
 	for {
@@ -133,25 +127,23 @@ func PromptSelect(io IO, prompt string, items []SelectItem) (int, error) {
 
 		ans, err := readLine(io)
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 		if ans == "" {
-			return 0, nil // default to first item
+			return items[0].Name, nil
 		}
 
-		// Try number
 		if n, err := strconv.Atoi(ans); err == nil {
 			if n >= 1 && n <= len(items) {
-				return n - 1, nil
+				return items[n-1].Name, nil
 			}
 			fmt.Fprintf(io.Err(), "invalid choice: %d (must be 1-%d)\n", n, len(items))
 			continue
 		}
 
-		// Try name match
-		for i := range items {
-			if strings.EqualFold(items[i].Name, ans) {
-				return i, nil
+		for _, item := range items {
+			if strings.EqualFold(item.Name, ans) {
+				return item.Name, nil
 			}
 		}
 		fmt.Fprintf(io.Err(), "unknown choice: %q\n", ans)

@@ -397,18 +397,25 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 // --- Wizard helpers ---
 
 func promptModuleKind(io commands.IO) (moduleKind, error) {
-	choices := []commands.Choice{
-		{Key: "r", Aliases: []string{"realm"}, Description: "realm"},
-		{Key: "p", Aliases: []string{"package"}, Description: "package", IsDefault: true},
-		{Key: "m", Aliases: []string{"main", "run"}, Description: "run script"},
+	choices := map[string]commands.Choice{
+		"r": {Aliases: []string{"realm"}, Description: "realm"},
+		"p": {Aliases: []string{"package"}, Description: "package"},
+		"m": {Aliases: []string{"main", "run"}, Description: "run script"},
 	}
-	kinds := []moduleKind{kindRealm, kindPackage, kindRun}
 
-	idx, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices)
+	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices, "p")
 	if err != nil {
 		return kindPackage, err
 	}
-	return kinds[idx], nil
+
+	switch key {
+	case "r":
+		return kindRealm, nil
+	case "m":
+		return kindRun, nil
+	default:
+		return kindPackage, nil
+	}
 }
 
 func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
@@ -435,11 +442,16 @@ func selectTemplate(templates []initTemplate, io commands.IO) (*initTemplate, er
 		items[i] = commands.SelectItem{Name: t.Name, Description: t.Description}
 	}
 
-	idx, err := commands.PromptSelect(io, "Template:", items)
+	name, err := commands.PromptSelect(io, "Template:", items)
 	if err != nil {
 		return nil, err
 	}
-	return &templates[idx], nil
+	for i := range templates {
+		if templates[i].Name == name {
+			return &templates[i], nil
+		}
+	}
+	return nil, fmt.Errorf("internal: template %q not found", name)
 }
 
 func kindFromPath(modPath string) moduleKind {
