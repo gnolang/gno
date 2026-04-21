@@ -5,8 +5,7 @@
 // any CLI tool in the Gno codebase.
 //
 // All prompt functions write to io.Err() (stderr) for prompts and error messages,
-// read from io.In() (stdin) for user input, and return [ErrGoBack] when the user
-// types "<" to navigate back to a previous wizard step.
+// and read from io.In() (stdin) for user input.
 //
 // Available prompts:
 //   - [PromptString]: free-text input with optional default and validation
@@ -27,10 +26,6 @@ import (
 
 	"golang.org/x/term"
 )
-
-// ErrGoBack is a sentinel error returned by prompt functions when the user
-// types "<" to go back to a previous step in a wizard flow.
-var ErrGoBack = fmt.Errorf("go back")
 
 // IsInteractive returns true when standard input is a terminal,
 // indicating that the program is running interactively and can
@@ -55,7 +50,7 @@ type SelectItem struct {
 
 // PromptString prompts the user for a string value with an optional default.
 // If validate is non-nil, the input is validated and the user is re-prompted
-// on failure. Returns ErrGoBack if the user types "<".
+// on failure.
 func PromptString(io IO, prompt string, defaultVal string, validate func(string) error) (string, error) {
 	for {
 		if defaultVal != "" {
@@ -67,9 +62,6 @@ func PromptString(io IO, prompt string, defaultVal string, validate func(string)
 		ans, err := readLine(io)
 		if err != nil {
 			return "", err
-		}
-		if ans == "<" {
-			return "", ErrGoBack
 		}
 		if ans == "" {
 			ans = defaultVal
@@ -86,7 +78,7 @@ func PromptString(io IO, prompt string, defaultVal string, validate func(string)
 
 // PromptChoice presents a single-key choice menu (e.g. "[r]ealm, [P]ackage, [m]ain")
 // and returns the index of the selected choice. The prompt string is displayed
-// before the choices. Returns ErrGoBack if the user types "<".
+// before the choices.
 func PromptChoice(io IO, prompt string, choices []Choice) (int, error) {
 	for {
 		fmt.Fprint(io.Err(), prompt)
@@ -94,25 +86,19 @@ func PromptChoice(io IO, prompt string, choices []Choice) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		if ans == "<" {
-			return 0, ErrGoBack
-		}
 
 		lower := strings.ToLower(ans)
 
-		// Check for default on empty input
 		if lower == "" {
 			for i, c := range choices {
 				if c.IsDefault {
 					return i, nil
 				}
 			}
-			// No default found, show error
 			fmt.Fprintf(io.Err(), "please enter a valid choice\n")
 			continue
 		}
 
-		// Match by key or alias
 		for i, c := range choices {
 			if strings.EqualFold(c.Key, lower) {
 				return i, nil
@@ -130,7 +116,7 @@ func PromptChoice(io IO, prompt string, choices []Choice) (int, error) {
 
 // PromptSelect presents a numbered list menu and returns the index of the
 // selected item. If there is only one item, it is auto-selected without
-// prompting. Returns ErrGoBack if the user types "<".
+// prompting.
 func PromptSelect(io IO, prompt string, items []SelectItem) (int, error) {
 	if len(items) == 0 {
 		return 0, fmt.Errorf("no items available")
@@ -149,9 +135,6 @@ func PromptSelect(io IO, prompt string, items []SelectItem) (int, error) {
 		ans, err := readLine(io)
 		if err != nil {
 			return 0, err
-		}
-		if ans == "<" {
-			return 0, ErrGoBack
 		}
 		if ans == "" {
 			return 0, nil // default to first item

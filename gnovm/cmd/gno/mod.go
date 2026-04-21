@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -192,62 +191,39 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	}
 
 	// Full interactive wizard
-	step := 0
-	var kind moduleKind
-	var modPath string
-
-	for {
-		switch step {
-		case 0: // Module kind
-			kind, err = promptModuleKind(io)
-			if err != nil {
-				return err
-			}
-			if kind == kindRun {
-				templates := templatesForKind(kindRun)
-				tmpl, tmplErr := resolveTemplate(templates, cfg.template)
-				if tmplErr != nil {
-					return tmplErr
-				}
-				return execInitRun(rootDir, *tmpl, io)
-			}
-			step = 1
-
-		case 1: // Namespace + name → module path
-			modPath, err = promptModulePath(kind, rootDir, io)
-			if errors.Is(err, commands.ErrGoBack) {
-				step = 0
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			step = 2
-
-		case 2: // Template selection
-			templates := templatesForKind(kind)
-			var tmpl *initTemplate
-			var selErr error
-			if cfg.template != "" {
-				// --template flag bypasses interactive menu
-				tmpl, selErr = resolveTemplate(templates, cfg.template)
-			} else {
-				tmpl, selErr = selectTemplate(templates, io)
-			}
-			if errors.Is(selErr, commands.ErrGoBack) {
-				step = 1
-				continue
-			}
-			if selErr != nil {
-				return selErr
-			}
-
-			if err := writeGnomod(rootDir, modPath); err != nil {
-				return err
-			}
-			return writeModule(rootDir, modPath, tmpl, io)
-		}
+	kind, err := promptModuleKind(io)
+	if err != nil {
+		return err
 	}
+	if kind == kindRun {
+		templates := templatesForKind(kindRun)
+		tmpl, tmplErr := resolveTemplate(templates, cfg.template)
+		if tmplErr != nil {
+			return tmplErr
+		}
+		return execInitRun(rootDir, *tmpl, io)
+	}
+
+	modPath, err := promptModulePath(kind, rootDir, io)
+	if err != nil {
+		return err
+	}
+
+	templates := templatesForKind(kind)
+	var tmpl *initTemplate
+	if cfg.template != "" {
+		tmpl, err = resolveTemplate(templates, cfg.template)
+	} else {
+		tmpl, err = selectTemplate(templates, io)
+	}
+	if err != nil {
+		return err
+	}
+
+	if err := writeGnomod(rootDir, modPath); err != nil {
+		return err
+	}
+	return writeModule(rootDir, modPath, tmpl, io)
 }
 
 func writeGnomod(rootDir, modPath string) error {
@@ -294,30 +270,17 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 		kindLabel = "realm"
 	}
 
-	var created []string
-
-	// Source file
-	src, err := renderTemplate(tmpl.FS, tmpl.SourcePath, data)
+	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
-		return fmt.Errorf("render source template: %w", err)
+		return fmt.Errorf("render template: %w", err)
 	}
-	srcFile := pkgName + ".gno"
-	if err := os.WriteFile(filepath.Join(rootDir, srcFile), src, 0o644); err != nil {
-		return err
-	}
-	created = append(created, srcFile)
 
-	// Test file (optional)
-	if tmpl.TestPath != "" {
-		test, err := renderTemplate(tmpl.FS, tmpl.TestPath, data)
-		if err != nil {
-			return fmt.Errorf("render test template: %w", err)
-		}
-		testFile := pkgName + "_test.gno"
-		if err := os.WriteFile(filepath.Join(rootDir, testFile), test, 0o644); err != nil {
+	var created []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(rootDir, name), content, 0o644); err != nil {
 			return err
 		}
-		created = append(created, testFile)
+		created = append(created, name)
 	}
 
 	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel, modPath, tmpl.Name)
@@ -336,17 +299,23 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 	}
 
 	data := templateData{PkgName: "main"}
-	src, err := renderTemplate(tmpl.FS, tmpl.SourcePath, data)
+	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
 		return fmt.Errorf("render run template: %w", err)
 	}
-	mainFile := filepath.Join(runDir, "main.gno")
-	if err := os.WriteFile(mainFile, src, 0o644); err != nil {
-		return err
+
+	var created []string
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(runDir, name), content, 0o644); err != nil {
+			return err
+		}
+		created = append(created, name)
 	}
 
 	fmt.Fprintf(io.Err(), "Initialized run script\n")
-	fmt.Fprintf(io.Err(), "  run/main.gno\n")
+	for _, f := range created {
+		fmt.Fprintf(io.Err(), "  run/%s\n", f)
+	}
 	return nil
 }
 

@@ -37,13 +37,6 @@ func TestPromptString(t *testing.T) {
 		assert.Equal(t, "mydefault", got)
 	})
 
-	t.Run("go back", func(t *testing.T) {
-		t.Parallel()
-		io, _ := newMockIO("<\n")
-		_, err := PromptString(io, "Enter value", "", nil)
-		require.ErrorIs(t, err, ErrGoBack)
-	})
-
 	t.Run("validates and retries", func(t *testing.T) {
 		t.Parallel()
 		io, stderr := newMockIO("bad\ngood\n")
@@ -61,7 +54,6 @@ func TestPromptString(t *testing.T) {
 
 	t.Run("validates empty rejected", func(t *testing.T) {
 		t.Parallel()
-		// empty input, no default, validator rejects empty, then EOF
 		io, stderr := newMockIO("\n")
 		validate := func(s string) error {
 			if s == "" {
@@ -70,7 +62,7 @@ func TestPromptString(t *testing.T) {
 			return nil
 		}
 		_, err := PromptString(io, "Enter value", "", validate)
-		require.Error(t, err) // EOF after failed validation
+		require.Error(t, err)
 		assert.Contains(t, stderr.String(), assert.AnError.Error())
 	})
 
@@ -92,21 +84,19 @@ func TestPromptChoice(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
-		input   string
-		want    int
-		wantErr error
+		name  string
+		input string
+		want  int
 	}{
-		{"key r", "r\n", 0, nil},
-		{"alias realm", "realm\n", 0, nil},
-		{"key p", "p\n", 1, nil},
-		{"alias package", "package\n", 1, nil},
-		{"key m", "m\n", 2, nil},
-		{"alias main", "main\n", 2, nil},
-		{"alias run", "run\n", 2, nil},
-		{"empty selects default", "\n", 1, nil},
-		{"go back", "<\n", 0, ErrGoBack},
-		{"case insensitive", "R\n", 0, nil},
+		{"key r", "r\n", 0},
+		{"alias realm", "realm\n", 0},
+		{"key p", "p\n", 1},
+		{"alias package", "package\n", 1},
+		{"key m", "m\n", 2},
+		{"alias main", "main\n", 2},
+		{"alias run", "run\n", 2},
+		{"empty selects default", "\n", 1},
+		{"case insensitive", "R\n", 0},
 	}
 
 	for _, tt := range tests {
@@ -114,10 +104,6 @@ func TestPromptChoice(t *testing.T) {
 			t.Parallel()
 			io, _ := newMockIO(tt.input)
 			got, err := PromptChoice(io, "Pick: ", choices)
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-				return
-			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -181,13 +167,6 @@ func TestPromptSelect(t *testing.T) {
 		got, err := PromptSelect(io, "Template:", multi)
 		require.NoError(t, err)
 		assert.Equal(t, 1, got)
-	})
-
-	t.Run("go back", func(t *testing.T) {
-		t.Parallel()
-		io, _ := newMockIO("<\n")
-		_, err := PromptSelect(io, "Template:", multi)
-		require.ErrorIs(t, err, ErrGoBack)
 	})
 
 	t.Run("invalid number retries then EOF", func(t *testing.T) {
@@ -255,6 +234,6 @@ func TestPromptConfirm(t *testing.T) {
 		io, _ := newMockIO("maybe\n")
 		got, err := PromptConfirm(io, "Continue?", true)
 		require.NoError(t, err)
-		assert.False(t, got) // not "y" or "yes"
+		assert.False(t, got)
 	})
 }

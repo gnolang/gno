@@ -51,6 +51,29 @@ Adding a new template requires only: (1) add `.tmpl` files under
 `templates/<kind>/<name>/`, (2) add one entry to the registry in
 `mod_init_templates.go`. No other Go code changes needed.
 
+### Directory-based templates
+
+Templates are defined by directory, not by listing individual files. `renderTemplateDir`
+walks the template directory, processes every `.tmpl` file, and produces a map of
+output filename → rendered content. Filenames are also Go templates: `{{.PkgName}}.gno.tmpl`
+produces `<pkgName>.gno`. This supports complex multi-file templates (e.g. a DAO
+template with state, helpers, and tests) without special-casing source/test files.
+
+```
+templates/
+  realm/
+    basic/
+      {{.PkgName}}.gno.tmpl       → <pkg>.gno (Render function)
+      {{.PkgName}}_test.gno.tmpl  → <pkg>_test.gno (TestRender)
+  package/
+    basic/
+      {{.PkgName}}.gno.tmpl       → <pkg>.gno (bare package declaration)
+      {{.PkgName}}_test.gno.tmpl  → <pkg>_test.gno (placeholder test)
+  run/
+    basic/
+      main.gno.tmpl               → main.gno (package main + func main())
+```
+
 ### Non-interactive fallback
 
 When stdin is not a TTY (CI, piped input) or `--bare` is passed, behavior is
@@ -65,8 +88,12 @@ allows other CLI tools (e.g. `gnokey maketx`) to build their own interactive
 wizards without duplicating prompt logic or adding external dependencies.
 
 Key functions: `IsInteractive()`, `PromptString()`, `PromptChoice()`,
-`PromptSelect()`, `PromptConfirm()`, and the `ErrGoBack` sentinel for
-wizard go-back navigation.
+`PromptSelect()`, `PromptConfirm()`.
+
+The wizard is a linear flow — no back-navigation. Backspace cannot be detected
+in line-buffered terminal mode, and alternative go-back keys (like `<` or `b`)
+conflict with valid user input in `PromptString`. The user can Ctrl+C and
+restart the wizard instead.
 
 ### TTY detection
 
@@ -77,21 +104,6 @@ on `os.Stdin.Fd()`. Already a dependency via `tm2/pkg/commands/utils.go`.
 
 Templates live as `.tmpl` files under `gnovm/cmd/gno/templates/` and are compiled
 into the binary via `go:embed`. `text/template` renders them with `{{.PkgName}}`.
-
-```
-templates/
-  realm/
-    basic/
-      source.gno.tmpl      # Render function
-      test.gno.tmpl         # TestRender
-  package/
-    basic/
-      source.gno.tmpl      # bare package declaration
-      test.gno.tmpl         # placeholder test
-  run/
-    basic/
-      source.gno.tmpl      # package main + func main()
-```
 
 ### No README generation
 
@@ -114,20 +126,25 @@ existing examples don't include READMEs, and a placeholder README adds noise.
    Go prompt library pulls in the Charm stack (~15 transitive deps). The
    `commands` package already has `GetString`/`GetPassword`/`GetConfirmation`
    and `golang.org/x/term`; building on those keeps the dependency footprint
-   at zero new imports. The shared primitives in `prompt.go` are ~180 lines
+   at zero new imports. The shared primitives in `prompt.go` are ~140 lines
    of code, fully testable via `commands.IO`, and sufficient for sequential
    wizard flows.
+7. **Go-back navigation (`ErrGoBack`)** — Rejected. Backspace/delete key cannot
+   be detected in line-buffered terminal mode (the terminal handles it before
+   the application sees input). Alternative go-back keys (`<`, `b`) conflict
+   with valid user input in `PromptString` (e.g. namespace "b"). A linear
+   wizard without back-navigation is simpler; the user can Ctrl+C and restart.
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `PromptConfirm`, `IsInteractive`, `ErrGoBack`) |
+| `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `PromptConfirm`, `IsInteractive`) |
 | `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
 | `gnovm/cmd/gno/mod.go` | `newInitCmd`, `execModInit`, `execInitRun`, `promptModuleKind`, `selectTemplate`, `insertPathLetter` |
-| `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplate` |
-| `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files |
+| `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplateDir` |
+| `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` in filenames |
 | `gnovm/cmd/gno/mod_test.go` | Tests for helpers and init flows |
 
 ## Consequences
@@ -138,6 +155,8 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 - The `--bare` flag provides an explicit escape hatch.
 - Template content is minimal and opinionated — may need iteration based on feedback.
 - Adding new templates (e.g. dao, grc20) only requires `.tmpl` files + one registry entry.
+- Complex multi-file templates are supported — just add more `.tmpl` files in the
+  template directory.
 - The shared prompt primitives in `tm2/pkg/commands/prompt.go` can be reused by
   other CLI wizards (e.g. an interactive `gnokey maketx` flow) without code
   duplication or new dependencies.

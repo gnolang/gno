@@ -427,17 +427,30 @@ func TestKindFromPath(t *testing.T) {
 	require.Equal(t, kindPackage, kindFromPath("gno.land/x/something"))
 }
 
-func TestRenderTemplate(t *testing.T) {
+func TestRenderTemplateDir(t *testing.T) {
 	data := templateData{PkgName: "myrealm"}
-	content, err := renderTemplate(realmTemplatesFS, "templates/realm/basic/source.gno.tmpl", data)
-	require.NoError(t, err)
-	require.Contains(t, string(content), "package myrealm")
-	require.Contains(t, string(content), "func Render")
 
-	content, err = renderTemplate(runTemplatesFS, "templates/run/basic/source.gno.tmpl", data)
-	require.NoError(t, err)
-	require.Contains(t, string(content), "package main")
-	require.Contains(t, string(content), "func main()")
+	t.Run("realm", func(t *testing.T) {
+		files, err := renderTemplateDir(realmTemplatesFS, "templates/realm/basic", data)
+		require.NoError(t, err)
+		src, ok := files["myrealm.gno"]
+		require.True(t, ok, "expected myrealm.gno in output")
+		require.Contains(t, string(src), "package myrealm")
+		require.Contains(t, string(src), "func Render")
+
+		test, ok := files["myrealm_test.gno"]
+		require.True(t, ok, "expected myrealm_test.gno in output")
+		require.Contains(t, string(test), "package myrealm")
+	})
+
+	t.Run("run", func(t *testing.T) {
+		files, err := renderTemplateDir(runTemplatesFS, "templates/run/basic", data)
+		require.NoError(t, err)
+		src, ok := files["main.gno"]
+		require.True(t, ok, "expected main.gno in output")
+		require.Contains(t, string(src), "package main")
+		require.Contains(t, string(src), "func main()")
+	})
 }
 
 func TestPromptModulePath(t *testing.T) {

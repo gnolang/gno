@@ -2,9 +2,17 @@
 //
 // To add a new template (e.g. a "dao" realm template):
 //
-//  1. Create template files under templates/<kind>/<name>/:
-//     templates/realm/dao/source.gno.tmpl
-//     templates/realm/dao/test.gno.tmpl       (optional)
+//  1. Create a directory under templates/<kind>/<name>/ with .tmpl files.
+//     Filenames ending in .tmpl are processed as Go text/templates;
+//     the output filename is the stem with .tmpl stripped, also run
+//     through the template engine (so {{.PkgName}}.gno.tmpl produces
+//     <pkgName>.gno).
+//
+//     Example layout for a "dao" realm template:
+//       templates/realm/dao/{{.PkgName}}.gno.tmpl
+//       templates/realm/dao/{{.PkgName}}_test.gno.tmpl
+//       templates/realm/dao/state.gno.tmpl
+//       templates/realm/dao/helpers.gno.tmpl
 //
 //  2. Add an entry to the corresponding slice below (e.g. realmTemplates).
 //     The Name field is what users see in the interactive menu and can pass
@@ -18,6 +26,9 @@ package main
 import (
 	"bytes"
 	"embed"
+	"io/fs"
+	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -35,13 +46,12 @@ type templateData struct {
 	PkgName string // Package name, derived from the last segment of the module path
 }
 
-// initTemplate describes a single scaffold template option.
+// initTemplate describes a single scaffold template directory.
 type initTemplate struct {
 	Name        string   // Short name shown to user and accepted by --template (e.g. "basic", "dao")
 	Description string   // One-line description shown in the interactive menu
-	SourcePath  string   // Path within FS for the source .gno template
-	TestPath    string   // Path within FS for the test .gno template (empty = no test file)
-	FS          embed.FS // Embedded FS containing the template files
+	Dir         string   // Directory path within FS (e.g. "templates/realm/basic")
+	FS          embed.FS // Embedded FS containing the template directory
 }
 
 // realmTemplates lists available templates for realms.
@@ -49,37 +59,72 @@ var realmTemplates = []initTemplate{
 	{
 		Name:        "basic",
 		Description: "minimal realm with a Render function",
-		SourcePath:  "templates/realm/basic/source.gno.tmpl",
-		TestPath:    "templates/realm/basic/test.gno.tmpl",
+		Dir:         "templates/realm/basic",
 		FS:          realmTemplatesFS,
 	},
 }
 
 // packageTemplates lists available templates for packages.
-// Add new entries here to extend the template selection menu.
 var packageTemplates = []initTemplate{
 	{
 		Name:        "basic",
 		Description: "minimal package with a placeholder test",
-		SourcePath:  "templates/package/basic/source.gno.tmpl",
-		TestPath:    "templates/package/basic/test.gno.tmpl",
+		Dir:         "templates/package/basic",
 		FS:          packageTemplatesFS,
 	},
 }
 
 // runTemplates lists available templates for main/run scripts.
-// Add new entries here to extend the template selection menu.
 var runTemplates = []initTemplate{
 	{
 		Name:        "basic",
 		Description: "minimal main script for gnokey maketx run",
-		SourcePath:  "templates/run/basic/source.gno.tmpl",
+		Dir:         "templates/run/basic",
 		FS:          runTemplatesFS,
 	},
 }
 
-// renderTemplate parses and executes a template from the embedded FS.
-func renderTemplate(fsys embed.FS, path string, data templateData) ([]byte, error) {
+// renderTemplateDir walks a template directory and renders all .tmpl files.
+// For each file, the .tmpl suffix is stripped; both the resulting filename
+// and the file contents are executed as Go text/templates with data.
+// Returns a map of output filename → rendered content.
+func renderTemplateDir(fsys embed.FS, dir string, data templateData) (map[string][]byte, error) {
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make(map[string][]byte, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".tmpl") {
+			continue
+		}
+
+		// Output filename = stem with .tmpl stripped, also templated
+		outName, err := renderString(strings.TrimSuffix(name, ".tmpl"), data)
+		if err != nil {
+			return nil, err
+		}
+
+		// Render file contents
+		path := filepath.Join(dir, name)
+		content, err := renderTemplateFile(fsys, path, data)
+		if err != nil {
+			return nil, err
+		}
+
+		files[outName] = content
+	}
+
+	return files, nil
+}
+
+// renderTemplateFile parses and executes a single template file from the embedded FS.
+func renderTemplateFile(fsys embed.FS, path string, data templateData) ([]byte, error) {
 	tmpl, err := template.ParseFS(fsys, path)
 	if err != nil {
 		return nil, err
@@ -89,4 +134,17 @@ func renderTemplate(fsys embed.FS, path string, data templateData) ([]byte, erro
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// renderString executes a string as a Go text/template with the given data.
+func renderString(s string, data templateData) (string, error) {
+	tmpl, err := template.New("").Parse(s)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
