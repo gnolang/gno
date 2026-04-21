@@ -309,11 +309,11 @@ a.b-banner:hover {
 			width: var(--g-space-5);
 			height: var(--g-space-5);
 
-			@media (--xl) {
+			@media (--2xl) {
 				display: none;
 			}
 
-			@media (--2xl) {
+			@media (min-width: 1760px) {
 				display: inline-block;
 				width: var(--g-space-4-5);
 				height: var(--g-space-4-5);
@@ -324,7 +324,7 @@ a.b-banner:hover {
 			font-weight: var(--g-font-bold);
 		}
 
-		@media (--2xl) {
+		@media (--max) {
 			padding-inline-end: var(--g-space-1);
 			margin-inline-end: var(--g-space-6);
 		}
@@ -336,7 +336,7 @@ a.b-banner:hover {
 			display: none;
 		}
 
-		@media (--xl) {
+		@media (--2xl) {
 			display: inline;
 		}
 	}
