@@ -186,8 +186,8 @@ func TestSessionAllowPathsUnrestricted(t *testing.T) {
 }
 
 func TestSessionAllowPathsMultipleEntries(t *testing.T) {
-	t.Parallel()
-
+	// Subtests share state and must run in sequence order (seq 0, 1, 2),
+	// so the outer test is intentionally non-parallel.
 	env, anteHandler, _, _, masterAddr := setupSessionGnoEnv(t)
 	ctx := env.ctx
 
