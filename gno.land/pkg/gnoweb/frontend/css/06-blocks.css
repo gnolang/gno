@@ -2569,31 +2569,46 @@ main.dev-mode .b-toc a {
 	display: flex;
 	align-items: center;
 	gap: 0;
-	background-color: var(--s-color-bg-muted);
 	border-bottom: 1px solid var(--s-color-border-default);
 	overflow-x: auto;
 }
 
 .b-playground-tab {
-	padding: var(--g-space-1) var(--g-space-2);
+	position: relative;
+	padding: var(--g-space-1) var(--g-space-2) var(--g-space-3);
+	margin-right: var(--g-space-1);
 	border: none;
 	background: none;
 	cursor: pointer;
 	font-size: var(--g-font-size-50);
 	font-family: var(--g-font-mono);
-	color: var(--s-color-text-muted);
-	border-bottom: 2px solid transparent;
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-tertiary);
 	white-space: nowrap;
+	transition: color var(--g-transition-fast);
 
-	&:hover {
-		color: var(--s-color-text-secondary);
-		background-color: var(--s-color-bg-default);
+	&::after {
+		content: "";
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		width: 0;
+		height: var(--g-space-1);
+		border-radius: var(--s-rounded) var(--s-rounded) 0 0;
+		background-color: var(--s-color-bg-brand-default);
+		transition: width var(--g-transition-fast);
 	}
 
-	&--active {
-		color: var(--s-color-text-secondary);
-		border-bottom-color: var(--s-color-border-brand);
-		font-weight: var(--g-font-semibold);
+	&:hover {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+.b-playground-tab--active {
+	color: var(--s-color-text-secondary);
+
+	&::after {
+		width: 100%;
 	}
 }
 
