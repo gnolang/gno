@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -117,6 +118,9 @@ If a module path is given as an argument, the kind is auto-detected from the
 path (/r/ for realms, /p/ for packages) and the first available template is
 used. Short-form paths like "r/demo/foo" are expanded to "gno.land/r/demo/foo".
 
+If the argument ends in .gno, a run script is created at that path without
+a gnomod.toml (e.g. "gno init run/hello.gno" creates run/hello.gno).
+
 Flags:
   --bare       Create only gnomod.toml, skip all template files.
   --template   Select a template by name (e.g. --template basic), skipping
@@ -133,7 +137,8 @@ Examples:
   gno init gno.land/r/myname/myrealm   # realm with basic template
   gno init r/myname/mypkg              # short form, auto-expanded
   gno init --bare gno.land/p/demo/lib  # gnomod.toml only
-  gno init --template basic gno.land/r/demo/foo  # explicit template`,
+  gno init --template basic gno.land/r/demo/foo  # explicit template
+  gno init run/create_proposal.gno     # run script, no gnomod.toml`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -149,6 +154,9 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	if cfg.bare && cfg.template != "" {
 		return fmt.Errorf("--bare and --template are mutually exclusive")
 	}
+	if cfg.bare && len(args) == 1 && strings.HasSuffix(args[0], ".gno") {
+		return fmt.Errorf("--bare and .gno script paths are mutually exclusive")
+	}
 
 	rootDir, err := os.Getwd()
 	if err != nil {
@@ -156,6 +164,16 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	}
 	if !filepath.IsAbs(rootDir) {
 		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
+	}
+
+	// .gno argument: create a run script at the given path, no gnomod.toml
+	if len(args) == 1 && strings.HasSuffix(args[0], ".gno") {
+		templates := templatesForKind(kindRun)
+		tmpl, err := resolveTemplate(templates, cfg.template)
+		if err != nil {
+			return err
+		}
+		return execInitRunScript(rootDir, args[0], *tmpl, io)
 	}
 
 	// Early check: if gnomod.toml already exists, bail out immediately.
@@ -183,9 +201,6 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		tmpl, err := resolveTemplate(templates, cfg.template)
 		if err != nil {
 			return err
-		}
-		if kind == kindRun {
-			return execInitRun(rootDir, *tmpl, io)
 		}
 		return writeModule(rootDir, modPath, tmpl, io)
 	}
@@ -282,8 +297,8 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 	}
 
 	var created []string
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(rootDir, name), content, 0o644); err != nil {
+	for _, name := range sortedKeys(files) {
+		if err := os.WriteFile(filepath.Join(rootDir, name), files[name], 0o644); err != nil {
 			return err
 		}
 		created = append(created, name)
@@ -295,6 +310,45 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 		fmt.Fprintf(io.Err(), "  %s\n", f)
 	}
 
+	return nil
+}
+
+// execInitRunScript creates a run script at the given .gno path.
+// No gnomod.toml is created — run scripts don't need one.
+func execInitRunScript(rootDir, gnoPath string, tmpl initTemplate, io commands.IO) error {
+	outDir := filepath.Join(rootDir, filepath.Dir(gnoPath))
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return err
+	}
+
+	scriptName := strings.TrimSuffix(filepath.Base(gnoPath), ".gno")
+	data := templateData{PkgName: "main", ScriptName: scriptName}
+
+	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
+	if err != nil {
+		return fmt.Errorf("render run template: %w", err)
+	}
+
+	for name := range files {
+		p := filepath.Join(filepath.Dir(gnoPath), name)
+		if _, err := os.Stat(filepath.Join(rootDir, p)); err == nil {
+			return fmt.Errorf("file already exists: %s", p)
+		}
+	}
+
+	var created []string
+	for _, name := range sortedKeys(files) {
+		p := filepath.Join(filepath.Dir(gnoPath), name)
+		if err := os.WriteFile(filepath.Join(rootDir, p), files[name], 0o644); err != nil {
+			return err
+		}
+		created = append(created, p)
+	}
+
+	fmt.Fprintf(io.Err(), "Initialized run script (%s template)\n", tmpl.Name)
+	for _, f := range created {
+		fmt.Fprintf(io.Err(), "  %s\n", f)
+	}
 	return nil
 }
 
@@ -326,14 +380,14 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 	}
 
 	var created []string
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(runDir, name), content, 0o644); err != nil {
+	for _, name := range sortedKeys(files) {
+		if err := os.WriteFile(filepath.Join(runDir, name), files[name], 0o644); err != nil {
 			return err
 		}
 		created = append(created, name)
 	}
 
-	fmt.Fprintf(io.Err(), "Initialized run script\n")
+	fmt.Fprintf(io.Err(), "Initialized run script (%s template)\n", tmpl.Name)
 	for _, f := range created {
 		fmt.Fprintf(io.Err(), "  run/%s\n", f)
 	}
@@ -476,6 +530,15 @@ func sanitizeModuleName(name string) string {
 	name = strings.ReplaceAll(name, "-", "_")
 	name = reModName.ReplaceAllString(name, "")
 	return name
+}
+
+func sortedKeys(m map[string][]byte) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func newModTidy(io commands.IO) *commands.Command {

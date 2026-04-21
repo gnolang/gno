@@ -557,6 +557,59 @@ func TestModInitBareAndTemplateExclusive(t *testing.T) {
 	require.Contains(t, err.Error(), "mutually exclusive")
 }
 
+func TestModInitGnoFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{}
+	err = execModInit(cfg, []string{"run/create_proposal.gno"}, newTestMockIO(""))
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "run", "create_proposal.gno"))
+	require.NoError(t, err)
+	require.Contains(t, string(content), "package main")
+	require.Contains(t, string(content), "./create_proposal.gno")
+
+	// No gnomod.toml for run scripts
+	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
+	require.True(t, os.IsNotExist(err))
+}
+
+func TestModInitGnoFileConflict(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{}
+	err = execModInit(cfg, []string{"run/hello.gno"}, newTestMockIO(""))
+	require.NoError(t, err)
+
+	err = execModInit(cfg, []string{"run/hello.gno"}, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file already exists")
+}
+
+func TestModInitBareAndGnoExclusive(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{bare: true}
+	err = execModInit(cfg, []string{"run/hello.gno"}, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "mutually exclusive")
+}
+
 func TestSanitizeModuleName(t *testing.T) {
 	require.Equal(t, "gno_fix_mod_init_template", sanitizeModuleName("gno-fix-mod-init-template"))
 	require.Equal(t, "my_realm", sanitizeModuleName("My-Realm"))

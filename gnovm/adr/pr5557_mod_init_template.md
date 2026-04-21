@@ -27,12 +27,19 @@ Module kind: [r]ealm, [p]ackage, or [m]ain (run script)? [r/p/m] (default: p):
 
 - **Realm** (`/r/`): creates `gnomod.toml`, `<pkg>.gno` with `Render`, `<pkg>_test.gno`.
 - **Package** (`/p/`): creates `gnomod.toml`, `<pkg>.gno`, `<pkg>_test.gno`.
-- **Run script** (main): creates only `main.gno` — no `gnomod.toml` needed since
-  the keeper auto-generates one for `gnokey maketx run`.
+- **Run script** (main): creates `run/<name>.gno` — the user chooses the script name.
+  No `gnomod.toml` is needed since the keeper auto-generates one for `gnokey maketx run`.
 
 If a module path is provided with `/r/` or `/p/`, the kind is auto-detected.
 If the path is missing the letter segment (e.g. `gno.land/myname/foo`), the user
 is prompted and the letter is inserted automatically.
+
+### `.gno` argument shorthand for run scripts
+
+If the argument ends in `.gno`, a run script is created at that path without
+`gnomod.toml`. For example, `gno init run/create_proposal.gno` creates
+`run/create_proposal.gno`. The `--template` flag is respected; `--bare` is rejected
+as mutually exclusive.
 
 ### Template selection menu
 
@@ -71,8 +78,12 @@ templates/
       {{.PkgName}}_test.gno.tmpl  → <pkg>_test.gno (placeholder test)
   run/
     basic/
-      main.gno.tmpl               → main.gno (package main + func main())
+      {{.ScriptName}}.gno.tmpl    → <name>.gno (package main + gnokey comment)
 ```
+
+`templateData` provides `{{.PkgName}}` (from module path) and `{{.ScriptName}}`
+(for run script filenames). The run template includes a block comment showing
+both `gno run` and `gnokey maketx run` commands with the script path.
 
 ### Non-interactive fallback
 
@@ -95,6 +106,13 @@ in line-buffered terminal mode, and alternative go-back keys (like `<` or `b`)
 conflict with valid user input in `PromptString`. The user can Ctrl+C and
 restart the wizard instead.
 
+### File conflict detection
+
+Before writing any template file, `writeModule` and `execInitRun(Script)` check
+whether each output file already exists. If a conflict is found, the init
+aborts with an error like `file already exists: myrealm.gno`. This prevents
+silent overwrites on accidental re-init.
+
 ### TTY detection
 
 Uses `commands.IsInteractive()`, which wraps `golang.org/x/term.IsTerminal()`
@@ -103,7 +121,8 @@ on `os.Stdin.Fd()`. Already a dependency via `tm2/pkg/commands/utils.go`.
 ### Template files are embedded, not hardcoded
 
 Templates live as `.tmpl` files under `gnovm/cmd/gno/templates/` and are compiled
-into the binary via `go:embed`. `text/template` renders them with `{{.PkgName}}`.
+into the binary via `go:embed`. `text/template` renders them with `{{.PkgName}}`
+and `{{.ScriptName}}`.
 
 ### No README generation
 
@@ -126,7 +145,7 @@ existing examples don't include READMEs, and a placeholder README adds noise.
    Go prompt library pulls in the Charm stack (~15 transitive deps). The
    `commands` package already has `GetString`/`GetPassword`/`GetConfirmation`
    and `golang.org/x/term`; building on those keeps the dependency footprint
-   at zero new imports. The shared primitives in `prompt.go` are ~140 lines
+   at zero new imports. The shared primitives in `prompt.go` are ~190 lines
    of code, fully testable via `commands.IO`, and sufficient for sequential
    wizard flows.
 7. **Go-back navigation (`ErrGoBack`)** — Rejected. Backspace/delete key cannot
@@ -142,15 +161,16 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 | `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `PromptConfirm`, `IsInteractive`) |
 | `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
-| `gnovm/cmd/gno/mod.go` | `newInitCmd`, `execModInit`, `execInitRun`, `promptModuleKind`, `selectTemplate`, `insertPathLetter` |
+| `gnovm/cmd/gno/mod.go` | `newInitCmd`, `execModInit`, `execInitRun`, `execInitRunScript`, `writeModule`, `promptModuleKind`, `selectTemplate`, `insertPathLetter` |
 | `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplateDir` |
-| `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` in filenames |
+| `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` and `{{.ScriptName}}` in filenames |
 | `gnovm/cmd/gno/mod_test.go` | Tests for helpers and init flows |
 
 ## Consequences
 
 - New users get a working starter project with `gno init gno.land/r/myname/myrealm`.
-- Run scripts can be scaffolded with `gno init` → select "main" → creates `main.gno`.
+- Run scripts can be scaffolded with `gno init run/create_proposal.gno` (shorthand)
+  or `gno init` → select "main" → choose script name.
 - Existing non-interactive usage is unchanged (all existing tests pass unmodified).
 - The `--bare` flag provides an explicit escape hatch.
 - Template content is minimal and opinionated — may need iteration based on feedback.
