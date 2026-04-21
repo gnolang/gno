@@ -47,9 +47,9 @@ qrender() {
 # Query chain status as JSON
 chain_status() {
   local rpc="$1"
-  curl -sS --max-time 5 "${rpc}/status" 2>/dev/null \
-    | jq -c '{chain_id: .result.node_info.network, latest_block: .result.sync_info.latest_block_height, catching_up: .result.sync_info.catching_up}' \
-    2>/dev/null || echo '"unreachable"'
+  curl -sS --max-time 5 "${rpc}/status" 2>/dev/null |
+    jq -c '{chain_id: .result.node_info.network, latest_block: .result.sync_info.latest_block_height, catching_up: .result.sync_info.catching_up}' \
+      2>/dev/null || echo '"unreachable"'
 }
 
 # Query account balance via auth/accounts
@@ -96,13 +96,14 @@ account_info() {
     "gno.land/r/gnoland/blog:" \
     "gno.land/r/gnoland/valopers:" \
     "gno.land/r/gnoland/coins:" \
-    "gno.land/r/gnoland/wugnot:" \
-  ; do
+    "gno.land/r/gnoland/wugnot:"; do
     l=$(qrender "$LOCAL_RPC" "$realm")
-    p=$(qrender "$PROD_RPC"  "$realm")
+    p=$(qrender "$PROD_RPC" "$realm")
     # collapse to status icon
-    lt="❌ $l"; [[ $l == OK:* ]] && lt="✅"
-    pt="❌ $p"; [[ $p == OK:* ]] && pt="✅"
+    lt="❌ $l"
+    [[ $l == OK:* ]] && lt="✅"
+    pt="❌ $p"
+    [[ $p == OK:* ]] && pt="✅"
     echo "| \`$realm\` | $lt | $pt |"
   done
   echo ""
@@ -111,9 +112,9 @@ account_info() {
   echo "| Chain | auth/accounts | r/gnoland/coins:balances |"
   echo "|-------|---------------|--------------------------|"
   la=$(account_info "$LOCAL_RPC" "$ADDRESS")
-  pa=$(account_info "$PROD_RPC"  "$ADDRESS")
+  pa=$(account_info "$PROD_RPC" "$ADDRESS")
   lc=$(qrender "$LOCAL_RPC" "gno.land/r/gnoland/coins:balances?address=${ADDRESS}&coin" | head -c 120)
-  pc=$(qrender "$PROD_RPC"  "gno.land/r/gnoland/coins:balances?address=${ADDRESS}&coin" | head -c 120)
+  pc=$(qrender "$PROD_RPC" "gno.land/r/gnoland/coins:balances?address=${ADDRESS}&coin" | head -c 120)
   echo "| Local | \`$la\` | \`$lc\` |"
   echo "| Prod  | \`$pa\` | \`$pc\` |"
   echo ""
@@ -121,32 +122,60 @@ account_info() {
   echo ""
   echo "### Local consensus"
   echo '```json'
-  curl -sS --max-time 5 "$LOCAL_RPC/consensus_params" 2>/dev/null \
-    | jq '.result.consensus_params.Block' 2>/dev/null || echo "(unreachable)"
+  curl -sS --max-time 5 "$LOCAL_RPC/consensus_params" 2>/dev/null |
+    jq '.result.consensus_params.Block' 2>/dev/null || echo "(unreachable)"
   echo '```'
   echo ""
   echo "### Prod consensus"
   echo '```json'
-  curl -sS --max-time 5 "$PROD_RPC/consensus_params" 2>/dev/null \
-    | jq '.result.consensus_params.Block' 2>/dev/null || echo "(unreachable)"
+  curl -sS --max-time 5 "$PROD_RPC/consensus_params" 2>/dev/null |
+    jq '.result.consensus_params.Block' 2>/dev/null || echo "(unreachable)"
   echo '```'
   echo ""
   echo "### Local gas price"
   echo '```json'
-  curl -sS --max-time 10 "$LOCAL_RPC/abci_query?path=%22auth%2Fgasprice%22" 2>/dev/null \
-    | jq -r '.result.response.ResponseBase.Data // empty' \
-    | base64 -d 2>/dev/null \
-    | jq '.' 2>/dev/null || echo "(no data)"
+  curl -sS --max-time 10 "$LOCAL_RPC/abci_query?path=%22auth%2Fgasprice%22" 2>/dev/null |
+    jq -r '.result.response.ResponseBase.Data // empty' |
+    base64 -d 2>/dev/null |
+    jq '.' 2>/dev/null || echo "(no data)"
   echo '```'
   echo ""
   echo "### Prod gas price"
   echo '```json'
-  curl -sS --max-time 10 "$PROD_RPC/abci_query?path=%22auth%2Fgasprice%22" 2>/dev/null \
-    | jq -r '.result.response.ResponseBase.Data // empty' \
-    | base64 -d 2>/dev/null \
-    | jq '.' 2>/dev/null || echo "(no data)"
+  curl -sS --max-time 10 "$PROD_RPC/abci_query?path=%22auth%2Fgasprice%22" 2>/dev/null |
+    jq -r '.result.response.ResponseBase.Data // empty' |
+    base64 -d 2>/dev/null |
+    jq '.' 2>/dev/null || echo "(no data)"
   echo '```'
   echo ""
+  # Surface synthetic balance top-ups (from hf_topup_balance) so a
+  # reviewer looking at STATE-REPORT.md sees the full picture: any
+  # address appearing here has a local/prod delta that is expected and
+  # documented, not a replay divergence.
+  if [[ -f "$OUT/TOPUP-REPORT.md" ]]; then
+    echo "## ⚠ Synthetic state modifications"
+    echo ""
+    echo "The hardfork replay ran against a genesis where the following"
+    echo "balances were synthetically increased by \`hf_topup_balance\`."
+    echo "These are NOT replay divergences — see \`out/TOPUP-REPORT.md\`"
+    echo "for the full audit trail with reasons."
+    echo ""
+    echo "| Address | Local balance | Prod balance | Reason |"
+    echo "|---------|--------------:|-------------:|--------|"
+    # Parse each table row from TOPUP-REPORT.md and probe both chains.
+    # Row shape: | `addr` | before | after | +delta | reason |
+    while IFS='|' read -r _ addr_cell _ _ _ reason_cell _; do
+      addr=$(printf '%s' "$addr_cell" | tr -d ' `')
+      [[ "$addr" =~ ^g1[0-9a-z]+$ ]] || continue
+      reason=$(printf '%s' "$reason_cell" | sed -e 's/^ *//' -e 's/ *$//')
+      la=$(account_info "$LOCAL_RPC" "$addr")
+      pa=$(account_info "$PROD_RPC" "$addr")
+      lc=$(printf '%s' "$la" | jq -r '.coins // "(n/a)"' 2>/dev/null || echo "(n/a)")
+      pc=$(printf '%s' "$pa" | jq -r '.coins // "(n/a)"' 2>/dev/null || echo "(n/a)")
+      echo "| \`$addr\` | $lc | $pc | $reason |"
+    done <"$OUT/TOPUP-REPORT.md"
+    echo ""
+  fi
   echo "## Visual comparison (open these side-by-side)"
   echo ""
   echo "| Page | Local | Prod |"
@@ -155,7 +184,7 @@ account_info() {
     echo "| \`${p}\` | [$LOCAL_WEB/$p]($LOCAL_WEB/$p) | [$PROD_WEB/$p]($PROD_WEB/$p) |"
   done
   echo ""
-} > "$REPORT"
+} >"$REPORT"
 
 echo "Report written to: $REPORT"
 echo ""

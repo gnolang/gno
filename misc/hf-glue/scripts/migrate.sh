@@ -23,9 +23,9 @@ hf_init
 # Pick one. $SOURCE from the Makefile decides which branch runs.
 : "${SOURCE:=https://github.com/gnolang/gno/releases/download/chain/gnoland1.0/genesis.json}"
 case "$SOURCE" in
-  *.json|*/genesis.json)          hf_fetch_genesis_from_url  "$SOURCE" ;;
-  http://*|https://*)             hf_fetch_genesis_from_rpc  "$SOURCE" ;;
-  *)                              hf_fetch_genesis_from_file "$SOURCE" ;;
+*.json | */genesis.json) hf_fetch_genesis_from_url "$SOURCE" ;;
+http://* | https://*) hf_fetch_genesis_from_rpc "$SOURCE" ;;
+*) hf_fetch_genesis_from_file "$SOURCE" ;;
 esac
 
 # -------------------------------------------------------------------------
@@ -50,6 +50,31 @@ for spec in ${PATCH_REALMS:-}; do
   [[ -z "$spec" ]] && continue
   hf_patch_addpkg "${spec%%=*}" "${spec#*=}"
 done
+
+# -------------------------------------------------------------------------
+# 3b) BALANCE TOP-UPS (pre-replay synthetic seeding)
+# -------------------------------------------------------------------------
+# Last-resort escape hatch when a genesis-mode tx would fail under newer
+# code because an invariant that didn't exist when the tx was signed
+# cannot be covered from the replay's starting state.
+#
+# This diverges the replayed state from the source chain — use only when
+# the alternative is an incomplete replay. Every top-up is written to
+# out/TOPUP-REPORT.md and surfaced in out/STATE-REPORT.md so the synthetic
+# change is visible in the audit trail, not just in the fetch console.
+#
+# Current case (r/sys/txfees / tx_index=76):
+#   Under master's storage-deposit logic (added after gnoland1 launched),
+#   every addpkg *locks* a deposit from msg.Creator proportional to realm
+#   size. The creator g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l deploys 7
+#   r/sys/* realms in a row and exhausts its 58.7 Mugnot balance at the
+#   8th (r/sys/txfees). Since all 85 genesis-mode addpkg txs were signed
+#   with max_deposit="" (the field didn't exist on gnoland1) and the
+#   realm code on master is identical to gnoland1's, no cherry-pick fixes
+#   this — the gap is purely between old txs and new SDK semantics.
+#   Top up the creator so the locks fit.
+hf_topup_balance "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l" "1000000000ugnot" \
+  "storage-deposit headroom for r/sys/* genesis-mode deploys"
 
 # -------------------------------------------------------------------------
 # 4) OVERLAY TXS (pre-history, not yet supported)
@@ -80,10 +105,10 @@ if [[ -f "$PV_KEY" ]]; then
   hf_kv "pv_key" "$PV_KEY"
   MIG_JSONL="$OUT/migrations.jsonl"
   CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
-  PV_KEY="$PV_KEY" \
-  OUT_JSONL="$MIG_JSONL" \
-  CHAIN_ID="$CHAIN_ID" \
-  REPO_ROOT="$REPO" \
+    PV_KEY="$PV_KEY" \
+    OUT_JSONL="$MIG_JSONL" \
+    CHAIN_ID="$CHAIN_ID" \
+    REPO_ROOT="$REPO" \
     bash "$REPO/misc/deployments/gnoland-1/migrations/build.sh"
   hf_migration_tx "$MIG_JSONL"
 else

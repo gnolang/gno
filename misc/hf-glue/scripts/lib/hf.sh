@@ -14,12 +14,13 @@ set -euo pipefail
 
 # ---- state ----------------------------------------------------------------
 # Filled by the hf_* functions. Read at the end by hf_assemble.
-_HF_STAGE=""           # staging dir (gnoland-data layout)
-_HF_STAGE_GEN=""       # path to base genesis.json
-_HF_STAGE_TXS=""       # path to historical txs.jsonl (empty until step 2)
-_HF_PATCHES=()         # list of "pkgpath=srcdir" entries for --patch-realm
-_HF_OVERLAYS=()        # overlay tx files (pre-history, not yet supported)
-_HF_MIGRATIONS=()      # migration tx files (post-history, not yet supported)
+_HF_STAGE=""      # staging dir (gnoland-data layout)
+_HF_STAGE_GEN=""  # path to base genesis.json
+_HF_STAGE_TXS=""  # path to historical txs.jsonl (empty until step 2)
+_HF_PATCHES=()    # list of "pkgpath=srcdir" entries for --patch-realm
+_HF_OVERLAYS=()   # overlay tx files (pre-history, not yet supported)
+_HF_MIGRATIONS=() # migration tx files (post-history, not yet supported)
+_HF_TOPUPS=()     # balance top-ups: "addr=amount=reason" (post-assemble)
 
 # ---- presentation ---------------------------------------------------------
 hf_banner() {
@@ -33,6 +34,10 @@ hf_kv() {
 hf_die() {
   printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2
   exit 1
+}
+
+hf_warn() {
+  printf '\033[1;31m⚠ WARN:\033[0m %s\n' "$*" >&2
 }
 
 # ---- setup ----------------------------------------------------------------
@@ -50,10 +55,10 @@ hf_init() {
 
   hf_banner "hardfork migration"
   hf_kv "original chain id" "$ORIGINAL_CHAIN_ID"
-  hf_kv "new chain id"      "$CHAIN_ID"
-  hf_kv "halt height"       "${HALT_HEIGHT:-<auto>}"
-  hf_kv "output genesis"    "$OUT/genesis.json"
-  hf_kv "staging dir"       "$_HF_STAGE"
+  hf_kv "new chain id" "$CHAIN_ID"
+  hf_kv "halt height" "${HALT_HEIGHT:-<auto>}"
+  hf_kv "output genesis" "$OUT/genesis.json"
+  hf_kv "staging dir" "$_HF_STAGE"
   echo ""
 }
 
@@ -86,7 +91,7 @@ hf_fetch_genesis_from_rpc() {
   hf_kv "url" "$env"
   curl -fSL --retry 3 --retry-delay 5 --max-time 600 --progress-bar \
     -o "$_HF_STAGE/envelope.json" "$env"
-  jq -c '.result.genesis' < "$_HF_STAGE/envelope.json" > "$_HF_STAGE_GEN"
+  jq -c '.result.genesis' <"$_HF_STAGE/envelope.json" >"$_HF_STAGE_GEN"
   rm -f "$_HF_STAGE/envelope.json"
   hf_kv "size" "$(_hf_size "$_HF_STAGE_GEN") bytes"
 }
@@ -114,26 +119,26 @@ hf_fetch_txs_via_rpc() {
   local rpc="$1"
   hf_banner "step 2 — historical txs (RPC)"
   if [[ -z "${HALT_HEIGHT:-}" ]]; then
-    HALT_HEIGHT=$(curl -fsS --max-time 30 "${rpc%/}/status" \
-      | jq -r '.result.sync_info.latest_block_height')
+    HALT_HEIGHT=$(curl -fsS --max-time 30 "${rpc%/}/status" |
+      jq -r '.result.sync_info.latest_block_height')
     hf_kv "halt (auto)" "$HALT_HEIGHT"
   else
     hf_kv "halt" "$HALT_HEIGHT"
   fi
   if [[ -f "$_HF_STAGE_TXS" ]]; then
-    hf_kv "cached" "$(wc -l < "$_HF_STAGE_TXS" | tr -d ' ') txs"
+    hf_kv "cached" "$(wc -l <"$_HF_STAGE_TXS" | tr -d ' ') txs"
     return 0
   fi
   hf_kv "rpc" "$rpc"
   hf_kv "range" "1..$HALT_HEIGHT"
-  ( cd "$REPO/contribs/tx-archive" && go run ./cmd backup \
-      -remote "$rpc" \
-      -from-block 1 \
-      -to-block "$HALT_HEIGHT" \
-      -batch 1000 \
-      -output-path "$_HF_STAGE_TXS" \
-      -overwrite )
-  hf_kv "total" "$(wc -l < "$_HF_STAGE_TXS" | tr -d ' ') txs"
+  (cd "$REPO/contribs/tx-archive" && go run ./cmd backup \
+    -remote "$rpc" \
+    -from-block 1 \
+    -to-block "$HALT_HEIGHT" \
+    -batch 1000 \
+    -output-path "$_HF_STAGE_TXS" \
+    -overwrite)
+  hf_kv "total" "$(wc -l <"$_HF_STAGE_TXS" | tr -d ' ') txs"
 }
 
 # hf_fetch_txs_from_jsonl PATH
@@ -145,7 +150,7 @@ hf_fetch_txs_from_jsonl() {
   : "${HALT_HEIGHT:?HALT_HEIGHT is required when pulling txs from a file}"
   hf_kv "from" "$src"
   cp "$src" "$_HF_STAGE_TXS"
-  hf_kv "total" "$(wc -l < "$_HF_STAGE_TXS" | tr -d ' ') txs"
+  hf_kv "total" "$(wc -l <"$_HF_STAGE_TXS" | tr -d ' ') txs"
 }
 
 # hf_skip_txs
@@ -154,7 +159,7 @@ hf_skip_txs() {
   hf_banner "step 2 — historical txs (none)"
   : "${HALT_HEIGHT:?HALT_HEIGHT is required when skipping tx pull}"
   hf_kv "halt" "$HALT_HEIGHT"
-  : > "$_HF_STAGE_TXS"
+  : >"$_HF_STAGE_TXS"
 }
 
 # ---- patches + overlays ---------------------------------------------------
@@ -196,6 +201,29 @@ hf_migration_tx() {
   _HF_MIGRATIONS+=("$src")
 }
 
+# hf_topup_balance ADDR AMOUNT [REASON]
+#   Add coins to ADDR in the assembled genesis balances. Used when a
+#   replay under newer code exposes an account that can't cover invariants
+#   that didn't exist when the original tx was signed.
+#
+#   Concrete case: master's storage-deposit code (added after gnoland1
+#   launched) locks a deposit from msg.Creator for every addpkg. A
+#   creator that deploys many realms in a row runs out of ugnot mid-
+#   replay. The original txs were signed with max_deposit="" (the field
+#   didn't exist yet) and can't be retroactively modified without
+#   invalidating signatures (though we currently run with
+#   --skip-genesis-sig-verification, leaving the payload stable is the
+#   honest move). Top up the creator instead.
+#
+#   The top-up is applied as a post-process on $OUT/genesis.json after
+#   gnogenesis fork generate completes. Balances in the source genesis
+#   on disk stay untouched.
+hf_topup_balance() {
+  local addr="$1" amount="$2" reason="${3:-unspecified}"
+  [[ -n "$addr" && -n "$amount" ]] || hf_die "hf_topup_balance: addr and amount are required"
+  _HF_TOPUPS+=("$addr=$amount=$reason")
+}
+
 # ---- step 3: assemble -----------------------------------------------------
 # hf_assemble
 #   Runs `gnogenesis fork generate` against the staged source dir,
@@ -210,11 +238,11 @@ hf_assemble() {
 
   local args=(
     fork generate
-    --source            "$_HF_STAGE"
-    --chain-id          "$CHAIN_ID"
+    --source "$_HF_STAGE"
+    --chain-id "$CHAIN_ID"
     --original-chain-id "$ORIGINAL_CHAIN_ID"
-    --halt-height       "$HALT_HEIGHT"
-    --output            "$OUT/genesis.json"
+    --halt-height "$HALT_HEIGHT"
+    --output "$OUT/genesis.json"
   )
   local p
   for p in "${_HF_PATCHES[@]:-}"; do
@@ -229,7 +257,9 @@ hf_assemble() {
     args+=(--migration-tx "$m")
   done
 
-  ( cd "$REPO/contribs/gnogenesis" && go run . "${args[@]}" )
+  (cd "$REPO/contribs/gnogenesis" && go run . "${args[@]}")
+
+  _hf_apply_topups
 
   echo ""
   if command -v sha256sum >/dev/null 2>&1; then
@@ -241,4 +271,91 @@ hf_assemble() {
 }
 
 # ---- internal -------------------------------------------------------------
-_hf_size() { wc -c < "$1" | tr -d ' '; }
+_hf_size() { wc -c <"$1" | tr -d ' '; }
+
+# _hf_apply_topups
+#   Apply _HF_TOPUPS to $OUT/genesis.json in-place. Each entry adds the
+#   given amount to the target address's balance (creating the balance
+#   line if absent). Python is used because app_state.balances is a
+#   multi-million-entry list on mainnet-scale snapshots.
+_hf_apply_topups() {
+  [[ ${#_HF_TOPUPS[@]} -gt 0 ]] || return 0
+  hf_banner "post-assemble — balance top-ups"
+  local t
+  for t in "${_HF_TOPUPS[@]}"; do
+    hf_kv "topup" "$t"
+  done
+
+  GENESIS="$OUT/genesis.json" TOPUP_REPORT="$OUT/TOPUP-REPORT.md" \
+    python3 - "${_HF_TOPUPS[@]}" <<'PY'
+import datetime
+import json
+import os
+import re
+import sys
+
+path = os.environ["GENESIS"]
+report = os.environ["TOPUP_REPORT"]
+
+with open(path) as f:
+    g = json.load(f)
+
+bals = g.setdefault("app_state", {}).setdefault("balances", [])
+entry_re = re.compile(r"^(g1[0-9a-z]+)=([0-9]+)([a-zA-Z]+)$")
+coin_re = re.compile(r"^([0-9]+)([a-zA-Z]+)$")
+
+idx = {}
+for i, line in enumerate(bals):
+    m = entry_re.match(line)
+    if m:
+        idx[(m.group(1), m.group(3))] = i
+
+applied = []
+for raw in sys.argv[1:]:
+    addr, amount, reason = raw.split("=", 2)
+    m = coin_re.match(amount)
+    if not m:
+        sys.exit(f"hf_topup_balance: invalid amount: {amount}")
+    n, denom = int(m.group(1)), m.group(2)
+    key = (addr, denom)
+    if key in idx:
+        old = entry_re.match(bals[idx[key]])
+        prev = int(old.group(2))
+        new_amt = prev + n
+        bals[idx[key]] = f"{addr}={new_amt}{denom}"
+        applied.append((addr, prev, new_amt, denom, reason))
+    else:
+        bals.append(f"{addr}={n}{denom}")
+        applied.append((addr, 0, n, denom, reason))
+
+with open(path, "w") as f:
+    json.dump(g, f, indent=2)
+
+# Audit trail: persistent report of every synthetic balance change.
+with open(report, "w") as f:
+    f.write("# Synthetic balance top-ups\n\n")
+    f.write(
+        f"_Generated {datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')}_\n\n"
+    )
+    f.write(
+        "> ⚠ **These balances were injected into the hardfork genesis after\n"
+        "> `gnogenesis fork generate` ran.** The replay that follows is no\n"
+        "> longer a faithful reproduction of the source chain — divergence\n"
+        "> against prod is expected for the addresses listed below.\n"
+        ">\n"
+        "> Each entry documents the reason the top-up was needed. Prefer\n"
+        "> fixing the underlying issue (e.g. a VM bypass for genesis-mode\n"
+        "> txs predating a feature) over accumulating top-ups.\n\n"
+    )
+    f.write("| Address | Before | After | Δ | Reason |\n")
+    f.write("|---------|-------:|------:|---:|--------|\n")
+    for addr, before, after, denom, reason in applied:
+        delta = after - before
+        f.write(
+            f"| `{addr}` | {before}{denom} | {after}{denom} | +{delta}{denom} | {reason} |\n"
+        )
+PY
+
+  hf_kv "report" "$OUT/TOPUP-REPORT.md"
+  hf_warn "${#_HF_TOPUPS[@]} synthetic balance top-up(s) applied — see $OUT/TOPUP-REPORT.md"
+}
