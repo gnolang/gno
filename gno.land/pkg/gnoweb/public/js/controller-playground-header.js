@@ -1,1 +1,0 @@
-import{BaseController as e}from"./controller.js";var d=class extends e{connect(){}runCode(){this.dispatch("playground-header:run")}runTests(){this.dispatch("playground-header:test")}formatCode(){this.dispatch("playground-header:format")}shareCode(){this.dispatch("playground-header:share")}};export{d as PlaygroundHeaderController};
