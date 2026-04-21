@@ -57,6 +57,7 @@ var Package = pkg.NewPackage(
 	PrimitivesStructAr{},
 	Concrete1{},
 	Concrete2{},
+	ConcreteRecursive{},
 	ConcreteTypeDef{},
 	ConcreteWrappedBytes{},
 	&InterfaceFieldsStruct{},
@@ -93,6 +94,16 @@ var Package = pkg.NewPackage(
 	// FuzzUnsafeFloat is excluded: pbbindings generator doesn't support float.
 	FuzzWriteEmpty{},
 	FuzzNilElements{},
+	FuzzFixedInt{},
+	FuzzContainsAminoMarshaler{},
+	// AminoMarshaler list element types.
+	SimpleAddress{},
+	HostRepr{},
+	CounterRepr(0),
+	ContainerWithAminoLists{},
+	// Cross-package AminoMarshaler regression types.
+	CrossPkgPointerSlice{},
+	CrossPkgBoxedRepr{},
 	// Interface-heavy benchmark type.
 	InterfaceHeavy{},
 )

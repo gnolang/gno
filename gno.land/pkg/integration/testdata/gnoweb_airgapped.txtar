@@ -26,7 +26,7 @@ stdout '}'
 ! stderr '.+' # empty
 
 # Create transaction
-gnokey maketx call -pkgpath "gno.land/r/realm" -func "SetName" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -args "foo" user1
+gnokey maketx call -pkgpath "gno.land/r/realm" -func "SetName" -gas-fee 230001ugnot -gas-wanted 2_300_000 -send "" -args "foo" -broadcast=false user1
 cp stdout call.tx
 
 # Sign
@@ -35,7 +35,7 @@ cmpenv stdout sign.stdout.golden
 
 gnokey broadcast $WORK/call.tx
 stdout '("foo" string)'
-stdout 'GAS WANTED: 2000000'
+stdout 'GAS WANTED: 2300000'
 
 gnokey query vm/qrender --data '"gno.land/r/realm":'
 stdout '# HELLO foo'

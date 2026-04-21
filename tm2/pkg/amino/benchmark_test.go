@@ -12,13 +12,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
 
-
 // Pre-generate N random instances of each type and their encoded bytes.
 const benchN = 100
 
 type benchData struct {
-	ptrs []any          // random struct pointers
-	bzs  [][]byte       // amino-encoded bytes
+	ptrs []any           // random struct pointers
+	bzs  [][]byte        // amino-encoded bytes
 	pbos []proto.Message // pbbindings proto messages (nil if not PBMessager)
 }
 
@@ -111,7 +110,7 @@ func BenchmarkDecode(b *testing.B) {
 				rv := reflect.New(rt)
 				p := rv.Interface()
 				if pbm2, ok := p.(amino.PBMessager2); ok {
-					pbm2.UnmarshalBinary2(cdc, bd.bzs[i%benchN])
+					pbm2.UnmarshalBinary2(cdc, bd.bzs[i%benchN], 0)
 				} else {
 					cdc.UnmarshalReflect(bd.bzs[i%benchN], p)
 				}
@@ -141,4 +140,3 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 }
-

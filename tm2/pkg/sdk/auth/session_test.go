@@ -851,7 +851,7 @@ func TestSessionPubKeyMismatchAttack(t *testing.T) {
 		tu.NewTestFee(),
 		[]std.Signature{{
 			PubKey:      attackerPriv.PubKey(), // wrong pubkey
-			SessionAddr: &sessionAddr,
+			SessionAddr: sessionAddr,
 			Signature:   sig,
 		}},
 		"",
@@ -990,8 +990,8 @@ func TestSessionMultiSignerMixed(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := std.NewTx(msgs, fee, []std.Signature{
-		{SessionAddr: &sessionAddr, Signature: sigA},          // masterA via session
-		{PubKey: masterPubB, Signature: sigB},                 // masterB direct
+		{SessionAddr: sessionAddr, Signature: sigA}, // masterA via session
+		{PubKey: masterPubB, Signature: sigB},       // masterB direct
 	}, "")
 
 	// Should pass.

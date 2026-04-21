@@ -2,6 +2,53 @@
    06-BLOCKS - Reusable UI components and blocks (CUBE CSS: Block)
    ========================================================================== */
 
+/* ===== GNOME / LOGO SVG ===== */
+.b-gnome,
+.b-logo {
+	& .hat {
+		fill: var(--s-logo-hat);
+	}
+
+	& .beard {
+		fill: var(--s-logo-beard);
+	}
+}
+
+/* ===== BANNER ===== */
+.b-banner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	padding: var(--g-space-1-5) var(--g-space-4);
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-base);
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	text-align: center;
+
+	@media (--md) {
+		font-size: var(--g-font-size-100);
+	}
+
+	& a {
+		color: inherit;
+		text-decoration: underline;
+	}
+
+	& a:hover,
+	&:is(a):hover {
+		opacity: 0.8;
+	}
+
+	& code {
+		padding: var(--g-space-0-5) var(--g-space-1);
+		border-radius: var(--g-border-radius-sm);
+		background-color: var(--s-color-bg-brand-action);
+		font-size: 0.96em;
+	}
+}
+
 /* ===== HEADER COMPONENT ===== */
 .b-header {
 	position: sticky;
@@ -859,7 +906,7 @@
 			border-top: var(--s-border);
 		}
 
-		& > a {
+		& > :where(a, div) {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
@@ -871,6 +918,15 @@
 
 			.c-icon {
 				margin-inline-start: 0;
+			}
+
+			& > a {
+				flex: 1;
+				min-width: 0;
+
+				&:hover {
+					background-color: transparent;
+				}
 			}
 		}
 	}

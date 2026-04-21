@@ -72,8 +72,9 @@ func (ak AccountKeeper) Logger(ctx sdk.Context) *slog.Logger {
 
 // GetAccount returns a specific account in the AccountKeeper.
 func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
-	stor := ctx.GasStore(ak.key)
-	bz := stor.Get(AddressStoreKey(addr))
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	bz := stor.Get(gctx, AddressStoreKey(addr))
 	if bz == nil {
 		return nil
 	}
@@ -96,21 +97,23 @@ func (ak AccountKeeper) GetAllAccounts(ctx sdk.Context) []std.Account {
 
 // SetAccount implements AccountKeeper.
 func (ak AccountKeeper) SetAccount(ctx sdk.Context, acc std.Account) {
+	gctx := ctx.GasContext()
 	addr := acc.GetAddress()
-	stor := ctx.GasStore(ak.key)
+	stor := ctx.Store(ak.key)
 	bz, err := amino.MarshalAny(acc)
 	if err != nil {
 		panic(err)
 	}
-	stor.Set(AddressStoreKey(addr), bz)
+	stor.Set(gctx, AddressStoreKey(addr), bz)
 }
 
 // RemoveAccount removes an account for the account mapper store.
 // NOTE: this will cause supply invariant violation if called
 func (ak AccountKeeper) RemoveAccount(ctx sdk.Context, acc std.Account) {
+	gctx := ctx.GasContext()
 	addr := acc.GetAddress()
-	stor := ctx.GasStore(ak.key)
-	stor.Delete(AddressStoreKey(addr))
+	stor := ctx.Store(ak.key)
+	stor.Delete(gctx, AddressStoreKey(addr))
 }
 
 // IterateAccounts implements AccountKeeper.
@@ -119,8 +122,8 @@ func (ak AccountKeeper) RemoveAccount(ctx sdk.Context, acc std.Account) {
 // skipped by checking key length. Regular account keys are exactly
 // AccountStoreKeyLen bytes; session sub-keys are longer.
 func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) (stop bool)) {
-	stor := ctx.GasStore(ak.key)
-	iter := store.PrefixIterator(stor, []byte(AddressStoreKeyPrefix))
+	stor := ctx.Store(ak.key)
+	iter := store.PrefixIterator(ctx.GasContext(), stor, []byte(AddressStoreKeyPrefix))
 	defer iter.Close()
 	for {
 		if !iter.Valid() {
@@ -162,9 +165,10 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint6
 
 // GetNextAccountNumber Returns and increments the global account number counter
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
+	gctx := ctx.GasContext()
 	var accNumber uint64
-	stor := ctx.GasStore(ak.key)
-	bz := stor.Get([]byte(GlobalAccountNumberKey))
+	stor := ctx.Store(ak.key)
+	bz := stor.Get(gctx, []byte(GlobalAccountNumberKey))
 	if bz == nil {
 		accNumber = 0 // start with 0.
 	} else {
@@ -175,15 +179,16 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	}
 
 	bz = amino.MustMarshal(accNumber + 1)
-	stor.Set([]byte(GlobalAccountNumberKey), bz)
+	stor.Set(gctx, []byte(GlobalAccountNumberKey), bz)
 
 	return accNumber
 }
 
 // GetSessionAccount returns a session account stored at /a/<master>/s/<session>.
 func (ak AccountKeeper) GetSessionAccount(ctx sdk.Context, master, session crypto.Address) std.Account {
-	stor := ctx.GasStore(ak.key)
-	bz := stor.Get(SessionStoreKey(master, session))
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	bz := stor.Get(gctx, SessionStoreKey(master, session))
 	if bz == nil {
 		return nil
 	}
@@ -198,39 +203,43 @@ func (ak AccountKeeper) GetSessionAccount(ctx sdk.Context, master, session crypt
 // SetSessionAccount stores a session account at /a/<master>/s/<session>.
 func (ak AccountKeeper) SetSessionAccount(ctx sdk.Context, master crypto.Address, acc std.Account) {
 	addr := acc.GetAddress()
-	stor := ctx.GasStore(ak.key)
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
 	bz, err := amino.MarshalAny(acc)
 	if err != nil {
 		panic(err)
 	}
-	stor.Set(SessionStoreKey(master, addr), bz)
+	stor.Set(gctx, SessionStoreKey(master, addr), bz)
 }
 
 // RemoveSessionAccount deletes a session account.
 func (ak AccountKeeper) RemoveSessionAccount(ctx sdk.Context, master, session crypto.Address) {
-	stor := ctx.GasStore(ak.key)
-	stor.Delete(SessionStoreKey(master, session))
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	stor.Delete(gctx, SessionStoreKey(master, session))
 }
 
 // RemoveAllSessions deletes all session accounts for a master via prefix delete.
 func (ak AccountKeeper) RemoveAllSessions(ctx sdk.Context, master crypto.Address) {
-	stor := ctx.GasStore(ak.key)
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
 	prefix := SessionPrefixKey(master)
-	iter := store.PrefixIterator(stor, prefix)
+	iter := store.PrefixIterator(gctx, stor, prefix)
 	defer iter.Close()
 	keys := [][]byte{}
 	for ; iter.Valid(); iter.Next() {
 		keys = append(keys, iter.Key())
 	}
 	for _, key := range keys {
-		stor.Delete(key)
+		stor.Delete(gctx, key)
 	}
 }
 
 // IterateSessions iterates over all sessions of a master account.
 func (ak AccountKeeper) IterateSessions(ctx sdk.Context, master crypto.Address, cb func(std.Account) bool) {
-	stor := ctx.GasStore(ak.key)
-	iter := store.PrefixIterator(stor, SessionPrefixKey(master))
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	iter := store.PrefixIterator(gctx, stor, SessionPrefixKey(master))
 	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		var acc std.Account
@@ -298,7 +307,7 @@ func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 	if err != nil {
 		panic(err)
 	}
-	stor.Set([]byte(GasPriceKey), bz)
+	stor.Set(ctx.GasContext(), []byte(GasPriceKey), bz)
 }
 
 // We store the history. If the formula changes, we can replay blocks
@@ -416,7 +425,15 @@ func maxBig(x, y *big.Int) *big.Int {
 // It returns the gas price for the last block.
 func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	stor := ctx.Store(gk.key)
-	bz := stor.Get([]byte(GasPriceKey))
+	// nil GasContext: LastGasPrice is infrastructure/control-plane —
+	// it reads the last block's gas price to feed the anteHandler
+	// wrapper, the vm/qgasprice query handler, or the EndBlocker.
+	// All three callers run under a context whose gas meter is
+	// either the default InfiniteGasMeter (queries, EndBlock) or
+	// about to be replaced by SetGasMeter inside the auth
+	// anteHandler (wrapper path). Charging here would be meaningless
+	// or lost; pass nil to skip it.
+	bz := stor.Get(nil, []byte(GasPriceKey))
 	if bz == nil {
 		return std.GasPrice{}
 	}

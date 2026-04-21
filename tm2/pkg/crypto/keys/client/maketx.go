@@ -89,7 +89,7 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.Broadcast,
 		"broadcast",
-		false,
+		true,
 		"sign, simulate and broadcast",
 	)
 
@@ -139,7 +139,10 @@ func SignAndBroadcastHandler(
 	if err != nil {
 		return nil, errors.Wrap(err, "query account")
 	}
-	var qret struct{ BaseAccount std.BaseAccount }
+	var qret struct {
+		BaseAccount std.BaseAccount
+		Attributes  uint64 `json:"attributes"` // GnoAccount extension
+	}
 	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
 	if err != nil {
 		return nil, err

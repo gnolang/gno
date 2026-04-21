@@ -26,18 +26,41 @@ test:
 
 FUZZTIME ?= 1h
 
-# Run all fuzz testers: 3-way comparison (amino reflect vs pbbindings vs genproto2)
-# and native Go fuzzer for random-bytes crash testing.
+# Run both fuzzers concurrently for FUZZTIME total:
+#   - Property fuzz: TestCodec{Struct,Def,AminoTags} with gofuzz-generated values,
+#     asserting amino-reflect / pbbindings / genproto2 byte parity and roundtrip.
+#   - Coverage fuzz: FuzzUnmarshalBinary2 with random bytes, asserting no panics.
 # Usage: make fuzz [FUZZTIME=30m]
+#        make fuzz FUZZTIME=0    # run forever (Ctrl-C to stop)
+# Exits non-zero if either fuzzer reports a failure.
 fuzz:
-	@echo "=== Fuzz: 3-way comparison (amino reflect / pbbindings / genproto2) ==="
-	@echo "=== Running TestCodecStruct and TestCodecDef for $(FUZZTIME) ==="
-	@go test -v ./... -run 'TestCodec(Struct|Def)' -count=999999 -timeout=$(FUZZTIME) 2>&1 \
-		| grep -E '^\s*--- (PASS|FAIL)'; echo "3-way fuzz done (ran for $(FUZZTIME))."
-	@echo ""
-	@echo "=== Fuzz: native Go fuzzer (random bytes → UnmarshalBinary2) ==="
-	@echo "=== Running FuzzUnmarshalBinary2 for $(FUZZTIME) ==="
-	go test ./tests/fuzz/binary/ -fuzz=FuzzUnmarshalBinary2 -fuzztime=$(FUZZTIME) -timeout=0
+	@echo "=== Running property and coverage fuzzers in parallel for $(FUZZTIME) ==="
+	@( while true; do \
+	  AMINO_FUZZ_BUDGET=$(FUZZTIME) go test -v -count=1 ./... -run 'TestCodec(Struct|Def|AminoTags)' -timeout=0 2>&1; \
+	  E=$$?; \
+	  if [ "$$E" != "0" ]; then echo "FAIL: property fuzz exit=$$E" >&2; exit $$E; fi; \
+	  if [ "$(FUZZTIME)" != "0" ]; then break; fi; \
+	  echo "=== property fuzz: starting next rotation ===" >&2; \
+	done > /tmp/amino-property-fuzz.log 2>&1 ) & P1=$$!; \
+	go test ./tests/fuzz/binary/ -fuzz=FuzzUnmarshalBinary2 -fuzztime=$(FUZZTIME) -timeout=0 2>&1 \
+	  | tee /tmp/amino-coverage-fuzz.log & P2=$$!; \
+	( while kill -0 $$P1 2>/dev/null; do \
+	  sleep 30; \
+	  echo "[property fuzz] passed=$$(cat /tmp/amino-property-fuzz.log 2>/dev/null | grep -c -- '--- PASS') failed=$$(cat /tmp/amino-property-fuzz.log 2>/dev/null | grep -c -- '--- FAIL')"; \
+	done ) & P3=$$!; \
+	wait $$P1; E1=$$?; \
+	wait $$P2; E2=$$?; \
+	kill $$P3 2>/dev/null; wait $$P3 2>/dev/null; \
+	echo "=== property fuzz summary ==="; grep -E '^\s*--- (PASS|FAIL)' /tmp/amino-property-fuzz.log | tail -20; \
+	echo "=== coverage fuzz summary ==="; tail -5 /tmp/amino-coverage-fuzz.log; \
+	P_FAIL=$$(grep -cE '^\s*--- FAIL' /tmp/amino-property-fuzz.log || true); \
+	if [ "$$P_FAIL" -gt 0 ]; then \
+	  echo "FAIL: property fuzz had $$P_FAIL failing subtests (see /tmp/amino-property-fuzz.log)"; exit 1; \
+	fi; \
+	if [ "$$E2" != "0" ]; then \
+	  echo "FAIL: coverage fuzz exit=$$E2 (see /tmp/amino-coverage-fuzz.log)"; exit 1; \
+	fi; \
+	echo "PASS (ran for $(FUZZTIME) each, in parallel)"
 
 gofuzz_binary:
 	rm -rf tests/fuzz/binary/corpus/

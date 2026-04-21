@@ -98,22 +98,23 @@ local `pathRestricted` interface in the VM native function.
 
 ```go
 type Signature struct {
-    PubKey      crypto.PubKey    // optional (stored on session at creation)
+    PubKey      crypto.PubKey   // optional (stored on session at creation)
     Signature   []byte
-    SessionAddr *crypto.Address  // nil for master-key signatures
+    SessionAddr crypto.Address  // zero for master-key signatures
 }
 ```
 
-`*crypto.Address` (pointer) so amino omits it when nil — no size
-overhead for non-session signatures. The AnteHandler checks
-`SessionAddr != nil && !SessionAddr.IsZero()`.
+`crypto.Address` with `json:",omitempty"`. Amino skips the field in
+both binary and JSON when the address is zero (`[20]byte{}`), so
+master-signed txs pay no wire-size overhead. The AnteHandler checks
+`!SessionAddr.IsZero()`.
 
 ### AnteHandler flow
 
 One unified flow for master and session signatures:
 
 1. **Phase 1: Resolve signers.** Load master accounts. If
-   `sig.SessionAddr` is set, load session from
+   `sig.SessionAddr` is non-zero, load session from
    `/a/<master>/s/<SessionAddr>` and check expiry (`ExpiresAt > 0 &&
    blockTime >= ExpiresAt`; `ExpiresAt = 0` skips the check = no expiry).
 2. **Phase 2: Deduct gas fees.** Always from master. Gas fees count
@@ -242,14 +243,14 @@ isSession)` using a local `pathRestricted` interface to read
 - O(1) session lookup by (master, session) key.
 - Replay protection is free via `AccountNumber`.
 - Session signatures are the same size as master signatures when
-  `SessionAddr` is nil.
+  `SessionAddr` is zero (field is omitted via amino `omitempty`).
 
 ### Negative
 
 - Two IAVL reads per session tx (master + session). Mitigated by
   shared prefix path in the tree.
 - `Signature.SessionAddr` is a wire format addition. Backward
-  compatible (pointer, omitted when nil) but clients need to be aware.
+  compatible (omitted when zero) but clients need to be aware.
 - `IterateAccounts` requires a key-length filter to exclude sessions.
   Documented on `AddressStoreKeyPrefix`, `AccountStoreKeyLen`, and
   `IterateAccounts`.

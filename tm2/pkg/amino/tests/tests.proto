@@ -328,6 +328,10 @@ message Concrete1 {
 message Concrete2 {
 }
 
+message ConcreteRecursive {
+	google.protobuf.Any inner = 1 [json_name = "Inner"];
+}
+
 message ConcreteTypeDef {
 	bytes value = 1;
 }
@@ -534,6 +538,40 @@ message FuzzNilElements {
 	repeated FuzzFieldInfo entries = 1 [json_name = "Entries"];
 	repeated GnoVMPos poses = 2 [json_name = "Poses"];
 	string name = 3 [json_name = "Name"];
+}
+
+message FuzzFixedInt {
+	sfixed64 i64 = 1 [json_name = "I64"];
+	fixed64 u64 = 2 [json_name = "U64"];
+}
+
+message FuzzContainsAminoMarshaler {
+	AminoMarshalerStruct1 am = 1 [json_name = "AM"];
+}
+
+message SimpleAddress {
+	string value = 1;
+}
+
+message HostRepr {
+	bytes value = 1;
+}
+
+message CounterRepr {
+	uint32 value = 1;
+}
+
+message ContainerWithAminoLists {
+	repeated string addrs = 1 [json_name = "Addrs"];
+	repeated string top_addrs = 2 [json_name = "TopAddrs"];
+}
+
+message CrossPkgPointerSlice {
+	bytes counts = 1 [json_name = "Counts"];
+}
+
+message CrossPkgBoxedRepr {
+	sint64 n = 1 [json_name = "N"];
 }
 
 message InterfaceHeavy {

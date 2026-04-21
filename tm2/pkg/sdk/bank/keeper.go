@@ -51,15 +51,8 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper 
 
 // This is a convenience function for manually setting the restricted denoms.
 // Useful for testing and initchain setup.
-// The ParamKeeper will call WillSetRestrictedDenoms() before writing.
 func (bank BankKeeper) SetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []string) {
 	bank.prmk.SetStrings(ctx, "p:restricted_denoms", restrictedDenoms)
-}
-
-// This will get called whenever the restricted denoms parameter is changed.
-func (bank BankKeeper) WillSetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []string) {
-	// XXX nothing to do yet, nothing cached.
-	// XXX validate input.
 }
 
 func (bank BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {
@@ -151,6 +144,11 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 
 // SendCoins moves coins from one account to another, restrction could be applied
 func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	// If amt is zero do nothing.
+	if amt.IsZero() {
+		return nil
+	}
+
 	// read restricted boolean value from param.IsRestrictedTransfer()
 	// canSendCoins is true until they have agreed to the waiver
 	if !bank.canSendCoins(ctx, fromAddr, amt) {

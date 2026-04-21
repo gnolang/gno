@@ -233,7 +233,8 @@ type DelegatedAccount interface {
 //
 // Each entry maps a signer address (the master account address returned by
 // msg.GetSigners(), NOT the session pubkey address) to the DelegatedAccount
-// that was loaded for it via the Signature.SessionAddr field.
+// that was loaded for it via the Signature.SessionAddr field
+// (when non-zero — zero SessionAddr means master-signed).
 //
 // Contract for readers:
 //   - A nil value or absent key means "not a session tx" — treat as master.

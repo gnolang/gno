@@ -123,8 +123,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				return newCtx, res, true
 			}
 
-			if stdSigs[i].SessionAddr != nil && !stdSigs[i].SessionAddr.IsZero() {
-				sa := ak.GetSessionAccount(newCtx, signerAddr, *stdSigs[i].SessionAddr)
+			if !stdSigs[i].SessionAddr.IsZero() {
+				sa := ak.GetSessionAccount(newCtx, signerAddr, stdSigs[i].SessionAddr)
 				if sa == nil {
 					return newCtx, abciResult(std.ErrUnauthorized("unknown session")), true
 				}

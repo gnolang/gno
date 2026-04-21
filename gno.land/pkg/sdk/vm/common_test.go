@@ -60,6 +60,8 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	prmk.Register(authm.ModuleName, acck)
 	prmk.Register(bankm.ModuleName, bankk)
 	prmk.Register(ModuleName, vmk)
+	acck.SetParams(ctx, authm.DefaultParams())
+	bankk.SetParams(ctx, bankm.DefaultParams())
 	vmk.SetParams(ctx, DefaultParams())
 
 	mcw := ms.MultiCacheWrap()
@@ -73,6 +75,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	}
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 	mcw.MultiWrite()
+	vmk.PopulateStdlibCache()
 	vmh := NewHandler(vmk)
 
 	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}

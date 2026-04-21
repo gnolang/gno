@@ -272,7 +272,7 @@ func NewSessionTestTx(
 
 	sigs := []std.Signature{{
 		// PubKey omitted — stored on session account at creation.
-		SessionAddr: &sessionAddr,
+		SessionAddr: sessionAddr,
 		Signature:   sig,
 	}}
 

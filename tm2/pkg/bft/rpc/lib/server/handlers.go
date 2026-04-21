@@ -144,11 +144,19 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			return
 		}
 
-		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of Requests ---
-		var requests types.RPCRequests
-		if err := json.Unmarshal(b, &requests); err == nil {
+		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of raw messages ---
+		var rawRequests []json.RawMessage
+		if err := json.Unmarshal(b, &rawRequests); err == nil {
 			var responses types.RPCResponses
-			for _, req := range requests {
+			for _, raw := range rawRequests {
+				var req types.RPCRequest
+				if err := json.Unmarshal(raw, &req); err != nil {
+					responses = append(responses, types.RPCInvalidRequestError(
+						types.JSONRPCStringID(""),
+						errors.Wrap(err, "error unmarshalling request"),
+					))
+					continue
+				}
 				if resp := processRequest(r, req, funcMap, logger); resp != nil {
 					responses = append(responses, *resp)
 				}
@@ -212,7 +220,7 @@ func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*R
 
 	// Call the RPC function using reflection.
 	returns := rpcFunc.f.Call(args)
-	logger.Info("HTTPJSONRPC", "method", req.Method, "args", args, "returns", returns)
+	logger.Debug("HTTPJSONRPC", "method", req.Method)
 
 	// Convert the reflection return values into a result value for JSON serialization.
 	result, err := unreflectResult(returns)
@@ -353,7 +361,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 
 		returns := rpcFunc.f.Call(args)
 
-		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
+		logger.Debug("HTTPRestRPC", "method", r.URL.Path)
 		result, err := unreflectResult(returns)
 		if err != nil {
 			var statusErr *types.HTTPStatusError
@@ -648,7 +656,7 @@ func (wsc *wsConnection) readRoutine() {
 			_, in, err := wsc.baseConn.ReadMessage()
 			if err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					wsc.Logger.Info("Client closed the connection")
+					wsc.Logger.Debug("Client closed the connection")
 				} else {
 					wsc.Logger.Error("Failed to read request", "err", err)
 				}
@@ -665,8 +673,22 @@ func (wsc *wsConnection) readRoutine() {
 				responses types.RPCResponses
 			)
 
-			// Try to unmarshal the requests as a batch
-			if err := json.Unmarshal(in, &requests); err != nil {
+			// Try to unmarshal as a batch of raw messages first, so that one
+			// malformed element does not prevent valid requests from being processed.
+			var rawRequests []json.RawMessage
+			if err := json.Unmarshal(in, &rawRequests); err == nil {
+				for _, raw := range rawRequests {
+					var req types.RPCRequest
+					if err := json.Unmarshal(raw, &req); err != nil {
+						responses = append(responses, types.RPCInvalidRequestError(
+							types.JSONRPCStringID(""),
+							errors.Wrap(err, "error unmarshalling request"),
+						))
+						continue
+					}
+					requests = append(requests, req)
+				}
+			} else {
 				// Next, try to unmarshal as a single request
 				var request types.RPCRequest
 				if err := json.Unmarshal(in, &request); err != nil {
@@ -718,8 +740,7 @@ func (wsc *wsConnection) readRoutine() {
 
 				returns := rpcFunc.f.Call(args)
 
-				// TODO: Need to encode args/returns to string if we want to log them
-				wsc.Logger.Info("WSJSONRPC", "method", request.Method)
+				wsc.Logger.Debug("WSJSONRPC", "method", request.Method)
 
 				result, err := unreflectResult(returns)
 				if err != nil {
@@ -729,17 +750,17 @@ func (wsc *wsConnection) readRoutine() {
 				}
 
 				responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
+			}
 
-				if len(responses) > 0 {
-					wsc.WriteRPCResponses(responses)
+			if len(responses) > 0 {
+				wsc.WriteRPCResponses(responses)
 
-					// Log telemetry
-					if telemetryEnabled {
-						metrics.WSRequestTime.Record(
-							context.Background(),
-							time.Since(responseStart).Milliseconds(),
-						)
-					}
+				// Log telemetry
+				if telemetryEnabled {
+					metrics.WSRequestTime.Record(
+						context.Background(),
+						time.Since(responseStart).Milliseconds(),
+					)
 				}
 			}
 		}

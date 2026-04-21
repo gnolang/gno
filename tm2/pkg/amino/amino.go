@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"path"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -29,11 +32,25 @@ type (
 
 // genproto2Types tracks types that have native (non-promoted) genproto2 methods.
 // Populated by init() functions in generated pb3_gen.go files.
-var genproto2Types = make(map[reflect.Type]bool)
+// The mutex is defense-in-depth: init() functions run sequentially in a
+// single goroutine, so there's no concurrent write today — but protecting
+// the map keeps runtime reads safe if a caller is ever added outside init().
+var (
+	genproto2Types   = make(map[reflect.Type]bool)
+	genproto2TypesMu sync.RWMutex
+)
 
 // RegisterGenproto2Type records that a type has native genproto2 methods.
 // Called from init() in generated pb3_gen.go files.
+// Logs a warning if the type was already registered — duplicate init()
+// calls typically indicate a regenerated file pulled in twice, or two
+// generated files claiming the same type.
 func RegisterGenproto2Type(rt reflect.Type) {
+	genproto2TypesMu.Lock()
+	defer genproto2TypesMu.Unlock()
+	if genproto2Types[rt] {
+		log.Printf("amino: genproto2 type %v registered twice", rt)
+	}
 	genproto2Types[rt] = true
 }
 
@@ -43,16 +60,29 @@ func HasNativeGenproto2(rt reflect.Type) bool {
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
 	}
+	genproto2TypesMu.RLock()
+	defer genproto2TypesMu.RUnlock()
 	return genproto2Types[rt]
 }
 
 // pbbindingsTypes tracks types that have native (non-promoted) pbbindings methods.
-// Populated by init() functions in generated pbbindings.go files.
-var pbbindingsTypes = make(map[reflect.Type]bool)
+// Populated by init() functions in generated pbbindings.go files. See
+// genproto2Types above for the rationale behind the mutex.
+var (
+	pbbindingsTypes   = make(map[reflect.Type]bool)
+	pbbindingsTypesMu sync.RWMutex
+)
 
 // RegisterPbbindingsType records that a type has native pbbindings methods.
 // Called from init() in generated pbbindings.go files.
+// Logs a warning if the type was already registered — see
+// RegisterGenproto2Type for typical causes.
 func RegisterPbbindingsType(rt reflect.Type) {
+	pbbindingsTypesMu.Lock()
+	defer pbbindingsTypesMu.Unlock()
+	if pbbindingsTypes[rt] {
+		log.Printf("amino: pbbindings type %v registered twice", rt)
+	}
 	pbbindingsTypes[rt] = true
 }
 
@@ -62,6 +92,8 @@ func HasNativePbbindings(rt reflect.Type) bool {
 	if rt.Kind() == reflect.Ptr {
 		rt = rt.Elem()
 	}
+	pbbindingsTypesMu.RLock()
+	defer pbbindingsTypesMu.RUnlock()
 	return pbbindingsTypes[rt]
 }
 
@@ -379,19 +411,24 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Try genproto2 direct encoding (fastest path).
+	// Use PBMarshaler2 (not PBMessager2) so bare values T (not just *T)
+	// hit the fast path — MarshalBinary2 and SizeBinary2 have value receivers.
 	// Check HasNativeGenproto2 to avoid using promoted methods from embedded structs.
-	if pbm2, ok := o.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
+	if pbm2, ok := o.(PBMarshaler2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
+		atomic.AddInt64(&cdc.stats.Genproto2Encodes, 1)
 		return cdc.MarshalBinary2(pbm2)
 	}
 
 	if cdc.usePBBindings {
 		pbm, ok := o.(PBMessager)
 		if ok && HasNativePbbindings(reflect.TypeOf(o)) {
+			atomic.AddInt64(&cdc.stats.PbbindingsEncodes, 1)
 			return cdc.MarshalPBBindings(pbm)
 		}
 		// Else, fall back to using reflection for native primitive types.
 	}
 
+	atomic.AddInt64(&cdc.stats.ReflectEncodes, 1)
 	return cdc.MarshalReflect(o)
 }
 
@@ -465,8 +502,11 @@ func (cdc *Codec) MarshalPBBindings(pbm PBMessager) ([]byte, error) {
 }
 
 // Use genproto2 direct encoding.
-func (cdc *Codec) MarshalBinary2(pbm2 PBMessager2) ([]byte, error) {
-	n := pbm2.SizeBinary2(cdc)
+func (cdc *Codec) MarshalBinary2(pbm2 PBMarshaler2) ([]byte, error) {
+	n, err := pbm2.SizeBinary2(cdc)
+	if err != nil {
+		return nil, err
+	}
 	if n == 0 {
 		return nil, nil
 	}
@@ -497,12 +537,8 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return nil, errors.New("MarshalAny() requires non-nil argument")
 	}
 
-	// Try genproto2 fast path.
-	if pbm2, ok := o.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
-		return cdc.marshalAnyBinary2(pbm2)
-	}
-
-	// Dereference value if pointer.
+	// Dereference value if pointer (before interface checks so *T and
+	// **T both resolve to T, which satisfies PBMarshaler2 via value receivers).
 	rv, _, _ := maybeDerefValue(reflect.ValueOf(o))
 	rt := rv.Type()
 
@@ -510,6 +546,16 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 	if rv.Kind() == reflect.Interface {
 		return nil, errors.New("MarshalAny() requires registered concrete type")
 	}
+
+	// Try genproto2 fast path on the dereffed value.
+	if pbm2, ok := rv.Interface().(PBMarshaler2); ok && HasNativeGenproto2(rt) {
+		atomic.AddInt64(&cdc.stats.Genproto2Encodes, 1)
+		return cdc.marshalAnyBinary2(pbm2)
+	}
+
+	// TODO: add pbbindings path here (between genproto2 and reflect).
+	// Requires a marshalAnyPBBindings helper that wraps the pbbindings-encoded
+	// value in an Any envelope. Low priority since genproto2 covers most types.
 
 	// Make a temporary interface var, to contain the value of o.
 	ivar := rv.Interface()
@@ -519,7 +565,8 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return nil, err
 	}
 
-	// Encode as interface.
+	// Encode as interface (reflect path).
+	atomic.AddInt64(&cdc.stats.ReflectEncodes, 1)
 	buf := poolBytesBuffer.Get()
 	defer poolBytesBuffer.Put(buf)
 	err = cdc.encodeReflectBinaryInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{}, true)
@@ -533,7 +580,7 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 
 // marshalAnyBinary2 encodes a PBMessager2 value as google.protobuf.Any
 // using genproto2 for the inner value.
-func (cdc *Codec) marshalAnyBinary2(o PBMessager2) ([]byte, error) {
+func (cdc *Codec) marshalAnyBinary2(o PBMarshaler2) ([]byte, error) {
 	// Get concrete type for TypeURL.
 	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
@@ -583,7 +630,7 @@ func (cdc *Codec) marshalAnyBinary2(o PBMessager2) ([]byte, error) {
 // For use within generated MarshalBinary2 methods.
 func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) {
 	pbm2, ok := o.(PBMarshaler2)
-	if !ok {
+	if !ok || !HasNativeGenproto2(reflect.TypeOf(o)) {
 		// Fallback for built-in types (string, int, etc.) that can't have methods.
 		anyBz, err := cdc.MarshalAny(o)
 		if err != nil {
@@ -627,15 +674,15 @@ func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) 
 
 // SizeAnyBinary2 computes the encoded size of a google.protobuf.Any envelope
 // arithmetically, without marshaling. For use in generated SizeBinary2 methods.
-func (cdc *Codec) SizeAnyBinary2(o any) int {
+func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 	pbm2, ok := o.(PBMarshaler2)
-	if !ok {
+	if !ok || !HasNativeGenproto2(reflect.TypeOf(o)) {
 		// Fallback for built-in types (string, int, etc.) that can't have methods.
 		bz, err := cdc.MarshalAny(o)
 		if err != nil {
-			panic(err)
+			return 0, err
 		}
-		return len(bz)
+		return len(bz), nil
 	}
 	rv := reflect.ValueOf(o)
 	if rv.Kind() == reflect.Ptr {
@@ -643,25 +690,38 @@ func (cdc *Codec) SizeAnyBinary2(o any) int {
 	}
 	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	var s int
 	// Field 1: TypeURL (field key + length prefix + string bytes).
 	s += UvarintSize(uint64(1)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(len(cinfo.TypeURL))) + len(cinfo.TypeURL)
 	// Field 2: Value (field key + length prefix + inner struct bytes).
-	innerSize := pbm2.SizeBinary2(cdc)
+	innerSize, err := pbm2.SizeBinary2(cdc)
+	if err != nil {
+		return 0, err
+	}
 	if innerSize > 0 {
 		s += UvarintSize(uint64(2)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(innerSize)) + innerSize
 	}
-	return s
+	return s, nil
 }
 
 // UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value using
 // genproto2. For use within generated UnmarshalBinary2 methods.
 // Unlike unmarshalAnyBinary2, this errors (not falls through) if the
 // concrete type does not implement PBMessager2.
-func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
+// UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value.
+// anyDepth is incremented by 1 (the sole increment point for depth
+// tracking); exceeding maxAnyDepth returns an error.
+func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any, anyDepth int) error {
+	return cdc.unmarshalAnyBinary2Depth(bz, ptr, anyDepth+1)
+}
+
+func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) error {
+	if anyDepth > maxAnyDepth {
+		return fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
+	}
 	if len(bz) == 0 {
 		return nil
 	}
@@ -692,10 +752,16 @@ func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
 			return fmt.Errorf("UnmarshalAnyBinary2: expected field 2 Value, got num %v typ %v", fnum, typ)
 		}
 		bz = bz[n:]
-		value, _, err = DecodeByteSlice(bz)
+		var valN int
+		value, valN, err = DecodeByteSlice(bz)
 		if err != nil {
 			return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
 		}
+		bz = bz[valN:]
+	}
+	// Any envelope only has fields 1 and 2 — reject trailing bytes.
+	if len(bz) > 0 {
+		return fmt.Errorf("UnmarshalAnyBinary2: %d trailing bytes after Any envelope", len(bz))
 	}
 
 	// Look up concrete type.
@@ -710,9 +776,10 @@ func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
 		return fmt.Errorf("UnmarshalAnyBinary2: concrete type %v not addressable", cinfo.Type)
 	}
 	pbm2, ok := crv.Addr().Interface().(PBMessager2)
-	if !ok {
-		// Fallback: use reflect-based decoding.
-		return cdc.UnmarshalAny2(typeURL, value, ptr)
+	if !ok || !HasNativeGenproto2(cinfo.Type) {
+		// Fallback: use reflect-based decoding. Propagate anyDepth so the
+		// depth guard is not reset when switching paths mid-recursion.
+		return cdc.unmarshalAny2Depth(typeURL, value, ptr, anyDepth)
 	}
 
 	// Check assignability.
@@ -725,9 +792,9 @@ func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any) error {
 		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rv.Type())
 	}
 
-	// Decode inner value.
+	// Decode inner value with depth tracking.
 	if len(value) > 0 {
-		if err := pbm2.UnmarshalBinary2(cdc, value); err != nil {
+		if err := pbm2.UnmarshalBinary2(cdc, value, anyDepth); err != nil {
 			return err
 		}
 	}
@@ -882,19 +949,36 @@ func (cdc *Codec) UnmarshalAnySized(bz []byte, ptr any) error {
 func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 	cdc.doAutoseal()
 
+	// Handle **T → *T: supports the ergonomic pattern
+	//   var p *T; amino.Unmarshal(bz, &p)
+	// where &p is **T which doesn't satisfy PBMessager2/PBMessager.
+	// Peel one pointer level, allocating the inner pointer if nil,
+	// so all paths below see *T uniformly.
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Ptr {
+		inner := rv.Elem()
+		if inner.IsNil() {
+			inner.Set(reflect.New(inner.Type().Elem()))
+		}
+		ptr = inner.Interface()
+	}
+
 	// Try genproto2 direct decoding (fastest path).
 	if pbm2, ok := ptr.(PBMessager2); ok && HasNativeGenproto2(reflect.TypeOf(ptr)) {
-		return pbm2.UnmarshalBinary2(cdc, bz)
+		atomic.AddInt64(&cdc.stats.Genproto2Decodes, 1)
+		return pbm2.UnmarshalBinary2(cdc, bz, 0)
 	}
 
 	if cdc.usePBBindings {
 		pbm, ok := ptr.(PBMessager)
 		if ok && HasNativePbbindings(reflect.TypeOf(ptr)) {
+			atomic.AddInt64(&cdc.stats.PbbindingsDecodes, 1)
 			return cdc.unmarshalPBBindings(bz, pbm)
 		}
 		// Else, fall back to using reflection for native primitive types.
 	}
 
+	atomic.AddInt64(&cdc.stats.ReflectDecodes, 1)
 	return cdc.UnmarshalReflect(bz, ptr)
 }
 
@@ -949,7 +1033,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	}
 
 	// Decode contents into rv.
-	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0)
+	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0, 0)
 	if err != nil {
 		return fmt.Errorf(
 			"unmarshal to %v failed after %d bytes (%w): %X",
@@ -1020,8 +1104,14 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 
 	// Try genproto2 fast path.
 	if ok, err2 := cdc.unmarshalAnyBinary2(bz, rv); ok {
+		atomic.AddInt64(&cdc.stats.Genproto2Decodes, 1)
 		return err2
 	}
+
+	// TODO: add pbbindings path here (between genproto2 and reflect).
+	// Requires parsing the Any envelope (TypeURL + Value), resolving the
+	// concrete type, then decoding via EmptyPBMessage/proto.Unmarshal/
+	// FromPBMessage. Low priority since genproto2 covers most types.
 
 	// Get interface *TypeInfo.
 	iinfo, err := cdc.getTypeInfoWLock(rv.Type())
@@ -1029,14 +1119,19 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 		return err
 	}
 
-	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true)
+	atomic.AddInt64(&cdc.stats.ReflectDecodes, 1)
+	_, err = cdc.decodeReflectBinaryInterface(bz, iinfo, rv, FieldOptions{}, true, 0)
 	return
 }
 
 // unmarshalAnyBinary2 attempts to decode an Any-wrapped value using genproto2.
-// Returns (true, err) if genproto2 was used, (false, nil) to fall through.
+// Returns (true, err) once we've committed to the genproto2 path (even on
+// failure), (false, nil) only when genproto2 is not the right decoder for
+// this type and the reflect path should handle it (e.g. the concrete type
+// lacks native genproto2 methods). Byte-level parse errors are propagated
+// since the reflect path would fail identically on the same bytes.
 func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error) {
-	// Parse Any envelope: field 1 = TypeURL, field 2 = Value.
+	// Empty bytes: let reflect path decide (it may leave the interface nil).
 	if len(bz) == 0 {
 		return false, nil
 	}
@@ -1045,15 +1140,15 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	// Field 1: TypeURL.
 	fnum, typ, n, err := decodeFieldNumberAndTyp3(bz)
 	if err != nil {
-		return false, nil // let reflect path handle the error
+		return true, fmt.Errorf("unmarshalAnyBinary2: field 1 header: %w", err)
 	}
 	if fnum != 1 || typ != Typ3ByteLength {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: expected Any field 1 TypeURL (ByteLength), got num=%v typ=%v", fnum, typ)
 	}
 	bz = bz[n:]
 	typeURL, n, err := DecodeString(bz)
 	if err != nil {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: decode TypeURL: %w", err)
 	}
 	bz = bz[n:]
 
@@ -1062,29 +1157,42 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	if len(bz) > 0 {
 		fnum, typ, n, err = decodeFieldNumberAndTyp3(bz)
 		if err != nil {
-			return false, nil
+			return true, fmt.Errorf("unmarshalAnyBinary2: field 2 header: %w", err)
 		}
 		if fnum != 2 || typ != Typ3ByteLength {
-			return false, nil
+			return true, fmt.Errorf("unmarshalAnyBinary2: expected Any field 2 Value (ByteLength), got num=%v typ=%v", fnum, typ)
 		}
 		bz = bz[n:]
-		value, _, err = DecodeByteSlice(bz)
+		var valN int
+		value, valN, err = DecodeByteSlice(bz)
 		if err != nil {
-			return false, nil
+			return true, fmt.Errorf("unmarshalAnyBinary2: decode Value: %w", err)
 		}
+		bz = bz[valN:]
+	}
+	// Any envelope only has fields 1 and 2 — reject trailing bytes instead
+	// of silently ignoring them.
+	if len(bz) > 0 {
+		return true, fmt.Errorf("unmarshalAnyBinary2: %d trailing bytes after Any envelope", len(bz))
 	}
 
-	// Look up concrete type from typeURL.
+	// Look up concrete type from typeURL. Both malformed typeURLs and
+	// unregistered types propagate here; the reflect path uses the same
+	// registry and would fail identically.
 	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
 	if err != nil {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: type lookup for %q: %w", typeURL, err)
 	}
 
 	// Construct concrete value and check for PBMessager2.
+	// constructConcreteType always returns an addressable value (reflect.New().Elem()),
+	// so !CanAddr() indicates an internal invariant break rather than a decodable-elsewhere case.
 	crv, irvSet := constructConcreteType(cinfo)
 	if !crv.CanAddr() {
-		return false, nil
+		return true, fmt.Errorf("unmarshalAnyBinary2: constructed value for %q is not addressable", typeURL)
 	}
+	// Only fall-through case: the concrete type doesn't have native genproto2
+	// methods. The reflect path can still decode it via generic reflection.
 	pbm2, ok := crv.Addr().Interface().(PBMessager2)
 	if !ok || !HasNativeGenproto2(cinfo.Type) {
 		return false, nil
@@ -1095,9 +1203,9 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		return true, fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
 	}
 
-	// Decode inner value via genproto2.
+	// Decode inner value via genproto2 with depth=1 (top-level Any entry).
 	if len(value) > 0 {
-		if err = pbm2.UnmarshalBinary2(cdc, value); err != nil {
+		if err = pbm2.UnmarshalBinary2(cdc, value, 1); err != nil {
 			return true, err
 		}
 	}
@@ -1108,6 +1216,14 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 
 // like UnmarshalAny() but with typeURL and value destructured.
 func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err error) {
+	return cdc.unmarshalAny2Depth(typeURL, value, ptr, 0)
+}
+
+// unmarshalAny2Depth is the depth-aware variant of UnmarshalAny2. The
+// anyDepth parameter is propagated so that a genproto2 → reflect fallback
+// (e.g. from unmarshalAnyBinary2Depth) does not reset the Any nesting
+// counter to zero, which would bypass the maxAnyDepth guard.
+func (cdc *Codec) unmarshalAny2Depth(typeURL string, value []byte, ptr any, anyDepth int) (err error) {
 	cdc.doAutoseal()
 
 	// Empty typeURL means nil interface (e.g. from proto3 zero-value Any).
@@ -1120,7 +1236,7 @@ func (cdc *Codec) UnmarshalAny2(typeURL string, value []byte, ptr any) (err erro
 		return ErrNoPointer
 	}
 	rv = rv.Elem()
-	_, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, FieldOptions{})
+	_, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, FieldOptions{}, anyDepth)
 	return
 }
 
@@ -1225,7 +1341,7 @@ func (cdc *Codec) JSONUnmarshal(bz []byte, ptr any) error {
 	if err != nil {
 		return err
 	}
-	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{})
+	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{}, 0)
 }
 
 // MustUnmarshalJSON panics if an error occurs. Besides that behaves exactly like UnmarshalJSON.
@@ -1342,10 +1458,10 @@ type PBMessager interface {
 // Used by SizeAnyBinary2/MarshalAnyBinary2 for interface field encoding.
 type PBMarshaler2 interface {
 	MarshalBinary2(cdc *Codec, buf []byte, offset int) (int, error)
-	SizeBinary2(cdc *Codec) int
+	SizeBinary2(cdc *Codec) (int, error)
 }
 
 type PBMessager2 interface {
 	PBMarshaler2
-	UnmarshalBinary2(cdc *Codec, bz []byte) error
+	UnmarshalBinary2(cdc *Codec, bz []byte, anyDepth int) error
 }

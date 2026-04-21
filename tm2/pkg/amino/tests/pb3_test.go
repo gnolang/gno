@@ -33,7 +33,7 @@ func TestRoundtripBinary2_PrimitivesStruct(t *testing.T) {
 		Str:         "hello",
 		Bytes:       []byte{1, 2, 3},
 		Time:        time.Unix(1234567890, 123000000).UTC(),
-		Duration:    time.Duration(5*time.Second + 500*time.Millisecond),
+		Duration:    5*time.Second + 500*time.Millisecond,
 	}
 
 	compareEncoding(t, cdc, "PrimitivesStruct", orig)
@@ -52,25 +52,55 @@ func TestRoundtripBinary2_SlicesStruct(t *testing.T) {
 	cdc.Seal()
 
 	orig := SlicesStruct{
-		Int8Sl:    []int8{1, -1, 127},
-		Int16Sl:   []int16{256, -256},
-		Int32Sl:   []int32{100000, -100000},
-		Int64Sl:   []int64{999999999, -999999999},
-		IntSl:     []int{1, 2, 3},
-		ByteSl:    []byte{0xDE, 0xAD},
-		Uint8Sl:   []uint8{1, 2, 3},
-		Uint16Sl:  []uint16{1000, 2000},
-		Uint32Sl:  []uint32{100000, 200000},
-		Uint64Sl:  []uint64{1000000, 2000000},
-		UintSl:    []uint{1, 2, 3},
-		StrSl:     []string{"hello", "world"},
-		BytesSl:   [][]byte{{1, 2}, {3, 4}},
-		TimeSl:    []time.Time{time.Unix(1000, 0).UTC(), time.Unix(2000, 0).UTC()},
+		Int8Sl:     []int8{1, -1, 127},
+		Int16Sl:    []int16{256, -256},
+		Int32Sl:    []int32{100000, -100000},
+		Int64Sl:    []int64{999999999, -999999999},
+		IntSl:      []int{1, 2, 3},
+		ByteSl:     []byte{0xDE, 0xAD},
+		Uint8Sl:    []uint8{1, 2, 3},
+		Uint16Sl:   []uint16{1000, 2000},
+		Uint32Sl:   []uint32{100000, 200000},
+		Uint64Sl:   []uint64{1000000, 2000000},
+		UintSl:     []uint{1, 2, 3},
+		StrSl:      []string{"hello", "world"},
+		BytesSl:    [][]byte{{1, 2}, {3, 4}},
+		TimeSl:     []time.Time{time.Unix(1000, 0).UTC(), time.Unix(2000, 0).UTC()},
 		DurationSl: []time.Duration{time.Second, time.Minute},
-		EmptySl:   []EmptyStruct{{}, {}},
+		EmptySl:    []EmptyStruct{{}, {}},
 	}
 
 	compareEncoding(t, cdc, "SlicesStruct", orig)
+}
+
+func TestRoundtripBinary2_SlicesStructZero(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Zero-value: all slice fields are nil.
+	// Catches nil-vs-empty-slice mismatches between decoders.
+	compareEncoding(t, cdc, "SlicesStruct/zero", SlicesStruct{})
+
+	// Empty (non-nil) slices: exercises the nil vs []T{} edge case.
+	compareEncoding(t, cdc, "SlicesStruct/empty", SlicesStruct{
+		Int8Sl:     []int8{},
+		Int16Sl:    []int16{},
+		Int32Sl:    []int32{},
+		Int64Sl:    []int64{},
+		IntSl:      []int{},
+		ByteSl:     []byte{},
+		Uint8Sl:    []uint8{},
+		Uint16Sl:   []uint16{},
+		Uint32Sl:   []uint32{},
+		Uint64Sl:   []uint64{},
+		UintSl:     []uint{},
+		StrSl:      []string{},
+		BytesSl:    [][]byte{},
+		TimeSl:     []time.Time{},
+		DurationSl: []time.Duration{},
+		EmptySl:    []EmptyStruct{},
+	})
 }
 
 func TestRoundtripBinary2_PointersStruct(t *testing.T) {
@@ -127,6 +157,20 @@ func TestRoundtripBinary2_AminoMarshalerStruct1(t *testing.T) {
 
 	orig := AminoMarshalerStruct1{A: 10, B: 20}
 	compareEncoding(t, cdc, "AminoMarshalerStruct1", orig)
+}
+
+func TestRoundtripBinary2_FuzzContainsAminoMarshaler(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Non-zero case: repr encodes to non-empty bytes.
+	compareEncoding(t, cdc, "FuzzContainsAminoMarshaler/nonzero", FuzzContainsAminoMarshaler{
+		AM: AminoMarshalerStruct1{A: 10, B: 20},
+	})
+	// Zero case: AminoMarshalerStruct1{0,0} → ReprStruct1{0,0} → encodes to 0 bytes.
+	// Exercises the size-vs-marshal "emit field key?" divergence path.
+	compareEncoding(t, cdc, "FuzzContainsAminoMarshaler/zero", FuzzContainsAminoMarshaler{})
 }
 
 func TestRoundtripBinary2_AminoMarshalerStruct3(t *testing.T) {
@@ -217,6 +261,16 @@ func TestRoundtripBinary2_SlicesSlicesStruct(t *testing.T) {
 		StrSlSl:   [][]string{{"a", "b"}, {"c", "d"}},
 	}
 	compareEncoding(t, cdc, "SlicesSlicesStruct", orig)
+
+	// Inner-ByteLength cases: nested lists whose inner element type uses
+	// Typ3ByteLength (struct, bytes, time, duration). Exercises the
+	// implicit-struct wrapping path in marshal/size/unmarshal.
+	compareEncoding(t, cdc, "SlicesSlicesStruct/inner-bytelength", SlicesSlicesStruct{
+		BytesSlSl:    [][][]byte{{{0x01, 0x02}, {0x03}}, {{0x04, 0x05, 0x06}}},
+		TimeSlSl:     [][]time.Time{{time.Unix(1000, 0).UTC(), time.Unix(2000, 0).UTC()}, {time.Unix(3000, 0).UTC()}},
+		DurationSlSl: [][]time.Duration{{time.Second, time.Minute}, {time.Hour}},
+		EmptySlSl:    [][]EmptyStruct{{{}, {}}, {{}}},
+	})
 }
 
 func TestRoundtripBinary2_PointerSlicesStruct(t *testing.T) {
@@ -667,7 +721,10 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	}
 
 	// Check SizeBinary2 matches actual marshal length.
-	sizeResult := msg.SizeBinary2(cdc)
+	sizeResult, err := msg.SizeBinary2(cdc)
+	if err != nil {
+		t.Fatalf("%s: SizeBinary2: %v", name, err)
+	}
 	if sizeResult != len(bz2) {
 		t.Errorf("%s: SizeBinary2=%d but MarshalBinary2 produced %d bytes", name, sizeResult, len(bz2))
 	}
@@ -682,7 +739,7 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	rt := reflect.TypeOf(orig)
 	decoded := reflect.New(rt)
 	umsg := decoded.Interface().(amino.PBMessager2)
-	if err := umsg.UnmarshalBinary2(cdc, bz1); err != nil {
+	if err := umsg.UnmarshalBinary2(cdc, bz1, 0); err != nil {
 		t.Fatalf("%s: UnmarshalBinary2: %v", name, err)
 	}
 
@@ -704,6 +761,14 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 	if err := cdc.Unmarshal(bz1, decodedAmino.Interface()); err != nil {
 		t.Fatalf("%s: amino Unmarshal: %v", name, err)
 	}
+
+	// Cross-decoder struct equality: both unmarshal paths should produce
+	// identical Go values.
+	decodedAminoVal := decodedAmino.Elem().Interface()
+	if !reflect.DeepEqual(decodedAminoVal, decodedVal) {
+		t.Errorf("%s: struct mismatch amino vs genproto2 unmarshal:\n  amino:     %#v\n  genproto2: %#v", name, decodedAminoVal, decodedVal)
+	}
+
 	bzAminoRT, err := cdc.MarshalReflect(decodedAmino.Interface())
 	if err != nil {
 		t.Fatalf("%s: amino MarshalReflect after roundtrip: %v", name, err)

@@ -81,15 +81,12 @@ func TestAminoCoin(t *testing.T) {
 }
 
 // TestAminoSignatureSessionAddrRoundTrip locks in the ante-handler
-// invariant that a Signature with no SessionAddr (nil pointer) round-trips
-// through amino without becoming a non-nil non-zero pointer.
+// invariant that a Signature with zero SessionAddr round-trips as a
+// zero SessionAddr (i.e. stays classified as a master signature).
 //
 // The ante handler treats a signature as session-signed iff
-// `sig.SessionAddr != nil && !sig.SessionAddr.IsZero()`. Amino may decode
-// an absent *crypto.Address field as a non-nil pointer to the zero address
-// — the IsZero() half of the check guards against that. This test will
-// break loudly if either half starts returning a non-zero, non-nil address
-// on round-trip.
+// `!sig.SessionAddr.IsZero()`. This test will break loudly if amino
+// ever decodes an absent/zero session_addr field as a non-zero address.
 func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -97,12 +94,11 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 
 	cases := []struct {
 		name          string
-		sessionAddr   *crypto.Address
+		sessionAddr   crypto.Address
 		wantMasterSig bool // should the round-tripped sig look like a master sig?
 	}{
-		{"nil SessionAddr", nil, true},
-		{"zero-value SessionAddr pointer", &crypto.Address{}, true},
-		{"populated SessionAddr", &session, false},
+		{"zero SessionAddr", crypto.Address{}, true},
+		{"populated SessionAddr", session, false},
 	}
 
 	for _, tc := range cases {
@@ -117,11 +113,10 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 			var got std.Signature
 			require.NoError(t, amino.Unmarshal(bz, &got))
 
-			isMasterSig := got.SessionAddr == nil || got.SessionAddr.IsZero()
-			assert.Equal(t, tc.wantMasterSig, isMasterSig,
+			assert.Equal(t, tc.wantMasterSig, got.SessionAddr.IsZero(),
 				"round-tripped Signature SessionAddr classification mismatch: got=%v", got.SessionAddr)
 			if !tc.wantMasterSig {
-				assert.Equal(t, *tc.sessionAddr, *got.SessionAddr)
+				assert.Equal(t, tc.sessionAddr, got.SessionAddr)
 			}
 		})
 
@@ -135,11 +130,10 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 			var got std.Signature
 			require.NoError(t, amino.UnmarshalJSON(bz, &got))
 
-			isMasterSig := got.SessionAddr == nil || got.SessionAddr.IsZero()
-			assert.Equal(t, tc.wantMasterSig, isMasterSig,
+			assert.Equal(t, tc.wantMasterSig, got.SessionAddr.IsZero(),
 				"round-tripped Signature SessionAddr classification mismatch: got=%v", got.SessionAddr)
 			if !tc.wantMasterSig {
-				assert.Equal(t, *tc.sessionAddr, *got.SessionAddr)
+				assert.Equal(t, tc.sessionAddr, got.SessionAddr)
 			}
 		})
 	}
