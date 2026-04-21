@@ -39,6 +39,6 @@ func main() {
 	)
 
 	id := dao.MustCreateProposal(cross, req)
-	dao.MustVoteOnProposal(cross, id, dao.YesVote)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
 	dao.ExecuteProposal(cross, id)
 }

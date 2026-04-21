@@ -18,8 +18,14 @@ TXS_JSONL          ?=
 # Space-separated PKGPATH=SRCDIR entries. Set to empty to disable.
 # (migrate.sh always patches r/sys/params from examples/; use this for more.)
 PATCH_REALMS       ?=
+# Optional: rotate the govDAO sole T1 member to a different address as part
+# of the post-replay migration (see scripts/migrate.sh step 5 and
+# misc/deployments/gnoland-1/migrations/build.sh). Empty = no rotation.
+NEW_T1_ADDR        ?=
+T1_PORTFOLIO       ?=
+T1_WITHDRAW_REASON ?=
 
-export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS
+export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON
 
 # ---- paths -----------------------------------------------------------------
 HERE := $(abspath .)
@@ -103,9 +109,9 @@ reset: down ## stop and wipe ALL generated state (genesis, keys, db)
 	@echo "out/ removed."
 
 .PHONY: smoketest
-smoketest: ## run 'hardfork test' in-memory against out/genesis.json
+smoketest: ## run 'gnogenesis fork test' in-memory against out/genesis.json
 	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch' first"; exit 1; }
-	cd $(REPO)/misc/hardfork && go run . test --genesis $(OUT)/genesis.json --verbose
+	cd $(REPO)/contribs/gnogenesis && go run . fork test --genesis $(OUT)/genesis.json --verbose
 
 # ---- cluster (2-node docker) ---------------------------------------------
 NODES ?= 2

@@ -1,0 +1,32 @@
+// 02_add_t1_member.gno.tmpl — run AT THE END of the hardfork replay.
+//
+// Step 1 of the T1 rotation: the sole pre-fork T1 member (manfred) invites
+// NEW_T1_ADDR into T1 via a govDAO proposal. Because manfred is the only
+// T1 at this point, his single YES vote == 100% supermajority and the
+// proposal executes immediately.
+//
+// Placeholders (replaced by migrations/build.sh before signing):
+//   NEW_T1_ADDR  placeholder — new T1 member's bech32 address
+//   PORTFOLIO    placeholder — human-readable justification (required)
+//
+// Caller: sole T1 member (manfred) — patched into msg[0].caller by build.sh.
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func main() {
+	req := impl.NewAddMemberRequest(
+		cross,
+		address("{{NEW_T1_ADDR}}"),
+		memberstore.T1,
+		`{{PORTFOLIO}}`,
+	)
+
+	id := dao.MustCreateProposal(cross, req)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+	dao.ExecuteProposal(cross, id)
+}

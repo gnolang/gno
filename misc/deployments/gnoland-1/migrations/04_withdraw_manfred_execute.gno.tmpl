@@ -1,0 +1,61 @@
+// 04_withdraw_manfred_execute.gno.tmpl — run AT THE END of the hardfork replay.
+//
+// Step 3 (final) of the T1 rotation: NEW_T1_ADDR votes YES on the open
+// WithdrawMember proposal created in step 2 and executes it. With both T1
+// members voting YES, supermajority is 100% and manfred is removed.
+//
+// Finding the pid:
+//   The proposal was created by the PREVIOUS migration tx (signed as
+//   manfred). It's the highest-pid proposal whose author == OLD_T1_ADDR
+//   and title == "Member Withdrawal Proposal". We iterate from pid=0
+//   upward to find it — cheap, since the chain has only a handful of
+//   proposals at genesis time.
+//
+// Placeholders (replaced by migrations/build.sh before signing):
+//   OLD_T1_ADDR         placeholder — address being withdrawn (manfred)
+//
+// Caller: NEW_T1_ADDR (the freshly-added T1 member) — patched into
+// msg[0].caller by build.sh.
+package main
+
+import (
+	"gno.land/r/gov/dao"
+)
+
+const (
+	oldT1Addr       = address("{{OLD_T1_ADDR}}")
+	withdrawalTitle = "Member Withdrawal Proposal"
+)
+
+func main() {
+	pid, ok := findWithdrawProposal()
+	if !ok {
+		panic("could not locate the WithdrawMember proposal authored by " + oldT1Addr.String())
+	}
+
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross, pid)
+}
+
+// findWithdrawProposal walks the proposal tree and returns the highest-pid
+// proposal whose author matches OLD_T1_ADDR and whose title matches the
+// WithdrawMember one. Stops on the first GetProposal error (= pid not
+// allocated yet).
+func findWithdrawProposal() (dao.ProposalID, bool) {
+	var (
+		found bool
+		best  dao.ProposalID
+	)
+	for i := int64(0); ; i++ {
+		pid := dao.ProposalID(i)
+		p, err := dao.GetProposal(cross, pid)
+		if err != nil || p == nil {
+			break
+		}
+		if p.Author() == oldT1Addr && p.Title() == withdrawalTitle {
+			best = pid
+			found = true
+		}
+	}
+	return best, found
+}

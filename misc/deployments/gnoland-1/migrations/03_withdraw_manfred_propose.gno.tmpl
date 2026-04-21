@@ -1,0 +1,33 @@
+// 03_withdraw_manfred_propose.gno.tmpl — run AT THE END of the hardfork replay.
+//
+// Step 2 of the T1 rotation: manfred proposes his own withdrawal from T1 and
+// votes YES. The memberstore now has two T1 members (manfred + NEW_T1_ADDR),
+// so manfred's single vote is only 50% — below the 66.66% supermajority,
+// so the proposal stays OPEN at the end of this tx.
+//
+// Step 3 (04_withdraw_manfred_execute.gno.tmpl) is run in a separate tx by
+// NEW_T1_ADDR to cast the second YES vote and execute.
+//
+// Placeholders (replaced by migrations/build.sh before signing):
+//   OLD_T1_ADDR         placeholder — address being withdrawn (manfred)
+//   WITHDRAW_REASON     placeholder — required reason string for T1 removals
+//
+// Caller: manfred (OLD_T1_ADDR) — patched into msg[0].caller by build.sh.
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+func main() {
+	req := impl.NewWithdrawMemberRequest(
+		cross,
+		address("{{OLD_T1_ADDR}}"),
+		`{{WITHDRAW_REASON}}`,
+	)
+
+	id := dao.MustCreateProposal(cross, req)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+	// No ExecuteProposal here: supermajority not reached yet (50%).
+}

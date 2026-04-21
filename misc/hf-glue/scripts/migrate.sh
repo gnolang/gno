@@ -23,9 +23,9 @@ hf_init
 # Pick one. $SOURCE from the Makefile decides which branch runs.
 : "${SOURCE:=https://github.com/gnolang/gno/releases/download/chain/gnoland1.0/genesis.json}"
 case "$SOURCE" in
-  *.json|*/genesis.json)          hf_fetch_genesis_from_url  "$SOURCE" ;;
-  http://*|https://*)             hf_fetch_genesis_from_rpc  "$SOURCE" ;;
-  *)                              hf_fetch_genesis_from_file "$SOURCE" ;;
+*.json | */genesis.json) hf_fetch_genesis_from_url "$SOURCE" ;;
+http://* | https://*) hf_fetch_genesis_from_rpc "$SOURCE" ;;
+*) hf_fetch_genesis_from_file "$SOURCE" ;;
 esac
 
 # -------------------------------------------------------------------------
@@ -82,19 +82,24 @@ fi
 PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
 PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
 if [[ -n "$PV_KEYS" ]] || [[ -f "$PV_KEY" ]]; then
-  hf_banner "step 5 — post-replay migration (valset swap)"
+  hf_banner "step 5 — post-replay migration (valset swap${NEW_T1_ADDR:+ + T1 rotation})"
   if [[ -n "$PV_KEYS" ]]; then
     hf_kv "pv_keys" "$PV_KEYS"
   else
     hf_kv "pv_key" "$PV_KEY"
   fi
+  [[ -n "${NEW_T1_ADDR:-}" ]] && hf_kv "new T1 addr" "$NEW_T1_ADDR"
   MIG_JSONL="$OUT/migrations.jsonl"
   CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
-  PV_KEY="${PV_KEYS:+}${PV_KEYS:-$PV_KEY}" \
-  PV_KEYS="$PV_KEYS" \
-  OUT_JSONL="$MIG_JSONL" \
-  CHAIN_ID="$CHAIN_ID" \
-  REPO_ROOT="$REPO" \
+    PV_KEY="${PV_KEYS:+}${PV_KEYS:-$PV_KEY}" \
+    PV_KEYS="$PV_KEYS" \
+    RPC_URL="$RPC_URL" \
+    NEW_T1_ADDR="${NEW_T1_ADDR:-}" \
+    T1_PORTFOLIO="${T1_PORTFOLIO:-}" \
+    T1_WITHDRAW_REASON="${T1_WITHDRAW_REASON:-}" \
+    OUT_JSONL="$MIG_JSONL" \
+    CHAIN_ID="$CHAIN_ID" \
+    REPO_ROOT="$REPO" \
     bash "$REPO/misc/deployments/gnoland-1/migrations/build.sh"
   hf_migration_tx "$MIG_JSONL"
 else
