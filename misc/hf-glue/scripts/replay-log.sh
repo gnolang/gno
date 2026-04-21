@@ -27,8 +27,8 @@ echo "  genesis: $GENESIS"
 echo "  log:     $LOG"
 echo ""
 
-cd "$REPO/misc/hardfork"
-go run . test \
+cd "$REPO/contribs/gnogenesis"
+go run . fork test \
   --genesis "$GENESIS" \
   --verbose \
   --timeout 30m 2>&1 | tee "$LOG"
