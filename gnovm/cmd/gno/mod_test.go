@@ -10,6 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// newTestMockIO creates a commands.IO with the given string as stdin,
+// stdout discarded, and stderr captured in the returned builder (if non-nil).
+func newTestMockIO(stdin string) commands.IO {
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader(stdin))
+	io.SetOut(commands.WriteNopCloser(os.Stdout))
+	io.SetErr(commands.WriteNopCloser(os.Stderr))
+	return io
+}
+
+func newTestMockIOWithStderr(stdin string) (commands.IO, *strings.Builder) {
+	var buf strings.Builder
+	io := commands.NewTestIO()
+	io.SetIn(strings.NewReader(stdin))
+	io.SetOut(commands.WriteNopCloser(os.Stdout))
+	io.SetErr(commands.WriteNopCloser(&buf))
+	return io, &buf
+}
+
 func TestModApp(t *testing.T) {
 	tc := []testMainCase{
 		{
@@ -252,33 +271,13 @@ gno.land/p/nt/avl/v0 testing
 	testMainCaseRun(t, tc)
 }
 
-func TestModInitTemplate(t *testing.T) {
+func TestModInitNonInteractive(t *testing.T) {
 	tests := []struct {
-		name      string
-		modPath   string
-		wantFiles map[string]string // filename -> substring that must be present
-		isRealm   bool
+		name    string
+		modPath string
 	}{
-		{
-			name:    "realm template",
-			modPath: "gno.land/r/demo/myrealm",
-			isRealm: true,
-			wantFiles: map[string]string{
-				"myrealm.gno":      "func Render(_ string) string",
-				"myrealm_test.gno": "func TestRender(t *testing.T)",
-				"gnomod.toml":      "gno.land/r/demo/myrealm",
-			},
-		},
-		{
-			name:    "package template",
-			modPath: "gno.land/p/demo/mypkg",
-			isRealm: false,
-			wantFiles: map[string]string{
-				"mypkg.gno":      "package mypkg",
-				"mypkg_test.gno": "func TestExample(t *testing.T)",
-				"gnomod.toml":    "gno.land/p/demo/mypkg",
-			},
-		},
+		{"realm", "gno.land/r/demo/myrealm"},
+		{"package", "gno.land/p/demo/mypkg"},
 	}
 
 	for _, tt := range tests {
@@ -290,35 +289,17 @@ func TestModInitTemplate(t *testing.T) {
 			require.NoError(t, os.Chdir(tmpDir))
 			t.Cleanup(func() { os.Chdir(origDir) })
 
-			// Simulate interactive mode by calling execModInit directly
-			// with bare=false. Since stdin is not a TTY in tests,
-			// we pass the module path as an argument.
-			// To test template generation, we call with bare=false
-			// but provide modPath as arg — need to force template generation.
-			// Instead, test the non-interactive path (bare) and the template
-			// generation by calling execModInit with a mock IO that has stdin piped.
-			mockIO := commands.NewTestIO()
-			mockIO.SetIn(strings.NewReader(""))
-			mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-			mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-			// Since isTerminal() returns false in tests, we directly test
-			// the template generation by calling the function with bare=false
-			// and providing the path as an argument.
-			// We need to temporarily make isTerminal return true.
-			// Instead, let's just test the bare=false path manually.
+			mockIO := newTestMockIO("")
 			cfg := &modInitCfg{bare: false}
-			// In test, isTerminal() is false, so no templates are generated.
-			// Test bare mode first.
+			// In test, IsInteractive() is false, so only gnomod.toml is created.
 			err = execModInit(cfg, []string{tt.modPath}, mockIO)
 			require.NoError(t, err)
 
-			// Verify gnomod.toml was created
 			content, err := os.ReadFile(filepath.Join(tmpDir, "gnomod.toml"))
 			require.NoError(t, err)
 			require.Contains(t, string(content), tt.modPath)
 
-			// In non-TTY mode, no template files should be created
+			// No template files in non-TTY mode
 			pkgName := filepath.Base(tt.modPath)
 			_, err = os.Stat(filepath.Join(tmpDir, pkgName+".gno"))
 			require.True(t, os.IsNotExist(err), "template files should not be created in non-TTY mode")
@@ -334,20 +315,13 @@ func TestModInitBare(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 	t.Cleanup(func() { os.Chdir(origDir) })
 
-	mockIO := commands.NewTestIO()
-	mockIO.SetIn(strings.NewReader(""))
-	mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-	mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
 	cfg := &modInitCfg{bare: true}
-	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, mockIO)
+	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
 	require.NoError(t, err)
 
-	// gnomod.toml should exist
 	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
 	require.NoError(t, err)
 
-	// No template files even though it's a realm
 	_, err = os.Stat(filepath.Join(tmpDir, "testrealm.gno"))
 	require.True(t, os.IsNotExist(err), "--bare should not create template files")
 }
@@ -397,12 +371,7 @@ func TestPromptModuleKind(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockIO := commands.NewTestIO()
-			mockIO.SetIn(strings.NewReader(tt.input))
-			mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-			mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-			got, err := promptModuleKind(mockIO)
+			got, err := promptModuleKind(newTestMockIO(tt.input))
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -423,56 +392,31 @@ func TestSelectTemplate(t *testing.T) {
 	}
 
 	t.Run("single auto-selects", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader(""))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := selectTemplate(single, mockIO)
+		got, err := selectTemplate(single, newTestMockIO(""))
 		require.NoError(t, err)
 		require.Equal(t, "basic", got.Name)
 	})
 
 	t.Run("multi default", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader("\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := selectTemplate(multi, mockIO)
+		got, err := selectTemplate(multi, newTestMockIO("\n"))
 		require.NoError(t, err)
 		require.Equal(t, "basic", got.Name)
 	})
 
 	t.Run("multi by number", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader("2\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := selectTemplate(multi, mockIO)
+		got, err := selectTemplate(multi, newTestMockIO("2\n"))
 		require.NoError(t, err)
 		require.Equal(t, "dao", got.Name)
 	})
 
 	t.Run("multi by name", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader("dao\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := selectTemplate(multi, mockIO)
+		got, err := selectTemplate(multi, newTestMockIO("dao\n"))
 		require.NoError(t, err)
 		require.Equal(t, "dao", got.Name)
 	})
 
 	t.Run("invalid choice", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader("99\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		_, err := selectTemplate(multi, mockIO)
+		_, err := selectTemplate(multi, newTestMockIO("99\n"))
 		require.Error(t, err)
 	})
 }
@@ -498,51 +442,104 @@ func TestRenderTemplate(t *testing.T) {
 
 func TestPromptModulePath(t *testing.T) {
 	t.Run("accept default name", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		// namespace + accept default module name (empty)
-		mockIO.SetIn(strings.NewReader("myuser\n\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := promptModulePath(kindRealm, "/tmp/myrealm", mockIO)
+		got, err := promptModulePath(kindRealm, "/tmp/myrealm", newTestMockIO("myuser\n\n"))
 		require.NoError(t, err)
 		require.Equal(t, "gno.land/r/myuser/myrealm", got)
 	})
 
 	t.Run("custom name", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		// namespace + custom module name
-		mockIO.SetIn(strings.NewReader("myuser\ncustom\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := promptModulePath(kindRealm, "/tmp/myrealm", mockIO)
+		got, err := promptModulePath(kindRealm, "/tmp/myrealm", newTestMockIO("myuser\ncustom\n"))
 		require.NoError(t, err)
 		require.Equal(t, "gno.land/r/myuser/custom", got)
 	})
 
 	t.Run("package kind", func(t *testing.T) {
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader("alice\n\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(os.Stderr))
-
-		got, err := promptModulePath(kindPackage, "/home/alice/mylib", mockIO)
+		got, err := promptModulePath(kindPackage, "/home/alice/mylib", newTestMockIO("alice\n\n"))
 		require.NoError(t, err)
 		require.Equal(t, "gno.land/p/alice/mylib", got)
 	})
 
 	t.Run("empty namespace retries then EOF", func(t *testing.T) {
-		var stderrBuf strings.Builder
-		mockIO := commands.NewTestIO()
-		mockIO.SetIn(strings.NewReader("\n"))
-		mockIO.SetOut(commands.WriteNopCloser(os.Stdout))
-		mockIO.SetErr(commands.WriteNopCloser(&stderrBuf))
-
+		mockIO, stderrBuf := newTestMockIOWithStderr("\n")
 		_, err := promptModulePath(kindRealm, "/tmp/myrealm", mockIO)
 		require.Error(t, err) // EOF after retry
-		require.Contains(t, stderrBuf.String(), "address or namespace cannot be empty")
+		require.Contains(t, stderrBuf.String(), "value cannot be empty")
 	})
+}
+
+func TestResolveTemplate(t *testing.T) {
+	templates := []initTemplate{
+		{Name: "basic", Description: "basic desc"},
+		{Name: "dao", Description: "dao desc"},
+	}
+
+	t.Run("empty name returns first", func(t *testing.T) {
+		got, err := resolveTemplate(templates, "")
+		require.NoError(t, err)
+		require.Equal(t, "basic", got.Name)
+	})
+
+	t.Run("exact match", func(t *testing.T) {
+		got, err := resolveTemplate(templates, "dao")
+		require.NoError(t, err)
+		require.Equal(t, "dao", got.Name)
+	})
+
+	t.Run("case insensitive", func(t *testing.T) {
+		got, err := resolveTemplate(templates, "DAO")
+		require.NoError(t, err)
+		require.Equal(t, "dao", got.Name)
+	})
+
+	t.Run("unknown name", func(t *testing.T) {
+		_, err := resolveTemplate(templates, "nope")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown template")
+		require.Contains(t, err.Error(), "basic, dao")
+	})
+
+	t.Run("empty list", func(t *testing.T) {
+		_, err := resolveTemplate(nil, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no templates")
+	})
+}
+
+func TestModInitWithTemplateFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{template: "basic"}
+	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
+	require.NoError(t, err)
+
+	// gnomod.toml should exist
+	content, err := os.ReadFile(filepath.Join(tmpDir, "gnomod.toml"))
+	require.NoError(t, err)
+	require.Contains(t, string(content), "gno.land/r/demo/testrealm")
+
+	// Template files should NOT be created in non-TTY mode (bare path)
+	// but --template + arg should create them... however IsInteractive()
+	// returns false in tests, so this goes through the bare path.
+	// The --template flag only affects the interactive path.
+}
+
+func TestModInitBareAndTemplateExclusive(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{bare: true, template: "basic"}
+	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "mutually exclusive")
 }
 
 func TestSanitizeModuleName(t *testing.T) {

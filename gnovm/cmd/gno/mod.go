@@ -2,17 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"go.uber.org/multierr"
 	"golang.org/x/mod/module"
-	"golang.org/x/term"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -20,7 +19,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/errors"
+	terrors "github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // testPackageFetcher allows to override the package fetcher during tests.
@@ -91,14 +90,14 @@ const (
 	kindRun
 )
 
-var errGoBack = fmt.Errorf("go back")
-
 type modInitCfg struct {
-	bare bool
+	bare     bool
+	template string
 }
 
 func (c *modInitCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.bare, "bare", false, "only create gnomod.toml, skip template files")
+	fs.StringVar(&c.template, "template", "", "template name to use (e.g. basic); skips interactive selection")
 }
 
 func newInitCmd(io commands.IO) *commands.Command {
@@ -110,13 +109,32 @@ func newInitCmd(io commands.IO) *commands.Command {
 			ShortHelp:  "initialize a new Gno module",
 			LongHelp: `Initialize a new Gno module in the current directory.
 
-If run interactively, a wizard will guide you through creating a realm,
-package, or run script with template files.
+When run in an interactive terminal, a wizard guides you through:
+  1. Module kind selection (realm, package, or run script)
+  2. Namespace and module name
+  3. Template selection (when multiple templates are available)
 
-If a module path is given as an argument, gnomod.toml and template files
-are created without prompting (when possible).
+If a module path is given as an argument, the kind is auto-detected from the
+path (/r/ for realms, /p/ for packages) and the first available template is
+used. Short-form paths like "r/demo/foo" are expanded to "gno.land/r/demo/foo".
 
-Use --bare to create only gnomod.toml without any template files.`,
+Flags:
+  --bare       Create only gnomod.toml, skip all template files.
+  --template   Select a template by name (e.g. --template basic), skipping
+               the interactive template menu. Use "gno init --help" to see
+               the available templates for each module kind.
+
+Available templates:
+  Realms:   basic
+  Packages: basic
+  Run:      basic
+
+Examples:
+  gno init                              # interactive wizard
+  gno init gno.land/r/myname/myrealm   # realm with basic template
+  gno init r/myname/mypkg              # short form, auto-expanded
+  gno init --bare gno.land/p/demo/lib  # gnomod.toml only
+  gno init --template basic gno.land/r/demo/foo  # explicit template`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -128,6 +146,9 @@ Use --bare to create only gnomod.toml without any template files.`,
 func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	if len(args) > 1 {
 		return flag.ErrHelp
+	}
+	if cfg.bare && cfg.template != "" {
+		return fmt.Errorf("--bare and --template are mutually exclusive")
 	}
 
 	rootDir, err := os.Getwd()
@@ -145,14 +166,14 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	}
 
 	// Non-interactive: bare flag or no TTY
-	if cfg.bare || !isTerminal() {
+	if cfg.bare || !commands.IsInteractive() {
 		if len(args) == 0 {
 			return fmt.Errorf("module path is required (non-interactive mode)")
 		}
 		return writeGnomod(rootDir, normalizeModulePath(args[0]))
 	}
 
-	// Interactive with argument: create gnomod.toml + auto-select first template
+	// Interactive with argument: create gnomod.toml + resolve template
 	if len(args) == 1 {
 		modPath := normalizeModulePath(args[0])
 		if err := writeGnomod(rootDir, modPath); err != nil {
@@ -160,10 +181,14 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		}
 		kind := kindFromPath(modPath)
 		templates := templatesForKind(kind)
-		if kind == kindRun {
-			return execInitRun(rootDir, templates[0], io)
+		tmpl, err := resolveTemplate(templates, cfg.template)
+		if err != nil {
+			return err
 		}
-		return writeModule(rootDir, modPath, &templates[0], io)
+		if kind == kindRun {
+			return execInitRun(rootDir, *tmpl, io)
+		}
+		return writeModule(rootDir, modPath, tmpl, io)
 	}
 
 	// Full interactive wizard
@@ -180,13 +205,17 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 			}
 			if kind == kindRun {
 				templates := templatesForKind(kindRun)
-				return execInitRun(rootDir, templates[0], io)
+				tmpl, tmplErr := resolveTemplate(templates, cfg.template)
+				if tmplErr != nil {
+					return tmplErr
+				}
+				return execInitRun(rootDir, *tmpl, io)
 			}
 			step = 1
 
 		case 1: // Namespace + name → module path
 			modPath, err = promptModulePath(kind, rootDir, io)
-			if err == errGoBack {
+			if errors.Is(err, commands.ErrGoBack) {
 				step = 0
 				continue
 			}
@@ -197,8 +226,15 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 
 		case 2: // Template selection
 			templates := templatesForKind(kind)
-			tmpl, selErr := selectTemplate(templates, io)
-			if selErr == errGoBack {
+			var tmpl *initTemplate
+			var selErr error
+			if cfg.template != "" {
+				// --template flag bypasses interactive menu
+				tmpl, selErr = resolveTemplate(templates, cfg.template)
+			} else {
+				tmpl, selErr = selectTemplate(templates, io)
+			}
+			if errors.Is(selErr, commands.ErrGoBack) {
 				step = 1
 				continue
 			}
@@ -225,8 +261,28 @@ func writeGnomod(rootDir, modPath string) error {
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
 	modfile.Gno = gno.GnoVerLatest
-	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
-	return nil
+	return modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
+}
+
+// resolveTemplate looks up a template by name from the given list.
+// If name is empty, the first template is returned (default).
+func resolveTemplate(templates []initTemplate, name string) (*initTemplate, error) {
+	if len(templates) == 0 {
+		return nil, fmt.Errorf("no templates available")
+	}
+	if name == "" {
+		return &templates[0], nil
+	}
+	for i := range templates {
+		if strings.EqualFold(templates[i].Name, name) {
+			return &templates[i], nil
+		}
+	}
+	names := make([]string, len(templates))
+	for i, t := range templates {
+		names[i] = t.Name
+	}
+	return nil, fmt.Errorf("unknown template %q; available: %s", name, strings.Join(names, ", "))
 }
 
 func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
@@ -297,71 +353,42 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 // --- Wizard helpers ---
 
 func promptModuleKind(io commands.IO) (moduleKind, error) {
-	for {
-		prompt(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ")
-		ans, err := readLine(io)
-		if err != nil {
-			return kindPackage, err
-		}
-		switch strings.ToLower(ans) {
-		case "", "p", "package":
-			return kindPackage, nil
-		case "r", "realm":
-			return kindRealm, nil
-		case "m", "main", "run":
-			return kindRun, nil
-		default:
-			fmt.Fprintf(io.Err(), "invalid module kind: %q\n", ans)
-		}
+	choices := []commands.Choice{
+		{Key: "r", Aliases: []string{"realm"}, Description: "realm"},
+		{Key: "p", Aliases: []string{"package"}, Description: "package", IsDefault: true},
+		{Key: "m", Aliases: []string{"main", "run"}, Description: "run script"},
 	}
+	kinds := []moduleKind{kindRealm, kindPackage, kindRun}
+
+	idx, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices)
+	if err != nil {
+		return kindPackage, err
+	}
+	return kinds[idx], nil
 }
 
 func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
+	validateName := func(s string) error {
+		if s == "" {
+			return fmt.Errorf("value cannot be empty")
+		}
+		if !isValidName(s) {
+			return fmt.Errorf("invalid value %q (must be lowercase letters, digits, and underscores)", s)
+		}
+		return nil
+	}
+
 	// Step 1: namespace (retry on empty or invalid)
-	var namespace string
-	for {
-		prompt(io, "Address or namespace: ")
-		var err error
-		namespace, err = readLine(io)
-		if err != nil {
-			return "", err
-		}
-		if namespace == "<" {
-			return "", errGoBack
-		}
-		if namespace == "" {
-			fmt.Fprintf(io.Err(), "address or namespace cannot be empty\n")
-			continue
-		}
-		if !isValidName(namespace) {
-			fmt.Fprintf(io.Err(), "invalid namespace %q (must be lowercase letters, digits, and underscores)\n", namespace)
-			continue
-		}
-		break
+	namespace, err := commands.PromptString(io, "Address or namespace", "", validateName)
+	if err != nil {
+		return "", err
 	}
 
 	// Step 2: module name (retry on invalid)
 	defaultName := sanitizeModuleName(filepath.Base(rootDir))
-	var name string
-	for {
-		prompt(io, fmt.Sprintf("Module name [%s]: ", defaultName))
-		var err error
-		name, err = readLine(io)
-		if err != nil {
-			return "", err
-		}
-		if name == "<" {
-			return "", errGoBack
-		}
-		if name == "" {
-			name = defaultName
-		}
-		if !isValidName(name) {
-			fmt.Fprintf(io.Err(), "invalid module name %q (must be lowercase letters, digits, and underscores)\n", name)
-			name = ""
-			continue
-		}
-		break
+	name, err := commands.PromptString(io, "Module name", defaultName, validateName)
+	if err != nil {
+		return "", err
 	}
 
 	basePath := fmt.Sprintf("gno.land/%s/%s", namespace, name)
@@ -369,49 +396,16 @@ func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, 
 }
 
 func selectTemplate(templates []initTemplate, io commands.IO) (*initTemplate, error) {
-	if len(templates) == 0 {
-		return nil, fmt.Errorf("no templates available")
-	}
-	if len(templates) == 1 {
-		return &templates[0], nil
+	items := make([]commands.SelectItem, len(templates))
+	for i, t := range templates {
+		items[i] = commands.SelectItem{Name: t.Name, Description: t.Description}
 	}
 
-	for {
-		// Show numbered menu
-		prompt(io, "Template:\n")
-		for i, t := range templates {
-			fmt.Fprintf(io.Err(), "  %d. %s — %s\n", i+1, t.Name, t.Description)
-		}
-		prompt(io, fmt.Sprintf("Choose [1]: "))
-
-		ans, err := readLine(io)
-		if err != nil {
-			return nil, err
-		}
-		if ans == "<" {
-			return nil, errGoBack
-		}
-		if ans == "" {
-			return &templates[0], nil
-		}
-
-		// Try number
-		if n, err := strconv.Atoi(ans); err == nil {
-			if n >= 1 && n <= len(templates) {
-				return &templates[n-1], nil
-			}
-			fmt.Fprintf(io.Err(), "invalid template number: %d\n", n)
-			continue
-		}
-
-		// Try name
-		for i := range templates {
-			if strings.EqualFold(templates[i].Name, ans) {
-				return &templates[i], nil
-			}
-		}
-		fmt.Fprintf(io.Err(), "unknown template: %q\n", ans)
+	idx, err := commands.PromptSelect(io, "Template:", items)
+	if err != nil {
+		return nil, err
 	}
+	return &templates[idx], nil
 }
 
 func kindFromPath(modPath string) moduleKind {
@@ -492,23 +486,6 @@ func sanitizeModuleName(name string) string {
 	name = strings.ReplaceAll(name, "-", "_")
 	name = reModName.ReplaceAllString(name, "")
 	return name
-}
-
-func prompt(io commands.IO, msg string) {
-	fmt.Fprint(io.Err(), msg)
-}
-
-// readLine reads a line from io using GetString and trims whitespace.
-func readLine(io commands.IO) (string, error) {
-	s, err := io.GetString("")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(s), nil
-}
-
-func isTerminal() bool {
-	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 func newModTidy(io commands.IO) *commands.Command {
@@ -644,7 +621,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 	io.Out().Write([]byte(sb.String()))
 
 	if errCount != 0 {
-		return errors.New("%d build error(s)", errCount)
+		return terrors.New("%d build error(s)", errCount)
 	}
 
 	return nil

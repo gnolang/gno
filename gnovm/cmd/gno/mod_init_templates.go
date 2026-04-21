@@ -1,3 +1,18 @@
+// Template registry for gno init.
+//
+// To add a new template (e.g. a "dao" realm template):
+//
+//  1. Create template files under templates/<kind>/<name>/:
+//     templates/realm/dao/source.gno.tmpl
+//     templates/realm/dao/test.gno.tmpl       (optional)
+//
+//  2. Add an entry to the corresponding slice below (e.g. realmTemplates).
+//     The Name field is what users see in the interactive menu and can pass
+//     via --template.
+//
+// Template files use Go's text/template syntax with a single templateData
+// struct providing {{.PkgName}} (derived from the module path's last segment).
+
 package main
 
 import (
@@ -17,20 +32,19 @@ var runTemplatesFS embed.FS
 
 // templateData holds the data passed to template files.
 type templateData struct {
-	PkgName string
+	PkgName string // Package name, derived from the last segment of the module path
 }
 
 // initTemplate describes a single scaffold template option.
 type initTemplate struct {
-	Name        string   // short name shown to user (e.g. "basic", "dao")
-	Description string   // one-line description
-	SourcePath  string   // path within the embedded FS for the source template
-	TestPath    string   // path within the embedded FS for the test template
-	FS          embed.FS // the embedded FS containing the templates
+	Name        string   // Short name shown to user and accepted by --template (e.g. "basic", "dao")
+	Description string   // One-line description shown in the interactive menu
+	SourcePath  string   // Path within FS for the source .gno template
+	TestPath    string   // Path within FS for the test .gno template (empty = no test file)
+	FS          embed.FS // Embedded FS containing the template files
 }
 
 // realmTemplates lists available templates for realms.
-// Add new entries here to extend the template selection menu.
 var realmTemplates = []initTemplate{
 	{
 		Name:        "basic",
