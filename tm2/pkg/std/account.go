@@ -186,11 +186,11 @@ func (acc *BaseAccount) SetSequence(seq uint64) error {
 type BaseSessionAccount struct {
 	BaseAccount
 	MasterAddress crypto.Address `json:"master_address" yaml:"master_address"`
-	ExpiresAt     int64          `json:"expires_at" yaml:"expires_at"`                             // unix ts; 0 = no expiry
-	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"`       // nil/empty = no spending allowed (fail-closed, NOT unrestricted)
-	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"`     // seconds; 0 = lifetime cap (no reset)
-	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`         // nil/empty = 0 spent
-	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`       // unix ts; start of current period
+	ExpiresAt     int64          `json:"expires_at" yaml:"expires_at"`                         // unix ts; 0 = no expiry
+	SpendLimit    Coins          `json:"spend_limit,omitempty" yaml:"spend_limit,omitempty"`   // nil/empty = no spending allowed (fail-closed, NOT unrestricted)
+	SpendPeriod   int64          `json:"spend_period,omitempty" yaml:"spend_period,omitempty"` // seconds; 0 = lifetime cap (no reset)
+	SpendUsed     Coins          `json:"spend_used,omitempty" yaml:"spend_used,omitempty"`     // nil/empty = 0 spent
+	SpendReset    int64          `json:"spend_reset,omitempty" yaml:"spend_reset,omitempty"`   // unix ts; start of current period
 }
 
 // GetCoins always returns nil — session accounts do not hold coins.
