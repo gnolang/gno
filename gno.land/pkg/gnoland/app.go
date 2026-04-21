@@ -41,6 +41,7 @@ type AppOptions struct {
 	EventSwitch                events.EventSwitch // required
 	VMOutput                   io.Writer          // optional
 	SkipGenesisSigVerification bool               // default to verify genesis transactions
+	SkipUpgradeHeight          int64              // if set, skip the halt_min_version check at this height
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
@@ -114,6 +115,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -188,6 +190,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			acck,
 			gpk,
 			vmk,
+			prmk,
 			baseApp,
 		),
 	)
@@ -207,6 +210,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
+
+	// Verify node startup constraints set by governance halt proposals.
+	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore(), baseApp.LastBlockHeight(), cfg.SkipUpgradeHeight); err != nil {
+		return nil, err
+	}
 
 	return baseApp, nil
 }
@@ -233,6 +241,7 @@ func NewApp(
 	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	skipUpgradeHeight int64,
 ) (abci.Application, error) {
 	var err error
 
@@ -245,6 +254,7 @@ func NewApp(
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
+		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
@@ -313,7 +323,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
-	txResponses, err := cfg.loadAppState(ctx, req.AppState)
+	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
@@ -350,10 +360,32 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	msCache.MultiWrite()
 }
 
-func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
 	state, ok := appState.(GnoGenesisState)
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
+	}
+
+	// If GnoGenesisState.InitialHeight is set, it must match the authoritative
+	// GenesisDoc.InitialHeight (which comes in via req.InitialHeight). These
+	// fields are duplicated so tooling can read the app-level one; if they
+	// diverge, the genesis file is malformed.
+	if state.InitialHeight != 0 && state.InitialHeight != reqInitialHeight {
+		return nil, fmt.Errorf(
+			"InitialHeight mismatch: GnoGenesisState.InitialHeight=%d, GenesisDoc.InitialHeight=%d",
+			state.InitialHeight, reqInitialHeight,
+		)
+	}
+
+	if err := validateGasReplayMode(state.GasReplayMode); err != nil {
+		return nil, err
+	}
+
+	if len(state.PastChainIDs) > 0 {
+		ctx.Logger().Info("Chain upgrade genesis replay",
+			"past_chain_ids", state.PastChainIDs,
+			"initial_height", reqInitialHeight,
+		)
 	}
 
 	cfg.bankk.InitGenesis(ctx, state.Bank)
@@ -392,9 +424,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+	report := newReplayReport(state.GasReplayMode)
 
 	// Run genesis txs
-	for _, tx := range state.Txs {
+	for txIdx, tx := range state.Txs {
 		var (
 			stdTx    = tx.Tx
 			metadata = tx.Metadata
@@ -404,16 +437,86 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 		// Check if there is metadata associated with the tx
 		if metadata != nil {
-			// Create a custom context modifier
 			ctxFn = func(ctx sdk.Context) sdk.Context {
-				// Create a copy of the header, in
-				// which only the timestamp information is modified
 				header := ctx.BlockHeader().(*bft.Header).Copy()
-				header.Time = time.Unix(metadata.Timestamp, 0)
+				if metadata.Timestamp != 0 {
+					header.Time = time.Unix(metadata.Timestamp, 0)
+				}
+				if metadata.BlockHeight > 0 {
+					header.Height = metadata.BlockHeight
+				}
 
-				// Save the modified header
-				return ctx.WithBlockHeader(header)
+				ctx = ctx.WithBlockHeader(header)
+
+				// For historical txs (BlockHeight > 0), override the chain ID
+				// for signature verification using the per-tx ChainID, provided
+				// it is in the genesis allowlist. This allows replaying txs from
+				// multiple past chains during a hard fork.
+				if metadata.BlockHeight > 0 && metadata.ChainID != "" && isPastChainID(state.PastChainIDs, metadata.ChainID) {
+					ctx = ctx.WithChainID(metadata.ChainID)
+				}
+
+				// GasReplayMode="source": bypass the new VM's gas meter for
+				// historical txs so outcomes match the source chain even when
+				// gas metering changed.
+				if state.GasReplayMode == "source" && metadata.BlockHeight > 0 {
+					ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
+				}
+
+				return ctx
 			}
+		}
+
+		// Genesis-mode txs (no metadata or BlockHeight == 0) were signed with
+		// the original chain ID. During a hardfork (PastChainIDs is set), we
+		// need to verify their signatures against the original chain ID, not
+		// the new one. Use the first PastChainID as the signing context.
+		if (metadata == nil || metadata.BlockHeight == 0) && len(state.PastChainIDs) > 0 {
+			originalChainID := state.PastChainIDs[0]
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				return ctx.WithChainID(originalChainID)
+			}
+		}
+
+		// For historical txs with signer metadata, force-set account state
+		// so signature verification succeeds even if prior txs diverged.
+		// Uses pre-tx sequence — the value the signature was signed with.
+		//
+		// Invariant: SignerInfo is only populated by the export tool for historical
+		// txs (BlockHeight > 0). Genesis-mode txs (BlockHeight == 0) must never
+		// carry SignerInfo — if they did, the force-set would corrupt fresh account
+		// state. The BlockHeight > 0 guard enforces this.
+		if metadata != nil && metadata.BlockHeight > 0 && len(metadata.SignerInfo) > 0 {
+			for _, si := range metadata.SignerInfo {
+				acc := cfg.acck.GetAccount(ctx, si.Address)
+				if acc == nil {
+					// Account doesn't exist yet — create with specific account
+					// number, bypassing the auto-increment counter.
+					acc = cfg.acck.NewAccountWithNumber(ctx, si.Address, si.AccountNum)
+				} else {
+					acc.SetAccountNumber(si.AccountNum)
+				}
+				acc.SetSequence(si.Sequence)
+				cfg.acck.SetAccount(ctx, acc)
+			}
+		}
+
+		// Failed txs: pre-tx sequence already set above. Skip execution —
+		// re-executing failed txs could cause double spends or unexpected
+		// behavior if the VM fix makes them succeed. The next tx's force-set
+		// will handle the correct sequence state.
+		// Response carries an explicit error so downstream consumers
+		// (indexers, explorers) don't mistake a skipped failed tx for a
+		// successful one.
+		if metadata != nil && metadata.Failed {
+			txResponses = append(txResponses, abci.ResponseDeliverTx{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError("replay skipped: tx failed on source chain"),
+					Log:   "genesis replay: skipped failed tx from source chain",
+				},
+			})
+			report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
+			continue
 		}
 
 		res := cfg.baseApp.Deliver(stdTx, ctxFn)
@@ -431,9 +534,19 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			GasWanted:    res.GasWanted,
 			GasUsed:      res.GasUsed,
 		})
+		report.recordDeliverResult(txIdx, metadata, res)
 
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
+
+	if reqInitialHeight > 1 {
+		ctx.Logger().Info("Genesis replay complete, chain will start from initial height",
+			"initial_height", reqInitialHeight,
+		)
+	}
+
+	report.emit(ctx.Logger())
+
 	return txResponses, nil
 }
 
@@ -444,22 +557,31 @@ type endBlockerApp interface {
 
 	// Logger returns the logger reference
 	Logger() *slog.Logger
+
+	// SetHaltHeight sets the block height at which the node will halt.
+	SetHaltHeight(uint64)
+}
+
+// isPastChainID reports whether chainID is present in the pastChainIDs allowlist.
+func isPastChainID(pastChainIDs []string, chainID string) bool {
+	return slices.Contains(pastChainIDs, chainID)
 }
 
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
-// validator set changes
+// validator set changes, and checks for a governance-requested chain halt.
 func EndBlocker(
 	collector *collector[validatorUpdate],
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
+	prmk params.ParamsKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
@@ -467,6 +589,24 @@ func EndBlocker(
 		}
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
+		}
+
+		// Check if GovDAO has requested a halt at this height.
+		// Use == (not >=) so we only trigger once: at the exact halt height.
+		// SetHaltHeight causes BeginBlock of the *next* block to panic, ensuring
+		// this block is fully committed before the node stops.
+		// On restart, req.Height > halt_height, so == never re-fires — no infinite loop.
+		if prmk != nil {
+			var haltHeight int64
+			prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+			if haltHeight > 0 && req.Height == haltHeight {
+				app.Logger().Info(
+					"GovDAO halt height reached, will halt after this block",
+					"height", req.Height,
+					"halt_height", haltHeight,
+				)
+				app.SetHaltHeight(uint64(haltHeight))
+			}
 		}
 
 		// Check if there was a valset change

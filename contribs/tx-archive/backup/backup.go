@@ -23,18 +23,20 @@ type Service struct {
 	writer writer.Writer
 	logger log.Logger
 
-	batchSize     uint
-	watchInterval time.Duration // interval for the watch routine
-	skipFailedTxs bool
+	batchSize          uint
+	watchInterval      time.Duration // interval for the watch routine
+	skipFailedTxs      bool
+	populateSignerInfo bool // populate per-tx SignerInfo (default true for bounded backups)
 }
 
 // NewService creates a new backup service
 func NewService(client client.Client, writer writer.Writer, opts ...Option) *Service {
 	s := &Service{
-		client:        client,
-		writer:        writer,
-		logger:        noop.New(),
-		watchInterval: 1 * time.Second,
+		client:             client,
+		writer:             writer,
+		logger:             noop.New(),
+		watchInterval:      1 * time.Second,
+		populateSignerInfo: true,
 	}
 
 	for _, opt := range opts {
@@ -62,12 +64,39 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to determine right bound, %w", boundErr)
 	}
 
+	// Fetch source chain ID once — used to tag every tx so a hardfork replay
+	// (see gno.land/pkg/gnoland.GnoGenesisState.PastChainIDs) can verify the
+	// signature against the chain that produced it.
+	chainID, chainIDErr := s.client.GetChainID()
+	if chainIDErr != nil {
+		return fmt.Errorf("unable to fetch source chain id, %w", chainIDErr)
+	}
+
+	// SignerInfo resolver: fills per-signer (account_num, sequence) metadata
+	// so hardfork replay can force-set account state before signature
+	// verification. Only enabled for non-watch, bounded backups — it needs
+	// a fixed halt height to anchor the brute-force sequence search.
+	//
+	// Because the resolver back-patches failed-tx SignerInfo retroactively
+	// (at the next success per signer), enabling it switches the writer
+	// from streaming to buffered mode: all txs are held in memory until the
+	// final Finalize pass, then flushed to the writer in one pass.
+	var (
+		resolver    *signerResolver
+		bufferedTxs []*gnoland.TxWithMetadata
+	)
+	if s.populateSignerInfo && !cfg.Watch {
+		resolver = newSignerResolver(s.client, chainID, toBlock)
+	}
+
 	// Log info about what will be backed up
 	s.logger.Info(
 		"Existing blocks to backup",
+		"chain id", chainID,
 		"from block", cfg.FromBlock,
 		"to block", toBlock,
 		"total", toBlock-cfg.FromBlock+1,
+		"populate signer info", resolver != nil,
 	)
 
 	// Keep track of what has been backed up
@@ -89,6 +118,13 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 
 	// Internal function that fetches and writes a range of blocks
 	fetchAndWrite := func(fromBlock, toBlock uint64) error {
+		// Progress pacing: print one status line every ~5s, not per batch.
+		var (
+			progressStart = time.Now()
+			totalRange    = toBlock - fromBlock + 1
+			nextProgress  = progressStart.Add(5 * time.Second)
+		)
+
 		// Fetch by batches
 		for batchStart := fromBlock; batchStart <= toBlock; {
 			// Determine batch stop block
@@ -117,6 +153,33 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 			results.blocksFetched += batchSize
 			results.blocksWithTxs += uint64(len(blocks))
 
+			// Pace progress output at ~5s intervals + always on last batch.
+			if now := time.Now(); now.After(nextProgress) || batchStop == toBlock {
+				nextProgress = now.Add(5 * time.Second)
+
+				elapsed := now.Sub(progressStart)
+				done := batchStop - fromBlock + 1
+				var blocksPerSec float64
+				if secs := elapsed.Seconds(); secs > 0 {
+					blocksPerSec = float64(done) / secs
+				}
+				eta := time.Duration(0)
+				if blocksPerSec > 0 && done < totalRange {
+					remaining := totalRange - done
+					eta = time.Duration(float64(remaining)/blocksPerSec) * time.Second
+				}
+				pct := float64(done) / float64(totalRange) * 100
+				s.logger.Info(
+					"Progress",
+					"blocks", fmt.Sprintf("%d/%d", done, totalRange),
+					"pct", fmt.Sprintf("%.1f%%", pct),
+					"rate", fmt.Sprintf("%.0f blocks/s", blocksPerSec),
+					"txs", results.txsBackedUp,
+					"elapsed", elapsed.Round(time.Second),
+					"eta", eta.Round(time.Second),
+				)
+			}
+
 			// Verbose log for blocks containing transactions
 			s.logger.Debug(
 				"Batch fetched successfully",
@@ -142,8 +205,9 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 
 				for i, tx := range block.Txs {
 					txResult := txResults[i]
+					failed := !txResult.IsOK()
 
-					if !txResult.IsOK() && s.skipFailedTxs {
+					if failed && s.skipFailedTxs {
 						// Skip saving failed transaction
 						s.logger.Debug(
 							"Skipping failed tx",
@@ -158,11 +222,22 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 					txData := &gnoland.TxWithMetadata{
 						Tx: tx,
 						Metadata: &gnoland.GnoTxMetadata{
-							Timestamp: block.Timestamp,
+							Timestamp:   block.Timestamp,
+							BlockHeight: int64(block.Height),
+							ChainID:     chainID,
+							Failed:      failed,
 						},
 					}
 
-					if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
+					if resolver != nil {
+						// Buffer — SignerInfo is populated & back-patched,
+						// then the whole batch is flushed after Finalize.
+						if pErr := resolver.Populate(txData); pErr != nil {
+							return fmt.Errorf("populate signer info @ h=%d idx=%d: %w",
+								block.Height, i, pErr)
+						}
+						bufferedTxs = append(bufferedTxs, txData)
+					} else if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
 						return fmt.Errorf("unable to write tx data, %w", writeErr)
 					}
 
@@ -188,6 +263,19 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 	// Backup the existing transactions
 	if fetchErr := fetchAndWrite(cfg.FromBlock, toBlock); fetchErr != nil {
 		return fetchErr
+	}
+
+	// Flush the resolver's buffered output (if enabled). Finalize back-patches
+	// any trailing failed-tx SignerInfo entries, then we stream the whole
+	// ordered batch to the writer.
+	if resolver != nil {
+		resolver.Finalize()
+		for _, txData := range bufferedTxs {
+			if writeErr := s.writer.WriteTxData(txData); writeErr != nil {
+				return fmt.Errorf("unable to write tx data, %w", writeErr)
+			}
+		}
+		bufferedTxs = nil
 	}
 
 	// Check if there needs to be a watcher setup

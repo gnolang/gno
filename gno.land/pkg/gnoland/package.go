@@ -13,4 +13,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	GnoGenesisState{}, "GenesisState",
 	TxWithMetadata{}, "TxWithMetadata",
 	GnoTxMetadata{}, "GnoTxMetadata",
+	SignerAccountInfo{}, "SignerAccountInfo",
 ))

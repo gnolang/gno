@@ -46,6 +46,7 @@ type RequestInitChain struct {
 	ConsensusParams *ConsensusParams
 	Validators      []ValidatorUpdate
 	AppState        any
+	InitialHeight   int64 // block height the chain will start from after InitChain
 }
 
 type RequestQuery struct {

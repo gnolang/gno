@@ -141,6 +141,39 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint6
 	return acc.GetSequence(), nil
 }
 
+// NewAccountWithNumber creates an account with a specific account number,
+// bypassing the auto-increment counter. Updates the global counter if the
+// given number would cause future collisions. Used during hardfork genesis
+// replay where accounts must be created with their original account numbers.
+func (ak AccountKeeper) NewAccountWithNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
+	acc := ak.proto()
+	if err := acc.SetAddress(addr); err != nil {
+		panic(err)
+	}
+	if err := acc.SetAccountNumber(accNum); err != nil {
+		panic(err)
+	}
+
+	// Read global counter directly (don't call GetNextAccountNumber —
+	// it has side effects: reads AND increments).
+	stor := ctx.GasStore(ak.key)
+	bz := stor.Get([]byte(GlobalAccountNumberKey))
+	var currentNum uint64
+	if bz != nil {
+		if err := amino.Unmarshal(bz, &currentNum); err != nil {
+			panic(err)
+		}
+	}
+
+	// Update counter if our number would cause collisions.
+	if accNum >= currentNum {
+		bz = amino.MustMarshal(accNum + 1)
+		stor.Set([]byte(GlobalAccountNumberKey), bz)
+	}
+
+	return acc
+}
+
 // GetNextAccountNumber Returns and increments the global account number counter
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	var accNumber uint64
