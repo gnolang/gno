@@ -3848,7 +3848,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 			PkgName: pn.PkgName,
 			PkgPath: pn.PkgPath,
 		}
-		store = store.BeginTransaction(nil, nil, nil)
+		store = store.BeginTransaction(nil, nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
 	m := NewMachine(pn.PkgPath, store)
@@ -3916,7 +3916,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 				PkgName: pn.PkgName,
 				PkgPath: pn.PkgPath,
 			}
-			store = store.BeginTransaction(nil, nil, nil)
+			store = store.BeginTransaction(nil, nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
 		m := NewMachine(pn.PkgPath, store)
@@ -3979,7 +3979,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		return cx.TypedValue, nil
 	}
 	pv := pn.NewPackage(nilAllocator) // throwaway
-	store = store.BeginTransaction(nil, nil, nil)
+	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachine(pn.PkgPath, store)
 	defer m.Release()

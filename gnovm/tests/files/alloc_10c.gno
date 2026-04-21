@@ -31,4 +31,4 @@ func main() {
 // allocation limit exceeded during importing.
 
 // Error:
-// main/alloc_10c.gno:7:2-11: should not happen, allocation limit exceeded while gc.
+// allocation limit exceeded

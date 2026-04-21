@@ -57,6 +57,15 @@ func (msg MsgSend) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.FromAddress}
 }
 
+// SpendForSigner implements std.SpendEstimator. Returns Amount when
+// signer is the sender, zero otherwise.
+func (msg MsgSend) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.FromAddress {
+		return nil
+	}
+	return msg.Amount
+}
+
 // MsgMultiSend - high level transaction of the coin module
 type MsgMultiSend struct {
 	Inputs  []Input  `json:"inputs" yaml:"inputs"`
@@ -102,6 +111,18 @@ func (msg MsgMultiSend) GetSigners() []crypto.Address {
 		addrs[i] = in.Address
 	}
 	return addrs
+}
+
+// SpendForSigner implements std.SpendEstimator. Sums the coins of all
+// inputs where Address == signer. An input-less signer returns nil.
+func (msg MsgMultiSend) SpendForSigner(signer crypto.Address) std.Coins {
+	var total std.Coins
+	for _, in := range msg.Inputs {
+		if in.Address == signer {
+			total = total.Add(in.Coins)
+		}
+	}
+	return total
 }
 
 // Input models transaction input

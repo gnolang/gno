@@ -33,6 +33,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*PackageValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Block)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*RefValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ExportRefValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*HeapItemValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*Realm)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ObjectID)(nil)).Elem())
@@ -2231,15 +2232,11 @@ func (goo RefValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 	}
 	if goo.PkgPath != "" {
 		offset = amino.PrependString(buf, offset, string(goo.PkgPath))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
-	}
-	if goo.Escaped {
-		offset = amino.PrependBool(buf, offset, bool(goo.Escaped))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 	}
 	{
 		repr, err := goo.ObjectID.MarshalAmino()
@@ -2260,9 +2257,6 @@ func (goo RefValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 			return 0, err
 		}
 		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
-	}
-	if goo.Escaped {
-		s += 1 + 1
 	}
 	if goo.PkgPath != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.PkgPath))) + len(goo.PkgPath)
@@ -2306,18 +2300,8 @@ func (goo *RefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 				return err
 			}
 		case 2:
-			if typ3 != amino.Typ3Varint {
-				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
-			}
-			v, n, err := amino.DecodeBool(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			goo.Escaped = bool(v)
-		case 3:
 			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
 			}
 			v, n, err := amino.DecodeString(bz)
 			if err != nil {
@@ -2325,9 +2309,9 @@ func (goo *RefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 			}
 			bz = bz[n:]
 			goo.PkgPath = string(v)
-		case 4:
+		case 3:
 			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
 			}
 			var repr string
 			v, n, err := amino.DecodeString(bz)
@@ -2341,6 +2325,54 @@ func (goo *RefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for RefValue", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo ExportRefValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.ObjectID != "" {
+		offset = amino.PrependString(buf, offset, string(goo.ObjectID))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo ExportRefValue) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if goo.ObjectID != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.ObjectID))) + len(goo.ObjectID)
+	}
+	return s, nil
+}
+
+func (goo *ExportRefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.ObjectID = string(v)
+		default:
+			return fmt.Errorf("unknown field number %d for ExportRefValue", fnum)
 		}
 	}
 	return nil
