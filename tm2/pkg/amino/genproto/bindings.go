@@ -501,6 +501,14 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		pboeIsImplicit := isImplicitList(gooreType, fopts)
 		pbote_ := p3goTypeExprString(rootPkg, imports, scope, gooType, fopts)
 		pboete_ := p3goTypeExprString(rootPkg, imports, scope, gooreType, fopts)
+		// AminoMarshaler element with non-struct, non-interface repr: proto
+		// emits the repr's wire type (see typeToP3Type at genproto.go:330),
+		// so the Go↔pb bindings for the slice element must agree.
+		if gooreType.IsAminoMarshaler &&
+			gooreType.ReprType.Type.Kind() != reflect.Struct &&
+			gooreType.ReprType.Type.Kind() != reflect.Interface {
+			pboete_ = p3goTypeExprString(rootPkg, imports, scope, gooreType.ReprType, fopts)
+		}
 
 		if gooreType.ReprType.Type.Kind() == reflect.Uint8 {
 			// Special bytes optimization for recursive case.
