@@ -10,6 +10,15 @@ import (
 
 const HelpViewType ViewType = "help-view"
 
+// HelpFunction wraps a doc.JSONFunc with a pre-rendered HTML Component for
+// its documentation. The handler builds this slice so the template can
+// {{ render .DocComponent }} rather than treating the raw markdown string
+// as HTML via {{ noescape_string }}.
+type HelpFunction struct {
+	*doc.JSONFunc
+	DocComponent Component
+}
+
 type HelpData struct {
 	// Selected function
 	SelectedFunc string
@@ -17,12 +26,12 @@ type HelpData struct {
 	SelectedSend string
 
 	RealmName   string
-	Functions   []*doc.JSONFunc
+	Functions   []HelpFunction
 	ChainId     string
 	Remote      string
 	PkgPath     string
 	PkgFullPath string
-	Doc         string
+	Doc         Component
 	Domain      string
 }
 
@@ -59,7 +68,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return data.SelectedArgs[param.Name], nil
 	}
 
-	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
+	funcs["buildHelpURL"] = func(data HelpData, fn HelpFunction) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
 		url := pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
@@ -77,7 +86,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return url
 	}
 
-	funcs["buildCommandData"] = func(data HelpData, fn *doc.JSONFunc) CommandData {
+	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
 		// Extract parameter names
 		paramNames := make([]string, len(fn.Params))
 
