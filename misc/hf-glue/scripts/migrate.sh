@@ -101,11 +101,16 @@ hf_topup_balance "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l" "1000000000ugnot" \
 PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
 PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
 if [[ -f "$PV_KEY" ]]; then
-  hf_banner "step 5 — post-replay migration (valset swap)"
+  hf_banner "step 5 — post-replay migration (valset swap${NEW_T1_ADDR:+ + T1 rotation})"
   hf_kv "pv_key" "$PV_KEY"
+  [[ -n "${NEW_T1_ADDR:-}" ]] && hf_kv "new T1 addr" "$NEW_T1_ADDR"
   MIG_JSONL="$OUT/migrations.jsonl"
   CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
     PV_KEY="$PV_KEY" \
+    RPC_URL="$RPC_URL" \
+    NEW_T1_ADDR="${NEW_T1_ADDR:-}" \
+    T1_PORTFOLIO="${T1_PORTFOLIO:-}" \
+    T1_WITHDRAW_REASON="${T1_WITHDRAW_REASON:-}" \
     OUT_JSONL="$MIG_JSONL" \
     CHAIN_ID="$CHAIN_ID" \
     REPO_ROOT="$REPO" \
