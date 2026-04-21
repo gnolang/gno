@@ -1306,3 +1306,214 @@ func TestSessionSequenceIndependenceFromMaster(t *testing.T) {
 	assert.Equal(t, uint64(1), reloadedMaster.GetSequence())
 	assert.Equal(t, uint64(1), reloadedSession.GetSequence())
 }
+
+// ------------------------------------------------------------------------
+// CheckSessionSpend unit tests — verify the check-only variant does not
+// mutate state and has identical accept/reject semantics to DeductSessionSpend.
+// ------------------------------------------------------------------------
+
+func TestCheckSessionSpendEmptyAmount(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 1000)})
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+
+	// Zero amount always passes; SpendUsed unchanged.
+	err := CheckSessionSpend(da, std.Coins{}, env.ctx.BlockTime().Unix())
+	require.NoError(t, err)
+	assert.True(t, da.GetSpendUsed().IsZero())
+}
+
+func TestCheckSessionSpendEmptyLimitRejects(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	// Explicitly no SpendLimit.
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+
+	err := CheckSessionSpend(da, std.Coins{std.NewCoin("atom", 1)}, env.ctx.BlockTime().Unix())
+	require.Error(t, err, "session with no spend limit must reject any nonzero amount")
+	// SpendUsed unchanged — check did not mutate.
+	assert.True(t, da.GetSpendUsed().IsZero())
+}
+
+func TestCheckSessionSpendDoesNotMutate(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 1000)})
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+	// Prime with some existing usage via Deduct (authoritatively mutates).
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 200)}, env.ctx.BlockTime().Unix()))
+	require.Equal(t, int64(200), da.GetSpendUsed().AmountOf("atom"))
+
+	// A successful CheckSessionSpend does NOT bump SpendUsed.
+	require.NoError(t, CheckSessionSpend(da, std.Coins{std.NewCoin("atom", 500)}, env.ctx.BlockTime().Unix()))
+	assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("atom"))
+
+	// A rejected CheckSessionSpend also does NOT bump SpendUsed.
+	err := CheckSessionSpend(da, std.Coins{std.NewCoin("atom", 900)}, env.ctx.BlockTime().Unix())
+	require.Error(t, err)
+	assert.Equal(t, int64(200), da.GetSpendUsed().AmountOf("atom"))
+}
+
+func TestCheckSessionSpendPeriodResetConceptual(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, _, masterAddr := setupSessionEnv(t)
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 1000)})
+	da.SetSpendPeriod(3600)
+	da.SetSpendReset(env.ctx.BlockTime().Unix())
+	require.NoError(t, DeductSessionSpend(da, std.Coins{std.NewCoin("atom", 900)}, env.ctx.BlockTime().Unix()))
+
+	// Before boundary: check sees SpendUsed=900, rejects 200 (900+200 > 1000).
+	err := CheckSessionSpend(da, std.Coins{std.NewCoin("atom", 200)}, env.ctx.BlockTime().Unix()+3599)
+	require.Error(t, err)
+	// SpendUsed and SpendReset unchanged — no conceptual reset persisted.
+	assert.Equal(t, int64(900), da.GetSpendUsed().AmountOf("atom"))
+
+	// At/after period boundary: check applies the conceptual reset, 200 now fits.
+	require.NoError(t, CheckSessionSpend(da, std.Coins{std.NewCoin("atom", 200)}, env.ctx.BlockTime().Unix()+3600))
+	// But STILL does not mutate the stored state.
+	assert.Equal(t, int64(900), da.GetSpendUsed().AmountOf("atom"))
+	assert.Equal(t, env.ctx.BlockTime().Unix(), da.GetSpendReset(),
+		"CheckSessionSpend must not persist the period reset")
+}
+
+// ------------------------------------------------------------------------
+// Ante pre-check end-to-end — verify that a session-signed tx whose total
+// declared outflow (gas + SpendForSigner across all msgs) exceeds the
+// session's remaining SpendLimit is rejected AT ANTE and leaves master's
+// balance AND session state completely untouched. This is the protection
+// against the mempool-gas-bleed attack from FINDINGS R5-B-4.
+// ------------------------------------------------------------------------
+
+func TestSessionAntePreCheckRejectsOverLimitWithoutGasBleed(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	// Record master's starting balance.
+	masterBefore := env.acck.GetAccount(ctx, masterAddr).GetCoins()
+
+	// Session with a tight SpendLimit that permits gas but not gas + msg.Send.
+	// testFee is 150 atom gas. SpendLimit = 200 atom. MsgSend declares 300 atom.
+	// Total declared outflow = 150 + 300 = 450 > 200 → ante pre-check rejects.
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(ctx.BlockTime().Unix() + 3600)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 200)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(env.ctx, masterAddr, sa)
+	sessionAccNum := sa.GetAccountNumber()
+
+	// MockMsgSend declares Amount=300 atom via SpendForSigner; fee=150 atom.
+	_, _, recipient := tu.KeyTestPubAddr()
+	msgs := []std.Msg{tu.MockMsgSend{
+		From:   masterAddr,
+		To:     recipient,
+		Amount: std.Coins{std.NewCoin("atom", 300)},
+	}}
+	fee := tu.NewTestFee() // 150 atom
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	// Ante must reject: gas (150) + msg.Send (300) = 450 > SpendLimit (200).
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.SessionNotAllowedError{})
+
+	// Master's balance MUST be unchanged — the key invariant: no gas bleed.
+	masterAfter := env.acck.GetAccount(ctx, masterAddr).GetCoins()
+	assert.True(t, masterBefore.IsEqual(masterAfter),
+		"over-limit ante pre-check must not charge gas: before=%s after=%s",
+		masterBefore, masterAfter)
+
+	// Session SpendUsed must be unchanged — pre-check did not mutate.
+	reloadedSA := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	require.NotNil(t, reloadedSA)
+	assert.True(t, reloadedSA.(std.DelegatedAccount).GetSpendUsed().IsZero(),
+		"session SpendUsed must be unchanged after ante pre-check rejection")
+}
+
+// TestSessionAntePreCheckAllowsInLimit — positive counterpart: gas + msg.Send
+// within SpendLimit passes the pre-check, gas IS deducted, SpendUsed reflects
+// the gas (but not msg.Send, which is deducted by the bank hook during
+// handler execution — not part of this test env).
+func TestSessionAntePreCheckAllowsInLimit(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	// SpendLimit = 1000 atom. gas (150) + msg.Send (500) = 650 <= 1000 → passes.
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(ctx.BlockTime().Unix() + 3600)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 1000)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(env.ctx, masterAddr, sa)
+	sessionAccNum := sa.GetAccountNumber()
+
+	_, _, recipient := tu.KeyTestPubAddr()
+	msgs := []std.Msg{tu.MockMsgSend{
+		From:   masterAddr,
+		To:     recipient,
+		Amount: std.Coins{std.NewCoin("atom", 500)},
+	}}
+	fee := tu.NewTestFee()
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	_, res, abort := anteHandler(ctx, tx, false)
+	require.False(t, abort, res.Log)
+	require.True(t, res.IsOK(), res.Log)
+
+	// Gas WAS deducted from session (Phase 2b), not the MockMsgSend amount
+	// (that would be caught by bank.Keeper.SendCoins at handler time, which
+	// this test env doesn't exercise).
+	reloadedSA := env.acck.GetSessionAccount(ctx, masterAddr, sessionAddr)
+	require.NotNil(t, reloadedSA)
+	assert.Equal(t, int64(150), reloadedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("atom"))
+}
+
+// TestSessionAntePreCheckMsgCallSend — verifies MsgCall-like msgs (that declare
+// msg.Send via SpendForSigner) are also counted in the pre-check.
+func TestSessionAntePreCheckMsgCallSend(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(ctx.BlockTime().Unix() + 3600)
+	da.SetSpendLimit(std.Coins{std.NewCoin("atom", 200)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(env.ctx, masterAddr, sa)
+	sessionAccNum := sa.GetAccountNumber()
+
+	msgs := []std.Msg{tu.MockMsgCall{
+		Caller:  masterAddr,
+		PkgPath: "gno.land/r/demo",
+		Send:    std.Coins{std.NewCoin("atom", 300)},
+	}}
+	fee := tu.NewTestFee() // 150 atom
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sessionAccNum, 0, fee)
+
+	// 150 + 300 = 450 > 200 → reject.
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.SessionNotAllowedError{})
+}

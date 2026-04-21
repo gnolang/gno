@@ -136,8 +136,36 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 		}
 
-		// ——— Phase 2: Deduct gas fees from first signer (always master) ———
+		// ——— Phase 2: Pre-check session outflow, then deduct gas fees ———
 
+		// Phase 2a: If the first signer is a session, pre-check its total
+		// declared outflow (gas fee + each msg's SpendForSigner) against
+		// the session's remaining SpendLimit BEFORE any deduction. This
+		// rejects obviously-over-limit session-signed txs without charging
+		// gas, preventing a mempool-gas-bleed attack where a compromised
+		// session could submit many doomed txs and bleed gas from master
+		// on each ante Phase 2 commit.
+		//
+		// Msgs that don't implement std.SpendEstimator are skipped here;
+		// the bank.Keeper.SendCoins session hook still catches their
+		// actual outflow at execution time, so correctness is unchanged —
+		// this pre-check is purely a gas-efficiency optimization.
+		if da, ok := sessionAccounts[signerAddrs[0]]; ok {
+			total := std.Coins{}
+			if !tx.Fee.GasFee.IsZero() {
+				total = total.Add(std.Coins{tx.Fee.GasFee})
+			}
+			for _, msg := range tx.GetMsgs() {
+				if est, ok := msg.(std.SpendEstimator); ok {
+					total = total.Add(est.SpendForSigner(signerAddrs[0]))
+				}
+			}
+			if err := CheckSessionSpend(da, total, newCtx.BlockTime().Unix()); err != nil {
+				return newCtx, abciResult(err), true
+			}
+		}
+
+		// Phase 2b: Deduct gas fees from first signer (always master).
 		if !tx.Fee.GasFee.IsZero() {
 			// Gas fees count against session spend limits.
 			if da, ok := sessionAccounts[signerAddrs[0]]; ok {

@@ -37,6 +37,38 @@ func DeductSessionSpend(da std.DelegatedAccount, amount std.Coins, blockTime int
 	return nil
 }
 
+// CheckSessionSpend verifies that `amount` could be deducted from the
+// session's current budget without exceeding SpendLimit — WITHOUT
+// mutating da. Uses the same semantics as DeductSessionSpend for
+// empty-limit rejection and period-reset, but returns the same error
+// without touching state.
+//
+// Used by the ante's session pre-check to fail fast on obviously-
+// over-limit session-signed txs before any gas fee is deducted,
+// which prevents the mempool-gas-bleed attack where repeated over-
+// limit submissions would otherwise charge gas per attempt.
+func CheckSessionSpend(da std.DelegatedAccount, amount std.Coins, blockTime int64) error {
+	if amount.IsZero() {
+		return nil
+	}
+	if len(da.GetSpendLimit()) == 0 {
+		return std.ErrSessionNotAllowed("session has no spend limit")
+	}
+
+	// Compute the effective SpendUsed after any pending period reset.
+	// Does NOT mutate da — reset is only "conceptual" here.
+	spendUsed := da.GetSpendUsed()
+	if da.GetSpendPeriod() > 0 && blockTime >= da.GetSpendReset()+da.GetSpendPeriod() {
+		spendUsed = nil
+	}
+
+	newUsed := spendUsed.Add(amount)
+	if !da.GetSpendLimit().IsAllGTE(newUsed) {
+		return std.ErrSessionNotAllowed("session spend limit would be exceeded")
+	}
+	return nil
+}
+
 // SessionAccountSetter can persist session accounts after spend deduction.
 type SessionAccountSetter interface {
 	SetSessionAccount(ctx sdk.Context, master crypto.Address, acc std.Account)

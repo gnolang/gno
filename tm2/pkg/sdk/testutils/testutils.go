@@ -181,6 +181,14 @@ func (msg MockMsgCall) GetReceived() std.Coins {
 	return msg.Send
 }
 
+// SpendForSigner implements std.SpendEstimator for the session ante pre-check.
+func (msg MockMsgCall) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
+	return msg.Send
+}
+
 // MockMsgRun mimics vm.MsgRun for testing session allowlist behavior.
 // Intentionally does NOT implement GetPkgPath — MsgRun has no realm path
 // at the protocol level (the path is auto-derived from Caller), so the
@@ -202,6 +210,14 @@ func (msg MockMsgRun) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
+// SpendForSigner implements std.SpendEstimator for the session ante pre-check.
+func (msg MockMsgRun) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
+	return msg.Send
+}
+
 // MockMsgSend mimics bank.MsgSend for testing session allowlist behavior.
 type MockMsgSend struct {
 	From   crypto.Address
@@ -219,6 +235,14 @@ func (msg MockMsgSend) GetSignBytes() []byte {
 }
 func (msg MockMsgSend) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.From}
+}
+
+// SpendForSigner implements std.SpendEstimator for the session ante pre-check.
+func (msg MockMsgSend) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.From {
+		return nil
+	}
+	return msg.Amount
 }
 
 // NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
