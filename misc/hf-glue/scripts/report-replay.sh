@@ -43,7 +43,7 @@ other=$((total_fail - pubkey_mismatch - cascade_import - type_check - insufficie
 # Cascade = "could not import gno.land/..." — the package itself is fine,
 # its dep failed earlier. Surface the DEPS that are missing instead.
 missing_imports=$(grep -oE 'could not import gno\.land/[^ \"\\]+' "$tmp" \
-  | sort | uniq -c | sort -rn | head -20)
+  | sort | uniq -c | sort -rn | head -20 || true)
 
 # --- packages that failed with a non-import reason (potential root causes) ----
 # Grab the addpkg package path from fail lines that do NOT mention "could not import".
