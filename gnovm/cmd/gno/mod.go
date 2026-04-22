@@ -19,10 +19,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	terrors "github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-// testPackageFetcher allows to override the package fetcher during tests.
 var testPackageFetcher pkgdownload.PackageFetcher
 
 func newModCmd(io commands.IO) *commands.Command {
@@ -38,11 +36,8 @@ func newModCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
-		// edit
 		newModGraphCmd(io),
 		newModTidy(io),
-		// vendor
-		// verify
 		newModWhy(io),
 	)
 
@@ -168,12 +163,15 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 
 	// .gno argument: create a run script at the given path, no gnomod.toml
 	if len(args) == 1 && strings.HasSuffix(args[0], ".gno") {
+		if err := validateGnoPath(args[0]); err != nil {
+			return err
+		}
 		templates := templatesForKind(kindRun)
 		tmpl, err := resolveTemplate(templates, cfg.template)
 		if err != nil {
 			return err
 		}
-		return execInitRunScript(rootDir, args[0], *tmpl, io)
+		return writeRunScript(rootDir, args[0], *tmpl, io)
 	}
 
 	// Early check: if gnomod.toml already exists, bail out immediately.
@@ -182,24 +180,42 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("gnomod.toml already exists")
 	}
 
-	// Non-interactive: bare flag or no TTY
-	if cfg.bare || !commands.IsInteractive() {
+	// --bare: only create gnomod.toml
+	if cfg.bare {
+		if len(args) == 0 {
+			return fmt.Errorf("module path is required with --bare")
+		}
+		return writeGnomod(rootDir, normalizeModulePath(args[0]))
+	}
+
+	// Non-interactive (no TTY) with argument: create gnomod.toml + template files
+	if !commands.IsInteractive() {
 		if len(args) == 0 {
 			return fmt.Errorf("module path is required (non-interactive mode)")
 		}
-		return writeGnomod(rootDir, normalizeModulePath(args[0]))
+		modPath := normalizeModulePath(args[0])
+		kind := kindFromPath(modPath)
+		templates := templatesForKind(kind)
+		tmpl, err := resolveTemplate(templates, cfg.template)
+		if err != nil {
+			return err
+		}
+		if err := writeGnomod(rootDir, modPath); err != nil {
+			return err
+		}
+		return writeModule(rootDir, modPath, tmpl, io)
 	}
 
 	// Interactive with argument: create gnomod.toml + resolve template
 	if len(args) == 1 {
 		modPath := normalizeModulePath(args[0])
-		if err := writeGnomod(rootDir, modPath); err != nil {
-			return err
-		}
 		kind := kindFromPath(modPath)
 		templates := templatesForKind(kind)
 		tmpl, err := resolveTemplate(templates, cfg.template)
 		if err != nil {
+			return err
+		}
+		if err := writeGnomod(rootDir, modPath); err != nil {
 			return err
 		}
 		return writeModule(rootDir, modPath, tmpl, io)
@@ -296,7 +312,7 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 		}
 	}
 
-	var created []string
+	created := make([]string, 0, len(files))
 	for _, name := range sortedKeys(files) {
 		if err := os.WriteFile(filepath.Join(rootDir, name), files[name], 0o644); err != nil {
 			return err
@@ -313,16 +329,16 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 	return nil
 }
 
-// execInitRunScript creates a run script at the given .gno path.
+// writeRunScript creates a run script at the given relative path (e.g. "run/hello.gno").
 // No gnomod.toml is created — run scripts don't need one.
-func execInitRunScript(rootDir, gnoPath string, tmpl initTemplate, io commands.IO) error {
-	outDir := filepath.Join(rootDir, filepath.Dir(gnoPath))
+func writeRunScript(rootDir, relPath string, tmpl initTemplate, io commands.IO) error {
+	outDir := filepath.Join(rootDir, filepath.Dir(relPath))
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
 	}
 
-	scriptName := strings.TrimSuffix(filepath.Base(gnoPath), ".gno")
-	data := templateData{PkgName: "main", ScriptName: scriptName, ScriptPath: gnoPath}
+	scriptName := strings.TrimSuffix(filepath.Base(relPath), ".gno")
+	data := templateData{PkgName: "main", ScriptName: scriptName, ScriptPath: relPath}
 
 	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
@@ -330,15 +346,15 @@ func execInitRunScript(rootDir, gnoPath string, tmpl initTemplate, io commands.I
 	}
 
 	for name := range files {
-		p := filepath.Join(filepath.Dir(gnoPath), name)
+		p := filepath.Join(filepath.Dir(relPath), name)
 		if _, err := os.Stat(filepath.Join(rootDir, p)); err == nil {
 			return fmt.Errorf("file already exists: %s", p)
 		}
 	}
 
-	var created []string
+	created := make([]string, 0, len(files))
 	for _, name := range sortedKeys(files) {
-		p := filepath.Join(filepath.Dir(gnoPath), name)
+		p := filepath.Join(filepath.Dir(relPath), name)
 		if err := os.WriteFile(filepath.Join(rootDir, p), files[name], 0o644); err != nil {
 			return err
 		}
@@ -361,37 +377,8 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-
-	runDir := filepath.Join(rootDir, "run")
-	if err := os.MkdirAll(runDir, 0o755); err != nil {
-		return err
-	}
-
-	data := templateData{PkgName: "main", ScriptName: scriptName, ScriptPath: "run/" + scriptName + ".gno"}
-	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
-	if err != nil {
-		return fmt.Errorf("render run template: %w", err)
-	}
-
-	for name := range files {
-		if _, err := os.Stat(filepath.Join(runDir, name)); err == nil {
-			return fmt.Errorf("file already exists: run/%s", name)
-		}
-	}
-
-	var created []string
-	for _, name := range sortedKeys(files) {
-		if err := os.WriteFile(filepath.Join(runDir, name), files[name], 0o644); err != nil {
-			return err
-		}
-		created = append(created, name)
-	}
-
-	fmt.Fprintf(io.Err(), "Initialized run script (%s template)\n", tmpl.Name)
-	for _, f := range created {
-		fmt.Fprintf(io.Err(), "  run/%s\n", f)
-	}
-	return nil
+	relPath := filepath.Join("run", scriptName+".gno")
+	return writeRunScript(rootDir, relPath, tmpl, io)
 }
 
 // --- Wizard helpers ---
@@ -403,7 +390,7 @@ func promptModuleKind(io commands.IO) (moduleKind, error) {
 		"m": {Aliases: []string{"main", "run"}, Description: "run script"},
 	}
 
-	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices, "p")
+	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [p]ackage, or [m]ain: ", choices, "p")
 	if err != nil {
 		return kindPackage, err
 	}
@@ -419,13 +406,11 @@ func promptModuleKind(io commands.IO) (moduleKind, error) {
 }
 
 func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
-	// Step 1: namespace (retry on empty or invalid)
 	namespace, err := commands.PromptString(io, "Address or namespace", "", validateName)
 	if err != nil {
 		return "", err
 	}
 
-	// Step 2: module name (retry on invalid)
 	defaultName := sanitizeModuleName(filepath.Base(rootDir))
 	name, err := commands.PromptString(io, "Module name", defaultName, validateName)
 	if err != nil {
@@ -473,8 +458,6 @@ func templatesForKind(kind moduleKind) []initTemplate {
 }
 
 func insertPathLetter(path string, kind moduleKind) (string, error) {
-	// path is like "gno.land/namespace/name"
-	// insert /r/ or /p/ after the domain
 	idx := strings.Index(path, "/")
 	if idx == -1 || idx == len(path)-1 {
 		return "", fmt.Errorf("invalid module path: %q", path)
@@ -494,8 +477,6 @@ func insertPathLetter(path string, kind moduleKind) (string, error) {
 
 var reModName = regexp.MustCompile(`[^a-z0-9_]`)
 
-// reValidName matches the same pattern as gnolang's Re_name: optional leading _,
-// must start with a lowercase letter, then lowercase letters, digits, underscores.
 var reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
 
 func isValidName(s string) bool {
@@ -512,25 +493,35 @@ func validateName(s string) error {
 	return nil
 }
 
-// normalizeModulePath expands short-form module paths to their fully-qualified
-// gno.land equivalents. For example:
-//   - "p/nt/hello"  -> "gno.land/p/nt/hello"
-//   - "r/demo/foo"  -> "gno.land/r/demo/foo"
-//   - "gno.land/p/nt/hello" -> unchanged
-//
-// Paths that don't start with "p/" or "r/" and don't contain "." in the first
-// segment (i.e. no domain) are returned unchanged so the validator can report
-// a clear error.
+// validateGnoPath ensures the .gno argument is a safe relative path within CWD.
+// It rejects absolute paths, path traversal (..), and empty script names.
+func validateGnoPath(p string) error {
+	if filepath.IsAbs(p) {
+		return fmt.Errorf("path must be relative, got %q", p)
+	}
+	cleaned := filepath.Clean(p)
+	if strings.HasPrefix(cleaned, "..") {
+		return fmt.Errorf("path must not traverse outside current directory, got %q", p)
+	}
+	base := filepath.Base(p)
+	scriptName := strings.TrimSuffix(base, ".gno")
+	if scriptName == "" {
+		return fmt.Errorf("script name cannot be empty")
+	}
+	if !isValidName(scriptName) {
+		return fmt.Errorf("invalid script name %q (must be lowercase letters, digits, and underscores)", scriptName)
+	}
+	return nil
+}
+
 func normalizeModulePath(modPath string) string {
 	if modPath == "" {
 		return modPath
 	}
-	// Already has a domain (contains a dot in the first segment).
 	first, _, _ := strings.Cut(modPath, "/")
 	if strings.Contains(first, ".") {
 		return modPath
 	}
-	// Short form: "p/..." or "r/..." — prepend gno.land.
 	if first == "p" || first == "r" {
 		return "gno.land/" + modPath
 	}
@@ -627,15 +618,10 @@ type modGraphCfg struct {
 }
 
 func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
-	// /out std
-	// /out remote
-	// /out _test processing
-	// ...
 	fs.StringVar(&c.format, "format", "", "Output format, must be one of 'dot' or empty. Empty is a minimalist format.")
 }
 
 func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
-	// default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
 	}
@@ -667,8 +653,6 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
 			errCount++
 		}
-		// XXX: xtests and filetests should probably be treated as their own packages since they can/will have cycles
-		// when considered as part of the source package
 		deps := pkg.ImportsSpecs.Merge()
 		for _, dep := range deps {
 			if cfg.format == "dot" {
@@ -686,7 +670,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 	io.Out().Write([]byte(sb.String()))
 
 	if errCount != 0 {
-		return terrors.New("%d build error(s)", errCount)
+		return fmt.Errorf("%d build error(s)", errCount)
 	}
 
 	return nil
@@ -795,7 +779,6 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 		return errs
 	}
 
-	// XXX: recursively check parents if no $PWD/gno.mod
 	return modTidyOnce(cfg, wd, wd, io)
 }
 
@@ -823,20 +806,17 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 		}
 
 		if fname == "gno.mod" {
-			// migrate from gno.mod to gnomod.toml
 			newPath := filepath.Join(pkgdir, "gnomod.toml")
-			gm.WriteFile(newPath) // gnomod.toml
+			gm.WriteFile(newPath)
 		} else {
-			gm.WriteFile(fpath) // gnomod.toml
+			gm.WriteFile(fpath)
 		}
 	}
 
-	// there is no gno.mod nor gnomod.toml
 	if !modExists {
 		return gnomod.ErrNoModFile
 	}
 
-	// remove gno.mod if it exists.
 	oldpath := filepath.Join(pkgdir, "gno.mod")
 	os.Remove(oldpath)
 
@@ -862,18 +842,12 @@ func execModWhy(args []string, io commands.IO) error {
 		return err
 	}
 
-	// Format and print `gno mod why` output stanzas
 	out := formatModWhyStanzas(gm.Module, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil
 }
 
-// formatModWhyStanzas returns a formatted output for the go mod why command.
-// It takes three parameters:
-//   - modulePath (the path of the module)
-//   - args (input arguments)
-//   - importToFilesMap (a map of import to files).
 func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[string][]string) (out string) {
 	for i, arg := range args {
 		out += fmt.Sprintf("# %s\n", arg)
@@ -885,21 +859,19 @@ func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[
 				out += file + "\n"
 			}
 		}
-		if i < len(args)-1 { // Add a newline if it's not the last stanza
+		if i < len(args)-1 {
 			out += "\n"
 		}
 	}
 	return
 }
 
-// getImportToFilesMap returns a map where each key is an import path and its
-// value is a list of files importing that package with the specified import path.
 func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 	entries, err := os.ReadDir(pkgPath)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string][]string) // import -> []file
+	m := make(map[string][]string)
 	for _, e := range entries {
 		filename := e.Name()
 		if ext := filepath.Ext(filename); ext != ".gno" {

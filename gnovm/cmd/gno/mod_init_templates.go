@@ -27,7 +27,7 @@ import (
 	"bytes"
 	"embed"
 	"io/fs"
-	"path/filepath"
+	"path"
 	"strings"
 	"text/template"
 )
@@ -113,8 +113,8 @@ func renderTemplateDir(fsys embed.FS, dir string, data templateData) (map[string
 		}
 
 		// Render file contents
-		path := filepath.Join(dir, name)
-		content, err := renderTemplateFile(fsys, path, data)
+		fpath := path.Join(dir, name)
+		content, err := renderTemplateFile(fsys, fpath, data)
 		if err != nil {
 			return nil, err
 		}

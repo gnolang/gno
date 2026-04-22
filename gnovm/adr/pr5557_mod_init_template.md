@@ -93,13 +93,13 @@ path must be provided as argument. This preserves backward compatibility.
 
 ### Shared prompt primitives in `tm2/pkg/commands/`
 
-Interactive prompts (string input, single-key choice, numbered select, confirm)
+Interactive prompts (string input, single-key choice, numbered select)
 are extracted into `tm2/pkg/commands/prompt.go` as reusable primitives. This
 allows other CLI tools (e.g. `gnokey maketx`) to build their own interactive
 wizards without duplicating prompt logic or adding external dependencies.
 
 Key functions: `IsInteractive()`, `PromptString()`, `PromptChoice()`,
-`PromptSelect()`, `PromptConfirm()`.
+`PromptSelect()`.
 
 The wizard is a linear flow — no back-navigation. Backspace cannot be detected
 in line-buffered terminal mode, and alternative go-back keys (like `<` or `b`)
@@ -158,7 +158,7 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 
 | File | Role |
 |------|------|
-| `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `PromptConfirm`, `IsInteractive`) |
+| `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `IsInteractive`) |
 | `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
 | `gnovm/cmd/gno/mod.go` | `newInitCmd`, `execModInit`, `execInitRun`, `execInitRunScript`, `writeModule`, `promptModuleKind`, `selectTemplate`, `insertPathLetter` |

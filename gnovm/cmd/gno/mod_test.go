@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newTestMockIO creates a commands.IO with the given string as stdin,
-// stdout discarded, and stderr captured in the returned builder (if non-nil).
 func newTestMockIO(stdin string) commands.IO {
 	io := commands.NewTestIO()
 	io.SetIn(strings.NewReader(stdin))
@@ -111,21 +109,25 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
 			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gno1",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
 			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gno2",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
 			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gno3",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
 			args:                 []string{"init", "gno.land/p/demo/foo"},
@@ -253,7 +255,6 @@ gno.land/p/nt/avl/v0 testing
 `,
 		},
 		{
-			// gno.land/p/nt/avl/v0 is included from the test in the filetests subdir
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid3",
 			simulateExternalRepo: true,
@@ -275,9 +276,10 @@ func TestModInitNonInteractive(t *testing.T) {
 	tests := []struct {
 		name    string
 		modPath string
+		kind    string
 	}{
-		{"realm", "gno.land/r/demo/myrealm"},
-		{"package", "gno.land/p/demo/mypkg"},
+		{"realm", "gno.land/r/demo/myrealm", "realm"},
+		{"package", "gno.land/p/demo/mypkg", "package"},
 	}
 
 	for _, tt := range tests {
@@ -291,7 +293,6 @@ func TestModInitNonInteractive(t *testing.T) {
 
 			mockIO := newTestMockIO("")
 			cfg := &modInitCfg{bare: false}
-			// In test, IsInteractive() is false, so only gnomod.toml is created.
 			err = execModInit(cfg, []string{tt.modPath}, mockIO)
 			require.NoError(t, err)
 
@@ -299,10 +300,9 @@ func TestModInitNonInteractive(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, string(content), tt.modPath)
 
-			// No template files in non-TTY mode
 			pkgName := filepath.Base(tt.modPath)
 			_, err = os.Stat(filepath.Join(tmpDir, pkgName+".gno"))
-			require.True(t, os.IsNotExist(err), "template files should not be created in non-TTY mode")
+			require.NoError(t, err, "template files should be created in non-interactive mode with a module path")
 		})
 	}
 }
@@ -324,6 +324,20 @@ func TestModInitBare(t *testing.T) {
 
 	_, err = os.Stat(filepath.Join(tmpDir, "testrealm.gno"))
 	require.True(t, os.IsNotExist(err), "--bare should not create template files")
+}
+
+func TestModInitBareNoPath(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{bare: true}
+	err = execModInit(cfg, nil, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "module path is required with --bare")
 }
 
 func TestInsertPathLetter(t *testing.T) {
@@ -477,7 +491,7 @@ func TestPromptModulePath(t *testing.T) {
 	t.Run("empty namespace retries then EOF", func(t *testing.T) {
 		mockIO, stderrBuf := newTestMockIOWithStderr("\n")
 		_, err := promptModulePath(kindRealm, "/tmp/myrealm", mockIO)
-		require.Error(t, err) // EOF after retry
+		require.Error(t, err)
 		require.Contains(t, stderrBuf.String(), "value cannot be empty")
 	})
 }
@@ -532,15 +546,32 @@ func TestModInitWithTemplateFlag(t *testing.T) {
 	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
 	require.NoError(t, err)
 
-	// gnomod.toml should exist
 	content, err := os.ReadFile(filepath.Join(tmpDir, "gnomod.toml"))
 	require.NoError(t, err)
 	require.Contains(t, string(content), "gno.land/r/demo/testrealm")
 
-	// Template files should NOT be created in non-TTY mode (bare path)
-	// but --template + arg should create them... however IsInteractive()
-	// returns false in tests, so this goes through the bare path.
-	// The --template flag only affects the interactive path.
+	_, err = os.Stat(filepath.Join(tmpDir, "testrealm.gno"))
+	require.NoError(t, err, "template files should be created with --template flag")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "testrealm_test.gno"))
+	require.NoError(t, err, "test template files should be created with --template flag")
+}
+
+func TestModInitUnknownTemplateNoPartialWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{template: "nonexistent"}
+	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown template")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
+	require.True(t, os.IsNotExist(err), "gnomod.toml should not be written when template resolution fails")
 }
 
 func TestModInitBareAndTemplateExclusive(t *testing.T) {
@@ -574,7 +605,6 @@ func TestModInitGnoFile(t *testing.T) {
 	require.Contains(t, string(content), "package main")
 	require.Contains(t, string(content), "./run/create_proposal.gno")
 
-	// No gnomod.toml for run scripts
 	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
 	require.True(t, os.IsNotExist(err))
 }
@@ -610,6 +640,34 @@ func TestModInitBareAndGnoExclusive(t *testing.T) {
 	require.Contains(t, err.Error(), "mutually exclusive")
 }
 
+func TestValidateGnoPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		{"valid", "run/hello.gno", false},
+		{"valid simple", "hello.gno", false},
+		{"valid nested", "sub/dir/hello.gno", false},
+		{"absolute", "/tmp/hack.gno", true},
+		{"traversal", "../escape.gno", true},
+		{"traversal prefix", "../../escape.gno", true},
+		{"empty name", ".gno", true},
+		{"invalid chars", "run/Hello.gno", true},
+		{"dots in name", "run/hello.world.gno", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateGnoPath(tt.path)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestSanitizeModuleName(t *testing.T) {
 	require.Equal(t, "gno_fix_mod_init_template", sanitizeModuleName("gno-fix-mod-init-template"))
 	require.Equal(t, "my_realm", sanitizeModuleName("My-Realm"))
@@ -627,7 +685,7 @@ func TestNormalizeModulePath(t *testing.T) {
 		{"gno.land/p/nt/hello", "gno.land/p/nt/hello"},
 		{"gno.land/r/demo/foo", "gno.land/r/demo/foo"},
 		{"example.com/x/y", "example.com/x/y"},
-		{"nt/hello", "nt/hello"}, // no p/ or r/ prefix, left as-is
+		{"nt/hello", "nt/hello"},
 		{"", ""},
 	}
 	for _, tt := range tests {
