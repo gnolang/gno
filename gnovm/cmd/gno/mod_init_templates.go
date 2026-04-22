@@ -99,6 +99,9 @@ func renderTemplateDir(fsys embed.FS, dir string, data templateData) (map[string
 	files := make(map[string][]byte, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() {
+			// TODO: support nested template directories (e.g. cmd/, testdata/)
+			// for templates that need multi-file layouts. Currently all template
+			// files must live at the top level of the template directory.
 			continue
 		}
 		name := entry.Name()

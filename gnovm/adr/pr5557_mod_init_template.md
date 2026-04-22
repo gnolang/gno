@@ -87,9 +87,18 @@ both `gno run` and `gnokey maketx run` commands with the script path.
 
 ### Non-interactive fallback
 
-When stdin is not a TTY (CI, piped input) or `--bare` is passed, behavior is
-identical to the original `gno mod init`: only `gnomod.toml` is created, module
-path must be provided as argument. This preserves backward compatibility.
+When stdin is not a TTY (CI, piped input), `gno init <path>` scaffolds template
+files (kind auto-detected from the path, first available template used) in
+addition to `gnomod.toml`. The `--bare` flag is the explicit escape hatch for
+callers that want `gnomod.toml` only — preserving the legacy `gno mod init`
+behavior under a single well-defined flag.
+
+### Backward compatibility alias
+
+`gno mod init` is kept as a hidden deprecated alias that forwards to the
+top-level `gno init` handler and emits a one-line deprecation warning on
+stderr. Existing scripts, Makefiles, and CI pipelines keep working while
+users migrate.
 
 ### Shared prompt primitives in `tm2/pkg/commands/`
 
@@ -161,7 +170,7 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 | `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `IsInteractive`) |
 | `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
-| `gnovm/cmd/gno/mod.go` | `newInitCmd`, `execModInit`, `execInitRun`, `execInitRunScript`, `writeModule`, `promptModuleKind`, `selectTemplate`, `insertPathLetter` |
+| `gnovm/cmd/gno/mod.go` | `newInitCmd`, `newModInitDeprecatedCmd`, `execModInit`, `scaffoldModule`/`scaffoldModuleWith`, `writeModule`/`renderModuleFiles`, `execInitRun`, `writeRunScript`, `promptModuleKind`/`promptModulePath`, `selectTemplate`, `insertPathLetter`, `validateGnoPath` |
 | `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplateDir` |
 | `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` and `{{.ScriptName}}` in filenames |
 | `gnovm/cmd/gno/mod_test.go` | Tests for helpers and init flows |

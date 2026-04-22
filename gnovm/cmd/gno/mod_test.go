@@ -352,6 +352,8 @@ func TestInsertPathLetter(t *testing.T) {
 		{"package", "gno.land/myname/mypkg", kindPackage, "gno.land/p/myname/mypkg", false},
 		{"deep path", "gno.land/myname/sub/deep", kindRealm, "gno.land/r/myname/sub/deep", false},
 		{"no slash", "gno.land", kindRealm, "", true},
+		{"idempotent realm", "gno.land/r/myname/myrealm", kindRealm, "gno.land/r/myname/myrealm", false},
+		{"idempotent package", "gno.land/p/myname/mypkg", kindPackage, "gno.land/p/myname/mypkg", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -678,6 +680,7 @@ func TestValidateGnoPath(t *testing.T) {
 		{"valid", "run/hello.gno", false},
 		{"valid simple", "hello.gno", false},
 		{"valid nested", "sub/dir/hello.gno", false},
+		{"dotdot prefix not traversal", "..bar/hello.gno", false},
 		{"absolute", "/tmp/hack.gno", true},
 		{"traversal", "../escape.gno", true},
 		{"traversal prefix", "../../escape.gno", true},
@@ -720,4 +723,23 @@ func TestNormalizeModulePath(t *testing.T) {
 	for _, tt := range tests {
 		require.Equal(t, tt.want, normalizeModulePath(tt.in), "input: %q", tt.in)
 	}
+}
+
+// TestModInitDeprecatedAlias verifies that `gno mod init` still works as a
+// deprecated alias of `gno init`, emitting a deprecation warning on stderr.
+func TestModInitDeprecatedAlias(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	io, stderr := newTestMockIOWithStderr("")
+	cmd := newModInitDeprecatedCmd(io)
+	err = cmd.ParseAndRun(t.Context(), []string{"--bare", "gno.land/p/demo/alias"})
+	require.NoError(t, err)
+
+	require.Contains(t, stderr.String(), "deprecated")
+	require.FileExists(t, filepath.Join(tmpDir, "gnomod.toml"))
 }
