@@ -1,15 +1,24 @@
+# Pin exact gas for three equivalent-shape AddPkg txs straddling a node
+# restart. Any VM, store, or gas-model change that shifts these numbers
+# MUST update them here — this is the regression signal that the test's
+# name ("restart_gas") implies.
+#
+# `foo` (pre-restart, same content as bar but different pkgpath) and
+# `baz` (post-restart, same shape) should stay close; a large divergence
+# between them indicates restart-dependent gas, which is a bug.
+
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED: +593679'
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED:\s+2820655'
 
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED: +593706'
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED:\s+2822984'
 
 gnoland restart
 
-gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED: +593706'
+gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED:\s+2822998'
 
 -- bar/gnomod.toml --
 module = "bar"

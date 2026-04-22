@@ -2,6 +2,8 @@ package gnolang
 
 import (
 	"fmt"
+	"math/bits"
+	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -21,62 +23,192 @@ type Allocator struct {
 // for gonative, which doesn't consider the allocator.
 var nilAllocator = (*Allocator)(nil)
 
+// Allocation size constants for gas metering.
+//
+// Raw sizes (_alloc*) are unsafe.Sizeof for each GnoVM value type.
+// These must be updated when struct fields change.
+// Run `go run misc/devtools/checksize.go` to verify.
+//
+// Composite sizes (alloc*) represent total heap cost:
+//
+//	_allocHeap: Go runtime per-object overhead (conservative).
+//
+//	By-pointer types (*StructValue, *FuncValue, etc.) implement
+//	Value with pointer receivers. Creating one heap-allocates the
+//	struct. Cost: _allocHeap + sizeof.
+//
+//	By-value types (PointerValue, RefValue, etc.) implement Value
+//	with value receivers. Storing in TypedValue.V (an interface)
+//	escapes them to heap. Cost: _allocHeap + sizeof.
+//
+//	BigintValue/BigdecValue are pointer-sized (8 bytes) and don't
+//	escape, but their internal *big.Int/*apd.Decimal are heap-
+//	allocated. _allocBigint/_allocBigdec estimate that cost.
+//
+//	Variable-size components (string bytes, slice items, struct
+//	fields, map items) are counted separately per element.
 const (
-	// go elemental
-	_allocBase    = 24 // defensive... XXX
-	_allocPointer = 8
-	// gno types
-	_allocSlice            = 24
-	_allocPointerValue     = 40
-	_allocStructValue      = 152
-	_allocArrayValue       = 176
-	_allocSliceValue       = 40
-	_allocFuncValue        = 312
-	_allocMapValue         = 144
-	_allocBoundMethodValue = 176
-	_allocBlock            = 472
-	_allocPackageValue     = 240
-	_allocTypeValue        = 16
-	_allocTypedValue       = 40
-	_allocRefValue         = 72
-	_allocRefNode          = 88
-	_allocBigint           = 200 // XXX
-	_allocBigdec           = 200 // XXX
-	_allocType             = 200 // XXX
-	_allocAny              = 200 // XXX
-	_allocValue            = 16  // interface
-	_allocName             = 16  // string
+	_allocHeap = 32 // Go heap allocation overhead (conservative)
+
+	// By-value types (value receivers on Value interface).
+	// Escape to heap when stored in TypedValue.V.
+	_allocPointerValue = 32 // unsafe.Sizeof(PointerValue{})
+	_allocRefValue     = 72 // unsafe.Sizeof(RefValue{})
+	_allocTypeValue    = 16 // unsafe.Sizeof(TypeValue{})
+	_allocTypedValue   = 40 // unsafe.Sizeof(TypedValue{})
+
+	// By-pointer types (pointer receivers on Value interface).
+	// Heap-allocated; *T stored in TypedValue.V.
+	_allocStructValue      = 176 // unsafe.Sizeof(StructValue{})
+	_allocArrayValue       = 200 // unsafe.Sizeof(ArrayValue{})
+	_allocSliceValue       = 40  // unsafe.Sizeof(SliceValue{})
+	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
+	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
+	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
+	_allocBlock            = 528 // unsafe.Sizeof(Block{})
+	_allocPackageValue     = 272 // unsafe.Sizeof(PackageValue{})
+	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
+	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
+
+	// Estimated heap sizes for pointed-to objects.
+	// BigintValue and BigdecValue are just 8-byte pointers;
+	// these estimate the *big.Int / *apd.Decimal internals.
+	_allocBigint = 200 // estimated: big.Int + typical nat slice
+	_allocBigdec = 200 // estimated: apd.Decimal + internals
+	_allocType   = 200 // estimated: average Type implementation
+	_allocAny    = 200 // estimated: generic fallback
+
 )
 
 const (
-	allocString      = _allocBase
-	allocStringByte  = 1
-	allocBigint      = _allocBase + _allocPointer + _allocBigint
-	allocBigintByte  = 1
-	allocBigdec      = _allocBase + _allocPointer + _allocBigdec
-	allocBigdecByte  = 1
-	allocPointer     = _allocBase
-	allocArray       = _allocBase + _allocPointer + _allocArrayValue
+	// StringValue is a Go string (16 bytes, by value).
+	// Bytes are counted separately via allocStringByte.
+	allocString     = _allocHeap + 16
+	allocStringByte = 1
+
+	// BigintValue (8 bytes, fits in interface word, no escape).
+	// Cost is the internal *big.Int heap object.
+	allocBigint     = _allocHeap + _allocBigint
+	allocBigintByte = 1
+
+	// BigdecValue (8 bytes, fits in interface word, no escape).
+	// Cost is the internal *apd.Decimal heap object.
+	allocBigdec     = _allocHeap + _allocBigdec
+	allocBigdecByte = 1
+
+	// PointerValue (32 bytes, by value, escapes to heap via interface).
+	allocPointer = _allocHeap + _allocPointerValue
+
+	// By-pointer types: _allocHeap + sizeof.
+	allocArray       = _allocHeap + _allocArrayValue
 	allocArrayItem   = _allocTypedValue
-	allocSlice       = _allocBase + _allocPointer + _allocSliceValue
-	allocStruct      = _allocBase + _allocPointer + _allocStructValue
+	allocSlice       = _allocHeap + _allocSliceValue
+	allocStruct      = _allocHeap + _allocStructValue
 	allocStructField = _allocTypedValue
-	allocFunc        = _allocBase + _allocPointer + _allocFuncValue
-	allocMap         = _allocBase + _allocPointer + _allocMapValue
-	allocMapItem     = _allocTypedValue * 3 // XXX
-	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
-	allocBlock       = _allocBase + _allocPointer + _allocBlock
+	allocFunc        = _allocHeap + _allocFuncValue
+	allocMap         = _allocHeap + _allocMapValue
+	allocMapItem     = _allocTypedValue * 2 // key + value TypedValues
+	allocBoundMethod = _allocHeap + _allocBoundMethodValue
+	allocBlock       = _allocHeap + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocRefValue    = _allocBase + _allocRefValue
-	allocRefNode     = _allocBase + _allocRefNode
-	allocType        = _allocBase + _allocPointer + _allocType
-	allocDataByte    = 1
-	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
-	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
-	allocTypedValue  = _allocTypedValue
+	allocHeapItem    = _allocHeap + _allocHeapItemValue
+	allocPackage     = _allocHeap + _allocPackageValue
+
+	// RefValue (72 bytes, by value, escapes to heap via interface).
+	allocRefValue = _allocHeap + _allocRefValue
+	// RefNode (88 bytes, by value).
+	allocRefNode = _allocHeap + _allocRefNode
+
+	// Type is an interface; implementations vary.
+	allocType = _allocHeap + _allocType
+
+	allocDataByte   = 1
+	allocTypedValue = _allocTypedValue
 )
 
-const GasCostPerByte = 1 // gas cost per byte allocated
+func init() {
+	check := func(name string, constant uintptr, actual uintptr) {
+		if constant != actual {
+			panic("alloc constant " + name + " is stale; update to match unsafe.Sizeof")
+		}
+	}
+	check("_allocPointerValue", _allocPointerValue, unsafe.Sizeof(PointerValue{}))
+	check("_allocStructValue", _allocStructValue, unsafe.Sizeof(StructValue{}))
+	check("_allocArrayValue", _allocArrayValue, unsafe.Sizeof(ArrayValue{}))
+	check("_allocSliceValue", _allocSliceValue, unsafe.Sizeof(SliceValue{}))
+	check("_allocFuncValue", _allocFuncValue, unsafe.Sizeof(FuncValue{}))
+	check("_allocMapValue", _allocMapValue, unsafe.Sizeof(MapValue{}))
+	check("_allocBoundMethodValue", _allocBoundMethodValue, unsafe.Sizeof(BoundMethodValue{}))
+	check("_allocBlock", _allocBlock, unsafe.Sizeof(Block{}))
+	check("_allocPackageValue", _allocPackageValue, unsafe.Sizeof(PackageValue{}))
+	check("_allocTypeValue", _allocTypeValue, unsafe.Sizeof(TypeValue{}))
+	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
+	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
+	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
+}
+
+// allocGasTable[k] = gas for a Go heap allocation of 2^k bytes.
+// 1 gas = 1 nanosecond on reference hardware.
+// Calibrated from Go 1.24 / linux / amd64 benchmarks on DigitalOcean Dedicated (2-core).
+// CPU: Intel Xeon Platinum 8168 @ 2.70GHz.
+//
+// Model: entries [0]-[5] (1B-32B) are exact benchmark medians. Entries [6]-[30]
+// use a power-law fit: ns = 0.47 × size^0.925 (straight line in log-log space).
+// At runtime, allocGas uses bits.Len64 + linear interpolation (O(1), ~1.5ns).
+//
+// See gnovm/cmd/calibrate/ for benchmarks, data, and regeneration instructions.
+var allocGasTable = [32]int64{
+	12,        // 2^0  =       1B   (12ns)
+	13,        // 2^1  =       2B   (13ns)
+	13,        // 2^2  =       4B   (13ns)
+	15,        // 2^3  =       8B   (15ns)
+	23,        // 2^4  =      16B   (23ns)
+	27,        // 2^5  =      32B   (27ns)
+	36,        // 2^6  =      64B   (36ns)
+	52,        // 2^7  =     128B   (52ns)
+	82,        // 2^8  =     256B   (82ns)
+	145,       // 2^9  =     512B   (145ns)
+	241,       // 2^10 =      1KB   (241ns)
+	458,       // 2^11 =      2KB   (458ns)
+	848,       // 2^12 =      4KB   (848ns)
+	1637,      // 2^13 =      8KB   (1637ns)
+	2798,      // 2^14 =     16KB   (2798ns)
+	5520,      // 2^15 =     32KB   (5520ns)
+	10611,     // 2^16 =     64KB   (10611ns)
+	23513,     // 2^17 =    128KB   (23513ns)
+	49114,     // 2^18 =    256KB   (49114ns)
+	75155,     // 2^19 =    512KB   (75155ns)
+	195342,    // 2^20 =      1MB   (195342ns)
+	195342,    // 2^21 =      2MB   (bench: 171176ns, clamped to entry[20] for monotonicity)
+	275629,    // 2^22 =      4MB   (275629ns)
+	1188110,   // 2^23 =      8MB   (1188110ns)
+	2544343,   // 2^24 =     16MB   (2544343ns)
+	4987722,   // 2^25 =     32MB   (4987722ns)
+	9789111,   // 2^26 =     64MB   (9789111ns)
+	19398830,  // 2^27 =    128MB   (19398830ns)
+	38412058,  // 2^28 =    256MB   (38412058ns)
+	76146343,  // 2^29 =    512MB   (76146343ns)
+	153376629, // 2^30 =      1GB   (153376629ns)
+	291415595, // 2^31 =      2GB   (power-law extrapolation: ~1.9x from 1GB)
+}
+
+// allocGas returns the gas cost for a heap allocation of the given size
+// in bytes. Uses a lookup table indexed by floor(log2(size)) with linear
+// interpolation, giving O(1) cost (~1.5ns via CLZ instruction).
+func allocGas(size int64) int64 {
+	if size <= 1 {
+		return allocGasTable[0]
+	}
+	k := bits.Len64(uint64(size)) - 1 // floor(log2(size))
+	if k >= 31 {
+		return allocGasTable[31]
+	}
+	lo := allocGasTable[k]
+	hi := allocGasTable[k+1]
+	frac := size - (int64(1) << k)
+	span := int64(1) << k
+	return lo + (hi-lo)*frac/span
+}
 
 func NewAllocator(maxBytes int64) *Allocator {
 	if maxBytes == 0 {
@@ -142,8 +274,16 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
+		if alloc.collect == nil {
+			// Forked allocators (e.g. the store's tx-scoped allocator
+			// before NewMachineWithOptions installs a GC callback, and
+			// query-path store allocators which never get one) have no
+			// collect function — there's nothing to GC, so cap is final.
+			panic("allocation limit exceeded (no GC)")
+		}
 		if left, ok := alloc.collect(); !ok {
-			panic("should not happen, allocation limit exceeded while gc.")
+			// GC could not free enough.
+			panic("allocation limit exceeded")
 		} else {
 			if debug {
 				debug.Printf("GC finished, %d left after GC, required size: %d\n", left, size)
@@ -158,10 +298,10 @@ func (alloc *Allocator) Allocate(size int64) {
 		alloc.bytes += size
 	}
 
-	// Charge gas for every allocation unconditionally (cpu/throughput).
-	// This ensures repeated allocate-then-GC cycles are not free.
+	// Charge allocation gas based on calibrated lookup table.
+	// Models actual CPU time of Go's malloc + zero-fill.
 	if alloc.gasMeter != nil {
-		alloc.gasMeter.ConsumeGas(overflow.Mulp(size, GasCostPerByte), "memory allocation (cpu)")
+		alloc.gasMeter.ConsumeGas(allocGas(size), "memory allocation")
 	}
 }
 
@@ -357,9 +497,6 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 }
 
 func (alloc *Allocator) NewMap(size int) *MapValue {
-	if size < 0 {
-		size = 0
-	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
@@ -421,6 +558,8 @@ func (b *Block) GetShallowSize() int64 {
 	}
 
 	var ss int64
+	// RefNode is not value, put it here
+	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
 		ss += allocRefNode
 	}
@@ -506,102 +645,4 @@ func (dbv DataByteValue) GetShallowSize() int64 {
 // as the type should  pre-exist.
 func (tv TypeValue) GetShallowSize() int64 {
 	return 0
-}
-
-// Returns the size of object's RefValue(s).
-func internalRefSize(val Value) int64 {
-	var size int64
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-	// do nothing
-	default:
-		panic(fmt.Sprintf(
-			"unexpected type %T",
-			val))
-	}
-	return size
 }
