@@ -713,7 +713,7 @@ func TestValidateGnoPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateGnoPath(tt.path)
+			_, err := validateGnoPath(tt.path)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -760,7 +760,7 @@ func TestModInitLegacyAlias(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(origDir) })
 
 	io, stderr := newTestMockIOWithStderr("")
-	cmd := newModInitDeprecatedCmd(io)
+	cmd := newModInitLegacyCmd(io)
 	err = cmd.ParseAndRun(t.Context(), []string{"gno.land/p/demo/alias"})
 	require.NoError(t, err)
 

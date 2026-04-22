@@ -38,7 +38,7 @@ func newModCmd(io commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
 		newModGraphCmd(io),
-		newModInitDeprecatedCmd(io),
+		newModInitLegacyCmd(io),
 		newModTidy(io),
 		newModWhy(io),
 	)
@@ -46,11 +46,11 @@ func newModCmd(io commands.IO) *commands.Command {
 	return cmd
 }
 
-// newModInitDeprecatedCmd registers `gno mod init` as a thin alias that
+// newModInitLegacyCmd registers `gno mod init` as a thin legacy alias that
 // preserves the original behavior: create a bare gnomod.toml in CWD. It
 // never triggers the interactive wizard, and hints at `gno init` for users
 // who want the richer scaffolding flow.
-func newModInitDeprecatedCmd(io commands.IO) *commands.Command {
+func newModInitLegacyCmd(io commands.IO) *commands.Command {
 	cfg := &modInitCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
@@ -113,6 +113,10 @@ const (
 	kindRealm                     // stateful contract under /r/
 	kindRun                       // one-off main script executed via gnokey maketx run
 )
+
+// runScriptDir is the default subdirectory where `gno init` places run scripts
+// created by the interactive wizard (e.g. "run/hello.gno").
+const runScriptDir = "run"
 
 // modInitCfg holds the flags shared by `gno init` and the legacy `gno mod init` alias.
 type modInitCfg struct {
@@ -201,14 +205,15 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 
 	// .gno argument: create a run script at the given path, no gnomod.toml.
 	if len(args) == 1 && strings.HasSuffix(args[0], ".gno") {
-		if err := validateGnoPath(args[0]); err != nil {
+		scriptName, err := validateGnoPath(args[0])
+		if err != nil {
 			return err
 		}
 		tmpl, err := resolveTemplate(templatesForKind(kindRun), cfg.template)
 		if err != nil {
 			return err
 		}
-		return writeRunScript(rootDir, args[0], *tmpl, io)
+		return writeRunScript(rootDir, args[0], scriptName, *tmpl, io)
 	}
 
 	// Below: scaffold a module in CWD. The only case where 'gno init'
@@ -241,7 +246,11 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	// interactive and non-interactive invocations).
 	if len(args) == 1 {
 		modPath := normalizeModulePath(args[0])
-		return scaffoldModule(rootDir, modPath, templatesForKind(kindFromPath(modPath)), cfg.template, io)
+		tmpl, err := resolveTemplate(templatesForKind(kindFromPath(modPath)), cfg.template)
+		if err != nil {
+			return err
+		}
+		return scaffoldModule(rootDir, modPath, tmpl, io)
 	}
 	if !commands.IsInteractive() {
 		return fmt.Errorf("module path is required (non-interactive mode)")
@@ -264,34 +273,28 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-
-	templates := templatesForKind(kind)
-	// In wizard mode with no explicit --template, prompt the user to pick one.
-	if cfg.template == "" {
-		tmpl, err := selectTemplate(templates, io)
-		if err != nil {
-			return err
-		}
-		return scaffoldModuleWith(rootDir, modPath, tmpl, io)
-	}
-	return scaffoldModule(rootDir, modPath, templates, cfg.template, io)
-}
-
-// scaffoldModule resolves a template by name (or the default when empty),
-// then delegates to scaffoldModuleWith.
-func scaffoldModule(rootDir, modPath string, templates []initTemplate, templateName string, io commands.IO) error {
-	tmpl, err := resolveTemplate(templates, templateName)
+	tmpl, err := resolveOrPickTemplate(templatesForKind(kind), cfg.template, io)
 	if err != nil {
 		return err
 	}
-	return scaffoldModuleWith(rootDir, modPath, tmpl, io)
+	return scaffoldModule(rootDir, modPath, tmpl, io)
 }
 
-// scaffoldModuleWith is the shared tail of every non-bare, non-run code path:
+// resolveOrPickTemplate returns the named template, or prompts the user to
+// pick one interactively when no name is given. It is only called from the
+// wizard (which has already established we're in an interactive terminal).
+func resolveOrPickTemplate(templates []initTemplate, name string, io commands.IO) (*initTemplate, error) {
+	if name != "" {
+		return resolveTemplate(templates, name)
+	}
+	return selectTemplate(templates, io)
+}
+
+// scaffoldModule is the shared tail of every non-bare, non-run code path:
 // validate → render (with conflict check) → write gnomod.toml → write files →
 // print summary. Everything is created in rootDir (CWD). Rendering fails fast
 // on filename conflicts so a failed init never leaves an orphan gnomod.toml.
-func scaffoldModuleWith(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
+func scaffoldModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
 	if err := validateModulePath(modPath); err != nil {
 		return err
 	}
@@ -303,29 +306,51 @@ func scaffoldModuleWith(rootDir, modPath string, tmpl *initTemplate, io commands
 		return err
 	}
 
-	kindLabel := "package"
-	if gno.IsRealmPath(modPath) {
-		kindLabel = "realm"
+	names, err := writeFiles(rootDir, files)
+	if err != nil {
+		return err
 	}
 
-	names := slices.Sorted(maps.Keys(files))
 	hasTests := false
 	for _, name := range names {
-		if err := os.WriteFile(filepath.Join(rootDir, name), files[name], 0o644); err != nil {
-			return err
-		}
 		if strings.HasSuffix(name, "_test.gno") {
 			hasTests = true
+			break
 		}
 	}
 
-	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel, modPath, tmpl.Name)
+	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel(modPath), modPath, tmpl.Name)
 	fmt.Fprintf(io.Err(), "  gnomod.toml\n")
 	for _, name := range names {
 		fmt.Fprintf(io.Err(), "  %s\n", name)
 	}
 	printNextSteps(io, hasTests)
 	return nil
+}
+
+// kindLabel returns "realm" or "package" for user-facing messages.
+func kindLabel(modPath string) string {
+	if gno.IsRealmPath(modPath) {
+		return "realm"
+	}
+	return "package"
+}
+
+// writeFiles writes each entry of files under baseDir, failing if any
+// destination already exists. It returns the sorted list of filenames written.
+func writeFiles(baseDir string, files map[string][]byte) ([]string, error) {
+	names := slices.Sorted(maps.Keys(files))
+	for _, name := range names {
+		if _, err := os.Stat(filepath.Join(baseDir, name)); err == nil {
+			return nil, fmt.Errorf("file already exists: %s", name)
+		}
+	}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(baseDir, name), files[name], 0o644); err != nil {
+			return nil, err
+		}
+	}
+	return names, nil
 }
 
 // printNextSteps emits a short "what to do next" hint after a successful init.
@@ -399,32 +424,24 @@ func renderModuleFiles(rootDir, modPath string, tmpl *initTemplate) (map[string]
 	return files, nil
 }
 
-// writeRunScript creates a run script at the given relative path (e.g. "run/hello.gno").
-// No gnomod.toml is created — run scripts don't need one.
-func writeRunScript(rootDir, relPath string, tmpl initTemplate, io commands.IO) error {
+// writeRunScript creates a run script at the given relative path (e.g.
+// "run/hello.gno"). No gnomod.toml is created — run scripts don't need one.
+// scriptName is the base name without ".gno", already validated by the caller.
+func writeRunScript(rootDir, relPath, scriptName string, tmpl initTemplate, io commands.IO) error {
 	relDir := filepath.Dir(relPath)
 	if err := os.MkdirAll(filepath.Join(rootDir, relDir), 0o755); err != nil {
 		return err
 	}
 
-	scriptName := strings.TrimSuffix(filepath.Base(relPath), ".gno")
 	data := templateData{PkgName: "main", ScriptName: scriptName, ScriptPath: relPath}
-
 	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
 		return fmt.Errorf("render run template: %w", err)
 	}
-	for name := range files {
-		if _, err := os.Stat(filepath.Join(rootDir, relDir, name)); err == nil {
-			return fmt.Errorf("file already exists: %s", filepath.Join(relDir, name))
-		}
-	}
 
-	names := slices.Sorted(maps.Keys(files))
-	for _, name := range names {
-		if err := os.WriteFile(filepath.Join(rootDir, relDir, name), files[name], 0o644); err != nil {
-			return err
-		}
+	names, err := writeFiles(filepath.Join(rootDir, relDir), files)
+	if err != nil {
+		return err
 	}
 
 	fmt.Fprintf(io.Err(), "Initialized run script (%s template)\n", tmpl.Name)
@@ -445,7 +462,8 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	return writeRunScript(rootDir, filepath.Join("run", scriptName+".gno"), tmpl, io)
+	relPath := filepath.Join(runScriptDir, scriptName+".gno")
+	return writeRunScript(rootDir, relPath, scriptName, tmpl, io)
 }
 
 // --- Wizard helpers ---
@@ -453,24 +471,30 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 // promptModuleKind asks the user to pick a module flavor (realm, package, or
 // run script) and returns the corresponding moduleKind. Package is the default.
 func promptModuleKind(io commands.IO) (moduleKind, error) {
-	opts := map[string]struct {
-		kind moduleKind
-		commands.Choice
+	entries := []struct {
+		key    string
+		kind   moduleKind
+		choice commands.Choice
 	}{
-		"r": {kindRealm, commands.Choice{Aliases: []string{"realm"}, Description: "realm"}},
-		"p": {kindPackage, commands.Choice{Aliases: []string{"package"}, Description: "package"}},
-		"m": {kindRun, commands.Choice{Aliases: []string{"main", "run"}, Description: "run script"}},
+		{"r", kindRealm, commands.Choice{Aliases: []string{"realm"}, Description: "realm"}},
+		{"p", kindPackage, commands.Choice{Aliases: []string{"package"}, Description: "package"}},
+		{"m", kindRun, commands.Choice{Aliases: []string{"main", "run"}, Description: "run script"}},
 	}
-	choices := make(map[string]commands.Choice, len(opts))
-	for k, o := range opts {
-		choices[k] = o.Choice
+	choices := make(map[string]commands.Choice, len(entries))
+	for _, e := range entries {
+		choices[e.key] = e.choice
 	}
 
 	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices, "p")
 	if err != nil {
 		return kindPackage, err
 	}
-	return opts[key].kind, nil
+	for _, e := range entries {
+		if e.key == key {
+			return e.kind, nil
+		}
+	}
+	return kindPackage, fmt.Errorf("internal: unknown module kind %q", key)
 }
 
 // promptModulePath asks the user for a namespace and module name, then
@@ -574,21 +598,22 @@ func validateName(s string) error {
 	return nil
 }
 
-// validateGnoPath ensures the .gno argument is a safe relative path within CWD.
+// validateGnoPath ensures the .gno argument is a safe relative path within CWD
+// and returns the derived script name (base name without the .gno suffix).
 // filepath.IsLocal rejects absolute paths, empty paths, and any traversal
 // above the starting directory (including on Windows) in a single check.
-func validateGnoPath(p string) error {
+func validateGnoPath(p string) (string, error) {
 	if !filepath.IsLocal(p) {
-		return fmt.Errorf("invalid path %q: must be relative and within the current directory", p)
+		return "", fmt.Errorf("invalid path %q: must be relative and within the current directory", p)
 	}
 	scriptName := strings.TrimSuffix(filepath.Base(p), ".gno")
 	if scriptName == "" {
-		return fmt.Errorf("script name cannot be empty")
+		return "", fmt.Errorf("script name cannot be empty")
 	}
 	if !isValidName(scriptName) {
-		return fmt.Errorf("invalid script name %q (must be lowercase letters, digits, and underscores)", scriptName)
+		return "", fmt.Errorf("invalid script name %q (must be lowercase letters, digits, and underscores)", scriptName)
 	}
-	return nil
+	return scriptName, nil
 }
 
 // normalizeModulePath expands short-form paths ("r/demo/foo", "p/demo/lib")
