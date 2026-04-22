@@ -535,6 +535,10 @@ func TestNormalizeModulePath(t *testing.T) {
 // TestWriteRunScriptNoOrphanDir verifies that if template rendering fails,
 // no parent directory (e.g. "run/") is left behind on disk. Regression test
 // for the "render before mkdir" ordering in writeRunScript.
+//
+// This is a Go-level test (rather than a txtar scenario) because it needs
+// to inject a deliberately broken initTemplate to force renderTemplateDir
+// to fail — something that can't be triggered through the CLI surface.
 func TestWriteRunScriptNoOrphanDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
