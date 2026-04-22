@@ -27,16 +27,13 @@ type AppConfig struct {
 	webWithHTML         bool
 	webHome             string
 
-	// Resolver
-	resolvers varResolver
-
 	// Loader
 	noExamples bool
 	extraRoots []string
 
 	// Node Configuration
 	logFormat           string
-	lazyLoader          bool
+	staging             bool
 	verbose             bool
 	noWatch             bool
 	noReplay            bool
@@ -114,12 +111,6 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-home",
 		defaultCfg.webHome,
 		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
-	)
-
-	fs.Var(
-		&c.resolvers,
-		"resolver",
-		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
 	)
 
 	fs.BoolVar(
@@ -202,13 +193,6 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"no-replay",
 		defaultCfg.noReplay,
 		"do not replay previous transactions upon reload",
-	)
-
-	fs.BoolVar(
-		&c.lazyLoader,
-		"lazy-loader",
-		defaultCfg.lazyLoader,
-		"enable lazy loader",
 	)
 
 	fs.Int64Var(

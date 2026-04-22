@@ -26,7 +26,7 @@ var defaultStagingOptions = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         false,
 	unsafeAPI:           false,
-	lazyLoader:          false,
+	staging:             true,
 	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
@@ -68,7 +68,7 @@ func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
 
 func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
 	// Staging eager-loads the workspace, every -extra-root, and examples
-	// (unless -no-examples is set) via LoaderImpl.LoadAll. lazyLoader=false
+	// (unless -no-examples is set) via LoaderImpl.LoadAll. staging=true
 	// in defaultStagingOptions triggers the eager path in app.Setup.
 	return runApp(&cfg.AppConfig, io, args...)
 }

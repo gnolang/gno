@@ -6,8 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -37,7 +35,6 @@ var defaultLocalAppConfig = AppConfig{
 	root:                gnoenv.RootDir(),
 	interactive:         isatty.IsTerminal(os.Stdout.Fd()),
 	unsafeAPI:           true,
-	lazyLoader:          true,
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
@@ -94,37 +91,17 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		return fmt.Errorf("unable to guess current dir: %w", err)
 	}
 
-	// If no resolvers is defined, use gno example as root resolver
-	var baseResolvers []packages.Resolver
-
-	if len(cfg.resolvers) == 0 {
-		// Check if we are not in gnoroot
-		if !strings.HasPrefix(dir, filepath.Clean(cfg.root)+"/") {
-			// Add current dir as root resolvers
-			baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
-		}
-
-		// Add examples as root resolver
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		baseResolvers = append(baseResolvers, packages.NewRootResolver(exampleRoot))
-	}
-
-	// Check if current directory is a valid gno package
+	// Append the current directory's package path to cfg.paths so the node
+	// preloads/watches it. Workspace discovery + -extra-root now drive the
+	// loader; no resolver wiring is needed here.
 	path := guessPath(&cfg.AppConfig, dir)
 	resolver := packages.NewLocalResolver(path, dir)
 	if resolver.IsValid() {
-		// Add current directory as local resolver
-		baseResolvers = append([]packages.Resolver{resolver}, baseResolvers...)
 		if len(cfg.paths) > 0 {
 			cfg.paths += ","
 		}
 		cfg.paths += resolver.Path
 	}
-	cfg.resolvers = append(baseResolvers, cfg.resolvers...)
 
 	return runApp(&cfg.AppConfig, cio) // else run app without any dir
 }

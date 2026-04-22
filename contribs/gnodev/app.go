@@ -197,12 +197,12 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	// (staging mode) materializes the workspace + examples + extra roots.
 	var initialPkgs []*packages.NewPackage
 	var reload func() ([]*packages.NewPackage, error)
-	if ds.cfg.lazyLoader {
-		initialPkgs, err = ds.loader.LoadWorkspace()
-		reload = ds.loader.Reload
-	} else {
+	if ds.cfg.staging {
 		initialPkgs, err = ds.loader.LoadAll()
 		reload = ds.loader.LoadAll
+	} else {
+		initialPkgs, err = ds.loader.LoadWorkspace()
+		reload = ds.loader.Reload
 	}
 	if err != nil {
 		return fmt.Errorf("load packages: %w", err)
@@ -245,7 +245,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
 	// Setup lazy proxy
-	if ds.cfg.lazyLoader {
+	if !ds.cfg.staging {
 		proxyLogger := ds.logger.WithGroup(ProxyLogName)
 		ds.proxy, err = proxy.NewPathInterceptor(proxyLogger, address)
 		if err != nil {

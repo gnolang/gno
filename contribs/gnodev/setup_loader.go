@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
@@ -46,40 +45,5 @@ func (va *varResolver) Set(value string) error {
 
 	*va = append(*va, res)
 	return nil
-}
-
-func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) (packages.Resolver, []string) {
-	// Add root resolvers
-	localResolvers := make([]packages.Resolver, len(dirs))
-
-	var paths []string
-	for i, dir := range dirs {
-		path := guessPath(cfg, dir)
-		resolver := packages.NewLocalResolver(path, dir)
-
-		if resolver.IsValid() {
-			logger.Info("guessing directory path", "path", path, "dir", dir)
-			paths = append(paths, path) // append local path
-		} else {
-			logger.Warn("no gno package found", "dir", dir)
-		}
-
-		localResolvers[i] = resolver
-	}
-
-	resolver := packages.ChainResolvers(
-		packages.ChainResolvers(localResolvers...), // Resolve local directories
-		packages.ChainResolvers(cfg.resolvers...),  // Use user's custom resolvers
-	)
-
-	// Enrich resolver with middleware
-	return packages.MiddlewareResolver(resolver,
-		packages.CacheMiddleware(func(pkg *packages.Package) bool {
-			return pkg.Kind == packages.PackageKindRemote // Only cache remote package
-		}),
-		packages.FilterStdlibs,                    // Filter stdlib package from resolving
-		packages.PackageCheckerMiddleware(logger), // Pre-check syntax to avoid bothering the node reloading on invalid files
-		packages.LogMiddleware(logger),            // Log request
-	), paths
 }
 
