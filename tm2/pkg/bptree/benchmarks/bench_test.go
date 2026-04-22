@@ -17,12 +17,12 @@ import (
 
 	bptree "github.com/gnolang/gno/tm2/pkg/bptree"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
-var benchBackend = flag.String("backend", "memdb", "DB backend for benchmarks: memdb, goleveldb")
+var benchBackend = flag.String("backend", "memdb", "DB backend for benchmarks: memdb, pebbledb")
 
 const (
 	historySize = 20
@@ -209,9 +209,9 @@ func makeDB(b *testing.B, backend string) dbInfo {
 	case "memdb":
 		db := memdb.NewMemDB()
 		return dbInfo{db: db, cleanup: func() { db.Close() }}
-	case "goleveldb":
+	case "pebbledb":
 		dir := b.TempDir()
-		db, err := goleveldb.NewGoLevelDB("bench", dir)
+		db, err := pebbledb.NewPebbleDB("bench", dir)
 		require.NoError(b, err)
 		return dbInfo{db: db, dir: dir, cleanup: func() { db.Close() }}
 	default:
@@ -567,7 +567,7 @@ func BenchmarkLoadVersion(b *testing.B) {
 			sz := sz
 			b.Run(name, func(b *testing.B) {
 				b.StopTimer()
-				di := makeDB(b, "goleveldb")
+				di := makeDB(b, "pebbledb")
 				defer di.cleanup()
 				tree := f.newTree(di.db, cacheForSize(sz))
 				_ = prepareTree(b, tree, sz, keyLen, dataLen)
@@ -742,7 +742,7 @@ func BenchmarkDiskSpace(b *testing.B) {
 			sz := sz
 			b.Run(name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					di := makeDB(b, "goleveldb")
+					di := makeDB(b, "pebbledb")
 					tree := f.newTree(di.db, cacheForSize(sz))
 					_ = prepareTree(b, tree, sz, keyLen, dataLen)
 					tree.Close()
@@ -766,7 +766,7 @@ func BenchmarkDiskSpaceMultiVersion(b *testing.B) {
 			nv := nv
 			b.Run(name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					di := makeDB(b, "goleveldb")
+					di := makeDB(b, "pebbledb")
 					tree := f.newTree(di.db, cacheForSize(baseSz))
 					_ = prepareTree(b, tree, baseSz, keyLen, dataLen)
 					for v := 0; v < nv; v++ {
@@ -895,7 +895,7 @@ func BenchmarkScalingSaveVersion(b *testing.B) {
 // -----------------------------------------------------------------------
 
 func BenchmarkBackends(b *testing.B) {
-	backends := []string{"memdb", "goleveldb"}
+	backends := []string{"memdb", "pebbledb"}
 	sz := 100_000
 	for _, be := range backends {
 		for _, f := range factories {
