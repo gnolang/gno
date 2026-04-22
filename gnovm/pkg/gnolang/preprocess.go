@@ -5515,6 +5515,8 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 			// Handle implicit &{}.
 			if t.Kind() == PointerKind {
 				clx.Type = toConstTypeExpr(last, tx, t.Elem())
+				// Cache static type for doOpRef; see TRANS_LEAVE *RefExpr.
+				clx.SetAttribute(ATTR_TYPEOF_VALUE, t.Elem())
 				refx := &RefExpr{X: clx}
 				refx.SetAttribute(ATTR_REF_ELEM_TYPE, t.Elem())
 				refx.SetSpan(clx.GetSpan())
