@@ -1485,6 +1485,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
+				if ftype == TRANS_COMPOSITE_KEY {
+					clx := ns[len(ns)-1].(*CompositeLitExpr)
+					clt := evalStaticType(store, last, clx.Type)
+					switch baseOf(clt).(type) {
+					case *ArrayType, *SliceType:
+						panic("slice/array literals may not contain non-const keys")
+					}
+				}
 				// Func type evaluation.
 				nft := evalStaticTypeOf(store, last, n.Func)
 				switch bnft := baseOf(nft).(type) {
