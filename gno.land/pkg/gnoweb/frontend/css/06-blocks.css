@@ -2558,6 +2558,7 @@ main.dev-mode .b-toc a {
 	border-radius: var(--g-radius-2);
 	overflow: hidden;
 	min-height: 40vh;
+	margin-bottom: var(--g-space-3);
 }
 
 .b-playground-tabs {
@@ -2648,7 +2649,6 @@ main.dev-mode .b-toc a {
 	border: 1px solid var(--s-color-border-default);
 	border-radius: var(--g-radius-2);
 	overflow: hidden;
-	margin-top: var(--g-space-3);
 	padding: var(--g-space-4);
 }
 
@@ -2807,4 +2807,74 @@ main.dev-mode .b-toc a {
 	border-radius: var(--g-radius-1);
 	white-space: pre-wrap;
 	word-break: break-word;
+}
+
+/* ==========================================================================
+   RUN - maketx run scratchpad
+   ========================================================================== */
+.b-run-settings {
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+}
+
+.b-run-commands {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+}
+
+.b-run-commands h3 {
+	font-size: var(--g-font-size-400);
+}
+
+.b-run-settings-grid {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	align-items: stretch;
+	width: 100%;
+	margin-block-start: var(--g-space-4);
+
+	label {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+
+	.b-input:has(input:focus),
+	.b-input:has(input:hover) {
+		label {
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+	}
+}
+
+.b-run-command-header {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin-block-end: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+}
+
+.b-run-command-label {
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-primary);
+}
+
+.b-run-copy-btn {
+	margin-inline-start: auto;
+}
+
+.b-run-command-pre {
+	background-color: var(--s-color-bg-base);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-secondary);
+	white-space: pre-wrap;
+	word-break: break-word;
+	min-height: var(--g-space-12);
 }
