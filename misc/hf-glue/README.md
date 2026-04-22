@@ -145,6 +145,36 @@ hardfork assembly, in memory.
 | `make check-state` | Compare running node vs `gno.land` prod, write `out/STATE-REPORT.md` |
 | `make reports` | Full pipeline: `replay-log` + `report-replay` + `check-state` |
 | `make gen-local-genesis` | (Alternative) Rebuild gnoland1 base genesis locally via `misc/deployments/gnoland1/gen-genesis.sh` instead of downloading |
+| `make cluster-init` | Generate `N=$(NODES)` (default 2) validator homes under `out/cluster/` and rewrite genesis with all validators |
+| `make cluster-up` | Start the N-node cluster (`docker-compose.cluster.yml`) |
+| `make cluster-down` | Stop the cluster, keep state |
+| `make cluster-logs` | Tail cluster logs |
+| `make cluster-status` | `/status` + `/net_info` on both nodes |
+| `make cluster-reset-db` | Wipe cluster DB + WAL + last-signed state (keep keys) |
+| `make cluster-reset` | Wipe all of `out/cluster/` |
+
+## 2-node cluster mode
+
+`docker-compose.cluster.yml` runs two gnoland validators sharing a genesis
+and dialing each other via compose-network DNS (service names `node0` /
+`node1`, internal p2p port 26656). Host ports: **26656/7** (node0) and
+**36656/7** (node1).
+
+```
+make fetch            # build out/genesis.json once
+make cluster-init     # generate 2 homes under out/cluster/, rewrite validators
+make cluster-up       # docker compose up node0 + node1 + gnoweb
+make cluster-status   # both /status + /net_info
+```
+
+**Known limitation (tracked upstream, not a cluster-wiring bug):** on a
+hardfork genesis with `initial_height > 1`, node startup hits an ABCI
+handshake replay error (`block not found for height 1`) after the first
+InitChainer cycle. Both nodes *do* handshake over p2p and cast votes at
+the initial height before one of them dies on restart. The wiring
+(DNS / ports / persistent_peers / validator set) is correct; the
+consensus-WAL path needs to be taught that heights `< initial_height` don't
+exist. File this separately from the cluster harness.
 
 ## Files
 
@@ -152,6 +182,8 @@ hardfork assembly, in memory.
 |---|---|
 | `Makefile` | Entrypoint targets above |
 | `docker-compose.yml` | `gnoland` + `gnoweb` services, Dockerfile `target=all` image |
+| `docker-compose.cluster.yml` | 2-node cluster variant (`node0` + `node1` + `gnoweb`) |
+| `scripts/init-cluster.sh` | Generate N=$NODES homes under `out/cluster/` + wire `persistent_peers` |
 | `scripts/fetch.sh` | 3-stage: download genesis, run `tx-archive backup`, assemble with `hardfork genesis` |
 | `scripts/fetch-from-dir.sh` | Local-dir alternative (no RPC) |
 | `scripts/init-node.sh` | `gnoland secrets init` + `config init` + rewrite validator via `fixvalidator` |
