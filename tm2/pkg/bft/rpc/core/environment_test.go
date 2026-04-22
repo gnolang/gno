@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -94,9 +95,9 @@ func TestEnvironment_IsolatedBetweenInstances(t *testing.T) {
 	}
 }
 
-// TestEnvironment_StartStopIdempotent verifies that Start and Stop can be
-// called multiple times safely, including on an Environment without an
-// EventSwitch (which skips txDispatcher creation).
+// TestEnvironment_StartStopIdempotent verifies that Start is idempotent before
+// Stop, and that Stop is idempotent (callable multiple times safely), including
+// on an Environment without an EventSwitch (which skips txDispatcher creation).
 func TestEnvironment_StartStopIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -107,6 +108,9 @@ func TestEnvironment_StartStopIdempotent(t *testing.T) {
 
 	require.NoError(t, env.Stop())
 	require.NoError(t, env.Stop()) // second Stop is a no-op
+
+	// Start after Stop must panic.
+	assert.Panics(t, func() { _ = env.Start() })
 }
 
 // TestEnvironment_BroadcastTxCommitRejectsUnstarted verifies that
@@ -123,12 +127,12 @@ func TestEnvironment_BroadcastTxCommitRejectsUnstarted(t *testing.T) {
 }
 
 // assertHeightMismatch produces a readable error for the parallelism test.
-type heightMismatchErr struct{ want, got int64 }
+type heightMismatchError struct{ want, got int64 }
 
-func (e heightMismatchErr) Error() string {
-	return "height mismatch"
+func (e heightMismatchError) Error() string {
+	return fmt.Sprintf("height mismatch: want %d, got %d", e.want, e.got)
 }
 
 func assertHeightMismatch(want, got int64) error {
-	return heightMismatchErr{want: want, got: got}
+	return heightMismatchError{want: want, got: got}
 }

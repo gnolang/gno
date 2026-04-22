@@ -78,14 +78,18 @@ type Environment struct {
 	mtx          sync.Mutex
 	txDispatcher *txDispatcher
 	started      bool
+	stopped      bool
 }
 
 // Start initializes any per-Environment background services. Currently this
 // only creates and starts the txDispatcher if EventSwitch is non-nil.
-// Start is idempotent.
+// Start is idempotent but panics if called after Stop.
 func (env *Environment) Start() error {
 	env.mtx.Lock()
 	defer env.mtx.Unlock()
+	if env.stopped {
+		panic("cannot Start a stopped Environment")
+	}
 	if env.started {
 		return nil
 	}
@@ -98,15 +102,18 @@ func (env *Environment) Start() error {
 
 // Stop tears down the services started by Start. It should be called before
 // the associated EventSwitch is stopped so the txDispatcher goroutine exits
-// via its own Quit channel rather than racing evsw.Quit().
+// via its own Quit channel rather than racing evsw.Quit(). Stop is idempotent.
 func (env *Environment) Stop() error {
 	env.mtx.Lock()
 	defer env.mtx.Unlock()
-	if !env.started {
+	if env.stopped {
 		return nil
 	}
+	env.stopped = true
 	if env.txDispatcher != nil && env.txDispatcher.IsRunning() {
-		_ = env.txDispatcher.Stop()
+		if err := env.txDispatcher.Stop(); err != nil {
+			panic(fmt.Sprintf("txDispatcher.Stop: %v", err))
+		}
 	}
 	env.started = false
 	return nil

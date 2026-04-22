@@ -18,6 +18,8 @@ func TestTxHandler(t *testing.T) {
 	t.Parallel()
 
 	t.Run("tx result generated", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -88,6 +90,8 @@ func TestTxHandler(t *testing.T) {
 	})
 
 	t.Run("tx result index not found", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			sdb         = memdb.NewMemDB()
 			hash        = []byte("hash")
@@ -106,6 +110,8 @@ func TestTxHandler(t *testing.T) {
 	})
 
 	t.Run("invalid block transaction index", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -156,6 +162,8 @@ func TestTxHandler(t *testing.T) {
 	})
 
 	t.Run("invalid ABCI response index (corrupted state)", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -208,6 +216,8 @@ func TestTxHandler(t *testing.T) {
 	})
 
 	t.Run("nil block", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
