@@ -127,3 +127,37 @@ func TestGnodev_Staging_EagerAll(t *testing.T) {
 	assert.Contains(t, paths, "gno.land/p/ws/one")
 	assert.Contains(t, paths, "gno.land/p/ext/two")
 }
+
+// ---- E6: Reload preserves both workspace and proxy-resolved paths
+
+func TestGnodev_Reload_AfterProxyHit(t *testing.T) {
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	writeWorkspacePkg(t, filepath.Join(workspace, "w"), "gno.land/p/ws/only", "package only\n")
+
+	extra := t.TempDir()
+	writeWorkspacePkg(t, filepath.Join(extra, "q"), "gno.land/p/ext/proxy", "package proxy\n")
+
+	t.Chdir(workspace)
+	l := packages.New(packages.Config{
+		Workspace:  workspace,
+		ExtraRoots: []string{extra},
+		Logger:     discardLogger(),
+	})
+
+	// Eager workspace load at startup.
+	_, err := l.LoadWorkspace()
+	require.NoError(t, err)
+
+	// Simulate a proxy hit: Resolve a package outside the workspace.
+	_, err = l.Resolve("gno.land/p/ext/proxy")
+	require.NoError(t, err)
+
+	// Reload should return both the workspace package and the tracked
+	// proxy-resolved package.
+	out, err := l.Reload()
+	require.NoError(t, err)
+	paths := importPaths(out)
+	assert.Contains(t, paths, "gno.land/p/ws/only")
+	assert.Contains(t, paths, "gno.land/p/ext/proxy")
+}
