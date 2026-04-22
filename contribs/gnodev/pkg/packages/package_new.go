@@ -1,4 +1,3 @@
-// contribs/gnodev/pkg/packages/package_new.go
 package packages
 
 import (
@@ -8,6 +7,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Kind classifies a package by where it lives.
+// FS packages are in a user workspace or extra root; Remote packages are
+// fetched from a chain (RPC or modcache) and aren't user-editable.
 type Kind int
 
 const (

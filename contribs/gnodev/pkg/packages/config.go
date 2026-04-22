@@ -1,4 +1,3 @@
-// contribs/gnodev/pkg/packages/config.go
 package packages
 
 import (
@@ -7,6 +6,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 )
 
+// Config configures the Loader.
 type Config struct {
 	// Workspace is the workspace root (dir containing gnowork.toml or gnomod.toml).
 	// Empty if no workspace was detected.
