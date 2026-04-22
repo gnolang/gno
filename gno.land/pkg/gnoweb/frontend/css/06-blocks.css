@@ -2768,8 +2768,8 @@ main.dev-mode .b-toc a {
 }
 
 .b-eval-functions {
-  display: flex;
-  flex-direction: column;
+	display: flex;
+	flex-direction: column;
 	gap: var(--g-space-2);
 	list-style: disc;
 	padding-left: var(--g-space-4);
