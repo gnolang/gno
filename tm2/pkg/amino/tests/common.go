@@ -424,6 +424,17 @@ type CrossPkgPointerSlice struct {
 	Counts []*crosspkg.SmallCount
 }
 
+// CrossPkgStringSlice: []AminoMarshaler where the element type lives in a
+// different package and has a non-uint8 primitive (string) repr. Proto's
+// schema side (typeToP3Type in genproto.go) unwraps the element to its
+// string repr, so the Go↔pb bindings must also use the repr type. Without
+// the fix in bindings.go (AminoMarshaler non-struct/non-interface repr
+// branch), the generated pbbindings emit `[]*crosspkg.BoxedString` for the
+// proto struct field, which doesn't compile against the repr-typed schema.
+type CrossPkgStringSlice struct {
+	Items []crosspkg.BoxedString
+}
+
 // CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
 // in a different package. Without the gen_unmarshal.go:72 fix, generated
 // code declares `var repr Inner` (bare name) which fails to compile.
@@ -535,6 +546,7 @@ var StructTypes = []any{
 	// pointer-slice without nil_elements tag yield lossy null-vs-zero JSON
 	// roundtrips; it is covered by an explicit TestCrossPkgPointerSliceRoundtrip.
 	(*CrossPkgBoxedRepr)(nil),
+	(*CrossPkgStringSlice)(nil),
 	// Interface-heavy benchmark type.
 	(*InterfaceHeavy)(nil),
 }

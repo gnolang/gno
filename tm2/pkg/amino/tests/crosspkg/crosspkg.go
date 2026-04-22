@@ -39,3 +39,20 @@ func (b *BoxedInt) UnmarshalAmino(r Inner) error {
 	b.V = r.N
 	return nil
 }
+
+// BoxedString is an AminoMarshaler with string repr. When used as
+// []crosspkg.BoxedString in a struct field, the schema (typeToP3Type in
+// genproto.go) unwraps to the string repr while bindings would default to
+// the wrapper type — this asymmetry is what bindings.go:503-510 fixes by
+// aligning pboete_ with the repr type for non-uint8 primitive reprs of
+// cross-package AminoMarshaler elements.
+type BoxedString string
+
+func (s BoxedString) MarshalAmino() (string, error) {
+	return string(s), nil
+}
+
+func (s *BoxedString) UnmarshalAmino(r string) error {
+	*s = BoxedString(r)
+	return nil
+}

@@ -574,6 +574,10 @@ message CrossPkgBoxedRepr {
 	sint64 n = 1 [json_name = "N"];
 }
 
+message CrossPkgStringSlice {
+	repeated string items = 1 [json_name = "Items"];
+}
+
 message InterfaceHeavy {
 	google.protobuf.Any field1 = 1 [json_name = "Field1"];
 	google.protobuf.Any field2 = 2 [json_name = "Field2"];

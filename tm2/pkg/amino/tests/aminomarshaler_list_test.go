@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 )
@@ -184,6 +186,63 @@ func TestCrossPkgPointerSliceRoundtrip(t *testing.T) {
 		if *decoded.Counts[i] != *orig.Counts[i] {
 			t.Errorf("element %d: got %d, want %d", i, *decoded.Counts[i], *orig.Counts[i])
 		}
+	}
+}
+
+// TestCrossPkgStringSliceRoundtrip exercises the old-genproto `bindings.go`
+// fix for the slice-of-AminoMarshaler path where the element has a non-uint8
+// primitive repr and the type is cross-package (unregistered from the
+// pbbindings root's perspective). The schema side (typeToP3Type in
+// genproto.go) unwraps the element to its string repr, so the generated
+// pbbindings must also allocate `[]string` / assign `string(goor)` rather
+// than `[]*crosspkg.BoxedString`. Without the fix in bindings.go:503-510,
+// `make -C misc/genproto && go build ./...` fails to compile.
+//
+// Note: this test reaches into pbbindings via ToPBMessage/FromPBMessage
+// which is the code path the bindings.go fix mutates. CrossPkgPointerSlice
+// exercises a sibling path (uint8 repr) that is already special-cased;
+// CrossPkgStringSlice covers the remaining non-uint8 primitive-repr branch.
+func TestCrossPkgStringSliceRoundtrip(t *testing.T) {
+	cdc := newAminoListsCodec()
+	orig := CrossPkgStringSlice{
+		Items: []crosspkg.BoxedString{"alpha", "beta", "gamma"},
+	}
+
+	// Go -> pbo (exercises the generated ToPBMessage).
+	pbm, ok := any(orig).(interface {
+		ToPBMessage(*amino.Codec) (msg proto.Message, err error)
+	})
+	if !ok {
+		t.Fatalf("CrossPkgStringSlice does not implement ToPBMessage (pbbindings not regenerated?)")
+	}
+	pbo, err := pbm.ToPBMessage(cdc)
+	if err != nil {
+		t.Fatalf("ToPBMessage: %v", err)
+	}
+
+	// Proto-marshal the pb message.
+	pbBytes, err := proto.Marshal(pbo)
+	if err != nil {
+		t.Fatalf("proto.Marshal: %v", err)
+	}
+
+	// Amino-marshal (reflect path) and compare bytes: both sides agree only
+	// if the schema's wire type matches the bindings' Go slice element type.
+	amBytes, err := cdc.MarshalReflect(orig)
+	if err != nil {
+		t.Fatalf("MarshalReflect: %v", err)
+	}
+	if !bytes.Equal(amBytes, pbBytes) {
+		t.Fatalf("amino and proto bytes differ:\n  amino: %x\n  proto: %x", amBytes, pbBytes)
+	}
+
+	// Roundtrip via FromPBMessage.
+	decoded := &CrossPkgStringSlice{}
+	if err := decoded.FromPBMessage(cdc, pbo); err != nil {
+		t.Fatalf("FromPBMessage: %v", err)
+	}
+	if !reflect.DeepEqual(orig, *decoded) {
+		t.Errorf("roundtrip mismatch:\n  orig:    %#v\n  decoded: %#v", orig, *decoded)
 	}
 }
 
