@@ -30,6 +30,10 @@ type AppConfig struct {
 	// Resolver
 	resolvers varResolver
 
+	// Loader
+	noExamples bool
+	extraRoots []string
+
 	// Node Configuration
 	logFormat           string
 	lazyLoader          bool
@@ -116,6 +120,19 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.resolvers,
 		"resolver",
 		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+	)
+
+	fs.BoolVar(
+		&c.noExamples,
+		"no-examples",
+		defaultCfg.noExamples,
+		"skip loading $GNOROOT/examples entirely",
+	)
+
+	fs.Var(
+		newStringSliceVar(&c.extraRoots),
+		"extra-root",
+		"additional workspace root to include (repeatable)",
 	)
 
 	fs.StringVar(
