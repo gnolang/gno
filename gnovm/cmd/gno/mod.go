@@ -114,8 +114,7 @@ const (
 	kindRun                       // one-off main script executed via gnokey maketx run
 )
 
-// runScriptDir is the default subdirectory where `gno init` places run scripts
-// created by the interactive wizard (e.g. "run/hello.gno").
+// runScriptDir is the default subdirectory for wizard-generated run scripts.
 const runScriptDir = "run"
 
 // modInitCfg holds the flags shared by `gno init` and the legacy `gno mod init` alias.
@@ -203,7 +202,7 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
 	}
 
-	// .gno argument: create a run script at the given path, no gnomod.toml.
+	// .gno argument: create a run script at that path, no gnomod.toml.
 	if len(args) == 1 && strings.HasSuffix(args[0], ".gno") {
 		scriptName, err := validateGnoPath(args[0])
 		if err != nil {
@@ -216,15 +215,13 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return writeRunScript(rootDir, args[0], scriptName, *tmpl, io)
 	}
 
-	// Below: scaffold a module in CWD. The only case where 'gno init'
-	// creates directories is the .gno run-script branch handled above.
+	// From here on: scaffold a module in CWD (no directory creation).
 
-	// Early check: if gnomod.toml already exists in CWD, bail out immediately.
 	if _, err := os.Stat(filepath.Join(rootDir, "gnomod.toml")); err == nil {
 		return fmt.Errorf("gnomod.toml already exists")
 	}
 
-	// --bare: only create gnomod.toml in CWD.
+	// --bare: only create gnomod.toml.
 	if cfg.bare {
 		if len(args) == 0 {
 			return fmt.Errorf("module path is required with --bare")
@@ -242,8 +239,7 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	// With a module path argument: scaffold in CWD (same flow for both
-	// interactive and non-interactive invocations).
+	// Module path given: scaffold in CWD.
 	if len(args) == 1 {
 		modPath := normalizeModulePath(args[0])
 		tmpl, err := resolveTemplate(templatesForKind(kindFromPath(modPath)), cfg.template)
@@ -354,8 +350,6 @@ func writeFiles(baseDir string, files map[string][]byte) ([]string, error) {
 }
 
 // printNextSteps emits a short "what to do next" hint after a successful init.
-// Uses `gno test .` (not `./...`) because recursive patterns require a
-// gnowork.toml, which a freshly-scaffolded single module doesn't have.
 func printNextSteps(io commands.IO, hasTests bool) {
 	hint := "gno test ."
 	if !hasTests {
@@ -580,8 +574,7 @@ var (
 	reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
 )
 
-// isValidName reports whether s is a valid lowercase Gno identifier: letters,
-// digits, and underscores, starting with a letter or a single leading underscore.
+// isValidName reports whether s is a lowercase ASCII Gno identifier.
 func isValidName(s string) bool {
 	return reValidName.MatchString(s)
 }
