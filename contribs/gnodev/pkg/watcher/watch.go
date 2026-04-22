@@ -111,7 +111,7 @@ func (p *PackageWatcher) Stop() {
 	p.stop()
 }
 
-func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...*packages.NewPackage) {
+func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...*packages.Package) {
 	watchList := p.watcher.WatchList()
 
 	oldPkgs := make(map[string]struct{}, len(watchList))

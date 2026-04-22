@@ -24,21 +24,20 @@ import (
 // yielded the requested package path.
 var ErrPackageNotFound = errors.New("package not found")
 
-// LoaderImpl resolves gnodev's package set using gnovm's native loader for
+// Loader resolves gnodev's package set using gnovm's native loader for
 // bulk operations and a local per-path lookup (filesystem + PackageFetcher)
 // for the proxy's lazy-resolve path.
-// Renamed to Loader in Phase D after the legacy Loader interface is removed.
-type LoaderImpl struct {
+type Loader struct {
 	cfg Config
 
 	mu      sync.RWMutex
 	fetcher pkgdownload.PackageFetcher
-	index   map[string]*NewPackage
+	index   map[string]*Package
 	tracked map[string]struct{}          // paths added via Resolve, used by Reload
 	rootIdx map[string]map[string]string // root → (importPath → dir); populated by Resolve on first lookup against that root
 }
 
-func NewLoaderImpl(cfg Config) *LoaderImpl {
+func New(cfg Config) *Loader {
 	if cfg.GnoRoot == "" {
 		cfg.GnoRoot = gnoenv.RootDir()
 	}
@@ -46,10 +45,10 @@ func NewLoaderImpl(cfg Config) *LoaderImpl {
 	if fetcher == nil {
 		fetcher = rpcpkgfetcher.New(cfg.RemoteOverrides)
 	}
-	return &LoaderImpl{
+	return &Loader{
 		cfg:     cfg,
 		fetcher: fetcher,
-		index:   make(map[string]*NewPackage),
+		index:   make(map[string]*Package),
 		tracked: make(map[string]struct{}),
 		rootIdx: make(map[string]map[string]string),
 	}
@@ -61,7 +60,7 @@ func NewLoaderImpl(cfg Config) *LoaderImpl {
 // Locking: fast path is RLock-only; cold path takes the write lock for the
 // duration of the FS walk and RPC fetch so concurrent Resolve calls for the
 // same path serialize rather than duplicate work.
-func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
+func (l *Loader) Resolve(path string) (*Package, error) {
 	l.mu.RLock()
 	if p, ok := l.index[path]; ok {
 		l.mu.RUnlock()
@@ -90,8 +89,8 @@ func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
 }
 
 // rpcLookup fetches a package via cfg.Fetcher. cfg.Fetcher is set once in
-// NewLoaderImpl and never mutated, so no lock is required.
-func (l *LoaderImpl) rpcLookup(path string) *NewPackage {
+// New and never mutated, so no lock is required.
+func (l *Loader) rpcLookup(path string) *Package {
 	files, err := l.fetcher.FetchPackage(path)
 	if err != nil {
 		l.cfg.Logger.Debug("rpc fetch miss", "path", path, "err", err)
@@ -102,7 +101,7 @@ func (l *LoaderImpl) rpcLookup(path string) *NewPackage {
 		Name:  extractPackageName(files),
 		Files: files,
 	}
-	p := newPackageFromMemPackage(mp)
+	p := packageFromMemPackage(mp)
 	p.Kind = KindRemote
 	return p
 }
@@ -129,11 +128,11 @@ func extractPackageName(files []*std.MemFile) string {
 
 // fsLookupLocked assumes the caller holds l.mu (write).
 // Uses a per-root cached import-path→dir map so we walk each root at most once.
-func (l *LoaderImpl) fsLookupLocked(path string) *NewPackage {
+func (l *Loader) fsLookupLocked(path string) *Package {
 	for _, root := range l.lookupRoots() {
 		rootIdx := l.ensureRootIndexLocked(root)
 		if dir, ok := rootIdx[path]; ok {
-			return &NewPackage{
+			return &Package{
 				ImportPath: path,
 				Dir:        dir,
 				Kind:       kindForDir(dir),
@@ -143,7 +142,7 @@ func (l *LoaderImpl) fsLookupLocked(path string) *NewPackage {
 	return nil
 }
 
-func (l *LoaderImpl) lookupRoots() []string {
+func (l *Loader) lookupRoots() []string {
 	roots := make([]string, 0, len(l.cfg.ExtraRoots)+1)
 	roots = append(roots, l.cfg.ExtraRoots...)
 	if l.cfg.Examples && l.cfg.GnoRoot != "" {
@@ -154,7 +153,7 @@ func (l *LoaderImpl) lookupRoots() []string {
 
 // ensureRootIndexLocked walks root once and caches the result.
 // Missing/unreadable roots cache as an empty map to avoid repeated walk attempts.
-func (l *LoaderImpl) ensureRootIndexLocked(root string) map[string]string {
+func (l *Loader) ensureRootIndexLocked(root string) map[string]string {
 	if idx, ok := l.rootIdx[root]; ok {
 		return idx
 	}
@@ -195,7 +194,7 @@ func scanRoot(root string, logger *slog.Logger) map[string]string {
 // path. Tracked paths discovered via ExtraRoots or the fetcher live outside
 // the workspace, so they are re-resolved individually and merged with the
 // workspace result.
-func (l *LoaderImpl) Reload() ([]*NewPackage, error) {
+func (l *Loader) Reload() ([]*Package, error) {
 	l.mu.RLock()
 	wsPattern := ""
 	if l.cfg.Workspace != "" {
@@ -207,9 +206,9 @@ func (l *LoaderImpl) Reload() ([]*NewPackage, error) {
 	}
 	l.mu.RUnlock()
 
-	var out []*NewPackage
+	var out []*Package
 	seen := map[string]struct{}{}
-	appendUnique := func(pkgs ...*NewPackage) {
+	appendUnique := func(pkgs ...*Package) {
 		for _, p := range pkgs {
 			if _, dup := seen[p.ImportPath]; dup {
 				continue
@@ -251,7 +250,7 @@ func (l *LoaderImpl) Reload() ([]*NewPackage, error) {
 
 // LoadWorkspace eagerly loads packages in the configured workspace.
 // Returns nil (no error) if no workspace is set.
-func (l *LoaderImpl) LoadWorkspace() ([]*NewPackage, error) {
+func (l *Loader) LoadWorkspace() ([]*Package, error) {
 	if l.cfg.Workspace == "" {
 		return nil, nil
 	}
@@ -261,10 +260,10 @@ func (l *LoaderImpl) LoadWorkspace() ([]*NewPackage, error) {
 // LoadAll eagerly loads the workspace, every ExtraRoot, and GNOROOT/examples
 // (when Examples=true). Used by the staging subcommand which wants to
 // materialize every reachable package at startup.
-func (l *LoaderImpl) LoadAll() ([]*NewPackage, error) {
-	var out []*NewPackage
+func (l *Loader) LoadAll() ([]*Package, error) {
+	var out []*Package
 	seen := map[string]struct{}{}
-	appendUnique := func(pkgs []*NewPackage) {
+	appendUnique := func(pkgs []*Package) {
 		for _, p := range pkgs {
 			if _, dup := seen[p.ImportPath]; dup {
 				continue
@@ -301,7 +300,7 @@ func (l *LoaderImpl) LoadAll() ([]*NewPackage, error) {
 // loadRootStandalone loads every gnomod.toml-rooted package found under root
 // by resolving each import path individually. Avoids gnovm.Load's "pattern
 // must be inside workspace" check for roots outside the current workspace.
-func (l *LoaderImpl) loadRootStandalone(root string) ([]*NewPackage, error) {
+func (l *Loader) loadRootStandalone(root string) ([]*Package, error) {
 	l.mu.Lock()
 	idx := l.ensureRootIndexLocked(root)
 	paths := make([]string, 0, len(idx))
@@ -310,7 +309,7 @@ func (l *LoaderImpl) loadRootStandalone(root string) ([]*NewPackage, error) {
 	}
 	l.mu.Unlock()
 
-	out := make([]*NewPackage, 0, len(paths))
+	out := make([]*Package, 0, len(paths))
 	for _, p := range paths {
 		pkg, err := l.Resolve(p)
 		if err != nil {
@@ -322,7 +321,7 @@ func (l *LoaderImpl) loadRootStandalone(root string) ([]*NewPackage, error) {
 	return out, nil
 }
 
-func (l *LoaderImpl) loadWithPatterns(patterns ...string) ([]*NewPackage, error) {
+func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
 	l.mu.RLock()
 	fetcher := l.fetcher
 	l.mu.RUnlock()
@@ -346,7 +345,7 @@ func (l *LoaderImpl) loadWithPatterns(patterns ...string) ([]*NewPackage, error)
 	}
 	sorted = sorted.GetNonIgnoredPkgs()
 
-	out := make([]*NewPackage, 0, len(sorted))
+	out := make([]*Package, 0, len(sorted))
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for _, vp := range sorted {
@@ -356,7 +355,7 @@ func (l *LoaderImpl) loadWithPatterns(patterns ...string) ([]*NewPackage, error)
 			}
 			continue
 		}
-		p := &NewPackage{
+		p := &Package{
 			ImportPath: vp.ImportPath,
 			Dir:        vp.Dir,
 			Name:       vp.Name,

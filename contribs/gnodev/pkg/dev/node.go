@@ -37,10 +37,10 @@ type NodeConfig struct {
 	Logger *slog.Logger
 
 	// InitialPkgs is the eager-loaded package set at startup.
-	InitialPkgs []*packages.NewPackage
+	InitialPkgs []*packages.Package
 
 	// Reload is called on node Reset / rebuild to produce a fresh package set.
-	Reload func() ([]*packages.NewPackage, error)
+	Reload func() ([]*packages.Package, error)
 
 	// DefaultCreator specifies the default address used for creating packages and transactions.
 	DefaultCreator crypto.Address
@@ -119,7 +119,7 @@ type Node struct {
 	emitter      emitter.Emitter
 	client       client.Client
 	logger       *slog.Logger
-	pkgs         []*packages.NewPackage
+	pkgs         []*packages.Package
 	pkgsModifier map[string]QueryPath // path -> QueryPath
 	paths        []string
 
@@ -179,7 +179,7 @@ func (n *Node) Close() error {
 	return n.Node.Stop()
 }
 
-func (n *Node) ListPkgs() []*packages.NewPackage {
+func (n *Node) ListPkgs() []*packages.Package {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -419,7 +419,7 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	return state, nil
 }
 
-func (n *Node) generateTxs(fee std.Fee, pkgs []*packages.NewPackage) []gnoland.TxWithMetadata {
+func (n *Node) generateTxs(fee std.Fee, pkgs []*packages.Package) []gnoland.TxWithMetadata {
 	metatxs := make([]gnoland.TxWithMetadata, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		mempkg, err := pkg.ToMemPackage()

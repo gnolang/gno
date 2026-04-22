@@ -68,7 +68,7 @@ func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
 
 func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
 	// Staging eager-loads the workspace, every -extra-root, and examples
-	// (unless -no-examples is set) via LoaderImpl.LoadAll. staging=true
+	// (unless -no-examples is set) via Loader.LoadAll. staging=true
 	// in defaultStagingOptions triggers the eager path in app.Setup.
 	return runApp(&cfg.AppConfig, io, args...)
 }

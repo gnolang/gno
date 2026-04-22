@@ -58,7 +58,7 @@ type App struct {
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
 	watcher       *watcher.PackageWatcher
-	loader        *packages.LoaderImpl
+	loader        *packages.Loader
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
@@ -191,12 +191,12 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		GnoRoot:    gnoenv.RootDir(),
 		Logger:     loaderLogger,
 	}
-	ds.loader = packages.NewLoaderImpl(loaderCfg)
+	ds.loader = packages.New(loaderCfg)
 
 	// Lazy loading hydrates only the workspace at startup; eager loading
 	// (staging mode) materializes the workspace + examples + extra roots.
-	var initialPkgs []*packages.NewPackage
-	var reload func() ([]*packages.NewPackage, error)
+	var initialPkgs []*packages.Package
+	var reload func() ([]*packages.Package, error)
 	if ds.cfg.staging {
 		initialPkgs, err = ds.loader.LoadAll()
 		reload = ds.loader.LoadAll

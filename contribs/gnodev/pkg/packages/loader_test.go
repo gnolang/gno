@@ -29,7 +29,7 @@ func writePkg(t *testing.T, dir, module, body string) {
 }
 
 func TestLoader_LoadWorkspace_Empty(t *testing.T) {
-	l := NewLoaderImpl(Config{Workspace: "", Logger: testLogger()})
+	l := New(Config{Workspace: "", Logger: testLogger()})
 	pkgs, err := l.LoadWorkspace()
 	require.NoError(t, err)
 	assert.Empty(t, pkgs)
@@ -43,7 +43,7 @@ func TestLoader_LoadWorkspace_OnePackage(t *testing.T) {
 
 	t.Chdir(root)
 
-	l := NewLoaderImpl(Config{Workspace: root, Logger: testLogger()})
+	l := New(Config{Workspace: root, Logger: testLogger()})
 	pkgs, err := l.LoadWorkspace()
 	require.NoError(t, err)
 	require.Len(t, pkgs, 1)
@@ -58,7 +58,7 @@ func TestLoader_Resolve_IndexHit(t *testing.T) {
 
 	t.Chdir(root)
 
-	l := NewLoaderImpl(Config{Workspace: root, Logger: testLogger()})
+	l := New(Config{Workspace: root, Logger: testLogger()})
 	_, err := l.LoadWorkspace()
 	require.NoError(t, err)
 
@@ -70,7 +70,7 @@ func TestLoader_Resolve_IndexHit(t *testing.T) {
 
 func TestLoader_Resolve_MissReturnsNotFound(t *testing.T) {
 	// Empty fetcher so the RPC fallback fails fast (no real network calls).
-	l := NewLoaderImpl(Config{
+	l := New(Config{
 		Fetcher: pkgdownload.NewInMemoryFetcher(),
 		Logger:  testLogger(),
 	})
@@ -83,7 +83,7 @@ func TestLoader_Resolve_FSWalk(t *testing.T) {
 	pkgDir := filepath.Join(root, "mypkg")
 	writePkg(t, pkgDir, "gno.land/p/custom/mypkg", "package mypkg\n")
 
-	l := NewLoaderImpl(Config{ExtraRoots: []string{root}, Logger: testLogger()})
+	l := New(Config{ExtraRoots: []string{root}, Logger: testLogger()})
 	got, err := l.Resolve("gno.land/p/custom/mypkg")
 	require.NoError(t, err)
 	assert.Equal(t, pkgDir, got.Dir)
@@ -100,7 +100,7 @@ func TestLoader_Resolve_RPCFallback(t *testing.T) {
 		Name:  "boards",
 		Files: []*std.MemFile{{Name: "boards.gno", Body: "package boards\n"}},
 	}
-	l := NewLoaderImpl(Config{
+	l := New(Config{
 		Fetcher: pkgdownload.NewInMemoryFetcher(mp),
 		Logger:  testLogger(),
 	})
@@ -123,7 +123,7 @@ func TestLoader_Reload_IncludesTrackedPaths(t *testing.T) {
 
 	t.Chdir(root)
 
-	l := NewLoaderImpl(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
+	l := New(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
 	_, err := l.LoadWorkspace()
 	require.NoError(t, err)
 	_, err = l.Resolve("gno.land/p/ext/two")
@@ -136,7 +136,7 @@ func TestLoader_Reload_IncludesTrackedPaths(t *testing.T) {
 	assert.Contains(t, paths, "gno.land/p/ext/two")
 }
 
-func pathsOf(pkgs []*NewPackage) []string {
+func pathsOf(pkgs []*Package) []string {
 	out := make([]string, len(pkgs))
 	for i, p := range pkgs {
 		out[i] = p.ImportPath
@@ -154,7 +154,7 @@ func TestLoader_LoadAll(t *testing.T) {
 
 	t.Chdir(root)
 
-	l := NewLoaderImpl(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
+	l := New(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
 	pkgs, err := l.LoadAll()
 	require.NoError(t, err)
 	paths := pathsOf(pkgs)

@@ -17,9 +17,8 @@ const (
 	KindRemote
 )
 
-// NewPackage is the simplified package type used by the native Loader.
-// It will be renamed to Package in Phase D after the legacy Package is removed.
-type NewPackage struct {
+// Package is the simplified package type used by the native Loader.
+type Package struct {
 	ImportPath string
 	Dir        string
 	Kind       Kind
@@ -31,7 +30,7 @@ type NewPackage struct {
 // ToMemPackage reads the package content. In-memory-backed packages return
 // the embedded MemPackage directly. Filesystem-backed packages are read
 // lazily on first call.
-func (p *NewPackage) ToMemPackage() (*std.MemPackage, error) {
+func (p *Package) ToMemPackage() (*std.MemPackage, error) {
 	if p.memPkg != nil {
 		return p.memPkg, nil
 	}
@@ -50,8 +49,8 @@ func (p *NewPackage) ToMemPackage() (*std.MemPackage, error) {
 	return mp, nil
 }
 
-func newPackageFromMemPackage(mp *std.MemPackage) *NewPackage {
-	return &NewPackage{
+func packageFromMemPackage(mp *std.MemPackage) *Package {
+	return &Package{
 		ImportPath: mp.Path,
 		Name:       mp.Name,
 		Kind:       KindFS, // irrelevant for in-memory; classification happens at resolve time
