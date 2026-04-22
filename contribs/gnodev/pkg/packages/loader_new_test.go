@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,4 +88,21 @@ func TestLoader_Resolve_FSWalk(t *testing.T) {
 	got2, err := l.Resolve("gno.land/p/custom/mypkg")
 	require.NoError(t, err)
 	assert.Same(t, got, got2)
+}
+
+func TestLoader_Resolve_RPCFallback(t *testing.T) {
+	mp := &std.MemPackage{
+		Path:  "gno.land/r/demo/boards",
+		Name:  "boards",
+		Files: []*std.MemFile{{Name: "boards.gno", Body: "package boards\n"}},
+	}
+	l := NewLoaderImpl(Config{
+		Fetcher: pkgdownload.NewInMemoryFetcher(mp),
+		Logger:  testLogger(),
+	})
+
+	got, err := l.Resolve("gno.land/r/demo/boards")
+	require.NoError(t, err)
+	assert.Equal(t, KindRemote, got.Kind)
+	assert.Equal(t, "gno.land/r/demo/boards", got.ImportPath)
 }

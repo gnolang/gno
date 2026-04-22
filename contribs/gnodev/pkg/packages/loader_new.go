@@ -3,6 +3,8 @@ package packages
 import (
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"log/slog"
 	"path/filepath"
@@ -14,6 +16,7 @@ import (
 	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // ErrPackageNotFound is returned by Resolve when no index/FS/RPC lookup
@@ -77,8 +80,50 @@ func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
 		l.tracked[pkg.ImportPath] = struct{}{}
 		return pkg, nil
 	}
-	// TODO Task B7: RPC fallback (still under write lock)
+	if pkg := l.rpcLookupLocked(path); pkg != nil {
+		l.index[pkg.ImportPath] = pkg
+		l.tracked[pkg.ImportPath] = struct{}{}
+		return pkg, nil
+	}
 	return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
+}
+
+// rpcLookupLocked assumes the caller holds l.mu (write). It reads l.fetcher
+// directly without re-locking.
+func (l *LoaderImpl) rpcLookupLocked(path string) *NewPackage {
+	files, err := l.fetcher.FetchPackage(path)
+	if err != nil {
+		l.cfg.Logger.Debug("rpc fetch miss", "path", path, "err", err)
+		return nil
+	}
+	mp := &std.MemPackage{
+		Path:  path,
+		Name:  extractPackageName(files),
+		Files: files,
+	}
+	p := newPackageFromMemPackage(mp)
+	p.Kind = KindRemote
+	return p
+}
+
+// extractPackageName returns the package name from the first parseable
+// non-test .gno file. Returns "" if none is found.
+func extractPackageName(files []*std.MemFile) string {
+	fset := token.NewFileSet()
+	for _, f := range files {
+		if !strings.HasSuffix(f.Name, ".gno") {
+			continue
+		}
+		if strings.HasSuffix(f.Name, "_test.gno") || strings.HasSuffix(f.Name, "_filetest.gno") {
+			continue
+		}
+		astf, err := parser.ParseFile(fset, f.Name, f.Body, parser.PackageClauseOnly)
+		if err != nil {
+			continue
+		}
+		return astf.Name.Name
+	}
+	return ""
 }
 
 // fsLookupLocked assumes the caller holds l.mu (write).
