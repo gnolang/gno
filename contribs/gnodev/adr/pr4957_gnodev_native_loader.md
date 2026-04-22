@@ -163,9 +163,10 @@ refuses to accept.
 ### Consumers
 
 `contribs/gnodev/pkg/dev/node.go` no longer imports `packages.Loader`. Its
-`NodeConfig` takes `InitialPkgs []*Package` plus a
-`Reload func() ([]*Package, error)` closure. `app.go` wires the closure to
-`loader.Reload`.
+`NodeConfig` takes a `Reload func() ([]*Package, error)` closure, called
+once on first `Reset()` to produce the initial package set and again on
+every watcher-triggered reload. `app.go` wires the closure to
+`loader.Reload` (lazy mode) or `loader.LoadAll` (`gnodev staging`).
 
 The proxy (`pkg/proxy/path_interceptor.go`) calls the bound
 `loader.Resolve` directly.

@@ -193,19 +193,13 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	ds.loader = packages.New(loaderCfg)
 
-	// Lazy loading hydrates only the workspace at startup; eager loading
-	// (staging mode) materializes the workspace + examples + extra roots.
-	var initialPkgs []*packages.Package
-	var reload func() ([]*packages.Package, error)
+	// Lazy loading hydrates only the workspace at startup via Reload;
+	// eager loading (staging mode) materializes workspace + examples +
+	// extra roots. The node's first Reset invokes reload, surfacing any
+	// parse errors at startup.
+	reload := ds.loader.Reload
 	if ds.cfg.staging {
-		initialPkgs, err = ds.loader.LoadAll()
 		reload = ds.loader.LoadAll
-	} else {
-		initialPkgs, err = ds.loader.LoadWorkspace()
-		reload = ds.loader.Reload
-	}
-	if err != nil {
-		return fmt.Errorf("load packages: %w", err)
 	}
 
 	// Get user's address book from local keybase
@@ -236,7 +230,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	ds.logger.Debug("balances loaded", "list", balances.List())
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
-	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, initialPkgs, reload, ds.book)
+	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, reload, ds.book)
 	if err != nil {
 		return fmt.Errorf("unable to setup node config: %w", err)
 	}

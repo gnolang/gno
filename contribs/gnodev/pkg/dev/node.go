@@ -36,10 +36,9 @@ type NodeConfig struct {
 	// silent operation.
 	Logger *slog.Logger
 
-	// InitialPkgs is the eager-loaded package set at startup.
-	InitialPkgs []*packages.Package
-
-	// Reload is called on node Reset / rebuild to produce a fresh package set.
+	// Reload is called on node Reset / rebuild to produce the package set
+	// loaded into genesis. Also used to produce the initial set on first boot
+	// (called once from Reset before any watcher event).
 	Reload func() ([]*packages.Package, error)
 
 	// DefaultCreator specifies the default address used for creating packages and transactions.

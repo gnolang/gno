@@ -111,7 +111,6 @@ func Render(_ string) string { return "foo" }
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	initialPkgs := pkgsFromMem(t, &pkg)
-	cfg.InitialPkgs = initialPkgs
 	cfg.Reload = func() ([]*packages.Package, error) { return initialPkgs, nil }
 	cfg.Logger = logger
 
@@ -681,8 +680,6 @@ func newTestingNodeConfig(t *testing.T, pkgs ...*std.MemPackage) (*NodeConfig, *
 		l := newTestingLoader(memPkgs...)
 		return resolvePaths(l, paths), nil
 	}
-	// InitialPkgs is used for watcher seeding only in production; tests
-	// that care populate it by resolving the bootstrap paths directly.
 	return cfg, holder
 }
 
