@@ -17,7 +17,10 @@ type InMemoryFetcher struct {
 	pkgs map[string][]*std.MemFile
 }
 
+var _ PackageFetcher = (*InMemoryFetcher)(nil)
+
 // NewInMemoryFetcher registers the given MemPackages by their Path.
+// If two MemPackages share the same Path, the later one wins.
 func NewInMemoryFetcher(pkgs ...*std.MemPackage) *InMemoryFetcher {
 	m := make(map[string][]*std.MemFile, len(pkgs))
 	for _, p := range pkgs {
@@ -26,6 +29,7 @@ func NewInMemoryFetcher(pkgs ...*std.MemPackage) *InMemoryFetcher {
 	return &InMemoryFetcher{pkgs: m}
 }
 
+// FetchPackage implements [PackageFetcher].
 func (f *InMemoryFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
 	files, ok := f.pkgs[pkgPath]
 	if !ok {
