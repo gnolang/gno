@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -139,7 +138,7 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path/render.gno", Status: http.StatusOK, Contain: "one more time"},
 		{Path: "/r/mock/path/LicEnse", Status: http.StatusOK, Contain: "my super license"},
 		{Path: "/r/mock/path$source&file=render.gno", Status: http.StatusOK, Contain: "one more time"},
-		{Path: "/r/mock/path$source", Status: http.StatusOK, Contain: "module"}, // `gno.mod` by default
+		{Path: "/r/mock/path$source&file=gno.mod", Status: http.StatusOK, Contain: "module"},
 		{Path: "/r/mock/path/license", Status: http.StatusNotFound},
 
 		// Help page
@@ -512,33 +511,6 @@ func TestHTTPHandler_GetSourceView_Error(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
-// TestHTTPHandler_GetSourceView_NoFiles covers the `if len(files)==0` of GetSourceView.
-func TestHTTPHandler_GetSourceView_NoFiles(t *testing.T) {
-	t.Parallel()
-
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "ex",
-		Path:   "/r/emptysrc",
-		Files:  map[string]string{},
-	}
-
-	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		cfg,
-	)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/emptysrc$source", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	// Should be 200 + "no files available"
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "no files available")
-}
-
 func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 	t.Parallel()
 
@@ -721,86 +693,6 @@ func TestHTTPHandler_CreateUsernameFromBech32(t *testing.T) {
 
 // TestHTTPHandler_GetSourceView_FilePreference tests the file preference logic
 // when no specific file is requested in the source view.
-func TestHTTPHandler_GetSourceView_FilePreference(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name           string
-		files          []string
-		expectedFile   string
-		expectedStatus int
-	}{
-		{
-			name:           "prefer README.md over other files",
-			files:          []string{"config.toml", "README.md", "main.gno"},
-			expectedFile:   "README.md",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "prefer .gno file when no README.md",
-			files:          []string{"config.toml", "main.gno", "test.toml"},
-			expectedFile:   "main.gno",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "fallback to first file when no preferred files",
-			files:          []string{"config.toml", "test.toml", "data.json"},
-			expectedFile:   "config.toml",
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "prefer first .gno file when multiple .gno files",
-			files:          []string{"config.toml", "main.gno", "utils.gno", "test.gno"},
-			expectedFile:   "main.gno",
-			expectedStatus: http.StatusOK,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			client := &stubClient{
-				listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
-					return tc.files, nil
-				},
-				fileFunc: func(ctx context.Context, path string, filename string) ([]byte, gnoweb.FileMeta, error) {
-					if slices.Contains(tc.files, filename) {
-						content := fmt.Sprintf("content of %s", filename)
-						return []byte(content), gnoweb.FileMeta{}, nil
-					}
-
-					return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
-				},
-			}
-
-			config := newTestHandlerConfig(t, client)
-			handler, err := gnoweb.NewHTTPHandler(
-				slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-				config,
-			)
-			handler.Renderer = &rawRenderer{}
-
-			require.NoError(t, err)
-
-			// Request source view without specifying a file
-			req, err := http.NewRequest(http.MethodGet, "/r/test/path$source", nil)
-			require.NoError(t, err)
-
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
-
-			// Check status
-			assert.Equal(t, tc.expectedStatus, rr.Code)
-
-			// Check that the expected file content is displayed
-			expectedContent := "content of " + tc.expectedFile
-			assert.Contains(t, rr.Body.String(), expectedContent,
-				"should display content of preferred file: %s", tc.expectedFile)
-		})
-	}
-}
-
 func TestHTTPHandler_GetSourceView_ReadmeErrors(t *testing.T) {
 	t.Parallel()
 
@@ -1471,6 +1363,163 @@ func TestHTTPHandler_ThemeCookie(t *testing.T) {
 				assert.NotContains(t, body, `data-theme=`,
 					"expected HTML to not contain data-theme attribute")
 			}
+		})
+	}
+}
+
+// TestHTTPHandler_GetOverviewView_SuccessRendersAllSections verifies the overview page
+// renders every section (sidebar, nav, content) for a fully populated realm.
+func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
+	t.Parallel()
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return []string{"foo.gno", "foo_test.gno", "README.md", "LICENSE"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return &doc.JSONDocumentation{
+				PackageDoc: "Package foo does things.",
+				Funcs: []*doc.JSONFunc{
+					{Name: "Hello", Signature: "func Hello() string", File: "foo.gno", Line: 10},
+					{Name: "internal"}, // filtered by export check
+				},
+				Types: []*doc.JSONType{
+					{Name: "Config", Type: "type Config struct{}", Kind: "struct", File: "foo.gno", Line: 3},
+				},
+			}, nil
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			switch filename {
+			case "foo.gno":
+				return []byte("package foo\nimport \"strings\"\n"), gnoweb.FileMeta{}, nil
+			case "README.md":
+				return []byte("# Foo\n"), gnoweb.FileMeta{}, nil
+			case "LICENSE":
+				return []byte("The MIT License\n"), gnoweb.FileMeta{}, nil
+			}
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return nil, nil
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, "Package foo does things", "package doc should be rendered")
+	assert.Contains(t, body, "Hello", "exported func should be rendered")
+	assert.NotContains(t, body, ">internal<", "unexported func should not appear as a symbol")
+	assert.Contains(t, body, "Config", "type should be rendered")
+	assert.Contains(t, body, "foo.gno", "file link should appear")
+}
+
+// TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure verifies the overview still
+// renders (with empty symbol sections) when the qdoc RPC fails.
+func TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure(t *testing.T) {
+	t.Parallel()
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return []string{"foo.gno"}, nil
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return nil, errors.New("node unavailable")
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return nil, nil
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "foo.gno", "file list still renders when qdoc fails")
+}
+
+// TestHTTPHandler_GetOverviewView_PackageNotFoundReturns404 verifies error propagation.
+func TestHTTPHandler_GetOverviewView_PackageNotFoundReturns404(t *testing.T) {
+	t.Parallel()
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientPackageNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/demo/missing$source", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+// TestRouting_SourceDispatch verifies that $source without a file routes to
+// overview and $source&file=X routes to the classic source view.
+func TestRouting_SourceDispatch(t *testing.T) {
+	t.Parallel()
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/demo/foo",
+		Files:  map[string]string{"foo.gno": `package foo`},
+	}
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		cfg,
+	)
+	require.NoError(t, err)
+
+	tests := []struct {
+		url        string
+		wantInBody string
+	}{
+		{"/r/demo/foo$source", "Overview"},
+		{"/r/demo/foo$source&file=foo.gno", "package foo"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.url, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.url, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.wantInBody)
 		})
 	}
 }

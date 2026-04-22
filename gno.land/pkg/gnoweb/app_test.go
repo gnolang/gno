@@ -44,6 +44,11 @@ func TestRoutes(t *testing.T) {
 			{"/r/gnoland/blog$help", ok, "AdminSetAdminAddr"},
 			{"/r/gnoland/blog/", ok, "admin.gno"},
 			{"/r/gnoland/blog/admin.gno", ok, ">func<"},
+			// Overview view: $source with no file should render the package overview.
+			{"/r/gnoland/blog$source", ok, "Overview"},
+			{"/r/gnoland/blog$source", ok, "Source Files"},
+			// Source view: $source with a file should still render the classic code view.
+			{"/r/gnoland/blog$source&file=admin.gno", ok, "b-source-code"},
 			{"/r/gnoland/blog$help&func=Render", ok, "Render(path)"},
 			{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 			// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
