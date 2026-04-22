@@ -616,10 +616,10 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 					fmt.Fprintf(sb, "%s}\n", indent)
 				}
 			} else {
-				fmt.Fprintf( // Amino never encodes nil pointers in unpacked lists unless
-					// amino:"nil_elements" is set. Without that tag, 0x00 is a valid
-					// length-prefix for an empty message, not a nil marker.
-					sb, "%svar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
+				// For struct pointer elements without nil_elements, marshal errors on nil,
+				// so 0x00 on the wire is always a length-prefix for an empty message,
+				// not a nil marker.
+				fmt.Fprintf(sb, "%svar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
 				if writeImplicit {
 					ctx.writeImplicitStructDecode(sb, "ev", einfo, fopts, indent)
 				} else {
