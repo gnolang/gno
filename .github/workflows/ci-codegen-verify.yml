@@ -50,6 +50,7 @@ jobs:
       - run: |
           make -C misc/genproto
           git diff --text --exit-code || (echo "Some .proto files are not updated, please run 'make -C misc/genproto'." && exit 1)
+      - run: go build ./...
 
   docs:
     runs-on: ubuntu-latest
