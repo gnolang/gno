@@ -4,8 +4,8 @@ interface PlaygroundFile {
 	content: string;
 }
 
-const GNOMOD_FILE = "gnomod.toml"
-const DEFAULT_GNO_CONTENT = "package main\n"
+const GNOMOD_FILE = "gnomod.toml";
+const DEFAULT_GNO_CONTENT = "package main\n";
 
 export default function PlaygroundController(element: HTMLElement): void {
 	let files: PlaygroundFile[] = [];
@@ -68,24 +68,24 @@ export default function PlaygroundController(element: HTMLElement): void {
 			codeEl.value = files[idx].content;
 			renderTabs();
 		}
-		return idx >= 0
+		return idx >= 0;
 	}
 
 	function addFile(): void {
-		let name = prompt("File name (e.g. helper.gno):");
+		const name = prompt("File name (e.g. helper.gno):");
 		if (name == null) return;
 
 		// If name exists switch to that file instead of creating it
 		if (switchToFile(name)) return;
 
 		// Only allow adding the metatadat or Gno files
-		const isGnomod = name === GNOMOD_FILE
+		const isGnomod = name === GNOMOD_FILE;
 		if (!name.endsWith(".gno") && !isGnomod) return;
 
-		let content = DEFAULT_GNO_CONTENT
+		let content = DEFAULT_GNO_CONTENT;
 		if (isGnomod) {
-				content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
-				gnomodFile = files.length;
+			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
+			gnomodFile = files.length;
 		}
 
 		files[activeFile].content = codeEl.value;
@@ -125,19 +125,28 @@ export default function PlaygroundController(element: HTMLElement): void {
 					setOutput(result.result);
 				}
 			} catch {
-				setOutput(`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`);
+				setOutput(
+					`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,
+				);
 			}
 		} else {
-			setOutput(`Package: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`);
+			setOutput(
+				`Package: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`,
+			);
 		}
 	}
 
 	function runTests(): void {
-		setOutput("Testing requires a running gno node.\n\nTo test locally:\n  gno test .");
+		setOutput(
+			"Testing requires a running gno node.\n\nTo test locally:\n  gno test .",
+		);
 	}
 
 	function formatCode(): void {
-		setOutput("Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " + files[activeFile].name);
+		setOutput(
+			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " +
+				files[activeFile].name,
+		);
 	}
 
 	function shareCode(): void {
