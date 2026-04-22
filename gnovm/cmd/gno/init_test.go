@@ -531,3 +531,83 @@ func TestNormalizeModulePath(t *testing.T) {
 		require.Equal(t, tt.want, normalizeModulePath(tt.in), "input: %q", tt.in)
 	}
 }
+
+// TestWriteRunScriptNoOrphanDir verifies that if template rendering fails,
+// no parent directory (e.g. "run/") is left behind on disk. Regression test
+// for the "render before mkdir" ordering in writeRunScript.
+func TestWriteRunScriptNoOrphanDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// initTemplate pointing at a non-existent directory inside the embed FS —
+	// renderTemplateDir will fail before any filesystem side effect.
+	bogus := initTemplate{
+		Name: "bogus",
+		Dir:  "templates/run/doesnotexist",
+		FS:   runTemplatesFS,
+	}
+	err := writeRunScript(tmpDir, "run/hello.gno", "hello", bogus, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "render run template")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "run"))
+	require.True(t, os.IsNotExist(err), "run/ must not be created when template rendering fails")
+}
+
+// TestModInitBareNoArgsErrors locks in the new behavior for `gno mod init`:
+// when called with no arguments, it must error out (rather than silently
+// creating a gnomod.toml with an empty module path as the pre-refactor
+// code did).
+func TestModInitBareNoArgsErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	io, _ := newTestMockIOWithStderr("")
+	cmd := newModInitCmd(io)
+	err = cmd.ParseAndRun(t.Context(), nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "module path is required")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
+	require.True(t, os.IsNotExist(err), "no gnomod.toml should be written when `gno mod init` gets no args")
+}
+
+// TestModInitRunTemplateFlag verifies that --template is honored on the
+// .gno run-script shorthand path: a valid name succeeds, an unknown name
+// fails cleanly with no filesystem side effects.
+func TestModInitRunTemplateFlag(t *testing.T) {
+	t.Run("known template", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		origDir, err := os.Getwd()
+		require.NoError(t, err)
+		require.NoError(t, os.Chdir(tmpDir))
+		t.Cleanup(func() { os.Chdir(origDir) })
+
+		cfg := &modInitCfg{template: "basic"}
+		err = execModInit(cfg, []string{"run/hello.gno"}, newTestMockIO(""))
+		require.NoError(t, err)
+		require.FileExists(t, filepath.Join(tmpDir, "run", "hello.gno"))
+	})
+
+	t.Run("unknown template", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		origDir, err := os.Getwd()
+		require.NoError(t, err)
+		require.NoError(t, os.Chdir(tmpDir))
+		t.Cleanup(func() { os.Chdir(origDir) })
+
+		cfg := &modInitCfg{template: "nonexistent"}
+		err = execModInit(cfg, []string{"run/hello.gno"}, newTestMockIO(""))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown template")
+
+		// No orphan run/ directory on failure.
+		_, err = os.Stat(filepath.Join(tmpDir, "run"))
+		require.True(t, os.IsNotExist(err), "run/ must not be created when template resolution fails")
+	})
+}
