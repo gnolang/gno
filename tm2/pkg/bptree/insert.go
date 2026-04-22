@@ -132,8 +132,8 @@ func leafInsert(leaf *LeafNode, key []byte, payload slotPayload) insertResult {
 		}
 		// Shift inline bits and slotsDirty bits [pos, n) up by one in
 		// parallel with the slot-data shift above. See
-		// shiftSlotsDirtyUp comment for the corruption hazard if the
-		// dirty bitmap is left mis-aligned (ajnavarro #1).
+		// shiftSlotsDirtyUp's doc for the corruption hazard if the
+		// dirty bitmap is left mis-aligned.
 		shiftInlineMaskUp(leaf, pos)
 		shiftSlotsDirtyUp(leaf, pos)
 		leaf.keys[pos] = key
@@ -203,12 +203,13 @@ func shiftInlineMaskUp(leaf *LeafNode, pos int) {
 // valueKeys / inlineValues / slotHashes). Without this, dirty bits from
 // pre-shift positions point at unrelated post-shift slots, and
 // rebuildMiniMerkleIncremental trusts a stale slotHashes[i] for what
-// looks like a clean slot — emitting a corrupt root hash. Reproducer:
-// empty tree → Set(K20), Set(K30), Set(K10) without intervening
-// Hash(); the second Set leaves bit 1 dirty, the third Set's shift
-// moves the data to slot 2 but leaves the bit at 1, then the rebuild
-// sees slot 2 as clean and reuses the uninitialised slotHashes[2].
-// See ajnavarro PR #5571 review.
+// looks like a clean slot — emitting a corrupt root hash.
+//
+// Reproducer: an empty leaf with Set(K20), Set(K30), Set(K10) and no
+// intervening Hash(): the second Set leaves bit 1 dirty, the third
+// Set's shift moves the data to slot 2 but leaves the bit at 1, then
+// the rebuild sees slot 2 as clean and reuses the uninitialised
+// slotHashes[2]. Pinned by TestLeafInsert_HashAgreesAcrossInsertOrders.
 //
 // The bit previously at position B-1 is dropped — same caller invariant
 // as shiftInlineMaskUp ("leaf had room", so position B-1 was unused

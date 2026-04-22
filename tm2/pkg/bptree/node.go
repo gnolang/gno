@@ -462,7 +462,15 @@ func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
 	n16 := int(n.numKeys)
 	if n16 > 0 {
 		// Keys are sorted, so the first/last pair bounds the common
-		// prefix of every key in between.
+		// prefix of every key in between. INVARIANT: callers MUST NOT
+		// invoke Serialize on a leaf with a transient unsorted key
+		// state (e.g. mid-redistribute, mid-merge, mid-split). The
+		// B+tree mutation paths uphold this — Serialize is only
+		// reached via SaveNode → saveNode after the post-mutation
+		// rebuild has restored canonical sorted order. A violation
+		// would emit a wrong common prefix and the v3 reader would
+		// reconstruct different bytes, silently corrupting persistent
+		// state.
 		plen := commonPrefixLen(n.keys[0], n.keys[n16-1])
 		writeUvarintBuf(buf, uint64(plen))
 		if plen > 0 {
@@ -600,10 +608,15 @@ func readLeafNodeV1(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 	}
 	n.numKeys = int16(numKeys)
 
+	var cumulative uint64
 	for i := 0; i < int(n.numKeys); i++ {
 		n.keys[i], err = readBytes(r)
 		if err != nil {
 			return nil, fmt.Errorf("reading key %d: %w", i, err)
+		}
+		cumulative += uint64(len(n.keys[i]))
+		if cumulative > maxLeafReadBytes {
+			return nil, fmt.Errorf("leaf cumulative key bytes %d exceeds maximum %d", cumulative, maxLeafReadBytes)
 		}
 	}
 	for i := 0; i < int(n.numKeys); i++ {
@@ -642,10 +655,15 @@ func readLeafNodeV2(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 	}
 	n.numKeys = int16(numKeys)
 
+	var cumulative uint64
 	for i := 0; i < int(n.numKeys); i++ {
 		n.keys[i], err = readBytes(r)
 		if err != nil {
 			return nil, fmt.Errorf("reading key %d: %w", i, err)
+		}
+		cumulative += uint64(len(n.keys[i]))
+		if cumulative > maxLeafReadBytes {
+			return nil, fmt.Errorf("leaf cumulative key bytes %d exceeds maximum %d", cumulative, maxLeafReadBytes)
 		}
 	}
 	for i := 0; i < int(n.numKeys); i++ {
@@ -663,6 +681,10 @@ func readLeafNodeV2(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 			v, err := readBytes(r)
 			if err != nil {
 				return nil, fmt.Errorf("reading inline value %d: %w", i, err)
+			}
+			cumulative += uint64(len(v))
+			if cumulative > maxLeafReadBytes {
+				return nil, fmt.Errorf("leaf cumulative bytes %d (key+inline) exceeds maximum %d", cumulative, maxLeafReadBytes)
 			}
 			n.inlineValues[i] = v
 		} else {
@@ -700,6 +722,13 @@ func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 	}
 	n.numKeys = int16(numKeys)
 
+	// Cumulative leaf-bytes budget: bounds the v3-specific amplification
+	// where each reconstructed key includes a fresh copy of the common
+	// prefix (B copies of prefixLen extra bytes vs v2). Without this
+	// cap, a malicious blob with prefixLen ≈ maxReadBytesLen and
+	// numKeys = B can allocate B*prefixLen ≈ 2 MiB per leaf via the
+	// per-key bound alone — see maxLeafReadBytes.
+	var cumulative uint64
 	if n.numKeys > 0 {
 		prefixLen, err := binary.ReadUvarint(r)
 		if err != nil {
@@ -720,13 +749,18 @@ func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 			if err != nil {
 				return nil, fmt.Errorf("reading key %d suffixLen: %w", i, err)
 			}
-			if uint64(prefixLen)+suffixLen > maxReadBytesLen {
-				return nil, fmt.Errorf("key %d length %d exceeds maximum %d", i, uint64(prefixLen)+suffixLen, maxReadBytesLen)
+			keyLen := uint64(prefixLen) + suffixLen
+			if keyLen > maxReadBytesLen {
+				return nil, fmt.Errorf("key %d length %d exceeds maximum %d", i, keyLen, maxReadBytesLen)
+			}
+			cumulative += keyLen
+			if cumulative > maxLeafReadBytes {
+				return nil, fmt.Errorf("leaf cumulative key bytes %d exceeds maximum %d", cumulative, maxLeafReadBytes)
 			}
 			// Allocate the full key once. This keeps each leaf.keys[i]
 			// backed by its own byte array, preserving the key-ownership
 			// invariant (Finding #20) that Clone relies on.
-			key := make([]byte, uint64(prefixLen)+suffixLen)
+			key := make([]byte, keyLen)
 			copy(key, prefix)
 			if suffixLen > 0 {
 				if _, err := io.ReadFull(r, key[prefixLen:]); err != nil {
@@ -752,6 +786,10 @@ func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 			v, err := readBytes(r)
 			if err != nil {
 				return nil, fmt.Errorf("reading inline value %d: %w", i, err)
+			}
+			cumulative += uint64(len(v))
+			if cumulative > maxLeafReadBytes {
+				return nil, fmt.Errorf("leaf cumulative bytes %d (key+inline) exceeds maximum %d", cumulative, maxLeafReadBytes)
 			}
 			n.inlineValues[i] = v
 		} else {
@@ -805,6 +843,18 @@ func writeBytesBuf(buf *bytes.Buffer, b []byte) {
 // size while still bounding a single malicious length prefix to a
 // reasonable allocation. See Finding #22.
 const maxReadBytesLen = 1 << 16 // 64 KiB
+
+// maxLeafReadBytes caps the cumulative bytes a single leaf reader is
+// allowed to allocate for keys + inline values. Without this, the
+// per-field maxReadBytesLen bound is multiplied by B = 32 slots,
+// letting a malicious DB blob allocate up to B*maxReadBytesLen ≈ 2 MiB
+// per leaf via crafted lengths. The v3 reader amplifies further
+// because the common prefix is duplicated into every reconstructed
+// key (B copies of prefixLen → up to B*64 KiB extra). 256 KiB is
+// roughly 30× a realistic leaf footprint (32 slots × (32-byte key +
+// 256-byte value) ≈ 9 KiB) while still bounding the worst
+// pathological blob.
+const maxLeafReadBytes = 1 << 18 // 256 KiB
 
 func readBytes(r *bytes.Reader) ([]byte, error) {
 	length, err := binary.ReadUvarint(r)

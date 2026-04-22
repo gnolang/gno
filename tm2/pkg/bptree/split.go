@@ -47,6 +47,16 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, inlineValu
 	// so they align with right's slot indices.
 	right.inlineMask = uint32(inlineMask >> uint(splitPoint))
 
+	// Mark every occupied slot dirty on both halves so the next
+	// ensureMiniMerkleBuilt rebuilds via rebuildMiniMerkleIncremental
+	// against fresh slotHashes. The slotHashes [B]Hash arrays on these
+	// fresh nodes are zero-initialised; without flagging them dirty,
+	// rebuildMiniMerkleIncremental would trust the all-zero cache
+	// (slotsDirty == 0 means "all hashes are valid") and emit a
+	// corrupt root hash.
+	left.markLeafSlotsDirtyRange(0, int(left.numKeys))
+	right.markLeafSlotsDirtyRange(0, int(right.numKeys))
+
 	sep := make([]byte, len(right.keys[0]))
 	copy(sep, right.keys[0])
 

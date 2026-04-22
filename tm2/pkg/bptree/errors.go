@@ -47,7 +47,6 @@ var (
 	// (e.g. the value file was deleted externally) rather than a Get
 	// miss. Surfaced as a typed error so callers can distinguish it
 	// from a legitimate empty value (which round-trips as a non-nil
-	// zero-length slice with err == nil). See ajnavarro PR #5571
-	// review.
+	// zero-length slice with err == nil).
 	ErrValueMissing = errors.New("bptree: value missing for valueKey")
 )

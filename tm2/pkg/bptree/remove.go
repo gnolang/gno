@@ -71,7 +71,7 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 	// Shift inlineMask AND slotsDirty bits [pos+1, n) down by one in
 	// parallel with the slot-data shift above; the vacated top bit
 	// falls off naturally. See shiftSlotsDirtyDown for the corruption
-	// hazard the missing parallel shift causes (ajnavarro #1).
+	// hazard the missing parallel shift causes.
 	shiftInlineMaskDown(leaf, pos)
 	shiftSlotsDirtyDown(leaf, pos)
 	leaf.numKeys--
@@ -92,7 +92,7 @@ func shiftInlineMaskDown(leaf *LeafNode, pos int) {
 // to follow the parallel shift of slot data on remove. The vacated bit
 // at the old top of the occupied range falls off naturally (cleared by
 // the right-shift). See shiftSlotsDirtyUp comment for the corruption
-// hazard the missing parallel shift causes (ajnavarro #1).
+// hazard the missing parallel shift causes.
 func shiftSlotsDirtyDown(leaf *LeafNode, pos int) {
 	low := leaf.slotsDirty & ((uint32(1) << uint(pos)) - 1)
 	high := leaf.slotsDirty >> uint(pos+1) << uint(pos)
@@ -222,7 +222,7 @@ func redistributeRight(parent *InnerNode, idx int) {
 		// Shift r.inlineMask AND r.slotsDirty up by 1 bit (inserting a
 		// vacant bit at 0) — parallel with the slot-data shift above.
 		// See shiftSlotsDirtyUp comment (insert.go) for the corruption
-		// hazard the missing parallel shift causes (ajnavarro #1).
+		// hazard the missing parallel shift causes.
 		r.inlineMask <<= 1
 		r.slotsDirty <<= 1
 		// Move the last slot from l to position 0 of r, preserving
@@ -329,7 +329,7 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		}
 		// Mirror the borrowed slot's dirty bit so l.slotHashes[dst]'s
 		// validity tracks r.slotHashes[0]'s pre-move state
-		// (ajnavarro #1).
+		//.
 		if r.slotsDirty&1 != 0 {
 			l.slotsDirty |= uint32(1) << uint(dst)
 		}
@@ -344,7 +344,7 @@ func redistributeLeft(parent *InnerNode, idx int) {
 			r.slotHashes[i] = r.slotHashes[i+1]
 		}
 		// Shift inlineMask AND slotsDirty down by one — parallel with
-		// the slot-data shift above (ajnavarro #1).
+		// the slot-data shift above.
 		r.inlineMask >>= 1
 		r.slotsDirty >>= 1
 		r.keys[rn-1] = nil
@@ -441,7 +441,7 @@ func merge(parent *InnerNode, idx int) {
 			// validity tracks r.slotHashes[i]'s pre-merge state. Without
 			// this, dirty bits from r are dropped — the next incremental
 			// rebuild on l would trust uninitialised slotHashes for the
-			// absorbed range (ajnavarro #1).
+			// absorbed range.
 			if r.slotsDirty&(uint32(1)<<uint(i)) != 0 {
 				l.slotsDirty |= uint32(1) << uint(dst)
 			}

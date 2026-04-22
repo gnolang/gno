@@ -290,7 +290,7 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 //     ErrValueMissing return signals out-of-band corruption (e.g. the
 //     value file was deleted externally) rather than a legitimate
 //     Get miss. Callers should propagate the error rather than treat
-//     it as a missing key. See ajnavarro PR #5571 review.
+//     it as a missing key.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	data, err := ndb.db.Get(valueDBKey(vk))
 	if err != nil {

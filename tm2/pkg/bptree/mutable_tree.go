@@ -279,7 +279,14 @@ func (t *MutableTree) cacheValueForKey(key, value []byte) {
 func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if t.fastNodes != nil {
 		if v, ok := t.fastNodes.Get(string(key)); ok {
-			return v, nil
+			// Defensive copy on the hit path: returning the cached
+			// slice directly would let a caller mutate it and corrupt
+			// every future Get hit on the same key. Mirrors the
+			// populate-path discipline (cacheValueForKey on Set, and
+			// the copy below on the Get-miss-then-cache-add path).
+			out := make([]byte, len(v))
+			copy(out, v)
+			return out, nil
 		}
 	}
 	if t.root == nil {
@@ -415,9 +422,9 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 			// the tree in a partially-mutated state with the caller
 			// unable to retry coherently. Surfacing the error in the
 			// log preserves the diagnostic trail without breaking the
-			// Remove contract. Future work: surface a wrapped error
-			// distinguishing resolution failure from a healthy
-			// no-old-value case (ajnavarro #7).
+			// Remove contract. The returned val is nil; callers that
+			// need to distinguish resolution failure from a healthy
+			// nil-old-value will need a wrapped error instead.
 			t.logger.Error("bptree: resolveValue failed in Remove",
 				"vk", fmt.Sprintf("%x", oldPayload.valueKey), "err", err)
 		}
