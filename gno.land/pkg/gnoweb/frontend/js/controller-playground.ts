@@ -95,10 +95,14 @@ export default function PlaygroundController(element: HTMLElement): void {
 		renderTabs();
 	}
 
+	function setOutput(text: string, isError: boolean = false): void {
+		outputEl.textContent = text;
+		outputEl.classList.toggle("u-color-danger", isError);
+	}
+
 	async function runCode(): Promise<void> {
 		files[activeFile].content = codeEl.value;
-		outputEl.textContent = "Running...";
-		outputEl.classList.remove("u-color-danger");
+		setOutput("Running...");
 
 		const code = codeEl.value;
 		const pkgMatch = code.match(/^package\s+(\w+)/m);
@@ -116,28 +120,24 @@ export default function PlaygroundController(element: HTMLElement): void {
 				});
 				const result = await resp.json();
 				if (result.error) {
-					outputEl.textContent = `Error: ${result.error}`;
-					outputEl.classList.add("u-color-danger");
+					setOutput(`Error: ${result.error}`, true);
 				} else {
-					outputEl.textContent = result.result;
+					setOutput(result.result);
 				}
 			} catch {
-				outputEl.textContent = `Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`;
+				setOutput(`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`);
 			}
 		} else {
-			outputEl.textContent = `Package: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`;
+			setOutput(`Package: ${pkgName}\nFiles: ${files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`);
 		}
 	}
 
 	function runTests(): void {
-		outputEl.textContent =
-			"Testing requires a running gno node.\n\nTo test locally:\n  gno test .";
+		setOutput("Testing requires a running gno node.\n\nTo test locally:\n  gno test .");
 	}
 
 	function formatCode(): void {
-		outputEl.textContent =
-			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " +
-			files[activeFile].name;
+		setOutput("Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " + files[activeFile].name);
 	}
 
 	function shareCode(): void {
@@ -156,16 +156,15 @@ export default function PlaygroundController(element: HTMLElement): void {
 		navigator.clipboard
 			.writeText(url)
 			.then(() => {
-				outputEl.textContent = "Share URL copied to clipboard!";
+				setOutput("Share URL copied to clipboard!");
 			})
 			.catch(() => {
-				outputEl.textContent = `Share URL:\n${url}`;
+				setOutput(`Share URL:\n${url}`);
 			});
 	}
 
 	function clearOutput(): void {
-		outputEl.textContent = "// Run code to see output here";
-		outputEl.classList.remove("u-color-danger");
+		setOutput("// Run code to see output here");
 	}
 
 	// Keyboard shortcuts
