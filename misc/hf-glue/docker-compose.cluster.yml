@@ -16,6 +16,21 @@
 #
 # Only node0's RPC is pointed at by gnoweb. Query either node's RPC directly
 # on localhost:{26657,36657} to compare state.
+#
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │ MEMORY REQUIREMENT                                                   │
+# │                                                                      │
+# │ Each gnoland node uses ~3.5 GiB of RAM during hardfork genesis       │
+# │ replay + steady state. Docker Desktop's default VM is ~7.65 GiB,     │
+# │ which ISN'T enough for 2 nodes + gnoweb. If the Docker VM OOM-kills  │
+# │ a node (exitcode=137, SIGKILL), the db is left in an INCONSISTENT    │
+# │ state — see the "latent atomicity bug" note in README.md — and the   │
+# │ node crash-loops on restart with a panic from                        │
+# │ gnovm.PreprocessAllFilesAndSaveBlockNodes.                           │
+# │                                                                      │
+# │ **Bump Docker Desktop → Settings → Resources → Memory to ≥12 GiB     │
+# │ before running this compose file.**                                  │
+# └──────────────────────────────────────────────────────────────────────┘
 
 x-gnoland-common: &gnoland-common
   image: hf-glue-gnoland:latest

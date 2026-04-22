@@ -171,16 +171,37 @@ make cluster-status   # both /status + /net_info
 secrets, shared genesis with 2 validators, `persistent_peers`, p2p
 handshake, and consensus vote exchange at the initial height all work.
 
-**Known issue (cluster-only, separate from this PR's tooling):** on a
-fresh boot, one of the two nodes exits cleanly after producing block 2
-(no panic on the first run), and every subsequent restart panics inside
-`gnovm.PreprocessAllFilesAndSaveBlockNodes` / `VMKeeper.Initialize` —
-`IterMemPackage` yields a `MemPackage` whose backing `iavlStore` entry
-is missing while the `baseStore` package-index still points at it.
-That's a cross-store atomicity violation between `AddMemPackage`'s two
-writes (see `7a88a8afa` for a descriptive panic that names the bad
-path). Single-node boots fine on the same genesis; only the 2-validator
-consensus path triggers it. Track separately.
+**⚠ Memory requirement.** Each gnoland node uses ~3.5 GiB of RAM during
+genesis replay + steady state. Docker Desktop's default VM is ~7.65 GiB,
+not enough for two of them + gnoweb. **Bump Docker Desktop → Settings →
+Resources → Memory to ≥12 GiB before running `make cluster-up`.**
+
+**Why this matters beyond just "give it more RAM":** when the Docker VM
+runs out of memory, the kernel SIGKILLs one of the nodes (exitcode=137,
+no panic, no logs). A SIGKILL mid-block-commit exposes a **latent
+atomicity bug** in the gnoland app store layer:
+
+- `baseStore` (package index, small KV metadata) is mounted as
+  `dbadapter.StoreConstructor` — writes hit the underlying PebbleDB
+  **immediately** (the store's own `Commit()` is a no-op).
+- `iavlStore` (package data, state) is mounted as `iavl.StoreConstructor`
+  — writes **buffer in the IAVL tree** until `CommitMultiStore.Commit()`.
+
+`AddMemPackage` writes first to `baseStore` (persisted NOW) then to
+`iavlStore` (persisted at next block Commit). If the process dies
+between those — whether from OOM SIGKILL, power loss, or anything
+non-graceful — the on-disk state has the index entry but no data for
+it. On restart, `VMKeeper.Initialize` → `IterMemPackage` →
+`ParseMemPackage` SIGSEGVs on the missing package.
+
+Commit `7a88a8afa` replaces the cryptic SIGSEGV with a descriptive
+panic naming the inconsistent index/path. Fixing the atomicity properly
+would need `baseStore` to go through a buffered/committable store
+layer (or the package index to move into `iavlStore`), which is a
+bigger tm2 store change outside this PR's scope.
+
+Single-node boots fine because it rarely crashes mid-commit; the
+cluster surfaces the bug only because OOM is deterministic.
 
 Two replay-engine bugs surfaced while building this cluster test *have*
 been fixed on this branch:
