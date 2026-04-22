@@ -111,7 +111,7 @@ func (p *PackageWatcher) Stop() {
 	p.stop()
 }
 
-func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
+func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...*packages.NewPackage) {
 	watchList := p.watcher.WatchList()
 
 	oldPkgs := make(map[string]struct{}, len(watchList))
@@ -121,13 +121,13 @@ func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
 
 	newPkgs := make(map[string]struct{}, len(pkgs))
 	for _, pkg := range pkgs {
-		if pkg.Kind != packages.PackageKindFS {
+		if pkg.Kind != packages.KindFS {
 			continue
 		}
 
-		dir, err := filepath.Abs(pkg.Location)
+		dir, err := filepath.Abs(pkg.Dir)
 		if err != nil {
-			p.logger.Error("Unable to get absolute path", "path", pkg.Location, "error", err)
+			p.logger.Error("Unable to get absolute path", "path", pkg.Dir, "error", err)
 			continue
 		}
 
