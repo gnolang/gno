@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/mattn/go-isatty"
 )
@@ -95,12 +95,11 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 	// preloads/watches it. Workspace discovery + -extra-root now drive the
 	// loader; no resolver wiring is needed here.
 	path := guessPath(&cfg.AppConfig, dir)
-	resolver := packages.NewLocalResolver(path, dir)
-	if resolver.IsValid() {
+	if _, err := gnolang.ReadMemPackage(dir, path, gnolang.MPAnyAll); err == nil {
 		if len(cfg.paths) > 0 {
 			cfg.paths += ","
 		}
-		cfg.paths += resolver.Path
+		cfg.paths += path
 	}
 
 	return runApp(&cfg.AppConfig, cio) // else run app without any dir
