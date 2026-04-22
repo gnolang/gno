@@ -57,18 +57,6 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 	}
 }
 
-// IsParamReprEmpty reports whether the amino repr-string form of a Param
-// is empty. Used by generated pbbindings.go in packages that reference
-// params.Param (see tm2/pkg/amino/genproto). Mirrors the shape of
-// std.IsCoinReprEmpty.
-func IsParamReprEmpty(goor string) (empty bool) {
-	empty = true
-	if goor != "" {
-		return false
-	}
-	return
-}
-
 // Gets list of kvpairs associated with param struct from store.
 func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std.KVPair) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
