@@ -94,32 +94,6 @@ Examples:
 	)
 }
 
-// newModInitLegacyCmd registers `gno mod init` as a thin legacy alias that
-// preserves the original behavior: create a bare gnomod.toml in CWD. It
-// never triggers the interactive wizard, and hints at `gno init` for users
-// who want the richer scaffolding flow.
-func newModInitLegacyCmd(io commands.IO) *commands.Command {
-	cfg := &modInitCfg{}
-	return commands.NewCommand(
-		commands.Metadata{
-			Name:       "init",
-			ShortUsage: "init [<module-path>]",
-			ShortHelp:  "create a bare gnomod.toml (see 'gno init' for templates)",
-			LongHelp: `Create a bare gnomod.toml in the current directory.
-
-For interactive scaffolding with template files, use 'gno init' instead.`,
-		},
-		cfg,
-		func(_ context.Context, args []string) error {
-			io.ErrPrintln("hint: 'gno init' scaffolds a module with template files interactively")
-			// Always bare — never trigger the wizard.
-			cfg.bare = true
-			cfg.template = ""
-			return execModInit(cfg, args, io)
-		},
-	)
-}
-
 // execModInit is the shared handler for both `gno init` and `gno mod init`.
 // It dispatches to the appropriate flow based on the config and arguments:
 // bare, .gno run script, argument-driven scaffold, or full wizard.

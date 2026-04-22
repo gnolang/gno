@@ -34,12 +34,37 @@ func newModCmd(io commands.IO) *commands.Command {
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
 		newModGraphCmd(io),
-		newModInitLegacyCmd(io),
+		newModInitCmd(io),
 		newModTidy(io),
 		newModWhy(io),
 	)
 
 	return cmd
+}
+
+// newModInitCmd registers `gno mod init`: create a bare gnomod.toml in the
+// current directory. It never triggers the interactive wizard, and hints at
+// `gno init` for users who want scaffolding with template files.
+func newModInitCmd(io commands.IO) *commands.Command {
+	cfg := &modInitCfg{}
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "init",
+			ShortUsage: "init [<module-path>]",
+			ShortHelp:  "create a bare gnomod.toml (see 'gno init' for templates)",
+			LongHelp: `Create a bare gnomod.toml in the current directory.
+
+For interactive scaffolding with template files, use 'gno init' instead.`,
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			io.ErrPrintln("hint: 'gno init' scaffolds a module with template files interactively")
+			// Always bare — never trigger the wizard.
+			cfg.bare = true
+			cfg.template = ""
+			return execModInit(cfg, args, io)
+		},
+	)
 }
 
 func newModDownloadCmd(io commands.IO) *commands.Command {

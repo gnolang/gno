@@ -1,7 +1,11 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModApp(t *testing.T) {
@@ -249,4 +253,27 @@ gno.land/p/nt/avl/v0 testing
 	}
 
 	testMainCaseRun(t, tc)
+}
+
+// TestModInit verifies that `gno mod init <path>` creates a bare gnomod.toml
+// in CWD and emits a hint pointing users to the richer `gno init` command.
+func TestModInit(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	io, stderr := newTestMockIOWithStderr("")
+	cmd := newModInitCmd(io)
+	err = cmd.ParseAndRun(t.Context(), []string{"gno.land/p/demo/alias"})
+	require.NoError(t, err)
+
+	require.Contains(t, stderr.String(), "gno init")
+	require.NotContains(t, stderr.String(), "deprecated")
+	require.FileExists(t, filepath.Join(tmpDir, "gnomod.toml"))
+	// `gno mod init` must never produce template files.
+	_, err = os.Stat(filepath.Join(tmpDir, "alias.gno"))
+	require.True(t, os.IsNotExist(err))
 }

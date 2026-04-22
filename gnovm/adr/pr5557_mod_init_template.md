@@ -135,9 +135,9 @@ addition to `gnomod.toml`. The `--bare` flag is the explicit escape hatch for
 callers that want `gnomod.toml` only — preserving the legacy `gno mod init`
 behavior under a single well-defined flag.
 
-### Backward compatibility alias
+### Backward compatibility: `gno mod init`
 
-`gno mod init` is kept as a hidden legacy alias that preserves its original
+`gno mod init` is kept as a `gno mod` subcommand that preserves its original
 bare behavior: it always writes a minimal `gnomod.toml` in the current
 directory (never triggers the interactive wizard and never scaffolds template
 files). It prints a one-line hint on stderr pointing at `gno init` for users
@@ -214,8 +214,8 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 | `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `IsInteractive`) |
 | `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
-| `gnovm/cmd/gno/mod.go` | `gno mod` subcommands only (download, graph, tidy, why) |
-| `gnovm/cmd/gno/init.go` | `newInitCmd`, `newModInitLegacyCmd`, `execModInit`, `validateModulePath`, `scaffoldModule`, `renderModuleFiles`, `writeFiles`, `execInitRun`, `writeRunScript`, `promptModuleKind`/`promptModulePath`, `selectTemplate`, `insertPathLetter`, `validateGnoPath`, `validateNamespace` (accepts a name or a bech32 address) |
+| `gnovm/cmd/gno/mod.go` | `gno mod` subcommands: `newModCmd`, `newModInitCmd` (bare gnomod.toml), `newModDownloadCmd`, `newModGraphCmd`, `newModTidy`, `newModWhy` |
+| `gnovm/cmd/gno/init.go` | `newInitCmd`, `execModInit`, `validateModulePath`, `scaffoldModule`, `renderModuleFiles`, `writeFiles`, `execInitRun`, `writeRunScript`, `promptModuleKind`/`promptModulePath`, `selectTemplate`, `insertPathLetter`, `validateGnoPath`, `validateNamespace` (accepts a name or a bech32 address) |
 | `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplateDir` |
 | `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` and `{{.ScriptName}}` in filenames |
 | `gnovm/cmd/gno/mod_test.go` | Tests for `gno mod` subcommands and `gno init` integration cases (via `testMainCaseRun`) |

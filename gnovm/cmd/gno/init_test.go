@@ -531,27 +531,3 @@ func TestNormalizeModulePath(t *testing.T) {
 		require.Equal(t, tt.want, normalizeModulePath(tt.in), "input: %q", tt.in)
 	}
 }
-
-// TestModInitLegacyAlias verifies that `gno mod init <path>` still creates a
-// bare gnomod.toml in CWD (preserving the original behavior) and emits a
-// hint pointing users to the new `gno init` command.
-func TestModInitLegacyAlias(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	t.Cleanup(func() { os.Chdir(origDir) })
-
-	io, stderr := newTestMockIOWithStderr("")
-	cmd := newModInitLegacyCmd(io)
-	err = cmd.ParseAndRun(t.Context(), []string{"gno.land/p/demo/alias"})
-	require.NoError(t, err)
-
-	require.Contains(t, stderr.String(), "gno init")
-	require.NotContains(t, stderr.String(), "deprecated")
-	require.FileExists(t, filepath.Join(tmpDir, "gnomod.toml"))
-	// The alias must never produce template files.
-	_, err = os.Stat(filepath.Join(tmpDir, "alias.gno"))
-	require.True(t, os.IsNotExist(err))
-}
