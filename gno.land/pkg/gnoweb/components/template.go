@@ -51,6 +51,15 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		}
 		return result, nil
 	}
+	funcs["values"] = func(groups []ValueGroup, kind string) []ValueGroup {
+		out := make([]ValueGroup, 0, len(groups))
+		for _, g := range groups {
+			if g.Kind == kind {
+				out = append(out, g)
+			}
+		}
+		return out
+	}
 }
 
 func init() {
