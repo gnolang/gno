@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"encoding/binary"
+	goerrors "errors"
 	"fmt"
 )
 
@@ -15,21 +16,31 @@ func nodeKeyArr(nk *NodeKey) [NodeKeySize]byte {
 	return a
 }
 
+// ErrShortNodeKeyRef is returned when a serialised child reference is
+// shorter than NodeKeySize. A short ref reaching the prune path means
+// the on-disk node serialisation is corrupt (see Finding #18 for the
+// write-side guard); surfacing it as an error lets PruneVersionsTo's
+// loop discard its partial batch via discardBatch instead of panicking
+// past the explicit error-handling path. See BUG-4 in PR-5750.md.
+var ErrShortNodeKeyRef = goerrors.New("bptree: short serialised NodeKey ref")
+
 // nodeKeyBytesToArr copies an already-serialized 12-byte NodeKey into a
 // value-typed [NodeKeySize]byte for map lookup. A short slice would
 // otherwise zero-pad the tail and silently miscompare against the
 // reachable set (producing either a bogus hit or a bogus miss). A short
 // slice reaching this helper indicates a desync between `InnerNode`
 // serialisation and the reader (Finding #18 also guards this on the
-// write side); panic with a clear diagnostic so the upstream bug is
-// visible instead of corrupting prune decisions. See Finding #47.
-func nodeKeyBytesToArr(b []byte) [NodeKeySize]byte {
-	if len(b) != NodeKeySize {
-		panic(fmt.Sprintf("bptree: nodeKeyBytesToArr: short slice len=%d want %d", len(b), NodeKeySize))
-	}
+// write side); return ErrShortNodeKeyRef so the prune loop can discard
+// its partial batch via discardBatch and surface the corruption
+// diagnostically rather than panicking past the explicit error-handling
+// path. See Finding #47 and BUG-4 in PR-5750.md.
+func nodeKeyBytesToArr(b []byte) ([NodeKeySize]byte, error) {
 	var a [NodeKeySize]byte
+	if len(b) != NodeKeySize {
+		return a, fmt.Errorf("%w: len=%d want %d", ErrShortNodeKeyRef, len(b), NodeKeySize)
+	}
 	copy(a[:], b)
-	return a
+	return a, nil
 }
 
 // PruneVersionsTo deletes all versions from firstVersion through toVersion
@@ -265,7 +276,10 @@ func (t *MutableTree) markReachable(node Node, reachable map[[NodeKeySize]byte]s
 		if inner.children[i] == nil {
 			continue
 		}
-		arr := nodeKeyBytesToArr(inner.children[i])
+		arr, err := nodeKeyBytesToArr(inner.children[i])
+		if err != nil {
+			return fmt.Errorf("markReachable: child[%d]: %w", i, err)
+		}
 		if _, seen := reachable[arr]; seen {
 			continue
 		}
@@ -358,7 +372,11 @@ func (t *MutableTree) sweepOld(node Node, reachable map[[NodeKeySize]byte]struct
 			}
 			child = inner.childNodes[i]
 		} else if inner.children[i] != nil {
-			if _, shared := reachable[nodeKeyBytesToArr(inner.children[i])]; shared {
+			arr, err := nodeKeyBytesToArr(inner.children[i])
+			if err != nil {
+				return fmt.Errorf("sweepOld: child[%d]: %w", i, err)
+			}
+			if _, shared := reachable[arr]; shared {
 				continue
 			}
 			if leafChildren {

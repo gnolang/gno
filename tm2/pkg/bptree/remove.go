@@ -389,7 +389,14 @@ func merge(parent *InnerNode, idx int) {
 		lBase := int(l.numKeys)
 		for i := 0; i < int(r.numKeys); i++ {
 			dst := lBase + i
-			l.keys[dst] = r.keys[i]
+			// copyKey so the merged-left node owns its key bytes
+			// independently of the (now dead) right node, in line with
+			// Finding #20's uniform discipline (matches the InnerNode
+			// case below). valueKeys are content-addressed identifiers
+			// (12-byte NodeKey form, allocated immutable per session);
+			// inlineValues/slotHashes are similarly transferable as
+			// slice headers. See BUG-5 in PR-5571 / PR-5750 history.
+			l.keys[dst] = copyKey(r.keys[i])
 			l.valueHashes[dst] = r.valueHashes[i]
 			l.valueKeys[dst] = r.valueKeys[i]
 			l.inlineValues[dst] = r.inlineValues[i]
@@ -407,9 +414,10 @@ func merge(parent *InnerNode, idx int) {
 		// bytes (Finding #20).
 		l.keys[l.numKeys] = copyKey(parent.keys[idx])
 		l.numKeys++
-		// Append right's keys and children
+		// Append right's keys and children. copyKey for parity with
+		// Finding #20 — see the LeafNode case above. (BUG-5.)
 		for i := 0; i < int(r.numKeys); i++ {
-			l.keys[l.numKeys] = r.keys[i]
+			l.keys[l.numKeys] = copyKey(r.keys[i])
 			l.numKeys++
 		}
 		// Children: left already has some, append right's (including childSizes)

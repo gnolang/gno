@@ -446,7 +446,20 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		if existingEmpty != newEmpty || !bytes.Equal(existingHash, newHash) {
 			return nil, 0, fmt.Errorf("version %d already exists with a different hash", version)
 		}
-		// Same hash — idempotent save, skip
+		// Same hash — idempotent save. The session may have allocated
+		// fresh ValueKeys via Set/SaveValue that the working tree's
+		// leaves now reference. Those VKs are persisted on disk (see
+		// Finding #28's atomicity rule) and will be carried into the
+		// next SaveVersion via t.lastSaved = t.root. Clear the
+		// per-session bookkeeping (sessionValues, versionOrphans,
+		// nextValueNonce) so the state matches a normal successful
+		// save — without this, a subsequent Rollback would attempt to
+		// DeleteValueDirect VKs that t.lastSaved still references, and
+		// the next SaveVersion would carry stale orphans/nonces forward.
+		// See BUG-2 in PR-5750.md.
+		t.sessionValues = t.sessionValues[:0]
+		t.versionOrphans = t.versionOrphans[:0]
+		t.nextValueNonce = 1
 		t.version = version
 		t.lastSaved = t.root
 		t.cachedSavedHash = t.cachedRootHash
@@ -625,6 +638,14 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 	// Seed the value-nonce allocator past any persisted nonce in the
 	// working-version namespace to prevent SaveValue from overwriting
 	// a live on-disk value. See comment above and Finding #1.1.
+	//
+	// Snapshot the prior nonce so we can restore it if loadNode below
+	// fails — leaving t.nextValueNonce seeded for a load that didn't
+	// complete would let the next Set against the OLD t.version
+	// allocate VKs in a different version's namespace, re-introducing
+	// the value-overwrite hazard maxValueNonceForVersion exists to
+	// prevent. See BUG-3 in PR-5750.md.
+	priorNonce := t.nextValueNonce
 	workingVersion := version + 1
 	maxNonce, err := t.ndb.maxValueNonceForVersion(workingVersion)
 	if err != nil {
@@ -651,6 +672,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 
 	root, err := t.loadNode(nkBytes)
 	if err != nil {
+		t.nextValueNonce = priorNonce
 		return 0, fmt.Errorf("loading root: %w", err)
 	}
 

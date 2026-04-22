@@ -206,6 +206,7 @@ func TestStore_GetImmutable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetImmutable: %v", err)
 	}
+	defer immSt.Close()
 	v := immSt.Get(nil, []byte("a"))
 	if !bytes.Equal(v, []byte("1")) {
 		t.Fatalf("immutable Get = %q", v)
@@ -246,6 +247,7 @@ func TestStore_ImmutableSetPanics(t *testing.T) {
 	st.Commit()
 
 	immSt, _ := st.GetImmutable(1)
+	defer immSt.Close()
 
 	defer func() {
 		r := recover()
@@ -270,6 +272,7 @@ func TestStore_ImmutableIterator(t *testing.T) {
 
 	// Immutable at v1 should only see a, b — not c
 	immSt, _ := st.GetImmutable(1)
+	defer immSt.Close()
 	itr := immSt.Iterator(nil, nil, nil)
 	defer itr.Close()
 
@@ -306,8 +309,10 @@ func TestStore_MultiCommitSnapshotIsolation(t *testing.T) {
 		}
 		val := immSt.Get(nil, []byte("a"))
 		if !bytes.Equal(val, []byte(expected)) {
+			immSt.Close()
 			t.Fatalf("v%d: a = %q, want %q", v, val, expected)
 		}
+		immSt.Close()
 	}
 }
 
