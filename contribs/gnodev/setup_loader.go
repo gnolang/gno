@@ -3,13 +3,9 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	gopath "path"
-	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 )
 
@@ -87,21 +83,3 @@ func setupPackagesResolver(logger *slog.Logger, cfg *AppConfig, dirs ...string) 
 	), paths
 }
 
-func guessPathGnoMod(dir string) (path string, ok bool) {
-	modfile, err := gnomod.ParseDir(dir)
-	if err != nil {
-		return "", false
-	}
-	return modfile.Module, true
-}
-
-var reInvalidChar = regexp.MustCompile(`[^\w_-]`)
-
-func guessPath(cfg *AppConfig, dir string) (path string) {
-	if path, ok := guessPathGnoMod(dir); ok {
-		return path
-	}
-
-	rname := reInvalidChar.ReplaceAllString(filepath.Base(dir), "-")
-	return gopath.Join(cfg.chainDomain, "/r/dev/", rname)
-}

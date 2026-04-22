@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -57,7 +58,7 @@ type App struct {
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
 	watcher       *watcher.PackageWatcher
-	loader        packages.Loader
+	loader        *packages.LoaderImpl
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
@@ -151,13 +152,61 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	loggerEvents := ds.logger.WithGroup(EventServerLogName)
 	ds.emitterServer = emitter.NewServer(loggerEvents)
 
-	// XXX: it would be nice to not have this hardcoded
-	examplesDir := filepath.Join(ds.cfg.root, "examples")
-
-	// Setup loader and resolver
+	// Setup loader
 	loaderLogger := ds.logger.WithGroup(LoaderLogName)
-	resolver, localPaths := setupPackagesResolver(loaderLogger, ds.cfg, dirs...)
-	ds.loader = packages.NewGlobLoader(examplesDir, resolver)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get cwd: %w", err)
+	}
+	ws := packages.FindWorkspace(cwd)
+	if ws == "" {
+		loaderLogger.Warn("no workspace found in CWD ancestry; running in discovery mode")
+	}
+
+	// Translate positional args into loader roots and path entries.
+	localPaths := make([]string, 0, len(dirs))
+	extraRoots := make([]string, 0, len(ds.cfg.extraRoots)+len(dirs))
+	for _, r := range ds.cfg.extraRoots {
+		if _, err := os.Stat(r); err != nil {
+			loaderLogger.Warn("-extra-root invalid, skipping", "root", r, "err", err)
+			continue
+		}
+		extraRoots = append(extraRoots, r)
+	}
+	for _, dir := range dirs {
+		path := guessPath(ds.cfg, dir)
+		localPaths = append(localPaths, path)
+		extraRoots = append(extraRoots, dir)
+	}
+
+	if ws == "" && ds.cfg.noExamples && len(extraRoots) == 0 {
+		return fmt.Errorf("no workspace found and -no-examples with no -extra-root: nothing to load")
+	}
+
+	loaderCfg := packages.Config{
+		Workspace:  ws,
+		Examples:   !ds.cfg.noExamples,
+		ExtraRoots: extraRoots,
+		GnoRoot:    gnoenv.RootDir(),
+		Logger:     loaderLogger,
+	}
+	ds.loader = packages.NewLoaderImpl(loaderCfg)
+
+	// Lazy loading hydrates only the workspace at startup; eager loading
+	// (staging mode) materializes the workspace + examples + extra roots.
+	var initialPkgs []*packages.NewPackage
+	var reload func() ([]*packages.NewPackage, error)
+	if ds.cfg.lazyLoader {
+		initialPkgs, err = ds.loader.LoadWorkspace()
+		reload = ds.loader.Reload
+	} else {
+		initialPkgs, err = ds.loader.LoadAll()
+		reload = ds.loader.LoadAll
+	}
+	if err != nil {
+		return fmt.Errorf("load packages: %w", err)
+	}
 
 	// Get user's address book from local keybase
 	accountLogger := ds.logger.WithGroup(AccountsLogName)
@@ -187,7 +236,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	ds.logger.Debug("balances loaded", "list", balances.List())
 
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
-	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, ds.loader, ds.book)
+	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, initialPkgs, reload, ds.book)
 	if err != nil {
 		return fmt.Errorf("unable to setup node config: %w", err)
 	}
@@ -211,7 +260,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 			"target_addr", ds.proxy.TargetAddress(),
 		)
 
-		proxyLogger.Info("lazy loading is enabled. packages will be loaded only upon a request via a query or transaction.", "loader", ds.loader.Name())
+		proxyLogger.Info("lazy loading is enabled. packages will be loaded only upon a request via a query or transaction.", "loader", "native")
 	} else {
 		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
 	}
@@ -261,7 +310,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 		// Generate initial paths
 		initPaths := map[string]struct{}{}
 		for _, pkg := range ds.devNode.ListPkgs() {
-			initPaths[pkg.Path] = struct{}{}
+			initPaths[pkg.ImportPath] = struct{}{}
 		}
 
 		ds.proxy.HandlePath(func(paths ...string) {
