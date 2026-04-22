@@ -85,13 +85,15 @@ func (r *codeExpandRenderer) render(w util.BufWriter, source []byte, n ast.Node,
 		lexer = defaultLexer
 	}
 
-	iter, err := lexer.Tokenise(nil, string(code))
-	if err != nil || r.formatter.Format(w, r.style, iter) != nil {
-		// Fallback: escape and write as plain code.
-		w.WriteString(`<pre><code>`)
-		w.Write(util.EscapeHTML(code))
-		w.WriteString(`</code></pre>`)
-	}
+      iter, err := lexer.Tokenise(nil, string(code))
+      if err == nil {
+          err = r.formatter.Format(w, r.style, iter)
+      }
+      if err != nil {
+          w.WriteString(`<pre><code>`)
+          w.Write(util.EscapeHTML(code))
+          w.WriteString(`</code></pre>`)
+      }
 
 	w.WriteString(`</details>`)
 
