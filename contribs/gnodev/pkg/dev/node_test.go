@@ -1,9 +1,3 @@
-//go:build phase_e_tests
-
-// Disabled until Phase E. Tests depend on the legacy MockResolver/BaseLoader
-// chain (cfg.Loader) which was removed when NodeConfig migrated to
-// InitialPkgs + Reload. Phase E rewrites these tests against InitialPkgs
-// seeding and a stub Reload.
 package dev
 
 import (
@@ -21,6 +15,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -30,6 +25,46 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// newTestingLoader builds a packages.Loader backed by an in-memory fetcher
+// seeded with the given MemPackages. Resolving any of those paths yields a
+// *packages.Package whose ToMemPackage returns the embedded mempkg.
+func newTestingLoader(mps ...*std.MemPackage) *packages.Loader {
+	return packages.New(packages.Config{
+		Fetcher: pkgdownload.NewInMemoryFetcher(mps...),
+		Logger:  log.NewNoopLogger().With("group", "loader"),
+	})
+}
+
+// pkgsFromMem constructs []*packages.Package from in-memory MemPackages for tests.
+// Uses pkgdownload.InMemoryFetcher so Resolve() produces packages with an
+// embedded MemPackage, avoiding filesystem writes.
+func pkgsFromMem(t *testing.T, mps ...*std.MemPackage) []*packages.Package {
+	t.Helper()
+	l := newTestingLoader(mps...)
+	out := make([]*packages.Package, 0, len(mps))
+	for _, mp := range mps {
+		p, err := l.Resolve(mp.Path)
+		require.NoError(t, err)
+		out = append(out, p)
+	}
+	return out
+}
+
+// resolvePaths resolves each path using the given loader, skipping
+// paths that fail to resolve. Used by the testing Reload closure so the
+// node's loaded package set follows its .Paths() list.
+func resolvePaths(l *packages.Loader, paths []string) []*packages.Package {
+	out := make([]*packages.Package, 0, len(paths))
+	for _, p := range paths {
+		pkg, err := l.Resolve(p)
+		if err != nil {
+			continue
+		}
+		out = append(out, pkg)
+	}
+	return out
+}
 
 // TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
@@ -41,6 +76,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.Logger = logger
+	cfg.Reload = func() ([]*packages.Package, error) { return nil, nil }
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 
@@ -74,7 +110,9 @@ func Render(_ string) string { return "foo" }
 	logger := log.NewTestingLogger(t)
 
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
-	cfg.Loader = packages.NewLoader(packages.NewMockResolver(&pkg))
+	initialPkgs := pkgsFromMem(t, &pkg)
+	cfg.InitialPkgs = initialPkgs
+	cfg.Reload = func() ([]*packages.Package, error) { return initialPkgs, nil }
 	cfg.Logger = logger
 
 	node, err := NewDevNode(ctx, cfg, pkg.Path)
@@ -127,10 +165,10 @@ func Render(_ string) string { return "bar" }
 	}
 
 	// Generate package foo
-	cfg := newTestingNodeConfig(&fooPkg, &barPkg)
+	cfg, holder := newTestingNodeConfig(t, &fooPkg, &barPkg)
 
 	// Call NewDevNode with no package should work
-	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPkg.Path)
+	node, emitter := newTestingDevNodeWithConfigAndHolder(t, cfg, holder, fooPkg.Path)
 	assert.Len(t, node.ListPkgs(), 1)
 	assert.Len(t, node.Paths(), 1)
 
@@ -411,13 +449,13 @@ func Render(_ string) string {
 
 	// XXX(gfanton): Setting this to `false` somehow makes the time block
 	// drift from the time spanned by the VM.
-	cfg := newTestingNodeConfig(&fooPkg)
+	cfg, holder := newTestingNodeConfig(t, &fooPkg)
 	cfg.TMConfig.Consensus.SkipTimeoutCommit = false
 	cfg.TMConfig.Consensus.TimeoutCommit = 500 * time.Millisecond
 	cfg.TMConfig.Consensus.TimeoutPropose = 100 * time.Millisecond
 	cfg.TMConfig.Consensus.CreateEmptyBlocks = true
 
-	node, emitter := newTestingDevNodeWithConfig(t, cfg, fooPkg.Path)
+	node, emitter := newTestingDevNodeWithConfigAndHolder(t, cfg, holder, fooPkg.Path)
 
 	render, err := testingRenderRealm(t, node, fooPkg.Path)
 	require.NoError(t, err)
@@ -601,8 +639,16 @@ func testingCallRealmWithConfig(t *testing.T, node *Node, bcfg gnoclient.BaseTxC
 	return cli.Call(bcfg, vmMsgs...)
 }
 
-func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
-	var loader packages.BaseLoader
+// nodeHolder lets the Reload closure read live node state (its .Paths())
+// once the *Node is wired in. Before the node is created, the holder's
+// node pointer is nil and Reload falls back to the bootstrap paths.
+type nodeHolder struct {
+	node           *Node
+	bootstrapPaths []string
+}
+
+func newTestingNodeConfig(t *testing.T, pkgs ...*std.MemPackage) (*NodeConfig, *nodeHolder) {
+	t.Helper()
 	gnoroot := gnoenv.RootDir()
 
 	// Ensure that a gnomod.toml exists
@@ -615,28 +661,49 @@ func newTestingNodeConfig(pkgs ...*std.MemPackage) *NodeConfig {
 		pkg.Sort()
 	}
 
-	loader.Resolver = packages.MiddlewareResolver(
-		packages.NewMockResolver(pkgs...),
-		packages.FilterStdlibs)
+	memPkgs := pkgs // captured by closure so in-place mutations of Files
+	// (see TestNodeUpdatePackage) are observed on each Reload.
+	holder := &nodeHolder{}
+
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.TMConfig = integration.DefaultTestingTMConfig(gnoroot)
-	cfg.Loader = &loader
-	return cfg
+	cfg.Reload = func() ([]*packages.Package, error) {
+		// Reload is invoked while Node holds muNode as a write lock, so
+		// we must NOT call node.Paths() (would deadlock). Read n.paths
+		// directly; the node is only set after construction when the
+		// initial reset has already completed.
+		paths := holder.bootstrapPaths
+		if holder.node != nil {
+			paths = holder.node.paths
+		}
+		// Build a fresh Loader + InMemoryFetcher on every reload so that
+		// in-place mutations of MemPackage.Files are picked up.
+		l := newTestingLoader(memPkgs...)
+		return resolvePaths(l, paths), nil
+	}
+	// InitialPkgs is used for watcher seeding only in production; tests
+	// that care populate it by resolving the bootstrap paths directly.
+	return cfg, holder
 }
 
 func newTestingDevNode(t *testing.T, pkgs ...*std.MemPackage) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
-	cfg := newTestingNodeConfig(pkgs...)
+	cfg, holder := newTestingNodeConfig(t, pkgs...)
 	paths := make([]string, len(pkgs))
 	for i, pkg := range pkgs {
 		paths[i] = pkg.Path
 	}
 
-	return newTestingDevNodeWithConfig(t, cfg, paths...)
+	return newTestingDevNodeWithConfigAndHolder(t, cfg, holder, paths...)
 }
 
 func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
+	t.Helper()
+	return newTestingDevNodeWithConfigAndHolder(t, cfg, nil, pkgpaths...)
+}
+
+func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder *nodeHolder, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -646,9 +713,17 @@ func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...stri
 	cfg.Emitter = emitter
 	cfg.Logger = logger
 
+	if holder != nil {
+		holder.bootstrapPaths = append([]string(nil), pkgpaths...)
+	}
+
 	node, err := NewDevNode(ctx, cfg, pkgpaths...)
 	require.NoError(t, err)
 	require.Equal(t, emitter.NextEvent().Type(), events.EvtReset)
+
+	if holder != nil {
+		holder.node = node
+	}
 
 	t.Cleanup(func() {
 		node.Close()

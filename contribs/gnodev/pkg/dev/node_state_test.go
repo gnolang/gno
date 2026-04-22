@@ -1,7 +1,3 @@
-//go:build phase_e_tests
-
-// Disabled until Phase E. Shares helpers with node_test.go (newTestingDevNode,
-// testingRenderRealm, etc.) which depend on the removed cfg.Loader field.
 package dev
 
 import (
