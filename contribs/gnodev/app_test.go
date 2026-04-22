@@ -101,3 +101,29 @@ func TestGnodev_NoWorkspace_NoExamples_ConfigError(t *testing.T) {
 	assert.Contains(t, err.Error(), "nothing to load",
 		"expected the fatal flag-combination error, got: %v", err)
 }
+
+// ---- E5: staging mode eager-loads workspace + extra roots via LoadAll
+
+func TestGnodev_Staging_EagerAll(t *testing.T) {
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	writeWorkspacePkg(t, filepath.Join(workspace, "w"), "gno.land/p/ws/one", "package one\n")
+
+	extra := t.TempDir()
+	writeWorkspacePkg(t, filepath.Join(extra, "e"), "gno.land/p/ext/two", "package two\n")
+
+	// Examples: false to avoid depending on $GNOROOT/examples at test time.
+	t.Chdir(workspace)
+	l := packages.New(packages.Config{
+		Workspace:  workspace,
+		Examples:   false,
+		ExtraRoots: []string{extra},
+		Logger:     discardLogger(),
+	})
+
+	pkgs, err := l.LoadAll()
+	require.NoError(t, err)
+	paths := importPaths(pkgs)
+	assert.Contains(t, paths, "gno.land/p/ws/one")
+	assert.Contains(t, paths, "gno.land/p/ext/two")
+}
