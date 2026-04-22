@@ -180,8 +180,11 @@ var Value error = &panicError{}`
 		// (no @error) rather than re-panicking — re-panicking would discard
 		// the successful Results JSON that was already computed.
 		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-			PkgPath:  "testdata",
-			GasMeter: stypes.NewGasMeter(100_000),
+			PkgPath: "testdata",
+			// Budget must cover preprocess gas + setup, but be small
+			// enough that the 10000-iter string-concat loop in .Error()
+			// runs out before completing.
+			GasMeter: stypes.NewGasMeter(500_000),
 		})
 		defer m.Release()
 

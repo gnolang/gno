@@ -11,7 +11,7 @@ gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/public
 stdout OK!
 
 # add the private realm
-gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 1100001ugnot -gas-wanted 11_000_000 -broadcast -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 1300001ugnot -gas-wanted 13_000_000 -broadcast -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test $test1_user_addr
