@@ -50,14 +50,17 @@ func GetAllowedRealms() []string {
 }
 
 func updateAllowedRealms(add []string, remove []string) error {
+	for _, r := range remove {
+		if !allowedRealms.Has(r) {
+			return validators.ErrAllowedRealmMissing
+		}
+	}
+
 	for _, r := range add {
 		allowedRealms.Set(r, true)
 		chain.Emit(validators.AllowedRealmAddedEvent)
 	}
 	for _, r := range remove {
-		if !allowedRealms.Has(r) {
-			return validators.ErrAllowedRealmMissing
-		}
 		allowedRealms.Remove(r)
 		chain.Emit(validators.AllowedRealmRemovedEvent)
 	}
