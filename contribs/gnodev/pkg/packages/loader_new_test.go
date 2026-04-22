@@ -69,7 +69,11 @@ func TestLoader_Resolve_IndexHit(t *testing.T) {
 }
 
 func TestLoader_Resolve_MissReturnsNotFound(t *testing.T) {
-	l := NewLoaderImpl(Config{Logger: testLogger()})
+	// Empty fetcher so the RPC fallback fails fast (no real network calls).
+	l := NewLoaderImpl(Config{
+		Fetcher: pkgdownload.NewInMemoryFetcher(),
+		Logger:  testLogger(),
+	})
 	_, err := l.Resolve("gno.land/p/absent")
 	assert.ErrorIs(t, err, ErrPackageNotFound)
 }

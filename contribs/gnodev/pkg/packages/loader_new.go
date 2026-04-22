@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -80,7 +81,7 @@ func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
 		l.tracked[pkg.ImportPath] = struct{}{}
 		return pkg, nil
 	}
-	if pkg := l.rpcLookupLocked(path); pkg != nil {
+	if pkg := l.rpcLookup(path); pkg != nil {
 		l.index[pkg.ImportPath] = pkg
 		l.tracked[pkg.ImportPath] = struct{}{}
 		return pkg, nil
@@ -88,9 +89,9 @@ func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
 	return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
 }
 
-// rpcLookupLocked assumes the caller holds l.mu (write). It reads l.fetcher
-// directly without re-locking.
-func (l *LoaderImpl) rpcLookupLocked(path string) *NewPackage {
+// rpcLookup fetches a package via cfg.Fetcher. cfg.Fetcher is set once in
+// NewLoaderImpl and never mutated, so no lock is required.
+func (l *LoaderImpl) rpcLookup(path string) *NewPackage {
 	files, err := l.fetcher.FetchPackage(path)
 	if err != nil {
 		l.cfg.Logger.Debug("rpc fetch miss", "path", path, "err", err)
@@ -172,6 +173,10 @@ func scanRoot(root string, logger *slog.Logger) map[string]string {
 		}
 		gm, err := gnomod.ParseDir(p)
 		if err != nil {
+			// Only log actual parse errors; skip "no gnomod.toml" silently.
+			if !errors.Is(err, gnomod.ErrNoModFile) && !errors.Is(err, os.ErrNotExist) {
+				logger.Debug("skipping unparseable gnomod.toml", "dir", p, "err", err)
+			}
 			return nil
 		}
 		if gm.Module == "" {
