@@ -4,9 +4,7 @@ import (
 	"context"
 	"flag"
 	"path"
-	"path/filepath"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -69,16 +67,8 @@ func (c *StagingAppConfig) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error {
-	// If no resolvers is defined, use gno example as root resolver
-	if len(cfg.AppConfig.resolvers) == 0 {
-		gnoroot, err := gnoenv.GuessRootDir()
-		if err != nil {
-			return err
-		}
-
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewRootResolver(exampleRoot))
-	}
-
+	// Staging eager-loads the workspace, every -extra-root, and examples
+	// (unless -no-examples is set) via LoaderImpl.LoadAll. lazyLoader=false
+	// in defaultStagingOptions triggers the eager path in app.Setup.
 	return runApp(&cfg.AppConfig, io, args...)
 }
