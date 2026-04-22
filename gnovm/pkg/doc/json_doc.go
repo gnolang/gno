@@ -32,6 +32,8 @@ type JSONValueDecl struct {
 	Const     bool         `json:"const"`
 	Values    []*JSONValue `json:"values"`
 	Doc       string       `json:"doc"` // markdown
+	File      string       `json:"file,omitempty"`
+	Line      int          `json:"line,omitempty"`
 }
 
 type JSONValue struct {
@@ -54,6 +56,8 @@ type JSONFunc struct {
 	Doc       string       `json:"doc"` // markdown
 	Params    []*JSONField `json:"params"`
 	Results   []*JSONField `json:"results"`
+	File      string       `json:"file,omitempty"`
+	Line      int          `json:"line,omitempty"`
 }
 
 const (
@@ -82,6 +86,8 @@ type JSONType struct {
 	// TODO: Use omitzero when upgraded to Go 1.24
 	InterElems []*JSONInterfaceElement `json:"inter_elems,omitempty"` // interface methods or embedded types (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
 	Fields     []*JSONField            `json:"fields,omitempty"`      // struct fields (Kind == "struct")
+	File       string                  `json:"file,omitempty"`
+	Line       int                     `json:"line,omitempty"`
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from mpkg and returns a Documentable
@@ -128,25 +134,32 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 
 	for _, value := range pkg.Consts {
+		vfile, vline := d.pkgData.extractPosition(value.Decl)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     true,
 			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
+			File:      vfile,
+			Line:      vline,
 		})
 	}
 
 	for _, value := range pkg.Vars {
+		vfile, vline := d.pkgData.extractPosition(value.Decl)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     false,
 			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
+			File:      vfile,
+			Line:      vline,
 		})
 	}
 
 	for _, fun := range pkg.Funcs {
 		params := d.extractJSONFields(fun.Decl.Type.Params)
+		ffile, fline := d.pkgData.extractPosition(fun.Decl)
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
 			Crossing:  isCrossing(params),
@@ -154,6 +167,8 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			Doc:       string(pkg.Markdown(fun.Doc)),
 			Params:    params,
 			Results:   d.extractJSONFields(fun.Decl.Type.Results),
+			File:      ffile,
+			Line:      fline,
 		})
 	}
 
@@ -241,6 +256,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			kind = identKind
 		}
 
+		tfile, tline := d.pkgData.extractPosition(typeSpec)
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
 			Name:       typ.Name,
 			Type:       mustFormatNode(d.pkgData.fset, typeExpr, false, file),
@@ -249,29 +265,38 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			Kind:       kind,
 			InterElems: interElems,
 			Fields:     fields,
+			File:       tfile,
+			Line:       tline,
 		})
 
 		// values of this type
 		for _, c := range typ.Consts {
+			vfile, vline := d.pkgData.extractPosition(c.Decl)
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 				Signature: mustFormatNode(d.pkgData.fset, c.Decl, opt.Source, file),
 				Const:     true,
 				Values:    d.extractValueSpecs(pkg, c.Decl.Specs),
 				Doc:       string(pkg.Markdown(c.Doc)),
+				File:      vfile,
+				Line:      vline,
 			})
 		}
 		for _, v := range typ.Vars {
+			vfile, vline := d.pkgData.extractPosition(v.Decl)
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 				Signature: mustFormatNode(d.pkgData.fset, v.Decl, opt.Source, file),
 				Const:     false,
 				Values:    d.extractValueSpecs(pkg, v.Decl.Specs),
 				Doc:       string(pkg.Markdown(v.Doc)),
+				File:      vfile,
+				Line:      vline,
 			})
 		}
 
 		// constructors for this type
 		for _, fun := range typ.Funcs {
 			params := d.extractJSONFields(fun.Decl.Type.Params)
+			ffile, fline := d.pkgData.extractPosition(fun.Decl)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Name:      fun.Name,
 				Crossing:  isCrossing(params),
@@ -279,11 +304,14 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Doc:       string(pkg.Markdown(fun.Doc)),
 				Params:    params,
 				Results:   d.extractJSONFields(fun.Decl.Type.Results),
+				File:      ffile,
+				Line:      fline,
 			})
 		}
 
 		for _, meth := range typ.Methods {
 			params := d.extractJSONFields(meth.Decl.Type.Params)
+			mfile, mline := d.pkgData.extractPosition(meth.Decl)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Type:      typ.Name,
 				Name:      meth.Name,
@@ -292,6 +320,8 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Doc:       string(pkg.Markdown(meth.Doc)),
 				Params:    params,
 				Results:   d.extractJSONFields(meth.Decl.Type.Results),
+				File:      mfile,
+				Line:      mline,
 			})
 		}
 	}

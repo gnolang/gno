@@ -87,6 +87,16 @@ func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, erro
 	return pkg, nil
 }
 
+// extractPosition returns the source file name and 1-based line number for the
+// given AST node, or ("", 0) if the node's position is not tracked in fset.
+func (pkg *pkgData) extractPosition(node ast.Node) (file string, line int) {
+	if node == nil {
+		return "", 0
+	}
+	position := pkg.fset.Position(node.Pos())
+	return position.Filename, position.Line
+}
+
 func (pkg *pkgData) parseFile(fileName string, body string, unexported bool) error {
 	astf, err := parser.ParseFile(pkg.fset, fileName, body, parser.ParseComments)
 	if err != nil {
