@@ -125,7 +125,12 @@ At Gno.land Genesis there will be one billion $GNOT tokens.
 
 $GNOT will not be transferrable initially except for whitelisted addresses.
 Whitelisted addresses include "Ecosystem" and "Investors" funds and any
-additional addresses needed for the operation of the chain.
+additional addresses needed for the operation of the chain. Whitelisted
+funds remain subject to the vesting schedule below.
+
+All Genesis $GNOT allocations vest on a common schedule: 7% released on the
+day $GNOT becomes transferrable (aka the mainnet), 7% each subsequent month,
+and 9% in the final month (fully vested 13 months after the mainnet).
 
 The 7% (qualified, private) investors allocation will be held by NT,LLC in a
 segregated account. Proceeds of sales of these tokens will go toward NT,LLC for
@@ -205,16 +210,17 @@ $GNOT, or even those forked of Gno.land and the GnoVM in the future.
 
 ## $GNOT (Deflationary) Inflation
 
-From the date of launch every year 33.33*(0.9^Y) million $GNOT will be inflated
-continuously (where Y is the year from launch starting from 0). This is 3.333%
+Starting one year after $GNOT becomes transferrable (aka the mainnet), every
+year 33.33*(0.9^Y) million $GNOT will be inflated continuously (where Y is the
+year from inflation start, starting from 0). This is 3.333%
 of the Gno.land Genesis $GNOT supply in the first year, decaying by 10% each
 subsequent year. Any inflationary $GNOT not
 transferred will accrue until the Gno.land software is updated to transfer such
 funds.
 
- * After   3 years this represents  90.32 million $GNOT.
- * After  10 years this represents 217.09 million $GNOT.
- * After 100 years this represents 333.29 million $GNOT.
+ * After   3 years of inflation this represents  90.32 million $GNOT.
+ * After  10 years of inflation this represents 217.09 million $GNOT.
+ * After 100 years of inflation this represents 333.29 million $GNOT.
 
 At most there will be 1.333... billion $GNOT, representing a total inflation of
 one third of the genesis $GNOT distribution. This amount cannot change even
