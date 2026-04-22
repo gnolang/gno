@@ -21,22 +21,22 @@ func TestList_Basic(t *testing.T) {
 	}
 
 	// Test get
-	if v := l.Get(0); v != 1 {
+	if v, _ := l.Get(0); v != 1 {
 		t.Errorf("expected 1 at index 0, got %v", v)
 	}
-	if v := l.Get(1); v != 2 {
+	if v, _ := l.Get(1); v != 2 {
 		t.Errorf("expected 2 at index 1, got %v", v)
 	}
-	if v := l.Get(2); v != 3 {
+	if v, _ := l.Get(2); v != 3 {
 		t.Errorf("expected 3 at index 2, got %v", v)
 	}
 
 	// Test out of bounds
-	if v := l.Get(-1); v != nil {
-		t.Errorf("expected nil for negative index, got %v", v)
+	if _, ok := l.Get(-1); ok {
+		t.Error("expected ok=false for negative index")
 	}
-	if v := l.Get(3); v != nil {
-		t.Errorf("expected nil for out of bounds index, got %v", v)
+	if _, ok := l.Get(3); ok {
+		t.Error("expected ok=false for out of bounds index")
 	}
 }
 
@@ -48,7 +48,7 @@ func TestList_Set(t *testing.T) {
 	if ok := l.Set(1, 42); !ok {
 		t.Error("Set should return true for valid index")
 	}
-	if v := l.Get(1); v != 42 {
+	if v, _ := l.Get(1); v != 42 {
 		t.Errorf("expected 42 after Set, got %v", v)
 	}
 
@@ -56,7 +56,7 @@ func TestList_Set(t *testing.T) {
 	if ok := l.Set(3, 4); !ok {
 		t.Error("Set should return true when appending at size")
 	}
-	if v := l.Get(3); v != 4 {
+	if v, _ := l.Get(3); v != 4 {
 		t.Errorf("expected 4 after Set at size, got %v", v)
 	}
 
@@ -71,7 +71,7 @@ func TestList_Set(t *testing.T) {
 	// Verify list state hasn't changed after invalid operations
 	expected := []any{1, 42, 3, 4}
 	for i, want := range expected {
-		if got := l.Get(i); got != want {
+		if got, _ := l.Get(i); got != want {
 			t.Errorf("index %d = %v; want %v", i, got, want)
 		}
 	}
@@ -88,7 +88,7 @@ func TestList_Delete(t *testing.T) {
 	if l.Len() != 2 {
 		t.Errorf("expected len 2 after delete, got %d", l.Len())
 	}
-	if v := l.Get(1); v != 3 {
+	if v, _ := l.Get(1); v != 3 {
 		t.Errorf("expected 3 at index 1 after delete, got %v", v)
 	}
 
@@ -163,14 +163,18 @@ func TestList_Clone(t *testing.T) {
 
 	// Test same values
 	for i := 0; i < l.Len(); i++ {
-		if clone.Get(i) != l.Get(i) {
-			t.Errorf("clone.Get(%d) = %v; want %v", i, clone.Get(i), l.Get(i))
+		cv, _ := clone.Get(i)
+		lv, _ := l.Get(i)
+		if cv != lv {
+			t.Errorf("clone.Get(%d) = %v; want %v", i, cv, lv)
 		}
 	}
 
 	// Test independence
 	l.Set(0, 42)
-	if clone.Get(0) == l.Get(0) {
+	cv, _ := clone.Get(0)
+	lv, _ := l.Get(0)
+	if cv == lv {
 		t.Error("clone should be independent of original")
 	}
 
@@ -191,11 +195,13 @@ func TestList_Clone(t *testing.T) {
 	origExpected := []any{"a", "b", "c", "d", "e"}
 	cloneExpected := []any{"a", "b", "c", "x", "y"}
 	for i := 0; i < 5; i++ {
-		if l2.Get(i) != origExpected[i] {
-			t.Errorf("original.Get(%d) = %v; want %v", i, l2.Get(i), origExpected[i])
+		ov, _ := l2.Get(i)
+		if ov != origExpected[i] {
+			t.Errorf("original.Get(%d) = %v; want %v", i, ov, origExpected[i])
 		}
-		if clone2.Get(i) != cloneExpected[i] {
-			t.Errorf("clone.Get(%d) = %v; want %v", i, clone2.Get(i), cloneExpected[i])
+		cv, _ := clone2.Get(i)
+		if cv != cloneExpected[i] {
+			t.Errorf("clone.Get(%d) = %v; want %v", i, cv, cloneExpected[i])
 		}
 	}
 }
@@ -214,7 +220,7 @@ func TestList_DeleteRange(t *testing.T) {
 	}
 	expected := []any{1, 5}
 	for i, want := range expected {
-		if got := l.Get(i); got != want {
+		if got, _ := l.Get(i); got != want {
 			t.Errorf("after DeleteRange(1,4) index %d = %v; want %v", i, got, want)
 		}
 	}
@@ -268,15 +274,15 @@ func TestList_EmptyOperations(t *testing.T) {
 	var l List
 
 	// Operations on empty list
-	if v := l.Get(0); v != nil {
-		t.Errorf("Get(0) on empty list = %v; want nil", v)
+	if _, ok := l.Get(0); ok {
+		t.Error("Get(0) on empty list should return ok=false")
 	}
 
 	// Set should work at index 0 for empty list (append case)
 	if ok := l.Set(0, 1); !ok {
 		t.Error("Set(0,1) on empty list = false; want true")
 	}
-	if v := l.Get(0); v != 1 {
+	if v, _ := l.Get(0); v != 1 {
 		t.Errorf("Get(0) after Set = %v; want 1", v)
 	}
 
@@ -295,16 +301,20 @@ func TestList_DifferentTypes(t *testing.T) {
 	// Test with different types
 	l.Append(42, "hello", true, 3.14)
 
-	if v := l.Get(0).(int); v != 42 {
+	v0, _ := l.Get(0)
+	if v := v0.(int); v != 42 {
 		t.Errorf("Get(0) = %v; want 42", v)
 	}
-	if v := l.Get(1).(string); v != "hello" {
+	v1, _ := l.Get(1)
+	if v := v1.(string); v != "hello" {
 		t.Errorf("Get(1) = %v; want 'hello'", v)
 	}
-	if v := l.Get(2).(bool); !v {
+	v2, _ := l.Get(2)
+	if v := v2.(bool); !v {
 		t.Errorf("Get(2) = %v; want true", v)
 	}
-	if v := l.Get(3).(float64); v != 3.14 {
+	v3, _ := l.Get(3)
+	if v := v3.(float64); v != 3.14 {
 		t.Errorf("Get(3) = %v; want 3.14", v)
 	}
 }
@@ -350,7 +360,7 @@ func TestList_ChainedOperations(t *testing.T) {
 
 	expected := []any{1, 5, 4}
 	for i, want := range expected {
-		if got := l.Get(i); got != want {
+		if got, _ := l.Get(i); got != want {
 			t.Errorf("index %d = %v; want %v", i, got, want)
 		}
 	}
@@ -402,7 +412,7 @@ func TestList_IndexConsistency(t *testing.T) {
 	// Verify sequence is continuous
 	expected := []any{1, 6, 7, 8, 9, 10}
 	for i, want := range expected {
-		if got := l.Get(i); got != want {
+		if got, _ := l.Get(i); got != want {
 			t.Errorf("index %d = %v; want %v", i, got, want)
 		}
 	}
@@ -499,6 +509,33 @@ func TestList_RecursiveSafety(t *testing.T) {
 
 	if short {
 		t.Skip("skipping extended recursive safety test in short mode")
+	}
+}
+
+func TestList_NilValueDistinguishable(t *testing.T) {
+	var l List
+	l.Append(nil)
+	l.Append("hello")
+
+	// Stored nil is distinguishable from out-of-bounds.
+	v, ok := l.Get(0)
+	if !ok {
+		t.Error("Get(0) should return ok=true for stored nil")
+	}
+	if v != nil {
+		t.Errorf("Get(0) should return nil value, got %v", v)
+	}
+
+	// Out of bounds returns false.
+	_, ok = l.Get(5)
+	if ok {
+		t.Error("Get(5) should return ok=false for out of bounds")
+	}
+
+	// Normal value still works.
+	v, ok = l.Get(1)
+	if !ok || v != "hello" {
+		t.Errorf("Get(1) = (%v, %v); want (hello, true)", v, ok)
 	}
 }
 
