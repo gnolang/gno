@@ -113,11 +113,13 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	loader packages.Loader,
+	initialPkgs []*packages.NewPackage,
+	reload func() ([]*packages.NewPackage, error),
 	book *address.Book,
 ) (*gnodev.NodeConfig, error) {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
-	config.Loader = loader
+	config.InitialPkgs = initialPkgs
+	config.Reload = reload
 
 	config.Logger = logger
 	config.Emitter = emitter
