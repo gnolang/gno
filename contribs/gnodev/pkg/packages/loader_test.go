@@ -50,6 +50,29 @@ func TestLoader_LoadWorkspace_OnePackage(t *testing.T) {
 	assert.Equal(t, "gno.land/p/demo/foo", pkgs[0].ImportPath)
 }
 
+// TestLoader_LoadWorkspace_WithStdlibImport exercises the stripStdlibs path:
+// a workspace package importing a native stdlib (like "chain") must not
+// cause PkgList.Sort to fail on the missing dep (gnovm.Load skips native
+// stdlibs during dep traversal but leaves them in each pkg's Imports).
+func TestLoader_LoadWorkspace_WithStdlibImport(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "demo")
+	writePkg(t, pkgDir, "gno.land/p/demo/bar",
+		`package bar
+import "chain"
+var _ = chain.ChainDomain
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
+
+	t.Chdir(root)
+
+	l := New(Config{Workspace: root, Logger: testLogger()})
+	pkgs, err := l.LoadWorkspace()
+	require.NoError(t, err)
+	require.Len(t, pkgs, 1)
+	assert.Equal(t, "gno.land/p/demo/bar", pkgs[0].ImportPath)
+}
+
 func TestLoader_Resolve_IndexHit(t *testing.T) {
 	root := t.TempDir()
 	pkgDir := filepath.Join(root, "demo")

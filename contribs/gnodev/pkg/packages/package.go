@@ -38,9 +38,13 @@ func (p *Package) ToMemPackage() (*std.MemPackage, error) {
 		return nil, fmt.Errorf("package %s has no directory", p.ImportPath)
 	}
 
-	mptype := gnolang.MPUserAll
+	// Use MPUserProd / MPStdlibProd — the deployed package doesn't ship test
+	// files. gnodev is a dev-time tool so skipping tests is fine; including
+	// them (MPUserAll) triggers chain-side type-checks that fail when a
+	// test file imports a package whose own tests haven't been deployed yet.
+	mptype := gnolang.MPUserProd
 	if gnolang.IsStdlib(p.ImportPath) {
-		mptype = gnolang.MPStdlibAll
+		mptype = gnolang.MPStdlibProd
 	}
 	mp, err := gnolang.ReadMemPackage(p.Dir, p.ImportPath, mptype)
 	if err != nil {

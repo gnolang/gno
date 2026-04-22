@@ -356,6 +356,12 @@ func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
 		return nil, fmt.Errorf("load packages: %w", err)
 	}
 
+	// Drop stdlib packages and stdlib imports. gnovm.Load returns stdlibs and
+	// skips native-stdlib deps during traversal (they're handled by the VM,
+	// not deployed as on-chain packages). Without this filter, pkgList.Sort
+	// fails on native-stdlib imports like "chain" that are never in the list.
+	pkgList = stripStdlibs(pkgList)
+
 	sorted, err := pkgList.Sort()
 	if err != nil {
 		return nil, fmt.Errorf("sort packages: %w", err)
@@ -405,4 +411,28 @@ func (l *Loader) kindForDir(dir string) Kind {
 		return KindRemote
 	}
 	return KindFS
+}
+
+// stripStdlibs returns a pkgList with stdlib packages removed and stdlib
+// imports filtered out of each remaining package's import list. This mirrors
+// the convention used by gno.land/pkg/gnoland/genesis.go (via ReadPkgListFromDir):
+// stdlibs are handled natively by the VM, not deployed as on-chain packages.
+func stripStdlibs(pkgs vmpackages.PkgList) vmpackages.PkgList {
+	out := pkgs[:0]
+	for _, p := range pkgs {
+		if gnolang.IsStdlib(p.ImportPath) {
+			continue
+		}
+		if imps := p.Imports[vmpackages.FileKindPackageSource]; len(imps) > 0 {
+			kept := imps[:0]
+			for _, imp := range imps {
+				if !gnolang.IsStdlib(imp) {
+					kept = append(kept, imp)
+				}
+			}
+			p.Imports[vmpackages.FileKindPackageSource] = kept
+		}
+		out = append(out, p)
+	}
+	return out
 }
