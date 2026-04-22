@@ -76,9 +76,7 @@ init: ## generate single-validator secrets and patch out/genesis.json
 	 $(HERE)/scripts/init-node.sh
 
 .PHONY: up
-up: ## start the gnoland node in docker (requires fetch+init first)
-	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch init' first"; exit 1; }
-	@test -f $(OUT)/gnoland-home/secrets/priv_validator_key.json || { echo "missing secrets — run 'make init' first"; exit 1; }
+up: init ## start the gnoland node in docker (init is idempotent and re-stages genesis if changed)
 	docker compose up -d --build
 	@echo ""
 	@echo "Node RPC:  http://localhost:26657"
