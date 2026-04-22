@@ -10,10 +10,8 @@ import (
 
 const HelpViewType ViewType = "help-view"
 
-// HelpFunction wraps a doc.JSONFunc with a pre-rendered HTML Component for
-// its documentation. The handler builds this slice so the template can
-// {{ render .DocComponent }} rather than treating the raw markdown string
-// as HTML via {{ noescape_string }}.
+// HelpFunction pairs a doc.JSONFunc with its documentation already rendered
+// as an HTML Component, so the template can embed it via `{{ render . }}`.
 type HelpFunction struct {
 	*doc.JSONFunc
 	DocComponent Component

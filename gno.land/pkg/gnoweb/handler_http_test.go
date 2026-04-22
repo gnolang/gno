@@ -1288,10 +1288,9 @@ func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
 	}
 }
 
-// newRealRendererHelpHandler builds an HTTPHandler wired to a real HTMLRenderer
-// and a stubClient that returns jdoc for Doc() calls. All other client methods
-// return errors, which is acceptable because the $help endpoint only calls Doc().
-// Used to exercise the markdown→HTML pipeline through GetHelpView end-to-end.
+// newRealRendererHelpHandler builds an HTTPHandler with a real HTMLRenderer
+// and a stubClient whose Doc() returns jdoc. Other client methods are not
+// stubbed as the $help endpoint only exercises the Doc() path.
 func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnoweb.HTTPHandler {
 	t.Helper()
 
@@ -1360,9 +1359,8 @@ func TestGetHelpView_RendersFunctionDocAsHTML(t *testing.T) {
 func TestGetHelpView_HTMLInjectionInDocStripped(t *testing.T) {
 	t.Parallel()
 
-	// Critical XSS regression test. Goldmark's default safe mode strips raw
-	// HTML from doc markdown, so an attacker-authored doc comment containing
-	// <script> (or any raw HTML) cannot land live markup in the rendered page.
+	// Doc markdown containing raw HTML must be stripped by Goldmark safe mode
+	// before reaching the rendered page.
 	jdoc := &doc.JSONDocumentation{
 		PackageDoc: `<script>alert('xss')</script>`,
 	}
@@ -1380,12 +1378,9 @@ func TestGetHelpView_HTMLInjectionInDocStripped(t *testing.T) {
 func TestGetHelpView_BackslashEscapingIssueFixed(t *testing.T) {
 	t.Parallel()
 
-	// Reproduces issue #4417: vm/qdoc returns markdown with backslash-escaped
-	// backticks/underscores; the old Help view passed the raw string to the
-	// template and it leaked literally (backslashes visible). The new view
-	// runs it through RenderDocumentation so CommonMark backslash-escaping
-	// removes the backslashes: \`\_\` → `_` (plain text, not a code span,
-	// because escaping a backtick makes it literal and prevents span formation).
+	// Regression test for #4417: vm/qdoc markdown with backslash-escaped
+	// backticks/underscores must render as literal text, not leak the
+	// backslashes into the page.
 	jdoc := &doc.JSONDocumentation{
 		Funcs: []*doc.JSONFunc{{
 			Name: "Register", Signature: "func Register()",
@@ -1399,13 +1394,9 @@ func TestGetHelpView_BackslashEscapingIssueFixed(t *testing.T) {
 	h.ServeHTTP(rec, req)
 
 	body := rec.Body.String()
-	// Backslash sequences must NOT be present in the rendered output.
-	require.NotContains(t, body, "\\`\\_\\`",
-		"raw backslash sequences must not appear in rendered output")
-	// After CommonMark processing, the escaped backticks and underscore render
-	// as plain text characters — no backslashes, no code span.
-	require.Contains(t, body, "`_`",
-		"backtick-underscore-backtick must appear as plain text after backslash removal")
+	// Backslashes must be absent and the literal characters present.
+	require.NotContains(t, body, "\\`\\_\\`")
+	require.Contains(t, body, "`_`")
 }
 
 func TestHTTPHandler_ThemeCookie(t *testing.T) {

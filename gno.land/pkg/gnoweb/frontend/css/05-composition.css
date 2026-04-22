@@ -633,7 +633,7 @@
 		text-decoration: underline;
 	}
 
-	/* Inline code — rare in godoc, but handled for completeness */
+	/* Inline code */
 	& :not(pre) > code {
 		font-family: var(--g-font-family-mono);
 		font-size: 0.9em;

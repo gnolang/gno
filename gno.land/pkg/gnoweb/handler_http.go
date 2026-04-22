@@ -471,8 +471,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	}
 
 	// renderDoc renders a markdown documentation string to a Component.
-	// Returns nil for empty input, and falls back to escaped plain text on
-	// render error so the page still loads.
+	// Returns nil for empty input; renderer errors degrade to escaped text.
 	renderDoc := func(src string) components.Component {
 		if strings.TrimSpace(src) == "" {
 			return nil

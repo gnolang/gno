@@ -11,18 +11,14 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// defaultLexer is a safe text-passthrough lexer used when no language is
-// specified or the requested language is not recognised. It emits the raw
-// content as a single token, so Chroma still escapes HTML entities but does
-// not attempt syntactic tokenisation.
+// defaultLexer emits the raw content as a single token. Chroma still
+// escapes HTML entities but performs no syntactic tokenisation.
 var defaultLexer = lexers.Fallback
 
 // ExtCodeExpand returns a Goldmark extension that renders fenced and indented
 // code blocks as collapsible <details class="doc-example"> disclosures with
-// Chroma syntax highlighting applied to the code content.
-//
-// The formatter and style are dependency-injected so the caller controls
-// highlighting consistency with the surrounding renderer. No global state.
+// Chroma syntax highlighting applied to the code content. The formatter and
+// style are injected by the caller.
 func ExtCodeExpand(formatter *chromahtml.Formatter, style *chroma.Style) goldmark.Extender {
 	return &codeExpandExtension{formatter: formatter, style: style}
 }
@@ -53,7 +49,6 @@ func (r *codeExpandRenderer) render(w util.BufWriter, source []byte, n ast.Node,
 		return ast.WalkContinue, nil
 	}
 
-	// Collect the code content from the block's line segments.
 	var lines *text.Segments
 	var language []byte
 	switch block := n.(type) {
@@ -74,9 +69,8 @@ func (r *codeExpandRenderer) render(w util.BufWriter, source []byte, n ast.Node,
 
 	w.WriteString(`<details class="doc-example"><summary>Example</summary>`)
 
-	// Pick lexer: use the named language when one is specified and recognised;
-	// fall back to the plain-text lexer for unspecified or unknown languages so
-	// that HTML entities are escaped as contiguous tokens.
+	// Use the named language when specified and recognised; fall back to
+	// the plain-text lexer otherwise.
 	var lexer chroma.Lexer
 	if len(language) > 0 {
 		lexer = lexers.Get(string(language))
@@ -85,15 +79,15 @@ func (r *codeExpandRenderer) render(w util.BufWriter, source []byte, n ast.Node,
 		lexer = defaultLexer
 	}
 
-      iter, err := lexer.Tokenise(nil, string(code))
-      if err == nil {
-          err = r.formatter.Format(w, r.style, iter)
-      }
-      if err != nil {
-          w.WriteString(`<pre><code>`)
-          w.Write(util.EscapeHTML(code))
-          w.WriteString(`</code></pre>`)
-      }
+	iter, err := lexer.Tokenise(nil, string(code))
+	if err == nil {
+		err = r.formatter.Format(w, r.style, iter)
+	}
+	if err != nil {
+		w.WriteString(`<pre><code>`)
+		w.Write(util.EscapeHTML(code))
+		w.WriteString(`</code></pre>`)
+	}
 
 	w.WriteString(`</details>`)
 

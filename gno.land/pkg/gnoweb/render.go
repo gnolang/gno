@@ -26,8 +26,7 @@ type Renderer interface {
 	RenderSource(w io.Writer, name string, src []byte) error
 	// RenderDocumentation renders doc-context markdown (from vm/qdoc) to HTML.
 	// Fenced and indented code blocks are wrapped in collapsible <details>
-	// disclosures with Chroma highlighting. Safe on untrusted input — all
-	// output goes through Goldmark's HTML escaping.
+	// with Chroma highlighting. HTML escaping is delegated to Goldmark.
 	RenderDocumentation(w io.Writer, src []byte) error
 }
 
@@ -56,15 +55,9 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 		),
 	))
 
-	// Doc-context renderer: minimal extensions, plus our collapsible code
-	// block extension. Uses its own Chroma formatter so highlighting inside
-	// <details> matches realm highlighting without sharing mutable state.
-	// Raw HTML in doc strings is handled by Goldmark's default safe mode,
-	// which replaces untrusted markup with "<!-- raw HTML omitted -->".
-	// parser.WithAttribute() consumes the Pandoc-style {#id} suffix that
-	// gnovm/pkg/doc emits on headings (e.g. "### Foo {#hdr-Foo}"), turning
-	// it into an id attribute on the rendered <h3> instead of leaking the
-	// raw `{#hdr-Foo}` text into the heading content.
+	// Doc-context renderer. parser.WithAttribute consumes the Pandoc-style
+	// `{#id}` heading suffixes emitted by gnovm/pkg/doc; ExtCodeExpand wraps
+	// fenced code blocks in collapsible <details>.
 	docFormatter := chromahtml.New(cfg.ChromaOptions...)
 	docOpts := []goldmark.Option{
 		goldmark.WithExtensions(
@@ -143,7 +136,7 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 }
 
 // RenderDocumentation writes the HTML representation of doc-context markdown
-// to w. It is safe on arbitrary input and escapes HTML by default.
+// to w. HTML escaping is delegated to Goldmark.
 func (r *HTMLRenderer) RenderDocumentation(w io.Writer, src []byte) error {
 	if len(src) == 0 {
 		return nil

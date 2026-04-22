@@ -47,17 +47,15 @@ func TestHTMLRenderer_RenderDocumentation_FencedBlock(t *testing.T) {
 
 func TestHTMLRenderer_RenderDocumentation_StripsRawHTML(t *testing.T) {
 	t.Parallel()
-	// Goldmark's default safe mode replaces raw HTML with an omitted-comment.
-	// Critical security assertion: the raw <script> tag must never reach the
-	// output. Relying on upstream safe mode rather than a custom extension
-	// keeps the attack surface minimal.
+	// Raw HTML in doc strings is stripped by Goldmark's default safe mode
+	// and replaced with an omitted-comment placeholder.
 	r := newTestRenderer()
 	var buf bytes.Buffer
 	err := r.RenderDocumentation(&buf, []byte("<script>alert('xss')</script>"))
 	require.NoError(t, err)
 	out := buf.String()
-	require.NotContains(t, out, "<script>", "raw <script> tag must never survive")
-	require.NotContains(t, out, "alert('xss')", "script payload must not leak either")
+	require.NotContains(t, out, "<script>")
+	require.NotContains(t, out, "alert('xss')")
 }
 
 func TestHTMLRenderer_RenderDocumentation_EmptyInput(t *testing.T) {
