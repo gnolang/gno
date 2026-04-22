@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -100,6 +101,13 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 			cfg.paths += ","
 		}
 		cfg.paths += path
+
+		// Register CWD as an extra root when no workspace was detected.
+		// Without this, a loose realm dir (no gnomod.toml/gnowork.toml ancestor)
+		// would be referenced in cfg.paths but unresolvable by the loader.
+		if packages.FindWorkspace(dir) == "" {
+			cfg.extraRoots = append(cfg.extraRoots, dir)
+		}
 	}
 
 	return runApp(&cfg.AppConfig, cio) // else run app without any dir
