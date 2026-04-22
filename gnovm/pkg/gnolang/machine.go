@@ -1120,8 +1120,7 @@ const (
 	OpStaticTypeOf Op = 0x4A // static type of X
 	OpCompositeLit Op = 0x4B // X{???}
 	OpArrayLit     Op = 0x4C // [Len]{...}
-	OpSliceLit     Op = 0x4D // []{value,...}
-	OpSliceLit2    Op = 0x4E // []{key:value,...}
+	OpSliceLit     Op = 0x4E // []{...}
 	OpMapLit       Op = 0x4F // X{...}
 	OpStructLit    Op = 0x50 // X{...}
 	OpFuncLit      Op = 0x51 // func(T){Body}
@@ -1328,8 +1327,7 @@ const (
 	OpCPUStaticTypeOf    = 520 // XXX arbitrary
 	OpCPUCompositeLit    = 76
 	OpCPUArrayLit        = 292 // base from fit; per-element added in handler
-	OpCPUSliceLit        = 342 // base from fit; per-element added in handler
-	OpCPUSliceLit2       = 966 // base from fit; per-alloc-size added in handler
+	OpCPUSliceLit        = 966 // base from fit; per-alloc-size added in handler
 	OpCPUMapLit          = 536 // base; per-entry added in handler (fit base negative, clamped to ~536)
 	OpCPUStructLit       = 326 // base from fit; per-field added in handler (max of unnamed=307, named=326)
 	OpCPUFuncLit         = 269 // base from fit; per-capture added in handler
@@ -1387,8 +1385,7 @@ const (
 	OpCPUSlopeAssign          = 86  // per LHS variable (fit: 86.2)
 	OpCPUSlopeMapLit          = 335 // per map entry (fit: 335.0)
 	OpCPUSlopeArrayLit        = 52  // per element (max of int=52, uint8=9)
-	OpCPUSlopeSliceLit        = 28  // per element (fit: 28.5)
-	OpCPUSlopeSliceLit2       = 31  // per alloc size (fit: 31.4)
+	OpCPUSlopeSliceLit        = 31  // per alloc size (fit: 31.4)
 	OpCPUSlopeStructLit       = 51  // per field (max of unnamed=29, named=51)
 	OpCPUSlopeFuncLit         = 34  // per capture (fit: 34.0)
 	OpCPUSlopeCallParam       = 53  // per param in OpCall (fit: 52.5)
@@ -1699,9 +1696,6 @@ func (m *Machine) runOnce() (caught *Exception) {
 		case OpSliceLit:
 			m.incrCPU(OpCPUSliceLit)
 			m.doOpSliceLit()
-		case OpSliceLit2:
-			m.incrCPU(OpCPUSliceLit2)
-			m.doOpSliceLit2()
 		case OpFuncLit:
 			m.incrCPU(OpCPUFuncLit)
 			m.doOpFuncLit()

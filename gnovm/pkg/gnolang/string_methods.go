@@ -118,8 +118,7 @@ func _() {
 	_ = x[OpStaticTypeOf-74]
 	_ = x[OpCompositeLit-75]
 	_ = x[OpArrayLit-76]
-	_ = x[OpSliceLit-77]
-	_ = x[OpSliceLit2-78]
+	_ = x[OpSliceLit-78]
 	_ = x[OpMapLit-79]
 	_ = x[OpStructLit-80]
 	_ = x[OpFuncLit-81]
@@ -161,7 +160,7 @@ func _() {
 	_ = x[OpVoid-255]
 }
 
-const _Op_name = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpEnterCrossingOpCallOpCallNativeBodyOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpSwitchClauseCaseOpTypeSwitchOpIfCondOpPopValueOpPopResultsOpPopBlockOpPopFrameAndResetOpPanic1OpPanic2OpReturnOpReturnAfterCopyOpReturnFromBlockOpReturnToBlockOpUposOpUnegOpUnotOpUxorOpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandnOpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpSliceLit2OpMapLitOpStructLitOpFuncLitOpConvertOpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructTypeOpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDecOpValueDeclOpTypeDeclOpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefersOpVoid"
+const _Op_name = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpEnterCrossingOpCallOpCallNativeBodyOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpSwitchClauseCaseOpTypeSwitchOpIfCondOpPopValueOpPopResultsOpPopBlockOpPopFrameAndResetOpPanic1OpPanic2OpReturnOpReturnAfterCopyOpReturnFromBlockOpReturnToBlockOpUposOpUnegOpUnotOpUxorOpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandnOpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpMapLitOpStructLitOpFuncLitOpConvertOpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructTypeOpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDecOpValueDeclOpTypeDeclOpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefersOpVoid"
 
 var _Op_map = map[Op]string{
 	0:   _Op_name[0:9],
@@ -227,47 +226,46 @@ var _Op_map = map[Op]string{
 	74:  _Op_name[503:517],
 	75:  _Op_name[517:531],
 	76:  _Op_name[531:541],
-	77:  _Op_name[541:551],
-	78:  _Op_name[551:562],
-	79:  _Op_name[562:570],
-	80:  _Op_name[570:581],
-	81:  _Op_name[581:590],
-	82:  _Op_name[590:599],
-	112: _Op_name[599:610],
-	113: _Op_name[610:621],
-	114: _Op_name[621:632],
-	115: _Op_name[632:645],
-	116: _Op_name[645:660],
-	117: _Op_name[660:670],
-	118: _Op_name[670:680],
-	119: _Op_name[680:689],
-	120: _Op_name[689:701],
-	128: _Op_name[701:709],
-	129: _Op_name[709:720],
-	130: _Op_name[720:731],
-	131: _Op_name[731:742],
-	132: _Op_name[742:753],
-	133: _Op_name[753:764],
-	134: _Op_name[764:776],
-	135: _Op_name[776:789],
-	136: _Op_name[789:800],
-	137: _Op_name[800:811],
-	138: _Op_name[811:822],
-	139: _Op_name[822:833],
-	140: _Op_name[833:841],
-	141: _Op_name[841:846],
-	142: _Op_name[846:851],
-	144: _Op_name[851:862],
-	145: _Op_name[862:872],
-	208: _Op_name[872:880],
-	209: _Op_name[880:886],
-	210: _Op_name[886:895],
-	211: _Op_name[895:906],
-	212: _Op_name[906:923],
-	213: _Op_name[923:937],
-	214: _Op_name[937:956],
-	215: _Op_name[956:974],
-	255: _Op_name[974:980],
+	78:  _Op_name[541:551],
+	79:  _Op_name[551:559],
+	80:  _Op_name[559:570],
+	81:  _Op_name[570:579],
+	82:  _Op_name[579:588],
+	112: _Op_name[588:599],
+	113: _Op_name[599:610],
+	114: _Op_name[610:621],
+	115: _Op_name[621:634],
+	116: _Op_name[634:649],
+	117: _Op_name[649:659],
+	118: _Op_name[659:669],
+	119: _Op_name[669:678],
+	120: _Op_name[678:690],
+	128: _Op_name[690:698],
+	129: _Op_name[698:709],
+	130: _Op_name[709:720],
+	131: _Op_name[720:731],
+	132: _Op_name[731:742],
+	133: _Op_name[742:753],
+	134: _Op_name[753:765],
+	135: _Op_name[765:778],
+	136: _Op_name[778:789],
+	137: _Op_name[789:800],
+	138: _Op_name[800:811],
+	139: _Op_name[811:822],
+	140: _Op_name[822:830],
+	141: _Op_name[830:835],
+	142: _Op_name[835:840],
+	144: _Op_name[840:851],
+	145: _Op_name[851:861],
+	208: _Op_name[861:869],
+	209: _Op_name[869:875],
+	210: _Op_name[875:884],
+	211: _Op_name[884:895],
+	212: _Op_name[895:912],
+	213: _Op_name[912:926],
+	214: _Op_name[926:945],
+	215: _Op_name[945:963],
+	255: _Op_name[963:969],
 }
 
 func (i Op) String() string {

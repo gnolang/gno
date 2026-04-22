@@ -386,8 +386,8 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
-		m.PushOp(OpSliceLit2)
-		// evaluate item values only (keys are read from AST in doOpSliceLit2)
+		m.PushOp(OpSliceLit)
+		// evaluate item values only (keys are read from AST in doOpSliceLit)
 		for i := len(x.Elts) - 1; 0 <= i; i-- {
 			m.PushExpr(x.Elts[i].Value)
 			m.PushOp(OpEval)
@@ -474,32 +474,8 @@ func (m *Machine) doOpArrayLit() {
 	})
 }
 
-func (m *Machine) doOpSliceLit() {
-	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts)
-	m.incrCPU(OpCPUSlopeSliceLit * int64(el))
-	// peek slice type.
-	st := m.PeekValue(1 + el).V.(TypeValue).Type
-	// construct element buf slice.
-	baseArray := m.Alloc.NewListArray(el)
-	es := baseArray.List
-	m.PopCopyValues(es)
-	// construct and push value.
-	if debug {
-		if m.PopValue().V.(TypeValue).Type != st {
-			panic("should not happen")
-		}
-	} else {
-		m.PopValue()
-	}
-	sv := m.Alloc.NewSlice(baseArray, 0, el, el)
-	m.PushValue(TypedValue{
-		T: st,
-		V: sv,
-	})
-}
 
-func (m *Machine) doOpSliceLit2() {
+func (m *Machine) doOpSliceLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
 	ne := len(x.Elts)
 	// peek slice type.
@@ -518,7 +494,7 @@ func (m *Machine) doOpSliceLit2() {
 		}
 	}
 	length := maxIdx + 1
-	m.incrCPU(OpCPUSlopeSliceLit2 * length)
+	m.incrCPU(OpCPUSlopeSliceLit * length)
 	// construct element buf slice.
 	baseArray := m.Alloc.NewListArray(int(length))
 	es := baseArray.List
