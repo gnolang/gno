@@ -424,7 +424,7 @@ func promptModuleKind(io commands.IO) (moduleKind, error) {
 		"m": {Aliases: []string{"main", "run"}, Description: "run script"},
 	}
 
-	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [p]ackage, or [m]ain: ", choices, "p")
+	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices, "p")
 	if err != nil {
 		return kindPackage, err
 	}
@@ -440,7 +440,7 @@ func promptModuleKind(io commands.IO) (moduleKind, error) {
 }
 
 func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
-	namespace, err := commands.PromptString(io, "Namespace", "", validateName)
+	namespace, err := commands.PromptString(io, "Namespace or address", "", validateName)
 	if err != nil {
 		return "", err
 	}
