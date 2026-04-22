@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,4 +81,23 @@ func TestGnodev_NoWorkspace_DiscoveryMode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gno.land/p/ext/one", got.ImportPath)
 	assert.Equal(t, packages.KindFS, got.Kind)
+}
+
+// ---- E4: app-level fatal when no workspace + -no-examples + no -extra-root
+
+func TestGnodev_NoWorkspace_NoExamples_ConfigError(t *testing.T) {
+	// Move into a directory that is NOT inside any gno workspace.
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	cfg := defaultLocalAppConfig
+	cfg.noExamples = true
+	// No extraRoots, no positional dirs. Chain is otherwise valid.
+	cfg.deployKey = defaultDeployerAddress.String()
+
+	app := NewApp(discardLogger(), &cfg, commands.NewTestIO())
+	err := app.Setup(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nothing to load",
+		"expected the fatal flag-combination error, got: %v", err)
 }
