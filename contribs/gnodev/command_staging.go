@@ -49,7 +49,7 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 This mode is designed for stability and security, suitable for pre-deployment testing.
 Interactive mode and unsafe API access are disabled to ensure a secure environment.
 The log format is set to JSON, facilitating integration with logging systems.
-Since lazy-load is disabled in this mode, the entire example folder from "gnoroot" is loaded by default.
+Staging eager-loads the workspace, every -extra-root, and $GNOROOT/examples by default (use -no-examples to skip).
 
 Additionally, you can specify an additional package directory to load.
 `,

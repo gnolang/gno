@@ -342,16 +342,13 @@ func (l *Loader) loadRootStandalone(root string) ([]*Package, error) {
 }
 
 func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
-	l.mu.RLock()
-	fetcher := l.fetcher
-	l.mu.RUnlock()
-
+	// l.fetcher and l.cfg are set in New and never mutated; no lock needed.
 	conf := vmpackages.LoadConfig{
 		Deps:                true,
 		AllowEmpty:          true,
 		GnoRoot:             l.cfg.GnoRoot,
 		Out:                 &logWriter{logger: l.cfg.Logger},
-		Fetcher:             fetcher,
+		Fetcher:             l.fetcher,
 		ExtraWorkspaceRoots: l.cfg.ExtraRoots,
 	}
 	pkgList, err := vmpackages.Load(conf, patterns...)
