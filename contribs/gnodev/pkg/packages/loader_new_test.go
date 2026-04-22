@@ -47,3 +47,27 @@ func TestLoader_LoadWorkspace_OnePackage(t *testing.T) {
 	require.Len(t, pkgs, 1)
 	assert.Equal(t, "gno.land/p/demo/foo", pkgs[0].ImportPath)
 }
+
+func TestLoader_Resolve_IndexHit(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "demo")
+	writePkg(t, pkgDir, "gno.land/p/demo/foo", "package foo\n")
+	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
+
+	t.Chdir(root)
+
+	l := NewLoaderImpl(Config{Workspace: root, Logger: testLogger()})
+	_, err := l.LoadWorkspace()
+	require.NoError(t, err)
+
+	got, err := l.Resolve("gno.land/p/demo/foo")
+	require.NoError(t, err)
+	assert.Equal(t, "gno.land/p/demo/foo", got.ImportPath)
+	assert.Equal(t, pkgDir, got.Dir)
+}
+
+func TestLoader_Resolve_MissReturnsNotFound(t *testing.T) {
+	l := NewLoaderImpl(Config{Logger: testLogger()})
+	_, err := l.Resolve("gno.land/p/absent")
+	assert.ErrorIs(t, err, ErrPackageNotFound)
+}

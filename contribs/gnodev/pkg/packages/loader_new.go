@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -13,6 +14,10 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 )
+
+// ErrPackageNotFound is returned by Resolve when no index/FS/RPC lookup
+// yielded the requested package path.
+var ErrPackageNotFound = errors.New("package not found")
 
 // LoaderImpl resolves gnodev's package set using gnovm's native loader for
 // bulk operations and a local per-path lookup (filesystem + PackageFetcher)
@@ -43,6 +48,31 @@ func NewLoaderImpl(cfg Config) *LoaderImpl {
 		tracked: make(map[string]struct{}),
 		rootIdx: make(map[string]map[string]string),
 	}
+}
+
+// Resolve returns a previously-seen Package if known, else tries FS and RPC
+// lookups in order. Hits are memoized in the index and added to tracked.
+//
+// Locking: fast path is RLock-only; cold path takes the write lock for the
+// duration of the FS walk and RPC fetch so concurrent Resolve calls for the
+// same path serialize rather than duplicate work.
+func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
+	l.mu.RLock()
+	if p, ok := l.index[path]; ok {
+		l.mu.RUnlock()
+		return p, nil
+	}
+	l.mu.RUnlock()
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	// Re-check: another goroutine may have inserted it while we waited.
+	if p, ok := l.index[path]; ok {
+		return p, nil
+	}
+	// TODO Task B6/B7: FS walk + RPC fallback (wired under this write lock)
+	return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
 }
 
 // LoadWorkspace eagerly loads packages in the configured workspace.
