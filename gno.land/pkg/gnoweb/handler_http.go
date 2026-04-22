@@ -13,12 +13,14 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"golang.org/x/sync/errgroup"
 )
 
 const ReadmeFileName = "README.md"
@@ -304,9 +306,12 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Source page
+	// Handle Source page: with a file -> source code view; without -> package overview.
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
-		return h.GetSourceView(ctx, gnourl)
+		if gnourl.IsFile() || gnourl.WebQuery.Get("file") != "" {
+			return h.GetSourceView(ctx, gnourl)
+		}
+		return h.GetOverviewView(ctx, gnourl)
 	}
 
 	// Handle Source page
@@ -805,4 +810,129 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	}
 
 	return data
+}
+
+// GetOverviewView renders the package overview landing page at /r/<pkg>$source.
+// It fans out ListFiles, Doc, README and ListPaths in parallel, then builds
+// a pure OverviewData that the template renders.
+func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	pkgPath := gnourl.Path
+
+	var (
+		files    []string
+		jdoc     *doc.JSONDocumentation
+		readme   components.Component
+		subpaths []string
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) {
+		files, err = h.Client.ListFiles(gctx, pkgPath)
+		return err
+	})
+	g.Go(func() error {
+		d, err := h.Client.Doc(gctx, pkgPath)
+		if err != nil {
+			h.Logger.Warn("overview: qdoc failed — degraded mode", "path", pkgPath, "error", err)
+			jdoc = &doc.JSONDocumentation{}
+			return nil
+		}
+		jdoc = d
+		return nil
+	})
+	g.Go(func() error {
+		readme, _ = h.renderReadme(gctx, gnourl, pkgPath)
+		return nil
+	})
+	g.Go(func() error {
+		prefix := path.Join(h.Static.Domain, pkgPath) + "/"
+		paths, err := h.Client.ListPaths(gctx, prefix, 50)
+		if err != nil {
+			return nil
+		}
+		// Store returns domain-qualified paths (e.g. "gno.land/r/demo/foo/bar").
+		// buildSubpackages works on domain-relative paths.
+		subpaths = make([]string, 0, len(paths))
+		for _, p := range paths {
+			subpaths = append(subpaths, strings.TrimPrefix(p, h.Static.Domain))
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	sources := h.fetchSourcesForImports(ctx, pkgPath, files)
+
+	data := components.BuildOverview(components.OverviewInput{
+		URL:         gnourl,
+		Files:       files,
+		Doc:         jdoc,
+		Sources:     sources,
+		Subpaths:    subpaths,
+		Readme:      readme,
+		Domain:      h.Static.Domain,
+		DocRenderer: h.Renderer,
+	})
+	return http.StatusOK, components.OverviewView(data)
+}
+
+// fetchSourcesForImports downloads up to 10 .gno non-test files plus gnomod.toml
+// with at most 4 concurrent RPCs. Per-file errors are silent (best-effort).
+func (h *HTTPHandler) fetchSourcesForImports(ctx context.Context, pkgPath string, files []string) map[string][]byte {
+	const maxParallel = 4
+	const maxFiles = 10
+
+	targets := filterImportSources(files, maxFiles)
+	if len(targets) == 0 {
+		return nil
+	}
+
+	sem := make(chan struct{}, maxParallel)
+	var mu sync.Mutex
+	results := make(map[string][]byte, len(targets))
+
+	var wg sync.WaitGroup
+	for _, f := range targets {
+		wg.Add(1)
+		go func(file string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			content, _, err := h.Client.File(ctx, pkgPath, file)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			results[file] = content
+			mu.Unlock()
+		}(f)
+	}
+	wg.Wait()
+	return results
+}
+
+// filterImportSources returns the first maxFiles non-test .gno files plus
+// gnomod.toml and any LICENSE file. The LICENSE body is needed by
+// components.deriveLicense to identify the license kind.
+func filterImportSources(files []string, maxFiles int) []string {
+	out := make([]string, 0, maxFiles+2)
+	gnoCount := 0
+	for _, f := range files {
+		if f == "gnomod.toml" || components.ReLicenseFileName.MatchString(f) {
+			out = append(out, f)
+			continue
+		}
+		if gnoCount >= maxFiles {
+			continue
+		}
+		if strings.HasSuffix(f, ".gno") &&
+			!strings.HasSuffix(f, "_test.gno") &&
+			!strings.HasSuffix(f, "_filetest.gno") {
+			out = append(out, f)
+			gnoCount++
+		}
+	}
+	return out
 }
