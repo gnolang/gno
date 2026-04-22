@@ -55,3 +55,28 @@ func TestGnodev_Workspace_EagerLoad(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, importPaths(pkgs), "gno.land/p/ws/foo")
 }
+
+// ---- E3: no-workspace / discovery mode
+
+func TestGnodev_NoWorkspace_DiscoveryMode(t *testing.T) {
+	extraRoot := t.TempDir()
+	writeWorkspacePkg(t, filepath.Join(extraRoot, "extpkg"), "gno.land/p/ext/one", "package one\n")
+
+	l := packages.New(packages.Config{
+		Workspace:  "",
+		Examples:   true,
+		ExtraRoots: []string{extraRoot},
+		Logger:     discardLogger(),
+	})
+
+	// LoadWorkspace returns nil,nil when no workspace is set.
+	pkgs, err := l.LoadWorkspace()
+	require.NoError(t, err)
+	assert.Nil(t, pkgs)
+
+	// Resolve against the extra root still succeeds.
+	got, err := l.Resolve("gno.land/p/ext/one")
+	require.NoError(t, err)
+	assert.Equal(t, "gno.land/p/ext/one", got.ImportPath)
+	assert.Equal(t, packages.KindFS, got.Kind)
+}
