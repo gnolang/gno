@@ -128,8 +128,9 @@ func rootDBKey(version int64) []byte {
 // saveBufPool holds a pool of *bytes.Buffer used by SaveNode to
 // serialize each node. Reusing buffers across saves (arena-style)
 // eliminates the grow-then-discard churn a fresh bytes.Buffer incurs
-// per call. Buffers return to the pool with a minimum capacity to
-// avoid re-growing on the next large node.
+// per call. Buffers over saveBufCapCap (see below) are dropped on Put
+// rather than returned, so a single oversize node does not inflate
+// every pooled buffer.
 var saveBufPool = sync.Pool{
 	New: func() any {
 		b := bytes.NewBuffer(make([]byte, 0, 512))
@@ -282,17 +283,21 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 //
 // Return semantics:
 //   - Present-and-empty values round-trip as a non-nil zero-length slice
-//     (verified on both memdb and goleveldb backends).
-//   - A missing key returns (nil, nil). The tree layer should never see
-//     this in a healthy DB — every leaf.valueKeys[i] references a
-//     ValueKey that SaveValue persisted. A (nil, nil) return therefore
-//     signals corruption (e.g., value file deleted out-of-band) rather
-//     than a legitimate Get miss; callers that need to surface it
-//     should compare `val == nil` explicitly.
+//     (verified on both memdb and goleveldb backends) with err == nil.
+//   - A missing record returns (nil, ErrValueMissing). The tree layer
+//     should never see this in a healthy DB — every leaf.valueKeys[i]
+//     references a ValueKey that SaveValue persisted — so an
+//     ErrValueMissing return signals out-of-band corruption (e.g. the
+//     value file was deleted externally) rather than a legitimate
+//     Get miss. Callers should propagate the error rather than treat
+//     it as a missing key. See ajnavarro PR #5571 review.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	data, err := ndb.db.Get(valueDBKey(vk))
 	if err != nil {
 		return nil, fmt.Errorf("db get value: %w", err)
+	}
+	if data == nil {
+		return nil, fmt.Errorf("%w: %x", ErrValueMissing, vk)
 	}
 	return data, nil
 }

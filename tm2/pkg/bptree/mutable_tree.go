@@ -86,20 +86,21 @@ func NewMutableTreeMem() *MutableTree {
 }
 
 // resolveInlineThreshold turns an Options value into the effective
-// threshold. Default is disabled (-1) so existing callers and tests
-// that rely on the external-ValueKey indirection see no behaviour
-// change; callers opt into inline storage via
-// InlineValueThresholdOption. Pass 0 to get the recommended default
-// threshold (DefaultInlineValueThreshold).
+// threshold. The zero value (and any negative value) maps to -1
+// (disabled, every value goes external). Callers opt into inline
+// storage by passing a positive threshold via
+// InlineValueThresholdOption — DefaultInlineValueThreshold is the
+// recommended starting value.
+//
+// Disabling-by-default preserves the external-ValueKey invariant for
+// existing callers and tests; a downstream consumer (e.g. the
+// store wrapper at tm2/pkg/store/bptree) opts in explicitly when it
+// wants the inline-storage performance win.
 func resolveInlineThreshold(opt int) int {
-	switch {
-	case opt == 0:
+	if opt <= 0 {
 		return -1
-	case opt < 0:
-		return -1
-	default:
-		return opt
 	}
+	return opt
 }
 
 // initFastNodeCache constructs the latest-view fast-node LRU according
@@ -290,7 +291,16 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	}
 	val, err := leaf.valueAt(slot, t.valueResolverFn())
 	if err == nil && val != nil && t.fastNodes != nil {
-		t.fastNodes.Add(string(key), val)
+		// Defensive copy before caching: for inline slots,
+		// leaf.valueAt returns a slice aliased to leaf.inlineValues[i].
+		// Adding that shared slice straight into the cache would let a
+		// caller-side mutation of the returned bytes (or a future
+		// in-place mutation in this package, were the key-ownership
+		// invariant ever extended to values) corrupt both the leaf and
+		// the cache. Mirrors cacheValueForKey on the Set path.
+		cached := make([]byte, len(val))
+		copy(cached, val)
+		t.fastNodes.Add(string(key), cached)
 	}
 	return val, err
 }
@@ -397,7 +407,20 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	if oldPayload.inline != nil {
 		val = oldPayload.inline
 	} else if oldPayload.valueKey != nil {
-		val, _ = t.resolveValue(oldPayload.valueKey)
+		var err error
+		val, err = t.resolveValue(oldPayload.valueKey)
+		if err != nil {
+			// Log but don't fail the Remove: the slot has already been
+			// shifted out of the leaf, so returning early would leave
+			// the tree in a partially-mutated state with the caller
+			// unable to retry coherently. Surfacing the error in the
+			// log preserves the diagnostic trail without breaking the
+			// Remove contract. Future work: surface a wrapped error
+			// distinguishing resolution failure from a healthy
+			// no-old-value case (ajnavarro #7).
+			t.logger.Error("bptree: resolveValue failed in Remove",
+				"vk", fmt.Sprintf("%x", oldPayload.valueKey), "err", err)
+		}
 		t.orphanValueKey(oldPayload.valueKey)
 	}
 	if t.fastNodes != nil {

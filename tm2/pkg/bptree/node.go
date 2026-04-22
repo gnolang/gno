@@ -72,9 +72,12 @@ type LeafNode struct {
 	miniTree      MiniMerkle // in-memory only, not serialized
 	miniTreeDirty bool       // true when slot contents changed since last Build
 	// slotHashes caches HashLeafSlotFromValueHash(keys[i], valueHashes[i])
-	// per slot so RebuildMiniMerkle skips slots whose key/value did not
-	// change since the previous rebuild. slotsDirty is a bitmap: bit i
-	// is set when slotHashes[i] is stale. A rebuild clears the bitmap.
+	// per slot so rebuildMiniMerkleIncremental skips slots whose key/value
+	// did not change since the previous rebuild. slotsDirty is a bitmap:
+	// bit i is set when slotHashes[i] is stale. A rebuild clears the
+	// bitmap. RebuildMiniMerkle (the eager full-rebuild used by
+	// constructors / deserialisation) ignores slotsDirty and recomputes
+	// every occupied slot unconditionally.
 	slotHashes [B]Hash
 	slotsDirty uint32
 }
@@ -354,16 +357,17 @@ func (n *InnerNode) Clone() *InnerNode {
 	// future relaxation of the contract would need to take a snapshot
 	// under childMu.
 	c := &InnerNode{
-		nodeKey:     nil,
-		numKeys:     n.numKeys,
-		childSizes:  n.childSizes,
-		height:      n.height,
-		keys:        n.keys,
-		children:    n.children,
-		childHashes: n.childHashes,
-		childNodes:  n.childNodes,
-		miniTree:    n.miniTree,
-		ndb:         n.ndb,
+		nodeKey:       nil,
+		numKeys:       n.numKeys,
+		childSizes:    n.childSizes,
+		height:        n.height,
+		keys:          n.keys,
+		children:      n.children,
+		childHashes:   n.childHashes,
+		childNodes:    n.childNodes,
+		miniTree:      n.miniTree,
+		miniTreeDirty: n.miniTreeDirty,
+		ndb:           n.ndb,
 		// childMu is zero-init for the fresh clone.
 	}
 	c.childLoaded.Store(n.childLoaded.Load())

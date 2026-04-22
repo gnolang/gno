@@ -3,6 +3,7 @@ package bptree
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -1432,13 +1433,13 @@ func TestPrune_EmptyVersionOrphansCleaned(t *testing.T) {
 		t.Fatalf("DeleteVersionsTo(1): %v", err)
 	}
 
-	// The fake orphan value must be deleted.
+	// The fake orphan value must be deleted. Post-fix, GetValue returns
+	// ErrValueMissing (not (nil, nil)) for an absent record so chain
+	// divergence surfaces as a typed error rather than passing through
+	// silently. See ajnavarro PR #5571 review.
 	got, err := tree.ndb.GetValue(fakeVK)
-	if err != nil {
-		t.Fatalf("post-prune GetValue: %v", err)
-	}
-	if got != nil {
-		t.Fatalf("orphan value leaked post-prune: got %q", got)
+	if !errors.Is(err, ErrValueMissing) {
+		t.Fatalf("post-prune GetValue: want ErrValueMissing, got val=%q err=%v", got, err)
 	}
 
 	// V2's orphan record must be deleted.

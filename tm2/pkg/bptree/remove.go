@@ -68,9 +68,12 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 	leaf.valueKeys[n-1] = nil
 	leaf.inlineValues[n-1] = nil
 	leaf.slotHashes[n-1] = Hash{}
-	// Shift inlineMask bits [pos+1, n) down by one; clear the now-
-	// vacant bit at n-1.
+	// Shift inlineMask AND slotsDirty bits [pos+1, n) down by one in
+	// parallel with the slot-data shift above; the vacated top bit
+	// falls off naturally. See shiftSlotsDirtyDown for the corruption
+	// hazard the missing parallel shift causes (ajnavarro #1).
 	shiftInlineMaskDown(leaf, pos)
+	shiftSlotsDirtyDown(leaf, pos)
 	leaf.numKeys--
 	leaf.miniTreeDirty = true
 
@@ -83,6 +86,17 @@ func shiftInlineMaskDown(leaf *LeafNode, pos int) {
 	low := leaf.inlineMask & ((uint32(1) << uint(pos)) - 1)
 	high := leaf.inlineMask >> uint(pos+1) << uint(pos)
 	leaf.inlineMask = low | high
+}
+
+// shiftSlotsDirtyDown shifts slotsDirty bits [pos+1, 32) down by one
+// to follow the parallel shift of slot data on remove. The vacated bit
+// at the old top of the occupied range falls off naturally (cleared by
+// the right-shift). See shiftSlotsDirtyUp comment for the corruption
+// hazard the missing parallel shift causes (ajnavarro #1).
+func shiftSlotsDirtyDown(leaf *LeafNode, pos int) {
+	low := leaf.slotsDirty & ((uint32(1) << uint(pos)) - 1)
+	high := leaf.slotsDirty >> uint(pos+1) << uint(pos)
+	leaf.slotsDirty = low | high
 }
 
 func innerRemove(inner *InnerNode, key []byte) removeResult {
@@ -205,8 +219,12 @@ func redistributeRight(parent *InnerNode, idx int) {
 			r.inlineValues[i] = r.inlineValues[i-1]
 			r.slotHashes[i] = r.slotHashes[i-1]
 		}
-		// Shift r.inlineMask up by 1 bit (inserting a vacant bit at 0).
+		// Shift r.inlineMask AND r.slotsDirty up by 1 bit (inserting a
+		// vacant bit at 0) — parallel with the slot-data shift above.
+		// See shiftSlotsDirtyUp comment (insert.go) for the corruption
+		// hazard the missing parallel shift causes (ajnavarro #1).
 		r.inlineMask <<= 1
+		r.slotsDirty <<= 1
 		// Move the last slot from l to position 0 of r, preserving
 		// inline/external status.
 		r.keys[0] = l.keys[lastIdx]
@@ -217,6 +235,11 @@ func redistributeRight(parent *InnerNode, idx int) {
 		if l.inlineMask&(uint32(1)<<uint(lastIdx)) != 0 {
 			r.inlineMask |= 1
 		}
+		// Mirror the borrowed slot's dirty bit so r.slotHashes[0]'s
+		// validity tracks l.slotHashes[lastIdx]'s pre-move state.
+		if l.slotsDirty&(uint32(1)<<uint(lastIdx)) != 0 {
+			r.slotsDirty |= 1
+		}
 		r.numKeys++
 		l.keys[lastIdx] = nil
 		l.valueHashes[lastIdx] = Hash{}
@@ -224,6 +247,7 @@ func redistributeRight(parent *InnerNode, idx int) {
 		l.inlineValues[lastIdx] = nil
 		l.slotHashes[lastIdx] = Hash{}
 		l.inlineMask &^= uint32(1) << uint(lastIdx)
+		l.slotsDirty &^= uint32(1) << uint(lastIdx)
 		l.numKeys--
 		// Update separator and parent childSizes
 		parent.keys[idx] = copyKey(r.keys[0])
@@ -303,6 +327,12 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		if r.inlineMask&1 != 0 {
 			l.inlineMask |= uint32(1) << uint(dst)
 		}
+		// Mirror the borrowed slot's dirty bit so l.slotHashes[dst]'s
+		// validity tracks r.slotHashes[0]'s pre-move state
+		// (ajnavarro #1).
+		if r.slotsDirty&1 != 0 {
+			l.slotsDirty |= uint32(1) << uint(dst)
+		}
 		l.numKeys++
 		// Shift right left (with slotHashes cache + inline values).
 		rn := int(r.numKeys)
@@ -313,7 +343,10 @@ func redistributeLeft(parent *InnerNode, idx int) {
 			r.inlineValues[i] = r.inlineValues[i+1]
 			r.slotHashes[i] = r.slotHashes[i+1]
 		}
+		// Shift inlineMask AND slotsDirty down by one — parallel with
+		// the slot-data shift above (ajnavarro #1).
 		r.inlineMask >>= 1
+		r.slotsDirty >>= 1
 		r.keys[rn-1] = nil
 		r.valueHashes[rn-1] = Hash{}
 		r.valueKeys[rn-1] = nil
@@ -403,6 +436,14 @@ func merge(parent *InnerNode, idx int) {
 			l.slotHashes[dst] = r.slotHashes[i]
 			if r.inlineMask&(uint32(1)<<uint(i)) != 0 {
 				l.inlineMask |= uint32(1) << uint(dst)
+			}
+			// Mirror the absorbed slot's dirty bit so l.slotHashes[dst]'s
+			// validity tracks r.slotHashes[i]'s pre-merge state. Without
+			// this, dirty bits from r are dropped — the next incremental
+			// rebuild on l would trust uninitialised slotHashes for the
+			// absorbed range (ajnavarro #1).
+			if r.slotsDirty&(uint32(1)<<uint(i)) != 0 {
+				l.slotsDirty |= uint32(1) << uint(dst)
 			}
 		}
 		l.numKeys += r.numKeys
