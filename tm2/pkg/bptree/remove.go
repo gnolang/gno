@@ -348,7 +348,14 @@ func merge(parent *InnerNode, idx int) {
 	case *LeafNode:
 		r := right.(*LeafNode)
 		for i := 0; i < int(r.numKeys); i++ {
-			l.keys[l.numKeys] = r.keys[i]
+			// copyKey so the merged-left node owns its key bytes
+			// independently of the (now dead) right node, in line with
+			// Finding #20's uniform discipline. valueKeys are
+			// content-addressed identifiers (12-byte NodeKey form,
+			// allocated immutable per session); transferring the slice
+			// header is safe and matches the rest of the codebase.
+			// See BUG-5 in PR-5750.md.
+			l.keys[l.numKeys] = copyKey(r.keys[i])
 			l.valueHashes[l.numKeys] = r.valueHashes[i]
 			l.valueKeys[l.numKeys] = r.valueKeys[i]
 			l.numKeys++
@@ -361,9 +368,10 @@ func merge(parent *InnerNode, idx int) {
 		// bytes (Finding #20).
 		l.keys[l.numKeys] = copyKey(parent.keys[idx])
 		l.numKeys++
-		// Append right's keys and children
+		// Append right's keys and children. copyKey for parity with
+		// Finding #20 — see the LeafNode case above. (BUG-5.)
 		for i := 0; i < int(r.numKeys); i++ {
-			l.keys[l.numKeys] = r.keys[i]
+			l.keys[l.numKeys] = copyKey(r.keys[i])
 			l.numKeys++
 		}
 		// Children: left already has some, append right's (including childSizes)

@@ -159,6 +159,7 @@ func TestCoverage_ImmutableStoreCommitPanics(t *testing.T) {
 
 	immSt, err := st.GetImmutable(1)
 	require.NoError(t, err)
+	defer immSt.Close()
 
 	require.Panics(t, func() { immSt.Commit() })
 }
@@ -178,6 +179,7 @@ func TestCoverage_ImmutableStoreIterator(t *testing.T) {
 
 	immSt, err := st.GetImmutable(1)
 	require.NoError(t, err)
+	defer immSt.Close()
 
 	itr := immSt.Iterator(nil, nil, nil)
 	defer itr.Close()

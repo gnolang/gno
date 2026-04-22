@@ -67,7 +67,26 @@ func (st *Store) ExpectedDepth() int64 {
 	return depth
 }
 
+// Close releases any version-reader reservation held by an immutable
+// snapshot Store. Callers of GetImmutable MUST call Close on the
+// returned Store, otherwise PruneVersionsTo will block on the
+// stranded reader count. On a Store backed by a MutableTree this is
+// a no-op (Store does not own the MutableTree's DB lifecycle).
+// Safe to call multiple times — the underlying ImmutableTree.Close
+// is idempotent.
+func (st *Store) Close() error {
+	if st.tree == nil {
+		return nil
+	}
+	return st.tree.CloseSnapshot()
+}
+
 // GetImmutable returns a read-only store at a specific version.
+//
+// The returned *Store holds a version-reader reservation against the
+// underlying nodeDB. Callers MUST call Close on the returned Store
+// to release the reservation, otherwise PruneVersionsTo for the same
+// version will return ErrActiveReaders indefinitely.
 func (st *Store) GetImmutable(version int64) (*Store, error) {
 	if !st.VersionExists(version) {
 		return nil, bp.ErrVersionDoesNotExist
