@@ -3,8 +3,6 @@ package packages
 import (
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -13,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	vmpackages "github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
@@ -28,7 +27,8 @@ var ErrPackageNotFound = errors.New("package not found")
 // bulk operations and a local per-path lookup (filesystem + PackageFetcher)
 // for the proxy's lazy-resolve path.
 type Loader struct {
-	cfg Config
+	cfg      Config
+	modCache string // gnomod.ModCachePath(), resolved once at construction
 
 	mu      sync.RWMutex
 	fetcher pkgdownload.PackageFetcher
@@ -46,11 +46,12 @@ func New(cfg Config) *Loader {
 		fetcher = rpcpkgfetcher.New(cfg.RemoteOverrides)
 	}
 	return &Loader{
-		cfg:     cfg,
-		fetcher: fetcher,
-		index:   make(map[string]*Package),
-		tracked: make(map[string]struct{}),
-		rootIdx: make(map[string]map[string]string),
+		cfg:      cfg,
+		modCache: filepath.Clean(gnomod.ModCachePath()),
+		fetcher:  fetcher,
+		index:    make(map[string]*Package),
+		tracked:  make(map[string]struct{}),
+		rootIdx:  make(map[string]map[string]string),
 	}
 }
 
@@ -109,7 +110,6 @@ func (l *Loader) rpcLookup(path string) *Package {
 // extractPackageName returns the package name from the first parseable
 // non-test .gno file. Returns "" if none is found.
 func extractPackageName(files []*std.MemFile) string {
-	fset := token.NewFileSet()
 	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
@@ -117,11 +117,11 @@ func extractPackageName(files []*std.MemFile) string {
 		if strings.HasSuffix(f.Name, "_test.gno") || strings.HasSuffix(f.Name, "_filetest.gno") {
 			continue
 		}
-		astf, err := parser.ParseFile(fset, f.Name, f.Body, parser.PackageClauseOnly)
+		name, err := gnolang.PackageNameFromFileBody(f.Name, f.Body)
 		if err != nil {
 			continue
 		}
-		return astf.Name.Name
+		return string(name)
 	}
 	return ""
 }
@@ -135,7 +135,7 @@ func (l *Loader) fsLookupLocked(path string) *Package {
 			return &Package{
 				ImportPath: path,
 				Dir:        dir,
-				Kind:       kindForDir(dir),
+				Kind:       l.kindForDir(dir),
 			}
 		}
 	}
@@ -163,27 +163,47 @@ func (l *Loader) ensureRootIndexLocked(root string) map[string]string {
 }
 
 // scanRoot walks a root looking for gnomod.toml files and returns a
-// module-path → dir map. Errors and unparseable modules are logged and skipped.
+// module-path → dir map. Skips common noise dirs (dotfiles, node_modules,
+// _build) to avoid descending into VCS/build trees. Errors from the walker
+// or from ParseDir are logged at debug and do not abort the scan.
 func scanRoot(root string, logger *slog.Logger) map[string]string {
 	out := map[string]string{}
-	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || !d.IsDir() {
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
 			return nil
 		}
-		gm, err := gnomod.ParseDir(p)
+		if d.IsDir() {
+			if p == root {
+				return nil
+			}
+			name := d.Name()
+			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "_build" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if d.Name() != "gnomod.toml" {
+			return nil
+		}
+		dir := filepath.Dir(p)
+		gm, err := gnomod.ParseDir(dir)
 		if err != nil {
-			// Only log actual parse errors; skip "no gnomod.toml" silently.
+			// ParseDir stats the file itself; don't re-log the "missing" cases
+			// even though we just matched a name — err still possible via i/o.
 			if !errors.Is(err, gnomod.ErrNoModFile) && !errors.Is(err, os.ErrNotExist) {
-				logger.Debug("skipping unparseable gnomod.toml", "dir", p, "err", err)
+				logger.Debug("skipping unparseable gnomod.toml", "dir", dir, "err", err)
 			}
 			return nil
 		}
 		if gm.Module == "" {
 			return nil
 		}
-		out[gm.Module] = p
+		out[gm.Module] = dir
 		return nil
 	})
+	if err != nil {
+		logger.Warn("root scan failed", "root", root, "err", err)
+	}
 	if len(out) == 0 {
 		logger.Debug("root index empty", "root", root)
 	}
@@ -359,7 +379,7 @@ func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
 			ImportPath: vp.ImportPath,
 			Dir:        vp.Dir,
 			Name:       vp.Name,
-			Kind:       kindForDir(vp.Dir),
+			Kind:       l.kindForDir(vp.Dir),
 		}
 		l.index[p.ImportPath] = p
 		out = append(out, p)
@@ -380,12 +400,11 @@ func (w *logWriter) Write(p []byte) (int, error) {
 // kindForDir classifies a package directory. Packages resolved from the
 // modcache are treated as Remote (they won't be watched and aren't part of
 // the user's editable workspace). Everything else is FS.
-func kindForDir(dir string) Kind {
-	modCache := gnomod.ModCachePath()
-	if modCache == "" {
+func (l *Loader) kindForDir(dir string) Kind {
+	if l.modCache == "" {
 		return KindFS
 	}
-	if strings.HasPrefix(filepath.Clean(dir), filepath.Clean(modCache)) {
+	if strings.HasPrefix(filepath.Clean(dir), l.modCache) {
 		return KindRemote
 	}
 	return KindFS

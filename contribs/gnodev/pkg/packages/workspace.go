@@ -1,4 +1,3 @@
-// contribs/gnodev/pkg/packages/workspace.go
 package packages
 
 import (

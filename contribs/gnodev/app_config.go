@@ -1,6 +1,10 @@
 package main
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
+)
 
 type AppConfig struct {
 	// Listeners
@@ -121,7 +125,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.Var(
-		newStringSliceVar(&c.extraRoots),
+		(*commands.StringArr)(&c.extraRoots),
 		"extra-root",
 		"additional workspace root to include (repeatable)",
 	)
