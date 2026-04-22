@@ -1,0 +1,10 @@
+# `gno mod init` is a legacy alias that preserves the original bare behavior
+# and prints a hint pointing to `gno init`.
+
+gno mod init gno.land/p/demo/alias
+
+stderr 'gno init'
+! stderr deprecated
+exists gnomod.toml
+! exists alias/
+! exists alias.gno

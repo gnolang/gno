@@ -4,10 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -45,23 +46,27 @@ func newModCmd(io commands.IO) *commands.Command {
 	return cmd
 }
 
-// newModInitDeprecatedCmd registers `gno mod init` as a thin deprecation alias
-// that forwards to the top-level `gno init` command. Prints a notice on stderr
-// so existing scripts, Makefiles, and CI pipelines keep working while users
-// migrate to the new entry point.
+// newModInitDeprecatedCmd registers `gno mod init` as a thin alias that
+// preserves the original behavior: create a bare gnomod.toml in CWD. It
+// never triggers the interactive wizard, and hints at `gno init` for users
+// who want the richer scaffolding flow.
 func newModInitDeprecatedCmd(io commands.IO) *commands.Command {
 	cfg := &modInitCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init [flags] [<module-path>]",
-			ShortHelp:  "deprecated: use 'gno init' instead",
-			LongHelp: `Deprecated alias for 'gno init'. Forwards all arguments and flags
-to the top-level 'gno init' command. Please migrate your scripts.`,
+			ShortUsage: "init [<module-path>]",
+			ShortHelp:  "create a bare gnomod.toml (see 'gno init' for templates)",
+			LongHelp: `Create a bare gnomod.toml in the current directory.
+
+For interactive scaffolding with template files, use 'gno init' instead.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			io.ErrPrintln("warning: 'gno mod init' is deprecated; use 'gno init' instead")
+			io.ErrPrintln("hint: 'gno init' scaffolds a module with template files interactively")
+			// Always bare — never trigger the wizard.
+			cfg.bare = true
+			cfg.template = ""
 			return execModInit(cfg, args, io)
 		},
 	)
@@ -100,24 +105,29 @@ func newModGraphCmd(io commands.IO) *commands.Command {
 
 // --- gno init (top-level command) ---
 
+// moduleKind enumerates the flavors of module gno init can scaffold.
 type moduleKind int
 
 const (
-	kindPackage moduleKind = iota
-	kindRealm
-	kindRun
+	kindPackage moduleKind = iota // stateless library under /p/
+	kindRealm                     // stateful contract under /r/
+	kindRun                       // one-off main script executed via gnokey maketx run
 )
 
+// modInitCfg holds the flags shared by `gno init` and the legacy `gno mod init` alias.
 type modInitCfg struct {
-	bare     bool
-	template string
+	bare     bool   // when true, only write gnomod.toml (no template files)
+	template string // explicit template name; empty means "use default / prompt"
 }
 
+// RegisterFlags implements the commands.Config interface for modInitCfg.
 func (c *modInitCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.bare, "bare", false, "only create gnomod.toml, skip template files")
 	fs.StringVar(&c.template, "template", "", "template name to use (e.g. basic); skips interactive selection")
 }
 
+// newInitCmd returns the top-level `gno init` command: an interactive wizard
+// (or argument-driven non-interactive flow) that scaffolds a Gno module in CWD.
 func newInitCmd(io commands.IO) *commands.Command {
 	cfg := &modInitCfg{}
 	return commands.NewCommand(
@@ -167,6 +177,9 @@ Examples:
 	)
 }
 
+// execModInit is the shared handler for both `gno init` and `gno mod init`.
+// It dispatches to the appropriate flow based on the config and arguments:
+// bare, .gno run script, argument-driven scaffold, or full wizard.
 func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	if len(args) > 1 {
 		return flag.ErrHelp
@@ -186,13 +199,12 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
 	}
 
-	// .gno argument: create a run script at the given path, no gnomod.toml
+	// .gno argument: create a run script at the given path, no gnomod.toml.
 	if len(args) == 1 && strings.HasSuffix(args[0], ".gno") {
 		if err := validateGnoPath(args[0]); err != nil {
 			return err
 		}
-		templates := templatesForKind(kindRun)
-		tmpl, err := resolveTemplate(templates, cfg.template)
+		tmpl, err := resolveTemplate(templatesForKind(kindRun), cfg.template)
 		if err != nil {
 			return err
 		}
@@ -216,8 +228,8 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		if err := validateModulePath(modPath); err != nil {
 			return err
 		}
-		if werr := writeGnomod(rootDir, modPath); werr != nil {
-			return werr
+		if err := writeGnomod(rootDir, modPath); err != nil {
+			return err
 		}
 		fmt.Fprintf(io.Err(), "Initialized module %s\n", modPath)
 		fmt.Fprintf(io.Err(), "  gnomod.toml\n")
@@ -225,31 +237,25 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return nil
 	}
 
-	// Non-interactive (no TTY) with argument: create gnomod.toml + template files in CWD
-	if !commands.IsInteractive() {
-		if len(args) == 0 {
-			return fmt.Errorf("module path is required (non-interactive mode)")
-		}
-		modPath := normalizeModulePath(args[0])
-		return scaffoldModule(rootDir, modPath, templatesForKind(kindFromPath(modPath)), cfg.template, io)
-	}
-
-	// Interactive with argument: create gnomod.toml + resolve template in CWD
+	// With a module path argument: scaffold in CWD (same flow for both
+	// interactive and non-interactive invocations).
 	if len(args) == 1 {
 		modPath := normalizeModulePath(args[0])
 		return scaffoldModule(rootDir, modPath, templatesForKind(kindFromPath(modPath)), cfg.template, io)
 	}
+	if !commands.IsInteractive() {
+		return fmt.Errorf("module path is required (non-interactive mode)")
+	}
 
-	// Full interactive wizard
+	// Full interactive wizard.
 	kind, err := promptModuleKind(io)
 	if err != nil {
 		return err
 	}
 	if kind == kindRun {
-		templates := templatesForKind(kindRun)
-		tmpl, tmplErr := resolveTemplate(templates, cfg.template)
-		if tmplErr != nil {
-			return tmplErr
+		tmpl, err := resolveTemplate(templatesForKind(kindRun), cfg.template)
+		if err != nil {
+			return err
 		}
 		return execInitRun(rootDir, *tmpl, io)
 	}
@@ -272,9 +278,7 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 }
 
 // scaffoldModule resolves a template by name (or the default when empty),
-// pre-checks for file conflicts, writes gnomod.toml, then renders template
-// files. Any resolution or conflict error is surfaced before gnomod.toml is
-// written, so a failed init never leaves an orphan gnomod.toml on disk.
+// then delegates to scaffoldModuleWith.
 func scaffoldModule(rootDir, modPath string, templates []initTemplate, templateName string, io commands.IO) error {
 	tmpl, err := resolveTemplate(templates, templateName)
 	if err != nil {
@@ -284,20 +288,44 @@ func scaffoldModule(rootDir, modPath string, templates []initTemplate, templateN
 }
 
 // scaffoldModuleWith is the shared tail of every non-bare, non-run code path:
-// validate → render (pre-check) → write gnomod.toml → write module files.
-// Everything is created in rootDir (CWD) — 'gno init' never creates directories
-// except for .gno run-script paths, which are handled separately.
+// validate → render (with conflict check) → write gnomod.toml → write files →
+// print summary. Everything is created in rootDir (CWD). Rendering fails fast
+// on filename conflicts so a failed init never leaves an orphan gnomod.toml.
 func scaffoldModuleWith(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
 	if err := validateModulePath(modPath); err != nil {
 		return err
 	}
-	if _, err := renderModuleFiles(rootDir, modPath, tmpl); err != nil {
+	files, err := renderModuleFiles(rootDir, modPath, tmpl)
+	if err != nil {
 		return err
 	}
 	if err := writeGnomod(rootDir, modPath); err != nil {
 		return err
 	}
-	return writeModule(rootDir, modPath, tmpl, io)
+
+	kindLabel := "package"
+	if gno.IsRealmPath(modPath) {
+		kindLabel = "realm"
+	}
+
+	names := slices.Sorted(maps.Keys(files))
+	hasTests := false
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(rootDir, name), files[name], 0o644); err != nil {
+			return err
+		}
+		if strings.HasSuffix(name, "_test.gno") {
+			hasTests = true
+		}
+	}
+
+	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel, modPath, tmpl.Name)
+	fmt.Fprintf(io.Err(), "  gnomod.toml\n")
+	for _, name := range names {
+		fmt.Fprintf(io.Err(), "  %s\n", name)
+	}
+	printNextSteps(io, hasTests)
+	return nil
 }
 
 // printNextSteps emits a short "what to do next" hint after a successful init.
@@ -323,6 +351,8 @@ func validateModulePath(modPath string) error {
 	return nil
 }
 
+// writeGnomod writes a minimal gnomod.toml in rootDir with the given module
+// path and the current Gno language version.
 func writeGnomod(rootDir, modPath string) error {
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
@@ -355,8 +385,7 @@ func resolveTemplate(templates []initTemplate, name string) (*initTemplate, erro
 // output file already exists on disk. It performs no writes — callers use it
 // to fail-fast before touching gnomod.toml, avoiding partial state on error.
 func renderModuleFiles(rootDir, modPath string, tmpl *initTemplate) (map[string][]byte, error) {
-	pkgName := filepath.Base(modPath)
-	data := templateData{PkgName: pkgName}
+	data := templateData{PkgName: filepath.Base(modPath)}
 
 	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
 	if err != nil {
@@ -370,44 +399,11 @@ func renderModuleFiles(rootDir, modPath string, tmpl *initTemplate) (map[string]
 	return files, nil
 }
 
-func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
-	files, err := renderModuleFiles(rootDir, modPath, tmpl)
-	if err != nil {
-		return err
-	}
-
-	kindLabel := "package"
-	if gno.IsRealmPath(modPath) {
-		kindLabel = "realm"
-	}
-
-	created := make([]string, 0, len(files))
-	hasTests := false
-	for _, name := range sortedKeys(files) {
-		if err := os.WriteFile(filepath.Join(rootDir, name), files[name], 0o644); err != nil {
-			return err
-		}
-		created = append(created, name)
-		if strings.HasSuffix(name, "_test.gno") {
-			hasTests = true
-		}
-	}
-
-	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel, modPath, tmpl.Name)
-	fmt.Fprintf(io.Err(), "  gnomod.toml\n")
-	for _, f := range created {
-		fmt.Fprintf(io.Err(), "  %s\n", f)
-	}
-	printNextSteps(io, hasTests)
-
-	return nil
-}
-
 // writeRunScript creates a run script at the given relative path (e.g. "run/hello.gno").
 // No gnomod.toml is created — run scripts don't need one.
 func writeRunScript(rootDir, relPath string, tmpl initTemplate, io commands.IO) error {
-	outDir := filepath.Join(rootDir, filepath.Dir(relPath))
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	relDir := filepath.Dir(relPath)
+	if err := os.MkdirAll(filepath.Join(rootDir, relDir), 0o755); err != nil {
 		return err
 	}
 
@@ -418,30 +414,28 @@ func writeRunScript(rootDir, relPath string, tmpl initTemplate, io commands.IO) 
 	if err != nil {
 		return fmt.Errorf("render run template: %w", err)
 	}
-
 	for name := range files {
-		p := filepath.Join(filepath.Dir(relPath), name)
-		if _, err := os.Stat(filepath.Join(rootDir, p)); err == nil {
-			return fmt.Errorf("file already exists: %s", p)
+		if _, err := os.Stat(filepath.Join(rootDir, relDir, name)); err == nil {
+			return fmt.Errorf("file already exists: %s", filepath.Join(relDir, name))
 		}
 	}
 
-	created := make([]string, 0, len(files))
-	for _, name := range sortedKeys(files) {
-		p := filepath.Join(filepath.Dir(relPath), name)
-		if err := os.WriteFile(filepath.Join(rootDir, p), files[name], 0o644); err != nil {
+	names := slices.Sorted(maps.Keys(files))
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(rootDir, relDir, name), files[name], 0o644); err != nil {
 			return err
 		}
-		created = append(created, p)
 	}
 
 	fmt.Fprintf(io.Err(), "Initialized run script (%s template)\n", tmpl.Name)
-	for _, f := range created {
-		fmt.Fprintf(io.Err(), "  %s\n", f)
+	for _, name := range names {
+		fmt.Fprintf(io.Err(), "  %s\n", filepath.Join(relDir, name))
 	}
 	return nil
 }
 
+// execInitRun is the wizard tail for the "run script" module kind: it prompts
+// for a script name and writes the rendered run template under run/<name>.gno.
 func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 	defaultName := sanitizeModuleName(filepath.Base(rootDir))
 	if defaultName == "" {
@@ -451,34 +445,37 @@ func execInitRun(rootDir string, tmpl initTemplate, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	relPath := filepath.Join("run", scriptName+".gno")
-	return writeRunScript(rootDir, relPath, tmpl, io)
+	return writeRunScript(rootDir, filepath.Join("run", scriptName+".gno"), tmpl, io)
 }
 
 // --- Wizard helpers ---
 
+// promptModuleKind asks the user to pick a module flavor (realm, package, or
+// run script) and returns the corresponding moduleKind. Package is the default.
 func promptModuleKind(io commands.IO) (moduleKind, error) {
-	choices := map[string]commands.Choice{
-		"r": {Aliases: []string{"realm"}, Description: "realm"},
-		"p": {Aliases: []string{"package"}, Description: "package"},
-		"m": {Aliases: []string{"main", "run"}, Description: "run script"},
+	opts := map[string]struct {
+		kind moduleKind
+		commands.Choice
+	}{
+		"r": {kindRealm, commands.Choice{Aliases: []string{"realm"}, Description: "realm"}},
+		"p": {kindPackage, commands.Choice{Aliases: []string{"package"}, Description: "package"}},
+		"m": {kindRun, commands.Choice{Aliases: []string{"main", "run"}, Description: "run script"}},
+	}
+	choices := make(map[string]commands.Choice, len(opts))
+	for k, o := range opts {
+		choices[k] = o.Choice
 	}
 
 	key, err := commands.PromptChoice(io, "Module kind — [r]ealm, [P]ackage, or [m]ain: ", choices, "p")
 	if err != nil {
 		return kindPackage, err
 	}
-
-	switch key {
-	case "r":
-		return kindRealm, nil
-	case "m":
-		return kindRun, nil
-	default:
-		return kindPackage, nil
-	}
+	return opts[key].kind, nil
 }
 
+// promptModulePath asks the user for a namespace and module name, then
+// assembles the full "gno.land/{r,p}/<namespace>/<name>" path based on kind.
+// The default module name is derived from rootDir's basename.
 func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, error) {
 	namespace, err := commands.PromptString(io, "Namespace or address", "", validateName)
 	if err != nil {
@@ -491,10 +488,11 @@ func promptModulePath(kind moduleKind, rootDir string, io commands.IO) (string, 
 		return "", err
 	}
 
-	basePath := fmt.Sprintf("gno.land/%s/%s", namespace, name)
-	return insertPathLetter(basePath, kind)
+	return insertPathLetter(fmt.Sprintf("gno.land/%s/%s", namespace, name), kind)
 }
 
+// selectTemplate presents the wizard's template menu and returns the picked
+// template. When only one template is available it is auto-selected.
 func selectTemplate(templates []initTemplate, io commands.IO) (*initTemplate, error) {
 	items := make([]commands.SelectItem, len(templates))
 	for i, t := range templates {
@@ -513,6 +511,8 @@ func selectTemplate(templates []initTemplate, io commands.IO) (*initTemplate, er
 	return nil, fmt.Errorf("internal: template %q not found", name)
 }
 
+// kindFromPath infers the module kind from a fully-qualified module path:
+// realm for /r/ paths, package otherwise.
 func kindFromPath(modPath string) moduleKind {
 	if gno.IsRealmPath(modPath) {
 		return kindRealm
@@ -520,6 +520,7 @@ func kindFromPath(modPath string) moduleKind {
 	return kindPackage
 }
 
+// templatesForKind returns the registered template set for the given kind.
 func templatesForKind(kind moduleKind) []initTemplate {
 	switch kind {
 	case kindRealm:
@@ -531,38 +532,38 @@ func templatesForKind(kind moduleKind) []initTemplate {
 	}
 }
 
+// insertPathLetter inserts the kind-specific path letter ("r" for realms,
+// "p" for packages) between the domain and the rest of the module path.
+// It is idempotent: paths already containing /r/ or /p/ after the domain
+// are returned unchanged.
 func insertPathLetter(path string, kind moduleKind) (string, error) {
-	idx := strings.Index(path, "/")
-	if idx == -1 || idx == len(path)-1 {
+	domain, rest, ok := strings.Cut(path, "/")
+	if !ok || rest == "" {
 		return "", fmt.Errorf("invalid module path: %q", path)
 	}
-	domain := path[:idx]
-	rest := path[idx+1:]
-
-	// Idempotency guard: if the path already has an /r/ or /p/ segment
-	// immediately after the domain, return it unchanged.
 	if strings.HasPrefix(rest, "r/") || strings.HasPrefix(rest, "p/") {
 		return path, nil
 	}
-
-	var letter string
-	switch kind {
-	case kindRealm:
+	letter := "p"
+	if kind == kindRealm {
 		letter = "r"
-	default:
-		letter = "p"
 	}
 	return fmt.Sprintf("%s/%s/%s", domain, letter, rest), nil
 }
 
-var reModName = regexp.MustCompile(`[^a-z0-9_]`)
+var (
+	reModName   = regexp.MustCompile(`[^a-z0-9_]`)
+	reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
+)
 
-var reValidName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
-
+// isValidName reports whether s is a valid lowercase Gno identifier: letters,
+// digits, and underscores, starting with a letter or a single leading underscore.
 func isValidName(s string) bool {
 	return reValidName.MatchString(s)
 }
 
+// validateName is a PromptString-compatible validator that enforces isValidName
+// and returns a user-facing error describing the expected format.
 func validateName(s string) error {
 	if s == "" {
 		return fmt.Errorf("value cannot be empty")
@@ -574,20 +575,13 @@ func validateName(s string) error {
 }
 
 // validateGnoPath ensures the .gno argument is a safe relative path within CWD.
-// It rejects absolute paths, path traversal (..), and empty script names.
+// filepath.IsLocal rejects absolute paths, empty paths, and any traversal
+// above the starting directory (including on Windows) in a single check.
 func validateGnoPath(p string) error {
-	if filepath.IsAbs(p) {
-		return fmt.Errorf("path must be relative, got %q", p)
+	if !filepath.IsLocal(p) {
+		return fmt.Errorf("invalid path %q: must be relative and within the current directory", p)
 	}
-	cleaned := filepath.Clean(p)
-	// After Clean, a real traversal is either exactly ".." or starts with
-	// ".." followed by the platform separator. A plain HasPrefix(cleaned, "..")
-	// would false-positive on legitimate names like "..bar.gno".
-	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("path must not traverse outside current directory, got %q", p)
-	}
-	base := filepath.Base(p)
-	scriptName := strings.TrimSuffix(base, ".gno")
+	scriptName := strings.TrimSuffix(filepath.Base(p), ".gno")
 	if scriptName == "" {
 		return fmt.Errorf("script name cannot be empty")
 	}
@@ -597,6 +591,9 @@ func validateGnoPath(p string) error {
 	return nil
 }
 
+// normalizeModulePath expands short-form paths ("r/demo/foo", "p/demo/lib")
+// into their canonical "gno.land/..." form. Paths whose first segment already
+// contains a dot (a domain) are left untouched.
 func normalizeModulePath(modPath string) string {
 	if modPath == "" {
 		return modPath
@@ -611,20 +608,13 @@ func normalizeModulePath(modPath string) string {
 	return modPath
 }
 
+// sanitizeModuleName turns a filesystem directory name into a plausible
+// default module name by lowercasing, replacing dashes with underscores, and
+// stripping characters that are not valid Gno identifier bytes.
 func sanitizeModuleName(name string) string {
 	name = strings.ToLower(name)
 	name = strings.ReplaceAll(name, "-", "_")
-	name = reModName.ReplaceAllString(name, "")
-	return name
-}
-
-func sortedKeys(m map[string][]byte) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return reModName.ReplaceAllString(name, "")
 }
 
 func newModTidy(io commands.IO) *commands.Command {

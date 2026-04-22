@@ -748,9 +748,10 @@ func TestNormalizeModulePath(t *testing.T) {
 	}
 }
 
-// TestModInitDeprecatedAlias verifies that `gno mod init` still works as a
-// deprecated alias of `gno init`, emitting a deprecation warning on stderr.
-func TestModInitDeprecatedAlias(t *testing.T) {
+// TestModInitLegacyAlias verifies that `gno mod init <path>` still creates a
+// bare gnomod.toml in CWD (preserving the original behavior) and emits a
+// hint pointing users to the new `gno init` command.
+func TestModInitLegacyAlias(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	origDir, err := os.Getwd()
@@ -760,9 +761,13 @@ func TestModInitDeprecatedAlias(t *testing.T) {
 
 	io, stderr := newTestMockIOWithStderr("")
 	cmd := newModInitDeprecatedCmd(io)
-	err = cmd.ParseAndRun(t.Context(), []string{"--bare", "gno.land/p/demo/alias"})
+	err = cmd.ParseAndRun(t.Context(), []string{"gno.land/p/demo/alias"})
 	require.NoError(t, err)
 
-	require.Contains(t, stderr.String(), "deprecated")
+	require.Contains(t, stderr.String(), "gno init")
+	require.NotContains(t, stderr.String(), "deprecated")
 	require.FileExists(t, filepath.Join(tmpDir, "gnomod.toml"))
+	// The alias must never produce template files.
+	_, err = os.Stat(filepath.Join(tmpDir, "alias.gno"))
+	require.True(t, os.IsNotExist(err))
 }

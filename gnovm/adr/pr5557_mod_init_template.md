@@ -137,10 +137,12 @@ behavior under a single well-defined flag.
 
 ### Backward compatibility alias
 
-`gno mod init` is kept as a hidden deprecated alias that forwards to the
-top-level `gno init` handler and emits a one-line deprecation warning on
-stderr. Existing scripts, Makefiles, and CI pipelines keep working while
-users migrate.
+`gno mod init` is kept as a hidden legacy alias that preserves its original
+bare behavior: it always writes a minimal `gnomod.toml` in the current
+directory (never triggers the interactive wizard and never scaffolds template
+files). It prints a one-line hint on stderr pointing at `gno init` for users
+who want the richer flow. Existing scripts, Makefiles, and CI pipelines keep
+working unchanged.
 
 ### Shared prompt primitives in `tm2/pkg/commands/`
 
@@ -216,7 +218,7 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 | `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplateDir` |
 | `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` and `{{.ScriptName}}` in filenames |
 | `gnovm/cmd/gno/mod_test.go` | Tests for helpers and init flows |
-| `gnovm/cmd/gno/testdata/init/*.txtar` | End-to-end testscript scenarios covering CWD scaffolding, `--bare`, conflicts, invalid paths, run-script shorthand, deprecated alias, and flag validation |
+| `gnovm/cmd/gno/testdata/init/*.txtar` | End-to-end testscript scenarios covering CWD scaffolding, `--bare`, conflicts, invalid paths, run-script shorthand, legacy `gno mod init` alias, and flag validation |
 
 ## Consequences
 
