@@ -81,20 +81,34 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 if [[ -z "${NEW_VALSET_JSON:-}" ]]; then
-  : "${PV_KEY:?either NEW_VALSET_JSON or PV_KEY is required}"
-  # r/sys/validators/v2 wants the bech32 (gpub1...) pubkey — priv_validator_key.json
-  # stores the raw base64 under pub_key.value. Use `gnoland secrets get` to convert.
-  SECRETS_DIR="$(dirname "$PV_KEY")"
-  BECH_PUBKEY="$(go run -C "$REPO_ROOT" ./gno.land/cmd/gnoland secrets get validator_key.pub_key --raw -data-dir "$SECRETS_DIR" | tail -n 1 | tr -d '[:space:]')"
-  [[ "$BECH_PUBKEY" == gpub1* ]] || { echo "ERROR: failed to derive bech32 pubkey from $PV_KEY (got: $BECH_PUBKEY)" >&2; exit 1; }
-  ADDR="$(jq -r '.address' "$PV_KEY")"
+  # Accept either $PV_KEY (single) or $PV_KEYS (colon-separated for
+  # cluster/multi-validator mode). r/sys/validators/v2 wants the bech32
+  # (gpub1...) pubkey — priv_validator_key.json stores raw base64 under
+  # pub_key.value. Derive via `gnoland secrets get`.
+  if [[ -z "${PV_KEYS:-}" ]]; then
+    : "${PV_KEY:?either NEW_VALSET_JSON, PV_KEY or PV_KEYS is required}"
+    PV_KEYS="$PV_KEY"
+  fi
   NEW_VALSET_JSON="$WORK/new_valset.json"
-  jq -n --arg addr "$ADDR" --arg pub "$BECH_PUBKEY" '[{
-    address:      $addr,
-    pub_key:      $pub,
-    voting_power: 10,
-    name:         "hf-local"
-  }]' > "$NEW_VALSET_JSON"
+  : > "$WORK/entries.jsonl"
+  i=0
+  # shellcheck disable=SC2086
+  IFS=':' read -ra _pv_list <<<"$PV_KEYS"
+  for pv in "${_pv_list[@]}"; do
+    [[ -f "$pv" ]] || { echo "ERROR: priv_validator_key.json not found: $pv" >&2; exit 1; }
+    SECRETS_DIR="$(dirname "$pv")"
+    BECH_PUBKEY="$(go run -C "$REPO_ROOT" ./gno.land/cmd/gnoland secrets get validator_key.pub_key --raw -data-dir "$SECRETS_DIR" | tail -n 1 | tr -d '[:space:]')"
+    [[ "$BECH_PUBKEY" == gpub1* ]] || { echo "ERROR: failed to derive bech32 pubkey from $pv (got: $BECH_PUBKEY)" >&2; exit 1; }
+    ADDR="$(jq -r '.address' "$pv")"
+    jq -cn --arg addr "$ADDR" --arg pub "$BECH_PUBKEY" --arg name "hf-local-$i" '{
+      address:      $addr,
+      pub_key:      $pub,
+      voting_power: 10,
+      name:         $name
+    }' >> "$WORK/entries.jsonl"
+    i=$((i+1))
+  done
+  jq -s '.' "$WORK/entries.jsonl" > "$NEW_VALSET_JSON"
 fi
 
 # ---- render template ----

@@ -1,0 +1,80 @@
+# misc/hf-glue — 2-node cluster for hardfork replay testing.
+#
+# Two independent gnoland nodes sharing the same genesis, each with its own
+# validator identity. They dial each other via the compose network using
+# the service names `node0` / `node1` (wired into config.toml by
+# scripts/init-cluster.sh).
+#
+# Prereqs (run from misc/hf-glue):
+#   make fetch cluster-init
+# Then:
+#   make cluster-up
+#
+# Port mapping (host → container):
+#   node0: 26656→26656 (p2p), 26657→26657 (rpc)
+#   node1: 36656→26656 (p2p), 36657→26657 (rpc)
+#
+# Only node0's RPC is pointed at by gnoweb. Query either node's RPC directly
+# on localhost:{26657,36657} to compare state.
+
+x-gnoland-common: &gnoland-common
+  image: hf-glue-gnoland:latest
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+    target: all
+  restart: unless-stopped
+  entrypoint: ["/usr/bin/gnoland"]
+  environment:
+    GNOROOT: /gnoroot
+  stop_grace_period: 30s
+
+x-gnoland-start: &gnoland-start
+  - start
+  - --lazy=true
+  # Genesis-mode txs (BlockHeight==0) from gnogenesis are signed by the
+  # deployer key while msg.Creator is a different address (manfred, etc).
+  # The ante handler's pubkey-address check rejects these. Historical txs
+  # (BlockHeight>0) are still signature-verified via PastChainIDs.
+  - --skip-genesis-sig-verification
+  - --skip-failing-genesis-txs
+  - --data-dir=/gnoroot/gnoland-data
+  - --genesis=/gnoroot/gnoland-data/genesis.json
+
+services:
+  node0:
+    <<: *gnoland-common
+    container_name: hf-glue-node0
+    command: *gnoland-start
+    volumes:
+      - ./out/cluster/node0:/gnoroot/gnoland-data
+    ports:
+      - "26656:26656" # p2p
+      - "26657:26657" # rpc
+
+  node1:
+    <<: *gnoland-common
+    container_name: hf-glue-node1
+    command: *gnoland-start
+    volumes:
+      - ./out/cluster/node1:/gnoroot/gnoland-data
+    ports:
+      - "36656:26656" # p2p
+      - "36657:26657" # rpc
+
+  gnoweb:
+    container_name: hf-glue-gnoweb-cluster
+    image: hf-glue-gnoland:latest
+    depends_on:
+      - node0
+    restart: unless-stopped
+    command:
+      - -remote=http://node0:26657
+      - -chainid=${CHAIN_ID:-gnoland-1}
+      - -help-chainid=${CHAIN_ID:-gnoland-1}
+      - -help-remote=http://127.0.0.1:26657
+      - -bind=0.0.0.0:8888
+    entrypoint: ["/usr/bin/gnoweb"]
+    ports:
+      - "8888:8888"
+    stop_grace_period: 10s

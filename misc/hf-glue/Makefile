@@ -107,6 +107,59 @@ smoketest: ## run 'hardfork test' in-memory against out/genesis.json
 	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch' first"; exit 1; }
 	cd $(REPO)/misc/hardfork && go run . test --genesis $(OUT)/genesis.json --verbose
 
+# ---- cluster (2-node docker) ---------------------------------------------
+NODES ?= 2
+CLUSTER_COMPOSE := -f docker-compose.cluster.yml
+
+.PHONY: cluster-init
+cluster-init: ## generate N=$(NODES) validator homes under out/cluster/ and rewrite genesis
+	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch' first"; exit 1; }
+	@NODES=$(NODES) VALIDATOR_NAME=$(VALIDATOR_NAME) \
+	 OUT=$(OUT) REPO=$(REPO) \
+	 $(HERE)/scripts/init-cluster.sh
+
+.PHONY: cluster-up
+cluster-up: ## start the N-node cluster in docker (requires fetch + cluster-init)
+	@test -d $(OUT)/cluster/node0 || { echo "missing out/cluster/ — run 'make cluster-init' first"; exit 1; }
+	docker compose $(CLUSTER_COMPOSE) up -d --build
+	@echo ""
+	@echo "node0 RPC:  http://localhost:26657"
+	@echo "node1 RPC:  http://localhost:36657"
+	@echo "gnoweb:     http://localhost:8888"
+	@echo "Tail logs:  make cluster-logs"
+
+.PHONY: cluster-down
+cluster-down: ## stop the cluster (keep state)
+	docker compose $(CLUSTER_COMPOSE) down
+
+.PHONY: cluster-logs
+cluster-logs: ## tail cluster logs
+	docker compose $(CLUSTER_COMPOSE) logs -f --tail=200
+
+.PHONY: cluster-status
+cluster-status: ## check both nodes' /status and peer connectivity
+	@printf "── node0 /status ─────────────────────\n"
+	@curl -s http://localhost:26657/status | jq '.result.sync_info' || true
+	@printf "\n── node1 /status ─────────────────────\n"
+	@curl -s http://localhost:36657/status | jq '.result.sync_info' || true
+	@printf "\n── node0 /net_info (peers=%s) ────────\n" "$$(curl -s http://localhost:26657/net_info | jq -r '.result.n_peers')"
+	@curl -s http://localhost:26657/net_info | jq '.result.peers[].node_info | {id: .id, moniker: .moniker}' || true
+	@printf "\n── node1 /net_info (peers=%s) ────────\n" "$$(curl -s http://localhost:36657/net_info | jq -r '.result.n_peers')"
+	@curl -s http://localhost:36657/net_info | jq '.result.peers[].node_info | {id: .id, moniker: .moniker}' || true
+
+.PHONY: cluster-reset-db
+cluster-reset-db: cluster-down ## wipe cluster db + WAL, keep genesis + keys
+	@for d in $(OUT)/cluster/node*; do \
+	  rm -rf "$$d/db" "$$d/wal" "$$d/data"; \
+	  printf '{"height":"0","round":"0","step":0}\n' > "$$d/secrets/priv_validator_state.json"; \
+	done
+	@echo "cluster db wiped; next 'make cluster-up' will re-replay from scratch"
+
+.PHONY: cluster-reset
+cluster-reset: cluster-down ## stop cluster and wipe cluster state (keep out/genesis.json)
+	rm -rf $(OUT)/cluster
+	@echo "out/cluster/ removed."
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh

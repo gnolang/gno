@@ -73,14 +73,25 @@ done
 # Delegates to misc/deployments/gnoland-1/migrations/build.sh, which
 # renders the template with the local priv_validator_key.json and
 # produces a signed jsonl under $OUT/migrations.jsonl.
+# Prefer cluster PV_KEYS ($OUT/cluster/node*/secrets/priv_validator_key.json)
+# when present; fall back to single-node.
+PV_KEYS="${PV_KEYS:-}"
+if [[ -z "$PV_KEYS" ]] && compgen -G "$OUT/cluster/node*/secrets/priv_validator_key.json" >/dev/null; then
+  PV_KEYS="$(printf '%s:' "$OUT"/cluster/node*/secrets/priv_validator_key.json | sed 's/:$//')"
+fi
 PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
 PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
-if [[ -f "$PV_KEY" ]]; then
+if [[ -n "$PV_KEYS" ]] || [[ -f "$PV_KEY" ]]; then
   hf_banner "step 5 — post-replay migration (valset swap)"
-  hf_kv "pv_key" "$PV_KEY"
+  if [[ -n "$PV_KEYS" ]]; then
+    hf_kv "pv_keys" "$PV_KEYS"
+  else
+    hf_kv "pv_key" "$PV_KEY"
+  fi
   MIG_JSONL="$OUT/migrations.jsonl"
   CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
-  PV_KEY="$PV_KEY" \
+  PV_KEY="${PV_KEYS:+}${PV_KEYS:-$PV_KEY}" \
+  PV_KEYS="$PV_KEYS" \
   OUT_JSONL="$MIG_JSONL" \
   CHAIN_ID="$CHAIN_ID" \
   REPO_ROOT="$REPO" \
