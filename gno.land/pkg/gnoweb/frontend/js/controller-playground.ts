@@ -84,7 +84,7 @@ export default function PlaygroundController(element: HTMLElement): void {
 
 		let content = DEFAULT_GNO_CONTENT
 		if (isGnomod) {
-				content = "";
+				content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
 				gnomodFile = files.length;
 		}
 
