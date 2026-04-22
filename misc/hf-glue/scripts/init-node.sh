@@ -22,7 +22,7 @@ SECRETS_DIR="$HOME_DIR/secrets"
 PV_KEY="$SECRETS_DIR/priv_validator_key.json"
 
 if [[ ! -f "$GENESIS" ]]; then
-  echo "missing $GENESIS — run 'make fetch' first" >&2
+  echo "missing $GENESIS — run 'make migrate' first" >&2
   exit 1
 fi
 
@@ -49,15 +49,19 @@ go run -C "$REPO/misc/hf-glue/fixvalidator" . \
 
 # ---- 3. write config.toml so RPC binds to 0.0.0.0 (accessible from host) ----
 CONFIG_DIR="$HOME_DIR/config"
+CONFIG_FILE="$CONFIG_DIR/config.toml"
 mkdir -p "$CONFIG_DIR"
-go run -C "$REPO" ./gno.land/cmd/gnoland config init -config-path "$CONFIG_DIR/config.toml"
-# Patch the generated config to bind to 0.0.0.0 (accessible from Docker host)
-if command -v sed >/dev/null 2>&1; then
-  sed -i.bak 's|tcp://127.0.0.1:26657|tcp://0.0.0.0:26657|' "$CONFIG_DIR/config.toml"
-  sed -i.bak 's|tcp://127.0.0.1:26656|tcp://0.0.0.0:26656|' "$CONFIG_DIR/config.toml"
-  rm -f "$CONFIG_DIR/config.toml.bak"
+if [[ -f "$CONFIG_FILE" ]]; then
+  echo "  config already present at $CONFIG_FILE — reusing"
+else
+  go run -C "$REPO" ./gno.land/cmd/gnoland config init -config-path "$CONFIG_FILE"
+  if command -v sed >/dev/null 2>&1; then
+    sed -i.bak 's|tcp://127.0.0.1:26657|tcp://0.0.0.0:26657|' "$CONFIG_FILE"
+    sed -i.bak 's|tcp://127.0.0.1:26656|tcp://0.0.0.0:26656|' "$CONFIG_FILE"
+    rm -f "$CONFIG_FILE.bak"
+  fi
+  echo "  config written to $CONFIG_FILE"
 fi
-echo "  config written to $CONFIG_DIR/config.toml"
 
 # ---- 4. stage genesis.json next to the node data ----
 cp "$GENESIS" "$HOME_DIR/genesis.json"
