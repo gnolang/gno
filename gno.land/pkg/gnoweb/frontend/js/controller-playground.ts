@@ -4,9 +4,13 @@ interface PlaygroundFile {
 	content: string;
 }
 
+const GNOMOD_FILE = "gnomod.toml"
+const DEFAULT_GNO_CONTENT = "package main\n"
+
 export default function PlaygroundController(element: HTMLElement): void {
 	let files: PlaygroundFile[] = [];
 	let activeFile = 0;
+	let gnomodFile = -1;
 
 	const codeEl = element.querySelector(
 		'[data-playground-target="code"]',
@@ -56,7 +60,7 @@ export default function PlaygroundController(element: HTMLElement): void {
 		tabsEl.appendChild(addBtn);
 	}
 
-	function switchToFile(fileName: string): void {
+	function switchToFile(fileName: string): boolean {
 		files[activeFile].content = codeEl.value;
 		const idx = files.findIndex((f) => f.name === fileName);
 		if (idx >= 0) {
@@ -64,14 +68,28 @@ export default function PlaygroundController(element: HTMLElement): void {
 			codeEl.value = files[idx].content;
 			renderTabs();
 		}
+		return idx >= 0
 	}
 
 	function addFile(): void {
-		const name = prompt("File name (e.g. helper.gno):");
-		if (!name || !name.endsWith(".gno")) return;
-		if (files.some((f) => f.name === name)) return;
+		let name = prompt("File name (e.g. helper.gno):");
+		if (name == null) return;
+
+		// If name exists switch to that file instead of creating it
+		if (switchToFile(name)) return;
+
+		// Only allow adding the metatadat or Gno files
+		const isGnomod = name === GNOMOD_FILE
+		if (!name.endsWith(".gno") && !isGnomod) return;
+
+		let content = DEFAULT_GNO_CONTENT
+		if (isGnomod) {
+				content = "";
+				gnomodFile = files.length;
+		}
+
 		files[activeFile].content = codeEl.value;
-		files.push({ name, content: "package main\n" });
+		files.push({ name, content });
 		activeFile = files.length - 1;
 		codeEl.value = files[activeFile].content;
 		renderTabs();
