@@ -3,6 +3,7 @@ package packages
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -71,8 +72,73 @@ func (l *LoaderImpl) Resolve(path string) (*NewPackage, error) {
 	if p, ok := l.index[path]; ok {
 		return p, nil
 	}
-	// TODO Task B6/B7: FS walk + RPC fallback (wired under this write lock)
+	if pkg := l.fsLookupLocked(path); pkg != nil {
+		l.index[pkg.ImportPath] = pkg
+		l.tracked[pkg.ImportPath] = struct{}{}
+		return pkg, nil
+	}
+	// TODO Task B7: RPC fallback (still under write lock)
 	return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
+}
+
+// fsLookupLocked assumes the caller holds l.mu (write).
+// Uses a per-root cached import-path→dir map so we walk each root at most once.
+func (l *LoaderImpl) fsLookupLocked(path string) *NewPackage {
+	for _, root := range l.lookupRoots() {
+		rootIdx := l.ensureRootIndexLocked(root)
+		if dir, ok := rootIdx[path]; ok {
+			return &NewPackage{
+				ImportPath: path,
+				Dir:        dir,
+				Kind:       kindForDir(dir),
+			}
+		}
+	}
+	return nil
+}
+
+func (l *LoaderImpl) lookupRoots() []string {
+	roots := make([]string, 0, len(l.cfg.ExtraRoots)+1)
+	roots = append(roots, l.cfg.ExtraRoots...)
+	if l.cfg.Examples && l.cfg.GnoRoot != "" {
+		roots = append(roots, filepath.Join(l.cfg.GnoRoot, "examples"))
+	}
+	return roots
+}
+
+// ensureRootIndexLocked walks root once and caches the result.
+// Missing/unreadable roots cache as an empty map to avoid repeated walk attempts.
+func (l *LoaderImpl) ensureRootIndexLocked(root string) map[string]string {
+	if idx, ok := l.rootIdx[root]; ok {
+		return idx
+	}
+	idx := scanRoot(root, l.cfg.Logger)
+	l.rootIdx[root] = idx
+	return idx
+}
+
+// scanRoot walks a root looking for gnomod.toml files and returns a
+// module-path → dir map. Errors and unparseable modules are logged and skipped.
+func scanRoot(root string, logger *slog.Logger) map[string]string {
+	out := map[string]string{}
+	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+		gm, err := gnomod.ParseDir(p)
+		if err != nil {
+			return nil
+		}
+		if gm.Module == "" {
+			return nil
+		}
+		out[gm.Module] = p
+		return nil
+	})
+	if len(out) == 0 {
+		logger.Debug("root index empty", "root", root)
+	}
+	return out
 }
 
 // LoadWorkspace eagerly loads packages in the configured workspace.
