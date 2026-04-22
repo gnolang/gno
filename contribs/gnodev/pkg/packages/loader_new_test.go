@@ -139,3 +139,21 @@ func pathsOf(pkgs []*NewPackage) []string {
 	}
 	return out
 }
+
+func TestLoader_LoadAll(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
+	writePkg(t, filepath.Join(root, "p"), "gno.land/p/ws/one", "package one\n")
+
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "q"), "gno.land/p/ext/two", "package two\n")
+
+	t.Chdir(root)
+
+	l := NewLoaderImpl(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
+	pkgs, err := l.LoadAll()
+	require.NoError(t, err)
+	paths := pathsOf(pkgs)
+	assert.Contains(t, paths, "gno.land/p/ws/one")
+	assert.Contains(t, paths, "gno.land/p/ext/two")
+}

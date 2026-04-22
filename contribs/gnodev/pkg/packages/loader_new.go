@@ -253,6 +253,70 @@ func (l *LoaderImpl) LoadWorkspace() ([]*NewPackage, error) {
 	return l.loadWithPatterns(l.cfg.Workspace + "/...")
 }
 
+// LoadAll eagerly loads the workspace, every ExtraRoot, and GNOROOT/examples
+// (when Examples=true). Used by the staging subcommand which wants to
+// materialize every reachable package at startup.
+func (l *LoaderImpl) LoadAll() ([]*NewPackage, error) {
+	var out []*NewPackage
+	seen := map[string]struct{}{}
+	appendUnique := func(pkgs []*NewPackage) {
+		for _, p := range pkgs {
+			if _, dup := seen[p.ImportPath]; dup {
+				continue
+			}
+			seen[p.ImportPath] = struct{}{}
+			out = append(out, p)
+		}
+	}
+
+	if l.cfg.Workspace != "" {
+		pkgs, err := l.loadWithPatterns(l.cfg.Workspace + "/...")
+		if err != nil {
+			return nil, err
+		}
+		appendUnique(pkgs)
+	}
+
+	extraRoots := append([]string(nil), l.cfg.ExtraRoots...)
+	if l.cfg.Examples && l.cfg.GnoRoot != "" {
+		extraRoots = append(extraRoots, filepath.Join(l.cfg.GnoRoot, "examples"))
+	}
+	for _, root := range extraRoots {
+		pkgs, err := l.loadRootStandalone(root)
+		if err != nil {
+			l.cfg.Logger.Warn("load extra root failed", "root", root, "err", err)
+			continue
+		}
+		appendUnique(pkgs)
+	}
+
+	return out, nil
+}
+
+// loadRootStandalone loads every gnomod.toml-rooted package found under root
+// by resolving each import path individually. Avoids gnovm.Load's "pattern
+// must be inside workspace" check for roots outside the current workspace.
+func (l *LoaderImpl) loadRootStandalone(root string) ([]*NewPackage, error) {
+	l.mu.Lock()
+	idx := l.ensureRootIndexLocked(root)
+	paths := make([]string, 0, len(idx))
+	for p := range idx {
+		paths = append(paths, p)
+	}
+	l.mu.Unlock()
+
+	out := make([]*NewPackage, 0, len(paths))
+	for _, p := range paths {
+		pkg, err := l.Resolve(p)
+		if err != nil {
+			l.cfg.Logger.Warn("resolve failed", "path", p, "err", err)
+			continue
+		}
+		out = append(out, pkg)
+	}
+	return out, nil
+}
+
 func (l *LoaderImpl) loadWithPatterns(patterns ...string) ([]*NewPackage, error) {
 	l.mu.RLock()
 	fetcher := l.fetcher
