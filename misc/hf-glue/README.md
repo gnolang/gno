@@ -167,14 +167,30 @@ make cluster-up       # docker compose up node0 + node1 + gnoweb
 make cluster-status   # both /status + /net_info
 ```
 
-**Known limitation (tracked upstream, not a cluster-wiring bug):** on a
-hardfork genesis with `initial_height > 1`, node startup hits an ABCI
-handshake replay error (`block not found for height 1`) after the first
-InitChainer cycle. Both nodes *do* handshake over p2p and cast votes at
-the initial height before one of them dies on restart. The wiring
-(DNS / ports / persistent_peers / validator set) is correct; the
-consensus-WAL path needs to be taught that heights `< initial_height` don't
-exist. File this separately from the cluster harness.
+**Status.** Wiring is verified end-to-end: compose-network DNS, per-node
+secrets, shared genesis with 2 validators, `persistent_peers`, p2p
+handshake, and consensus vote exchange at the initial height all work.
+
+**Known issue (cluster-only, separate from this PR's tooling):** on a
+fresh boot, one of the two nodes exits cleanly after producing block 2
+(no panic on the first run), and every subsequent restart panics inside
+`gnovm.PreprocessAllFilesAndSaveBlockNodes` / `VMKeeper.Initialize` —
+`IterMemPackage` yields a `MemPackage` whose backing `iavlStore` entry
+is missing while the `baseStore` package-index still points at it.
+That's a cross-store atomicity violation between `AddMemPackage`'s two
+writes (see `7a88a8afa` for a descriptive panic that names the bad
+path). Single-node boots fine on the same genesis; only the 2-validator
+consensus path triggers it. Track separately.
+
+Two replay-engine bugs surfaced while building this cluster test *have*
+been fixed on this branch:
+
+- `ca97894be fix(consensus): skip phantom heights during replay when
+  InitialHeight > 1` — ABCI handshake no longer asks `LoadBlock` for
+  heights `< InitialHeight` that never existed.
+- `7a88a8afa fix(gnovm/store): IterMemPackage panics with context on
+  cross-store inconsistency` — turns a cryptic `nil` SIGSEGV into a
+  named panic so the next person reading the stack has a starting point.
 
 ## Files
 
