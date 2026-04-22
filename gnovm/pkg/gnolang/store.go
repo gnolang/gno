@@ -935,6 +935,19 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 						"missing package index %d", i))
 				}
 				mpkg := ds.GetMemPackage(string(path))
+				if mpkg == nil {
+					// baseStore has an index entry pointing at `path`, but
+					// iavlStore has no data under that path key. This
+					// indicates a cross-store atomicity violation (e.g. a
+					// crash between AddMemPackage's two Set calls, or
+					// between its baseStore commit and iavlStore commit).
+					// Fail loudly with context instead of yielding nil —
+					// downstream callers (ParseMemPackage etc.) will SIGSEGV
+					// on a nil MemPackage with no hint of the real cause.
+					panic(fmt.Sprintf(
+						"package index %d points at path %q but no MemPackage stored there "+
+							"(baseStore/iavlStore inconsistency)", i, string(path)))
+				}
 				ch <- mpkg
 			}
 			close(ch)
