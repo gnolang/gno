@@ -8,7 +8,6 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // ----------------------------------------
@@ -97,7 +96,7 @@ func (m *Machine) doOpEql() {
 		}
 	}
 	// set result in lv.
-	res := isEql(m, lv, rv)
+	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -114,7 +113,7 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv)
+	res := !isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -133,7 +132,7 @@ func (m *Machine) doOpLss() {
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
-	res := isLss(m, lv, rv)
+	res := isLss(lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -150,7 +149,7 @@ func (m *Machine) doOpLeq() {
 	}
 
 	// set the result in lv.
-	res := isLeq(m, lv, rv)
+	res := isLeq(lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -167,7 +166,7 @@ func (m *Machine) doOpGtr() {
 	}
 
 	// set the result in lv.
-	res := isGtr(m, lv, rv)
+	res := isGtr(lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -184,7 +183,7 @@ func (m *Machine) doOpGeq() {
 	}
 
 	// set the result in lv.
-	res := isGeq(m, lv, rv)
+	res := isGeq(lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -430,8 +429,7 @@ func (m *Machine) doOpBandn() {
 // logic functions
 
 // TODO: can be much faster.
-func isEql(m *Machine, lv, rv *TypedValue) bool {
-	store := m.Store
+func isEql(store Store, lv, rv *TypedValue) bool {
 	// pair holds two TypedValues to compare. Using value copies (not pointers)
 	// keeps stack entries independent across iterations.
 	type pair struct{ l, r TypedValue }
@@ -461,14 +459,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 				return false
 			}
 		case StringKind:
-			ls := l.GetString()
-			rs := r.GetString()
-			if len(ls) != len(rs) {
-				return false
-			}
-			// Charge gas proportional to string length (O(N) memcmp).
-			m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUCmpPerByte))
-			if ls != rs {
+			if l.GetString() != r.GetString() {
 				return false
 			}
 		case IntKind:
@@ -635,13 +626,10 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 }
 
 // TODO: can be much faster.
-func isLss(m *Machine, lv, rv *TypedValue) bool {
+func isLss(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		ls := lv.GetString()
-		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
-		return ls < rs
+		return (lv.GetString() < rv.GetString())
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
 	case Int8Kind:
@@ -682,13 +670,10 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	}
 }
 
-func isLeq(m *Machine, lv, rv *TypedValue) bool {
+func isLeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		ls := lv.GetString()
-		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
-		return ls <= rs
+		return (lv.GetString() <= rv.GetString())
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
 	case Int8Kind:
@@ -729,13 +714,10 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	}
 }
 
-func isGtr(m *Machine, lv, rv *TypedValue) bool {
+func isGtr(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		ls := lv.GetString()
-		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
-		return ls > rs
+		return (lv.GetString() > rv.GetString())
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
 	case Int8Kind:
@@ -776,13 +758,10 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	}
 }
 
-func isGeq(m *Machine, lv, rv *TypedValue) bool {
+func isGeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		ls := lv.GetString()
-		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
-		return ls >= rs
+		return (lv.GetString() >= rv.GetString())
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
 	case Int8Kind:

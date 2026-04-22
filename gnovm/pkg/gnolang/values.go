@@ -1579,7 +1579,6 @@ func (tv *TypedValue) computeMapKey(store Store, omitType bool, depth int) (key 
 	if depth > maxComputeMapKeyDepth {
 		panic("map key nesting depth limit exceeded")
 	}
-	store.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1591,12 +1590,6 @@ func (tv *TypedValue) computeMapKey(store Store, omitType bool, depth int) (key 
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
-	// Track length contributed by children so we only charge for
-	// the overhead at this level (avoid O(N²) allocation counting).
-	childrenLength := 0
-	defer func() {
-		store.GetAllocator().Allocate(int64(len(bz) - childrenLength))
-	}()
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
@@ -1651,7 +1644,6 @@ func (tv *TypedValue) computeMapKey(store Store, omitType bool, depth int) (key 
 				if isNaN {
 					return "", true
 				}
-				childrenLength += len(mk)
 				bz = binary.AppendUvarint(bz, uint64(len(mk)))
 				bz = append(bz, mk...)
 				if i != al-1 {
@@ -1675,7 +1667,6 @@ func (tv *TypedValue) computeMapKey(store Store, omitType bool, depth int) (key 
 			if isNaN {
 				return "", true
 			}
-			childrenLength += len(mk)
 			bz = binary.AppendUvarint(bz, uint64(len(mk)))
 			bz = append(bz, mk...)
 			if i != sl-1 {
