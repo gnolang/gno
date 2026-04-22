@@ -1,0 +1,9 @@
+# `gno init run/hello.gno` creates a run script at the given path, no gnomod.toml.
+
+gno init run/hello.gno
+
+exists run/hello.gno
+! exists gnomod.toml
+! exists run/gnomod.toml
+
+grep '^package main$' run/hello.gno

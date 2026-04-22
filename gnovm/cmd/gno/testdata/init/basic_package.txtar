@@ -1,0 +1,14 @@
+# `gno init gno.land/p/demo/lib` creates gnomod.toml + template files in CWD.
+
+gno init gno.land/p/demo/lib
+
+exists gnomod.toml
+exists lib.gno
+
+! exists lib/
+
+grep '^module = "gno\.land/p/demo/lib"$' gnomod.toml
+
+stderr 'Initialized package gno\.land/p/demo/lib'
+stderr '^  gnomod\.toml$'
+stderr '^  lib\.gno$'

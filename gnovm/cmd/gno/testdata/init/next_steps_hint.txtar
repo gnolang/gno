@@ -1,0 +1,5 @@
+# After a successful init, the next-steps hint points at `gno test .`.
+
+gno init gno.land/r/demo/foo
+
+stderr '^Next: gno test \.$'

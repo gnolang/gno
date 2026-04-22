@@ -127,7 +127,7 @@ func newInitCmd(io commands.IO) *commands.Command {
 			ShortHelp:  "initialize a new Gno module",
 			LongHelp: `Initialize a new Gno module in the current directory.
 
-When run in an interactive terminal, a wizard guides you through:
+When run in an interactive terminal with no arguments, a wizard guides you through:
   1. Module kind selection (realm, package, or run script)
   2. Namespace and module name
   3. Template selection (when multiple templates are available)
@@ -138,6 +138,8 @@ used. Short-form paths like "r/demo/foo" are expanded to "gno.land/r/demo/foo".
 
 If the argument ends in .gno, a run script is created at that path without
 a gnomod.toml (e.g. "gno init run/hello.gno" creates run/hello.gno).
+Directories in the path are created as needed. This is the only case where
+'gno init' creates directories.
 
 Flags:
   --bare       Create only gnomod.toml, skip all template files.
@@ -152,7 +154,7 @@ Available templates:
 
 Examples:
   gno init                              # interactive wizard
-  gno init gno.land/r/myname/myrealm   # realm with basic template
+  gno init gno.land/r/myname/myrealm   # realm in CWD
   gno init r/myname/mypkg              # short form, auto-expanded
   gno init --bare gno.land/p/demo/lib  # gnomod.toml only
   gno init --template basic gno.land/r/demo/foo  # explicit template
@@ -197,21 +199,33 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return writeRunScript(rootDir, args[0], *tmpl, io)
 	}
 
-	// Early check: if gnomod.toml already exists, bail out immediately.
-	modFilePath := filepath.Join(rootDir, "gnomod.toml")
-	if _, err := os.Stat(modFilePath); err == nil {
+	// Below: scaffold a module in CWD. The only case where 'gno init'
+	// creates directories is the .gno run-script branch handled above.
+
+	// Early check: if gnomod.toml already exists in CWD, bail out immediately.
+	if _, err := os.Stat(filepath.Join(rootDir, "gnomod.toml")); err == nil {
 		return fmt.Errorf("gnomod.toml already exists")
 	}
 
-	// --bare: only create gnomod.toml
+	// --bare: only create gnomod.toml in CWD.
 	if cfg.bare {
 		if len(args) == 0 {
 			return fmt.Errorf("module path is required with --bare")
 		}
-		return writeGnomod(rootDir, normalizeModulePath(args[0]))
+		modPath := normalizeModulePath(args[0])
+		if err := validateModulePath(modPath); err != nil {
+			return err
+		}
+		if werr := writeGnomod(rootDir, modPath); werr != nil {
+			return werr
+		}
+		fmt.Fprintf(io.Err(), "Initialized module %s\n", modPath)
+		fmt.Fprintf(io.Err(), "  gnomod.toml\n")
+		printNextSteps(io, false)
+		return nil
 	}
 
-	// Non-interactive (no TTY) with argument: create gnomod.toml + template files
+	// Non-interactive (no TTY) with argument: create gnomod.toml + template files in CWD
 	if !commands.IsInteractive() {
 		if len(args) == 0 {
 			return fmt.Errorf("module path is required (non-interactive mode)")
@@ -220,7 +234,7 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return scaffoldModule(rootDir, modPath, templatesForKind(kindFromPath(modPath)), cfg.template, io)
 	}
 
-	// Interactive with argument: create gnomod.toml + resolve template
+	// Interactive with argument: create gnomod.toml + resolve template in CWD
 	if len(args) == 1 {
 		modPath := normalizeModulePath(args[0])
 		return scaffoldModule(rootDir, modPath, templatesForKind(kindFromPath(modPath)), cfg.template, io)
@@ -270,8 +284,13 @@ func scaffoldModule(rootDir, modPath string, templates []initTemplate, templateN
 }
 
 // scaffoldModuleWith is the shared tail of every non-bare, non-run code path:
-// render (pre-check) → write gnomod.toml → write module files.
+// validate → render (pre-check) → write gnomod.toml → write module files.
+// Everything is created in rootDir (CWD) — 'gno init' never creates directories
+// except for .gno run-script paths, which are handled separately.
 func scaffoldModuleWith(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
+	if err := validateModulePath(modPath); err != nil {
+		return err
+	}
 	if _, err := renderModuleFiles(rootDir, modPath, tmpl); err != nil {
 		return err
 	}
@@ -281,14 +300,30 @@ func scaffoldModuleWith(rootDir, modPath string, tmpl *initTemplate, io commands
 	return writeModule(rootDir, modPath, tmpl, io)
 }
 
-func writeGnomod(rootDir, modPath string) error {
+// printNextSteps emits a short "what to do next" hint after a successful init.
+// Uses `gno test .` (not `./...`) because recursive patterns require a
+// gnowork.toml, which a freshly-scaffolded single module doesn't have.
+func printNextSteps(io commands.IO, hasTests bool) {
+	hint := "gno test ."
+	if !hasTests {
+		hint = "add your code and run `gno test .`"
+	}
+	fmt.Fprintf(io.Err(), "Next: %s\n", hint)
+}
+
+// validateModulePath checks that modPath is syntactically valid as a Gno
+// user-library path before any filesystem side effects.
+func validateModulePath(modPath string) error {
 	if err := module.CheckImportPath(modPath); err != nil {
-		return fmt.Errorf("create gnomod.toml: %w", err)
+		return fmt.Errorf("invalid module path: %w", err)
 	}
 	if !gno.IsUserlib(modPath) {
-		return fmt.Errorf("create gnomod.toml: %q is not a valid package path URL", modPath)
+		return fmt.Errorf("invalid module path: %q is not a valid package path URL", modPath)
 	}
+	return nil
+}
 
+func writeGnomod(rootDir, modPath string) error {
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
 	modfile.Gno = gno.GnoVerLatest
@@ -347,11 +382,15 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 	}
 
 	created := make([]string, 0, len(files))
+	hasTests := false
 	for _, name := range sortedKeys(files) {
 		if err := os.WriteFile(filepath.Join(rootDir, name), files[name], 0o644); err != nil {
 			return err
 		}
 		created = append(created, name)
+		if strings.HasSuffix(name, "_test.gno") {
+			hasTests = true
+		}
 	}
 
 	fmt.Fprintf(io.Err(), "Initialized %s %s (%s template)\n", kindLabel, modPath, tmpl.Name)
@@ -359,6 +398,7 @@ func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) er
 	for _, f := range created {
 		fmt.Fprintf(io.Err(), "  %s\n", f)
 	}
+	printNextSteps(io, hasTests)
 
 	return nil
 }

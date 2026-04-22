@@ -1,0 +1,7 @@
+# Unknown template name fails and leaves no partial state.
+
+! gno init --template nope gno.land/r/demo/foo
+stderr 'unknown template'
+
+! exists gnomod.toml
+! exists foo.gno

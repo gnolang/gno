@@ -130,6 +130,8 @@ func TestModApp(t *testing.T) {
 			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
+			// With CWD-based scaffolding, `gno init` in a dir that already
+			// contains a gnomod.toml must bail out immediately.
 			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gnomod",
 			simulateExternalRepo: true,
@@ -296,11 +298,11 @@ func TestModInitNonInteractive(t *testing.T) {
 			err = execModInit(cfg, []string{tt.modPath}, mockIO)
 			require.NoError(t, err)
 
+			pkgName := filepath.Base(tt.modPath)
 			content, err := os.ReadFile(filepath.Join(tmpDir, "gnomod.toml"))
 			require.NoError(t, err)
 			require.Contains(t, string(content), tt.modPath)
 
-			pkgName := filepath.Base(tt.modPath)
 			_, err = os.Stat(filepath.Join(tmpDir, pkgName+".gno"))
 			require.NoError(t, err, "template files should be created in non-interactive mode with a module path")
 		})
@@ -338,6 +340,26 @@ func TestModInitBareNoPath(t *testing.T) {
 	err = execModInit(cfg, nil, newTestMockIO(""))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "module path is required with --bare")
+}
+
+// TestModInitInvalidPathRejected ensures that an invalid module path is
+// rejected cleanly with no side effects on disk.
+func TestModInitInvalidPathRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	cfg := &modInitCfg{}
+	// Uppercase in the last segment is rejected by module.CheckImportPath.
+	err = execModInit(cfg, []string{"gno.land/r/demo/Foo"}, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid module path")
+
+	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
+	require.True(t, os.IsNotExist(err), "no gnomod.toml should be written for an invalid module path")
 }
 
 func TestInsertPathLetter(t *testing.T) {
@@ -586,7 +608,7 @@ func TestModInitTemplateFileConflictNoPartialWrite(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 	t.Cleanup(func() { os.Chdir(origDir) })
 
-	// Pre-create a file that the basic realm template would produce.
+	// Pre-create a file that the basic realm template would produce, in CWD.
 	conflict := filepath.Join(tmpDir, "testrealm.gno")
 	require.NoError(t, os.WriteFile(conflict, []byte("// user-authored\n"), 0o644))
 
@@ -594,6 +616,7 @@ func TestModInitTemplateFileConflictNoPartialWrite(t *testing.T) {
 	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "file already exists")
+	require.Contains(t, err.Error(), "testrealm.gno")
 
 	// gnomod.toml must not exist — the pre-check should have fired first.
 	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))

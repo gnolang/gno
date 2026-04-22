@@ -11,6 +11,48 @@ starter code.
 
 ## Decision
 
+### Scaffolding in the current directory
+
+`gno init gno.land/p/demo/foo` creates `gnomod.toml` and template files
+directly in CWD — no subdirectory is created. This is the simplest,
+least-surprising behavior: the user picks the directory; `gno init` fills
+it. Users who want a new directory run `mkdir foo && cd foo && gno init …`
+themselves.
+
+All non-run branches (`--bare`, non-interactive with arg, interactive with
+arg, full wizard) share the same sequence:
+
+1. Bail out early if `gnomod.toml` already exists in CWD.
+2. `validateModulePath(modPath)` — reject invalid paths (e.g. uppercase)
+   before any filesystem side effects.
+3. Pre-render templates and check for file conflicts (e.g. a pre-existing
+   `foo.gno`); bail out if any file would be overwritten.
+4. Write `gnomod.toml`, then template files.
+
+Since we only ever write individual files (never directories), a failed
+init never leaves orphan directories on disk. No rollback machinery is
+needed.
+
+The `.gno` run-script branch is the only case where `gno init` creates
+directories — and only for the parent path of the given script (e.g.
+`gno init run/hello.gno` creates `./run/` if missing). This matches the
+user's explicit request.
+
+**Stderr output** for the success path ends with a next-steps hint:
+
+```
+Initialized realm gno.land/r/demo/foo (basic template)
+  gnomod.toml
+  foo.gno
+  foo_test.gno
+Next: gno test .
+```
+
+For `--bare` (no tests), the hint is a generic "add your code and run
+`gno test .`". `gno test .` is used rather than `gno test ./...` because
+the latter requires a `gnowork.toml`, which a freshly-scaffolded single
+module does not have.
+
 ### Make `gno init` a top-level command, interactive when run in a terminal
 
 `init` is promoted from `gno mod init` to `gno init` for ergonomics — it's the
@@ -170,10 +212,11 @@ existing examples don't include READMEs, and a placeholder README adds noise.
 | `tm2/pkg/commands/prompt.go` | Shared prompt primitives (`PromptString`, `PromptChoice`, `PromptSelect`, `IsInteractive`) |
 | `tm2/pkg/commands/prompt_test.go` | Tests for prompt primitives |
 | `gnovm/cmd/gno/main.go` | `gno init` registered as top-level command |
-| `gnovm/cmd/gno/mod.go` | `newInitCmd`, `newModInitDeprecatedCmd`, `execModInit`, `scaffoldModule`/`scaffoldModuleWith`, `writeModule`/`renderModuleFiles`, `execInitRun`, `writeRunScript`, `promptModuleKind`/`promptModulePath`, `selectTemplate`, `insertPathLetter`, `validateGnoPath` |
+| `gnovm/cmd/gno/mod.go` | `newInitCmd`, `newModInitDeprecatedCmd`, `execModInit`, `validateModulePath`, `scaffoldModule`/`scaffoldModuleWith`, `writeModule`/`renderModuleFiles`, `execInitRun`, `writeRunScript`, `promptModuleKind`/`promptModulePath`, `selectTemplate`, `insertPathLetter`, `validateGnoPath` |
 | `gnovm/cmd/gno/mod_init_templates.go` | `go:embed` declarations, `initTemplate` registry, `renderTemplateDir` |
 | `gnovm/cmd/gno/templates/{realm,package,run}/basic/*.tmpl` | Template files with `{{.PkgName}}` and `{{.ScriptName}}` in filenames |
 | `gnovm/cmd/gno/mod_test.go` | Tests for helpers and init flows |
+| `gnovm/cmd/gno/testdata/init/*.txtar` | End-to-end testscript scenarios covering CWD scaffolding, `--bare`, conflicts, invalid paths, run-script shorthand, deprecated alias, and flag validation |
 
 ## Consequences
 

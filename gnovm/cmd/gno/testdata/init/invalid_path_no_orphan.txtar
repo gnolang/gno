@@ -1,0 +1,7 @@
+# Invalid module paths are rejected cleanly with no side effects on disk.
+
+! gno init 'gno.land/r/demo/Foo'
+stderr 'invalid module path'
+
+! exists gnomod.toml
+! exists Foo.gno

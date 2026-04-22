@@ -1,0 +1,7 @@
+# `gno mod init` is a deprecated alias of `gno init` — warn on stderr but work.
+
+gno mod init --bare gno.land/p/demo/alias
+
+stderr 'deprecated'
+exists gnomod.toml
+! exists alias/
