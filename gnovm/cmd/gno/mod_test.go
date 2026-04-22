@@ -574,6 +574,35 @@ func TestModInitUnknownTemplateNoPartialWrite(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "gnomod.toml should not be written when template resolution fails")
 }
 
+// TestModInitTemplateFileConflictNoPartialWrite ensures that when a template
+// output file already exists in CWD, gnomod.toml is NOT written (no orphan).
+func TestModInitTemplateFileConflictNoPartialWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	// Pre-create a file that the basic realm template would produce.
+	conflict := filepath.Join(tmpDir, "testrealm.gno")
+	require.NoError(t, os.WriteFile(conflict, []byte("// user-authored\n"), 0o644))
+
+	cfg := &modInitCfg{}
+	err = execModInit(cfg, []string{"gno.land/r/demo/testrealm"}, newTestMockIO(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file already exists")
+
+	// gnomod.toml must not exist — the pre-check should have fired first.
+	_, err = os.Stat(filepath.Join(tmpDir, "gnomod.toml"))
+	require.True(t, os.IsNotExist(err), "gnomod.toml should not be written when a template file would conflict")
+
+	// User's file must be untouched.
+	content, err := os.ReadFile(conflict)
+	require.NoError(t, err)
+	require.Equal(t, "// user-authored\n", string(content))
+}
+
 func TestModInitBareAndTemplateExclusive(t *testing.T) {
 	tmpDir := t.TempDir()
 

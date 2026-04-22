@@ -200,6 +200,10 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return err
 		}
+		// Pre-check template file conflicts to avoid orphan gnomod.toml.
+		if _, err := renderModuleFiles(rootDir, modPath, tmpl); err != nil {
+			return err
+		}
 		if err := writeGnomod(rootDir, modPath); err != nil {
 			return err
 		}
@@ -213,6 +217,9 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		templates := templatesForKind(kind)
 		tmpl, err := resolveTemplate(templates, cfg.template)
 		if err != nil {
+			return err
+		}
+		if _, err := renderModuleFiles(rootDir, modPath, tmpl); err != nil {
 			return err
 		}
 		if err := writeGnomod(rootDir, modPath); err != nil {
@@ -251,6 +258,9 @@ func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 		return err
 	}
 
+	if _, err := renderModuleFiles(rootDir, modPath, tmpl); err != nil {
+		return err
+	}
 	if err := writeGnomod(rootDir, modPath); err != nil {
 		return err
 	}
@@ -292,24 +302,34 @@ func resolveTemplate(templates []initTemplate, name string) (*initTemplate, erro
 	return nil, fmt.Errorf("unknown template %q; available: %s", name, strings.Join(names, ", "))
 }
 
-func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
+// renderModuleFiles renders template files for a module and fails if any
+// output file already exists on disk. It performs no writes — callers use it
+// to fail-fast before touching gnomod.toml, avoiding partial state on error.
+func renderModuleFiles(rootDir, modPath string, tmpl *initTemplate) (map[string][]byte, error) {
 	pkgName := filepath.Base(modPath)
 	data := templateData{PkgName: pkgName}
+
+	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
+	if err != nil {
+		return nil, fmt.Errorf("render template: %w", err)
+	}
+	for name := range files {
+		if _, err := os.Stat(filepath.Join(rootDir, name)); err == nil {
+			return nil, fmt.Errorf("file already exists: %s", name)
+		}
+	}
+	return files, nil
+}
+
+func writeModule(rootDir, modPath string, tmpl *initTemplate, io commands.IO) error {
+	files, err := renderModuleFiles(rootDir, modPath, tmpl)
+	if err != nil {
+		return err
+	}
 
 	kindLabel := "package"
 	if gno.IsRealmPath(modPath) {
 		kindLabel = "realm"
-	}
-
-	files, err := renderTemplateDir(tmpl.FS, tmpl.Dir, data)
-	if err != nil {
-		return fmt.Errorf("render template: %w", err)
-	}
-
-	for name := range files {
-		if _, err := os.Stat(filepath.Join(rootDir, name)); err == nil {
-			return fmt.Errorf("file already exists: %s", name)
-		}
 	}
 
 	created := make([]string, 0, len(files))

@@ -22,6 +22,7 @@ SUBCOMMANDS
   fmt      gnofmt (reformat) package sources
   list     lists the named packages
   lint     runs the linter for the specified packages
+  init     initialize a new Gno module
   mod      module maintenance
   repl     starts a GnoVM REPL
   run      run gno packages
