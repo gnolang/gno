@@ -95,7 +95,6 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ContainerWithAminoLists)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgPointerSlice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgBoxedRepr)(nil)).Elem())
-	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgStringSlice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
 }
 
@@ -15689,97 +15688,6 @@ func (goo *CrossPkgBoxedRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 		return err
 	}
 	return goo.UnmarshalAmino(repr)
-}
-
-func (goo CrossPkgStringSlice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
-	var err error
-	for i := len(goo.Items) - 1; i >= 0; i-- {
-		elem := goo.Items[i]
-		er, err := elem.MarshalAmino()
-		if err != nil {
-			return offset, err
-		}
-		offset = amino.PrependString(buf, offset, string(er))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
-	}
-	return offset, err
-}
-
-func (goo CrossPkgStringSlice) SizeBinary2(cdc *amino.Codec) (int, error) {
-	var s int
-	for _, elem := range goo.Items {
-		er, err := elem.MarshalAmino()
-		if err != nil {
-			return 0, err
-		}
-		vs := amino.UvarintSize(uint64(len(er))) + len(er)
-		s += 1 + vs
-	}
-	return s, nil
-}
-
-func (goo *CrossPkgStringSlice) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
-	var lastFieldNum uint32
-	for len(bz) > 0 {
-		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
-		_ = typ3
-		if err != nil {
-			return err
-		}
-		if fnum < lastFieldNum {
-			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
-		}
-		lastFieldNum = fnum
-		bz = bz[n:]
-		switch fnum {
-		case 1:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
-			}
-			var ev crosspkg.BoxedString
-			var rv string
-			v, n, err := amino.DecodeString(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			rv = string(v)
-			if err := ev.UnmarshalAmino(rv); err != nil {
-				return err
-			}
-			goo.Items = append(goo.Items, ev)
-			for len(bz) > 0 {
-				var nextFnum uint32
-				var nextTyp3 amino.Typ3
-				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
-				if err != nil {
-					return err
-				}
-				if nextFnum != 1 {
-					break
-				}
-				if nextTyp3 != amino.Typ3ByteLength {
-					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
-				}
-				bz = bz[n:]
-				var ev crosspkg.BoxedString
-				var rv string
-				v, n, err := amino.DecodeString(bz)
-				if err != nil {
-					return err
-				}
-				bz = bz[n:]
-				rv = string(v)
-				if err := ev.UnmarshalAmino(rv); err != nil {
-					return err
-				}
-				goo.Items = append(goo.Items, ev)
-			}
-		default:
-			return fmt.Errorf("unknown field number %d for CrossPkgStringSlice", fnum)
-		}
-	}
-	return nil
 }
 
 func (goo InterfaceHeavy) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {

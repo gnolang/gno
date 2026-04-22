@@ -504,6 +504,27 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		// AminoMarshaler element with non-struct, non-interface repr: proto
 		// emits the repr's wire type (see typeToP3Type at genproto.go:330),
 		// so the Go↔pb bindings for the slice element must agree.
+		//
+		// Why each clause of the condition:
+		//   - IsAminoMarshaler: element defines MarshalAmino/UnmarshalAmino.
+		//     Without this, no repr unwrap happens anywhere and schema and
+		//     bindings trivially agree — nothing to fix.
+		//   - ReprType.Kind() != Struct: a struct repr is emitted as a proto
+		//     message (registered type name); p3goTypeExprString already
+		//     returns *pb.Name in both modes, so both paths already agree.
+		//   - ReprType.Kind() != Interface: interface reprs go through
+		//     amino's Any-like wrapping — a different code path entirely.
+		//
+		// What remains after excluding Struct and Interface is primitives
+		// (string, int64, uint32, ...), slices/arrays (notably []byte), and
+		// named aliases of those. In those cases p3goTypeExprString's default
+		// mode returns the wrapper *pb.TypeName because the element type is
+		// registered, while typeToP3Type on the schema side returns the bare
+		// primitive. Re-calling p3goTypeExprString on ReprType forces it to
+		// emit the primitive, matching the schema.
+		//
+		// Note: Uint8 repr is not excluded here but is caught first by the
+		// option_bytes branch below, short-circuiting to `bytes`.
 		if gooreType.IsAminoMarshaler &&
 			gooreType.ReprType.Type.Kind() != reflect.Struct &&
 			gooreType.ReprType.Type.Kind() != reflect.Interface {
