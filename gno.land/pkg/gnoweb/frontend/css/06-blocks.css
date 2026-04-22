@@ -2527,7 +2527,7 @@ main.dev-mode .b-toc a {
 	flex-direction: column;
 	min-height: 70vh;
 	grid-column: 1 / -1;
-	padding-bottom: var(--g-space-10);
+	padding-bottom: var(--g-space-24);
 }
 
 .b-playground-toolbar {
@@ -2812,6 +2812,14 @@ main.dev-mode .b-toc a {
 /* ==========================================================================
    RUN - maketx run scratchpad
    ========================================================================== */
+.b-run {
+	display: flex;
+	flex-direction: column;
+	min-height: 70vh;
+	grid-column: 1 / -1;
+	padding-bottom: var(--g-space-24);
+}
+
 .b-run-settings {
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
