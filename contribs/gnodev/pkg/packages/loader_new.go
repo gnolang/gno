@@ -186,6 +186,64 @@ func scanRoot(root string, logger *slog.Logger) map[string]string {
 	return out
 }
 
+// Reload re-runs gnovm.Load for the workspace and re-Resolves each tracked
+// path. Tracked paths discovered via ExtraRoots or the fetcher live outside
+// the workspace, so they are re-resolved individually and merged with the
+// workspace result.
+func (l *LoaderImpl) Reload() ([]*NewPackage, error) {
+	l.mu.RLock()
+	wsPattern := ""
+	if l.cfg.Workspace != "" {
+		wsPattern = l.cfg.Workspace + "/..."
+	}
+	trackedPaths := make([]string, 0, len(l.tracked))
+	for p := range l.tracked {
+		trackedPaths = append(trackedPaths, p)
+	}
+	l.mu.RUnlock()
+
+	var out []*NewPackage
+	seen := map[string]struct{}{}
+	appendUnique := func(pkgs ...*NewPackage) {
+		for _, p := range pkgs {
+			if _, dup := seen[p.ImportPath]; dup {
+				continue
+			}
+			seen[p.ImportPath] = struct{}{}
+			out = append(out, p)
+		}
+	}
+
+	if wsPattern != "" {
+		pkgs, err := l.loadWithPatterns(wsPattern)
+		if err != nil {
+			return nil, err
+		}
+		appendUnique(pkgs...)
+	}
+
+	// Drop tracked paths from the index so Resolve re-derives them from
+	// FS or fetcher (picking up any changes on disk).
+	l.mu.Lock()
+	for _, p := range trackedPaths {
+		delete(l.index, p)
+	}
+	// Invalidate root indexes so scanRoot re-walks and picks up added dirs.
+	l.rootIdx = make(map[string]map[string]string)
+	l.mu.Unlock()
+
+	for _, p := range trackedPaths {
+		pkg, err := l.Resolve(p)
+		if err != nil {
+			l.cfg.Logger.Warn("reload tracked path failed", "path", p, "err", err)
+			continue
+		}
+		appendUnique(pkg)
+	}
+
+	return out, nil
+}
+
 // LoadWorkspace eagerly loads packages in the configured workspace.
 // Returns nil (no error) if no workspace is set.
 func (l *LoaderImpl) LoadWorkspace() ([]*NewPackage, error) {
@@ -201,11 +259,12 @@ func (l *LoaderImpl) loadWithPatterns(patterns ...string) ([]*NewPackage, error)
 	l.mu.RUnlock()
 
 	conf := vmpackages.LoadConfig{
-		Deps:       true,
-		AllowEmpty: true,
-		GnoRoot:    l.cfg.GnoRoot,
-		Out:        &logWriter{logger: l.cfg.Logger},
-		Fetcher:    fetcher,
+		Deps:                true,
+		AllowEmpty:          true,
+		GnoRoot:             l.cfg.GnoRoot,
+		Out:                 &logWriter{logger: l.cfg.Logger},
+		Fetcher:             fetcher,
+		ExtraWorkspaceRoots: l.cfg.ExtraRoots,
 	}
 	pkgList, err := vmpackages.Load(conf, patterns...)
 	if err != nil {

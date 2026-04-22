@@ -106,3 +106,36 @@ func TestLoader_Resolve_RPCFallback(t *testing.T) {
 	assert.Equal(t, KindRemote, got.Kind)
 	assert.Equal(t, "gno.land/r/demo/boards", got.ImportPath)
 }
+
+func TestLoader_Reload_IncludesTrackedPaths(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
+	wsPkg := filepath.Join(root, "wspkg")
+	writePkg(t, wsPkg, "gno.land/p/ws/one", "package one\n")
+
+	extra := t.TempDir()
+	extraPkg := filepath.Join(extra, "p")
+	writePkg(t, extraPkg, "gno.land/p/ext/two", "package two\n")
+
+	t.Chdir(root)
+
+	l := NewLoaderImpl(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
+	_, err := l.LoadWorkspace()
+	require.NoError(t, err)
+	_, err = l.Resolve("gno.land/p/ext/two")
+	require.NoError(t, err)
+
+	got, err := l.Reload()
+	require.NoError(t, err)
+	paths := pathsOf(got)
+	assert.Contains(t, paths, "gno.land/p/ws/one")
+	assert.Contains(t, paths, "gno.land/p/ext/two")
+}
+
+func pathsOf(pkgs []*NewPackage) []string {
+	out := make([]string, len(pkgs))
+	for i, p := range pkgs {
+		out[i] = p.ImportPath
+	}
+	return out
+}
