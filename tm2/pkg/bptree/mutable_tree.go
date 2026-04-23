@@ -596,12 +596,20 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 			inner.children[i] = child.GetNodeKey().GetKey()
 			inner.childHashes[i] = child.Hash()
 		}
-		inner.RebuildMiniMerkle()
+		// Mutation paths (innerInsert, redistribute, merge, split)
+		// either keep the mini-merkle current via SetSlot or set
+		// miniTreeDirty when they cannot. ensureMiniMerkleBuilt
+		// rebuilds only when dirty; clean clones (no descendant
+		// mutated through this inner) skip the 31-hash rebuild.
+		inner.ensureMiniMerkleBuilt()
 	}
 
-	// Rebuild leaf mini merkle (may already be done, but ensure correctness)
+	// Same dirty-bit gating for leaves: mutation paths set
+	// miniTreeDirty + slotsDirty bits via markLeafSlotDirty /
+	// markLeafSlotsDirtyRange. ensureMiniMerkleBuilt drives the
+	// incremental rebuild that touches only changed slots.
 	if leaf, ok := node.(*LeafNode); ok {
-		leaf.RebuildMiniMerkle()
+		leaf.ensureMiniMerkleBuilt()
 	}
 
 	// Assign NodeKey
