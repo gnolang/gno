@@ -11,8 +11,7 @@ import (
 )
 
 func TestIterator_NewIterator_NilTree_Failure(t *testing.T) {
-	var tree *MutableTree
-	tree = NewMutableTreeMem()
+	tree := NewMutableTreeMem()
 	// Empty tree — iterator should be invalid
 	itr, err := tree.Iterator(nil, nil, true)
 	require.NoError(t, err)

@@ -181,15 +181,15 @@ func TestVersionedEmptyTree(t *testing.T) {
 	require.Len(hash, 32)
 	require.EqualValues(1, v)
 
-	hash, v, err = tree.SaveVersion()
+	_, v, err = tree.SaveVersion()
 	require.NoError(err)
 	require.EqualValues(2, v)
 
-	hash, v, err = tree.SaveVersion()
+	_, v, err = tree.SaveVersion()
 	require.NoError(err)
 	require.EqualValues(3, v)
 
-	hash, v, err = tree.SaveVersion()
+	_, v, err = tree.SaveVersion()
 	require.NoError(err)
 	require.EqualValues(4, v)
 
@@ -327,7 +327,7 @@ func TestLoadVersion(t *testing.T) {
 	require.Equal(t, []byte(fmt.Sprintf("value_%d", maxVersions)), value)
 
 	// require the ability to load an older version
-	version, err = tree.LoadVersion(int64(maxVersions - 1))
+	_, err = tree.LoadVersion(int64(maxVersions - 1))
 	require.NoError(t, err, "unexpected error when loading version")
 
 	value, err = tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions-1)))

@@ -1,24 +1,35 @@
 package bptree
 
-// insertResult is returned by recursive insert functions.
-type insertResult struct {
-	updated     bool         // true if key already existed (value replaced)
-	split       *splitResult // non-nil if the node split
-	oldValueKey []byte       // old valueKey if key was updated (for orphan tracking)
+// slotPayload is the per-slot value information passed from Set down
+// through the insert chain. Exactly one of `inline` or `valueKey` is
+// non-nil: inline slots carry the raw bytes (stored on the leaf);
+// external slots carry a ValueKey reference (resolved via the value
+// store). valueHash is always populated so slot hashing stays uniform.
+type slotPayload struct {
+	valueHash Hash
+	inline    []byte // non-nil for inline storage; LeafNode takes ownership
+	valueKey  []byte // non-nil for external storage
 }
 
-// treeInsert inserts a key with a pre-computed value hash and valueKey.
+// insertResult is returned by recursive insert functions.
+type insertResult struct {
+	updated    bool         // true if key already existed (value replaced)
+	split      *splitResult // non-nil if the node split
+	oldPayload slotPayload  // displaced slot (only valueKey is consulted, for orphan tracking)
+}
+
+// treeInsert inserts a key with a pre-computed value hash and payload.
 // Returns the (possibly new) root, whether it was an update, and the old
-// valueKey if an existing key was overwritten (nil otherwise).
+// slot payload if an existing key was overwritten (zero struct otherwise).
 //
 // The caller is responsible for ensuring the root is COW-cloned if it
 // is shared with a snapshot (lastSaved) or came from the node cache.
 // MutableTree.Set does this via cowRoot() at most once per working
 // version. Re-cloning here on every Set in a single working version is
 // a ~4.3 KB struct copy per call that we can avoid. See Finding #17.
-func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, bool, []byte) {
+func treeInsert(root Node, key []byte, payload slotPayload) (Node, bool, slotPayload) {
 	key = copyKey(key) // defensive copy — caller may reuse the slice
-	res := nodeInsert(root, key, valueHash, valueKey)
+	res := nodeInsert(root, key, payload)
 
 	if res.split != nil {
 		// Root split — create a new inner root
@@ -35,83 +46,164 @@ func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, b
 		newRoot.childSizes[0] = nodeSize(root)
 		newRoot.childSizes[1] = nodeSize(sr.right)
 		newRoot.rebuildChildLoaded()
-		newRoot.RebuildMiniMerkle()
-		return newRoot, res.updated, res.oldValueKey
+		newRoot.miniTreeDirty = true // defer rebuild; next Hash() materialises it
+		return newRoot, res.updated, res.oldPayload
 	}
-	return root, res.updated, res.oldValueKey
+	return root, res.updated, res.oldPayload
 }
 
 // nodeInsert recursively inserts into the subtree rooted at node.
 // The node must already be COW-cloned by the caller.
-func nodeInsert(node Node, key []byte, valueHash Hash, valueKey []byte) insertResult {
+func nodeInsert(node Node, key []byte, payload slotPayload) insertResult {
 	switch n := node.(type) {
 	case *LeafNode:
-		return leafInsert(n, key, valueHash, valueKey)
+		return leafInsert(n, key, payload)
 	case *InnerNode:
-		return innerInsert(n, key, valueHash, valueKey)
+		return innerInsert(n, key, payload)
 	default:
 		panic("unknown node type")
 	}
 }
 
+// applyPayloadToSlot writes payload into slot `pos` of the leaf,
+// toggling the inline bit appropriately. Used by both the update and
+// insert paths to avoid duplicating the inline/external branching.
+func applyPayloadToSlot(leaf *LeafNode, pos int, payload slotPayload) {
+	leaf.valueHashes[pos] = payload.valueHash
+	bit := uint32(1) << uint(pos)
+	if payload.inline != nil {
+		leaf.inlineValues[pos] = payload.inline
+		leaf.valueKeys[pos] = nil
+		leaf.inlineMask |= bit
+	} else {
+		leaf.inlineValues[pos] = nil
+		leaf.valueKeys[pos] = payload.valueKey
+		leaf.inlineMask &^= bit
+	}
+}
+
+// captureSlotPayload extracts the current payload at slot pos (for
+// orphan tracking of displaced external values).
+func captureSlotPayload(leaf *LeafNode, pos int) slotPayload {
+	p := slotPayload{valueHash: leaf.valueHashes[pos]}
+	if leaf.inlineMask&(uint32(1)<<uint(pos)) != 0 {
+		p.inline = leaf.inlineValues[pos]
+	} else {
+		p.valueKey = leaf.valueKeys[pos]
+	}
+	return p
+}
+
 // leafInsert inserts into a leaf node (already COW-cloned).
-func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) insertResult {
+func leafInsert(leaf *LeafNode, key []byte, payload slotPayload) insertResult {
 	pos, found := searchLeaf(leaf, key)
 
 	if found {
-		// Update existing key — size unchanged. Capture old valueKey for orphan tracking.
-		oldVK := leaf.valueKeys[pos]
-		leaf.valueHashes[pos] = valueHash
-		leaf.valueKeys[pos] = valueKey
-		leaf.miniTree.SetSlot(pos, HashLeafSlotFromValueHash(key, valueHash))
-		return insertResult{updated: true, oldValueKey: oldVK}
+		// Update existing key — size unchanged. Capture old payload for
+		// orphan tracking (the caller orphans only external slots).
+		old := captureSlotPayload(leaf, pos)
+		applyPayloadToSlot(leaf, pos, payload)
+		// Single-slot update. Rehash the slot once, refresh the per-slot
+		// hash cache, and walk the mini-merkle path incrementally
+		// (5 SHA-256 hashes) rather than paying a full 31-hash rebuild.
+		// ensureMiniMerkleBuilt covers the case where an earlier bulk
+		// mutation left the tree dirty.
+		leaf.ensureMiniMerkleBuilt()
+		h := HashLeafSlotFromValueHash(key, payload.valueHash)
+		leaf.slotHashes[pos] = h
+		leaf.miniTree.SetSlot(pos, h)
+		return insertResult{updated: true, oldPayload: old}
 	}
 
 	// Insert new key
 	if int(leaf.numKeys) < B {
-		// Room in this leaf — shift right and insert
+		// Room in this leaf — shift right and insert. The slot-level
+		// hash cache (slotHashes) is intentionally NOT shifted: doing so
+		// would cost a 32-byte memcpy per shifted slot on every insert,
+		// while marking the shifted range dirty defers the actual
+		// rehashing until the next Hash() and folds repeated dirtying
+		// of the same slot across a burst of inserts into a single
+		// recomputation per rebuildMiniMerkleIncremental pass.
 		n := int(leaf.numKeys)
 		for i := n; i > pos; i-- {
 			leaf.keys[i] = leaf.keys[i-1]
 			leaf.valueHashes[i] = leaf.valueHashes[i-1]
 			leaf.valueKeys[i] = leaf.valueKeys[i-1]
+			leaf.inlineValues[i] = leaf.inlineValues[i-1]
 		}
+		shiftInlineMaskUp(leaf, pos)
 		leaf.keys[pos] = key
-		leaf.valueHashes[pos] = valueHash
-		leaf.valueKeys[pos] = valueKey
+		// Clear existing state at pos then apply payload.
+		leaf.inlineValues[pos] = nil
+		leaf.valueKeys[pos] = nil
+		leaf.inlineMask &^= uint32(1) << uint(pos)
+		applyPayloadToSlot(leaf, pos, payload)
 		leaf.numKeys++
-		leaf.RebuildMiniMerkle()
+		// Slots [pos, numKeys) all hold data that does not match
+		// slotHashes[i] (either freshly inserted, or shifted from a
+		// neighbour). Mark the entire range dirty so the next merkle
+		// rebuild rehashes them. The cached common-prefix length is
+		// invalidated separately because either keys[0] or
+		// keys[numKeys-1] (the boundary inputs) may now hold a
+		// different byte sequence.
+		leaf.markLeafSlotsDirtyRange(pos, int(leaf.numKeys))
+		leaf.invalidatePrefixLenCache()
 		return insertResult{updated: false}
 	}
 
 	// Leaf is full (numKeys == B) — need to split. Scratch arrays for
-	// the B+1 overflow entries live on the stack; the old make() trio
-	// was three heap allocations per split. splitLeaf copies out of
-	// these slices into the returned LeafNodes, so the backing arrays
-	// do not escape. See Finding #21.
+	// the B+1 overflow entries live on the stack; splitLeaf copies out
+	// of them into the returned LeafNodes, so the backing arrays do
+	// not escape.
 	var allKeys [B + 1][]byte
 	var allVH [B + 1]Hash
 	var allVK [B + 1][]byte
-	// Copy existing keys, inserting new key at pos
+	var allInline [B + 1][]byte
+	// Overflow array has B+1 = 33 slots — one more than a uint32 can
+	// represent. Use uint64 locally; splitLeaf produces two uint32
+	// halves each covering at most B slots (left ≤ 17, right ≤ 17).
+	var allInlineMask uint64
 	copy(allKeys[:pos], leaf.keys[:pos])
 	allKeys[pos] = key
 	copy(allKeys[pos+1:], leaf.keys[pos:B])
 	copy(allVH[:pos], leaf.valueHashes[:pos])
-	allVH[pos] = valueHash
+	allVH[pos] = payload.valueHash
 	copy(allVH[pos+1:], leaf.valueHashes[pos:B])
 	copy(allVK[:pos], leaf.valueKeys[:pos])
-	allVK[pos] = valueKey
 	copy(allVK[pos+1:], leaf.valueKeys[pos:B])
+	copy(allInline[:pos], leaf.inlineValues[:pos])
+	copy(allInline[pos+1:], leaf.inlineValues[pos:B])
+	// Widen before shifting so the high bit of a full leaf (bit 31)
+	// can survive the up-shift into bit 32.
+	srcMask := uint64(leaf.inlineMask)
+	lowMask := srcMask & ((uint64(1) << uint(pos)) - 1)
+	highMask := (srcMask &^ ((uint64(1) << uint(pos)) - 1)) << 1
+	allInlineMask = lowMask | highMask
+	if payload.inline != nil {
+		allInline[pos] = payload.inline
+		allInlineMask |= uint64(1) << uint(pos)
+	} else {
+		allVK[pos] = payload.valueKey
+	}
 
-	left, sr := splitLeaf(allKeys[:], allVH[:], allVK[:], pos)
+	left, sr := splitLeaf(allKeys[:], allVH[:], allVK[:], allInline[:], allInlineMask, pos)
 	*leaf = *left
-	leaf.RebuildMiniMerkle()
-	sr.right.(*LeafNode).RebuildMiniMerkle()
+	leaf.markLeafSlotsDirtyRange(0, int(leaf.numKeys))
+	r := sr.right.(*LeafNode)
+	r.markLeafSlotsDirtyRange(0, int(r.numKeys))
 	return insertResult{updated: false, split: &sr}
 }
 
+// shiftInlineMaskUp shifts inlineMask bits at positions [pos, 32) up
+// by one. The bit previously at position B-1 is dropped (leaf had
+// room by contract, so that position must be zero).
+func shiftInlineMaskUp(leaf *LeafNode, pos int) {
+	highBits := leaf.inlineMask &^ ((uint32(1) << uint(pos)) - 1)
+	leaf.inlineMask = (leaf.inlineMask & ((uint32(1) << uint(pos)) - 1)) | (highBits << 1)
+}
+
 // innerInsert inserts into an inner node (already COW-cloned).
-func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) insertResult {
+func innerInsert(inner *InnerNode, key []byte, payload slotPayload) insertResult {
 	childIdx := searchInner(inner, key)
 
 	child := inner.getChild(childIdx)
@@ -124,7 +216,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	inner.setChild(childIdx, child)
 
 	// Recurse
-	res := nodeInsert(child, key, valueHash, valueKey)
+	res := nodeInsert(child, key, payload)
 
 	if !res.updated {
 		inner.childSizes[childIdx]++
@@ -134,8 +226,12 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 	inner.childHashes[childIdx] = child.Hash()
 
 	if res.split == nil {
+		// Single-slot update (one child hash changed). Prefer the
+		// incremental SetSlot (5 hashes up the mini-merkle) over a
+		// full 31-hash rebuild, provided the mini-merkle is current.
+		inner.ensureMiniMerkleBuilt()
 		inner.miniTree.SetSlot(childIdx, inner.childHashes[childIdx])
-		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
+		return insertResult{updated: res.updated, oldPayload: res.oldPayload}
 	}
 
 	// Child split — insert separator and new right child into this inner node
@@ -160,8 +256,8 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childSizes[childIdx+1] = nodeSize(sr.right)
 		inner.numKeys++
 		inner.rebuildChildLoaded()
-		inner.RebuildMiniMerkle()
-		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}
+		inner.miniTreeDirty = true
+		return insertResult{updated: res.updated, oldPayload: res.oldPayload}
 	}
 
 	// Inner node is full (numKeys == B-1) — need to split.
@@ -230,7 +326,7 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childNodes[i] = nil
 	}
 	inner.rebuildChildLoaded()
-	inner.RebuildMiniMerkle()
+	inner.miniTreeDirty = true
 
 	// Wire up child nodes for right
 	rightInner := innerSR.right.(*InnerNode)
@@ -240,9 +336,9 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		rightInner.childNodes[i] = allChildNodes[splitIdx+i]
 	}
 	rightInner.rebuildChildLoaded()
-	rightInner.RebuildMiniMerkle()
+	rightInner.miniTreeDirty = true
 
-	return insertResult{updated: res.updated, oldValueKey: res.oldValueKey, split: &innerSR}
+	return insertResult{updated: res.updated, oldPayload: res.oldPayload, split: &innerSR}
 }
 
 func cloneNode(n Node) Node {

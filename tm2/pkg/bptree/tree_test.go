@@ -501,7 +501,7 @@ func TestMutableTree_COW_OldReferencesValid(t *testing.T) {
 	// structure (keys) is isolated from mutations; the valueKey is
 	// discarded.
 	var oldKeys []string
-	iterateNodeResolved(snap.root, func(key, _ []byte) bool {
+	iterateNodeResolved(snap.root, func(key []byte, _ *LeafNode, _ int) bool {
 		oldKeys = append(oldKeys, string(key))
 		return false
 	})

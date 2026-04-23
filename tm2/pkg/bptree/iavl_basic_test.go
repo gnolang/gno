@@ -154,9 +154,12 @@ func TestRemove(t *testing.T) {
 	// insert a bunch of random nodes
 	keys := make([][]byte, size)
 	l := int32(len(keys))
+	// math/rand.Read is deprecated; use a *Rand instance whose Read is
+	// not deprecated. Deterministic source keeps the test reproducible.
+	src := rand.New(rand.NewSource(1))
 	for i := 0; i < size; i++ {
 		key := make([]byte, 16)
-		rand.Read(key)
+		src.Read(key)
 		t1.Set(key, make([]byte, 40))
 		keys[i] = key
 	}

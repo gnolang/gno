@@ -173,7 +173,7 @@ func (d *failingSaveValueDB) SetSync(key, value []byte) error {
 // SaveValue was attempted, so the tree would reference a never-persisted vk.
 func TestSet_AtomicWithSaveValue_FirstInsert(t *testing.T) {
 	db := newFailingSaveValueDB()
-	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 100, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	db.failValues = true
 	_, err := tree.Set([]byte("k"), []byte("v"))
@@ -194,7 +194,7 @@ func TestSet_AtomicWithSaveValue_FirstInsert(t *testing.T) {
 // vk. After the fix, the tree still has the OLD value for that key.
 func TestSet_AtomicWithSaveValue_Update(t *testing.T) {
 	db := newFailingSaveValueDB()
-	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 100, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	// Seed a successful Set + SaveVersion so we're updating, not inserting.
 	if _, err := tree.Set([]byte("k"), []byte("v1")); err != nil {
@@ -269,7 +269,7 @@ func (d *failingDeleteDB) DeleteSync(key []byte) error {
 func TestRollback_LogsDeleteValueErrors(t *testing.T) {
 	db := newFailingDeleteDB()
 	logger := &countingLogger{}
-	tree := NewMutableTreeWithDB(db, 100, logger)
+	tree := NewMutableTreeWithDB(db, 100, logger, InlineValueThresholdOption(-1))
 
 	if _, err := tree.Set([]byte("k1"), []byte("v1")); err != nil {
 		t.Fatalf("seed Set: %v", err)

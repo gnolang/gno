@@ -25,6 +25,16 @@ const (
 )
 
 // StoreConstructor implements store.CommitStoreConstructor.
+//
+// The underlying *bp.MutableTree is constructed without
+// InlineValueThresholdOption, so inline-value storage is disabled and
+// every value goes through the external ValueKey indirection. This
+// preserves on-disk compatibility for callers that have not opted
+// into the inline-value leaf format. Enabling inline storage is a
+// chain-format change (legacy leaves auto-upgrade to the inline
+// format on first save), so to opt in, plumb an inline-threshold
+// knob through types.StoreOptions and pass
+// bp.InlineValueThresholdOption(threshold) here.
 func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 	tree := bp.NewMutableTreeWithDB(db, defaultCacheSize, bp.NewNopLogger())
 	return UnsafeNewStore(tree, opts)

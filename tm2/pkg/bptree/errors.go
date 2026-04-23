@@ -39,4 +39,14 @@ var (
 	// prune caller can roll back to a consistent checkpoint. See
 	// Finding #46.
 	ErrHeightInvariantViolated = errors.New("bptree: inner node height invariant violated")
+	// ErrValueMissing is returned by nodeDB.GetValue (and the resolver
+	// chain that wraps it) when the underlying DB has no record for the
+	// requested ValueKey. In a healthy DB this is unreachable — every
+	// leaf.valueKeys[i] references a ValueKey that SaveValue persisted —
+	// so a return of ErrValueMissing signals out-of-band corruption
+	// (e.g. the value file was deleted externally) rather than a Get
+	// miss. Surfaced as a typed error so callers can distinguish it
+	// from a legitimate empty value (which round-trips as a non-nil
+	// zero-length slice with err == nil).
+	ErrValueMissing = errors.New("bptree: value missing for valueKey")
 )

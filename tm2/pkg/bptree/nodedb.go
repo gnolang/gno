@@ -125,6 +125,37 @@ func rootDBKey(version int64) []byte {
 
 // --- Node operations ---
 
+// saveBufPool holds a pool of *bytes.Buffer used by SaveNode to
+// serialize each node. Reusing buffers across saves (arena-style)
+// eliminates the grow-then-discard churn a fresh bytes.Buffer incurs
+// per call. Buffers over saveBufCapCap (see below) are dropped on Put
+// rather than returned, so a single oversize node does not inflate
+// every pooled buffer.
+//
+// The initial capacity is sized for a worst-case full leaf with the
+// default InlineValueThreshold (64 B) so that the first save through
+// a pool slot does not trigger the bytes.Buffer geometric growth
+// (512→1024→2048→4096) before the payload fits.
+var saveBufPool = sync.Pool{
+	New: func() any {
+		b := bytes.NewBuffer(make([]byte, 0, saveBufInitCap))
+		return b
+	},
+}
+
+// saveBufInitCap is the initial capacity of a freshly-allocated pool
+// buffer. A full leaf with B=32 inline-64-byte values, 32 hashes, and
+// keys totals ~3-4 KiB; 4 KiB initialises the buffer past its first
+// few growth doublings.
+const saveBufInitCap = 4 << 10
+
+// saveBufCapCap caps the retained pool buffer capacity so a single
+// abnormally large node doesn't inflate every pooled buffer. 16 KiB
+// retains any leaf produced with a moderate inline threshold (the
+// previous 8 KiB ceiling dropped buffers grown to fit such leaves and
+// re-paid the geometric-growth cost on the next save).
+const saveBufCapCap = 16 << 10
+
 // SaveNode writes a node to the batch and adds it to the cache.
 func (ndb *nodeDB) SaveNode(node Node) error {
 	nk := node.GetNodeKey()
@@ -133,21 +164,33 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 	}
 	nkBytes := nk.GetKey()
 
-	var buf bytes.Buffer
+	buf := saveBufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer func() {
+		if buf.Cap() <= saveBufCapCap {
+			saveBufPool.Put(buf)
+		}
+	}()
 	switch n := node.(type) {
 	case *InnerNode:
-		if err := n.Serialize(&buf); err != nil {
+		if err := n.Serialize(buf); err != nil {
 			return fmt.Errorf("serializing inner node: %w", err)
 		}
 	case *LeafNode:
-		if err := n.Serialize(&buf); err != nil {
+		if err := n.Serialize(buf); err != nil {
 			return fmt.Errorf("serializing leaf node: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown node type")
 	}
 
-	if err := ndb.batch.Set(nodeDBKey(nkBytes), buf.Bytes()); err != nil {
+	// batch.Set retains the value slice (see tm2/pkg/db memdb/goleveldb
+	// implementations). The pooled buffer is about to be reused, so
+	// copy the bytes into a fresh allocation whose lifetime matches
+	// the batch entry.
+	data := make([]byte, buf.Len())
+	copy(data, buf.Bytes())
+	if err := ndb.batch.Set(nodeDBKey(nkBytes), data); err != nil {
 		return err
 	}
 
@@ -224,6 +267,53 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 	return v.(Node), nil
 }
 
+// getNodeUncontended is a singleflight-bypassing variant of GetNode for
+// known-uncontended call sites: paths where the caller can guarantee no
+// other goroutine is racing to load the same NodeKey. Skipping the
+// singleflight wrapper saves the per-call `*call` struct + closure
+// environment allocations and the internal mutex acquire/release.
+//
+// Safe call sites:
+//   - LoadVersion's root load — the tree is freshly constructed in this
+//     goroutine; nothing else holds a reference yet.
+//
+// Unsafe call sites (use GetNode instead):
+//   - getChild's lazy-load slow path — two readers descending different
+//     parents may both reach the same child concurrently.
+//   - GetImmutable's root load — multiple goroutines may concurrently
+//     request snapshots of the same version on a shared MutableTree.
+//   - The prune mark/sweep — single-goroutine today but the prune lock
+//     covers correctness; cheap singleflight is fine.
+//
+// The error and panic semantics match GetNode exactly.
+func (ndb *nodeDB) getNodeUncontended(nkBytes []byte) (Node, error) {
+	key := string(nkBytes)
+	if ndb.nodeCache != nil {
+		if node, ok := ndb.nodeCache.Get(key); ok {
+			return node, nil
+		}
+	}
+	data, err := ndb.db.Get(nodeDBKey(nkBytes))
+	if err != nil {
+		panic(fmt.Sprintf("bptree: db get node %x: %v", nkBytes, err))
+	}
+	if data == nil {
+		return nil, ErrNodeNotFound
+	}
+	nk := GetNodeKey(nkBytes)
+	node, err := ReadNode(nk, data)
+	if err != nil {
+		panic(fmt.Sprintf("bptree: deserializing node %x: %v", nkBytes, err))
+	}
+	if inner, ok := node.(*InnerNode); ok {
+		inner.ndb = ndb
+	}
+	if ndb.nodeCache != nil {
+		ndb.nodeCache.Add(key, node)
+	}
+	return node, nil
+}
+
 // --- Value operations ---
 
 // SaveValue writes a value to the DB directly (not via batch), keyed by
@@ -252,17 +342,21 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 //
 // Return semantics:
 //   - Present-and-empty values round-trip as a non-nil zero-length slice
-//     (verified on both memdb and goleveldb backends).
-//   - A missing key returns (nil, nil). The tree layer should never see
-//     this in a healthy DB — every leaf.valueKeys[i] references a
-//     ValueKey that SaveValue persisted. A (nil, nil) return therefore
-//     signals corruption (e.g., value file deleted out-of-band) rather
-//     than a legitimate Get miss; callers that need to surface it
-//     should compare `val == nil` explicitly.
+//     (verified on both memdb and goleveldb backends) with err == nil.
+//   - A missing record returns (nil, ErrValueMissing). The tree layer
+//     should never see this in a healthy DB — every leaf.valueKeys[i]
+//     references a ValueKey that SaveValue persisted — so an
+//     ErrValueMissing return signals out-of-band corruption (e.g. the
+//     value file was deleted externally) rather than a legitimate
+//     Get miss. Callers should propagate the error rather than treat
+//     it as a missing key.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	data, err := ndb.db.Get(valueDBKey(vk))
 	if err != nil {
 		return nil, fmt.Errorf("db get value: %w", err)
+	}
+	if data == nil {
+		return nil, fmt.Errorf("%w: %x", ErrValueMissing, vk)
 	}
 	return data, nil
 }
@@ -299,9 +393,23 @@ func (ndb *nodeDB) maxValueNonceForVersion(version int64) (uint32, error) {
 	if version == math.MaxInt64 {
 		return 0, fmt.Errorf("version %d out of range for nonce scan", version)
 	}
-	start := valueDBKey(encodeNodeKeyBytes(version, 0))
-	end := valueDBKey(encodeNodeKeyBytes(version+1, 0))
-	itr, err := ndb.db.ReverseIterator(start, end)
+	// Stack-allocate the bounds. The previous valueDBKey(encodeNodeKeyBytes(...))
+	// chain heap-allocated four times per call (12-byte NodeKey + 13-byte
+	// prefixed key, doubled for start/end). Direct in-place encoding into
+	// fixed-size arrays keeps the allocations on the stack — both backends
+	// (pebbledb, memdb) hold the bound slices only for the iterator's
+	// lifetime, which is bounded by `defer itr.Close()` below.
+	//
+	// Layout: PrefixVal | version (uint64 BE) | nonce (uint32 BE)
+	// Nonce defaults to zero (the zero array slot), so only the version
+	// byte range needs to be written.
+	const boundLen = 1 + NodeKeySize
+	var startBuf, endBuf [boundLen]byte
+	startBuf[0] = PrefixVal
+	binary.BigEndian.PutUint64(startBuf[1:9], uint64(version))
+	endBuf[0] = PrefixVal
+	binary.BigEndian.PutUint64(endBuf[1:9], uint64(version+1))
+	itr, err := ndb.db.ReverseIterator(startBuf[:], endBuf[:])
 	if err != nil {
 		return 0, err
 	}

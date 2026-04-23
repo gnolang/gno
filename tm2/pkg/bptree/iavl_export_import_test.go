@@ -3,6 +3,7 @@ package bptree
 // Ported from tm2/pkg/iavl/export_test.go and import_test.go
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -42,7 +43,7 @@ func TestExporter(t *testing.T) {
 	count := 0
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		require.NoError(t, err)
@@ -89,7 +90,7 @@ func TestExporter_Import(t *testing.T) {
 
 			for {
 				node, err := exporter.Next()
-				if err == ErrExportDone {
+				if errors.Is(err, ErrExportDone) {
 					break
 				}
 				require.NoError(t, err)
@@ -201,7 +202,7 @@ func TestExporter_InMemoryValues(t *testing.T) {
 
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		require.NoError(t, err)
@@ -237,7 +238,7 @@ func TestExporter_InMemoryRoundtrip(t *testing.T) {
 
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		require.NoError(t, err)

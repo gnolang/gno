@@ -191,12 +191,12 @@ func TestPersistence_MultiVersion(t *testing.T) {
 
 func TestPersistence_HashStability(t *testing.T) {
 	// Same operations on two separate trees should produce the same hash
-	make := func() *MutableTree {
+	newTree := func() *MutableTree {
 		return newTestTree(t)
 	}
 
-	t1 := make()
-	t2 := make()
+	t1 := newTree()
+	t2 := newTree()
 	for i := 0; i < 100; i++ {
 		key := fmt.Appendf(nil, "hs%04d", i)
 		val := fmt.Appendf(nil, "val%04d", i)
@@ -479,7 +479,7 @@ func TestPersistence_ExportImport(t *testing.T) {
 
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		if err != nil {
@@ -634,7 +634,7 @@ func TestPersistence_ExportImportHashMatch(t *testing.T) {
 	importer, _ := tree2.Import(1)
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		importer.Add(node)

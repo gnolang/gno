@@ -3,6 +3,7 @@ package bptree
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -541,7 +542,7 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 	imp, _ := tree2.Import(1)
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		if err != nil {
@@ -576,7 +577,9 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 
 func TestPrune_MultiVersion(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	// countDBValues asserts equal PrefixVal entries, which requires
+	// external storage; disable inlining for this check.
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	// V1: keys a,b,c
 	tree.Set([]byte("a"), []byte("a1"))
@@ -616,7 +619,9 @@ func TestPrune_MultiVersion(t *testing.T) {
 
 func TestSet_EmptyValueCleanup(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	// Disable inlining so we exercise the eager SaveValue + DeleteValue
+	// path under test.
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	tree.Set([]byte("k"), []byte{})
 	tree.SaveVersion()
@@ -717,7 +722,7 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 // (inner node splits), and verifies that pruning doesn't delete shared nodes.
 func TestPrune_SeparatorKeyRouting(t *testing.T) {
 	db := memdb.NewMemDB()
-	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger(), InlineValueThresholdOption(-1))
 
 	// V1: Insert enough keys to create a height-2 tree (~1100 keys).
 	// With B=32, this gives ~34 leaves under a single root inner node.
@@ -900,8 +905,11 @@ func TestPrune_SustainedInsertPrune(t *testing.T) {
 	for i := 0; i < 500; i++ {
 		tree.Set(fmt.Appendf(nil, "sus%06d", i), []byte("init"))
 	}
-	_, v, err := tree.SaveVersion()
-	if err != nil {
+	// v is populated on the first loop iteration (line ~924) before
+	// being read; the initial SaveVersion result is only checked for
+	// error so drop the version return via _ rather than a dead store.
+	var v int64
+	if _, _, err := tree.SaveVersion(); err != nil {
 		t.Fatalf("SaveVersion initial: %v", err)
 	}
 	nextKey := 500
@@ -1428,13 +1436,13 @@ func TestPrune_EmptyVersionOrphansCleaned(t *testing.T) {
 		t.Fatalf("DeleteVersionsTo(1): %v", err)
 	}
 
-	// The fake orphan value must be deleted.
+	// The fake orphan value must be deleted. GetValue returns
+	// ErrValueMissing (not (nil, nil)) for an absent record so chain
+	// divergence surfaces as a typed error rather than passing through
+	// silently.
 	got, err := tree.ndb.GetValue(fakeVK)
-	if err != nil {
-		t.Fatalf("post-prune GetValue: %v", err)
-	}
-	if got != nil {
-		t.Fatalf("orphan value leaked post-prune: got %q", got)
+	if !errors.Is(err, ErrValueMissing) {
+		t.Fatalf("post-prune GetValue: want ErrValueMissing, got val=%q err=%v", got, err)
 	}
 
 	// V2's orphan record must be deleted.

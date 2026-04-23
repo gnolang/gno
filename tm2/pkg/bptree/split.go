@@ -3,8 +3,8 @@ package bptree
 // splitResult is returned when a node split occurs during insertion.
 // The caller (parent) must insert the separator key and the new right child.
 type splitResult struct {
-	separator []byte     // first key of the right node (copy for parent)
-	right     Node       // the new right sibling
+	separator []byte // first key of the right node (copy for parent)
+	right     Node   // the new right sibling
 }
 
 // splitLeaf splits a leaf that has B+1 keys (overflow after insert at pos).
@@ -12,16 +12,19 @@ type splitResult struct {
 //
 // 90/10 split: if insertPos == B (key appended at the end), left gets B-1
 // keys, right gets 2 keys. Otherwise 50/50: left gets ceil((B+1)/2) = 17.
-func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos int) (*LeafNode, splitResult) {
+//
+// Each slot carries either an inline payload (when bit i is set in
+// inlineMask — inlineValues[i] holds the bytes) or an external
+// valueKey (inlineMask bit i cleared — valueKeys[i] is the 12-byte
+// reference). The split partitions inlineMask along with the other
+// arrays.
+func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, inlineValues [][]byte, inlineMask uint64, insertPos int) (*LeafNode, splitResult) {
 	total := len(keys) // B+1
 	var splitPoint int
 
 	if insertPos == B {
-		// Append pattern: new key was inserted at the end.
-		// 90/10: left gets B-1, right gets 2.
 		splitPoint = total - 2 // B-1
 	} else {
-		// 50/50: left gets ceil((B+1)/2) = 17 for B=32
 		splitPoint = (total + 1) / 2
 	}
 
@@ -30,6 +33,8 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 	copy(left.keys[:], keys[:splitPoint])
 	copy(left.valueHashes[:], valueHashes[:splitPoint])
 	copy(left.valueKeys[:], valueKeys[:splitPoint])
+	copy(left.inlineValues[:], inlineValues[:splitPoint])
+	left.inlineMask = uint32(inlineMask & ((uint64(1) << uint(splitPoint)) - 1))
 
 	rightCount := total - splitPoint
 	right := &LeafNode{}
@@ -37,8 +42,21 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 	copy(right.keys[:], keys[splitPoint:])
 	copy(right.valueHashes[:], valueHashes[splitPoint:])
 	copy(right.valueKeys[:], valueKeys[splitPoint:])
+	copy(right.inlineValues[:], inlineValues[splitPoint:])
+	// Right-half's inlineMask: shift the high bits down by splitPoint
+	// so they align with right's slot indices.
+	right.inlineMask = uint32(inlineMask >> uint(splitPoint))
 
-	// Separator is a copy of the first key of the right leaf
+	// Mark every occupied slot dirty on both halves so the next
+	// ensureMiniMerkleBuilt rebuilds via rebuildMiniMerkleIncremental
+	// against fresh slotHashes. The slotHashes [B]Hash arrays on these
+	// fresh nodes are zero-initialised; without flagging them dirty,
+	// rebuildMiniMerkleIncremental would trust the all-zero cache
+	// (slotsDirty == 0 means "all hashes are valid") and emit a
+	// corrupt root hash.
+	left.markLeafSlotsDirtyRange(0, int(left.numKeys))
+	right.markLeafSlotsDirtyRange(0, int(right.numKeys))
+
 	sep := make([]byte, len(right.keys[0]))
 	copy(sep, right.keys[0])
 
@@ -61,7 +79,7 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, insertPos 
 // key bytes in place today, but the defensive copy makes the
 // node-level key ownership invariant unconditional.
 func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int16, sizes []int64) (*InnerNode, splitResult) {
-	totalKeys := len(keys) // B (one more than max B-1)
+	totalKeys := len(keys)      // B (one more than max B-1)
 	splitPoint := totalKeys / 2 // B/2 = 16
 
 	left := &InnerNode{height: height}

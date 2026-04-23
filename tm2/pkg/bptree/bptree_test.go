@@ -651,10 +651,10 @@ func TestSearchInner_MultiByteKeys(t *testing.T) {
 
 func TestNodeSerialization_InnerBasic(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 2},
-		numKeys: 2,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 2},
+		numKeys:    2,
 		childSizes: [B]int64{50, 50},
-		height:  1,
+		height:     1,
 	}
 	inner.keys[0] = []byte("key1")
 	inner.keys[1] = []byte("key2")
@@ -723,10 +723,10 @@ func TestNodeSerialization_LeafBasic(t *testing.T) {
 
 func TestNodeSerialization_EmptyInner(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 1},
-		numKeys: 0,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    0,
 		childSizes: [B]int64{5},
-		height:  1,
+		height:     1,
 	}
 	inner.children[0] = (&NodeKey{Version: 1, Nonce: 10}).GetKey()
 	inner.childHashes[0] = sha256.Sum256([]byte("child"))
@@ -748,10 +748,10 @@ func TestNodeSerialization_EmptyInner(t *testing.T) {
 
 func TestNodeSerialization_FullInner(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 1},
-		numKeys: B - 1,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    B - 1,
 		childSizes: [B]int64{1000},
-		height:  2,
+		height:     2,
 	}
 	for i := 0; i < B-1; i++ {
 		inner.keys[i] = []byte{byte(i)}
@@ -868,10 +868,10 @@ func TestReadNode_UnknownType(t *testing.T) {
 
 func TestInnerNode_Clone(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 1},
-		numKeys: 2,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    2,
 		childSizes: [B]int64{25, 25},
-		height:  1,
+		height:     1,
 	}
 	inner.keys[0] = []byte("a")
 	inner.keys[1] = []byte("b")
@@ -1003,10 +1003,10 @@ func TestHashInner_GoldenVector(t *testing.T) {
 
 func TestInnerNode_CloneChildIsolation(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 1},
-		numKeys: 1,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    1,
 		childSizes: [B]int64{5, 5},
-		height:  1,
+		height:     1,
 	}
 	inner.children[0] = (&NodeKey{Version: 1, Nonce: 10}).GetKey()
 	inner.children[1] = (&NodeKey{Version: 1, Nonce: 11}).GetKey()
@@ -1018,9 +1018,12 @@ func TestInnerNode_CloneChildIsolation(t *testing.T) {
 	// because children[i] is a []byte slice — shallow copy shares the backing array
 	origByte := inner.children[0][0]
 	cloned.children[0][0] = 0xFF
+	// Shallow copy of a slice header shares the backing array, so the
+	// mutation must be visible through the original. If this ever
+	// diverges (e.g. Clone copies the byte slices), the test premise is
+	// stale and the rest of the comparison below is meaningless.
 	if inner.children[0][0] != 0xFF {
-		// If this fails, the shallow copy DID isolate (unexpected for []byte)
-		// Actually, shallow copy of slice header shares backing array
+		t.Fatalf("Clone isolated the backing array of children[0]; test premise no longer holds")
 	}
 	// Restore
 	cloned.children[0][0] = origByte
@@ -1034,11 +1037,11 @@ func TestInnerNode_CloneChildIsolation(t *testing.T) {
 
 func TestInnerNode_CloneMiniTreeIsolation(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey:  &NodeKey{Version: 1, Nonce: 1},
-		numKeys:  1,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    1,
 		childSizes: [B]int64{5, 5},
-		height:   1,
-		miniTree: NewMiniMerkle(),
+		height:     1,
+		miniTree:   NewMiniMerkle(),
 	}
 	inner.childHashes[0] = sha256.Sum256([]byte("c0"))
 	inner.childHashes[1] = sha256.Sum256([]byte("c1"))
@@ -1059,10 +1062,10 @@ func TestInnerNode_CloneMiniTreeIsolation(t *testing.T) {
 
 func TestReadNode_TruncatedInner(t *testing.T) {
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 1},
-		numKeys: 3,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    3,
 		childSizes: [B]int64{50, 50},
-		height:  1,
+		height:     1,
 	}
 	for i := 0; i < 3; i++ {
 		inner.keys[i] = []byte{byte(i)}
@@ -1274,10 +1277,10 @@ func TestLeafNode_GetSetNodeKey(t *testing.T) {
 func TestNodeSerialization_InnerGoldenBytes(t *testing.T) {
 	// Fixed input — if serialization format changes, this test breaks.
 	inner := &InnerNode{
-		nodeKey: &NodeKey{Version: 1, Nonce: 1},
-		numKeys: 1,
+		nodeKey:    &NodeKey{Version: 1, Nonce: 1},
+		numKeys:    1,
 		childSizes: [B]int64{42},
-		height:  1,
+		height:     1,
 	}
 	inner.keys[0] = []byte("sep")
 	inner.children[0] = (&NodeKey{Version: 1, Nonce: 10}).GetKey()
@@ -1325,8 +1328,8 @@ func TestNodeSerialization_LeafGoldenBytes(t *testing.T) {
 	}
 
 	data := buf.Bytes()
-	if data[0] != TypeLeaf {
-		t.Fatalf("first byte should be TypeLeaf (0x%02x), got 0x%02x", TypeLeaf, data[0])
+	if data[0] != TypeLeafV3 {
+		t.Fatalf("first byte should be TypeLeafV3 (0x%02x), got 0x%02x", TypeLeafV3, data[0])
 	}
 	// Round-trip
 	node, err := ReadNode(&NodeKey{Version: 1, Nonce: 1}, data)

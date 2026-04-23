@@ -110,14 +110,9 @@ func (t *ImmutableTree) existenceProofAtIndex(idx int64) (*ics23.ExistenceProof,
 // are consumed leaf-to-root when emitting InnerOps, matching ICS23's
 // expected ordering.
 func (t *ImmutableTree) buildExistenceProofFromPath(path []pathEntry, leafSlotIdx int) (*ics23.ExistenceProof, error) {
-	// For ICS23, we need the raw value. The tree only stores the hash.
-	if t.valueResolver == nil {
-		return nil, fmt.Errorf("cannot create existence proof without a value resolver")
-	}
 	leaf := path[len(path)-1].node.(*LeafNode)
 	key := leaf.keys[leafSlotIdx]
-	vk := leaf.valueKeys[leafSlotIdx]
-	rawValue, err := t.valueResolver(vk)
+	rawValue, err := leaf.valueAt(leafSlotIdx, t.valueResolver)
 	if err != nil {
 		return nil, fmt.Errorf("resolving value for proof: %w", err)
 	}
@@ -127,13 +122,17 @@ func (t *ImmutableTree) buildExistenceProofFromPath(path []pathEntry, leafSlotId
 	// Each level contributes MiniMerkleDepth ops; preallocate exactly.
 	innerOps := make([]*ics23.InnerOp, 0, len(path)*MiniMerkleDepth)
 
-	// 1. Mini merkle ops within the leaf node.
+	// 1. Mini merkle ops within the leaf node. Force a rebuild if the
+	// leaf has pending mutations — the deferred-rebuild optimisation
+	// does not extend to sibling-path reads.
+	leaf.ensureMiniMerkleBuilt()
 	leafOps := miniMerkleInnerOps(&leaf.miniTree, leafSlotIdx)
 	innerOps = append(innerOps, leafOps...)
 
 	// 2. Mini merkle ops for each inner node, from leaf's parent to root.
 	for i := len(path) - 2; i >= 0; i-- {
 		inner := path[i].node.(*InnerNode)
+		inner.ensureMiniMerkleBuilt()
 		childIdx := path[i].childIdx
 		ops := miniMerkleInnerOps(&inner.miniTree, childIdx)
 		innerOps = append(innerOps, ops...)

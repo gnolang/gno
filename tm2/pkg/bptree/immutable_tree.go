@@ -70,6 +70,8 @@ func (t *ImmutableTree) Close() error {
 // ErrKeyDoesNotExist so callers can tell a missing key from a misconfigured
 // tree (e.g. an ImmutableTree constructed outside GetImmutable/Snapshot).
 // See Findings #10 and #11.
+//
+//nolint:unused // parity with MutableTree.resolveValue; kept on the ImmutableTree surface
 func (t *ImmutableTree) resolveValue(vk []byte) ([]byte, error) {
 	if t.valueResolver != nil {
 		return t.valueResolver(vk)
@@ -82,11 +84,11 @@ func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
 	if t.root == nil {
 		return nil, nil
 	}
-	_, _, vk, found := treeLookup(t.root, key)
+	leaf, slot, found := treeLookup(t.root, key)
 	if !found {
 		return nil, nil
 	}
-	return t.resolveValue(vk)
+	return leaf.valueAt(slot, t.valueResolver)
 }
 
 // Has returns true if the key exists.
@@ -94,7 +96,7 @@ func (t *ImmutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	_, _, _, found := treeLookup(t.root, key)
+	_, _, found := treeLookup(t.root, key)
 	return found, nil
 }
 
@@ -138,9 +140,9 @@ func (t *ImmutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
 	if t.root == nil || index < 0 || index >= t.Size() {
 		return nil, nil, ErrKeyDoesNotExist
 	}
-	key, _, vk := treeGetByIndex(t.root, index)
-	val, err := t.resolveValue(vk)
-	return key, val, err
+	leaf, slot := treeGetByIndex(t.root, index)
+	val, err := leaf.valueAt(slot, t.valueResolver)
+	return leaf.keys[slot], val, err
 }
 
 // GetWithIndex returns the index, value, and whether the key was found.
@@ -148,30 +150,26 @@ func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	if t.root == nil {
 		return 0, nil, nil
 	}
-	idx, _, vk, found := treeGetWithIndex(t.root, key)
+	idx, leaf, slot, found := treeGetWithIndex(t.root, key)
 	if !found {
 		return idx, nil, nil
 	}
-	val, err := t.resolveValue(vk)
+	val, err := leaf.valueAt(slot, t.valueResolver)
 	return idx, val, err
 }
 
 // Iterate calls fn for each key-value pair in sorted order. Values are
 // resolved to actual bytes via the configured resolver; a resolver error
-// stops iteration and is returned. If no resolver is set, Iterate returns
-// (false, ErrNoValueResolver) without walking the tree — the previous
-// value-hash fallback silently handed callers fixed-size hashes where a
-// value was expected, producing garbage downstream. See Finding #11.
+// stops iteration and is returned. If no resolver is set AND the tree
+// contains any external slots, Iterate returns (false, ErrNoValueResolver);
+// an all-inline tree can iterate without a resolver. See Finding #11.
 func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, error) {
 	if t.root == nil {
 		return false, nil
 	}
-	if t.valueResolver == nil {
-		return false, ErrNoValueResolver
-	}
 	var resolveErr error
-	stopped := iterateNodeResolved(t.root, func(key, vk []byte) bool {
-		val, err := t.valueResolver(vk)
+	stopped := iterateNodeResolved(t.root, func(key []byte, leaf *LeafNode, slot int) bool {
+		val, err := leaf.valueAt(slot, t.valueResolver)
 		if err != nil {
 			resolveErr = err
 			return true // stop
