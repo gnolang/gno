@@ -76,6 +76,7 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 	shiftSlotsDirtyDown(leaf, pos)
 	leaf.numKeys--
 	leaf.miniTreeDirty = true
+	leaf.invalidatePrefixLenCache()
 
 	return removeResult{found: true, oldPayload: old, underflow: leaf.numKeys < MinKeys}
 }
@@ -255,6 +256,8 @@ func redistributeRight(parent *InnerNode, idx int) {
 		parent.childSizes[idx+1]++
 		l.miniTreeDirty = true
 		r.miniTreeDirty = true
+		l.invalidatePrefixLenCache()
+		r.invalidatePrefixLenCache()
 		parent.childHashes[idx] = l.Hash()
 		parent.childHashes[idx+1] = r.Hash()
 
@@ -358,6 +361,8 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		parent.childSizes[idx+1]--
 		l.miniTreeDirty = true
 		r.miniTreeDirty = true
+		l.invalidatePrefixLenCache()
+		r.invalidatePrefixLenCache()
 		parent.childHashes[idx] = l.Hash()
 		parent.childHashes[idx+1] = r.Hash()
 
@@ -448,6 +453,7 @@ func merge(parent *InnerNode, idx int) {
 		}
 		l.numKeys += r.numKeys
 		l.miniTreeDirty = true
+		l.invalidatePrefixLenCache()
 
 	case *InnerNode:
 		r := right.(*InnerNode)

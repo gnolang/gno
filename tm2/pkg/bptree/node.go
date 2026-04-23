@@ -80,6 +80,17 @@ type LeafNode struct {
 	// every occupied slot unconditionally.
 	slotHashes [B]Hash
 	slotsDirty uint32
+
+	// prefixLenCached holds the length of the byte prefix shared by
+	// every key in the leaf (the value Serialize emits for v3 prefix
+	// compression). prefixLenValid is the explicit valid bit; the
+	// zero-value (false) means "not yet computed" so a fresh literal
+	// LeafNode safely recomputes on first Serialize. Every key-mutating
+	// path calls invalidatePrefixLenCache to flip prefixLenValid back
+	// to false; otherwise Serialize would emit a stale prefix length
+	// and silently corrupt the on-disk leaf.
+	prefixLenCached int32
+	prefixLenValid  bool
 }
 
 func (*InnerNode) isNode() {}
@@ -485,7 +496,7 @@ func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
 		// would emit a wrong common prefix and the v3 reader would
 		// reconstruct different bytes, silently corrupting persistent
 		// state.
-		plen := commonPrefixLen(n.keys[0], n.keys[n16-1])
+		plen := n.commonPrefixLenCached()
 		writeUvarintBuf(buf, uint64(plen))
 		if plen > 0 {
 			buf.Write(n.keys[0][:plen])
@@ -518,6 +529,32 @@ func (n *LeafNode) Serialize(buf *bytes.Buffer) error {
 		}
 	}
 	return nil
+}
+
+// commonPrefixLenCached returns the length of the byte prefix shared
+// by every key in the leaf, computing and caching the value on first
+// access. Subsequent calls reuse the cached result until the next
+// invalidatePrefixLenCache (called by every key-mutating path).
+func (n *LeafNode) commonPrefixLenCached() int {
+	if n.prefixLenValid {
+		return int(n.prefixLenCached)
+	}
+	plen := 0
+	if n.numKeys > 0 {
+		plen = commonPrefixLen(n.keys[0], n.keys[int(n.numKeys)-1])
+	}
+	n.prefixLenCached = int32(plen)
+	n.prefixLenValid = true
+	return plen
+}
+
+// invalidatePrefixLenCache marks the cached common-prefix length stale.
+// MUST be called by every path that writes to n.keys[] (insert, remove,
+// redistribute, merge, split, deserialise) — see the field doc on
+// prefixLenCached for the corruption hazard a missed invalidation
+// causes.
+func (n *LeafNode) invalidatePrefixLenCache() {
+	n.prefixLenValid = false
 }
 
 // commonPrefixLen returns the length of the byte prefix shared by a and b.

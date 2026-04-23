@@ -142,8 +142,12 @@ func leafInsert(leaf *LeafNode, key []byte, payload slotPayload) insertResult {
 		// Slots [pos, numKeys) all hold data that does not match
 		// slotHashes[i] (either freshly inserted, or shifted from a
 		// neighbour). Mark the entire range dirty so the next merkle
-		// rebuild rehashes them.
+		// rebuild rehashes them. The cached common-prefix length is
+		// invalidated separately because either keys[0] or
+		// keys[numKeys-1] (the boundary inputs) may now hold a
+		// different byte sequence.
 		leaf.markLeafSlotsDirtyRange(pos, int(leaf.numKeys))
+		leaf.invalidatePrefixLenCache()
 		return insertResult{updated: false}
 	}
 
