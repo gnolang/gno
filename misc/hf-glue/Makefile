@@ -173,6 +173,14 @@ assert-migrations: ## assert live node's post-replay state matches migration int
 	 EXPECTED_VALSET_ADDRS="$${EXPECTED_VALSET_ADDRS:-$(VALIDATOR_ADDR)}" \
 	 $(HERE)/scripts/assert-migrations.sh
 
+.PHONY: verify-txs-jsonl
+verify-txs-jsonl: ## compare out/source/txs.jsonl against source-chain RPC (cardinality + spot-check at random heights with txs)
+	@test -n "$(HALT_HEIGHT)" || { echo "HALT_HEIGHT required"; exit 1; }
+	@RPC_URL="$(RPC_URL)" \
+	 HALT_HEIGHT=$(HALT_HEIGHT) \
+	 OUT=$(OUT) \
+	 $(HERE)/scripts/verify-txs-jsonl.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
