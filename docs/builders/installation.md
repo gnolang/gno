@@ -1,30 +1,48 @@
 # Installation
 
 This page covers how to install the Gno toolchain: `gnokey` (key & transaction CLI),
-`gno` (language tooling), and `gnodev` (local development node with hot reload).
+`gno` (language tooling), `gnodev` (local development node with hot reload),
+`gnobro` (package browser), and `gnoweb` (realm explorer).
 
 ## One-line installer
 
-Download precompiled binaries with a single command:
+Download precompiled binaries (Linux/macOS, amd64/arm64) with a single command:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-Binaries are installed to `$HOME/.gno/bin` by default. You can override the
-version and directory:
+This installs `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb` to
+`$HOME/.gno/bin` by default. You can override the version and directory:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --version <tag> --dir /usr/local/bin
 ```
 
+To also install the validator node (`gnoland`), pass `--full`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --full
+```
+
 To uninstall:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.sh | sh
 ```
 
-See [misc/install.sh](https://github.com/gnolang/gno/blob/master/misc/install.sh) for details.
+Scripts used by the one-line installer:
+
+- [misc/install.sh](https://github.com/gnolang/gno/blob/master/misc/install.sh)
+- [misc/uninstall.sh](https://github.com/gnolang/gno/blob/master/misc/uninstall.sh)
+
+### Environment variables
+
+| Variable | Equivalent flag | Description |
+|---|---|---|
+| `GNO_VERSION` | `--version` | Release tag to install (default: latest) |
+| `GNO_INSTALL_DIR` | `--dir` | Installation directory (default: `$HOME/.gno/bin`) |
+| `GITHUB_TOKEN` | — | Authenticates GitHub API requests; raises the 60 requests/hour anonymous rate limit |
 
 ## Install from source
 
