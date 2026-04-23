@@ -22,16 +22,16 @@ type AnalyticsData struct {
 	AssetsPath string
 	BuildTime  string
 	// Hostname, when non-empty, is rendered as data-hostname on the
-	// SimpleAnalytics script tag to override the hostname SA reports. Required
-	// when the site is served on a host SA cannot otherwise identify (for
-	// example a non-default port during local development).
+	// SimpleAnalytics script tag to override the hostname SA reports.
+	// Set this when the site listens on a host SA would otherwise report
+	// incorrectly (for example a non-default port in local development).
 	Hostname string
 }
 
 // ClassifyPageType returns the page-type label for a given mode and view.
 // View type takes precedence over mode: a Source view inside a Realm mode is
-// classified as "source", not "realm", because the rendered surface (and the
-// analytics segmentation we want) is the source view.
+// classified as "source", not "realm", so the analytics label matches the
+// rendered surface rather than the containing layout mode.
 func ClassifyPageType(mode ViewMode, view ViewType) string {
 	switch view {
 	case SourceViewType:

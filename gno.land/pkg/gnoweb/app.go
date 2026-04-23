@@ -37,9 +37,9 @@ type AppConfig struct {
 	// Analytics enables SimpleAnalytics.
 	Analytics bool
 	// AnalyticsHostname, when non-empty, is rendered as data-hostname on the
-	// SimpleAnalytics script tag to override the hostname SA reports. Required
-	// when the site is served on a host SA cannot otherwise identify (for
-	// example a non-default port during local development).
+	// SimpleAnalytics script tag to override the hostname SA reports.
+	// Set this when the site listens on a host SA would otherwise report
+	// incorrectly (for example a non-default port in local development).
 	AnalyticsHostname string
 	// NodeRemote is the remote address of the gno.land node.
 	NodeRemote string
