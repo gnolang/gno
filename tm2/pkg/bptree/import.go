@@ -67,7 +67,7 @@ func (imp *Importer) Add(node *ExportNode) error {
 			valueHash: valueHash,
 		}
 		threshold := imp.tree.inlineThreshold
-		if threshold >= 0 && len(node.Value) <= threshold {
+		if threshold >= 0 && InlineThreshold(len(node.Value)) <= threshold {
 			// Inline: keep a private copy.
 			cp := make([]byte, len(node.Value))
 			copy(cp, node.Value)

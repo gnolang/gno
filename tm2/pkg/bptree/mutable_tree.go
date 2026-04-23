@@ -35,9 +35,9 @@ type MutableTree struct {
 
 	// inlineThreshold: values of this size or smaller are stored inline
 	// in the leaf (no ValueKey indirection / no separate PrefixVal
-	// record). Larger values continue to use the external path. A
-	// negative value disables inlining entirely.
-	inlineThreshold int
+	// record). Larger values continue to use the external path.
+	// InlineDisabled (or any value <= 0) disables inlining entirely.
+	inlineThreshold InlineThreshold
 
 	// In-memory value store (no ndb). Keyed by string(valueKey).
 	memValues map[string][]byte
@@ -106,7 +106,7 @@ func NewMutableTreeMem() *MutableTree {
 		logger:          NewNopLogger(),
 		memValues:       make(map[string][]byte),
 		nextValueNonce:  1, // nonce=0 is reserved to avoid collision with the "missing" sentinel (Finding #6)
-		inlineThreshold: -1,
+		inlineThreshold: InlineDisabled,
 	}
 	t.initFastNodeCache(DefaultFastNodeCacheSize)
 	t.valueResolver = t.resolveValue
@@ -127,9 +127,9 @@ func NewMutableTreeMem() *MutableTree {
 // existing callers and tests; a downstream consumer (e.g. the
 // store wrapper at tm2/pkg/store/bptree) opts in explicitly when it
 // wants the inline-storage performance win.
-func resolveInlineThreshold(opt int) int {
+func resolveInlineThreshold(opt InlineThreshold) InlineThreshold {
 	if opt <= 0 {
-		return -1
+		return InlineDisabled
 	}
 	if opt > MaxInlineValueThreshold {
 		return MaxInlineValueThreshold
@@ -268,9 +268,10 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	// Options.InlineValueThreshold by a future caller, or via tests
 	// that bypass the helpers) still demotes to external rather than
 	// being written into a leaf the reader cannot deserialise.
+	valueLen := InlineThreshold(len(value))
 	if t.inlineThreshold >= 0 &&
-		len(value) <= t.inlineThreshold &&
-		len(value) <= MaxInlineValueThreshold {
+		valueLen <= t.inlineThreshold &&
+		valueLen <= MaxInlineValueThreshold {
 		// Inline: copy bytes so caller can retain/modify their slice.
 		cp := make([]byte, len(value))
 		copy(cp, value)

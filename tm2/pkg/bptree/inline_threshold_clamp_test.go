@@ -14,8 +14,8 @@ import (
 func TestInlineValueThresholdOption_ClampsAboveMax(t *testing.T) {
 	cases := []struct {
 		name string
-		in   int
-		want int
+		in   InlineThreshold
+		want InlineThreshold
 	}{
 		{"at_max", MaxInlineValueThreshold, MaxInlineValueThreshold},
 		{"one_above_max", MaxInlineValueThreshold + 1, MaxInlineValueThreshold},
@@ -41,11 +41,12 @@ func TestInlineValueThresholdOption_ClampsAboveMax(t *testing.T) {
 func TestResolveInlineThreshold_ClampsStructLiteralBypass(t *testing.T) {
 	cases := []struct {
 		name string
-		in   int
-		want int
+		in   InlineThreshold
+		want InlineThreshold
 	}{
-		{"disabled_zero", 0, -1},
-		{"disabled_negative", -5, -1},
+		{"disabled_zero", 0, InlineDisabled},
+		{"disabled_negative", -5, InlineDisabled},
+		{"explicit_disabled", InlineDisabled, InlineDisabled},
 		{"under_max", DefaultInlineValueThreshold, DefaultInlineValueThreshold},
 		{"at_max", MaxInlineValueThreshold, MaxInlineValueThreshold},
 		{"one_above_max", MaxInlineValueThreshold + 1, MaxInlineValueThreshold},
@@ -79,7 +80,7 @@ func TestSet_DemotesValuesAboveMaxInlineThreshold(t *testing.T) {
 
 	// A value larger than the cap. Allocate explicitly so we can
 	// verify it round-trips byte-for-byte after the Set.
-	big := bytes.Repeat([]byte{0xab}, MaxInlineValueThreshold+1)
+	big := bytes.Repeat([]byte{0xab}, int(MaxInlineValueThreshold)+1)
 	if _, err := tree.Set([]byte("big"), big); err != nil {
 		t.Fatalf("Set: %v", err)
 	}

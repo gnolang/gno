@@ -21,11 +21,10 @@ type Options struct {
 
 	// InlineValueThreshold is the byte-length cutoff at which a value
 	// stored via Set is written inline into the leaf rather than via an
-	// external ValueKey indirection. Values <= threshold inline; values
-	// > threshold use the external path. The zero value (and any negative
-	// value) disables inlining entirely — every value goes external.
-	// Callers opt into inline storage by passing a positive threshold,
-	// e.g. InlineValueThresholdOption(DefaultInlineValueThreshold).
+	// external ValueKey indirection. The named InlineThreshold type
+	// makes intent visible at call sites — see its doc for the value
+	// semantics (InlineDisabled, DefaultInlineValueThreshold, or an
+	// explicit byte count up to MaxInlineValueThreshold).
 	//
 	// The configured threshold is silently clamped to
 	// MaxInlineValueThreshold at construction so that a misconfigured
@@ -33,7 +32,7 @@ type Options struct {
 	// reader's per-leaf budget (maxLeafReadBytes = 256 KiB). The clamp
 	// applies to direct struct-literal writers as well — see
 	// resolveInlineThreshold.
-	InlineValueThreshold int
+	InlineValueThreshold InlineThreshold
 }
 
 // Option is a functional option for tree construction.
@@ -66,14 +65,13 @@ const DefaultFastNodeCacheSize = 10000
 
 // InlineValueThresholdOption configures the cutoff at which values are
 // stored inline in the leaf (<= threshold) vs via a ValueKey indirection
-// (> threshold). Pass a positive byte count to enable inlining at that
-// cutoff (DefaultInlineValueThreshold is the recommended starting
-// value). Zero or a negative value disables inlining; every value goes
-// external. Values above MaxInlineValueThreshold are silently clamped
-// to MaxInlineValueThreshold to keep a full inline-value leaf within
-// the reader's per-leaf budget; see MaxInlineValueThreshold for the
+// (> threshold). Pass DefaultInlineValueThreshold (or another positive
+// byte count) to enable inlining at that cutoff; pass InlineDisabled
+// to opt out entirely. Values above MaxInlineValueThreshold are
+// silently clamped so a full inline-value leaf cannot overflow the
+// reader's per-leaf budget; see MaxInlineValueThreshold for the
 // rationale.
-func InlineValueThresholdOption(n int) Option {
+func InlineValueThresholdOption(n InlineThreshold) Option {
 	if n > MaxInlineValueThreshold {
 		n = MaxInlineValueThreshold
 	}

@@ -55,12 +55,33 @@ const (
 	TypeLeafV3 byte = 0x22
 )
 
-// DefaultInlineValueThreshold is the default cutoff at which a value
-// is stored inline within its leaf rather than via an external
+// InlineThreshold is the byte-length cutoff at which a value stored
+// via Set is written inline into the leaf rather than via an external
+// ValueKey indirection. The named type self-documents the meaning of
+// values at call sites — InlineDisabled vs DefaultInlineValueThreshold
+// vs an explicit byte cutoff are visibly distinct, where a bare int
+// would conflate them.
+//
+// Semantics:
+//   - InlineDisabled (or any value <= 0): inline storage is disabled;
+//     every value goes external regardless of size.
+//   - 1 .. MaxInlineValueThreshold: values of this size or smaller
+//     inline; larger values use the external path.
+//   - Anything above MaxInlineValueThreshold is silently clamped to
+//     MaxInlineValueThreshold; see that constant for the rationale.
+type InlineThreshold int
+
+// InlineDisabled, when used as Options.InlineValueThreshold or passed
+// to InlineValueThresholdOption, turns off inline-value storage so
+// every value takes the external ValueKey path.
+const InlineDisabled InlineThreshold = -1
+
+// DefaultInlineValueThreshold is the recommended cutoff at which a
+// value is stored inline within its leaf rather than via an external
 // ValueKey indirection. Values of this size or smaller inline. Tuned
 // for gno.land's typical small-value workload; larger values keep the
 // external-storage path so leaf serialisation stays bounded.
-const DefaultInlineValueThreshold = 64
+const DefaultInlineValueThreshold InlineThreshold = 64
 
 // MaxInlineValueThreshold caps the per-value byte-length that may be
 // inlined regardless of the configured InlineValueThreshold. The cap
@@ -71,7 +92,7 @@ const DefaultInlineValueThreshold = 64
 // safely below the read cap. Without this bound a caller could write
 // a leaf whose serialised form exceeds the read budget and is
 // permanently un-mountable on the next LoadVersion.
-const MaxInlineValueThreshold = 4 << 10 // 4 KiB
+const MaxInlineValueThreshold InlineThreshold = 4 << 10 // 4 KiB
 
 // Hash is a fixed-size SHA256 hash.
 type Hash = [HashSize]byte
