@@ -207,6 +207,12 @@ audit-realm-imports: ## flag addpkgs whose import paths no longer resolve agains
 	@REPO=$(REPO) OUT=$(OUT) \
 	 $(HERE)/scripts/audit-realm-imports.sh
 
+.PHONY: compare-gas-modes
+compare-gas-modes: ## run smoketest twice with gas_replay_mode=strict vs source and diff failure counts; writes out/GAS-MODES-COMPARE.md
+	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make genesis' first"; exit 1; }
+	@REPO=$(REPO) OUT=$(OUT) \
+	 $(HERE)/scripts/compare-gas-modes.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
