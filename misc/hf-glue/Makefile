@@ -185,6 +185,16 @@ state-diff: ## diff realm render output source-chain@halt_height vs replay (over
 	 OUT=$(OUT) \
 	 $(HERE)/scripts/state-diff.sh
 
+.PHONY: audit-balances
+audit-balances: ## diff per-signer ugnot balance source-chain@halt_height vs replay (overrides: SOURCE_RPC= REPLAY_RPC= SIGNER_LIMIT=); writes out/BALANCE-AUDIT.md
+	@test -n "$(HALT_HEIGHT)" || { echo "HALT_HEIGHT required"; exit 1; }
+	@SOURCE_RPC="$${SOURCE_RPC:-$(RPC_URL)}" \
+	 REPLAY_RPC="$${REPLAY_RPC:-http://localhost:26657}" \
+	 HALT_HEIGHT=$(HALT_HEIGHT) \
+	 SIGNER_LIMIT="$${SIGNER_LIMIT:-200}" \
+	 OUT=$(OUT) \
+	 $(HERE)/scripts/audit-balances.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
