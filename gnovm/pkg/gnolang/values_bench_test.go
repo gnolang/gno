@@ -11,7 +11,7 @@ func newBenchStoreWithGas() (Store, storetypes.GasMeter) {
 	alloc := NewAllocator(1 << 62)
 	gm := storetypes.NewGasMeter(1 << 62)
 	ds := NewStore(alloc, nil, nil)
-	tx := ds.BeginTransaction(nil, nil, gm)
+	tx := ds.BeginTransaction(nil, nil, nil, gm)
 	tx.GetAllocator().SetGasMeter(gm)
 	return tx, gm
 }
