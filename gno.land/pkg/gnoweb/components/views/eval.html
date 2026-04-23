@@ -49,7 +49,7 @@ UI - Inline Eval content
   <!-- Result area -->
   <div class="b-eval-result">
     <div class="b-eval-result-header">
-      <h3 class="b-eval-result-title">Result</h3>
+      <span class="b-eval-result-title">Result</span>
       <button class="b-eval-result-clear" data-action="click->eval#clearResult">Clear</button>
     </div>
     <pre class="b-eval-result-content" data-eval-target="result"><span class="u-color-muted">// Enter an expression above</span></pre>
@@ -77,7 +77,8 @@ UI - Inline Eval content
   <!-- History (hidden until first eval) -->
   <div class="b-eval-history" data-eval-target="history" hidden>
     <h2 class="b-content-h2">History</h2>
-    <div class="b-eval-history-list" data-eval-target="history-list" />
+    <div class="b-eval-history-list" data-eval-target="history-list">
+    </div>
   </div>
 </div>
 {{ end }}

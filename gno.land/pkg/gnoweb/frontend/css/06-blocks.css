@@ -2784,7 +2784,7 @@ main.dev-mode .b-toc a {
 
 .b-eval-history-entry {
 	padding: var(--g-space-1-5);
-	border: 1px solid var(--s-color-border-defaul);
+	border: 1px solid var(--s-color-border-default);
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 
