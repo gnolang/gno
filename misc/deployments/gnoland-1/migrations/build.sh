@@ -290,19 +290,38 @@ if [[ -n "$NEW_T1_ADDR" ]]; then
   printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_04")" "$NEW_T1_ADDR"
 fi
 
-# ---- 5. addpkg r/sys/validators/v3 (MsgAddPackage, caller=manfred) ----
+# ---- 5-7. deploy r/sys/validators/v3 ----
 # v3 introduces the params-keeper-driven valset flow (see PR #5485). Mainnet
-# never had it, so a fresh addpkg is needed post-fork for govDAO proposals to
-# drive the valset via r/sys/validators/v3 (the pre-fork v2 realm stays
-# addressable but its event-collector EndBlocker path is gone).
+# never had it, so a fresh addpkg is needed post-fork. gnoland1's r/sys/names
+# namespace check is enabled at halt height, so a direct addpkg under
+# r/sys/* returns "unauthorized user". Strategy: wrap the addpkg with a
+# temporary VM-param flip — steps 05/07 disable/restore the namespace check
+# via govDAO proposals (the only authorized path to set vm:p:sysnames_pkgpath
+# is `r/sys/params.NewSysParamStringPropRequest`).
 V3_PKGDIR="${V3_PKGDIR:-$REPO_ROOT/examples/gno.land/r/sys/validators/v3}"
 [[ -d "$V3_PKGDIR" ]] || {
   echo "ERROR: v3 pkgdir not found: $V3_PKGDIR" >&2
   exit 1
 }
 
-RENDERED_05="$WORK/05_addpkg_validators_v3.tx.json"
+# Current sole T1 member at this point in the migration sequence. If T1
+# rotation ran (steps 02-04), manfred is no longer T1; NEW_T1_ADDR is. The
+# govDAO proposals in 05/07 need supermajority from the current T1.
+if [[ -n "$NEW_T1_ADDR" ]]; then
+  T1_CALLER="$NEW_T1_ADDR"
+else
+  T1_CALLER="$CALLER"
+fi
 
+# 05 — disable namespace check (govDAO proposal, caller=T1_CALLER).
+RENDERED_05="$WORK/05_disable_sysnames.gno"
+cp "$SCRIPT_DIR/05_disable_sysnames.gno.tmpl" "$RENDERED_05"
+render_tx "$RENDERED_05" "$T1_CALLER" >>"$OUT_JSONL"
+printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_05")" "$T1_CALLER"
+
+# 06 — addpkg r/sys/validators/v3 (MsgAddPackage, creator=manfred; sig-skip
+# applies since this is a genesis-mode migration tx).
+RENDERED_06="$WORK/06_addpkg_validators_v3.tx.json"
 "$GNOKEY_BIN" maketx addpkg \
   --gas-wanted 100000000 \
   --gas-fee 1ugnot \
@@ -310,15 +329,15 @@ RENDERED_05="$WORK/05_addpkg_validators_v3.tx.json"
   --pkgdir "$V3_PKGDIR" \
   --chainid "$CHAIN_ID" \
   --home "$GK_HOME" \
-  ephemeral >"$RENDERED_05"
+  ephemeral >"$RENDERED_06"
 
-# Patch the creator field (MsgAddPackage uses `creator`, not `caller`) so the
-# addpkg executes as manfred/T1 under --skip-genesis-sig-verification.
-jq --arg creator "$CALLER" '.msg[0].creator = $creator' "$RENDERED_05" >"$RENDERED_05.patched"
-mv "$RENDERED_05.patched" "$RENDERED_05"
+# MsgAddPackage uses `creator` (not `caller`). Patch to manfred so the
+# addpkg runs as him under --skip-genesis-sig-verification.
+jq --arg creator "$CALLER" '.msg[0].creator = $creator' "$RENDERED_06" >"$RENDERED_06.patched"
+mv "$RENDERED_06.patched" "$RENDERED_06"
 
 echo "" | "$GNOKEY_BIN" sign \
-  --tx-path "$RENDERED_05" \
+  --tx-path "$RENDERED_06" \
   --chainid "$CHAIN_ID" \
   --account-number 0 \
   --account-sequence 0 \
@@ -326,7 +345,13 @@ echo "" | "$GNOKEY_BIN" sign \
   --insecure-password-stdin \
   ephemeral >/dev/null
 
-jq -c '{tx: .}' "$RENDERED_05" >>"$OUT_JSONL"
-printf '  migration: %-38s caller=%s\n' "05_addpkg_validators_v3" "$CALLER"
+jq -c '{tx: .}' "$RENDERED_06" >>"$OUT_JSONL"
+printf '  migration: %-38s caller=%s\n' "06_addpkg_validators_v3" "$CALLER"
+
+# 07 — restore namespace check (govDAO proposal, caller=T1_CALLER).
+RENDERED_07="$WORK/07_restore_sysnames.gno"
+cp "$SCRIPT_DIR/07_restore_sysnames.gno.tmpl" "$RENDERED_07"
+render_tx "$RENDERED_07" "$T1_CALLER" >>"$OUT_JSONL"
+printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_07")" "$T1_CALLER"
 
 printf '  written:   %s\n' "$OUT_JSONL"
