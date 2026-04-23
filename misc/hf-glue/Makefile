@@ -195,6 +195,13 @@ audit-balances: ## diff per-signer ugnot balance source-chain@halt_height vs rep
 	 OUT=$(OUT) \
 	 $(HERE)/scripts/audit-balances.sh
 
+.PHONY: verify-reproducibility
+verify-reproducibility: ## build genesis twice in isolated OUT dirs and assert identical SHA256 (forwards all `make genesis` envs)
+	@test -n "$(HALT_HEIGHT)" || { echo "HALT_HEIGHT required"; exit 1; }
+	@SHARED_TXS="$${SHARED_TXS:-$(OUT)/source/txs.jsonl}" \
+	 OUT=$(OUT) \
+	 $(HERE)/scripts/verify-reproducibility.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
