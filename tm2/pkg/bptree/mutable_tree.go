@@ -78,6 +78,14 @@ type MutableTree struct {
 	// past fastNodesCap * fastNodeWorkingSetMultiplier; while true,
 	// the cache is treated as nil for read and write purposes.
 	fastNodesOff bool
+
+	// valueResolver is the bound-method form of t.resolveValue captured
+	// once at construction. Storing it here avoids a per-call closure
+	// allocation: every Get / Has / Iterate that needs to resolve an
+	// external value otherwise paid for a fresh function-value
+	// (closure header + escaped *MutableTree capture). See valueAt
+	// for the call site.
+	valueResolver ValueResolver
 }
 
 // fastNodeWorkingSetMultiplier governs the size-vs-capacity ratio at
@@ -101,6 +109,7 @@ func NewMutableTreeMem() *MutableTree {
 		inlineThreshold: -1,
 	}
 	t.initFastNodeCache(DefaultFastNodeCacheSize)
+	t.valueResolver = t.resolveValue
 	return t
 }
 
@@ -215,6 +224,7 @@ func NewMutableTreeWithDB(db dbm.DB, cacheSize int, logger Logger, options ...Op
 		inlineThreshold: resolveInlineThreshold(opts.InlineValueThreshold),
 	}
 	t.initFastNodeCache(opts.FastNodeCacheSize)
+	t.valueResolver = t.resolveValue
 	return t
 }
 
@@ -349,7 +359,7 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 	if !found {
 		return nil, nil
 	}
-	val, err := leaf.valueAt(slot, t.valueResolverFn())
+	val, err := leaf.valueAt(slot, t.valueResolver)
 	if err == nil && val != nil && t.fastNodeActive() {
 		// Defensive copy before caching: for inline slots,
 		// leaf.valueAt returns a slice aliased to leaf.inlineValues[i].
@@ -363,13 +373,6 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 		t.fastNodes.Add(string(key), cached)
 	}
 	return val, err
-}
-
-// valueResolverFn returns a ValueResolver closure for external-slot
-// lookups. Inline slots are handled by leaf.valueAt without invoking
-// the resolver.
-func (t *MutableTree) valueResolverFn() ValueResolver {
-	return func(vk []byte) ([]byte, error) { return t.resolveValue(vk) }
 }
 
 // resolveValue resolves a valueKey to actual bytes via the tree's backing
@@ -1050,7 +1053,7 @@ func (t *MutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
 		return nil, nil, ErrKeyDoesNotExist
 	}
 	leaf, slot := treeGetByIndex(t.root, index)
-	val, err := leaf.valueAt(slot, t.valueResolverFn())
+	val, err := leaf.valueAt(slot, t.valueResolver)
 	return leaf.keys[slot], val, err
 }
 
@@ -1063,7 +1066,7 @@ func (t *MutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
 	if !found {
 		return idx, nil, nil
 	}
-	val, err := leaf.valueAt(slot, t.valueResolverFn())
+	val, err := leaf.valueAt(slot, t.valueResolver)
 	return idx, val, err
 }
 
@@ -1075,7 +1078,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, err
 		return false, nil
 	}
 	var resolveErr error
-	resolver := t.valueResolverFn()
+	resolver := t.valueResolver
 	stopped := iterateNodeResolved(t.root, func(key []byte, leaf *LeafNode, slot int) bool {
 		val, err := leaf.valueAt(slot, resolver)
 		if err != nil {
