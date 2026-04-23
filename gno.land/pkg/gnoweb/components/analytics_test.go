@@ -17,7 +17,7 @@ func TestClassifyPageType(t *testing.T) {
 		{"realm view falls through to mode", ViewModeRealm, RealmViewType, "realm"},
 		{"home mode", ViewModeHome, RealmViewType, "home"},
 		{"user mode", ViewModeUser, UserViewType, "user"},
-		{"package mode", ViewModePackage, RealmViewType, "package"},
+		{"package mode", ViewModePackage, RealmViewType, "pure"},
 		{"explorer mode", ViewModeExplorer, RealmViewType, "explorer"},
 		{"unknown view + zero mode", ViewModeExplorer, ViewType("unknown"), "explorer"},
 	}

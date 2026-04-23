@@ -23,7 +23,7 @@ Set on every pageview via `window.sa_metadata` in `layouts/analytics.html`:
 
 | Key | Source | Cardinality |
 |---|---|---|
-| `page_type` | `components.ClassifyPageType(mode, view)` | 11: home, user, package, realm, source, help, directory, status, redirect, explorer, other |
+| `page_type` | `components.ClassifyPageType(mode, view)` | 11: home, user, pure, realm, source, help, directory, status, redirect, explorer, other |
 | `chain_id` | `cfg.ChainID` (env constant) | low (one per deployment) |
 
 ## Custom events

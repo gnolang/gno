@@ -51,7 +51,7 @@ func ClassifyPageType(mode ViewMode, view ViewType) string {
 	case ViewModeUser:
 		return "user"
 	case ViewModePackage:
-		return "package"
+		return "pure"
 	case ViewModeRealm:
 		return "realm"
 	case ViewModeExplorer:
