@@ -1,11 +1,6 @@
 {{- define "layout/analytics" -}}
 <!-- 100% privacy-first analytics -->
-<script>
-  window.sa_metadata = {
-    page_type: {{ .PageType }},
-    chain_id: {{ .ChainId }}
-  };
-</script>
+<script src="{{ .AssetsPath }}js/sa-bootstrap.js?v={{ .BuildTime }}" data-page-type="{{ .PageType }}" data-chain-id="{{ .ChainId }}"></script>
 <script async defer{{ with .Hostname }} data-hostname="{{ . }}"{{ end }} src="https://sa.gno.services/latest.js"></script>
 <script async defer{{ with .Hostname }} data-hostname="{{ . }}"{{ end }} src="https://sa.gno.services/auto-events.js"></script>
 <script type="module" src="{{ .AssetsPath }}js/analytics.js?v={{ .BuildTime }}"></script>

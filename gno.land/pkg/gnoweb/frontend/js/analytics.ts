@@ -1,13 +1,7 @@
-// SimpleAnalytics event delegation. The inline script in analytics.html sets
-// window.sa_metadata before SA's latest.js fires; this file attaches all
+// SimpleAnalytics event delegation. sa-bootstrap.js sets window.sa_metadata
+// synchronously before SA's latest.js loads; this file attaches all
 // click/submit/change/scroll listeners that forward custom events.
-
-declare global {
-	interface Window {
-		sa_event?: (name: string, meta?: Record<string, string | boolean>) => void;
-		sa_metadata?: Record<string, string>;
-	}
-}
+// Window.sa_event / sa_metadata types are declared in events.d.ts.
 
 const MAX_FUNC_NAME = 64;
 const MAX_PKGPATH = 128;

@@ -87,6 +87,12 @@ ts: $(esbuild) $(output_js)
 $(out_dir_js)/controller.js: $(shared_js) $(esbuild)
 	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
 
+# sa-bootstrap is loaded as a synchronous classic <script src=...> so it blocks
+# parsing until executed and guarantees window.sa_metadata is set before SA's
+# async latest.js loads. It must be an IIFE, not an ES module.
+$(out_dir_js)/sa-bootstrap.js: $(src_dir_js)/sa-bootstrap.ts $(esbuild)
+	NODE_ENV=production $(esbuild) $< --log-level=error --outfile=$@ --format=iife --minify
+
 # Build controller files with shared chunk reference
 $(out_dir_js)/%.js: $(src_dir_js)/%.ts $(out_dir_js)/controller.js
 	NODE_ENV=production $(esbuild) $< --log-level=error --bundle --outdir=$(out_dir_js) --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js

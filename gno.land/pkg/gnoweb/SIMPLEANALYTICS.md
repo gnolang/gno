@@ -19,7 +19,12 @@ All metadata is derived from public, server-side context (URL pattern, layout mo
 
 ## Pageview metadata
 
-Set on every pageview via `window.sa_metadata` in `layouts/analytics.html`:
+Set on every pageview via `window.sa_metadata`. A synchronous classic
+`<script src="sa-bootstrap.js" data-page-type="…" data-chain-id="…">` loads
+before SA's async `latest.js`, reads its own `data-*` attributes, and
+assigns `window.sa_metadata`. This keeps the bootstrap CSP-safe (no inline
+script) and deterministic (classic scripts block parsing, so SA's async
+scripts cannot start loading until the metadata is set).
 
 | Key | Source | Cardinality |
 |---|---|---|
@@ -120,6 +125,7 @@ Two layers fire in parallel.
 - `frontend/js/analytics.ts` — event delegation source of truth
 - `public/js/analytics.js` — esbuild output, embedded via `go:embed`
 - `components/analytics.go` — `AnalyticsData`, `ClassifyPageType`
-- `components/layouts/analytics.html` — script wiring (inline metadata + SA scripts + analytics.js)
+- `components/layouts/analytics.html` — script wiring (sa-bootstrap + SA scripts + analytics.js)
+- `frontend/js/sa-bootstrap.ts` — classic IIFE that reads `data-*` attrs and sets `window.sa_metadata`
 - `components/layout_footer.go` + `layouts/footer.html` — footer outbound tagging
 - `components/layout_header.go` + `layouts/header.html` — header outbound tagging

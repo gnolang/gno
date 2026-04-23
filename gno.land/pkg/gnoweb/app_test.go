@@ -206,9 +206,9 @@ func TestAnalytics(t *testing.T) {
 				body := response.Body.String()
 				assert.Contains(t, body, "sa.gno.services")
 				assert.Contains(t, body, "js/analytics.js")
+				assert.Contains(t, body, "js/sa-bootstrap.js")
 				assert.Contains(t, body, "auto-events.js")
-				assert.Contains(t, body, "window.sa_metadata")
-				assert.Regexp(t, `page_type:\s*"[a-z]+"`, body, "page_type must populate with a non-empty enum value")
+				assert.Regexp(t, `data-page-type="[a-z]+"`, body, "page_type must populate with a non-empty enum value")
 			})
 		}
 	})
@@ -234,8 +234,9 @@ func TestAnalytics(t *testing.T) {
 	})
 
 	t.Run("page_type", func(t *testing.T) {
-		// Verifies ClassifyPageType's output reaches window.sa_metadata for
-		// representative routes.
+		// Verifies ClassifyPageType's output reaches the sa-bootstrap data-page-type
+		// attribute (which seeds window.sa_metadata client-side) for representative
+		// routes.
 		expected := map[string]string{
 			"/":                         "home",
 			"/r/gnoland/blog":           "realm",
@@ -258,7 +259,7 @@ func TestAnalytics(t *testing.T) {
 				router.ServeHTTP(response, request)
 
 				body := response.Body.String()
-				want := fmt.Sprintf(`page_type: %q`, pageType)
+				want := fmt.Sprintf(`data-page-type="%s"`, pageType)
 				assert.Contains(t, body, want, "route %q should emit %s", route, want)
 			})
 		}
