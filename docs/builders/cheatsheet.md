@@ -4,15 +4,15 @@
 
 - [Install](#install)
 - [Create a Realm](#create-a-realm)
-- [Create a Run Script](#create-a-run-script)
+- [Run Locally](#run-locally)
 - [Generate a Key](#generate-a-key)
+- [Call a Function](#call-a-function)
+- [Query](#query)
 - [Test](#test)
 - [Format & Lint](#format--lint)
-- [Run Locally](#run-locally)
-- [Query](#query)
-- [Call a Function](#call-a-function)
-- [Airgap Transaction](#airgap-transaction)
+- [Create a Run Script](#create-a-run-script)
 - [Deploy to Staging](#deploy-to-staging)
+- [Airgap Transaction](#airgap-transaction)
 
 ## Contributor
 
@@ -51,19 +51,19 @@ gno init gno.land/r/example/counter
 gno mod init gno.land/r/example/counter
 ```
 
-## Create a Run Script
+## Run Locally
 
-> [Using `gnokey`](../users/interact-with-gnokey.md#run)
+> [Local development with `gnodev`](local-dev-with-gnodev.md)
 
 ```bash
-# .gno shorthand creates the run directory + starter script (gnolang/gno#5557)
-gno init run/create_proposal.gno
+# starts a local node + gnoweb on http://localhost:8888
+gnodev
 
-# then run it
-gnokey maketx run \
-  -gas-fee 1000000ugnot \
-  -gas-wanted 20000000 \
-  MyKey ./run/create_proposal.gno
+# with remote resolver (for missing dependencies)
+gnodev -resolver remote=https://rpc.staging.gno.land:443
+
+# without hot reload
+gnodev -no-watch
 ```
 
 ## Generate a Key
@@ -81,6 +81,42 @@ gnokey list
 Default `gnodev` test account (`devtest`, `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`):
 ```
 source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
+```
+
+## Call a Function
+
+> [Using `gnokey`](../users/interact-with-gnokey.md#call)
+
+```bash
+# interactive wizard
+gnokey maketx
+
+# or manually
+gnokey maketx call \
+  -pkgpath "gno.land/r/dev/counter" \
+  -func "Increment" \
+  -args "42" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 20000000 \
+  MyKey
+```
+
+## Query
+
+> [Using `gnokey`](../users/interact-with-gnokey.md#querying-a-gnoland-network)
+
+```bash
+# render the realm output
+gnokey query vm/qrender -data "gno.land/r/dev/counter:"
+
+# evaluate an expression (read-only, no gas)
+gnokey query vm/qeval -data "gno.land/r/dev/counter.Render(\"\")"
+
+# check account balance
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+
+# get account info (number + sequence for signing)
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
 
 ## Test
@@ -104,54 +140,36 @@ gno fmt .
 gno lint .
 ```
 
-## Run Locally
+## Create a Run Script
 
-> [Local development with `gnodev`](local-dev-with-gnodev.md)
-
-```bash
-# starts a local node + gnoweb on http://localhost:8888
-gnodev
-
-# with remote resolver (for missing dependencies)
-gnodev -resolver remote=https://rpc.staging.gno.land:443
-
-# without hot reload
-gnodev -no-watch
-```
-
-## Query
-
-> [Using `gnokey`](../users/interact-with-gnokey.md#querying-a-gnoland-network)
+> [Using `gnokey`](../users/interact-with-gnokey.md#run)
 
 ```bash
-# render the realm output
-gnokey query vm/qrender -data "gno.land/r/dev/counter:"
+# .gno shorthand creates the run directory + starter script (gnolang/gno#5557)
+gno init run/create_proposal.gno
 
-# evaluate an expression (read-only, no gas)
-gnokey query vm/qeval -data "gno.land/r/dev/counter.Render(\"\")"
-
-# check account balance
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-
-# get account info (number + sequence for signing)
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-```
-
-## Call a Function
-
-> [Using `gnokey`](../users/interact-with-gnokey.md#call)
-
-```bash
-# interactive wizard
-gnokey maketx
-
-# or manually
-gnokey maketx call \
-  -pkgpath "gno.land/r/dev/counter" \
-  -func "Increment" \
-  -args "42" \
+# then run it
+gnokey maketx run \
   -gas-fee 1000000ugnot \
   -gas-wanted 20000000 \
+  MyKey ./run/create_proposal.gno
+```
+
+## Deploy to Staging
+
+> [Deploying packages](deploy-packages.md) | [Networks](../resources/gnoland-networks.md)
+
+```bash
+# get testnet GNOT from https://faucet.gno.land
+
+# deploy the realm to the staging network
+gnokey maketx addpkg \
+  -pkgpath "gno.land/r/<your_address>/counter" \
+  -pkgdir "." \
+  -gas-fee 10000000ugnot \
+  -gas-wanted 8000000 \
+  -chainid staging \
+  -remote "https://rpc.staging.gno.land:443" \
   MyKey
 ```
 
@@ -182,24 +200,6 @@ gnokey sign \
 
 # 4. online machine: broadcast the signed tx
 gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
-```
-
-## Deploy to Staging
-
-> [Deploying packages](deploy-packages.md) | [Networks](../resources/gnoland-networks.md)
-
-```bash
-# get testnet GNOT from https://faucet.gno.land
-
-# deploy the realm to the staging network
-gnokey maketx addpkg \
-  -pkgpath "gno.land/r/<your_address>/counter" \
-  -pkgdir "." \
-  -gas-fee 10000000ugnot \
-  -gas-wanted 8000000 \
-  -chainid staging \
-  -remote "https://rpc.staging.gno.land:443" \
-  MyKey
 ```
 
 ---
