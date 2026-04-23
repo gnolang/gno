@@ -170,25 +170,32 @@ func (n *InnerNode) getChild(idx int) Node {
 		return n.childNodes[idx]
 	}
 
+	// Slow path: short critical section over a known-bounded body, so
+	// release the mutex with explicit Unlock calls rather than via
+	// defer. Each return point unlocks first; the panic branch also
+	// releases the mutex so a recovered caller does not inherit a
+	// permanently-held lock.
 	n.childMu.Lock()
-	defer n.childMu.Unlock()
-
 	if n.childLoaded.Load()&mask != 0 {
+		n.childMu.Unlock()
 		return n.childNodes[idx]
 	}
 	if n.ndb == nil || n.children[idx] == nil {
+		n.childMu.Unlock()
 		return nil
 	}
-	// Lazy load from DB
 	child, err := n.ndb.GetNode(n.children[idx])
 	if err != nil {
-		panic(fmt.Sprintf("bptree: failed to load child node %x: %v", n.children[idx], err))
+		key := n.children[idx]
+		n.childMu.Unlock()
+		panic(fmt.Sprintf("bptree: failed to load child node %x: %v", key, err))
 	}
 	// Propagate ndb for recursive lazy loading
 	if inner, ok := child.(*InnerNode); ok {
 		inner.ndb = n.ndb
 	}
 	n.publishChild(idx, child)
+	n.childMu.Unlock()
 	return child
 }
 
