@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"path"
@@ -469,6 +470,21 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
+	// renderDoc renders a markdown documentation string to a Component.
+	// Returns nil for empty input; renderer errors degrade to escaped text.
+	renderDoc := func(src string) components.Component {
+		if strings.TrimSpace(src) == "" {
+			return nil
+		}
+		var buf bytes.Buffer
+		if err := h.Renderer.RenderDocumentation(&buf, []byte(src)); err != nil {
+			h.Logger.Warn("render doc failed — falling back to escaped plain text",
+				"error", err)
+			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src)))
+		}
+		return components.NewReaderComponent(&buf)
+	}
+
 	// Get public non-method funcs
 	fsigs := []*doc.JSONFunc{}
 	for _, fun := range jdoc.Funcs {
@@ -502,6 +518,15 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Wrap each function with its pre-rendered documentation Component.
+	functions := make([]components.HelpFunction, 0, len(fsigs))
+	for _, fn := range fsigs {
+		functions = append(functions, components.HelpFunction{
+			JSONFunc:     fn,
+			DocComponent: renderDoc(fn.Doc),
+		})
+	}
+
 	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -512,8 +537,8 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		Functions: functions,
+		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 	})
 }

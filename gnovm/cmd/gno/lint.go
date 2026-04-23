@@ -199,7 +199,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		// doesn't impact other packages.
 		newProdGnoStore := func() gno.Store {
 			pcw := prodbs.CacheWrap()
-			pgs := prodgs.BeginTransaction(pcw, pcw, nil)
+			pgs := prodgs.BeginTransaction(pcw, pcw, nil, nil)
 			return pgs
 		}
 		injectTmpkg := func(tgs gno.Store) {
@@ -231,7 +231,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 		}
 		newTestGnoStore := func(withTmpkg bool) gno.Store {
 			tcw := testbs.CacheWrap()
-			tgs := testgs.BeginTransaction(tcw, tcw, nil)
+			tgs := testgs.BeginTransaction(tcw, tcw, nil, nil)
 			if withTmpkg {
 				injectTmpkg(tgs)
 			}

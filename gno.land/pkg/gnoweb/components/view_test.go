@@ -261,9 +261,9 @@ func TestRealmViewTOCXSSPrevention(t *testing.T) {
 }
 
 func TestHelpView(t *testing.T) {
-	functions := []*doc.JSONFunc{
-		{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}},
-		{Name: "Func2", Params: []*doc.JSONField{{Name: "param1"}, {Name: "param2"}}},
+	functions := []HelpFunction{
+		{JSONFunc: &doc.JSONFunc{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}}},
+		{JSONFunc: &doc.JSONFunc{Name: "Func2", Params: []*doc.JSONField{{Name: "param1"}, {Name: "param2"}}}},
 	}
 	data := HelpData{
 		SelectedFunc: "Func1",

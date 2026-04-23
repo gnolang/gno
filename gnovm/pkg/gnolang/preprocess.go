@@ -3848,7 +3848,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 			PkgName: pn.PkgName,
 			PkgPath: pn.PkgPath,
 		}
-		store = store.BeginTransaction(nil, nil, nil)
+		store = store.BeginTransaction(nil, nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
 	m := NewMachine(pn.PkgPath, store)
@@ -3916,7 +3916,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 				PkgName: pn.PkgName,
 				PkgPath: pn.PkgPath,
 			}
-			store = store.BeginTransaction(nil, nil, nil)
+			store = store.BeginTransaction(nil, nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
 		m := NewMachine(pn.PkgPath, store)
@@ -3979,7 +3979,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		return cx.TypedValue, nil
 	}
 	pv := pn.NewPackage(nilAllocator) // throwaway
-	store = store.BeginTransaction(nil, nil, nil)
+	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachine(pn.PkgPath, store)
 	defer m.Release()
@@ -5515,6 +5515,8 @@ func elideCompositeExpr(last BlockNode, x *Expr, t Type) {
 			// Handle implicit &{}.
 			if t.Kind() == PointerKind {
 				clx.Type = toConstTypeExpr(last, tx, t.Elem())
+				// Cache static type for doOpRef; see TRANS_LEAVE *RefExpr.
+				clx.SetAttribute(ATTR_TYPEOF_VALUE, t.Elem())
 				refx := &RefExpr{X: clx}
 				refx.SetAttribute(ATTR_REF_ELEM_TYPE, t.Elem())
 				refx.SetSpan(clx.GetSpan())
