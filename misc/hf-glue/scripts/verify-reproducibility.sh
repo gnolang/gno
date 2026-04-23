@@ -21,6 +21,21 @@
 #   3. Compare SHA256(genesis.json) A vs B. If mismatch, print a compact
 #      diff showing the first divergence hint.
 #
+# Determinism caveat
+# ==================
+#   `make genesis` is deterministic WHEN THE OUTPUT DIR IS FRESH. If you
+#   run `make genesis` twice in the same $OUT without cleaning, residual
+#   files from the first run (e.g. stale new_valset.json, cached
+#   intermediate files that the second run would regenerate slightly
+#   differently, or an ephemeral signing state) can leak into the second
+#   build's SHA. Reproducibility reports in the wild that show "same
+#   inputs, different SHA" almost always trace back to stale $OUT state,
+#   not to real nondeterminism in the build pipeline.
+#
+#   This script wipes $OUT_A and $OUT_B before each build specifically to
+#   rule that out. If you're debugging a cross-session SHA drift manually,
+#   always `rm -rf $OUT` between attempts before blaming the tooling.
+#
 # Env
 # ===
 #   OUT_A, OUT_B   — isolated target dirs (default $OUT/reproduce-{A,B})
