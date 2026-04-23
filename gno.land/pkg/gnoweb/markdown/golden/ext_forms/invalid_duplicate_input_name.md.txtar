@@ -9,7 +9,7 @@
 </gno-form>
 
 -- output.html --
-<h1>only the first one should be take into account</h1>
+<h1 id="only-the-first-one-should-be-take-into-account"><a class="heading-anchor" href="#only-the-first-one-should-be-take-into-account" aria-label="Link to this section">only the first one should be take into account</a></h1>
 <form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
 <div class="gno-form_header">
 <span><span class="font-bold">/r/test</span> Form</span>

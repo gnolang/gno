@@ -253,6 +253,23 @@
 		line-height: var(--g-line-height-tight);
 	}
 
+	/* Heading anchor links */
+	.heading-anchor {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	:is(h1, h2, h3, h4):hover .heading-anchor::after {
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-regular);
+	}
+
+	:is(h1, h2, h3, h4) .heading-anchor:focus-visible {
+		outline: var(--g-space-px) solid var(--s-color-border-brand);
+		outline-offset: var(--g-space-1);
+		border-radius: var(--g-border-radius-sm);
+	}
+
 	/* H1 - Main heading */
 	h1 {
 		font-size: var(--g-font-size-700);
@@ -631,6 +648,22 @@
 	}
 	& a:hover {
 		text-decoration: underline;
+	}
+
+	/* Heading anchors inherit heading color, no underline */
+	& .heading-anchor {
+		color: inherit;
+		text-decoration: none;
+	}
+	& :is(h1, h2, h3, h4):hover .heading-anchor::after {
+		content: " §";
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-regular);
+	}
+	& :is(h1, h2, h3, h4) .heading-anchor:focus-visible {
+		outline: var(--g-space-px) solid var(--s-color-border-brand);
+		outline-offset: var(--g-space-1);
+		border-radius: var(--g-border-radius-sm);
 	}
 
 	/* Inline code */

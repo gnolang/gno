@@ -18,26 +18,26 @@ content 4
 </gno-columns>
 
 -- output.html --
-<h3>Simple example</h3>
+<h3 id="simple-example"><a class="heading-anchor" href="#simple-example" aria-label="Link to this section">Simple example</a></h3>
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
-<h2>Title 1</h2>
+<h2 id="title-1"><a class="heading-anchor" href="#title-1" aria-label="Link to this section">Title 1</a></h2>
 <p>content 1</p>
 </div>
 <!-- Column 1 -->
 <div class="gno-column">
-<h2>Title 2</h2>
+<h2 id="title-2"><a class="heading-anchor" href="#title-2" aria-label="Link to this section">Title 2</a></h2>
 <p>content 2</p>
 </div>
 <!-- Column 2 -->
 <div class="gno-column">
-<h2>Title 3</h2>
+<h2 id="title-3"><a class="heading-anchor" href="#title-3" aria-label="Link to this section">Title 3</a></h2>
 <p>content 3</p>
 </div>
 <!-- Column 3 -->
 <div class="gno-column">
-<h2>Title 4</h2>
+<h2 id="title-4"><a class="heading-anchor" href="#title-4" aria-label="Link to this section">Title 4</a></h2>
 <p>content 4</p>
 </div>
 </div> <!-- </gno-columns> -->
