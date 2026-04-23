@@ -274,7 +274,7 @@ func (n *InnerNode) RebuildMiniMerkle() {
 // RebuildMiniMerkle unconditionally rehashes every occupied slot and
 // builds the mini-merkle. Used by constructors and tests where the
 // per-slot cache is cold (slotHashes not yet populated). Hot mutation
-// paths instead mark specific slots dirty via markLeafSlotDirty /
+// paths instead mark specific slots dirty via
 // markLeafSlotsDirtyRange and let ensureMiniMerkleBuilt call the
 // incremental variant.
 func (n *LeafNode) RebuildMiniMerkle() {
@@ -316,15 +316,6 @@ func (n *LeafNode) rebuildMiniMerkleIncremental() {
 	n.miniTree.Build()
 	n.miniTreeDirty = false
 	n.slotsDirty = 0
-}
-
-// markLeafSlotDirty flags slot i as needing recomputation on the next
-// ensureMiniMerkleBuilt. Used by every hot-path site that mutates
-// keys[i] or valueHashes[i] so the per-slot hash cache can skip
-// untouched slots.
-func (n *LeafNode) markLeafSlotDirty(i int) {
-	n.slotsDirty |= uint32(1) << uint(i)
-	n.miniTreeDirty = true
 }
 
 // markLeafSlotsDirtyRange flags slots [lo, hi) dirty. Used after bulk

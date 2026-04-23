@@ -661,7 +661,7 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 	}
 
 	// Same dirty-bit gating for leaves: mutation paths set
-	// miniTreeDirty + slotsDirty bits via markLeafSlotDirty /
+	// miniTreeDirty + slotsDirty bits via
 	// markLeafSlotsDirtyRange. ensureMiniMerkleBuilt drives the
 	// incremental rebuild that touches only changed slots.
 	if leaf, ok := node.(*LeafNode); ok {
