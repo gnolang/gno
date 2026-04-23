@@ -70,7 +70,7 @@ func newIAVLTree(db dbm.DB, cacheSize int) *iavlTree {
 	return &iavlTree{t: iavl.NewMutableTree(db, cacheSize, false, iavl.NewNopLogger())}
 }
 
-func (w *iavlTree) Set(k, v []byte) (bool, error)        { return w.t.Set(k, v) }
+func (w *iavlTree) Set(k, v []byte) (bool, error)         { return w.t.Set(k, v) }
 func (w *iavlTree) Get(k []byte) ([]byte, error)          { return w.t.Get(k) }
 func (w *iavlTree) Has(k []byte) (bool, error)            { return w.t.Has(k) }
 func (w *iavlTree) Remove(k []byte) ([]byte, bool, error) { return w.t.Remove(k) }
@@ -108,7 +108,7 @@ func newBptreeTree(db dbm.DB, cacheSize int) *bptreeTree {
 	return &bptreeTree{t: bptree.NewMutableTreeWithDB(db, cacheSize, bptree.NewNopLogger(), bptree.InlineValueThresholdOption(bptree.DefaultInlineValueThreshold))}
 }
 
-func (w *bptreeTree) Set(k, v []byte) (bool, error)        { return w.t.Set(k, v) }
+func (w *bptreeTree) Set(k, v []byte) (bool, error)         { return w.t.Set(k, v) }
 func (w *bptreeTree) Get(k []byte) ([]byte, error)          { return w.t.Get(k) }
 func (w *bptreeTree) Has(k []byte) (bool, error)            { return w.t.Has(k) }
 func (w *bptreeTree) Remove(k []byte) ([]byte, bool, error) { return w.t.Remove(k) }

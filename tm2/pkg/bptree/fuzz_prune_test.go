@@ -21,9 +21,9 @@ import (
 // The current mark-and-sweep implementation replaced that algorithm; this
 // fuzzer guards against any regression that would resurrect the bug.
 // Any crash surfaces as either
-//  - a `bptree: failed to load child node ...` panic from `getChild`, or
-//  - a mirror-vs-tree hash/value mismatch after a SaveVersion that follows
-//    a prune.
+//   - a `bptree: failed to load child node ...` panic from `getChild`, or
+//   - a mirror-vs-tree hash/value mismatch after a SaveVersion that follows
+//     a prune.
 //
 // Run locally with e.g.:
 //

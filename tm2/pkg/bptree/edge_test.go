@@ -244,7 +244,7 @@ func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 			for i := 0; i < 200; i++ {
 				_, err := imm.Has(fmt.Appendf(nil, "cc%04d", i))
 				if err != nil {
-					errs <- fmt.Errorf("goroutine %d Has error: %v", gid, err)
+					errs <- fmt.Errorf("goroutine %d Has error: %w", gid, err)
 					return
 				}
 			}
@@ -261,7 +261,7 @@ func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 			for i := int64(0); i < 10; i++ {
 				_, _, err := imm.GetByIndex(i)
 				if err != nil {
-					errs <- fmt.Errorf("goroutine %d GetByIndex error: %v", gid, err)
+					errs <- fmt.Errorf("goroutine %d GetByIndex error: %w", gid, err)
 					return
 				}
 			}

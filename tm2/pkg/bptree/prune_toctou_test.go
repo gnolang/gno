@@ -82,8 +82,8 @@ func TestPrune_TOCTOU_ReaderRaceIsClosed(t *testing.T) {
 
 	const iterations = 64
 	var (
-		pruneAtV int64 = 1
-		pruneWon atomic.Int64
+		pruneAtV  int64 = 1
+		pruneWon  atomic.Int64
 		readerWon atomic.Int64
 	)
 

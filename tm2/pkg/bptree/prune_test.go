@@ -542,7 +542,7 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 	imp, _ := tree2.Import(1)
 	for {
 		node, err := exporter.Next()
-		if err == ErrExportDone {
+		if errors.Is(err, ErrExportDone) {
 			break
 		}
 		if err != nil {
@@ -905,8 +905,11 @@ func TestPrune_SustainedInsertPrune(t *testing.T) {
 	for i := 0; i < 500; i++ {
 		tree.Set(fmt.Appendf(nil, "sus%06d", i), []byte("init"))
 	}
-	_, v, err := tree.SaveVersion()
-	if err != nil {
+	// v is populated on the first loop iteration (line ~924) before
+	// being read; the initial SaveVersion result is only checked for
+	// error so drop the version return via _ rather than a dead store.
+	var v int64
+	if _, _, err := tree.SaveVersion(); err != nil {
 		t.Fatalf("SaveVersion initial: %v", err)
 	}
 	nextKey := 500

@@ -38,14 +38,14 @@ type Node interface {
 // always took `childMu`, which added a full mutex Lock/Unlock to every
 // traversal step even for already-loaded children.
 type InnerNode struct {
-	nodeKey     *NodeKey
-	numKeys     int16
-	childSizes  [B]int64 // leaf count per child subtree; total = sum(childSizes[:numKeys+1])
-	height      int16    // levels above leaf level (parent of leaves = 1)
-	keys        [B - 1][]byte
-	children    [B][]byte    // serialized NodeKey references (12 bytes each), used for persistence
-	childHashes [B]Hash      // hash of each child subtree
-	childNodes  [B]Node      // in-memory child references (nil == unset; read only after childLoaded bit is set)
+	nodeKey       *NodeKey
+	numKeys       int16
+	childSizes    [B]int64 // leaf count per child subtree; total = sum(childSizes[:numKeys+1])
+	height        int16    // levels above leaf level (parent of leaves = 1)
+	keys          [B - 1][]byte
+	children      [B][]byte     // serialized NodeKey references (12 bytes each), used for persistence
+	childHashes   [B]Hash       // hash of each child subtree
+	childNodes    [B]Node       // in-memory child references (nil == unset; read only after childLoaded bit is set)
 	childLoaded   atomic.Uint32 // bitmap: bit i set iff childNodes[i] is populated
 	miniTree      MiniMerkle    // in-memory only, not serialized
 	miniTreeDirty bool          // true when slot contents changed since last Build
@@ -113,8 +113,11 @@ func (n *LeafNode) valueAt(i int, resolver ValueResolver) ([]byte, error) {
 }
 
 // valueKeyAt returns the external valueKey at slot i, or nil if the
-// slot is inline. Used by orphan tracking paths that only care about
-// external slots.
+// slot is inline. Kept alongside valueAt as a parity accessor for
+// orphan-tracking paths that only care about the external-slot case;
+// currently covered by the callers that walk valueKeys directly.
+//
+//nolint:unused // parity accessor retained as part of the LeafNode API surface
 func (n *LeafNode) valueKeyAt(i int) []byte {
 	if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
 		return nil
@@ -122,8 +125,8 @@ func (n *LeafNode) valueKeyAt(i int) []byte {
 	return n.valueKeys[i]
 }
 
-func (n *InnerNode) GetNodeKey() *NodeKey  { return n.nodeKey }
-func (n *LeafNode) GetNodeKey() *NodeKey   { return n.nodeKey }
+func (n *InnerNode) GetNodeKey() *NodeKey   { return n.nodeKey }
+func (n *LeafNode) GetNodeKey() *NodeKey    { return n.nodeKey }
 func (n *InnerNode) SetNodeKey(nk *NodeKey) { n.nodeKey = nk }
 func (n *LeafNode) SetNodeKey(nk *NodeKey)  { n.nodeKey = nk }
 
@@ -244,7 +247,6 @@ func (n *InnerNode) rebuildChildLoaded() {
 	}
 	n.childLoaded.Store(mask)
 }
-
 
 // RebuildMiniMerkle eagerly recomputes the full mini merkle tree from
 // slot-level hashes. For InnerNode, slots are childHashes. For
@@ -820,7 +822,7 @@ func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 			if err != nil {
 				return nil, fmt.Errorf("reading key %d suffixLen: %w", i, err)
 			}
-			keyLen := uint64(prefixLen) + suffixLen
+			keyLen := prefixLen + suffixLen
 			if keyLen > maxReadBytesLen {
 				return nil, fmt.Errorf("key %d length %d exceeds maximum %d", i, keyLen, maxReadBytesLen)
 			}

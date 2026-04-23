@@ -24,10 +24,10 @@ import (
 // GetImmutable / Snapshot and read through that instead. See Findings
 // #7 and #9.
 type MutableTree struct {
-	root      Node   // nil for empty tree
-	lastSaved Node   // snapshot for rollback (set by SaveVersion)
-	size      int64  // total key count in working tree
-	version   int64  // last saved version
+	root      Node  // nil for empty tree
+	lastSaved Node  // snapshot for rollback (set by SaveVersion)
+	size      int64 // total key count in working tree
+	version   int64 // last saved version
 
 	ndb            *nodeDB // nil for in-memory only (no persistence)
 	initialVersion uint64

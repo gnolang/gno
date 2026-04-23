@@ -3,8 +3,8 @@ package bptree
 // splitResult is returned when a node split occurs during insertion.
 // The caller (parent) must insert the separator key and the new right child.
 type splitResult struct {
-	separator []byte     // first key of the right node (copy for parent)
-	right     Node       // the new right sibling
+	separator []byte // first key of the right node (copy for parent)
+	right     Node   // the new right sibling
 }
 
 // splitLeaf splits a leaf that has B+1 keys (overflow after insert at pos).
@@ -79,7 +79,7 @@ func splitLeaf(keys [][]byte, valueHashes []Hash, valueKeys [][]byte, inlineValu
 // key bytes in place today, but the defensive copy makes the
 // node-level key ownership invariant unconditional.
 func splitInner(keys [][]byte, children [][]byte, childHashes []Hash, height int16, sizes []int64) (*InnerNode, splitResult) {
-	totalKeys := len(keys) // B (one more than max B-1)
+	totalKeys := len(keys)      // B (one more than max B-1)
 	splitPoint := totalKeys / 2 // B/2 = 16
 
 	left := &InnerNode{height: height}

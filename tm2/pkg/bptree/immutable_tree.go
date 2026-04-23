@@ -70,6 +70,8 @@ func (t *ImmutableTree) Close() error {
 // ErrKeyDoesNotExist so callers can tell a missing key from a misconfigured
 // tree (e.g. an ImmutableTree constructed outside GetImmutable/Snapshot).
 // See Findings #10 and #11.
+//
+//nolint:unused // parity with MutableTree.resolveValue; kept on the ImmutableTree surface
 func (t *ImmutableTree) resolveValue(vk []byte) ([]byte, error) {
 	if t.valueResolver != nil {
 		return t.valueResolver(vk)

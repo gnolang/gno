@@ -134,7 +134,7 @@ func (e *Exporter) exportNode(node Node) error {
 func (e *Exporter) Next() (*ExportNode, error) {
 	node, ok := <-e.ch
 	if !ok {
-		if e.err != nil && e.err != errExportClosed {
+		if e.err != nil && !errors.Is(e.err, errExportClosed) {
 			return nil, e.err
 		}
 		return nil, ErrExportDone

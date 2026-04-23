@@ -519,8 +519,8 @@ func TestIterator_LeafVisitWindow_Descending(t *testing.T) {
 		wantHi     int
 	}{
 		{"full", nil, nil, 0, 20},
-		{"end_only_mid", nil, []byte("w15"), 0, 15},     // hi = first slot where key >= end
-		{"start_only_mid", []byte("w05"), nil, 5, 20},    // lo = first slot where key >= start
+		{"end_only_mid", nil, []byte("w15"), 0, 15},   // hi = first slot where key >= end
+		{"start_only_mid", []byte("w05"), nil, 5, 20}, // lo = first slot where key >= start
 		{"start_and_end", []byte("w03"), []byte("w08"), 3, 8},
 		{"start_between_keys", []byte("w07a"), nil, 8, 20},
 	}
