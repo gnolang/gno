@@ -147,10 +147,17 @@ check_eq 'migration 08: vm:p:valset_realm_path = v3' \
 # If new_updates_available=true, EndBlocker hasn't consumed the last proposal
 # yet — either the chain isn't producing blocks or the param path is wrong.
 # valset_prev reflects the last applied valset; no strict assertion because
-# it legitimately evolves as add-validator proposals land.
-check_eq 'v3: no pending valset update unconsumed by EndBlocker' \
-  'false' \
-  "$(query_param 'vm:gno.land/r/sys/validators/v3:new_updates_available')"
+# it legitimately evolves as add-validator proposals land. Accept empty as
+# equivalent to false: v3's init.gno only seeds valset_prev, so this key is
+# unset at fresh boot until the first change proposal writes it.
+nua="$(query_param 'vm:gno.land/r/sys/validators/v3:new_updates_available')"
+if [[ "$nua" == "false" || -z "$nua" ]]; then
+  printf '  [OK]   v3: no pending valset update unconsumed by EndBlocker\n'
+  pass=$((pass + 1))
+else
+  printf '  [FAIL] v3: no pending valset update unconsumed by EndBlocker\n         got =%s\n' "$nua"
+  fail=$((fail + 1))
+fi
 
 # ---- Migration 01 (v2 valset swapped) — informational only
 # v2 is vestigial after PR #5485: EndBlocker no longer reads from it. The
