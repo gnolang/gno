@@ -4,26 +4,26 @@ loadpkg gno.land/r/gov/dao
 gnoland start
 
 # Init GovDAO members
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao_members.gno
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao_members.gno
 
 # Deploy the realm that defines the proposal request
-gnokey maketx addpkg -pkgdir $WORK/request -pkgpath gno.land/r/test/request -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/request -pkgpath gno.land/r/test/request -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 # Create proposal that fails on execution
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
+gnokey maketx run -gas-fee 2400001ugnot -gas-wanted 24_000_000 -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
 stdout OK!
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Try to execute proposal, it should fail because execution returns an error
-! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -chainid=tendermint_test test1
 stderr 'Boom!'
 
 # Execute proposal changing its status to rejected
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteOrRejectProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteOrRejectProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -chainid=tendermint_test test1
 stdout OK!
 
 # Check that proposal was rejected

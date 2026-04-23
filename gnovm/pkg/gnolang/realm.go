@@ -78,25 +78,56 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
-var (
-	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
-	// TODO: later on switch this to an LRU if needed to ensure
-	// fixed memory caps. For now though it isn't a problem:
-	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
-	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
-)
+// pkgIDFromPkgPathCache is a read-optimized concurrent cache.
+// sync.Map is lock-free on the read path (cache hits dominate).
+// TODO: switch to an LRU if needed to ensure fixed memory caps.
+// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+var pkgIDFromPkgPathCache sync.Map
 
+// PkgIDFromPkgPath derives a PkgID from a package path.
+// The first nibble (4 bits) of the Hashlet is reserved for flags:
+//
+//	bit 0 (0x80): IsStdlib — standard library package
+//	bit 1 (0x40): IsImmutable — immutable package (stdlib or /p/)
+//	bit 2 (0x20): IsInternal — internal package path
+//	bit 3 (0x10): reserved (always 0)
+//
+// The remaining 156 bits are the truncated SHA-256 hash.
 func PkgIDFromPkgPath(path string) PkgID {
-	pkgIDFromPkgPathCacheMu.Lock()
-	defer pkgIDFromPkgPathCacheMu.Unlock()
-
-	pkgID, ok := pkgIDFromPkgPathCache[path]
-	if !ok {
-		pkgID = new(PkgID)
-		*pkgID = PkgID{HashBytes([]byte(path))}
-		pkgIDFromPkgPathCache[path] = pkgID
+	if v, ok := pkgIDFromPkgPathCache.Load(path); ok {
+		return *v.(*PkgID)
 	}
-	return *pkgID
+	pkgID := &PkgID{HashBytes([]byte(path))}
+	// Clear the first nibble, then set flag bits.
+	pkgID.Hashlet[0] &= 0x0F
+	if IsStdlib(path) {
+		pkgID.Hashlet[0] |= 0x80
+	}
+	if IsStdlib(path) || IsPPackagePath(path) {
+		pkgID.Hashlet[0] |= 0x40
+	}
+	if _, isInternal := IsInternalPath(path); isInternal {
+		pkgID.Hashlet[0] |= 0x20
+	}
+	actual, _ := pkgIDFromPkgPathCache.LoadOrStore(path, pkgID)
+	return *actual.(*PkgID)
+}
+
+// IsStdlibPkg returns true if this PkgID is for a standard library package.
+func (pid PkgID) IsStdlibPkg() bool {
+	return pid.Hashlet[0]&0x80 != 0
+}
+
+// IsImmutablePkg returns true if this PkgID is for an immutable package
+// (stdlib or /p/ package). Objects from immutable packages should not
+// have their refcounts or dirty flags modified during realm finalization.
+func (pid PkgID) IsImmutablePkg() bool {
+	return pid.Hashlet[0]&0x40 != 0
+}
+
+// IsInternalPkg returns true if this PkgID is for an internal package path.
+func (pid PkgID) IsInternalPkg() bool {
+	return pid.Hashlet[0]&0x20 != 0
 }
 
 // Returns the ObjectID of the PackageValue associated with path.
@@ -175,13 +206,24 @@ func (rlm *Realm) String() string {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
+//
+// DidUpdate is called after mutation, so it cannot prevent the write —
+// it can only detect a missing pre-check and panic.
+//
+// Direct callers (e.g. op_assign, machine.go) must perform a readonly
+// check (IsReadonly/isExternalRealm) before the mutation.
+//
+// Indirect callers via GetPointerAtIndex (values.go, map key attach):
+//   - PopAsPointer2 (write path): checks readonly before calling.
+//   - doOpIndex (read path): passes nilRealm, so DidUpdate is a no-op.
+//   - debugger: passes nilRealm (read-only), so DidUpdate is a no-op.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if rlm == nil {
 		return
 	}
 	if bm.Enabled {
-		oldCPU, oldStore := bm.StartStore(bm.RealmDidUpdate)
-		defer func() { bm.StopStore(bm.RealmDidUpdate, oldCPU, oldStore, 0) }()
+		old := bm.StartStore(bm.RealmDidUpdate)
+		defer func() { bm.StopStore(bm.RealmDidUpdate, old, 0) }()
 	}
 	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
@@ -198,9 +240,11 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
+		// Invariant violation: all mutation paths must have a pre-mutation
+		// readonly check (IsReadonly/isExternalRealm) that prevents reaching
+		// here. If this fires, a pre-check is missing.
+		panic("invariant violation: DidUpdate called on external-realm object without prior readonly check")
 	}
-
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
 	// XXX if co == xo {
@@ -212,28 +256,39 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
-		co.IncRefCount()
-		if co.GetRefCount() > 1 {
-			if !co.GetIsEscaped() {
-				rlm.MarkNewEscaped(co)
-			}
-		}
-		if co.GetIsReal() {
-			rlm.MarkDirty(co)
+		coPkgID := co.GetObjectID().PkgID
+		if coPkgID.IsImmutablePkg() && coPkgID != rlm.ID {
+			// Skip — immutable package objects (stdlib, /p/) don't need
+			// refcount tracking when referenced from a different realm.
 		} else {
-			co.SetOwner(po)
-			rlm.MarkNewReal(co)
+			co.IncRefCount()
+			if co.GetRefCount() > 1 {
+				if !co.GetIsEscaped() {
+					rlm.MarkNewEscaped(co)
+				}
+			}
+			if co.GetIsReal() {
+				rlm.MarkDirty(co)
+			} else {
+				co.SetOwner(po)
+				rlm.MarkNewReal(co)
+			}
 		}
 	}
 
 	if xo != nil {
-		xo.DecRefCount()
-		if xo.GetRefCount() == 0 {
-			if xo.GetIsReal() {
-				rlm.MarkNewDeleted(xo)
+		xoPkgID := xo.GetObjectID().PkgID
+		if xoPkgID.IsImmutablePkg() && xoPkgID != rlm.ID {
+			// Skip — immutable package objects don't need refcount tracking.
+		} else {
+			xo.DecRefCount()
+			if xo.GetRefCount() == 0 {
+				if xo.GetIsReal() {
+					rlm.MarkNewDeleted(xo)
+				}
+			} else if xo.GetIsReal() {
+				rlm.MarkDirty(xo)
 			}
-		} else if xo.GetIsReal() {
-			rlm.MarkDirty(xo)
 		}
 	}
 }
@@ -341,8 +396,8 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	if bm.Enabled {
-		oldCPU, oldStore := bm.StartStore(bm.RealmFinalizeTx)
-		defer func() { bm.StopStore(bm.RealmFinalizeTx, oldCPU, oldStore, 0) }()
+		old := bm.StartStore(bm.RealmFinalizeTx)
+		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
 	}
 
 	if debugRealm {
@@ -383,7 +438,6 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// or via escaped-object persistence in
 	// the iavl tree.
 	rlm.saveUnsavedObjects(store)
-	// TODO saved newly escaped to iavl.
 	rlm.saveNewEscaped(store)
 	// delete all deleted objects.
 	rlm.removeDeletedObjects(store)
@@ -467,6 +521,11 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				}
 			}
 			// extern package values are skipped.
+			continue
+		}
+		// Skip immutable package objects from external packages.
+		childPkgID := child.GetObjectID().PkgID
+		if childPkgID.IsImmutablePkg() && childPkgID != rlm.ID {
 			continue
 		}
 		child.IncRefCount()
@@ -559,6 +618,11 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	// recurse for children
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
+		// Skip immutable package objects from external packages.
+		childPkgID := child.GetObjectID().PkgID
+		if childPkgID.IsImmutablePkg() && childPkgID != rlm.ID {
+			continue
+		}
 		child.DecRefCount()
 		rc := child.GetRefCount()
 		if rc == 0 {
@@ -610,7 +674,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 			escaped = append(escaped, eo)
 
 			// add to escaped, and mark dirty previous owner.
-			po := getOwner(store, eo)
+			po := eo.GetOwner()
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
@@ -676,8 +740,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			} // else, rc == 1
 
-			po := getOwner(store, oo)
-
+			po := oo.GetOwner()
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -1212,6 +1275,18 @@ func refOrCopyType(typ Type) Type {
 	}
 }
 
+// PersistedTypeFormForTypeValue returns the shape a Type takes when it is
+// about to be persisted at a TypeValue position within a block — i.e. the
+// same pipeline used by copyValueWithRefs's TypeValue case. Exposed so
+// filetests (e.g. the "// Types:" directive) can render the on-the-wire
+// form instead of the post-fillType canonical form.
+//
+// Not intended for production callers: this is test-infrastructure only.
+// The persistence pipeline itself calls refOrCopyType directly.
+func PersistedTypeFormForTypeValue(typ Type) Type {
+	return refOrCopyType(typ)
+}
+
 func copyFieldsWithRefs(fields []FieldType) []FieldType {
 	fieldsCpy := make([]FieldType, len(fields))
 	for i, field := range fields {
@@ -1274,10 +1349,12 @@ func copyTypeWithRefs(typ Type) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
-		if ct.PkgPath == uversePkgPath {
-			// This happens with a type alias to a uverse type.
-			return RefType{ID: ct.TypeID()}
-		}
+		// Invariant: uverse DeclaredTypes never reach here. Callers either
+		// collapse DeclaredTypes to RefType at Layer 1 via refOrCopyType
+		// (field types, method types, the TypeValue case in copyValueWithRefs),
+		// or route through SetType which short-circuits on a cache hit
+		// before calling copyTypeWithRefs. Uverse types are preloaded in
+		// cacheTypes, so SetType's early-return always fires for them.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -1327,9 +1404,7 @@ func copyValueWithRefs(val Value) Value {
 	case BigdecValue:
 		return cv
 	case DataByteValue:
-		// DataByteValue is a view into an ArrayValue.Data,
-		// it is copied with its parent array.
-		panic("DataByteValue should not be copied independently")
+		panic("cannot copy data byte value with references")
 	case PointerValue:
 		if cv.Base == nil {
 			panic("should not happen")
@@ -1428,7 +1503,13 @@ func copyValueWithRefs(val Value) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(copyTypeWithRefs(cv.Type))
+		// Persist the type as a reference, not inline. The authoritative
+		// definition lives at /t/<TypeID> (written by SetType) or in the
+		// uverse registry (for uverse types). Block bytes shrink from the
+		// full inlined DeclaredType to a small RefType{ID}. On decode,
+		// fillType's RefType branch resolves it via store.GetType(tid),
+		// which hits the cache (uverse) or the backend entry (user types).
+		return toTypeValue(refOrCopyType(cv.Type))
 	case *PackageValue:
 		block := toRefValue(cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
@@ -1708,36 +1789,34 @@ func toRefValue(val Value) RefValue {
 		} else if !oo.GetIsReal() {
 			panic("unexpected unreal object")
 		}
-
-		// NOTE: A dirty object here is valid when a parent is being
-		// converted to a RefValue while its child is still dirty
-		// (e.g. dirty map elements). See map31b.gno and zrealm17.gno.
-
+		// This can happen with some circular
+		// references.
+		// else if oo.GetIsDirty() {
+		// panic("unexpected dirty object")
+		// }
 		if oo.GetIsNewEscaped() {
 			// NOTE: oo.GetOwnerID() will become zero.
 			return RefValue{
 				ObjectID: oo.GetObjectID(),
-				Escaped:  true,
 				// Hash: nil,
 			}
 		} else if oo.GetIsEscaped() {
 			if debugRealm {
 				if !oo.GetOwnerID().IsZero() {
-					panic("escaped object should not have an owner ID")
+					panic("cannot convert escaped object to ref value without an owner ID")
 				}
 			}
 			return RefValue{
 				ObjectID: oo.GetObjectID(),
-				Escaped:  true,
 				// Hash: nil,
 			}
 		} else {
 			if debugRealm {
 				if oo.GetRefCount() > 1 {
-					panic("non-escaped object should not have refcount > 1")
+					panic("unexpected references when converting to ref value")
 				}
 				if oo.GetHash().IsZero() {
-					panic("non-escaped object should not have zero hash")
+					panic("hash missing when converting to ref value")
 				}
 			}
 			return RefValue{
@@ -1795,18 +1874,6 @@ func prettyJSON(jstr []byte) []byte {
 		return nil
 	}
 	return js
-}
-
-func getOwner(store Store, oo Object) Object {
-	po := oo.GetOwner()
-	poid := oo.GetOwnerID()
-	if po == nil {
-		if !poid.IsZero() {
-			po = store.GetObject(poid)
-			oo.SetOwner(po)
-		}
-	}
-	return po
 }
 
 // XXX this would be a lot faster if the PkgID itself included a private bit;

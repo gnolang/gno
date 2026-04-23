@@ -16,24 +16,29 @@ stdout 'coins.*:.*1010000000ugnot'
 # echo -n "secret" | sha256sum
 # This will produce a hashlock string like "2bb808d537b1da3e38bd30361aa85586dbbeacdd7126fef6a25ef97b5f27a25b".
 # Replace the hashlock argument in the command below with the generated hash.
-gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func NewCoinSwap -gas-fee 1000000ugnot -send 12345ugnot -gas-wanted 10000000 -args $test3_user_addr -args '2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b' -broadcast -chainid=tendermint_test test2
+# Exact balances pinned. Invariants preserved:
+#   test2 after NewCoinSwap = 1010000000 - 12345 (escrow) - 680001 (gas) - 453000 (storage) = 1008854654
+#   test2 after Claim       = 1008854654  (unchanged — Claim moves escrow to test3, not from test2)
+#   test3 after NewCoinSwap = 1010000000  (unchanged)
+#   test3 after Claim       = 1010000000 + 12345 (escrow) - 700001 (gas) - 500 (storage) = 1009311844
+gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func NewCoinSwap -gas-fee 680001ugnot -send 12345ugnot -gas-wanted 6_800_000 -args $test3_user_addr -args '2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b' -broadcast -chainid=tendermint_test test2
 stdout '(1 int)'
 stdout ".*$test2_user_addr.*$test3_user_addr.*12345ugnot.*"
 stdout 'OK!'
-stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":453800\}.*\]'
+stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":453000\}.*\]'
 
 gnokey query vm/qrender --data 'gno.land/r/demo/defi/atomicswap:'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008533855ugnot'
+stdout 'coins.*:.*1008854654ugnot'
 gnokey query auth/accounts/$test3_user_addr
 stdout 'coins.*:.*1010000000ugnot'
 
-gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func Claim -gas-fee 1000000ugnot -gas-wanted 10000000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
+gnokey maketx call -pkgpath gno.land/r/demo/defi/atomicswap -func Claim -gas-fee 700001ugnot -gas-wanted 7_000_000 -args '1' -args 'secret' -broadcast -chainid=tendermint_test test3
 stdout 'OK!'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":500\}.*\]'
 
 gnokey query auth/accounts/$test2_user_addr
-stdout 'coins.*:.*1008533855ugnot'
+stdout 'coins.*:.*1008854654ugnot'
 gnokey query auth/accounts/$test3_user_addr
-stdout 'coins.*:.*1009011845ugnot'
+stdout 'coins.*:.*1009311844ugnot'
