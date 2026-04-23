@@ -265,7 +265,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		}
 		// don't test packages with load errors
 		if len(pkg.Errors) != 0 {
-			io.ErrPrintfln("FAIL\t%s\t[setup failed]", prettyDir)
+			io.ErrPrintfln("FAIL    %s \t[setup failed]", prettyDir)
 			continue
 		}
 		// don't test packages not listed in patterns
