@@ -69,7 +69,26 @@ type MutableTree struct {
 	// tree unconditionally, since fast-node entries correspond to the
 	// current root only. nil = disabled.
 	fastNodes *lru.Cache[string, []byte]
+	// fastNodesCap mirrors the LRU's configured capacity. The lru
+	// library does not expose this back, so we record it at construction
+	// to drive the working-set-vs-capacity comparison in
+	// reconcileFastNodeState.
+	fastNodesCap int
+	// fastNodesOff is set by reconcileFastNodeState when t.size grows
+	// past fastNodesCap * fastNodeWorkingSetMultiplier; while true,
+	// the cache is treated as nil for read and write purposes.
+	fastNodesOff bool
 }
+
+// fastNodeWorkingSetMultiplier governs the size-vs-capacity ratio at
+// which the fast-node cache is suspended. Once the tree holds more
+// than capacity*multiplier keys the LRU's hit ratio collapses (random
+// access into a working set N× larger than the cache evicts before
+// re-use), so cache lookups become pure overhead per Get and cache
+// populates become churn per Set. 4 keeps the cache active across
+// modestly-larger-than-capacity workloads while suspending it when
+// it would otherwise thrash.
+const fastNodeWorkingSetMultiplier = 4
 
 // NewMutableTreeMem creates an in-memory MutableTree (no DB). Inline
 // value storage is off by default; enable via a future explicit option
@@ -119,6 +138,37 @@ func (t *MutableTree) initFastNodeCache(size int) {
 		panic(fmt.Sprintf("bptree: fast-node cache init: %v", err))
 	}
 	t.fastNodes = c
+	t.fastNodesCap = size
+}
+
+// fastNodeActive reports whether the fast-node cache is currently
+// usable for reads/writes. Inactive when the cache was never
+// constructed or when reconcileFastNodeState has suspended it
+// because the working set exceeded capacity * multiplier.
+func (t *MutableTree) fastNodeActive() bool {
+	return t.fastNodes != nil && !t.fastNodesOff
+}
+
+// reconcileFastNodeState toggles the fast-node cache off when the
+// tree has grown past the working-set threshold and back on when it
+// has shrunk below. The on→off transition purges all entries: while
+// suspended the cache observes neither Sets nor Removes, so an entry
+// from before the suspension cannot safely be served on a future
+// re-activation. A re-activated cache therefore always starts empty
+// and refills naturally from subsequent Sets and Get-hit populates.
+func (t *MutableTree) reconcileFastNodeState() {
+	if t.fastNodes == nil {
+		return
+	}
+	threshold := int64(t.fastNodesCap) * fastNodeWorkingSetMultiplier
+	over := t.size > threshold
+	switch {
+	case over && !t.fastNodesOff:
+		t.fastNodes.Purge()
+		t.fastNodesOff = true
+	case !over && t.fastNodesOff:
+		t.fastNodesOff = false
+	}
 }
 
 // cowRoot ensures t.root is a mutable, working-version clone. It clones
@@ -228,6 +278,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		leaf.RebuildMiniMerkle()
 		t.root = leaf
 		t.size = 1
+		t.reconcileFastNodeState()
 		t.cacheValueForKey(key, value, payload.inline)
 		return false, nil
 	}
@@ -237,6 +288,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	t.root = newRoot
 	if !updated {
 		t.size++
+		t.reconcileFastNodeState()
 	}
 
 	// Handle orphaned old valueKey on update. Only the external-slot
@@ -259,7 +311,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 // `owned` is nil the function copies `value` so caller-side mutation
 // cannot corrupt the cache.
 func (t *MutableTree) cacheValueForKey(key, value, owned []byte) {
-	if t.fastNodes == nil {
+	if !t.fastNodeActive() {
 		return
 	}
 	cp := owned
@@ -278,7 +330,7 @@ func (t *MutableTree) cacheValueForKey(key, value, owned []byte) {
 // hypothetical root swap — paranoia against mis-ordered cache
 // invalidation elsewhere.
 func (t *MutableTree) Get(key []byte) ([]byte, error) {
-	if t.fastNodes != nil {
+	if t.fastNodeActive() {
 		if v, ok := t.fastNodes.Get(string(key)); ok {
 			// Defensive copy on the hit path: returning the cached
 			// slice directly would let a caller mutate it and corrupt
@@ -298,7 +350,7 @@ func (t *MutableTree) Get(key []byte) ([]byte, error) {
 		return nil, nil
 	}
 	val, err := leaf.valueAt(slot, t.valueResolverFn())
-	if err == nil && val != nil && t.fastNodes != nil {
+	if err == nil && val != nil && t.fastNodeActive() {
 		// Defensive copy before caching: for inline slots,
 		// leaf.valueAt returns a slice aliased to leaf.inlineValues[i].
 		// Adding that shared slice straight into the cache would let a
@@ -381,7 +433,7 @@ func (t *MutableTree) orphanValueKey(vk []byte) {
 // entry is not a negative signal (miss-caching is deliberately not
 // implemented) so a cache-miss falls through to the regular lookup.
 func (t *MutableTree) Has(key []byte) (bool, error) {
-	if t.fastNodes != nil {
+	if t.fastNodeActive() {
 		if _, ok := t.fastNodes.Get(string(key)); ok {
 			return true, nil
 		}
@@ -407,6 +459,7 @@ func (t *MutableTree) Remove(key []byte) ([]byte, bool, error) {
 	}
 	t.root = newRoot
 	t.size--
+	t.reconcileFastNodeState()
 
 	// Recover the displaced value — inline bytes come straight off the
 	// leaf; external slots resolve via the value store and then orphan
@@ -702,6 +755,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		// Empty tree at this version
 		t.root = nil
 		t.size = 0
+		t.reconcileFastNodeState()
 		t.version = version
 		t.lastSaved = nil
 		t.cachedRootHash = nil
@@ -721,6 +775,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 
 	t.root = root
 	t.size = nodeSize(root)
+	t.reconcileFastNodeState()
 	t.version = version
 	t.lastSaved = root
 	t.cachedRootHash = nil
@@ -954,6 +1009,7 @@ func (t *MutableTree) Rollback() {
 	} else {
 		t.size = 0
 	}
+	t.reconcileFastNodeState()
 	// root is now the saved root — the working-hash cache, if any, is
 	// stale; reuse the saved-hash cache as-is (it is still valid).
 	t.cachedRootHash = t.cachedSavedHash
