@@ -800,15 +800,24 @@ func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 			if cumulative > maxLeafReadBytes {
 				return nil, fmt.Errorf("leaf cumulative key bytes %d exceeds maximum %d", cumulative, maxLeafReadBytes)
 			}
+			if suffixLen == 0 {
+				// Key equals the common prefix exactly. Alias the prefix
+				// slice instead of allocating + copying it again — the
+				// key-ownership invariant (Finding #20) makes the bytes
+				// immutable post-construction, so sharing the backing
+				// array across slots in this leaf is safe. The
+				// three-index slice expression caps the length so an
+				// accidental append cannot reach into a sibling slot.
+				n.keys[i] = prefix[:prefixLen:prefixLen]
+				continue
+			}
 			// Allocate the full key once. This keeps each leaf.keys[i]
 			// backed by its own byte array, preserving the key-ownership
 			// invariant (Finding #20) that Clone relies on.
 			key := make([]byte, keyLen)
 			copy(key, prefix)
-			if suffixLen > 0 {
-				if _, err := io.ReadFull(r, key[prefixLen:]); err != nil {
-					return nil, fmt.Errorf("reading key %d suffix: %w", i, err)
-				}
+			if _, err := io.ReadFull(r, key[prefixLen:]); err != nil {
+				return nil, fmt.Errorf("reading key %d suffix: %w", i, err)
 			}
 			n.keys[i] = key
 		}
