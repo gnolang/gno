@@ -163,4 +163,41 @@ func main() {
 //              }
 //          }
 //      }
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:2](0)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "1007",
+//     -        "ModTime": "12",
+//     +        "ModTime": "13",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "3afcc76a9185dd2f8c15d1391f96bd8801dfee8b",
+//     +                "Hash": "9f72dc4356ded665aec4f28d2fa9a4dd06170b0f",
+//                      "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:3"
+//                  }
+//              },
+//     @@ -44,7 +44,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "7449eba834bdec241668c1f853ba06fc36e0185a",
+//     +                "Hash": "5e386e6f3fdfd735f6f13016bbea81a65dbb3b97",
+//                      "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:5"
+//                  }
+//              },
+//     @@ -54,7 +54,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "1e1c91dededdda71471dfd8176c4aa9aaca5242a",
+//     +                "Hash": "b32d3c43516a50fe911f0e92c66e420532197d83",
+//                      "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:6"
+//                  }
+//              },
 // d[04f997a9ca158338c03cfc00686d77220a6cf62f:10](-240)

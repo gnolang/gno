@@ -14,6 +14,7 @@ func main(cur realm) {
 // 1
 
 
+
 // The below tests that the realm's block (of 1 variable) changed.  The first
 // element image in the package (block) is for the "main" function, which
 // appears first because function declarations are defined in a file before
@@ -40,9 +41,9 @@ func main(cur realm) {
 //     +        }
 //     +    }
 //      }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](5)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](5)=
 //     @@ -4,7 +4,7 @@
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "IsEscaped": true,
 //              "LastObjectSize": "537",
 //     -        "ModTime": "0",
@@ -54,8 +55,8 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "2d044dfd73eaf05cac73abf912aff927d41afbc6",
-//     +                "Hash": "79087dc333e91bb0f58fd7e22aac55daf7aa0710",
-//                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//     -                "Hash": "77f76390147dcb12d9de104eb549c3a959934c1c",
+//     +                "Hash": "e776a39de481083cf660af87f3827b16cd2d28ac",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                  }
 //              },

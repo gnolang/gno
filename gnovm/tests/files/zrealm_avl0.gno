@@ -233,9 +233,9 @@ func main(cur realm) {
 //                  },
 //                  "Index": "0",
 //                  "TV": null
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
 //     @@ -4,7 +4,7 @@
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "IsEscaped": true,
 //              "LastObjectSize": "677",
 //     -        "ModTime": "8",
@@ -247,8 +247,8 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "e080a9b3156298452a6322702ff229f700967c13",
-//     +                "Hash": "082950916dff11ed2ea7d2c4f8df50cc2667ec19",
-//                      "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//     -                "Hash": "227e6f865d72055807dd4c09877944e044d840ad",
+//     +                "Hash": "f1019bb7178183dc7e16711f2bc80b5c3ccb70cc",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                  }
 //              },

@@ -56,4 +56,23 @@ func main() {
 //              }
 //          }
 //      }
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:2](0)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "729",
+//     -        "ModTime": "7",
+//     +        "ModTime": "8",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -46,7 +46,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "5bda02c49358fcee26ac0216e11955619a59e04c",
+//     +                "Hash": "17553827dbc01fa82f5ffba59adc0241397c373e",
+//                      "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:3"
+//                  }
+//              },
 // d[04f997a9ca158338c03cfc00686d77220a6cf62f:4](-248)
