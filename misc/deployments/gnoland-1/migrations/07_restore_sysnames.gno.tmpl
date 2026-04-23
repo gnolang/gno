@@ -1,0 +1,21 @@
+// 07_restore_sysnames.gno.tmpl — MsgRun body that re-enables the r/sys/names
+// namespace-permission check after step 06 (addpkg r/sys/validators/v3).
+//
+// Pairs with 05_disable_sysnames: after v3 is deployed under r/sys/*, we
+// restore the default `vm:p:sysnames_pkgpath = "gno.land/r/sys/names"` so
+// subsequent addpkgs continue to enforce namespace authz.
+//
+// Caller: current govDAO sole T1 (same as step 05).
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	r := params.NewSysParamStringPropRequest("vm", "p", "sysnames_pkgpath", "gno.land/r/sys/names")
+	id := dao.MustCreateProposal(cross, r)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+	dao.ExecuteProposal(cross, id)
+}
