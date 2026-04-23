@@ -208,6 +208,11 @@ verify-reproducibility: ## build genesis twice in isolated OUT dirs and assert i
 	 OUT=$(OUT) \
 	 $(HERE)/scripts/verify-reproducibility.sh
 
+.PHONY: audit-realm-imports
+audit-realm-imports: ## flag addpkgs whose import paths no longer resolve against the current stdlib+examples tree; writes out/REALM-IMPORTS-AUDIT.md
+	@REPO=$(REPO) OUT=$(OUT) \
+	 $(HERE)/scripts/audit-realm-imports.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
