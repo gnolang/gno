@@ -1,5 +1,3 @@
-@AGENTS.md
-
 # Project Instructions
 
 ## Verification rules

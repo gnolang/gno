@@ -119,7 +119,7 @@ func TestKeeper_internal(t *testing.T) {
 
 	for i, kv := range kvs {
 		vk := storeKey(kv.key)
-		bz := store.Get(vk)
+		bz := store.Get(nil, vk)
 		require.NotNil(t, bz, "store.Get() returns nil, tc #%d", i)
 		err := amino.UnmarshalJSON(bz, kv.ptr)
 		require.NoError(t, err, "cdc.UnmarshalJSON() returns error, tc #%d", i)
