@@ -683,27 +683,56 @@ func readLeafNodeV2(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 		return nil, fmt.Errorf("reading inlineMask: %w", err)
 	}
 	n.inlineMask = binary.BigEndian.Uint32(maskBuf[:])
+	if err := readLeafValueBlock(n, r, &cumulative); err != nil {
+		return nil, err
+	}
+
+	n.RebuildMiniMerkle()
+	return n, nil
+}
+
+// readLeafValueBlock parses the per-slot value section of a v2/v3 leaf
+// (numKeys × {inline-value | external valueKey}, mux'd by inlineMask).
+// When inlineMask == 0 every slot is external; the entire block is a
+// fixed numKeys × NodeKeySize bytes that can be read in one io.ReadFull
+// into a single backing array, then carved into per-slot slice headers.
+// That avoids numKeys separate allocations and numKeys per-slot
+// inlineMask branches in the common all-external case.
+func readLeafValueBlock(n *LeafNode, r *bytes.Reader, cumulative *uint64) error {
+	if n.inlineMask == 0 {
+		nk := int(n.numKeys)
+		block := make([]byte, nk*NodeKeySize)
+		if nk > 0 {
+			if _, err := io.ReadFull(r, block); err != nil {
+				return fmt.Errorf("reading external value-key block: %w", err)
+			}
+		}
+		for i := 0; i < nk; i++ {
+			lo := i * NodeKeySize
+			hi := lo + NodeKeySize
+			n.valueKeys[i] = block[lo:hi:hi]
+		}
+		return nil
+	}
 	for i := 0; i < int(n.numKeys); i++ {
 		if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
 			v, err := readBytes(r)
 			if err != nil {
-				return nil, fmt.Errorf("reading inline value %d: %w", i, err)
+				return fmt.Errorf("reading inline value %d: %w", i, err)
 			}
-			cumulative += uint64(len(v))
-			if cumulative > maxLeafReadBytes {
-				return nil, fmt.Errorf("leaf cumulative bytes %d (key+inline) exceeds maximum %d", cumulative, maxLeafReadBytes)
+			*cumulative += uint64(len(v))
+			if *cumulative > maxLeafReadBytes {
+				return fmt.Errorf("leaf cumulative bytes %d (key+inline) exceeds maximum %d", *cumulative, maxLeafReadBytes)
 			}
 			n.inlineValues[i] = v
 		} else {
 			n.valueKeys[i] = make([]byte, NodeKeySize)
 			if _, err := io.ReadFull(r, n.valueKeys[i]); err != nil {
-				return nil, fmt.Errorf("reading value key %d: %w", i, err)
+				return fmt.Errorf("reading value key %d: %w", i, err)
 			}
 		}
 	}
-
-	n.RebuildMiniMerkle()
-	return n, nil
+	return nil
 }
 
 // readLeafNodeV3 parses the current leaf format (TypeLeafV3 = 0x22)
@@ -788,23 +817,8 @@ func readLeafNodeV3(nk *NodeKey, r *bytes.Reader) (_ *LeafNode, err error) {
 		return nil, fmt.Errorf("reading inlineMask: %w", err)
 	}
 	n.inlineMask = binary.BigEndian.Uint32(maskBuf[:])
-	for i := 0; i < int(n.numKeys); i++ {
-		if n.inlineMask&(uint32(1)<<uint(i)) != 0 {
-			v, err := readBytes(r)
-			if err != nil {
-				return nil, fmt.Errorf("reading inline value %d: %w", i, err)
-			}
-			cumulative += uint64(len(v))
-			if cumulative > maxLeafReadBytes {
-				return nil, fmt.Errorf("leaf cumulative bytes %d (key+inline) exceeds maximum %d", cumulative, maxLeafReadBytes)
-			}
-			n.inlineValues[i] = v
-		} else {
-			n.valueKeys[i] = make([]byte, NodeKeySize)
-			if _, err := io.ReadFull(r, n.valueKeys[i]); err != nil {
-				return nil, fmt.Errorf("reading value key %d: %w", i, err)
-			}
-		}
+	if err := readLeafValueBlock(n, r, &cumulative); err != nil {
+		return nil, err
 	}
 
 	n.RebuildMiniMerkle()
