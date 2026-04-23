@@ -71,8 +71,15 @@ type Hash = [HashSize]byte
 var sentinelHash Hash
 
 // emptyTreeHash is SHA256(""). Used by Hash() for empty trees, matching IAVL behavior.
-// Stored as a fixed array; callers get a fresh slice via emptyHash().
+// Stored as a fixed array so emptyHashSlice can take a stable view of it.
 var emptyTreeHash Hash
+
+// emptyHashSlice is a package-level []byte view of emptyTreeHash,
+// initialised at package init so emptyHash() can return it without
+// allocating per call. Callers MUST treat the returned slice as
+// read-only — mutating it would corrupt the sentinel for every other
+// reader.
+var emptyHashSlice []byte
 
 func init() {
 	// B == 1<<MiniMerkleDepth implies B is a power of two (required for
@@ -83,6 +90,7 @@ func init() {
 	}
 	sentinelHash = sha256.Sum256([]byte{DomainEmpty})
 	emptyTreeHash = sha256.Sum256(nil)
+	emptyHashSlice = emptyTreeHash[:]
 	// Pre-fill the template used by MiniMerkle.Clear() now that
 	// sentinelHash is finalised (Finding #21).
 	for i := range emptyMiniMerkle.tree {
@@ -90,8 +98,10 @@ func init() {
 	}
 }
 
-// emptyHash returns a fresh copy of the empty tree hash (SHA256("")).
+// emptyHash returns the package-level slice view of SHA256(""). The
+// returned slice is shared across callers and MUST NOT be mutated;
+// see emptyHashSlice's doc for the corruption hazard a caller-side
+// write would cause.
 func emptyHash() []byte {
-	h := emptyTreeHash
-	return h[:]
+	return emptyHashSlice
 }
