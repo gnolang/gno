@@ -1,0 +1,34 @@
+// 08_set_valset_realm.gno.tmpl — MsgRun body that sets the VM param
+// `vm:p:valset_realm_path` to the v3 realm path.
+//
+// Why: the mainnet chain state was initialized before v3 existed, so the
+// ValsetRealmPath field on vm.Params isn't populated — queries return "".
+// EndBlocker reads this param to know which realm owns valset state:
+//
+//	valsetRealm := vm.ValsetRealmDefault        // "gno.land/r/sys/validators/v3"
+//	prmk.GetString(ctx, vm.ValsetRealmParamPath, &valsetRealm)
+//
+// GetString overwrites the default with whatever is stored, including "".
+// Without this step, EndBlocker reads valsetRealm="" and checks params at
+// `vm::new_updates_available` instead of `vm:gno.land/r/sys/validators/v3:*`,
+// so updates written by r/sys/validators/v3 never propagate to tm2 consensus.
+//
+// Pairs with step 06 (addpkg r/sys/validators/v3). Must run after step 07
+// restores the namespace check, since the govDAO proposal itself doesn't need
+// namespace authz but any later r/sys/* changes should go through the check.
+//
+// Caller: current govDAO sole T1 ($T1_CALLER — manfred pre-rotation, or
+// NEW_T1_ADDR after step 04's rotation).
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main() {
+	r := params.NewSysParamStringPropRequest("vm", "p", "valset_realm_path", "gno.land/r/sys/validators/v3")
+	id := dao.MustCreateProposal(cross, r)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+	dao.ExecuteProposal(cross, id)
+}

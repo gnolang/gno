@@ -354,4 +354,13 @@ cp "$SCRIPT_DIR/07_restore_sysnames.gno.tmpl" "$RENDERED_07"
 render_tx "$RENDERED_07" "$T1_CALLER" >>"$OUT_JSONL"
 printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_07")" "$T1_CALLER"
 
+# 08 — point vm:p:valset_realm_path at the v3 realm (govDAO proposal,
+# caller=T1_CALLER). Without this, EndBlocker reads valsetRealm="" from
+# pre-v3 mainnet state and never picks up the updates r/sys/validators/v3
+# writes to its params.
+RENDERED_08="$WORK/08_set_valset_realm.gno"
+cp "$SCRIPT_DIR/08_set_valset_realm.gno.tmpl" "$RENDERED_08"
+render_tx "$RENDERED_08" "$T1_CALLER" >>"$OUT_JSONL"
+printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_08")" "$T1_CALLER"
+
 printf '  written:   %s\n' "$OUT_JSONL"
