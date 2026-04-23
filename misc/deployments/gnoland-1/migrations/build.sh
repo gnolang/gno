@@ -307,4 +307,43 @@ if [[ -n "$NEW_T1_ADDR" ]]; then
   printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_04")" "$NEW_T1_ADDR"
 fi
 
+# ---- 5. addpkg r/sys/validators/v3 (MsgAddPackage, caller=manfred) ----
+# v3 introduces the params-keeper-driven valset flow (see PR #5485). Mainnet
+# never had it, so a fresh addpkg is needed post-fork for govDAO proposals to
+# drive the valset via r/sys/validators/v3 (the pre-fork v2 realm stays
+# addressable but its event-collector EndBlocker path is gone).
+V3_PKGDIR="${V3_PKGDIR:-$REPO_ROOT/examples/gno.land/r/sys/validators/v3}"
+[[ -d "$V3_PKGDIR" ]] || {
+  echo "ERROR: v3 pkgdir not found: $V3_PKGDIR" >&2
+  exit 1
+}
+
+RENDERED_05="$WORK/05_addpkg_validators_v3.tx.json"
+
+"$GNOKEY_BIN" maketx addpkg \
+  --gas-wanted 100000000 \
+  --gas-fee 1ugnot \
+  --pkgpath "gno.land/r/sys/validators/v3" \
+  --pkgdir "$V3_PKGDIR" \
+  --chainid "$CHAIN_ID" \
+  --home "$GK_HOME" \
+  ephemeral >"$RENDERED_05"
+
+# Patch the creator field (MsgAddPackage uses `creator`, not `caller`) so the
+# addpkg executes as manfred/T1 under --skip-genesis-sig-verification.
+jq --arg creator "$CALLER" '.msg[0].creator = $creator' "$RENDERED_05" >"$RENDERED_05.patched"
+mv "$RENDERED_05.patched" "$RENDERED_05"
+
+echo "" | "$GNOKEY_BIN" sign \
+  --tx-path "$RENDERED_05" \
+  --chainid "$CHAIN_ID" \
+  --account-number 0 \
+  --account-sequence 0 \
+  --home "$GK_HOME" \
+  --insecure-password-stdin \
+  ephemeral >/dev/null
+
+jq -c '{tx: .}' "$RENDERED_05" >>"$OUT_JSONL"
+printf '  migration: %-38s caller=%s\n' "05_addpkg_validators_v3" "$CALLER"
+
 printf '  written:   %s\n' "$OUT_JSONL"
