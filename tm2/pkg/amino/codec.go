@@ -97,6 +97,35 @@ func (info *TypeInfo) IsStructOrUnpacked(fopt FieldOptions) bool {
 	return false
 }
 
+// IsByteLengthWrapped reports whether, when this TypeInfo is used as an
+// unpacked list element (or as a struct-like nested payload), it must be
+// written as an outer ByteLength wrapper whose length covers an embedded
+// payload that the callee emits.
+//
+// True iff the ReprType is:
+//   - a struct (including time.Time via its ReprType form),
+//   - a time.Duration (encoded as a google.protobuf.Duration message),
+//   - a non-byte list (a nested list — [][]T or [N][]T where inner is not uint8).
+//
+// The predicate was previously duplicated verbatim across
+// genproto2/gen_marshal.go, gen_unmarshal.go, and gen_size.go; any drift
+// between the three copies caused wire/decode mismatches (see PR #5569
+// for the nil_elements variant of that class of bug). Centralizing it
+// here makes the contract one place to reason about.
+func (info *TypeInfo) IsByteLengthWrapped() bool {
+	rt := info.ReprType.Type
+	if rt.Kind() == reflect.Struct {
+		return true
+	}
+	if rt == durationType {
+		return true
+	}
+	if (rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array) && rt.Elem().Kind() != reflect.Uint8 {
+		return true
+	}
+	return false
+}
+
 // If this is a slice or array, get .Elem.ReprType until no longer slice or
 // array.
 func (info *TypeInfo) GetUltimateElem() *TypeInfo {

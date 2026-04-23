@@ -504,9 +504,7 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 			fmt.Fprintf(sb, "%s\toffset = amino.PrependUvarint(buf, offset, uint64(issLen))\n", extraIndent)
 			fmt.Fprintf(sb, "%s}\n", extraIndent)
 			fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", extraIndent, fopts.BinFieldNum)
-		} else if einfo.ReprType.Type.Kind() == reflect.Struct ||
-			einfo.ReprType.Type == reflect.TypeOf(time.Duration(0)) ||
-			(isListType(einfo.ReprType.Type) && einfo.ReprType.Type.Elem().Kind() != reflect.Uint8) {
+		} else if einfo.IsByteLengthWrapped() {
 			fmt.Fprintf( // Struct/Duration/nested-list element: encode backward, then length-prefix.
 				sb, "%sbefore := offset\n", extraIndent)
 			ctx.writeElementEncode(sb, elemAccessor, einfo, fopts, extraIndent)

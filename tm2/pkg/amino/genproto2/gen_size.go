@@ -421,9 +421,7 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 			fmt.Fprintf(sb, "%s}\n", extraIndent)
 			fmt.Fprintf( // outer = field key + ByteSlice(iss)
 				sb, "%ss += %d + amino.UvarintSize(uint64(iss)) + iss\n", extraIndent, fks)
-		} else if einfo.ReprType.Type.Kind() == reflect.Struct ||
-			einfo.ReprType.Type == reflect.TypeOf(time.Duration(0)) ||
-			(isListType(einfo.ReprType.Type) && einfo.ReprType.Type.Elem().Kind() != reflect.Uint8) {
+		} else if einfo.IsByteLengthWrapped() {
 			// Struct/Duration/nested-list element: length-prefixed.
 			ctx.writeElementContentSize(sb, "cs", elemAccessor, einfo, fopts, extraIndent)
 			fmt.Fprintf(sb, "%ss += %d + amino.UvarintSize(uint64(cs)) + cs\n", extraIndent, fks)

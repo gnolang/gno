@@ -585,10 +585,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 			fmt.Fprintf(sb, "%s\t%s", indent, storeElem("nil"))
 			fmt.Fprintf(sb, "%s}\n", indent)
 		} else if ertIsPointer {
-			rt := einfo.ReprType.Type
-			isStructLike := rt.Kind() == reflect.Struct ||
-				rt == reflect.TypeOf(time.Duration(0)) ||
-				(isListType(rt) && rt.Elem().Kind() != reflect.Uint8)
+			isStructLike := einfo.IsByteLengthWrapped()
 			if fopts.NilElements {
 				if writeImplicit || isStructLike {
 					fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)
@@ -640,11 +637,7 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 }
 
 func (ctx *P3Context2) writeByteSliceElementDecode(sb *strings.Builder, accessor string, einfo *amino.TypeInfo, fopts amino.FieldOptions, indent string) {
-	rinfo := einfo.ReprType
-	rt := rinfo.Type
-
-	isNestedList := isListType(rt) && rt.Elem().Kind() != reflect.Uint8
-	if rt.Kind() == reflect.Struct || rt == reflect.TypeOf(time.Duration(0)) || isNestedList {
+	if einfo.IsByteLengthWrapped() {
 		// Struct-like elements (including time.Time, time.Duration, nested lists):
 		// read length-prefixed data, then decode from fbz.
 		fmt.Fprintf(sb, "%sfbz, n, err := amino.DecodeByteSlice(bz)\n", indent)

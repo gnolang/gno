@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -752,7 +753,8 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 
 	// Compare.
 	if !bytes.Equal(bz1, bz2) {
-		t.Errorf("%s: bytes mismatch:\n  amino:     %X\n  genproto2: %X", name, bz1, bz2)
+		t.Errorf("%s: bytes mismatch:\n  amino:     %X\n  genproto2: %X\n%s",
+			name, bz1, bz2, wireDiff(bz1, bz2))
 		return
 	}
 
@@ -795,6 +797,35 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 		t.Fatalf("%s: amino MarshalReflect after roundtrip: %v", name, err)
 	}
 	if !bytes.Equal(bzAminoRT, bz2rt) {
-		t.Errorf("%s: roundtrip bytes mismatch vs amino:\n  amino-rt:    %X\n  genproto2-rt: %X", name, bzAminoRT, bz2rt)
+		t.Errorf("%s: roundtrip bytes mismatch vs amino:\n  amino-rt:    %X\n  genproto2-rt: %X\n%s",
+			name, bzAminoRT, bz2rt, wireDiff(bzAminoRT, bz2rt))
 	}
+}
+
+// wireDiff renders two byte slices side-by-side as DumpWire traces,
+// plus the first differing byte offset. Appended to bytes-mismatch
+// error messages so reviewers can SEE which field diverges without
+// hand-decoding hex. Empty string if both slices are equal.
+func wireDiff(a, b []byte) string {
+	if bytes.Equal(a, b) {
+		return ""
+	}
+	off := -1
+	n := len(a)
+	if len(b) < n {
+		n = len(b)
+	}
+	for i := 0; i < n; i++ {
+		if a[i] != b[i] {
+			off = i
+			break
+		}
+	}
+	if off == -1 {
+		off = n // one side is a prefix of the other
+	}
+	return fmt.Sprintf("first-diff @byte %d (len_a=%d len_b=%d)\n"+
+		"--- amino trace ---\n%s"+
+		"--- genproto2 trace ---\n%s",
+		off, len(a), len(b), amino.DumpWire(a), amino.DumpWire(b))
 }
