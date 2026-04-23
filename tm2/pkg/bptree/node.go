@@ -238,12 +238,16 @@ func (n *InnerNode) rebuildChildLoaded() {
 // on demand — this collapses a burst of writes to the same node into
 // one rebuild per Hash observation.
 func (n *InnerNode) RebuildMiniMerkle() {
-	for i := 0; i < B; i++ {
-		if i < n.NumChildren() {
-			n.miniTree.tree[B+i] = n.childHashes[i]
-		} else {
-			n.miniTree.tree[B+i] = sentinelHash
-		}
+	// Two-pass split: branch-free hot loop over occupied slots, then a
+	// tail-fill of the unused slots. With B=32 and typical fill ratio
+	// well below the maximum, the per-iteration `i < NumChildren()`
+	// check (and its branch-mispredict cost) is gone for both passes.
+	nc := n.NumChildren()
+	for i := 0; i < nc; i++ {
+		n.miniTree.tree[B+i] = n.childHashes[i]
+	}
+	for i := nc; i < B; i++ {
+		n.miniTree.tree[B+i] = sentinelHash
 	}
 	n.miniTree.Build()
 	n.miniTreeDirty = false
@@ -257,13 +261,15 @@ func (n *InnerNode) RebuildMiniMerkle() {
 // incremental variant.
 func (n *LeafNode) RebuildMiniMerkle() {
 	nk := int(n.numKeys)
-	for i := 0; i < B; i++ {
-		if i < nk {
-			n.slotHashes[i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
-			n.miniTree.tree[B+i] = n.slotHashes[i]
-		} else {
-			n.miniTree.tree[B+i] = sentinelHash
-		}
+	// Two-pass split: hot loop hashes only occupied slots; tail-fill
+	// stamps sentinel hashes into the unused suffix. Avoids the
+	// per-iteration branch on `i < nk` for both phases.
+	for i := 0; i < nk; i++ {
+		n.slotHashes[i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
+		n.miniTree.tree[B+i] = n.slotHashes[i]
+	}
+	for i := nk; i < B; i++ {
+		n.miniTree.tree[B+i] = sentinelHash
 	}
 	n.miniTree.Build()
 	n.miniTreeDirty = false
@@ -278,15 +284,16 @@ func (n *LeafNode) RebuildMiniMerkle() {
 func (n *LeafNode) rebuildMiniMerkleIncremental() {
 	nk := int(n.numKeys)
 	dirty := n.slotsDirty
-	for i := 0; i < B; i++ {
-		if i < nk {
-			if dirty&(uint32(1)<<uint(i)) != 0 {
-				n.slotHashes[i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
-			}
-			n.miniTree.tree[B+i] = n.slotHashes[i]
-		} else {
-			n.miniTree.tree[B+i] = sentinelHash
+	// Same two-pass split as RebuildMiniMerkle: occupied-slot pass
+	// (with per-slot dirty-bit check) followed by sentinel tail-fill.
+	for i := 0; i < nk; i++ {
+		if dirty&(uint32(1)<<uint(i)) != 0 {
+			n.slotHashes[i] = HashLeafSlotFromValueHash(n.keys[i], n.valueHashes[i])
 		}
+		n.miniTree.tree[B+i] = n.slotHashes[i]
+	}
+	for i := nk; i < B; i++ {
+		n.miniTree.tree[B+i] = sentinelHash
 	}
 	n.miniTree.Build()
 	n.miniTreeDirty = false
