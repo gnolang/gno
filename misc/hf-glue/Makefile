@@ -11,6 +11,10 @@ ORIGINAL_CHAIN_ID  ?= gnoland1
 CHAIN_ID           ?= gnoland-1
 HALT_HEIGHT        ?=
 VALIDATOR_NAME     ?= hf-glue-local
+# Manual validator identity (used by `make genesis`, not by `make init/up`).
+# Pass bech32 strings instead of providing a priv_validator_key.json.
+VALIDATOR_ADDR     ?=
+VALIDATOR_PUBKEY   ?=
 # Only used by `make fetch-from-dir` (alternative local-source flow).
 NODE_DIR           ?=
 TXS_JSONL          ?=
@@ -25,7 +29,7 @@ NEW_T1_ADDR        ?=
 T1_PORTFOLIO       ?=
 T1_WITHDRAW_REASON ?=
 
-export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON
+export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME VALIDATOR_ADDR VALIDATOR_PUBKEY NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON
 
 # ---- paths -----------------------------------------------------------------
 HERE := $(abspath .)
@@ -57,6 +61,33 @@ migrate: ## run scripts/migrate.sh — declarative hardfork recipe (fetch + patc
 	 PATCH_REALMS='$(PATCH_REALMS)' \
 	 OUT=$(OUT) REPO=$(REPO) \
 	 $(HERE)/scripts/migrate.sh
+
+.PHONY: genesis
+genesis: ## produce out/genesis.json only, from manual VALIDATOR_ADDR+VALIDATOR_PUBKEY (no secrets, no docker)
+	@test -n "$(VALIDATOR_ADDR)"   || { echo "VALIDATOR_ADDR required (bech32 g1...)"; exit 1; }
+	@test -n "$(VALIDATOR_PUBKEY)" || { echo "VALIDATOR_PUBKEY required (bech32 gpub1...)"; exit 1; }
+	@test -n "$(HALT_HEIGHT)"      || { echo "HALT_HEIGHT required"; exit 1; }
+	@mkdir -p $(OUT)
+	@SOURCE=$(SOURCE) \
+	 RPC_URL=$(RPC_URL) \
+	 ORIGINAL_CHAIN_ID=$(ORIGINAL_CHAIN_ID) \
+	 CHAIN_ID=$(CHAIN_ID) \
+	 HALT_HEIGHT=$(HALT_HEIGHT) \
+	 VALIDATOR_ADDR=$(VALIDATOR_ADDR) \
+	 VALIDATOR_PUBKEY=$(VALIDATOR_PUBKEY) \
+	 VALIDATOR_NAME=$(VALIDATOR_NAME) \
+	 PATCH_REALMS='$(PATCH_REALMS)' \
+	 OUT=$(OUT) REPO=$(REPO) \
+	 $(HERE)/scripts/migrate.sh
+	@go run -C $(REPO)/misc/hf-glue/fixvalidator . \
+	 --address $(VALIDATOR_ADDR) --pubkey $(VALIDATOR_PUBKEY) \
+	 --genesis $(OUT)/genesis.json \
+	 --name $(VALIDATOR_NAME) --power 10
+	@echo ""
+	@echo "Genesis ready: $(OUT)/genesis.json"
+	@echo "  SHA256:     $$(shasum -a 256 $(OUT)/genesis.json | cut -d' ' -f1)"
+	@echo "  tx count:   $$(jq '.app_state.txs | length' $(OUT)/genesis.json)"
+	@echo "  chain_id:   $$(jq -r '.chain_id' $(OUT)/genesis.json)"
 
 .PHONY: fetch-from-dir
 fetch-from-dir: ## (alt) build hardfork genesis from a local gnoland data dir ($NODE_DIR, $TXS_JSONL, $HALT_HEIGHT required)

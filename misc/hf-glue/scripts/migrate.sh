@@ -100,13 +100,34 @@ hf_topup_balance "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l" "1000000000ugnot" \
 # produces a signed jsonl under $OUT/migrations.jsonl.
 PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
 PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
+VALIDATOR_ADDR="${VALIDATOR_ADDR:-}"
+VALIDATOR_PUBKEY="${VALIDATOR_PUBKEY:-}"
+
+MIG_VALSET_SOURCE=""
+MIG_VALSET_JSON=""
 if [[ -f "$PV_KEY" ]]; then
+  MIG_VALSET_SOURCE="pv_key=$PV_KEY"
+elif [[ -n "$VALIDATOR_ADDR" && -n "$VALIDATOR_PUBKEY" ]]; then
+  # Build a NEW_VALSET_JSON from raw strings (no priv_validator_key.json
+  # needed). build.sh skips its PV_KEY path when NEW_VALSET_JSON is set.
+  MIG_VALSET_SOURCE="addr+pubkey (manual)"
+  MIG_VALSET_JSON="$OUT/new_valset.json"
+  jq -n --arg addr "$VALIDATOR_ADDR" --arg pub "$VALIDATOR_PUBKEY" --arg name "${VALIDATOR_NAME:-hf-local}" '[{
+    address:      $addr,
+    pub_key:      $pub,
+    voting_power: 10,
+    name:         $name
+  }]' >"$MIG_VALSET_JSON"
+fi
+
+if [[ -n "$MIG_VALSET_SOURCE" ]]; then
   hf_banner "step 5 — post-replay migration (valset swap${NEW_T1_ADDR:+ + T1 rotation})"
-  hf_kv "pv_key" "$PV_KEY"
+  hf_kv "valset source" "$MIG_VALSET_SOURCE"
   [[ -n "${NEW_T1_ADDR:-}" ]] && hf_kv "new T1 addr" "$NEW_T1_ADDR"
   MIG_JSONL="$OUT/migrations.jsonl"
   CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
     PV_KEY="$PV_KEY" \
+    NEW_VALSET_JSON="$MIG_VALSET_JSON" \
     RPC_URL="$RPC_URL" \
     NEW_T1_ADDR="${NEW_T1_ADDR:-}" \
     T1_PORTFOLIO="${T1_PORTFOLIO:-}" \
@@ -118,7 +139,7 @@ if [[ -f "$PV_KEY" ]]; then
   hf_migration_tx "$MIG_JSONL"
 else
   hf_banner "step 5 — post-replay migration (skipped)"
-  hf_kv "reason" "no priv_validator_key.json at $PV_KEY — run 'make init' first"
+  hf_kv "reason" "no $PV_KEY and no VALIDATOR_ADDR/VALIDATOR_PUBKEY set"
 fi
 
 # -------------------------------------------------------------------------
