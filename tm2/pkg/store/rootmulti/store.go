@@ -464,7 +464,7 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitStore) 
 		// Commit
 		commitID := store.Commit()
 		/* Print all items.
-		itr := store.Iterator(nil, nil)
+		itr := store.Iterator(nil, nil, nil)
 		for ; itr.Valid(); itr.Next() {
 			k, v := itr.Key(), itr.Value()
 			fmt.Println("STORE ENTRY",

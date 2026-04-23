@@ -109,9 +109,8 @@ message Block {
 
 message RefValue {
 	string object_id = 1 [json_name = "ObjectID"];
-	bool escaped = 2 [json_name = "Escaped"];
-	string pkg_path = 3 [json_name = "PkgPath"];
-	string hash = 4 [json_name = "Hash"];
+	string pkg_path = 2 [json_name = "PkgPath"];
+	string hash = 3 [json_name = "Hash"];
 }
 
 message ExportRefValue {
