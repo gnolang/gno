@@ -255,6 +255,53 @@ func (ndb *nodeDB) GetNode(nkBytes []byte) (Node, error) {
 	return v.(Node), nil
 }
 
+// getNodeUncontended is a singleflight-bypassing variant of GetNode for
+// known-uncontended call sites: paths where the caller can guarantee no
+// other goroutine is racing to load the same NodeKey. Skipping the
+// singleflight wrapper saves the per-call `*call` struct + closure
+// environment allocations and the internal mutex acquire/release.
+//
+// Safe call sites:
+//   - LoadVersion's root load — the tree is freshly constructed in this
+//     goroutine; nothing else holds a reference yet.
+//
+// Unsafe call sites (use GetNode instead):
+//   - getChild's lazy-load slow path — two readers descending different
+//     parents may both reach the same child concurrently.
+//   - GetImmutable's root load — multiple goroutines may concurrently
+//     request snapshots of the same version on a shared MutableTree.
+//   - The prune mark/sweep — single-goroutine today but the prune lock
+//     covers correctness; cheap singleflight is fine.
+//
+// The error and panic semantics match GetNode exactly.
+func (ndb *nodeDB) getNodeUncontended(nkBytes []byte) (Node, error) {
+	key := string(nkBytes)
+	if ndb.nodeCache != nil {
+		if node, ok := ndb.nodeCache.Get(key); ok {
+			return node, nil
+		}
+	}
+	data, err := ndb.db.Get(nodeDBKey(nkBytes))
+	if err != nil {
+		panic(fmt.Sprintf("bptree: db get node %x: %v", nkBytes, err))
+	}
+	if data == nil {
+		return nil, ErrNodeNotFound
+	}
+	nk := GetNodeKey(nkBytes)
+	node, err := ReadNode(nk, data)
+	if err != nil {
+		panic(fmt.Sprintf("bptree: deserializing node %x: %v", nkBytes, err))
+	}
+	if inner, ok := node.(*InnerNode); ok {
+		inner.ndb = ndb
+	}
+	if ndb.nodeCache != nil {
+		ndb.nodeCache.Add(key, node)
+	}
+	return node, nil
+}
+
 // --- Value operations ---
 
 // SaveValue writes a value to the DB directly (not via batch), keyed by
@@ -334,9 +381,23 @@ func (ndb *nodeDB) maxValueNonceForVersion(version int64) (uint32, error) {
 	if version == math.MaxInt64 {
 		return 0, fmt.Errorf("version %d out of range for nonce scan", version)
 	}
-	start := valueDBKey(encodeNodeKeyBytes(version, 0))
-	end := valueDBKey(encodeNodeKeyBytes(version+1, 0))
-	itr, err := ndb.db.ReverseIterator(start, end)
+	// Stack-allocate the bounds. The previous valueDBKey(encodeNodeKeyBytes(...))
+	// chain heap-allocated four times per call (12-byte NodeKey + 13-byte
+	// prefixed key, doubled for start/end). Direct in-place encoding into
+	// fixed-size arrays keeps the allocations on the stack — both backends
+	// (pebbledb, memdb) hold the bound slices only for the iterator's
+	// lifetime, which is bounded by `defer itr.Close()` below.
+	//
+	// Layout: PrefixVal | version (uint64 BE) | nonce (uint32 BE)
+	// Nonce defaults to zero (the zero array slot), so only the version
+	// byte range needs to be written.
+	const boundLen = 1 + NodeKeySize
+	var startBuf, endBuf [boundLen]byte
+	startBuf[0] = PrefixVal
+	binary.BigEndian.PutUint64(startBuf[1:9], uint64(version))
+	endBuf[0] = PrefixVal
+	binary.BigEndian.PutUint64(endBuf[1:9], uint64(version+1))
+	itr, err := ndb.db.ReverseIterator(startBuf[:], endBuf[:])
 	if err != nil {
 		return 0, err
 	}

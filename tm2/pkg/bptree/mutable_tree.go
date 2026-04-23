@@ -700,7 +700,11 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 		return latestVersion, nil
 	}
 
-	root, err := t.loadNode(nkBytes)
+	// LoadVersion is a single-goroutine boot path on a freshly-constructed
+	// MutableTree — no other reader can be racing on the same NodeKey.
+	// Skip the singleflight wrapper around GetNode to save its per-call
+	// `*call` + closure allocations on the cold-start hot path.
+	root, err := t.ndb.getNodeUncontended(nkBytes)
 	if err != nil {
 		t.nextValueNonce = priorNonce
 		return 0, fmt.Errorf("loading root: %w", err)
