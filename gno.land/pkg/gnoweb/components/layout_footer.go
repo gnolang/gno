@@ -10,6 +10,10 @@ type FooterData struct {
 type FooterLink struct {
 	Label string
 	URL   string
+	// Outbound, when set to one of the Outbound* constants, is rendered as
+	// data-outbound on the link so SimpleAnalytics fires a named
+	// outbound_<label> event instead of an anonymous outbound click.
+	Outbound string
 }
 
 type FooterSection struct {
@@ -23,19 +27,19 @@ func EnrichFooterData(data FooterData) FooterData {
 			Title: "Footer navigation",
 			Links: []FooterLink{
 				{Label: "About", URL: "/about"},
-				{Label: "Docs", URL: "https://docs.gno.land/"},
-				{Label: "Faucet", URL: "https://faucet.gno.land/"},
+				{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
 				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
-				{Label: "Status", URL: "https://status.gnoteam.com/"},
+				{Label: "Status", URL: "https://status.gnoteam.com/", Outbound: OutboundStatus},
 			},
 		},
 		{
 			Title: "Social media",
 			Links: []FooterLink{
-				{Label: "GitHub", URL: "https://github.com/gnolang/gno"},
-				{Label: "Twitter", URL: "https://twitter.com/_gnoland"},
-				{Label: "Discord", URL: "https://discord.gg/S8nKUqwkPn"},
-				{Label: "YouTube", URL: "https://www.youtube.com/@_gnoland"},
+				{Label: "GitHub", URL: "https://github.com/gnolang/gno", Outbound: OutboundGitHub},
+				{Label: "Twitter", URL: "https://twitter.com/_gnoland", Outbound: OutboundTwitter},
+				{Label: "Discord", URL: "https://discord.gg/S8nKUqwkPn", Outbound: OutboundDiscord},
+				{Label: "YouTube", URL: "https://www.youtube.com/@_gnoland", Outbound: OutboundYouTube},
 			},
 		},
 	}
@@ -54,9 +58,9 @@ func EnrichFooterData(data FooterData) FooterData {
 		"WITHOUT WARRANTY."
 
 	data.LegalLinks = []FooterLink{
-		{Label: "Gno GPL License", URL: "https://github.com/gnolang/gno/blob/master/LICENSE.md"},
-		{Label: "Gno.land Network Interaction Terms", URL: "https://github.com/gnolang/gno/blob/master/TERMS.md"},
-		{Label: "Gno.land Contributor License Agreement", URL: "https://github.com/gnolang/gno/blob/master/CLA.md"},
+		{Label: "Gno GPL License", URL: "https://github.com/gnolang/gno/blob/master/LICENSE.md", Outbound: OutboundGitHub},
+		{Label: "Gno.land Network Interaction Terms", URL: "https://github.com/gnolang/gno/blob/master/TERMS.md", Outbound: OutboundGitHub},
+		{Label: "Gno.land Contributor License Agreement", URL: "https://github.com/gnolang/gno/blob/master/CLA.md", Outbound: OutboundGitHub},
 	}
 
 	return data

@@ -35,7 +35,7 @@ output_static := $(patsubst $(src_dir_static)/%, $(out_dir_static)/%, $(input_st
 # esbuild config
 src_dir_js := frontend/js
 out_dir_js := $(PUBLIC_DIR)/js
-input_js := $(shell find $(src_dir_js) -name '*.ts')
+input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts')
 # Separate shared and controller files
 shared_js := $(src_dir_js)/controller.ts
 controller_js := $(filter-out $(shared_js),$(input_js))

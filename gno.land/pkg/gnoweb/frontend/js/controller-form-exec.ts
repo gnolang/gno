@@ -19,7 +19,9 @@ export class FormExecController extends BaseController {
 
 	// Handle form submission
 	private _handleSubmit(event: Event): void {
-		// Prevent the form from submitting - Extensions should handle the submission
+		// Prevent the form from submitting - Extensions should handle the submission.
+		// stopPropagation here is load-bearing for analytics.ts: the submit_action
+		// listener must run on the capture phase to fire before this point.
 		event.preventDefault();
 		event.stopPropagation();
 

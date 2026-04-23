@@ -69,6 +69,10 @@ export class ThemeController extends BaseController {
 		}
 
 		this.applyTheme();
+		// Notify listeners (e.g. analytics) of an explicit user toggle. Not
+		// dispatched from applyTheme() so OS-level prefers-color-scheme changes
+		// don't masquerade as user actions.
+		this.dispatch("theme:changed", { theme: this.preference });
 	}
 
 	private resolveTheme(): "light" | "dark" {

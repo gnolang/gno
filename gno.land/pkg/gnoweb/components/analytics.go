@@ -1,5 +1,19 @@
 package components
 
+// Outbound* labels are emitted as data-outbound on tagged links so the
+// SimpleAnalytics auto-events script fires outbound_<label> events. The set
+// must stay in sync with the enum in frontend/js/analytics.ts and the values
+// documented in SIMPLEANALYTICS.md.
+const (
+	OutboundDocs    = "docs"
+	OutboundFaucet  = "faucet"
+	OutboundStatus  = "status"
+	OutboundGitHub  = "github"
+	OutboundTwitter = "twitter"
+	OutboundDiscord = "discord"
+	OutboundYouTube = "youtube"
+)
+
 // AnalyticsData holds the SimpleAnalytics metadata rendered into the page.
 type AnalyticsData struct {
 	Enabled    bool
@@ -7,11 +21,17 @@ type AnalyticsData struct {
 	ChainId    string
 	AssetsPath string
 	BuildTime  string
+	// Hostname, when non-empty, is rendered as data-hostname on the
+	// SimpleAnalytics script tag to override the hostname SA reports. Required
+	// when the site is served on a host SA cannot otherwise identify (for
+	// example a non-default port during local development).
+	Hostname string
 }
 
 // ClassifyPageType returns the page-type label for a given mode and view.
-// View type takes precedence when both match: a Source view inside a Realm
-// mode is "source", not "realm".
+// View type takes precedence over mode: a Source view inside a Realm mode is
+// classified as "source", not "realm", because the rendered surface (and the
+// analytics segmentation we want) is the source view.
 func ClassifyPageType(mode ViewMode, view ViewType) string {
 	switch view {
 	case SourceViewType:

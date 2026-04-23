@@ -6,14 +6,14 @@
       {{ with index .Sections 0 }}
       <ul aria-label="{{ .Title }}">
         {{ range .Links }}
-        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        <li><a href="{{ .URL }}"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>{{ .Label }}</a></li>
         {{ end }}
       </ul>
       {{ end }}
       {{ with index .Sections 1 }}
       <ul class="nav-social" aria-label="{{ .Title }}">
         {{ range .Links }}
-        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        <li><a href="{{ .URL }}"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>{{ .Label }}</a></li>
         {{ end }}
       </ul>
       {{ end }}
@@ -41,7 +41,7 @@
     <p>{{ .LegalNotice }}</p>
     <nav aria-label="Legal">
       {{ range .LegalLinks }}
-      <a href="{{ .URL }}">{{ .Label }}</a>
+      <a href="{{ .URL }}"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>{{ .Label }}</a>
       {{ end }}
     </nav>
   </div>

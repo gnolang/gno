@@ -42,17 +42,18 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title       string
-	Description string
-	Canonical   string
-	Image       string
-	URL         string
-	ChromaPath  string
-	AssetsPath  string
-	Analytics   bool
-	Remote      string
-	ChainId     string
-	BuildTime   string
+	Title             string
+	Description       string
+	Canonical         string
+	Image             string
+	URL               string
+	ChromaPath        string
+	AssetsPath        string
+	Analytics         bool
+	AnalyticsHostname string
+	Remote            string
+	ChainId           string
+	BuildTime         string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.
@@ -185,6 +186,7 @@ func IndexLayout(data IndexData) Component {
 	data.FooterData.Analytics.ChainId = data.HeadData.ChainId
 	data.FooterData.Analytics.AssetsPath = data.HeadData.AssetsPath
 	data.FooterData.Analytics.BuildTime = data.HeadData.BuildTime
+	data.FooterData.Analytics.Hostname = data.HeadData.AnalyticsHostname
 
 	dataLayout := indexLayoutParams{
 		IndexData: data,

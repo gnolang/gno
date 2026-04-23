@@ -36,6 +36,11 @@ type AppConfig struct {
 	UnsafeHTML bool
 	// Analytics enables SimpleAnalytics.
 	Analytics bool
+	// AnalyticsHostname, when non-empty, is rendered as data-hostname on the
+	// SimpleAnalytics script tag to override the hostname SA reports. Required
+	// when the site is served on a host SA cannot otherwise identify (for
+	// example a non-default port during local development).
+	AnalyticsHostname string
 	// NodeRemote is the remote address of the gno.land node.
 	NodeRemote string
 	// NodeRequestTimeout define how much time a request to the remote node should live before timeout.
@@ -107,14 +112,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	buildTime := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS
 
 	staticMeta := StaticMetadata{
-		Domain:     cfg.Domain,
-		AssetsPath: assetsBase,
-		ChromaPath: chromaStylePath,
-		RemoteHelp: cfg.RemoteHelp,
-		ChainId:    cfg.ChainID,
-		Analytics:  cfg.Analytics,
-		BuildTime:  buildTime,
-		Banner:     cfg.Banner,
+		Domain:            cfg.Domain,
+		AssetsPath:        assetsBase,
+		ChromaPath:        chromaStylePath,
+		RemoteHelp:        cfg.RemoteHelp,
+		ChainId:           cfg.ChainID,
+		Analytics:         cfg.Analytics,
+		AnalyticsHostname: cfg.AnalyticsHostname,
+		BuildTime:         buildTime,
+		Banner:            cfg.Banner,
 	}
 
 	// Configure Markdown renderer
@@ -158,6 +164,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 					ChainId:    staticMeta.ChainId,
 					AssetsPath: staticMeta.AssetsPath,
 					BuildTime:  staticMeta.BuildTime,
+					Hostname:   staticMeta.AnalyticsHostname,
 				},
 			}).Render(w)
 		}))

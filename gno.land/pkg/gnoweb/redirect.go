@@ -33,6 +33,7 @@ func RedirectMiddleware(next http.Handler, meta StaticMetadata) http.Handler {
 					ChainId:    meta.ChainId,
 					AssetsPath: meta.AssetsPath,
 					BuildTime:  meta.BuildTime,
+					Hostname:   meta.AnalyticsHostname,
 				},
 			}).Render(w)
 			return

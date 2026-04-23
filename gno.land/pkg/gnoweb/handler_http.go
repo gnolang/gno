@@ -24,14 +24,15 @@ const ReadmeFileName = "README.md"
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
-	Domain     string
-	AssetsPath string
-	ChromaPath string
-	RemoteHelp string
-	ChainId    string
-	Analytics  bool
-	BuildTime  string
-	Banner     components.BannerData
+	Domain            string
+	AssetsPath        string
+	ChromaPath        string
+	RemoteHelp        string
+	ChainId           string
+	Analytics         bool
+	AnalyticsHostname string
+	BuildTime         string
+	Banner            components.BannerData
 }
 
 type AliasKind int
@@ -128,15 +129,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
+			AssetsPath:        h.Static.AssetsPath,
+			ChromaPath:        h.Static.ChromaPath,
+			ChainId:           h.Static.ChainId,
+			Remote:            h.Static.RemoteHelp,
+			BuildTime:         h.Static.BuildTime,
+			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
-				Enabled: h.Static.Analytics,
+				Enabled:  h.Static.Analytics,
+				Hostname: h.Static.AnalyticsHostname,
 			},
 		},
 		Theme:  theme,
