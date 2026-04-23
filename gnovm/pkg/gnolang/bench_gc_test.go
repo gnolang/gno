@@ -1,19 +1,3 @@
-// GC visit cost benchmarks for calibrating gcVisitGasTable in garbage_collector.go.
-//
-// These benchmarks build realistic object graphs of varying sizes and measure
-// per-visit traversal cost (ns/visit), which increases with heap size due to
-// CPU cache effects (L1/L2 ~29ns → L3 ~91ns → DRAM ~700ns).
-//
-// The output is used by gnovm/cmd/calibrate to calibrate GC gas costs:
-//
-//	go test -run=^$ -bench='BenchmarkGCVisit' -benchtime=2s -count=3 -timeout=60m \
-//	    ./pkg/gnolang/ 2>&1 | tee gnovm/cmd/calibrate/gc_visit_bench.txt
-//
-// Note: unlike the opcode and allocation pipelines, there is currently no
-// automated script to convert this output into gcVisitGasTable entries;
-// the table is constructed manually from the benchmark data.
-//
-// See gnovm/cmd/calibrate/README.md for the full calibration workflow.
 package gnolang
 
 import (
