@@ -175,6 +175,16 @@ verify-txs-jsonl: ## compare out/source/txs.jsonl against source-chain RPC (card
 	 OUT=$(OUT) \
 	 $(HERE)/scripts/verify-txs-jsonl.sh
 
+.PHONY: state-diff
+state-diff: ## diff realm render output source-chain@halt_height vs replay (overrides: SOURCE_RPC= REPLAY_RPC= REALMS= REPLAY_HEIGHT=); writes out/STATE-DIFF.md
+	@test -n "$(HALT_HEIGHT)" || { echo "HALT_HEIGHT required"; exit 1; }
+	@SOURCE_RPC="$${SOURCE_RPC:-$(RPC_URL)}" \
+	 REPLAY_RPC="$${REPLAY_RPC:-http://localhost:26657}" \
+	 HALT_HEIGHT=$(HALT_HEIGHT) \
+	 REALMS="$${REALMS:-}" \
+	 OUT=$(OUT) \
+	 $(HERE)/scripts/state-diff.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
