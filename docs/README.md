@@ -7,9 +7,9 @@ Gno.land is a smart contract platform built on a novel interpretation of Go
 decentralized applications with a minimalist approach and excellent developer
 experience.
 
-## Quick Start
+## Cheatsheet
 
-- [Quick Start](builders/quickstart.md) - Install, create, run, and deploy a Gno realm in minutes.
+- [Cheatsheet](builders/cheatsheet.md) - Essential Gno commands: install, create, test, query, call, deploy.
 
 ## Use Gno.land
 
