@@ -18,7 +18,6 @@
         "type": "category",
         "label": "Build on Gno.land",
         "items": [
-          "builders/installation",
           "builders/what-is-gnolang",
           "builders/anatomy-of-a-gno-package",
           "builders/local-dev-with-gnodev",
