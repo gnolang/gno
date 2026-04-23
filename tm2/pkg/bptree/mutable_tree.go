@@ -228,7 +228,7 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 		leaf.RebuildMiniMerkle()
 		t.root = leaf
 		t.size = 1
-		t.cacheValueForKey(key, value)
+		t.cacheValueForKey(key, value, payload.inline)
 		return false, nil
 	}
 
@@ -249,23 +249,24 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	// Refresh the fast-node cache with a private copy of the fresh
 	// value — the caller retains ownership of the original slice and
 	// may mutate it after Set returns.
-	t.cacheValueForKey(key, value)
+	t.cacheValueForKey(key, value, payload.inline)
 	return updated, nil
 }
 
-// cacheValueForKey populates the latest-view cache for `key`. The
-// value is copied so caller-side mutation cannot corrupt the cache.
-// The inline-storage path reuses its own copy (payload.inline), and
-// external values round-trip through the resolver which likewise
-// yields a fresh slice; populating the cache here avoids a double
-// copy in the inline case and a cache-miss + resolver call in the
-// external case on the very next Get.
-func (t *MutableTree) cacheValueForKey(key, value []byte) {
+// cacheValueForKey populates the latest-view cache for `key`. When
+// `owned` is non-nil it is an already-private slice (the inline-storage
+// path's payload copy made at Set time) and is stored directly. When
+// `owned` is nil the function copies `value` so caller-side mutation
+// cannot corrupt the cache.
+func (t *MutableTree) cacheValueForKey(key, value, owned []byte) {
 	if t.fastNodes == nil {
 		return
 	}
-	cp := make([]byte, len(value))
-	copy(cp, value)
+	cp := owned
+	if cp == nil {
+		cp = make([]byte, len(value))
+		copy(cp, value)
+	}
 	t.fastNodes.Add(string(key), cp)
 }
 
