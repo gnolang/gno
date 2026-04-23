@@ -115,8 +115,11 @@ func NewMutableTreeMem() *MutableTree {
 
 // resolveInlineThreshold turns an Options value into the effective
 // threshold. The zero value (and any negative value) maps to -1
-// (disabled, every value goes external). Callers opt into inline
-// storage by passing a positive threshold via
+// (disabled, every value goes external). Values greater than
+// MaxInlineValueThreshold are clamped to that cap so a struct-literal
+// caller cannot bypass InlineValueThresholdOption's clamp and produce
+// leaves that overflow the reader's per-leaf budget. Callers opt into
+// inline storage by passing a positive threshold via
 // InlineValueThresholdOption — DefaultInlineValueThreshold is the
 // recommended starting value.
 //
@@ -127,6 +130,9 @@ func NewMutableTreeMem() *MutableTree {
 func resolveInlineThreshold(opt int) int {
 	if opt <= 0 {
 		return -1
+	}
+	if opt > MaxInlineValueThreshold {
+		return MaxInlineValueThreshold
 	}
 	return opt
 }
@@ -254,7 +260,17 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	// tree mutation (Finding #28).
 	valueHash := sha256.Sum256(value)
 	payload := slotPayload{valueHash: valueHash}
-	if t.inlineThreshold >= 0 && len(value) <= t.inlineThreshold {
+	// Inline-vs-external decision. The two layers above
+	// (InlineValueThresholdOption + resolveInlineThreshold) already
+	// clamp t.inlineThreshold to MaxInlineValueThreshold, but the cap
+	// is re-checked here so an unusually large value that crept past
+	// the configured threshold (e.g. via a struct-literal write to
+	// Options.InlineValueThreshold by a future caller, or via tests
+	// that bypass the helpers) still demotes to external rather than
+	// being written into a leaf the reader cannot deserialise.
+	if t.inlineThreshold >= 0 &&
+		len(value) <= t.inlineThreshold &&
+		len(value) <= MaxInlineValueThreshold {
 		// Inline: copy bytes so caller can retain/modify their slice.
 		cp := make([]byte, len(value))
 		copy(cp, value)

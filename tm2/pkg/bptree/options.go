@@ -26,6 +26,13 @@ type Options struct {
 	// value) disables inlining entirely — every value goes external.
 	// Callers opt into inline storage by passing a positive threshold,
 	// e.g. InlineValueThresholdOption(DefaultInlineValueThreshold).
+	//
+	// The configured threshold is silently clamped to
+	// MaxInlineValueThreshold at construction so that a misconfigured
+	// option cannot produce a leaf whose serialised form exceeds the
+	// reader's per-leaf budget (maxLeafReadBytes = 256 KiB). The clamp
+	// applies to direct struct-literal writers as well — see
+	// resolveInlineThreshold.
 	InlineValueThreshold int
 }
 
@@ -62,7 +69,13 @@ const DefaultFastNodeCacheSize = 10000
 // (> threshold). Pass a positive byte count to enable inlining at that
 // cutoff (DefaultInlineValueThreshold is the recommended starting
 // value). Zero or a negative value disables inlining; every value goes
-// external.
+// external. Values above MaxInlineValueThreshold are silently clamped
+// to MaxInlineValueThreshold to keep a full inline-value leaf within
+// the reader's per-leaf budget; see MaxInlineValueThreshold for the
+// rationale.
 func InlineValueThresholdOption(n int) Option {
+	if n > MaxInlineValueThreshold {
+		n = MaxInlineValueThreshold
+	}
 	return func(o *Options) { o.InlineValueThreshold = n }
 }

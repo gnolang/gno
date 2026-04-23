@@ -62,6 +62,17 @@ const (
 // external-storage path so leaf serialisation stays bounded.
 const DefaultInlineValueThreshold = 64
 
+// MaxInlineValueThreshold caps the per-value byte-length that may be
+// inlined regardless of the configured InlineValueThreshold. The cap
+// exists so that a leaf full of inline values can never exceed the
+// reader's per-leaf cumulative budget (maxLeafReadBytes = 256 KiB):
+// even with B = 32 inline slots all at the maximum, the resulting
+// leaf payload (32 * 4 KiB ≈ 128 KiB plus keys + headers) stays
+// safely below the read cap. Without this bound a caller could write
+// a leaf whose serialised form exceeds the read budget and is
+// permanently un-mountable on the next LoadVersion.
+const MaxInlineValueThreshold = 4 << 10 // 4 KiB
+
 // Hash is a fixed-size SHA256 hash.
 type Hash = [HashSize]byte
 
