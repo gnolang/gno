@@ -20,17 +20,17 @@ package impl
 // With this fix:    walk stops at nil, test passes.
 
 import (
-	"gno.land/r/tests/vm/crossrealm_d"
+	"gno.land/r/tests/vm/crossrealm_f"
 )
 
 func init() {
-	crossrealm_d.Add(cross, &crossrealm_d.Entry{Key: "a", Value: 1})
-	crossrealm_d.Add(cross, &crossrealm_d.Entry{Key: "b", Value: 2})
+	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
+	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "b", Value: 2})
 }
 
 func main(cur realm) {
-	crossrealm_d.Add(cross, &crossrealm_d.Entry{Key: "c", Value: 3})
-	println(crossrealm_d.Len())
+	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "c", Value: 3})
+	println(crossrealm_f.Len())
 }
 
 // Output:

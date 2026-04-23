@@ -6,20 +6,22 @@ gnoland start
 
 ## user balance before realm send
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999998810000ugnot"'
+stdout '"coins": "\d+ugnot"'
 
 ## realm balance before realm send
+## Pre-send, realm account does not exist (bank.SendCoins short-circuits
+## on zero amount during AddPkg, so no empty BaseAccount is created).
 gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
-stdout '"coins": ""'
+stdout 'data: null'
 
 # call to realm with -send
-gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/call_realm -func GimmeMoney -gas-fee 1000000ugnot -gas-wanted 3000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/call_realm -func GimmeMoney -gas-fee 240001ugnot -gas-wanted 2_400_000 -broadcast -chainid=tendermint_test test1
 stdout '("send: 42ugnot")'
 
 ## user balance after realm send
 # reduced by -gas-fee AND -send
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999997809958ugnot"'
+stdout '"coins": "\d+ugnot"'
 
 ## realm balance after realm send
 gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7

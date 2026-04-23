@@ -159,7 +159,7 @@ func isIntegerKind(k Kind) bool {
 
 func mayBeNil(t Type) bool {
 	switch baseOf(t).(type) {
-	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
 		return true
 	default:
 		return false
@@ -602,7 +602,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *FuncType, *StructType, *PackageType, *ChanType, *TypeType:
+	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
 		}
@@ -1002,7 +1002,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				// check negative
 				if ric {
 					rv := evalConst(store, last, x.Rhs[0])
-					rv.AssertNonNegative("invalid operation: negative shift count")
+					if rv.TypedValue.Sign() < 0 {
+						panic(fmt.Sprintf("invalid operation: negative shift count: %v", &rv.TypedValue))
+					}
 				}
 			default:
 				// do nothing

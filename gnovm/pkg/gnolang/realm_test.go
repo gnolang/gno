@@ -36,7 +36,7 @@ func printOwnershipTree(t *testing.T, store Store, baseStore storetypes.Store, l
 // bypassing the in-memory cache. Returns the hash stored alongside the bytes.
 func loadObjectHashFromDB(baseStore storetypes.Store, oid ObjectID) ValueHash {
 	key := backendObjectKey(oid)
-	hashbz := baseStore.Get([]byte(key))
+	hashbz := baseStore.Get(nil, []byte(key))
 	if hashbz == nil {
 		return ValueHash{}
 	}
@@ -49,7 +49,7 @@ func loadObjectHashFromDB(baseStore storetypes.Store, oid ObjectID) ValueHash {
 // RefValues intact (children are NOT hydrated — they remain as RefValue).
 func loadObjectFromDB(baseStore storetypes.Store, oid ObjectID) Object {
 	key := backendObjectKey(oid)
-	hashbz := baseStore.Get([]byte(key))
+	hashbz := baseStore.Get(nil, []byte(key))
 	if hashbz == nil {
 		return nil
 	}
@@ -63,7 +63,7 @@ func loadObjectFromDB(baseStore storetypes.Store, oid ObjectID) Object {
 // in the backend (without the hash prefix).
 func loadObjectBytesFromDB(baseStore storetypes.Store, oid ObjectID) []byte {
 	key := backendObjectKey(oid)
-	hashbz := baseStore.Get([]byte(key))
+	hashbz := baseStore.Get(nil, []byte(key))
 	if hashbz == nil {
 		return nil
 	}
@@ -148,7 +148,7 @@ func TestMarkDirtyAncestors_HashConsistency(t *testing.T) {
 	mapOID := ObjectID{PkgID: pkgOID.PkgID, NewTime: 4}
 
 	// --- Transaction 1: Initialize realm with a map ---
-	txSt1 := st.BeginTransaction(nil, nil, nil)
+	txSt1 := st.BeginTransaction(nil, nil, nil, nil)
 
 	m1 := NewMachineWithOptions(MachineOptions{
 		PkgPath: pkgPath,

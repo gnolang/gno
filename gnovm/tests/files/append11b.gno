@@ -21,7 +21,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/main"]
-// u[f9b6b63cc3f789fda754d95769bbf99bf64c5cb4:4](0)=
+// u[09b6b63cc3f789fda754d95769bbf99bf64c5cb4:4](0)=
 //     @@ -23,6 +23,7 @@
 //                  }
 //              },

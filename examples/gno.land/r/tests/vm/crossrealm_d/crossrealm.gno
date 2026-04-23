@@ -1,38 +1,38 @@
-// Package crossrealm_d provides a collection realm for testing cross-realm
-// ownership scenarios. It uses a nested structure so that intermediate objects
-// in the ownership chain have RefCount == 1.
 package crossrealm_d
 
-type Entry struct {
-	Key   string
-	Value int
+// Simple stateful realm for cross-realm consistency tests.
+// Separated from crossrealm_b to avoid perturbing its object IDs.
+//
+// Contains both crossing and non-crossing setters so tests can
+// demonstrate that non-crossing calls from another realm cannot
+// silently mutate state via assign+recover.
+
+var counter int
+
+func init() {
+	counter = 100
 }
 
-var entries []*Entry
-
-func Add(cur realm, e *Entry) {
-	entries = append(entries, e)
+// SetCounter: non-crossing. Calling this cross-realm triggers
+// the readonly check because it directly assigns a package var.
+func SetCounter(n int) {
+	counter = n
 }
 
-func Remove(cur realm, key string) *Entry {
-	for i, e := range entries {
-		if e.Key == key {
-			entries = append(entries[:i], entries[i+1:]...)
-			return e
-		}
-	}
-	return nil
+// SetCounterCrossing: crossing version. This works correctly
+// cross-realm because the caller enters this realm's context.
+func SetCounterCrossing(cur realm, n int) {
+	counter = n
 }
 
-func Get(key string) *Entry {
-	for _, e := range entries {
-		if e.Key == key {
-			return e
-		}
-	}
-	return nil
+func GetCounter(cur realm) int {
+	return counter
 }
 
-func Len() int {
-	return len(entries)
+// DoubleCounter reads counter and doubles it. Used to show that
+// if counter were silently corrupted in memory, subsequent crossing
+// calls would act on the wrong value.
+func DoubleCounter(cur realm) int {
+	counter = counter * 2
+	return counter
 }
