@@ -1,10 +1,9 @@
 package validators
 
 import (
-	"strings"
-
 	"chain/params"
 	"chain/runtime"
+	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
@@ -29,17 +28,21 @@ const (
 const errNoChangesProposed = "no set changes proposed"
 
 // NewValsetChangeExecutor creates a new GovDAO executor for proposing valset changes.
+// changesFn is evaluated eagerly; the resulting slice is captured by the returned
+// Executor. Evaluating lazily would close over the caller's ephemeral realm and
+// fail to persist via dao.MustCreateProposal ("cannot persist function from the
+// private realm").
 func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
 
-	callback := func(cur realm) error {
-		changes := changesFn()
-		if len(changes) == 0 {
-			panic(errNoChangesProposed)
-		}
+	changes := changesFn()
+	if len(changes) == 0 {
+		panic(errNoChangesProposed)
+	}
 
+	callback := func(cur realm) error {
 		// Apply each change to the on-chain valset.
 		for _, change := range changes {
 			if change.VotingPower == 0 {
