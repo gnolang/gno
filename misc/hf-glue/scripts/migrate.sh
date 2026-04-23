@@ -102,11 +102,20 @@ PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
 PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
 VALIDATOR_ADDR="${VALIDATOR_ADDR:-}"
 VALIDATOR_PUBKEY="${VALIDATOR_PUBKEY:-}"
+VALIDATOR_LIST="${VALIDATOR_LIST:-}"
 
 MIG_VALSET_SOURCE=""
 MIG_VALSET_JSON=""
 if [[ -f "$PV_KEY" ]]; then
   MIG_VALSET_SOURCE="pv_key=$PV_KEY"
+elif [[ -n "$VALIDATOR_LIST" ]]; then
+  # Build a multi-validator NEW_VALSET_JSON from a "<name> <power> <pubkey>"
+  # list file (one entry per line). Addresses are derived by fixvalidator,
+  # but build.sh needs explicit addresses in the JSON — so we shell out to
+  # gnokey / fixvalidator's parsing logic via an inline jq + awk pipeline.
+  MIG_VALSET_SOURCE="valset-list=$VALIDATOR_LIST"
+  MIG_VALSET_JSON="$OUT/new_valset.json"
+  go run -C "$REPO/misc/hf-glue/fixvalidator" . --valset-list "$VALIDATOR_LIST" --emit-json >"$MIG_VALSET_JSON"
 elif [[ -n "$VALIDATOR_ADDR" && -n "$VALIDATOR_PUBKEY" ]]; then
   # Build a NEW_VALSET_JSON from raw strings (no priv_validator_key.json
   # needed). build.sh skips its PV_KEY path when NEW_VALSET_JSON is set.
@@ -139,7 +148,7 @@ if [[ -n "$MIG_VALSET_SOURCE" ]]; then
   hf_migration_tx "$MIG_JSONL"
 else
   hf_banner "step 5 — post-replay migration (skipped)"
-  hf_kv "reason" "no $PV_KEY and no VALIDATOR_ADDR/VALIDATOR_PUBKEY set"
+  hf_kv "reason" "no $PV_KEY, VALIDATOR_LIST, or VALIDATOR_ADDR/VALIDATOR_PUBKEY set"
 fi
 
 # -------------------------------------------------------------------------

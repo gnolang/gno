@@ -15,6 +15,10 @@ VALIDATOR_NAME     ?= hf-glue-local
 # Pass bech32 strings instead of providing a priv_validator_key.json.
 VALIDATOR_ADDR     ?=
 VALIDATOR_PUBKEY   ?=
+# Alternative to VALIDATOR_ADDR/VALIDATOR_PUBKEY: path to a multi-validator
+# list file, one entry per line as '<name> <power> <pubkey>' (matches
+# gno-cluster's INITIAL_VALSET output). Mutually exclusive with VALIDATOR_ADDR.
+VALIDATOR_LIST     ?=
 # Only used by `make fetch-from-dir` (alternative local-source flow).
 NODE_DIR           ?=
 TXS_JSONL          ?=
@@ -29,7 +33,7 @@ NEW_T1_ADDR        ?=
 T1_PORTFOLIO       ?=
 T1_WITHDRAW_REASON ?=
 
-export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME VALIDATOR_ADDR VALIDATOR_PUBKEY NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON
+export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME VALIDATOR_ADDR VALIDATOR_PUBKEY VALIDATOR_LIST NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON
 
 # ---- paths -----------------------------------------------------------------
 HERE := $(abspath .)
@@ -63,10 +67,16 @@ migrate: ## run scripts/migrate.sh — declarative hardfork recipe (fetch + patc
 	 $(HERE)/scripts/migrate.sh
 
 .PHONY: genesis
-genesis: ## produce out/genesis.json only, from manual VALIDATOR_ADDR+VALIDATOR_PUBKEY (no secrets, no docker)
-	@test -n "$(VALIDATOR_ADDR)"   || { echo "VALIDATOR_ADDR required (bech32 g1...)"; exit 1; }
-	@test -n "$(VALIDATOR_PUBKEY)" || { echo "VALIDATOR_PUBKEY required (bech32 gpub1...)"; exit 1; }
-	@test -n "$(HALT_HEIGHT)"      || { echo "HALT_HEIGHT required"; exit 1; }
+genesis: ## produce out/genesis.json only — single val (VALIDATOR_ADDR+VALIDATOR_PUBKEY) OR multi val (VALIDATOR_LIST)
+	@test -n "$(HALT_HEIGHT)" || { echo "HALT_HEIGHT required"; exit 1; }
+	@if [ -n "$(VALIDATOR_LIST)" ] && [ -n "$(VALIDATOR_ADDR)$(VALIDATOR_PUBKEY)" ]; then \
+	   echo "VALIDATOR_LIST is mutually exclusive with VALIDATOR_ADDR/VALIDATOR_PUBKEY"; exit 1; fi
+	@if [ -z "$(VALIDATOR_LIST)" ]; then \
+	   test -n "$(VALIDATOR_ADDR)"   || { echo "VALIDATOR_ADDR required (or set VALIDATOR_LIST)"; exit 1; }; \
+	   test -n "$(VALIDATOR_PUBKEY)" || { echo "VALIDATOR_PUBKEY required (or set VALIDATOR_LIST)"; exit 1; }; \
+	 else \
+	   test -f "$(VALIDATOR_LIST)" || { echo "VALIDATOR_LIST path not found: $(VALIDATOR_LIST)"; exit 1; }; \
+	 fi
 	@mkdir -p $(OUT)
 	@SOURCE=$(SOURCE) \
 	 RPC_URL=$(RPC_URL) \
@@ -75,19 +85,27 @@ genesis: ## produce out/genesis.json only, from manual VALIDATOR_ADDR+VALIDATOR_
 	 HALT_HEIGHT=$(HALT_HEIGHT) \
 	 VALIDATOR_ADDR=$(VALIDATOR_ADDR) \
 	 VALIDATOR_PUBKEY=$(VALIDATOR_PUBKEY) \
+	 VALIDATOR_LIST=$(VALIDATOR_LIST) \
 	 VALIDATOR_NAME=$(VALIDATOR_NAME) \
 	 PATCH_REALMS='$(PATCH_REALMS)' \
 	 OUT=$(OUT) REPO=$(REPO) \
 	 $(HERE)/scripts/migrate.sh
-	@go run -C $(REPO)/misc/hf-glue/fixvalidator . \
-	 --address $(VALIDATOR_ADDR) --pubkey $(VALIDATOR_PUBKEY) \
-	 --genesis $(OUT)/genesis.json \
-	 --name $(VALIDATOR_NAME) --power 10
+	@if [ -n "$(VALIDATOR_LIST)" ]; then \
+	   go run -C $(REPO)/misc/hf-glue/fixvalidator . \
+	     --valset-list $(VALIDATOR_LIST) \
+	     --genesis $(OUT)/genesis.json ; \
+	 else \
+	   go run -C $(REPO)/misc/hf-glue/fixvalidator . \
+	     --address $(VALIDATOR_ADDR) --pubkey $(VALIDATOR_PUBKEY) \
+	     --genesis $(OUT)/genesis.json \
+	     --name $(VALIDATOR_NAME) --power 10 ; \
+	 fi
 	@echo ""
 	@echo "Genesis ready: $(OUT)/genesis.json"
 	@echo "  SHA256:     $$(shasum -a 256 $(OUT)/genesis.json | cut -d' ' -f1)"
 	@echo "  tx count:   $$(jq '.app_state.txs | length' $(OUT)/genesis.json)"
 	@echo "  chain_id:   $$(jq -r '.chain_id' $(OUT)/genesis.json)"
+	@echo "  valset:     $$(jq '.validators | length' $(OUT)/genesis.json) validator(s)"
 
 .PHONY: fetch-from-dir
 fetch-from-dir: ## (alt) build hardfork genesis from a local gnoland data dir ($NODE_DIR, $TXS_JSONL, $HALT_HEIGHT required)
