@@ -49,7 +49,6 @@ type HeadData struct {
 	URL               string
 	ChromaPath        string
 	AssetsPath        string
-	Analytics         bool
 	AnalyticsHostname string
 	Remote            string
 	ChainId           string

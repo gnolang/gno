@@ -26,15 +26,8 @@ func RedirectMiddleware(next http.Handler, meta StaticMetadata) http.Handler {
 		if newPath, ok := Redirects[r.URL.Path]; ok {
 			http.Redirect(w, r, newPath, http.StatusFound)
 			components.RedirectView(components.RedirectData{
-				To: newPath,
-				Analytics: components.AnalyticsData{
-					Enabled:    meta.Analytics,
-					PageType:   "redirect",
-					ChainId:    meta.ChainId,
-					AssetsPath: meta.AssetsPath,
-					BuildTime:  meta.BuildTime,
-					Hostname:   meta.AnalyticsHostname,
-				},
+				To:        newPath,
+				Analytics: meta.RedirectAnalytics(),
 			}).Render(w)
 			return
 		}

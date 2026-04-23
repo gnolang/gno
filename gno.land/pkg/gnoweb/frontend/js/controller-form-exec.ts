@@ -4,15 +4,12 @@ export class FormExecController extends BaseController {
 	protected connect(): void {
 		this.initializeDOM({});
 
-		// Find the form element within this controller's scope
-		// The form should be either the element itself or a descendant
 		const form =
 			this.element instanceof HTMLFormElement
 				? this.element
 				: this.element.querySelector("form");
 
 		if (form) {
-			// Listen for submit events
 			form.addEventListener("submit", this._handleSubmit.bind(this));
 		}
 	}

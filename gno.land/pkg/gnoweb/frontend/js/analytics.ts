@@ -182,8 +182,8 @@ const paramInputs = document.querySelectorAll<HTMLInputElement>(
 );
 if (paramInputs.length > 0) {
 	const onInput = (ev: Event): void => {
-		const input = ev.target as HTMLInputElement;
-		if (!input.value.trim()) return;
+		if (!(ev.target instanceof HTMLInputElement)) return;
+		if (!ev.target.value.trim()) return;
 		paramInputs.forEach((i) => i.removeEventListener("input", onInput));
 		fire("params_filled");
 	};

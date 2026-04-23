@@ -157,15 +157,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
 			components.RedirectView(components.RedirectData{
-				To: cfg.FaucetURL,
-				Analytics: components.AnalyticsData{
-					Enabled:    staticMeta.Analytics,
-					PageType:   "redirect",
-					ChainId:    staticMeta.ChainId,
-					AssetsPath: staticMeta.AssetsPath,
-					BuildTime:  staticMeta.BuildTime,
-					Hostname:   staticMeta.AnalyticsHostname,
-				},
+				To:        cfg.FaucetURL,
+				Analytics: staticMeta.RedirectAnalytics(),
 			}).Render(w)
 		}))
 	}

@@ -6,8 +6,8 @@
 // which lets the server inject them without an inline <script>.
 
 (() => {
-	const el = document.currentScript as HTMLScriptElement | null;
-	if (!el) return;
+	const el = document.currentScript;
+	if (!(el instanceof HTMLScriptElement)) return;
 	window.sa_metadata = {
 		page_type: el.dataset.pageType ?? "",
 		chain_id: el.dataset.chainId ?? "",

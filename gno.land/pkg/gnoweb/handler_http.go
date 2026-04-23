@@ -36,6 +36,20 @@ type StaticMetadata struct {
 	Banner            components.BannerData
 }
 
+// RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
+// view is rendered outside IndexLayout, so the analytics fields must be
+// populated explicitly rather than derived from HeadData.
+func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
+	return components.AnalyticsData{
+		Enabled:    s.Analytics,
+		PageType:   "redirect",
+		ChainId:    s.ChainId,
+		AssetsPath: s.AssetsPath,
+		BuildTime:  s.BuildTime,
+		Hostname:   s.AnalyticsHostname,
+	}
+}
+
 type AliasKind int
 
 const (
@@ -139,8 +153,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
-				Enabled:  h.Static.Analytics,
-				Hostname: h.Static.AnalyticsHostname,
+				Enabled: h.Static.Analytics,
 			},
 		},
 		Theme:  theme,
