@@ -160,6 +160,13 @@ smoketest: ## run 'gnogenesis fork test' in-memory against out/genesis.json
 	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch' first"; exit 1; }
 	cd $(REPO)/contribs/gnogenesis && go run . fork test --genesis $(OUT)/genesis.json --verbose
 
+.PHONY: assert-migrations
+assert-migrations: ## assert live node's post-replay state matches migration intent (overrides: REMOTE= EXPECTED_T1= EXPECTED_VALSET_ADDRS=)
+	@REMOTE="$${REMOTE:-http://localhost:26657}" \
+	 EXPECTED_T1="$${EXPECTED_T1:-$(NEW_T1_ADDR)}" \
+	 EXPECTED_VALSET_ADDRS="$${EXPECTED_VALSET_ADDRS:-$(VALIDATOR_ADDR)}" \
+	 $(HERE)/scripts/assert-migrations.sh
+
 .PHONY: replay-log
 replay-log: ## run in-process genesis replay, tee full log to out/replay.log
 	@$(HERE)/scripts/replay-log.sh
