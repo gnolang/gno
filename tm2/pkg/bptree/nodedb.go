@@ -131,18 +131,30 @@ func rootDBKey(version int64) []byte {
 // per call. Buffers over saveBufCapCap (see below) are dropped on Put
 // rather than returned, so a single oversize node does not inflate
 // every pooled buffer.
+//
+// The initial capacity is sized for a worst-case full leaf with the
+// default InlineValueThreshold (64 B) so that the first save through
+// a pool slot does not trigger the bytes.Buffer geometric growth
+// (512→1024→2048→4096) before the payload fits.
 var saveBufPool = sync.Pool{
 	New: func() any {
-		b := bytes.NewBuffer(make([]byte, 0, 512))
+		b := bytes.NewBuffer(make([]byte, 0, saveBufInitCap))
 		return b
 	},
 }
 
+// saveBufInitCap is the initial capacity of a freshly-allocated pool
+// buffer. A full leaf with B=32 inline-64-byte values, 32 hashes, and
+// keys totals ~3-4 KiB; 4 KiB initialises the buffer past its first
+// few growth doublings.
+const saveBufInitCap = 4 << 10
+
 // saveBufCapCap caps the retained pool buffer capacity so a single
-// abnormally large node doesn't inflate every pooled buffer. 8 KiB
-// fits any realistic inner/leaf node (full inner: ~2.4 KiB;
-// full leaf: ~2 KiB of fixed-width + variable key bytes).
-const saveBufCapCap = 8 << 10
+// abnormally large node doesn't inflate every pooled buffer. 16 KiB
+// retains any leaf produced with a moderate inline threshold (the
+// previous 8 KiB ceiling dropped buffers grown to fit such leaves and
+// re-paid the geometric-growth cost on the next save).
+const saveBufCapCap = 16 << 10
 
 // SaveNode writes a node to the batch and adds it to the cache.
 func (ndb *nodeDB) SaveNode(node Node) error {
