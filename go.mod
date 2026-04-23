@@ -63,6 +63,13 @@ require (
 )
 
 require (
+	github.com/bits-and-blooms/bitset v1.14.2 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
+)
+
+require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -72,6 +79,7 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
+	github.com/consensys/gnark-crypto v0.14.0
 	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
