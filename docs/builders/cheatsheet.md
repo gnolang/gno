@@ -169,6 +169,7 @@ gnokey maketx call \
   -func "Increment" \
   -gas-fee 1000000ugnot \
   -gas-wanted 2000000 \
+  -broadcast=false \
   mykey > counter.tx
 
 # 3. offline machine: sign the tx
