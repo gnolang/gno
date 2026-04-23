@@ -23,6 +23,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -1653,6 +1654,137 @@ func Hello(cur realm) string { return "hello" }`},
 	userMsg := NewMsgAddPackage(user, userPkgPath, userFiles)
 	err := env.vmk.AddPackage(ctx, userMsg)
 	assert.NoError(t, err, "should allow deployment when CLA realm is not deployed (bootstrap)")
+}
+
+// TestSessionMsgCallSendCountsAgainstSpendLimit verifies that when a
+// session-signed MsgCall carries a non-zero msg.Send, the VMKeeper's
+// vm.bank.SendCoins transfer (caller → pkgAddr) routes through the
+// bank.Keeper.SendCoins session hook and debits SpendLimit. This is
+// the end-to-end pipeline: VMKeeper.Call -> vm.bank.SendCoins ->
+// session hook.
+//
+// Note on the "in-realm draining" threat model: gno banker types
+// restrict realms from draining master's arbitrary coins. Realms can
+// only redirect the msg.Send amount (BankerTypeOriginSend) or spend
+// their own pkg balance (BankerTypeRealmSend). So the material
+// protection is on msg.Send itself, which this test exercises.
+func TestSessionMsgCallSendCountsAgainstSpendLimit(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Fund master.
+	master := crypto.AddressFromPreimage([]byte("master-mcsend"))
+	masterAcc := env.acck.NewAccountWithAddress(ctx, master)
+	env.acck.SetAccount(ctx, masterAcc)
+	env.bankk.SetCoins(ctx, master, initialBalance)
+
+	// Deploy a simple realm that accepts coins (no-op on them).
+	const pkgPath = "gno.land/r/absorb"
+	files := []*std.MemFile{
+		{Name: "absorb.gno", Body: `
+package absorb
+
+func Absorb(cur realm) {}`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(master, pkgPath, files)))
+
+	// Create a session with 500k ugnot SpendLimit.
+	_, sessionPub, sessionPubAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(ctx, master, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(0)
+	da.SetSpendLimit(std.Coins{std.NewCoin("ugnot", 500_000)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(ctx, master, sa)
+
+	sessions := map[crypto.Address]std.DelegatedAccount{master: da}
+	sessionCtx := ctx.WithValue(std.SessionAccountsContextKey{}, sessions)
+
+	pkgAddr := gnolang.DerivePkgCryptoAddr(pkgPath)
+	masterBefore := env.bankk.GetCoins(sessionCtx, master).AmountOf("ugnot")
+	pkgBefore := env.bankk.GetCoins(sessionCtx, pkgAddr).AmountOf("ugnot")
+
+	// Call 1: msg.Send = 200k → VMKeeper moves coins via vm.bank.SendCoins
+	// → session hook fires → SpendUsed += 200k.
+	msg1 := NewMsgCall(master, std.Coins{std.NewCoin("ugnot", 200_000)}, pkgPath, "Absorb", nil)
+	_, err := env.vmk.Call(sessionCtx, msg1)
+	require.NoError(t, err, "MsgCall with msg.Send within SpendLimit should succeed")
+
+	// SpendUsed reflects the send.
+	reloadedSA := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr)
+	require.NotNil(t, reloadedSA)
+	assert.Equal(t, int64(200_000), reloadedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("ugnot"),
+		"msg.Send must debit session SpendUsed via bank-keeper hook")
+
+	// Coins moved master → pkg.
+	masterAfter := env.bankk.GetCoins(sessionCtx, master).AmountOf("ugnot")
+	pkgAfter := env.bankk.GetCoins(sessionCtx, pkgAddr).AmountOf("ugnot")
+	assert.Equal(t, int64(200_000), masterBefore-masterAfter)
+	assert.Equal(t, int64(200_000), pkgAfter-pkgBefore)
+
+	// Call 2: msg.Send = 400k — remaining budget is 300k, must reject.
+	msg2 := NewMsgCall(master, std.Coins{std.NewCoin("ugnot", 400_000)}, pkgPath, "Absorb", nil)
+	_, err = env.vmk.Call(sessionCtx, msg2)
+	require.Error(t, err, "msg.Send exceeding remaining SpendLimit must be rejected")
+
+	// SpendUsed unchanged by the rejected call.
+	reloadedSA = env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr)
+	assert.Equal(t, int64(200_000), reloadedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("ugnot"))
+}
+
+// TestSessionStorageDepositExceedsLimit verifies that storage deposits
+// triggered by session-signed MsgCall count against SpendLimit. A
+// tight-budget session cannot grow realm state more than its remaining
+// budget allows.
+func TestSessionStorageDepositExceedsLimit(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	master := crypto.AddressFromPreimage([]byte("master-storage"))
+	masterAcc := env.acck.NewAccountWithAddress(ctx, master)
+	env.acck.SetAccount(ctx, masterAcc)
+	env.bankk.SetCoins(ctx, master, initialBalance)
+
+	// Deploy a realm that grows state when Grow is called.
+	const pkgPath = "gno.land/r/growstate"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "growstate.gno", Body: `
+package growstate
+
+var Msg string
+
+func Grow(cur realm, s string) {
+	Msg = s
+}`},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(master, pkgPath, files)))
+
+	// Session with a SpendLimit so tight that any meaningful storage
+	// growth will exceed it: 1 ugnot.
+	_, sessionPub, sessionPubAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(ctx, master, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(0)
+	da.SetSpendLimit(std.Coins{std.NewCoin("ugnot", 1)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(ctx, master, sa)
+
+	sessions := map[crypto.Address]std.DelegatedAccount{master: da}
+	sessionCtx := ctx.WithValue(std.SessionAccountsContextKey{}, sessions)
+
+	// Call Grow with a non-trivial string → requires storage deposit
+	// many orders of magnitude above 1 ugnot.
+	longStr := strings.Repeat("x", 256)
+	msg := NewMsgCall(master, std.Coins{}, pkgPath, "Grow", []string{longStr})
+	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(8000))
+	_, err := env.vmk.Call(sessionCtx, msg)
+	require.Error(t, err, "storage deposit exceeding session SpendLimit must be rejected")
+
+	// Session's SpendUsed unchanged — the check rejected before persisting.
+	reloadedSA := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr)
+	assert.Equal(t, int64(0), reloadedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("ugnot"))
 }
 
 func TestVMKeeperEvalJSONFormatting2(t *testing.T) {

@@ -570,3 +570,83 @@
 		grid-row-start: initial;
 	}
 }
+
+/* ===== DOC VIEW =====
+   Typography for rendered function/package documentation returned by
+   HTMLRenderer.RenderDocumentation. Scoped as a composition so Help view
+   and the upcoming Overview view can reuse it identically. Every child
+   element uses semantic design tokens — dark mode works automatically. */
+.c-doc-view {
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-secondary);
+
+	& > p {
+		margin-block: var(--g-space-2);
+	}
+
+	& > p:first-child {
+		margin-block-start: 0;
+	}
+	& > p:last-child {
+		margin-block-end: 0;
+	}
+
+	/* Godoc headings (# Foo) */
+	& :is(h1, h2, h3, h4) {
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+		margin-block: var(--g-space-3) var(--g-space-2);
+		line-height: var(--g-line-height-tight);
+	}
+	& h1 {
+		font-size: var(--g-font-size-400);
+	}
+	& h2 {
+		font-size: var(--g-font-size-300);
+	}
+	& :is(h3, h4) {
+		font-size: var(--g-font-size-200);
+	}
+
+	/* Bulleted + numbered lists (godoc "- " / "* " / "1. ") */
+	& :is(ul, ol) {
+		margin-block: var(--g-space-2);
+		padding-inline-start: var(--g-space-5);
+	}
+	& ul {
+		list-style: disc;
+	}
+	& ol {
+		list-style: decimal;
+	}
+	& li {
+		margin-block: var(--g-space-1);
+	}
+
+	/* Auto-linked URLs and [OtherFunc] references.
+	   Matches c-realm-view / c-readme-view: coloured text, underline on hover only. */
+	& a {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+	}
+	& a:hover {
+		text-decoration: underline;
+	}
+
+	/* Inline code */
+	& :not(pre) > code {
+		font-family: var(--g-font-family-mono);
+		font-size: 0.9em;
+		background-color: var(--s-color-bg-surface-secondary);
+		padding: 0 var(--g-space-1);
+		border-radius: var(--s-rounded-sm);
+	}
+
+	/* Trim outer margin when a <details class="doc-example"> bookends the block */
+	& > .doc-example:first-child {
+		margin-block-start: 0;
+	}
+	& > .doc-example:last-child {
+		margin-block-end: 0;
+	}
+}
