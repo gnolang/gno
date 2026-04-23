@@ -1,4 +1,4 @@
-# Cheatsheet
+# Gno Cheatsheet
 
 ## Developer
 
