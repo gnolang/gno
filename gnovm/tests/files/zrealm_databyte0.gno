@@ -17,17 +17,17 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](5)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:4](5)=
 //     @@ -1,10 +1,10 @@
 //      {
 //     -    "Data": "YWFiYg==",
 //     +    "Data": "QUJiYg==",
 //          "List": null,
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "LastObjectSize": "181",
 //     -        "ModTime": "0",
 //     +        "ModTime": "6",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "RefCount": "1"
 //          }

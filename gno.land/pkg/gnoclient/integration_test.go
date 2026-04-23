@@ -47,7 +47,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -106,7 +106,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -168,7 +168,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -232,7 +232,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -311,7 +311,7 @@ func TestRunSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -389,8 +389,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(2300000),
-		GasWanted:      23000000,
+		GasFee:         ugnot.ValueString(5000000),
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -485,7 +485,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -539,7 +539,7 @@ func Echo(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177600}}, baseAcc.GetCoins())
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 176800}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
@@ -574,7 +574,7 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
-		GasWanted:      21000000,
+		GasWanted:      50000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -658,7 +658,7 @@ func Hello(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath1))
 	require.NoError(t, err)
-	assert.Equal(t, "177600ugnot", baseAcc.GetCoins().String())
+	assert.Equal(t, "176800ugnot", baseAcc.GetCoins().String())
 
 	// Check Package #2
 	query, err = client.Query(QueryCfg{
@@ -672,7 +672,7 @@ func Hello(str string) string {
 	// Query storage deposit balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DeriveStorageDepositCryptoAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 178700}}, baseAcc.GetCoins())
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 177900}}, baseAcc.GetCoins())
 
 	// Verify the realm account balance received from the send
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgCryptoAddr(deploymentPath2))
@@ -682,8 +682,8 @@ func Hello(str string) string {
 	// Verify remaining balance of deployer's account
 	baseAcc, _, err = client.QueryAccount(caller.GetAddress())
 	require.NoError(t, err)
-	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 177600 + Storage Deposit 178700 + Send 1000000)
-	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996543700}}, baseAcc.GetCoins())
+	// 999999654370 = 10000000000000 - (GasFee 2100000 + Storage Deposit 176800 + Storage Deposit 177900 + Send 1000000)
+	assert.Equal(t, std.Coins{std.Coin{Denom: "ugnot", Amount: 9999996545300}}, baseAcc.GetCoins())
 
 	// Test signing separately (using a different deployment path)
 	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"

@@ -17,7 +17,7 @@ func Print(store types.Store) {
 		ps.Print()
 	} else {
 		fmt.Println(colors.Blue(fmt.Sprintf("// store:%p %v", store, reflect.TypeOf(store))))
-		itr := store.Iterator(nil, nil)
+		itr := store.Iterator(nil, nil, nil)
 		defer itr.Close()
 		for ; itr.Valid(); itr.Next() {
 			key, value := itr.Key(), itr.Value()

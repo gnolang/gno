@@ -44,7 +44,7 @@ func main(cur realm) {
 		callerFnCrossing func(realm) runtime.Realm
 	}{
 		{
-			callStackAdd: " -> std.PreviousRealm",
+			callStackAdd: " -> runtime.PreviousRealm",
 			callerFn:     runtime.PreviousRealm,
 		},
 		{
@@ -70,8 +70,8 @@ func main(cur realm) {
 	}
 
 	println("---") // needed to have space prefixes
-	printColumns("STACK", "std.PreviousRealm")
-	printColumns("-----", "------------------")
+	printColumns("STACK", "runtime.PreviousRealm")
+	printColumns("-----", "----------------------")
 
 	baseCallStack := "user1.gno !> r/crossrealm.main2"
 	for _, tt := range tests {
@@ -147,13 +147,13 @@ func printColumns(left, right string) {
 
 // Output:
 // ---
-//                                                                                                     STACK = std.PreviousRealm
-//                                                                                                     ----- = ------------------
-//                                                      user1.gno !> r/crossrealm.main2 -> std.PreviousRealm = user1.gno
-//                                 user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> std.PreviousRealm = user1.gno
-//                                 user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> std.PreviousRealm = user1.gno
-//                           user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> std.PreviousRealm = gno.land/r/crossrealm
-//                                 user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> std.PreviousRealm = user1.gno
+//                                                                                                     STACK = runtime.PreviousRealm
+//                                                                                                     ----- = ----------------------
+//                                                  user1.gno !> r/crossrealm.main2 -> runtime.PreviousRealm = user1.gno
+//                             user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> runtime.PreviousRealm = user1.gno
+//                             user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> runtime.PreviousRealm = user1.gno
+//                       user1.gno !> r/crossrealm.main2 !> r/demo/tests.ExecSwitch -> runtime.PreviousRealm = gno.land/r/crossrealm
+//                             user1.gno !> r/crossrealm.main2 -> p/demo/tests.Exec -> runtime.PreviousRealm = user1.gno
 //                                          user1.gno !> r/crossrealm.main2 -> r/crossrealm.getPreviousRealm = user1.gno
 //                     user1.gno !> r/crossrealm.main2 -> r/crossrealm.Exec -> r/crossrealm.getPreviousRealm = user1.gno
 //                     user1.gno !> r/crossrealm.main2 -> r/demo/tests.Exec -> r/crossrealm.getPreviousRealm = user1.gno
