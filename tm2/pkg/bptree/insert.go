@@ -117,25 +117,21 @@ func leafInsert(leaf *LeafNode, key []byte, payload slotPayload) insertResult {
 
 	// Insert new key
 	if int(leaf.numKeys) < B {
-		// Room in this leaf — shift right and insert. Shift slotHashes
-		// (and inlineValues, plus the inlineMask bits) in parallel
-		// with keys/valueHashes so the per-slot cache stays valid for
-		// the shifted entries; only slot `pos` (the newly inserted
-		// key) is flagged dirty.
+		// Room in this leaf — shift right and insert. The slot-level
+		// hash cache (slotHashes) is intentionally NOT shifted: doing so
+		// would cost a 32-byte memcpy per shifted slot on every insert,
+		// while marking the shifted range dirty defers the actual
+		// rehashing until the next Hash() and folds repeated dirtying
+		// of the same slot across a burst of inserts into a single
+		// recomputation per rebuildMiniMerkleIncremental pass.
 		n := int(leaf.numKeys)
 		for i := n; i > pos; i-- {
 			leaf.keys[i] = leaf.keys[i-1]
 			leaf.valueHashes[i] = leaf.valueHashes[i-1]
 			leaf.valueKeys[i] = leaf.valueKeys[i-1]
 			leaf.inlineValues[i] = leaf.inlineValues[i-1]
-			leaf.slotHashes[i] = leaf.slotHashes[i-1]
 		}
-		// Shift inline bits and slotsDirty bits [pos, n) up by one in
-		// parallel with the slot-data shift above. See
-		// shiftSlotsDirtyUp's doc for the corruption hazard if the
-		// dirty bitmap is left mis-aligned.
 		shiftInlineMaskUp(leaf, pos)
-		shiftSlotsDirtyUp(leaf, pos)
 		leaf.keys[pos] = key
 		// Clear existing state at pos then apply payload.
 		leaf.inlineValues[pos] = nil
@@ -143,7 +139,11 @@ func leafInsert(leaf *LeafNode, key []byte, payload slotPayload) insertResult {
 		leaf.inlineMask &^= uint32(1) << uint(pos)
 		applyPayloadToSlot(leaf, pos, payload)
 		leaf.numKeys++
-		leaf.markLeafSlotDirty(pos)
+		// Slots [pos, numKeys) all hold data that does not match
+		// slotHashes[i] (either freshly inserted, or shifted from a
+		// neighbour). Mark the entire range dirty so the next merkle
+		// rebuild rehashes them.
+		leaf.markLeafSlotsDirtyRange(pos, int(leaf.numKeys))
 		return insertResult{updated: false}
 	}
 
@@ -196,27 +196,6 @@ func leafInsert(leaf *LeafNode, key []byte, payload slotPayload) insertResult {
 func shiftInlineMaskUp(leaf *LeafNode, pos int) {
 	highBits := leaf.inlineMask &^ ((uint32(1) << uint(pos)) - 1)
 	leaf.inlineMask = (leaf.inlineMask & ((uint32(1) << uint(pos)) - 1)) | (highBits << 1)
-}
-
-// shiftSlotsDirtyUp shifts slotsDirty bits at positions [pos, 32) up by
-// one to follow the parallel shift of slot data (keys / valueHashes /
-// valueKeys / inlineValues / slotHashes). Without this, dirty bits from
-// pre-shift positions point at unrelated post-shift slots, and
-// rebuildMiniMerkleIncremental trusts a stale slotHashes[i] for what
-// looks like a clean slot — emitting a corrupt root hash.
-//
-// Reproducer: an empty leaf with Set(K20), Set(K30), Set(K10) and no
-// intervening Hash(): the second Set leaves bit 1 dirty, the third
-// Set's shift moves the data to slot 2 but leaves the bit at 1, then
-// the rebuild sees slot 2 as clean and reuses the uninitialised
-// slotHashes[2]. Pinned by TestLeafInsert_HashAgreesAcrossInsertOrders.
-//
-// The bit previously at position B-1 is dropped — same caller invariant
-// as shiftInlineMaskUp ("leaf had room", so position B-1 was unused
-// and bit B-1 was 0).
-func shiftSlotsDirtyUp(leaf *LeafNode, pos int) {
-	highBits := leaf.slotsDirty &^ ((uint32(1) << uint(pos)) - 1)
-	leaf.slotsDirty = (leaf.slotsDirty & ((uint32(1) << uint(pos)) - 1)) | (highBits << 1)
 }
 
 // innerInsert inserts into an inner node (already COW-cloned).

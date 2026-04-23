@@ -221,8 +221,8 @@ func redistributeRight(parent *InnerNode, idx int) {
 		}
 		// Shift r.inlineMask AND r.slotsDirty up by 1 bit (inserting a
 		// vacant bit at 0) — parallel with the slot-data shift above.
-		// See shiftSlotsDirtyUp comment (insert.go) for the corruption
-		// hazard the missing parallel shift causes.
+		// See shiftSlotsDirtyDown for the symmetric down-shift case
+		// and the corruption hazard a missing parallel shift causes.
 		r.inlineMask <<= 1
 		r.slotsDirty <<= 1
 		// Move the last slot from l to position 0 of r, preserving
