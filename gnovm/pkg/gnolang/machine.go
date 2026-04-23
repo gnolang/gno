@@ -241,6 +241,21 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for mpkg := range ch {
+		// AddMemPackage writes the path index (baseStore / pebble) and the
+		// package body (iavlStore) in two separate Set calls. If the process
+		// is SIGKILLed between them (OOM, container stop, OrbStack restart),
+		// the index can point at a path whose body is absent, and
+		// GetMemPackage then returns nil. ParseMemPackage(nil) would SIGSEGV
+		// on `nil.Type.(MemPackageType)` (offset 0x38) and the node cannot
+		// boot. Skip with a warning so an operator can still reach a working
+		// node; the real fix is atomic index+body writes in AddMemPackage.
+		if mpkg == nil {
+			fmt.Fprintln(m.Output,
+				"WARNING: IterMemPackage returned nil — index points at a "+
+					"package whose body is not persisted (likely a prior "+
+					"crash mid-AddMemPackage). Skipping.")
+			continue
+		}
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
