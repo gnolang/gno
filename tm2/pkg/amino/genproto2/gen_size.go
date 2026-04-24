@@ -184,21 +184,21 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 	}
 
 	// Handle AminoMarshaler fields: convert to repr, then size repr.
+	// The emission decision must use the REPR value's zeroness, not the
+	// original Go value's — see the matching comment in gen_marshal.go.
 	if finfo.IsAminoMarshaler && finfo.Type.Kind() != reflect.Struct {
-		origZeroCheck := ctx.zeroCheckOriginal(accessor, finfo)
-		if origZeroCheck != "" && !field.WriteEmpty {
-			fmt.Fprintf(sb, "\tif %s {\n", origZeroCheck)
-			fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
-			ctx.writeFieldValueSize(sb, "repr", fnum, finfo.ReprType, fopts, false, "\t\t")
-			sb.WriteString("\t}\n")
+		fmt.Fprintf(sb, "\t{\n")
+		fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
+		sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
+		reprZeroCheck := ctx.zeroCheck("repr", finfo.ReprType, fopts)
+		if reprZeroCheck != "" && !field.WriteEmpty {
+			fmt.Fprintf(sb, "\t\tif %s {\n", reprZeroCheck)
+			ctx.writeFieldValueSize(sb, "repr", fnum, finfo.ReprType, fopts, false, "\t\t\t")
+			sb.WriteString("\t\t}\n")
 		} else {
-			fmt.Fprintf(sb, "\t{\n")
-			fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
 			ctx.writeFieldValueSize(sb, "repr", fnum, finfo.ReprType, fopts, field.WriteEmpty, "\t\t")
-			sb.WriteString("\t}\n")
 		}
+		sb.WriteString("\t}\n")
 		return
 	}
 	if finfo.IsAminoMarshaler && finfo.Type.Kind() == reflect.Struct {

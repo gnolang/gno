@@ -3205,25 +3205,29 @@ func (goo ValidatorUpdate) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		}
 	}
-	if goo.Address != [20]byte{} {
+	{
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo ValidatorUpdate) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.Address != [20]byte{} {
+	{
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
@@ -3414,25 +3418,29 @@ func (goo VoteInfo) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 		offset = amino.PrependVarint(buf, offset, int64(goo.Power))
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
 	}
-	if goo.Address != [20]byte{} {
+	{
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo VoteInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.Address != [20]byte{} {
+	{
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.Power != 0 {
 		s += 1 + amino.VarintSize(int64(goo.Power))

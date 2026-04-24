@@ -92,13 +92,15 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	if goo.FeeCollector != [20]byte{} {
+	{
 		repr, err := goo.FeeCollector.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+		}
 	}
 	for i := len(goo.UnrestrictedAddrs) - 1; i >= 0; i-- {
 		elem := goo.UnrestrictedAddrs[i]
@@ -194,12 +196,14 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 		vs := amino.UvarintSize(uint64(len(er))) + len(er)
 		s += 1 + vs
 	}
-	if goo.FeeCollector != [20]byte{} {
+	{
 		repr, err := goo.FeeCollector.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }
@@ -370,13 +374,15 @@ func (goo MsgCreateSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 		offset = amino.PrependVarint(buf, offset, int64(goo.SpendPeriod))
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3Varint)
 	}
-	if len(goo.SpendLimit) != 0 {
+	{
 		repr, err := goo.SpendLimit.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+		}
 	}
 	for i := len(goo.AllowPaths) - 1; i >= 0; i-- {
 		elem := goo.AllowPaths[i]
@@ -399,25 +405,29 @@ func (goo MsgCreateSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		}
 	}
-	if goo.Creator != [20]byte{} {
+	{
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo MsgCreateSession) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.Creator != [20]byte{} {
+	{
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.SessionKey != nil {
 		if goo.SessionKey != nil {
@@ -435,12 +445,14 @@ func (goo MsgCreateSession) SizeBinary2(cdc *amino.Codec) (int, error) {
 		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
 		s += 1 + vs
 	}
-	if len(goo.SpendLimit) != 0 {
+	{
 		repr, err := goo.SpendLimit.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.SpendPeriod != 0 {
 		s += 1 + amino.VarintSize(int64(goo.SpendPeriod))
@@ -580,25 +592,29 @@ func (goo MsgRevokeSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		}
 	}
-	if goo.Creator != [20]byte{} {
+	{
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo MsgRevokeSession) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.Creator != [20]byte{} {
+	{
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.SessionKey != nil {
 		if goo.SessionKey != nil {
@@ -663,25 +679,29 @@ func (goo *MsgRevokeSession) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 
 func (goo MsgRevokeAllSessions) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	if goo.Creator != [20]byte{} {
+	{
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo MsgRevokeAllSessions) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.Creator != [20]byte{} {
+	{
 		repr, err := goo.Creator.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }

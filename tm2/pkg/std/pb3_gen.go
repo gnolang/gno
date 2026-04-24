@@ -72,40 +72,48 @@ func (goo BaseAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		}
 	}
-	if len(goo.Coins) != 0 {
+	{
 		repr, err := goo.Coins.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		}
 	}
-	if goo.Address != [20]byte{} {
+	{
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo BaseAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.Address != [20]byte{} {
+	{
 		repr, err := goo.Address.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
-	if len(goo.Coins) != 0 {
+	{
 		repr, err := goo.Coins.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
@@ -214,37 +222,43 @@ func (goo BaseSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 		offset = amino.PrependVarint(buf, offset, int64(goo.SpendReset))
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
 	}
-	if len(goo.SpendUsed) != 0 {
+	{
 		repr, err := goo.SpendUsed.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
+		}
 	}
 	if goo.SpendPeriod != 0 {
 		offset = amino.PrependVarint(buf, offset, int64(goo.SpendPeriod))
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
 	}
-	if len(goo.SpendLimit) != 0 {
+	{
 		repr, err := goo.SpendLimit.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		}
 	}
 	if goo.ExpiresAt != 0 {
 		offset = amino.PrependVarint(buf, offset, int64(goo.ExpiresAt))
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
 	}
-	if goo.MasterAddress != [20]byte{} {
+	{
 		repr, err := goo.MasterAddress.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		}
 	}
 	{
 		before := offset
@@ -274,32 +288,38 @@ func (goo BaseSessionAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
-	if goo.MasterAddress != [20]byte{} {
+	{
 		repr, err := goo.MasterAddress.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.ExpiresAt != 0 {
 		s += 1 + amino.VarintSize(int64(goo.ExpiresAt))
 	}
-	if len(goo.SpendLimit) != 0 {
+	{
 		repr, err := goo.SpendLimit.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.SpendPeriod != 0 {
 		s += 1 + amino.VarintSize(int64(goo.SpendPeriod))
 	}
-	if len(goo.SpendUsed) != 0 {
+	{
 		repr, err := goo.SpendUsed.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	if goo.SpendReset != 0 {
 		s += 1 + amino.VarintSize(int64(goo.SpendReset))
@@ -835,13 +855,15 @@ func (goo *Fee) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) erro
 
 func (goo Signature) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	if goo.SessionAddr != [20]byte{} {
+	{
 		repr, err := goo.SessionAddr.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		}
 	}
 	if len(goo.Signature) != 0 {
 		offset = amino.PrependByteSlice(buf, offset, goo.Signature)
@@ -876,12 +898,14 @@ func (goo Signature) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if len(goo.Signature) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Signature)
 	}
-	if goo.SessionAddr != [20]byte{} {
+	{
 		repr, err := goo.SessionAddr.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }

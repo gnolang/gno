@@ -230,21 +230,27 @@ func (ctx *P3Context2) writeFieldMarshal(sb *strings.Builder, field amino.FieldI
 	}
 
 	// Handle AminoMarshaler fields: convert to repr, then encode repr.
+	// The "should I emit this field?" decision must be based on the REPR
+	// value's zeroness, not the original Go value's. Example: crypto.Address
+	// is [20]byte but MarshalAmino returns a bech32 string — the zero
+	// Address produces a non-empty string ("g1qqq...luuxe"), so the field
+	// MUST be emitted. Checking the original [20]byte's zeroness (the old
+	// code path) would incorrectly omit it, diverging from the reflect
+	// encoder which rolls back only when the serialized value is a single
+	// 0x00 byte (see binary_encode.go writeFieldIfNotEmpty).
 	if finfo.IsAminoMarshaler && finfo.Type.Kind() != reflect.Struct {
-		origZeroCheck := ctx.zeroCheckOriginal(accessor, finfo)
-		if origZeroCheck != "" && !field.WriteEmpty {
-			fmt.Fprintf(sb, "\tif %s {\n", origZeroCheck)
-			fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn offset, err\n\t\t}\n")
-			ctx.writeFieldValueMarshal(sb, "repr", fnum, finfo.ReprType, fopts, false, "\t\t")
-			sb.WriteString("\t}\n")
+		fmt.Fprintf(sb, "\t{\n")
+		fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
+		sb.WriteString("\t\tif err != nil {\n\t\t\treturn offset, err\n\t\t}\n")
+		reprZeroCheck := ctx.zeroCheck("repr", finfo.ReprType, fopts)
+		if reprZeroCheck != "" && !field.WriteEmpty {
+			fmt.Fprintf(sb, "\t\tif %s {\n", reprZeroCheck)
+			ctx.writeFieldValueMarshal(sb, "repr", fnum, finfo.ReprType, fopts, false, "\t\t\t")
+			sb.WriteString("\t\t}\n")
 		} else {
-			fmt.Fprintf(sb, "\t{\n")
-			fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn offset, err\n\t\t}\n")
 			ctx.writeFieldValueMarshal(sb, "repr", fnum, finfo.ReprType, fopts, field.WriteEmpty, "\t\t")
-			sb.WriteString("\t}\n")
 		}
+		sb.WriteString("\t}\n")
 		return nil
 	}
 	if finfo.IsAminoMarshaler && finfo.Type.Kind() == reflect.Struct {
@@ -754,38 +760,6 @@ func (ctx *P3Context2) zeroCheck(accessor string, info *amino.TypeInfo, fopts am
 		return fmt.Sprintf("len(%s) != 0", accessor)
 	case reflect.Struct:
 		return "" // structs are never "default" per isNonstructDefaultValue
-	case reflect.Interface:
-		return fmt.Sprintf("%s != nil", accessor)
-	default:
-		return ""
-	}
-}
-
-// zeroCheckOriginal generates a zero-value check based on the original type (not repr).
-// Used for AminoMarshaler fields where the repr type differs from the original.
-func (ctx *P3Context2) zeroCheckOriginal(accessor string, info *amino.TypeInfo) string {
-	rt := info.Type
-	switch rt.Kind() {
-	case reflect.Bool:
-		return accessor
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return fmt.Sprintf("%s != 0", accessor)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return fmt.Sprintf("%s != 0", accessor)
-	case reflect.Float32, reflect.Float64:
-		return fmt.Sprintf("%s != 0", accessor)
-	case reflect.String:
-		return fmt.Sprintf("%s != \"\"", accessor)
-	case reflect.Slice:
-		return fmt.Sprintf("len(%s) != 0", accessor)
-	case reflect.Array:
-		// For byte arrays, check if not all zeros.
-		if rt.Elem().Kind() == reflect.Uint8 {
-			return fmt.Sprintf("%s != [%d]byte{}", accessor, rt.Len())
-		}
-		return ""
-	case reflect.Struct:
-		return ""
 	case reflect.Interface:
 		return fmt.Sprintf("%s != nil", accessor)
 	default:

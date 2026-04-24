@@ -119,55 +119,67 @@ func (goo *InputOutputMismatchError) UnmarshalBinary2(cdc *amino.Codec, bz []byt
 
 func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	if len(goo.Amount) != 0 {
+	{
 		repr, err := goo.Amount.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		}
 	}
-	if goo.ToAddress != [20]byte{} {
+	{
 		repr, err := goo.ToAddress.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		}
 	}
-	if goo.FromAddress != [20]byte{} {
+	{
 		repr, err := goo.FromAddress.MarshalAmino()
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
 	}
 	return offset, err
 }
 
 func (goo MsgSend) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	if goo.FromAddress != [20]byte{} {
+	{
 		repr, err := goo.FromAddress.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
-	if goo.ToAddress != [20]byte{} {
+	{
 		repr, err := goo.ToAddress.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
-	if len(goo.Amount) != 0 {
+	{
 		repr, err := goo.Amount.MarshalAmino()
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }
