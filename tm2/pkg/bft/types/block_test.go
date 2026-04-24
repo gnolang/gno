@@ -136,6 +136,27 @@ func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {
 			return cdc.UnmarshalReflect(b, blk)
 		})
 	})
+
+	// Cross-encoder parity on the Commit: the two codec paths must produce
+	// byte-identical output for the nil_elements slice specifically. If they
+	// diverge, nodes encoding with one path and decoding with the other will
+	// disagree on the canonical bytes — a consensus-wedging risk distinct
+	// from the roundtrip fidelity checked above.
+	//
+	// NOTE: this checks the Commit, not the whole Block. Block-level parity
+	// currently fails for an unrelated reason: Header.ProposerAddress is an
+	// AminoMarshaler whose repr is a bech32 string. Reflect emits the field
+	// whenever the repr string is non-empty (always true — even the zero
+	// Address becomes "g1qqq...luuxe"), while generated genproto2 code
+	// checks the underlying [20]byte's zeroness and omits it. That is a
+	// separate codec bug worth tracking but out of scope for nil_elements.
+	t.Run("Binary2 and Reflect commit byte-identical", func(t *testing.T) {
+		bzBinary2, err := cdc.MarshalBinary2(commit)
+		require.NoError(t, err)
+		bzReflect, err := cdc.MarshalReflect(commit)
+		require.NoError(t, err)
+		require.Equal(t, bzBinary2, bzReflect, "MarshalBinary2 and MarshalReflect must produce identical bytes for the nil_elements commit")
+	})
 }
 
 func TestBlockHash(t *testing.T) {
