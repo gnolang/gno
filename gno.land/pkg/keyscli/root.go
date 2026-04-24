@@ -4,6 +4,7 @@ package keyscli
 import (
 	"encoding/base64"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
