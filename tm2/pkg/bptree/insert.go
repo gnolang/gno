@@ -13,7 +13,11 @@ type insertResult struct {
 // Returns the (possibly new) root, whether it was an update, and the old
 // valueKey if an existing key was overwritten (nil otherwise).
 func treeInsert(root Node, key []byte, valueHash Hash, valueKey []byte) (Node, bool, []byte) {
-	key = copyKey(key) // defensive copy — caller may reuse the slice
+	// The caller may reuse the key slice after this call returns. We need a
+	// defensive copy only when the key ends up *stored* — which happens
+	// exclusively on the "new-key insert" paths in leafInsert (not on
+	// updates, where the existing leaf.keys[pos] is reused). Defer the
+	// copy to those paths so update-heavy workloads skip the allocation.
 
 	// COW-clone the root
 	root = cloneNode(root)
@@ -65,7 +69,11 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 		return insertResult{updated: true, oldValueKey: oldVK}
 	}
 
-	// Insert new key
+	// Insert new key. The key will be stored in the leaf (here or after
+	// split), so take the deferred defensive copy now — the caller may
+	// reuse the slice, and mutating it later would corrupt the tree.
+	storedKey := copyKey(key)
+
 	if int(leaf.numKeys) < B {
 		// Room in this leaf — shift right and insert
 		n := int(leaf.numKeys)
@@ -74,7 +82,7 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 			leaf.valueHashes[i] = leaf.valueHashes[i-1]
 			leaf.valueKeys[i] = leaf.valueKeys[i-1]
 		}
-		leaf.keys[pos] = key
+		leaf.keys[pos] = storedKey
 		leaf.valueHashes[pos] = valueHash
 		leaf.valueKeys[pos] = valueKey
 		leaf.numKeys++
@@ -88,7 +96,7 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 	allVK := make([][]byte, B+1)
 	// Copy existing keys, inserting new key at pos
 	copy(allKeys[:pos], leaf.keys[:pos])
-	allKeys[pos] = key
+	allKeys[pos] = storedKey
 	copy(allKeys[pos+1:], leaf.keys[pos:B])
 	copy(allVH[:pos], leaf.valueHashes[:pos])
 	allVH[pos] = valueHash
