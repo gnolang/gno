@@ -383,6 +383,13 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 }
 
 // Load loads the latest version from the DB.
+//
+// As a side effect, cleans up any value entries left behind by a working
+// session that crashed before SaveVersion or Rollback (SaveValue writes
+// eagerly so Get works pre-commit; without this cleanup those values
+// leak forever — sessionValues is in-memory only). Orphans form a
+// contiguous suffix of the value keyspace above latestVersion, so the
+// scan cost is O(leaked-values), zero on a clean shutdown.
 func (t *MutableTree) Load() (int64, error) {
 	if t.ndb == nil {
 		return 0, nil
@@ -391,6 +398,9 @@ func (t *MutableTree) Load() (int64, error) {
 		return 0, err
 	}
 	latest := t.ndb.getLatestVersion()
+	if err := t.ndb.cleanupCrashedSessionValues(latest); err != nil {
+		return 0, fmt.Errorf("cleanup crashed-session values: %w", err)
+	}
 	if latest == 0 {
 		return 0, nil
 	}

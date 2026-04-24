@@ -362,6 +362,62 @@ func (ndb *nodeDB) AvailableVersions() []int {
 	return versions
 }
 
+// cleanupCrashedSessionValues deletes value entries whose ValueKey.Version
+// is greater than the latest persisted version. Those values were written
+// eagerly by a working session (SaveValue is non-batched so Get can work
+// before SaveVersion) that crashed or was killed before SaveVersion
+// committed — no saved tree references them.
+//
+// Cost: bounded by the number of orphans. Uses an iterator seeded at
+// PrefixVal||(latestVersion+1)||0..., which skips legitimate values
+// entirely — value keys sort lexicographically and version is the first
+// 8 big-endian bytes, so orphans form a contiguous suffix.
+//
+// Safe to call on every Load(): if the previous shutdown was clean,
+// sessionValues was cleared by SaveVersion/Rollback and no orphans exist,
+// so the iterator returns immediately.
+func (ndb *nodeDB) cleanupCrashedSessionValues(latestVersion int64) error {
+	start := make([]byte, 1+8)
+	start[0] = PrefixVal
+	// Use uint64 arithmetic to avoid overflow when latestVersion == MaxInt64.
+	nextV := uint64(latestVersion) + 1
+	binary.BigEndian.PutUint64(start[1:], nextV)
+	end := []byte{PrefixVal + 1}
+
+	itr, err := ndb.db.Iterator(start, end)
+	if err != nil {
+		return fmt.Errorf("scanning orphan values: %w", err)
+	}
+	defer itr.Close()
+
+	var toDelete [][]byte
+	for ; itr.Valid(); itr.Next() {
+		k := itr.Key()
+		kCopy := make([]byte, len(k))
+		copy(kCopy, k)
+		toDelete = append(toDelete, kCopy)
+	}
+	if err := itr.Error(); err != nil {
+		return fmt.Errorf("iterating orphan values: %w", err)
+	}
+	// The DB contract says no writes may happen during iteration on the
+	// same domain — collect keys first, delete after Close.
+	itr.Close()
+
+	for _, k := range toDelete {
+		if err := ndb.db.Delete(k); err != nil {
+			return fmt.Errorf("deleting orphan value %x: %w", k, err)
+		}
+	}
+	if len(toDelete) > 0 {
+		ndb.logger.Info("bptree: cleaned up crashed-session value leaks",
+			"count", len(toDelete),
+			"latestVersion", latestVersion,
+		)
+	}
+	return nil
+}
+
 // discoverVersions scans the DB for root references to find
 // the first and latest versions. Called during Load.
 func (ndb *nodeDB) discoverVersions() error {
