@@ -28,18 +28,22 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		if !t.ndb.VersionExists(v) {
 			continue
 		}
+		// findNextVersion always returns a non-zero version here: we rejected
+		// toVersion >= latest above, so latest > v and findNextVersion will
+		// find at least `latest` as a successor. That is the only guarantee
+		// we need — a successor must exist for dual-tree-walk pruning to
+		// know which values (from orphan lists) can safely be deleted.
 		nextV := t.findNextVersion(v, latest)
 		if nextV == 0 {
-			// No next version — just delete root ref and nodes
-			if err := t.deleteAllNodesForVersion(v); err != nil {
-				return err
-			}
-		} else {
-			// Dual-tree-walk: find orphaned nodes in version v
-			// that are not referenced by version nextV.
-			if err := t.pruneVersion(v, nextV); err != nil {
-				return err
-			}
+			// Defensive: should not happen given the toVersion < latest
+			// check above. If it ever does, bail rather than silently
+			// deleting nodes without processing value-orphan lists (the
+			// old deleteAllNodesForVersion path walked nodes but left
+			// every leaf value referenced by v in the DB).
+			return fmt.Errorf("bptree: pruning v%d found no successor (invariant: toVersion=%d < latest=%d should guarantee one)", v, toVersion, latest)
+		}
+		if err := t.pruneVersion(v, nextV); err != nil {
+			return err
 		}
 		if err := t.ndb.DeleteRoot(v); err != nil {
 			return err
@@ -268,41 +272,3 @@ func (t *MutableTree) findCorrespondingChild(newNode, oldChild Node) Node {
 	}
 }
 
-// deleteAllNodesForVersion deletes the root node and all nodes reachable
-// from it. Used when there is no next version to compare against.
-func (t *MutableTree) deleteAllNodesForVersion(v int64) error {
-	nkBytes, _, err := t.ndb.GetRoot(v)
-	if err != nil || nkBytes == nil {
-		return err
-	}
-	root, err := t.ndb.GetNode(nkBytes)
-	if err != nil {
-		return fmt.Errorf("loading root node for v%d: %w", v, err)
-	}
-	return t.deleteSubtree(root)
-}
-
-// deleteSubtree recursively deletes a node and all its descendants.
-func (t *MutableTree) deleteSubtree(node Node) error {
-	nk := node.GetNodeKey()
-	if nk != nil {
-		if err := t.ndb.DeleteNode(nk.GetKey()); err != nil {
-			return err
-		}
-	}
-
-	if inner, ok := node.(*InnerNode); ok {
-		for i := 0; i < inner.NumChildren(); i++ {
-			if inner.children[i] != nil {
-				child, err := t.ndb.GetNode(inner.children[i])
-				if err != nil {
-					return fmt.Errorf("loading child %d in deleteSubtree: %w", i, err)
-				}
-				if err := t.deleteSubtree(child); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
