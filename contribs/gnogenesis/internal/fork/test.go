@@ -23,10 +23,12 @@ import (
 )
 
 type testCfg struct {
-	genesis     string
-	timeout     time.Duration
-	verbose     bool
-	keepRunning bool
+	genesis                    string
+	timeout                    time.Duration
+	verbose                    bool
+	keepRunning                bool
+	skipFailingTxs             bool
+	skipGenesisSigVerification bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -74,6 +76,12 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&c.timeout, "timeout", 30*time.Minute, "maximum time to wait for genesis replay to complete")
 	fs.BoolVar(&c.verbose, "verbose", false, "print each tx result during replay")
 	fs.BoolVar(&c.keepRunning, "keep-running", false, "keep the node running after genesis replay (for manual RPC inspection)")
+	fs.BoolVar(&c.skipFailingTxs, "skip-failing-genesis-txs", false,
+		"count failed genesis txs as informational (report count, still exit 0) instead of failing the test. "+
+			"Match this to production node flags when the chain runs with -skip-failing-genesis-txs.")
+	fs.BoolVar(&c.skipGenesisSigVerification, "skip-genesis-sig-verification", true,
+		"bypass signature verification for genesis-mode txs (default true, matching production node behavior). "+
+			"Set to false to exercise sig verification as a stricter consistency check.")
 }
 
 func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
@@ -186,7 +194,7 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 		Genesis:                    &genDoc,
 		TMConfig:                   tmConfig,
 		DB:                         memdb.NewMemDB(),
-		SkipGenesisSigVerification: true,
+		SkipGenesisSigVerification: cfg.skipGenesisSigVerification,
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: txResultHandler,
 			StdlibDir:              stdlibDir,
@@ -252,13 +260,23 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 
 			if failures > 0 {
 				io.Println()
-				io.Printf("FAIL: %d transaction(s) failed during genesis replay.\n", failures)
-				io.Println("Run with --verbose to see individual failures.")
-				return fmt.Errorf("genesis replay completed with %d failures", failures)
+				if cfg.skipFailingTxs {
+					// --skip-failing-genesis-txs matches production cluster
+					// behavior: failed genesis txs are absorbed so the chain
+					// still boots. Report count for visibility; don't fail.
+					io.Printf("WARN: %d transaction(s) failed during genesis replay (absorbed by --skip-failing-genesis-txs).\n", failures)
+					io.Println("Run with --verbose to see individual failures.")
+					io.Println()
+					io.Println("PASS: genesis replay completed (failures were suppressed).")
+				} else {
+					io.Printf("FAIL: %d transaction(s) failed during genesis replay.\n", failures)
+					io.Println("Run with --verbose to see individual failures.")
+					return fmt.Errorf("genesis replay completed with %d failures", failures)
+				}
+			} else {
+				io.Println()
+				io.Println("PASS: genesis replay completed successfully.")
 			}
-
-			io.Println()
-			io.Println("PASS: genesis replay completed successfully.")
 
 			if cfg.keepRunning {
 				io.Println()
