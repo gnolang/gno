@@ -36,6 +36,12 @@ func (imp *Importer) Add(node *ExportNode) error {
 	switch {
 	case node.Height == 0:
 		// Leaf entry: compute value hash, allocate valueKey, save value, buffer.
+		if len(node.Key) == 0 {
+			return fmt.Errorf("import: empty leaf key")
+		}
+		if len(node.Key) > MaxKeyLen {
+			return fmt.Errorf("import: leaf key length %d exceeds MaxKeyLen %d", len(node.Key), MaxKeyLen)
+		}
 		valueHash := sha256.Sum256(node.Value)
 		vk := (&NodeKey{Version: imp.version, Nonce: imp.nextNonce}).GetKey()
 		imp.nextNonce++
@@ -90,6 +96,11 @@ func (imp *Importer) Add(node *ExportNode) error {
 		}
 		if len(node.SeparatorKeys) != int(node.NumKeys) {
 			return fmt.Errorf("import: inner marker has %d separator keys, expected %d", len(node.SeparatorKeys), node.NumKeys)
+		}
+		for i, sk := range node.SeparatorKeys {
+			if len(sk) > MaxKeyLen {
+				return fmt.Errorf("import: inner separator key %d length %d exceeds MaxKeyLen %d", i, len(sk), MaxKeyLen)
+			}
 		}
 
 		children := imp.stack[len(imp.stack)-numChildren:]
