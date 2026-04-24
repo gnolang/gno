@@ -451,6 +451,10 @@ func (t *MutableTree) newImmutable(root Node, version int64) *ImmutableTree {
 	imm := NewImmutableTree(root, version)
 	switch {
 	case t.ndb != nil:
+		// Carry ndb so iterators created from this snapshot register as version
+		// readers (incrVersionReaders), blocking a concurrent prune of `version`
+		// until they Close. (#5591 ccbbeb66b)
+		imm.ndb = t.ndb
 		imm.valueResolver = func(vk []byte) ([]byte, error) {
 			return t.ndb.GetValue(vk)
 		}

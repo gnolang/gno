@@ -6,10 +6,15 @@ type ValueResolver func(vk []byte) ([]byte, error)
 // ImmutableTree is a read-only snapshot of the tree at a specific version.
 // It is safe for concurrent reads. Created by MutableTree.GetImmutable()
 // (Phase 3) or by snapshotting the root after SaveVersion.
+//
+// When the snapshot is backed by a DB, ndb is non-nil. Iterators and exporters
+// created from it register as version readers (via ndb.incrVersionReaders) so
+// that PruneVersionsTo cannot delete nodes they still depend on.
 type ImmutableTree struct {
 	root          Node
 	version       int64
 	valueResolver ValueResolver // resolves valueKeys to raw values
+	ndb           *nodeDB       // set when the snapshot is backed by a DB
 }
 
 // NewImmutableTree creates an ImmutableTree from a root node and version.
