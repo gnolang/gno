@@ -490,8 +490,10 @@ func (goo GasPrice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		}
 	}
 	if goo.Gas != 0 {
 		offset = amino.PrependVarint(buf, offset, int64(goo.Gas))
@@ -510,7 +512,9 @@ func (goo GasPrice) SizeBinary2(cdc *amino.Codec) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }
@@ -780,8 +784,10 @@ func (goo Fee) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, er
 		if err != nil {
 			return offset, err
 		}
-		offset = amino.PrependString(buf, offset, string(repr))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		if repr != "" {
+			offset = amino.PrependString(buf, offset, string(repr))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		}
 	}
 	if goo.GasWanted != 0 {
 		offset = amino.PrependVarint(buf, offset, int64(goo.GasWanted))
@@ -800,7 +806,9 @@ func (goo Fee) SizeBinary2(cdc *amino.Codec) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
 	}
 	return s, nil
 }

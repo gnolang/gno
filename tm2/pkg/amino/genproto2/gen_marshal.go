@@ -267,7 +267,19 @@ func (ctx *P3Context2) writeFieldMarshal(sb *strings.Builder, field amino.FieldI
 			sb.WriteString("\t\tif err != nil {\n\t\t\treturn offset, err\n\t\t}\n")
 			ctx.writeLengthPrefixedField(sb, fnum, finfo.GetTyp3(fopts), field.WriteEmpty, "\t\t")
 		} else {
-			ctx.writeFieldValueMarshal(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
+			// Same repr-zeroness rule as the Go-type-non-struct branch
+			// above: only emit when the repr value is non-zero. Without
+			// this, a zero std.Coin (whose MarshalAmino returns "")
+			// would encode a stray `<fnum> 0x00` that reflect rolls back
+			// via writeFieldIfNotEmpty.
+			reprZeroCheck := ctx.zeroCheck("repr", rinfo, fopts)
+			if reprZeroCheck != "" && !field.WriteEmpty {
+				fmt.Fprintf(sb, "\t\tif %s {\n", reprZeroCheck)
+				ctx.writeFieldValueMarshal(sb, "repr", fnum, rinfo, fopts, false, "\t\t\t")
+				sb.WriteString("\t\t}\n")
+			} else {
+				ctx.writeFieldValueMarshal(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
+			}
 		}
 		sb.WriteString("\t}\n")
 		return nil

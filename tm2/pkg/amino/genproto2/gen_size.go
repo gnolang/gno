@@ -220,7 +220,16 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 			fks := fieldKeySize(fnum, finfo.GetTyp3(fopts))
 			ctx.writeByteFieldSizeCheck(sb, fks, field.WriteEmpty, "\t")
 		} else {
-			ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
+			// Mirror the marshal-side repr-zeroness guard so SizeBinary2
+			// agrees with MarshalBinary2 on which fields are skipped.
+			reprZeroCheck := ctx.zeroCheck("repr", rinfo, fopts)
+			if reprZeroCheck != "" && !field.WriteEmpty {
+				fmt.Fprintf(sb, "\t\tif %s {\n", reprZeroCheck)
+				ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, false, "\t\t\t")
+				sb.WriteString("\t\t}\n")
+			} else {
+				ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
+			}
 		}
 		sb.WriteString("\t}\n")
 		return
