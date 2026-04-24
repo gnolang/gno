@@ -296,6 +296,40 @@ func buildHardforkGenesis(
 	appState.PastChainIDs = []string{originalChainID}
 	appState.InitialHeight = initialHeight
 
+	// Default gas_replay_mode to "source" so historical txs don't get
+	// re-gassed under the new VM's gas meter (which will reject most of
+	// them as "insufficient funds error" if the gas model has changed
+	// between source chain and hardfork). Operators who actively want
+	// strict re-gassing for validation can set it explicitly post-hoc.
+	if appState.GasReplayMode == "" {
+		appState.GasReplayMode = "source"
+	}
+
+	// Source chains generated before the gas-storage refactor (PR #5415)
+	// have no min_*/fixed_*_depth_100 or iter_next_cost_flat fields in
+	// vm.params. When deserialized into the post-refactor Params struct
+	// these default to 0, which fails Validate() (iter_next_cost_flat must
+	// be > 0). Populate from code defaults when every field is unset, so
+	// the resulting genesis boots on a post-refactor node without manual
+	// patching. Do not overwrite if any value is already set — an operator
+	// may have intentionally tuned these.
+	if appState.VM.Params.IterNextCostFlat == 0 &&
+		appState.VM.Params.MinGetReadDepth100 == 0 &&
+		appState.VM.Params.MinSetReadDepth100 == 0 &&
+		appState.VM.Params.MinWriteDepth100 == 0 &&
+		appState.VM.Params.FixedGetReadDepth100 == 0 &&
+		appState.VM.Params.FixedSetReadDepth100 == 0 &&
+		appState.VM.Params.FixedWriteDepth100 == 0 {
+		defaults := vm.DefaultParams()
+		appState.VM.Params.MinGetReadDepth100 = defaults.MinGetReadDepth100
+		appState.VM.Params.MinSetReadDepth100 = defaults.MinSetReadDepth100
+		appState.VM.Params.MinWriteDepth100 = defaults.MinWriteDepth100
+		appState.VM.Params.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
+		appState.VM.Params.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
+		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
+		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
+	}
+
 	// Append historical txs after existing genesis-mode txs
 	// Genesis-mode txs (no metadata or BlockHeight==0): package deploys, setup
 	// Historical txs (BlockHeight > 0): replayed with original chain ID context

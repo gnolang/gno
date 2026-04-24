@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	bftypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -79,6 +81,124 @@ func TestWriteTxsJSONL_RoundTrip(t *testing.T) {
 	require.NotNil(t, decoded[0].Metadata)
 	assert.Equal(t, int64(42), decoded[0].Metadata.BlockHeight)
 	assert.Equal(t, "test-chain", decoded[0].Metadata.ChainID)
+}
+
+// TestBuildHardforkGenesis_DefaultsGasParams asserts that buildHardforkGenesis
+// populates the new gas-storage params (min_*/fixed_*_depth_100,
+// iter_next_cost_flat) with code defaults when the source genesis has them
+// all at zero (i.e. was generated before the gas-storage refactor). Without
+// this, the resulting genesis would fail Params.Validate() on any post-
+// refactor node (iter_next_cost_flat must be > 0).
+func TestBuildHardforkGenesis_DefaultsGasParams(t *testing.T) {
+	t.Parallel()
+
+	// Source genesis mimicking a pre-refactor gnoland1: vm.params has the
+	// original 6 fields set but none of the 7 new gas-storage fields.
+	src := &bftypes.GenesisDoc{
+		ChainID: "gnoland1",
+		AppState: gnoland.GnoGenesisState{
+			VM: vm.GenesisState{
+				Params: vm.Params{
+					SysNamesPkgPath:     "gno.land/r/sys/names",
+					SysCLAPkgPath:       "gno.land/r/sys/cla",
+					ChainDomain:         "gno.land",
+					DefaultDeposit:      "600000000ugnot",
+					StoragePrice:        "100ugnot",
+					StorageFeeCollector: crypto.AddressFromPreimage([]byte("storage_fee_collector")),
+				},
+			},
+		},
+	}
+
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	require.NotNil(t, appState)
+
+	defaults := vm.DefaultParams()
+	assert.Equal(t, defaults.MinGetReadDepth100, appState.VM.Params.MinGetReadDepth100, "MinGetReadDepth100 should be defaulted")
+	assert.Equal(t, defaults.MinSetReadDepth100, appState.VM.Params.MinSetReadDepth100, "MinSetReadDepth100 should be defaulted")
+	assert.Equal(t, defaults.MinWriteDepth100, appState.VM.Params.MinWriteDepth100, "MinWriteDepth100 should be defaulted")
+	assert.Equal(t, defaults.FixedGetReadDepth100, appState.VM.Params.FixedGetReadDepth100, "FixedGetReadDepth100 should be defaulted")
+	assert.Equal(t, defaults.FixedSetReadDepth100, appState.VM.Params.FixedSetReadDepth100, "FixedSetReadDepth100 should be defaulted")
+	assert.Equal(t, defaults.FixedWriteDepth100, appState.VM.Params.FixedWriteDepth100, "FixedWriteDepth100 should be defaulted")
+	assert.Equal(t, defaults.IterNextCostFlat, appState.VM.Params.IterNextCostFlat, "IterNextCostFlat should be defaulted")
+
+	// Pre-existing fields from the source must survive untouched.
+	assert.Equal(t, "gno.land/r/sys/names", appState.VM.Params.SysNamesPkgPath)
+	assert.Equal(t, "gno.land", appState.VM.Params.ChainDomain)
+
+	// Validate() must now pass.
+	require.NoError(t, appState.VM.Params.Validate(),
+		"defaulted params should pass Validate()")
+}
+
+// TestBuildHardforkGenesis_PreservesTunedGasParams asserts that operator-tuned
+// gas params (any one of the 7 non-zero) disable the default-fill entirely,
+// preserving the operator's intent.
+func TestBuildHardforkGenesis_PreservesTunedGasParams(t *testing.T) {
+	t.Parallel()
+
+	// Source with only IterNextCostFlat set (simulating operator who tuned
+	// one field). The other 6 must stay at zero (no partial defaulting).
+	src := &bftypes.GenesisDoc{
+		ChainID: "gnoland1",
+		AppState: gnoland.GnoGenesisState{
+			VM: vm.GenesisState{
+				Params: vm.Params{
+					SysNamesPkgPath:  "gno.land/r/sys/names",
+					SysCLAPkgPath:    "gno.land/r/sys/cla",
+					ChainDomain:      "gno.land",
+					DefaultDeposit:   "600000000ugnot",
+					StoragePrice:     "100ugnot",
+					IterNextCostFlat: 500, // operator override
+				},
+			},
+		},
+	}
+
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), appState.VM.Params.IterNextCostFlat,
+		"operator tuning should be preserved")
+	assert.Equal(t, int64(0), appState.VM.Params.MinGetReadDepth100,
+		"defaulting should NOT kick in when any field is set")
+	assert.Equal(t, int64(0), appState.VM.Params.MinWriteDepth100)
+}
+
+// TestBuildHardforkGenesis_DefaultsGasReplayMode asserts that buildHardforkGenesis
+// sets GasReplayMode = "source" when the source genesis leaves it empty.
+// "source" is the safe default for hardfork replay: historical txs preserve
+// their original outcome rather than being re-gassed under the new VM's meter.
+func TestBuildHardforkGenesis_DefaultsGasReplayMode(t *testing.T) {
+	t.Parallel()
+
+	src := &bftypes.GenesisDoc{
+		ChainID:  "gnoland1",
+		AppState: gnoland.GnoGenesisState{
+			// GasReplayMode left unset in source
+		},
+	}
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	assert.Equal(t, "source", appState.GasReplayMode)
+}
+
+// TestBuildHardforkGenesis_PreservesExplicitGasReplayMode asserts that an
+// explicit GasReplayMode in the source (e.g. "strict" for comparison testing
+// or an operator override) is not overwritten.
+func TestBuildHardforkGenesis_PreservesExplicitGasReplayMode(t *testing.T) {
+	t.Parallel()
+
+	src := &bftypes.GenesisDoc{
+		ChainID: "gnoland1",
+		AppState: gnoland.GnoGenesisState{
+			GasReplayMode: "strict",
+		},
+	}
+	_, appState, err := buildHardforkGenesis(src, nil, "test-13", "gnoland1", 813643)
+	require.NoError(t, err)
+	assert.Equal(t, "strict", appState.GasReplayMode,
+		"explicit GasReplayMode must not be overwritten")
 }
 
 // TestVerifyGenesisFile_Invalid verifies that verifyGenesisFile returns an
