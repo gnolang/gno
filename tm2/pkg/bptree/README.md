@@ -34,17 +34,27 @@ The value 32 balances:
 
 ### Out-of-line values
 
-Leaf nodes store `key + SHA256(value)`, not the raw value. Values are
-stored separately in the DB, content-addressed by their SHA256 hash.
-This means:
+Leaf nodes store `key + SHA256(value) + ValueKey(12B)`, not the raw value.
+Values are stored separately in the DB under their ValueKey (a
+per-allocation `(version, nonce)` identifier), with the SHA256(value) kept
+in the leaf for Merkle proofs. This means:
 - **Smaller nodes**: leaf nodes are ~1.4KB regardless of value size
 - **Less COW amplification**: modifying one key copies only hash references, not sibling values
-- **Deduplication**: identical values stored once (content-addressed)
 - **Copy safety**: callers cannot corrupt stored values by mutating their byte slices
 
 Values are written directly to the DB (not via batch) so `Get` works
 before `SaveVersion`. Values are never garbage collected — dead values
-after pruning are harmless noise.
+after pruning are harmless noise. Eagerly-written values left behind by
+a crashed working session (process died before `SaveVersion` or
+`Rollback`) are cleaned up on the next `Load()` by scanning for
+ValueKeys with a version greater than the latest persisted version.
+
+**No content-addressed deduplication.** Two `Set` calls with identical
+values each get a fresh ValueKey and a separate DB entry — there is no
+hash-based lookup table. This keeps the design simple (no reference
+counting, no "unreferenced hash" cleanup) at the cost of storage
+overhead when identical values are common. If your workload has highly
+duplicated values, dedupe at the application layer before `Set`.
 
 ### Full SHA256 (32 bytes)
 
