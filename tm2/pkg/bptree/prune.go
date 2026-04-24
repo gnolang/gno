@@ -24,6 +24,20 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		}
 	}
 
+	// Flush cap in bytes. Commit whenever the pending batch grows past this
+	// bound so PruneVersionsTo's working memory is O(flushThreshold) rather
+	// than O(pruned-nodes-and-values), matching typical per-block usage but
+	// also bounding startup catch-up prunes of many versions.
+	//
+	// Intermediate commits are safe: pruning is idempotent. A crash after a
+	// partial commit means some root references are already deleted from
+	// the DB, so discoverVersions on the next startup recomputes the
+	// correct firstVersion and a retry re-processes only what's left.
+	flushThreshold := t.ndb.opts.FlushThreshold
+	if flushThreshold <= 0 {
+		flushThreshold = 4 * 1024 * 1024 // 4 MiB default
+	}
+
 	for v := first; v <= toVersion; v++ {
 		if !t.ndb.VersionExists(v) {
 			continue
@@ -47,6 +61,14 @@ func (t *MutableTree) PruneVersionsTo(toVersion int64) error {
 		}
 		if err := t.ndb.DeleteRoot(v); err != nil {
 			return err
+		}
+		// Flush if the batch has grown beyond the threshold. Ignore
+		// GetByteSize errors — fall back to the final Commit which will
+		// still flush everything; we just lose the intermediate bound.
+		if size, err := t.ndb.batch.GetByteSize(); err == nil && size >= flushThreshold {
+			if err := t.ndb.Commit(); err != nil {
+				return err
+			}
 		}
 	}
 
