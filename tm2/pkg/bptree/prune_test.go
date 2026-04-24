@@ -539,6 +539,104 @@ func TestRollback_CleansUpValues(t *testing.T) {
 	}
 }
 
+// TestSaveVersion_IdempotentReplayRollbackSafe exercises the "version
+// already exists with matching hash" path — typical of a deterministic
+// block replay after a crash. The working tree carries session state
+// (sessionValues, versionOrphans, nextValueNonce) accumulated from the
+// replay's Set/Remove calls. Before the fix, that state survived the
+// idempotent save; a subsequent Rollback would DeleteValueDirect each
+// session vk — which, in a deterministic replay, collide with the
+// persisted vks — and corrupt the live DB.
+func TestSaveVersion_IdempotentReplayRollbackSafe(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	// Original save of V1.
+	orig := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	orig.Set([]byte("k1"), []byte("v1"))
+	orig.Set([]byte("k2"), []byte("v2"))
+	hash1, _, err := orig.SaveVersion()
+	if err != nil {
+		t.Fatalf("SaveVersion(1): %v", err)
+	}
+	valuesAfterOriginalSave := countDBValues(db)
+	if valuesAfterOriginalSave != 2 {
+		t.Fatalf("setup: expected 2 values after original save, got %d", valuesAfterOriginalSave)
+	}
+
+	// Simulate crash + deterministic replay: fresh MutableTree on the same
+	// DB, same writes in the same order. Because nonces restart at 0 and
+	// allocation order is deterministic, replay's ValueKeys COLLIDE with
+	// the persisted ones — SaveValue overwrites the same DB entries.
+	replay := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+	replay.Set([]byte("k1"), []byte("v1"))
+	replay.Set([]byte("k2"), []byte("v2"))
+
+	hash1b, _, err := replay.SaveVersion()
+	if err != nil {
+		t.Fatalf("idempotent SaveVersion: %v", err)
+	}
+	if string(hash1) != string(hash1b) {
+		t.Fatalf("hash mismatch after idempotent save: %x vs %x", hash1, hash1b)
+	}
+	if got := countDBValues(db); got != 2 {
+		t.Fatalf("after idempotent save: %d values, want 2", got)
+	}
+
+	// Reads must still work.
+	if v, _ := replay.Get([]byte("k1")); string(v) != "v1" {
+		t.Fatalf("Get k1 after idempotent save = %q, want v1", v)
+	}
+
+	// Rollback must NOT corrupt the live DB. Before the fix, session state
+	// was never cleared on the idempotent path, so Rollback iterated
+	// sessionValues and called DeleteValueDirect on vks that collided with
+	// the persisted keys — wiping the live values from the DB.
+	replay.Rollback()
+	if got := countDBValues(db); got != 2 {
+		t.Fatalf("Rollback after idempotent save corrupted DB: %d values, want 2", got)
+	}
+	if v, _ := replay.Get([]byte("k1")); string(v) != "v1" {
+		t.Fatalf("Get k1 after rollback = %q, want v1 (live DB was not corrupted)", v)
+	}
+	if v, _ := replay.Get([]byte("k2")); string(v) != "v2" {
+		t.Fatalf("Get k2 after rollback = %q, want v2 (live DB was not corrupted)", v)
+	}
+}
+
+// TestSaveVersion_IdempotentEmptySessionNoOp verifies the trivial idempotent
+// path: calling SaveVersion twice in a row without any intervening Sets
+// produces the same hash and leaves the DB untouched. This protects the
+// session-clear logic from breaking the no-session case.
+func TestSaveVersion_IdempotentEmptySessionNoOp(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
+
+	tree.Set([]byte("k"), []byte("v"))
+	hashA, versionA, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("first SaveVersion: %v", err)
+	}
+	valuesA := countDBValues(db)
+
+	// Forcibly re-enter the idempotent path: clear the version counter so
+	// WorkingVersion() again returns versionA, and re-save.
+	tree.version = versionA - 1
+	hashB, versionB, err := tree.SaveVersion()
+	if err != nil {
+		t.Fatalf("idempotent SaveVersion with empty session: %v", err)
+	}
+	if versionB != versionA {
+		t.Fatalf("version mismatch: %d vs %d", versionB, versionA)
+	}
+	if string(hashA) != string(hashB) {
+		t.Fatalf("hash mismatch: %x vs %x", hashA, hashB)
+	}
+	if countDBValues(db) != valuesA {
+		t.Fatalf("idempotent save with empty session changed DB: %d vs %d",
+			countDBValues(db), valuesA)
+	}
+}
+
 func TestPrune_DisjointKeysPreservesValues(t *testing.T) {
 	// Regression: pruning should NOT delete shared values
 	db := memdb.NewMemDB()

@@ -243,7 +243,36 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 		if existingEmpty != newEmpty || !bytes.Equal(existingHash, newHash) {
 			return nil, 0, fmt.Errorf("version %d already exists with a different hash", version)
 		}
-		// Same hash — idempotent save, skip
+
+		// Same hash — idempotent save (typical scenario: deterministic replay
+		// of an already-committed block). The working tree carries non-empty
+		// session state: Set/Remove during replay allocated fresh ValueKeys
+		// and eagerly wrote their values to the DB.
+		//
+		// In a deterministic replay those ValueKeys COLLIDE with the
+		// persisted ones (same version, same allocation order, same nonces),
+		// so SaveValue simply overwrote the live entries with the same
+		// content. The working tree and the persisted tree reference the
+		// same vks — identical state.
+		//
+		// We MUST NOT call DeleteValueDirect on sessionValues in that case:
+		// those vks are the live ones. That's exactly what Rollback would
+		// have done if we left sessionValues intact, which is the bug this
+		// guard was added for. Simply clear the session counters so a
+		// subsequent Rollback is a no-op on the DB.
+		//
+		// Caveat: if the replay's allocation order DIVERGES from the
+		// original (e.g., transient writes that cancel out), session vks
+		// don't collide and their DB entries become genuine duplicates.
+		// Detecting that reliably would require comparing every session vk
+		// against every leaf in the persisted tree, which is prohibitive.
+		// Those duplicates leak in the DB, but they're unreferenced and
+		// harmless — aligning with the rest of the design (values are never
+		// GC'd; see README).
+		t.sessionValues = t.sessionValues[:0]
+		t.versionOrphans = t.versionOrphans[:0]
+		t.nextValueNonce = 0
+
 		t.version = version
 		t.lastSaved = t.root
 		return newHash, version, nil
