@@ -1,3 +1,4 @@
+# python3 cmd/calibrate/gen_analysis.py cmd/calibrate/op_bench_do_dedicated.txt pkg/gnolang/machine.go
 # Op Handler Gas Calibration Report — Xeon 8168
 # cpuBaseNs = 1.0, 371 unique benchmarks x 3 runs, -benchtime=2s
 # Generated 2026-03-14 (with measured alloc-gas/op)
@@ -1030,6 +1031,4 @@ const (
 	OpCPUSlopeBigDecUneg           =   13 // 0.1279 ns/digit * 100 = 12.8
 	OpCPUSlopeBigDecInc            =  372 // 3.7230 ns/digit * 100 = 372.3
 	OpCPUSlopeBigDecDec            =  371 // 3.7058 ns/digit * 100 = 370.6
-
-	// VM op quadratic slopes: gas = N^2 * slope / 10.
 )
