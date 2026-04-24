@@ -2,6 +2,7 @@ package fork
 
 import (
 	"context"
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,6 +67,40 @@ func minimalAppState() gnoland.GnoGenesisState {
 		Bank:     bank.DefaultGenesisState(),
 		VM:       vmm.DefaultGenesisState(),
 	}
+}
+
+// TestTestCfg_FlagDefaults asserts the default values of fork test's
+// command-line flags. The defaults must match production node behavior:
+// sig verification skipped (mirroring -skip-genesis-sig-verification on
+// gnoland), but failing txs do fail the test (explicit opt-in required
+// via --skip-failing-genesis-txs for parity with the cluster's permissive
+// mode).
+func TestTestCfg_FlagDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg := &testCfg{}
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	require.NoError(t, fs.Parse(nil))
+
+	// Default ON: sig verification must be skipped to not trip historical
+	// txs whose deployer keys don't match msg.Creator (manfred et al).
+	require.True(t, cfg.skipGenesisSigVerification,
+		"skip-genesis-sig-verification should default to true")
+
+	// Default OFF: failing txs should still fail the test by default
+	// (strictest posture for CI). Operators match the cluster flag
+	// explicitly when the chain tolerates genesis tx failures.
+	require.False(t, cfg.skipFailingTxs,
+		"skip-failing-genesis-txs should default to false")
+
+	// Override parse.
+	require.NoError(t, fs.Parse([]string{
+		"--skip-genesis-sig-verification=false",
+		"--skip-failing-genesis-txs=true",
+	}))
+	require.False(t, cfg.skipGenesisSigVerification)
+	require.True(t, cfg.skipFailingTxs)
 }
 
 // TestExecTest_MissingGenesis verifies that a missing genesis file is caught.
@@ -171,4 +206,3 @@ func TestExecTest_HardforkGenesis(t *testing.T) {
 	err = execTest(context.Background(), cfg, io)
 	require.NoError(t, err, "hardfork genesis replay should succeed")
 }
-
