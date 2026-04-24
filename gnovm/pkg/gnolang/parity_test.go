@@ -60,6 +60,11 @@ func parityCasesGnolang() []struct {
 		PkgID:   PkgID{Hashlet: NewHashlet(pidBytes[:HashSize])},
 		NewTime: 42,
 	}
+	// Zero Hashlet + non-zero NewTime: MarshalAmino returns
+	// "0000…00:1337" (non-empty). Checks that only the byte-array part
+	// going through hex encoding produces an all-zeros prefix while the
+	// ":N" suffix prevents the repr from being empty.
+	zeroPkgIDNonzeroTime := &ObjectID{NewTime: 1337}
 
 	// ValuePath covers different VPType cases.
 	vpField := &ValuePath{Type: VPField, Depth: 2, Index: 3, Name: "Field1"}
@@ -88,9 +93,22 @@ func parityCasesGnolang() []struct {
 		{"StringValue/nonempty", &strVal},
 		{"StringValue/empty", func() *StringValue { v := StringValue(""); return &v }()},
 
-		// ObjectID — AminoMarshaler repr-zeroness surface.
+		// ObjectID — AminoMarshaler repr-zeroness surface. Zero PkgID
+		// still produces a non-empty repr ("0000...0:N") because the
+		// ":N" suffix is always emitted.
 		{"ObjectID/zero", zeroOid},
+		{"ObjectID/zero-pkgid-nonzero-time", zeroPkgIDNonzeroTime},
 		{"ObjectID/populated", populatedOid},
+
+		// Hashlet standalone: typed [20]byte with hex-encoded AminoMarshaler.
+		// Zero value produces "0000000000000000000000000000000000000000"
+		// (non-empty, 40 chars) — a second exemplar of the repr-zeroness
+		// surface distinct from ObjectID's colon-joined form.
+		{"Hashlet/zero", func() *Hashlet { h := Hashlet{}; return &h }()},
+		{"Hashlet/populated", func() *Hashlet {
+			h := NewHashlet([]byte("aaaaaaaaaaaaaaaaaaaa"))
+			return &h
+		}()},
 
 		// ValuePath variants.
 		{"ValuePath/field", vpField},
@@ -98,5 +116,52 @@ func parityCasesGnolang() []struct {
 
 		// Default TypedValue (nil T, nil V) — empty wire form.
 		{"TypedValue/empty", tv},
+
+		// Location/metadata types — the simplest serializable gnolang shapes.
+		{"Pos", &Pos{Line: 10, Column: 5}},
+		{"Span", &Span{Pos: Pos{Line: 10, Column: 5}, End: Pos{Line: 12, Column: 1}, Num: 0}},
+		{"Location", &Location{
+			PkgPath: "gno.land/r/foo",
+			File:    "foo.gno",
+			Span:    Span{Pos: Pos{Line: 3, Column: 1}, End: Pos{Line: 7, Column: 2}},
+		}},
+
+		// ValueHash — AminoMarshaler with hex repr, exercises the
+		// repr-zeroness guard for a typed byte-array (like Hashlet).
+		{"ValueHash/populated", &ValueHash{
+			Hashlet: NewHashlet([]byte("01234567890123456789")),
+		}},
+
+		// Value types — minimal instances that round-trip cleanly.
+		{"RefValue/populated", &RefValue{
+			ObjectID: ObjectID{PkgID: PkgID{Hashlet: NewHashlet([]byte("abcdefghabcdefghabcd"))}, NewTime: 5},
+			Hash:     ValueHash{Hashlet: NewHashlet([]byte("hhhhhhhhhhhhhhhhhhhh"))},
+		}},
+		{"RefValue/pkgpath-only", &RefValue{PkgPath: "gno.land/p/demo/foo"}},
+		{"ExportRefValue", &ExportRefValue{ObjectID: ":42"}},
+		{"HeapItemValue/empty", &HeapItemValue{}},
+
+		// ObjectInfo standalone — carried by every persisted object.
+		{"ObjectInfo/populated", &ObjectInfo{
+			ID:       ObjectID{PkgID: PkgID{Hashlet: NewHashlet([]byte("pidpidpidpidpidpidpi"))}, NewTime: 7},
+			Hash:     ValueHash{Hashlet: NewHashlet([]byte("ihihihihihihihihihih"))},
+			ModTime:  100,
+			RefCount: 3,
+		}},
+
+		// Realm — package-state wrapper.
+		{"Realm", &Realm{
+			ID:      PkgID{Hashlet: NewHashlet([]byte("rpidrpidrpidrpidrpid"))},
+			Path:    "gno.land/r/demo/rlm",
+			Time:    42,
+			Deposit: 1000,
+			Storage: 512,
+		}},
+
+		// PointerValue with nil Base/TV — the allocation minimum.
+		{"PointerValue/nil", &PointerValue{Index: 0}},
+
+		// SliceValue referring to no backing Value.
+		{"SliceValue/empty", &SliceValue{Base: nil, Offset: 0, Length: 0, Maxcap: 0}},
 	}
 }
