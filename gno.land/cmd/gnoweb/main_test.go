@@ -83,7 +83,7 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true)
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -119,7 +119,7 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false)
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
