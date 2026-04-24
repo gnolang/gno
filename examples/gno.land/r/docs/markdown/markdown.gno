@@ -864,6 +864,44 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > > [!NOTE]
 > > This is a scoped note
 
+### Collapsible blocks
+
+For neutral collapsible content — logs, JSON dumps, long changelogs — that should not carry alert styling, use a ±:::details± block. It renders as a bare expandable section.
+
+By default the block is closed. Add ±[open]± right after ±:::details± to start it open. The closing fence is a line containing exactly ±:::±.
+
+±±±markdown
+:::details Summary text
+arbitrary **markdown**
+:::
+±±±
+
+:::details Summary text
+arbitrary **markdown**
+:::
+
+±±±markdown
+:::details[open] Open by default
+You can see me without clicking.
+:::
+±±±
+
+:::details[open] Open by default
+You can see me without clicking.
+:::
+
+±±±markdown
+:::details Changelog
+- First entry
+- Second entry
+:::
+±±±
+
+:::details Changelog
+- First entry
+- Second entry
+:::
+
 ### User Mentions and Bech32 Addresses
 
 Gno markdown automatically recognizes and renders user mentions and Bech32 addresses as clickable links.

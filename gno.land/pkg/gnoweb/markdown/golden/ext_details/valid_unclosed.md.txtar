@@ -1,0 +1,10 @@
+-- input.md --
+:::details Unclosed
+Body goes to end of document.
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Unclosed</summary>
+<div>
+<p>Body goes to end of document.</p>
+</div>
+</details>
