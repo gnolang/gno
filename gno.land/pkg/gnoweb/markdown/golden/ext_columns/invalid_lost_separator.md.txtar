@@ -6,7 +6,7 @@
 <gno-columns-sep />
 
 -- output.html --
-<h2 id="shorthand-lost-separator"><a class="heading-anchor" href="#shorthand-lost-separator" aria-label="Link to this section">shorthand lost separator</a></h2>
+<h2 id="shorthand-lost-separator"><a class="heading-anchor" href="#shorthand-lost-separator">shorthand lost separator</a></h2>
 <p>|||</p>
-<h2 id="html-tag-log-separator"><a class="heading-anchor" href="#html-tag-log-separator" aria-label="Link to this section">html tag log separator</a></h2>
+<h2 id="html-tag-log-separator"><a class="heading-anchor" href="#html-tag-log-separator">html tag log separator</a></h2>
 <!-- unexpected/invalid columns tag omitted -->

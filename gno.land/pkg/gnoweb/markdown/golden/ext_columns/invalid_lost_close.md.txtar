@@ -5,5 +5,5 @@
 </gno-columns>
 
 -- output.html --
-<h3 id="invalid-lost-closing-tag"><a class="heading-anchor" href="#invalid-lost-closing-tag" aria-label="Link to this section">Invalid lost closing tag</a></h3>
+<h3 id="invalid-lost-closing-tag"><a class="heading-anchor" href="#invalid-lost-closing-tag">Invalid lost closing tag</a></h3>
 <!-- unexpected/invalid columns tag omitted -->

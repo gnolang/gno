@@ -259,11 +259,6 @@
 		text-decoration: none;
 	}
 
-	:is(h1, h2, h3, h4):hover .heading-anchor::after {
-		color: var(--s-color-text-tertiary);
-		font-weight: var(--g-font-regular);
-	}
-
 	:is(h1, h2, h3, h4) .heading-anchor:focus-visible {
 		outline: var(--g-space-px) solid var(--s-color-border-brand);
 		outline-offset: var(--g-space-1);
@@ -552,7 +547,7 @@
 	/* ===== FOOTNOTES ===== */
 
 	:is(h1, h2, h3, h4, sup, .footnote-backref) {
-		scroll-margin-top: var(--cr-space-24);
+		scroll-margin-top: var(--g-space-16);
 	}
 
 	.b-btn {
@@ -654,11 +649,6 @@
 	& .heading-anchor {
 		color: inherit;
 		text-decoration: none;
-	}
-	& :is(h1, h2, h3, h4):hover .heading-anchor::after {
-		content: " §";
-		color: var(--s-color-text-tertiary);
-		font-weight: var(--g-font-regular);
 	}
 	& :is(h1, h2, h3, h4) .heading-anchor:focus-visible {
 		outline: var(--g-space-px) solid var(--s-color-border-brand);
