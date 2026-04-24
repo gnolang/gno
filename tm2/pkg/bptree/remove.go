@@ -206,14 +206,17 @@ func redistributeRight(parent *InnerNode, idx int) {
 			r.childHashes[i] = r.childHashes[i-1]
 			r.childSizes[i] = r.childSizes[i-1]
 		}
-		// Demote separator, promote left's last key
-		r.keys[0] = parent.keys[idx]
+		// Demote separator to r, promote left's last key to parent. Use
+		// copyKey on both transfers for symmetry with the leaf case
+		// (redistributeRight / redistributeLeft both copy) and to keep
+		// keys stored in different nodes as independent slices.
+		r.keys[0] = copyKey(parent.keys[idx])
 		r.childNodes[0] = movedChild
 		r.children[0] = l.children[lastChildIdx]
 		r.childHashes[0] = l.childHashes[lastChildIdx]
 		r.childSizes[0] = movedSize
 		r.numKeys++
-		parent.keys[idx] = l.keys[lastKeyIdx]
+		parent.keys[idx] = copyKey(l.keys[lastKeyIdx])
 		l.keys[lastKeyIdx] = nil
 		l.childNodes[lastChildIdx] = nil
 		l.children[lastChildIdx] = nil
@@ -267,15 +270,18 @@ func redistributeLeft(parent *InnerNode, idx int) {
 		l := left.(*InnerNode)
 		movedSize := r.childSizes[0]
 		movedChild := r.childNodes[0]
-		// Demote separator to end of left, promote right's first key
-		l.keys[l.numKeys] = parent.keys[idx]
+		// Demote separator to end of left, promote right's first key.
+		// copyKey on both transfers for symmetry with the leaf branch
+		// (which already does this) and to keep keys stored in different
+		// nodes as independent slices.
+		l.keys[l.numKeys] = copyKey(parent.keys[idx])
 		lnc := l.NumChildren()
 		l.childNodes[lnc] = movedChild
 		l.children[lnc] = r.children[0]
 		l.childHashes[lnc] = r.childHashes[0]
 		l.childSizes[lnc] = movedSize
 		l.numKeys++
-		parent.keys[idx] = r.keys[0]
+		parent.keys[idx] = copyKey(r.keys[0])
 		// Shift right left (including childSizes)
 		rn := int(r.numKeys)
 		for i := 0; i < rn-1; i++ {
