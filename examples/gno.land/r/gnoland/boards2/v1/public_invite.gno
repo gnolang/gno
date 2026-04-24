@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 // Invite contains a user invitation.
@@ -56,7 +56,7 @@ func RequestInvite(_ realm, boardID boards.ID) {
 	invitee := user.String()
 	requests, found := getInviteRequests(boardID)
 	if !found {
-		requests = avl.NewTree()
+		requests = bptree.NewBPTree32()
 		requests.Set(invitee, time.Now())
 		gInviteRequests.Set(boardID.Key(), requests)
 		return
