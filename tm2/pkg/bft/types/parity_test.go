@@ -124,6 +124,19 @@ func parityCasesBFT(t *testing.T) []struct {
 			Round:     0,
 			Timestamp: stamp,
 		}},
+		// Varint-boundary cases for Round (plain int, not fixed64).
+		// 127 vs 128 crosses the 1-byte to 2-byte varint boundary;
+		// 16383 vs 16384 crosses 2-byte to 3-byte. Height is fixed64
+		// (always 8 bytes) so these cases target Round specifically.
+		{"Vote/round-127", &Vote{
+			Type: PrecommitType, Height: 1, Round: 127, Timestamp: stamp,
+		}},
+		{"Vote/round-128", &Vote{
+			Type: PrecommitType, Height: 1, Round: 128, Timestamp: stamp,
+		}},
+		{"Vote/round-16384", &Vote{
+			Type: PrecommitType, Height: 1, Round: 16384, Timestamp: stamp,
+		}},
 		{"Proposal/polround-neg", &Proposal{
 			Type:      ProposalType,
 			Height:    42,

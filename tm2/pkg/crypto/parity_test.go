@@ -86,6 +86,18 @@ func parityCasesCrypto() []struct {
 			pkEd2,
 		},
 	}
+	// Same shape with a nil PubKey entry — exercises Any-wrapping over
+	// a nil interface in the middle of a slice. The encoder writes 0x00
+	// for the nil element; the decoder must recover it as a nil
+	// crypto.PubKey interface.
+	multiWithNil := &multisig.PubKeyMultisigThreshold{
+		K: 2,
+		PubKeys: []crypto.PubKey{
+			pkEd,
+			nil,
+			pkSec,
+		},
+	}
 
 	// BIP44Params with non-trivial content.
 	bip := &hd.BIP44Params{
@@ -149,5 +161,6 @@ func parityCasesCrypto() []struct {
 		{"Proof", proof},
 		{"SimpleProofNode", spn},
 		{"PubKeyMultisigThreshold", multi},
+		{"PubKeyMultisigThreshold/with-nil", multiWithNil},
 	}
 }

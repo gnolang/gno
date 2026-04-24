@@ -101,6 +101,20 @@ func TestCodecParity_Std(t *testing.T) {
 			Signatures: []std.Signature{{PubKey: pk, Signature: []byte{0x01}}},
 			Memo:       "hello",
 		}},
+		// String field with embedded NUL bytes — amino's length-prefix
+		// encoding must be binary-safe.
+		{"Tx/memo-with-nul", &std.Tx{
+			Msgs: nil,
+			Fee:  std.Fee{GasWanted: 1000, GasFee: std.Coin{Denom: "ugnot", Amount: 10}},
+			Memo: "hel\x00lo\x00world",
+		}},
+		// Single-byte Signature of 0x00 — exercises the wire-format
+		// path for a byte slice whose ENTIRE content is a single null
+		// byte (distinct from the empty []byte case).
+		{"Signature/single-zero-byte", &std.Signature{
+			PubKey:    pk,
+			Signature: []byte{0x00},
+		}},
 	}
 
 	for i, c := range cases {

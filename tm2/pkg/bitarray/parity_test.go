@@ -22,12 +22,32 @@ func TestCodecParity_BitArray(t *testing.T) {
 		ba.SetIndex(i, true)
 	}
 
+	// Byte-boundary bit positions — the BitArray's internal []uint64
+	// representation packs 64 bits per word, so index 63↔64 and 127↔128
+	// cross word boundaries that past bugs have been sensitive to.
+	boundary := bitarray.NewBitArray(256)
+	for _, i := range []int{63, 64, 127, 128, 255} {
+		boundary.SetIndex(i, true)
+	}
+
+	// Size exactly 127 and 128 exercise the varint length-prefix
+	// boundary at the top-level wire encoding.
+	b127 := bitarray.NewBitArray(127)
+	b127.SetIndex(0, true)
+	b127.SetIndex(126, true)
+	b128 := bitarray.NewBitArray(128)
+	b128.SetIndex(0, true)
+	b128.SetIndex(127, true)
+
 	cases := []struct {
 		name string
 		v    any
 	}{
 		{"BitArray/empty", bitarray.NewBitArray(8)},
 		{"BitArray/populated", ba},
+		{"BitArray/word-boundaries", boundary},
+		{"BitArray/size-127", b127},
+		{"BitArray/size-128", b128},
 	}
 
 	for i, c := range cases {
