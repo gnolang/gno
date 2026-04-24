@@ -1002,7 +1002,7 @@ func TestGasPriceUpdate(t *testing.T) {
 		ChainID:  "test-chain",
 		ConsensusParams: &abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxGas: 10000,
+				MaxGas: 1_000_000,
 			},
 		},
 	})
@@ -1013,7 +1013,7 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	tx := newCounterTx(100)
 	tx.Fee = std.Fee{
-		GasWanted: 100,
+		GasWanted: 10000,
 		GasFee: sdk.Coin{
 			Amount: 9,
 			Denom:  "ugnot",
@@ -1029,9 +1029,9 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Check Tx Ok
 	tx2 := newCounterTx(100)
 	tx2.Fee = std.Fee{
-		GasWanted: 1000,
+		GasWanted: 100000,
 		GasFee: sdk.Coin{
-			Amount: 100,
+			Amount: 10000,
 			Denom:  "ugnot",
 		},
 	}
@@ -1043,13 +1043,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	// After replaying a block, the gas price increased.
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-	// Delvier Tx consumes more than that target block gas 6000.
+	// Delvier Tx consumes more than that target block gas 600000.
 
-	tx6001 := newCounterTx(6001)
+	tx6001 := newCounterTx(610000)
 	tx6001.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200,
+			Amount: 200000,
 			Denom:  "ugnot",
 		},
 	}
@@ -1073,13 +1073,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Replayed a Block, the gas price decrease
 	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-	// Delvier Tx consumes less than that target block gas 6000.
+	// Delvier Tx consumes less than that target block gas 600000.
 
-	tx200 := newCounterTx(200)
+	tx200 := newCounterTx(20000)
 	tx200.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200,
+			Amount: 200000,
 			Denom:  "ugnot",
 		},
 	}
@@ -1098,9 +1098,9 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	// Case 4
 	// require matching expected GasPrice after three blocks ( increase case)
-	replayBlock(t, baseApp, 8000, 3)
-	replayBlock(t, baseApp, 8000, 4)
-	replayBlock(t, baseApp, 6000, 5)
+	replayBlock(t, baseApp, 800000, 3)
+	replayBlock(t, baseApp, 800000, 4)
+	replayBlock(t, baseApp, 600000, 5)
 
 	key := []byte("gasPrice")
 	query := abci.RequestQuery{
@@ -1116,16 +1116,16 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Case 5,
 	// require matching expected GasPrice after low gas blocks ( decrease below initial gas price case)
 
-	replayBlock(t, baseApp, 5000, 6)
-	replayBlock(t, baseApp, 5000, 7)
-	replayBlock(t, baseApp, 5000, 8)
+	replayBlock(t, baseApp, 500000, 6)
+	replayBlock(t, baseApp, 500000, 7)
+	replayBlock(t, baseApp, 500000, 8)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
 	require.NoError(t, err)
 	require.Equal(t, "102ugnot", gp.Price.String())
 
-	replayBlock(t, baseApp, 5000, 9)
+	replayBlock(t, baseApp, 500000, 9)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
@@ -1151,7 +1151,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 
 	// Construct keepers.
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -1263,7 +1263,6 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
 	t.Helper()
 	gen := GnoGenesisState{}
 	genBytes := []byte(`{
-    "@type": "/gno.GenesisState",
     "auth": {
       "params": {
         "gas_price_change_compressor": "8",
@@ -1296,7 +1295,7 @@ func replayBlock(t *testing.T, app *sdk.BaseApp, gas int64, hight int64) {
 	t.Helper()
 	tx := newCounterTx(gas)
 	tx.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
 			Amount: 1000,
 			Denom:  "ugnot",
