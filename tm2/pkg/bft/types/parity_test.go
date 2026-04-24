@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/aminotest"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 )
 
 // TestCodecParity_BFTTypes asserts that every hand-crafted consensus value
@@ -172,5 +173,54 @@ func parityCasesBFT(t *testing.T) []struct {
 			PubKey:      nil, // Interface; nil round-trips as nil
 			VotingPower: 100,
 		}},
+
+		// Data — transactions in a block. The unexported Data.hash cache
+		// is only populated by Data.Hash(); constructing directly keeps
+		// strict DeepEqual working.
+		{"Data/empty", &Data{}},
+		// Txs elements are non-empty — empty []byte roundtrips to nil under
+		// amino (documented; see parity helper docstring).
+		{"Data/populated", &Data{
+			Txs: []Tx{
+				Tx([]byte{0xde, 0xad, 0xbe, 0xef}),
+				Tx([]byte("hello")),
+				Tx([]byte{0x01}),
+			},
+		}},
+
+		// Part: block part with merkle proof. Proof.Aunts exercises
+		// [][]byte nested-byte-slice encoding under a non-empty context.
+		{"Part", &Part{
+			Index: 2,
+			Bytes: []byte{0x01, 0x02, 0x03, 0x04},
+			Proof: merkle.SimpleProof{
+				Total:    4,
+				Index:    2,
+				LeafHash: []byte{0xaa, 0xbb, 0xcc},
+				Aunts: [][]byte{
+					{0x10, 0x20},
+					{0x30},
+				},
+			},
+		}},
+
+		// PartSetHeader: small fixed struct. Include empty and populated.
+		{"PartSetHeader/empty", &PartSetHeader{}},
+		{"PartSetHeader/populated", &PartSetHeader{
+			Total: 7,
+			Hash:  []byte{0x12, 0x34, 0x56, 0x78},
+		}},
+
+		// ValidatorSet: amino-serialized form (the exported Validators +
+		// Proposer fields; the unexported totalVotingPower cache is only
+		// set via computations we don't invoke).
+		{"ValidatorSet", func() *ValidatorSet {
+			v1 := &Validator{Address: addr1, VotingPower: 100}
+			v2 := &Validator{Address: addr2, VotingPower: 200}
+			return &ValidatorSet{
+				Validators: []*Validator{v1, v2},
+				Proposer:   v1,
+			}
+		}()},
 	}
 }
