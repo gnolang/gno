@@ -98,17 +98,33 @@ func (t *MutableTree) pruneVersion(v, nextV int64) error {
 		return err
 	}
 
-	// Process orphan list: delete values displaced when nextV was created
-	orphans, err := t.ndb.LoadOrphans(nextV)
-	if err != nil {
-		return fmt.Errorf("loading orphans for v%d: %w", nextV, err)
-	}
-	for _, vk := range orphans {
-		if err := t.ndb.DeleteValue(vk); err != nil {
-			return err
+	// Process orphan value lists:
+	//
+	// - orphans[nextV] lists values displaced WHEN nextV was created, i.e.,
+	//   values whose owning version is <=v. Pruning v means those values
+	//   should disappear.
+	//
+	// - orphans[v] lists values displaced when v was created (owners <v).
+	//   Those are normally consumed during pruneVersion(v-1, v), which runs
+	//   in the previous loop iteration and DeleteOrphans(v) at its end. For
+	//   the very first pruned version in a batch there is no such prior
+	//   iteration; without this guard, any values listed in orphans[first]
+	//   would leak. LoadOrphans returns an empty slice if the record was
+	//   already deleted, so for iterations where v > first the call is a
+	//   no-op (no batch bloat).
+	for _, version := range [2]int64{v, nextV} {
+		orphans, err := t.ndb.LoadOrphans(version)
+		if err != nil {
+			return fmt.Errorf("loading orphans for v%d: %w", version, err)
+		}
+		for _, vk := range orphans {
+			if err := t.ndb.DeleteValue(vk); err != nil {
+				return err
+			}
 		}
 	}
-	// Clean up orphan records for both versions
+
+	// Clean up orphan records for both versions.
 	if err := t.ndb.DeleteOrphans(nextV); err != nil {
 		return err
 	}
