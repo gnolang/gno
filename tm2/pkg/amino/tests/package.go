@@ -96,6 +96,10 @@ var Package = pkg.NewPackage(
 	FuzzNilElements{},
 	FuzzFixedInt{},
 	FuzzContainsAminoMarshaler{},
+	// AminoMarshaler with empty-repr-on-zero; covers the "repr zero-check
+	// branch skips emission" gap that production AminoMarshalers never hit.
+	EmptyReprOnZero{},
+	FuzzNilEmptyRepr{},
 	// AminoMarshaler list element types.
 	SimpleAddress{},
 	HostRepr{},

@@ -89,6 +89,8 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzNilElements)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFixedInt)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzContainsAminoMarshaler)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*EmptyReprOnZero)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzNilEmptyRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SimpleAddress)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*HostRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CounterRepr)(nil)).Elem())
@@ -15258,6 +15260,167 @@ func (goo *FuzzContainsAminoMarshaler) UnmarshalBinary2(cdc *amino.Codec, bz []b
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for FuzzContainsAminoMarshaler", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo EmptyReprOnZero) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
+	{
+		before := offset
+		offset = amino.PrependString(buf, offset, string(repr))
+		valueLen := before - offset
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo EmptyReprOnZero) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	return s, nil
+}
+
+func (goo *EmptyReprOnZero) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var repr string
+	if len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
+		}
+		bz = bz[n:]
+		v, _, err := amino.DecodeString(bz)
+		if err != nil {
+			return err
+		}
+		repr = string(v)
+	}
+	return goo.UnmarshalAmino(repr)
+}
+
+func (goo FuzzNilEmptyRepr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Vals) - 1; i >= 0; i-- {
+		elem := goo.Vals[i]
+		if elem == nil {
+			offset = amino.PrependByte(buf, offset, 0x00)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			er, err := (*elem).MarshalAmino()
+			if err != nil {
+				return offset, err
+			}
+			offset = amino.PrependString(buf, offset, string(er))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
+	}
+	return offset, err
+}
+
+func (goo FuzzNilEmptyRepr) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	for _, elem := range goo.Vals {
+		if elem == nil {
+			s += 1 + 1
+		} else {
+			er, err := (*elem).MarshalAmino()
+			if err != nil {
+				return 0, err
+			}
+			vs := amino.UvarintSize(uint64(len(er))) + len(er)
+			s += 1 + vs
+		}
+	}
+	return s, nil
+}
+
+func (goo *FuzzNilEmptyRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum < lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			if len(bz) > 0 && bz[0] == 0x00 {
+				bz = bz[1:]
+				goo.Vals = append(goo.Vals, nil)
+			} else {
+				var ev EmptyReprOnZero
+				var rv string
+				v, n, err := amino.DecodeString(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				rv = string(v)
+				if err := ev.UnmarshalAmino(rv); err != nil {
+					return err
+				}
+				goo.Vals = append(goo.Vals, &ev)
+			}
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 1 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				if len(bz) > 0 && bz[0] == 0x00 {
+					bz = bz[1:]
+					goo.Vals = append(goo.Vals, nil)
+				} else {
+					var ev EmptyReprOnZero
+					var rv string
+					v, n, err := amino.DecodeString(bz)
+					if err != nil {
+						return err
+					}
+					bz = bz[n:]
+					rv = string(v)
+					if err := ev.UnmarshalAmino(rv); err != nil {
+						return err
+					}
+					goo.Vals = append(goo.Vals, &ev)
+				}
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for FuzzNilEmptyRepr", fnum)
 		}
 	}
 	return nil

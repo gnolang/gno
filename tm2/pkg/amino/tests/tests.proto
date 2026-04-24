@@ -549,6 +549,14 @@ message FuzzContainsAminoMarshaler {
 	AminoMarshalerStruct1 am = 1 [json_name = "AM"];
 }
 
+message EmptyReprOnZero {
+	string value = 1;
+}
+
+message FuzzNilEmptyRepr {
+	repeated string vals = 1 [json_name = "Vals"];
+}
+
 message SimpleAddress {
 	string value = 1;
 }

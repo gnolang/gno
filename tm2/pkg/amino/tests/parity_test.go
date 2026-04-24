@@ -5,6 +5,8 @@ import (
 	"math"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/aminotest"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
@@ -106,4 +108,102 @@ var parityCasesAmino = []struct {
 		v := tests.AminoMarshalerInt5(0)
 		return &v
 	}()},
+
+	// AminoMarshaler whose MarshalAmino returns "" for the zero value.
+	// Exercises the zero-repr skip branch of the gen_marshal.go emission
+	// guard (production types rarely hit this — bech32 / Sprintf / etc.
+	// always produce non-empty strings even at zero).
+	{"EmptyReprOnZero/zero", &tests.EmptyReprOnZero{Val: 0}},
+	{"EmptyReprOnZero/nonzero", &tests.EmptyReprOnZero{Val: 42}},
+
+	// FuzzNilEmptyRepr: same AminoMarshaler under amino:"nil_elements".
+	// Only values that round-trip losslessly (no non-nil-zero-valued
+	// entries, since those would normalize to nil on decode under the
+	// lossy nil_elements + empty-repr intersection, which is tested
+	// separately by TestParity_FuzzNilEmptyRepr_LossyListEncode below).
+	{"FuzzNilEmptyRepr/all-nil", &tests.FuzzNilEmptyRepr{
+		Vals: []*tests.EmptyReprOnZero{nil, nil},
+	}},
+	{"FuzzNilEmptyRepr/mixed-nonzero", &tests.FuzzNilEmptyRepr{
+		Vals: []*tests.EmptyReprOnZero{{Val: 1}, nil, {Val: 7}},
+	}},
+}
+
+// TestParity_FuzzNilEmptyRepr_LossyListEncode covers the one parity
+// invariant that AssertCodecParity can't express: a pointer slice with
+// amino:"nil_elements" whose elements include an AminoMarshaler whose
+// MarshalAmino returns "" for some input. Both nil AND &{Val:0} encode
+// to a zero-length element on the wire (indistinguishable), and both
+// decode to nil — which violates strict DeepEqual roundtrip even though
+// the codec is behaving correctly.
+//
+// This test asserts the weaker but still meaningful invariants:
+//  1. MarshalReflect and MarshalBinary2 produce byte-identical output.
+//  2. SizeBinary2 matches len(MarshalBinary2).
+//  3. Both decode paths produce the same value (nil-normalized).
+//  4. Re-encoding the decoded value reproduces the original bytes
+//     (byte-stability).
+func TestParity_FuzzNilEmptyRepr_LossyListEncode(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	// Input mixes nil, &{Val:0} (empty repr), and non-zero. After roundtrip
+	// we expect the first two to normalize to nil — the "lossy but
+	// byte-stable" property of nil_elements.
+	orig := &tests.FuzzNilEmptyRepr{
+		Vals: []*tests.EmptyReprOnZero{
+			nil,
+			{Val: 0},
+			{Val: 5},
+			nil,
+			{Val: 99},
+		},
+	}
+
+	msg, ok := any(orig).(amino.PBMessager2)
+	require.True(t, ok)
+
+	// (1) Encoder parity.
+	bzReflect, err := cdc.MarshalReflect(orig)
+	require.NoError(t, err)
+	bzBinary2, err := cdc.MarshalBinary2(msg)
+	require.NoError(t, err)
+	require.Equal(t, bzReflect, bzBinary2, "encoder parity (reflect vs genproto2)")
+
+	// (2) Size invariant.
+	size, err := msg.SizeBinary2(cdc)
+	require.NoError(t, err)
+	require.Equal(t, len(bzBinary2), size, "size invariant")
+
+	// (3) Cross-decoder agreement.
+	var viaReflect tests.FuzzNilEmptyRepr
+	require.NoError(t, cdc.UnmarshalReflect(bzReflect, &viaReflect))
+	var viaBinary2 tests.FuzzNilEmptyRepr
+	require.NoError(t, viaBinary2.UnmarshalBinary2(cdc, bzBinary2, 0))
+	require.Equal(t, viaReflect, viaBinary2, "cross-decoder parity")
+
+	// The decoded value collapses &{Val:0} and nil entries into nil — this
+	// is the documented lossiness of nil_elements with empty-repr elements.
+	require.Len(t, viaReflect.Vals, 5)
+	require.Nil(t, viaReflect.Vals[0])
+	require.Nil(t, viaReflect.Vals[1], "&{Val:0} with empty repr must normalize to nil on decode")
+	require.NotNil(t, viaReflect.Vals[2])
+	require.Equal(t, int32(5), viaReflect.Vals[2].Val)
+	require.Nil(t, viaReflect.Vals[3])
+	require.NotNil(t, viaReflect.Vals[4])
+	require.Equal(t, int32(99), viaReflect.Vals[4].Val)
+
+	// (4) Byte-stability: re-encode the (lossy) decoded value and assert
+	// bytes match the original. This is the strongest correctness check
+	// available when strict DeepEqual is impossible.
+	bzReflectRT, err := cdc.MarshalReflect(&viaReflect)
+	require.NoError(t, err)
+	require.Equal(t, bzReflect, bzReflectRT, "byte-stability via reflect")
+
+	bzBinary2RT, err := cdc.MarshalBinary2(&viaBinary2)
+	require.NoError(t, err)
+	require.Equal(t, bzBinary2, bzBinary2RT, "byte-stability via genproto2")
 }
