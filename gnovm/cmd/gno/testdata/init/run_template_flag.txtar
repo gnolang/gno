@@ -1,0 +1,7 @@
+# --template is honored on the .gno run-script shorthand path: a known
+# template name succeeds and creates the script file.
+
+gno init --template basic run/hello.gno
+
+stderr 'Initialized run script \(basic template\)'
+exists run/hello.gno

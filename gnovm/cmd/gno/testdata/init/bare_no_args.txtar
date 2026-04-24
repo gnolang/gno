@@ -1,0 +1,6 @@
+# `gno init --bare` with no args must fail; no gnomod.toml written.
+
+! gno init --bare
+stderr 'module path is required'
+
+! exists gnomod.toml

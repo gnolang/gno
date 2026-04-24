@@ -1,0 +1,6 @@
+# --bare and --template are mutually exclusive.
+
+! gno init --bare --template basic gno.land/p/demo/lib
+stderr 'mutually exclusive'
+
+! exists gnomod.toml

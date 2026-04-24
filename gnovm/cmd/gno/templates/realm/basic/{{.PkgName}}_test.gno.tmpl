@@ -1,0 +1,10 @@
+package {{.PkgName}}
+
+import "testing"
+
+func TestRender(t *testing.T) {
+	got := Render("")
+	if got == "" {
+		t.Fatal("Render should return non-empty string")
+	}
+}

@@ -1,0 +1,7 @@
+# --bare and a .gno run-script path are mutually exclusive.
+
+! gno init --bare run/hello.gno
+stderr 'mutually exclusive'
+
+! exists gnomod.toml
+! exists run/hello.gno

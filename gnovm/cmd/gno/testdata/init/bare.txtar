@@ -1,0 +1,10 @@
+# `gno init --bare` creates only gnomod.toml in CWD.
+
+gno init --bare gno.land/p/demo/lib
+
+exists gnomod.toml
+! exists lib.gno
+! exists lib/
+
+stderr 'Initialized module gno\.land/p/demo/lib'
+stderr '^  gnomod\.toml$'

@@ -1,0 +1,7 @@
+# `gno init run/hello.gno` must refuse to overwrite an existing file.
+
+gno init run/hello.gno
+exists run/hello.gno
+
+! gno init run/hello.gno
+stderr 'file already exists'

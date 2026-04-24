@@ -1,0 +1,8 @@
+# --template with an unknown name on the .gno run-script shorthand path
+# must fail cleanly without creating the run/ parent directory.
+
+! gno init --template nonexistent run/hello.gno
+stderr 'unknown template'
+
+! exists run/
+! exists run/hello.gno

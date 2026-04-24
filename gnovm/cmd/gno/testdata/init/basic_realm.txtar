@@ -1,0 +1,16 @@
+# `gno init gno.land/r/demo/foo` creates gnomod.toml + template files in CWD.
+
+gno init gno.land/r/demo/foo
+
+exists gnomod.toml
+exists foo.gno
+exists foo_test.gno
+
+# No subdirectory is created.
+! exists foo/
+
+grep '^module = "gno\.land/r/demo/foo"$' gnomod.toml
+
+stderr 'Initialized realm gno\.land/r/demo/foo'
+stderr '^  gnomod\.toml$'
+stderr '^  foo\.gno$'

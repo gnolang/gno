@@ -81,32 +81,38 @@ func TestModApp(t *testing.T) {
 		// 	errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
 		// },
 
-		// test `gno mod init` with module name
+		// test `gno init` with module name
 		{
-			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
-			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gno1",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
-			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gno2",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
-			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gno3",
 			simulateExternalRepo: true,
+			stderrShouldContain:  "Initialized package gno.land/p/demo/foo",
 		},
 		{
-			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},
+			// With CWD-based scaffolding, `gno init` in a dir that already
+			// contains a gnomod.toml must bail out immediately.
+			args:                 []string{"init", "gno.land/p/demo/foo"},
 			testDir:              "../../tests/integ/empty_gnomod",
 			simulateExternalRepo: true,
-			errShouldBe:          "create gnomod.toml: file already exists",
+			errShouldBe:          "gnomod.toml already exists",
 		},
 
 		// test `gno mod tidy`
@@ -228,7 +234,6 @@ gno.land/p/nt/avl/v0 testing
 `,
 		},
 		{
-			// gno.land/p/nt/avl/v0 is included from the test in the filetests subdir
 			args:                 []string{"mod", "graph"},
 			testDir:              "../../tests/integ/valid3",
 			simulateExternalRepo: true,

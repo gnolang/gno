@@ -107,6 +107,7 @@ func newGnocliCmd(io commands.IO) (*commands.Command, *rootConfig) {
 		// install
 		newListCmd(io),
 		newLintCmd(io),
+		newInitCmd(io),
 		newModCmd(io),
 		// work
 		newReplCmd(),

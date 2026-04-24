@@ -1,0 +1,8 @@
+# `gno mod init` without arguments must error out cleanly, locking in the new
+# behavior (pre-refactor code silently created a gnomod.toml with an empty
+# module path).
+
+! gno mod init
+stderr 'module path is required'
+
+! exists gnomod.toml

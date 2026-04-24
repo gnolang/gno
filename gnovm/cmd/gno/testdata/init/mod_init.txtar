@@ -1,0 +1,10 @@
+# `gno mod init` creates a bare gnomod.toml in CWD (never scaffolds templates)
+# and prints a hint pointing users to `gno init` for the richer flow.
+
+gno mod init gno.land/p/demo/alias
+
+stderr 'gno init'
+! stderr deprecated
+exists gnomod.toml
+! exists alias/
+! exists alias.gno

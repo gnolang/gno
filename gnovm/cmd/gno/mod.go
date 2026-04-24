@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"go.uber.org/multierr"
-	"golang.org/x/mod/module"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -17,10 +16,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-// testPackageFetcher allows to override the package fetcher during tests.
 var testPackageFetcher pkgdownload.PackageFetcher
 
 func newModCmd(io commands.IO) *commands.Command {
@@ -36,16 +33,38 @@ func newModCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newModDownloadCmd(io),
-		// edit
 		newModGraphCmd(io),
-		newModInitCmd(),
+		newModInitCmd(io),
 		newModTidy(io),
-		// vendor
-		// verify
 		newModWhy(io),
 	)
 
 	return cmd
+}
+
+// newModInitCmd registers `gno mod init`: create a bare gnomod.toml in the
+// current directory. It never triggers the interactive wizard, and hints at
+// `gno init` for users who want scaffolding with template files.
+func newModInitCmd(io commands.IO) *commands.Command {
+	cfg := &modInitCfg{}
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "init",
+			ShortUsage: "init [<module-path>]",
+			ShortHelp:  "create a bare gnomod.toml (see 'gno init' for templates)",
+			LongHelp: `Create a bare gnomod.toml in the current directory.
+
+For interactive scaffolding with template files, use 'gno init' instead.`,
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			io.ErrPrintln("hint: 'gno init' scaffolds a module with template files interactively")
+			// Always bare — never trigger the wizard.
+			cfg.bare = true
+			cfg.template = ""
+			return execModInit(cfg, args, io)
+		},
+	)
 }
 
 func newModDownloadCmd(io commands.IO) *commands.Command {
@@ -75,20 +94,6 @@ func newModGraphCmd(io commands.IO) *commands.Command {
 		cfg,
 		func(_ context.Context, args []string) error {
 			return execModGraph(cfg, args, io)
-		},
-	)
-}
-
-func newModInitCmd() *commands.Command {
-	return commands.NewCommand(
-		commands.Metadata{
-			Name:       "init",
-			ShortUsage: "init <module-path>",
-			ShortHelp:  "initialize gno.mod file in current directory",
-		},
-		commands.NewEmptyConfig(),
-		func(_ context.Context, args []string) error {
-			return execModInit(args)
 		},
 	)
 }
@@ -167,15 +172,10 @@ type modGraphCfg struct {
 }
 
 func (c *modGraphCfg) RegisterFlags(fs *flag.FlagSet) {
-	// /out std
-	// /out remote
-	// /out _test processing
-	// ...
 	fs.StringVar(&c.format, "format", "", "Output format, must be one of 'dot' or empty. Empty is a minimalist format.")
 }
 
 func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
-	// default to current directory if no args provided
 	if len(args) == 0 {
 		args = []string{"."}
 	}
@@ -207,8 +207,6 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 			fmt.Fprintf(io.Err(), "%s: %v", pkg.ImportPath, err)
 			errCount++
 		}
-		// XXX: xtests and filetests should probably be treated as their own packages since they can/will have cycles
-		// when considered as part of the source package
 		deps := pkg.ImportsSpecs.Merge()
 		for _, dep := range deps {
 			if cfg.format == "dot" {
@@ -226,7 +224,7 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 	io.Out().Write([]byte(sb.String()))
 
 	if errCount != 0 {
-		return errors.New("%d build error(s)", errCount)
+		return fmt.Errorf("%d build error(s)", errCount)
 	}
 
 	return nil
@@ -292,44 +290,6 @@ func parseRemoteOverrides(arg string) (map[string]string, error) {
 	return res, nil
 }
 
-func execModInit(args []string) error {
-	if len(args) > 1 {
-		return flag.ErrHelp
-	}
-	var modPath string
-	if len(args) == 1 {
-		modPath = args[0]
-	}
-	rootDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	if !filepath.IsAbs(rootDir) {
-		return fmt.Errorf("create gnomod.toml: dir %q is not absolute", rootDir)
-	}
-
-	modFilePath := filepath.Join(rootDir, "gnomod.toml")
-	if _, err := os.Stat(modFilePath); err == nil {
-		return errors.New("create gnomod.toml: file already exists")
-	}
-
-	if err := module.CheckImportPath(modPath); err != nil {
-		return fmt.Errorf("create gnomod.toml: %w", err)
-	}
-
-	if !gno.IsUserlib(modPath) {
-		return fmt.Errorf("create gnomod.toml: %q is not a valid package path URL", modPath)
-	}
-
-	modfile := new(gnomod.File)
-	modfile.Module = modPath
-	modfile.Gno = gno.GnoVerLatest
-	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
-
-	return nil
-}
-
 type modTidyCfg struct {
 	verbose   bool
 	recursive bool
@@ -373,7 +333,6 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 		return errs
 	}
 
-	// XXX: recursively check parents if no $PWD/gno.mod
 	return modTidyOnce(cfg, wd, wd, io)
 }
 
@@ -401,20 +360,17 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 		}
 
 		if fname == "gno.mod" {
-			// migrate from gno.mod to gnomod.toml
 			newPath := filepath.Join(pkgdir, "gnomod.toml")
-			gm.WriteFile(newPath) // gnomod.toml
+			gm.WriteFile(newPath)
 		} else {
-			gm.WriteFile(fpath) // gnomod.toml
+			gm.WriteFile(fpath)
 		}
 	}
 
-	// there is no gno.mod nor gnomod.toml
 	if !modExists {
 		return gnomod.ErrNoModFile
 	}
 
-	// remove gno.mod if it exists.
 	oldpath := filepath.Join(pkgdir, "gno.mod")
 	os.Remove(oldpath)
 
@@ -440,18 +396,12 @@ func execModWhy(args []string, io commands.IO) error {
 		return err
 	}
 
-	// Format and print `gno mod why` output stanzas
 	out := formatModWhyStanzas(gm.Module, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil
 }
 
-// formatModWhyStanzas returns a formatted output for the go mod why command.
-// It takes three parameters:
-//   - modulePath (the path of the module)
-//   - args (input arguments)
-//   - importToFilesMap (a map of import to files).
 func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[string][]string) (out string) {
 	for i, arg := range args {
 		out += fmt.Sprintf("# %s\n", arg)
@@ -463,21 +413,19 @@ func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[
 				out += file + "\n"
 			}
 		}
-		if i < len(args)-1 { // Add a newline if it's not the last stanza
+		if i < len(args)-1 {
 			out += "\n"
 		}
 	}
 	return
 }
 
-// getImportToFilesMap returns a map where each key is an import path and its
-// value is a list of files importing that package with the specified import path.
 func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 	entries, err := os.ReadDir(pkgPath)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string][]string) // import -> []file
+	m := make(map[string][]string)
 	for _, e := range entries {
 		filename := e.Name()
 		if ext := filepath.Ext(filename); ext != ".gno" {

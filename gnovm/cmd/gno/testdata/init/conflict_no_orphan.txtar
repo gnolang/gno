@@ -1,0 +1,13 @@
+# A pre-existing template output file in CWD must block the init and leave
+# gnomod.toml unwritten (no orphan).
+
+cp foo.gno.expected foo.gno
+
+! gno init gno.land/r/demo/foo
+stderr 'file already exists: foo\.gno'
+
+! exists gnomod.toml
+cmp foo.gno foo.gno.expected
+
+-- foo.gno.expected --
+// user-authored
