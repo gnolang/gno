@@ -25,7 +25,7 @@ Get started with Gno development. Learn how to work with Gno tools, use
 Gno-specific features, connect to Gno apps with clients, and more.
 
 - [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
-- [Installation](builders/installation.md) - Install the Gno toolchain (gnokey, gno, gnodev, gnobro, gnoweb) using the one-line installer, from source, or via Docker.
+- [Installation](builders/install.md) - Install the Gno toolchain (gnokey, gno, gnodev, gnobro, gnoweb) using the one-line installer, from source, or via Docker.
 - [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.
 - [Installing `gno` and developing locally with `gnodev`](builders/local-dev-with-gnodev.md) - Setup a local development environment with a built-in node, hot-reload features, and testing capabilities.
 - [Example `minisocial` dApp](builders/example-minisocial-dapp.md) - Build a complete social media application while learning the full local development workflow for Gno packages.

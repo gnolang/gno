@@ -7,7 +7,7 @@ with the essential operations.
 
 ## Installing gnokey
 
-See the [Installation](../builders/installation.md) page for prerequisites and install methods.
+See the [Installation](../builders/install.md) page for prerequisites and install methods.
 
 After installing, verify that `gnokey` is available:
 

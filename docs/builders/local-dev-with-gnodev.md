@@ -3,7 +3,7 @@
 
 ## Installation
 
-See the [Installation](./installation.md) page for prerequisites and install methods.
+See the [Installation](./install.md) page for prerequisites and install methods.
 
 Once installed, verify that `gnodev` is available:
 
