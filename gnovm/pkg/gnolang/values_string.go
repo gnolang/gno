@@ -63,7 +63,7 @@ func newSeenValues() *seenValues {
 }
 
 func (sv StringValue) String() string {
-	return strconv.Quote(string(sv))
+	return strconv.Quote(sv.data)
 }
 
 func (biv BigintValue) String() string {

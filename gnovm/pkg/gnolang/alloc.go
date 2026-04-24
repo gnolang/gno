@@ -85,6 +85,9 @@ const (
 	// Bytes are counted separately via allocStringByte.
 	allocString     = _allocHeap + 16
 	allocStringByte = 1
+	// Reference-mode StringValue: struct overhead only, no data copy
+	// (the underlying bytes are shared with the source string).
+	allocStringRef = _allocHeap + 16
 
 	// BigintValue (8 bytes, fits in interface word, no escape).
 	// Cost is the internal *big.Int heap object.
@@ -379,9 +382,25 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
+// NewString creates a new StringValue in owner mode.
+// This allocates the full cost: struct overhead + string data bytes.
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	return NewStringValue(s)
+}
+
+// NewStringRef creates a new StringValue in reference mode.
+// This is used for slicing operations where the underlying data is shared.
+// Only the struct overhead is allocated, not the string data bytes.
+func (alloc *Allocator) NewStringRef(s string) StringValue {
+	alloc.AllocateStringRef()
+	return NewStringValueRef(s)
+}
+
+// AllocateStringRef allocates only the struct overhead for a string reference.
+// This is used when slicing strings, where no data copy occurs.
+func (alloc *Allocator) AllocateStringRef() {
+	alloc.Allocate(allocStringRef)
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
@@ -626,7 +645,12 @@ func (fv *FuncValue) GetShallowSize() int64 {
 }
 
 func (sv StringValue) GetShallowSize() int64 {
-	return allocString + allocStringByte*int64(len(sv))
+	if sv.ref {
+		// Reference mode: only struct overhead, no data copy
+		return allocStringRef
+	}
+	// Owner mode: struct overhead + string data bytes
+	return allocString + allocStringByte*int64(len(sv.data))
 }
 
 func (biv BigintValue) GetShallowSize() int64 {

@@ -69,6 +69,6 @@ func X_getSessionInfo(m *gno.Machine) (pubKeyAddr string, expiresAt int64, allow
 
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
-	tv.SetString(gno.StringValue(s))
+	tv.SetString(gno.NewStringValue(s))
 	return tv
 }

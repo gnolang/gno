@@ -244,7 +244,10 @@ func (goo *TypedValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 
 func (goo StringValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	repr := goo
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
 	{
 		before := offset
 		offset = amino.PrependString(buf, offset, string(repr))
@@ -260,7 +263,10 @@ func (goo StringValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 
 func (goo StringValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
-	repr := goo
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
 	{
 		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
 		if vs > 0 {
@@ -271,7 +277,7 @@ func (goo StringValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *StringValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
-	var repr StringValue
+	var repr string
 	if len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
 		if err != nil {
@@ -285,10 +291,9 @@ func (goo *StringValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		repr = StringValue(v)
+		repr = string(v)
 	}
-	*goo = StringValue(repr)
-	return nil
+	return goo.UnmarshalAmino(repr)
 }
 
 func (goo BigintValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
