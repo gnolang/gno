@@ -10,7 +10,6 @@ const DEFAULT_GNO_CONTENT = "package main\n";
 export default function PlaygroundController(element: HTMLElement): void {
 	let files: PlaygroundFile[] = [];
 	let activeFile = 0;
-	let gnomodFile = -1;
 
 	const codeEl = element.querySelector(
 		'[data-playground-target="code"]',
@@ -85,7 +84,6 @@ export default function PlaygroundController(element: HTMLElement): void {
 		let content = DEFAULT_GNO_CONTENT;
 		if (isGnomod) {
 			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
-			gnomodFile = files.length;
 		}
 
 		files[activeFile].content = codeEl.value;
