@@ -14,7 +14,7 @@ Add a custom `headingRenderer` in the `GnoExtension` that overrides goldmark's d
 
 1. **Wrap mode** (default): wrap the heading text in `<a class="heading-anchor" href="#id">…</a>`. Clicking anywhere on the heading text sets `window.location.hash`. No `aria-label` is set — the anchor's accessible name falls back to the wrapped heading text so screen-reader heading navigation keeps announcing the actual title.
 
-2. **Sibling mode** (fallback): when the heading AST contains a `Link` or `AutoLink` descendant, wrapping would emit nested `<a>` tags (invalid per the HTML spec). In that case the renderer emits `<a class="heading-anchor" href="#id" aria-hidden="true"></a>` as a sibling after the heading text. The sibling anchor has no visible indicator — it is reachable by keyboard (Tab) and exposed to the DOM for programmatic access, but mouse users in this case cannot trigger the hash via click. The inline link inside the heading remains fully functional.
+2. **Sibling mode** (fallback): when the heading AST contains a `Link` or `AutoLink` descendant, wrapping would emit nested `<a>` tags (invalid per the HTML spec). In that case the renderer emits `<a class="heading-anchor" href="#id"><span class="u-sr-only">Permalink to this section</span></a>` as a sibling after the heading text. The sibling anchor has no visible indicator for mouse users, but keeps Tab access with a screen-reader-readable label so assistive tech can announce what the focused element does. The inline link inside the heading remains fully functional.
 
 The renderer also balances its own tags: if the heading has no usable `id` (e.g. the extension is used without `parser.WithAutoHeadingID()`), no `<a>` is emitted on entry *or* exit — no stray `</a>` is produced.
 
@@ -28,7 +28,7 @@ The renderer also balances its own tags: if the heading has no usable `id` (e.g.
 
 ## Consequences
 
-- Headings with auto-generated IDs are clickable: either the whole heading text (common case), or the hover-§ indicator (when the heading contains an inline link).
+- Headings with auto-generated IDs are clickable: the whole heading text in the common case. When the heading contains an inline link, the text keeps linking to that destination and a sibling anchor with a visually-hidden "Permalink to this section" label is emitted so the section hash stays reachable via Tab, with screen readers announcing its purpose.
 - The golden test suite gained `parser.WithAutoHeadingID()` in the test setup to match production; existing fixtures gained `id` attributes and the anchor markup.
 - The extension requires `parser.WithAutoHeadingID()` to emit anchors. Without it, headings render plain — no stray `</a>`.
 - No new external dependencies.

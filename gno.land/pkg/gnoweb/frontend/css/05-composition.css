@@ -253,18 +253,6 @@
 		line-height: var(--g-line-height-tight);
 	}
 
-	/* Heading anchor links */
-	.heading-anchor {
-		color: inherit;
-		text-decoration: none;
-	}
-
-	:is(h1, h2, h3, h4) .heading-anchor:focus-visible {
-		outline: var(--g-space-px) solid var(--s-color-border-brand);
-		outline-offset: var(--g-space-1);
-		border-radius: var(--g-border-radius-sm);
-	}
-
 	/* H1 - Main heading */
 	h1 {
 		font-size: var(--g-font-size-700);
@@ -645,17 +633,6 @@
 		text-decoration: underline;
 	}
 
-	/* Heading anchors inherit heading color, no underline */
-	& .heading-anchor {
-		color: inherit;
-		text-decoration: none;
-	}
-	& :is(h1, h2, h3, h4) .heading-anchor:focus-visible {
-		outline: var(--g-space-px) solid var(--s-color-border-brand);
-		outline-offset: var(--g-space-1);
-		border-radius: var(--g-border-radius-sm);
-	}
-
 	/* Inline code */
 	& :not(pre) > code {
 		font-family: var(--g-font-family-mono);
@@ -672,4 +649,19 @@
 	& > .doc-example:last-child {
 		margin-block-end: 0;
 	}
+}
+
+/* ===== HEADING ANCHORS =====
+   Shared across c-realm-view, c-readme-view, and c-doc-view. */
+:is(.c-realm-view, .c-readme-view, .c-doc-view) .heading-anchor {
+	color: inherit;
+	text-decoration: none;
+}
+
+:is(.c-realm-view, .c-readme-view, .c-doc-view)
+	:is(h1, h2, h3, h4)
+	.heading-anchor:focus-visible {
+	outline: var(--g-space-px) solid var(--s-color-border-brand);
+	outline-offset: var(--g-space-1);
+	border-radius: var(--g-border-radius-sm);
 }
