@@ -14,9 +14,15 @@ const (
 	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
 )
 
+// MinRegisterPrice is the lowest price (in ugnot) that
+// ProposeNewRegisterPrice will accept. Set to 0.1 GNOT — chosen so the
+// default has 3 orders of magnitude of governance headroom for lowering
+// the price without dropping all the way to zero. (audit finding #14)
+const MinRegisterPrice = int64(100_000) // 0.1 GNOT
+
 var (
-	registerPrice = int64(1_000_000) // 1 GNOT
-	latestUsers   = fifo.New(10)     // Save the latest 10 users for rendering purposes
+	registerPrice = int64(200_000_000) // 200 GNOT (anti-squatting deterrent)
+	latestUsers   = fifo.New(10)       // Save the latest 10 users for rendering purposes
 	reUsername    = regexp.MustCompile(reValidUsername)
 )
 

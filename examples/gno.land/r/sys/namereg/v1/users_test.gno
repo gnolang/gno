@@ -161,3 +161,37 @@ func TestRegister_Invalid(t *testing.T) {
 		})
 	})
 }
+
+// Audit finding #14: ProposeNewRegisterPrice originally rejected only
+// negative prices, accepting zero as a valid value. A passed proposal
+// to set price=0 would silently make registration free, removing the
+// only economic anti-squatting deterrent. The fix enforces a minimum
+// of MinRegisterPrice (0.1 GNOT) at proposal-creation time.
+func TestProposeNewRegisterPrice_floor(t *testing.T) {
+	t.Run("zero is rejected", func(t *testing.T) {
+		urequire.PanicsWithMessage(t,
+			"price below floor: 0 ugnot < 100000 ugnot (MinRegisterPrice)",
+			func() { ProposeNewRegisterPrice(0) })
+	})
+
+	t.Run("negative is rejected", func(t *testing.T) {
+		urequire.PanicsWithMessage(t,
+			"price below floor: -1 ugnot < 100000 ugnot (MinRegisterPrice)",
+			func() { ProposeNewRegisterPrice(-1) })
+	})
+
+	t.Run("just below floor is rejected", func(t *testing.T) {
+		urequire.PanicsWithMessage(t,
+			"price below floor: 99999 ugnot < 100000 ugnot (MinRegisterPrice)",
+			func() { ProposeNewRegisterPrice(MinRegisterPrice - 1) })
+	})
+
+	t.Run("at floor is accepted", func(t *testing.T) {
+		// MinRegisterPrice itself must pass — the floor is inclusive.
+		urequire.NotPanics(t, func() { ProposeNewRegisterPrice(MinRegisterPrice) })
+	})
+
+	t.Run("above floor is accepted", func(t *testing.T) {
+		urequire.NotPanics(t, func() { ProposeNewRegisterPrice(1_000_000_000) }) // 1k GNOT
+	})
+}

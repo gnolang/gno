@@ -29,7 +29,7 @@ stdout OK!
 # Sanity: the realm is already a whitelisted controller (init.gno did this at
 # genesis height 0). user1 calls namereg/v1.Register with the required 1 GNOT.
 # The username "alice001" matches the realm's regex ^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$.
-gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'alice001' -send 1000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'alice001' -send 200000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stdout OK!
 
 # Verify: r/sys/users now resolves user1's address to "alice001".
@@ -51,7 +51,7 @@ stdout OK!
 # Now Register must fail — the realm is no longer in the controller whitelist.
 # A second registration attempt for a different (valid) name from the same
 # user should hard-fail with the whitelist error from r/sys/users.
-! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'bob002' -send 1000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'bob002' -send 200000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stderr 'does not exist in whitelist'
 
 -- run/init_govdao.gno --
