@@ -73,6 +73,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	if len(key) == 0 {
 		return false, ErrEmptyKey
 	}
+	if len(key) > MaxKeyLen {
+		return false, fmt.Errorf("%w: %d > %d", ErrKeyTooLong, len(key), MaxKeyLen)
+	}
 	if value == nil {
 		return false, fmt.Errorf("value must not be nil")
 	}
