@@ -6,6 +6,6 @@
 #### Plain heading
 
 -- output.html --
-<h2 id="title-with-internalrotherrealm">Title with <a href="/r/other/realm">internal<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a><a class="heading-anchor" href="#title-with-internalrotherrealm" aria-hidden="true"></a></h2>
-<h3 id="title-with-externalhttpsexamplecom">Title with <a href="https://example.com" rel="noopener nofollow ugc">external<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a><a class="heading-anchor" href="#title-with-externalhttpsexamplecom" aria-hidden="true"></a></h3>
+<h2 id="title-with-internalrotherrealm">Title with <a href="/r/other/realm">internal<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a><a class="heading-anchor" href="#title-with-internalrotherrealm"><span class="u-sr-only">Permalink to this section</span></a></h2>
+<h3 id="title-with-externalhttpsexamplecom">Title with <a href="https://example.com" rel="noopener nofollow ugc">external<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a><a class="heading-anchor" href="#title-with-externalhttpsexamplecom"><span class="u-sr-only">Permalink to this section</span></a></h3>
 <h4 id="plain-heading"><a class="heading-anchor" href="#plain-heading">Plain heading</a></h4>
