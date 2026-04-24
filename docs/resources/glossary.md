@@ -41,7 +41,7 @@ and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for tech
 
 ### Banker
 A Tendermint2 module that is natively embedded into the Gno language, via the
-`std` package. Used for manipulating Coins within Gno.
+`chain/banker` package. Used for manipulating Coins within Gno.
 
 ### Block
 A fundamental unit in a blockchain that contains a collection of validated

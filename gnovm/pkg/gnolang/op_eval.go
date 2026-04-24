@@ -32,14 +32,19 @@ func (m *Machine) doOpEval() {
 			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())
 			return
-		} else {
-			// Get value from scope.
-			lb := m.LastBlock()
-			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
-			m.PushValue(ptr.Deref())
-			return
 		}
+		// Get value from scope.
+		m.incrCPU(OpCPUSlopeEvalNameExpr * int64(nx.Path.Depth))
+		lb := m.LastBlock()
+		// Inline parent traversal for common shallow depths
+		// to avoid GetPointerTo function call + blank check + loop overhead.
+		b := lb
+		for i := uint8(1); i < nx.Path.Depth; i++ {
+			b = b.GetParent(m.Store)
+		}
+		ptr := b.GetPointerToInt(m.Store, int(nx.Path.Index))
+		m.PushValue(ptr.Deref())
+		return
 	}
 	switch x := x.(type) {
 	// case NameExpr: handled above

@@ -215,20 +215,11 @@ func DecodeFloat64(bz []byte) (f float64, n int, err error) {
 // 1970 UTC, and returns the corresponding time.  If nanoseconds is not in the
 // range [0, 999999999], or if seconds is too large, an error is returned.
 func DecodeTimeValue(bz []byte) (s int64, ns int32, n int, err error) {
-	// Read sec and nanosec.
-	s, n, err = decodeSeconds(&bz)
+	s, ns, n, err = decodeSecondsAndNanos(bz)
 	if err != nil {
 		return
 	}
-	ns, err = decodeNanos(&bz, &n)
-	if err != nil {
-		return
-	}
-	// Validations
 	err = validateTimeValue(s, ns)
-	if err != nil {
-		return
-	}
 	return
 }
 
@@ -247,20 +238,11 @@ func DecodeTime(bz []byte) (t time.Time, n int, err error) {
 }
 
 func DecodeDurationValue(bz []byte) (s int64, ns int32, n int, err error) {
-	// Read sec and nanosec.
-	s, n, err = decodeSeconds(&bz)
+	s, ns, n, err = decodeSecondsAndNanos(bz)
 	if err != nil {
 		return
 	}
-	ns, err = decodeNanos(&bz, &n)
-	if err != nil {
-		return
-	}
-	// Validations
 	err = validateDurationValue(s, ns)
-	if err != nil {
-		return
-	}
 	return
 }
 
@@ -280,65 +262,68 @@ func DecodeDuration(bz []byte) (d time.Duration, n int, err error) {
 	return
 }
 
-// If bz is empty, returns err=nil.
-// Does not validate.
-func decodeSeconds(bz *[]byte) (int64, int, error) {
-	if len(*bz) == 0 {
-		return 0, 0, nil
-	}
-	// Optionally decode field number 1 and Typ3 (8Byte).
-	// only slide if we need to:
-	var n int
-	fieldNum, typ, _n, err := decodeFieldNumberAndTyp3(*bz)
-	if err != nil {
-		return 0, n, err
-	}
-	switch {
-	case fieldNum == 1 && typ == Typ3Varint:
-		slide(bz, &n, _n)
-		sec, _n, err := DecodeUvarint(*bz)
-		if slide(bz, &n, _n) && err != nil {
-			return 0, n, err
+// decodeSecondsAndNanos parses a Timestamp/Duration inner message: field 1
+// (seconds, varint) and field 2 (nanos, varint). Enforces strict monotonic
+// field ordering, rejects duplicate fields, rejects unknown fields, rejects
+// trailing bytes, and bounds-checks the nanos value. Missing fields default
+// to zero. Does not validate the combined (s, ns) — callers apply
+// validateTimeValue or validateDurationValue.
+func decodeSecondsAndNanos(bz []byte) (s int64, ns int32, n int, err error) {
+	var sawSec, sawNs bool
+	for len(bz) > 0 {
+		fieldNum, typ, hdrLen, fnErr := decodeFieldNumberAndTyp3(bz)
+		if fnErr != nil {
+			err = fnErr
+			return
 		}
-		// if seconds where negative before casting them to uint64, we yield
-		// the original signed value:
-		res := int64(sec)
-		return res, n, err
-	case fieldNum == 2 && typ == Typ3Varint:
-		// skip: do not slide, no error, will read again
-		return 0, n, nil
-	default:
-		return 0, n, fmt.Errorf("expected field number 1 <Varint> or field number 2 <Varint> , got %v", fieldNum)
-	}
-}
-
-// If bz is empty, returns err=nil.
-// Validates whether ns is in range, but caller may want to check for non-negativity.
-func decodeNanos(bz *[]byte, n *int) (int32, error) {
-	if len(*bz) == 0 {
-		return 0, nil
-	}
-	// Optionally decode field number 2 and Typ3 (4Byte).
-	fieldNum, typ, _n, err := decodeFieldNumberAndTyp3(*bz)
-	if err != nil {
-		return 0, err
-	}
-	if fieldNum == 2 && typ == Typ3Varint {
-		slide(bz, n, _n)
-		nsec_, _n, err := DecodeUvarint(*bz)
-		if slide(bz, n, _n) && err != nil {
-			return 0, err
+		switch {
+		case fieldNum == 1 && typ == Typ3Varint:
+			if sawSec {
+				err = fmt.Errorf("duplicate field 1 (seconds)")
+				return
+			}
+			if sawNs {
+				err = fmt.Errorf("seconds (field 1) after nanos (field 2): out of order")
+				return
+			}
+			bz = bz[hdrLen:]
+			n += hdrLen
+			sec, vn, decErr := DecodeUvarint(bz)
+			bz = bz[vn:]
+			n += vn
+			if decErr != nil {
+				err = decErr
+				return
+			}
+			s = int64(sec)
+			sawSec = true
+		case fieldNum == 2 && typ == Typ3Varint:
+			if sawNs {
+				err = fmt.Errorf("duplicate field 2 (nanos)")
+				return
+			}
+			bz = bz[hdrLen:]
+			n += hdrLen
+			nsec, vn, decErr := DecodeUvarint(bz)
+			bz = bz[vn:]
+			n += vn
+			if decErr != nil {
+				err = decErr
+				return
+			}
+			nv := int64(nsec)
+			if 1e9 <= nv || nv <= -1e9 {
+				err = InvalidTimeError(fmt.Sprintf("nanoseconds not in interval [-999999999, 999999999] %v", nv))
+				return
+			}
+			ns = int32(nv)
+			sawNs = true
+		default:
+			err = fmt.Errorf("unexpected field in Timestamp/Duration: num=%v typ=%v", fieldNum, typ)
+			return
 		}
-		nsec := int64(nsec_)
-		// Validation check.
-		if 1e9 <= nsec || nsec <= -1e9 {
-			return 0, InvalidTimeError(fmt.Sprintf("nanoseconds not in interval [-999999999, 999999999] %v", nsec))
-		}
-		// this cast from uint64 to int32 is OK, due to above restriction:
-		return int32(nsec), nil
 	}
-	// skip over (no error)
-	return 0, nil
+	return
 }
 
 // ----------------------------------------
@@ -351,12 +336,10 @@ func DecodeByteSlice(bz []byte) (bz2 []byte, n int, err error) {
 	if slide(&bz, &n, _n) && err != nil {
 		return
 	}
-	if int(count) < 0 {
-		err = fmt.Errorf("invalid negative length %v decoding []byte", count)
-		return
-	}
-	if len(bz) < int(count) {
-		err = fmt.Errorf("insufficient bytes decoding []byte of length %v: %X", count, bz)
+	// Compare as unsigned to catch count values that would wrap to negative
+	// when cast to int on 32-bit platforms (or any count > math.MaxInt).
+	if count > uint64(len(bz)) {
+		err = fmt.Errorf("insufficient bytes decoding []byte of length %v: have %d", count, len(bz))
 		return
 	}
 	bz2 = make([]byte, count)
