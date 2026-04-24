@@ -2515,6 +2515,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
+			case *ExprStmt:
+				if _, ok := n.X.(*CallExpr); !ok {
+					panic(fmt.Sprintf("invalid operation: %s is not used", n.X.String()))
+				}
+
+			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
 				if n.Op == ASSIGN {
