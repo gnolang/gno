@@ -224,7 +224,14 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 
 	// If this version already exists, verify the hash matches.
 	// This prevents accidentally overwriting a version with different data.
-	if t.ndb.VersionExists(version) {
+	// Use the error-propagating variant: a DB error here must NOT be
+	// misinterpreted as "does not exist" (which would lead us to overwrite
+	// the existing version with unverified new data).
+	exists, err := t.ndb.versionExistsE(version)
+	if err != nil {
+		return nil, 0, fmt.Errorf("checking version %d existence: %w", version, err)
+	}
+	if exists {
 		existingNK, existingHash, err := t.ndb.GetRoot(version)
 		if err != nil {
 			return nil, 0, err

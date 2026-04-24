@@ -300,9 +300,32 @@ func (ndb *nodeDB) setFirstVersion(v int64) {
 }
 
 // VersionExists checks if a root reference exists for the given version.
+//
+// This boolean-returning form is retained for interface compatibility with
+// the store layer and is appropriate only for code paths that are robust to
+// a transient DB failure being reported as "does not exist" (e.g., test
+// helpers, informational queries). Underlying errors are logged at Error
+// level so the class of failure is observable.
+//
+// Internal callers that must distinguish "does not exist" from "DB error"
+// (notably SaveVersion, which treats non-existence as a go-ahead to write
+// potentially destructive new data under that version) MUST use
+// versionExistsE instead.
 func (ndb *nodeDB) VersionExists(version int64) bool {
-	has, _ := ndb.db.Has(rootDBKey(version))
+	has, err := ndb.db.Has(rootDBKey(version))
+	if err != nil {
+		ndb.logger.Error("bptree: VersionExists DB error", "version", version, "err", err)
+		return false
+	}
 	return has
+}
+
+// versionExistsE is the error-propagating variant of VersionExists. Use in
+// code paths where a DB failure must not be silently interpreted as "does
+// not exist" — specifically SaveVersion, where that misinterpretation would
+// overwrite an existing version with a fresh save under the same number.
+func (ndb *nodeDB) versionExistsE(version int64) (bool, error) {
+	return ndb.db.Has(rootDBKey(version))
 }
 
 // AvailableVersions returns all versions that have root references.
