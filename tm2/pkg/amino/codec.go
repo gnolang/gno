@@ -858,8 +858,15 @@ func typeToTyp3(rt reflect.Type, opts FieldOptions) Typ3 {
 		}
 		return Typ3Varint
 
-	case reflect.Int16, reflect.Int8, reflect.Int,
-		reflect.Uint16, reflect.Uint8, reflect.Uint, reflect.Bool:
+	case reflect.Int, reflect.Uint:
+		// ValidateBasic allows BinFixed64 on bare int/uint; the body encoders
+		// write 8 fixed bytes in that case, so the field-key typ3 must match.
+		if opts.BinFixed64 {
+			return Typ38Byte
+		}
+		return Typ3Varint
+	case reflect.Int16, reflect.Int8,
+		reflect.Uint16, reflect.Uint8, reflect.Bool:
 		return Typ3Varint
 	case reflect.Float64:
 		return Typ38Byte

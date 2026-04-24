@@ -15136,11 +15136,11 @@ func (goo FuzzFixedInt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 	var err error
 	if goo.U64 != 0 {
 		offset = amino.PrependUint64(buf, offset, uint64(goo.U64))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ38Byte)
 	}
 	if goo.I64 != 0 {
 		offset = amino.PrependInt64(buf, offset, int64(goo.I64))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ38Byte)
 	}
 	return offset, err
 }
@@ -15171,8 +15171,8 @@ func (goo *FuzzFixedInt) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		bz = bz[n:]
 		switch fnum {
 		case 1:
-			if typ3 != amino.Typ3Varint {
-				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
 			}
 			v, n, err := amino.DecodeInt64(bz)
 			if err != nil {
@@ -15181,8 +15181,8 @@ func (goo *FuzzFixedInt) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 			bz = bz[n:]
 			goo.I64 = int(v)
 		case 2:
-			if typ3 != amino.Typ3Varint {
-				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
 			}
 			v, n, err := amino.DecodeUint64(bz)
 			if err != nil {
