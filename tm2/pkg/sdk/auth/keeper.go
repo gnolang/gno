@@ -28,17 +28,23 @@ type AccountKeeper struct {
 
 	// The prototypical Account constructor.
 	proto func() std.Account
+
+	// The prototypical SessionAccount constructor.
+	sessionProto func() std.Account
 }
 
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
 func NewAccountKeeper(
-	key store.StoreKey, pk params.ParamsKeeperI, proto func() std.Account,
+	key store.StoreKey, pk params.ParamsKeeperI,
+	proto func() std.Account,
+	sessionProto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
-		key:   key,
-		prmk:  pk,
-		proto: proto,
+		key:          key,
+		prmk:         pk,
+		proto:        proto,
+		sessionProto: sessionProto,
 	}
 }
 
@@ -76,7 +82,9 @@ func (ak AccountKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Acc
 	return acc
 }
 
-// GetAllAccounts returns all accounts in the AccountKeeper.
+// GetAllAccounts returns all regular accounts (excludes session accounts).
+// Session accounts are stored under the same "/a/" prefix but are filtered
+// out by IterateAccounts via key length. Use IterateSessions to access sessions.
 func (ak AccountKeeper) GetAllAccounts(ctx sdk.Context) []std.Account {
 	accounts := []std.Account{}
 	appendAccount := func(acc std.Account) (stop bool) {
@@ -109,6 +117,10 @@ func (ak AccountKeeper) RemoveAccount(ctx sdk.Context, acc std.Account) {
 }
 
 // IterateAccounts implements AccountKeeper.
+// It iterates over regular accounts only — session accounts (which are
+// also stored under the "/a/" prefix at /a/<master>/s/<session>) are
+// skipped by checking key length. Regular account keys are exactly
+// AccountStoreKeyLen bytes; session sub-keys are longer.
 func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) (stop bool)) {
 	stor := ctx.Store(ak.key)
 	iter := store.PrefixIterator(ctx.GasContext(), stor, []byte(AddressStoreKeyPrefix))
@@ -116,6 +128,13 @@ func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accoun
 	for {
 		if !iter.Valid() {
 			return
+		}
+		// Skip session sub-keys. Session accounts are stored at
+		// /a/<master>/s/<session> (longer than AccountStoreKeyLen).
+		// Regular accounts are at /a/<addr> (exactly AccountStoreKeyLen).
+		if len(iter.Key()) != AccountStoreKeyLen {
+			iter.Next()
+			continue
 		}
 		val := iter.Value()
 		acc := ak.decodeAccount(val)
@@ -163,6 +182,94 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	stor.Set(gctx, []byte(GlobalAccountNumberKey), bz)
 
 	return accNumber
+}
+
+// GetSessionAccount returns a session account stored at /a/<master>/s/<session>.
+func (ak AccountKeeper) GetSessionAccount(ctx sdk.Context, master, session crypto.Address) std.Account {
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	bz := stor.Get(gctx, SessionStoreKey(master, session))
+	if bz == nil {
+		return nil
+	}
+	var acc std.Account
+	err := amino.UnmarshalAny(bz, &acc)
+	if err != nil {
+		panic(err)
+	}
+	return acc
+}
+
+// SetSessionAccount stores a session account at /a/<master>/s/<session>.
+func (ak AccountKeeper) SetSessionAccount(ctx sdk.Context, master crypto.Address, acc std.Account) {
+	addr := acc.GetAddress()
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	bz, err := amino.MarshalAny(acc)
+	if err != nil {
+		panic(err)
+	}
+	stor.Set(gctx, SessionStoreKey(master, addr), bz)
+}
+
+// RemoveSessionAccount deletes a session account.
+func (ak AccountKeeper) RemoveSessionAccount(ctx sdk.Context, master, session crypto.Address) {
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	stor.Delete(gctx, SessionStoreKey(master, session))
+}
+
+// RemoveAllSessions deletes all session accounts for a master via prefix delete.
+func (ak AccountKeeper) RemoveAllSessions(ctx sdk.Context, master crypto.Address) {
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	prefix := SessionPrefixKey(master)
+	iter := store.PrefixIterator(gctx, stor, prefix)
+	defer iter.Close()
+	keys := [][]byte{}
+	for ; iter.Valid(); iter.Next() {
+		keys = append(keys, iter.Key())
+	}
+	for _, key := range keys {
+		stor.Delete(gctx, key)
+	}
+}
+
+// IterateSessions iterates over all sessions of a master account.
+func (ak AccountKeeper) IterateSessions(ctx sdk.Context, master crypto.Address, cb func(std.Account) bool) {
+	gctx := ctx.GasContext()
+	stor := ctx.Store(ak.key)
+	iter := store.PrefixIterator(gctx, stor, SessionPrefixKey(master))
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		var acc std.Account
+		err := amino.UnmarshalAny(iter.Value(), &acc)
+		if err != nil {
+			panic(err)
+		}
+		if cb(acc) {
+			break
+		}
+	}
+}
+
+// NewSessionAccount creates a new session account using the session prototype.
+func (ak AccountKeeper) NewSessionAccount(ctx sdk.Context, master crypto.Address, pubKey crypto.PubKey) std.Account {
+	acc := ak.sessionProto()
+	if err := acc.SetAddress(pubKey.Address()); err != nil {
+		panic(err)
+	}
+	if err := acc.SetPubKey(pubKey); err != nil {
+		panic(err)
+	}
+	if err := acc.SetAccountNumber(ak.GetNextAccountNumber(ctx)); err != nil {
+		panic(err)
+	}
+	da := acc.(std.DelegatedAccount)
+	if err := da.SetMasterAddress(master); err != nil {
+		panic(err)
+	}
+	return acc
 }
 
 // -----------------------------------------------------------------------------

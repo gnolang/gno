@@ -34,6 +34,38 @@ func newTestRenderer() *HTMLRenderer {
 	return NewHTMLRenderer(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), NewDefaultRenderConfig(), nil)
 }
 
+func TestHTMLRenderer_RenderDocumentation_FencedBlock(t *testing.T) {
+	t.Parallel()
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	err := r.RenderDocumentation(&buf, []byte("Intro.\n\n```go\nfmt.Println(\"hi\")\n```\n"))
+	require.NoError(t, err)
+	out := buf.String()
+	require.Contains(t, out, "Intro")
+	require.Contains(t, out, `<details class="doc-example">`)
+}
+
+func TestHTMLRenderer_RenderDocumentation_StripsRawHTML(t *testing.T) {
+	t.Parallel()
+	// Raw HTML in doc strings is stripped by Goldmark's default safe mode
+	// and replaced with an omitted-comment placeholder.
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	err := r.RenderDocumentation(&buf, []byte("<script>alert('xss')</script>"))
+	require.NoError(t, err)
+	out := buf.String()
+	require.NotContains(t, out, "<script>")
+	require.NotContains(t, out, "alert('xss')")
+}
+
+func TestHTMLRenderer_RenderDocumentation_EmptyInput(t *testing.T) {
+	t.Parallel()
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	require.NoError(t, r.RenderDocumentation(&buf, nil))
+	require.Empty(t, buf.String())
+}
+
 func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	r := newTestRenderer()
 	w := &bytes.Buffer{}
