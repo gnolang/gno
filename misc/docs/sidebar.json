@@ -1,6 +1,7 @@
 {
   "tutorialSidebar": [
     "README",
+    "getting-started",
     [
       {
         "type": "category",
