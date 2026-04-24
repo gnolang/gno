@@ -177,15 +177,34 @@ func (ndb *nodeDB) SaveValue(value, vk []byte) error {
 
 // GetValue loads a value by its ValueKey, checking the uncommitted session
 // buffer first (read-your-writes before SaveVersion), then the DB.
+//
+// On the DB path: a stored empty value ([]byte{}) returns a non-nil empty
+// slice, while a ValueKey absent from the DB (corruption or an already-pruned
+// value — neither expected when called via the tree) returns a wrapped
+// ErrKeyDoesNotExist, so callers can distinguish missing from empty.
 func (ndb *nodeDB) GetValue(vk []byte) ([]byte, error) {
 	if v, ok := ndb.pendingVals[string(vk)]; ok {
 		return v, nil
 	}
-	data, err := ndb.db.Get(valueDBKey(vk))
+	key := valueDBKey(vk)
+	data, err := ndb.db.Get(key)
 	if err != nil {
 		return nil, fmt.Errorf("db get value: %w", err)
 	}
-	return data, nil
+	if data != nil {
+		return data, nil
+	}
+	// nil could mean "key missing" (corruption) or "stored value was empty"
+	// on a backend that doesn't normalize [] to an empty slice. Disambiguate
+	// with Has().
+	has, herr := ndb.db.Has(key)
+	if herr != nil {
+		return nil, fmt.Errorf("db has value: %w", herr)
+	}
+	if !has {
+		return nil, fmt.Errorf("%w: valueKey %x", ErrKeyDoesNotExist, vk)
+	}
+	return []byte{}, nil
 }
 
 // DeleteValue adds a value deletion to the batch (committed at prune time).
