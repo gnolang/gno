@@ -1,0 +1,26 @@
+# Interactive maketx: run with partial flags
+# Tests the run subcommand with missing source file path.
+# Run with a single .gno file (not a directory) to avoid module path issues.
+
+gnoland start
+
+# Feed answers for prompts:
+#   "Source file or directory": $WORK/script.gno
+#   "Gas estimation" choice: 2 (manual)
+#   "Gas wanted": 2000000
+#   "Gas fee": 1000000ugnot
+#   "Proceed? [Y/n]": Y
+input $WORK/script.gno
+input 2
+input 2000000
+input 1000000ugnot
+input Y
+gnokey maketx run -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- script.gno --
+package main
+
+func main() {
+	println("hello world")
+}

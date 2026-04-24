@@ -1,0 +1,6 @@
+# Interactive maketx: --no-interactive on run prevents source-path prompt.
+
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test --no-interactive test1
+stderr 'help requested'

@@ -1,0 +1,48 @@
+# Interactive maketx: invalid input retries
+# When the user provides invalid input (bad gas format),
+# the wizard should show an error and re-prompt.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Feed answers for prompts with some invalid input:
+#   "Function name": GetName
+#   "Gas estimation" choice: 2 (manual)
+#   "Gas wanted": abc  (invalid — should re-prompt)
+#   "Gas wanted": 2000000  (valid)
+#   "Gas fee": notugnot  (invalid coin — should re-prompt)
+#   "Gas fee": 1000000ugnot  (valid)
+#   "Proceed? [Y/n]": Y
+input GetName
+input 2
+input abc
+input 2000000
+input notugnot
+input 1000000ugnot
+input Y
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# stderr should show BOTH validation errors independently
+stderr 'invalid gas amount: abc'
+stderr 'invalid coin: .*notugnot'
+stderr 'Transaction Summary'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

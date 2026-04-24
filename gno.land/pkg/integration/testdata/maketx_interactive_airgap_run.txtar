@@ -1,0 +1,27 @@
+# Interactive maketx: run with -broadcast=false goes through air-gap flow.
+
+gnoland start
+
+# Feed: source path, gas manual, wanted, fee, proceed, save path (default)
+input $WORK/script.gno
+input 2
+input 2000000
+input 1000000ugnot
+input Y
+input $WORK/unsigned_run.tx
+gnokey maketx run -broadcast=false -chainid=tendermint_test test1
+
+stdout '"msg"'
+stdout '"fee"'
+stderr 'Transaction Summary'
+stderr 'Air-Gap Signing Workflow'
+stderr 'Saved unsigned tx to'
+
+exists $WORK/unsigned_run.tx
+
+-- script.gno --
+package main
+
+func main() {
+	println("hello world")
+}

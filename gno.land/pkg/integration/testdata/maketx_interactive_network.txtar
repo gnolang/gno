@@ -1,0 +1,63 @@
+# Interactive maketx: full wizard network selection
+# When invoked as `gnokey maketx` (no subcommand) in interactive mode, the
+# wizard offers a known-networks list. Selecting "keep" returns the caller's
+# current chainid+remote unchanged — which is what the txtar harness
+# needs, since its remote is bespoke.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Feed answers for the full wizard:
+#   tx type: 3 (call)
+#   network: 1 (keep — because harness overrides -chainid=tendermint_test)
+#   key: 1 (test1)
+#   pkgpath: gno.land/r/demo/call_realm
+#   function: GetName
+#   args / send / max-deposit: empty
+#   gas estimation: 2 (manual)
+#   gas wanted: 2000000
+#   gas fee: 1000000ugnot
+#   memo: empty
+#   proceed: Y
+input 3
+input 1
+input 1
+input gno.land/r/demo/call_realm
+input GetName
+input
+input
+input
+input 2
+input 2000000
+input 1000000ugnot
+input
+input Y
+gnokey maketx -broadcast -chainid=tendermint_test
+
+stdout 'OK!'
+# the summary must show the harness-selected chainid (keep)
+stderr 'Chain ID:    tendermint_test'
+# the wizard must have rendered the network menu
+stderr 'Chain ID:'
+stderr 'staging'
+stderr 'gnoland1'
+stderr 'test11'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

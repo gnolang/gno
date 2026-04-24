@@ -38,6 +38,43 @@ type IOImpl struct {
 
 	err    io.WriteCloser
 	errBuf *bufio.Writer
+
+	interactive    bool
+	interactiveSet bool
+}
+
+// Interactive reports whether the io has been explicitly marked as
+// interactive (typically by a test harness). When unset, IO callers should
+// fall back to `commands.IsInteractive()` for stdin TTY detection.
+func (io *IOImpl) Interactive() (set, v bool) {
+	return io.interactiveSet, io.interactive
+}
+
+// SetInteractive marks this io as interactive (or not). Used by the
+// testscript harness to route prompts to a buffered reader without mutating
+// the process-global stdin TTY signal.
+func (io *IOImpl) SetInteractive(v bool) {
+	io.interactive = v
+	io.interactiveSet = true
+}
+
+// InteractiveAware is implemented by IO backends that can signal whether
+// prompts should be offered, without relying on the process-global
+// forceInteractive flag.
+type InteractiveAware interface {
+	Interactive() (set, v bool)
+}
+
+// IsIOInteractive returns whether the given IO is interactive. Prefers the
+// io's explicit setting when available, otherwise falls back to stdin TTY
+// detection.
+func IsIOInteractive(io IO) bool {
+	if ia, ok := io.(InteractiveAware); ok {
+		if set, v := ia.Interactive(); set {
+			return v
+		}
+	}
+	return IsInteractive()
 }
 
 // NewDefaultIO returns a default command io

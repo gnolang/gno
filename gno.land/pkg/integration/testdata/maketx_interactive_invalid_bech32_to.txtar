@@ -1,0 +1,17 @@
+# Interactive maketx: send re-prompts for a valid bech32 destination
+# address.
+
+gnoland start
+
+# Feed: amount, bad addr (re-prompts), valid addr, gas manual, wanted, fee, Y
+input 1000ugnot
+input not-a-bech32
+input $test1_user_addr
+input 2
+input 2000000
+input 1000000ugnot
+input Y
+gnokey maketx send -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+stderr 'invalid bech32 address'

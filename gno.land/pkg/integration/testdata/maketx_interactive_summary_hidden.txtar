@@ -1,0 +1,32 @@
+# Interactive maketx: when every required field is provided via flags and
+# --broadcast=true, the summary and confirmation prompt must NOT appear.
+# This preserves backward compatibility for scripts that happen to run in a
+# terminal.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -func GetName -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+! stderr 'Transaction Summary'
+! stderr 'Proceed'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

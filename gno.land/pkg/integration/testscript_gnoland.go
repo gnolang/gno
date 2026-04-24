@@ -436,12 +436,18 @@ func gnokeyCmd(nodes *NodesManager) func(ts *testscript.TestScript, neg bool, ar
 		io.SetErr(commands.WriteNopCloser(ts.Stderr()))
 		cmd := keyscli.NewRootCmd(io, client.DefaultBaseOptions)
 
-		// Use stdin buffer if available, otherwise default to newline
 		if stdinBuf, ok := ts.Value(envKeyStdinBuffer).(*strings.Builder); ok && stdinBuf.Len() > 0 {
+			stdinBuf.WriteString("\n")
 			io.SetIn(strings.NewReader(stdinBuf.String()))
-			stdinBuf.Reset() // Clear buffer after use
+			stdinBuf.Reset()
+			if impl, ok := io.(*commands.IOImpl); ok {
+				impl.SetInteractive(true)
+			}
 		} else {
 			io.SetIn(strings.NewReader("\n"))
+			if impl, ok := io.(*commands.IOImpl); ok {
+				impl.SetInteractive(false)
+			}
 		}
 		defaultArgs := []string{
 			"-home", gnoHomeDir,
@@ -881,17 +887,11 @@ func inputCmd() func(ts *testscript.TestScript, neg bool, args []string) {
 			ts.Fatalf("input command does not support negation")
 		}
 
-		if len(args) == 0 {
-			ts.Fatalf("input requires at least one argument")
-		}
-
-		// Get or create stdin buffer
 		stdinBuf, ok := ts.Value(envKeyStdinBuffer).(*strings.Builder)
 		if !ok {
 			ts.Fatalf("stdin buffer not initialized")
 		}
 
-		// Join all arguments with spaces and add newline
 		content := strings.Join(args, " ") + "\n"
 		stdinBuf.WriteString(content)
 	}

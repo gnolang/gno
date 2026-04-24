@@ -1,0 +1,42 @@
+# Interactive maketx: cancel at confirmation prompt
+# Walking through the prompts but answering "n" at the confirmation
+# step should produce no side effects — no tx created, no broadcast.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Feed answers for prompts, but cancel at confirmation:
+#   "Function name": GetName
+#   "Gas estimation" choice: 2 (manual)
+#   "Gas wanted": 2000000
+#   "Gas fee": 1000000ugnot
+#   "Proceed? [Y/n]": n
+input GetName
+input 2
+input 2000000
+input 1000000ugnot
+input n
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -broadcast -chainid=tendermint_test test1
+
+# No tx output — command should succeed with no broadcast
+! stdout 'OK!'
+! stdout 'GAS WANTED'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

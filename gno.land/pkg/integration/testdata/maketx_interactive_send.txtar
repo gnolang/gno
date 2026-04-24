@@ -1,0 +1,14 @@
+# Interactive maketx: send with partial flags
+# Tests the send subcommand with missing --to and --send flags.
+
+gnoland start
+
+# Feed answers for prompts:
+#   "Send amount": 1000ugnot
+#   "Destination address": (use test1's own address)
+#   "Proceed? [Y/n]": Y
+input 1000ugnot
+input $test1_user_addr
+input Y
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'

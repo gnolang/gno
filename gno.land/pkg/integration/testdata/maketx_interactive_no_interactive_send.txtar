@@ -1,0 +1,11 @@
+# Interactive maketx: --no-interactive on send prevents prompts.
+
+gnoland start
+
+# Missing -to → error
+! gnokey maketx send -send 1000ugnot -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test --no-interactive test1
+stderr 'to .destination address. must be specified'
+
+# All flags provided + --no-interactive → works
+gnokey maketx send -send 1000ugnot -to $test1_user_addr -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test --no-interactive test1
+stdout 'OK!'

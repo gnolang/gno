@@ -1,26 +1,24 @@
 package keyscli
 
 import (
+	"context"
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
-type MakeTxCfg struct {
-	RootCfg *client.BaseCfg
-
-	GasWanted int64
-	GasFee    string
-	Memo      string
-
-	Broadcast bool
-	ChainID   string
-}
-
 func NewMakeTxCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
 	cfg := &client.MakeTxCfg{
 		RootCfg: rootCfg,
+	}
+
+	maketxExec := func(_ context.Context, args []string) error {
+		if commands.IsIOInteractive(io) && !cfg.NoInteractive {
+			return execMakeTxInteractive(cfg, args, io)
+		}
+		commands.HelpExec(context.Background(), args)
+		return flag.ErrHelp
 	}
 
 	cmd := commands.NewCommand(
@@ -30,54 +28,16 @@ func NewMakeTxCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
 			ShortHelp:  "composes a tx document to sign",
 		},
 		cfg,
-		commands.HelpExec,
+		maketxExec,
 	)
 
 	cmd.AddSubCommands(
-		client.NewMakeSendCmd(cfg, io),
+		newMakeSendCmd(cfg, io),
 
-		// custom commands
 		NewMakeAddPkgCmd(cfg, io),
 		NewMakeCallCmd(cfg, io),
 		NewMakeRunCmd(cfg, io),
 	)
 
 	return cmd
-}
-
-func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.Int64Var(
-		&c.GasWanted,
-		"gas-wanted",
-		0,
-		"gas requested for tx",
-	)
-
-	fs.StringVar(
-		&c.GasFee,
-		"gas-fee",
-		"",
-		"gas payment fee",
-	)
-
-	fs.StringVar(
-		&c.Memo,
-		"memo",
-		"",
-		"any descriptive text",
-	)
-
-	fs.BoolVar(
-		&c.Broadcast,
-		"broadcast",
-		true,
-		"sign and broadcast",
-	)
-
-	fs.StringVar(
-		&c.ChainID,
-		"chainid",
-		"dev",
-		"chainid to sign for (only useful if --broadcast)",
-	)
 }

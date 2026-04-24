@@ -37,6 +37,9 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
+			if canPrompt(cfg.RootCfg, cmdio) {
+				return execMakeRunInteractive(cfg, args, cmdio, false)
+			}
 			return execMakeRun(cfg, args, cmdio)
 		},
 	)
@@ -69,9 +72,8 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	nameOrBech32 := args[0]
-	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
+	sourcePath := args[1]
 
-	// read account pubkey.
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
 		return err
@@ -82,19 +84,16 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 	caller := info.GetAddress()
 
-	// Parse send amount.
 	send, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// Parse deposit amount
 	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		return errors.Wrap(err, "parsing storage deposit coins")
 	}
 
-	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
@@ -102,7 +101,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	memPkg := &std.MemPackage{}
-	if sourcePath == "-" { // stdin
+	if sourcePath == "-" {
 		data, err := io.ReadAll(cmdio.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
@@ -120,7 +119,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		}
 		if info.IsDir() {
 			memPkg = gno.MustReadMemPackage(sourcePath, "", gno.MPUserProd)
-		} else { // is file
+		} else {
 			b, err := os.ReadFile(sourcePath)
 			if err != nil {
 				return fmt.Errorf("could not read %q: %w", sourcePath, err)
@@ -139,10 +138,8 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 
-	// Set to empty; this will be automatically set by the VM keeper.
 	memPkg.Path = ""
 
-	// construct msg & tx and marshal.
 	msg := vm.MsgRun{
 		Caller:     caller,
 		Package:    memPkg,

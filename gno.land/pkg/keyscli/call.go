@@ -37,6 +37,9 @@ func NewMakeCallCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
+			if canPrompt(cfg.RootCfg, io) {
+				return execMakeCallInteractive(cfg, args, io, false)
+			}
 			return execMakeCall(cfg, args, io)
 		},
 	)
@@ -95,10 +98,8 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		return errors.New("gas-fee not specified")
 	}
 
-	// read statement.
 	fnc := cfg.FuncName
 
-	// read account pubkey.
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
@@ -109,28 +110,23 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		return err
 	}
 	caller := info.GetAddress()
-	// info.GetPubKey()
 
-	// Parse send amount.
 	send, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// Parse deposit amount
 	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		return errors.Wrap(err, "parsing storage deposit coins")
 	}
 
-	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	// construct msg & tx and marshal.
 	msg := vm.MsgCall{
 		Caller:     caller,
 		Send:       send,

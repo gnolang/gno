@@ -1,0 +1,56 @@
+# Interactive maketx: full wizard (no subcommand)
+# When `gnokey maketx` is invoked without a subcommand in interactive mode,
+# it launches a wizard that prompts for tx type first, then all fields.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Feed answers for the full wizard:
+#   tx type choice: 3 (call)
+#   network: 1 (keep current — harness chainid is tendermint_test)
+#   key selection: 1 (test1)
+#   pkgpath: gno.land/r/demo/call_realm
+#   function name: GetName
+#   args: (Enter — none)
+#   send: (Enter — none)
+#   max-deposit: (Enter — none)
+#   gas estimation choice: 2 (manual)
+#   gas wanted: 2000000
+#   gas fee: 1000000ugnot
+#   memo: (Enter — none)
+#   proceed: Y
+input 3
+input 1
+input 1
+input gno.land/r/demo/call_realm
+input GetName
+input
+input
+input
+input 2
+input 2000000
+input 1000000ugnot
+input
+input Y
+gnokey maketx -broadcast -chainid=tendermint_test
+stdout 'OK!'
+stderr 'Transaction Summary'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

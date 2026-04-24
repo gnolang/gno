@@ -1,0 +1,25 @@
+# Interactive maketx: addpkg with partial flags
+# Tests addpkg with missing --pkgdir flag prompted interactively.
+
+gnoland start
+
+# Feed answers for prompts:
+#   "Package directory": $WORK
+#   "Gas estimation" choice: 2 (manual)
+#   "Gas wanted": 100000000
+#   "Gas fee": 1000000ugnot
+#   "Proceed? [Y/n]": Y
+input $WORK
+input 2
+input 100000000
+input 1000000ugnot
+input Y
+gnokey maketx addpkg -pkgpath gno.land/r/$test1_user_addr/hello -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- gnomod.toml --
+module = "hello"
+gno = "0.9"
+
+-- hello.gno --
+package hello

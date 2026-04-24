@@ -1,0 +1,27 @@
+# Interactive maketx: addpkg with -broadcast=false goes through air-gap flow.
+
+gnoland start
+
+# Feed: pkgdir, gas manual, wanted, fee, proceed, save path (default)
+input $WORK
+input 2
+input 100000000
+input 1000000ugnot
+input Y
+input $WORK/unsigned_addpkg.tx
+gnokey maketx addpkg -pkgpath gno.land/r/$test1_user_addr/hello -broadcast=false -chainid=tendermint_test test1
+
+stdout '"msg"'
+stdout '"fee"'
+stderr 'Transaction Summary'
+stderr 'Air-Gap Signing Workflow'
+stderr 'Saved unsigned tx to'
+
+exists $WORK/unsigned_addpkg.tx
+
+-- gnomod.toml --
+module = "hello"
+gno = "0.9"
+
+-- hello.gno --
+package hello

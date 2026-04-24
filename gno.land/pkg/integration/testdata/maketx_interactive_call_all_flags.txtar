@@ -1,0 +1,28 @@
+# Interactive maketx: call with all fields provided (no prompts needed)
+# When all required flags are given, the command should behave identically
+# to the non-interactive version — no summary, no confirmation prompt.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -func GetName -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

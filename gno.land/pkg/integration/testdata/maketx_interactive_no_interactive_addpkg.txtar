@@ -1,0 +1,14 @@
+# Interactive maketx: --no-interactive on addpkg prevents prompts.
+
+gnoland start
+
+# Missing -pkgdir → error
+! gnokey maketx addpkg -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test --no-interactive test1
+stderr 'pkgdir not specified'
+
+-- gnomod.toml --
+module = "hello"
+gno = "0.9"
+
+-- hello.gno --
+package hello

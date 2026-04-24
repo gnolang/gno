@@ -1,0 +1,37 @@
+# Interactive maketx: gas auto-simulation
+# When gas-wanted is missing, the wizard offers auto-estimation.
+# Selecting auto fills a default gas value.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Feed answers for prompts:
+#   "Function name": GetName
+#   "Gas estimation" choice: 1 (auto-estimate)
+#   "Gas fee": 1000000ugnot
+#   "Proceed? [Y/n]": Y
+input GetName
+input 1
+input 1000000ugnot
+input Y
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

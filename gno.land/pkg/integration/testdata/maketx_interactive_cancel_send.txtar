@@ -1,0 +1,15 @@
+# Interactive maketx: send cancels cleanly at the confirmation prompt.
+
+gnoland start
+
+# Feed: send amount, destination, gas manual, wanted, fee, "n" at proceed
+input 1000ugnot
+input $test1_user_addr
+input 2
+input 2000000
+input 1000000ugnot
+input n
+gnokey maketx send -broadcast -chainid=tendermint_test test1
+
+! stdout 'OK!'
+stderr 'Cancelled.'

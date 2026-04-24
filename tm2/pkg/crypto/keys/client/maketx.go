@@ -24,6 +24,8 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
+
+	NoInteractive bool
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -108,6 +110,13 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"dev",
 		"chainid to sign for (only useful with --broadcast)",
+	)
+
+	fs.BoolVar(
+		&c.NoInteractive,
+		"no-interactive",
+		false,
+		"never prompt for missing fields; error instead",
 	)
 }
 

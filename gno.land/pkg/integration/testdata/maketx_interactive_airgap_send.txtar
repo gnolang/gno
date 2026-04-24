@@ -1,0 +1,27 @@
+# Interactive maketx: send with -broadcast=false goes through air-gap
+# flow — save to file, print signing instructions to stderr, JSON to stdout.
+
+gnoland start
+
+# Feed: send amount, destination (own addr), gas manual, wanted, fee, proceed,
+# save-path (accept default)
+input 1000ugnot
+input $test1_user_addr
+input 2
+input 2000000
+input 1000000ugnot
+input Y
+input $WORK/unsigned_send.tx
+gnokey maketx send -broadcast=false -chainid=tendermint_test test1
+
+stdout '"msg"'
+stdout '"fee"'
+stderr 'Transaction Summary'
+stderr 'Air-Gap Signing Workflow'
+stderr 'gnokey query auth/accounts/'
+stderr 'gnokey sign -tx-path'
+stderr 'gnokey broadcast'
+stderr 'Saved unsigned tx to'
+
+exists $WORK/unsigned_send.tx
+grep '"msg"' $WORK/unsigned_send.tx

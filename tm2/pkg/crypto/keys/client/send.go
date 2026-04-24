@@ -33,7 +33,7 @@ func NewMakeSendCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execMakeSend(cfg, args, io)
+			return ExecMakeSend(cfg, args, io)
 		},
 	)
 }
@@ -54,7 +54,7 @@ func (c *MakeSendCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
+func ExecMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -72,7 +72,6 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return errors.New("to (destination address) must be specified")
 	}
 
-	// read account pubkey.
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
@@ -83,28 +82,23 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		return err
 	}
 	fromAddr := info.GetAddress()
-	// info.GetPubKey()
 
-	// Parse to address.
 	toAddr, err := crypto.AddressFromBech32(cfg.To)
 	if err != nil {
 		return err
 	}
 
-	// Parse send amount.
 	send, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	// construct msg & tx and marshal.
 	msg := bank.MsgSend{
 		FromAddress: fromAddr,
 		ToAddress:   toAddr,

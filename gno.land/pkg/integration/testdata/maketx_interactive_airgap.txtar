@@ -1,0 +1,47 @@
+# Interactive maketx: call with broadcast=false (air-gap flow)
+# When broadcast=false and in interactive mode, the wizard should:
+# 1. Prompt for file path to save unsigned tx
+# 2. Save the file
+# 3. Print air-gap instructions to stderr
+# 4. Output unsigned tx JSON to stdout
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Feed answers for prompts:
+#   "Function name": GetName
+#   "Gas estimation" choice: 2 (manual)
+#   "Gas wanted": 2000000
+#   "Gas fee": 1000000ugnot
+#   "Proceed? [Y/n]": Y
+#   "Save unsigned tx to [./unsigned_call.tx]": (accept default)
+input GetName
+input 2
+input 2000000
+input 1000000ugnot
+input Y
+input
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -broadcast=false -chainid=tendermint_test test1
+
+# stdout should contain unsigned tx JSON
+stdout '"msg"'
+stdout '"fee"'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

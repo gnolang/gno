@@ -1,0 +1,22 @@
+# Interactive maketx: addpkg broadcast prints PKG PATH on success.
+# (VIEW AT is only shown when gnoweb is reachable — not tested here.)
+
+gnoland start
+
+input $WORK
+input 2
+input 100000000
+input 1000000ugnot
+input Y
+gnokey maketx addpkg -pkgpath gno.land/r/$test1_user_addr/hello -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+stdout 'PKG PATH:'
+stdout 'gno.land/r/.*/hello'
+
+-- gnomod.toml --
+module = "hello"
+gno = "0.9"
+
+-- hello.gno --
+package hello

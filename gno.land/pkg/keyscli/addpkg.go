@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -37,6 +38,9 @@ func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Comma
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
+			if canPrompt(cfg.RootCfg, io) {
+				return execMakeAddPkgInteractive(cfg, args, io, false)
+			}
 			return execMakeAddPkg(cfg, args, io)
 		},
 	)
@@ -73,11 +77,15 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
-	if cfg.PkgPath == "" {
-		return errors.New("pkgpath not specified")
-	}
 	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
+	}
+	if cfg.PkgPath == "" {
+		mod, err := gnomod.ParseDir(cfg.PkgDir)
+		if err != nil || mod.Module == "" {
+			return errors.New("pkgpath not specified (and could not be deduced from gnomod.toml)")
+		}
+		cfg.PkgPath = mod.Module
 	}
 	if cfg.RootCfg.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
@@ -90,7 +98,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	// read account pubkey.
 	nameOrBech32 := args[0]
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
@@ -101,31 +108,27 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		return err
 	}
 	creator := info.GetAddress()
-	// info.GetPubKey()
-	// Parse send amount.
+
 	send, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
-	// parse deposit.
 	deposit, err := std.ParseCoins(cfg.MaxDeposit)
 	if err != nil {
 		panic(err)
 	}
 
-	// open files in directory as MemPackage.
 	memPkg := gno.MustReadMemPackage(cfg.PkgDir, cfg.PkgPath, gno.MPUserAll)
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
-	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
 		panic(err)
 	}
-	// construct msg & tx and marshal.
+
 	msg := vm.MsgAddPackage{
 		Creator:    creator,
 		Package:    memPkg,
@@ -142,6 +145,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	if cfg.RootCfg.Broadcast {
 		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 			PrintTxInfo(tx, res, io)
+			io.Println("PKG PATH:  ", cfg.PkgPath)
+			if viewURL := GnowebURLFromRemote(cfg.RootCfg.RootCfg.Remote, cfg.PkgPath); viewURL != "" {
+				io.Println("VIEW AT:   ", viewURL)
+			}
 		}
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {

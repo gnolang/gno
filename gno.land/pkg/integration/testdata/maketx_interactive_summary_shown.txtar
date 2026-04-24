@@ -1,0 +1,40 @@
+# Interactive maketx: when at least one required field was prompted, the
+# summary must be shown before the confirmation prompt.
+
+loadpkg gno.land/r/demo/call_realm $WORK/realm
+
+gnoland start
+
+# Only -pkgpath provided; -func, gas-wanted, gas-fee are prompted.
+input GetName
+input 2
+input 2000000
+input 1000000ugnot
+input Y
+gnokey maketx call -pkgpath gno.land/r/demo/call_realm -broadcast -chainid=tendermint_test test1
+
+stdout 'OK!'
+stderr 'Transaction Summary'
+stderr 'Type:        call'
+stderr 'Function:    GetName'
+stderr 'Gas Wanted:  2000000'
+stderr 'Gas Fee:     1000000ugnot'
+stderr 'Proceed'
+
+-- realm/realm.gno --
+package call_realm
+
+var name string
+
+func GetName(cur realm) string {
+	return name
+}
+
+func SetName(cur realm, s string) string {
+	name = s
+	return name
+}
+
+func Render(_ string) string {
+	return "# HELLO " + name
+}

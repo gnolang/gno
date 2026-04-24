@@ -3,6 +3,11 @@ package keyscli
 
 import (
 	"encoding/base64"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -109,4 +114,57 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	}
 
 	return bytesDelta, coinsDelta, hasEvents
+}
+
+func GnowebURLFromRemote(remote, pkgPath string) string {
+	return GnowebTxURL(remote, pkgPath, "")
+}
+
+// GnowebTxURL returns the gnoweb URL for the package at pkgPath on the given
+// remote. When funcName is non-empty, a $help&func= fragment is appended so
+// users land directly on that function's help page.
+// Returns "" when the remote is empty, the pkg path is empty, or gnoweb is
+// not reachable at the derived base URL.
+func GnowebTxURL(remote, pkgPath, funcName string) string {
+	if remote == "" || pkgPath == "" {
+		return ""
+	}
+
+	if !strings.Contains(remote, "://") {
+		remote = "http://" + remote
+	}
+
+	u, err := url.Parse(remote)
+	if err != nil {
+		return ""
+	}
+
+	u.Host = strings.TrimPrefix(u.Hostname(), "rpc.") + ":8888"
+	u.Path = strings.TrimPrefix(pkgPath, "gno.land")
+
+	baseURL := u.Scheme + "://" + u.Host
+	if !isGnowebReachable(baseURL) {
+		return ""
+	}
+
+	result := u.String()
+	if funcName != "" {
+		result += "$help&func=" + funcName
+	}
+	return result
+}
+
+func isGnowebReachable(baseURL string) bool {
+	c := &http.Client{Timeout: 2 * time.Second}
+	resp, err := c.Get(baseURL)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	buf, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(buf), "gno.land")
 }
