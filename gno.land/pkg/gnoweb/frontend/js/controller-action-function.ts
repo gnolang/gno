@@ -196,10 +196,9 @@ export class ActionFunctionController extends BaseController {
 	// If there is no "qeval-result" target, then do nothing.
 	private async _updateQEvalResult(): Promise<void> {
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
-		const remoteTarget = this.getTarget("remote") as HTMLElement;
 
-		// If there is no resultTarget or remoteTarget, this is a crossing function.
-		if (!(resultTarget && remoteTarget)) return;
+		// Crossing functions have no qeval-result target.
+		if (!resultTarget) return;
 
 		// If there are no args, then show the "(enter param values)" placeholder.
 		const argNodes = this.getTargets("arg");
@@ -210,14 +209,14 @@ export class ActionFunctionController extends BaseController {
 			return;
 		}
 
-		// Build the data string for the qeval query.
+		// Build the expression for the eval query.
 		const args = argNodes
 			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
 			.join(",");
-		const data = `${this._pkgPath}.${this._funcName}(${args})`;
+		const expression = `${this._funcName}(${args})`;
 
-		// Fetch the qeval result from the remote and update the DOM.
-		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
+		// Fetch the eval result and update the DOM.
+		const result = await this._evalExpression(expression);
 		resultTarget.textContent = result;
 		resultTarget.classList.toggle(
 			"u-color-danger",
@@ -225,15 +224,18 @@ export class ActionFunctionController extends BaseController {
 		);
 	}
 
-	// Fetch the qeval result from the remote
-	private async _fetchQEval(remote: string, data: string): Promise<string> {
+	// Fetch the eval result via the same-origin /_/api/eval endpoint.
+	private async _evalExpression(expression: string): Promise<string> {
 		try {
-			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
+			const response = await fetch("/_/api/eval", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ pkg_path: this._pkgPath, expression }),
+			});
 			if (!response.ok) return "";
 
-			const result = (await response.json()).result.response.ResponseBase;
-			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
+			const json = await response.json();
+			return json.error ? `Error: ${json.error}` : (json.result ?? "");
 		} catch {
 			return "";
 		}
