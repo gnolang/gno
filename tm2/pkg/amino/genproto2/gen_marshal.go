@@ -75,9 +75,12 @@ func (ctx *P3Context2) writeReprMarshal(sb *strings.Builder, rinfo *amino.TypeIn
 		sb.WriteString("\t{\n")
 		sb.WriteString("\t\tbefore := offset\n")
 		ctx.writePrimitiveEncode(sb, "repr", rinfo, fopts, "\t\t")
-		// Match writeFieldIfNotEmpty: skip if value encoded to nothing or single zero byte.
+		// Match writeFieldIfNotEmpty at binary_encode.go:592-596: roll back
+		// if the value encoded to nothing or to a single 0x00 byte. The
+		// PrependXXX helpers write backward, so the single byte sits at
+		// buf[offset] after encoding.
 		sb.WriteString("\t\tvalueLen := before - offset\n")
-		sb.WriteString("\t\tif valueLen > 0 {\n")
+		sb.WriteString("\t\tif valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {\n")
 		fmt.Fprintf(sb, "\t\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, %s)\n", typ3GoStr(typ3))
 		sb.WriteString("\t\t} else {\n")
 		sb.WriteString("\t\t\toffset = before\n")

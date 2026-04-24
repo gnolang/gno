@@ -2849,7 +2849,7 @@ func (goo StringError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 		before := offset
 		offset = amino.PrependString(buf, offset, string(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
 			offset = before
@@ -2861,11 +2861,8 @@ func (goo StringError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 func (goo StringError) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	repr := goo
-	{
-		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	return s, nil
 }
@@ -3513,7 +3510,7 @@ func (goo EventString) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 		before := offset
 		offset = amino.PrependString(buf, offset, string(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
 			offset = before
@@ -3525,11 +3522,8 @@ func (goo EventString) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 func (goo EventString) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	repr := goo
-	{
-		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	return s, nil
 }

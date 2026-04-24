@@ -66,15 +66,19 @@ func (ctx *P3Context2) writeReprSize(sb *strings.Builder, rinfo *amino.TypeInfo)
 
 	default:
 		// Primitive repr wrapped in implicit struct field 1.
+		// Match the emission decision in gen_marshal.go writeReprMarshal:
+		// skip if repr is the zero value of its type (encodes to nothing
+		// or a single 0x00 byte that writeFieldIfNotEmpty rolls back).
 		typ3 := rinfo.GetTyp3(fopts)
 		fks := fieldKeySize(1, typ3)
-		sb.WriteString("\t{\n")
-		fmt.Fprintf(sb, "\t\tvs := %s\n", ctx.primitiveValueSizeExpr("repr", rinfo, fopts))
-		// Match writeFieldIfNotEmpty: skip if value is just 0x00.
-		fmt.Fprintf(sb, "\t\tif vs > 0 {\n")
-		fmt.Fprintf(sb, "\t\t\ts += %d + vs\n", fks)
-		sb.WriteString("\t\t}\n")
-		sb.WriteString("\t}\n")
+		zeroChk := ctx.zeroCheck("repr", rinfo, fopts)
+		if zeroChk != "" {
+			fmt.Fprintf(sb, "\tif %s {\n", zeroChk)
+			fmt.Fprintf(sb, "\t\ts += %d + %s\n", fks, ctx.primitiveValueSizeExpr("repr", rinfo, fopts))
+			sb.WriteString("\t}\n")
+		} else {
+			fmt.Fprintf(sb, "\ts += %d + %s\n", fks, ctx.primitiveValueSizeExpr("repr", rinfo, fopts))
+		}
 	}
 }
 

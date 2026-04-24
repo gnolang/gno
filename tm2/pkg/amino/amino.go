@@ -995,6 +995,14 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 		return err
 	}
 
+	// Empty input decodes to the zero value for any non-struct top-level
+	// type. MarshalReflect rolls the implicit-struct wrapper back when
+	// writeFieldIfNotEmpty determines the value is empty, producing nil
+	// bytes; the symmetric decode must accept nil bytes the same way.
+	if len(bz) == 0 && !info.IsStructOrUnpacked(FieldOptions{}) && rv.Kind() != reflect.Interface {
+		return nil
+	}
+
 	// See if we need to read the typ3 encoding of an implicit struct.
 	//
 	// If the dest ptr is an interface, it is assumed that the object is

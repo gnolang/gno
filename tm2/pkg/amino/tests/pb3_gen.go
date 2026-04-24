@@ -9718,7 +9718,7 @@ func (goo AminoMarshalerStruct3) MarshalBinary2(cdc *amino.Codec, buf []byte, of
 		before := offset
 		offset = amino.PrependVarint(buf, offset, int64(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 		} else {
 			offset = before
@@ -9733,11 +9733,8 @@ func (goo AminoMarshalerStruct3) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	{
-		vs := amino.VarintSize(int64(repr))
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != 0 {
+		s += 1 + amino.VarintSize(int64(repr))
 	}
 	return s, nil
 }
@@ -9805,7 +9802,7 @@ func (goo AminoMarshalerInt5) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 		before := offset
 		offset = amino.PrependString(buf, offset, string(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
 			offset = before
@@ -9820,11 +9817,8 @@ func (goo AminoMarshalerInt5) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	{
-		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	return s, nil
 }
@@ -9994,7 +9988,7 @@ func (goo ReprElem7) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 		before := offset
 		offset = amino.PrependUvarint(buf, offset, uint64(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 		} else {
 			offset = before
@@ -10009,11 +10003,8 @@ func (goo ReprElem7) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	{
-		vs := amino.UvarintSize(uint64(repr))
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != 0 {
+		s += 1 + amino.UvarintSize(uint64(repr))
 	}
 	return s, nil
 }
@@ -10045,7 +10036,7 @@ func (goo IntDef) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 		before := offset
 		offset = amino.PrependVarint(buf, offset, int64(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 		} else {
 			offset = before
@@ -10057,11 +10048,8 @@ func (goo IntDef) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 func (goo IntDef) SizeBinary2(cdc *amino.Codec) (int, error) {
 	var s int
 	repr := goo
-	{
-		vs := amino.VarintSize(int64(repr))
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != 0 {
+		s += 1 + amino.VarintSize(int64(repr))
 	}
 	return s, nil
 }
@@ -15285,7 +15273,7 @@ func (goo SimpleAddress) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 		before := offset
 		offset = amino.PrependString(buf, offset, string(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
 			offset = before
@@ -15300,11 +15288,8 @@ func (goo SimpleAddress) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	{
-		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	return s, nil
 }
@@ -15395,7 +15380,7 @@ func (goo CounterRepr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 		before := offset
 		offset = amino.PrependUvarint(buf, offset, uint64(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
 		} else {
 			offset = before
@@ -15410,11 +15395,8 @@ func (goo CounterRepr) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	{
-		vs := amino.UvarintSize(uint64(repr))
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != 0 {
+		s += 1 + amino.UvarintSize(uint64(repr))
 	}
 	return s, nil
 }
