@@ -484,7 +484,11 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 		extraIndent := "\t\t"
 
 		if ertIsPointer {
-			ertIsStruct := einfo.ReprType.Type.Kind() == reflect.Struct
+			// Key off the Go element type (einfo.Type), not the repr type.
+			// nil_elements is a Go-side semantic guard: nil `*Struct` is
+			// disallowed in lists unless opted in, regardless of the repr's
+			// wire kind (per binary_encode.go:399 ertIsStruct check).
+			ertIsStruct := einfo.Type.Kind() == reflect.Struct
 			sb.WriteString("\t\tif elem == nil {\n")
 			if ertIsStruct && !fopts.NilElements {
 				sb.WriteString("\t\t\treturn offset, errors.New(\"nil struct pointers in lists not supported unless nil_elements field tag is also set\")\n")

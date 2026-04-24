@@ -909,6 +909,22 @@ var fuzzFuncs = []any{
 			}
 		}
 	},
+	func(sl *[]*tests.StructWithStringRepr, c fuzz.Continue) {
+		n := c.Intn(4)
+		switch n {
+		case 0:
+			*sl = nil
+		default:
+			// Slice elements must be non-nil, since StructPtrSliceWithStringRepr
+			// does not set amino:"nil_elements" (the fix #8 contract).
+			*sl = make([]*tests.StructWithStringRepr, n)
+			for i := range n {
+				var elem tests.StructWithStringRepr
+				c.Fuzz(&elem)
+				(*sl)[i] = &elem
+			}
+		}
+	},
 	func(sl *[]*tests.FuzzFieldInfo, c fuzz.Continue) {
 		n := c.Intn(4)
 		switch n {

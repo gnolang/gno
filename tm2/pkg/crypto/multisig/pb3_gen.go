@@ -71,7 +71,7 @@ func (goo *PubKeyMultisigThreshold) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

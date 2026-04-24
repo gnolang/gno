@@ -95,6 +95,9 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*HostRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CounterRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ContainerWithAminoLists)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*StructWithStringRepr)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*StructPtrSliceWithStringRepr)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*ByteArraySliceStruct)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgPointerSlice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgBoxedRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
@@ -118,7 +121,7 @@ func (goo *EmptyStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -332,7 +335,7 @@ func (goo *PrimitivesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -609,7 +612,7 @@ func (goo *ShortArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1028,7 +1031,7 @@ func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2133,7 +2136,7 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2897,6 +2900,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 			if err != nil {
 				return err
 			}
+			if len(v) != 2 {
+				return fmt.Errorf("mismatched byte array length: expected 2, got %d", len(v))
+			}
 			bz = bz[n:]
 			copy(ev[:], v)
 			if ByteArAr_idx >= 2 {
@@ -2923,6 +2929,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				if err != nil {
 					return err
 				}
+				if len(v) != 2 {
+					return fmt.Errorf("mismatched byte array length: expected 2, got %d", len(v))
+				}
 				bz = bz[n:]
 				copy(ev[:], v)
 				if ByteArAr_idx >= 2 {
@@ -2939,6 +2948,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 			v, n, err := amino.DecodeByteSlice(bz)
 			if err != nil {
 				return err
+			}
+			if len(v) != 2 {
+				return fmt.Errorf("mismatched byte array length: expected 2, got %d", len(v))
 			}
 			bz = bz[n:]
 			copy(ev[:], v)
@@ -2965,6 +2977,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				v, n, err := amino.DecodeByteSlice(bz)
 				if err != nil {
 					return err
+				}
+				if len(v) != 2 {
+					return fmt.Errorf("mismatched byte array length: expected 2, got %d", len(v))
 				}
 				bz = bz[n:]
 				copy(ev[:], v)
@@ -4221,7 +4236,7 @@ func (goo *SlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -5232,7 +5247,7 @@ func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -6919,7 +6934,7 @@ func (goo *PointersStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -7821,7 +7836,7 @@ func (goo *PointerSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, an
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -8416,7 +8431,7 @@ func (goo *ComplexSt) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -8518,7 +8533,7 @@ func (goo *EmbeddedSt1) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -8653,7 +8668,7 @@ func (goo *EmbeddedSt2) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -8837,7 +8852,7 @@ func (goo *EmbeddedSt3) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -9075,7 +9090,7 @@ func (goo *EmbeddedSt4) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -9327,7 +9342,7 @@ func (goo *EmbeddedSt5) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -9530,7 +9545,7 @@ func (goo *ReprStruct1) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -9673,7 +9688,7 @@ func (goo *ReprElem2) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -9752,11 +9767,15 @@ func (goo *AminoMarshalerStruct3) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3Varint, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeVarint(bz)
+		v, n, err := amino.DecodeVarint(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = int32(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -9836,11 +9855,15 @@ func (goo *AminoMarshalerInt5) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeString(bz)
+		v, n, err := amino.DecodeString(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -9965,10 +9988,11 @@ func (goo *AminoMarshalerStruct7) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 			return fmt.Errorf("repr field 1: expected ByteLength, got num=%v typ=%v", fnum, typ3)
 		}
 		bz = bz[n:]
-		fbz, _, err := amino.DecodeByteSlice(bz)
+		fbz, n, err := amino.DecodeByteSlice(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		for _, b := range fbz {
 			var elem ReprElem7
 			if err := elem.UnmarshalAmino(b); err != nil {
@@ -9976,6 +10000,9 @@ func (goo *AminoMarshalerStruct7) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 			}
 			repr = append(repr, elem)
 		}
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -10022,11 +10049,15 @@ func (goo *ReprElem7) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3Varint, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeUvarint(bz)
+		v, n, err := amino.DecodeUvarint8(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = uint8(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -10067,11 +10098,15 @@ func (goo *IntDef) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3Varint, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeVarint(bz)
+		v, n, err := amino.DecodeVarint(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = IntDef(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	*goo = IntDef(repr)
 	return nil
@@ -10150,10 +10185,11 @@ func (goo *IntSl) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 			return fmt.Errorf("repr field 1: expected ByteLength, got num=%v typ=%v", fnum, typ3)
 		}
 		bz = bz[n:]
-		fbz, _, err := amino.DecodeByteSlice(bz)
+		fbz, n, err := amino.DecodeByteSlice(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		for len(fbz) > 0 {
 			var elem int
 			v, n, err := amino.DecodeVarint(fbz)
@@ -10164,6 +10200,9 @@ func (goo *IntSl) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 			elem = int(v)
 			repr = append(repr, elem)
 		}
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
 	}
 	*goo = IntSl(repr)
 	return nil
@@ -10238,14 +10277,18 @@ func (goo *ByteSl) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			return fmt.Errorf("repr field 1: expected ByteLength, got num=%v typ=%v", fnum, typ3)
 		}
 		bz = bz[n:]
-		fbz, _, err := amino.DecodeByteSlice(bz)
+		fbz, n, err := amino.DecodeByteSlice(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		for _, b := range fbz {
 			elem := uint8(b)
 			repr = append(repr, elem)
 		}
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
 	}
 	*goo = ByteSl(repr)
 	return nil
@@ -10452,7 +10495,7 @@ func (goo *PrimitivesStructDef) UnmarshalBinary2(cdc *amino.Codec, bz []byte, an
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -10790,7 +10833,7 @@ func (goo *Concrete1) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -10821,7 +10864,7 @@ func (goo *Concrete2) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -10873,7 +10916,7 @@ func (goo *ConcreteRecursive) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -10956,7 +10999,7 @@ func (goo *ConcreteWrappedBytes) UnmarshalBinary2(cdc *amino.Codec, bz []byte, a
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11085,7 +11128,7 @@ func (goo *InterfaceFieldsStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11186,7 +11229,7 @@ func (goo *GnoVMPos) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11290,7 +11333,7 @@ func (goo *GnoVMSpan) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11392,7 +11435,7 @@ func (goo *GnoVMLocation) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11492,7 +11535,7 @@ func (goo *GnoVMAttrs) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11565,7 +11608,7 @@ func (goo *GnoVMObjectID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11680,7 +11723,7 @@ func (goo *GnoVMObjectInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11808,7 +11851,7 @@ func (goo *GnoVMTypedValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -11947,7 +11990,7 @@ func (goo *GnoVMBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -12154,7 +12197,7 @@ func (goo *GnoVMFuncValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -12380,7 +12423,7 @@ func (goo *GnoVMDeclaredType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -12536,7 +12579,7 @@ func (goo *GnoVMRefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -12659,7 +12702,7 @@ func (goo *GnoVMFieldType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -12759,7 +12802,7 @@ func (goo *GnoVMStructType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -12902,7 +12945,7 @@ func (goo *GnoVMFileNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13061,7 +13104,7 @@ func (goo *GnoVMPointerValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13174,7 +13217,7 @@ func (goo *GnoVMSliceValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13295,7 +13338,7 @@ func (goo *GnoVMMapEntry) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13448,7 +13491,7 @@ func (goo *GnoVMNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13604,7 +13647,7 @@ func (goo *FuzzFieldInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13700,7 +13743,7 @@ func (goo *FuzzStructInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13820,7 +13863,7 @@ func (goo *FuzzValueEntry) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -13953,7 +13996,7 @@ func (goo *FuzzBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -14114,7 +14157,7 @@ func (goo *FuzzFuncInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -14291,7 +14334,7 @@ func (goo *FuzzDeclInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -14448,7 +14491,7 @@ func (goo *FuzzFileInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -14585,7 +14628,7 @@ func (goo *FuzzPtrNest) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -14693,7 +14736,7 @@ func (goo *FuzzDeepNest) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -14828,7 +14871,7 @@ func (goo *FuzzWriteEmpty) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15005,7 +15048,7 @@ func (goo *FuzzNilElements) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15154,7 +15197,7 @@ func (goo *FuzzFixedInt) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15236,7 +15279,7 @@ func (goo *FuzzContainsAminoMarshaler) UnmarshalBinary2(cdc *amino.Codec, bz []b
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15307,11 +15350,15 @@ func (goo *EmptyReprOnZero) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeString(bz)
+		v, n, err := amino.DecodeString(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -15360,7 +15407,7 @@ func (goo *FuzzNilEmptyRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15468,11 +15515,15 @@ func (goo *SimpleAddress) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeString(bz)
+		v, n, err := amino.DecodeString(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -15521,14 +15572,18 @@ func (goo *HostRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 			return fmt.Errorf("repr field 1: expected ByteLength, got num=%v typ=%v", fnum, typ3)
 		}
 		bz = bz[n:]
-		fbz, _, err := amino.DecodeByteSlice(bz)
+		fbz, n, err := amino.DecodeByteSlice(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		for _, b := range fbz {
 			elem := uint8(b)
 			repr = append(repr, elem)
 		}
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -15575,11 +15630,15 @@ func (goo *CounterRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3Varint, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeUvarint(bz)
+		v, n, err := amino.DecodeUvarint8(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = uint8(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -15637,7 +15696,7 @@ func (goo *ContainerWithAminoLists) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15744,6 +15803,241 @@ func (goo *ContainerWithAminoLists) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 	return nil
 }
 
+func (goo StructWithStringRepr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
+	{
+		before := offset
+		offset = amino.PrependString(buf, offset, string(repr))
+		valueLen := before - offset
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo StructWithStringRepr) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	return s, nil
+}
+
+func (goo *StructWithStringRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var repr string
+	if len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
+		}
+		bz = bz[n:]
+		v, n, err := amino.DecodeString(bz)
+		if err != nil {
+			return err
+		}
+		bz = bz[n:]
+		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+	}
+	return goo.UnmarshalAmino(repr)
+}
+
+func (goo StructPtrSliceWithStringRepr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Items) - 1; i >= 0; i-- {
+		elem := goo.Items[i]
+		if elem == nil {
+			return offset, errors.New("nil struct pointers in lists not supported unless nil_elements field tag is also set")
+		} else {
+			er, err := (*elem).MarshalAmino()
+			if err != nil {
+				return offset, err
+			}
+			offset = amino.PrependString(buf, offset, string(er))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
+	}
+	return offset, err
+}
+
+func (goo StructPtrSliceWithStringRepr) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	for _, elem := range goo.Items {
+		if elem == nil {
+			return 0, errors.New("nil struct pointers in lists not supported unless nil_elements field tag is also set")
+		} else {
+			er, err := (*elem).MarshalAmino()
+			if err != nil {
+				return 0, err
+			}
+			vs := amino.UvarintSize(uint64(len(er))) + len(er)
+			s += 1 + vs
+		}
+	}
+	return s, nil
+}
+
+func (goo *StructPtrSliceWithStringRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev StructWithStringRepr
+			var rv string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			rv = string(v)
+			if err := ev.UnmarshalAmino(rv); err != nil {
+				return err
+			}
+			goo.Items = append(goo.Items, &ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 1 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev StructWithStringRepr
+				var rv string
+				v, n, err := amino.DecodeString(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				rv = string(v)
+				if err := ev.UnmarshalAmino(rv); err != nil {
+					return err
+				}
+				goo.Items = append(goo.Items, &ev)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for StructPtrSliceWithStringRepr", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo ByteArraySliceStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Items) - 1; i >= 0; i-- {
+		elem := goo.Items[i]
+		offset = amino.PrependByteSlice(buf, offset, elem[:])
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo ByteArraySliceStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	for _, elem := range goo.Items {
+		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
+		s += 1 + vs
+	}
+	return s, nil
+}
+
+func (goo *ByteArraySliceStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev [8]uint8
+			v, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			if len(v) != 8 {
+				return fmt.Errorf("mismatched byte array length: expected 8, got %d", len(v))
+			}
+			bz = bz[n:]
+			copy(ev[:], v)
+			goo.Items = append(goo.Items, ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 1 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev [8]uint8
+				v, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				if len(v) != 8 {
+					return fmt.Errorf("mismatched byte array length: expected 8, got %d", len(v))
+				}
+				bz = bz[n:]
+				copy(ev[:], v)
+				goo.Items = append(goo.Items, ev)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for ByteArraySliceStruct", fnum)
+		}
+	}
+	return nil
+}
+
 func (goo CrossPkgPointerSlice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Counts) != 0 {
@@ -15789,7 +16083,7 @@ func (goo *CrossPkgPointerSlice) UnmarshalBinary2(cdc *amino.Codec, bz []byte, a
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -15965,7 +16259,7 @@ func (goo *InterfaceHeavy) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

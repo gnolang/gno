@@ -424,6 +424,40 @@ type CrossPkgPointerSlice struct {
 	Counts []*crosspkg.SmallCount
 }
 
+// ByteArraySliceStruct: a struct with a `[][8]byte` field. Each element is
+// a fixed-size 8-byte array, decoded as a list element via
+// writePrimitiveDecodeFrom's Array+Uint8 branch. Exercises BINARY_FIXES.md
+// #9: the generator must enforce that the decoded payload length matches
+// the array length, mirroring reflect (binary_decode.go:551-555).
+type ByteArraySliceStruct struct {
+	Items [][8]byte
+}
+
+// StructWithStringRepr is a Go struct whose MarshalAmino returns a string.
+// Used by BINARY_FIXES.md #8 test: element `*StructWithStringRepr` has
+// Go kind Struct but repr kind String (Typ3ByteLength), so unpacked
+// list encoding is used. The generator must still see "struct pointer"
+// and require `nil_elements` for nil entries.
+type StructWithStringRepr struct {
+	Name string
+}
+
+func (s StructWithStringRepr) MarshalAmino() (string, error) { return s.Name, nil }
+func (s *StructWithStringRepr) UnmarshalAmino(r string) error {
+	s.Name = r
+	return nil
+}
+
+// StructPtrSliceWithStringRepr exercises BINARY_FIXES.md #8: `[]*X` where X
+// is a Go struct with non-struct (string) repr. Without the fix, the
+// generator's `ertIsStruct := einfo.ReprType.Type.Kind() == Struct` is
+// false (repr is String), so the generator silently encodes nil entries
+// as 0x00 sentinels. Reflect keys off `einfo.Type.Kind() == Struct` and
+// rejects nil entries without a `nil_elements` tag.
+type StructPtrSliceWithStringRepr struct {
+	Items []*StructWithStringRepr // no nil_elements tag
+}
+
 // CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
 // in a different package. Without the gen_unmarshal.go:72 fix, generated
 // code declares `var repr Inner` (bare name) which fails to compile.
@@ -529,6 +563,8 @@ var StructTypes = []any{
 	// AminoMarshaler list element types (slice/array of AminoMarshaler with
 	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
 	(*ContainerWithAminoLists)(nil),
+	(*StructPtrSliceWithStringRepr)(nil),
+	(*ByteArraySliceStruct)(nil),
 	// Cross-package AminoMarshaler: verifies generated code uses qualified
 	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
 	// excluded from property fuzz because random nil elements in a

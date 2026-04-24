@@ -39,7 +39,7 @@ func (goo *PacketPing) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -70,7 +70,7 @@ func (goo *PacketPong) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -122,7 +122,7 @@ func (goo *PacketMsg) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

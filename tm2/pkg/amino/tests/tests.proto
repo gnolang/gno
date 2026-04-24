@@ -574,6 +574,18 @@ message ContainerWithAminoLists {
 	repeated string top_addrs = 2 [json_name = "TopAddrs"];
 }
 
+message StructWithStringRepr {
+	string value = 1;
+}
+
+message StructPtrSliceWithStringRepr {
+	repeated string items = 1 [json_name = "Items"];
+}
+
+message ByteArraySliceStruct {
+	repeated bytes items = 1 [json_name = "Items"];
+}
+
 message CrossPkgPointerSlice {
 	bytes counts = 1 [json_name = "Counts"];
 }

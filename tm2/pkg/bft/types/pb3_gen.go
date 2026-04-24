@@ -144,7 +144,7 @@ func (goo *Proposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -322,7 +322,7 @@ func (goo *Block) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -547,7 +547,7 @@ func (goo *Header) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -785,7 +785,7 @@ func (goo *Data) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) err
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -909,7 +909,7 @@ func (goo *Commit) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1029,7 +1029,7 @@ func (goo *BlockID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1184,7 +1184,7 @@ func (goo *CommitSig) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1407,7 +1407,7 @@ func (goo *Vote) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) err
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1569,7 +1569,7 @@ func (goo *Part) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) err
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1636,7 +1636,7 @@ func (goo *PartSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1681,7 +1681,7 @@ func (goo *PartSetHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1790,7 +1790,7 @@ func (goo *Validator) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -1916,7 +1916,7 @@ func (goo *ValidatorSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2069,7 +2069,7 @@ func (goo *EventNewBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2209,7 +2209,7 @@ func (goo *EventNewBlockHeader) UnmarshalBinary2(cdc *amino.Codec, bz []byte, an
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2299,7 +2299,7 @@ func (goo *EventTx) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2363,7 +2363,7 @@ func (goo *EventVote) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2428,11 +2428,15 @@ func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeString(bz)
+		v, n, err := amino.DecodeString(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = EventString(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	*goo = EventString(repr)
 	return nil
@@ -2474,7 +2478,7 @@ func (goo *EventValidatorSetUpdates) UnmarshalBinary2(cdc *amino.Codec, bz []byt
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2607,7 +2611,7 @@ func (goo *DuplicateVoteEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2710,7 +2714,7 @@ func (goo *MockGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2788,7 +2792,7 @@ func (goo *MockRandomGoodEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte,
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2854,7 +2858,7 @@ func (goo *MockBadEvidence) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -2941,7 +2945,7 @@ func (goo *TxResult) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -3025,7 +3029,7 @@ func (goo *MockAppState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -3066,7 +3070,7 @@ func (goo *VoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

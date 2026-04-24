@@ -393,7 +393,10 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 		fmt.Fprintf(sb, "\tfor _, elem := range %s {\n", accessor)
 
 		if ertIsPointer {
-			ertIsStruct := einfo.ReprType.Type.Kind() == reflect.Struct
+			// Key off the Go element type (einfo.Type), not the repr type.
+			// nil_elements is a Go-side semantic guard (see gen_marshal.go
+			// counterpart; matches binary_encode.go:399 ertIsStruct).
+			ertIsStruct := einfo.Type.Kind() == reflect.Struct
 			sb.WriteString("\t\tif elem == nil {\n")
 			if ertIsStruct && !fopts.NilElements {
 				// Match MarshalBinary2's error surface: Size is a public method

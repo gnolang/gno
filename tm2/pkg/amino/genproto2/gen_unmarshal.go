@@ -94,8 +94,9 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		sb.WriteString("\t\t\treturn fmt.Errorf(\"repr field 1: expected ByteLength, got num=%v typ=%v\", fnum, typ3)\n")
 		sb.WriteString("\t\t}\n")
 		sb.WriteString("\t\tbz = bz[n:]\n")
-		sb.WriteString("\t\tfbz, _, err := amino.DecodeByteSlice(bz)\n")
+		sb.WriteString("\t\tfbz, n, err := amino.DecodeByteSlice(bz)\n")
 		sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
+		sb.WriteString("\t\tbz = bz[n:]\n")
 		ert := rt.Elem()
 		beOptionByte := einfo.ReprType.Type.Kind() == reflect.Uint8
 		if beOptionByte {
@@ -146,6 +147,8 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 			sb.WriteString("\t\t}\n")
 		}
 		sb.WriteString("\t}\n")
+		// Top-level trailing-bytes check, mirroring UnmarshalReflect (amino.go:1054).
+		sb.WriteString("\tif len(bz) != 0 {\n\t\treturn fmt.Errorf(\"trailing bytes after packed-slice repr: %X\", bz)\n\t}\n")
 	} else {
 		// Primitive repr: read field 1 key, then decode value.
 		fmt.Fprintf(sb, "\tvar repr %s\n", ctx.goTypeName(rt))
@@ -158,27 +161,21 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		sb.WriteString("\t\t}\n")
 		sb.WriteString("\t\tbz = bz[n:]\n")
 
+		// Delegate to writePrimitiveDecodeFrom so BinFixed64/32 dispatch and
+		// bz-slide are honored uniformly with writeFieldUnmarshal's primitive
+		// path. Today fopts is always empty here (top-level types have no
+		// field-level tag context), so BinFixed branches are never taken —
+		// the change is defensive/structural.
 		switch rt.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			sb.WriteString("\t\tv, _, err := amino.DecodeVarint(bz)\n")
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-			fmt.Fprintf(sb, "\t\trepr = %s(v)\n", ctx.goTypeName(rt))
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			sb.WriteString("\t\tv, _, err := amino.DecodeUvarint(bz)\n")
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-			fmt.Fprintf(sb, "\t\trepr = %s(v)\n", ctx.goTypeName(rt))
-		case reflect.String:
-			sb.WriteString("\t\tv, _, err := amino.DecodeString(bz)\n")
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-			fmt.Fprintf(sb, "\t\trepr = %s(v)\n", ctx.goTypeName(rt))
-		case reflect.Bool:
-			sb.WriteString("\t\tv, _, err := amino.DecodeBool(bz)\n")
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-			fmt.Fprintf(sb, "\t\trepr = %s(v)\n", ctx.goTypeName(rt))
+		case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.String:
+			ctx.writePrimitiveDecodeFrom(sb, "repr", rinfo, fopts, "\t\t", "bz")
 		default:
 			return fmt.Errorf("unsupported non-struct repr kind %v", rt.Kind())
 		}
 		sb.WriteString("\t}\n")
+		// Top-level trailing-bytes check, mirroring UnmarshalReflect (amino.go:1054).
+		sb.WriteString("\tif len(bz) != 0 {\n\t\treturn fmt.Errorf(\"trailing bytes after primitive repr: %X\", bz)\n\t}\n")
 	}
 	return nil
 }
@@ -252,7 +249,7 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 	sb.WriteString("\t\tfnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)\n")
 	sb.WriteString("\t\t_ = typ3\n")
 	sb.WriteString("\t\tif err != nil {\n\t\t\treturn err\n\t\t}\n")
-	sb.WriteString("\t\tif fnum < lastFieldNum {\n")
+	sb.WriteString("\t\tif fnum <= lastFieldNum {\n")
 	sb.WriteString("\t\t\treturn fmt.Errorf(\"encountered fieldNum: %v, but we have already seen fnum: %v\", fnum, lastFieldNum)\n")
 	sb.WriteString("\t\t}\n")
 	sb.WriteString("\t\tlastFieldNum = fnum\n")
@@ -891,6 +888,11 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 		if rt.Elem().Kind() == reflect.Uint8 {
 			fmt.Fprintf(sb, "%sv, n, err := amino.DecodeByteSlice(%s)\n", indent, srcVar)
 			fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
+			// Enforce exact length to match binary_decode.go:551-555.
+			// Without this, a payload shorter than N zero-pads the array
+			// and a longer payload silently truncates.
+			fmt.Fprintf(sb, "%sif len(v) != %d {\n%s\treturn fmt.Errorf(\"mismatched byte array length: expected %d, got %%d\", len(v))\n%s}\n",
+				indent, rt.Len(), indent, rt.Len(), indent)
 			fmt.Fprintf(sb, "%s%s = %s[n:]\n", indent, srcVar, srcVar)
 			fmt.Fprintf(sb, "%scopy(%s[:], v)\n", indent, accessor)
 		} else {

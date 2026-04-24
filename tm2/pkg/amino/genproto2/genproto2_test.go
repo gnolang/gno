@@ -48,6 +48,57 @@ func TestGenerateProtobuf3(t *testing.T) {
 	}
 }
 
+// TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz verifies
+// that writeReprUnmarshal's primitive branch (used for top-level non-struct
+// types like `type IntDef int`) emits code that:
+//
+//   - slides bz after decoding the primitive value (n, not _), and
+//   - routes through writePrimitiveDecodeFrom so BinFixed64/32 dispatch
+//     would be honored if fopts were ever non-empty at that site.
+//
+// Before BINARY_FIXES.md #2, the generator used an inline switch that hardcoded
+// DecodeVarint/DecodeUvarint and discarded the consumed byte count via `_`,
+// leaving bz un-slid and ignoring BinFixed options. This test is the
+// regression guard.
+func TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// Find IntDef's UnmarshalBinary2 and grab the body up to the closing brace.
+	marker := "func (goo *IntDef) UnmarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("IntDef UnmarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\n}\n")
+	if end < 0 {
+		t.Fatalf("could not find end of IntDef UnmarshalBinary2 body")
+	}
+	body := src[idx : idx+end]
+
+	// The fixed primitive decode must bind the consumed count and slide bz.
+	// Before fix: `v, _, err := amino.DecodeVarint(bz)` (no slide).
+	// After fix: `v, n, err := amino.DecodeVarint(bz)` ... `bz = bz[n:]`.
+	if strings.Contains(body, "v, _, err := amino.DecodeVarint") {
+		t.Errorf("IntDef UnmarshalBinary2 still discards DecodeVarint count; expected bz-slide. Body:\n%s", body)
+	}
+	if !strings.Contains(body, "v, n, err := amino.DecodeVarint") {
+		t.Errorf("expected 'v, n, err := amino.DecodeVarint' after fix. Body:\n%s", body)
+	}
+	// Two bz-slides: one after the field-1 key, one after the primitive value.
+	if n := strings.Count(body, "bz = bz[n:]"); n < 2 {
+		t.Errorf("expected >=2 'bz = bz[n:]' (field-key + primitive value slides), got %d. Body:\n%s", n, body)
+	}
+}
+
 // TestGoTypeName_NamedTypes verifies that goTypeName returns the named-type
 // form (e.g. "IntAr", "crypto.Address") rather than the structural form
 // ("[4]int", "[20]uint8") for named types whose underlying kind is array,

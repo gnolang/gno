@@ -1053,7 +1053,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	}
 	if n != len(bz) {
 		return fmt.Errorf(
-			"unmarshal to %v didn't read all bytes. Expected to read %v, only read %v: %X",
+			"unmarshal to %v: trailing bytes after top-level unmarshal. Expected to read %v, only read %v: %X",
 			info.Type,
 			len(bz),
 			n+nWrap,
