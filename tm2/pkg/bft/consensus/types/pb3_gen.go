@@ -364,6 +364,7 @@ func (goo RoundState) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *RoundState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = RoundState{}
 	goo.StartTime = time.Unix(0, 0).UTC()
 	goo.CommitTime = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
@@ -692,6 +693,7 @@ func (goo HRS) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *HRS) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = HRS{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -822,6 +824,7 @@ func (goo RoundStateSimple) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *RoundStateSimple) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = RoundStateSimple{}
 	goo.StartTime = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
@@ -1154,6 +1157,7 @@ func (goo PeerRoundState) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *PeerRoundState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = PeerRoundState{}
 	goo.StartTime = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
@@ -1378,6 +1382,7 @@ func (goo HeightVoteSet) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *HeightVoteSet) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = HeightVoteSet{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1446,6 +1451,7 @@ func (goo EventNewRoundStep) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EventNewRoundStep) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EventNewRoundStep{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1583,6 +1589,7 @@ func (goo EventNewValidBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EventNewValidBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EventNewValidBlock{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1717,6 +1724,7 @@ func (goo EventNewRound) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EventNewRound) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EventNewRound{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1828,6 +1836,7 @@ func (goo EventCompleteProposal) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EventCompleteProposal) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EventCompleteProposal{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1906,6 +1915,7 @@ func (goo EventTimeoutPropose) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EventTimeoutPropose) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EventTimeoutPropose{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1972,6 +1982,7 @@ func (goo EventTimeoutWait) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EventTimeoutWait) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EventTimeoutWait{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

@@ -766,6 +766,233 @@ func TestBinaryRejectsUnknownFields_InUnpackedListElement(t *testing.T) {
 	}
 }
 
+// BINARY_FIXES.md #29: unmarshalAnyBinary2Depth must zero the target on
+// empty bz, aligning with the #11 philosophy (reset-on-entry enables
+// receiver reuse). Matters for pools / repeated decode into the same
+// target where a prior decode left a concrete value in the interface.
+func TestUnmarshalAnyBinary2_EmptyBzResetsReceiver(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	t.Run("populated receiver is zeroed", func(t *testing.T) {
+		var target Interface1 = Concrete1{}
+		if err := cdc.UnmarshalAnyBinary2(nil, &target, 0); err != nil {
+			t.Fatal(err)
+		}
+		if target != nil {
+			t.Errorf("expected nil, got %T %v", target, target)
+		}
+	})
+
+	t.Run("nil receiver stays nil", func(t *testing.T) {
+		var target Interface1
+		if err := cdc.UnmarshalAnyBinary2(nil, &target, 0); err != nil {
+			t.Fatal(err)
+		}
+		if target != nil {
+			t.Errorf("expected nil, got %T %v", target, target)
+		}
+	})
+
+	t.Run("non-pointer arg errors", func(t *testing.T) {
+		var target Interface1 = Concrete1{}
+		err := cdc.UnmarshalAnyBinary2(nil, target, 0) // note: not &target
+		if err == nil {
+			t.Fatal("expected ErrNoPointer, got nil")
+		}
+	})
+}
+
+// BINARY_FIXES.md #14+#23: hand-written Any decoders must reject non-ASCII
+// typeURL strings early, matching reflect's decodeReflectBinaryAny check
+// at binary_decode.go:420 (`!IsASCIIText(typeURL)`). Both
+// `unmarshalAnyBinary2Depth` (amino.go:738, used by generated code) and
+// its sibling `unmarshalAnyBinary2` (amino.go:1157, used by public
+// UnmarshalAny fallback) need the check.
+func TestUnmarshalAnyBinary2_RejectsNonASCIITypeURL(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// Craft an Any envelope whose typeURL contains a non-ASCII byte (0xFF).
+	// Both codecs should reject; reflect with "invalid type_url string bytes",
+	// generator should match after fix.
+	typeURL := "/tests.Concrete1\xff"
+	bz := []byte{0x0A, byte(len(typeURL))}
+	bz = append(bz, []byte(typeURL)...)
+
+	viaReflect := new(Interface1)
+	errR := cdc.UnmarshalAny(bz, viaReflect)
+	if errR == nil {
+		t.Fatal("reflect: expected error on non-ASCII typeURL, got nil")
+	}
+	if !strings.Contains(errR.Error(), "invalid type_url string bytes") {
+		t.Fatalf("reflect: expected 'invalid type_url string bytes' error, got %q", errR.Error())
+	}
+
+	viaGen := new(Interface1)
+	errG := cdc.UnmarshalAnyBinary2(bz, viaGen, 0)
+	if errG == nil {
+		t.Fatal("generator: expected error on non-ASCII typeURL, got nil")
+	}
+	if !strings.Contains(errG.Error(), "invalid type_url string bytes") {
+		t.Fatalf("generator: expected 'invalid type_url string bytes' error, got %q", errG.Error())
+	}
+}
+
+// BINARY_FIXES.md #11: UnmarshalBinary2 must reset absent-from-wire fields
+// to their zero/default value. Reflect (binary_decode.go:971-974, 999-1002)
+// calls `defaultValue(frv.Type())` for every registered field whose tag is
+// missing on the wire. Generator was wire-driven: it left unvisited fields
+// at whatever value the receiver already held — safe for a fresh zero
+// struct, broken when the receiver is reused (pools, consensus paths).
+func TestBinaryUnmarshalBinary2_ResetsAbsentFields(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// First encode: full value. All fields non-zero so all get emitted.
+	full := PrimitivesStruct{Int8: 1, Int16: 2, Int32: 3, Int64: 4}
+	bzFull, err := cdc.MarshalBinary2(&full)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Second encode: only Int8 set. Int16/Int32/Int64 zero → omitted.
+	partial := PrimitivesStruct{Int8: 10}
+	bzPartial, err := cdc.MarshalBinary2(&partial)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Reuse the same receiver. First decode populates all fields; second
+	// should zero the fields absent from bzPartial.
+	var dst PrimitivesStruct
+	if err := dst.UnmarshalBinary2(cdc, bzFull, 0); err != nil {
+		t.Fatal(err)
+	}
+	if dst.Int16 != 2 {
+		t.Fatalf("setup sanity: expected Int16=2 after first decode, got %d", dst.Int16)
+	}
+
+	if err := dst.UnmarshalBinary2(cdc, bzPartial, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// After second decode, Int16/Int32/Int64 should be zero (reset).
+	if dst.Int8 != 10 {
+		t.Errorf("Int8: want 10, got %d", dst.Int8)
+	}
+	if dst.Int16 != 0 {
+		t.Errorf("Int16: want 0 (reset), got %d (stale from first decode)", dst.Int16)
+	}
+	if dst.Int32 != 0 {
+		t.Errorf("Int32: want 0 (reset), got %d (stale from first decode)", dst.Int32)
+	}
+	if dst.Int64 != 0 {
+		t.Errorf("Int64: want 0 (reset), got %d (stale from first decode)", dst.Int64)
+	}
+}
+
+// Companion to TestBinaryUnmarshalBinary2_ResetsAbsentFields: locks in
+// the invariant for non-scalar field kinds (slice, interface, embedded
+// struct). Reuses a receiver where the second decode omits these fields.
+func TestBinaryUnmarshalBinary2_ResetsAbsentFields_Compound(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// SlicesStruct has slice fields. First: populated. Second: all zero
+	// (→ empty struct encoding omits every field).
+	full := SlicesStruct{Int8Sl: []int8{1, 2, 3}, StrSl: []string{"a", "b"}}
+	bzFull, err := cdc.MarshalBinary2(&full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bzEmpty, err := cdc.MarshalBinary2(&SlicesStruct{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var dst SlicesStruct
+	if err := dst.UnmarshalBinary2(cdc, bzFull, 0); err != nil {
+		t.Fatal(err)
+	}
+	if len(dst.Int8Sl) != 3 || len(dst.StrSl) != 2 {
+		t.Fatalf("setup sanity: first decode didn't populate slices: %+v", dst)
+	}
+
+	if err := dst.UnmarshalBinary2(cdc, bzEmpty, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// Slices must be nil after decoding an empty struct onto a reused receiver.
+	if dst.Int8Sl != nil {
+		t.Errorf("Int8Sl: want nil (reset), got %v (stale)", dst.Int8Sl)
+	}
+	if dst.StrSl != nil {
+		t.Errorf("StrSl: want nil (reset), got %v (stale)", dst.StrSl)
+	}
+}
+
+// BINARY_FIXES.md #10: unpacked-list array field must reject short input.
+// A `[N]T` array field (T = ByteLength-typed) requires exactly N wire
+// entries. Reflect (binary_decode.go:625-644) enforces this; the
+// generator's loop previously exited cleanly if fewer entries appeared
+// before the next field's tag, leaving the tail at Go zero.
+func TestBinaryRejectsShortUnpackedArray(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// FixedStringArrayStruct.Names is `[4]string`. Each wire entry:
+	// tag(1, ByteLength) + uvarint(1) + 1-byte string.
+	entry := func(c byte) []byte { return []byte{0x0A, 0x01, c} }
+
+	cases := []struct {
+		name      string
+		bz        []byte
+		wantError bool
+	}{
+		// Zero entries: field tag never appears. Both codecs treat absent
+		// field as zero value — Amino's general rule. Array-size enforcement
+		// only fires when the field is present.
+		{"zero entries (absent field)", []byte{}, false},
+		{"three entries (short)", append(append(entry('a'), entry('b')...), entry('c')...), true},
+		{"four entries (exact)", append(append(append(entry('a'), entry('b')...), entry('c')...), entry('d')...), false},
+		{"five entries (over)", append(append(append(append(entry('a'), entry('b')...), entry('c')...), entry('d')...), entry('e')...), true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var viaReflect FixedStringArrayStruct
+			errR := cdc.UnmarshalReflect(c.bz, &viaReflect)
+			var viaGen FixedStringArrayStruct
+			errG := viaGen.UnmarshalBinary2(cdc, c.bz, 0)
+
+			if c.wantError {
+				if errR == nil {
+					t.Errorf("reflect: expected error, got nil; decoded %+v", viaReflect)
+				}
+				if errG == nil {
+					t.Errorf("generator: expected error, got nil; decoded %+v", viaGen)
+				}
+			} else {
+				if errR != nil {
+					t.Errorf("reflect: unexpected error: %v", errR)
+				}
+				if errG != nil {
+					t.Errorf("generator: unexpected error: %v", errG)
+				}
+				if viaReflect != viaGen {
+					t.Errorf("reflect vs generator disagree: %+v vs %+v", viaReflect, viaGen)
+				}
+			}
+		})
+	}
+}
+
 // BINARY_FIXES.md #9: byte-array list element must enforce exact length.
 // `writePrimitiveDecodeFrom`'s `reflect.Array`+Uint8 branch calls
 // `DecodeByteSlice` then `copy(arr[:], v)` without checking `len(v) == N`.

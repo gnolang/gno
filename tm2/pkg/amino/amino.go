@@ -722,7 +722,21 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	if anyDepth > maxAnyDepth {
 		return fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
 	}
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Ptr {
+		return ErrNoPointer
+	}
 	if len(bz) == 0 {
+		// Empty Any envelope resets the target to its zero (nil interface).
+		// Philosophically aligned with the struct UnmarshalBinary2 reset at
+		// writeStructUnmarshalBody: a reused receiver gets fresh state on
+		// every decode. Reflect (binary_decode.go:334) instead errors on a
+		// non-nil interface, but that path's comment explicitly flags the
+		// rationale as forgotten ("very tricky...reason exists"). Favor
+		// receiver-reuse ergonomics for the generator fast path.
+		if rv.Elem().CanSet() {
+			rv.Elem().Set(reflect.Zero(rv.Elem().Type()))
+		}
 		return nil
 	}
 
@@ -738,6 +752,9 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	typeURL, n, err := DecodeString(bz)
 	if err != nil {
 		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+	}
+	if !IsASCIIText(typeURL) {
+		return fmt.Errorf("UnmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
 	}
 	bz = bz[n:]
 
@@ -782,14 +799,10 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return cdc.unmarshalAny2Depth(typeURL, value, ptr, anyDepth)
 	}
 
-	// Check assignability.
-	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
-		return ErrNoPointer
-	}
-	rv = rv.Elem()
-	if !irvSet.Type().AssignableTo(rv.Type()) {
-		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rv.Type())
+	// Check assignability. rv was set at function entry (above).
+	rvElem := rv.Elem()
+	if !irvSet.Type().AssignableTo(rvElem.Type()) {
+		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rvElem.Type())
 	}
 
 	// Decode inner value with depth tracking.
@@ -799,7 +812,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		}
 	}
 
-	rv.Set(irvSet)
+	rvElem.Set(irvSet)
 	return nil
 }
 
@@ -1157,6 +1170,9 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	typeURL, n, err := DecodeString(bz)
 	if err != nil {
 		return true, fmt.Errorf("unmarshalAnyBinary2: decode TypeURL: %w", err)
+	}
+	if !IsASCIIText(typeURL) {
+		return true, fmt.Errorf("unmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
 	}
 	bz = bz[n:]
 

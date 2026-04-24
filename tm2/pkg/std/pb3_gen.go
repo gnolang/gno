@@ -134,6 +134,7 @@ func (goo BaseAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *BaseAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = BaseAccount{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -328,6 +329,7 @@ func (goo BaseSessionAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *BaseSessionAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = BaseSessionAccount{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -524,6 +526,7 @@ func (goo GasPrice) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GasPrice) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GasPrice{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -653,6 +656,7 @@ func (goo Tx) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Tx) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Tx{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -818,6 +822,7 @@ func (goo Fee) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Fee) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Fee{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -920,6 +925,7 @@ func (goo Signature) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Signature) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Signature{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1007,6 +1013,7 @@ func (goo MemFile) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MemFile) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MemFile{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1140,6 +1147,7 @@ func (goo MemPackage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MemPackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MemPackage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1258,6 +1266,7 @@ func (goo InternalError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InternalError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InternalError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1289,6 +1298,7 @@ func (goo TxDecodeError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *TxDecodeError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = TxDecodeError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1320,6 +1330,7 @@ func (goo InvalidSequenceError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InvalidSequenceError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InvalidSequenceError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1351,6 +1362,7 @@ func (goo UnauthorizedError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *UnauthorizedError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = UnauthorizedError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1382,6 +1394,7 @@ func (goo InsufficientFundsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InsufficientFundsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InsufficientFundsError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1413,6 +1426,7 @@ func (goo UnknownRequestError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *UnknownRequestError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = UnknownRequestError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1444,6 +1458,7 @@ func (goo InvalidAddressError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InvalidAddressError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InvalidAddressError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1475,6 +1490,7 @@ func (goo UnknownAddressError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *UnknownAddressError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = UnknownAddressError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1506,6 +1522,7 @@ func (goo InvalidPubKeyError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InvalidPubKeyError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InvalidPubKeyError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1537,6 +1554,7 @@ func (goo InsufficientCoinsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InsufficientCoinsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InsufficientCoinsError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1568,6 +1586,7 @@ func (goo InvalidCoinsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InvalidCoinsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InvalidCoinsError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1599,6 +1618,7 @@ func (goo InvalidGasWantedError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InvalidGasWantedError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InvalidGasWantedError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1630,6 +1650,7 @@ func (goo OutOfGasError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *OutOfGasError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = OutOfGasError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1661,6 +1682,7 @@ func (goo MemoTooLargeError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MemoTooLargeError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MemoTooLargeError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1692,6 +1714,7 @@ func (goo InsufficientFeeError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InsufficientFeeError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InsufficientFeeError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1723,6 +1746,7 @@ func (goo TooManySignaturesError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *TooManySignaturesError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = TooManySignaturesError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1754,6 +1778,7 @@ func (goo NoSignaturesError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *NoSignaturesError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = NoSignaturesError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1785,6 +1810,7 @@ func (goo GasOverflowError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GasOverflowError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GasOverflowError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1816,6 +1842,7 @@ func (goo RestrictedTransferError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *RestrictedTransferError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = RestrictedTransferError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1847,6 +1874,7 @@ func (goo SessionExpiredError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SessionExpiredError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SessionExpiredError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1878,6 +1906,7 @@ func (goo SessionNotFoundError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SessionNotFoundError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SessionNotFoundError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1909,6 +1938,7 @@ func (goo SessionLimitError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SessionLimitError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SessionLimitError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1940,6 +1970,7 @@ func (goo SessionNotAllowedError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SessionNotAllowedError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SessionNotAllowedError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

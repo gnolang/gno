@@ -82,6 +82,7 @@ func (goo NewRoundStepMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *NewRoundStepMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = NewRoundStepMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -228,6 +229,7 @@ func (goo NewValidBlockMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *NewValidBlockMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = NewValidBlockMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -338,6 +340,7 @@ func (goo ProposalMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ProposalMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ProposalMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -420,6 +423,7 @@ func (goo ProposalPOLMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ProposalPOLMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ProposalPOLMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -522,6 +526,7 @@ func (goo BlockPartMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *BlockPartMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = BlockPartMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -610,6 +615,7 @@ func (goo VoteMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *VoteMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = VoteMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -685,6 +691,7 @@ func (goo HasVoteMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *HasVoteMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = HasVoteMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -800,6 +807,7 @@ func (goo VoteSetMaj23Message) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *VoteSetMaj23Message) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = VoteSetMaj23Message{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -938,6 +946,7 @@ func (goo VoteSetBitsMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *VoteSetBitsMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = VoteSetBitsMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1050,6 +1059,7 @@ func (goo newRoundStepInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *newRoundStepInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = newRoundStepInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1121,6 +1131,7 @@ func (goo msgInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *msgInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = msgInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -1217,6 +1228,7 @@ func (goo timeoutInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *timeoutInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = timeoutInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

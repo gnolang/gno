@@ -65,6 +65,7 @@ func (goo BIP44Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *BIP44Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = BIP44Params{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

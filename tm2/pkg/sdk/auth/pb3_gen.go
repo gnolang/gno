@@ -58,6 +58,7 @@ func (goo GenesisState) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GenesisState{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -209,6 +210,7 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Params{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -461,6 +463,7 @@ func (goo MsgCreateSession) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MsgCreateSession) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MsgCreateSession{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -629,6 +632,7 @@ func (goo MsgRevokeSession) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MsgRevokeSession) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MsgRevokeSession{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -707,6 +711,7 @@ func (goo MsgRevokeAllSessions) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MsgRevokeAllSessions) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MsgRevokeAllSessions{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

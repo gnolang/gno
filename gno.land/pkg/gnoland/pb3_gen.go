@@ -64,6 +64,7 @@ func (goo GnoAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoAccount{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -149,6 +150,7 @@ func (goo GnoSessionAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoSessionAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoSessionAccount{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -331,6 +333,7 @@ func (goo GnoGenesisState) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoGenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoGenesisState{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -524,6 +527,7 @@ func (goo TxWithMetadata) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *TxWithMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = TxWithMetadata{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -590,6 +594,7 @@ func (goo GnoTxMetadata) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoTxMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoTxMetadata{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

@@ -225,6 +225,12 @@ func (ctx *P3Context2) writeSliceReprUnmarshal(sb *strings.Builder, info *amino.
 // === Struct Fields ===
 
 func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino.TypeInfo, recv string) {
+	// Reset the receiver to its zero value so that calling UnmarshalBinary2
+	// on a reused receiver matches reflect semantics (binary_decode.go:971-
+	// 974, 999-1002): fields absent from the wire are re-defaulted instead
+	// of carrying stale values from a prior decode.
+	fmt.Fprintf(sb, "\t*%s = %s{}\n", recv, ctx.goTypeName(info.Type))
+
 	// Declare index counters for array unpacked-list fields.
 	for _, field := range info.Fields {
 		if field.UnpackedList && field.Type.Kind() == reflect.Array {
@@ -232,7 +238,8 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 		}
 	}
 
-	// Initialize non-pointer time.Time fields to amino's "empty" time (1970, not 0001).
+	// Initialize non-pointer time.Time fields to amino's "empty" time (1970,
+	// not 0001) — overrides the zero `time.Time{}` left by the reset above.
 	for _, field := range info.Fields {
 		ft := field.Type
 		if ft.Kind() == reflect.Ptr {
@@ -288,6 +295,14 @@ func (ctx *P3Context2) writeStructUnmarshalBody(sb *strings.Builder, info *amino
 			fmt.Fprintf(sb, "\t\t\t\tbz = bz[n:]\n")
 			ctx.writeUnpackedListUnmarshal(sb, accessor, finfo, fopts, "\t\t\t\t", isArray, fname)
 			fmt.Fprintf(sb, "\t\t\t}\n")
+			if isArray {
+				// Enforce exactly N entries (matches binary_decode.go:625-644).
+				// Without this, wire input with fewer than N entries leaves
+				// the tail at Go zero.
+				fmt.Fprintf(sb, "\t\t\tif %s_idx != %d {\n", fname, ftype.Len())
+				fmt.Fprintf(sb, "\t\t\t\treturn fmt.Errorf(\"array %s: expected %d entries, got %%d\", %s_idx)\n", fname, ftype.Len(), fname)
+				fmt.Fprintf(sb, "\t\t\t}\n")
+			}
 		} else if isPtr {
 			ctx.writePointerFieldUnmarshal(sb, accessor, ftype, finfo, fopts, "\t\t\t")
 		} else if finfo.IsAminoMarshaler {

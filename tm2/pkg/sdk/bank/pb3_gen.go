@@ -35,6 +35,7 @@ func (goo NoInputsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *NoInputsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = NoInputsError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -66,6 +67,7 @@ func (goo NoOutputsError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *NoOutputsError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = NoOutputsError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -97,6 +99,7 @@ func (goo InputOutputMismatchError) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InputOutputMismatchError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InputOutputMismatchError{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -185,6 +188,7 @@ func (goo MsgSend) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *MsgSend) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = MsgSend{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -281,6 +285,7 @@ func (goo GenesisState) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GenesisState{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -333,6 +338,7 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Params{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

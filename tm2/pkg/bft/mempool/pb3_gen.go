@@ -37,6 +37,7 @@ func (goo TxMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *TxMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = TxMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

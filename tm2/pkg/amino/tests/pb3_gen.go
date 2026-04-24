@@ -98,6 +98,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*StructWithStringRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*StructPtrSliceWithStringRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ByteArraySliceStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FixedStringArrayStruct)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgPointerSlice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgBoxedRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
@@ -114,6 +115,7 @@ func (goo EmptyStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EmptyStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EmptyStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -327,6 +329,7 @@ func (goo PrimitivesStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *PrimitivesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = PrimitivesStruct{}
 	goo.Time = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
@@ -603,6 +606,7 @@ func (goo ShortArraysStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ShortArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ShortArraysStruct{}
 	var TimeAr_idx int
 	var DurationAr_idx int
 	var lastFieldNum uint32
@@ -667,6 +671,9 @@ func (goo *ShortArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 				goo.TimeAr[TimeAr_idx] = ev
 				TimeAr_idx++
 			}
+			if TimeAr_idx != 0 {
+				return fmt.Errorf("array TimeAr: expected 0 entries, got %d", TimeAr_idx)
+			}
 		case 2:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -715,6 +722,9 @@ func (goo *ShortArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyD
 				}
 				goo.DurationAr[DurationAr_idx] = ev
 				DurationAr_idx++
+			}
+			if DurationAr_idx != 0 {
+				return fmt.Errorf("array DurationAr: expected 0 entries, got %d", DurationAr_idx)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for ShortArraysStruct", fnum)
@@ -1019,6 +1029,7 @@ func (goo ArraysStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ArraysStruct{}
 	var StrAr_idx int
 	var BytesAr_idx int
 	var TimeAr_idx int
@@ -1389,6 +1400,9 @@ func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 				goo.StrAr[StrAr_idx] = ev
 				StrAr_idx++
 			}
+			if StrAr_idx != 4 {
+				return fmt.Errorf("array StrAr: expected 4 entries, got %d", StrAr_idx)
+			}
 		case 17:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 17: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -1440,6 +1454,9 @@ func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 				goo.BytesAr[BytesAr_idx] = ev
 				BytesAr_idx++
 			}
+			if BytesAr_idx != 4 {
+				return fmt.Errorf("array BytesAr: expected 4 entries, got %d", BytesAr_idx)
+			}
 		case 18:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 18: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -1488,6 +1505,9 @@ func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 				}
 				goo.TimeAr[TimeAr_idx] = ev
 				TimeAr_idx++
+			}
+			if TimeAr_idx != 4 {
+				return fmt.Errorf("array TimeAr: expected 4 entries, got %d", TimeAr_idx)
 			}
 		case 19:
 			if typ3 != amino.Typ3ByteLength {
@@ -1538,6 +1558,9 @@ func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 				goo.DurationAr[DurationAr_idx] = ev
 				DurationAr_idx++
 			}
+			if DurationAr_idx != 4 {
+				return fmt.Errorf("array DurationAr: expected 4 entries, got %d", DurationAr_idx)
+			}
 		case 20:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 20: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -1584,6 +1607,9 @@ func (goo *ArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 				}
 				goo.EmptyAr[EmptyAr_idx] = ev
 				EmptyAr_idx++
+			}
+			if EmptyAr_idx != 4 {
+				return fmt.Errorf("array EmptyAr: expected 4 entries, got %d", EmptyAr_idx)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for ArraysStruct", fnum)
@@ -2109,6 +2135,7 @@ func (goo ArraysArraysStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ArraysArraysStruct{}
 	var Int8ArAr_idx int
 	var Int16ArAr_idx int
 	var Int32ArAr_idx int
@@ -2249,6 +2276,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.Int8ArAr[Int8ArAr_idx] = ev
 				Int8ArAr_idx++
 			}
+			if Int8ArAr_idx != 2 {
+				return fmt.Errorf("array Int8ArAr: expected 2 entries, got %d", Int8ArAr_idx)
+			}
 		case 2:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -2355,6 +2385,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.Int16ArAr[Int16ArAr_idx] = ev
 				Int16ArAr_idx++
+			}
+			if Int16ArAr_idx != 2 {
+				return fmt.Errorf("array Int16ArAr: expected 2 entries, got %d", Int16ArAr_idx)
 			}
 		case 3:
 			if typ3 != amino.Typ3ByteLength {
@@ -2463,6 +2496,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.Int32ArAr[Int32ArAr_idx] = ev
 				Int32ArAr_idx++
 			}
+			if Int32ArAr_idx != 2 {
+				return fmt.Errorf("array Int32ArAr: expected 2 entries, got %d", Int32ArAr_idx)
+			}
 		case 4:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -2569,6 +2605,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.Int32FixedArAr[Int32FixedArAr_idx] = ev
 				Int32FixedArAr_idx++
+			}
+			if Int32FixedArAr_idx != 2 {
+				return fmt.Errorf("array Int32FixedArAr: expected 2 entries, got %d", Int32FixedArAr_idx)
 			}
 		case 5:
 			if typ3 != amino.Typ3ByteLength {
@@ -2677,6 +2716,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.Int64ArAr[Int64ArAr_idx] = ev
 				Int64ArAr_idx++
 			}
+			if Int64ArAr_idx != 2 {
+				return fmt.Errorf("array Int64ArAr: expected 2 entries, got %d", Int64ArAr_idx)
+			}
 		case 6:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 6: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -2783,6 +2825,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.Int64FixedArAr[Int64FixedArAr_idx] = ev
 				Int64FixedArAr_idx++
+			}
+			if Int64FixedArAr_idx != 2 {
+				return fmt.Errorf("array Int64FixedArAr: expected 2 entries, got %d", Int64FixedArAr_idx)
 			}
 		case 7:
 			if typ3 != amino.Typ3ByteLength {
@@ -2891,6 +2936,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.IntArAr[IntArAr_idx] = ev
 				IntArAr_idx++
 			}
+			if IntArAr_idx != 2 {
+				return fmt.Errorf("array IntArAr: expected 2 entries, got %d", IntArAr_idx)
+			}
 		case 8:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 8: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -2940,6 +2988,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.ByteArAr[ByteArAr_idx] = ev
 				ByteArAr_idx++
 			}
+			if ByteArAr_idx != 2 {
+				return fmt.Errorf("array ByteArAr: expected 2 entries, got %d", ByteArAr_idx)
+			}
 		case 9:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 9: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -2988,6 +3039,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.Uint8ArAr[Uint8ArAr_idx] = ev
 				Uint8ArAr_idx++
+			}
+			if Uint8ArAr_idx != 2 {
+				return fmt.Errorf("array Uint8ArAr: expected 2 entries, got %d", Uint8ArAr_idx)
 			}
 		case 10:
 			if typ3 != amino.Typ3ByteLength {
@@ -3096,6 +3150,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.Uint16ArAr[Uint16ArAr_idx] = ev
 				Uint16ArAr_idx++
 			}
+			if Uint16ArAr_idx != 2 {
+				return fmt.Errorf("array Uint16ArAr: expected 2 entries, got %d", Uint16ArAr_idx)
+			}
 		case 11:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 11: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -3202,6 +3259,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.Uint32ArAr[Uint32ArAr_idx] = ev
 				Uint32ArAr_idx++
+			}
+			if Uint32ArAr_idx != 2 {
+				return fmt.Errorf("array Uint32ArAr: expected 2 entries, got %d", Uint32ArAr_idx)
 			}
 		case 12:
 			if typ3 != amino.Typ3ByteLength {
@@ -3310,6 +3370,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.Uint32FixedArAr[Uint32FixedArAr_idx] = ev
 				Uint32FixedArAr_idx++
 			}
+			if Uint32FixedArAr_idx != 2 {
+				return fmt.Errorf("array Uint32FixedArAr: expected 2 entries, got %d", Uint32FixedArAr_idx)
+			}
 		case 13:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 13: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -3416,6 +3479,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.Uint64ArAr[Uint64ArAr_idx] = ev
 				Uint64ArAr_idx++
+			}
+			if Uint64ArAr_idx != 2 {
+				return fmt.Errorf("array Uint64ArAr: expected 2 entries, got %d", Uint64ArAr_idx)
 			}
 		case 14:
 			if typ3 != amino.Typ3ByteLength {
@@ -3524,6 +3590,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.Uint64FixedArAr[Uint64FixedArAr_idx] = ev
 				Uint64FixedArAr_idx++
 			}
+			if Uint64FixedArAr_idx != 2 {
+				return fmt.Errorf("array Uint64FixedArAr: expected 2 entries, got %d", Uint64FixedArAr_idx)
+			}
 		case 15:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 15: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -3631,6 +3700,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.UintArAr[UintArAr_idx] = ev
 				UintArAr_idx++
 			}
+			if UintArAr_idx != 2 {
+				return fmt.Errorf("array UintArAr: expected 2 entries, got %d", UintArAr_idx)
+			}
 		case 16:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 16: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -3677,6 +3749,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.StrArAr[StrArAr_idx] = ev
 				StrArAr_idx++
+			}
+			if StrArAr_idx != 2 {
+				return fmt.Errorf("array StrArAr: expected 2 entries, got %d", StrArAr_idx)
 			}
 		case 17:
 			if typ3 != amino.Typ3ByteLength {
@@ -3725,6 +3800,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.BytesArAr[BytesArAr_idx] = ev
 				BytesArAr_idx++
 			}
+			if BytesArAr_idx != 2 {
+				return fmt.Errorf("array BytesArAr: expected 2 entries, got %d", BytesArAr_idx)
+			}
 		case 18:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 18: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -3771,6 +3849,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.TimeArAr[TimeArAr_idx] = ev
 				TimeArAr_idx++
+			}
+			if TimeArAr_idx != 2 {
+				return fmt.Errorf("array TimeArAr: expected 2 entries, got %d", TimeArAr_idx)
 			}
 		case 19:
 			if typ3 != amino.Typ3ByteLength {
@@ -3819,6 +3900,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				goo.DurationArAr[DurationArAr_idx] = ev
 				DurationArAr_idx++
 			}
+			if DurationArAr_idx != 2 {
+				return fmt.Errorf("array DurationArAr: expected 2 entries, got %d", DurationArAr_idx)
+			}
 		case 20:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 20: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -3865,6 +3949,9 @@ func (goo *ArraysArraysStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 				}
 				goo.EmptyArAr[EmptyArAr_idx] = ev
 				EmptyArAr_idx++
+			}
+			if EmptyArAr_idx != 2 {
+				return fmt.Errorf("array EmptyArAr: expected 2 entries, got %d", EmptyArAr_idx)
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for ArraysArraysStruct", fnum)
@@ -4229,6 +4316,7 @@ func (goo SlicesStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SlicesStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -5240,6 +5328,7 @@ func (goo SlicesSlicesStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SlicesSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SlicesSlicesStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -6927,6 +7016,7 @@ func (goo PointersStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *PointersStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = PointersStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -7829,6 +7919,7 @@ func (goo PointerSlicesStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *PointerSlicesStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = PointerSlicesStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -8424,6 +8515,7 @@ func (goo ComplexSt) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ComplexSt) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ComplexSt{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -8526,6 +8618,7 @@ func (goo EmbeddedSt1) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EmbeddedSt1) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EmbeddedSt1{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -8661,6 +8754,7 @@ func (goo EmbeddedSt2) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EmbeddedSt2) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EmbeddedSt2{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -8845,6 +8939,7 @@ func (goo EmbeddedSt3) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EmbeddedSt3) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EmbeddedSt3{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -9083,6 +9178,7 @@ func (goo EmbeddedSt4) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EmbeddedSt4) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EmbeddedSt4{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -9335,6 +9431,7 @@ func (goo EmbeddedSt5) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *EmbeddedSt5) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = EmbeddedSt5{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -9538,6 +9635,7 @@ func (goo ReprStruct1) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ReprStruct1) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ReprStruct1{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -9681,6 +9779,7 @@ func (goo ReprElem2) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ReprElem2) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ReprElem2{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -10487,6 +10586,7 @@ func (goo PrimitivesStructDef) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *PrimitivesStructDef) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = PrimitivesStructDef{}
 	goo.Time = time.Unix(0, 0).UTC()
 	var lastFieldNum uint32
 	for len(bz) > 0 {
@@ -10826,6 +10926,7 @@ func (goo Concrete1) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Concrete1) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Concrete1{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -10857,6 +10958,7 @@ func (goo Concrete2) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Concrete2) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Concrete2{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -10909,6 +11011,7 @@ func (goo ConcreteRecursive) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ConcreteRecursive) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ConcreteRecursive{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -10992,6 +11095,7 @@ func (goo ConcreteWrappedBytes) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ConcreteWrappedBytes) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ConcreteWrappedBytes{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11121,6 +11225,7 @@ func (goo InterfaceFieldsStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InterfaceFieldsStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InterfaceFieldsStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11222,6 +11327,7 @@ func (goo GnoVMPos) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMPos) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMPos{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11326,6 +11432,7 @@ func (goo GnoVMSpan) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMSpan) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMSpan{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11428,6 +11535,7 @@ func (goo GnoVMLocation) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMLocation) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMLocation{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11528,6 +11636,7 @@ func (goo GnoVMAttrs) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMAttrs) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMAttrs{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11601,6 +11710,7 @@ func (goo GnoVMObjectID) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMObjectID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMObjectID{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11716,6 +11826,7 @@ func (goo GnoVMObjectInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMObjectInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMObjectInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11844,6 +11955,7 @@ func (goo GnoVMTypedValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMTypedValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMTypedValue{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -11983,6 +12095,7 @@ func (goo GnoVMBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMBlock{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -12190,6 +12303,7 @@ func (goo GnoVMFuncValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMFuncValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMFuncValue{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -12416,6 +12530,7 @@ func (goo GnoVMDeclaredType) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMDeclaredType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMDeclaredType{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -12572,6 +12687,7 @@ func (goo GnoVMRefValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMRefValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMRefValue{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -12695,6 +12811,7 @@ func (goo GnoVMFieldType) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMFieldType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMFieldType{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -12795,6 +12912,7 @@ func (goo GnoVMStructType) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMStructType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMStructType{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -12938,6 +13056,7 @@ func (goo GnoVMFileNode) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMFileNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMFileNode{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13097,6 +13216,7 @@ func (goo GnoVMPointerValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMPointerValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMPointerValue{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13210,6 +13330,7 @@ func (goo GnoVMSliceValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMSliceValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMSliceValue{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13331,6 +13452,7 @@ func (goo GnoVMMapEntry) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMMapEntry) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMMapEntry{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13484,6 +13606,7 @@ func (goo GnoVMNode) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoVMNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoVMNode{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13640,6 +13763,7 @@ func (goo FuzzFieldInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzFieldInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzFieldInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13736,6 +13860,7 @@ func (goo FuzzStructInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzStructInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzStructInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13856,6 +13981,7 @@ func (goo FuzzValueEntry) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzValueEntry) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzValueEntry{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -13989,6 +14115,7 @@ func (goo FuzzBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzBlock{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -14150,6 +14277,7 @@ func (goo FuzzFuncInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzFuncInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzFuncInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -14327,6 +14455,7 @@ func (goo FuzzDeclInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzDeclInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzDeclInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -14484,6 +14613,7 @@ func (goo FuzzFileInfo) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzFileInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzFileInfo{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -14621,6 +14751,7 @@ func (goo FuzzPtrNest) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzPtrNest) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzPtrNest{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -14729,6 +14860,7 @@ func (goo FuzzDeepNest) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzDeepNest) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzDeepNest{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -14864,6 +14996,7 @@ func (goo FuzzWriteEmpty) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzWriteEmpty) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzWriteEmpty{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -15041,6 +15174,7 @@ func (goo FuzzNilElements) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzNilElements) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzNilElements{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -15190,6 +15324,7 @@ func (goo FuzzFixedInt) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzFixedInt) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzFixedInt{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -15272,6 +15407,7 @@ func (goo FuzzContainsAminoMarshaler) SizeBinary2(cdc *amino.Codec) (int, error)
 }
 
 func (goo *FuzzContainsAminoMarshaler) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzContainsAminoMarshaler{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -15400,6 +15536,7 @@ func (goo FuzzNilEmptyRepr) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *FuzzNilEmptyRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzNilEmptyRepr{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -15688,6 +15825,7 @@ func (goo ContainerWithAminoLists) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ContainerWithAminoLists) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ContainerWithAminoLists{}
 	var TopAddrs_idx int
 	var lastFieldNum uint32
 	for len(bz) > 0 {
@@ -15796,6 +15934,9 @@ func (goo *ContainerWithAminoLists) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 				goo.TopAddrs[TopAddrs_idx] = ev
 				TopAddrs_idx++
 			}
+			if TopAddrs_idx != 3 {
+				return fmt.Errorf("array TopAddrs: expected 3 entries, got %d", TopAddrs_idx)
+			}
 		default:
 			return fmt.Errorf("unknown field number %d for ContainerWithAminoLists", fnum)
 		}
@@ -15894,6 +16035,7 @@ func (goo StructPtrSliceWithStringRepr) SizeBinary2(cdc *amino.Codec) (int, erro
 }
 
 func (goo *StructPtrSliceWithStringRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = StructPtrSliceWithStringRepr{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -15977,6 +16119,7 @@ func (goo ByteArraySliceStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ByteArraySliceStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ByteArraySliceStruct{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -16038,6 +16181,94 @@ func (goo *ByteArraySliceStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, a
 	return nil
 }
 
+func (goo FixedStringArrayStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.Names) - 1; i >= 0; i-- {
+		elem := goo.Names[i]
+		offset = amino.PrependString(buf, offset, string(elem))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo FixedStringArrayStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	for _, elem := range goo.Names {
+		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
+		s += 1 + vs
+	}
+	return s, nil
+}
+
+func (goo *FixedStringArrayStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FixedStringArrayStruct{}
+	var Names_idx int
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			ev = string(v)
+			if Names_idx >= 4 {
+				return errors.New("array index out of bounds")
+			}
+			goo.Names[Names_idx] = ev
+			Names_idx++
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 1 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev string
+				v, n, err := amino.DecodeString(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				ev = string(v)
+				if Names_idx >= 4 {
+					return errors.New("array index out of bounds")
+				}
+				goo.Names[Names_idx] = ev
+				Names_idx++
+			}
+			if Names_idx != 4 {
+				return fmt.Errorf("array Names: expected 4 entries, got %d", Names_idx)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for FixedStringArrayStruct", fnum)
+		}
+	}
+	return nil
+}
+
 func (goo CrossPkgPointerSlice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Counts) != 0 {
@@ -16076,6 +16307,7 @@ func (goo CrossPkgPointerSlice) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *CrossPkgPointerSlice) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = CrossPkgPointerSlice{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -16252,6 +16484,7 @@ func (goo InterfaceHeavy) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *InterfaceHeavy) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = InterfaceHeavy{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

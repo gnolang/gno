@@ -54,6 +54,7 @@ func (goo ProofOp) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ProofOp) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ProofOp{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -141,6 +142,7 @@ func (goo Proof) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Proof) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Proof{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -241,6 +243,7 @@ func (goo SimpleProof) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SimpleProof) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SimpleProof{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -419,6 +422,7 @@ func (goo SimpleProofNode) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SimpleProofNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SimpleProofNode{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)

@@ -424,6 +424,14 @@ type CrossPkgPointerSlice struct {
 	Counts []*crosspkg.SmallCount
 }
 
+// FixedStringArrayStruct: a struct with a `[4]string` field — a fixed-size
+// array of ByteLength-typed elements (decoded as unpacked-list entries).
+// Exercises BINARY_FIXES.md #10: the generator must reject wire input that
+// provides fewer than N entries, matching reflect (binary_decode.go:625-644).
+type FixedStringArrayStruct struct {
+	Names [4]string
+}
+
 // ByteArraySliceStruct: a struct with a `[][8]byte` field. Each element is
 // a fixed-size 8-byte array, decoded as a list element via
 // writePrimitiveDecodeFrom's Array+Uint8 branch. Exercises BINARY_FIXES.md
@@ -565,6 +573,7 @@ var StructTypes = []any{
 	(*ContainerWithAminoLists)(nil),
 	(*StructPtrSliceWithStringRepr)(nil),
 	(*ByteArraySliceStruct)(nil),
+	(*FixedStringArrayStruct)(nil),
 	// Cross-package AminoMarshaler: verifies generated code uses qualified
 	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
 	// excluded from property fuzz because random nil elements in a

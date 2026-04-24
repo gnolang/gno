@@ -586,6 +586,10 @@ message ByteArraySliceStruct {
 	repeated bytes items = 1 [json_name = "Items"];
 }
 
+message FixedStringArrayStruct {
+	repeated string names = 1 [json_name = "Names"];
+}
+
 message CrossPkgPointerSlice {
 	bytes counts = 1 [json_name = "Counts"];
 }
