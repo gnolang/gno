@@ -299,33 +299,47 @@ func (t *MutableTree) SaveVersion() ([]byte, int64, error) {
 }
 
 // saveNode recursively assigns NodeKeys and saves dirty nodes.
+//
+// Only in-memory child references (inner.childNodes[i]) are traversed: an
+// unloaded child (childNodes[i] == nil) cannot have been mutated in this
+// session, so its serialized reference (inner.children[i]) and its cached
+// hash (inner.childHashes[i]) are still correct. Calling getChild here —
+// which would force-load every sibling from DB just to early-return on
+// "already has a NodeKey" — would cause O(B) wasted reads per COW'd inner.
+// For a path-length-H insert with branching B, that's H*(B-1) unnecessary
+// DB reads per SaveVersion, mostly cache-missing at blockchain scale.
 func (t *MutableTree) saveNode(node Node, version int64) error {
 	if node.GetNodeKey() != nil {
 		return nil // already saved
 	}
 
-	// For inner nodes, save children first (bottom-up)
+	// For inner nodes, save dirty children first (bottom-up).
 	if inner, ok := node.(*InnerNode); ok {
 		for i := 0; i < inner.NumChildren(); i++ {
-			child := inner.getChild(i)
-			if child != nil {
-				if err := t.saveNode(child, version); err != nil {
-					return err
-				}
-				// Update child reference and hash after save
-				inner.children[i] = child.GetNodeKey().GetKey()
-				inner.childHashes[i] = child.Hash()
+			child := inner.childNodes[i]
+			if child == nil {
+				// Unloaded and therefore unchanged: children[i] (NodeKey ref)
+				// and childHashes[i] are authoritative from the prior load.
+				continue
 			}
+			if err := t.saveNode(child, version); err != nil {
+				return err
+			}
+			// Update child reference and hash after save. For clean children
+			// whose saveNode call early-returned, these assignments are
+			// redundant but harmless (same NodeKey, same hash).
+			inner.children[i] = child.GetNodeKey().GetKey()
+			inner.childHashes[i] = child.Hash()
 		}
 		inner.RebuildMiniMerkle()
 	}
 
-	// Rebuild leaf mini merkle (may already be done, but ensure correctness)
+	// Rebuild leaf mini merkle (may already be done, but ensure correctness).
 	if leaf, ok := node.(*LeafNode); ok {
 		leaf.RebuildMiniMerkle()
 	}
 
-	// Assign NodeKey
+	// Assign NodeKey.
 	nk := t.ndb.NextNodeKey(version)
 	node.SetNodeKey(nk)
 
