@@ -14,8 +14,18 @@ var (
 	addressStore = avl.NewTree() // address > *UserData
 
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
-	reAlphanum         = regexp.MustCompile(`^[a-zA-Z0-9_]{1,64}$`)
+
+	// reName mirrors gno's package-name shape (gnovm/pkg/gnolang/mempackage.go
+	// `Re_name` = optional leading underscore, must start with a lowercase
+	// letter, then [a-z0-9_]*). Lowercase-only — closes the case-confusable
+	// squatting concern (Alice vs alice were two distinct names under the
+	// previous case-preserving regex). Length cap of 64 enforced separately
+	// in validateName because a single regex can't cleanly cap total length
+	// when there's an optional leading underscore.
+	reName = regexp.MustCompile(`^_?[a-z][a-z0-9_]*$`)
 )
+
+const maxNameLen = 64
 
 const (
 	RegisterUserEvent = "Registered"
@@ -206,7 +216,11 @@ func validateName(username string) error {
 		return ErrEmptyUsername
 	}
 
-	if !reAlphanum.MatchString(username) {
+	if len(username) > maxNameLen {
+		return ErrInvalidUsername
+	}
+
+	if !reName.MatchString(username) {
 		return ErrInvalidUsername
 	}
 

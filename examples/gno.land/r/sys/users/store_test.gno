@@ -45,6 +45,43 @@ func TestRegister(t *testing.T) {
 			RegisterUser(cross, "verylongusernameverylongusernameverylongusernameverylongusername1", aliceAddr),
 			ErrInvalidUsername.Error())
 		uassert.ErrorContains(t, RegisterUser(cross, "namewith^&()", aliceAddr), ErrInvalidUsername.Error())
+
+		// Lowercase-only enforcement (closes case-confusable squatting via
+		// Alice/alice/ALICE registering as distinct names — see TO_REVIEW
+		// adversarial review). reName mirrors gno's mempackage Re_name shape.
+		uassert.ErrorContains(t, RegisterUser(cross, "Alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "ALICE", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "aLice", aliceAddr), ErrInvalidUsername.Error())
+
+		// Must start with a letter (after optional underscore). Names
+		// starting with a digit are rejected.
+		uassert.ErrorContains(t, RegisterUser(cross, "1alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "9", aliceAddr), ErrInvalidUsername.Error())
+
+		// Leading underscore is allowed iff followed by a letter.
+		uassert.ErrorContains(t, RegisterUser(cross, "_1alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "__alice", aliceAddr), ErrInvalidUsername.Error())
+
+		// Length cap of exactly 64 — boundary cases.
+		exactly65 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // 65 chars
+		uassert.ErrorContains(t, RegisterUser(cross, exactly65, aliceAddr), ErrInvalidUsername.Error())
+	})
+
+	t.Run("valid_edge_cases", func(t *testing.T) {
+		// Names that previously would have been rejected by the old
+		// alphanum regex but ARE valid under the new mempackage-aligned
+		// reName: leading underscore + letter + body.
+		cleanStore(t)
+		urequire.NoError(t, RegisterUser(cross,
+			"_alice",
+			testutils.TestAddress("u_alice")))
+
+		cleanStore(t)
+		// 64 chars exactly (length cap is inclusive).
+		exactly64 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		urequire.NoError(t, RegisterUser(cross,
+			exactly64,
+			testutils.TestAddress("u_64")))
 	})
 
 	t.Run("addr_already_registered", func(t *testing.T) {
