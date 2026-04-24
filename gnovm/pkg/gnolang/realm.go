@@ -1876,16 +1876,24 @@ func prettyJSON(jstr []byte) []byte {
 	return js
 }
 
+// getOwner returns oo's owner, resolving it via the store when necessary.
+//
+// Owner must be resolved via the store, not just oo.GetOwner().
+// ObjectInfo.owner is an unexported in-memory cache (see ownership.go)
+// and is *not* persisted — so an object freshly loaded from the store
+// has owner == nil while OwnerID is still set. This lazy-load rehydrates
+// it and caches via SetOwner.
+//
+// Use GetObjectSafe (not GetObject) because OwnerID can additionally be
+// stale: the owner may have been deleted in the same finalization (e.g.,
+// a slice backing array replaced by append). GetObjectSafe returns nil
+// in that case, letting the ancestor walk stop gracefully instead of
+// panicking.
 func getOwner(store Store, oo Object) Object {
 	po := oo.GetOwner()
 	poid := oo.GetOwnerID()
 	if po == nil {
 		if !poid.IsZero() {
-			// Use GetObjectSafe because OwnerID can be stale:
-			// the owner may have been deleted (e.g., a slice
-			// backing array replaced by append) while this
-			// object's OwnerID still references it.
-			// Returns nil to stop the ancestor walk gracefully.
 			po = store.GetObjectSafe(poid)
 			if po != nil {
 				oo.SetOwner(po)
