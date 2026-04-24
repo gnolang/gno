@@ -48,9 +48,9 @@ func main(cur realm) {
 //              "T": {
 //                  "@type": "/gno.PrimitiveType",
 //                  "value": "32"
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:2](5)=
+// u[0ea84df38908f9569d0f552575606e6e6e7e22dd:2](5)=
 //     @@ -4,7 +4,7 @@
-//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "ID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //              "IsEscaped": true,
 //              "LastObjectSize": "535",
 //     -        "ModTime": "0",
@@ -62,9 +62,9 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "452d5f690cd00719ae69aed4d25bd65a1dc6a827",
-//     +                "Hash": "0cf920589fee150de3162224aa753fa5cc1e3d7e",
-//                      "ObjectID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3"
+//     -                "Hash": "32eb99fbc4f7aacb00bf02160f7c163e7ff2e950",
+//     +                "Hash": "9354d4e2a3e3dd499e8b2bdd06bcb810dcb1090d",
+//                      "ObjectID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:3"
 //                  }
 //              },
 -- gnomod.toml --
