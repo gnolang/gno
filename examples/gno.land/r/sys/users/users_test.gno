@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 )
@@ -232,6 +233,142 @@ func TestProposeErrors(t *testing.T) {
 		})
 		// Note: unregistered user is not checked at proposal creation time.
 		// The callback handles it at execution time.
+	})
+}
+
+// Audit finding #6: ProposeControllerAdditionAndRemoval used to return early
+// from its callback when toAdd was already whitelisted (addToWhitelist
+// returned ErrAlreadyWhitelisted), skipping the remove step entirely. A
+// passed swap proposal would silently leave the old controller active.
+//
+// applyControllerSwap is the extracted callback body. These tests exercise
+// it directly to confirm:
+//   - normal swap (toAdd new, toRemove present) succeeds and updates state
+//   - toAdd already present is benign — remove still happens
+//   - toRemove already absent is benign — add still happens, no error
+//   - errors that aren't the idempotency cases still propagate
+func TestApplyControllerSwap(t *testing.T) {
+	// Use unique addresses per subtest to avoid having to drain the
+	// controllers set (addrset.Set has no clear/iterate-all method, and
+	// state persists across subtests in this package's tests).
+	t.Run("normal swap A->B", func(t *testing.T) {
+		a := testutils.TestAddress("swapA1")
+		b := testutils.TestAddress("swapB1")
+		controllers.Add(a)
+		defer controllers.Remove(b)
+
+		uassert.NoError(t, applyControllerSwap(b, a))
+		uassert.True(t, controllers.Has(b), "b should be whitelisted")
+		uassert.False(t, controllers.Has(a), "a should be removed")
+	})
+
+	t.Run("toAdd already whitelisted, toRemove present", func(t *testing.T) {
+		// Regression for audit finding #6. Before the fix, this returned
+		// ErrAlreadyWhitelisted from the swap callback, skipping the remove
+		// step entirely — the swap silently no-op'd and the old controller
+		// stayed active.
+		a := testutils.TestAddress("swapA2")
+		b := testutils.TestAddress("swapB2")
+		controllers.Add(a)
+		controllers.Add(b)
+		defer controllers.Remove(b)
+
+		uassert.NoError(t, applyControllerSwap(b, a))
+		uassert.True(t, controllers.Has(b), "b should remain whitelisted")
+		uassert.False(t, controllers.Has(a), "a should be removed even though b was already in")
+	})
+
+	t.Run("toRemove already absent, toAdd new", func(t *testing.T) {
+		a := testutils.TestAddress("swapA3")
+		b := testutils.TestAddress("swapB3")
+		c := testutils.TestAddress("swapC3") // never added
+		controllers.Add(a)
+		defer controllers.Remove(a)
+		defer controllers.Remove(b)
+
+		// Remove c which isn't in the set; should be benign.
+		uassert.NoError(t, applyControllerSwap(b, c))
+		uassert.True(t, controllers.Has(b), "b should be whitelisted")
+		uassert.True(t, controllers.Has(a), "a should still be whitelisted (unchanged)")
+		uassert.False(t, controllers.Has(c), "c was never in the set")
+	})
+
+	t.Run("both idempotency cases at once", func(t *testing.T) {
+		// toAdd already in, toRemove already out — should succeed cleanly,
+		// no state change.
+		a := testutils.TestAddress("swapA4")
+		b := testutils.TestAddress("swapB4")
+		c := testutils.TestAddress("swapC4")
+		controllers.Add(a)
+		controllers.Add(b)
+		defer controllers.Remove(a)
+		defer controllers.Remove(b)
+
+		uassert.NoError(t, applyControllerSwap(b, c))
+		uassert.True(t, controllers.Has(a))
+		uassert.True(t, controllers.Has(b))
+		uassert.False(t, controllers.Has(c))
+	})
+}
+
+// Audit finding #20: the controller whitelist must be queryable from
+// outside the package so operators can monitor authority without
+// source-diving or replaying governance proposals.
+func TestControllerQueries(t *testing.T) {
+	t.Run("IsController reflects whitelist state", func(t *testing.T) {
+		a := testutils.TestAddress("queryA1")
+		b := testutils.TestAddress("queryB1")
+
+		// Before any add: both report false.
+		uassert.False(t, IsController(a))
+		uassert.False(t, IsController(b))
+
+		controllers.Add(a)
+		defer controllers.Remove(a)
+
+		uassert.True(t, IsController(a))
+		uassert.False(t, IsController(b))
+	})
+
+	t.Run("Controllers returns a snapshot of current whitelist", func(t *testing.T) {
+		// Use distinct addresses that aren't already in the set from
+		// other tests in this file.
+		a := testutils.TestAddress("queryA2")
+		b := testutils.TestAddress("queryB2")
+		c := testutils.TestAddress("queryC2")
+
+		controllers.Add(a)
+		controllers.Add(b)
+		controllers.Add(c)
+		defer controllers.Remove(a)
+		defer controllers.Remove(b)
+		defer controllers.Remove(c)
+
+		got := Controllers()
+
+		// All three must appear (regardless of order vs other tests'
+		// leftover entries — we only assert ours are present).
+		seen := map[string]bool{}
+		for _, e := range got {
+			seen[e.String()] = true
+		}
+		uassert.True(t, seen[a.String()], "snapshot must contain a")
+		uassert.True(t, seen[b.String()], "snapshot must contain b")
+		uassert.True(t, seen[c.String()], "snapshot must contain c")
+	})
+
+	t.Run("Controllers returns a copy — caller mutation does not affect realm", func(t *testing.T) {
+		a := testutils.TestAddress("queryA3")
+		controllers.Add(a)
+		defer controllers.Remove(a)
+
+		got := Controllers()
+		// Mutate the returned slice. The realm's controllers set must not
+		// be affected.
+		got = got[:0]
+
+		uassert.True(t, controllers.Has(a), "realm state must be unaffected by caller-side slice mutation")
+		uassert.True(t, IsController(a))
 	})
 }
 

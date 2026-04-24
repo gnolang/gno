@@ -17,3 +17,8 @@
 
 - When writing PR descriptions, grep for all new/modified files in the diff (`git diff --stat`) and categorize them. Don't omit major new files like benchmarks, tooling, or calibration scripts.
 - List all categories of work (features, bug fixes, tooling, tests) — not just the headline feature.
+
+## Realm-editing gotchas
+
+- When editing a realm that accepts payment via `banker.OriginSend()`, the caller guard must be `runtime.PreviousRealm().IsUserCall()`, NOT `IsUser()`. `IsUser()` accepts `maketx run` ephemeral realms, which can consume the origin-send envelope before calling your function, bypassing the payment check. See [docs/resources/effective-gno.md § Verifying inbound Coin payments](docs/resources/effective-gno.md#verifying-inbound-coin-payments).
+- When you see an existing realm using `IsUser()` + `banker.OriginSend()`, flag it — it's the same bug. `grep -rn "IsUser()" examples/ | xargs ...` to cross-check against `OriginSend` usage in the same files.

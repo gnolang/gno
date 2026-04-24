@@ -36,6 +36,13 @@ func CreateBoard(cur realm, name string) BoardID {
 	return board.id
 }
 
+// checkAnonFee reads banker.OriginSend() to verify the anonymous-posting
+// fee was attached to the tx. Callers MUST also assert
+// runtime.PreviousRealm().IsUserCall() — not the weaker IsUser() — because
+// IsUser() accepts maketx-run ephemeral realms which can consume the
+// origin-send envelope before calling us, leaving OriginSend() describing
+// a phantom payment. See
+// docs/resources/effective-gno.md#verifying-inbound-coin-payments.
 func checkAnonFee() bool {
 	sent := banker.OriginSend()
 	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
@@ -46,6 +53,11 @@ func checkAnonFee() bool {
 }
 
 func CreateThread(cur realm, bid BoardID, title string, body string) PostID {
+	// KNOWN ISSUE: IsUser() allows maketx-run scripts which can bypass the
+	// checkAnonFee() path below (see checkAnonFee comment). Not fixed here
+	// because (a) this realm is archived, and (b) a stress-test txtar relies
+	// on batching CreateReply/CreateThread via maketx run. A hardened rewrite
+	// belongs in a new /r/*/boards realm, not here.
 	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -65,6 +77,8 @@ func CreateThread(cur realm, bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(cur realm, bid BoardID, threadid, postid PostID, body string) PostID {
+	// KNOWN ISSUE: see comment in CreateThread. IsUser()+OriginSend pattern
+	// is vulnerable but kept for archive-realm compatibility.
 	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
@@ -96,6 +110,7 @@ func CreateReply(cur realm, bid BoardID, threadid, postid PostID, body string) P
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(cur realm, bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
+	// KNOWN ISSUE: see comment in CreateThread.
 	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}

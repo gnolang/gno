@@ -149,6 +149,46 @@ func TestUpdateName(t *testing.T) {
 		}
 	})
 
+	// Audit finding #3: a controller holding a cached *UserData pointer to a
+	// user that gets deleted between resolve and update must not be able to
+	// insert a new alias. The alias_after_delete test above re-resolves and
+	// gets nil, so it only exercises the u==nil branch. This test holds the
+	// pointer across the delete and verifies the deleted-flag branch.
+	t.Run("alias_with_cached_pointer_after_delete", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		// Cache the pointer BEFORE deletion (simulating a controller that
+		// resolved earlier and held the reference).
+		cached := ResolveAddress(aliceAddr)
+		urequire.NotEqual(t, nil, cached)
+
+		// Delete via a fresh resolve.
+		data := ResolveAddress(aliceAddr)
+		{
+			urequire.NoError(t, data.Delete())
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
+		}
+
+		// The cached pointer is non-nil but its .deleted is now true.
+		urequire.NotEqual(t, nil, cached)
+		uassert.True(t, cached.IsDeleted())
+
+		// Attempting UpdateName on the cached pointer must reject — without
+		// this check, "squattedname" would be inserted into nameStore
+		// pointing at the deleted user, becoming permanently unresolvable
+		// AND unregisterable.
+		{
+			testing.SetOriginCaller(whitelistedCallerAddr)
+			uassert.ErrorContains(t, cached.UpdateName("squattedname"), ErrUserNotExistOrDeleted.Error())
+			testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
+		}
+
+		// Confirm the squat didn't happen: nameStore should NOT have it.
+		_, ok := nameStore.Get("squattedname")
+		uassert.False(t, ok)
+	})
+
 	t.Run("invalid_inputs", func(t *testing.T) {
 		cleanStore(t)
 

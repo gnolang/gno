@@ -37,7 +37,19 @@ func (u UserData) Addr() address {
 	return u.addr
 }
 
-func (u UserData) IsDeleted() bool {
+// IsDeleted reports whether this user record is missing or marked deleted.
+// A nil receiver returns true — "the user does not exist" is semantically
+// indistinguishable from "the user was deleted" for callers that need to
+// gate further state changes. This lets call sites collapse the nil check
+// and the deleted check into a single guard:
+//
+//	if u.IsDeleted() {
+//	    return ErrUserNotExistOrDeleted
+//	}
+func (u *UserData) IsDeleted() bool {
+	if u == nil {
+		return true
+	}
 	return u.deleted
 }
 
@@ -112,7 +124,15 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
 func (u *UserData) updateName(newName string) error {
-	if u == nil { // either doesn't exist or was deleted
+	// IsDeleted handles both branches: nil receiver (user never existed)
+	// AND a non-nil receiver whose .deleted is true (a controller cached
+	// the *UserData pointer before the user was deleted by a separate
+	// controller or governance proposal). Without the deleted-flag branch,
+	// nameStore.Set(newName, u) would insert an alias pointing at a
+	// deleted user — Has(newName) returns true forever but Resolve(newName)
+	// returns nil (Resolve* APIs filter deleted), so the name is squatted
+	// with no recovery path. (audit finding #3)
+	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
@@ -140,7 +160,7 @@ func (u *UserData) updateName(newName string) error {
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
 func (u *UserData) UpdateName(newName string) error {
-	if u == nil {
+	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
@@ -154,7 +174,7 @@ func (u *UserData) UpdateName(newName string) error {
 
 // delete marks a user and all their aliases as deleted without checking controllers.
 func (u *UserData) delete() error {
-	if u == nil {
+	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
@@ -166,7 +186,7 @@ func (u *UserData) delete() error {
 
 // Delete marks a user and all their aliases as deleted.
 func (u *UserData) Delete() error {
-	if u == nil {
+	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
