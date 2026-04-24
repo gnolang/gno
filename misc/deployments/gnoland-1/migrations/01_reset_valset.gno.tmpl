@@ -9,15 +9,28 @@
 // that touches the valset via the realm would be working against a ghost
 // of the pre-fork world.
 //
+// Drift resilience: the build.sh RPC snapshot of v2.GetValidators() is
+// taken pre-assembly; by the time this proposal executes during replay,
+// v2 state may have drifted (e.g. historical txs that were skipped,
+// cascading changes from other migrations). The callback therefore
+// consults live v2 state at execution time via valr.IsValidator and
+// only emits zero-voting-power entries for validators that are actually
+// present. Without this check, r/sys/validators/v2.removeValidator
+// panics "validator doesn't exist" on the first missing entry, aborting
+// the whole proposal and leaving the valset unreconciled.
+//
 // Placeholders (replaced by migrations/build.sh before signing):
-//   OLD_VALIDATORS_GO placeholder — zero-voting-power entries for each pre-fork validator
-//   NEW_VALIDATORS_GO placeholder — full entries for the post-fork validator(s)
+//   OLD_ADDRESSES_GO   placeholder — candidate addresses to zero-voting-power
+//                       (filtered at exec time against live v2 state)
+//   NEW_VALIDATORS_GO  placeholder — full entries for the post-fork validator(s)
 //
 // Caller: a govDAO T1 member (see build.sh CALLER env). Sig verify is
 // skipped at genesis-replay via --skip-genesis-sig-verification.
 package main
 
 import (
+	"std"
+
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 	valr "gno.land/r/sys/validators/v2"
@@ -26,12 +39,32 @@ import (
 func main() {
 	req := valr.NewPropRequest(
 		func() []validators.Validator {
-			return []validators.Validator{
-				// ---- remove pre-fork validators (voting_power=0 = remove) ----
-				{{OLD_VALIDATORS_GO}}
-				// ---- add post-fork validators ----
-				{{NEW_VALIDATORS_GO}}
+			// Candidate pre-fork validators to remove. Filtered below so
+			// we only emit entries for ones actually present in v2; a
+			// single missing address would otherwise abort the proposal.
+			candidates := []string{
+				{{OLD_ADDRESSES_GO}}
 			}
+
+			out := []validators.Validator{}
+			for _, s := range candidates {
+				addr, err := std.ParseAddress(s)
+				if err != nil {
+					// Should never happen: build.sh only emits bech32 g1
+					// addresses that already passed a regex check.
+					panic("invalid candidate address: " + s)
+				}
+				if valr.IsValidator(addr) {
+					out = append(out, validators.Validator{Address: addr, VotingPower: 0})
+				}
+			}
+
+			// Add post-fork validators unconditionally.
+			out = append(out, []validators.Validator{
+				{{NEW_VALIDATORS_GO}}
+			}...)
+
+			return out
 		},
 		"Hardfork: reset validator set",
 		"Reconcile r/sys/validators/v2 with the new GenesisDoc.Validators "+

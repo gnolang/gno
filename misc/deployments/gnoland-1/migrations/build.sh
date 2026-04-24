@@ -7,7 +7,8 @@
 # What it does
 # ============
 # 1. Valset reset — fills 01_reset_valset.gno.tmpl with:
-#      - OLD_VALIDATORS_GO   = voting_power=0 entries for all INITIAL_VALSET
+#      - OLD_ADDRESSES_GO    = quoted bech32 address candidates filtered at
+#                              exec time against live v2.IsValidator state
 #                              entries of gnoland1 (removes them from
 #                              r/sys/validators/v2)
 #      - NEW_VALIDATORS_GO   = the single post-fork validator described by
@@ -258,16 +259,19 @@ render_template() {
 }
 
 # ---- 1. valset reset tx (caller=manfred) ----
-OLD_GO=""
+# The template consults live v2 state at proposal-execution time and only
+# emits removals for validators actually present (see 01_reset_valset.gno.tmpl
+# header for rationale), so we pass bare bech32 address string literals here.
+OLD_ADDRESSES_GO=""
 for a in "${OLD_ADDRS[@]}"; do
-  OLD_GO+="{Address: \"$a\", VotingPower: 0},"$'\n\t\t\t\t'
+  OLD_ADDRESSES_GO+="\"$a\","$'\n\t\t\t\t'
 done
 
 NEW_GO=$(jq -r '.[] | "{Address: \"\(.address)\", PubKey: \"\(.pub_key)\", VotingPower: \(.voting_power)},"' "$NEW_VALSET_JSON" | awk 'BEGIN{ORS="\n\t\t\t\t"}{print}')
 
 RENDERED_01="$WORK/01_reset_valset.gno"
 render_template "$SCRIPT_DIR/01_reset_valset.gno.tmpl" "$RENDERED_01" \
-  "OLD_VALIDATORS_GO=$OLD_GO" "NEW_VALIDATORS_GO=$NEW_GO"
+  "OLD_ADDRESSES_GO=$OLD_ADDRESSES_GO" "NEW_VALIDATORS_GO=$NEW_GO"
 
 : >"$OUT_JSONL"
 render_tx "$RENDERED_01" "$CALLER" >>"$OUT_JSONL"
