@@ -340,7 +340,7 @@ func (e *EmptyReprOnZero) UnmarshalAmino(s string) error {
 		e.Val = 0
 		return nil
 	}
-	v, err := strconv.Atoi(s)
+	v, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return err
 	}

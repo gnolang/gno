@@ -122,6 +122,7 @@ func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {
 	}
 
 	t.Run("Binary2", func(t *testing.T) {
+		t.Parallel()
 		bz, err := cdc.MarshalBinary2(block)
 		require.NoError(t, err)
 		assertRoundTrip(t, bz, func(b []byte, blk *Block) error {
@@ -130,6 +131,7 @@ func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {
 	})
 
 	t.Run("Reflect", func(t *testing.T) {
+		t.Parallel()
 		bz, err := cdc.MarshalReflect(block)
 		require.NoError(t, err)
 		assertRoundTrip(t, bz, func(b []byte, blk *Block) error {
@@ -143,6 +145,7 @@ func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {
 	// bytes — a consensus-wedging risk distinct from the roundtrip fidelity
 	// checked above.
 	t.Run("Binary2 and Reflect byte-identical", func(t *testing.T) {
+		t.Parallel()
 		bzBinary2, err := cdc.MarshalBinary2(block)
 		require.NoError(t, err)
 		bzReflect, err := cdc.MarshalReflect(block)
