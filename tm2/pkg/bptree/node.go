@@ -173,8 +173,16 @@ func (n *InnerNode) Serialize(w io.Writer) error {
 			return err
 		}
 	}
-	// children (numKeys+1 NodeKey refs)
+	// children (numKeys+1 NodeKey refs). saveNode must have wired these up
+	// before calling Serialize; a nil here would silently truncate the
+	// payload and shift every subsequent read during deserialization.
 	for i := 0; i < nc; i++ {
+		if n.children[i] == nil {
+			return fmt.Errorf("InnerNode.Serialize: nil child ref at index %d (numChildren=%d)", i, nc)
+		}
+		if len(n.children[i]) != NodeKeySize {
+			return fmt.Errorf("InnerNode.Serialize: child ref at index %d has wrong size %d (want %d)", i, len(n.children[i]), NodeKeySize)
+		}
 		if _, err := w.Write(n.children[i]); err != nil {
 			return err
 		}
@@ -206,15 +214,19 @@ func (n *LeafNode) Serialize(w io.Writer) error {
 		}
 	}
 	for i := 0; i < int(n.numKeys); i++ {
-		if n.valueKeys[i] != nil {
-			if _, err := w.Write(n.valueKeys[i]); err != nil {
-				return err
-			}
-		} else {
-			// Write zero-filled placeholder for missing valueKey
-			if _, err := w.Write(make([]byte, NodeKeySize)); err != nil {
-				return err
-			}
+		// Invariant: every occupied leaf slot has a non-nil valueKey (set by
+		// Set, leaf splits, redistributes, and import). A nil here means
+		// upstream code forgot to wire one up — on deserialization the
+		// round-tripped NodeKey would be {0,0}, which silently maps to
+		// "value not found" on every Get. Fail fast instead.
+		if n.valueKeys[i] == nil {
+			return fmt.Errorf("LeafNode.Serialize: nil valueKey at slot %d (numKeys=%d)", i, n.numKeys)
+		}
+		if len(n.valueKeys[i]) != NodeKeySize {
+			return fmt.Errorf("LeafNode.Serialize: valueKey at slot %d has wrong size %d (want %d)", i, len(n.valueKeys[i]), NodeKeySize)
+		}
+		if _, err := w.Write(n.valueKeys[i]); err != nil {
+			return err
 		}
 	}
 	return nil

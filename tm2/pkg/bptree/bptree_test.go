@@ -698,6 +698,8 @@ func TestNodeSerialization_LeafBasic(t *testing.T) {
 	leaf.keys[1] = []byte("b")
 	leaf.valueHashes[0] = sha256.Sum256([]byte("val_a"))
 	leaf.valueHashes[1] = sha256.Sum256([]byte("val_b"))
+	leaf.valueKeys[0] = (&NodeKey{Version: 1, Nonce: 100}).GetKey()
+	leaf.valueKeys[1] = (&NodeKey{Version: 1, Nonce: 101}).GetKey()
 	leaf.RebuildMiniMerkle()
 	origHash := leaf.Hash()
 
@@ -787,6 +789,7 @@ func TestNodeSerialization_FullLeaf(t *testing.T) {
 	for i := 0; i < B; i++ {
 		leaf.keys[i] = []byte{byte(i)}
 		leaf.valueHashes[i] = sha256.Sum256([]byte{byte(i)})
+		leaf.valueKeys[i] = (&NodeKey{Version: 1, Nonce: uint32(200 + i)}).GetKey()
 	}
 	leaf.RebuildMiniMerkle()
 
@@ -835,6 +838,8 @@ func TestNodeSerialization_LongKeys(t *testing.T) {
 	leaf.keys[1] = []byte(strings.Repeat("y", 500))
 	leaf.valueHashes[0] = sha256.Sum256([]byte("a"))
 	leaf.valueHashes[1] = sha256.Sum256([]byte("b"))
+	leaf.valueKeys[0] = (&NodeKey{Version: 1, Nonce: 10}).GetKey()
+	leaf.valueKeys[1] = (&NodeKey{Version: 1, Nonce: 11}).GetKey()
 
 	var buf bytes.Buffer
 	if err := leaf.Serialize(&buf); err != nil {
@@ -1102,6 +1107,7 @@ func TestReadNode_TruncatedLeaf(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		leaf.keys[i] = []byte{byte(i * 10)}
 		leaf.valueHashes[i] = sha256.Sum256([]byte{byte(i)})
+		leaf.valueKeys[i] = (&NodeKey{Version: 1, Nonce: uint32(100 + i)}).GetKey()
 	}
 	var buf bytes.Buffer
 	if err := leaf.Serialize(&buf); err != nil {
@@ -1323,6 +1329,8 @@ func TestNodeSerialization_LeafGoldenBytes(t *testing.T) {
 	leaf.keys[1] = []byte("bb")
 	leaf.valueHashes[0] = sha256.Sum256([]byte("v0"))
 	leaf.valueHashes[1] = sha256.Sum256([]byte("v1"))
+	leaf.valueKeys[0] = (&NodeKey{Version: 1, Nonce: 2}).GetKey()
+	leaf.valueKeys[1] = (&NodeKey{Version: 1, Nonce: 3}).GetKey()
 
 	var buf bytes.Buffer
 	if err := leaf.Serialize(&buf); err != nil {
