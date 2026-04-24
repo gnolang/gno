@@ -221,19 +221,33 @@ func (n *LeafNode) Serialize(w io.Writer) error {
 }
 
 // ReadNode deserializes a node from bytes. Returns either *InnerNode or *LeafNode.
+// Returns an error if the payload has trailing bytes not consumed by the
+// type-specific decoder — a tight framing check that catches on-disk
+// corruption early instead of silently returning a truncated view.
 func ReadNode(nk *NodeKey, data []byte) (Node, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("empty node data")
 	}
 	r := bytes.NewReader(data[1:]) // skip type byte
+	var (
+		node Node
+		err  error
+	)
 	switch data[0] {
 	case TypeInner:
-		return readInnerNode(nk, r)
+		node, err = readInnerNode(nk, r)
 	case TypeLeaf:
-		return readLeafNode(nk, r)
+		node, err = readLeafNode(nk, r)
 	default:
 		return nil, fmt.Errorf("unknown node type: %d", data[0])
 	}
+	if err != nil {
+		return nil, err
+	}
+	if r.Len() != 0 {
+		return nil, fmt.Errorf("corrupt node data: %d trailing bytes after decode (type=%d)", r.Len(), data[0])
+	}
+	return node, nil
 }
 
 func readInnerNode(nk *NodeKey, r *bytes.Reader) (_ *InnerNode, err error) {
