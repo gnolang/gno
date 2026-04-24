@@ -70,12 +70,12 @@ func TestBlockValidateBasic(t *testing.T) {
 	}
 }
 
-func TestBlockBinary2RoundTripPreservesNilLastCommitEntries(t *testing.T) {
+func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {
 	t.Parallel()
 
 	height := int64(7)
 	lastBlockID := makeBlockIDRandom()
-	voteSet, _, privVals := randVoteSet(height-1, 0, PrecommitType, 4, 1)
+	voteSet, valSet, privVals := randVoteSet(height-1, 0, PrecommitType, 4, 1)
 
 	for i := range 3 {
 		vote := &Vote{
@@ -97,21 +97,45 @@ func TestBlockBinary2RoundTripPreservesNilLastCommitEntries(t *testing.T) {
 	require.Len(t, commit.Precommits, 4)
 	require.Nil(t, commit.Precommits[3])
 
+	chainID := voteSet.ChainID()
+	// Sanity: the freshly-constructed commit itself verifies.
+	require.NoError(t, valSet.VerifyCommit(chainID, lastBlockID, height-1, commit))
+
 	block := MakeBlock(height, nil, commit)
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
 	cdc.Seal()
 
-	bz, err := cdc.MarshalBinary2(block)
-	require.NoError(t, err)
+	// Run the roundtrip through both the genproto2 fast path (MarshalBinary2)
+	// and the reflect path (MarshalReflect). Both must preserve the nil slot
+	// at Precommits[3] *and* leave every non-nil signature byte intact —
+	// ValidateBasic is structural, VerifyCommit is the cryptographic check.
+	assertRoundTrip := func(t *testing.T, bz []byte, unmarshal func([]byte, *Block) error) {
+		t.Helper()
+		var decoded Block
+		require.NoError(t, unmarshal(bz, &decoded))
+		require.NotNil(t, decoded.LastCommit)
+		require.Len(t, decoded.LastCommit.Precommits, 4)
+		require.Nil(t, decoded.LastCommit.Precommits[3])
+		require.NoError(t, decoded.ValidateBasic())
+		require.NoError(t, valSet.VerifyCommit(chainID, lastBlockID, height-1, decoded.LastCommit))
+	}
 
-	var decoded Block
-	err = decoded.UnmarshalBinary2(cdc, bz, 0)
-	require.NoError(t, err)
-	require.NotNil(t, decoded.LastCommit)
-	require.Len(t, decoded.LastCommit.Precommits, 4)
-	require.Nil(t, decoded.LastCommit.Precommits[3])
-	require.NoError(t, decoded.ValidateBasic())
+	t.Run("Binary2", func(t *testing.T) {
+		bz, err := cdc.MarshalBinary2(block)
+		require.NoError(t, err)
+		assertRoundTrip(t, bz, func(b []byte, blk *Block) error {
+			return blk.UnmarshalBinary2(cdc, b, 0)
+		})
+	})
+
+	t.Run("Reflect", func(t *testing.T) {
+		bz, err := cdc.MarshalReflect(block)
+		require.NoError(t, err)
+		assertRoundTrip(t, bz, func(b []byte, blk *Block) error {
+			return cdc.UnmarshalReflect(b, blk)
+		})
+	})
 }
 
 func TestBlockHash(t *testing.T) {
