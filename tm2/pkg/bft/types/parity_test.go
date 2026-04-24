@@ -8,7 +8,9 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/aminotest"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 )
 
@@ -25,6 +27,8 @@ func TestCodecParity_BFTTypes(t *testing.T) {
 	t.Parallel()
 
 	cdc := amino.NewCodec()
+	cdc.RegisterPackage(abci.Package)
+	cdc.RegisterPackage(ed25519.Package)
 	cdc.RegisterPackage(Package)
 	cdc.Seal()
 
@@ -222,5 +226,57 @@ func parityCasesBFT(t *testing.T) []struct {
 				Proposer:   v1,
 			}
 		}()},
+
+		// Event types fired by the consensus state machine.
+		{"EventNewBlockHeader", &EventNewBlockHeader{
+			Header: Header{Height: 100, NumTxs: 3, ProposerAddress: proposerAddr, Time: stamp},
+		}},
+		{"EventVote", &EventVote{
+			Vote: &Vote{
+				Type:             PrecommitType,
+				Height:           100,
+				Round:            0,
+				Timestamp:        stamp,
+				ValidatorAddress: addr1,
+				Signature:        []byte{0x01, 0x02},
+			},
+		}},
+		{"EventString", func() *EventString { e := EventString("new_block"); return &e }()},
+		{"EventValidatorSetUpdates", &EventValidatorSetUpdates{
+			ValidatorUpdates: []abci.ValidatorUpdate{
+				{Address: addr1, Power: 150},
+				{Address: addr2, Power: 0}, // zero voting power → removal
+			},
+		}},
+		{"EventTx", &EventTx{
+			Result: TxResult{
+				Height: 50,
+				Index:  1,
+				Tx:     Tx([]byte{0xde, 0xad}),
+			},
+		}},
+
+		// DuplicateVoteEvidence — slashable evidence for equivocation.
+		{"DuplicateVoteEvidence", &DuplicateVoteEvidence{
+			PubKey: ed25519.PubKeyEd25519{0x01, 0x02, 0x03},
+			VoteA: &Vote{
+				Type:             PrecommitType,
+				Height:           100,
+				Round:            0,
+				BlockID:          BlockID{Hash: []byte{0xaa}},
+				Timestamp:        stamp,
+				ValidatorAddress: addr1,
+				Signature:        []byte{0xde, 0xad},
+			},
+			VoteB: &Vote{
+				Type:             PrecommitType,
+				Height:           100,
+				Round:            0,
+				BlockID:          BlockID{Hash: []byte{0xbb}},
+				Timestamp:        stamp,
+				ValidatorAddress: addr1,
+				Signature:        []byte{0xbe, 0xef},
+			},
+		}},
 	}
 }
