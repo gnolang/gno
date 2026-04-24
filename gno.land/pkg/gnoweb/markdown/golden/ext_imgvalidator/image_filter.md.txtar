@@ -13,11 +13,11 @@
 ![invalid image](https://invalid.land)
 
 -- output.html --
-<h2 id="normal-image-link"><a class="heading-anchor" href="#normal-image-link" aria-label="Link to this section">Normal image link</a></h2>
+<h2 id="normal-image-link"><a class="heading-anchor" href="#normal-image-link">Normal image link</a></h2>
 <p><img src="http://gno.land" alt="img1"></p>
-<h2 id="data-iamge-uri"><a class="heading-anchor" href="#data-iamge-uri" aria-label="Link to this section">Data iamge uri</a></h2>
+<h2 id="data-iamge-uri"><a class="heading-anchor" href="#data-iamge-uri">Data iamge uri</a></h2>
 <p><img src="data:image/svg+xml;base64,AAA==" alt="svg image"></p>
-<h2 id="empty-image-uri"><a class="heading-anchor" href="#empty-image-uri" aria-label="Link to this section">Empty image uri</a></h2>
+<h2 id="empty-image-uri"><a class="heading-anchor" href="#empty-image-uri">Empty image uri</a></h2>
 <p><img src="" alt="empty img"></p>
-<h2 id="filter-any-image-starting-by-https-see-ext-textgo"><a class="heading-anchor" href="#filter-any-image-starting-by-https-see-ext-textgo" aria-label="Link to this section">Filter any image starting by <code>https://</code>, see <code>ext_text.go</code></a></h2>
+<h2 id="filter-any-image-starting-by-https-see-ext-textgo"><a class="heading-anchor" href="#filter-any-image-starting-by-https-see-ext-textgo">Filter any image starting by <code>https://</code>, see <code>ext_text.go</code></a></h2>
 <p><img src="" alt="invalid image"></p>

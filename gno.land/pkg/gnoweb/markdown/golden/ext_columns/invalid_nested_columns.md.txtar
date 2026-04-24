@@ -17,10 +17,10 @@
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
-<h3 id="nested-open-gno-columns-should-be-ignored"><a class="heading-anchor" href="#nested-open-gno-columns-should-be-ignored" aria-label="Link to this section">Nested open <!-- raw HTML omitted --> should be ignored</a></h3>
+<h3 id="nested-open-gno-columns-should-be-ignored"><a class="heading-anchor" href="#nested-open-gno-columns-should-be-ignored">Nested open <!-- raw HTML omitted --> should be ignored</a></h3>
 <!-- unexpected/invalid columns tag omitted -->
-<h3 id="the-first-closing-tag-should-be-kept-as-it-is"><a class="heading-anchor" href="#the-first-closing-tag-should-be-kept-as-it-is" aria-label="Link to this section">The first closing tag should be kept as it is</a></h3>
+<h3 id="the-first-closing-tag-should-be-kept-as-it-is"><a class="heading-anchor" href="#the-first-closing-tag-should-be-kept-as-it-is">The first closing tag should be kept as it is</a></h3>
 </div>
 </div> <!-- </gno-columns> -->
-<h3 id="the-next-closing-tag-should-be-considered-as-lost"><a class="heading-anchor" href="#the-next-closing-tag-should-be-considered-as-lost" aria-label="Link to this section">The next closing tag should be considered as lost</a></h3>
+<h3 id="the-next-closing-tag-should-be-considered-as-lost"><a class="heading-anchor" href="#the-next-closing-tag-should-be-considered-as-lost">The next closing tag should be considered as lost</a></h3>
 <!-- unexpected/invalid columns tag omitted -->

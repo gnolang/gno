@@ -17,17 +17,17 @@ content 3
 </gno-columns>
 
 -- output.html --
-<h3 id="3-closings-open-tags-with-a-single-close-tag"><a class="heading-anchor" href="#3-closings-open-tags-with-a-single-close-tag" aria-label="Link to this section">3 closings open tags with a single close tag</a></h3>
+<h3 id="3-closings-open-tags-with-a-single-close-tag"><a class="heading-anchor" href="#3-closings-open-tags-with-a-single-close-tag">3 closings open tags with a single close tag</a></h3>
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
-<h1 id="title-1"><a class="heading-anchor" href="#title-1" aria-label="Link to this section">Title 1</a></h1>
+<h1 id="title-1"><a class="heading-anchor" href="#title-1">Title 1</a></h1>
 <p>content 1</p>
 <!-- unexpected/invalid columns tag omitted -->
-<h1 id="title-2"><a class="heading-anchor" href="#title-2" aria-label="Link to this section">Title 2</a></h1>
+<h1 id="title-2"><a class="heading-anchor" href="#title-2">Title 2</a></h1>
 <p>content 2</p>
 <!-- unexpected/invalid columns tag omitted -->
-<h1 id="title-3"><a class="heading-anchor" href="#title-3" aria-label="Link to this section">Title 3</a></h1>
+<h1 id="title-3"><a class="heading-anchor" href="#title-3">Title 3</a></h1>
 <p>content 3</p>
 </div>
 </div> <!-- </gno-columns> -->

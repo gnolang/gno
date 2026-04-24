@@ -14,10 +14,10 @@ Content for subsection.
 More content.
 
 -- output.html --
-<h1 id="main-title"><a class="heading-anchor" href="#main-title" aria-label="Link to this section">Main Title</a></h1>
-<h2 id="section-one"><a class="heading-anchor" href="#section-one" aria-label="Link to this section">Section One</a></h2>
+<h1 id="main-title"><a class="heading-anchor" href="#main-title">Main Title</a></h1>
+<h2 id="section-one"><a class="heading-anchor" href="#section-one">Section One</a></h2>
 <p>Some content under section one.</p>
-<h3 id="subsection-11"><a class="heading-anchor" href="#subsection-11" aria-label="Link to this section">Subsection 1.1</a></h3>
+<h3 id="subsection-11"><a class="heading-anchor" href="#subsection-11">Subsection 1.1</a></h3>
 <p>Content for subsection.</p>
-<h2 id="section-two"><a class="heading-anchor" href="#section-two" aria-label="Link to this section">Section Two</a></h2>
+<h2 id="section-two"><a class="heading-anchor" href="#section-two">Section Two</a></h2>
 <p>More content.</p>
