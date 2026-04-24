@@ -134,7 +134,8 @@ func GnowebURLFromRemote(remote, pkgPath string) string {
 		return ""
 	}
 
-	u.Host = strings.TrimPrefix(u.Hostname(), "rpc.") + ":8888"
+	host := strings.TrimPrefix(u.Hostname(), "rpc.")
+	u.Host = net.JoinHostPort(host, "8888")
 	u.Path = strings.TrimPrefix(pkgPath, "gno.land")
 
 	// Check if gnoweb is actually reachable before suggesting the URL.
