@@ -42,12 +42,18 @@ func X_g1Mul(input []byte) []byte {
 	return marshalG1(&out)
 }
 
-// X_pairingCheck mirrors EIP-197's ECPAIRING precompile.
+// X_pairingCheck mirrors EIP-197's ECPAIRING precompile. An empty input
+// reports "1" (product of zero pairings), matching the spec.
 func X_pairingCheck(input []byte) []byte {
 	if len(input)%192 != 0 {
 		return nil
 	}
 	n := len(input) / 192
+	if n == 0 {
+		out := make([]byte, 32)
+		out[31] = 1
+		return out
+	}
 	g1s := make([]bn254.G1Affine, n)
 	g2s := make([]bn254.G2Affine, n)
 	for i := 0; i < n; i++ {
