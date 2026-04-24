@@ -128,6 +128,72 @@ func TestPrune_VersionReaders(t *testing.T) {
 	}
 }
 
+// TestPrune_IteratorBlocksPrune verifies that an open ImmutableTree iterator
+// on version V prevents PruneVersionsTo(V) from succeeding — and that closing
+// the iterator releases the hold. Regression test for a bug where iterators
+// never incremented versionReaders (the ctor hard-coded version=0), allowing
+// pruning to delete nodes mid-iteration.
+func TestPrune_IteratorBlocksPrune(t *testing.T) {
+	tree := newPruneTree(t)
+	for i := 0; i < 30; i++ {
+		tree.Set(fmt.Appendf(nil, "ir%03d", i), []byte("v"))
+	}
+	tree.SaveVersion()
+	tree.Set([]byte("ir_extra"), []byte("v"))
+	tree.SaveVersion()
+
+	// Open an iterator on v1 via the immutable snapshot's own Iterator.
+	imm, err := tree.GetImmutable(1)
+	if err != nil {
+		t.Fatalf("GetImmutable(1): %v", err)
+	}
+	itr, err := imm.Iterator(nil, nil, true)
+	if err != nil {
+		t.Fatalf("Iterator: %v", err)
+	}
+
+	// Pruning v1 should fail while the iterator is open.
+	if err := tree.DeleteVersionsTo(1); err == nil {
+		t.Fatalf("DeleteVersionsTo(1) should fail with an open iterator on v1")
+	}
+
+	// Close the iterator and retry.
+	if err := itr.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := tree.DeleteVersionsTo(1); err != nil {
+		t.Fatalf("DeleteVersionsTo(1) after close: %v", err)
+	}
+}
+
+// TestPrune_StoreIteratorBlocksPrune verifies the same property through the
+// NewIteratorWithNDB entry point used by the store wrapper.
+func TestPrune_StoreIteratorBlocksPrune(t *testing.T) {
+	tree := newPruneTree(t)
+	for i := 0; i < 30; i++ {
+		tree.Set(fmt.Appendf(nil, "si%03d", i), []byte("v"))
+	}
+	tree.SaveVersion()
+	tree.Set([]byte("si_extra"), []byte("v"))
+	tree.SaveVersion()
+
+	imm, err := tree.GetImmutable(1)
+	if err != nil {
+		t.Fatalf("GetImmutable(1): %v", err)
+	}
+	itr := NewIteratorWithNDB(imm, nil, nil, true, tree)
+
+	if err := tree.DeleteVersionsTo(1); err == nil {
+		t.Fatalf("DeleteVersionsTo(1) should fail with an open NDB iterator on v1")
+	}
+	if err := itr.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := tree.DeleteVersionsTo(1); err != nil {
+		t.Fatalf("DeleteVersionsTo(1) after close: %v", err)
+	}
+}
+
 func TestPrune_PreservesLatestState(t *testing.T) {
 	tree := newPruneTree(t)
 

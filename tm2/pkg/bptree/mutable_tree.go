@@ -434,6 +434,7 @@ func (t *MutableTree) GetImmutable(version int64) (*ImmutableTree, error) {
 		return nil, err
 	}
 	imm := NewImmutableTree(root, version)
+	imm.ndb = t.ndb
 	imm.valueResolver = func(vk []byte) ([]byte, error) {
 		return t.ndb.GetValue(vk)
 	}

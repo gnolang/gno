@@ -321,12 +321,23 @@ func (it *Iterator) Close() error {
 
 // NewIteratorWithNDB creates an iterator over an immutable tree with value
 // resolution via the mutable tree's nodeDB. Used by the store wrapper.
+//
+// When the immutable tree carries a DB-backed ndb, the iterator registers as
+// a version reader on imm.version so that concurrent PruneVersionsTo cannot
+// delete nodes this iterator still walks. The reader is released on Close.
 func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, mtree *MutableTree) *Iterator {
-	var ndb *nodeDB
-	if mtree != nil {
+	// Prefer the immutable tree's own ndb (set by GetImmutable) so we can
+	// track the specific version being read. Fall back to the mutable tree's
+	// ndb only for value resolution (no version tracking in that case).
+	ndb := imm.ndb
+	var trackVersion int64
+	if ndb != nil {
+		trackVersion = imm.version
+		ndb.incrVersionReaders(trackVersion)
+	} else if mtree != nil {
 		ndb = mtree.ndb
 	}
-	itr := newIterator(imm.root, start, end, ascending, ndb, 0)
+	itr := newIterator(imm.root, start, end, ascending, ndb, trackVersion)
 	if ndb == nil && mtree != nil && mtree.memValues != nil {
 		itr.valueResolver = func(vk []byte) ([]byte, error) {
 			val, ok := mtree.memValues[string(vk)]
@@ -340,6 +351,9 @@ func NewIteratorWithNDB(imm *ImmutableTree, start, end []byte, ascending bool, m
 }
 
 // Iterator returns an iterator over [start, end) in the given direction.
+// MutableTree iterators walk the in-memory working tree and do not take a
+// version reader: the working tree is never pruned (pruning rejects
+// toVersion >= latest).
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
 	itr := newIterator(t.root, start, end, ascending, t.ndb, 0)
 	if t.ndb == nil && t.memValues != nil {
@@ -354,11 +368,19 @@ func (t *MutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, er
 	return itr, nil
 }
 
-// ImmutableTree.Iterator returns an iterator. If a valueResolver is set,
-// the iterator resolves values via a wrapping ndb-like mechanism.
-// For DB-backed trees, use NewIteratorWithNDB instead.
+// ImmutableTree.Iterator returns an iterator over [start, end).
+//
+// When the immutable tree is DB-backed (t.ndb != nil), the iterator registers
+// as a version reader so concurrent pruning cannot delete the nodes it walks.
+// The reader is released on Close. For snapshot-only trees without an ndb,
+// values are resolved via t.valueResolver (no version tracking needed).
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) (*Iterator, error) {
-	itr := newIterator(t.root, start, end, ascending, nil, 0)
+	var trackVersion int64
+	if t.ndb != nil {
+		trackVersion = t.version
+		t.ndb.incrVersionReaders(trackVersion)
+	}
+	itr := newIterator(t.root, start, end, ascending, t.ndb, trackVersion)
 	itr.valueResolver = t.valueResolver
 	return itr, nil
 }
