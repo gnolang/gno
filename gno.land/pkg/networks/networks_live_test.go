@@ -18,6 +18,7 @@ func TestActiveNetworksReachable(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping live network check in -short mode")
 	}
+	t.Parallel()
 
 	reg, err := Load()
 	if err != nil {
