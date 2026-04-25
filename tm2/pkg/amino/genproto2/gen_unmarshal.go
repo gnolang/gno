@@ -871,12 +871,20 @@ func (ctx *P3Context2) writePrimitiveDecodeFrom(sb *strings.Builder, accessor st
 		fmt.Fprintf(sb, "%s%s = %s(v)\n", indent, accessor, ctx.goTypeName(rt))
 
 	case reflect.Float32:
+		// Mirror reflect (binary_decode.go:278-284): floats require
+		// amino:"unsafe". Symmetric with writePrimitiveEncode.
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: writePrimitiveDecodeFrom: float32 decode requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		fmt.Fprintf(sb, "%sv, n, err := amino.DecodeFloat32(%s)\n", indent, srcVar)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 		fmt.Fprintf(sb, "%s%s = %s[n:]\n", indent, srcVar, srcVar)
 		fmt.Fprintf(sb, "%s%s = %s(v)\n", indent, accessor, ctx.goTypeName(rt))
 
 	case reflect.Float64:
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: writePrimitiveDecodeFrom: float64 decode requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		fmt.Fprintf(sb, "%sv, n, err := amino.DecodeFloat64(%s)\n", indent, srcVar)
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 		fmt.Fprintf(sb, "%s%s = %s[n:]\n", indent, srcVar, srcVar)

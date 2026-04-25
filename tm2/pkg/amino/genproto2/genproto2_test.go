@@ -209,6 +209,76 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestGenproto2_FloatRequiresUnsafe verifies that the generator's primitive
+// emission helpers (writePrimitiveEncode, primitiveValueSizeExpr,
+// writePrimitiveDecodeFrom) enforce reflect's invariant (binary_encode.go:186-198,
+// binary_decode.go:278-284) that Float32/Float64 handling requires
+// `amino:"unsafe"`. Reflect errors at runtime without Unsafe; ValidateBasic
+// (codec.go:166-175) also panics at codec-init for registered types. The
+// generator runs after registration, so this gap is unreachable via
+// registered types today — but the generator must still reject the case at
+// emission/size/decode time to make the contract explicit and catch any
+// future path that bypasses ValidateBasic.
+//
+// Regression guard for BINARY_FIXES #5.
+func TestGenproto2_FloatRequiresUnsafe(t *testing.T) {
+	ctx := NewP3Context2(amino.NewCodec())
+
+	kinds := []struct {
+		name string
+		rt   reflect.Type
+	}{
+		{"Float32", reflect.TypeOf(float32(0))},
+		{"Float64", reflect.TypeOf(float64(0))},
+	}
+	for _, tc := range kinds {
+		info := &amino.TypeInfo{Type: tc.rt}
+		info.ReprType = info
+
+		t.Run(tc.name+"_Marshal_NoUnsafe_Panics", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic when writePrimitiveEncode emits %s without fopts.Unsafe", tc.name)
+				}
+			}()
+			var sb strings.Builder
+			ctx.writePrimitiveEncode(&sb, "v", info, amino.FieldOptions{}, "\t")
+		})
+		t.Run(tc.name+"_Size_NoUnsafe_Panics", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic when primitiveValueSizeExpr sizes %s without fopts.Unsafe", tc.name)
+				}
+			}()
+			_ = ctx.primitiveValueSizeExpr("v", info, amino.FieldOptions{})
+		})
+		t.Run(tc.name+"_Decode_NoUnsafe_Panics", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic when writePrimitiveDecodeFrom decodes %s without fopts.Unsafe", tc.name)
+				}
+			}()
+			var sb strings.Builder
+			ctx.writePrimitiveDecodeFrom(&sb, "v", info, amino.FieldOptions{}, "\t", "bz")
+		})
+		t.Run(tc.name+"_AllPaths_Unsafe_OK", func(t *testing.T) {
+			var sb strings.Builder
+			ctx.writePrimitiveEncode(&sb, "v", info, amino.FieldOptions{Unsafe: true}, "\t")
+			if !strings.Contains(sb.String(), "amino.PrependFloat") {
+				t.Errorf("expected PrependFloat emission with Unsafe=true, got: %s", sb.String())
+			}
+			if got := ctx.primitiveValueSizeExpr("v", info, amino.FieldOptions{Unsafe: true}); got == "" {
+				t.Errorf("expected non-empty size expression with Unsafe=true")
+			}
+			sb.Reset()
+			ctx.writePrimitiveDecodeFrom(&sb, "v", info, amino.FieldOptions{Unsafe: true}, "\t", "bz")
+			if !strings.Contains(sb.String(), "amino.DecodeFloat") {
+				t.Errorf("expected DecodeFloat emission with Unsafe=true, got: %s", sb.String())
+			}
+		})
+	}
+}
+
 // TestGoTypeName_NamedTypes verifies that goTypeName returns the named-type
 // form (e.g. "IntAr", "crypto.Address") rather than the structural form
 // ("[4]int", "[20]uint8") for named types whose underlying kind is array,

@@ -745,8 +745,19 @@ func (ctx *P3Context2) writePrimitiveEncode(sb *strings.Builder, accessor string
 			fmt.Fprintf(sb, "%soffset = amino.PrependUvarint(buf, offset, uint64(%s))\n", indent, accessor)
 		}
 	case reflect.Float32:
+		// Mirror reflect (binary_encode.go:193-197): floats require
+		// amino:"unsafe". ValidateBasic (codec.go:166-175) panics at
+		// codec-init for registered types, so this is unreachable via
+		// the registry — but emission-site enforcement keeps the
+		// generator's contract explicit.
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: writePrimitiveEncode: float32 emission requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		fmt.Fprintf(sb, "%soffset = amino.PrependFloat32(buf, offset, float32(%s))\n", indent, accessor)
 	case reflect.Float64:
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: writePrimitiveEncode: float64 emission requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		fmt.Fprintf(sb, "%soffset = amino.PrependFloat64(buf, offset, float64(%s))\n", indent, accessor)
 	case reflect.String:
 		fmt.Fprintf(sb, "%soffset = amino.PrependString(buf, offset, string(%s))\n", indent, accessor)

@@ -605,8 +605,15 @@ func (ctx *P3Context2) primitiveValueSizeExpr(accessor string, info *amino.TypeI
 		}
 		return fmt.Sprintf("amino.UvarintSize(uint64(%s))", accessor)
 	case reflect.Float32:
+		// Mirror writePrimitiveEncode: floats require amino:"unsafe".
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: float32 size requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		return "4"
 	case reflect.Float64:
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: float64 size requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		return "8"
 	case reflect.String:
 		return fmt.Sprintf("amino.UvarintSize(uint64(len(%s))) + len(%s)", accessor, accessor)
