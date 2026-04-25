@@ -1,0 +1,33 @@
+{
+  "networks": [
+    {
+      "name": "Betanet",
+      "chain_id": "gnoland1",
+      "rpc_endpoint": "https://rpc.gno.land:443",
+      "gnoweb_url": "https://gno.land",
+      "faucet_url": "https://faucet.gno.land",
+      "status": "active"
+    },
+    {
+      "name": "Staging",
+      "chain_id": "staging",
+      "rpc_endpoint": "https://rpc.staging.gno.land:443",
+      "gnoweb_url": "https://staging.gno.land",
+      "status": "active"
+    },
+    {
+      "name": "Test11",
+      "chain_id": "test11",
+      "rpc_endpoint": "https://rpc.test11.testnets.gno.land:443",
+      "gnoweb_url": "https://test11.testnets.gno.land",
+      "status": "active"
+    },
+    {
+      "name": "Test12",
+      "chain_id": "test12",
+      "rpc_endpoint": "https://rpc.test12.testnets.gno.land:443",
+      "gnoweb_url": "https://test12.testnets.gno.land",
+      "status": "active"
+    }
+  ]
+}
