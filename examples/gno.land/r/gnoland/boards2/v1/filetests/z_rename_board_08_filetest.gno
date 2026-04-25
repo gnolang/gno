@@ -28,7 +28,10 @@ func init() {
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
+	// uinit.RegisterUser is genesis-only since the security fix.
+	testing.SetHeight(0)
 	uinit.RegisterUser(cross, newName, member)
+	testing.SetHeight(123)
 
 	// Invite a new member that doesn't own the user that matches the new board name
 	boards2.InviteMember(cross, bid, member2, boards2.RoleOwner)
