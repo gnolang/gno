@@ -4,7 +4,7 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
@@ -304,6 +304,6 @@ func TestRegisterNotWhitelisted(t *testing.T) {
 func cleanStore(t *testing.T) {
 	t.Helper()
 
-	nameStore = avl.NewTree()
-	addressStore = avl.NewTree()
+	nameStore = bptree.NewBPTree32()
+	addressStore = bptree.NewBPTree32()
 }

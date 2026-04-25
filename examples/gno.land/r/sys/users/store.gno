@@ -5,13 +5,13 @@ import (
 	"chain/runtime"
 	"regexp"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
-	nameStore    = avl.NewTree() // name/aliases > *UserData
-	addressStore = avl.NewTree() // address > *UserData
+	nameStore    = bptree.NewBPTree32() // name/aliases > *UserData
+	addressStore = bptree.NewBPTree32() // address > *UserData
 
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 
