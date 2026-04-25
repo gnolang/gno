@@ -211,6 +211,54 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestWriteFieldValueMarshal_StringByteSliceByteArrayRollback verifies
+// that the String, []byte slice, and [N]byte array branches of
+// writeFieldValueMarshal emit a post-emission single-`0x00` rollback
+// when writeEmpty=false. Without it, an AminoMarshaler whose repr is
+// (e.g.) `[0]byte` or whose Go-level zeroCheck doesn't match
+// wire-zeroness would emit `<key> 0x00` while reflect's
+// writeFieldIfNotEmpty (binary_encode.go:592) would roll back. Sibling
+// of #16 (default-branch rollback), #26 (writeLengthPrefixedField), and
+// #13 (writeInterfaceFieldMarshal) — completes uniform coverage at
+// every length-prefixed emission site.
+//
+// Regression guard for BINARY_FIXES #20.
+func TestWriteFieldValueMarshal_StringByteSliceByteArrayRollback(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// PrimitivesStruct has Str (string) and Bytes ([]byte) fields.
+	// ArraysStruct has ByteAr ([N]byte) field.
+	// All three reach the relevant branches.
+	for _, marker := range []string{
+		"func (goo PrimitivesStruct) MarshalBinary2",
+		"func (goo ArraysStruct) MarshalBinary2",
+	} {
+		idx := strings.Index(src, marker)
+		if idx < 0 {
+			t.Fatalf("%s not found", marker)
+		}
+		end := strings.Index(src[idx:], "\nfunc ")
+		if end < 0 {
+			end = len(src) - idx
+		}
+		body := src[idx : idx+end]
+
+		want := "if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {"
+		if !strings.Contains(body, want) {
+			t.Errorf("%s: expected single-0x00 rollback predicate, not found. Body excerpt:\n%s", marker, body)
+		}
+	}
+}
+
 // TestUnmarshalAnyBinary2_PostDecodeAssignabilityCheck verifies that
 // both UnmarshalAnyBinary2 entry points in amino.go re-check
 // `irvSet.Type().AssignableTo(rv.Type())` AFTER calling

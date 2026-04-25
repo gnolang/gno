@@ -128,8 +128,16 @@ func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	{
@@ -138,8 +146,16 @@ func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	{
@@ -148,8 +164,16 @@ func (goo MsgSend) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	return offset, err

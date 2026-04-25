@@ -22,8 +22,16 @@ func init() {
 func (goo TxMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Tx) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Tx)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Tx)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

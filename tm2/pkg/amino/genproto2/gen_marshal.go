@@ -351,16 +351,16 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 		ctx.writeInterfaceFieldMarshal(sb, accessor, fnum, indent)
 
 	case rinfo.Type.Kind() == reflect.String:
-		fmt.Fprintf(sb, "%soffset = amino.PrependString(buf, offset, string(%s))\n", indent, accessor)
-		fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+		ctx.writeByteLengthFieldWithRollback(sb, fnum, writeEmpty, indent,
+			fmt.Sprintf("offset = amino.PrependString(buf, offset, string(%s))", accessor))
 
 	case rinfo.Type.Kind() == reflect.Slice && rinfo.Type.Elem().Kind() == reflect.Uint8:
-		fmt.Fprintf(sb, "%soffset = amino.PrependByteSlice(buf, offset, %s)\n", indent, accessor)
-		fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+		ctx.writeByteLengthFieldWithRollback(sb, fnum, writeEmpty, indent,
+			fmt.Sprintf("offset = amino.PrependByteSlice(buf, offset, %s)", accessor))
 
 	case rinfo.Type.Kind() == reflect.Array && rinfo.Type.Elem().Kind() == reflect.Uint8:
-		fmt.Fprintf(sb, "%soffset = amino.PrependByteSlice(buf, offset, %s[:])\n", indent, accessor)
-		fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+		ctx.writeByteLengthFieldWithRollback(sb, fnum, writeEmpty, indent,
+			fmt.Sprintf("offset = amino.PrependByteSlice(buf, offset, %s[:])", accessor))
 
 	case isListType(rinfo.Type) && rinfo.Type.Elem().Kind() != reflect.Uint8:
 		// Packed list (non-byte elements).
@@ -441,6 +441,34 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 			fmt.Fprintf(sb, "%s}\n", indent)
 		}
 	}
+}
+
+// writeByteLengthFieldWithRollback emits a length-self-prefixing value
+// (PrependString / PrependByteSlice) followed by the field key, with a
+// post-emission rollback that mirrors reflect's writeFieldIfNotEmpty
+// (binary_encode.go:592) when writeEmpty=false. Catches the corner case
+// where an AminoMarshaler returns a repr whose Go-level zeroCheck doesn't
+// match wire-zeroness — e.g. a `[0]byte` repr whose PrependByteSlice emits
+// `[0x00]` (length-0). Sibling of writeLengthPrefixedField (#26),
+// writeInterfaceFieldMarshal (#13), and the writeFieldValueMarshal default
+// branch rollback (#16); makes the rollback contract uniform across all
+// emission-site kinds for BINARY_FIXES #20.
+func (ctx *P3Context2) writeByteLengthFieldWithRollback(sb *strings.Builder, fnum uint32, writeEmpty bool, indent, valueStmt string) {
+	if writeEmpty {
+		fmt.Fprintf(sb, "%s%s\n", indent, valueStmt)
+		fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+		return
+	}
+	fmt.Fprintf(sb, "%s{\n", indent)
+	fmt.Fprintf(sb, "%s\tbefore := offset\n", indent)
+	fmt.Fprintf(sb, "%s\t%s\n", indent, valueStmt)
+	fmt.Fprintf(sb, "%s\tvalueLen := before - offset\n", indent)
+	fmt.Fprintf(sb, "%s\tif valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {\n", indent)
+	fmt.Fprintf(sb, "%s\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+	fmt.Fprintf(sb, "%s\t} else {\n", indent)
+	fmt.Fprintf(sb, "%s\t\toffset = before\n", indent)
+	fmt.Fprintf(sb, "%s\t}\n", indent)
+	fmt.Fprintf(sb, "%s}\n", indent)
 }
 
 // writeLengthPrefixedField writes the length prefix + field key after data has been

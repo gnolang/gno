@@ -839,16 +839,40 @@ func (goo RoundStateSimple) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 		}
 	}
 	if len(goo.ValidBlockHash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.ValidBlockHash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.ValidBlockHash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if len(goo.LockedBlockHash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.LockedBlockHash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.LockedBlockHash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if len(goo.ProposalBlockHash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.ProposalBlockHash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.ProposalBlockHash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		before := offset
@@ -865,8 +889,16 @@ func (goo RoundStateSimple) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 		}
 	}
 	if goo.HeightRoundStep != "" {
-		offset = amino.PrependString(buf, offset, string(goo.HeightRoundStep))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.HeightRoundStep))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

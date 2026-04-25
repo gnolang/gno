@@ -88,8 +88,16 @@ func (goo *PacketPong) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 func (goo PacketMsg) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Bytes) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Bytes)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Bytes)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.EOF != 0 {
 		{

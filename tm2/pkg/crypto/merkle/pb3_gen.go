@@ -25,16 +25,40 @@ func init() {
 func (goo ProofOp) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Data) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Data)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Data)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if len(goo.Key) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Key)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Key)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.Type != "" {
-		offset = amino.PrependString(buf, offset, string(goo.Type))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.Type))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -214,8 +238,16 @@ func (goo SimpleProof) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 	}
 	if len(goo.LeafHash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.LeafHash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.LeafHash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.Index != 0 {
 		{
@@ -400,8 +432,16 @@ func (goo SimpleProofNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 		}
 	}
 	if len(goo.Hash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Hash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Hash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

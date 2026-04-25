@@ -1271,8 +1271,16 @@ func (goo *newRoundStepInfo) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 func (goo msgInfo) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.PeerID != "" {
-		offset = amino.PrependString(buf, offset, string(goo.PeerID))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.PeerID))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.Msg != nil {
 		if goo.Msg != nil {

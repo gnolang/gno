@@ -99,8 +99,16 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	for i := len(goo.UnrestrictedAddrs) - 1; i >= 0; i-- {
@@ -446,8 +454,16 @@ func (goo MsgCreateSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	for i := len(goo.AllowPaths) - 1; i >= 0; i-- {
@@ -493,8 +509,16 @@ func (goo MsgCreateSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	return offset, err
@@ -685,8 +709,16 @@ func (goo MsgRevokeSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	return offset, err
@@ -773,8 +805,16 @@ func (goo MsgRevokeAllSessions) MarshalBinary2(cdc *amino.Codec, buf []byte, off
 			return offset, err
 		}
 		if repr != "" {
-			offset = amino.PrependString(buf, offset, string(repr))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
 		}
 	}
 	return offset, err
