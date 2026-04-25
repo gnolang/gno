@@ -506,9 +506,11 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 		sb.WriteString("\t}\n")
 	} else {
 		// Unpacked form: repeated field key per element.
+		// writeImplicit: nested list whose inner elements are length-prefixed.
+		// TypeInfo invariant: einfo.Elem is non-nil for list types; reflect
+		// (binary_encode.go:400) dereferences without a nil guard. Match that.
 		ertIsPointer := ert.Kind() == reflect.Ptr
 		writeImplicit := isListType(einfo.Type) &&
-			einfo.Elem != nil &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != amino.Typ3ByteLength
 		fmt.Fprintf(sb, "\tfor i := len(%s) - 1; i >= 0; i-- {\n", accessor)

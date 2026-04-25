@@ -385,9 +385,10 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 	} else {
 		// Unpacked form: repeated field key per element.
 		fks := fieldKeySize(fopts.BinFieldNum, amino.Typ3ByteLength)
+		// TypeInfo invariant: einfo.Elem is non-nil for list types; match
+		// reflect (binary_encode.go:400) which derefs without a nil guard.
 		ertIsPointer := ert.Kind() == reflect.Ptr
 		writeImplicit := isListType(einfo.Type) &&
-			einfo.Elem != nil &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != amino.Typ3ByteLength
 		fmt.Fprintf(sb, "\tfor _, elem := range %s {\n", accessor)

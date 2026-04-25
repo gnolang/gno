@@ -1,9 +1,11 @@
 package genproto2
 
 import (
+	"bytes"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -206,6 +208,36 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	// Rollback path must restore offset=before.
 	if !strings.Contains(body, "offset = before") {
 		t.Errorf("expected `offset = before` rollback path in interface branch. Body:\n%s", body)
+	}
+}
+
+// TestWriteImplicitPredicate_NoNilGuard verifies that the
+// writeImplicit predicate in gen_marshal, gen_size, and gen_unmarshal
+// does NOT include a defensive `einfo.Elem != nil` guard. Reflect
+// (binary_encode.go:400) dereferences `einfo.Elem.ReprType.Type.Kind()`
+// without any nil check, relying on the TypeInfo invariant that
+// element types of list types always have a non-nil Elem. The
+// generator's defensive guard was divergent: if the invariant were
+// somehow violated, reflect would panic while the generator would
+// silently skip the writeImplicit branch. Removing the guard aligns
+// both codecs on the same contract (fail loudly).
+//
+// Regression guard for BINARY_FIXES #19.
+func TestWriteImplicitPredicate_NoNilGuard(t *testing.T) {
+	// This is a generator source-code-level check — inspect the generator
+	// files themselves, not the generated output.
+	for _, f := range []string{
+		"gen_marshal.go",
+		"gen_size.go",
+		"gen_unmarshal.go",
+	} {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read %s: %v", f, err)
+		}
+		if bytes.Contains(src, []byte("einfo.Elem != nil &&")) {
+			t.Errorf("%s: still contains defensive `einfo.Elem != nil` guard in writeImplicit predicate (reflect dereferences without guard; see binary_encode.go:400)", f)
+		}
 	}
 }
 
