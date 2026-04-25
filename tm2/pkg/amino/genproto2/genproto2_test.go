@@ -211,6 +211,58 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestUnmarshalAnyBinary2_PostDecodeAssignabilityCheck verifies that
+// both UnmarshalAnyBinary2 entry points in amino.go re-check
+// `irvSet.Type().AssignableTo(rv.Type())` AFTER calling
+// pbm2.UnmarshalBinary2 (i.e. before rv.Set(irvSet)). Reflect's
+// decodeReflectBinaryAny checks at three locations
+// (binary_decode.go:441, :495, :514) — pre-decode, post-decode-with-error,
+// and post-decode-success. The genproto2 path previously checked only
+// once before decode. Today the registry is fixed at startup so the
+// re-check is invariant; the fix protects against any future pluggable
+// registry where a concrete's interface implementation could change
+// between checks.
+//
+// Regression guard for BINARY_FIXES #15.
+func TestUnmarshalAnyBinary2_PostDecodeAssignabilityCheck(t *testing.T) {
+	src, err := os.ReadFile("../amino.go")
+	if err != nil {
+		t.Fatalf("read amino.go: %v", err)
+	}
+	// Each Any-decode entry point must, immediately before its
+	// rv.Set(irvSet) / rvElem.Set(irvSet) call, perform a fresh
+	// AssignableTo check. We assert co-location: each `Set(irvSet)` call
+	// must be preceded (within a small window) by an `AssignableTo` call.
+	// This catches a future edit that drops the guard but leaves any
+	// vestigial substring in place.
+	lines := strings.Split(string(src), "\n")
+	const window = 12 // lines to look back for AssignableTo
+	setSites := 0
+	for i, line := range lines {
+		if !strings.Contains(line, "Set(irvSet)") {
+			continue
+		}
+		setSites++
+		guarded := false
+		lo := i - window
+		if lo < 0 {
+			lo = 0
+		}
+		for j := i - 1; j >= lo; j-- {
+			if strings.Contains(lines[j], "AssignableTo(") {
+				guarded = true
+				break
+			}
+		}
+		if !guarded {
+			t.Errorf("amino.go:%d: Set(irvSet) is not preceded by an AssignableTo check within %d lines", i+1, window)
+		}
+	}
+	if setSites < 2 {
+		t.Errorf("expected >=2 Set(irvSet) sites in amino.go (one per Any-decode entry point), got %d", setSites)
+	}
+}
+
 // TestIsStructOrUnpacked_TopLevelHelper verifies that top-level
 // (non-struct-field) sites in gen_marshal/gen_size/gen_unmarshal
 // AND in amino.go's UnmarshalReflect use the explicit

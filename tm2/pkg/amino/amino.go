@@ -830,6 +830,17 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		}
 	}
 
+	// Re-check assignability post-decode. Mirrors reflect's
+	// decodeReflectBinaryAny which checks at three locations
+	// (binary_decode.go:441, :495, :514). Today the registry is fixed at
+	// startup so this is invariant across the decode call, but the
+	// re-check is zero-cost and protects against any future pluggable
+	// registry where a concrete's interface implementation could change
+	// between checks. Without it, the genproto2 path would silently
+	// rv.Set() a now-unassignable value while reflect would error.
+	if !irvSet.Type().AssignableTo(rvElem.Type()) {
+		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v (post-decode check)", irvSet.Type(), rvElem.Type())
+	}
 	rvElem.Set(irvSet)
 	return nil
 }
@@ -1252,6 +1263,12 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		}
 	}
 
+	// Re-check assignability post-decode. Sibling of the rvElem variant in
+	// unmarshalAnyBinary2Depth above; same rationale (mirrors reflect's
+	// three-point checks in decodeReflectBinaryAny).
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		return true, fmt.Errorf("decoded type %v is not assignable to interface %v (post-decode check)", irvSet.Type(), rv.Type())
+	}
 	rv.Set(irvSet)
 	return true, nil
 }
