@@ -109,6 +109,7 @@ var Package = pkg.NewPackage(
 	StructPtrSliceWithStringRepr{},
 	ByteArraySliceStruct{},
 	FixedStringArrayStruct{},
+	StructUint8ReprSliceStruct{},
 	// Cross-package AminoMarshaler regression types.
 	CrossPkgPointerSlice{},
 	CrossPkgBoxedRepr{},

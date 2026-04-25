@@ -481,6 +481,12 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 
 	if typ3 != amino.Typ3ByteLength || beOptionByte {
 		// Packed form: field key + length + packed content.
+		// Post codec.go UnpackedList fix: beOptionByte is unreachable here
+		// (UnpackedList=true requires the element's ReprType.Type kind to
+		// map to Typ3ByteLength, excluding Uint8). Assert for future-proofing.
+		if beOptionByte {
+			return fmt.Errorf("unreachable: writeUnpackedListMarshal reached with beOptionByte=true (type=%v) — codec.go UnpackedList determination should have excluded this", finfo.Type)
+		}
 		fmt.Fprintf(sb, "\tif len(%s) > 0 {\n", accessor)
 		sb.WriteString("\t\tbefore := offset\n")
 		fmt.Fprintf(sb, "\t\tfor i := len(%s) - 1; i >= 0; i-- {\n", accessor)

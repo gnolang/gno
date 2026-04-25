@@ -543,37 +543,28 @@ func (ctx *P3Context2) writeUnpackedListUnmarshal(sb *strings.Builder, accessor 
 		fmt.Fprintf(sb, "%sif err != nil {\n%s\treturn err\n%s}\n", indent, indent, indent)
 		fmt.Fprintf(sb, "%sbz = bz[n:]\n", indent)
 		if beOptionByte {
-			fmt.Fprintf( // Byte list: each element is a single raw byte.
-				sb, "%sfor _, b := range fbz {\n", indent)
-			if isArray {
-				fmt.Fprintf(sb, "%s\tif %s_idx >= %d {\n%s\t\tbreak\n%s\t}\n", indent, fieldName, arrayLen, indent, indent)
-			}
-			if ert.Kind() == reflect.Ptr {
-				fmt.Fprintf(sb, "%s\tev := %s(b)\n", indent, ctx.goTypeName(ert.Elem()))
-				fmt.Fprintf(sb, "%s\t%s", indent, storeElem("&ev"))
-			} else {
-				fmt.Fprintf(sb, "%s\tev := %s(b)\n", indent, ctx.goTypeName(ert))
-				fmt.Fprintf(sb, "%s\t%s", indent, storeElem("ev"))
-			}
-			fmt.Fprintf(sb, "%s}\n", indent)
-		} else {
-			if isArray {
-				fmt.Fprintf(sb, "%sfor len(fbz) > 0 && %s_idx < %d {\n", indent, fieldName, arrayLen)
-			} else {
-				fmt.Fprintf(sb, "%sfor len(fbz) > 0 {\n", indent)
-			}
-			if ert.Kind() == reflect.Ptr {
-				fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
-				ctx.writePrimitiveDecodeFrom(sb, "ev", einfo, fopts, indent+"\t", "fbz")
-				fmt.Fprintf(sb, "%s\tevp := &ev\n", indent)
-				fmt.Fprintf(sb, "%s\t%s", indent, storeElem("evp"))
-			} else {
-				fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert))
-				ctx.writePrimitiveDecodeFrom(sb, "ev", einfo, fopts, indent+"\t", "fbz")
-				fmt.Fprintf(sb, "%s\t%s", indent, storeElem("ev"))
-			}
-			fmt.Fprintf(sb, "%s}\n", indent)
+			// Post codec.go UnpackedList fix: writeUnpackedListUnmarshal is
+			// only reached via an UnpackedList field. UnpackedList=true
+			// requires element ReprType Kind to map to Typ3ByteLength,
+			// excluding Uint8. So beOptionByte should be unreachable here.
+			panic(fmt.Sprintf("genproto2: writeUnpackedListUnmarshal reached with beOptionByte=true (type=%v)", einfo.Type))
 		}
+		if isArray {
+			fmt.Fprintf(sb, "%sfor len(fbz) > 0 && %s_idx < %d {\n", indent, fieldName, arrayLen)
+		} else {
+			fmt.Fprintf(sb, "%sfor len(fbz) > 0 {\n", indent)
+		}
+		if ert.Kind() == reflect.Ptr {
+			fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert.Elem()))
+			ctx.writePrimitiveDecodeFrom(sb, "ev", einfo, fopts, indent+"\t", "fbz")
+			fmt.Fprintf(sb, "%s\tevp := &ev\n", indent)
+			fmt.Fprintf(sb, "%s\t%s", indent, storeElem("evp"))
+		} else {
+			fmt.Fprintf(sb, "%s\tvar ev %s\n", indent, ctx.goTypeName(ert))
+			ctx.writePrimitiveDecodeFrom(sb, "ev", einfo, fopts, indent+"\t", "fbz")
+			fmt.Fprintf(sb, "%s\t%s", indent, storeElem("ev"))
+		}
+		fmt.Fprintf(sb, "%s}\n", indent)
 	} else {
 		// Unpacked: this single field entry contains one element.
 		ertIsPointer := ert.Kind() == reflect.Ptr

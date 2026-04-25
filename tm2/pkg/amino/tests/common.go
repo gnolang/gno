@@ -470,6 +470,22 @@ type StructPtrSliceWithStringRepr struct {
 	Items []*StructWithStringRepr // no nil_elements tag
 }
 
+// StructUint8ReprSliceStruct: exercises the unpacked-list packed-branch
+// bare-byte (beOptionByte) emission for AminoMarshaler-struct elements
+// whose repr is uint8. Reflect detects this via beOptionByte at
+// binary_encode.go:165 and emits EncodeByte (1 byte). Without the
+// generator's bare-byte handling at this site, writePrimitiveEncode
+// would emit `PrependUvarint(buf, offset, uint64(elem))` against a
+// struct-typed accessor — a Go compile error AND a wire divergence
+// (uvarint of byte ≥128 is 2 bytes; reflect emits 1 bare byte).
+//
+// Mirror of AminoMarshalerStruct7 (top-level repr-bytes) but at the
+// struct-field position, where writeUnpackedListMarshal handles the
+// list rather than writePackedSliceReprMarshal.
+type StructUint8ReprSliceStruct struct {
+	Vals []ReprElem7
+}
+
 // CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
 // in a different package. Without the gen_unmarshal.go:72 fix, generated
 // code declares `var repr Inner` (bare name) which fails to compile.
@@ -578,6 +594,7 @@ var StructTypes = []any{
 	(*StructPtrSliceWithStringRepr)(nil),
 	(*ByteArraySliceStruct)(nil),
 	(*FixedStringArrayStruct)(nil),
+	(*StructUint8ReprSliceStruct)(nil),
 	// Cross-package AminoMarshaler: verifies generated code uses qualified
 	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
 	// excluded from property fuzz because random nil elements in a

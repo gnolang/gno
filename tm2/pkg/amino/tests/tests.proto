@@ -597,6 +597,10 @@ message FixedStringArrayStruct {
 	repeated string names = 1 [json_name = "Names"];
 }
 
+message StructUint8ReprSliceStruct {
+	bytes vals = 1 [json_name = "Vals"];
+}
+
 message CrossPkgPointerSlice {
 	bytes counts = 1 [json_name = "Counts"];
 }

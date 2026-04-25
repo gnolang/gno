@@ -100,6 +100,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*StructPtrSliceWithStringRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ByteArraySliceStruct)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FixedStringArrayStruct)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*StructUint8ReprSliceStruct)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgPointerSlice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CrossPkgBoxedRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InterfaceHeavy)(nil)).Elem())
@@ -17011,6 +17012,77 @@ func (goo *FixedStringArrayStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte,
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for FixedStringArrayStruct", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo StructUint8ReprSliceStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if len(goo.Vals) != 0 {
+		{
+			before := offset
+			for i := len(goo.Vals) - 1; i >= 0; i-- {
+				e := goo.Vals[i]
+				er, err := e.MarshalAmino()
+				if err != nil {
+					return offset, err
+				}
+				offset = amino.PrependByte(buf, offset, uint8(er))
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		}
+	}
+	return offset, err
+}
+
+func (goo StructUint8ReprSliceStruct) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if len(goo.Vals) != 0 {
+		{
+			var cs int
+			cs = len(goo.Vals)
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	return s, nil
+}
+
+func (goo *StructUint8ReprSliceStruct) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = StructUint8ReprSliceStruct{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			for _, b := range fbz {
+				var elem ReprElem7
+				if err := elem.UnmarshalAmino(b); err != nil {
+					return err
+				}
+				goo.Vals = append(goo.Vals, elem)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for StructUint8ReprSliceStruct", fnum)
 		}
 	}
 	return nil

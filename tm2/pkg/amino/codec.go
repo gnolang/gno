@@ -720,7 +720,19 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 				for etype.Kind() == reflect.Ptr {
 					etype = etype.Elem()
 				}
-				typ3 := typeToTyp3(etype, fopts)
+				// Consult the element's ReprType for AminoMarshaler types: a
+				// Go-Struct element whose MarshalAmino returns uint8 (e.g.
+				// ReprElem7) has WIRE kind Varint, not ByteLength. The unpacked
+				// path assumes per-element length prefixing, which doesn't hold
+				// for non-ByteLength wire kinds — without this lookup,
+				// encodeReflectBinaryList would emit packed bytes with bare=true
+				// (no outer key+length wrapper), producing non-roundtrippable
+				// bytes.
+				eTypeInfo, eErr := cdc.getTypeInfoWLocked(etype)
+				if eErr != nil {
+					panic(eErr)
+				}
+				typ3 := typeToTyp3(eTypeInfo.ReprType.Type, fopts)
 				if typ3 == Typ3ByteLength {
 					unpackedList = true
 				}
