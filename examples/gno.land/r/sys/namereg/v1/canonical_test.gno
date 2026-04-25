@@ -83,17 +83,41 @@ func TestIsReserved_LiteralAndCanonical(t *testing.T) {
 	uassert.True(t, IsReserved("tendermint"))
 }
 
-func TestIsCanonicalTaken_DirectStoreOps(t *testing.T) {
+func TestIsStemTaken_DirectStoreOps(t *testing.T) {
 	// Exercise the store API in isolation from the Register() chain.
 	// Direct write to the store, then verify the lookup sees it.
 	canonicalStore.Set("zzdirect", "zzdirect-original")
 	defer canonicalStore.Remove("zzdirect")
 
-	existing, taken := IsCanonicalTaken("zzdirect")
+	// IsStemTaken canonicalizes internally — passing the raw stem
+	// (no `l` here, so canonical == raw) finds it.
+	existing, taken := IsStemTaken("zzdirect")
 	uassert.True(t, taken, "should report taken after direct Set")
 	uassert.Equal(t, "zzdirect-original", existing,
 		"existing should be the original stem stored as the value")
 
-	_, taken2 := IsCanonicalTaken("zzunknown")
-	uassert.False(t, taken2, "unknown canonical should report not taken")
+	_, taken2 := IsStemTaken("zzunknown")
+	uassert.False(t, taken2, "unknown stem should report not taken")
+}
+
+func TestIsStemTaken_CanonicalizesInternally(t *testing.T) {
+	// Footgun guard: the function must canonicalize the input itself.
+	// Store is keyed by canonical form; raw and l-substituted variants
+	// must both resolve to the same hit.
+	canonical := Canonicalize("balloon") // "baiioon"
+	canonicalStore.Set(canonical, "balloon")
+	defer canonicalStore.Remove(canonical)
+
+	// Raw `balloon` finds itself (canonicalized internally).
+	_, taken := IsStemTaken("balloon")
+	uassert.True(t, taken, "raw stem should hit via internal canonicalization")
+
+	// `baiioon` (the canonical form, with l→i applied) also finds it.
+	_, taken2 := IsStemTaken("baiioon")
+	uassert.True(t, taken2, "pre-canonicalized form should also hit")
+
+	// `ballbon` (different stem, also has l) should NOT find it —
+	// canonical is `baiibon` ≠ `baiioon`.
+	_, taken3 := IsStemTaken("ballbon")
+	uassert.False(t, taken3, "different stem should not collide")
 }

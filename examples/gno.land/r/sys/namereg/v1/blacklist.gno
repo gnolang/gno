@@ -22,12 +22,18 @@ package namereg
 // Note on length: the Tier-1 regex restricts the [a-z]{5,13} middle to
 // 5–13 chars, so entries shorter than 5 (mod, api, bot, god, gno, ...) and
 // longer than 13 (administrator, jesuschrist, newtendermint, ...) cannot
-// appear there even without this list. They are kept anyway because:
+// appear in Register() even without this list. They are kept anyway because:
 //
-//	(a) the Tier-2 (DAO-allocated) path has no regex enforcement and these
-//	    names should not be granted by governance either; and
-//	(b) cross-reference value — a single canonical list is easier to audit
-//	    than two tier-specific lists with overlapping intent.
+//	(a) cross-reference value — a single canonical list is easier to audit
+//	    than two tier-specific lists with overlapping intent; and
+//	(b) future controllers (e.g. a hypothetical Tier-2 / DAO-allocated path)
+//	    can opt in to the same blacklist by querying IsReserved, providing
+//	    defense-in-depth across the registration ecosystem.
+//
+// IMPORTANT: this list is NOT consulted by `ProposeNewName` — governance
+// renames are gated by GovDAO vote alone, not by this blacklist. Voters
+// reviewing a rename proposal are responsible for catching collisions
+// with reserved names.
 //
 // Sortedness: entries must be sorted lexicographically (Go's < on strings,
 // which is byte-wise ASCII). TestReservedNamesSorted enforces this.

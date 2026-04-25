@@ -25,11 +25,12 @@ func TestRegister_Valid(t *testing.T) {
 	// to the originals — avoids accidental cross-subtest collisions with
 	// other tests that may register l-bearing names.
 	validUsernames := []string{
-		"nym-bravo123",      // 5-char stem (minimum)
-		"nym-tango456",      // 5-char stem
-		"nym-victor789",     // 6-char stem
-		"nym-romeoecho012",  // 10-char stem
-		"nym-mikefoxhote345", // 13-char stem (maximum)
+		"nym-bravo123",         // 5-char stem (minimum)
+		"nym-tango456",         // 5-char stem
+		"nym-victor789",        // 6-char stem
+		"nym-romeoecho012",     // 10-char stem
+		"nym-mikefoxhote345",   // 11-char stem
+		"nym-mikefoxhotenp678", // 13-char stem (maximum)
 	}
 
 	for _, username := range validUsernames {

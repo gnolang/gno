@@ -34,8 +34,12 @@ var (
 	//  - sub.domain.tld/c/letter
 	//  - sub.domain.tld/d/works
 	//  - sub.domain.tld/r/realm
-	//  - sub.domain.tld/r/_realm/_path
-	//  - sub.domain.tld/p/package/_path123/etc
+	//  - sub.domain.tld/r/realm/sub-path
+	//  - sub.domain.tld/p/package/path123/etc
+	//
+	// Note: each path segment must START with [a-z] (no leading separator)
+	// and END with [a-z0-9] (no trailing separator); single hyphens or
+	// underscores are allowed between alphanumerics but never consecutive.
 	//
 	// Further validation should be done with LETTER to determine the type of pkgPath:
 	//  - /r/ for realm paths
@@ -62,7 +66,7 @@ var (
 	Re_domain = r.N("DOMAIN", // all lowercase
 		r.N("SLD", r.P(r.P(r.C(`a-z0-9-`)), r.E(`.`))), // sub(level)domain, permissive w/ dashes.
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
-	Re_name    = r.G(r.C(`a-z`), r.M(r.S(r.C(`a-z0-9_-`)), r.C(`a-z0-9`))) // start with letter, middle hyphens/underscores, no dots!
+	Re_name    = r.G(r.C(`a-z`), r.S(r.C(`a-z0-9`)), r.S(r.C(`_-`), r.P(r.C(`a-z0-9`)))) // start with letter; alphanumeric body; separators (`_` or `-`) only between alphanumerics, never consecutive, never trailing
 	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                  // starts with g1, all lowercase.
 
 	// Compile at init to avoid runtime compilation.

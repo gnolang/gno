@@ -16,12 +16,15 @@ var (
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
 
 	// reName mirrors gno's package-name shape (gnovm/pkg/gnolang/mempackage.go
-	// `Re_name` = must start with a lowercase letter, may contain hyphens or
-	// underscores in the middle, must end with [a-z0-9]). Lowercase-only —
-	// closes the case-confusable squatting concern (Alice vs alice were two
-	// distinct names under the previous case-preserving regex). Length cap
-	// of 64 enforced separately in validateName.
-	reName = regexp.MustCompile(`^[a-z]([a-z0-9_-]*[a-z0-9])?$`)
+	// `Re_name`): start with a lowercase letter, optional alphanumeric body,
+	// then any number of (separator + alphanumeric run) — so single hyphens
+	// or underscores are allowed BETWEEN alphanumerics, but consecutive
+	// separators (`--`, `__`, `-_`, `_-`) are rejected, and so are leading
+	// or trailing separators. Lowercase-only — closes the case-confusable
+	// squatting concern (Alice vs alice were two distinct names under the
+	// previous case-preserving regex). Length cap of 64 enforced separately
+	// in validateName.
+	reName = regexp.MustCompile(`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`)
 )
 
 const maxNameLen = 64

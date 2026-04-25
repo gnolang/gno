@@ -31,7 +31,7 @@ var (
 // with `gno`/`gi`/`gl`, must not match a reserved role name (with
 // implicit `s`-suffix expansion), and must not canonicalize to an
 // alpha stem already registered through this controller (`l→i`
-// substitution). See ValidateNymFormat and IsCanonicalTaken for the
+// substitution). See ValidateNymFormat and IsStemTaken for the
 // individual checks; both are exported for use by future controllers.
 //
 // Only direct EOA (maketx call) invocations are supported.
@@ -72,10 +72,10 @@ func Register(_ realm, username string) {
 	// Canonical-collision check. Stem is everything between the `nym-`
 	// prefix and the 3 trailing digits.
 	stem := username[4 : len(username)-3]
-	canonical := Canonicalize(stem)
-	if _, taken := IsCanonicalTaken(canonical); taken {
+	if _, taken := IsStemTaken(stem); taken {
 		panic(ErrCanonicalCollision)
 	}
+	canonical := Canonicalize(stem)
 
 	registrant := runtime.PreviousRealm().Address()
 	if err := susers.RegisterUser(cross, username, registrant); err != nil {

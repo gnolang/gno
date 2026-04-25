@@ -284,6 +284,39 @@ func TestMemPackage_Validate(t *testing.T) {
 			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/__/path\"",
 		},
 		{
+			"consecutive_hyphen_in_segment",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/alice--bob",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/alice--bob\"",
+		},
+		{
+			"consecutive_underscore_in_segment",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/alice__bob",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/alice__bob\"",
+		},
+		{
+			"mixed_consecutive_separators_in_segment",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/alice-_bob",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/alice-_bob\"",
+		},
+		{
 			"futureproof_x", // XXX: we currently accept mempackages with any single-letter path, meaning that we need another layer of validation later.
 			&std.MemPackage{
 				Type:  MPUserProd,

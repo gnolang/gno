@@ -57,8 +57,8 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 // `vitalik` (e.g. for trademark dispute resolution or system reservations),
 // the validation here imposes no further opinion. The new name is still
 // subject to the base shape enforced by `r/sys/users.validateName`
-// (`^_?[a-z][a-z0-9_]*$`, max 64 chars), which runs inside the
-// updateUsername callback below.
+// (`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, max 64 chars), which runs inside
+// the updateUsername callback below.
 func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {

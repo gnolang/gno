@@ -44,14 +44,16 @@ func IsReserved(stem string) bool {
 	return found
 }
 
-// IsCanonicalTaken reports whether the given canonical form is
-// already registered through this controller. Returns the original
-// (non-canonical) stem as the first result so callers can render the
-// existing name in collision errors. The input is expected to already
-// be canonicalized (caller should run Canonicalize first); if it
-// isn't, this lookup may report a false negative.
-func IsCanonicalTaken(canonical string) (existing string, taken bool) {
-	v, ok := canonicalStore.Get(canonical)
+// IsStemTaken reports whether the given alpha stem (or any l↔i
+// canonical-form variant of it) is already registered through this
+// controller. Pass the raw stem; canonicalization is applied
+// internally — there is no way to misuse this by forgetting to
+// canonicalize first.
+//
+// Returns the original (non-canonical) stem as the first result so
+// callers can render the existing name in collision errors.
+func IsStemTaken(stem string) (existing string, taken bool) {
+	v, ok := canonicalStore.Get(Canonicalize(stem))
 	if !ok {
 		return "", false
 	}
@@ -64,7 +66,7 @@ func IsCanonicalTaken(canonical string) (existing string, taken bool) {
 //
 // Does NOT run the canonical-collision check — that requires the
 // caller to provide context (the colliding name needs to be surfaced
-// to the user) and is not a pure format check. Run IsCanonicalTaken
+// to the user) and is not a pure format check. Run IsStemTaken
 // separately for collision detection.
 func ValidateNymFormat(username string) error {
 	if !reNym.MatchString(username) {

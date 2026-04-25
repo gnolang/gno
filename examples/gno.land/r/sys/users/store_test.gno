@@ -65,6 +65,13 @@ func TestRegister(t *testing.T) {
 		uassert.ErrorContains(t, RegisterUser(cross, "alice_", aliceAddr), ErrInvalidUsername.Error())
 		uassert.ErrorContains(t, RegisterUser(cross, "alice-", aliceAddr), ErrInvalidUsername.Error())
 
+		// Cannot have consecutive separators in the middle either.
+		// Each separator MUST be followed by at least one alphanumeric.
+		uassert.ErrorContains(t, RegisterUser(cross, "alice--bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "alice__bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "alice-_bob", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "alice_-bob", aliceAddr), ErrInvalidUsername.Error())
+
 		// Length cap of exactly 64 — boundary cases.
 		exactly65 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // 65 chars
 		uassert.ErrorContains(t, RegisterUser(cross, exactly65, aliceAddr), ErrInvalidUsername.Error())
