@@ -14,8 +14,14 @@
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/names
 loadpkg gno.land/r/sys/users
 loadpkg gno.land/r/sys/namereg/v1
+
+# Override the hardcoded admin in r/sys/names with test1 so the test can
+# call Enable() — necessary to actually exercise the verifier (pre-Enable
+# the verifier short-circuits to true and the bridge path is untested).
+patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
 
 adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
@@ -32,9 +38,28 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-alice123' -send 200000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stdout OK!
 
-# Verify: r/sys/users now resolves user1's address to "alice001".
+# Verify: r/sys/users now resolves user1's address to "nym-alice123".
 gnokey maketx run -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/verify_registered.gno
 stdout OK!
+
+# End-to-end bridge check: enable r/sys/names so the verifier actually runs,
+# then attempt to deploy a package under user1's registered namespace. This
+# exercises the chain → reNamespace regex → verifier → r/sys/users lookup
+# path. Regression guard: an earlier version of `reNamespace` truncated
+# captured paths at the first `-`, so a deploy under `gno.land/r/nym-alice123/*`
+# would have lookup-up "nym" instead of "nym-alice123" and failed with
+# "is not authorized to deploy packages to namespace nym".
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 2_600_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/nym-alice123/hello -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+
+# Sanity: a different namespace user1 doesn't own must still fail. Confirms
+# the verifier is actually consulted (i.e. Enable took effect) and didn't
+# silently allow everything.
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/notmine999/hello -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test user1
+stderr 'is not authorized to deploy packages to namespace'
 
 # Now exercise the removal path. DAO proposes to REMOVE namereg/v1 from the
 # controller whitelist.
@@ -53,6 +78,17 @@ stdout OK!
 # user should hard-fail with the whitelist error from r/sys/users.
 ! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-bobcat456' -send 200000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stderr 'does not exist in whitelist'
+
+-- pkg/gnomod.toml --
+module = "gno.land/r/hello"
+gno = "0.9"
+
+-- pkg/hello.gno --
+package hello
+
+func Hello(cur realm) string {
+	return "hi from nym-alice123"
+}
 
 -- run/init_govdao.gno --
 package main
