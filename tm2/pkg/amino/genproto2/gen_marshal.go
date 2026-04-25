@@ -427,7 +427,14 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 func (ctx *P3Context2) writeLengthPrefixedField(sb *strings.Builder, fnum uint32, typ3 amino.Typ3, writeEmpty bool, indent string) {
 	fmt.Fprintf(sb, "%sdataLen := before - offset\n", indent)
 	if !writeEmpty {
-		fmt.Fprintf(sb, "%sif dataLen > 0 {\n", indent)
+		// Mirror reflect writeFieldIfNotEmpty (binary_encode.go:592): roll back
+		// when the inner body is zero-length OR exactly one byte of value 0x00.
+		// Today no generator-emitted MarshalBinary2 produces a single-0x00
+		// output (writeReprMarshal rolls that back at the top level), but the
+		// gate must still match reflect for hand-written MarshalBinary2 and
+		// future emission paths. Sibling to the Any (amino.go) and Interface /
+		// AminoMarshaler-bytes emission-site rollbacks.
+		fmt.Fprintf(sb, "%sif dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {\n", indent)
 		fmt.Fprintf(sb, "%s\toffset = amino.PrependUvarint(buf, offset, uint64(dataLen))\n", indent)
 		fmt.Fprintf(sb, "%s\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, %s)\n", indent, fnum, typ3GoStr(typ3))
 		fmt.Fprintf(sb, "%s} else {\n", indent)
@@ -667,8 +674,17 @@ func (ctx *P3Context2) writeInterfaceFieldMarshal(sb *strings.Builder, accessor 
 	fmt.Fprintf(sb, "%s\toffset, err = cdc.MarshalAnyBinary2(%s, buf, offset)\n", indent, accessor)
 	fmt.Fprintf(sb, "%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent)
 	fmt.Fprintf(sb, "%s\tanyLen := before - offset\n", indent)
-	fmt.Fprintf(sb, "%s\toffset = amino.PrependUvarint(buf, offset, uint64(anyLen))\n", indent)
-	fmt.Fprintf(sb, "%s\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+	// Mirror reflect writeFieldIfNotEmpty (binary_encode.go:592): the
+	// outer field must be elided when the Any body is empty or a lone
+	// 0x00 byte. Sibling to the struct-repr / Time / Duration gate in
+	// writeLengthPrefixedField and the implicit-field-1 gate in
+	// writeReprMarshal.
+	fmt.Fprintf(sb, "%s\tif anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {\n", indent)
+	fmt.Fprintf(sb, "%s\t\toffset = amino.PrependUvarint(buf, offset, uint64(anyLen))\n", indent)
+	fmt.Fprintf(sb, "%s\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
+	fmt.Fprintf(sb, "%s\t} else {\n", indent)
+	fmt.Fprintf(sb, "%s\t\toffset = before\n", indent)
+	fmt.Fprintf(sb, "%s\t}\n", indent)
 	fmt.Fprintf(sb, "%s}\n", indent)
 }
 

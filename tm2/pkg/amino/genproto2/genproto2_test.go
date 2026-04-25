@@ -99,6 +99,116 @@ func TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz(t *testing
 	}
 }
 
+// TestWriteLengthPrefixedField_SingleZeroByteElision verifies that
+// writeLengthPrefixedField emits a gate that matches reflect's
+// writeFieldIfNotEmpty single-`0x00` rollback rule (binary_encode.go:592):
+// the outer field is elided not only when the inner body is zero-length,
+// but also when it is exactly one byte of value `0x00`.
+//
+// Today, no generator-emitted MarshalBinary2 produces a single-`0x00`
+// output (writeReprMarshal rolls that back at the top level). But if any
+// nested type has a hand-written MarshalBinary2 (or a future emission path
+// produces [0x00]), the generator would otherwise emit
+// `<key> 0x01 0x00` for a field reflect would drop. The gate must be
+// `dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00)`, not `dataLen > 0`.
+//
+// Regression guard for BINARY_FIXES #26 (coupled with #4/#22 at Any and
+// #13/#20 at Interface and AminoMarshaler-bytes emission sites).
+func TestWriteLengthPrefixedField_SingleZeroByteElision(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// Narrow the inspection to PrimitivesStruct.MarshalBinary2, which has
+	// multiple writeLengthPrefixedField call sites (Time, Duration, and
+	// nested struct fields) and is a stable anchor.
+	marker := "func (goo PrimitivesStruct) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("PrimitivesStruct MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// Before fix: gate is `if dataLen > 0`.
+	// After fix: gate is `if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00)`.
+	if strings.Contains(body, "if dataLen > 0 {") {
+		t.Errorf("writeLengthPrefixedField still uses `dataLen > 0` gate; expected single-0x00-aware check. Body:\n%s", body)
+	}
+	want := "if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {"
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q after fix; not found. Body:\n%s", want, body)
+	}
+}
+
+// TestWriteInterfaceFieldMarshal_SingleZeroByteElision verifies that
+// writeInterfaceFieldMarshal emits an outer rollback gate that matches
+// reflect's writeFieldIfNotEmpty (binary_encode.go:592): when
+// MarshalAnyBinary2 returns 0 bytes or exactly one byte of value 0x00,
+// the outer field key+length must be elided.
+//
+// Today, MarshalAnyBinary2 always emits field 1 (TypeURL) and cannot
+// return 0 or 1 bytes. But the outer-site rollback contract should
+// hold uniformly across all field kinds (sibling of #4/#22 at Any and
+// #26 at struct-repr fields). Without this gate, a future change to
+// MarshalAnyBinary2 (or any hand-written variant) that produced [0x00]
+// would yield `<key> 0x01 0x00` at the interface-field site while
+// reflect would emit nothing.
+//
+// Regression guard for BINARY_FIXES #13.
+func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// ReprElem2 has an `any` field (Value) exercising writeInterfaceFieldMarshal.
+	marker := "func (goo ReprElem2) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("ReprElem2 MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// Sanity: the interface branch uses MarshalAnyBinary2.
+	if !strings.Contains(body, "cdc.MarshalAnyBinary2(") {
+		t.Fatalf("expected MarshalAnyBinary2 call in ReprElem2 body. Body:\n%s", body)
+	}
+
+	// Before fix: the outer PrependUvarint+PrependFieldNumberAndTyp3 is emitted
+	// unconditionally (no gate on anyLen).
+	// After fix: wrapped in `if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00)`
+	//   with `else { offset = before }`.
+	want := "if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {"
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q after fix; not found. Body:\n%s", want, body)
+	}
+	// Rollback path must restore offset=before.
+	if !strings.Contains(body, "offset = before") {
+		t.Errorf("expected `offset = before` rollback path in interface branch. Body:\n%s", body)
+	}
+}
+
 // TestGoTypeName_NamedTypes verifies that goTypeName returns the named-type
 // form (e.g. "IntAr", "crypto.Address") rather than the structural form
 // ("[4]int", "[20]uint8") for named types whose underlying kind is array,

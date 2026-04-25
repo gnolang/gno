@@ -132,8 +132,12 @@ func (goo TypedValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.T != nil {
@@ -144,8 +148,12 @@ func (goo TypedValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	return offset, err
@@ -417,8 +425,12 @@ func (goo PointerValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.TV != nil {
@@ -548,7 +560,7 @@ func (goo ArrayValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -691,8 +703,12 @@ func (goo SliceValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	return offset, err
@@ -807,7 +823,7 @@ func (goo StructValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -952,8 +968,12 @@ func (goo FuncValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Name != "" {
@@ -968,8 +988,12 @@ func (goo FuncValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.IsClosure {
@@ -988,8 +1012,12 @@ func (goo FuncValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -999,7 +1027,7 @@ func (goo FuncValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -1297,7 +1325,7 @@ func (goo MapValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -1441,7 +1469,7 @@ func (goo MapListItem) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -1455,7 +1483,7 @@ func (goo MapListItem) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -1543,7 +1571,7 @@ func (goo BoundMethodValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -1569,7 +1597,7 @@ func (goo BoundMethodValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -1683,8 +1711,12 @@ func (goo TypeValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	return offset, err
@@ -1782,8 +1814,12 @@ func (goo PackageValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -1793,7 +1829,7 @@ func (goo PackageValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -2019,7 +2055,7 @@ func (goo Block) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 		} else {
@@ -2034,8 +2070,12 @@ func (goo Block) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	for i := len(goo.Values) - 1; i >= 0; i-- {
@@ -2057,8 +2097,12 @@ func (goo Block) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -2068,7 +2112,7 @@ func (goo Block) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -2412,7 +2456,7 @@ func (goo HeapItemValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -2426,7 +2470,7 @@ func (goo HeapItemValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -3087,7 +3131,7 @@ func (goo Location) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -3192,7 +3236,7 @@ func (goo Attributes) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -3280,7 +3324,7 @@ func (goo NameExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -3294,7 +3338,7 @@ func (goo NameExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -3416,7 +3460,7 @@ func (goo BasicLitExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -3510,8 +3554,12 @@ func (goo BinaryExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Op != 0 {
@@ -3526,8 +3574,12 @@ func (goo BinaryExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -3537,7 +3589,7 @@ func (goo BinaryExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -3691,8 +3743,12 @@ func (goo CallExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -3702,7 +3758,7 @@ func (goo CallExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -3894,8 +3950,12 @@ func (goo IndexExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.X != nil {
@@ -3906,8 +3966,12 @@ func (goo IndexExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -3917,7 +3981,7 @@ func (goo IndexExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4047,7 +4111,7 @@ func (goo SelectorExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -4062,8 +4126,12 @@ func (goo SelectorExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4073,7 +4141,7 @@ func (goo SelectorExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4198,8 +4266,12 @@ func (goo SliceExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.High != nil {
@@ -4210,8 +4282,12 @@ func (goo SliceExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Low != nil {
@@ -4222,8 +4298,12 @@ func (goo SliceExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.X != nil {
@@ -4234,8 +4314,12 @@ func (goo SliceExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4245,7 +4329,7 @@ func (goo SliceExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4405,8 +4489,12 @@ func (goo StarExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4416,7 +4504,7 @@ func (goo StarExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4507,8 +4595,12 @@ func (goo RefExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4518,7 +4610,7 @@ func (goo RefExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4613,8 +4705,12 @@ func (goo TypeAssertExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.X != nil {
@@ -4625,8 +4721,12 @@ func (goo TypeAssertExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4636,7 +4736,7 @@ func (goo TypeAssertExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4767,8 +4867,12 @@ func (goo UnaryExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4778,7 +4882,7 @@ func (goo UnaryExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -4893,8 +4997,12 @@ func (goo CompositeLitExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -4904,7 +5012,7 @@ func (goo CompositeLitExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -5041,8 +5149,12 @@ func (goo KeyValueExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Key != nil {
@@ -5053,8 +5165,12 @@ func (goo KeyValueExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -5064,7 +5180,7 @@ func (goo KeyValueExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -5203,7 +5319,7 @@ func (goo FuncLitExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -5217,7 +5333,7 @@ func (goo FuncLitExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -5231,7 +5347,7 @@ func (goo FuncLitExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -5444,7 +5560,7 @@ func (goo ConstExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -5459,8 +5575,12 @@ func (goo ConstExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -5470,7 +5590,7 @@ func (goo ConstExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -5582,8 +5702,12 @@ func (goo FieldTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Type != nil {
@@ -5594,8 +5718,12 @@ func (goo FieldTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -5605,7 +5733,7 @@ func (goo FieldTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -5619,7 +5747,7 @@ func (goo FieldTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -5754,8 +5882,12 @@ func (goo ArrayTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Len != nil {
@@ -5766,8 +5898,12 @@ func (goo ArrayTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -5777,7 +5913,7 @@ func (goo ArrayTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -5895,8 +6031,12 @@ func (goo SliceTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -5906,7 +6046,7 @@ func (goo SliceTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6024,7 +6164,7 @@ func (goo InterfaceTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6151,8 +6291,12 @@ func (goo ChanTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Dir != 0 {
@@ -6166,7 +6310,7 @@ func (goo ChanTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6291,7 +6435,7 @@ func (goo FuncTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6451,8 +6595,12 @@ func (goo MapTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Key != nil {
@@ -6463,8 +6611,12 @@ func (goo MapTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -6474,7 +6626,7 @@ func (goo MapTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6598,7 +6750,7 @@ func (goo StructTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6712,8 +6864,12 @@ func (goo constTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Source != nil {
@@ -6724,8 +6880,12 @@ func (goo constTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Last != nil {
@@ -6736,8 +6896,12 @@ func (goo constTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -6747,7 +6911,7 @@ func (goo constTypeExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -6917,7 +7081,7 @@ func (goo AssignStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -7128,7 +7292,7 @@ func (goo BlockStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -7142,7 +7306,7 @@ func (goo BlockStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -7308,7 +7472,7 @@ func (goo BranchStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -7455,7 +7619,7 @@ func (goo DeclStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -7580,7 +7744,7 @@ func (goo DeferStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -7594,7 +7758,7 @@ func (goo DeferStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -7683,8 +7847,12 @@ func (goo ExprStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -7694,7 +7862,7 @@ func (goo ExprStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -7800,8 +7968,12 @@ func (goo ForStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Cond != nil {
@@ -7812,8 +7984,12 @@ func (goo ForStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Init != nil {
@@ -7824,8 +8000,12 @@ func (goo ForStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -7835,7 +8015,7 @@ func (goo ForStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -7849,7 +8029,7 @@ func (goo ForStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -8064,7 +8244,7 @@ func (goo GoStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -8078,7 +8258,7 @@ func (goo GoStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -8166,7 +8346,7 @@ func (goo IfStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
 		} else {
@@ -8180,7 +8360,7 @@ func (goo IfStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 		} else {
@@ -8195,8 +8375,12 @@ func (goo IfStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Init != nil {
@@ -8207,8 +8391,12 @@ func (goo IfStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -8218,7 +8406,7 @@ func (goo IfStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -8232,7 +8420,7 @@ func (goo IfStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -8423,7 +8611,7 @@ func (goo IfCaseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -8437,7 +8625,7 @@ func (goo IfCaseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -8588,8 +8776,12 @@ func (goo IncDecStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -8599,7 +8791,7 @@ func (goo IncDecStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -8734,8 +8926,12 @@ func (goo RangeStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Key != nil {
@@ -8746,8 +8942,12 @@ func (goo RangeStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.X != nil {
@@ -8758,8 +8958,12 @@ func (goo RangeStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -8769,7 +8973,7 @@ func (goo RangeStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -8783,7 +8987,7 @@ func (goo RangeStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -9069,7 +9273,7 @@ func (goo ReturnStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -9218,7 +9422,7 @@ func (goo SelectStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -9347,8 +9551,12 @@ func (goo SelectCaseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -9358,7 +9566,7 @@ func (goo SelectCaseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -9372,7 +9580,7 @@ func (goo SelectCaseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -9542,8 +9750,12 @@ func (goo SendStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Chan != nil {
@@ -9554,8 +9766,12 @@ func (goo SendStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -9565,7 +9781,7 @@ func (goo SendStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -9698,8 +9914,12 @@ func (goo SwitchStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Init != nil {
@@ -9710,8 +9930,12 @@ func (goo SwitchStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -9721,7 +9945,7 @@ func (goo SwitchStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -9735,7 +9959,7 @@ func (goo SwitchStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -9971,7 +10195,7 @@ func (goo SwitchClauseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -9985,7 +10209,7 @@ func (goo SwitchClauseStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -10189,7 +10413,7 @@ func (goo EmptyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -10293,8 +10517,12 @@ func (goo bodyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Key != nil {
@@ -10305,8 +10533,12 @@ func (goo bodyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Active != nil {
@@ -10317,8 +10549,12 @@ func (goo bodyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.NumInit != 0 {
@@ -10333,8 +10569,12 @@ func (goo bodyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Cond != nil {
@@ -10345,8 +10585,12 @@ func (goo bodyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.NumStmts != 0 {
@@ -10395,7 +10639,7 @@ func (goo bodyStmt) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -10844,7 +11088,7 @@ func (goo FuncDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
 		} else {
@@ -10858,7 +11102,7 @@ func (goo FuncDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 		} else {
@@ -10876,7 +11120,7 @@ func (goo FuncDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -10890,7 +11134,7 @@ func (goo FuncDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -10904,7 +11148,7 @@ func (goo FuncDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -11130,7 +11374,7 @@ func (goo ImportDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -11144,7 +11388,7 @@ func (goo ImportDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -11265,8 +11509,12 @@ func (goo ValueDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	for i := len(goo.NameExprs) - 1; i >= 0; i-- {
@@ -11287,7 +11535,7 @@ func (goo ValueDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -11499,8 +11747,12 @@ func (goo TypeDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -11510,7 +11762,7 @@ func (goo TypeDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -11524,7 +11776,7 @@ func (goo TypeDecl) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -11649,8 +11901,12 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	for i := len(goo.Externs) - 1; i >= 0; i-- {
@@ -11722,7 +11978,7 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -11736,7 +11992,7 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -12266,7 +12522,7 @@ func (goo FileNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -12280,7 +12536,7 @@ func (goo FileNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -12472,7 +12728,7 @@ func (goo PackageNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -12486,7 +12742,7 @@ func (goo PackageNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -12626,8 +12882,12 @@ func (goo RefNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -12637,7 +12897,7 @@ func (goo RefNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -12736,8 +12996,12 @@ func (goo NameSource) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.NameExpr != nil {
@@ -12935,7 +13199,7 @@ func (goo Span) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, e
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
 		} else {
@@ -12949,7 +13213,7 @@ func (goo Span) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, e
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -13101,8 +13365,12 @@ func (goo PointerType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	return offset, err
@@ -13172,8 +13440,12 @@ func (goo ArrayType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Len != 0 {
@@ -13273,8 +13545,12 @@ func (goo SliceType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	return offset, err
@@ -13467,8 +13743,12 @@ func (goo FieldType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Name != "" {
@@ -13723,8 +14003,12 @@ func (goo MapType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Key != nil {
@@ -13735,8 +14019,12 @@ func (goo MapType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	return offset, err
@@ -13991,8 +14279,12 @@ func (goo DeclaredType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	{
@@ -14002,7 +14294,7 @@ func (goo DeclaredType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 0 {
+		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -14205,8 +14497,12 @@ func (goo ChanType) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 				return offset, err
 			}
 			anyLen := before - offset
-			offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependUvarint(buf, offset, uint64(anyLen))
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
 		}
 	}
 	if goo.Dir != 0 {
