@@ -261,10 +261,11 @@ render_template() {
 # ---- 1. valset reset tx (caller=manfred) ----
 # The template consults live v2 state at proposal-execution time and only
 # emits removals for validators actually present (see 01_reset_valset.gno.tmpl
-# header for rationale), so we pass bare bech32 address string literals here.
+# header for rationale), so we emit bare `address("g1...")` conversions —
+# matching the pattern used by 04_withdraw_manfred_execute.gno.tmpl.
 OLD_ADDRESSES_GO=""
 for a in "${OLD_ADDRS[@]}"; do
-  OLD_ADDRESSES_GO+="\"$a\","$'\n\t\t\t\t'
+  OLD_ADDRESSES_GO+="address(\"$a\"),"$'\n\t\t\t\t'
 done
 
 NEW_GO=$(jq -r '.[] | "{Address: \"\(.address)\", PubKey: \"\(.pub_key)\", VotingPower: \(.voting_power)},"' "$NEW_VALSET_JSON" | awk 'BEGIN{ORS="\n\t\t\t\t"}{print}')
