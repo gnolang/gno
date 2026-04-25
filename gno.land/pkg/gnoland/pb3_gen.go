@@ -26,8 +26,16 @@ func init() {
 func (goo GnoAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Attributes != 0 {
-		offset = amino.PrependUvarint(buf, offset, uint64(goo.Attributes))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.Attributes))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		before := offset
@@ -579,8 +587,16 @@ func (goo *TxWithMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 func (goo GnoTxMetadata) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Timestamp != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Timestamp))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Timestamp))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

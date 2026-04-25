@@ -416,9 +416,30 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 
 	default:
 		// Primitive types: value first, then field key.
-		ctx.writePrimitiveEncode(sb, accessor, rinfo, fopts, indent)
-		fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, %s)\n",
-			indent, fnum, typ3GoStr(typ3))
+		// Mirror reflect writeFieldIfNotEmpty (binary_encode.go:592): when
+		// writeEmpty is false, roll back if the emitted value is empty or a
+		// single 0x00 byte. Every current caller wraps this branch in an
+		// outer zeroCheck so the inner rollback never fires today; this is
+		// defensive hardening for any future caller that skips the outer
+		// check (sibling of writeReprMarshal / writeLengthPrefixedField /
+		// writeInterfaceFieldMarshal rollbacks).
+		if writeEmpty {
+			ctx.writePrimitiveEncode(sb, accessor, rinfo, fopts, indent)
+			fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, %s)\n",
+				indent, fnum, typ3GoStr(typ3))
+		} else {
+			fmt.Fprintf(sb, "%s{\n", indent)
+			fmt.Fprintf(sb, "%s\tbefore := offset\n", indent)
+			ctx.writePrimitiveEncode(sb, accessor, rinfo, fopts, indent+"\t")
+			fmt.Fprintf(sb, "%s\tvalueLen := before - offset\n", indent)
+			fmt.Fprintf(sb, "%s\tif valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {\n", indent)
+			fmt.Fprintf(sb, "%s\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, %s)\n",
+				indent, fnum, typ3GoStr(typ3))
+			fmt.Fprintf(sb, "%s\t} else {\n", indent)
+			fmt.Fprintf(sb, "%s\t\toffset = before\n", indent)
+			fmt.Fprintf(sb, "%s\t}\n", indent)
+			fmt.Fprintf(sb, "%s}\n", indent)
+		}
 	}
 }
 

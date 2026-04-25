@@ -53,12 +53,28 @@ func init() {
 func (goo BaseAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Sequence != 0 {
-		offset = amino.PrependUvarint(buf, offset, uint64(goo.Sequence))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.Sequence))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.AccountNumber != 0 {
-		offset = amino.PrependUvarint(buf, offset, uint64(goo.AccountNumber))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.AccountNumber))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.PubKey != nil {
 		if goo.PubKey != nil {
@@ -224,8 +240,16 @@ func (goo *BaseAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 func (goo BaseSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.SpendReset != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.SpendReset))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.SpendReset))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		repr, err := goo.SpendUsed.MarshalAmino()
@@ -238,8 +262,16 @@ func (goo BaseSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 		}
 	}
 	if goo.SpendPeriod != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.SpendPeriod))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.SpendPeriod))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		repr, err := goo.SpendLimit.MarshalAmino()
@@ -252,8 +284,16 @@ func (goo BaseSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 		}
 	}
 	if goo.ExpiresAt != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.ExpiresAt))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.ExpiresAt))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		repr, err := goo.MasterAddress.MarshalAmino()
@@ -506,8 +546,16 @@ func (goo GasPrice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 		}
 	}
 	if goo.Gas != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Gas))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Gas))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -802,8 +850,16 @@ func (goo Fee) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, er
 		}
 	}
 	if goo.GasWanted != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.GasWanted))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.GasWanted))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

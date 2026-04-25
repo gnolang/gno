@@ -209,6 +209,58 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestWriteFieldValueMarshal_DefaultBranchRollback verifies that
+// writeFieldValueMarshal's default (primitive) branch emits an inline
+// rollback matching reflect's writeFieldIfNotEmpty (binary_encode.go:592).
+// The rollback is dead code today: every current caller wraps the branch
+// in an outer zeroCheck, so primitive zero-values never reach the default
+// branch. But the generator's contract must mirror reflect's outer
+// rollback uniformly — this is the same defensive gate added at
+// writeLengthPrefixedField (#26), writeInterfaceFieldMarshal (#13), and
+// the writeReprMarshal primitive branch for repr-wrapped values.
+//
+// Regression guard for BINARY_FIXES #16.
+func TestWriteFieldValueMarshal_DefaultBranchRollback(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// FuzzUnsafeFloat has a Float32/Float64 field with zeroCheck == ""
+	// (float zeroCheck was intentionally elided by #30) — the only path
+	// that reaches writeFieldValueMarshal's default branch without an
+	// outer zeroCheck wrapper. Its Count (int) field also reaches the
+	// default branch but is shielded by an outer zeroCheck, so the inner
+	// rollback there is dead code. Either way, the new gate must appear
+	// in the generated body.
+	marker := "func (goo FuzzUnsafeFloat) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("FuzzUnsafeFloat MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// The new gate pattern (same idiom as writeLengthPrefixedField).
+	want := "if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {"
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q after fix; not found. Body:\n%s", want, body)
+	}
+	// Rollback path must restore offset = before.
+	if !strings.Contains(body, "offset = before") {
+		t.Errorf("expected `offset = before` rollback in default-branch gate. Body:\n%s", body)
+	}
+}
+
 // TestGenproto2_FloatRequiresUnsafe verifies that the generator's primitive
 // emission helpers (writePrimitiveEncode, primitiveValueSizeExpr,
 // writePrimitiveDecodeFrom) enforce reflect's invariant (binary_encode.go:186-198,

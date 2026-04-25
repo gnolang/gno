@@ -1074,32 +1074,88 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.IterNextCostFlat != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.IterNextCostFlat))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.IterNextCostFlat))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.FixedWriteDepth100 != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.FixedWriteDepth100))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.FixedWriteDepth100))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.FixedSetReadDepth100 != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.FixedSetReadDepth100))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.FixedSetReadDepth100))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.FixedGetReadDepth100 != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.FixedGetReadDepth100))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.FixedGetReadDepth100))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.MinWriteDepth100 != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.MinWriteDepth100))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.MinWriteDepth100))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.MinSetReadDepth100 != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.MinSetReadDepth100))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.MinSetReadDepth100))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.MinGetReadDepth100 != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.MinGetReadDepth100))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.MinGetReadDepth100))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		repr, err := goo.StorageFeeCollector.MarshalAmino()
