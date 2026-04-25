@@ -36,7 +36,28 @@ import (
 )
 
 var (
-	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	// admin is the GovDAO T1 multisig address, hardcoded at realm-source
+	// commit time. Its only capability is gating Enable() — a one-way,
+	// one-shot genesis activation of the namespace verifier. The address
+	// has no other authority on this realm; pause/unpause is gated on a
+	// separate GovDAO T1 proposal (see ProposeSetPaused), and there is
+	// no SetEnabled(false) or SetAdmin path.
+	//
+	// Hardcoding is acceptable because:
+	//   - Enable() is called once, at chain genesis. After that the
+	//     address is dead weight — no further capability flows through it.
+	//   - The narrow blast radius of "stale admin" is "Enable() can never
+	//     be called", which leaves the verifier in pre-Enable bypass mode
+	//     (returns true for all checks) — degraded but not exploitable.
+	//   - A rotation path would only matter if Enable() needed to be
+	//     re-issued. It doesn't; the flag is sticky.
+	//
+	// If the genesis activation pattern ever needs to change (e.g. a
+	// SetEnabled(false) emergency disable is added later), this admin
+	// model should be replaced with a GovDAO T1 proposal flow that
+	// mirrors ProposeSetPaused. Until then, the hardcoded address is
+	// the smallest viable governance surface for the one-shot use case.
+	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 	enabled = false
 	paused  = false
 )
