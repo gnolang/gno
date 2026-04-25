@@ -884,20 +884,51 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
-	ctr := ds.incGetPackageIndexCounter()
-	idxkey := []byte(backendPackageIndexKey(ctr))
+	// Write order is intentional: body (iavlStore) first, then index slot
+	// (baseStore), then counter bump (baseStore). This minimises the damage
+	// of a mid-AddMemPackage SIGKILL:
+	//   - crash after body, before index: orphaned iavlStore body; no
+	//     baseStore entry sees it, so IterMemPackage never yields it.
+	//     Harmless (wasted bytes).
+	//   - crash after index, before counter: index slot written at N+1 but
+	//     counter still N, so IterMemPackage iterates 1..N and never reads
+	//     the dangling slot. On retry, counter increments to N+1 and the
+	//     slot is overwritten with the new (consistent) value.
+	//   - crash after counter: fully consistent.
+	// The previous order (counter → index → body) could leave a counter
+	// pointing at an index pointing at a missing body, crash-looping the
+	// node; see commit b15ffde6e and the defensive consumer in machine.go.
+	// WAL flush ordering across substores is still non-deterministic, so
+	// the consumer-side nil skip must be retained as belt-and-braces.
 	bz := amino.MustMarshal(mpkg)
 	gas := overflow.Mulp(ds.gasConfig.GasAminoEncode, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAminoEncodeDesc)
-	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	if trace.StoreGasEnabled {
 		trace.Store("ENCODE_MEMPKG", gas, pathkey, len(bz), "none")
 	}
+	// 1) body
 	ds.iavlStore.Set(ds.gctx, pathkey, bz)
 	if trace.StoreGasEnabled {
 		trace.Store("IAVL_SET_MEMPKG", 0, pathkey, len(bz), "none")
 	}
+	// 2) index slot — compute the new counter value without committing it
+	// so we can write the slot *before* bumping the counter.
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
+	var prevCtr uint64
+	if ctrbz != nil {
+		n, err := strconv.Atoi(string(ctrbz))
+		if err != nil {
+			panic(err)
+		}
+		prevCtr = uint64(n)
+	}
+	ctr := prevCtr + 1
+	ds.baseStore.Set(ds.gctx, []byte(backendPackageIndexKey(ctr)), []byte(mpkg.Path))
+	// 3) counter bump — only now is the new package visible to
+	// IterMemPackage / NumMemPackages.
+	ds.baseStore.Set(ds.gctx, ctrkey, []byte(strconv.FormatUint(ctr, 10)))
 	size = len(bz)
 }
 
@@ -996,23 +1027,24 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 				idxkey := []byte(backendPackageIndexKey(i))
 				path := ds.baseStore.Get(ds.gctx, idxkey)
 				if path == nil {
-					panic(fmt.Sprintf(
-						"missing package index %d", i))
+					// Counter indicates i packages were added, but the
+					// index slot is missing. This can happen if the
+					// process was SIGKILLed mid-AddMemPackage between
+					// incrementing the counter and writing the index
+					// slot (body-first ordering in AddMemPackage closes
+					// most of this window, but cross-substore WAL flush
+					// ordering can still surface it). Yield nil so the
+					// consumer (machine.go PreprocessAllFilesAndSave
+					// BlockNodes) skips the slot with a logged warning
+					// instead of crash-looping the node.
+					ch <- nil
+					continue
 				}
 				mpkg := ds.GetMemPackage(string(path))
-				if mpkg == nil {
-					// baseStore has an index entry pointing at `path`, but
-					// iavlStore has no data under that path key. This
-					// indicates a cross-store atomicity violation (e.g. a
-					// crash between AddMemPackage's two Set calls, or
-					// between its baseStore commit and iavlStore commit).
-					// Fail loudly with context instead of yielding nil —
-					// downstream callers (ParseMemPackage etc.) will SIGSEGV
-					// on a nil MemPackage with no hint of the real cause.
-					panic(fmt.Sprintf(
-						"package index %d points at path %q but no MemPackage stored there "+
-							"(baseStore/iavlStore inconsistency)", i, string(path)))
-				}
+				// Note: mpkg == nil indicates baseStore has an index
+				// entry but iavlStore has no body under that path, i.e.
+				// another cross-substore atomicity violation. Same
+				// handling: yield nil, let the consumer skip+warn.
 				ch <- mpkg
 			}
 			close(ch)
