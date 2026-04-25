@@ -34,8 +34,16 @@ func (goo BitArray) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (in
 		}
 	}
 	if goo.Bits != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Bits))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Bits))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

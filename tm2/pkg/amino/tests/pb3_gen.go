@@ -891,12 +891,20 @@ func (goo ArraysStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 	}
 	for i := len(goo.BytesAr) - 1; i >= 0; i-- {
 		elem := goo.BytesAr[i]
-		offset = amino.PrependByteSlice(buf, offset, elem)
+		if len(elem) != 0 {
+			offset = amino.PrependByteSlice(buf, offset, elem)
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 17, amino.Typ3ByteLength)
 	}
 	for i := len(goo.StrAr) - 1; i >= 0; i-- {
 		elem := goo.StrAr[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 16, amino.Typ3ByteLength)
 	}
 	{
@@ -4118,12 +4126,20 @@ func (goo SlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 	}
 	for i := len(goo.BytesSl) - 1; i >= 0; i-- {
 		elem := goo.BytesSl[i]
-		offset = amino.PrependByteSlice(buf, offset, elem)
+		if len(elem) != 0 {
+			offset = amino.PrependByteSlice(buf, offset, elem)
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 17, amino.Typ3ByteLength)
 	}
 	for i := len(goo.StrSl) - 1; i >= 0; i-- {
 		elem := goo.StrSl[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 16, amino.Typ3ByteLength)
 	}
 	if len(goo.UintSl) != 0 {
@@ -5122,12 +5138,20 @@ func (goo SlicesSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offse
 	}
 	for i := len(goo.Uint8SlSl) - 1; i >= 0; i-- {
 		elem := goo.Uint8SlSl[i]
-		offset = amino.PrependByteSlice(buf, offset, elem)
+		if len(elem) != 0 {
+			offset = amino.PrependByteSlice(buf, offset, elem)
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
 	}
 	for i := len(goo.ByteSlSl) - 1; i >= 0; i-- {
 		elem := goo.ByteSlSl[i]
-		offset = amino.PrependByteSlice(buf, offset, elem)
+		if len(elem) != 0 {
+			offset = amino.PrependByteSlice(buf, offset, elem)
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3ByteLength)
 	}
 	for i := len(goo.IntSlSl) - 1; i >= 0; i-- {
@@ -16898,7 +16922,11 @@ func (goo FixedStringArrayStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, o
 	var err error
 	for i := len(goo.Names) - 1; i >= 0; i-- {
 		elem := goo.Names[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
 	return offset, err

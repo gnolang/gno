@@ -322,7 +322,11 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 	var err error
 	for i := len(goo.RestrictedDenoms) - 1; i >= 0; i-- {
 		elem := goo.RestrictedDenoms[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
 	return offset, err

@@ -1859,7 +1859,11 @@ func (goo PackageValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int)
 	}
 	for i := len(goo.FNames) - 1; i >= 0; i-- {
 		elem := goo.FNames[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 	}
 	if goo.PkgPath != "" {
@@ -12367,17 +12371,29 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	}
 	for i := len(goo.Externs) - 1; i >= 0; i-- {
 		elem := goo.Externs[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
 	}
 	for i := len(goo.Consts) - 1; i >= 0; i-- {
 		elem := goo.Consts[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
 	}
 	for i := len(goo.UnassignableNames) - 1; i >= 0; i-- {
 		elem := goo.UnassignableNames[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3ByteLength)
 	}
 	if len(goo.HeapItems) != 0 {
@@ -12405,7 +12421,11 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	}
 	for i := len(goo.Names) - 1; i >= 0; i-- {
 		elem := goo.Names[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 	}
 	if goo.NumNames != 0 {

@@ -29,8 +29,16 @@ func init() {
 func (goo bcBlockRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Height != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -147,8 +155,16 @@ func (goo *bcBlockResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte,
 func (goo bcNoBlockResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Height != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -196,8 +212,16 @@ func (goo *bcNoBlockResponseMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byt
 func (goo bcStatusRequestMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Height != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -245,8 +269,16 @@ func (goo *bcStatusRequestMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte,
 func (goo bcStatusResponseMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Height != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Height))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Height))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

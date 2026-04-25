@@ -3276,7 +3276,11 @@ func (goo ValidatorParams) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 	var err error
 	for i := len(goo.PubKeyTypeURLs) - 1; i >= 0; i-- {
 		elem := goo.PubKeyTypeURLs[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
 	return offset, err

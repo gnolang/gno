@@ -821,7 +821,11 @@ func (goo Data) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, e
 	var err error
 	for i := len(goo.Txs) - 1; i >= 0; i-- {
 		elem := goo.Txs[i]
-		offset = amino.PrependByteSlice(buf, offset, elem)
+		if len(elem) != 0 {
+			offset = amino.PrependByteSlice(buf, offset, elem)
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
 	return offset, err

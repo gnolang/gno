@@ -39,7 +39,11 @@ func (goo MsgCall) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int
 	var err error
 	for i := len(goo.Args) - 1; i >= 0; i-- {
 		elem := goo.Args[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3ByteLength)
 	}
 	if goo.Func != "" {
@@ -744,7 +748,11 @@ func (goo TypeCheckError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 	var err error
 	for i := len(goo.Errors) - 1; i >= 0; i-- {
 		elem := goo.Errors[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 	}
 	return offset, err

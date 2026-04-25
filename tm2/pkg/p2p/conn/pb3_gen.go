@@ -92,12 +92,28 @@ func (goo PacketMsg) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (i
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 	}
 	if goo.EOF != 0 {
-		offset = amino.PrependUvarint(buf, offset, uint64(goo.EOF))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.EOF))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.ChannelID != 0 {
-		offset = amino.PrependUvarint(buf, offset, uint64(goo.ChannelID))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.ChannelID))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }

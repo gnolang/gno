@@ -452,7 +452,11 @@ func (goo MsgCreateSession) MarshalBinary2(cdc *amino.Codec, buf []byte, offset 
 	}
 	for i := len(goo.AllowPaths) - 1; i >= 0; i-- {
 		elem := goo.AllowPaths[i]
-		offset = amino.PrependString(buf, offset, string(elem))
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 	}
 	if goo.ExpiresAt != 0 {

@@ -567,8 +567,31 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 			fmt.Fprintf(sb, "%soffset = amino.PrependUvarint(buf, offset, uint64(dataLen))\n", extraIndent)
 			fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", extraIndent, fopts.BinFieldNum)
 		} else {
-			// Non-struct ByteLength element (string, []byte): includes own length prefix.
-			ctx.writeElementEncode(sb, elemAccessor, einfo, fopts, extraIndent)
+			// Non-struct ByteLength element (string, []byte). Mirror reflect's
+			// isNonstructDefaultValue branch (binary_encode.go:416-432): when the
+			// non-pointer element is default (e.g. "" string, nil/empty []byte),
+			// reflect emits a direct 0x00 sentinel rather than length-prefixed
+			// content. Wire bytes are identical (PrependString("") also emits a
+			// single 0x00 length-byte), but the explicit branch removes the
+			// dependency on downstream length-emission composition — a future
+			// refactor of writeElementEncode that changed sentinel formation
+			// would otherwise silently regress.
+			//
+			// Skip for AminoMarshaler elements: zeroCheck uses ReprType, so the
+			// emitted comparison would be against the wrong Go type. Reflect's
+			// isNonstructDefaultValue keys off the GO-SIDE Kind (Array/Struct
+			// for AminoMarshaler types) and returns false anyway, so no
+			// sentinel branch is taken there in either codec.
+			zc := ctx.zeroCheck(elemAccessor, einfo, fopts)
+			if zc != "" && !ertIsPointer && !einfo.IsAminoMarshaler {
+				fmt.Fprintf(sb, "%sif %s {\n", extraIndent, zc)
+				ctx.writeElementEncode(sb, elemAccessor, einfo, fopts, extraIndent+"\t")
+				fmt.Fprintf(sb, "%s} else {\n", extraIndent)
+				fmt.Fprintf(sb, "%s\toffset = amino.PrependByte(buf, offset, 0x00)\n", extraIndent)
+				fmt.Fprintf(sb, "%s}\n", extraIndent)
+			} else {
+				ctx.writeElementEncode(sb, elemAccessor, einfo, fopts, extraIndent)
+			}
 			fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", extraIndent, fopts.BinFieldNum)
 		}
 

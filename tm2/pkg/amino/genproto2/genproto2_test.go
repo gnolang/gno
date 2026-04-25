@@ -209,6 +209,54 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestWriteUnpackedListMarshal_NonPointerZeroSentinel verifies that
+// writeUnpackedListMarshal's non-pointer ByteLength-element branch emits
+// an explicit zeroCheck-driven sentinel, mirroring reflect's
+// isNonstructDefaultValue branch (binary_encode.go:416-432). Wire bytes
+// are identical to the prior unconditional path (PrependString("") also
+// emits 0x00), but the explicit branch removes the dependency on
+// downstream length-emission composition.
+//
+// Regression guard for BINARY_FIXES #7.
+func TestWriteUnpackedListMarshal_NonPointerZeroSentinel(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// SlicesStruct has `StrSl []string` — a non-pointer Typ3ByteLength
+	// element list. After fix, its MarshalBinary2 must contain the
+	// `if elem != "" { ... } else { 0x00 }` branch on the StrSl loop.
+	marker := "func (goo SlicesStruct) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("SlicesStruct MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// New gate must appear: explicit if-zero-then-sentinel branch on string
+	// elements. zeroCheck for string returns `accessor != ""`.
+	want := `if elem != "" {`
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q in unpacked list emission after fix; not found. Body:\n%s", want, body)
+	}
+	// Direct sentinel emission rather than via PrependString("").
+	wantSentinel := "amino.PrependByte(buf, offset, 0x00)"
+	if !strings.Contains(body, wantSentinel) {
+		t.Errorf("expected explicit %q sentinel after fix; not found. Body:\n%s", wantSentinel, body)
+	}
+}
+
 // TestWriteFieldValueMarshal_DefaultBranchRollback verifies that
 // writeFieldValueMarshal's default (primitive) branch emits an inline
 // rollback matching reflect's writeFieldIfNotEmpty (binary_encode.go:592).
