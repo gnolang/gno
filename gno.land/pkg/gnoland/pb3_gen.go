@@ -44,7 +44,7 @@ func (goo GnoAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -133,7 +133,7 @@ func (goo GnoSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
@@ -239,7 +239,7 @@ func (goo GnoGenesisState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
 		} else {
@@ -253,7 +253,7 @@ func (goo GnoGenesisState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 		} else {
@@ -267,7 +267,7 @@ func (goo GnoGenesisState) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
 		} else {
@@ -505,7 +505,7 @@ func (goo TxWithMetadata) MarshalBinary2(cdc *amino.Codec, buf []byte, offset in
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {

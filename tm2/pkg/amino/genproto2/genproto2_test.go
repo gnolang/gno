@@ -101,22 +101,22 @@ func TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz(t *testing
 	}
 }
 
-// TestWriteLengthPrefixedField_SingleZeroByteElision verifies that
-// writeLengthPrefixedField emits a gate that matches reflect's
-// writeFieldIfNotEmpty single-`0x00` rollback rule (binary_encode.go:592):
-// the outer field is elided not only when the inner body is zero-length,
-// but also when it is exactly one byte of value `0x00`.
+// TestWriteLengthPrefixedField_GateMatchesReflect verifies that
+// writeLengthPrefixedField uses `if dataLen > 0` (not a stricter
+// single-0x00-aware predicate). The gate operates at the INNER-BODY
+// layer (`dataLen` = body bytes BEFORE the length prefix is added).
+// Reflect's writeFieldIfNotEmpty rollback (binary_encode.go:592)
+// operates at the OUTER-VALUE layer (post-prefix) and only fires when
+// the value bytes total exactly 1 byte = 0x00, which for Typ3ByteLength
+// fields corresponds to an EMPTY inner body (writeMaybeBare's
+// empty-contents branch writes [0x00] as the lone length byte) — i.e.
+// dataLen == 0 here. A 1-byte inner body of [0x00] would be wrapped by
+// reflect as `<key> 0x01 0x00` (3 bytes) and NOT rolled back. The
+// generator must mirror that.
 //
-// Today, no generator-emitted MarshalBinary2 produces a single-`0x00`
-// output (writeReprMarshal rolls that back at the top level). But if any
-// nested type has a hand-written MarshalBinary2 (or a future emission path
-// produces [0x00]), the generator would otherwise emit
-// `<key> 0x01 0x00` for a field reflect would drop. The gate must be
-// `dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00)`, not `dataLen > 0`.
-//
-// Regression guard for BINARY_FIXES #26 (coupled with #4/#22 at Any and
-// #13/#20 at Interface and AminoMarshaler-bytes emission sites).
-func TestWriteLengthPrefixedField_SingleZeroByteElision(t *testing.T) {
+// Regression guard for the layer-mismatch revert of an earlier #26
+// attempt that was stricter than reflect.
+func TestWriteLengthPrefixedField_GateMatchesReflect(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(tests.Package)
 	cdc.Seal()
@@ -128,9 +128,6 @@ func TestWriteLengthPrefixedField_SingleZeroByteElision(t *testing.T) {
 		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
 	}
 
-	// Narrow the inspection to PrimitivesStruct.MarshalBinary2, which has
-	// multiple writeLengthPrefixedField call sites (Time, Duration, and
-	// nested struct fields) and is a stable anchor.
 	marker := "func (goo PrimitivesStruct) MarshalBinary2"
 	idx := strings.Index(src, marker)
 	if idx < 0 {
@@ -142,33 +139,28 @@ func TestWriteLengthPrefixedField_SingleZeroByteElision(t *testing.T) {
 	}
 	body := src[idx : idx+end]
 
-	// Before fix: gate is `if dataLen > 0`.
-	// After fix: gate is `if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00)`.
-	if strings.Contains(body, "if dataLen > 0 {") {
-		t.Errorf("writeLengthPrefixedField still uses `dataLen > 0` gate; expected single-0x00-aware check. Body:\n%s", body)
+	if !strings.Contains(body, "if dataLen > 0 {") {
+		t.Errorf("writeLengthPrefixedField must use `if dataLen > 0` gate (matches reflect). Body:\n%s", body)
 	}
-	want := "if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {"
-	if !strings.Contains(body, want) {
-		t.Errorf("expected %q after fix; not found. Body:\n%s", want, body)
+	if strings.Contains(body, "dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00)") {
+		t.Errorf("writeLengthPrefixedField is using a stricter-than-reflect gate at the inner-body layer. Reflect's :592 rollback fires at the post-prefix layer only, where dataLen=0 already covers the case. Body:\n%s", body)
 	}
 }
 
-// TestWriteInterfaceFieldMarshal_SingleZeroByteElision verifies that
-// writeInterfaceFieldMarshal emits an outer rollback gate that matches
-// reflect's writeFieldIfNotEmpty (binary_encode.go:592): when
-// MarshalAnyBinary2 returns 0 bytes or exactly one byte of value 0x00,
-// the outer field key+length must be elided.
+// TestWriteInterfaceFieldMarshal_NoOuterRollback verifies that
+// writeInterfaceFieldMarshal emits length prefix + field key
+// unconditionally when the interface accessor is non-nil. There is no
+// single-0x00 outer rollback gate: `anyLen` is the inner Any body size
+// BEFORE the length prefix; reflect's writeFieldIfNotEmpty rollback
+// fires at the post-prefix layer and only when the value bytes total
+// exactly 1 byte = 0x00 (i.e. anyLen == 0). Today MarshalAnyBinary2
+// always emits TypeURL ≥ 6 bytes so the case is unreachable; the gate
+// would diverge from reflect for a hypothetical 1-byte [0x00] body
+// (reflect would emit `<key> 0x01 0x00`, generator would elide).
 //
-// Today, MarshalAnyBinary2 always emits field 1 (TypeURL) and cannot
-// return 0 or 1 bytes. But the outer-site rollback contract should
-// hold uniformly across all field kinds (sibling of #4/#22 at Any and
-// #26 at struct-repr fields). Without this gate, a future change to
-// MarshalAnyBinary2 (or any hand-written variant) that produced [0x00]
-// would yield `<key> 0x01 0x00` at the interface-field site while
-// reflect would emit nothing.
-//
-// Regression guard for BINARY_FIXES #13.
-func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
+// Regression guard for the layer-mismatch revert of an earlier #13
+// attempt that was stricter than reflect.
+func TestWriteInterfaceFieldMarshal_NoOuterRollback(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(tests.Package)
 	cdc.Seal()
@@ -180,7 +172,6 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
 	}
 
-	// ReprElem2 has an `any` field (Value) exercising writeInterfaceFieldMarshal.
 	marker := "func (goo ReprElem2) MarshalBinary2"
 	idx := strings.Index(src, marker)
 	if idx < 0 {
@@ -192,22 +183,11 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 	body := src[idx : idx+end]
 
-	// Sanity: the interface branch uses MarshalAnyBinary2.
 	if !strings.Contains(body, "cdc.MarshalAnyBinary2(") {
 		t.Fatalf("expected MarshalAnyBinary2 call in ReprElem2 body. Body:\n%s", body)
 	}
-
-	// Before fix: the outer PrependUvarint+PrependFieldNumberAndTyp3 is emitted
-	// unconditionally (no gate on anyLen).
-	// After fix: wrapped in `if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00)`
-	//   with `else { offset = before }`.
-	want := "if anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {"
-	if !strings.Contains(body, want) {
-		t.Errorf("expected %q after fix; not found. Body:\n%s", want, body)
-	}
-	// Rollback path must restore offset=before.
-	if !strings.Contains(body, "offset = before") {
-		t.Errorf("expected `offset = before` rollback path in interface branch. Body:\n%s", body)
+	if strings.Contains(body, "anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00)") {
+		t.Errorf("writeInterfaceFieldMarshal must NOT use a single-0x00 gate on anyLen — that operates at the wrong layer. Reflect's :592 rollback fires at post-prefix only. Body:\n%s", body)
 	}
 }
 

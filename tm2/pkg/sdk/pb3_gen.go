@@ -52,7 +52,7 @@ func (goo Result) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			return offset, err
 		}
 		dataLen := before - offset
-		if dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {
+		if dataLen > 0 {
 			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {

@@ -415,14 +415,17 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 		fmt.Fprintf(sb, "%s}\n", indent)
 
 	default:
-		// Primitive types: value first, then field key.
-		// Mirror reflect writeFieldIfNotEmpty (binary_encode.go:592): when
-		// writeEmpty is false, roll back if the emitted value is empty or a
-		// single 0x00 byte. Every current caller wraps this branch in an
-		// outer zeroCheck so the inner rollback never fires today; this is
-		// defensive hardening for any future caller that skips the outer
-		// check (sibling of writeReprMarshal / writeLengthPrefixedField /
-		// writeInterfaceFieldMarshal rollbacks).
+		// Primitive types (Bool/Int/Uint/Float/etc., non-length-prefixed):
+		// value first, then field key. Mirror reflect writeFieldIfNotEmpty
+		// (binary_encode.go:592): when writeEmpty is false, roll back if
+		// the emitted value bytes total exactly 1 byte = 0x00. The check
+		// operates at the same primitive-value layer as reflect's :592,
+		// which is correct for non-ByteLength typ3 fields. Every current
+		// caller wraps this branch in an outer zeroCheck so the inner
+		// rollback never fires today; defensive hardening only.
+		// Sibling of writeReprMarshal's primitive default branch (same
+		// layer) and writeByteLengthFieldWithRollback (operates on
+		// length-prefixed values).
 		if writeEmpty {
 			ctx.writePrimitiveEncode(sb, accessor, rinfo, fopts, indent)
 			fmt.Fprintf(sb, "%soffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, %s)\n",
@@ -446,13 +449,21 @@ func (ctx *P3Context2) writeFieldValueMarshal(sb *strings.Builder, accessor stri
 // writeByteLengthFieldWithRollback emits a length-self-prefixing value
 // (PrependString / PrependByteSlice) followed by the field key, with a
 // post-emission rollback that mirrors reflect's writeFieldIfNotEmpty
-// (binary_encode.go:592) when writeEmpty=false. Catches the corner case
-// where an AminoMarshaler returns a repr whose Go-level zeroCheck doesn't
-// match wire-zeroness — e.g. a `[0]byte` repr whose PrependByteSlice emits
-// `[0x00]` (length-0). Sibling of writeLengthPrefixedField (#26),
-// writeInterfaceFieldMarshal (#13), and the writeFieldValueMarshal default
-// branch rollback (#16); makes the rollback contract uniform across all
-// emission-site kinds for BINARY_FIXES #20.
+// (binary_encode.go:592) when writeEmpty=false. Operates at the
+// OUTER-VALUE layer: `valueLen` is the bytes written by `valueStmt`,
+// which already includes the length prefix (PrependString writes
+// `<uvarint-len><content>`). For an empty string / nil byte slice /
+// `[0]byte`, PrependString/ByteSlice emits exactly `[0x00]` (the
+// length-0 byte) and the gate fires — same byte position reflect's :592
+// would inspect. Sibling of the writeFieldValueMarshal default branch
+// rollback (#16), which operates at the same value-bytes layer.
+//
+// LAYER NOTE: this is intentionally NOT used at writeLengthPrefixedField
+// (struct/Time/Duration) or writeInterfaceFieldMarshal (interface)
+// sites, because those measure inner-body length BEFORE the prefix is
+// added. At those sites, the correct gate is `dataLen > 0` (matches
+// reflect's empty-contents case in writeMaybeBare) and a 1-byte body of
+// [0x00] correctly does NOT roll back.
 func (ctx *P3Context2) writeByteLengthFieldWithRollback(sb *strings.Builder, fnum uint32, writeEmpty bool, indent, valueStmt string) {
 	if writeEmpty {
 		fmt.Fprintf(sb, "%s%s\n", indent, valueStmt)
@@ -473,17 +484,21 @@ func (ctx *P3Context2) writeByteLengthFieldWithRollback(sb *strings.Builder, fnu
 
 // writeLengthPrefixedField writes the length prefix + field key after data has been
 // written backward. Assumes `before` and `offset` are in scope.
+//
+// LAYER NOTE (re BINARY_FIXES #26): the gate operates at the INNER-BODY layer
+// (`dataLen` = bytes of the body BEFORE the length prefix is added). Reflect's
+// `writeFieldIfNotEmpty` rollback (binary_encode.go:592) operates at the
+// OUTER-VALUE layer (after `writeMaybeBare` has emitted `<uvarint-len><body>`).
+// For Typ3ByteLength fields, reflect's :592 rollback fires only when the
+// outer-value bytes total exactly 1 byte = 0x00, which corresponds to
+// writeMaybeBare's empty-contents branch (writes `[0x00]` as the lone length
+// byte) — i.e., dataLen == 0 here. Therefore the correct gate at this layer
+// is `dataLen > 0`. A hypothetical 1-byte body of `[0x00]` would be wrapped
+// by reflect as `<key> 0x01 0x00` (3 bytes), NOT rolled back. Mirror that.
 func (ctx *P3Context2) writeLengthPrefixedField(sb *strings.Builder, fnum uint32, typ3 amino.Typ3, writeEmpty bool, indent string) {
 	fmt.Fprintf(sb, "%sdataLen := before - offset\n", indent)
 	if !writeEmpty {
-		// Mirror reflect writeFieldIfNotEmpty (binary_encode.go:592): roll back
-		// when the inner body is zero-length OR exactly one byte of value 0x00.
-		// Today no generator-emitted MarshalBinary2 produces a single-0x00
-		// output (writeReprMarshal rolls that back at the top level), but the
-		// gate must still match reflect for hand-written MarshalBinary2 and
-		// future emission paths. Sibling to the Any (amino.go) and Interface /
-		// AminoMarshaler-bytes emission-site rollbacks.
-		fmt.Fprintf(sb, "%sif dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00) {\n", indent)
+		fmt.Fprintf(sb, "%sif dataLen > 0 {\n", indent)
 		fmt.Fprintf(sb, "%s\toffset = amino.PrependUvarint(buf, offset, uint64(dataLen))\n", indent)
 		fmt.Fprintf(sb, "%s\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, %s)\n", indent, fnum, typ3GoStr(typ3))
 		fmt.Fprintf(sb, "%s} else {\n", indent)
@@ -762,23 +777,25 @@ func (ctx *P3Context2) writeElementEncode(sb *strings.Builder, accessor string, 
 	}
 }
 
+// writeInterfaceFieldMarshal emits MarshalAnyBinary2 + length prefix + key for
+// a non-nil interface field. There is no single-0x00 outer rollback gate here:
+// `anyLen` is the size of the inner Any body BEFORE the length prefix is
+// added; reflect's writeFieldIfNotEmpty rollback (binary_encode.go:592) fires
+// at the OUTER-VALUE layer (post-prefix) and only when the value bytes total
+// exactly 1 byte = 0x00, which for Typ3ByteLength happens only when the
+// inner body is empty (writeMaybeBare's empty-contents branch). For interface
+// fields, MarshalAnyBinary2 always emits at minimum a TypeURL field (≥ 6
+// bytes), so anyLen ≥ 6 always; an empty/single-0x00 body case isn't reachable.
+// See LAYER NOTE on writeLengthPrefixedField above for the layer-mismatch
+// rationale.
 func (ctx *P3Context2) writeInterfaceFieldMarshal(sb *strings.Builder, accessor string, fnum uint32, indent string) {
 	fmt.Fprintf(sb, "%sif %s != nil {\n", indent, accessor)
 	fmt.Fprintf(sb, "%s\tbefore := offset\n", indent)
 	fmt.Fprintf(sb, "%s\toffset, err = cdc.MarshalAnyBinary2(%s, buf, offset)\n", indent, accessor)
 	fmt.Fprintf(sb, "%s\tif err != nil {\n%s\t\treturn offset, err\n%s\t}\n", indent, indent, indent)
 	fmt.Fprintf(sb, "%s\tanyLen := before - offset\n", indent)
-	// Mirror reflect writeFieldIfNotEmpty (binary_encode.go:592): the
-	// outer field must be elided when the Any body is empty or a lone
-	// 0x00 byte. Sibling to the struct-repr / Time / Duration gate in
-	// writeLengthPrefixedField and the implicit-field-1 gate in
-	// writeReprMarshal.
-	fmt.Fprintf(sb, "%s\tif anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00) {\n", indent)
-	fmt.Fprintf(sb, "%s\t\toffset = amino.PrependUvarint(buf, offset, uint64(anyLen))\n", indent)
-	fmt.Fprintf(sb, "%s\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
-	fmt.Fprintf(sb, "%s\t} else {\n", indent)
-	fmt.Fprintf(sb, "%s\t\toffset = before\n", indent)
-	fmt.Fprintf(sb, "%s\t}\n", indent)
+	fmt.Fprintf(sb, "%s\toffset = amino.PrependUvarint(buf, offset, uint64(anyLen))\n", indent)
+	fmt.Fprintf(sb, "%s\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", indent, fnum)
 	fmt.Fprintf(sb, "%s}\n", indent)
 }
 
