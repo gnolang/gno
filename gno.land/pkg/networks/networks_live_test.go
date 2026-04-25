@@ -2,8 +2,10 @@ package networks
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
@@ -12,12 +14,13 @@ import (
 // and verifies the reported chain_id matches the registry. Detects a stale
 // networks.json (renamed/retired testnet, wrong RPC URL, etc.).
 //
-// Skipped under -short to keep the default test run hermetic; CI can run it
-// on a schedule by invoking `go test ./gno.land/pkg/networks/`.
+// Opt-in: skipped unless GNO_NETWORKS_LIVE=1 is set. Keeps the default
+// `go test ./...` (and `make test`) hermetic. The dedicated make target
+// `_test.networks.live` and the scheduled CI workflow set it explicitly.
 func TestActiveNetworksReachable(t *testing.T) {
 	t.Parallel()
-	if testing.Short() {
-		t.Skip("skipping live network check in -short mode")
+	if os.Getenv("GNO_NETWORKS_LIVE") != "1" {
+		t.Skip("skipping live network check; set GNO_NETWORKS_LIVE=1 to run")
 	}
 
 	reg, err := Load()
@@ -45,11 +48,15 @@ func TestActiveNetworksReachable(t *testing.T) {
 }
 
 func fetchChainID(c *http.Client, rpcEndpoint string) (string, error) {
-	resp, err := c.Get(rpcEndpoint + "/status")
+	url := rpcEndpoint + "/status"
+	resp, err := c.Get(url)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("status %d from %s", resp.StatusCode, url)
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err

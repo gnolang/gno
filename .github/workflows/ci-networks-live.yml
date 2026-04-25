@@ -1,0 +1,80 @@
+name: ci / networks-live
+
+# Detects a stale gno.land/pkg/networks/networks.json by hitting each active
+# network's RPC /status and asserting the reported chain_id matches the
+# registry. Runs nightly and on demand; not wired into general PR CI to
+# avoid blocking on transient upstream RPC issues. The path-scoped trigger
+# does block PRs that actually edit the registry, so typos and wrong URLs
+# are caught before merge.
+
+on:
+  schedule:
+    # 04:17 UTC daily — off-peak, avoids the busy top-of-hour cron window.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "gno.land/pkg/networks/**"
+      - "gno.land/Makefile"
+      - ".github/workflows/ci-networks-live.yml"
+
+concurrency:
+  group: networks-live-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write # to file an issue when the scheduled run fails
+
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: gno.land/go.mod
+
+      - name: Run live network check
+        run: make -C gno.land _test.networks.live
+
+      - name: Open issue on scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const title = "[auto] `networks.json` may be out of date";
+            const body = [
+              "The scheduled `ci / networks-live` job failed.",
+              "",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              "",
+              "One or more active networks in `gno.land/pkg/networks/networks.json`",
+              "either reported a different `chain_id` or were unreachable. Update",
+              "the registry (or the relevant RPC URL) and close this issue."
+            ].join("\n");
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "networks-registry",
+              per_page: 1,
+            });
+            if (existing.length > 0) {
+              core.info(`Open issue already exists: #${existing[0].number}`);
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["networks-registry"],
+            });

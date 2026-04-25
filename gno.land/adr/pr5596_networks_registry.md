@@ -52,8 +52,9 @@ need to reimplement parsing:
 gnoweb serves the registry at `GET /api/networks` via a new handler in
 `gno.land/pkg/gnoweb/networks.go`, wired into `NewRouter` alongside the
 existing `/status.json`, `/liveness`, and `/ready` handlers. The response
-body is the embedded JSON verbatim; `Content-Type: application/json` and a
-5-minute `Cache-Control` header are set. Tools that want live data can hit
+body is the embedded JSON verbatim; `Content-Type: application/json`,
+`Cache-Control: public, max-age=3600`, an `ETag`, and
+`Access-Control-Allow-Origin: *` are set. Tools that want live data can hit
 `https://gno.land/api/networks`, cache it, and fall back to their own
 hardcoded defaults when offline.
 
@@ -61,9 +62,12 @@ hardcoded defaults when offline.
 
 `networks_live_test.go` in `gno.land/pkg/networks` hits each `active`
 network's `/status` endpoint and asserts the reported `chain_id` matches the
-registry. The test skips under `-short` so default `go test ./...` runs stay
-hermetic; CI can run it on a schedule (or contributors locally) to catch a
-renamed/retired testnet or a wrong RPC URL before users do.
+registry. The test is opt-in: it skips unless `GNO_NETWORKS_LIVE=1` is set,
+so default `go test ./...` and `make test` runs stay hermetic. The
+`_test.networks.live` make target sets the variable, and a scheduled GitHub
+Actions workflow (`.github/workflows/ci-networks-live.yml`) runs it nightly
+plus on PRs that touch `gno.land/pkg/networks/**`. A failed scheduled run
+auto-files an issue labeled `networks-registry`.
 
 ### Documentation
 

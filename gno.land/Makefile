@@ -101,4 +101,4 @@ _test.pkgs.gas:;     ./pkg/integration/update_gas_wanted.sh
 # Live check that ./pkg/networks/networks.json matches what each active
 # network's RPC reports. Requires internet; intended for scheduled CI or
 # manual runs after rotating a testnet — not part of the default `make test`.
-_test.networks.live:; go test -count=1 ./pkg/networks/ -run TestActiveNetworksReachable
+_test.networks.live:; GNO_NETWORKS_LIVE=1 go test -count=1 ./pkg/networks/ -run TestActiveNetworksReachable

@@ -7,6 +7,7 @@
 | Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
 | Staging           | https://rpc.staging.gno.land:443         | `staging`    |
 | Test11            | https://rpc.test11.testnets.gno.land:443 | `test11`     |
+| Test12            | https://rpc.test12.testnets.gno.land:443 | `test12`     |
 
 This table mirrors the canonical network registry at
 [`gno.land/pkg/networks/networks.json`](../../gno.land/pkg/networks/networks.json).
