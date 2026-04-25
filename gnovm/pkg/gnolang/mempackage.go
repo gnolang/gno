@@ -52,8 +52,8 @@ var (
 	//  - math
 	//  - math/fourier123
 	//  - justnodots
-	//  - _nodots123
-	//  - _nodots123/_subpath1/_subpath2
+	//  - nodots123
+	//  - nodots123/subpath1/subpath2
 	Re_gnoStdPkgPath = r.N("PKGPATH",
 		Re_name, r.S(r.E(`/`), Re_name)) // no dots, just name(s) with `/` delimiter.
 
@@ -62,8 +62,8 @@ var (
 	Re_domain = r.N("DOMAIN", // all lowercase
 		r.N("SLD", r.P(r.P(r.C(`a-z0-9-`)), r.E(`.`))), // sub(level)domain, permissive w/ dashes.
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
-	Re_name    = r.G(r.M(`_`), r.C(`a-z`), r.S(r.C(`a-z0-9_`))) // optional leading _, start with letter, no dots!
-	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))       // starts with g1, all lowercase.
+	Re_name    = r.G(r.C(`a-z`), r.M(r.S(r.C(`a-z0-9_-`)), r.C(`a-z0-9`))) // start with letter, middle hyphens/underscores, no dots!
+	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                  // starts with g1, all lowercase.
 
 	// Compile at init to avoid runtime compilation.
 	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()

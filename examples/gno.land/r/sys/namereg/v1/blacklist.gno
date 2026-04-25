@@ -1,0 +1,111 @@
+package namereg
+
+// reservedNames lists role/system identifiers that must never be allocated
+// as a registered name. The intent is to prevent Tier-1 auto-registrations
+// like "nym-admin000" from impersonating system roles.
+//
+// Sources merged here:
+//   - Common role names already covered by Handshake's valid.json (the 90k
+//     curated trademark/gTLD-application list) — admin, help, support, etc.
+//   - Common role names NOT covered by Handshake — administrator, root,
+//     sysadmin, owner, staff, api, etc.
+//   - RFC 2606 / RFC 6761 reserved labels — example, invalid, localhost,
+//     local, test.
+//
+// Plural rule: every entry below is ALSO reserved with the literal "s"
+// suffix appended. So "doc" reserves both "doc" and "docs"; "setting"
+// reserves both "setting" and "settings"; "new" covers "news", and so on.
+// Entries are stored in the singular here and the validator appends "s"
+// at check time. This halves list maintenance and avoids the temptation
+// to add `name+"s"` after every singular entry.
+//
+// Note on length: the Tier-1 regex restricts the [a-z]{5,13} middle to
+// 5–13 chars, so entries shorter than 5 (mod, api, bot, god, gno, ...) and
+// longer than 13 (administrator, jesuschrist, newtendermint, ...) cannot
+// appear there even without this list. They are kept anyway because:
+//
+//	(a) the Tier-2 (DAO-allocated) path has no regex enforcement and these
+//	    names should not be granted by governance either; and
+//	(b) cross-reference value — a single canonical list is easier to audit
+//	    than two tier-specific lists with overlapping intent.
+//
+// Sortedness: entries must be sorted lexicographically (Go's < on strings,
+// which is byte-wise ASCII). TestReservedNamesSorted enforces this.
+var reservedNames = []string{
+	"about",
+	"abuse",
+	"account",
+	"admin",
+	"administrator",
+	"anonymous",
+	"api",
+	"atom",
+	"atomone",
+	"bitcoin",
+	"blockchain",
+	"blog",
+	"bot",
+	"chain",
+	"coin",
+	"community",
+	"contact",
+	"cosmos",
+	"crypto",
+	"daemon",
+	"dashboard",
+	"default",
+	"doc",
+	"domain",
+	"email",
+	"ether",
+	"ethereum",
+	"everyone",
+	"example",
+	"gno",
+	"gnoland",
+	"gnome",
+	"gnot",
+	"gnoworld",
+	"god",
+	"guest",
+	"help",
+	"home",
+	"host",
+	"info",
+	"invalid",
+	"jaekwon",
+	"jesus",
+	"jesuschrist",
+	"local",
+	"localhost",
+	"login",
+	"mail",
+	"mod",
+	"moderator",
+	"new",
+	"newtendermint",
+	"null",
+	"owner",
+	"photon",
+	"profile",
+	"register",
+	"registry",
+	"resolution",
+	"resolve",
+	"resolver",
+	"root",
+	"security",
+	"service",
+	"setting",
+	"shop",
+	"signup",
+	"staff",
+	"store",
+	"support",
+	"sysadmin",
+	"system",
+	"team",
+	"tendermint",
+	"test",
+	"user",
+}

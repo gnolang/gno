@@ -151,7 +151,72 @@ func TestMemPackage_Validate(t *testing.T) {
 			"",
 			"expected user package path for \"MPUserProd\" but got \"example.com/p&th/abc/def\"",
 		},
-
+		{
+			"leading_hyphen",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/-path",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/-path\"",
+		},
+		{
+			"trailing_hyphen",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/path-",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/path-\"",
+		},
+		{
+			"between_hyphen",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/p-ath",
+				Files: heyPackageFiles,
+			},
+			"",
+			"",
+		},
+		{
+			"invalid_hyphen_1",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/-",
+				Files: heyPackageFiles,
+			},
+			"invalid package/realm path",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/-\"",
+		},
+		{
+			"invalid_hyphen_2",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/-/-",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/-/-\"",
+		},
+		{
+			"invalid_hyphen_3",
+			&std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "hey",
+				Path:  "gno.land/r/path/--/path",
+				Files: heyPackageFiles,
+			},
+			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/--/path\"",
+		},
 		{
 			"leading_underscore",
 			&std.MemPackage{
@@ -161,7 +226,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: heyPackageFiles,
 			},
 			"",
-			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/_path\"",
 		},
 		{
 			"trailing_underscore",
@@ -172,7 +237,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: heyPackageFiles,
 			},
 			"",
-			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/path_\"",
 		},
 		{
 			"between_underscore",

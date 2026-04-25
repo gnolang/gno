@@ -53,14 +53,17 @@ func TestRegister(t *testing.T) {
 		uassert.ErrorContains(t, RegisterUser(cross, "ALICE", aliceAddr), ErrInvalidUsername.Error())
 		uassert.ErrorContains(t, RegisterUser(cross, "aLice", aliceAddr), ErrInvalidUsername.Error())
 
-		// Must start with a letter (after optional underscore). Names
-		// starting with a digit are rejected.
+		// Must start with a lowercase letter. Names starting with a digit,
+		// underscore, or hyphen are rejected.
 		uassert.ErrorContains(t, RegisterUser(cross, "1alice", aliceAddr), ErrInvalidUsername.Error())
 		uassert.ErrorContains(t, RegisterUser(cross, "9", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "_alice", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "-alice", aliceAddr), ErrInvalidUsername.Error())
 
-		// Leading underscore is allowed iff followed by a letter.
-		uassert.ErrorContains(t, RegisterUser(cross, "_1alice", aliceAddr), ErrInvalidUsername.Error())
-		uassert.ErrorContains(t, RegisterUser(cross, "__alice", aliceAddr), ErrInvalidUsername.Error())
+		// Cannot end with a separator either (the new mempackage-aligned
+		// regex requires the final char to be in [a-z0-9]).
+		uassert.ErrorContains(t, RegisterUser(cross, "alice_", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser(cross, "alice-", aliceAddr), ErrInvalidUsername.Error())
 
 		// Length cap of exactly 64 — boundary cases.
 		exactly65 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" // 65 chars
@@ -68,13 +71,24 @@ func TestRegister(t *testing.T) {
 	})
 
 	t.Run("valid_edge_cases", func(t *testing.T) {
-		// Names that previously would have been rejected by the old
-		// alphanum regex but ARE valid under the new mempackage-aligned
-		// reName: leading underscore + letter + body.
+		// Names valid under the mempackage-aligned reName: starts with a
+		// letter, may contain hyphens or underscores in the middle, ends
+		// in [a-z0-9]. The hyphen support is what enables the namereg/v1
+		// `nym-...` prefix shape.
 		cleanStore(t)
 		urequire.NoError(t, RegisterUser(cross,
-			"_alice",
-			testutils.TestAddress("u_alice")))
+			"nym-alice123",
+			testutils.TestAddress("u_nym_alice")))
+
+		cleanStore(t)
+		urequire.NoError(t, RegisterUser(cross,
+			"a_b_c",
+			testutils.TestAddress("u_underscore")))
+
+		cleanStore(t)
+		urequire.NoError(t, RegisterUser(cross,
+			"a",
+			testutils.TestAddress("u_singlechar")))
 
 		cleanStore(t)
 		// 64 chars exactly (length cap is inclusive).

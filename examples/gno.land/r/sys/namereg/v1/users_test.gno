@@ -1,4 +1,4 @@
-package users
+package namereg
 
 import (
 	"chain"
@@ -21,17 +21,20 @@ func init() {
 }
 
 func TestRegister_Valid(t *testing.T) {
+	// Stems chosen with no `l` characters to keep canonical forms identical
+	// to the originals — avoids accidental cross-subtest collisions with
+	// other tests that may register l-bearing names.
 	validUsernames := []string{
-		"abc123",               // letters + digits
-		"abc123_def456",        // mix of letters / digits / underscore
-		"abc_defghi_jklmn123",  // 19 chars
-		"abc_defghi_jklmno456", // 20 chars (max)
+		"nym-bravo123",      // 5-char stem (minimum)
+		"nym-tango456",      // 5-char stem
+		"nym-victor789",     // 6-char stem
+		"nym-romeoecho012",  // 10-char stem
+		"nym-mikefoxhote345", // 13-char stem (maximum)
 	}
 
 	for _, username := range validUsernames {
 		addr := testutils.TestAddress(username)
 
-		// Simulate a proper user call with the required 1GNOT fee.
 		testing.SetRealm(testing.NewUserRealm(addr))
 		testing.SetOriginCaller(addr)
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
@@ -43,122 +46,199 @@ func TestRegister_Valid(t *testing.T) {
 }
 
 func TestRegister_Free(t *testing.T) {
+	oldPrice := registerPrice
+	defer func() { registerPrice = oldPrice }()
 	registerPrice = 0
 
-	addr := testutils.TestAddress("alice456")
+	addr := testutils.TestAddress("free-payer")
 
-	// Simulate a proper user call with 0gnot fee.
 	testing.SetRealm(testing.NewUserRealm(addr))
 	testing.SetOriginCaller(addr)
 
 	urequire.NotPanics(t, func() {
-		Register(cross, "alice456")
+		Register(cross, "nym-foxtrot456")
 	})
 }
 
-func TestRegister_Invalid(t *testing.T) {
-	t.Run("invalid usernames", func(t *testing.T) {
-		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob123")))
+func TestRegister_InvalidFormat(t *testing.T) {
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("fmt-payer")))
 
-		invalidUsernames := []string{
-			"alice",                 // vanity
-			"",                      // empty
-			"    ",                  // empty
-			"123",                   // only numbers (no letters)
-			"abc",                   // only letters (no numbers)
-			"alice&#($)123",         // invalid characters
-			"Alice123",              // uppercase
-			"abcdefghijklmnopqr123", // 21 chars (> max)
-			"toolongusernametoolongusernametoolongusername123", // super long
-		}
+	cases := []string{
+		"",                       // empty
+		"    ",                   // whitespace
+		"alice123",               // missing nym- prefix
+		"usr-alice123",           // wrong prefix
+		"nym-",                   // prefix only
+		"nym-abc123",             // stem too short (3 chars, need ≥5)
+		"nym-abcd123",            // stem too short (4 chars)
+		"nym-abcdefghijklmn123",  // stem too long (14 chars, need ≤13)
+		"nym-Alice123",           // uppercase in stem
+		"nym-al1ce123",           // digit in stem
+		"nym-alice12",            // only 2 trailing digits
+		"nym-alice1234",          // 4 trailing digits (extra digit in stem too long)
+		"nym-alice&#($)123",      // special chars in stem
+	}
 
-		for _, username := range invalidUsernames {
-			uassert.AbortsWithMessage(t, ErrInvalidUsername.Error(), func() {
-				Register(cross, username)
-			})
-		}
-	})
-
-	t.Run("taken username", func(t *testing.T) {
-		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob123")))
-
-		username := "bob123"
-
-		urequire.NotPanics(t, func() {
+	for _, username := range cases {
+		uassert.AbortsWithMessage(t, ErrInvalidFormat.Error(), func() {
 			Register(cross, username)
 		})
+	}
+}
 
-		uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
-			Register(cross, username) // already registered
+func TestRegister_ReservedPrefix(t *testing.T) {
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("prefix-payer")))
+
+	cases := []string{
+		"nym-gnoblah123",   // gno prefix
+		"nym-gnomeland456", // gno prefix
+		"nym-gillette789",  // gi prefix
+		"nym-glasgow012",   // gl prefix (also canonicalizes to gi prefix)
+	}
+
+	for _, username := range cases {
+		uassert.AbortsWithMessage(t, ErrReservedPrefix.Error(), func() {
+			Register(cross, username)
 		})
+	}
+}
+
+func TestRegister_Blacklisted(t *testing.T) {
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("blk-payer")))
+
+	cases := []string{
+		// `admin` is in reservedNames; with stem 5 chars it now matches the regex.
+		"nym-admin123",
+		// `support` is reserved (7 chars).
+		"nym-support456",
+		// `bitcoin` is reserved (7 chars).
+		"nym-bitcoin789",
+		// Implicit s-suffix expansion: `blog` is reserved, so `blogs` (stem
+		// = blog+s) must also be rejected.
+		"nym-blogs012",
+		// Canonical match: `setting` is reserved → canonical "setting" (no l).
+		// Try `setting` directly via 7-char stem.
+		"nym-setting345",
+		// Canonical match: `news` is reserved via `new+s` rule; canonical
+		// of `news` is `news`. With a 5-char stem this won't reach here
+		// (stem must be ≥5). Use a longer reserved name with l→i interaction:
+		// `tendermint` (10 chars, no l) → canonical = tendermint → blacklisted.
+		"nym-tendermint678",
+	}
+
+	for _, username := range cases {
+		uassert.AbortsWithMessage(t, ErrBlacklisted.Error(), func() {
+			Register(cross, username)
+		})
+	}
+}
+
+func TestRegister_CanonicalCollision(t *testing.T) {
+	// First register a name with `l` in the stem.
+	addr1 := testutils.TestAddress("collision-1")
+	testing.SetRealm(testing.NewUserRealm(addr1))
+	testing.SetOriginCaller(addr1)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	urequire.NotPanics(t, func() {
+		Register(cross, "nym-balloon123")
 	})
 
-	t.Run("invalid payment", func(t *testing.T) {
-		addr := testutils.TestAddress("bob123")
-
-		testing.SetRealm(testing.NewUserRealm(addr))
-		testing.SetOriginCaller(addr)
-
-		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 12))) // invalid payment amount
-
-		// Substring-match because errInvalidPayment() formats with the
-		// current registerPrice (audit #13) — exact-string matching
-		// would couple this test to the price literal.
-		uassert.AbortsContains(t, ErrInvalidPayment.Error(), func() {
-			Register(cross, "alice123")
-		})
+	// Then attempt to register the canonical-equivalent variant
+	// (l→i applied: `balloon` → `baiioon`). Must reject with collision.
+	addr2 := testutils.TestAddress("collision-2")
+	testing.SetRealm(testing.NewUserRealm(addr2))
+	testing.SetOriginCaller(addr2)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	uassert.AbortsWithMessage(t, ErrCanonicalCollision.Error(), func() {
+		Register(cross, "nym-baiioon456")
 	})
 
-	// Audit finding #11: the OriginSend() payment check is only trustworthy
-	// when the direct caller is a pure EOA (IsUserCall). Any intermediate
-	// code realm can attach -send to the tx, keep the coins, and call
-	// Register; OriginSend() would still describe the envelope but namereg
-	// would receive nothing. The EOA-only guard must reject all such callers.
-	t.Run("intermediate code realm is rejected", func(t *testing.T) {
-		// PreviousRealm is a published code realm (e.g. a wrapper contract
-		// trying to skim registration fees). IsUserCall() must be false.
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/evil/wrapper"))
-		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-
-		uassert.AbortsWithMessage(t, ErrNonUserCall.Error(), func() {
-			Register(cross, "alice123")
-		})
+	// Reverse direction also blocked: register a non-l name first, then
+	// attempt an l-variant that canonicalizes to the same form.
+	addr3 := testutils.TestAddress("collision-3")
+	testing.SetRealm(testing.NewUserRealm(addr3))
+	testing.SetOriginCaller(addr3)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	urequire.NotPanics(t, func() {
+		Register(cross, "nym-papaiio789")
 	})
 
-	// Audit finding #13: the OriginSend mismatch error must report the
-	// CURRENT registerPrice, not the value frozen at package init time.
-	// Before the fix, ErrInvalidPayment was constructed once with
-	// ufmt.Errorf at init and silently drifted out of date after every
-	// ProposeNewRegisterPrice execution. Now errInvalidPayment() formats
-	// lazily.
-	t.Run("payment error reflects current registerPrice", func(t *testing.T) {
-		// Save and restore registerPrice so subsequent tests in this file
-		// see the default 1 GNOT.
-		oldPrice := registerPrice
-		defer func() { registerPrice = oldPrice }()
+	addr4 := testutils.TestAddress("collision-4")
+	testing.SetRealm(testing.NewUserRealm(addr4))
+	testing.SetOriginCaller(addr4)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	uassert.AbortsWithMessage(t, ErrCanonicalCollision.Error(), func() {
+		Register(cross, "nym-papallo012")
+	})
+}
 
-		// Set a non-default price the realm wasn't initialized with.
-		registerPrice = 5_000_000
+func TestRegister_TakenUsername(t *testing.T) {
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("taken-payer")))
 
-		addr := testutils.TestAddress("payer")
-		testing.SetRealm(testing.NewUserRealm(addr))
-		testing.SetOriginCaller(addr)
-		// Send the OLD default amount, which is now wrong.
-		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1_000_000)))
+	username := "nym-zulutwo567"
 
-		// The panic message must include "5000000" (the current price),
-		// not "1000000" (the value frozen at init in the old code).
-		uassert.AbortsContains(t, "5000000", func() {
-			Register(cross, "abc999")
-		})
+	urequire.NotPanics(t, func() {
+		Register(cross, username)
+	})
 
-		// Sanity: still also includes the sentinel stem so callers using
-		// substring matching against ErrInvalidPayment continue to work.
-		uassert.AbortsContains(t, ErrInvalidPayment.Error(), func() {
-			Register(cross, "abc999")
-		})
+	// Re-registration of the same exact name is rejected at the canonical-
+	// store layer (same canonical → collision) before reaching r/sys/users.
+	// (Pre-bridge this would have been rejected by susers.ErrNameTaken; now
+	// the namereg-side collision check fires first, which is fine.)
+	uassert.AbortsWithMessage(t, ErrCanonicalCollision.Error(), func() {
+		Register(cross, username)
+	})
+}
+
+func TestRegister_InvalidPayment(t *testing.T) {
+	addr := testutils.TestAddress("payment-payer")
+
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 12))) // invalid
+
+	uassert.AbortsContains(t, ErrInvalidPayment.Error(), func() {
+		Register(cross, "nym-yankee345")
+	})
+}
+
+// Audit finding #11: the OriginSend() payment check is only trustworthy
+// when the direct caller is a pure EOA (IsUserCall). Any intermediate
+// code realm can attach -send to the tx, keep the coins, and call
+// Register; OriginSend() would still describe the envelope but namereg
+// would receive nothing. The EOA-only guard must reject all such callers.
+func TestRegister_IntermediateCodeRealmRejected(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/evil/wrapper"))
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+
+	uassert.AbortsWithMessage(t, ErrNonUserCall.Error(), func() {
+		Register(cross, "nym-whisky345")
+	})
+}
+
+// Audit finding #13: the OriginSend mismatch error must report the
+// CURRENT registerPrice, not the value frozen at package init time.
+func TestRegister_PaymentErrorReflectsCurrentPrice(t *testing.T) {
+	oldPrice := registerPrice
+	defer func() { registerPrice = oldPrice }()
+
+	registerPrice = 5_000_000
+
+	addr := testutils.TestAddress("price-payer")
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1_000_000))) // wrong
+
+	uassert.AbortsContains(t, "5000000", func() {
+		Register(cross, "nym-xrayfox678")
+	})
+
+	uassert.AbortsContains(t, ErrInvalidPayment.Error(), func() {
+		Register(cross, "nym-xrayfox678")
 	})
 }
 
@@ -187,11 +267,10 @@ func TestProposeNewRegisterPrice_floor(t *testing.T) {
 	})
 
 	t.Run("at floor is accepted", func(t *testing.T) {
-		// MinRegisterPrice itself must pass — the floor is inclusive.
 		urequire.NotPanics(t, func() { ProposeNewRegisterPrice(MinRegisterPrice) })
 	})
 
 	t.Run("above floor is accepted", func(t *testing.T) {
-		urequire.NotPanics(t, func() { ProposeNewRegisterPrice(1_000_000_000) }) // 1k GNOT
+		urequire.NotPanics(t, func() { ProposeNewRegisterPrice(1_000_000_000) })
 	})
 }

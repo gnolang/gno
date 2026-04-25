@@ -1,17 +1,12 @@
-package users
+package namereg
 
 import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
-	"regexp"
 
 	"gno.land/p/moul/fifo"
 	susers "gno.land/r/sys/users"
-)
-
-const (
-	reValidUsername = "^[a-z]{3}[_a-z0-9]{0,14}[0-9]{3}$"
 )
 
 // MinRegisterPrice is the lowest price (in ugnot) that
@@ -22,14 +17,23 @@ const MinRegisterPrice = int64(100_000) // 0.1 GNOT
 
 var (
 	registerPrice = int64(200_000_000) // 200 GNOT (anti-squatting deterrent)
-	latestUsers   = fifo.New(10)       // Save the latest 10 users for rendering purposes
-	reUsername    = regexp.MustCompile(reValidUsername)
+	latestUsers   = fifo.New(100)      // Save the latest 100 users for rendering purposes
 )
 
 // Register registers a new username for the caller.
-// A valid username must start with a minimum of 3 letters,
-// end with a minimum of 3 numbers, and be less than 20 chars long.
-// All letters must be lowercase, and the only valid special char is `_`.
+//
+// Valid usernames match `nym-[a-z]{5,13}\d{3}`:
+//   - literal `nym-` prefix (4 chars)
+//   - 5-13 lowercase letters (the alpha stem)
+//   - exactly 3 trailing decimal digits
+//
+// Total length 12-20 chars. The alpha stem additionally must NOT start
+// with `gno`/`gi`/`gl`, must not match a reserved role name (with
+// implicit `s`-suffix expansion), and must not canonicalize to an
+// alpha stem already registered through this controller (`l→i`
+// substitution). See ValidateNymFormat and IsCanonicalTaken for the
+// individual checks; both are exported for use by future controllers.
+//
 // Only direct EOA (maketx call) invocations are supported.
 func Register(_ realm, username string) {
 	// Anti-squatting payment check, two paired guards:
@@ -59,14 +63,30 @@ func Register(_ realm, username string) {
 		panic(errInvalidPayment())
 	}
 
-	if matched := reUsername.MatchString(username); !matched {
-		panic(ErrInvalidUsername)
+	// Format + prefix + reserved-name check. ValidateNymFormat returns
+	// one of ErrInvalidFormat, ErrReservedPrefix, ErrBlacklisted.
+	if err := ValidateNymFormat(username); err != nil {
+		panic(err)
+	}
+
+	// Canonical-collision check. Stem is everything between the `nym-`
+	// prefix and the 3 trailing digits.
+	stem := username[4 : len(username)-3]
+	canonical := Canonicalize(stem)
+	if _, taken := IsCanonicalTaken(canonical); taken {
+		panic(ErrCanonicalCollision)
 	}
 
 	registrant := runtime.PreviousRealm().Address()
 	if err := susers.RegisterUser(cross, username, registrant); err != nil {
 		panic(err)
 	}
+
+	// Persist the canonical→original mapping so future registrations
+	// can detect collisions. Stored as the bare alpha stem (not the
+	// full nym-XXX999) because the prefix and digits are constant
+	// across all Tier-1 names and contribute nothing to distinction.
+	canonicalStore.Set(canonical, stem)
 
 	latestUsers.Append(username)
 	chain.Emit("Registration", "address", registrant.String(), "name", username)

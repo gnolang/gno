@@ -30,7 +30,7 @@ func init() {
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-	users.Register(cross, "alice123")
+	users.Register(cross, "nym-alice123")
 
 	// Prop to delete user
 	testing.SetOriginCaller(c)
@@ -62,7 +62,7 @@ func main() {
 	println("--")
 	println(dao.Render("0"))
 
-	data, _ := susers.ResolveName("alice123")
+	data, _ := susers.ResolveName("nym-alice123")
 	if data == nil {
 		println("Successfully deleted alice")
 	}
@@ -74,7 +74,7 @@ func main() {
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
-// ### [Prop #0 - User Registry V1: Delete user \`alice123\`](/r/gov/dao:0)
+// ### [Prop #0 - User Registry V1: Delete user \`nym\-alice123\`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
@@ -85,7 +85,7 @@ func main() {
 //
 //
 // --
-// ## Prop #0 - User Registry V1: Delete user \`alice123\`
+// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test
@@ -111,7 +111,7 @@ func main() {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user \`alice123\`
+// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test
@@ -137,7 +137,7 @@ func main() {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user \`alice123\`
+// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // delete user test
