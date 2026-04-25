@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"math"
 	"strings"
 	"testing"
 
@@ -766,10 +767,86 @@ func TestBinaryRejectsUnknownFields_InUnpackedListElement(t *testing.T) {
 	}
 }
 
-// BINARY_FIXES.md #29: unmarshalAnyBinary2Depth must zero the target on
-// empty bz, aligning with the #11 philosophy (reset-on-entry enables
-// receiver reuse). Matters for pools / repeated decode into the same
-// target where a prior decode left a concrete value in the interface.
+// Zero Float with `amino:"unsafe"` must be emitted, not skipped. Reflect's
+// `isNonstructDefaultValue` (reflect.go:101) returns false for Float kinds
+// — Float is never "default" — so reflect always emits 4 or 8 zero bytes.
+// The generator's `zeroCheck` must return "" for Float (no zero-skip) to
+// match. Exercised via FuzzUnsafeFloat which carries `unsafe`-tagged
+// float32 and float64 fields.
+func TestBinaryParity_ZeroFloatUnsafe(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	cases := []struct {
+		name string
+		v    FuzzUnsafeFloat
+	}{
+		{"zero floats", FuzzUnsafeFloat{Score: 0, Weight: 0, Label: "hi", Count: 1}},
+		{"finite floats", FuzzUnsafeFloat{Score: 3.14, Weight: -2.5, Label: "x", Count: 2}},
+		{"positive inf", FuzzUnsafeFloat{Score: math.Inf(1), Weight: float32(math.Inf(1)), Count: 3}},
+		{"negative inf", FuzzUnsafeFloat{Score: math.Inf(-1), Weight: float32(math.Inf(-1)), Count: 4}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			bzReflect, err := cdc.MarshalReflect(&c.v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			bzGen, err := cdc.MarshalBinary2(&c.v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(bzReflect, bzGen) {
+				t.Errorf("encoder parity broken:\nreflect:   %X\ngenerator: %X", bzReflect, bzGen)
+			}
+
+			var reDecoded FuzzUnsafeFloat
+			if err := cdc.UnmarshalReflect(bzReflect, &reDecoded); err != nil {
+				t.Fatal(err)
+			}
+			var genDecoded FuzzUnsafeFloat
+			if err := genDecoded.UnmarshalBinary2(cdc, bzGen, 0); err != nil {
+				t.Fatal(err)
+			}
+			if reDecoded != c.v {
+				t.Errorf("reflect roundtrip: want %+v, got %+v", c.v, reDecoded)
+			}
+			if genDecoded != c.v {
+				t.Errorf("generator roundtrip: want %+v, got %+v", c.v, genDecoded)
+			}
+		})
+	}
+
+	// NaN: can't use direct equality (NaN != NaN). Check bit patterns instead.
+	t.Run("NaN", func(t *testing.T) {
+		v := FuzzUnsafeFloat{Score: math.NaN(), Weight: float32(math.NaN()), Count: 5}
+		bzReflect, err := cdc.MarshalReflect(&v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bzGen, err := cdc.MarshalBinary2(&v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(bzReflect, bzGen) {
+			t.Errorf("encoder parity broken for NaN:\nreflect:   %X\ngenerator: %X", bzReflect, bzGen)
+		}
+
+		var genDecoded FuzzUnsafeFloat
+		if err := genDecoded.UnmarshalBinary2(cdc, bzGen, 0); err != nil {
+			t.Fatal(err)
+		}
+		if !math.IsNaN(genDecoded.Score) || !math.IsNaN(float64(genDecoded.Weight)) {
+			t.Errorf("expected NaN in decoded fields; got Score=%v Weight=%v", genDecoded.Score, genDecoded.Weight)
+		}
+	})
+}
+
+// unmarshalAnyBinary2Depth must zero the target on empty bz, aligning
+// with the UnmarshalBinary2 reset-on-entry philosophy (receiver reuse).
+// Matters for pools / repeated decode into the same target where a prior
+// decode left a concrete value in the interface.
 func TestUnmarshalAnyBinary2_EmptyBzResetsReceiver(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -804,12 +881,11 @@ func TestUnmarshalAnyBinary2_EmptyBzResetsReceiver(t *testing.T) {
 	})
 }
 
-// BINARY_FIXES.md #14+#23: hand-written Any decoders must reject non-ASCII
-// typeURL strings early, matching reflect's decodeReflectBinaryAny check
-// at binary_decode.go:420 (`!IsASCIIText(typeURL)`). Both
-// `unmarshalAnyBinary2Depth` (amino.go:738, used by generated code) and
-// its sibling `unmarshalAnyBinary2` (amino.go:1157, used by public
-// UnmarshalAny fallback) need the check.
+// Hand-written Any decoders must reject non-ASCII typeURL strings early,
+// matching reflect's decodeReflectBinaryAny check at binary_decode.go:420
+// (`!IsASCIIText(typeURL)`). Both `unmarshalAnyBinary2Depth` (amino.go:738,
+// used by generated code) and its sibling `unmarshalAnyBinary2`
+// (amino.go:1157, used by public UnmarshalAny fallback) need the check.
 func TestUnmarshalAnyBinary2_RejectsNonASCIITypeURL(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -841,10 +917,10 @@ func TestUnmarshalAnyBinary2_RejectsNonASCIITypeURL(t *testing.T) {
 	}
 }
 
-// BINARY_FIXES.md #11: UnmarshalBinary2 must reset absent-from-wire fields
-// to their zero/default value. Reflect (binary_decode.go:971-974, 999-1002)
-// calls `defaultValue(frv.Type())` for every registered field whose tag is
-// missing on the wire. Generator was wire-driven: it left unvisited fields
+// UnmarshalBinary2 must reset absent-from-wire fields to their zero or
+// default value. Reflect (binary_decode.go:971-974, 999-1002) calls
+// `defaultValue(frv.Type())` for every registered field whose tag is
+// missing on the wire. A wire-driven generator leaves unvisited fields
 // at whatever value the receiver already held — safe for a fresh zero
 // struct, broken when the receiver is reused (pools, consensus paths).
 func TestBinaryUnmarshalBinary2_ResetsAbsentFields(t *testing.T) {
@@ -936,11 +1012,11 @@ func TestBinaryUnmarshalBinary2_ResetsAbsentFields_Compound(t *testing.T) {
 	}
 }
 
-// BINARY_FIXES.md #10: unpacked-list array field must reject short input.
-// A `[N]T` array field (T = ByteLength-typed) requires exactly N wire
-// entries. Reflect (binary_decode.go:625-644) enforces this; the
-// generator's loop previously exited cleanly if fewer entries appeared
-// before the next field's tag, leaving the tail at Go zero.
+// Unpacked-list array field must reject short input. A `[N]T` array field
+// (T = ByteLength-typed) requires exactly N wire entries. Reflect
+// (binary_decode.go:625-644) enforces this; a wire-driven generator loop
+// would otherwise exit cleanly if fewer entries appeared before the next
+// field's tag, leaving the tail at Go zero.
 func TestBinaryRejectsShortUnpackedArray(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -993,9 +1069,9 @@ func TestBinaryRejectsShortUnpackedArray(t *testing.T) {
 	}
 }
 
-// BINARY_FIXES.md #9: byte-array list element must enforce exact length.
+// Byte-array list element must enforce exact length. When
 // `writePrimitiveDecodeFrom`'s `reflect.Array`+Uint8 branch calls
-// `DecodeByteSlice` then `copy(arr[:], v)` without checking `len(v) == N`.
+// `DecodeByteSlice` then `copy(arr[:], v)`, it must check `len(v) == N`.
 // A payload with length ≠ N must be rejected (matching
 // binary_decode.go:551-555 `mismatched byte array length` check).
 func TestBinaryRejectsWrongByteArrayElemLength(t *testing.T) {
@@ -1034,12 +1110,12 @@ func TestBinaryRejectsWrongByteArrayElemLength(t *testing.T) {
 	}
 }
 
-// BINARY_FIXES.md #8: a `[]*X` slice where X is a Go struct that implements
-// AminoMarshaler with a non-struct repr (e.g. int32). nil entries without
-// `nil_elements` tag must be rejected by both codecs. Reflect uses
-// einfo.Type.Kind() (Struct) — correctly applying the nil_elements rule.
-// Generator previously used einfo.ReprType.Type.Kind() (int32, non-struct),
-// silently encoding nil as 0x00 sentinel.
+// A `[]*X` slice where X is a Go struct implementing AminoMarshaler with
+// a non-struct repr (e.g. int32): nil entries without `nil_elements` tag
+// must be rejected by both codecs. The generator must key off
+// `einfo.Type.Kind()` (Go kind, Struct) — not `einfo.ReprType.Type.Kind()`
+// (int32, non-struct). Reflect at binary_encode.go:399 uses the Go kind,
+// applying the nil_elements rule correctly.
 func TestBinaryRejectsNilPtrStructInList_NonStructRepr(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -1071,9 +1147,9 @@ func TestBinaryRejectsNilPtrStructInList_NonStructRepr(t *testing.T) {
 
 // Top-level non-struct primitive unmarshal must reject trailing bytes
 // past the value, matching UnmarshalReflect's `n != len(bz)` check at
-// amino.go:1054. Before BINARY_FIXES.md #3+#12, the generator's
-// writeReprUnmarshal neither slid bz nor checked for trailing bytes at
-// the top level, silently dropping bytes past the encoded value.
+// amino.go:1054. Without these checks, the generator's writeReprUnmarshal
+// neither slides bz nor checks for trailing bytes at the top level,
+// silently dropping bytes past the encoded value.
 func TestBinaryRejectsTrailingBytes_TopLevelPrimitive(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -1158,7 +1234,7 @@ func TestBinaryRejectsTrailingBytes_TopLevelPackedSliceRepr(t *testing.T) {
 // Reflect (binary_decode.go:1009) uses `fnum <= lastFieldNum`. Generator
 // previously emitted `fnum < lastFieldNum` at gen_unmarshal.go:255, which
 // silently accepted `fnum == lastFieldNum` — letting a peer replay the same
-// field twice in sequence. This is BINARY_FIXES.md #1.
+// field twice in sequence.
 func TestBinaryRejectsDuplicateFieldNumber(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)

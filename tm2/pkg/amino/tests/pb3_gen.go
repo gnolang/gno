@@ -85,6 +85,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFileInfo)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzPtrNest)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzDeepNest)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzUnsafeFloat)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzWriteEmpty)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzNilElements)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*FuzzFixedInt)(nil)).Elem())
@@ -14927,6 +14928,98 @@ func (goo *FuzzDeepNest) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for FuzzDeepNest", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo FuzzUnsafeFloat) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.Count != 0 {
+		offset = amino.PrependVarint(buf, offset, int64(goo.Count))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
+	}
+	if goo.Label != "" {
+		offset = amino.PrependString(buf, offset, string(goo.Label))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+	}
+	offset = amino.PrependFloat32(buf, offset, float32(goo.Weight))
+	offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ34Byte)
+	offset = amino.PrependFloat64(buf, offset, float64(goo.Score))
+	offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ38Byte)
+	return offset, err
+}
+
+func (goo FuzzUnsafeFloat) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	s += 1 + 8
+	s += 1 + 4
+	if goo.Label != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Label))) + len(goo.Label)
+	}
+	if goo.Count != 0 {
+		s += 1 + amino.VarintSize(int64(goo.Count))
+	}
+	return s, nil
+}
+
+func (goo *FuzzUnsafeFloat) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = FuzzUnsafeFloat{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ38Byte {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ38Byte, typ3)
+			}
+			v, n, err := amino.DecodeFloat64(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Score = float64(v)
+		case 2:
+			if typ3 != amino.Typ34Byte {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ34Byte, typ3)
+			}
+			v, n, err := amino.DecodeFloat32(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Weight = float32(v)
+		case 3:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 3: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Label = string(v)
+		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Count = int32(v)
+		default:
+			return fmt.Errorf("unknown field number %d for FuzzUnsafeFloat", fnum)
 		}
 	}
 	return nil

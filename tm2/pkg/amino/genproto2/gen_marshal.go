@@ -772,7 +772,10 @@ func (ctx *P3Context2) zeroCheck(accessor string, info *amino.TypeInfo, fopts am
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return fmt.Sprintf("%s != 0", accessor)
 	case reflect.Float32, reflect.Float64:
-		return fmt.Sprintf("%s != 0", accessor)
+		// Float is never "default" per isNonstructDefaultValue (reflect.go:101
+		// falls to the default false branch). Reflect emits zero Float as 4
+		// or 8 zero bytes; the generator must match. Return "" → no zero-skip.
+		return ""
 	case reflect.String:
 		return fmt.Sprintf("%s != \"\"", accessor)
 	case reflect.Slice:

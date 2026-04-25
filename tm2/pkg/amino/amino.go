@@ -612,8 +612,9 @@ func (cdc *Codec) marshalAnyBinary2(o PBMarshaler2) ([]byte, error) {
 		return nil, err
 	}
 
-	// Field 2: Value (omit if empty).
-	if len(valueBz) > 0 {
+	// Field 2: Value. Match reflect (binary_encode.go:302) — omit if inner
+	// is empty OR a single 0x00 byte. Siblings the MarshalAnyBinary2 rule.
+	if len(valueBz) > 1 || (len(valueBz) == 1 && valueBz[0] != 0x00) {
 		if err = encodeFieldNumberAndTyp3(buf, 2, Typ3ByteLength); err != nil {
 			return nil, err
 		}
@@ -660,9 +661,18 @@ func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) 
 		return offset, err
 	}
 	innerLen := before - offset
-	if innerLen > 0 {
+	// Defensive invariant: inner MarshalBinary2 must write backward (or nothing).
+	if innerLen < 0 {
+		return offset, fmt.Errorf("MarshalAnyBinary2: inner MarshalBinary2 for %v wrote forward (innerLen=%d)", rv.Type(), innerLen)
+	}
+	// Match reflect (binary_encode.go:302): elide field 2 if inner is empty
+	// OR is exactly a single 0x00 byte.
+	if innerLen > 1 || (innerLen == 1 && buf[offset] != 0x00) {
 		offset = PrependUvarint(buf, offset, uint64(innerLen))
 		offset = PrependFieldNumberAndTyp3(buf, offset, 2, Typ3ByteLength)
+	} else if innerLen == 1 {
+		// Drop the lone 0x00 byte that the inner helper prepended.
+		offset = before
 	}
 
 	// Field 1: TypeURL.
@@ -702,6 +712,15 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 		return 0, err
 	}
 	if innerSize > 0 {
+		// Coupling note: when `MarshalAnyBinary2`'s inner output is exactly
+		// [0x00], field 2 is elided on the wire — but this arithmetic
+		// function can't inspect buffer bytes without a speculative marshal.
+		// Since `writeReprMarshal` already rolls back single-0x00 top-level
+		// output, no currently-registered type can reach this over-count
+		// case. Size may overshoot by ~3 bytes only for hand-written
+		// PBMarshaler2 implementations; MarshalAnyBinary2 tolerates an
+		// oversized buffer (writes backward from `offset` and returns the
+		// trimmed tail).
 		s += UvarintSize(uint64(2)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(innerSize)) + innerSize
 	}
 	return s, nil

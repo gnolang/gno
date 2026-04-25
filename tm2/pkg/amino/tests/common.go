@@ -426,26 +426,29 @@ type CrossPkgPointerSlice struct {
 
 // FixedStringArrayStruct: a struct with a `[4]string` field — a fixed-size
 // array of ByteLength-typed elements (decoded as unpacked-list entries).
-// Exercises BINARY_FIXES.md #10: the generator must reject wire input that
-// provides fewer than N entries, matching reflect (binary_decode.go:625-644).
+// Exercises the unpacked-list-array short-input rejection rule: the
+// generator must reject wire input that provides fewer than N entries,
+// matching reflect (binary_decode.go:625-644).
 type FixedStringArrayStruct struct {
 	Names [4]string
 }
 
 // ByteArraySliceStruct: a struct with a `[][8]byte` field. Each element is
 // a fixed-size 8-byte array, decoded as a list element via
-// writePrimitiveDecodeFrom's Array+Uint8 branch. Exercises BINARY_FIXES.md
-// #9: the generator must enforce that the decoded payload length matches
-// the array length, mirroring reflect (binary_decode.go:551-555).
+// writePrimitiveDecodeFrom's Array+Uint8 branch. Exercises the byte-array
+// element length check: the generator must enforce that the decoded
+// payload length matches the array length, mirroring reflect
+// (binary_decode.go:551-555).
 type ByteArraySliceStruct struct {
 	Items [][8]byte
 }
 
 // StructWithStringRepr is a Go struct whose MarshalAmino returns a string.
-// Used by BINARY_FIXES.md #8 test: element `*StructWithStringRepr` has
-// Go kind Struct but repr kind String (Typ3ByteLength), so unpacked
-// list encoding is used. The generator must still see "struct pointer"
-// and require `nil_elements` for nil entries.
+// Used to exercise the "struct-pointer needs nil_elements" rule for list
+// elements whose Go kind is Struct but repr kind is String (Typ3ByteLength,
+// so unpacked list encoding is used). The generator must key off
+// `einfo.Type.Kind() == Struct` (Go kind), not the repr kind — matching
+// reflect at binary_encode.go:399.
 type StructWithStringRepr struct {
 	Name string
 }
@@ -456,12 +459,13 @@ func (s *StructWithStringRepr) UnmarshalAmino(r string) error {
 	return nil
 }
 
-// StructPtrSliceWithStringRepr exercises BINARY_FIXES.md #8: `[]*X` where X
-// is a Go struct with non-struct (string) repr. Without the fix, the
-// generator's `ertIsStruct := einfo.ReprType.Type.Kind() == Struct` is
-// false (repr is String), so the generator silently encodes nil entries
-// as 0x00 sentinels. Reflect keys off `einfo.Type.Kind() == Struct` and
-// rejects nil entries without a `nil_elements` tag.
+// StructPtrSliceWithStringRepr exercises the list-element nil_elements
+// rule for `[]*X` where X is a Go struct with non-struct (string) repr.
+// If `ertIsStruct` were keyed off `einfo.ReprType.Type.Kind()` (string,
+// false), the generator would silently encode nil entries as 0x00
+// sentinels. Correct behavior: key off `einfo.Type.Kind() == Struct`
+// (Go kind, true) and reject nil entries without a `nil_elements` tag —
+// matching reflect.
 type StructPtrSliceWithStringRepr struct {
 	Items []*StructWithStringRepr // no nil_elements tag
 }

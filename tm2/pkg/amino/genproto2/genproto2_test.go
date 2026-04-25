@@ -56,8 +56,8 @@ func TestGenerateProtobuf3(t *testing.T) {
 //   - routes through writePrimitiveDecodeFrom so BinFixed64/32 dispatch
 //     would be honored if fopts were ever non-empty at that site.
 //
-// Before BINARY_FIXES.md #2, the generator used an inline switch that hardcoded
-// DecodeVarint/DecodeUvarint and discarded the consumed byte count via `_`,
+// Without this delegation, an inline switch would hardcode
+// DecodeVarint/DecodeUvarint and discard the consumed byte count via `_`,
 // leaving bz un-slid and ignoring BinFixed options. This test is the
 // regression guard.
 func TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz(t *testing.T) {
