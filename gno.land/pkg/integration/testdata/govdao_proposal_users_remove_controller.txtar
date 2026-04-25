@@ -40,7 +40,7 @@ gnokey maketx run -gas-fee 2000001ugnot -gas-wanted 20_000_000 -broadcast -chain
 stdout OK!
 
 # Create proposal to remove @test1 from controllers
-gnokey maketx run -gas-fee 2700001ugnot -gas-wanted 27_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_remove_proposal.gno
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_remove_proposal.gno
 stdout OK!
 
 # Check proposal exists
