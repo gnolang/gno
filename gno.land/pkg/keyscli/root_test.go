@@ -91,9 +91,9 @@ func TestGnowebURLForPkg(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(gnowebURLEnv, tt.envURL)
-			got := GnowebURLForPkg(tt.chainID, tt.pkgPath)
+			got := gnowebURLForPkg(tt.chainID, tt.pkgPath)
 			if got != tt.want {
-				t.Errorf("GnowebURLForPkg(%q, %q) [env=%q] = %q, want %q", tt.chainID, tt.pkgPath, tt.envURL, got, tt.want)
+				t.Errorf("gnowebURLForPkg(%q, %q) [env=%q] = %q, want %q", tt.chainID, tt.pkgPath, tt.envURL, got, tt.want)
 			}
 		})
 	}

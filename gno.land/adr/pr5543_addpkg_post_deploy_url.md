@@ -35,7 +35,7 @@ preserved).
 If none of the three resolution steps produce a URL, no `VIEW AT` line is
 printed.
 
-The logic lives in a `GnowebURLForPkg` helper in
+The logic lives in a `gnowebURLForPkg` helper in
 `gno.land/pkg/keyscli/root.go`, called from the `OnTxSuccess` callback in
 `addpkg.go`.
 

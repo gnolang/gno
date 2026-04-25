@@ -143,7 +143,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 			PrintTxInfo(tx, res, io)
 			io.Println("PKG PATH:  ", cfg.PkgPath)
-			if viewURL := GnowebURLForPkg(cfg.RootCfg.ChainID, cfg.PkgPath); viewURL != "" {
+			if viewURL := gnowebURLForPkg(cfg.RootCfg.ChainID, cfg.PkgPath); viewURL != "" {
 				io.Println("VIEW AT:   ", viewURL)
 			}
 		}

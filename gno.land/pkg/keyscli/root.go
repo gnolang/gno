@@ -18,23 +18,20 @@ import (
 	"github.com/peterbourgon/ff/v3/fftoml"
 )
 
-// devChainID is gnodev's default chain ID. Hardcoded so that local
-// development deploys get a VIEW AT line pointing at gnodev's default
-// gnoweb address.
-const devChainID = "dev"
+const (
+	// devChainID + devGnowebURL hardcode gnodev's defaults so local
+	// deploys still get a VIEW AT line without being in the registry.
+	devChainID   = "dev"
+	devGnowebURL = "http://127.0.0.1:8888"
 
-// devGnowebURL is gnodev's default gnoweb base URL.
-const devGnowebURL = "http://127.0.0.1:8888"
+	// gnowebURLEnv lets operators of private/custom networks supply a
+	// gnoweb base URL when their chain isn't in the registry.
+	gnowebURLEnv = "GNO_GNOWEB_URL"
 
-// gnowebURLEnv lets operators of private or custom networks supply the
-// gnoweb base URL when the chain isn't in the canonical registry.
-const gnowebURLEnv = "GNO_GNOWEB_URL"
-
-// pkgPathDomain is the chain domain that prefixes user package paths
-// (e.g. "gno.land/r/demo/foo"). gnoweb routes use only the relative path
-// underneath this domain, so it is stripped before joining with the
-// gnoweb base URL.
-const pkgPathDomain = "gno.land"
+	// pkgPathDomain is stripped from pkg paths before joining with the
+	// gnoweb base URL. gnoweb routes use the relative path only.
+	pkgPathDomain = "gno.land"
+)
 
 func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	cfg := &client.BaseCfg{
@@ -130,17 +127,11 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	return bytesDelta, coinsDelta, hasEvents
 }
 
-// GnowebURLForPkg returns the gnoweb URL where pkgPath can be browsed.
-// Resolution order:
-//  1. The GNO_GNOWEB_URL environment variable, if set. Lets operators of
-//     private/custom networks point at their own gnoweb without needing
-//     an entry in the canonical registry.
-//  2. The canonical registry in gno.land/pkg/networks, keyed by chainID.
-//  3. The special chain ID "dev" (gnodev's default) maps to
-//     http://127.0.0.1:8888.
-//
-// Returns "" if none of the above match.
-func GnowebURLForPkg(chainID, pkgPath string) string {
+// gnowebURLForPkg returns the gnoweb URL where pkgPath can be browsed.
+// Resolution order: GNO_GNOWEB_URL env var, "dev" → gnodev default,
+// then the canonical registry in gno.land/pkg/networks. Returns "" if
+// nothing matches.
+func gnowebURLForPkg(chainID, pkgPath string) string {
 	if pkgPath == "" {
 		return ""
 	}
