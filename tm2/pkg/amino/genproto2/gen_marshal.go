@@ -64,7 +64,7 @@ func (ctx *P3Context2) writeReprMarshal(sb *strings.Builder, rinfo *amino.TypeIn
 		return ctx.writeStructMarshalBody(sb, rinfo, "repr")
 
 	case isListType(rt):
-		if !rinfo.IsStructOrUnpacked(fopts) {
+		if !rinfo.IsStructOrUnpackedTopLevel() {
 			return ctx.writePackedSliceReprMarshal(sb, rinfo)
 		}
 		return ctx.writeSliceReprMarshal(sb, rinfo)

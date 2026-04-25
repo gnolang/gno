@@ -211,6 +211,46 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestIsStructOrUnpacked_TopLevelHelper verifies that top-level
+// (non-struct-field) sites in gen_marshal/gen_size/gen_unmarshal
+// AND in amino.go's UnmarshalReflect use the explicit
+// `IsStructOrUnpackedTopLevel()` helper rather than passing a
+// literal `FieldOptions{}` to `IsStructOrUnpacked`. Top-level
+// contexts have no field-level BinFixed tag, so the zero fopts is
+// implicit; the helper makes the invariant greppable and protects
+// against a future top-level list type whose element typ3 would
+// depend on BinFixed (which would otherwise quietly miscompile).
+//
+// Regression guard for BINARY_FIXES #18.
+func TestIsStructOrUnpacked_TopLevelHelper(t *testing.T) {
+	checks := []struct {
+		path     string
+		mustHave int // expected count of TopLevel calls
+	}{
+		{"gen_marshal.go", 1},
+		{"gen_size.go", 1},
+		{"gen_unmarshal.go", 1},
+		{"../amino.go", 3}, // MarshalReflect + UnmarshalReflect (2 sites)
+	}
+	for _, c := range checks {
+		src, err := os.ReadFile(c.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", c.path, err)
+		}
+		// Top-level sites must use the helper.
+		got := bytes.Count(src, []byte("IsStructOrUnpackedTopLevel()"))
+		if got < c.mustHave {
+			t.Errorf("%s: expected >=%d `IsStructOrUnpackedTopLevel()` call(s), got %d", c.path, c.mustHave, got)
+		}
+		// And must NOT pass a literal FieldOptions{} to IsStructOrUnpacked.
+		// (struct-field sites pass a real fopts, not a literal {}.)
+		if bytes.Contains(src, []byte("IsStructOrUnpacked(amino.FieldOptions{})")) ||
+			bytes.Contains(src, []byte("IsStructOrUnpacked(FieldOptions{})")) {
+			t.Errorf("%s: still passes a literal FieldOptions{} to IsStructOrUnpacked; use IsStructOrUnpackedTopLevel() instead", c.path)
+		}
+	}
+}
+
 // TestWriteImplicitPredicate_NoNilGuard verifies that the
 // writeImplicit predicate in gen_marshal, gen_size, and gen_unmarshal
 // does NOT include a defensive `einfo.Elem != nil` guard. Reflect

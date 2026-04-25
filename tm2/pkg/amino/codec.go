@@ -97,6 +97,22 @@ func (info *TypeInfo) IsStructOrUnpacked(fopt FieldOptions) bool {
 	return false
 }
 
+// IsStructOrUnpackedTopLevel is the top-level (non-struct-field) variant of
+// IsStructOrUnpacked. Top-level contexts (e.g. MarshalReflect / MarshalBinary2
+// entry points, writeReprMarshal / writeReprUnmarshal) have no field-level
+// BinFixed tag, so fopts is zero. Calling this helper instead of passing a
+// literal FieldOptions{} makes the invariant explicit and greppable.
+//
+// NOTE: a future top-level list type whose element's typ3 depends on BinFixed
+// (e.g. `type Fixed64s []int64` used directly as a top-level message) would
+// need the caller to thread a real fopts; today no such type exists and typ3
+// for non-BinFixed Int64 is Varint anyway, so this helper's behavior is
+// identical to IsStructOrUnpacked(FieldOptions{}). Callers must ensure they
+// are genuinely in a top-level context before using this helper.
+func (info *TypeInfo) IsStructOrUnpackedTopLevel() bool {
+	return info.IsStructOrUnpacked(FieldOptions{})
+}
+
 // If this is a slice or array, get .Elem.ReprType until no longer slice or
 // array.
 func (info *TypeInfo) GetUltimateElem() *TypeInfo {

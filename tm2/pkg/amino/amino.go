@@ -460,8 +460,7 @@ func (cdc *Codec) MarshalReflect(o any) ([]byte, error) {
 	}
 	// Implicit struct or not?
 	// NOTE: similar to binary interface encoding.
-	fopts := FieldOptions{}
-	if !info.IsStructOrUnpacked(fopts) {
+	if !info.IsStructOrUnpackedTopLevel() {
 		writeEmpty := false
 		// Encode with an implicit struct, with a single field with number 1.
 		// The type of this implicit field determines whether any
@@ -1031,7 +1030,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	// type. MarshalReflect rolls the implicit-struct wrapper back when
 	// writeFieldIfNotEmpty determines the value is empty, producing nil
 	// bytes; the symmetric decode must accept nil bytes the same way.
-	if len(bz) == 0 && !info.IsStructOrUnpacked(FieldOptions{}) && rv.Kind() != reflect.Interface {
+	if len(bz) == 0 && !info.IsStructOrUnpackedTopLevel() && rv.Kind() != reflect.Interface {
 		return nil
 	}
 
@@ -1044,7 +1043,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	// binary-decode.
 	bare := true
 	var nWrap int
-	if !info.IsStructOrUnpacked(FieldOptions{}) &&
+	if !info.IsStructOrUnpackedTopLevel() &&
 		len(bz) > 0 &&
 		(rv.Kind() != reflect.Interface) {
 		var (

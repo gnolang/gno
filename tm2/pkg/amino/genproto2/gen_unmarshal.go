@@ -65,7 +65,7 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 	fopts := amino.FieldOptions{}
 
 	// Struct-or-unpacked repr: decode directly (no implicit struct wrapper).
-	if rinfo.IsStructOrUnpacked(fopts) {
+	if rinfo.IsStructOrUnpackedTopLevel() {
 		switch rt.Kind() {
 		case reflect.Struct:
 			fmt.Fprintf(sb, "\tvar repr %s\n", ctx.goTypeName(rt))

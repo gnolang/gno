@@ -57,7 +57,7 @@ func (ctx *P3Context2) writeReprSize(sb *strings.Builder, rinfo *amino.TypeInfo)
 		ctx.writeStructSizeBody(sb, rinfo, "repr")
 
 	case isListType(rt):
-		if !rinfo.IsStructOrUnpacked(fopts) {
+		if !rinfo.IsStructOrUnpackedTopLevel() {
 			// Packed slice repr: wrapped in implicit struct field 1.
 			ctx.writePackedSliceReprSize(sb, rinfo)
 		} else {
