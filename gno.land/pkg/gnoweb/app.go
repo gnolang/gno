@@ -186,5 +186,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle readiness check - service can communicate with RPC node and serve clients
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
+	// Handle network registry - canonical list of known gno.land networks
+	mux.Handle("/api/networks", handlerNetworksJSON(logger))
+
 	return mux, nil
 }

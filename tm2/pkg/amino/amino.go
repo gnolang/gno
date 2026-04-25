@@ -460,8 +460,7 @@ func (cdc *Codec) MarshalReflect(o any) ([]byte, error) {
 	}
 	// Implicit struct or not?
 	// NOTE: similar to binary interface encoding.
-	fopts := FieldOptions{}
-	if !info.IsStructOrUnpacked(fopts) {
+	if !info.IsStructOrUnpackedTopLevel() {
 		writeEmpty := false
 		// Encode with an implicit struct, with a single field with number 1.
 		// The type of this implicit field determines whether any
@@ -612,8 +611,9 @@ func (cdc *Codec) marshalAnyBinary2(o PBMarshaler2) ([]byte, error) {
 		return nil, err
 	}
 
-	// Field 2: Value (omit if empty).
-	if len(valueBz) > 0 {
+	// Field 2: Value. Match reflect (binary_encode.go:302) — omit if inner
+	// is empty OR a single 0x00 byte. Siblings the MarshalAnyBinary2 rule.
+	if len(valueBz) > 1 || (len(valueBz) == 1 && valueBz[0] != 0x00) {
 		if err = encodeFieldNumberAndTyp3(buf, 2, Typ3ByteLength); err != nil {
 			return nil, err
 		}
@@ -660,9 +660,18 @@ func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) 
 		return offset, err
 	}
 	innerLen := before - offset
-	if innerLen > 0 {
+	// Defensive invariant: inner MarshalBinary2 must write backward (or nothing).
+	if innerLen < 0 {
+		return offset, fmt.Errorf("MarshalAnyBinary2: inner MarshalBinary2 for %v wrote forward (innerLen=%d)", rv.Type(), innerLen)
+	}
+	// Match reflect (binary_encode.go:302): elide field 2 if inner is empty
+	// OR is exactly a single 0x00 byte.
+	if innerLen > 1 || (innerLen == 1 && buf[offset] != 0x00) {
 		offset = PrependUvarint(buf, offset, uint64(innerLen))
 		offset = PrependFieldNumberAndTyp3(buf, offset, 2, Typ3ByteLength)
+	} else if innerLen == 1 {
+		// Drop the lone 0x00 byte that the inner helper prepended.
+		offset = before
 	}
 
 	// Field 1: TypeURL.
@@ -702,6 +711,15 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 		return 0, err
 	}
 	if innerSize > 0 {
+		// Coupling note: when `MarshalAnyBinary2`'s inner output is exactly
+		// [0x00], field 2 is elided on the wire — but this arithmetic
+		// function can't inspect buffer bytes without a speculative marshal.
+		// Since `writeReprMarshal` already rolls back single-0x00 top-level
+		// output, no currently-registered type can reach this over-count
+		// case. Size may overshoot by ~3 bytes only for hand-written
+		// PBMarshaler2 implementations; MarshalAnyBinary2 tolerates an
+		// oversized buffer (writes backward from `offset` and returns the
+		// trimmed tail).
 		s += UvarintSize(uint64(2)<<3|uint64(Typ3ByteLength)) + UvarintSize(uint64(innerSize)) + innerSize
 	}
 	return s, nil
@@ -722,7 +740,21 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	if anyDepth > maxAnyDepth {
 		return fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
 	}
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Ptr {
+		return ErrNoPointer
+	}
 	if len(bz) == 0 {
+		// Empty Any envelope resets the target to its zero (nil interface).
+		// Philosophically aligned with the struct UnmarshalBinary2 reset at
+		// writeStructUnmarshalBody: a reused receiver gets fresh state on
+		// every decode. Reflect (binary_decode.go:334) instead errors on a
+		// non-nil interface, but that path's comment explicitly flags the
+		// rationale as forgotten ("very tricky...reason exists"). Favor
+		// receiver-reuse ergonomics for the generator fast path.
+		if rv.Elem().CanSet() {
+			rv.Elem().Set(reflect.Zero(rv.Elem().Type()))
+		}
 		return nil
 	}
 
@@ -738,6 +770,9 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	typeURL, n, err := DecodeString(bz)
 	if err != nil {
 		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+	}
+	if !IsASCIIText(typeURL) {
+		return fmt.Errorf("UnmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
 	}
 	bz = bz[n:]
 
@@ -782,14 +817,10 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return cdc.unmarshalAny2Depth(typeURL, value, ptr, anyDepth)
 	}
 
-	// Check assignability.
-	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
-		return ErrNoPointer
-	}
-	rv = rv.Elem()
-	if !irvSet.Type().AssignableTo(rv.Type()) {
-		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rv.Type())
+	// Check assignability. rv was set at function entry (above).
+	rvElem := rv.Elem()
+	if !irvSet.Type().AssignableTo(rvElem.Type()) {
+		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rvElem.Type())
 	}
 
 	// Decode inner value with depth tracking.
@@ -799,7 +830,18 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		}
 	}
 
-	rv.Set(irvSet)
+	// Re-check assignability post-decode. Mirrors reflect's
+	// decodeReflectBinaryAny which checks at three locations
+	// (binary_decode.go:441, :495, :514). Today the registry is fixed at
+	// startup so this is invariant across the decode call, but the
+	// re-check is zero-cost and protects against any future pluggable
+	// registry where a concrete's interface implementation could change
+	// between checks. Without it, the genproto2 path would silently
+	// rv.Set() a now-unassignable value while reflect would error.
+	if !irvSet.Type().AssignableTo(rvElem.Type()) {
+		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v (post-decode check)", irvSet.Type(), rvElem.Type())
+	}
+	rvElem.Set(irvSet)
 	return nil
 }
 
@@ -995,6 +1037,14 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 		return err
 	}
 
+	// Empty input decodes to the zero value for any non-struct top-level
+	// type. MarshalReflect rolls the implicit-struct wrapper back when
+	// writeFieldIfNotEmpty determines the value is empty, producing nil
+	// bytes; the symmetric decode must accept nil bytes the same way.
+	if len(bz) == 0 && !info.IsStructOrUnpackedTopLevel() && rv.Kind() != reflect.Interface {
+		return nil
+	}
+
 	// See if we need to read the typ3 encoding of an implicit struct.
 	//
 	// If the dest ptr is an interface, it is assumed that the object is
@@ -1004,7 +1054,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	// binary-decode.
 	bare := true
 	var nWrap int
-	if !info.IsStructOrUnpacked(FieldOptions{}) &&
+	if !info.IsStructOrUnpackedTopLevel() &&
 		len(bz) > 0 &&
 		(rv.Kind() != reflect.Interface) {
 		var (
@@ -1045,7 +1095,7 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	}
 	if n != len(bz) {
 		return fmt.Errorf(
-			"unmarshal to %v didn't read all bytes. Expected to read %v, only read %v: %X",
+			"unmarshal to %v: trailing bytes after top-level unmarshal. Expected to read %v, only read %v: %X",
 			info.Type,
 			len(bz),
 			n+nWrap,
@@ -1150,6 +1200,9 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	if err != nil {
 		return true, fmt.Errorf("unmarshalAnyBinary2: decode TypeURL: %w", err)
 	}
+	if !IsASCIIText(typeURL) {
+		return true, fmt.Errorf("unmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
+	}
 	bz = bz[n:]
 
 	// Field 2: Value (may be absent for empty structs).
@@ -1210,6 +1263,12 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		}
 	}
 
+	// Re-check assignability post-decode. Sibling of the rvElem variant in
+	// unmarshalAnyBinary2Depth above; same rationale (mirrors reflect's
+	// three-point checks in decodeReflectBinaryAny).
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		return true, fmt.Errorf("decoded type %v is not assignable to interface %v (post-decode check)", irvSet.Type(), rv.Type())
+	}
 	rv.Set(irvSet)
 	return true, nil
 }

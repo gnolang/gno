@@ -1,9 +1,11 @@
 package genproto2
 
 import (
+	"bytes"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -45,6 +47,533 @@ func TestGenerateProtobuf3(t *testing.T) {
 		if !strings.Contains(src, want) {
 			t.Errorf("generated source missing expected substring: %q", want)
 		}
+	}
+}
+
+// TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz verifies
+// that writeReprUnmarshal's primitive branch (used for top-level non-struct
+// types like `type IntDef int`) emits code that:
+//
+//   - slides bz after decoding the primitive value (n, not _), and
+//   - routes through writePrimitiveDecodeFrom so BinFixed64/32 dispatch
+//     would be honored if fopts were ever non-empty at that site.
+//
+// Without this delegation, an inline switch would hardcode
+// DecodeVarint/DecodeUvarint and discard the consumed byte count via `_`,
+// leaving bz un-slid and ignoring BinFixed options. This test is the
+// regression guard.
+func TestWriteReprUnmarshal_PrimitiveBranch_HonorsBinFixedAndSlidesBz(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// Find IntDef's UnmarshalBinary2 and grab the body up to the closing brace.
+	marker := "func (goo *IntDef) UnmarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("IntDef UnmarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\n}\n")
+	if end < 0 {
+		t.Fatalf("could not find end of IntDef UnmarshalBinary2 body")
+	}
+	body := src[idx : idx+end]
+
+	// The fixed primitive decode must bind the consumed count and slide bz.
+	// Before fix: `v, _, err := amino.DecodeVarint(bz)` (no slide).
+	// After fix: `v, n, err := amino.DecodeVarint(bz)` ... `bz = bz[n:]`.
+	if strings.Contains(body, "v, _, err := amino.DecodeVarint") {
+		t.Errorf("IntDef UnmarshalBinary2 still discards DecodeVarint count; expected bz-slide. Body:\n%s", body)
+	}
+	if !strings.Contains(body, "v, n, err := amino.DecodeVarint") {
+		t.Errorf("expected 'v, n, err := amino.DecodeVarint' after fix. Body:\n%s", body)
+	}
+	// Two bz-slides: one after the field-1 key, one after the primitive value.
+	if n := strings.Count(body, "bz = bz[n:]"); n < 2 {
+		t.Errorf("expected >=2 'bz = bz[n:]' (field-key + primitive value slides), got %d. Body:\n%s", n, body)
+	}
+}
+
+// TestWriteLengthPrefixedField_GateMatchesReflect verifies that
+// writeLengthPrefixedField uses `if dataLen > 0` (not a stricter
+// single-0x00-aware predicate). The gate operates at the INNER-BODY
+// layer (`dataLen` = body bytes BEFORE the length prefix is added).
+// Reflect's writeFieldIfNotEmpty rollback (binary_encode.go:592)
+// operates at the OUTER-VALUE layer (post-prefix) and only fires when
+// the value bytes total exactly 1 byte = 0x00, which for Typ3ByteLength
+// fields corresponds to an EMPTY inner body (writeMaybeBare's
+// empty-contents branch writes [0x00] as the lone length byte) — i.e.
+// dataLen == 0 here. A 1-byte inner body of [0x00] would be wrapped by
+// reflect as `<key> 0x01 0x00` (3 bytes) and NOT rolled back. The
+// generator must mirror that.
+//
+// Regression guard for the layer-mismatch revert of an earlier #26
+// attempt that was stricter than reflect.
+func TestWriteLengthPrefixedField_GateMatchesReflect(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	marker := "func (goo PrimitivesStruct) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("PrimitivesStruct MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	if !strings.Contains(body, "if dataLen > 0 {") {
+		t.Errorf("writeLengthPrefixedField must use `if dataLen > 0` gate (matches reflect). Body:\n%s", body)
+	}
+	if strings.Contains(body, "dataLen > 1 || (dataLen == 1 && buf[offset] != 0x00)") {
+		t.Errorf("writeLengthPrefixedField is using a stricter-than-reflect gate at the inner-body layer. Reflect's :592 rollback fires at the post-prefix layer only, where dataLen=0 already covers the case. Body:\n%s", body)
+	}
+}
+
+// TestWriteInterfaceFieldMarshal_NoOuterRollback verifies that
+// writeInterfaceFieldMarshal emits length prefix + field key
+// unconditionally when the interface accessor is non-nil. There is no
+// single-0x00 outer rollback gate: `anyLen` is the inner Any body size
+// BEFORE the length prefix; reflect's writeFieldIfNotEmpty rollback
+// fires at the post-prefix layer and only when the value bytes total
+// exactly 1 byte = 0x00 (i.e. anyLen == 0). Today MarshalAnyBinary2
+// always emits TypeURL ≥ 6 bytes so the case is unreachable; the gate
+// would diverge from reflect for a hypothetical 1-byte [0x00] body
+// (reflect would emit `<key> 0x01 0x00`, generator would elide).
+//
+// Regression guard for the layer-mismatch revert of an earlier #13
+// attempt that was stricter than reflect.
+func TestWriteInterfaceFieldMarshal_NoOuterRollback(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	marker := "func (goo ReprElem2) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("ReprElem2 MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	if !strings.Contains(body, "cdc.MarshalAnyBinary2(") {
+		t.Fatalf("expected MarshalAnyBinary2 call in ReprElem2 body. Body:\n%s", body)
+	}
+	if strings.Contains(body, "anyLen > 1 || (anyLen == 1 && buf[offset] != 0x00)") {
+		t.Errorf("writeInterfaceFieldMarshal must NOT use a single-0x00 gate on anyLen — that operates at the wrong layer. Reflect's :592 rollback fires at post-prefix only. Body:\n%s", body)
+	}
+}
+
+// TestWriteFieldValueMarshal_StringByteSliceByteArrayRollback verifies
+// that the String, []byte slice, and [N]byte array branches of
+// writeFieldValueMarshal emit a post-emission single-`0x00` rollback
+// when writeEmpty=false. Without it, an AminoMarshaler whose repr is
+// (e.g.) `[0]byte` or whose Go-level zeroCheck doesn't match
+// wire-zeroness would emit `<key> 0x00` while reflect's
+// writeFieldIfNotEmpty (binary_encode.go:592) would roll back. Sibling
+// of #16 (default-branch rollback), #26 (writeLengthPrefixedField), and
+// #13 (writeInterfaceFieldMarshal) — completes uniform coverage at
+// every length-prefixed emission site.
+//
+// Regression guard for BINARY_FIXES #20.
+func TestWriteFieldValueMarshal_StringByteSliceByteArrayRollback(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// PrimitivesStruct has Str (string) and Bytes ([]byte) fields.
+	// ArraysStruct has ByteAr ([N]byte) field.
+	// All three reach the relevant branches.
+	for _, marker := range []string{
+		"func (goo PrimitivesStruct) MarshalBinary2",
+		"func (goo ArraysStruct) MarshalBinary2",
+	} {
+		idx := strings.Index(src, marker)
+		if idx < 0 {
+			t.Fatalf("%s not found", marker)
+		}
+		end := strings.Index(src[idx:], "\nfunc ")
+		if end < 0 {
+			end = len(src) - idx
+		}
+		body := src[idx : idx+end]
+
+		want := "if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {"
+		if !strings.Contains(body, want) {
+			t.Errorf("%s: expected single-0x00 rollback predicate, not found. Body excerpt:\n%s", marker, body)
+		}
+	}
+}
+
+// TestUnmarshalAnyBinary2_PostDecodeAssignabilityCheck verifies that
+// both UnmarshalAnyBinary2 entry points in amino.go re-check
+// `irvSet.Type().AssignableTo(rv.Type())` AFTER calling
+// pbm2.UnmarshalBinary2 (i.e. before rv.Set(irvSet)). Reflect's
+// decodeReflectBinaryAny checks at three locations
+// (binary_decode.go:441, :495, :514) — pre-decode, post-decode-with-error,
+// and post-decode-success. The genproto2 path previously checked only
+// once before decode. Today the registry is fixed at startup so the
+// re-check is invariant; the fix protects against any future pluggable
+// registry where a concrete's interface implementation could change
+// between checks.
+//
+// Regression guard for BINARY_FIXES #15.
+func TestUnmarshalAnyBinary2_PostDecodeAssignabilityCheck(t *testing.T) {
+	src, err := os.ReadFile("../amino.go")
+	if err != nil {
+		t.Fatalf("read amino.go: %v", err)
+	}
+	// Each Any-decode entry point must, immediately before its
+	// rv.Set(irvSet) / rvElem.Set(irvSet) call, perform a fresh
+	// AssignableTo check. We assert co-location: each `Set(irvSet)` call
+	// must be preceded (within a small window) by an `AssignableTo` call.
+	// This catches a future edit that drops the guard but leaves any
+	// vestigial substring in place.
+	lines := strings.Split(string(src), "\n")
+	const window = 12 // lines to look back for AssignableTo
+	setSites := 0
+	for i, line := range lines {
+		if !strings.Contains(line, "Set(irvSet)") {
+			continue
+		}
+		setSites++
+		guarded := false
+		lo := i - window
+		if lo < 0 {
+			lo = 0
+		}
+		for j := i - 1; j >= lo; j-- {
+			if strings.Contains(lines[j], "AssignableTo(") {
+				guarded = true
+				break
+			}
+		}
+		if !guarded {
+			t.Errorf("amino.go:%d: Set(irvSet) is not preceded by an AssignableTo check within %d lines", i+1, window)
+		}
+	}
+	if setSites < 2 {
+		t.Errorf("expected >=2 Set(irvSet) sites in amino.go (one per Any-decode entry point), got %d", setSites)
+	}
+}
+
+// TestIsStructOrUnpacked_TopLevelHelper verifies that top-level
+// (non-struct-field) sites in gen_marshal/gen_size/gen_unmarshal
+// AND in amino.go's UnmarshalReflect use the explicit
+// `IsStructOrUnpackedTopLevel()` helper rather than passing a
+// literal `FieldOptions{}` to `IsStructOrUnpacked`. Top-level
+// contexts have no field-level BinFixed tag, so the zero fopts is
+// implicit; the helper makes the invariant greppable and protects
+// against a future top-level list type whose element typ3 would
+// depend on BinFixed (which would otherwise quietly miscompile).
+//
+// Regression guard for BINARY_FIXES #18.
+func TestIsStructOrUnpacked_TopLevelHelper(t *testing.T) {
+	checks := []struct {
+		path     string
+		mustHave int // expected count of TopLevel calls
+	}{
+		{"gen_marshal.go", 1},
+		{"gen_size.go", 1},
+		{"gen_unmarshal.go", 1},
+		{"../amino.go", 3}, // MarshalReflect + UnmarshalReflect (2 sites)
+	}
+	for _, c := range checks {
+		src, err := os.ReadFile(c.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", c.path, err)
+		}
+		// Top-level sites must use the helper.
+		got := bytes.Count(src, []byte("IsStructOrUnpackedTopLevel()"))
+		if got < c.mustHave {
+			t.Errorf("%s: expected >=%d `IsStructOrUnpackedTopLevel()` call(s), got %d", c.path, c.mustHave, got)
+		}
+		// And must NOT pass a literal FieldOptions{} to IsStructOrUnpacked.
+		// (struct-field sites pass a real fopts, not a literal {}.)
+		if bytes.Contains(src, []byte("IsStructOrUnpacked(amino.FieldOptions{})")) ||
+			bytes.Contains(src, []byte("IsStructOrUnpacked(FieldOptions{})")) {
+			t.Errorf("%s: still passes a literal FieldOptions{} to IsStructOrUnpacked; use IsStructOrUnpackedTopLevel() instead", c.path)
+		}
+	}
+}
+
+// TestWriteImplicitPredicate_NoNilGuard verifies that the
+// writeImplicit predicate in gen_marshal, gen_size, and gen_unmarshal
+// does NOT include a defensive `einfo.Elem != nil` guard. Reflect
+// (binary_encode.go:400) dereferences `einfo.Elem.ReprType.Type.Kind()`
+// without any nil check, relying on the TypeInfo invariant that
+// element types of list types always have a non-nil Elem. The
+// generator's defensive guard was divergent: if the invariant were
+// somehow violated, reflect would panic while the generator would
+// silently skip the writeImplicit branch. Removing the guard aligns
+// both codecs on the same contract (fail loudly).
+//
+// Regression guard for BINARY_FIXES #19.
+func TestWriteImplicitPredicate_NoNilGuard(t *testing.T) {
+	// This is a generator source-code-level check — inspect the generator
+	// files themselves, not the generated output.
+	for _, f := range []string{
+		"gen_marshal.go",
+		"gen_size.go",
+		"gen_unmarshal.go",
+	} {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read %s: %v", f, err)
+		}
+		if bytes.Contains(src, []byte("einfo.Elem != nil &&")) {
+			t.Errorf("%s: still contains defensive `einfo.Elem != nil` guard in writeImplicit predicate (reflect dereferences without guard; see binary_encode.go:400)", f)
+		}
+	}
+}
+
+// TestWriteUnpackedListMarshal_PointerToZeroSentinel verifies that
+// writeUnpackedListMarshal's pointer-to-non-struct branch emits an
+// explicit zeroCheck for the dereferenced value, mirroring reflect's
+// isNonstructDefaultValue pointer recursion (reflect.go:80-86). For
+// `[]*string{&""}` reflect emits a 0x00 sentinel; the generator
+// previously fell through to PrependString("") which also produced
+// 0x00 — wire bytes matched, but the explicit branch removes the
+// structural dependency on downstream length-emission composition.
+//
+// Sibling of #7 for the pointer-to-non-struct case.
+//
+// Regression guard for BINARY_FIXES #17.
+func TestWriteUnpackedListMarshal_PointerToZeroSentinel(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// PointerSlicesStruct has `StrPtSl []*string` — pointer-to-non-struct
+	// with Typ3ByteLength repr (the unpacked branch). After fix, its
+	// MarshalBinary2 must contain `else if !((*elem) != "") {` for the
+	// dereferenced default check.
+	marker := "func (goo PointerSlicesStruct) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("PointerSlicesStruct MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// New gate must appear: explicit dereferenced-zero-check branch.
+	want := `} else if !((*elem) != "") {`
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q in unpacked-pointer emission after fix; not found. Body:\n%s", want, body)
+	}
+}
+
+// TestWriteUnpackedListMarshal_NonPointerZeroSentinel verifies that
+// writeUnpackedListMarshal's non-pointer ByteLength-element branch emits
+// an explicit zeroCheck-driven sentinel, mirroring reflect's
+// isNonstructDefaultValue branch (binary_encode.go:416-432). Wire bytes
+// are identical to the prior unconditional path (PrependString("") also
+// emits 0x00), but the explicit branch removes the dependency on
+// downstream length-emission composition.
+//
+// Regression guard for BINARY_FIXES #7.
+func TestWriteUnpackedListMarshal_NonPointerZeroSentinel(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// SlicesStruct has `StrSl []string` — a non-pointer Typ3ByteLength
+	// element list. After fix, its MarshalBinary2 must contain the
+	// `if elem != "" { ... } else { 0x00 }` branch on the StrSl loop.
+	marker := "func (goo SlicesStruct) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("SlicesStruct MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// New gate must appear: explicit if-zero-then-sentinel branch on string
+	// elements. zeroCheck for string returns `accessor != ""`.
+	want := `if elem != "" {`
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q in unpacked list emission after fix; not found. Body:\n%s", want, body)
+	}
+	// Direct sentinel emission rather than via PrependString("").
+	wantSentinel := "amino.PrependByte(buf, offset, 0x00)"
+	if !strings.Contains(body, wantSentinel) {
+		t.Errorf("expected explicit %q sentinel after fix; not found. Body:\n%s", wantSentinel, body)
+	}
+}
+
+// TestWriteFieldValueMarshal_DefaultBranchRollback verifies that
+// writeFieldValueMarshal's default (primitive) branch emits an inline
+// rollback matching reflect's writeFieldIfNotEmpty (binary_encode.go:592).
+// The rollback is dead code today: every current caller wraps the branch
+// in an outer zeroCheck, so primitive zero-values never reach the default
+// branch. But the generator's contract must mirror reflect's outer
+// rollback uniformly — this is the same defensive gate added at
+// writeLengthPrefixedField (#26), writeInterfaceFieldMarshal (#13), and
+// the writeReprMarshal primitive branch for repr-wrapped values.
+//
+// Regression guard for BINARY_FIXES #16.
+func TestWriteFieldValueMarshal_DefaultBranchRollback(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// FuzzUnsafeFloat has a Float32/Float64 field with zeroCheck == ""
+	// (float zeroCheck was intentionally elided by #30) — the only path
+	// that reaches writeFieldValueMarshal's default branch without an
+	// outer zeroCheck wrapper. Its Count (int) field also reaches the
+	// default branch but is shielded by an outer zeroCheck, so the inner
+	// rollback there is dead code. Either way, the new gate must appear
+	// in the generated body.
+	marker := "func (goo FuzzUnsafeFloat) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("FuzzUnsafeFloat MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// The new gate pattern (same idiom as writeLengthPrefixedField).
+	want := "if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {"
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q after fix; not found. Body:\n%s", want, body)
+	}
+	// Rollback path must restore offset = before.
+	if !strings.Contains(body, "offset = before") {
+		t.Errorf("expected `offset = before` rollback in default-branch gate. Body:\n%s", body)
+	}
+}
+
+// TestGenproto2_FloatRequiresUnsafe verifies that the generator's primitive
+// emission helpers (writePrimitiveEncode, primitiveValueSizeExpr,
+// writePrimitiveDecodeFrom) enforce reflect's invariant (binary_encode.go:186-198,
+// binary_decode.go:278-284) that Float32/Float64 handling requires
+// `amino:"unsafe"`. Reflect errors at runtime without Unsafe; ValidateBasic
+// (codec.go:166-175) also panics at codec-init for registered types. The
+// generator runs after registration, so this gap is unreachable via
+// registered types today — but the generator must still reject the case at
+// emission/size/decode time to make the contract explicit and catch any
+// future path that bypasses ValidateBasic.
+//
+// Regression guard for BINARY_FIXES #5.
+func TestGenproto2_FloatRequiresUnsafe(t *testing.T) {
+	ctx := NewP3Context2(amino.NewCodec())
+
+	kinds := []struct {
+		name string
+		rt   reflect.Type
+	}{
+		{"Float32", reflect.TypeOf(float32(0))},
+		{"Float64", reflect.TypeOf(float64(0))},
+	}
+	for _, tc := range kinds {
+		info := &amino.TypeInfo{Type: tc.rt}
+		info.ReprType = info
+
+		t.Run(tc.name+"_Marshal_NoUnsafe_Panics", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic when writePrimitiveEncode emits %s without fopts.Unsafe", tc.name)
+				}
+			}()
+			var sb strings.Builder
+			ctx.writePrimitiveEncode(&sb, "v", info, amino.FieldOptions{}, "\t")
+		})
+		t.Run(tc.name+"_Size_NoUnsafe_Panics", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic when primitiveValueSizeExpr sizes %s without fopts.Unsafe", tc.name)
+				}
+			}()
+			_ = ctx.primitiveValueSizeExpr("v", info, amino.FieldOptions{})
+		})
+		t.Run(tc.name+"_Decode_NoUnsafe_Panics", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("expected panic when writePrimitiveDecodeFrom decodes %s without fopts.Unsafe", tc.name)
+				}
+			}()
+			var sb strings.Builder
+			ctx.writePrimitiveDecodeFrom(&sb, "v", info, amino.FieldOptions{}, "\t", "bz")
+		})
+		t.Run(tc.name+"_AllPaths_Unsafe_OK", func(t *testing.T) {
+			var sb strings.Builder
+			ctx.writePrimitiveEncode(&sb, "v", info, amino.FieldOptions{Unsafe: true}, "\t")
+			if !strings.Contains(sb.String(), "amino.PrependFloat") {
+				t.Errorf("expected PrependFloat emission with Unsafe=true, got: %s", sb.String())
+			}
+			if got := ctx.primitiveValueSizeExpr("v", info, amino.FieldOptions{Unsafe: true}); got == "" {
+				t.Errorf("expected non-empty size expression with Unsafe=true")
+			}
+			sb.Reset()
+			ctx.writePrimitiveDecodeFrom(&sb, "v", info, amino.FieldOptions{Unsafe: true}, "\t", "bz")
+			if !strings.Contains(sb.String(), "amino.DecodeFloat") {
+				t.Errorf("expected DecodeFloat emission with Unsafe=true, got: %s", sb.String())
+			}
+		})
 	}
 }
 

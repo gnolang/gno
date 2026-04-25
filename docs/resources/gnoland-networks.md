@@ -7,6 +7,14 @@
 | Betanet (current) | https://rpc.gno.land:443                 | `gnoland1`   |
 | Staging           | https://rpc.staging.gno.land:443         | `staging`    |
 | Test11            | https://rpc.test11.testnets.gno.land:443 | `test11`     |
+| Test12            | https://rpc.test12.testnets.gno.land:443 | `test12`     |
+
+This table mirrors the canonical network registry at
+[`gno.land/pkg/networks/networks.json`](../../gno.land/pkg/networks/networks.json).
+Each live gnoweb instance also exposes the same registry over HTTP at
+`GET /api/networks` (e.g.
+[`https://gno.land/api/networks`](https://gno.land/api/networks)), so tools
+can fetch the list at runtime instead of hardcoding it.
 
 ### WebSocket endpoints
 

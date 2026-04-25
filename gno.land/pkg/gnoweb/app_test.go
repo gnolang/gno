@@ -76,6 +76,7 @@ func TestRoutes(t *testing.T) {
 			// Test special endpoints
 			{"/liveness", ok, `{"status":"ok"}`},
 			{"/ready", ok, `{"status":"ready"}`},
+			{"/api/networks", ok, `"gnoland1"`},
 			// Test Toc
 			{"/", ok, `href="#learn-about-gnoland"`},
 			// Test aliased path and static file
