@@ -7587,6 +7587,9 @@ func (goo PointerSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offs
 		if elem == nil {
 			offset = amino.PrependByte(buf, offset, 0x00)
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 17, amino.Typ3ByteLength)
+		} else if !(len((*elem)) != 0) {
+			offset = amino.PrependByte(buf, offset, 0x00)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 17, amino.Typ3ByteLength)
 		} else {
 			offset = amino.PrependByteSlice(buf, offset, (*elem))
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 17, amino.Typ3ByteLength)
@@ -7595,6 +7598,9 @@ func (goo PointerSlicesStruct) MarshalBinary2(cdc *amino.Codec, buf []byte, offs
 	for i := len(goo.StrPtSl) - 1; i >= 0; i-- {
 		elem := goo.StrPtSl[i]
 		if elem == nil {
+			offset = amino.PrependByte(buf, offset, 0x00)
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 16, amino.Typ3ByteLength)
+		} else if !((*elem) != "") {
 			offset = amino.PrependByte(buf, offset, 0x00)
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 16, amino.Typ3ByteLength)
 		} else {

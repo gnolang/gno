@@ -209,6 +209,52 @@ func TestWriteInterfaceFieldMarshal_SingleZeroByteElision(t *testing.T) {
 	}
 }
 
+// TestWriteUnpackedListMarshal_PointerToZeroSentinel verifies that
+// writeUnpackedListMarshal's pointer-to-non-struct branch emits an
+// explicit zeroCheck for the dereferenced value, mirroring reflect's
+// isNonstructDefaultValue pointer recursion (reflect.go:80-86). For
+// `[]*string{&""}` reflect emits a 0x00 sentinel; the generator
+// previously fell through to PrependString("") which also produced
+// 0x00 — wire bytes matched, but the explicit branch removes the
+// structural dependency on downstream length-emission composition.
+//
+// Sibling of #7 for the pointer-to-non-struct case.
+//
+// Regression guard for BINARY_FIXES #17.
+func TestWriteUnpackedListMarshal_PointerToZeroSentinel(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	ctx := NewP3Context2(cdc)
+	rtz := tests.Package.ReflectTypes()
+	src, err := ctx.GenerateProtobuf3ForTypes("tests", rtz...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+
+	// PointerSlicesStruct has `StrPtSl []*string` — pointer-to-non-struct
+	// with Typ3ByteLength repr (the unpacked branch). After fix, its
+	// MarshalBinary2 must contain `else if !((*elem) != "") {` for the
+	// dereferenced default check.
+	marker := "func (goo PointerSlicesStruct) MarshalBinary2"
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("PointerSlicesStruct MarshalBinary2 not found in generated source")
+	}
+	end := strings.Index(src[idx:], "\nfunc ")
+	if end < 0 {
+		end = len(src) - idx
+	}
+	body := src[idx : idx+end]
+
+	// New gate must appear: explicit dereferenced-zero-check branch.
+	want := `} else if !((*elem) != "") {`
+	if !strings.Contains(body, want) {
+		t.Errorf("expected %q in unpacked-pointer emission after fix; not found. Body:\n%s", want, body)
+	}
+}
+
 // TestWriteUnpackedListMarshal_NonPointerZeroSentinel verifies that
 // writeUnpackedListMarshal's non-pointer ByteLength-element branch emits
 // an explicit zeroCheck-driven sentinel, mirroring reflect's

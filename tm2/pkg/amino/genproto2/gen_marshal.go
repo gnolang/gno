@@ -524,6 +524,20 @@ func (ctx *P3Context2) writeUnpackedListMarshal(sb *strings.Builder, accessor st
 				sb.WriteString("\t\t\toffset = amino.PrependByte(buf, offset, 0x00)\n")
 				fmt.Fprintf(sb, "\t\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", fopts.BinFieldNum)
 			}
+			// Mirror reflect's isNonstructDefaultValue pointer recursion
+			// (reflect.go:80-86): for non-struct pointer elements, a non-nil
+			// pointer to a default value (e.g. *string -> "") also takes
+			// the sentinel branch. Wire bytes match today via downstream
+			// PrependString("")/PrependByteSlice(nil) producing 0x00, but
+			// the explicit branch removes the structural dependency. Skip
+			// for AminoMarshaler types (zeroCheck would target the wrong
+			// type; reflect's check on the Go-side Kind returns false).
+			derefZc := ctx.zeroCheck("(*elem)", einfo, fopts)
+			if !ertIsStruct && !einfo.IsAminoMarshaler && derefZc != "" {
+				fmt.Fprintf(sb, "\t\t} else if !(%s) {\n", derefZc)
+				sb.WriteString("\t\t\toffset = amino.PrependByte(buf, offset, 0x00)\n")
+				fmt.Fprintf(sb, "\t\t\toffset = amino.PrependFieldNumberAndTyp3(buf, offset, %d, amino.Typ3ByteLength)\n", fopts.BinFieldNum)
+			}
 			sb.WriteString("\t\t} else {\n")
 			elemAccessor = "(*elem)"
 			extraIndent = "\t\t\t"
