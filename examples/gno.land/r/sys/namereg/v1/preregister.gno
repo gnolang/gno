@@ -4,10 +4,10 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-// Pre-registered names bypass the Tier-1 `nym-...\d{3}` format
+// Pre-registered names bypass the Open Nym Tier `nym-...\d{3}` format
 // intentionally. They are bootstrap names allocated at genesis and are
 // not subject to the auto-registration regex. They DO appear in
-// reservedNames as a defense-in-depth (so a Tier-2/governance-bypass
+// reservedNames as a defense-in-depth (so a future governance-bypass
 // path can't accidentally reallocate them either), but at this layer
 // they are written directly via susers.RegisterUser.
 

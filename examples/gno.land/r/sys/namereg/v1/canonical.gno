@@ -13,7 +13,7 @@ import (
 // taken").
 //
 // Only the alpha stem is stored, not the full nym-XXX999 username.
-// The prefix and digit suffix are constant across all Tier-1
+// The prefix and digit suffix are constant across all Open Nym Tier
 // registrations and contribute nothing to canonical-form distinction.
 var canonicalStore = bptree.NewBPTree32()
 
@@ -43,7 +43,7 @@ func init() {
 //
 // CONTRACT: takes [a-z] input, returns [a-z] output. The function
 // applies l→i substitution, which is the only single-char letter-
-// letter confusable in [a-z] that survives the Tier-1 format's
+// letter confusable in [a-z] that survives the Open Nym Tier format's
 // digit/letter zone separation (cross-script confusables like 0/o
 // and 1/i,l can never occur in the alpha stem because digits and
 // letters are in disjoint regex zones).

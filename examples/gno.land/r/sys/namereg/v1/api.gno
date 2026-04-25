@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Tier-1 username format. Anchored.
+// Open Nym Tier username format. Anchored.
 //   - literal `nym-` prefix (4 chars)
 //   - 5-13 lowercase ASCII letters (the alpha stem)
 //   - exactly 3 trailing decimal digits

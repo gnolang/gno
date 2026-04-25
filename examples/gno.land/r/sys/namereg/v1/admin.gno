@@ -52,7 +52,7 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 // The associated address and all previous names of a user that changes a
 // name are preserved, and all resolve to the new name.
 //
-// Governance renames bypass the Tier-1 `nym-...\d{3}` format intentionally.
+// Governance renames bypass the Open Nym Tier `nym-...\d{3}` format intentionally.
 // The DAO is the trust root for this realm; if voters approve a rename to
 // `vitalik` (e.g. for trademark dispute resolution or system reservations),
 // the validation here imposes no further opinion. The new name is still

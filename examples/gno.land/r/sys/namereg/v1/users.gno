@@ -85,7 +85,7 @@ func Register(_ realm, username string) {
 	// Persist the canonical→original mapping so future registrations
 	// can detect collisions. Stored as the bare alpha stem (not the
 	// full nym-XXX999) because the prefix and digits are constant
-	// across all Tier-1 names and contribute nothing to distinction.
+	// across all Open Nym Tier names and contribute nothing to distinction.
 	canonicalStore.Set(canonical, stem)
 
 	latestUsers.Append(username)
