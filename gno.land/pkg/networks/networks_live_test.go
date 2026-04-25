@@ -15,10 +15,10 @@ import (
 // Skipped under -short to keep the default test run hermetic; CI can run it
 // on a schedule by invoking `go test ./gno.land/pkg/networks/`.
 func TestActiveNetworksReachable(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping live network check in -short mode")
 	}
-	t.Parallel()
 
 	reg, err := Load()
 	if err != nil {
