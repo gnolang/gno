@@ -31,10 +31,15 @@ arbitrary **markdown**
 - Closing fence: a line containing exactly `:::`. If the fence is missing,
   the block closes at the end of the document (matching CommonMark fenced
   code behaviour).
-- Rendered HTML: `<details class="gno-details" [open]><summary>…inline
-  summary…</summary>…block content…</details>`. No icon, no chrome class.
-- When the opening fence has no summary, `<summary>` is omitted; browsers
-  fall back to their default label.
+- Rendered HTML:
+  `<details class="gno-details" [open]><summary><svg><use href="#ico-arrow"></use></svg>…inline
+  summary…</summary><div>…block content…</div></details>`. The chevron SVG
+  references the bundled `#ico-arrow` symbol; the body is wrapped in a
+  `<div>` to anchor padding without affecting margin collapse on the first
+  child paragraph.
+- When the opening fence has no summary, the renderer emits a default
+  `<summary><svg/>Details</summary>` so the chevron and body wrapper still
+  apply consistently.
 
 The extension is wired into `GnoExtension.Extend` next to `ExtAlerts`. It
 uses the same block-parser priority (799) as the alert parser.
@@ -72,7 +77,9 @@ existing Alerts documentation.
   a consistent grammar — the parser rejects `:::something` that does not
   match `:::details`, falling through to default paragraph rendering, so
   adding new `:::<name>` blocks later is non-breaking.
-- **Styling is deferred.** A `.gno-details` class is emitted so authors
-  and themes can target the element, but no CSS is shipped with this
-  change; browsers render the element with their default styling. A
-  follow-up can add project styles if visual polish is desired.
+- **Styling shipped.** Project styles for `.gno-details` are added to
+  `gno.land/pkg/gnoweb/frontend/css/06-blocks.css`, scoped under
+  `.c-realm-view, .c-readme-view`: bordered, rounded, surface-coloured
+  card with a chevron summary that rotates between `-90deg` (closed) and
+  `0` (open). The shared `#ico-arrow` symbol is reused so no new SVG asset
+  is bundled.

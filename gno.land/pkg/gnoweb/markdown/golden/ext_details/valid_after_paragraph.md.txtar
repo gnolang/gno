@@ -1,0 +1,13 @@
+-- input.md --
+This is a paragraph that should be interrupted.
+:::details Inline summary
+Body line.
+:::
+-- output.html --
+<p>This is a paragraph that should be interrupted.</p>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Inline summary</summary>
+<div>
+<p>Body line.</p>
+</div>
+</details>
