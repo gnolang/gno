@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -29,9 +30,20 @@ import (
 )
 
 func main() {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "============================================================")
+	fmt.Fprintln(os.Stderr, "  WARNING: misc/genproto (genproto1 / pbbindings) is DEPRECATED.")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  Use misc/genproto2 instead. genproto1's pbbindings are")
+	fmt.Fprintln(os.Stderr, "  not guaranteed to match the reflect codec byte-for-byte;")
+	fmt.Fprintln(os.Stderr, "  genproto2 is the source-of-truth generator with a tested")
+	fmt.Fprintln(os.Stderr, "  parity contract against the reflect codec.")
+	fmt.Fprintln(os.Stderr, "============================================================")
+	fmt.Fprintln(os.Stderr, "")
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			LongHelp: "Generates proto bindings for Amino packages",
+			LongHelp: "Generates proto bindings for Amino packages.\n\nDEPRECATED: use misc/genproto2 instead. genproto1's pbbindings are not guaranteed to match the reflect codec byte-for-byte; genproto2 is the source-of-truth generator with a tested parity contract.",
 		},
 		commands.NewEmptyConfig(),
 		execGen,
