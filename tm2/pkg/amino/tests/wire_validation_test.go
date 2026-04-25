@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -1142,6 +1143,97 @@ func TestBinaryRejectsNilPtrStructInList_NonStructRepr(t *testing.T) {
 	_, errGen := cdc.MarshalBinary2(&orig)
 	if errGen == nil {
 		t.Fatal("generator: expected marshal error on nil struct-ptr without nil_elements, got nil")
+	}
+}
+
+// StructUint8ReprSliceStruct exercises the AminoMarshaler-with-uint8-repr
+// element pattern: `[]ReprElem7` where ReprElem7 is a Go struct whose
+// MarshalAmino returns uint8. Before the codec.go UnpackedList fix, the
+// element's Go-side Kind (Struct → Typ3ByteLength) made the field
+// UnpackedList=true, but the actual wire repr is Varint. The unpacked
+// path emitted packed bytes WITHOUT an outer key+length wrapper, making
+// reflect's own output non-roundtrippable. The generator also emitted
+// non-compiling code. After the fix, the field correctly routes through
+// the packed-list-with-beOptionByte path, emitting `<key><len><bytes>`.
+//
+// Proves BINARY_FIXES #6 was reachable (not LATENT as originally
+// documented) and that both codecs now produce identical roundtrippable
+// output. Includes high-byte values (>=0x80) to exercise the
+// varint-vs-bare-byte distinction: varint(0x80) is 2 bytes, bare byte is 1.
+func TestBinaryParity_AminoMarshalerUint8ReprSlice(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	// -128, 1, 127, and a value whose wire repr crosses the varint boundary.
+	// ReprElem7.MarshalAmino returns uint8(A), so int8(-56) → uint8(0xC8)
+	// which as a bare byte is 0xC8, but as a uvarint would be 2 bytes
+	// (0xC8, 0x01). Any case where the generator or reflect picks varint
+	// would wire-diverge.
+	orig := StructUint8ReprSliceStruct{
+		Vals: []ReprElem7{{A: -128}, {A: 1}, {A: 127}, {A: -56}, {A: -1}},
+	}
+
+	// 1. Reflect self-roundtrip must succeed (pre-fix: fails with
+	//    "unknown field number" because reflect emits bytes without the
+	//    outer field key+length wrapper).
+	reflectBz, err := cdc.MarshalReflect(&orig)
+	if err != nil {
+		t.Fatalf("MarshalReflect: %v", err)
+	}
+	var viaReflect StructUint8ReprSliceStruct
+	if err := cdc.UnmarshalReflect(reflectBz, &viaReflect); err != nil {
+		t.Fatalf("UnmarshalReflect self-roundtrip failed (reflect emits non-parseable bytes): err=%v, bz=%X", err, reflectBz)
+	}
+	if !reflect.DeepEqual(orig, viaReflect) {
+		t.Fatalf("reflect self-roundtrip mismatch:\norig:  %+v\nrtrip: %+v", orig, viaReflect)
+	}
+
+	// 2. Generator self-roundtrip must succeed (pre-fix: generator
+	//    emitted non-compiling `uint64(elem)` against a struct-typed
+	//    accessor — the test couldn't even build).
+	genBz, err := cdc.MarshalBinary2(&orig)
+	if err != nil {
+		t.Fatalf("MarshalBinary2: %v", err)
+	}
+	var viaGen StructUint8ReprSliceStruct
+	if err := viaGen.UnmarshalBinary2(cdc, genBz, 0); err != nil {
+		t.Fatalf("UnmarshalBinary2 self-roundtrip failed: err=%v, bz=%X", err, genBz)
+	}
+	if !reflect.DeepEqual(orig, viaGen) {
+		t.Fatalf("generator self-roundtrip mismatch:\norig:  %+v\nrtrip: %+v", orig, viaGen)
+	}
+
+	// 3. Cross-codec byte parity: both codecs must produce identical wire
+	//    bytes.
+	if !bytes.Equal(reflectBz, genBz) {
+		t.Fatalf("cross-codec byte mismatch:\nreflect: %X\ngen:     %X", reflectBz, genBz)
+	}
+
+	// 4. Wire shape: one ByteLength field, key=0x0A (fnum=1, typ3=2),
+	//    then uvarint length, then len(Vals) bare bytes — one per element.
+	//    With 5 elements, total is 2 + 5 = 7 bytes (1 key + 1 length + 5
+	//    bare bytes). Verifies that the wire is NOT uvarint-per-element
+	//    (which for -56 would be 2 bytes, inflating total size by 5).
+	wantLen := 1 /* key */ + 1 /* length uvarint (5<128) */ + len(orig.Vals) /* bare bytes */
+	if len(genBz) != wantLen {
+		t.Errorf("wire length mismatch: want %d bytes (key+len+%d bare), got %d bytes (%X)",
+			wantLen, len(orig.Vals), len(genBz), genBz)
+	}
+	if genBz[0] != tag(1, typ3ByteLength) {
+		t.Errorf("wire: first byte must be tag(1, ByteLength)=0x%02X, got 0x%02X",
+			tag(1, typ3ByteLength), genBz[0])
+	}
+	if genBz[1] != byte(len(orig.Vals)) {
+		t.Errorf("wire: second byte must be uvarint(%d)=0x%02X, got 0x%02X",
+			len(orig.Vals), len(orig.Vals), genBz[1])
+	}
+	// The remaining bytes are the bare-byte repr of each Val in order.
+	for i, v := range orig.Vals {
+		if genBz[2+i] != uint8(v.A) {
+			t.Errorf("wire: byte[%d] want 0x%02X (uint8(%d)), got 0x%02X",
+				2+i, uint8(v.A), v.A, genBz[2+i])
+		}
 	}
 }
 
