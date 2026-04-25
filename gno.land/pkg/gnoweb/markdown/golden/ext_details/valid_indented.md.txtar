@@ -1,0 +1,11 @@
+-- input.md --
+   :::details Indented up to 3 spaces
+Body line.
+:::
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Indented up to 3 spaces</summary>
+<div>
+<p>Body line.</p>
+</div>
+</details>
