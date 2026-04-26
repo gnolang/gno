@@ -135,20 +135,62 @@ func TestMemberStorageHas(t *testing.T) {
 }
 
 func TestCountStorageMembers(t *testing.T) {
-	storage := commondao.NewMemberStorageWithGrouping()
-	storage.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	cases := []struct {
+		name  string
+		setup func() commondao.MemberStorage
+		want  int
+	}{
+		{
+			name: "empty",
+			setup: func() commondao.MemberStorage {
+				return commondao.NewMemberStorage()
+			},
+		},
+		{
+			name: "empty with grouping",
+			setup: func() commondao.MemberStorage {
+				return commondao.NewMemberStorageWithGrouping()
+			},
+		},
+		{
+			name: "not empty",
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorage()
+				s.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+				s.Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				return s
+			},
+			want: 2,
+		},
+		{
+			name: "not empty with grouping",
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorageWithGrouping()
+				s.Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
 
-	g, err := storage.Grouping().Add("A")
-	urequire.NoError(t, err, "expect no error creating member group A")
+				g, _ := s.Grouping().Add("A")
+				g.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
-	g.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+				g, _ = s.Grouping().Add("B")
+				g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // Add a member that exists in other group
+				return s
+			},
+			want: 4,
+		},
+	}
 
-	g, err = storage.Grouping().Add("B")
-	urequire.NoError(t, err, "expect no error creating member group B")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			storage := tc.setup()
+			s := commondao.MustNewReadonlyMemberStorage(storage)
 
-	g.Members().Add("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // Add a member that exists in other group
+			// Act
+			got := commondao.CountStorageMembers(s)
 
-	s := commondao.MustNewReadonlyMemberStorage(storage)
-	uassert.Equal(t, 4, commondao.CountStorageMembers(s))
+			// Assert
+			uassert.Equal(t, tc.want, got)
+		})
+	}
 }
