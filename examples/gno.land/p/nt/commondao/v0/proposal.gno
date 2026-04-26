@@ -39,6 +39,7 @@ const MaxCustomVoteChoices = 10
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
+	ErrProposalDefinitionPanicked = errors.New("proposal definition panicked")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
@@ -261,10 +262,23 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 // Tally counts votes and updates proposal status with the current outcome.
 // Proposal status is updated to "passed" when proposal is approved
 // or to "rejected" if proposal doesn't pass.
-func (p *Proposal) Tally(members MemberStorage) error {
+func (p *Proposal) Tally(members MemberStorage) (err error) {
 	if p.status != StatusActive {
 		return ErrStatusIsNotActive
 	}
+
+	// Make sure to handle proposal definition Tally() call panics
+	defer func() {
+		r := recover()
+		switch v := r.(type) {
+		case string:
+			err = errors.New(v)
+		case error:
+			err = v
+		default:
+			err = ErrProposalDefinitionPanicked
+		}
+	}()
 
 	ctx := MustNewVotingContext(p.VotingRecord(), members)
 	passes, err := p.Definition().Tally(ctx)

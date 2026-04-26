@@ -400,6 +400,30 @@ func TestProposalTally(t *testing.T) {
 			},
 			err: errTest,
 		},
+		{
+			name: "definition panic with error",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyPanic: errTest})
+				return p
+			},
+			err: errTest,
+		},
+		{
+			name: "definition panic with error string",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyPanic: "Test"})
+				return p
+			},
+			err: errors.New("Test"),
+		},
+		{
+			name: "definition panic with unknown type",
+			setup: func() *commondao.Proposal {
+				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyPanic: 1})
+				return p
+			},
+			err: commondao.ErrProposalDefinitionPanicked,
+		},
 	}
 
 	for _, tc := range cases {
@@ -440,6 +464,7 @@ type testPropDef struct {
 	tallyResult             bool
 	validationErr, tallyErr error
 	voteChoices             []commondao.VoteChoice
+	tallyPanic              any
 }
 
 func (testPropDef) Title() string                 { return "" }
@@ -448,6 +473,9 @@ func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 
 func (d testPropDef) Tally(commondao.VotingContext) (bool, error) {
+	if d.tallyPanic != nil {
+		panic(d.tallyPanic)
+	}
 	return d.tallyResult, d.tallyErr
 }
 
