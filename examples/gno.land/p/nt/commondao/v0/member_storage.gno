@@ -165,10 +165,15 @@ func CountStorageMembers(s *ReadonlyMemberStorage) int {
 		return 0
 	}
 
-	c := s.Size()
-	s.Grouping().IterateByOffset(0, s.Grouping().Size(), func(g *ReadonlyMemberGroup) bool {
-		c += g.Members().Size()
+	count := s.Size()
+	grouping := s.Grouping()
+	if grouping == nil {
+		return count
+	}
+
+	grouping.IterateByOffset(0, s.Grouping().Size(), func(g *ReadonlyMemberGroup) bool {
+		count += g.Members().Size()
 		return false
 	})
-	return c
+	return count
 }
