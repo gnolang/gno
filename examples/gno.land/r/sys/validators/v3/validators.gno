@@ -7,6 +7,7 @@ package validators
 
 import (
 	"chain/runtime"
+	"strconv"
 	"strings"
 
 	"gno.land/p/nt/poa/v0"
@@ -67,14 +68,13 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		}
 
 		// Publish the new full valset for the chain to diff & apply.
+		// Each entry is "<bech32-pubkey>:<decimal-power>".
 		set := vp.GetValidators()
-		pubKeys := make([]string, len(set))
-		powers := make([]int64, len(set))
+		entries := make([]string, len(set))
 		for i, v := range set {
-			pubKeys[i] = v.PubKey.String()
-			powers[i] = int64(v.VotingPower)
+			entries[i] = v.PubKey.String() + ":" + strconv.FormatUint(v.VotingPower, 10)
 		}
-		sysparams.SetValsetProposal(pubKeys, powers)
+		sysparams.SetValsetProposal(entries)
 		return nil
 	}
 

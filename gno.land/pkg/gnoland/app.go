@@ -481,22 +481,9 @@ type endBlockerApp interface {
 	SetHaltHeight(uint64)
 }
 
-// Param keys read by EndBlocker.
-// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
-const (
-	// valsetDirtyKey signals the proposed valset differs from the prev one.
-	// Realm sets true; EndBlocker sets false after applying.
-	valsetDirtyPath = "vm:p:valset_dirty"
-
-	// One []string per slot; each entry has the form "<pubkey>:<power>".
-	// Address is derived from pubkey on parse, not stored.
-	valsetNewPath  = "vm:p:valset_new"
-	valsetPrevPath = "vm:p:valset_prev"
-)
-
 // EndBlocker defines the logic executed after every block.
 // It checks for a governance-requested chain halt, then reads valset changes
-// from the VM params keeper and propagates them to consensus.
+// from the params keeper and propagates them to consensus.
 func EndBlocker(
 	prmk params.ParamsKeeperI,
 	acck auth.AccountKeeperI,

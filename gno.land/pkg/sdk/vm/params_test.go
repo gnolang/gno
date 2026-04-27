@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -239,111 +238,6 @@ func TestWillSetParamExhaustive(t *testing.T) {
 			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
 		})
 	}
-}
-
-func TestWillSetParam_ValsetUpdate(t *testing.T) {
-	t.Parallel()
-
-	const (
-		valsetNewPath  = "p:valset_new"
-		valsetPrevPath = "p:valset_prev"
-		valsetDirty    = "p:valset_dirty"
-	)
-	pub := secp256k1.GenPrivKey().PubKey().String()
-	good := pub + ":10"
-
-	t.Run("non-valset key passes through", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, "some_realm:arbitrary_key", nil)
-		})
-	})
-
-	t.Run("dirty: bool passes", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetDirty, true)
-		})
-	})
-
-	t.Run("dirty: wrong type panics", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetDirty, "yes")
-		})
-	})
-
-	t.Run("new: invalid value type", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath, "not a slice")
-		})
-	})
-
-	t.Run("new: malformed entry (no separator)", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath, []string{"no-colon-here"})
-		})
-	})
-
-	t.Run("new: invalid pubkey", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath, []string{"notapubkey:10"})
-		})
-	})
-
-	t.Run("new: negative power", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath, []string{pub + ":-1"})
-		})
-	})
-
-	t.Run("new: valid", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath, []string{good})
-		})
-	})
-
-	t.Run("prev: same validation as new", func(t *testing.T) {
-		t.Parallel()
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetPrevPath, []string{"garbage"})
-		})
-		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetPrevPath, []string{good})
-		})
-	})
 }
 
 func TestParamsValidate(t *testing.T) {

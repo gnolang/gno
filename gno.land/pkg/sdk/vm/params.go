@@ -7,7 +7,6 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
@@ -248,23 +247,6 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
 		}
 		params.StorageFeeCollector = addr
-	case "p:valset_dirty":
-		// Just type-check; the bool value is opaque.
-		if _, ok := value.(bool); !ok {
-			panic(fmt.Sprintf("value for VM param %s is an invalid type (%T)", key, value))
-		}
-		return
-	case "p:valset_new", "p:valset_prev":
-		// Validate each "<pubkey>:<power>" entry on write so a bad realm
-		// can't seed garbage that EndBlocker has to recover from.
-		entries, ok := value.([]string)
-		if !ok {
-			panic(fmt.Sprintf("value for VM param %s is an invalid type (%T)", key, value))
-		}
-		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
-			panic(fmt.Sprintf("invalid %s: %v", key, err))
-		}
-		return
 	case "p:min_get_read_depth_100":
 		params.MinGetReadDepth100 = sdkparams.MustParamInt64("min_get_read_depth_100", value)
 	case "p:min_set_read_depth_100":

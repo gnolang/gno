@@ -28,9 +28,9 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 		t.Fatalf("read %s: %v", gnoPath, err)
 	}
 
-	// Build the prefix the gno helper uses: vm:p:
-	prefix := mustGnoConst(t, data, "vmModulePrefix") + ":" +
-		mustGnoConst(t, data, "vmParamSlot") + ":"
+	// Build the prefix the gno helper uses: node:valset:
+	prefix := mustGnoConst(t, data, "nodeModulePrefix") + ":" +
+		mustGnoConst(t, data, "valsetSubmodule") + ":"
 
 	cases := []struct {
 		gnoName string

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -14,6 +15,19 @@ import (
 const (
 	nodeParamHaltHeight     = "node:p:halt_height"
 	nodeParamHaltMinVersion = "node:p:halt_min_version"
+
+	// Valset keys live under the "valset" submodule of the node module.
+	// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
+	//
+	//   dirty signals the proposed valset differs from the prev one.
+	//     Realm sets true; EndBlocker sets false after applying.
+	//   new   = realm's desired valset
+	//   prev  = previously applied valset (what consensus is running)
+	//
+	// Each "new"/"prev" entry has the form "<bech32-pubkey>:<decimal-power>".
+	valsetDirtyPath = "node:valset:dirty"
+	valsetNewPath   = "node:valset:new"
+	valsetPrevPath  = "node:valset:prev"
 )
 
 // nodeParamsKeeper implements a minimal ParamfulKeeper for the "node" module.
@@ -41,6 +55,21 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		_, ok := value.(string)
 		if !ok {
 			panic(fmt.Sprintf("halt_min_version must be a string, got %T", value))
+		}
+	case "valset:dirty":
+		// Just type-check; the bool value is opaque.
+		if _, ok := value.(bool); !ok {
+			panic(fmt.Sprintf("valset:dirty must be a bool, got %T", value))
+		}
+	case "valset:new", "valset:prev":
+		// Validate each "<pubkey>:<power>" entry on write so a bad realm
+		// can't seed garbage that EndBlocker has to recover from.
+		entries, ok := value.([]string)
+		if !ok {
+			panic(fmt.Sprintf("%s must be []string, got %T", key, value))
+		}
+		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
+			panic(fmt.Sprintf("invalid %s: %v", key, err))
 		}
 	default:
 		if strings.HasPrefix(key, "p:") {

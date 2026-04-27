@@ -1260,6 +1260,68 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 			npk.WillSetParam(sdk.Context{}, "other:key", "value")
 		})
 	})
+
+	pub := getDummyKey(t).PubKey().String()
+	good := pub + ":10"
+
+	t.Run("valset:dirty bool passes", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:dirty", true)
+		})
+	})
+
+	t.Run("valset:dirty wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:dirty", "yes")
+		})
+	})
+
+	t.Run("valset:new wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:new", 42)
+		})
+	})
+
+	t.Run("valset:new malformed entry panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:new", []string{"no-colon"})
+		})
+	})
+
+	t.Run("valset:new bad pubkey panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:new", []string{"notapubkey:10"})
+		})
+	})
+
+	t.Run("valset:new negative power panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:new", []string{pub + ":-1"})
+		})
+	})
+
+	t.Run("valset:new valid passes", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:new", []string{good})
+		})
+	})
+
+	t.Run("valset:prev shares validation with new", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:prev", []string{"garbage"})
+		})
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:prev", []string{good})
+		})
+	})
 }
 
 func TestMeetsMinVersion(t *testing.T) {
