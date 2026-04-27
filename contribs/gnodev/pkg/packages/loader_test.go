@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
@@ -183,4 +184,49 @@ func TestLoader_LoadAll(t *testing.T) {
 	paths := pathsOf(pkgs)
 	assert.Contains(t, paths, "gno.land/p/ws/one")
 	assert.Contains(t, paths, "gno.land/p/ext/two")
+}
+
+// TestLoader_Reload_PreservesRootIdx verifies that Reload does NOT invalidate
+// rootIdx — directories are stable mid-session and re-walking large roots on
+// every watcher event is too expensive. Restart is required to pick up new dirs.
+func TestLoader_Reload_PreservesRootIdx(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
+	wsPkg := filepath.Join(root, "wspkg")
+	writePkg(t, wsPkg, "gno.land/p/ws/one", "package one\n")
+
+	extra := t.TempDir()
+	extraPkg := filepath.Join(extra, "p")
+	writePkg(t, extraPkg, "gno.land/p/ext/two", "package two\n")
+
+	t.Chdir(root)
+
+	l := New(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: testLogger()})
+	_, err := l.LoadWorkspace()
+	require.NoError(t, err)
+	_, err = l.Resolve("gno.land/p/ext/two")
+	require.NoError(t, err)
+
+	// Snapshot rootIdx before Reload.
+	l.mu.RLock()
+	idxBefore, ok := l.rootIdx[extra]
+	require.True(t, ok, "rootIdx should contain the extra root after Resolve")
+	require.NotEmpty(t, idxBefore)
+	l.mu.RUnlock()
+
+	_, err = l.Reload()
+	require.NoError(t, err)
+
+	// rootIdx must still be populated after Reload.
+	l.mu.RLock()
+	idxAfter, ok := l.rootIdx[extra]
+	l.mu.RUnlock()
+	// rootIdx must still be the SAME map across Reload, not just an
+	// equivalent freshly re-walked one. Compare map header pointers.
+	require.True(t, ok, "rootIdx should be preserved across Reload")
+	assert.Equal(t,
+		reflect.ValueOf(idxBefore).Pointer(),
+		reflect.ValueOf(idxAfter).Pointer(),
+		"rootIdx must be the same map (no re-walk), not a content-equivalent rebuild",
+	)
 }

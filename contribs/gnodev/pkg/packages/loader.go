@@ -247,13 +247,12 @@ func (l *Loader) Reload() ([]*Package, error) {
 	}
 
 	// Drop tracked paths from the index so Resolve re-derives them from
-	// FS or fetcher (picking up any changes on disk).
+	// FS or fetcher (picking up any changes on disk). rootIdx is preserved:
+	// directories are stable mid-session; new dirs need a gnodev restart.
 	l.mu.Lock()
 	for _, p := range trackedPaths {
 		delete(l.index, p)
 	}
-	// Invalidate root indexes so scanRoot re-walks and picks up added dirs.
-	l.rootIdx = make(map[string]map[string]string)
 	l.mu.Unlock()
 
 	for _, p := range trackedPaths {

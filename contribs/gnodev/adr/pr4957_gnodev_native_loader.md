@@ -112,6 +112,10 @@ new `Loader` is constructed on gnodev restart. Mid-session, the file
 watcher's reload already picks up newly added packages via
 `gnovm.Load` — the root cache only serves `Resolve` miss lookups.
 
+rootIdx is **not** invalidated on Reload — directories are stable
+mid-session, and re-walking large extra roots on every watcher tick is
+too expensive. New directories require a gnodev restart.
+
 ### User-facing changes
 
 | Removed (hard) | Added |
