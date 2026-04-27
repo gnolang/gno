@@ -217,6 +217,21 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 	return nil
 }
 
+// Tally counts votes and updates proposal status with the current outcome.
+// Proposal status is updated to "passed" when proposal is approved
+// or to "rejected" if proposal doesn't pass.
+func (dao *CommonDAO) Tally(proposalID uint64) (ProposalStatus, error) {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
+		return "", ErrProposalNotFound
+	}
+
+	if err := p.tally(dao.members); err != nil {
+		return "", err
+	}
+	return p.Status(), nil
+}
+
 // Execute executes a proposal.
 //
 // By default active proposals can only be executed after their voting deadline passes.
@@ -245,7 +260,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 
 	// Tally votes and update proposal status to "passed" or "rejected"
 	if err == nil {
-		err = p.Tally(dao.Members())
+		err = p.tally(dao.Members())
 		if err == nil && p.Status() == StatusRejected {
 			// Don't try to execute proposal if it's been rejected
 			return nil

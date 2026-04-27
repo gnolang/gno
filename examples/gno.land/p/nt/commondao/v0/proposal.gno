@@ -258,10 +258,26 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
-// Tally counts votes and updates proposal status with the current outcome.
-// Proposal status is updated to "passed" when proposal is approved
-// or to "rejected" if proposal doesn't pass.
-func (p *Proposal) Tally(members MemberStorage) (err error) {
+// IsQuorumReached checks if a participation quorum is reach.
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
+	if members.Size() <= 0 || quorum <= 0 {
+		return false
+	}
+
+	var totalCount int
+	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
+		// Don't count explicit abstentions or invalid votes
+		if c != ChoiceNone && c != ChoiceAbstain {
+			totalCount += r.VoteCount(c)
+		}
+		return false
+	})
+
+	percentage := float64(totalCount) / float64(members.Size())
+	return percentage >= quorum
+}
+
+func (p *Proposal) tally(members MemberStorage) (err error) {
 	if p.status != StatusActive {
 		return ErrStatusIsNotActive
 	}
@@ -291,23 +307,4 @@ func (p *Proposal) Tally(members MemberStorage) (err error) {
 		p.status = StatusRejected
 	}
 	return nil
-}
-
-// IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
-	if members.Size() <= 0 || quorum <= 0 {
-		return false
-	}
-
-	var totalCount int
-	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
-		// Don't count explicit abstentions or invalid votes
-		if c != ChoiceNone && c != ChoiceAbstain {
-			totalCount += r.VoteCount(c)
-		}
-		return false
-	})
-
-	percentage := float64(totalCount) / float64(members.Size())
-	return percentage >= quorum
 }
