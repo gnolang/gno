@@ -264,3 +264,56 @@ func TestPackage_KindZeroValue(t *testing.T) {
 	assert.Equal(t, KindUnknown, p.Kind)
 	assert.NotEqual(t, KindFS, p.Kind)
 }
+
+// TestLoader_LoadRealExamplesRealm exercises loading a real realm from
+// $GNOROOT/examples. boards2/v1 imports chain, chain/runtime, p-tree, etc.
+// — the kind of graph that triggers stripStdlibs + MPUserProd code paths
+// that trivial single-package tests miss. Skips cleanly if the realm path
+// doesn't exist (e.g., running outside the monorepo).
+func TestLoader_LoadRealExamplesRealm(t *testing.T) {
+	gnoroot := os.Getenv("GNOROOT")
+	if gnoroot == "" {
+		// Fall back to gnoenv discovery. Test target is a stable example.
+		gnoroot = filepath.Join("..", "..", "..", "..")
+	}
+	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v1")
+	if _, err := os.Stat(realmDir); err != nil {
+		t.Skipf("examples realm not available: %v", err)
+	}
+	absRealm, err := filepath.Abs(realmDir)
+	require.NoError(t, err)
+
+	// Set up a workspace at the realm dir (boards2/v1 has its own gnomod.toml).
+	t.Chdir(absRealm)
+
+	l := New(Config{
+		Workspace: absRealm,
+		Examples:  true,
+		GnoRoot:   filepath.Join(absRealm, "..", "..", "..", "..", ".."),
+		Logger:    testLogger(),
+	})
+	pkgs, err := l.LoadWorkspace()
+	require.NoError(t, err, "boards2/v1 should load without errors")
+	require.NotEmpty(t, pkgs, "should resolve at least one package")
+
+	// Verify it loaded the realm itself.
+	paths := pathsOf(pkgs)
+	assert.Contains(t, paths, "gno.land/r/gnoland/boards2/v1")
+
+	// Verify ToMemPackage works for the realm (regression for MPUserProd fix).
+	for _, p := range pkgs {
+		if p.ImportPath == "gno.land/r/gnoland/boards2/v1" {
+			mp, err := p.ToMemPackage()
+			require.NoError(t, err, "ToMemPackage must succeed on real realm")
+			assert.NotEmpty(t, mp.Name, "MemPackage must have a Name")
+			// MPUserProd → no _test.gno files. Regression for the bug fixed
+			// in commit 62e4e3246f.
+			for _, f := range mp.Files {
+				assert.NotContains(t, f.Name, "_test.gno",
+					"MPUserProd must strip test files; got %s", f.Name)
+			}
+			return
+		}
+	}
+	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
+}
