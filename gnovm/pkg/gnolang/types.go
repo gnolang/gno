@@ -85,7 +85,7 @@ func (RefType) assertType()        {}
 // IsImmutable
 func (PrimitiveType) IsImmutable() bool    { return true }
 func (*PointerType) IsImmutable() bool     { return false }
-func (FieldType) IsImmutable() bool        { panic("should not happen") }
+func (FieldType) IsImmutable() bool        { panic("internal: should not happen") }
 func (*ArrayType) IsImmutable() bool       { return false }
 func (*SliceType) IsImmutable() bool       { return false }
 func (*StructType) IsImmutable() bool      { return false }
@@ -98,8 +98,8 @@ func (*PackageType) IsImmutable() bool     { return false }
 func (*ChanType) IsImmutable() bool        { return true }
 func (blockType) IsImmutable() bool        { return false }
 func (heapItemType) IsImmutable() bool     { return false }
-func (*tupleType) IsImmutable() bool       { panic("should not happen") }
-func (RefType) IsImmutable() bool          { panic("should not happen") }
+func (*tupleType) IsImmutable() bool       { panic("internal: should not happen") }
+func (RefType) IsImmutable() bool          { panic("internal: should not happen") }
 
 // ----------------------------------------
 // Primitive types
@@ -461,7 +461,7 @@ func (l FieldTypeList) HasUnexported() bool {
 		if debug {
 			if ft.Name == "" {
 				// incorrect usage.
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 		if !isUpper(string(ft.Name)) {
@@ -710,7 +710,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 							}
 						*/
 					default:
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					return
 				}
@@ -721,9 +721,9 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 				trail[0].Type = VPDerefPtrMethod
 				return
 			case VPDerefValMethod, VPDerefPtrMethod:
-				panic("should not happen")
+				panic("internal: should not happen")
 			default:
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		} else { // not found
 			return
@@ -1020,7 +1020,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 			} else if trail != nil {
 				if debug {
 					if len(trail) != 1 || trail[0].Type != VPInterface {
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 				}
 				return trail, hasPtr, rcvr, ft, false
@@ -1098,7 +1098,7 @@ func (ct *ChanType) TypeID() TypeID {
 		case RECV:
 			ct.typeid = typeidf("chan<-{%s}", ct.Elt.TypeID().String())
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	return ct.typeid
@@ -1113,7 +1113,7 @@ func (ct *ChanType) String() string {
 	case RECV:
 		return "chan<- " + ct.Elt.String()
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -1523,7 +1523,7 @@ func (dt *DeclaredType) TypeID() TypeID {
 	} else {
 		// XXX delete this if tests pass.
 		if dt.typeid != DeclaredTypeID(dt.PkgPath, dt.ParentLoc, dt.Name) {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 	return dt.typeid
@@ -1720,14 +1720,14 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	case VPField, VPDerefField:
 		if debug {
 			if trail[0].Depth != 0 && trail[0].Depth != 2 {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 
 		trail[0].SetDepth(trail[0].Depth + 1)
 		return trail, hasPtr, rcvr, ft, false
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -1747,7 +1747,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
-		panic("should not happen")
+		panic("internal: should not happen")
 		// should call *DT.FindEmbeddedFieldType(name) instead.
 		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
 	case VPValMethod, VPPtrMethod, VPField:
@@ -1772,7 +1772,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:
-		panic("should not happen")
+		panic("internal: should not happen")
 		// should call *DT.FindEmbeddedFieldType(name) instead.
 		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
 	case VPValMethod, VPPtrMethod, VPField:
@@ -2163,7 +2163,7 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Name = ct.Name
 		default:
 			// should not happen,
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case *DeclaredType:
 		ft.Name = ct.Name
@@ -2211,7 +2211,7 @@ func IsImplementedBy(it Type, ot Type) bool {
 	case *InterfaceType:
 		return cbt.IsImplementedBy(ot)
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 

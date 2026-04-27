@@ -65,7 +65,7 @@ func (p Pos) Compare(p2 Pos) int {
 	case p.Line > p2.Line:
 		return 1
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	switch {
 	case p.Column < p2.Column:
@@ -75,7 +75,7 @@ func (p Pos) Compare(p2 Pos) int {
 	case p.Column > p2.Column:
 		return 1
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -216,7 +216,7 @@ func (s Span) Compare(s2 Span) int {
 	case 1: // s.Pos > s2.Pos
 		return 1
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	switch s.End.Compare(s2.End) {
 	case -1: // s.End < s2.End
@@ -226,7 +226,7 @@ func (s Span) Compare(s2 Span) int {
 	case 1:
 		return -1 // see comment
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	switch {
 	case s.Num < s2.Num:
@@ -236,7 +236,7 @@ func (s Span) Compare(s2 Span) int {
 	case s.Num > s2.Num:
 		return 1
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 

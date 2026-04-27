@@ -14,7 +14,7 @@ func (m *Machine) doOpPrecall() {
 			// This may happen due to an undefined uverse or
 			// closure value (which isn't supposed to happen but
 			// may happen due to incomplete initialization).
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 
@@ -166,7 +166,7 @@ func (m *Machine) doOpCall() {
 	// NOTE: addHeapCapture in preprocess ensures order.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
-			panic("should not happen, length of captured variables must not exceed the number of values")
+			panic("internal: should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := range fv.Captures {
 			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
@@ -421,7 +421,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
-			panic("should not happen, length of captured variables must not exceed the number of values")
+			panic("internal: should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := range fv.Captures {
 			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
@@ -480,7 +480,7 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 			// type called with form fncall(?, vargs...)
 			if debug {
 				if nvar != 1 {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 			}
 		} else {
@@ -570,7 +570,7 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 
 func (m *Machine) doOpPanic2() {
 	if m.Exception == nil {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	cfr := m.PopUntilLastCallFrame()
 	if cfr == nil {

@@ -143,7 +143,7 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		val := Go2GnoValue(alloc, store, rv.Elem())
 		tv.V = PointerValue{TV: &val} // heap alloc
 	default:
-		panic("not yet implemented")
+		panic("internal: not yet implemented")
 	}
 	return
 }
@@ -187,11 +187,11 @@ func gno2GoType(t Type) reflect.Type {
 		case Float64Type:
 			return reflect.TypeOf(float64(0))
 		case UntypedBigintType:
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		case UntypedBigdecType:
-			panic("not yet implemented")
+			panic("internal: not yet implemented")
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case *PointerType:
 		et := gno2GoType(ct.Elem())
@@ -235,7 +235,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	} else if rv.Kind() == reflect.Interface {
 		if debug {
 			if !rv.IsZero() {
-				panic("should not happen")
+				panic("internal: should not happen")
 			}
 		}
 		rt = gno2GoType(bt)

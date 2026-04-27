@@ -160,7 +160,7 @@ func (ss *scanner) eatRunes(back int, eat int, check func(rune) bool) {
 func (ss *scanner) advanceEscapeSequence() bool {
 	rn1 := ss.rnz[ss.idx]
 	if rn1 != '\\' {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	if ss.idx == len(ss.rnz)-1 {
 		panic("eof while parsing escape sequence")

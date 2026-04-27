@@ -625,7 +625,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
 	if len(hash) != HashSize {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	oo.SetHash(ValueHash{hash})
 	// difference between object size and cached value

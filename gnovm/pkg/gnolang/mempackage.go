@@ -228,7 +228,7 @@ func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool 
 	fname := mfile.Name
 	fbody := mfile.Body
 	if !strings.HasSuffix(fname, ".gno") {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	switch mpfilter {
 	case MPFNone:
@@ -246,7 +246,7 @@ func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool 
 		}
 		return !isIntegrationTestFile(pname, fname, fbody)
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -272,7 +272,7 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 	case MPFProd:
 		switch mptype {
 		case MPAnyAll, MPAnyTest, MPAnyProd, MPAnyIntegration:
-			panic("should not happen (undecided MPAny*)")
+			panic("internal: should not happen (undecided MPAny*)")
 		case MPUserAll, MPUserTest, MPUserProd:
 			return MPUserProd
 		case MPStdlibAll, MPStdlibTest, MPStdlibProd:
@@ -280,12 +280,12 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 		case MPUserIntegration, MPStdlibIntegration:
 			panic("MP*Integration packages have no prod files")
 		case MPFiletests:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case MPFTest:
 		switch mptype {
 		case MPAnyAll, MPAnyTest, MPAnyProd, MPAnyIntegration:
-			panic("should not happen (undecided MPAny*)")
+			panic("internal: should not happen (undecided MPAny*)")
 		case MPUserAll, MPUserTest:
 			return MPUserTest
 		case MPStdlibAll, MPStdlibTest:
@@ -295,12 +295,12 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 		case MPUserIntegration, MPStdlibIntegration:
 			panic("MP*Integration packages have no prod/test files")
 		case MPFiletests:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	case MPFIntegration:
 		switch mptype {
 		case MPAnyAll, MPAnyTest, MPAnyProd, MPAnyIntegration:
-			panic("should not happen (undecided MPAny*)")
+			panic("internal: should not happen (undecided MPAny*)")
 		case MPUserAll:
 			return MPUserIntegration
 		case MPStdlibAll:
@@ -308,12 +308,12 @@ func (mpfilter MemPackageFilter) FilterType(mptype MemPackageType) MemPackageTyp
 		case MPUserProd, MPUserTest, MPStdlibProd, MPStdlibTest:
 			panic("MP*Prod and MP*Test packages have no integration test files")
 		case MPFiletests:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
-	panic("should not happen")
+	panic("internal: should not happen")
 }
 
 // NOTE: only filters .gno files.
@@ -536,7 +536,7 @@ func (mptype MemPackageType) AsRunnable() MemPackageType {
 		case MPUserAll:
 			return MPUserProd
 		default:
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	} else if mptype.IsProd() {
 		return mptype
@@ -574,7 +574,7 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 			panic(fmt.Sprintf("expected stdlib package path for %q but got %q", mptype, pkgPath))
 		}
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	switch mptype {
 	case MPAnyAll, MPAnyProd, MPAnyTest:
@@ -618,7 +618,7 @@ func (mptype MemPackageType) AssertCompatible(pkgPath string, mptype2 MemPackage
 // pname: the pname as declared in the file.
 func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 	if !strings.HasSuffix(fname, ".gno") {
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 	switch mptype {
 	case MPAnyAll, MPAnyProd, MPAnyTest, MPAnyIntegration:
@@ -639,7 +639,7 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 			!endsWithAny(fname, []string{"_test.gno"}) ||
 			!endsWithAny(string(pname), []string{"_test"})
 	default:
-		panic("should not happen")
+		panic("internal: should not happen")
 	}
 }
 
@@ -970,7 +970,7 @@ func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileS
 			continue
 		}
 		if n == nil {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 		switch {
 		case strings.HasSuffix(mfile.Name, "_filetest.gno"):

@@ -361,7 +361,7 @@ func (m *Machine) doOpShl() {
 	lv := m.PeekValue(1) // also result
 	if debug {
 		if rv.T.Kind() != UintKind {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 
@@ -382,7 +382,7 @@ func (m *Machine) doOpShr() {
 	lv := m.PeekValue(1) // also result
 	if debug {
 		if rv.T.Kind() != UintKind {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 

@@ -427,7 +427,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 					err.Error())
 			}
 		} else {
-			panic("should not happen")
+			panic("internal: should not happen")
 		}
 	}
 
@@ -599,9 +599,9 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 			return nil
 		}
 	case *InterfaceType:
-		panic("should not happen")
+		panic("internal: should not happen")
 	case *DeclaredType:
-		panic("should not happen")
+		panic("internal: should not happen")
 	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
@@ -904,7 +904,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			case *TypeAssertExpr:
 				// Type-assert case: a, ok := x.(type)
 				if len(x.Lhs) != 2 {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 				if x.Op == ASSIGN {
 					// check first value
@@ -926,7 +926,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				cx.HasOK = true
 			case *IndexExpr: // must be with map type when len(Lhs) > len(Rhs)
 				if len(x.Lhs) != 2 {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 				if x.Op == ASSIGN {
 					assertValidAssignLhs(store, last, x.Lhs[0])
@@ -942,7 +942,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 							if mt, ok := cpt.(*MapType); ok {
 								mustAssignableTo(x, mt.Value, lt)
 							} else {
-								panic("should not happen")
+								panic("internal: should not happen")
 							}
 						}
 					}

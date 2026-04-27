@@ -116,7 +116,7 @@ func (m *Machine) doOpEval() {
 				var exp int64
 				eIndex := strings.IndexAny(value, "Pp")
 				if eIndex == -1 {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 
 				// ----------------------------------------

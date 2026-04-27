@@ -328,7 +328,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				} else if len(lhs) > 1 && len(rhs) == 1 {
 					// XXX not yet supported.
 				} else {
-					panic("should not happen")
+					panic("internal: should not happen")
 				}
 				return n, TRANS_CONTINUE
 			case *CompositeLitExpr:
@@ -386,13 +386,13 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 				if n.WithCross { // cross(n.Func)(...)
 					ccfx := gno0p0CrossCallFunc(n)
 					if ccfx == nil {
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					cfn = ccfx
 				} else {
 					ccfx := gno0p0CrossCallFunc(n)
 					if ccfx != nil {
-						panic("should not happen")
+						panic("internal: should not happen")
 					}
 					cfn = n.Func
 				}
@@ -454,7 +454,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						if mft.IsCrossing() {
 							// weird. it might have an attribute,
 							// but this shouldn't be happening
-							panic("should not happen")
+							panic("internal: should not happen")
 						} else {
 							// add xform to method's type expr.
 							addXform1(ipn, ifn2.FileName, mftx, XTYPE_ADD_CUR_FUNC, &xnew)
@@ -464,7 +464,7 @@ func FindMoreXformsGno0p9(store Store, pn *PackageNode, last BlockNode, n Node) 
 						// add `cur` as first argument
 						_, cmp := spreadXform(cfn, mftx, &xnew)
 						if cmp > 0 {
-							panic("should not happen")
+							panic("internal: should not happen")
 						}
 					}
 				}
