@@ -32,10 +32,10 @@ func TestSanitizePathSegment(t *testing.T) {
 	}
 }
 
-// TestGuessPath_NoGnoModProducesValidPath ensures every dir basename that
-// the regex sanitizer accepts produces a pkgPath that gno's IsUserlib
-// validator accepts. Regression for the bug where -<hyphen> in dir name
-// caused gnodev startup to panic.
+// TestGuessPath_NoGnoModProducesValidPath asserts that for every input
+// basename, the pkgPath returned by guessPath satisfies gnolang.IsUserlib.
+// Inputs cover hyphens, mixed case, digit-leading, leading underscore, and
+// non-alphanumeric chars — all of which gno's Re_name rejects unsanitized.
 func TestGuessPath_NoGnoModProducesValidPath(t *testing.T) {
 	cfg := &AppConfig{chainDomain: "gno.land"}
 	for _, base := range []string{

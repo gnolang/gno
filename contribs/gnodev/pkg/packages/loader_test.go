@@ -305,14 +305,14 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	paths := pathsOf(pkgs)
 	assert.Contains(t, paths, "gno.land/r/gnoland/boards2/v1")
 
-	// Verify ToMemPackage works for the realm (regression for MPUserProd fix).
+	// ToMemPackage uses MPUserProd, which strips _test.gno files. Realms
+	// like boards2/v1 have test files that import not-yet-deployed packages;
+	// shipping them would fail chain-side type checks at deploy time.
 	for _, p := range pkgs {
 		if p.ImportPath == "gno.land/r/gnoland/boards2/v1" {
 			mp, err := p.ToMemPackage()
 			require.NoError(t, err, "ToMemPackage must succeed on real realm")
 			assert.NotEmpty(t, mp.Name, "MemPackage must have a Name")
-			// MPUserProd → no _test.gno files. Regression for the bug fixed
-			// in commit 62e4e3246f.
 			for _, f := range mp.Files {
 				assert.NotContains(t, f.Name, "_test.gno",
 					"MPUserProd must strip test files; got %s", f.Name)
@@ -334,9 +334,9 @@ func (f *recordingFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) 
 	return nil, fmt.Errorf("not in test fetcher: %s", pkgPath)
 }
 
-// TestLoader_LookupFS_NoFetcherCall locks in the contract that LookupFS is
-// FS-only: the rpc fetcher must never be invoked, even on a miss. Resolve
-// would have called it on miss; LookupFS must not.
+// TestLoader_LookupFS_NoFetcherCall asserts the contract that LookupFS is
+// FS-only: the rpc fetcher must never be invoked on a hit nor on a miss.
+// recordingFetcher's call counter stays at zero across both paths.
 func TestLoader_LookupFS_NoFetcherCall(t *testing.T) {
 	root := t.TempDir()
 	pkgDir := filepath.Join(root, "alone")
@@ -349,9 +349,9 @@ func TestLoader_LookupFS_NoFetcherCall(t *testing.T) {
 		Logger:     testLogger(),
 	})
 
-	// Hit
+	// Hit path.
 	assert.True(t, l.LookupFS("gno.land/p/me/alone"))
-	// Miss (would have triggered fetcher in Resolve)
+	// Miss path; the FS-only contract forbids any fallback to the fetcher.
 	assert.False(t, l.LookupFS("gno.land/r/never/exists"))
 
 	assert.Zero(t, rec.calls.Load(), "LookupFS must never invoke the fetcher")

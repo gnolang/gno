@@ -69,13 +69,11 @@ func TestCheckMissingExampleImports_EmptyWorkspace(t *testing.T) {
 	assert.Nil(t, CheckMissingExampleImports(l, ""))
 }
 
-// TestCheckMissingExampleImports_NoMutation locks in the contract that the
-// helper does not write to l.index or l.tracked. A revert to l.Resolve(imp)
-// would silently restore the blocking-RPC + state-pollution bug fixed in
-// 2f21494b91 — the FS-resolved import would land in both maps on hit.
-//
-// The workspace imports a package reachable via an extra root, so a revert
-// to Resolve would mutate l.index/l.tracked on the FS hit. LookupFS must not.
+// TestCheckMissingExampleImports_NoMutation asserts the contract that the
+// helper does not write to l.index or l.tracked: a diagnostic must not
+// observe-by-mutating. The workspace imports a package reachable via an
+// extra root, so the FS-hit code path is exercised — any path that mutates
+// the loader state on FS hit (e.g. l.Resolve) would fail this assertion.
 func TestCheckMissingExampleImports_NoMutation(t *testing.T) {
 	root := t.TempDir()
 	consumerDir := filepath.Join(root, "consumer")
