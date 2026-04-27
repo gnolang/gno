@@ -24,7 +24,14 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
 		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice) +
-		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector)
+		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector) +
+		fmt.Sprintf("MinGetReadDepth100: %d\n", p.MinGetReadDepth100) +
+		fmt.Sprintf("MinSetReadDepth100: %d\n", p.MinSetReadDepth100) +
+		fmt.Sprintf("MinWriteDepth100: %d\n", p.MinWriteDepth100) +
+		fmt.Sprintf("FixedGetReadDepth100: %d\n", p.FixedGetReadDepth100) +
+		fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100) +
+		fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100) +
+		fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat)
 
 	// Assert: check if the result matches the expected string.
 	if result != expected {

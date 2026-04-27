@@ -1,0 +1,55 @@
+# Test storing a struct from one realm into another realm's state.
+
+gnoland start
+
+# Deploy the public realm that holds saved data.
+gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/test/publicrealm -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Deploy the caller realm.
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/caller -gas-fee 420001ugnot -gas-wanted 4_200_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Call SaveStructToPublicRealm — stores a struct cross-realm.
+gnokey maketx call -pkgpath gno.land/r/test/caller -func SaveStructToPublicRealm -gas-fee 330001ugnot -gas-wanted 3_300_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+-- publicrealm/gnomod.toml --
+module = "gno.land/r/test/publicrealm"
+gno = "0.9"
+
+-- publicrealm/publicrealm.gno --
+package publicrealm
+
+var savedData interface{}
+
+func SaveData(cur realm, data interface{}) {
+	savedData = data
+}
+
+func GetData() interface{} {
+	return savedData
+}
+
+-- caller/gnomod.toml --
+module = "gno.land/r/test/caller"
+gno = "0.9"
+
+-- caller/caller.gno --
+package caller
+
+import "gno.land/r/test/publicrealm"
+
+type MyStruct struct {
+	Name  string
+	Value int
+}
+
+var myStruct = &MyStruct{
+	Name:  "hello",
+	Value: 42,
+}
+
+func SaveStructToPublicRealm(cur realm) {
+	publicrealm.SaveData(cross, myStruct)
+}
