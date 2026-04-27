@@ -15,11 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWriteTxsJSONL_RoundTrip verifies that writeTxsJSONL produces output
-// that can be read back by the dir source's JSONL reader.
-// BUG: writeTxsJSONL uses encoding/json instead of amino, which loses type
-// information for interface fields (std.Msg). The round-trip fails because
-// the Msg type cannot be recovered from plain JSON.
+// TestWriteTxsJSONL_RoundTrip verifies amino round-trip preserves
+// std.Msg interface types in JSONL output.
 func TestWriteTxsJSONL_RoundTrip(t *testing.T) {
 	t.Parallel()
 
