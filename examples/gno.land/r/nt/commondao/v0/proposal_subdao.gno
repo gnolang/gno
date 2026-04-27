@@ -81,7 +81,7 @@ func (p subDAOPropDefinition) Validate() (err error) {
 
 func (subDAOPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
 	if !commondao.IsQuorumReached(commondao.QuorumFull, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
@@ -144,7 +144,7 @@ func (p dissolvePropDefinition) Validate() (err error) {
 
 func (dissolvePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
 	if !commondao.IsQuorumReached(commondao.QuorumFull, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())

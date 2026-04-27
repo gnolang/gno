@@ -71,10 +71,10 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 		{
-			name: "no quorum",
+			name: "fail with no quorum",
 			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -86,7 +86,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 	}
 
@@ -220,10 +220,10 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 		{
-			name: "no quorum",
+			name: "fail with no quorum",
 			members: []address{
 				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -235,7 +235,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			err: commondao.ErrNoQuorum,
+			success: false,
 		},
 	}
 

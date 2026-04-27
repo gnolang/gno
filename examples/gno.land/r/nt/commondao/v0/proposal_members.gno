@@ -104,7 +104,7 @@ func (membersUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, err
 	}
 
 	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, ctx.VotingRecord, ctx.Members) {
-		return false, commondao.ErrNoQuorum
+		return false, nil
 	}
 
 	c, success := commondao.SelectChoiceBySuperMajority(ctx.VotingRecord, ctx.Members.Size())
