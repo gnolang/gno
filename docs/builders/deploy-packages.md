@@ -101,6 +101,7 @@ GAS USED:   6288988
 HEIGHT:     955
 EVENTS:     []
 TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
+PKGPATH:    gno.land/r/<your_address>/counter
 ```
 
 ## Understanding Deployment Parameters
