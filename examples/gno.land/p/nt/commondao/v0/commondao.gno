@@ -11,7 +11,7 @@ import (
 const PathSeparator = "/"
 
 var (
-	ErrExecutionNotAllowed  = errors.New("proposal must pass before execution")
+	ErrExecutionNotAllowed  = errors.New("execution not allowd, proposal status must be active, passed or rejected")
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
@@ -220,21 +220,31 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 // Tally counts votes and updates proposal status with the current outcome.
 // Proposal status is updated to "passed" when proposal is approved
 // or to "rejected" if proposal doesn't pass.
+//
+// This method is intended to be called during render to temporary update the
+// status of a proposal so it displays the current status.
 func (dao *CommonDAO) Tally(proposalID uint64) (ProposalStatus, error) {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return "", ErrProposalNotFound
 	}
 
+	if p.status != StatusActive && p.status != StatusPassed && p.status != StatusRejected {
+		return "", ErrTallyNotAllowed
+	}
+
 	if err := p.tally(dao.members); err != nil {
 		return "", err
 	}
-	return p.Status(), nil
+	return p.status, nil
 }
 
 // Execute executes a proposal.
 //
-// By default active proposals can only be executed after their voting deadline passes.
+// It first validates the proposal, then tallies the votes and finally executes the proposal.
+// Proposal is stored as finished after execution, independently of the final status.
+//
+// By default proposals can only be executed after their voting deadline passes.
 // DAO deadline checks can optionally be disabled using the `DisableVotingDeadlineCheck` option.
 func (dao *CommonDAO) Execute(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
@@ -242,8 +252,10 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrProposalNotFound
 	}
 
-	// Proposal must be active or have passed to be executed
-	if p.status != StatusActive && p.status != StatusPassed {
+	// Check that current proposal status is valid for execution. Proposals can be tallied
+	// before execution, so its status can change before execution, depending on how the
+	// commondao package caller implements the DAO realm.
+	if p.status != StatusActive && p.status != StatusPassed && p.status != StatusRejected {
 		return ErrExecutionNotAllowed
 	}
 

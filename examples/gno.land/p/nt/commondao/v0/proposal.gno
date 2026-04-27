@@ -41,7 +41,7 @@ var (
 	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
 	ErrProposalDefinitionPanicked = errors.New("proposal definition panicked")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrStatusIsNotActive          = errors.New("proposal status is not active")
+	ErrTallyNotAllowed            = errors.New("tally not allowd, proposal status must be active, passed or rejected")
 )
 
 type (
@@ -278,10 +278,6 @@ func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMem
 }
 
 func (p *Proposal) tally(members MemberStorage) (err error) {
-	if p.status != StatusActive {
-		return ErrStatusIsNotActive
-	}
-
 	// Make sure to handle proposal definition Tally() call panics
 	defer func() {
 		r := recover()
