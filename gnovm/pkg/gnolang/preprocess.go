@@ -2150,8 +2150,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Empty struct literals (T{}) are always allowed, even
 						// from external packages, as they are zero-value initializations.
 						if len(n.Elts) > 0 &&
-							FieldTypeList(cclt.Fields).HasUnexported() &&
-							cclt.PkgPath != ctxpn.PkgPath {
+							cclt.hasInaccessibleUnexportedFields(ctxpn.PkgPath) {
 							panic(fmt.Sprintf(
 								"implicit assignment to unexported field in struct literal of type %s",
 								cclt.String()))
