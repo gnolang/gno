@@ -101,39 +101,6 @@ func findRefValueByOID(parent Object, childOID ObjectID) (RefValue, bool) {
 	return RefValue{}, false
 }
 
-// TestMarkDirtyAncestors_HashConsistency proves that when a child object
-// (like a map) is modified, its ancestors must also be re-saved so their
-// stored bytes (including RefValue.Hash) reflect the child's new state.
-//
-// Object layout after init:
-//
-//	:1 PackageValue
-//	:2 Block (package block, owns :3 and :5)
-//	:3 HeapItemValue (wraps the map var, owned by :2)
-//	:4 MapValue (owned by :3)
-//	:5 FuncValue (main, owned by :2)
-//
-// When main() runs m["a"] = 2, MapValue :4 is dirtied.
-// markDirtyAncestors should walk :4 -> :3 -> :2, dirtying all of them.
-// Without the fix, GetOwnerID() returns zero for store-restored objects
-// (owner pointer is nil after deserialization), so the walk stops at
-// the first hop and ancestors :3 and :2 are never re-saved.
-//
-// Hash chain (built bottom-up during saveUnsavedObjects):
-//
-//	MapValue :4 -> serialize to amino bytes -> hash4 = HashBytes(bz4)
-//	HeapItemValue :3 -> its Value is RefValue{OID:4, Hash:hash4} -> bz3 -> hash3 = HashBytes(bz3)
-//	Block :2 -> its Values[0] is RefValue{OID:3, Hash:hash3} -> bz2 -> hash2 = HashBytes(bz2)
-//
-// Each parent's hash transitively includes all descendant hashes via embedded
-// RefValue.Hash fields. If an ancestor is not re-saved, its RefValue.Hash is
-// stale — a correctness invariant violation.
-//
-// Note: these hashes are stored in the flat baseStore (dbadapter), not the
-// IAVL Merkle tree, so stale hashes do not affect the app hash or consensus.
-// The RefValue.Hash is currently write-only (never verified on load). This
-// test enforces the invariant for forward-compatibility with future Merkle
-// proof support over realm state.
 func TestMarkDirtyAncestors_HashConsistency(t *testing.T) {
 	// --- Setup ---
 	db := memdb.NewMemDB()
