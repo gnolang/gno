@@ -67,7 +67,7 @@ var (
 		r.N("SLD", r.P(r.P(r.C(`a-z0-9-`)), r.E(`.`))), // sub(level)domain, permissive w/ dashes.
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
 	Re_name    = r.G(r.C(`a-z`), r.S(r.C(`a-z0-9`)), r.S(r.C(`_-`), r.P(r.C(`a-z0-9`)))) // start with letter; alphanumeric body; separators (`_` or `-`) only between alphanumerics, never consecutive, never trailing
-	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                  // starts with g1, all lowercase.
+	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                                // starts with g1, all lowercase.
 
 	// Compile at init to avoid runtime compilation.
 	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()

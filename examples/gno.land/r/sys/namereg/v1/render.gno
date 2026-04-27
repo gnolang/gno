@@ -51,7 +51,7 @@ will gain permission to deploy packages and realms to package paths with the pat
 	items := []string{
 		"`<stem>` is 5 to 13 lowercase ASCII letters",
 		"`<digits>` is exactly 3 decimal digits",
-		"The stem must NOT start with `gno`, `gi`, or `gl` (reserved prefixes)",
+		"The stem must NOT start with `gno`, `gl`, `atom`, `atone`, `photon`, or `cosmos` (reserved prefixes)",
 		"The stem must NOT match a reserved role name (admin, root, support, ...)",
 		"Confusable variants (e.g. `vitaiik` vs `vitalik` via `l↔i`) are blocked via canonical-form collision detection",
 		"Total username length: 12–20 chars (distinct from `g1...` addresses, which are always 40 chars)",
