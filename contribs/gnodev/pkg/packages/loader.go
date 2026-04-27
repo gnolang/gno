@@ -340,7 +340,7 @@ func (l *Loader) LoadAll() ([]*Package, error) {
 		extraRoots = append(extraRoots, filepath.Join(l.cfg.GnoRoot, "examples"))
 	}
 	for i, root := range extraRoots {
-		l.cfg.Logger.Info("loading root", "root", root, "progress", fmt.Sprintf("%d/%d", i+1, len(extraRoots)))
+		l.cfg.Logger.Info("loading root", "root", root, "n", i+1, "of", len(extraRoots))
 		pkgs, err := l.loadRootStandalone(root)
 		if err != nil {
 			l.cfg.Logger.Warn("load extra root failed", "root", root, "err", err)

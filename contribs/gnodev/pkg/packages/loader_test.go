@@ -254,6 +254,10 @@ func TestLoader_LoadAll_LogsProgress(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, "loading root", "should log per-root progress")
 	assert.Contains(t, out, extra, "progress log should name the root")
+	// Progress is emitted as structured kv (n=<i>, of=<total>), not a
+	// formatted "1/1" string, so each field can be filtered independently.
+	assert.Contains(t, out, "n=1", "progress should expose n as a structured field")
+	assert.Contains(t, out, "of=1", "progress should expose total as a structured field")
 }
 
 // TestPackage_KindZeroValue verifies the zero value of Kind is KindUnknown,
