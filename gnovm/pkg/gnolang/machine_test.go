@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -146,4 +147,35 @@ func TestMachineString(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestPreprocessAllFilesAndSaveBlockNodes_SkipsNilMemPackage simulates a
+// partial AddMemPackage write: the baseStore index entry exists but the
+// iavlStore body is missing. Without the defensive nil-skip the Machine
+// SIGSEGVs on `nil.Type.(MemPackageType)` inside ParseMemPackage, crash-
+// looping the node. With the skip, the loop logs a warning and continues
+// so the node boots and an operator can repair the store.
+func TestPreprocessAllFilesAndSaveBlockNodes_SkipsNilMemPackage(t *testing.T) {
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(d1, stypes.StoreOptions{})
+	iavlStore := dbadapter.StoreConstructor(d2, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+
+	// Forge: counter=1, index slot points at a path with no iavlStore body.
+	// IterMemPackage hits GetMemPackage("missing/path") → nil and yields
+	// nil on the channel — exactly the case PR-B must survive.
+	baseStore.Set(nil, []byte(backendPackageIndexCtrKey()), []byte("1"))
+	baseStore.Set(nil, []byte(backendPackageIndexKey(1)), []byte("missing/path"))
+
+	var out bytes.Buffer
+	m := NewMachine("test", store)
+	m.Output = &out
+
+	require.NotPanics(t, func() {
+		m.PreprocessAllFilesAndSaveBlockNodes()
+	}, "must survive nil MemPackage from a partial AddMemPackage")
+
+	logged := out.String()
+	assert.Contains(t, logged, "WARNING:")
+	assert.Contains(t, logged, "IterMemPackage returned nil")
 }
