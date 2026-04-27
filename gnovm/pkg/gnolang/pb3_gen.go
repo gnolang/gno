@@ -12345,15 +12345,6 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3ByteLength)
 		}
 	}
-	for i := len(goo.Externs) - 1; i >= 0; i-- {
-		elem := goo.Externs[i]
-		if elem != "" {
-			offset = amino.PrependString(buf, offset, string(elem))
-		} else {
-			offset = amino.PrependByte(buf, offset, 0x00)
-		}
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
-	}
 	for i := len(goo.Consts) - 1; i >= 0; i-- {
 		elem := goo.Consts[i]
 		if elem != "" {
@@ -12519,10 +12510,6 @@ func (goo StaticBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 		s += 1 + vs
 	}
 	for _, elem := range goo.Consts {
-		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
-		s += 1 + vs
-	}
-	for _, elem := range goo.Externs {
 		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
 		s += 1 + vs
 	}
@@ -12796,41 +12783,6 @@ func (goo *StaticBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 				bz = bz[n:]
 				ev = Name(v)
 				goo.Consts = append(goo.Consts, ev)
-			}
-		case 10:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 10: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
-			}
-			var ev Name
-			v, n, err := amino.DecodeString(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			ev = Name(v)
-			goo.Externs = append(goo.Externs, ev)
-			for len(bz) > 0 {
-				var nextFnum uint32
-				var nextTyp3 amino.Typ3
-				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
-				if err != nil {
-					return err
-				}
-				if nextFnum != 10 {
-					break
-				}
-				if nextTyp3 != amino.Typ3ByteLength {
-					return fmt.Errorf("field 10: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
-				}
-				bz = bz[n:]
-				var ev Name
-				v, n, err := amino.DecodeString(bz)
-				if err != nil {
-					return err
-				}
-				bz = bz[n:]
-				ev = Name(v)
-				goo.Externs = append(goo.Externs, ev)
 			}
 		case 11:
 			if typ3 != amino.Typ3ByteLength {
