@@ -932,24 +932,6 @@ func (ds *defaultStore) NumMemPackages() int64 {
 	}
 }
 
-func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
-	ctrkey := []byte(backendPackageIndexCtrKey())
-	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
-	if ctrbz == nil {
-		nextbz := strconv.Itoa(1)
-		ds.baseStore.Set(ds.gctx, ctrkey, []byte(nextbz))
-		return 1
-	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
-		if err != nil {
-			panic(err)
-		}
-		nextbz := strconv.Itoa(ctr + 1)
-		ds.baseStore.Set(ds.gctx, ctrkey, []byte(nextbz))
-		return uint64(ctr) + 1
-	}
-}
-
 // mptype is passed in as a redundant parameter as convenience to assert that
 // mpkg.Type is what is expected.
 // If MPAnyAll, mpkg may be either MPStdlibAll or MPProdAll, and likewise for

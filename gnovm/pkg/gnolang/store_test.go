@@ -239,7 +239,7 @@ func TestIterMemPackage_InconsistentBaseStoreYieldsNil(t *testing.T) {
 	ch := ds.IterMemPackage()
 	require.NotNil(t, ch)
 
-	var seen []*std.MemPackage
+	seen := make([]*std.MemPackage, 0, 2)
 	for mpkg := range ch {
 		seen = append(seen, mpkg)
 	}
@@ -268,7 +268,7 @@ func TestIterMemPackage_MissingIndexYieldsNil(t *testing.T) {
 	ch := ds.IterMemPackage()
 	require.NotNil(t, ch)
 
-	var seen []*std.MemPackage
+	seen := make([]*std.MemPackage, 0, 3)
 	for mpkg := range ch {
 		seen = append(seen, mpkg)
 	}
