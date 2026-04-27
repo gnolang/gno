@@ -89,6 +89,35 @@ func (l *Loader) Resolve(path string) (*Package, error) {
 	return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
 }
 
+// LookupFS reports whether path is reachable via the loader's filesystem
+// roots (workspace + extra roots + GNOROOT/examples when enabled). Walks any
+// root not yet cached. Does NOT consult the rpc fetcher and does NOT mutate
+// l.index or l.tracked, so it is safe for diagnostic / pre-flight use.
+func (l *Loader) LookupFS(path string) bool {
+	l.mu.RLock()
+	for _, root := range l.lookupRoots() {
+		if rootIdx, ok := l.rootIdx[root]; ok {
+			if _, hit := rootIdx[path]; hit {
+				l.mu.RUnlock()
+				return true
+			}
+		}
+	}
+	l.mu.RUnlock()
+
+	// Cold path: ensure each root is walked. Take the write lock once so
+	// concurrent callers serialize on the FS walk rather than duplicating it.
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, root := range l.lookupRoots() {
+		rootIdx := l.ensureRootIndexLocked(root)
+		if _, hit := rootIdx[path]; hit {
+			return true
+		}
+	}
+	return false
+}
+
 // rpcLookup fetches a package via cfg.Fetcher. cfg.Fetcher is set once in
 // New and never mutated, so no lock is required.
 func (l *Loader) rpcLookup(path string) *Package {

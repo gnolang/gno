@@ -14,12 +14,13 @@ import (
 
 // CheckMissingExampleImports walks the given workspace dir, parses every
 // gno.land/* import declared in its packages, and returns the sorted,
-// deduplicated list of imports the loader can't resolve. Used when
-// -no-examples is set to surface broken graphs at startup instead of
-// letting them blow up at first query.
+// deduplicated list of imports unreachable via the loader's filesystem
+// roots. Used when -no-examples is set to surface broken graphs at startup
+// instead of letting them blow up at first query.
 //
-// Stdlib imports are ignored. Imports that successfully resolve via the
-// loader (workspace, extra-roots, modcache, RPC) are also ignored.
+// Stdlib imports are ignored. The check is FS-only and non-mutating: it
+// never reaches the rpc fetcher and never writes to the loader's index or
+// tracked sets, so it is safe to call before LoadWorkspace.
 //
 // Returns nil if workspace is empty.
 func CheckMissingExampleImports(l *Loader, workspace string) []string {
@@ -41,7 +42,7 @@ func CheckMissingExampleImports(l *Loader, workspace string) []string {
 		if gnolang.IsStdlib(imp) {
 			continue
 		}
-		if _, err := l.Resolve(imp); err == nil {
+		if l.LookupFS(imp) {
 			continue
 		}
 		missing = append(missing, imp)
