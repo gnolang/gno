@@ -2729,7 +2729,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				// Verify Merkle chain: parent's claimed child hash
 				// must match child's actual stored hash.
 				// Escaped objects carry zero RefValue hash (resolved via IAVL).
-	
+
 				if !cv.Hash.IsZero() {
 					if childHash := obj.GetHash(); cv.Hash != childHash {
 						panic(fmt.Sprintf(
