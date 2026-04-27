@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
@@ -320,4 +321,38 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		}
 	}
 	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
+}
+
+// recordingFetcher counts FetchPackage invocations so tests can assert that
+// LookupFS — which is FS-only — never reaches the rpc fetcher.
+type recordingFetcher struct {
+	calls atomic.Int32
+}
+
+func (f *recordingFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, error) {
+	f.calls.Add(1)
+	return nil, fmt.Errorf("not in test fetcher: %s", pkgPath)
+}
+
+// TestLoader_LookupFS_NoFetcherCall locks in the contract that LookupFS is
+// FS-only: the rpc fetcher must never be invoked, even on a miss. Resolve
+// would have called it on miss; LookupFS must not.
+func TestLoader_LookupFS_NoFetcherCall(t *testing.T) {
+	root := t.TempDir()
+	pkgDir := filepath.Join(root, "alone")
+	writePkg(t, pkgDir, "gno.land/p/me/alone", "package alone\n")
+
+	rec := &recordingFetcher{}
+	l := New(Config{
+		ExtraRoots: []string{root},
+		Fetcher:    rec,
+		Logger:     testLogger(),
+	})
+
+	// Hit
+	assert.True(t, l.LookupFS("gno.land/p/me/alone"))
+	// Miss (would have triggered fetcher in Resolve)
+	assert.False(t, l.LookupFS("gno.land/r/never/exists"))
+
+	assert.Zero(t, rec.calls.Load(), "LookupFS must never invoke the fetcher")
 }
