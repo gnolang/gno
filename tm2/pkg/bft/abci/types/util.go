@@ -143,7 +143,9 @@ func ParseValidatorUpdate(s string) (ValidatorUpdate, error) {
 		)
 	}
 
-	power, err := strconv.ParseUint(parts[2], 10, 64)
+	// bitSize=63 caps the result at math.MaxInt64, so int64(power) below
+	// can never overflow into a negative value.
+	power, err := strconv.ParseUint(parts[2], 10, 63)
 	if err != nil {
 		return ValidatorUpdate{}, fmt.Errorf("invalid voting power %q: %w", parts[2], err)
 	}

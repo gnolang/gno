@@ -123,6 +123,8 @@ func TestParseValidatorUpdate(t *testing.T) {
 		{name: "address/pubkey mismatch", input: ed25519.GenPrivKey().PubKey().Address().String() + ":" + pub.String() + ":1", wantErr: "does not match pubkey-derived"},
 		{name: "negative power rejected", input: addr.String() + ":" + pub.String() + ":-1", wantErr: "invalid voting power"},
 		{name: "non-numeric power", input: addr.String() + ":" + pub.String() + ":abc", wantErr: "invalid voting power"},
+		// 9223372036854775808 == math.MaxInt64 + 1; would overflow int64 if not capped.
+		{name: "power overflowing int64 rejected", input: addr.String() + ":" + pub.String() + ":9223372036854775808", wantErr: "invalid voting power"},
 	}
 
 	for _, tc := range tests {
