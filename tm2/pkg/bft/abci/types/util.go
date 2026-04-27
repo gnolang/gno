@@ -83,6 +83,11 @@ func (v ValidatorUpdates) UpdatesFrom(v2 ValidatorUpdates) ValidatorUpdates {
 		}
 	}
 
+	// Sort to give a deterministic order independent of map iteration.
+	// ResultsHash already excludes ABCI updates, so this is not consensus-critical,
+	// but it stabilizes ABCIResponses, EventValidatorSetUpdates, and RPC output.
+	sort.Sort(diffs)
+
 	return diffs
 }
 
