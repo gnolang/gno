@@ -304,6 +304,26 @@ func TestDupNamesMustPanic(t *testing.T) {
 	})
 }
 
+func TestReservedFieldMisuse(t *testing.T) {
+	cdc := amino.NewCodec()
+
+	// Blank identifier without amino:"reserved" must panic.
+	type MissingTag struct {
+		A string
+		_ [0]struct{}
+		B string
+	}
+	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeOf(MissingTag{})) }) //nolint:errcheck
+
+	// Named field with amino:"reserved" must panic.
+	type NamedReserved struct {
+		A string
+		B string `amino:"reserved"`
+		C string
+	}
+	assert.Panics(t, func() { cdc.GetTypeInfo(reflect.TypeOf(NamedReserved{})) }) //nolint:errcheck
+}
+
 func TestReservedFieldDecodeBackwardCompat(t *testing.T) {
 	// Encoding with a 3-field struct and decoding into a struct where
 	// the middle field is amino:"reserved" should round-trip successfully.
