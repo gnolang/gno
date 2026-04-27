@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/access10.gno:9:34-43: unknown field typoField in struct literal of type struct{PublicField string; privateField string}
+// main/access10.gno:9:34-43: struct type struct{PublicField string; privateField string} has no field typoField
 
 // TypeCheckError:
 // main/access10.gno:9:34: unknown field typoField in struct literal of type testutils.TestAccessStruct
