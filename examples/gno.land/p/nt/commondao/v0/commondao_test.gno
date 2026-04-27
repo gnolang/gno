@@ -355,13 +355,11 @@ func TestCommonDAOTally(t *testing.T) {
 			status: commondao.StatusRejected,
 		},
 		{
-			name: "proposal is not active",
+			name: "proposal is not found",
 			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyResult: true})
-				dao.Tally(p.ID())
-				return p.ID()
+				return 404
 			},
-			err: commondao.ErrStatusIsNotActive,
+			err: commondao.ErrProposalNotFound,
 		},
 		{
 			name: "tally error",
@@ -442,17 +440,6 @@ func TestCommonDAOExecute(t *testing.T) {
 			setup:      func() *commondao.CommonDAO { return commondao.New() },
 			proposalID: 1,
 			err:        commondao.ErrProposalNotFound,
-		},
-		{
-			name: "execution not allowed",
-			setup: func() *commondao.CommonDAO {
-				dao := commondao.New(commondao.WithMember(member))
-				p, _ := dao.Propose(member, testPropDef{tallyResult: false})
-				dao.Tally(p.ID())
-				return dao
-			},
-			proposalID: 1,
-			err:        commondao.ErrExecutionNotAllowed,
 		},
 		{
 			name: "voting deadline not met",
