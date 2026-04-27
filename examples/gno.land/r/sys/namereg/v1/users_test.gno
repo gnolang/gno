@@ -95,8 +95,11 @@ func TestRegister_ReservedPrefix(t *testing.T) {
 	cases := []string{
 		"nym-gnoblah123",   // gno prefix
 		"nym-gnomeland456", // gno prefix
-		"nym-gillette789",  // gi prefix
-		"nym-glasgow012",   // gl prefix (also canonicalizes to gi prefix)
+		"nym-glasgow012",   // gl prefix (most-confusable with bech32 g1...)
+		"nym-atomic123",    // atom prefix
+		"nym-atonex123",    // atone prefix
+		"nym-photons456",   // photon prefix
+		"nym-cosmoswide789", // cosmos prefix
 	}
 
 	for _, username := range cases {
@@ -104,6 +107,22 @@ func TestRegister_ReservedPrefix(t *testing.T) {
 			Register(cross, username)
 		})
 	}
+}
+
+// gi is intentionally NOT in reservedPrefixes (i is visually distinct
+// enough from 1/l that legitimate gi* names should be registerable).
+// Phishing protection for the gi/gl visual class is enforced by
+// canonical-collision detection in r/sys/users — see
+// TestRegister_CanonicalCollision.
+func TestRegister_GiPrefix_Allowed(t *testing.T) {
+	addr := testutils.TestAddress("gi-prefix-allowed")
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+
+	urequire.NotPanics(t, func() {
+		Register(cross, "nym-gillette789")
+	})
 }
 
 func TestRegister_Blacklisted(t *testing.T) {

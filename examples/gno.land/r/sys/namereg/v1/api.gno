@@ -18,22 +18,35 @@ const reNymFormat = `^nym-[a-z]{5,13}\d{3}$`
 var reNym = regexp.MustCompile(reNymFormat)
 
 // Reserved alpha-stem prefixes. Names whose stem starts with one of
-// these are rejected at format-validation time. Both `gi` and `gl`
-// are listed even though `Canonicalize` maps `gl` to `gi` — this lets
-// the rejection surface as ErrReservedPrefix at the format layer
-// rather than as ErrCanonicalCollision after the fact, which is a
-// clearer error for users.
-var reservedPrefixes = []string{"gno", "gi", "gl"}
+// these are rejected at format-validation time with ErrReservedPrefix
+// (clearer than ErrCanonicalCollision after the fact).
+//
+// `gi` is intentionally NOT listed: in most rendering targets `i` is
+// visually distinct enough from `1`/`l` that legitimate `gi*` names
+// (giggles, gimbal, gift, etc.) should remain registerable. Phishing
+// protection for the visual class is still enforced by canonical-
+// collision detection in r/sys/users — once any `gi*` or `gl*` name
+// is registered, all variants under the {l,i,1}→i canonicalization
+// collide.
+//
+// `gl` and `g1` remain listed because they're more visually
+// confusable with the bech32 address prefix `g1`. `g1` itself is
+// unreachable through the alpha-only stem regex; defense-in-depth
+// for any future regex relaxation.
+var reservedPrefixes = []string{"gl", "g1", "gno", "atom", "atone", "photon", "cosmos"}
 
 // Exported error sentinels returned by ValidateNymFormat. Use
 // errors.Is or direct equality; do not string-match.
+//
+// ErrReservedPrefix's message is built from reservedPrefixes at package
+// init time so the surfaced list never drifts from the actual policy.
 //
 // Canonical-collision detection moved to r/sys/users in Option B.
 // Consumers that previously caught namereg.ErrCanonicalCollision
 // should switch to susers.ErrCanonicalCollision.
 var (
 	ErrInvalidFormat  = errors.New("namereg: name must match nym-[a-z]{5,13}\\d{3}")
-	ErrReservedPrefix = errors.New("namereg: stem starts with a reserved prefix (gno/gi/gl)")
+	ErrReservedPrefix = errors.New("namereg: stem starts with a reserved prefix (" + strings.Join(reservedPrefixes, "/") + ")")
 	ErrBlacklisted    = errors.New("namereg: stem matches a reserved role name")
 )
 
