@@ -70,7 +70,7 @@ func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std
 	fields := tinfo.Fields
 	for _, field := range fields {
 		name := field.JSONName
-		value := store.Get([]byte(string(key) + ":" + name))
+		value := store.Get(nil, []byte(string(key)+":"+name))
 		if value == nil {
 			continue
 		}

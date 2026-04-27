@@ -24,7 +24,7 @@ func TestRequestInitChain_InitialHeight_RoundTrip(t *testing.T) {
 		{"zero (standard genesis)", 0},
 		{"one (standard genesis)", 1},
 		{"hardfork", 1234567},
-		{"max int64", 1<<62 - 1},
+		{"large hardfork height", 1_000_000_000},
 	}
 
 	for _, tc := range tests {

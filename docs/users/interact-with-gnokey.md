@@ -1295,12 +1295,12 @@ data: {
     {
       "type": "",
       "name": "GetByAddr",
-      "signature": "func GetByAddr(address std.Address) Valoper",
+      "signature": "func GetByAddr(address address) Valoper",
       "doc": "GetByAddr fetches the valoper using the address, if present\n",
       "params": [
         {
           "Name": "address",
-          "Type": "std.Address"
+          "Type": "address"
         }
       ],
       "results": [
@@ -1329,7 +1329,7 @@ data: {
   "types": [
     {
       "name": "Valoper",
-      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
       "doc": "Valoper represents a validator operator profile\n"
     }
   ]

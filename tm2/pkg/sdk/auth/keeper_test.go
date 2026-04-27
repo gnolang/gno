@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 func TestAccountMapperGetSet(t *testing.T) {
@@ -285,4 +286,43 @@ func TestNewAccountWithUncheckedNumber_DocumentedUnchecked(t *testing.T) {
 	require.NotNil(t, gotB)
 	require.EqualValues(t, 99, gotA.GetAccountNumber())
 	require.EqualValues(t, 99, gotB.GetAccountNumber())
+}
+
+// TestIterateAccountsChargesGas asserts that IterateAccounts propagates
+// gas through the gctx it threads to PrefixIterator. Today all
+// production query contexts carry an infinite meter, so this mostly
+// confirms the wiring works and the charge fires; if a future caller
+// sets a bounded meter the enforcement is already in place.
+func TestIterateAccountsChargesGas(t *testing.T) {
+	t.Parallel()
+	env := setupTestEnv()
+
+	// Populate a handful of accounts.
+	const n = 5
+	for i := 0; i < n; i++ {
+		addr := crypto.AddressFromPreimage([]byte(fmt.Sprintf("addr-%d", i)))
+		acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+		env.acck.SetAccount(env.ctx, acc)
+	}
+
+	// Swap in a bounded meter AND a cache-wrapped multistore. Gas is
+	// only charged at the cache.Store iterator layer, so we must
+	// cache-wrap the multistore for this test. Production tx paths
+	// cache-wrap inside runTx; query paths do not (see ADR).
+	meter := store.NewGasMeter(1 << 62)
+	ctx := env.ctx.
+		WithGasMeter(meter).
+		WithMultiStore(env.ctx.MultiStore().MultiCacheWrap())
+
+	before := meter.GasConsumed()
+	count := 0
+	env.acck.IterateAccounts(ctx, func(acc std.Account) bool {
+		count++
+		return false
+	})
+	used := meter.GasConsumed() - before
+
+	require.Equal(t, n, count)
+	require.Greater(t, used, store.Gas(0),
+		"IterateAccounts should consume gas through the threaded gctx")
 }

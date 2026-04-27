@@ -23,8 +23,8 @@ embedmd_filters = grep -v "exit status 1" | grep -v -- " -root" | grep -v -- " -
 generate:
 	mkdir -p .tmp
 	go build .
-	(go run . -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-usage.txt
-	(go run . local -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-local-usage.txt
-	(go run . staging -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-staging-usage.txt
+	(./gnodev -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-usage.txt
+	(./gnodev local -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-local-usage.txt
+	(./gnodev staging -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnodev-staging-usage.txt
 	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
 	rm -f ./gnodev
