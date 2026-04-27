@@ -72,7 +72,7 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		set := vp.GetValidators()
 		entries := make([]string, len(set))
 		for i, v := range set {
-			entries[i] = v.PubKey.String() + ":" + strconv.FormatUint(v.VotingPower, 10)
+			entries[i] = v.PubKey + ":" + strconv.FormatUint(v.VotingPower, 10)
 		}
 		sysparams.SetValsetProposal(entries)
 		return nil
