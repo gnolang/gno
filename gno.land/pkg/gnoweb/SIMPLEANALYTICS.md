@@ -10,10 +10,12 @@ We never collect:
 
 - Wallet addresses, public keys, or transaction signatures
 - Function arguments or return values
-- Form input values (address inputs, parameter inputs, search queries)
+- Form input values (address inputs, parameter inputs, search queries) as event payload. Note: the help-page URL pattern `…$help&func=…&arg1=…` reflects typed param values in its query string and is captured by SA as part of the standard pageview URL until we strip it client-side.
 - Cookies, persistent visitor IDs, fingerprinting data
 - IP addresses beyond what SA's defaults handle (hashed, daily-rotated, never stored raw)
 - Anything that distinguishes a person across sessions
+
+SA respects `Navigator.doNotTrack` by default: pageviews and events are not recorded for users who set DNT.
 
 All metadata is derived from public, server-side context (URL pattern, layout mode, view type, chain id) or from low-cardinality DOM signals (mode enum, `open` boolean, scroll threshold).
 
@@ -119,6 +121,13 @@ Two layers fire in parallel.
 5. **Rebuild** `make -C gno.land/pkg/gnoweb ts` and commit both `frontend/js/analytics.ts` and the generated `public/js/analytics.js`.
 6. **Document the event in this file** under the appropriate section.
 7. **If the event needs a server-side data attribute** (e.g. `data-outbound`), extend the relevant struct and template in `components/`.
+
+## Third-party posture
+
+- `sa.gno.services` proxies to SimpleAnalytics. SA respects `Navigator.doNotTrack` by default: DNT users are not tracked.
+- IPs are SHA-256 hashed and daily-rotated; never stored raw. No cookies, no fingerprinting.
+- The `<noscript>` pixel uses `referrerpolicy="no-referrer"` so JS-disabled users don't leak the page URL via Referer.
+- `auto-events.js` records the destination URL of every outbound click and download as event payload: SA-side behavior, not gnoweb instrumentation.
 
 ## Files
 
