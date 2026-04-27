@@ -1,0 +1,65 @@
+# Test that stdlib cache works for both genesis and restart.
+# A realm importing strconv should have consistent gas usage
+# before and after restart (stdlib objects served from byte cache).
+# If the cache breaks, call txs would need ~8M gas and OOG.
+
+# Gas budgets — update these together if gas model changes.
+# CALL_GAS must be enough for Convert but NOT enough for ConvertHeavy.
+env ADDPKG_GAS=4_800_000
+env CALL_GAS=3_200_000
+
+gnoland start
+
+# Deploy realm that uses strconv/strings at runtime.
+gnokey maketx addpkg -pkgdir $WORK/myrealm -pkgpath gno.land/r/test/myrealm -gas-fee 1000001ugnot -gas-wanted $ADDPKG_GAS -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Call Convert — must fit in CALL_GAS.
+gnokey maketx call -pkgpath gno.land/r/test/myrealm -func Convert -args '42' -gas-fee 1000001ugnot -gas-wanted $CALL_GAS -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# ConvertHeavy does more stdlib work — must NOT fit in CALL_GAS.
+# This proves the budget is tight, not just generous.
+! gnokey maketx call -pkgpath gno.land/r/test/myrealm -func ConvertHeavy -args '42' -gas-fee 1000001ugnot -gas-wanted $CALL_GAS -broadcast -chainid=tendermint_test test1
+stderr 'out of gas'
+
+gnoland restart
+
+# After restart, stdlib cache is repopulated from committed store.
+# Same budget must still work.
+gnokey maketx call -pkgpath gno.land/r/test/myrealm -func Convert -args '7' -gas-fee 1000001ugnot -gas-wanted $CALL_GAS -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+-- myrealm/gnomod.toml --
+module = "gno.land/r/test/myrealm"
+gno = "0.9"
+
+-- myrealm/myrealm.gno --
+package myrealm
+
+import (
+	"strconv"
+	"strings"
+)
+
+var lastResult string
+
+var replacer = strings.NewReplacer("a", "b")
+
+func Convert(cur realm, n int) string {
+	lastResult = strconv.Itoa(n)
+	lastResult = replacer.Replace(lastResult)
+	return lastResult
+}
+
+// ConvertHeavy does significantly more stdlib work than Convert.
+// Used to prove that CALL_GAS is tight — not just generous.
+func ConvertHeavy(cur realm, n int) string {
+	var sb strings.Builder
+	for i := 0; i < 100; i++ {
+		sb.WriteString(strconv.Itoa(n + i))
+		sb.WriteString(strings.Repeat(",", 10))
+	}
+	lastResult = sb.String()
+	return lastResult
+}

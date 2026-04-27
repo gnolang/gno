@@ -11,11 +11,10 @@ import (
 	"gno.land/p/gnoland/boards"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
-	uinit "gno.land/r/sys/users/init"
 )
 
 const (
-	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner   address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	user    address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	comment         = "Test Comment"
 )
@@ -29,9 +28,6 @@ func init() {
 	testing.SetRealm(testing.NewUserRealm(owner))
 	bid = boards2.CreateBoard(cross, "test123", false, true)
 	tid = boards2.CreateThread(cross, bid, "Title", "Body")
-
-	// Register a username which is required to be able to add a reply
-	uinit.RegisterUser(cross, "user123", user)
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Realm functions can call std.NewBanker(options) to get
+// Realm functions can call banker.NewBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
 // but can be passed onto other functions to be transacted
 // on. A banker instance can be passed onto other realm

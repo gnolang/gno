@@ -44,7 +44,7 @@ func TestRegister(t *testing.T) {
 
 	// Test register while paused
 	testing.SetRealm(adminRealm)
-	err := Pausable.Pause()
+	err := Pause(cross)
 	uassert.NoError(t, err)
 
 	// Set legitimate caller
@@ -55,7 +55,7 @@ func TestRegister(t *testing.T) {
 
 	// Unpause
 	testing.SetRealm(adminRealm)
-	err = Pausable.Unpause()
+	err = Unpause(cross)
 	uassert.NoError(t, err)
 
 	// Set legitimate caller

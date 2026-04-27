@@ -3,6 +3,7 @@ package iavl
 import (
 	goerrors "errors"
 	"fmt"
+	"math/bits"
 	"sync"
 
 	ics23 "github.com/cosmos/ics23/go"
@@ -33,10 +34,26 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 // ----------------------------------------
 
 var (
-	_ types.Store       = (*Store)(nil)
-	_ types.CommitStore = (*Store)(nil)
-	_ types.Queryable   = (*Store)(nil)
+	_ types.Store          = (*Store)(nil)
+	_ types.CommitStore    = (*Store)(nil)
+	_ types.Queryable      = (*Store)(nil)
+	_ types.DepthEstimator = (*Store)(nil)
 )
+
+// expectedDepth100 returns floor(log2(size)) + 1, scaled by 100 for
+// fixed-point depth estimation. Size is consensus state — constant
+// within a block.
+func expectedDepth100(size int64) int64 {
+	if size <= 1 {
+		return 100
+	}
+	return int64(bits.Len64(uint64(size))) * 100
+}
+
+// For IAVL (no fast nodes), all three depths are the same — full tree depth.
+func (st *Store) ExpectedGetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedSetReadDepth100() int64 { return expectedDepth100(st.tree.Size()) }
+func (st *Store) ExpectedWriteDepth100() int64   { return expectedDepth100(st.tree.Size()) }
 
 // Store Implements types.Store and CommitStore.
 type Store struct {
@@ -160,7 +177,7 @@ func (st *Store) Write() {
 }
 
 // Implements types.Store.
-func (st *Store) Set(key, value []byte) {
+func (st *Store) Set(gctx *types.GasContext, key, value []byte) {
 	types.AssertValidValue(value)
 	_, err := st.tree.Set(key, value)
 	if err != nil {
@@ -169,7 +186,7 @@ func (st *Store) Set(key, value []byte) {
 }
 
 // Implements types.Store.
-func (st *Store) Get(key []byte) (value []byte) {
+func (st *Store) Get(gctx *types.GasContext, key []byte) (value []byte) {
 	v, err := st.tree.Get(key)
 	if err != nil {
 		panic(err)
@@ -178,7 +195,7 @@ func (st *Store) Get(key []byte) (value []byte) {
 }
 
 // Implements types.Store.
-func (st *Store) Has(key []byte) (exists bool) {
+func (st *Store) Has(gctx *types.GasContext, key []byte) (exists bool) {
 	has, err := st.tree.Has(key)
 	if err != nil {
 		panic(err)
@@ -187,7 +204,7 @@ func (st *Store) Has(key []byte) (exists bool) {
 }
 
 // Implements types.Store.
-func (st *Store) Delete(key []byte) {
+func (st *Store) Delete(gctx *types.GasContext, key []byte) {
 	_, _, err := st.tree.Remove(key)
 	if err != nil {
 		panic(err)
@@ -195,7 +212,10 @@ func (st *Store) Delete(key []byte) {
 }
 
 // Implements types.Store.
-func (st *Store) Iterator(start, end []byte) types.Iterator {
+//
+// Iterator does not charge gas. Gas is charged by cache.Store, which
+// wraps this store on gas-metered production paths.
+func (st *Store) Iterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	var iTree *iavl.ImmutableTree
 
 	switch tree := st.tree.(type) {
@@ -209,7 +229,9 @@ func (st *Store) Iterator(start, end []byte) types.Iterator {
 }
 
 // Implements types.Store.
-func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
+//
+// ReverseIterator does not charge gas. See Iterator.
+func (st *Store) ReverseIterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	var iTree *iavl.ImmutableTree
 
 	switch tree := st.tree.(type) {
@@ -310,7 +332,7 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		subspace := req.Data
 		res.Key = subspace
 
-		iterator := types.PrefixIterator(st, subspace)
+		iterator := types.PrefixIterator(nil, st, subspace)
 		for ; iterator.Valid(); iterator.Next() {
 			KVs = append(KVs, types.KVPair{Key: iterator.Key(), Value: iterator.Value()})
 		}

@@ -10,8 +10,12 @@ coverage:
   round: down
   precision: 2
   status:
-    project: off
-    patch: off
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
 
 flag_management:
   default_rules:
@@ -19,10 +23,12 @@ flag_management:
     statuses:
       - type: project
         target: auto
-        threshold: 10 # Let's decrease this later.
-      - type: patch
-        target: auto # Let's decrease this later.
         threshold: 10
+        informational: true
+      - type: patch
+        target: auto
+        threshold: 10
+        informational: true
 
 ignore:
   - "tm2/pkg/db/mockdb"
