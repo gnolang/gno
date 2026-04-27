@@ -1241,6 +1241,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					clt := evalStaticType(store, last, clx.Type)
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
+						// Check if the field exists.
+						found := false
+						for _, f := range bt.Fields {
+							if f.Name == n.Name {
+								found = true
+								break
+							}
+						}
+						if !found {
+							panic(fmt.Sprintf(
+								"unknown field %s in struct literal of type %s",
+								n.Name, bt.String()))
+						}
 						// Check for unexported fields from external packages.
 						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
 							panic(fmt.Sprintf(
