@@ -8,7 +8,7 @@ type Node struct {
 	key       string // key is the unique identifier for the node.
 	value     any    // value is the data stored in the node.
 	height    int8   // height is the height of the node in the tree.
-	size      int    // size is the number of nodes in the subtree rooted at this node.
+	size      int    // size is the number of leaf nodes (key-value pairs) in the subtree rooted at this node.
 	leftNode  *Node  // leftNode is the left child of the node.
 	rightNode *Node  // rightNode is the right child of the node.
 }

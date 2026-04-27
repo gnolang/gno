@@ -32,6 +32,11 @@ type (
 	NoSignaturesError       struct{ abciError }
 	GasOverflowError        struct{ abciError }
 	RestrictedTransferError struct{ abciError }
+
+	SessionExpiredError    struct{ abciError }
+	SessionNotFoundError   struct{ abciError }
+	SessionLimitError      struct{ abciError }
+	SessionNotAllowedError struct{ abciError }
 )
 
 func (e InternalError) Error() string           { return "internal error" }
@@ -53,6 +58,10 @@ func (e TooManySignaturesError) Error() string  { return "too many signatures er
 func (e NoSignaturesError) Error() string       { return "no signatures error" }
 func (e GasOverflowError) Error() string        { return "gas overflow error" }
 func (e RestrictedTransferError) Error() string { return "restricted token transfer error" }
+func (e SessionExpiredError) Error() string     { return "session expired error" }
+func (e SessionNotFoundError) Error() string    { return "session not found error" }
+func (e SessionLimitError) Error() string       { return "session limit error" }
+func (e SessionNotAllowedError) Error() string  { return "session not allowed error" }
 
 // NOTE also update pkg/std/package.go registrations.
 
@@ -126,4 +135,20 @@ func ErrNoSignatures(msg string) error {
 
 func ErrGasOverflow(msg string) error {
 	return errors.Wrap(GasOverflowError{}, msg)
+}
+
+func ErrSessionExpired(msg string) error {
+	return errors.Wrap(SessionExpiredError{}, msg)
+}
+
+func ErrSessionNotFound(msg string) error {
+	return errors.Wrap(SessionNotFoundError{}, msg)
+}
+
+func ErrSessionLimit(msg string) error {
+	return errors.Wrap(SessionLimitError{}, msg)
+}
+
+func ErrSessionNotAllowed(msg string) error {
+	return errors.Wrap(SessionNotAllowedError{}, msg)
 }
