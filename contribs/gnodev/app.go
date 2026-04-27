@@ -144,6 +144,19 @@ func (ds *App) Close() {
 	ds.deferred()
 }
 
+// printDiscoveryBanner writes a discovery-mode banner to w. Used when no
+// workspace (gnomod.toml/gnowork.toml) is found in the CWD ancestry. The
+// banner is intentionally written before the slog pipeline starts so the
+// user sees it as a distinct startup message rather than buried in a
+// log group.
+func printDiscoveryBanner(w io.Writer) {
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "  ⚠ gnodev: no workspace (gnomod.toml / gnowork.toml) found in ./ or any parent.")
+	fmt.Fprintln(w, "    Running in discovery mode — packages resolve on-demand via examples and RPC.")
+	fmt.Fprintln(w, "    To include local packages: pass -extra-root <dir>, or cd into a workspace.")
+	fmt.Fprintln(w, "")
+}
+
 func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	if err := ds.cfg.validateConfigFlags(); err != nil {
 		return fmt.Errorf("validate error: %w", err)
@@ -161,7 +174,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	ws := packages.FindWorkspace(cwd)
 	if ws == "" {
-		loaderLogger.Warn("no workspace found in CWD ancestry; running in discovery mode")
+		printDiscoveryBanner(os.Stderr)
 	}
 
 	// Translate positional args into loader roots and path entries.
