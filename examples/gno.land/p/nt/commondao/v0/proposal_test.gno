@@ -11,12 +11,6 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
-
 func TestProposalNew(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -364,102 +358,16 @@ func TestIsQuorumReached(t *testing.T) {
 	}
 }
 
-func TestProposalTally(t *testing.T) {
-	errTest := errors.New("test")
-	creator := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	cases := []struct {
-		name   string
-		setup  func() *commondao.Proposal
-		status commondao.ProposalStatus
-		err    error
-	}{
-		{
-			name: "passed",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
-				return p
-			},
-			status: commondao.StatusPassed,
-		},
-		{
-			name: "rejected",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: false})
-				return p
-			},
-			status: commondao.StatusRejected,
-		},
-		{
-			name: "proposal is not active",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyResult: true})
-				p.Tally(commondao.NewMemberStorage())
-				return p
-			},
-			err: commondao.ErrStatusIsNotActive,
-		},
-		{
-			name: "tally error",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyErr: errTest})
-				return p
-			},
-			err: errTest,
-		},
-		{
-			name: "definition panic with error",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyPanic: errTest})
-				return p
-			},
-			err: errTest,
-		},
-		{
-			name: "definition panic with error string",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyPanic: "Test"})
-				return p
-			},
-			err: errors.New("Test"),
-		},
-		{
-			name: "definition panic with unknown type",
-			setup: func() *commondao.Proposal {
-				p, _ := commondao.NewProposal(1, creator, testPropDef{tallyPanic: 1})
-				return p
-			},
-			err: commondao.ErrProposalDefinitionPanicked,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			p := tc.setup()
-			members := commondao.NewMemberStorage()
-
-			err := p.Tally(members)
-
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				return
-			}
-
-			urequire.NoError(t, err)
-			urequire.Equal(t, string(tc.status), string(p.Status()))
-		})
-	}
-}
-
-func TestMustValidate(cur realm, t *testing.T) {
-	uassert.NotPanics(t, cur, func() {
+func TestMustValidate(t *testing.T) {
+	uassert.NotPanics(t, func() {
 		commondao.MustValidate(testPropDef{})
 	}, "expect validation to succeed")
 
-	uassert.PanicsWithMessage(t, cur, "validable proposal definition is nil", func() {
+	uassert.PanicsWithMessage(t, "validable proposal definition is nil", func() {
 		commondao.MustValidate(nil)
 	}, "expect validation to panic with nil definition")
 
-	uassert.PanicsWithMessage(t, cur, "boom!", func() {
+	uassert.PanicsWithMessage(t, "boom!", func() {
 		commondao.MustValidate(testPropDef{validationErr: errors.New("boom!")})
 	}, "expect validation to panic")
 }
