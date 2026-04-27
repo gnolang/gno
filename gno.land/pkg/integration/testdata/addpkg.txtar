@@ -13,7 +13,7 @@ stdout 'GAS USED:   \d+'
 stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[.*\]'
 stdout 'TX HASH:    '
-stdout 'PKGPATH:    gno.land/r/'
+stdout 'PKGPATH:    gno.land/r/'$test1_user_addr'/hello'
 
 ## call added realm
 gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -chainid=tendermint_test -func SayHello   -gas-fee 180001ugnot -gas-wanted 1_800_000 -broadcast test1
