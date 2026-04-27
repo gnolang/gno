@@ -1175,7 +1175,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.IterNextCostFlat))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3Varint)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1187,7 +1187,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.FixedWriteDepth100))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 13, amino.Typ3Varint)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1199,7 +1199,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.FixedSetReadDepth100))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 12, amino.Typ3Varint)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1211,7 +1211,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.FixedGetReadDepth100))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3Varint)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1223,7 +1223,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.MinWriteDepth100))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3Varint)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1235,7 +1235,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.MinSetReadDepth100))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3Varint)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1247,19 +1247,7 @@ func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int,
 			offset = amino.PrependVarint(buf, offset, int64(goo.MinGetReadDepth100))
 			valueLen := before - offset
 			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3Varint)
-			} else {
-				offset = before
-			}
-		}
-	}
-	if goo.ValsetRealmPath != "" {
-		{
-			before := offset
-			offset = amino.PrependString(buf, offset, string(goo.ValsetRealmPath))
-			valueLen := before - offset
-			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3Varint)
 			} else {
 				offset = before
 			}
@@ -1372,9 +1360,6 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 		}
 	}
-	if goo.ValsetRealmPath != "" {
-		s += 1 + amino.UvarintSize(uint64(len(goo.ValsetRealmPath))) + len(goo.ValsetRealmPath)
-	}
 	if goo.MinGetReadDepth100 != 0 {
 		s += 1 + amino.VarintSize(int64(goo.MinGetReadDepth100))
 	}
@@ -1479,15 +1464,15 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 				return err
 			}
 		case 7:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 7: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 7: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
 			}
-			v, n, err := amino.DecodeString(bz)
+			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {
 				return err
 			}
 			bz = bz[n:]
-			goo.ValsetRealmPath = string(v)
+			goo.MinGetReadDepth100 = int64(v)
 		case 8:
 			if typ3 != amino.Typ3Varint {
 				return fmt.Errorf("field 8: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
@@ -1497,7 +1482,7 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 				return err
 			}
 			bz = bz[n:]
-			goo.MinGetReadDepth100 = int64(v)
+			goo.MinSetReadDepth100 = int64(v)
 		case 9:
 			if typ3 != amino.Typ3Varint {
 				return fmt.Errorf("field 9: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
@@ -1507,7 +1492,7 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 				return err
 			}
 			bz = bz[n:]
-			goo.MinSetReadDepth100 = int64(v)
+			goo.MinWriteDepth100 = int64(v)
 		case 10:
 			if typ3 != amino.Typ3Varint {
 				return fmt.Errorf("field 10: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
@@ -1517,7 +1502,7 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 				return err
 			}
 			bz = bz[n:]
-			goo.MinWriteDepth100 = int64(v)
+			goo.FixedGetReadDepth100 = int64(v)
 		case 11:
 			if typ3 != amino.Typ3Varint {
 				return fmt.Errorf("field 11: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
@@ -1527,7 +1512,7 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 				return err
 			}
 			bz = bz[n:]
-			goo.FixedGetReadDepth100 = int64(v)
+			goo.FixedSetReadDepth100 = int64(v)
 		case 12:
 			if typ3 != amino.Typ3Varint {
 				return fmt.Errorf("field 12: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
@@ -1537,20 +1522,10 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 				return err
 			}
 			bz = bz[n:]
-			goo.FixedSetReadDepth100 = int64(v)
+			goo.FixedWriteDepth100 = int64(v)
 		case 13:
 			if typ3 != amino.Typ3Varint {
 				return fmt.Errorf("field 13: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
-			}
-			v, n, err := amino.DecodeVarint(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			goo.FixedWriteDepth100 = int64(v)
-		case 14:
-			if typ3 != amino.Typ3Varint {
-				return fmt.Errorf("field 14: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
 			}
 			v, n, err := amino.DecodeVarint(bz)
 			if err != nil {

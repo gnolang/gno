@@ -26,7 +26,6 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
 		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice) +
 		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector) +
-		fmt.Sprintf("ValsetRealmPath: %q\n", p.ValsetRealmPath) +
 		fmt.Sprintf("MinGetReadDepth100: %d\n", p.MinGetReadDepth100) +
 		fmt.Sprintf("MinSetReadDepth100: %d\n", p.MinSetReadDepth100) +
 		fmt.Sprintf("MinWriteDepth100: %d\n", p.MinWriteDepth100) +

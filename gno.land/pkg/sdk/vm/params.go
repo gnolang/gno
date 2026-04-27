@@ -45,7 +45,6 @@ type Params struct {
 	DefaultDeposit       string         `json:"default_deposit" yaml:"default_deposit"`
 	StoragePrice         string         `json:"storage_price" yaml:"storage_price"`
 	StorageFeeCollector  crypto.Address `json:"storage_fee_collector" yaml:"storage_fee_collector"`
-	ValsetRealmPath      string         `json:"valset_realm_path" yaml:"valset_realm_path"`
 	MinGetReadDepth100   int64          `json:"min_get_read_depth_100" yaml:"min_get_read_depth_100"`
 	MinSetReadDepth100   int64          `json:"min_set_read_depth_100" yaml:"min_set_read_depth_100"`
 	MinWriteDepth100     int64          `json:"min_write_depth_100" yaml:"min_write_depth_100"`
@@ -68,7 +67,6 @@ func NewParams(namesPkgPath, claPkgPath, chainDomain, defaultDeposit, storagePri
 		DefaultDeposit:       defaultDeposit,
 		StoragePrice:         storagePrice,
 		StorageFeeCollector:  storageFeeCollector,
-		ValsetRealmPath:      ValsetRealmDefault,
 		MinGetReadDepth100:   minGetReadDepth100,
 		MinSetReadDepth100:   minSetReadDepth100,
 		MinWriteDepth100:     minWriteDepth100,
@@ -97,7 +95,6 @@ func (p Params) String() string {
 	sb.WriteString(fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit))
 	sb.WriteString(fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice))
 	sb.WriteString(fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector.String()))
-	sb.WriteString(fmt.Sprintf("ValsetRealmPath: %q\n", p.ValsetRealmPath))
 	sb.WriteString(fmt.Sprintf("MinGetReadDepth100: %d\n", p.MinGetReadDepth100))
 	sb.WriteString(fmt.Sprintf("MinSetReadDepth100: %d\n", p.MinSetReadDepth100))
 	sb.WriteString(fmt.Sprintf("MinWriteDepth100: %d\n", p.MinWriteDepth100))
@@ -128,9 +125,6 @@ func (p Params) Validate() error {
 	}
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")
-	}
-	if p.ValsetRealmPath != "" && !gno.IsRealmPath(p.ValsetRealmPath) {
-		return fmt.Errorf("invalid valset realm path %q", p.ValsetRealmPath)
 	}
 	// Depth floors / overrides are 100x fixed-point. The cap is 10_000
 	// (= 100 tree levels), well beyond any plausible B+tree / IAVL
@@ -269,7 +263,13 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		}
 		params.StorageFeeCollector = addr
 	case "p:valset_realm_path":
-		params.ValsetRealmPath = sdkparams.MustParamString("valset_realm_path", value)
+		// EndBlocker reads this key directly (with const fallback), so we
+		// don't store it on Params; just validate the format here.
+		s := sdkparams.MustParamString("valset_realm_path", value)
+		if s != "" && !gno.IsRealmPath(s) {
+			panic(fmt.Sprintf("invalid valset realm path %q", s))
+		}
+		return
 	case "p:min_get_read_depth_100":
 		params.MinGetReadDepth100 = sdkparams.MustParamInt64("min_get_read_depth_100", value)
 	case "p:min_set_read_depth_100":
