@@ -243,6 +243,10 @@ func scanRoot(root string, logger *slog.Logger) map[string]string {
 // path. Tracked paths discovered via ExtraRoots or the fetcher live outside
 // the workspace, so they are re-resolved individually and merged with the
 // workspace result.
+//
+// Note: deletion of an extra-root directory mid-session is not detected;
+// Resolve will return the stale dir from the cached rootIdx until gnodev
+// restarts.
 func (l *Loader) Reload() ([]*Package, error) {
 	l.mu.RLock()
 	wsPattern := ""
