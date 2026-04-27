@@ -112,7 +112,7 @@ func (p *Proposal) AllowedDAOs() []string {
 }
 
 type Proposals struct {
-	seq       seqid.ID
+	seq            seqid.ID
 	*bptree.BPTree // *bptree.BPTree[ProposalID]*Proposal
 }
 

@@ -66,19 +66,19 @@ func TestRegister_InvalidFormat(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("fmt-payer")))
 
 	cases := []string{
-		"",                       // empty
-		"    ",                   // whitespace
-		"alice123",               // missing nym- prefix
-		"usr-alice123",           // wrong prefix
-		"nym-",                   // prefix only
-		"nym-abc123",             // stem too short (3 chars, need ≥5)
-		"nym-abcd123",            // stem too short (4 chars)
-		"nym-abcdefghijklmn123",  // stem too long (14 chars, need ≤13)
-		"nym-Alice123",           // uppercase in stem
-		"nym-al1ce123",           // digit in stem
-		"nym-alice12",            // only 2 trailing digits
-		"nym-alice1234",          // 4 trailing digits (extra digit in stem too long)
-		"nym-alice&#($)123",      // special chars in stem
+		"",                      // empty
+		"    ",                  // whitespace
+		"alice123",              // missing nym- prefix
+		"usr-alice123",          // wrong prefix
+		"nym-",                  // prefix only
+		"nym-abc123",            // stem too short (3 chars, need ≥5)
+		"nym-abcd123",           // stem too short (4 chars)
+		"nym-abcdefghijklmn123", // stem too long (14 chars, need ≤13)
+		"nym-Alice123",          // uppercase in stem
+		"nym-al1ce123",          // digit in stem
+		"nym-alice12",           // only 2 trailing digits
+		"nym-alice1234",         // 4 trailing digits (extra digit in stem too long)
+		"nym-alice&#($)123",     // special chars in stem
 	}
 
 	for _, username := range cases {
@@ -93,12 +93,12 @@ func TestRegister_ReservedPrefix(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("prefix-payer")))
 
 	cases := []string{
-		"nym-gnoblah123",   // gno prefix
-		"nym-gnomeland456", // gno prefix
-		"nym-glasgow012",   // gl prefix (most-confusable with bech32 g1...)
-		"nym-atomic123",    // atom prefix
-		"nym-atonex123",    // atone prefix
-		"nym-photons456",   // photon prefix
+		"nym-gnoblah123",    // gno prefix
+		"nym-gnomeland456",  // gno prefix
+		"nym-glasgow012",    // gl prefix (most-confusable with bech32 g1...)
+		"nym-atomic123",     // atom prefix
+		"nym-atonex123",     // atone prefix
+		"nym-photons456",    // photon prefix
 		"nym-cosmoswide789", // cosmos prefix
 	}
 

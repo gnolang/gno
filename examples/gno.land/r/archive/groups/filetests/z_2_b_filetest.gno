@@ -9,6 +9,7 @@ import (
 	"gno.land/r/archive/groups"
 	uinit "gno.land/r/sys/users/init"
 )
+
 var gid groups.GroupID
 
 func main() {

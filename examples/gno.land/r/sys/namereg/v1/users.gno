@@ -17,7 +17,7 @@ const MinRegisterPrice = int64(100_000) // 0.1 GNOT
 
 var (
 	registerPrice = int64(20_000_000) // 20 GNOT (anti-squatting deterrent)
-	latestUsers   = fifo.New(100)      // Save the latest 100 users for rendering purposes
+	latestUsers   = fifo.New(100)     // Save the latest 100 users for rendering purposes
 )
 
 // Register registers a new username for the caller.

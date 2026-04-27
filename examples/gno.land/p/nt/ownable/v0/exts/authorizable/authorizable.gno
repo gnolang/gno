@@ -14,7 +14,7 @@ import (
 )
 
 type Authorizable struct {
-	*ownable.Ownable           // owner in ownable is superuser
+	*ownable.Ownable                // owner in ownable is superuser
 	authorized       *bptree.BPTree // chain.Addr > struct{}{}
 }
 

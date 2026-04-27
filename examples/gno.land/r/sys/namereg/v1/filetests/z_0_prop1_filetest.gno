@@ -10,8 +10,8 @@ import (
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gov/dao"
 	daov3init "gno.land/r/gov/dao/v3/init"
-	susers "gno.land/r/sys/users"
 	users "gno.land/r/sys/namereg/v1"
+	susers "gno.land/r/sys/users"
 )
 
 // Test updating a name via GovDAO
