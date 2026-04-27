@@ -1,13 +1,22 @@
-// 05_disable_sysnames.gno.tmpl — MsgRun body that temporarily disables the
-// r/sys/names namespace-permission check via a govDAO proposal.
+// 05_disable_sysnames.gno.tmpl — MsgRun body that temporarily disables both
+// r/sys/names (namespace permission) and r/sys/cla (signed-CLA enforcement)
+// via two govDAO proposals.
 //
-// Why: gnoland1's r/sys/names.enabled is `true` at halt height, which means
-// only addresses whose bech32 matches a namespace can deploy under that
-// namespace. The `sys` namespace can never match any real address, so
-// step 06 (addpkg r/sys/validators/v3) would fail with "unauthorized user".
-// Setting the VM param `vm:p:sysnames_pkgpath` to "" makes
-// checkNamespacePermission skip the check (keeper.go: sysNamesPkg == "" →
-// return nil). Step 07 restores the path so the check is re-enabled.
+// Why sysnames: gnoland1's r/sys/names.enabled is `true` at halt height,
+// which means only addresses whose bech32 matches a namespace can deploy
+// under that namespace. The `sys` namespace can never match any real
+// address, so step 06 (addpkg r/sys/validators/v3) would fail with
+// "unauthorized user".
+//
+// Why CLA: at higher halt heights, manfred's CLA signature for the
+// then-current /r/sys/cla hash may no longer be valid (CLA hash on the
+// source chain has rotated, or stricter enforcement has been deployed).
+// Without disabling, `addpkg` from manfred fails with "address … has
+// not signed the required CLA" (vm/keeper.go:checkCLASignature).
+//
+// Both checks short-circuit when the corresponding `vm:p:*_pkgpath`
+// param is "" (vm/keeper.go: `sysNamesPkg == "" → return nil`,
+// `sysCLAPkg == "" → return nil`). Step 07 restores both paths.
 //
 // Caller: current govDAO sole T1 (manfred pre-rotation, or $T1_CALLER
 // post-rotation). Sig verify is skipped at genesis-replay via
@@ -20,8 +29,18 @@ import (
 )
 
 func main() {
-	r := params.NewSysParamStringPropRequest("vm", "p", "sysnames_pkgpath", "")
-	id := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
-	dao.ExecuteProposal(cross, id)
+	// Disable namespace check.
+	{
+		r := params.NewSysParamStringPropRequest("vm", "p", "sysnames_pkgpath", "")
+		id := dao.MustCreateProposal(cross, r)
+		dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+		dao.ExecuteProposal(cross, id)
+	}
+	// Disable CLA signature check.
+	{
+		r := params.NewSysParamStringPropRequest("vm", "p", "syscla_pkgpath", "")
+		id := dao.MustCreateProposal(cross, r)
+		dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+		dao.ExecuteProposal(cross, id)
+	}
 }

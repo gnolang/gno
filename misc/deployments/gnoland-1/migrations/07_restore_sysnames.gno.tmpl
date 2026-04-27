@@ -1,9 +1,11 @@
-// 07_restore_sysnames.gno.tmpl — MsgRun body that re-enables the r/sys/names
-// namespace-permission check after step 06 (addpkg r/sys/validators/v3).
+// 07_restore_sysnames.gno.tmpl — MsgRun body that re-enables both
+// r/sys/names (namespace permission) and r/sys/cla (signed-CLA enforcement)
+// after step 06 (addpkg r/sys/validators/v3).
 //
 // Pairs with 05_disable_sysnames: after v3 is deployed under r/sys/*, we
-// restore the default `vm:p:sysnames_pkgpath = "gno.land/r/sys/names"` so
-// subsequent addpkgs continue to enforce namespace authz.
+// restore the default `vm:p:sysnames_pkgpath = "gno.land/r/sys/names"`
+// and `vm:p:syscla_pkgpath = "gno.land/r/sys/cla"` so subsequent addpkgs
+// continue to enforce both namespace authz and CLA signature.
 //
 // Caller: current govDAO sole T1 (same as step 05).
 package main
@@ -14,8 +16,18 @@ import (
 )
 
 func main() {
-	r := params.NewSysParamStringPropRequest("vm", "p", "sysnames_pkgpath", "gno.land/r/sys/names")
-	id := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
-	dao.ExecuteProposal(cross, id)
+	// Re-enable namespace check.
+	{
+		r := params.NewSysParamStringPropRequest("vm", "p", "sysnames_pkgpath", "gno.land/r/sys/names")
+		id := dao.MustCreateProposal(cross, r)
+		dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+		dao.ExecuteProposal(cross, id)
+	}
+	// Re-enable CLA signature check.
+	{
+		r := params.NewSysParamStringPropRequest("vm", "p", "syscla_pkgpath", "gno.land/r/sys/cla")
+		id := dao.MustCreateProposal(cross, r)
+		dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: id})
+		dao.ExecuteProposal(cross, id)
+	}
 }
