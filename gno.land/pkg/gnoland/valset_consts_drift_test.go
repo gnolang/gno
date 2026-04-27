@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -20,8 +19,12 @@ import (
 func TestValsetConstsDoNotDrift(t *testing.T) {
 	t.Parallel()
 
-	_, thisFile, _, _ := runtime.Caller(0)
-	root := filepath.Join(filepath.Dir(thisFile), "..", "..", "..")
+	// `go test` runs from the package directory: gno.land/pkg/gnoland.
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	root := filepath.Join(wd, "..", "..", "..")
 	pocPath := filepath.Join(root, "examples", "gno.land", "r", "sys", "validators", "v3", "poc.gno")
 
 	data, err := os.ReadFile(pocPath)
