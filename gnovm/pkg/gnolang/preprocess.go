@@ -1237,7 +1237,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
-						panic("slice/array literals may not contain non-const keys")
+						return n, TRANS_CONTINUE
 					}
 				}
 				// specific and general cases
@@ -1485,14 +1485,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
-				if ftype == TRANS_COMPOSITE_KEY {
-					clx := ns[len(ns)-1].(*CompositeLitExpr)
-					clt := evalStaticType(store, last, clx.Type)
-					switch baseOf(clt).(type) {
-					case *ArrayType, *SliceType:
-						panic("slice/array literals may not contain non-const keys")
-					}
-				}
 				// Func type evaluation.
 				nft := evalStaticTypeOf(store, last, n.Func)
 				switch bnft := baseOf(nft).(type) {
@@ -2237,16 +2229,28 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				case *ArrayType:
 					for i := range n.Elts {
-						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
-							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+						if n.Elts[i].Key != nil {
+							cx, ok := n.Elts[i].Key.(*ConstExpr)
+							if !ok {
+								panic("slice/array literals may not contain non-const keys")
+							}
+							if cx.TypedValue.Sign() < 0 {
+								panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+							}
 						}
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 				case *SliceType:
 					for i := range n.Elts {
-						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
-							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+						if n.Elts[i].Key != nil {
+							cx, ok := n.Elts[i].Key.(*ConstExpr)
+							if !ok {
+								panic("slice/array literals may not contain non-const keys")
+							}
+							if cx.TypedValue.Sign() < 0 {
+								panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+							}
 						}
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
