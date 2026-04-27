@@ -361,3 +361,272 @@ func ByteSliceSize(bz []byte) int {
 func EncodeString(w io.Writer, s string) (err error) {
 	return EncodeByteSlice(w, []byte(s))
 }
+
+// ----------------------------------------
+// Prepend* functions for backward-writing encoding.
+// These write encoded bytes at buf[offset-n:offset] and return the new offset.
+
+func PrependByte(buf []byte, offset int, b byte) int {
+	offset--
+	buf[offset] = b
+	return offset
+}
+
+func PrependBool(buf []byte, offset int, b bool) int {
+	if b {
+		return PrependByte(buf, offset, 0x01)
+	}
+	return PrependByte(buf, offset, 0x00)
+}
+
+func PrependVarint(buf []byte, offset int, i int64) int {
+	var tmp [10]byte
+	n := binary.PutVarint(tmp[:], i)
+	offset -= n
+	copy(buf[offset:], tmp[:n])
+	return offset
+}
+
+func PrependUvarint(buf []byte, offset int, u uint64) int {
+	var tmp [10]byte
+	n := binary.PutUvarint(tmp[:], u)
+	offset -= n
+	copy(buf[offset:], tmp[:n])
+	return offset
+}
+
+func PrependInt32(buf []byte, offset int, i int32) int {
+	offset -= 4
+	binary.LittleEndian.PutUint32(buf[offset:], uint32(i))
+	return offset
+}
+
+func PrependInt64(buf []byte, offset int, i int64) int {
+	offset -= 8
+	binary.LittleEndian.PutUint64(buf[offset:], uint64(i))
+	return offset
+}
+
+func PrependUint32(buf []byte, offset int, u uint32) int {
+	offset -= 4
+	binary.LittleEndian.PutUint32(buf[offset:], u)
+	return offset
+}
+
+func PrependUint64(buf []byte, offset int, u uint64) int {
+	offset -= 8
+	binary.LittleEndian.PutUint64(buf[offset:], u)
+	return offset
+}
+
+func PrependFloat32(buf []byte, offset int, f float32) int {
+	return PrependUint32(buf, offset, math.Float32bits(f))
+}
+
+func PrependFloat64(buf []byte, offset int, f float64) int {
+	return PrependUint64(buf, offset, math.Float64bits(f))
+}
+
+func PrependBytes(buf []byte, offset int, bz []byte) int {
+	offset -= len(bz)
+	copy(buf[offset:], bz)
+	return offset
+}
+
+func PrependByteSlice(buf []byte, offset int, bz []byte) int {
+	offset = PrependBytes(buf, offset, bz)
+	offset = PrependUvarint(buf, offset, uint64(len(bz)))
+	return offset
+}
+
+func PrependString(buf []byte, offset int, s string) int {
+	offset -= len(s)
+	copy(buf[offset:], s)
+	offset = PrependUvarint(buf, offset, uint64(len(s)))
+	return offset
+}
+
+func PrependFieldNumberAndTyp3(buf []byte, offset int, num uint32, typ Typ3) int {
+	value64 := (uint64(num) << 3) | uint64(typ)
+	return PrependUvarint(buf, offset, value64)
+}
+
+// PrependTimeValue writes Timestamp proto fields backward into buf.
+func PrependTimeValue(buf []byte, offset int, s int64, ns int32) (int, error) {
+	if err := validateTimeValue(s, ns); err != nil {
+		return offset, err
+	}
+	// Write fields backward: field 2 (nanos) first, then field 1 (seconds).
+	if ns != 0 {
+		offset = PrependUvarint(buf, offset, uint64(ns))
+		offset = PrependFieldNumberAndTyp3(buf, offset, 2, Typ3Varint)
+	}
+	if s != 0 {
+		offset = PrependUvarint(buf, offset, uint64(s))
+		offset = PrependFieldNumberAndTyp3(buf, offset, 1, Typ3Varint)
+	}
+	return offset, nil
+}
+
+func PrependTime(buf []byte, offset int, t time.Time) (int, error) {
+	return PrependTimeValue(buf, offset, t.Unix(), int32(t.Nanosecond()))
+}
+
+func PrependDurationValue(buf []byte, offset int, s int64, ns int32) (int, error) {
+	if err := validateDurationValue(s, ns); err != nil {
+		return offset, err
+	}
+	if ns != 0 {
+		offset = PrependUvarint(buf, offset, uint64(ns))
+		offset = PrependFieldNumberAndTyp3(buf, offset, 2, Typ3Varint)
+	}
+	if s != 0 {
+		offset = PrependUvarint(buf, offset, uint64(s))
+		offset = PrependFieldNumberAndTyp3(buf, offset, 1, Typ3Varint)
+	}
+	return offset, nil
+}
+
+func PrependDuration(buf []byte, offset int, d time.Duration) (int, error) {
+	sns := d.Nanoseconds()
+	s, ns := sns/1e9, int32(sns%1e9)
+	return PrependDurationValue(buf, offset, s, ns)
+}
+
+// ----------------------------------------
+// Append*Reversed functions for reversed-append encoding.
+// These append bytes in reversed order to buf and return the updated slice.
+// A single reverseBytes() at the end produces correct protobuf wire format.
+// Uses the standard Go append pattern: buf = AppendXReversed(buf, ...).
+
+func reverseBytes(buf []byte) {
+	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
+		buf[i], buf[j] = buf[j], buf[i]
+	}
+}
+
+func AppendByteReversed(buf []byte, b byte) []byte {
+	return append(buf, b)
+}
+
+func AppendBoolReversed(buf []byte, b bool) []byte {
+	if b {
+		return append(buf, 0x01)
+	}
+	return append(buf, 0x00)
+}
+
+func AppendVarintReversed(buf []byte, i int64) []byte {
+	var tmp [10]byte
+	n := binary.PutVarint(tmp[:], i)
+	for j := n - 1; j >= 0; j-- {
+		buf = append(buf, tmp[j])
+	}
+	return buf
+}
+
+func AppendUvarintReversed(buf []byte, u uint64) []byte {
+	var tmp [10]byte
+	n := binary.PutUvarint(tmp[:], u)
+	for j := n - 1; j >= 0; j-- {
+		buf = append(buf, tmp[j])
+	}
+	return buf
+}
+
+func AppendInt32Reversed(buf []byte, i int32) []byte {
+	var tmp [4]byte
+	binary.LittleEndian.PutUint32(tmp[:], uint32(i))
+	return append(buf, tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendInt64Reversed(buf []byte, i int64) []byte {
+	var tmp [8]byte
+	binary.LittleEndian.PutUint64(tmp[:], uint64(i))
+	return append(buf, tmp[7], tmp[6], tmp[5], tmp[4], tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendUint32Reversed(buf []byte, u uint32) []byte {
+	var tmp [4]byte
+	binary.LittleEndian.PutUint32(tmp[:], u)
+	return append(buf, tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendUint64Reversed(buf []byte, u uint64) []byte {
+	var tmp [8]byte
+	binary.LittleEndian.PutUint64(tmp[:], u)
+	return append(buf, tmp[7], tmp[6], tmp[5], tmp[4], tmp[3], tmp[2], tmp[1], tmp[0])
+}
+
+func AppendFloat32Reversed(buf []byte, f float32) []byte {
+	return AppendUint32Reversed(buf, math.Float32bits(f))
+}
+
+func AppendFloat64Reversed(buf []byte, f float64) []byte {
+	return AppendUint64Reversed(buf, math.Float64bits(f))
+}
+
+func AppendBytesReversed(buf []byte, bz []byte) []byte {
+	start := len(buf)
+	buf = append(buf, bz...)
+	reverseBytes(buf[start:])
+	return buf
+}
+
+func AppendByteSliceReversed(buf []byte, bz []byte) []byte {
+	buf = AppendBytesReversed(buf, bz)
+	buf = AppendUvarintReversed(buf, uint64(len(bz)))
+	return buf
+}
+
+func AppendStringReversed(buf []byte, s string) []byte {
+	start := len(buf)
+	buf = append(buf, s...)
+	reverseBytes(buf[start:])
+	buf = AppendUvarintReversed(buf, uint64(len(s)))
+	return buf
+}
+
+func AppendFieldNumberAndTyp3Reversed(buf []byte, num uint32, typ Typ3) []byte {
+	return AppendUvarintReversed(buf, (uint64(num)<<3)|uint64(typ))
+}
+
+func AppendTimeValueReversed(buf []byte, s int64, ns int32) ([]byte, error) {
+	if err := validateTimeValue(s, ns); err != nil {
+		return buf, err
+	}
+	if ns != 0 {
+		buf = AppendUvarintReversed(buf, uint64(ns))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 2, Typ3Varint)
+	}
+	if s != 0 {
+		buf = AppendUvarintReversed(buf, uint64(s))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 1, Typ3Varint)
+	}
+	return buf, nil
+}
+
+func AppendTimeReversed(buf []byte, t time.Time) ([]byte, error) {
+	return AppendTimeValueReversed(buf, t.Unix(), int32(t.Nanosecond()))
+}
+
+func AppendDurationValueReversed(buf []byte, s int64, ns int32) ([]byte, error) {
+	if err := validateDurationValue(s, ns); err != nil {
+		return buf, err
+	}
+	if ns != 0 {
+		buf = AppendUvarintReversed(buf, uint64(ns))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 2, Typ3Varint)
+	}
+	if s != 0 {
+		buf = AppendUvarintReversed(buf, uint64(s))
+		buf = AppendFieldNumberAndTyp3Reversed(buf, 1, Typ3Varint)
+	}
+	return buf, nil
+}
+
+func AppendDurationReversed(buf []byte, d time.Duration) ([]byte, error) {
+	sns := d.Nanoseconds()
+	s, ns := sns/1e9, int32(sns%1e9)
+	return AppendDurationValueReversed(buf, s, ns)
+}

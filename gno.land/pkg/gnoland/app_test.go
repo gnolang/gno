@@ -141,11 +141,29 @@ func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
 	assert.ErrorContains(t, err, "no db provided")
 }
 
+func TestNewAppWithOptions_ErrNoLogger(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.Logger = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no logger provided")
+}
+
+func TestNewAppWithOptions_ErrNoEventSwitch(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.EventSwitch = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no event switch provided")
+}
+
 func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger())
+	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
@@ -673,6 +691,7 @@ func TestEndBlocker(t *testing.T) {
 		// The update is filtered out due to wrong pubkey type
 		assert.Empty(t, res.ValidatorUpdates)
 	})
+
 }
 
 func TestGasPriceUpdate(t *testing.T) {
@@ -687,7 +706,7 @@ func TestGasPriceUpdate(t *testing.T) {
 		ChainID:  "test-chain",
 		ConsensusParams: &abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxGas: 10000,
+				MaxGas: 1_000_000,
 			},
 		},
 	})
@@ -698,7 +717,7 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	tx := newCounterTx(100)
 	tx.Fee = std.Fee{
-		GasWanted: 100,
+		GasWanted: 10000,
 		GasFee: sdk.Coin{
 			Amount: 9,
 			Denom:  "ugnot",
@@ -714,9 +733,9 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Check Tx Ok
 	tx2 := newCounterTx(100)
 	tx2.Fee = std.Fee{
-		GasWanted: 1000,
+		GasWanted: 100000,
 		GasFee: sdk.Coin{
-			Amount: 100,
+			Amount: 10000,
 			Denom:  "ugnot",
 		},
 	}
@@ -728,13 +747,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	// After replaying a block, the gas price increased.
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-	// Delvier Tx consumes more than that target block gas 6000.
+	// Delvier Tx consumes more than that target block gas 600000.
 
-	tx6001 := newCounterTx(6001)
+	tx6001 := newCounterTx(610000)
 	tx6001.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200,
+			Amount: 200000,
 			Denom:  "ugnot",
 		},
 	}
@@ -758,13 +777,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Replayed a Block, the gas price decrease
 	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-	// Delvier Tx consumes less than that target block gas 6000.
+	// Delvier Tx consumes less than that target block gas 600000.
 
-	tx200 := newCounterTx(200)
+	tx200 := newCounterTx(20000)
 	tx200.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200,
+			Amount: 200000,
 			Denom:  "ugnot",
 		},
 	}
@@ -783,9 +802,9 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	// Case 4
 	// require matching expected GasPrice after three blocks ( increase case)
-	replayBlock(t, baseApp, 8000, 3)
-	replayBlock(t, baseApp, 8000, 4)
-	replayBlock(t, baseApp, 6000, 5)
+	replayBlock(t, baseApp, 800000, 3)
+	replayBlock(t, baseApp, 800000, 4)
+	replayBlock(t, baseApp, 600000, 5)
 
 	key := []byte("gasPrice")
 	query := abci.RequestQuery{
@@ -801,16 +820,16 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Case 5,
 	// require matching expected GasPrice after low gas blocks ( decrease below initial gas price case)
 
-	replayBlock(t, baseApp, 5000, 6)
-	replayBlock(t, baseApp, 5000, 7)
-	replayBlock(t, baseApp, 5000, 8)
+	replayBlock(t, baseApp, 500000, 6)
+	replayBlock(t, baseApp, 500000, 7)
+	replayBlock(t, baseApp, 500000, 8)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
 	require.NoError(t, err)
 	require.Equal(t, "102ugnot", gp.Price.String())
 
-	replayBlock(t, baseApp, 5000, 9)
+	replayBlock(t, baseApp, 500000, 9)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
@@ -836,7 +855,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 
 	// Construct keepers.
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -940,7 +959,6 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
 	t.Helper()
 	gen := GnoGenesisState{}
 	genBytes := []byte(`{
-    "@type": "/gno.GenesisState",
     "auth": {
       "params": {
         "gas_price_change_compressor": "8",
@@ -973,7 +991,7 @@ func replayBlock(t *testing.T, app *sdk.BaseApp, gas int64, hight int64) {
 	t.Helper()
 	tx := newCounterTx(gas)
 	tx.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
 			Amount: 1000,
 			Denom:  "ugnot",
@@ -1027,6 +1045,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 		appCfg,
 		events.NewEventSwitch(),
 		log.NewNoopLogger(),
+		0,
 	)
 	require.NoError(t, err)
 
@@ -1080,4 +1099,326 @@ func TestPruneStrategyNothing(t *testing.T) {
 
 	err = db.Close()
 	require.NoError(t, err)
+}
+
+func TestNodeParamsKeeperWillSetParam(t *testing.T) {
+	t.Parallel()
+
+	npk := nodeParamsKeeper{}
+
+	t.Run("valid halt_height (no block context)", func(t *testing.T) {
+		t.Parallel()
+		// Without a block header, safeBlockHeight returns 0, so no future check.
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height zero is allowed (cancel sentinel)", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(0))
+		})
+	})
+
+	t.Run("halt_height in the future is valid when block height is known", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 50})
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height equal to current block height panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 100})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height in the past panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 200})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("negative halt_height panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(-1))
+		})
+	})
+
+	t.Run("halt_height wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", "not-an-int64")
+		})
+	})
+
+	t.Run("valid halt_min_version", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", "chain/gnoland1.1")
+		})
+	})
+
+	t.Run("empty halt_min_version is allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", "")
+		})
+	})
+
+	t.Run("halt_min_version wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", int64(1))
+		})
+	})
+
+	t.Run("unknown p: key panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:unknown_key", int64(0))
+		})
+	})
+
+	t.Run("non-p: key is allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "other:key", "value")
+		})
+	})
+}
+
+func TestMeetsMinVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		binary string
+		minVer string
+		want   bool
+	}{
+		// Empty minVersion always passes
+		{"chain/gnoland1.0", "", true},
+		{"develop", "", true},
+
+		// Same version passes
+		{"chain/gnoland1.0", "chain/gnoland1.0", true},
+		{"chain/gnoland1.1", "chain/gnoland1.1", true},
+
+		// Newer binary passes
+		{"chain/gnoland1.1", "chain/gnoland1.0", true},
+		{"chain/gnoland2.0", "chain/gnoland1.0", true},
+		{"chain/gnoland1.2", "chain/gnoland1.1", true},
+
+		// Older binary fails
+		{"chain/gnoland1.0", "chain/gnoland1.1", false},
+		{"chain/gnoland1.0", "chain/gnoland2.0", false},
+
+		// Non-gnoland format: requires exact match
+		{"develop", "chain/gnoland1.1", false},
+		{"v1.0.0", "v1.0.0", true},
+		{"v1.0.0", "v1.1.0", false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
+			t.Parallel()
+			got := meetsMinVersion(tc.binary, tc.minVer)
+			assert.Equal(t, tc.want, got,
+				"meetsMinVersion(%q, %q)", tc.binary, tc.minVer)
+		})
+	}
+}
+
+func TestParseGnolandVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input string
+		major int
+		minor int
+		ok    bool
+	}{
+		{"chain/gnoland1.0", 1, 0, true},
+		{"chain/gnoland1.1", 1, 1, true},
+		{"chain/gnoland2.3", 2, 3, true},
+		{"develop", 0, 0, false},
+		{"v1.0.0", 0, 0, false},
+		{"chain/gnoland", 0, 0, false},
+		{"chain/gnolandX.Y", 0, 0, false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			major, minor, ok := parseGnolandVersion(tc.input)
+			assert.Equal(t, tc.ok, ok)
+			if tc.ok {
+				assert.Equal(t, tc.major, major)
+				assert.Equal(t, tc.minor, minor)
+			}
+		})
+	}
+}
+
+// newTestParamsKeeper creates a minimal ParamsKeeper with an in-memory store
+// and pre-seeds it with the given halt params.
+func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (params.ParamsKeeper, store.MultiStore) {
+	t.Helper()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("main")
+
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	require.NoError(t, cms.LoadLatestVersion())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	prmk.Register("node", nodeParamsKeeper{})
+
+	ms := cms.MultiCacheWrap()
+	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
+
+	prmk.SetInt64(ctx, nodeParamHaltHeight, haltHeight)
+	prmk.SetString(ctx, nodeParamHaltMinVersion, minVersion)
+	ms.MultiWrite()
+	cms.Commit()
+
+	return prmk, cms.MultiCacheWrap()
+}
+
+func TestCheckNodeStartupParams(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no halt configured", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 0, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("halt with no version passes", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("binary meets version after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion (exact match), lastBlock >= haltHeight
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("old binary rejected after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9" -> rejected
+		err := checkNodeStartupParams(prmk, ms, 100, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not meet the minimum version")
+	})
+
+	t.Run("new binary rejected before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion, but chain hasn't halted yet
+		err := checkNodeStartupParams(prmk, ms, 50, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upgrade intended for halt height")
+	})
+
+	t.Run("old binary allowed before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9", chain hasn't halted -> old binary, OK
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("skip_upgrade_height bypasses check", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// Even though binary meets version before halt, skip_upgrade_height=100 bypasses
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 100))
+	})
+}
+
+func TestEndBlockerHalt(t *testing.T) {
+	t.Parallel()
+
+	t.Run("halts at exact height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(100), haltSet, "SetHaltHeight should be called with halt_height")
+	})
+
+	t.Run("does not halt before halt height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 99})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called before halt height")
+	})
+
+	t.Run("does not re-halt after halt height (no infinite loop)", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		// After restart at height 101, halt_height=100 still in params but == doesn't re-fire
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 101})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight must NOT be called after halt height (prevents infinite loop)")
+	})
+
+	t.Run("cancel: halt_height zero never halts", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 0},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called when halt_height=0 (cancelled)")
+	})
 }

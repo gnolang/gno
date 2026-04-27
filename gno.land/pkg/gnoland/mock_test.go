@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/store"
 
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -85,6 +86,18 @@ func (m *mockVMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string) (res str
 	return "", nil
 }
 
+func (m *mockVMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath, expr string) (res string, err error) {
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	return nil, nil
+}
+
 func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err error) {
 	if m.runFn != nil {
 		return m.runFn(ctx, msg)
@@ -117,6 +130,10 @@ func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 		m.commitGnoTransactionStoreFn(ctx)
 	}
 }
+
+func (m *mockVMKeeper) PopulateStdlibCache() {}
+
+func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
@@ -269,11 +286,13 @@ func (m *mockGasPriceKeeper) UpdateGasPrice(ctx sdk.Context)               {}
 type (
 	lastBlockHeightDelegate func() int64
 	loggerDelegate          func() *slog.Logger
+	setHaltHeightDelegate   func(uint64)
 )
 
 type mockEndBlockerApp struct {
 	lastBlockHeightFn lastBlockHeightDelegate
 	loggerFn          loggerDelegate
+	setHaltHeightFn   setHaltHeightDelegate
 }
 
 func (m *mockEndBlockerApp) LastBlockHeight() int64 {
@@ -291,3 +310,43 @@ func (m *mockEndBlockerApp) Logger() *slog.Logger {
 
 	return log.NewNoopLogger()
 }
+
+func (m *mockEndBlockerApp) SetHaltHeight(height uint64) {
+	if m.setHaltHeightFn != nil {
+		m.setHaltHeightFn(height)
+	}
+}
+
+// mockConfigurableParamsKeeper is a ParamsKeeperI that returns values from pre-seeded maps.
+type mockConfigurableParamsKeeper struct {
+	int64s  map[string]int64
+	strings map[string]string
+}
+
+func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
+	if v, ok := m.int64s[key]; ok {
+		*ptr = v
+	}
+}
+func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
+	if v, ok := m.strings[key]; ok {
+		*ptr = v
+	}
+}
+func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {}
+func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)     {}
+func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)  {}
+func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+}
+func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value string)        {}
+func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)   {}
+func (m *mockConfigurableParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {}
+func (m *mockConfigurableParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)     {}
+func (m *mockConfigurableParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)  {}
+func (m *mockConfigurableParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+}
+func (m *mockConfigurableParamsKeeper) Has(ctx sdk.Context, key string) bool                { return false }
+func (m *mockConfigurableParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {}
+func (m *mockConfigurableParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any)    {}
+func (m *mockConfigurableParamsKeeper) GetAny(ctx sdk.Context, key string) any              { return nil }
+func (m *mockConfigurableParamsKeeper) SetAny(ctx sdk.Context, key string, value any)       {}
