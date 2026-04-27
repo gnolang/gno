@@ -293,10 +293,12 @@ func (l *Loader) LoadAll() ([]*Package, error) {
 	}
 
 	if l.cfg.Workspace != "" {
+		l.cfg.Logger.Info("loading workspace", "workspace", l.cfg.Workspace)
 		pkgs, err := l.loadWithPatterns(l.cfg.Workspace + "/...")
 		if err != nil {
 			return nil, err
 		}
+		l.cfg.Logger.Info("loaded workspace", "packages", len(pkgs))
 		appendUnique(pkgs)
 	}
 
@@ -304,12 +306,14 @@ func (l *Loader) LoadAll() ([]*Package, error) {
 	if l.cfg.Examples && l.cfg.GnoRoot != "" {
 		extraRoots = append(extraRoots, filepath.Join(l.cfg.GnoRoot, "examples"))
 	}
-	for _, root := range extraRoots {
+	for i, root := range extraRoots {
+		l.cfg.Logger.Info("loading root", "root", root, "progress", fmt.Sprintf("%d/%d", i+1, len(extraRoots)))
 		pkgs, err := l.loadRootStandalone(root)
 		if err != nil {
 			l.cfg.Logger.Warn("load extra root failed", "root", root, "err", err)
 			continue
 		}
+		l.cfg.Logger.Info("loaded root", "root", root, "packages", len(pkgs))
 		appendUnique(pkgs)
 	}
 

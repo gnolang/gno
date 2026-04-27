@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -229,6 +230,30 @@ func TestLoader_Reload_PreservesRootIdx(t *testing.T) {
 		reflect.ValueOf(idxAfter).Pointer(),
 		"rootIdx must be the same map (no re-walk), not a content-equivalent rebuild",
 	)
+}
+
+// TestLoader_LoadAll_LogsProgress verifies LoadAll emits progress per root
+// so the user knows it isn't hung.
+func TestLoader_LoadAll_LogsProgress(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "gnowork.toml"), []byte(""), 0o644))
+	writePkg(t, filepath.Join(root, "p"), "gno.land/p/ws/one", "package one\n")
+
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "q"), "gno.land/p/ext/two", "package two\n")
+
+	t.Chdir(root)
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	l := New(Config{Workspace: root, ExtraRoots: []string{extra}, Logger: logger})
+	_, err := l.LoadAll()
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "loading root", "should log per-root progress")
+	assert.Contains(t, out, extra, "progress log should name the root")
 }
 
 // TestPackage_KindZeroValue verifies the zero value of Kind is KindUnknown,
