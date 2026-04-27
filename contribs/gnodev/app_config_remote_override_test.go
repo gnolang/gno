@@ -63,3 +63,30 @@ func TestRemoteOverrideArr_Parse(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoteOverrideArr_StringDeterministic(t *testing.T) {
+	m := remoteOverrideArr{
+		"gno.land":    "https://rpc.gno.land",
+		"test.gno":    "http://localhost:26657",
+		"staging.gno": "https://rpc.staging.gno.land",
+		"alpha.gno":   "https://rpc.alpha.gno.land",
+	}
+	first := (&m).String()
+	// Repeated calls must yield identical output regardless of map iteration order.
+	for i := 0; i < 50; i++ {
+		assert.Equal(t, first, (&m).String())
+	}
+	// Keys must come out sorted.
+	assert.Equal(t,
+		"alpha.gno=https://rpc.alpha.gno.land,gno.land=https://rpc.gno.land,staging.gno=https://rpc.staging.gno.land,test.gno=http://localhost:26657",
+		first,
+	)
+}
+
+func TestRemoteOverrideArr_StringEmpty(t *testing.T) {
+	var nilArr *remoteOverrideArr
+	assert.Equal(t, "", nilArr.String())
+
+	empty := remoteOverrideArr{}
+	assert.Equal(t, "", (&empty).String())
+}

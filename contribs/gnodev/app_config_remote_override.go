@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -10,13 +12,17 @@ import (
 // the rpcpkgfetcher.New(map) signature used by Loader.
 type remoteOverrideArr map[string]string
 
+// String returns a deterministic, comma-joined representation of the parsed
+// overrides (keys sorted lexicographically). Stable output matters for the
+// flag package's default-printing and for any caller logging the value.
 func (m *remoteOverrideArr) String() string {
 	if m == nil || len(*m) == 0 {
 		return ""
 	}
-	parts := make([]string, 0, len(*m))
-	for k, v := range *m {
-		parts = append(parts, k+"="+v)
+	keys := slices.Sorted(maps.Keys(*m))
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = k + "=" + (*m)[k]
 	}
 	return strings.Join(parts, ",")
 }
