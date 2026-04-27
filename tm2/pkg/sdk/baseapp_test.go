@@ -1352,23 +1352,60 @@ func TestSetHaltHeight(t *testing.T) {
 	require.Equal(t, uint64(0), app.haltHeight)
 }
 
-// TestBeginBlock_InitialHeight verifies that BeginBlock does not panic when
-// the chain starts at InitialHeight > 1.  After InitChain the app's commit
-// store has no committed blocks (LastBlockHeight == 0), so the first
-// BeginBlock must be accepted at any height >= 1, not only height 1.
+// TestBeginBlock_InitialHeight verifies that BeginBlock accepts the first
+// block at InitialHeight when the chain starts at InitialHeight > 1.
+// InitChain seeds app.lastBlockHeight from req.InitialHeight-1, so the
+// validateHeight contiguity check against lastBlockHeight+1 succeeds.
 func TestBeginBlock_InitialHeight(t *testing.T) {
 	t.Parallel()
 
 	const initialHeight = int64(100)
 
 	app := setupBaseApp(t)
-	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain", InitialHeight: initialHeight})
 
-	// Before the fix, validateHeight panics:
-	//   "invalid height: 100; expected: 1"
 	assert.NotPanics(t, func() {
 		app.BeginBlock(abci.RequestBeginBlock{
 			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+		})
+	})
+}
+
+// TestBeginBlock_InitialHeight_StrictContiguity is a regression test for the
+// bug where validateHeight permanently bypassed the contiguity check on
+// chains with InitialHeight > 1. The previous "allow height jump" branch
+// compared real block height against the multistore version (which lags
+// chain height after a hardfork), so any subsequent non-contiguous block
+// was silently accepted instead of being rejected.
+func TestBeginBlock_InitialHeight_StrictContiguity(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(1000)
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain", InitialHeight: initialHeight})
+
+	// First block at InitialHeight is accepted.
+	require.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+		})
+	})
+	app.Commit()
+
+	// A non-contiguous next block must panic. Before the fix this was
+	// silently accepted because actual > multistore-version was trivially
+	// true on every subsequent block.
+	require.Panics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight + 10},
+		})
+	})
+
+	// The contiguous next block must succeed.
+	require.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight + 1},
 		})
 	})
 }
