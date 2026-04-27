@@ -88,9 +88,18 @@ func (c *Client) GetAccountAtHeight(addr crypto.Address, height uint64) (uint64,
 		return 0, 0, nil
 	}
 
-	// Response is amino JSON. Try wrapped form first, then direct.
+	// Response is amino JSON. Two shapes are accepted:
+	//   - bare:    {"address":"g1…","coins":"…",…}                 (pre-#5307)
+	//   - wrapped: {"BaseAccount":{…},"attributes":"…"}            (post-#5307,
+	//                                                                GnoSessionAccount)
+	// Amino's UnmarshalJSON is strict on unknown fields, so the wrapper struct
+	// must explicitly include `attributes` or the decode of the wrapped form
+	// fails, the fallback to bare std.BaseAccount also fails, and the entire
+	// signer-info population step aborts. (Live gno.land RPC at v1.0.0-rc.0
+	// already returns the wrapped form.)
 	var wrapper struct {
 		BaseAccount std.BaseAccount `json:"BaseAccount"`
+		Attributes  string          `json:"attributes,omitempty"`
 	}
 	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err == nil &&
 		wrapper.BaseAccount.Address == addr {
