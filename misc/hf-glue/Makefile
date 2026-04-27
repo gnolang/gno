@@ -24,8 +24,14 @@ PATCH_REALMS       ?=
 NEW_T1_ADDR        ?=
 T1_PORTFOLIO       ?=
 T1_WITHDRAW_REASON ?=
+# Optional: keyless-validator mode — bech32 address + pubkey of the
+# remote-signer key (e.g. gnokms). Set both to skip priv_validator_key.json
+# generation and bake the supplied identity into both the GenesisDoc valset
+# and the post-fork r/sys/validators/v2 reset migration.
+VALIDATOR_ADDRESS  ?=
+VALIDATOR_PUBKEY   ?=
 
-export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON
+export SOURCE RPC_URL ORIGINAL_CHAIN_ID CHAIN_ID HALT_HEIGHT VALIDATOR_NAME NODE_DIR TXS_JSONL PATCH_REALMS NEW_T1_ADDR T1_PORTFOLIO T1_WITHDRAW_REASON VALIDATOR_ADDRESS VALIDATOR_PUBKEY
 
 # ---- paths -----------------------------------------------------------------
 HERE := $(abspath .)

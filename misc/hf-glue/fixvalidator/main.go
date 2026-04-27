@@ -1,12 +1,24 @@
-// fixvalidator rewrites the validator set in a gnoland genesis.json to
-// one or more validators loaded from priv_validator_key.json files.
+// fixvalidator rewrites the validator set in a gnoland genesis.json.
 //
-// Usage:
+// Two input modes (mutually exclusive):
 //
-//	fixvalidator --priv-key <path> [--priv-key <path>...] --genesis <path> [--name NAME] [--power N]
+//  1. priv-key mode — read a priv_validator_key.json (repeatable for
+//     multi-validator):
 //
-// Names are auto-suffixed (-0, -1, ...) when more than one priv-key is
-// passed. Power is applied identically to each validator.
+//     fixvalidator --priv-key <path> [--priv-key <path>...] \
+//     --genesis <path> [--name NAME] [--power N]
+//
+//  2. keyless mode — supply bech32 address + pubkey directly, e.g. for a
+//     remote-signed validator (gnokms) where the priv key is not on disk:
+//
+//     fixvalidator --address g1... --pubkey gpub1... \
+//     --genesis <path> [--name NAME] [--power N]
+//
+//     The address is cross-checked against the pubkey's derived address;
+//     mismatches are rejected so a typo can't ship a wrong validator.
+//
+// Names are auto-suffixed (-0, -1, ...) when multiple priv-keys are passed.
+// Power is applied identically to each validator.
 //
 // This is testbed glue (misc/hf-glue). Not intended to be installed.
 package main
@@ -20,6 +32,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 type stringList []string
@@ -36,20 +49,44 @@ func main() {
 		genesisPath string
 		name        string
 		power       int64
+		// Keyless mode (mutually exclusive with --priv-key).
+		addrBech string
+		pubBech  string
 	)
 
 	flag.Var(&privPaths, "priv-key", "path to priv_validator_key.json (repeatable)")
 	flag.StringVar(&genesisPath, "genesis", "", "path to genesis.json to rewrite in place")
 	flag.StringVar(&name, "name", "hf-glue-local", "validator name (suffixed -N when multiple)")
 	flag.Int64Var(&power, "power", 10, "voting power (applied to each)")
+	flag.StringVar(&addrBech, "address", "", "validator bech32 address (g1...) for keyless mode")
+	flag.StringVar(&pubBech, "pubkey", "", "validator bech32 pubkey (gpub1...) for keyless mode")
 	flag.Parse()
 
-	if len(privPaths) == 0 || genesisPath == "" {
-		fmt.Fprintln(os.Stderr, "--priv-key (>=1) and --genesis are required")
+	if genesisPath == "" {
+		fmt.Fprintln(os.Stderr, "--genesis is required")
+		os.Exit(2)
+	}
+	keyless := addrBech != "" || pubBech != ""
+	if keyless && len(privPaths) > 0 {
+		fmt.Fprintln(os.Stderr, "--address/--pubkey is mutually exclusive with --priv-key")
+		os.Exit(2)
+	}
+	if !keyless && len(privPaths) == 0 {
+		fmt.Fprintln(os.Stderr, "either --priv-key (>=1) or --address+--pubkey is required")
+		os.Exit(2)
+	}
+	if keyless && (addrBech == "" || pubBech == "") {
+		fmt.Fprintln(os.Stderr, "keyless mode requires both --address and --pubkey")
 		os.Exit(2)
 	}
 
-	if err := run(privPaths, genesisPath, name, power); err != nil {
+	var err error
+	if keyless {
+		err = runKeyless(addrBech, pubBech, genesisPath, name, power)
+	} else {
+		err = run(privPaths, genesisPath, name, power)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
@@ -79,6 +116,42 @@ func run(privPaths []string, genesisPath, name string, power int64) error {
 			Name:    n,
 		})
 	}
+	return writeGenesis(genDoc, oldCount, newVals, genesisPath)
+}
+
+func runKeyless(addrBech, pubBech, genesisPath, name string, power int64) error {
+	genDoc, err := bft.GenesisDocFromFile(genesisPath)
+	if err != nil {
+		return fmt.Errorf("load genesis: %w", err)
+	}
+
+	addr, err := crypto.AddressFromBech32(addrBech)
+	if err != nil {
+		return fmt.Errorf("parse address %q: %w", addrBech, err)
+	}
+	pub, err := crypto.PubKeyFromBech32(pubBech)
+	if err != nil {
+		return fmt.Errorf("parse pubkey %q: %w", pubBech, err)
+	}
+	// Cross-check: derived address from the pubkey must match the bech32
+	// address. Catches the typo case where a stale --address is paired with
+	// a freshly-rotated --pubkey.
+	if derived := pub.Address(); derived != addr {
+		return fmt.Errorf("address/pubkey mismatch: --address=%s but pubkey derives to %s",
+			addr, derived)
+	}
+
+	oldCount := len(genDoc.Validators)
+	newVals := []bft.GenesisValidator{{
+		Address: addr,
+		PubKey:  pub,
+		Power:   power,
+		Name:    name,
+	}}
+	return writeGenesis(genDoc, oldCount, newVals, genesisPath)
+}
+
+func writeGenesis(genDoc *bft.GenesisDoc, oldCount int, newVals []bft.GenesisValidator, genesisPath string) error {
 	genDoc.Validators = newVals
 
 	if err := genDoc.ValidateAndComplete(); err != nil {

@@ -81,9 +81,37 @@ if [[ -z "$PV_KEYS" ]] && compgen -G "$OUT/cluster/node*/secrets/priv_validator_
 fi
 PV_KEY_DEFAULT="$OUT/gnoland-home/secrets/priv_validator_key.json"
 PV_KEY="${PV_KEY:-$PV_KEY_DEFAULT}"
-if [[ -n "$PV_KEYS" ]] || [[ -f "$PV_KEY" ]]; then
+
+# Keyless mode: if VALIDATOR_ADDRESS + VALIDATOR_PUBKEY are set, build
+# NEW_VALSET_JSON directly from those (skipping build.sh's priv-key
+# derivation) and pre-empt the priv-key checks below. This is the path
+# for remote-signed (gnokms) validators where no priv_validator_key.json
+# exists on disk.
+VALIDATOR_ADDRESS="${VALIDATOR_ADDRESS:-}"
+VALIDATOR_PUBKEY="${VALIDATOR_PUBKEY:-}"
+NEW_VALSET_JSON="${NEW_VALSET_JSON:-}"
+if [[ -n "$VALIDATOR_ADDRESS" || -n "$VALIDATOR_PUBKEY" ]]; then
+  if [[ -z "$VALIDATOR_ADDRESS" || -z "$VALIDATOR_PUBKEY" ]]; then
+    echo "ERROR: keyless mode requires both VALIDATOR_ADDRESS and VALIDATOR_PUBKEY" >&2
+    exit 1
+  fi
+  if [[ -z "$NEW_VALSET_JSON" ]]; then
+    NEW_VALSET_JSON="$OUT/keyless_new_valset.json"
+    jq -n --arg addr "$VALIDATOR_ADDRESS" --arg pub "$VALIDATOR_PUBKEY" \
+      --arg name "${VALIDATOR_NAME:-hf-glue-local}" '[{
+        address:      $addr,
+        pub_key:      $pub,
+        voting_power: 10,
+        name:         $name
+      }]' >"$NEW_VALSET_JSON"
+  fi
+fi
+
+if [[ -n "$NEW_VALSET_JSON" ]] || [[ -n "$PV_KEYS" ]] || [[ -f "$PV_KEY" ]]; then
   hf_banner "step 5 — post-replay migration (valset swap${NEW_T1_ADDR:+ + T1 rotation})"
-  if [[ -n "$PV_KEYS" ]]; then
+  if [[ -n "$NEW_VALSET_JSON" ]]; then
+    hf_kv "validator (keyless)" "$VALIDATOR_ADDRESS"
+  elif [[ -n "$PV_KEYS" ]]; then
     hf_kv "pv_keys" "$PV_KEYS"
   else
     hf_kv "pv_key" "$PV_KEY"
@@ -93,6 +121,7 @@ if [[ -n "$PV_KEYS" ]] || [[ -f "$PV_KEY" ]]; then
   CALLER="${CALLER:-g1manfred47kzduec920z88wfr64ylksmdcedlf5}" \
     PV_KEY="${PV_KEYS:+}${PV_KEYS:-$PV_KEY}" \
     PV_KEYS="$PV_KEYS" \
+    NEW_VALSET_JSON="$NEW_VALSET_JSON" \
     RPC_URL="$RPC_URL" \
     NEW_T1_ADDR="${NEW_T1_ADDR:-}" \
     T1_PORTFOLIO="${T1_PORTFOLIO:-}" \
@@ -104,7 +133,7 @@ if [[ -n "$PV_KEYS" ]] || [[ -f "$PV_KEY" ]]; then
   hf_migration_tx "$MIG_JSONL"
 else
   hf_banner "step 5 — post-replay migration (skipped)"
-  hf_kv "reason" "no priv_validator_key.json at $PV_KEY — run 'make init' first"
+  hf_kv "reason" "no priv_validator_key.json at $PV_KEY and no VALIDATOR_ADDRESS/PUBKEY set — run 'make init' first or pass keyless env vars"
 fi
 
 # -------------------------------------------------------------------------
