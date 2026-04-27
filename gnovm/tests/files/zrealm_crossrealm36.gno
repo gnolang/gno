@@ -3,20 +3,21 @@ package impl
 
 // This test exercises getOwner returning nil for a deleted owner object.
 //
-// During init(), two entries are added to realm D's slice via append().
-// Each append may grow the backing array, causing the old ArrayValue to
-// be saved then deleted within the same finalization. However, a
-// HeapItemValue created during the same init still has its OwnerID
-// pointing to the now-deleted ArrayValue.
+// Tx1 (init): one entry "a" is appended to realm F's slice. This persists:
+//   - an ArrayValue (cap 1) holding the slice's backing storage
+//   - a HeapItemValue boxing *Entry "a", whose OwnerID points to that array
 //
-// When main() runs and adds another entry, markDirtyAncestors walks up
-// from dirty objects and reaches that HeapItemValue. Its OwnerID points
-// to the deleted ArrayValue, which no longer exists in the store.
+// Tx2 (main): append("c") grows the backing array. The cap-1 array from
+// Tx1 is deleted in Tx2's finalization and replaced by a new cap-N array.
+// The HeapItemValue from Tx1 is untouched on disk and still carries
+// OwnerID = (now-deleted cap-1 array).
 //
-// getOwner must use GetObjectSafe and return nil to stop the walk,
-// rather than panic with GetObject.
+// During Tx2's finalization, markDirtyAncestors walks up from dirty
+// objects and reaches that HeapItemValue. Following its OwnerID with
+// the unsafe GetObject would panic — the object is gone. The fix is
+// to call GetObjectSafe and treat a nil result as "stop the walk."
 //
-// Without this fix: panic: unexpected object with id ...:9
+// Without this fix: panic: unexpected object with id ...:N
 // With this fix:    walk stops at nil, test passes.
 
 import (
@@ -25,7 +26,6 @@ import (
 
 func init() {
 	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "b", Value: 2})
 }
 
 func main(cur realm) {
@@ -34,11 +34,27 @@ func main(cur realm) {
 }
 
 // Output:
-// 3
+// 2
+
+// Realm oplog legend (object IDs are from this run; package = crossrealm_f):
+//   :2  PackageValue (escaped, RefCount=2)
+//   :3  PackageBlock — holds the `entries` slice header
+//   :9  OLD backing array (cap 1) from Tx1 — DELETED in Tx2 (see d[…:9])
+//   :10 OLD HeapItemValue boxing *Entry "a" from Tx1 — its OwnerID still
+//       points at :9. The u[…:10] update is markDirtyAncestors walking
+//       through it; without GetObjectSafe, that walk would call
+//       GetObject(:9) and panic because :9 is the d[…] line below.
+//   :12 NEW backing array (cap 2) created by main's append
+//   :13 NEW HeapItemValue boxing *Entry "c"
+//   :14 NEW Entry{Key:"c", Value:3}
+//
+// The thing to notice is that d[…:9] (deleted) sits in the same
+// finalization as u[…:10] (updated), and :10's OwnerID = :9. That
+// adjacency is the bug-trigger: a dirty walk that follows :10 → :9.
 
 // Realm:
 // finalizerealm["gno.land/r/tests/vm/crossrealm_f"]
-// c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:17](279)={
+// c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:14](279)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -59,19 +75,19 @@ func main(cur realm) {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:17",
+//         "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:14",
 //         "LastObjectSize": "279",
 //         "ModTime": "0",
-//         "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:16",
+//         "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:13",
 //         "RefCount": "1"
 //     }
 // }
-// c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:16](357)={
+// c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:13](357)={
 //     "ObjectInfo": {
-//         "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:16",
+//         "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:13",
 //         "LastObjectSize": "357",
 //         "ModTime": "0",
-//         "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:15",
+//         "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12",
 //         "RefCount": "1"
 //     },
 //     "Value": {
@@ -81,12 +97,12 @@ func main(cur realm) {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "6cd34388ce3503828f99337381be942334f6c962",
-//             "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:17"
+//             "Hash": "79f3fd3402df0e9f2a0eb775c279bc92acfb6aa6",
+//             "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:14"
 //         }
 //     }
 // }
-// c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:15](842)={
+// c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12](620)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -101,7 +117,7 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "3b14c473fb0587ecc0be1525fe6b482546224d30",
+//                     "Hash": "19af7863aa44e3f7c068b64ca6326094759a0c8b",
 //                     "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:10"
 //                 },
 //                 "Index": "0",
@@ -120,27 +136,8 @@ func main(cur realm) {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "98ffa6505e55b6d515892efaa7a11899873278a0",
+//                     "Hash": "608f872f0da28cc47a80ba042f51ab914bd40a88",
 //                     "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:13"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/tests/vm/crossrealm_f.Entry"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Hash": "b5fcd45cf39ae7976150875e3568f45d85f0d646",
-//                     "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:16"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -148,20 +145,20 @@ func main(cur realm) {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:15",
-//         "LastObjectSize": "842",
+//         "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12",
+//         "LastObjectSize": "620",
 //         "ModTime": "0",
 //         "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:3](0)=
+// u[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:3](1)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:3",
-//              "LastObjectSize": "428",
-//     -        "ModTime": "11",
-//     +        "ModTime": "14",
+//              "LastObjectSize": "427",
+//     -        "ModTime": "8",
+//     +        "ModTime": "11",
 //              "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:2",
 //              "RefCount": "1"
 //          },
@@ -169,36 +166,26 @@ func main(cur realm) {
 //                  "@type": "/gno.SliceValue",
 //                  "Base": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "03e7ccddbdc16db4d066d7719dc1c714025f78ba",
-//     -                "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12"
-//     +                "Hash": "e82b6555ac84fc1414cd51beade803d87813c282",
-//     +                "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:15"
+//     -                "Hash": "5e471edfc36b38874518b170a59210e7b82d4610",
+//     -                "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:9"
+//     +                "Hash": "8385d2de0f0d107e369bc2558fb3eb91b66bd099",
+//     +                "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12"
 //                  },
-//     -            "Length": "2",
-//     -            "Maxcap": "2",
-//     +            "Length": "3",
-//     +            "Maxcap": "3",
+//     -            "Length": "1",
+//     -            "Maxcap": "1",
+//     +            "Length": "2",
+//     +            "Maxcap": "2",
 //                  "Offset": "0"
 //              }
 //          }
-// u[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:10](0)=
+// u[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:10](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
 //              "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:10",
-//              "LastObjectSize": "361",
-//     -        "ModTime": "12",
-//     +        "ModTime": "15",
-//              "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:9",
-//              "RefCount": "1"
-//          },
-// u[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:13](5)=
-//     @@ -2,7 +2,7 @@
-//          "ObjectInfo": {
-//              "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:13",
-//              "LastObjectSize": "357",
+//              "LastObjectSize": "356",
 //     -        "ModTime": "0",
-//     +        "ModTime": "15",
-//              "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12",
+//     +        "ModTime": "12",
+//              "OwnerID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:9",
 //              "RefCount": "1"
 //          },
 // u[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:2](0)=
@@ -206,8 +193,8 @@ func main(cur realm) {
 //              "ID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:2",
 //              "IsEscaped": true,
 //              "LastObjectSize": "1488",
-//     -        "ModTime": "14",
-//     +        "ModTime": "17",
+//     -        "ModTime": "11",
+//     +        "ModTime": "14",
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
@@ -215,10 +202,10 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "7134f697f7f0ebccae35552567d96eee9bc43ac9",
-//     +                "Hash": "c6a51f41a307a9dba3ad3b232c005e62f601e0d6",
+//     -                "Hash": "fc674e3e9ba4c4f86aac899d5494ad92a79cb645",
+//     +                "Hash": "7ad436c16d6ec9c2f0e317f55d7b29debf19c977",
 //                      "ObjectID": "0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:3"
 //                  }
 //              },
-// d[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:12](-620)
+// d[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:9](-397)
 // finalizerealm["gno.land/r/test/impl"]

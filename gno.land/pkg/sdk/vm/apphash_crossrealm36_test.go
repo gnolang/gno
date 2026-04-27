@@ -1,8 +1,12 @@
 package vm
 
-// This test pins the committed multistore hash (apphash equivalent) after
-// running the scenario from gnovm/tests/files/zrealm_crossrealm36.gno at the
-// SDK layer. It is the direct consensus-level evidence complementing the
+// This test is a forward guard: it pins the current (fixed) committed
+// multistore hash so any future change that silently shifts the save set
+// trips the assertion. It does not demonstrate the old behavior.
+//
+// It pins the committed multistore hash (apphash equivalent) after running
+// the scenario from gnovm/tests/files/zrealm_crossrealm36.gno at the SDK
+// layer. It is the direct consensus-level evidence complementing the
 // filetest's save-set golden.
 //
 // Why an apphash test is needed:
@@ -14,9 +18,7 @@ package vm
 //
 // What this test proves:
 //   - Running the crossrealm36 scenario deterministically produces the pinned
-//     multistore hash. Any change to the save set — including silently-missed
-//     dirty-ancestor marks (the class of bug the #5291 regression introduced
-//     when getOwner stopped rehydrating a deleted owner) — shifts the hash
+//     multistore hash. Any change to the save set shifts the hash
 //     and fails this test.
 //
 // What this test does NOT prove:
@@ -48,7 +50,7 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm36.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm36Hash = "9b6ce282244408d891ba4c59b62d87761e2bbfd7883345d0abbd8b6a30de1470"
+const expectedCrossrealm36Hash = "740a55f875642bac87a633c6f9fd1b43ffa897dd89f1914081d706d141552045"
 
 func TestAppHashCrossrealm36(t *testing.T) {
 	env := setupTestEnv()
@@ -65,9 +67,11 @@ func TestAppHashCrossrealm36(t *testing.T) {
 	require.NoError(t, deployExamplePackage(env, ctx, addr, crossrealmFPkg))
 	env.vmk.CommitGnoTransactionStore(ctx)
 
-	// Tx2: deploy an impl realm whose init() does two appends into crossrealm_f.
-	// This finalization is what leaves a HeapItemValue with a stale OwnerID
-	// pointing at the replaced (and deleted) backing array.
+	// Tx2: deploy an impl realm whose init() does one append into crossrealm_f.
+	// After this tx the persisted state has a HeapItemValue whose OwnerID
+	// points at the cap-1 backing array. That array will be deleted in Tx3
+	// (when AddC's append grows the backing), turning the OwnerID into a
+	// stale cross-tx pointer — the exact condition the bug requires.
 	const implPkg = "gno.land/r/test/crossrealm36impl"
 	implFiles := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gno.GenGnoModLatest(implPkg)},
@@ -78,7 +82,6 @@ import "gno.land/r/tests/vm/crossrealm_f"
 
 func init() {
 	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "b", Value: 2})
 }
 
 func AddC(cur realm) {
@@ -94,7 +97,7 @@ func AddC(cur realm) {
 
 	// Tx3: call AddC — the subsequent mutation that forces markDirtyAncestors
 	// to walk through the stale-owner HeapItemValue. This is the path the
-	// #5291 bug would silently truncate; the fix rehydrates the owner via
+	// bug would silently truncate; the fix rehydrates the owner via
 	// store.GetObjectSafe and the walk reaches the escaped PackageValue,
 	// whose updated hash lands in iavlStore and changes the commit hash.
 	ctx = env.vmk.MakeGnoTransactionStore(env.ctx)
