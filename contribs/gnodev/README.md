@@ -56,30 +56,6 @@ Currently gnodev comes with two mode <local> and <staging>, those command mostly
 differ by there default values, while gnodev local as default for working
 locally, satging default are oriented to be use on server.
 
-gnodev uses its own package loader and resolver system to support multiple
-scenarios and use cases. It currently supports three types of resolvers, each
-taking a location as an argument.
-- root: This resolver takes a <dir> as its location. It attempts to resolve
-  packages based on your file system structure and the package path.
-  For example, if 'root=/user/gnome/myproject' and you try to resolve
-  'gno.land/r/bar/buzz' as a package, the <root> resolver will attempt to
-  resolve it to /user/gnome/myproject/gno.land/r/bar/buzz.
-- local: This resolver also takes a <dir> as its location. It is designed to
-  load a single package, using the module name from 'gnomod.toml' within this
-  package to resolve the package.
-- remote: This resolver takes a <remote> RPC address as its location. It is
-  meant to use a remote node as a resolver, primarily for testing a local
-  package against a remote node.
-
-Resolvers can be chained, and gnodev will attempt to use them in the order they
-are declared.
-
-For example:
-    gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.land
-
-If no resolvers can resolve a given package path, the loader will return a
-"package not found" error.
-
 If no command is provided, gnodev will automatically start in <local> mode.
 
 For more information and flags usage description, use 'gnodev local -h'.
@@ -113,17 +89,18 @@ FLAGS
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
+  -extra-root ...	additional workspace root to include (repeatable)
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
-  -lazy-loader=true 	enable lazy loader
   -log-format console	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
+  -no-examples=false 	skip loading $GNOROOT/examples entirely
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
   -paths ...	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
-  -resolver ...	list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
+  -remote-override ...	override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
@@ -145,7 +122,7 @@ STAGING: Staging mode configures the node for server usage.
 This mode is designed for stability and security, suitable for pre-deployment testing.
 Interactive mode and unsafe API access are disabled to ensure a secure environment.
 The log format is set to JSON, facilitating integration with logging systems.
-Since lazy-load is disabled in this mode, the entire example folder from "gnoroot" is loaded by default.
+Staging eager-loads the workspace, every -extra-root, and $GNOROOT/examples by default (use -no-examples to skip).
 
 Additionally, you can specify an additional package directory to load.
 
@@ -158,17 +135,18 @@ FLAGS
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
+  -extra-root ...	additional workspace root to include (repeatable)
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
-  -lazy-loader=false 	enable lazy loader
   -log-format json	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
+  -no-examples=false 	skip loading $GNOROOT/examples entirely
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
   -node-rpc-listener 127.0.0.1:26657	listening address for GnoLand RPC node
   -paths gno.land/**	additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported
-  -resolver ...	list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order
+  -remote-override ...	override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
