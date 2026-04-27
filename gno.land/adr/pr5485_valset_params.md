@@ -69,11 +69,11 @@ or the proposed valset. There's no in-memory bridge to drop.
 
 ### Params keys (prefix: `vm:gno.land/r/sys/validators/v3:`)
 
-| Key                    | Written by  | Read by     | Description                                |
-|------------------------|-------------|-------------|--------------------------------------------|
-| `valset_dirty`         | realm       | EndBlocker  | Flag: set true when valset changed         |
-| `valset_new`           | realm       | EndBlocker  | Serialized proposed valset                 |
-| `valset_prev`          | EndBlocker  | EndBlocker  | Serialized previously applied valset       |
+| Key             | Written by         | Read by    | Description                                                           |
+|-----------------|--------------------|------------|-----------------------------------------------------------------------|
+| `valset_dirty`  | realm + EndBlocker | EndBlocker | Flag: realm sets `true` on change; EndBlocker sets `false` after apply |
+| `valset_new`    | realm              | EndBlocker | Serialized proposed valset                                            |
+| `valset_prev`   | EndBlocker         | EndBlocker | Serialized previously applied valset                                  |
 
 Serialization format: `<bech32-address>:<bech32-pubkey>:<uint64-voting-power>`
 
