@@ -2,34 +2,70 @@
 
 ## Context
 
-This PR introduces the third iteration of on-chain validator set management
-(`r/sys/validators/v3`). Previous iterations:
+### The bug we're actually fixing
 
-- **v1**: Valset changes emitted as events, caught by `EndBlocker`.
-- **v2**: Events triggered a VM query in `EndBlocker` to scrape on-chain state
-  via `GetChanges(from, to)` — still event-driven.
+The v1/v2 valset flow uses an **in-memory event collector** in `EndBlocker`:
+the realm fires `ValidatorAdded`/`ValidatorRemoved` events during `DeliverTx`,
+the collector buffers them, and at the end of the block `EndBlocker` checks
+the buffer to decide whether to call back into the VM (`GetChanges(from, to)`)
+and emit consensus updates.
 
-Both v1 and v2 required the `EndBlocker` to:
-1. Listen to on-chain events via an event collector (`collector[validatorUpdate]`).
-2. Call back into the GnoVM to fetch the actual changes (v2), or parse event
-   payloads (v1).
+This is wrong in two ways that bite in production:
 
-Problems with those approaches:
-- **Coupling**: The `EndBlocker` needed a `VMKeeperI` reference solely to query
-  the valset realm.
-- **Fragility**: Regex-based parsing of typed GnoVM response strings.
-- **Indirection**: An event triggers a VM query, which returns data that was
-  already computed on-chain.
+1. **Lost-on-restart (#5469).** The event collector is process-local. If the
+   node shuts down between `DeliverTx` (which already committed the realm-side
+   changes to chain state) and `EndBlocker` running for that block, the
+   collector is empty after restart. `EndBlocker` sees no events, skips the VM
+   query, and the changes — already on chain — never propagate to consensus.
+   Until the *next* validator change happens, the consensus valset silently
+   diverges from on-chain truth.
+
+2. **Stale-heights diff (#5556 discussion).** When valset changes happen in
+   block N and the affected validator goes offline before block N+1,
+   `EndBlocker` of block N+1 calls `GetChanges(from, to)` with heights that
+   don't capture the right set of changes. The result: changes are computed
+   against the wrong reference state and either applied incorrectly or
+   dropped entirely.
+
+Both are surface symptoms of the same architectural mistake: **state that
+consensus depends on is being driven by ephemeral in-memory signaling
+instead of durable chain state.**
+
+### Prior attempts
+
+- **v1**: Valset changes emitted as events, caught by `EndBlocker`. Lost on
+  restart.
+- **v2**: Events still gate the EndBlocker; on hit, it calls back into the VM
+  via `GetChanges(from, to)`. Same lost-on-restart class of bug, plus the
+  stale-heights diff issue, plus regex parsing of typed VM response strings.
+- **#5469 firstBlock-flag workaround**: forces `GetChanges(lastHeight, lastHeight)`
+  on the first block after startup. Recovers on restart, but still queries
+  for changes already applied to consensus (one-block delay), and the rest of
+  the time still depends on the in-memory collector.
+- **#5556 EndTxHook approach**: scans tx events synchronously during
+  `DeliverTx` and queries `GetChanges(req.Height, req.Height)` in the same
+  block. Closer, but still couples `EndBlocker` to `VMKeeperI` and still
+  routes through event-then-query indirection.
+
+All three v1/v2 patches are tactical fixes for the same root issue: the
+chain layer is reading derived state via VM callbacks instead of reading
+authoritative state directly.
 
 ## Decision
 
-Replace the event-based approach with a **params-keeper-based** approach:
+Drop event-driven valset signaling entirely. **State that consensus needs
+lives in chain state (params), not in events.** This mirrors the standard
+Cosmos SDK idiom for chain↔node interaction.
 
 1. The valset realm (`r/sys/validators/v3`) writes changes directly into the
    VM params keeper under realm-scoped keys.
 2. `EndBlocker` reads those keys from the params keeper, computes the diff
    between `valset_prev` and `valset_new`, and propagates the changes to
    consensus.
+
+Because params are durable chain state, restart-safety is structural: a
+shutdown between `DeliverTx` and `EndBlocker` doesn't lose the pending flag
+or the proposed valset. There's no in-memory bridge to drop.
 
 ### Params keys (prefix: `vm:gno.land/r/sys/validators/v3:`)
 
@@ -51,16 +87,21 @@ computes the minimal diff between two validator sets:
 
 ### Validation
 
-`WillSetParam` in `VMKeeper` validates `valset_new` updates at write time,
-ensuring each entry is well-formed (address/pubkey match, valid power).
+A single shared parser, `abci.ParseValidatorUpdate(s)` in
+`tm2/pkg/bft/abci/types`, is used by both the realm-side write check
+(`WillSetParam` for `valset_new`) and the `EndBlocker` read path. It enforces
+address/pubkey-match and rejects negative or `int64`-overflowing powers.
 
-The `EndBlocker` still filters out updates with disallowed pubkey types.
+The `EndBlocker` additionally filters consensus updates by allowed pubkey type
+(per `ConsensusParams.Validator.PubKeyTypeURLs`).
 
 ### Active valset realm path
 
-The realm path is configurable via `vm:p:valset_realm_path` (default:
-`gno.land/r/sys/validators/v3`). This allows future upgrades without changing
-the `EndBlocker` code.
+`vm:p:valset_realm_path` is a `Set`-only param key (no field on
+`vm.Params`); the EndBlocker reads it directly with a const fallback
+(`ValsetRealmDefault = "gno.land/r/sys/validators/v3"`). `WillSetParam`
+validates the format (`gno.IsRealmPath`) on writes. This allows future
+upgrades without changing the `EndBlocker` code.
 
 ## Alternatives Considered
 
