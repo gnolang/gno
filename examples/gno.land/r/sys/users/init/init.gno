@@ -30,11 +30,17 @@ func Bootstrap(_ realm) {
 
 // RegisterUser registers a new user in r/sys/users at chain genesis.
 // PANICS if called after genesis (height > 0).
+//
+// Uses RegisterUserIgnoreCanonical: the genesis seed set is curated, and
+// any deliberate confusable reservations (e.g. registering both `vitalik`
+// and `vital1k` to two different addresses) must not abort chain bring-
+// up. Decision #14 (later-wins) applies, so order in genesis_txs.jsonl
+// determines which name owns the canonical pointer when stems collide.
 func RegisterUser(_ realm, name string, addr address) {
 	if runtime.ChainHeight() != 0 {
 		panic("r/sys/users/init.RegisterUser: genesis-only; use a whitelisted controller post-genesis (e.g. r/sys/namereg/v1.Register)")
 	}
-	if err := users.RegisterUser(cross, name, addr); err != nil {
+	if err := users.RegisterUserIgnoreCanonical(cross, name, addr); err != nil {
 		panic(err)
 	}
 }

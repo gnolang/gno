@@ -138,7 +138,8 @@ func TestRegister_Blacklisted(t *testing.T) {
 }
 
 func TestRegister_CanonicalCollision(t *testing.T) {
-	// First register a name with `l` in the stem.
+	// First register a name. Same-digits confusable variant must collide
+	// in the unified susers canonical store.
 	addr1 := testutils.TestAddress("collision-1")
 	testing.SetRealm(testing.NewUserRealm(addr1))
 	testing.SetOriginCaller(addr1)
@@ -147,18 +148,17 @@ func TestRegister_CanonicalCollision(t *testing.T) {
 		Register(cross, "nym-balloon123")
 	})
 
-	// Then attempt to register the canonical-equivalent variant
-	// (l→i applied: `balloon` → `baiioon`). Must reject with collision.
+	// Then attempt to register a canonical-equivalent variant — same
+	// canonical full name (after l→i, etc.). Must reject from susers.
 	addr2 := testutils.TestAddress("collision-2")
 	testing.SetRealm(testing.NewUserRealm(addr2))
 	testing.SetOriginCaller(addr2)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-	uassert.AbortsWithMessage(t, ErrCanonicalCollision.Error(), func() {
-		Register(cross, "nym-baiioon456")
+	uassert.AbortsWithMessage(t, susers.ErrCanonicalCollision.Error(), func() {
+		Register(cross, "nym-baiioon123")
 	})
 
-	// Reverse direction also blocked: register a non-l name first, then
-	// attempt an l-variant that canonicalizes to the same form.
+	// Reverse direction also blocked.
 	addr3 := testutils.TestAddress("collision-3")
 	testing.SetRealm(testing.NewUserRealm(addr3))
 	testing.SetOriginCaller(addr3)
@@ -171,8 +171,29 @@ func TestRegister_CanonicalCollision(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(addr4))
 	testing.SetOriginCaller(addr4)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
-	uassert.AbortsWithMessage(t, ErrCanonicalCollision.Error(), func() {
-		Register(cross, "nym-papallo012")
+	uassert.AbortsWithMessage(t, susers.ErrCanonicalCollision.Error(), func() {
+		Register(cross, "nym-papallo789")
+	})
+}
+
+// Decision #2 in Option B: store key is full canonical username (not
+// stem). Same alpha stem with different digit suffixes coexists — does
+// not collide.
+func TestRegister_SameStemDifferentDigits_Coexist(t *testing.T) {
+	addrA := testutils.TestAddress("stem-coexist-A")
+	testing.SetRealm(testing.NewUserRealm(addrA))
+	testing.SetOriginCaller(addrA)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	urequire.NotPanics(t, func() {
+		Register(cross, "nym-foolbar000")
+	})
+
+	addrB := testutils.TestAddress("stem-coexist-B")
+	testing.SetRealm(testing.NewUserRealm(addrB))
+	testing.SetOriginCaller(addrB)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
+	urequire.NotPanics(t, func() {
+		Register(cross, "nym-foolbar999")
 	})
 }
 
@@ -186,11 +207,9 @@ func TestRegister_TakenUsername(t *testing.T) {
 		Register(cross, username)
 	})
 
-	// Re-registration of the same exact name is rejected at the canonical-
-	// store layer (same canonical → collision) before reaching r/sys/users.
-	// (Pre-bridge this would have been rejected by susers.ErrNameTaken; now
-	// the namereg-side collision check fires first, which is fine.)
-	uassert.AbortsWithMessage(t, ErrCanonicalCollision.Error(), func() {
+	// Re-registration of the same exact name is rejected by susers via
+	// ErrNameTaken (the nameStore.Has check precedes the canonical check).
+	uassert.AbortsWithMessage(t, susers.ErrNameTaken.Error(), func() {
 		Register(cross, username)
 	})
 }

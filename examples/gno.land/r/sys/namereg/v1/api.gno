@@ -27,11 +27,14 @@ var reservedPrefixes = []string{"gno", "gi", "gl"}
 
 // Exported error sentinels returned by ValidateNymFormat. Use
 // errors.Is or direct equality; do not string-match.
+//
+// Canonical-collision detection moved to r/sys/users in Option B.
+// Consumers that previously caught namereg.ErrCanonicalCollision
+// should switch to susers.ErrCanonicalCollision.
 var (
-	ErrInvalidFormat      = errors.New("namereg: name must match nym-[a-z]{5,13}\\d{3}")
-	ErrReservedPrefix     = errors.New("namereg: stem starts with a reserved prefix (gno/gi/gl)")
-	ErrBlacklisted        = errors.New("namereg: stem matches a reserved role name")
-	ErrCanonicalCollision = errors.New("namereg: canonical form collides with an existing name")
+	ErrInvalidFormat  = errors.New("namereg: name must match nym-[a-z]{5,13}\\d{3}")
+	ErrReservedPrefix = errors.New("namereg: stem starts with a reserved prefix (gno/gi/gl)")
+	ErrBlacklisted    = errors.New("namereg: stem matches a reserved role name")
 )
 
 // IsReserved reports whether the given alpha stem matches a reserved
@@ -44,30 +47,13 @@ func IsReserved(stem string) bool {
 	return found
 }
 
-// IsStemTaken reports whether the given alpha stem (or any l↔i
-// canonical-form variant of it) is already registered through this
-// controller. Pass the raw stem; canonicalization is applied
-// internally — there is no way to misuse this by forgetting to
-// canonicalize first.
-//
-// Returns the original (non-canonical) stem as the first result so
-// callers can render the existing name in collision errors.
-func IsStemTaken(stem string) (existing string, taken bool) {
-	v, ok := canonicalStore.Get(Canonicalize(stem))
-	if !ok {
-		return "", false
-	}
-	return v.(string), true
-}
-
 // ValidateNymFormat checks the regex, prefix-exclusion, and reserved-
 // name rules in that order. Returns one of the exported sentinel
 // errors per failure mode, or nil on success.
 //
-// Does NOT run the canonical-collision check — that requires the
-// caller to provide context (the colliding name needs to be surfaced
-// to the user) and is not a pure format check. Run IsStemTaken
-// separately for collision detection.
+// Does NOT run the canonical-collision check — that lives in r/sys/users
+// (susers.IsCanonicalTaken or, atomically with the write, inside
+// susers.RegisterUser).
 func ValidateNymFormat(username string) error {
 	if !reNym.MatchString(username) {
 		return ErrInvalidFormat

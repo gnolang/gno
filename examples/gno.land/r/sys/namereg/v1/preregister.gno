@@ -9,7 +9,12 @@ import (
 // not subject to the auto-registration regex. They DO appear in
 // reservedNames as a defense-in-depth (so a future governance-bypass
 // path can't accidentally reallocate them either), but at this layer
-// they are written directly via susers.RegisterUser.
+// they are written directly via susers.RegisterUserIgnoreCanonical.
+//
+// Uses the bypass path so curated confusables in the seed (e.g.
+// `gnoland` and `gnolang` both canonicalize distinctly today, but a
+// future addition that collides must not abort chain bring-up).
+// Matches the genesis posture in r/sys/users/init.gno.
 
 // pre-registered users
 var preRegisteredUsers = []struct {
@@ -33,9 +38,11 @@ var preRegisteredUsers = []struct {
 }
 
 func init() {
-	// add pre-registered users
+	// add pre-registered users via the bypass path (genesis posture).
+	// Errors are intentionally discarded; the seed is curated and any
+	// duplicate-address / already-deleted entries (re-init across test
+	// realm reuse) just no-op.
 	for _, res := range preRegisteredUsers {
-		// Try registering, skip if it fails
-		susers.RegisterUser(cross, res.Name, res.Address)
+		susers.RegisterUserIgnoreCanonical(cross, res.Name, res.Address)
 	}
 }

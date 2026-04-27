@@ -75,8 +75,10 @@ func (u UserData) RenderLink(linkText string) string {
 	return ufmt.Sprintf("[%s](/u/%s)", linkText, u.username)
 }
 
-// registerUser adds a new user to the system without checking controllers
-func registerUser(cur realm, name string, address_XXX address) error {
+// registerUser adds a new user to the system without checking controllers.
+// The ignoreCanonical flag suppresses ErrCanonicalCollision; the canonical
+// store is written either way (decision #14: later-wins on bypass).
+func registerUser(cur realm, name string, address_XXX address, ignoreCanonical bool) error {
 	// Validate name
 	if err := validateName(name); err != nil {
 		return err
@@ -87,9 +89,16 @@ func registerUser(cur realm, name string, address_XXX address) error {
 		return ErrInvalidAddress
 	}
 
-	// Check if name is taken
+	// Check if name is taken (exact-string match precedes canonical check)
 	if nameStore.Has(name) {
 		return ErrNameTaken
+	}
+
+	canonical := Canonicalize(name)
+	if !ignoreCanonical {
+		if _, taken := canonicalStore.Get(canonical); taken {
+			return ErrCanonicalCollision
+		}
 	}
 
 	raw, ok := addressStore.Get(address_XXX.String())
@@ -113,6 +122,7 @@ func registerUser(cur realm, name string, address_XXX address) error {
 	// Set corresponding stores
 	nameStore.Set(name, data)
 	addressStore.Set(address_XXX.String(), data)
+	canonicalStore.Set(canonical, name)
 
 	chain.Emit(RegisterUserEvent,
 		"name", name,
@@ -121,7 +131,9 @@ func registerUser(cur realm, name string, address_XXX address) error {
 	return nil
 }
 
-// RegisterUser adds a new user to the system.
+// RegisterUser adds a new user to the system. Enforces canonical-
+// collision detection: a name whose Canonicalize-form matches a prior
+// registration returns ErrCanonicalCollision.
 func RegisterUser(cur realm, name string, address_XXX address) error {
 	// At genesis (height 0), allow any caller to register users.
 	// After genesis, only whitelisted controllers can register.
@@ -129,13 +141,31 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 		return NewErrNotWhitelisted()
 	}
 
-	return registerUser(cur, name, address_XXX)
+	return registerUser(cur, name, address_XXX, false)
 }
 
-// updateName adds a name that is associated with a specific address without checking controllers
+// RegisterUserIgnoreCanonical is the bypass path: same controller-
+// whitelist gate, but ErrCanonicalCollision is suppressed. The canonical
+// store is still written; a prior entry with the same canonical key is
+// silently overwritten (decision #14, later-wins). Use sparingly — names
+// registered here can canonical-collide with existing ones, weakening
+// confusable protection for everyone.
+func RegisterUserIgnoreCanonical(cur realm, name string, address_XXX address) error {
+	if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
+		return NewErrNotWhitelisted()
+	}
+
+	return registerUser(cur, name, address_XXX, true)
+}
+
+// updateName adds a name that is associated with a specific address without
+// checking controllers. The ignoreCanonical flag suppresses
+// ErrCanonicalCollision; the canonical store is written either way (decision
+// #14: later-wins on bypass).
+//
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
-func (u *UserData) updateName(newName string) error {
+func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 	// IsDeleted handles both branches: nil receiver (user never existed)
 	// AND a non-nil receiver whose .deleted is true (a controller cached
 	// the *UserData pointer before the user was deleted by a separate
@@ -153,13 +183,26 @@ func (u *UserData) updateName(newName string) error {
 		return err
 	}
 
-	// Check if the requested Alias is already taken
+	// Check if the requested Alias is already taken (exact-string match)
 	if nameStore.Has(newName) {
 		return ErrNameTaken
 	}
 
+	canonical := Canonicalize(newName)
+	if !ignoreCanonical {
+		// No self-collision filter (decision #15): even the user's OWN
+		// prior canonical claim blocks the rename. Prevents accumulating
+		// confusable aliases of one's own name through free renames. The
+		// only path to a self-confusable rename is DAO governance via
+		// ProposeUpdateName.
+		if _, taken := canonicalStore.Get(canonical); taken {
+			return ErrCanonicalCollision
+		}
+	}
+
 	u.username = newName
 	nameStore.Set(newName, u)
+	canonicalStore.Set(canonical, newName)
 
 	chain.Emit(UpdateNameEvent,
 		"alias", newName,
@@ -168,7 +211,8 @@ func (u *UserData) updateName(newName string) error {
 	return nil
 }
 
-// UpdateName adds a name that is associated with a specific address
+// UpdateName adds a name that is associated with a specific address.
+// Enforces canonical-collision detection.
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
 func (u *UserData) UpdateName(newName string) error {
@@ -181,7 +225,23 @@ func (u *UserData) UpdateName(newName string) error {
 		return NewErrNotWhitelisted()
 	}
 
-	return u.updateName(newName)
+	return u.updateName(newName, false)
+}
+
+// UpdateNameIgnoreCanonical is the bypass path: same controller-
+// whitelist gate, but ErrCanonicalCollision is suppressed. The canonical
+// store is still written; a prior entry with the same canonical key is
+// silently overwritten (decision #14, later-wins).
+func (u *UserData) UpdateNameIgnoreCanonical(newName string) error {
+	if u.IsDeleted() {
+		return ErrUserNotExistOrDeleted
+	}
+
+	if !controllers.Has(runtime.CurrentRealm().Address()) {
+		return NewErrNotWhitelisted()
+	}
+
+	return u.updateName(newName, true)
 }
 
 // delete marks a user and all their aliases as deleted without checking controllers.

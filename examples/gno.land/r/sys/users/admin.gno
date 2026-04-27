@@ -110,7 +110,10 @@ func applyControllerSwap(toAdd, toRemove address) error {
 	return nil
 }
 
-// ProposeRegisterUser allows GovDAO to register a name without checking controllers
+// ProposeRegisterUser allows GovDAO to register a name without checking
+// controllers. The executor closure runs with ignoreCanonical=true (decision
+// #3): DAO grants always bypass canonical-collision detection. Voters see
+// any collision in the proposal description and can vote NO if unintended.
 func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
 	// Validate the name and address now, even though registerUser will validate again
 	if err := validateName(name); err != nil {
@@ -120,15 +123,23 @@ func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
 		panic(ErrInvalidAddress)
 	}
 
-	cb := func(cur realm) error {
-		return registerUser(cur, name, addr)
+	desc := "This proposal registers " + name + " with address " + addr.String() + " in `sys/users`."
+	if existing, taken := IsCanonicalTaken(name); taken && existing != name {
+		desc += "\n\nCANONICAL COLLISION: this name's canonical form matches the existing registration of `" +
+			existing + "`. DAO grants bypass canonical-collision detection — the proposal will succeed if voted in. " +
+			"If the collision is unintended, vote NO."
 	}
 
-	desc := "This proposal registers " + name + " with address " + addr.String() + " in `sys/users`."
+	cb := func(cur realm) error {
+		return registerUser(cur, name, addr, true) // bypass canonical (decision #3)
+	}
+
 	return dao.NewProposalRequest("Register User to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 
-// ProposeUpdateName allows GovDAO to update a name with an alias without checking controllers
+// ProposeUpdateName allows GovDAO to update a name with an alias without
+// checking controllers. Like ProposeRegisterUser, the executor runs with
+// ignoreCanonical=true (decision #3).
 func ProposeUpdateName(addr address, newName string) dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
@@ -137,15 +148,21 @@ func ProposeUpdateName(addr address, newName string) dao.ProposalRequest {
 		panic(err.Error())
 	}
 
+	desc := "This proposal updates address " + addr.String() + " with alias " + newName + " in `sys/users`."
+	if existing, taken := IsCanonicalTaken(newName); taken && existing != newName {
+		desc += "\n\nCANONICAL COLLISION: the new alias's canonical form matches the existing registration of `" +
+			existing + "`. DAO grants bypass canonical-collision detection — the proposal will succeed if voted in. " +
+			"If the collision is unintended, vote NO."
+	}
+
 	cb := func(cur realm) error {
 		data := ResolveAddress(addr)
 		if data == nil {
 			return ErrUserNotExistOrDeleted
 		}
-		return data.updateName(newName)
+		return data.updateName(newName, true) // bypass canonical (decision #3)
 	}
 
-	desc := "This proposal updates address " + addr.String() + " with alias " + newName + " in `sys/users`."
 	return dao.NewProposalRequest("Update Name Alias in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
 }
 

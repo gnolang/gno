@@ -28,11 +28,14 @@ var (
 //   - exactly 3 trailing decimal digits
 //
 // Total length 12-20 chars. The alpha stem additionally must NOT start
-// with `gno`/`gi`/`gl`, must not match a reserved role name (with
-// implicit `s`-suffix expansion), and must not canonicalize to an
-// alpha stem already registered through this controller (`l→i`
-// substitution). See ValidateNymFormat and IsStemTaken for the
-// individual checks; both are exported for use by future controllers.
+// with `gno`/`gi`/`gl` and must not match a reserved role name (with
+// implicit `s`-suffix expansion). See ValidateNymFormat for the
+// format/blacklist check.
+//
+// Canonical-collision detection is enforced atomically by
+// susers.RegisterUser via the unified canonical store in r/sys/users
+// (decision: per Option B, every controller participates in the same
+// canonical-form lookup keyed by full canonical name).
 //
 // Only direct EOA (maketx call) invocations are supported.
 func Register(_ realm, username string) {
@@ -69,24 +72,14 @@ func Register(_ realm, username string) {
 		panic(err)
 	}
 
-	// Canonical-collision check. Stem is everything between the `nym-`
-	// prefix and the 3 trailing digits.
-	stem := username[4 : len(username)-3]
-	if _, taken := IsStemTaken(stem); taken {
-		panic(ErrCanonicalCollision)
-	}
-	canonical := Canonicalize(stem)
-
+	// Delegate the canonical-collision check + nameStore write atomically
+	// to r/sys/users. Returns susers.ErrCanonicalCollision if the
+	// canonical form clashes with an existing registration in any
+	// controller.
 	registrant := runtime.PreviousRealm().Address()
 	if err := susers.RegisterUser(cross, username, registrant); err != nil {
 		panic(err)
 	}
-
-	// Persist the canonical→original mapping so future registrations
-	// can detect collisions. Stored as the bare alpha stem (not the
-	// full nym-XXX999) because the prefix and digits are constant
-	// across all Open Nym Tier names and contribute nothing to distinction.
-	canonicalStore.Set(canonical, stem)
 
 	latestUsers.Append(username)
 	chain.Emit("Registration", "address", registrant.String(), "name", username)

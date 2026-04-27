@@ -320,6 +320,245 @@ func TestRegisterNotWhitelisted(t *testing.T) {
 	})
 }
 
+func TestCanonicalize(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		// Single-rule cases.
+		{"l", "i"}, {"i", "i"}, {"1", "i"},
+		{"0", "o"}, {"o", "o"},
+		{"-", ""}, {".", ""}, {"_", ""},
+
+		// Identity / pass-through.
+		{"abc", "abc"}, {"xyz", "xyz"}, {"123", "i23"},
+
+		// Open Nym Tier examples from the design doc.
+		{"nym-vital1k123", "nymvitaiiki23"},
+		{"nym-vitalik123", "nymvitaiiki23"},
+		{"nym-vital1k999", "nymvitaiik999"},
+
+		// Same stem, different digit suffix → distinct canonicals.
+		{"nym-foolbar000", "nymfooibarooo"},
+		{"nym-foolbar001", "nymfooibarooi"},
+
+		// Three-way separator equivalence.
+		{"xyz-com", "xyzcom"},
+		{"xyz_com", "xyzcom"},
+		{"xyz.com", "xyzcom"},
+
+		// Idempotency: applying twice equals applying once.
+		{"nymvitaiiki23", "nymvitaiiki23"},
+
+		// Empty input.
+		{"", ""},
+	}
+	for _, tc := range cases {
+		got := Canonicalize(tc.in)
+		uassert.Equal(t, tc.want, got)
+	}
+}
+
+func TestCanonicalize_NonASCIIPassthrough(t *testing.T) {
+	// ASCII-only contract: the function passes non-ASCII bytes through
+	// unchanged. Locks the documented contract — registration paths
+	// reject non-ASCII upstream via validateName, so this code path is
+	// only reachable through direct callers from other realms.
+	uassert.Equal(t, "café", Canonicalize("café"))
+	uassert.Equal(t, "naïve", Canonicalize("naïve"))
+}
+
+func TestRegisterUser_CanonicalCollision(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
+
+	t.Run("non_bypass_blocks", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		// Different exact name, same canonical form → ErrCanonicalCollision.
+		uassert.ErrorContains(t,
+			RegisterUser(cross, "vital1k", bobAddr),
+			ErrCanonicalCollision.Error(),
+		)
+	})
+
+	t.Run("non_bypass_blocks_with_separator_strip", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "xyz-com", aliceAddr))
+		uassert.ErrorContains(t,
+			RegisterUser(cross, "xyz_com", bobAddr),
+			ErrCanonicalCollision.Error(),
+		)
+	})
+
+	t.Run("non_bypass_allows_different_digit_suffix", func(t *testing.T) {
+		cleanStore(t)
+
+		// Same alpha stem, different digits-after-canonicalization → no collision.
+		urequire.NoError(t, RegisterUser(cross, "nym-foolbar000", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, "nym-foolbar999",
+			testutils.TestAddress("foolbar999")))
+	})
+
+	t.Run("exact_name_taken_takes_precedence", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		// Same exact name → ErrNameTaken (NOT ErrCanonicalCollision).
+		// The nameStore.Has check precedes the canonical check.
+		uassert.ErrorContains(t,
+			RegisterUser(cross, "vitalik", bobAddr),
+			ErrNameTaken.Error(),
+		)
+	})
+}
+
+func TestRegisterUserIgnoreCanonical(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
+
+	t.Run("bypass_succeeds_on_canonical_collision", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		// Bypass succeeds even though canonical collides.
+		urequire.NoError(t, RegisterUserIgnoreCanonical(cross, "vital1k", bobAddr))
+
+		// Both names resolve.
+		res, _ := ResolveName("vitalik")
+		uassert.Equal(t, aliceAddr, res.Addr())
+		res, _ = ResolveName("vital1k")
+		uassert.Equal(t, bobAddr, res.Addr())
+	})
+
+	t.Run("bypass_later_wins_overwrite", func(t *testing.T) {
+		cleanStore(t)
+
+		// First registration writes canonical entry.
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		existing, taken := IsCanonicalTaken("vital1k")
+		urequire.True(t, taken)
+		uassert.Equal(t, "vitalik", existing)
+
+		// Bypass write overwrites the canonical entry (decision #14).
+		urequire.NoError(t, RegisterUserIgnoreCanonical(cross, "vital1k", bobAddr))
+		existing, taken = IsCanonicalTaken("vitalik")
+		urequire.True(t, taken)
+		uassert.Equal(t, "vital1k", existing)
+	})
+
+	t.Run("bypass_still_blocks_exact_taken", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		// Same exact name still blocked, even via the bypass path.
+		uassert.ErrorContains(t,
+			RegisterUserIgnoreCanonical(cross, "vitalik", bobAddr),
+			ErrNameTaken.Error(),
+		)
+	})
+}
+
+func TestUpdateName_CanonicalCollision(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
+
+	t.Run("self_collision_blocks_per_decision_15", func(t *testing.T) {
+		cleanStore(t)
+
+		// Alice registers vital1k. Canonical store maps "vitaiik" → "vital1k".
+		urequire.NoError(t, RegisterUser(cross, "vital1k", aliceAddr))
+		data := ResolveAddress(aliceAddr)
+
+		// Alice attempts to rename to a confusable variant of HER OWN name.
+		// Decision #15: blocked. No self-collision exception in the
+		// non-bypass path.
+		testing.SetOriginCaller(whitelistedCallerAddr)
+		uassert.ErrorContains(t,
+			data.UpdateName("vitalik"),
+			ErrCanonicalCollision.Error(),
+		)
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
+	})
+
+	t.Run("different_user_collision_blocks", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross, "bob", bobAddr))
+
+		data := ResolveAddress(bobAddr)
+		testing.SetOriginCaller(whitelistedCallerAddr)
+		uassert.ErrorContains(t,
+			data.UpdateName("vital1k"),
+			ErrCanonicalCollision.Error(),
+		)
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
+	})
+
+	t.Run("bypass_allows_self_collision_rename", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(cross, "vital1k", aliceAddr))
+		data := ResolveAddress(aliceAddr)
+
+		// Bypass path allows the rename (DAO grant scenario).
+		testing.SetOriginCaller(whitelistedCallerAddr)
+		urequire.NoError(t, data.UpdateNameIgnoreCanonical("vitalik"))
+		testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
+
+		// Both names point to alice; latest is "vitalik".
+		uassert.Equal(t, "vitalik", ResolveAddress(aliceAddr).Name())
+		// Old name still resolves to alice (decision #4: keep old entry).
+		res, isLatest := ResolveName("vital1k")
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.False(t, isLatest)
+	})
+}
+
+func TestCanonicalEntry_Persists_After_Delete(t *testing.T) {
+	// Decision #5: Delete does NOT remove the canonical entry. Mirrors
+	// the existing tombstone behavior (anti-revival policy).
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
+	cleanStore(t)
+
+	urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+	data := ResolveAddress(aliceAddr)
+	urequire.NoError(t, data.Delete())
+
+	// Canonical entry retained.
+	existing, taken := IsCanonicalTaken("vitalik")
+	urequire.True(t, taken)
+	uassert.Equal(t, "vitalik", existing)
+
+	// A different user CANNOT register a confusable variant — the deleted
+	// user's canonical claim still stands.
+	uassert.ErrorContains(t,
+		RegisterUser(cross, "vital1k", bobAddr),
+		ErrCanonicalCollision.Error(),
+	)
+}
+
+func TestCanonicalEntry_Persists_After_UpdateName(t *testing.T) {
+	// Decision #4: UpdateName keeps the OLD canonical entry. Mirrors the
+	// existing nameStore alias retention (anti-rename-squat policy).
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
+	cleanStore(t)
+
+	urequire.NoError(t, RegisterUser(cross, "alice", aliceAddr))
+	data := ResolveAddress(aliceAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
+	urequire.NoError(t, data.UpdateName("alice2"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
+
+	// Both old and new canonical entries exist.
+	existing, taken := IsCanonicalTaken("alice")
+	urequire.True(t, taken)
+	uassert.Equal(t, "alice", existing)
+
+	existing, taken = IsCanonicalTaken("alice2")
+	urequire.True(t, taken)
+	uassert.Equal(t, "alice2", existing)
+}
+
 // cleanStore should not be needed, as vm store should be reset after each test.
 // Reference: https://github.com/gnolang/gno/issues/1982
 func cleanStore(t *testing.T) {
@@ -327,4 +566,5 @@ func cleanStore(t *testing.T) {
 
 	nameStore = bptree.NewBPTree32()
 	addressStore = bptree.NewBPTree32()
+	canonicalStore = bptree.NewBPTree32()
 }

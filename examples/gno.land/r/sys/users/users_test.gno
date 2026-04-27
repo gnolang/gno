@@ -2,6 +2,7 @@ package users
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -371,6 +372,43 @@ func TestControllerQueries(t *testing.T) {
 		uassert.True(t, IsController(a))
 	})
 }
+
+// ProposeRegisterUser auto-injects a CANONICAL COLLISION warning into
+// the proposal description when the proposed name canonical-collides
+// with an existing registration. The warning surfaces the colliding
+// existing name to voters; the proposal still goes through if voted in
+// (decision #3, DAO grants always bypass).
+func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
+
+	t.Run("warning_injected_on_collision", func(t *testing.T) {
+		cleanStore(t)
+		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+
+		req := ProposeRegisterUser("vital1k", bobAddr)
+		uassert.True(t,
+			strings.Contains(req.Description(), "CANONICAL COLLISION"),
+			"description must include collision warning")
+		uassert.True(t,
+			strings.Contains(req.Description(), "`vitalik`"),
+			"description must name the existing colliding registration")
+	})
+
+	t.Run("no_warning_when_no_collision", func(t *testing.T) {
+		cleanStore(t)
+
+		req := ProposeRegisterUser("freshname", aliceAddr)
+		uassert.False(t,
+			strings.Contains(req.Description(), "CANONICAL COLLISION"),
+			"description must not include collision warning when name is fresh")
+	})
+}
+
+// Note: full execution of ProposeRegisterUser/ProposeUpdateName closures
+// (with ignoreCanonical=true → later-wins overwrite) is exercised end-to-
+// end by the integration test in gno.land/pkg/integration/testdata/.
+// The bypass-write semantics themselves are covered here at the unit
+// level by TestRegisterUserIgnoreCanonical and TestUpdateName_CanonicalCollision.
 
 // TODO Uncomment after gnoweb /u/ page.
 //func TestUserRenderLink(t *testing.T) {

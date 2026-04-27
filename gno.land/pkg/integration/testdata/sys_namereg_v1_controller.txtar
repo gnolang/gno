@@ -63,7 +63,7 @@ stderr 'is not authorized to deploy packages to namespace'
 
 # Now exercise the removal path. DAO proposes to REMOVE namereg/v1 from the
 # controller whitelist.
-gnokey maketx run -gas-fee 2700001ugnot -gas-wanted 27_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_remove_namereg.gno
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 30_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_remove_namereg.gno
 stdout OK!
 
 # Vote + execute.
