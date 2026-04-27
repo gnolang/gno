@@ -29,8 +29,8 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 	}
 
 	// Build the prefix the gno helper uses: node:valset:
-	prefix := mustGnoConst(t, data, "nodeModulePrefix") + ":" +
-		mustGnoConst(t, data, "valsetSubmodule") + ":"
+	// (nodeModulePrefix is declared in halt.gno; valsetSubmodule in valset.gno.)
+	prefix := "node:" + mustGnoConst(t, data, "valsetSubmodule") + ":"
 
 	cases := []struct {
 		gnoName string

@@ -4,9 +4,9 @@ import prms "sys/params"
 
 // Param keys read by gno.land/pkg/gnoland (EndBlocker).
 // Keep in sync with gno.land/pkg/gnoland/node_params.go.
+// nodeModulePrefix is declared in halt.gno (same package).
 const (
-	nodeModulePrefix = "node"
-	valsetSubmodule  = "valset"
+	valsetSubmodule = "valset"
 
 	// dirty signals the chain that the proposed valset differs from the
 	// previously applied one. Realm sets true; EndBlocker clears.
