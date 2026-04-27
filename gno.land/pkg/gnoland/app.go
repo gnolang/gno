@@ -467,13 +467,23 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 			}
 		}
 
-		// Genesis-mode txs (no metadata or BlockHeight == 0) were signed with
-		// the original chain ID. During a hardfork (PastChainIDs is set), we
-		// need to verify their signatures against the original chain ID, not
-		// the new one. Use the first PastChainID as the signing context.
-		if (metadata == nil || metadata.BlockHeight == 0) && len(state.PastChainIDs) > 0 {
+		// Genesis-mode txs (no metadata) were signed with the original chain
+		// ID. During a hardfork (PastChainIDs is set), verify their
+		// signatures against the original chain ID. Migration txs
+		// (metadata != nil with BlockHeight == 0) carry their own per-tx
+		// settings via metadata and are handled in the first branch above;
+		// excluding them here prevents the previous overwrite bug where
+		// this assignment stomped the metadata-driven Timestamp override.
+		//
+		// Compose with any prior ctxFn so future broadening of the
+		// predicate cannot silently regress.
+		if metadata == nil && len(state.PastChainIDs) > 0 {
 			originalChainID := state.PastChainIDs[0]
+			prev := ctxFn
 			ctxFn = func(ctx sdk.Context) sdk.Context {
+				if prev != nil {
+					ctx = prev(ctx)
+				}
 				return ctx.WithChainID(originalChainID)
 			}
 		}

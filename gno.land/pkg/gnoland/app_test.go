@@ -517,6 +517,104 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	}
 }
 
+// TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs is a regression
+// test for the bug where, with PastChainIDs set, a tx whose metadata had
+// BlockHeight == 0 but a non-zero Timestamp (a migration tx) had its
+// ctxFn silently overwritten by the genesis-mode branch, dropping the
+// timestamp override. The fix tightens the genesis-mode predicate to
+// metadata == nil so migration txs keep their metadata-driven ctxFn.
+func TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs(t *testing.T) {
+	t.Parallel()
+
+	var (
+		genesisTime    = time.Now()
+		migrationTime  = genesisTime.Add(7 * 24 * time.Hour) // 7 days later
+		chainID        = "test-chain"
+		pastChainIDs   = []string{chainID}
+		path           = "gno.land/r/demo/migration"
+		body           = `package migration
+
+import "time"
+
+var t time.Time = time.Now()
+
+func GetT(cur realm) int64 { return t.Unix() }
+`
+	)
+
+	key := getDummyKey(t)
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+
+	msg := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "migration",
+			Path: path,
+			Files: []*std.MemFile{
+				{Name: "file.gno", Body: body},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			},
+		},
+		MaxDeposit: nil,
+	}
+	tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    genesisTime,
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     defaultBlockParams(),
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+		},
+		AppState: GnoGenesisState{
+			Txs: []TxWithMetadata{
+				{
+					Tx: tx,
+					// migration-tx shape: BlockHeight == 0 but Timestamp != 0
+					Metadata: &GnoTxMetadata{
+						Timestamp:   migrationTime.Unix(),
+						BlockHeight: 0,
+					},
+				},
+			},
+			Balances: []Balance{
+				{
+					Address: key.PubKey().Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				},
+			},
+			Auth:         auth.DefaultGenesisState(),
+			Bank:         bank.DefaultGenesisState(),
+			VM:           vm.DefaultGenesisState(),
+			PastChainIDs: pastChainIDs, // triggers the genesis-mode branch pre-fix
+		},
+	})
+
+	callMsg := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path,
+		Func:    "GetT",
+	}
+	tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+	marshalledTx, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+	require.True(t, resp.IsOK(), "expected OK, got: %s", resp.Log)
+
+	// Before the fix, the second ctxFn assignment in the loop stomped the
+	// metadata-driven Timestamp override and the realm initialized at
+	// genesisTime instead of migrationTime.
+	assert.Contains(
+		t,
+		string(resp.Data),
+		fmt.Sprintf("(%d int64)", migrationTime.Unix()),
+		"realm should have been initialized at metadata.Timestamp, not genesis time",
+	)
+}
+
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
