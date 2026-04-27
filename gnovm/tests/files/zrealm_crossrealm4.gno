@@ -13,7 +13,8 @@ func init() {
 }
 
 func main(cur realm) {
-	// NOTE: it is valid to modify it using the external realm function.
+	// NOTE: Modifying an external-realm object via a non-crossing method is
+	// allowed by soft crossing.
 	somevalue.Modify()
 	println(somevalue)
 }

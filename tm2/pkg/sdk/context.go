@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/gno/tm2/pkg/store/gas"
 )
 
 /*
@@ -30,6 +29,7 @@ type Context struct {
 	voteInfo      []abci.VoteInfo
 	gasMeter      store.GasMeter // XXX make passthroughGasMeter w/ blockGasMeter?
 	blockGasMeter store.GasMeter
+	gasConfig     *store.GasConfig // override gas config (nil = use default)
 	minGasPrices  []GasPrice
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
@@ -170,13 +170,32 @@ func (c Context) Value(key any) any {
 // Store / Caching
 // ----------------------------------------------------------------------------
 
-// Store fetches a Store from the MultiStore, but wrapped for gas calculation.
-func (c Context) GasStore(key store.StoreKey) store.Store {
-	return gas.New(c.MultiStore().GetStore(key), c.GasMeter(), store.DefaultGasConfig())
-}
-
 func (c Context) Store(key store.StoreKey) store.Store {
 	return c.MultiStore().GetStore(key)
+}
+
+// GasContext returns a *GasContext for use with Store methods, or nil if
+// no gas metering is desired.
+func (c Context) GasContext() *store.GasContext {
+	if c.GasMeter() == nil {
+		return nil
+	}
+	var cfg store.GasConfig
+	if c.gasConfig != nil {
+		cfg = *c.gasConfig
+	} else {
+		cfg = store.DefaultGasConfig()
+	}
+	return &store.GasContext{
+		Meter:  c.GasMeter(),
+		Config: cfg,
+	}
+}
+
+// WithGasConfig returns a new Context with the given GasConfig override.
+func (c Context) WithGasConfig(cfg store.GasConfig) Context {
+	c.gasConfig = &cfg
+	return c
 }
 
 // CacheContext returns a new Context with the multi-store cached and a new
