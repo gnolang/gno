@@ -1,5 +1,7 @@
 package gnolang
 
+import "fmt"
+
 func (sv StringValue) DeepFill(store Store) Value {
 	return sv
 }
@@ -69,7 +71,21 @@ func (pv *PackageValue) DeepFill(store Store) Value      { panic("not yet implem
 func (b *Block) DeepFill(store Store) Value              { panic("not yet implemented") }
 
 func (rv RefValue) DeepFill(store Store) Value {
-	return store.GetObject(rv.ObjectID)
+	obj := store.GetObject(rv.ObjectID)
+	if debugStore {
+		// Verify Merkle chain: parent's claimed child hash
+		// must match child's actual stored hash. Skip when:
+		//  - RefValue.Hash is zero (escaped / IAVL-resolved)
+		//  - child hash is zero (dirty/new, not yet persisted)
+		if !rv.Hash.IsZero() {
+			if childHash := obj.GetHash(); !childHash.IsZero() && rv.Hash != childHash {
+				panic(fmt.Sprintf(
+					"hash chain broken at %s: parent claims child hash %X, but child has %X",
+					rv.ObjectID, rv.Hash.Bytes(), childHash.Bytes()))
+			}
+		}
+	}
+	return obj
 }
 
 func (erv ExportRefValue) DeepFill(_ Store) Value {

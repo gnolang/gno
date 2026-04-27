@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -486,6 +487,15 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		if debugStore {
+			// Verify stored hash matches actual content hash.
+			if computed := HashBytes(bz); computed != NewHashlet(hash) {
+				panic(fmt.Sprintf(
+					"stored hash mismatch for %s: stored %X, computed %X",
+					oid, hash, computed.Bytes()))
+			}
+			fmt.Fprintf(os.Stderr, "debugStore verify-content: %s OK\n", oid)
+		}
 
 		if pv, ok := oo.(*PackageValue); ok {
 			ds.SetStagingPackage(pv)
