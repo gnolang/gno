@@ -527,8 +527,13 @@ func TestEndBlocker(t *testing.T) {
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 	})
 
-	t.Run("invalid valset changes in prev", func(t *testing.T) {
+	t.Run("invalid valset changes in prev recovers", func(t *testing.T) {
 		t.Parallel()
+
+		// Recovery contract: a corrupted prev valset must not wedge consensus.
+		// EndBlocker logs loudly, advances prev to proposed, and clears the
+		// pending-updates flag so subsequent proposals can land.
+		proposed := []string{} // empty proposed set is fine
 
 		var (
 			updateFlag   = true
@@ -541,7 +546,7 @@ func TestEndBlocker(t *testing.T) {
 					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
 						*ptr = []string{"totally invalid format"}
 					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-						// empty proposed set
+						*ptr = proposed
 					}
 				},
 				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
@@ -569,9 +574,57 @@ func TestEndBlocker(t *testing.T) {
 		}), abci.RequestEndBlock{})
 
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
-		// Flag was not cleared, updates were not saved
-		assert.True(t, updateFlag)
-		assert.Empty(t, paramUpdates)
+		// Flag cleared, prev advanced to proposed (recovery applied).
+		assert.False(t, updateFlag, "flag must be cleared so future proposals land")
+		assert.Equal(t, proposed, paramUpdates, "prev must advance to proposed")
+	})
+
+	t.Run("invalid valset changes in proposed recovers", func(t *testing.T) {
+		t.Parallel()
+
+		// Recovery contract for proposed parse failure: clear the flag so a
+		// future re-propose can land. We do NOT touch prev (it's still good).
+		var (
+			updateFlag      = true
+			prevSetCalls    int
+			updatesProposed = []string{"totally invalid format"}
+
+			mockParamsKeeper = &mockParamsKeeper{
+				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
+				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
+					switch key {
+					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
+						*ptr = []string{}
+					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
+						*ptr = updatesProposed
+					}
+				},
+				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
+					if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+						*ptr = updateFlag
+					}
+				},
+				setBoolFn: func(_ sdk.Context, key string, value bool) {
+					updateFlag = value
+				},
+				setStringsFn: func(_ sdk.Context, key string, value []string) {
+					prevSetCalls++
+				},
+			}
+
+			mockApp = &mockEndBlockerApp{}
+		)
+
+		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
+
+		assert.Equal(t, abci.ResponseEndBlock{}, res)
+		assert.False(t, updateFlag, "flag must be cleared so future proposals land")
+		assert.Zero(t, prevSetCalls, "prev must NOT be touched when proposed is bad")
 	})
 
 	t.Run("valid valset changes", func(t *testing.T) {

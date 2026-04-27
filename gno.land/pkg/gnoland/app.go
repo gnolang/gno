@@ -570,24 +570,35 @@ func EndBlocker(
 		prmk.GetStrings(ctx, proposedValsetPath, &proposedValset)
 
 		// Parse the previous set.
+		// On parse failure, we do NOT silently halt: clear the pending flag
+		// and advance prevValset to proposedValset (best-effort recovery), so
+		// that future proposals can land. The realm only validates valset_new
+		// at write time, so corruption of valset_prev (which the chain itself
+		// writes) would otherwise wedge consensus updates forever.
 		prevSet, err := extractUpdatesFromParams(prevValset)
 		if err != nil {
 			app.Logger().Error(
-				"unable to parse prev valset in EndBlocker",
+				"valset_prev is corrupted; clearing pending flag and advancing prev to recover",
 				"err", err,
+				"prev_valset", prevValset,
 			)
-
+			prmk.SetStrings(ctx, prevValsetPath, proposedValset)
+			prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
 			return abci.ResponseEndBlock{}
 		}
 
 		// Parse the proposed set.
+		// Same recovery policy as prev: clear the flag so a future re-propose can land.
+		// (validateValsetUpdate guards normal writes, but a direct param write could
+		// still seed bad data.)
 		proposedSet, err := extractUpdatesFromParams(proposedValset)
 		if err != nil {
 			app.Logger().Error(
-				"unable to parse proposed valset in EndBlocker",
+				"valset_new is corrupted; clearing pending flag to allow re-propose",
 				"err", err,
+				"proposed_valset", proposedValset,
 			)
-
+			prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
 			return abci.ResponseEndBlock{}
 		}
 
