@@ -7,12 +7,15 @@ import (
 	"strings"
 )
 
-// Realm functions can call banker.NewBanker(options) to get
-// a banker instance. Banker objects cannot be persisted,
-// but can be passed onto other functions to be transacted
-// on. A banker instance can be passed onto other realm
-// functions; this allows other realms to spend coins on
-// behalf of the first realm.
+// Realm functions can call banker.NewBanker(options) to get a banker
+// instance. A banker instance can be passed onto other realm functions
+// (this allows other realms to spend coins on behalf of the first
+// realm) and can be stored in package-level vars across transactions —
+// the underlying struct (BankerType + scoped pkgAddr) persists like any
+// other Gno value, and the methods continue to dispatch through the
+// runtime against live bank state on each call. See
+// gno.land/pkg/integration/testdata/banker_persistence.txtar for the
+// full cross-realm capability-persistence behavior.
 //
 // Banker panics on errors instead of returning errors.
 // This also helps simplify the interface and prevent
