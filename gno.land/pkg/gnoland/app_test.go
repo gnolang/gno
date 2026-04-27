@@ -2034,6 +2034,96 @@ func TestInitChainer_StrictReplay(t *testing.T) {
 	})
 }
 
+// TestValidateSignerInfo verifies the preflight catches account-number
+// collisions before any state mutates. Without this check,
+// NewAccountWithUncheckedNumber would silently overwrite accounts.
+func TestValidateSignerInfo(t *testing.T) {
+	t.Parallel()
+
+	addrA := crypto.AddressFromPreimage([]byte("addr-a"))
+	addrB := crypto.AddressFromPreimage([]byte("addr-b"))
+
+	tests := []struct {
+		name      string
+		state     GnoGenesisState
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "empty state passes",
+			state:   GnoGenesisState{},
+			wantErr: false,
+		},
+		{
+			name: "no SignerInfo passes",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "same accNum same addr is fine (legitimate per-tx repeat)",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5, Sequence: 0}}}},
+					{Metadata: &GnoTxMetadata{BlockHeight: 2, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5, Sequence: 1}}}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "same accNum different addrs collides",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5}}}},
+					{Metadata: &GnoTxMetadata{BlockHeight: 2, SignerInfo: []SignerAccountInfo{{Address: addrB, AccountNum: 5}}}},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "SignerInfo collision",
+		},
+		{
+			name: "SignerInfo collides with balance-init account",
+			state: GnoGenesisState{
+				// state.Balances[0] reserves accNum=0 for addrA
+				Balances: []Balance{{Address: addrA, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}},
+				Txs: []TxWithMetadata{
+					// SignerInfo claims accNum=0 for addrB; collision
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrB, AccountNum: 0}}}},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "SignerInfo collision",
+		},
+		{
+			name: "SignerInfo matching balance-init address is fine",
+			state: GnoGenesisState{
+				Balances: []Balance{{Address: addrA, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}},
+				Txs: []TxWithMetadata{
+					// SignerInfo claims accNum=0 for addrA, matches balance-init
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 0}}}},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateSignerInfo(tc.state)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errSubstr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestIsPastChainID(t *testing.T) {
 	t.Parallel()
 
@@ -2189,8 +2279,8 @@ func IsDeployed(cur realm) bool { return Deployed }
 			},
 		}
 
-		// Sign with accNum=7 — account won't exist from balances,
-		// so NewAccountWithNumber must be called.
+		// Sign with accNum=7. Account won't exist from balances, so
+		// NewAccountWithUncheckedNumber must be called.
 		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 7, 0)
 
 		app.InitChain(abci.RequestInitChain{

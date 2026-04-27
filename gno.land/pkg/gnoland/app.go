@@ -381,6 +381,16 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 		return nil, err
 	}
 
+	// Preflight: every (account-number, address) pair claimed by SignerInfo
+	// must be unique, and must not collide with a balance-init account at a
+	// different address. NewAccountWithUncheckedNumber does NOT verify this
+	// at write-time; a duplicate accNum used with a different address would
+	// silently zero the original account's balance. Failing here surfaces a
+	// malformed genesis loudly before any state is mutated.
+	if err := validateSignerInfo(state); err != nil {
+		return nil, err
+	}
+
 	if len(state.PastChainIDs) > 0 {
 		ctx.Logger().Info("Chain upgrade genesis replay",
 			"past_chain_ids", state.PastChainIDs,
@@ -500,9 +510,12 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 			for _, si := range metadata.SignerInfo {
 				acc := cfg.acck.GetAccount(ctx, si.Address)
 				if acc == nil {
-					// Account doesn't exist yet — create with specific account
-					// number, bypassing the auto-increment counter.
-					acc = cfg.acck.NewAccountWithNumber(ctx, si.Address, si.AccountNum)
+					// Account doesn't exist yet, create with specific account
+					// number, bypassing the auto-increment counter. Uniqueness
+					// of (Address, AccountNum) is enforced by the
+					// validateSignerInfo preflight above; the keeper does not
+					// re-check.
+					acc = cfg.acck.NewAccountWithUncheckedNumber(ctx, si.Address, si.AccountNum)
 				} else {
 					acc.SetAccountNumber(si.AccountNum)
 				}
@@ -588,6 +601,48 @@ type endBlockerApp interface {
 // isPastChainID reports whether chainID is present in the pastChainIDs allowlist.
 func isPastChainID(pastChainIDs []string, chainID string) bool {
 	return slices.Contains(pastChainIDs, chainID)
+}
+
+// validateSignerInfo scans every SignerInfo entry across all txs and
+// rejects the genesis if two different addresses claim the same account
+// number, OR if a SignerInfo claims an account number already reserved by a
+// balance-init account at a different address. NewAccountWithUncheckedNumber
+// (the keeper primitive replay uses) does not perform this check at
+// write-time, so the invariant is enforced here, before any state mutates.
+//
+// genesis-mode txs (BlockHeight == 0) carry no SignerInfo by invariant of
+// the export tool, but we still skip them defensively.
+func validateSignerInfo(state GnoGenesisState) error {
+	// Map: account number -> address that reserves it.
+	numToAddr := map[uint64]crypto.Address{}
+
+	// Treat balance-init accounts as reserving accNum=N, where N is assigned
+	// by the auto-increment counter in the order they appear in
+	// state.Balances. After all balances are processed, the counter is
+	// len(state.Balances). Any SignerInfo with accNum < len(state.Balances)
+	// must therefore reference one of those addresses (or it would collide
+	// with a different balance-init address).
+	for i, bal := range state.Balances {
+		numToAddr[uint64(i)] = bal.Address
+	}
+
+	for txIdx, tx := range state.Txs {
+		if tx.Metadata == nil {
+			continue
+		}
+		for siIdx, si := range tx.Metadata.SignerInfo {
+			existing, seen := numToAddr[si.AccountNum]
+			if seen && existing != si.Address {
+				return fmt.Errorf(
+					"genesis SignerInfo collision at txs[%d].SignerInfo[%d]: "+
+						"account number %d already assigned to %s, cannot reassign to %s",
+					txIdx, siIdx, si.AccountNum, existing, si.Address,
+				)
+			}
+			numToAddr[si.AccountNum] = si.Address
+		}
+	}
+	return nil
 }
 
 // EndBlocker defines the logic executed after every block.

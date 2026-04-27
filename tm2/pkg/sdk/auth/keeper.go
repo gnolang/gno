@@ -141,11 +141,22 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint6
 	return acc.GetSequence(), nil
 }
 
-// NewAccountWithNumber creates an account with a specific account number,
-// bypassing the auto-increment counter. Updates the global counter if the
-// given number would cause future collisions. Used during hardfork genesis
-// replay where accounts must be created with their original account numbers.
-func (ak AccountKeeper) NewAccountWithNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
+// NewAccountWithUncheckedNumber creates an account with a specific account
+// number, bypassing the auto-increment counter. Updates the global counter
+// if the given number would cause future collisions.
+//
+// PRECONDITION (caller-enforced): the (addr, accNum) pair MUST be unique
+// across all accounts. The keeper does NOT verify that addr is unused or
+// that accNum is unassigned to a different address. A future call with the
+// same accNum but a different addr will silently corrupt account identity
+// (zeroing balances at the original address), and a call with an existing
+// addr will overwrite the existing account.
+//
+// Intended use: one-shot hardfork genesis replay where the caller (see
+// gno.land/pkg/gnoland.loadAppState) does its own preflight validation
+// across all SignerInfo entries and balance-init accounts. Do NOT call
+// from any post-genesis code path without re-implementing that preflight.
+func (ak AccountKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
 	acc := ak.proto()
 	if err := acc.SetAddress(addr); err != nil {
 		panic(err)
