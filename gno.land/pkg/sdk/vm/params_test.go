@@ -244,14 +244,16 @@ func TestWillSetParamExhaustive(t *testing.T) {
 func TestWillSetParam_ValsetUpdate(t *testing.T) {
 	t.Parallel()
 
-	// "valset_new_pubkeys" / "valset_new_powers" must be kept in sync with
-	// examples/gno.land/r/sys/params/valset.gno.
-	pubKeysPath := ValsetRealmDefault + ":valset_new_pubkeys"
-	powersPath := ValsetRealmDefault + ":valset_new_powers"
+	const (
+		valsetNewPath  = "p:valset_new"
+		valsetPrevPath = "p:valset_prev"
+		valsetDirty    = "p:valset_dirty"
+	)
+	pub := secp256k1.GenPrivKey().PubKey().String()
+	good := pub + ":10"
 
 	t.Run("non-valset key passes through", func(t *testing.T) {
 		t.Parallel()
-
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
@@ -260,81 +262,86 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 		})
 	})
 
-	t.Run("pubkeys: invalid value type", func(t *testing.T) {
+	t.Run("dirty: bool passes", func(t *testing.T) {
 		t.Parallel()
-
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, pubKeysPath, "not a slice")
-		})
-	})
-
-	t.Run("pubkeys: invalid bech32", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, pubKeysPath, []string{"notapubkey"})
-		})
-	})
-
-	t.Run("powers: invalid value type", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, powersPath, 42)
-		})
-	})
-
-	t.Run("powers: non-numeric entry", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, powersPath, []string{"abc"})
-		})
-	})
-
-	t.Run("powers: negative", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-
-		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, powersPath, []string{"-1"})
-		})
-	})
-
-	t.Run("valid pubkeys", func(t *testing.T) {
-		t.Parallel()
-
-		env := setupTestEnv()
-		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-		key := secp256k1.GenPrivKey()
-
-		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, pubKeysPath, []string{key.PubKey().String()})
-		})
-	})
-
-	t.Run("valid powers", func(t *testing.T) {
-		t.Parallel()
-
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, powersPath, []string{"10", "0", "42"})
+			env.vmk.WillSetParam(ctx, valsetDirty, true)
+		})
+	})
+
+	t.Run("dirty: wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetDirty, "yes")
+		})
+	})
+
+	t.Run("new: invalid value type", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath, "not a slice")
+		})
+	})
+
+	t.Run("new: malformed entry (no separator)", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath, []string{"no-colon-here"})
+		})
+	})
+
+	t.Run("new: invalid pubkey", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath, []string{"notapubkey:10"})
+		})
+	})
+
+	t.Run("new: negative power", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath, []string{pub + ":-1"})
+		})
+	})
+
+	t.Run("new: valid", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetNewPath, []string{good})
+		})
+	})
+
+	t.Run("prev: same validation as new", func(t *testing.T) {
+		t.Parallel()
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetPrevPath, []string{"garbage"})
+		})
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetPrevPath, []string{good})
 		})
 	})
 }

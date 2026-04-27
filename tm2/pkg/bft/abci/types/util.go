@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -110,10 +111,17 @@ func (vu ValidatorUpdate) Equals(vu2 ValidatorUpdate) bool {
 //----------------------------------------
 // Validator update parsing
 
-// ParseValidatorUpdate builds a ValidatorUpdate from a bech32 pubkey and a
-// decimal-encoded power. Address is derived from the pubkey; powers are
-// non-negative and capped at math.MaxInt64 so the int64 cast can't overflow.
-func ParseValidatorUpdate(pubKey, power string) (ValidatorUpdate, error) {
+// ParseValidatorUpdate parses a single "<pubkey>:<power>" entry.
+// Address is derived from the pubkey; powers are non-negative and capped
+// at math.MaxInt64 so the int64 cast can't overflow.
+func ParseValidatorUpdate(entry string) (ValidatorUpdate, error) {
+	pubKey, power, ok := strings.Cut(entry, ":")
+	if !ok {
+		return ValidatorUpdate{}, fmt.Errorf(
+			`valset entry %q is not in the form "<pubkey>:<power>"`,
+			entry,
+		)
+	}
 	pk, err := crypto.PubKeyFromBech32(pubKey)
 	if err != nil {
 		return ValidatorUpdate{}, fmt.Errorf("invalid validator pubkey %q: %w", pubKey, err)
@@ -131,19 +139,12 @@ func ParseValidatorUpdate(pubKey, power string) (ValidatorUpdate, error) {
 	}, nil
 }
 
-// ParseValidatorUpdates zips two parallel typed lists (pubkeys and decimal
-// powers) into a ValidatorUpdates slice. Lengths must match; errors carry
-// the offending entry index.
-func ParseValidatorUpdates(pubKeys, powers []string) (ValidatorUpdates, error) {
-	if len(pubKeys) != len(powers) {
-		return nil, fmt.Errorf(
-			"pubkeys (%d) and powers (%d) length mismatch",
-			len(pubKeys), len(powers),
-		)
-	}
-	updates := make(ValidatorUpdates, 0, len(pubKeys))
-	for i := range pubKeys {
-		u, err := ParseValidatorUpdate(pubKeys[i], powers[i])
+// ParseValidatorUpdates parses a list of "<pubkey>:<power>" entries.
+// Errors carry the offending entry index.
+func ParseValidatorUpdates(entries []string) (ValidatorUpdates, error) {
+	updates := make(ValidatorUpdates, 0, len(entries))
+	for i, entry := range entries {
+		u, err := ParseValidatorUpdate(entry)
 		if err != nil {
 			return nil, fmt.Errorf("entry %d: %w", i, err)
 		}

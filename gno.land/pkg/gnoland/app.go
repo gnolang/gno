@@ -481,29 +481,18 @@ type endBlockerApp interface {
 	SetHaltHeight(uint64)
 }
 
-// Keep in sync with examples/gno.land/r/sys/validators/v3/poc.gno
+// Param keys read by EndBlocker.
+// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
 const (
-	vmModulePrefix = "vm"
-
-	// valsetDirtyKey is a flag indicating the chain valset should be updated.
+	// valsetDirtyKey signals the proposed valset differs from the prev one.
 	// Realm sets true; EndBlocker sets false after applying.
-	valsetDirtyKey = "valset_dirty"
+	valsetDirtyPath = "vm:p:valset_dirty"
 
-	// valset_{new,prev}_pubkeys / _powers are two parallel typed lists per
-	// slot. Length must match. Address is derived from pubkey, not stored.
-	// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
-	valsetNewPubKeysKey  = "valset_new_pubkeys"
-	valsetNewPowersKey   = "valset_new_powers"
-	valsetPrevPubKeysKey = "valset_prev_pubkeys"
-	valsetPrevPowersKey  = "valset_prev_powers"
+	// One []string per slot; each entry has the form "<pubkey>:<power>".
+	// Address is derived from pubkey on parse, not stored.
+	valsetNewPath  = "vm:p:valset_new"
+	valsetPrevPath = "vm:p:valset_prev"
 )
-
-// valsetParamPath constructs the full param key for a valset-realm-scoped param:
-//
-//	vm:<valset-realm-path>:<valset-param-key>
-func valsetParamPath(valsetRealm, key string) string {
-	return fmt.Sprintf("%s:%s:%s", vmModulePrefix, valsetRealm, key)
-}
 
 // EndBlocker defines the logic executed after every block.
 // It checks for a governance-requested chain halt, then reads valset changes
@@ -545,33 +534,16 @@ func EndBlocker(
 			}
 		}
 
-		// Determine which realm is responsible for valset management.
-		valsetRealm := vm.ValsetRealmDefault
-		prmk.GetString(ctx, vm.ValsetRealmParamPath, &valsetRealm)
-
 		// Check if there are any pending valset changes.
-		updatesAvailable := false
-		prmk.GetBool(ctx, valsetParamPath(valsetRealm, valsetDirtyKey), &updatesAvailable)
-
-		if !updatesAvailable {
+		dirty := false
+		prmk.GetBool(ctx, valsetDirtyPath, &dirty)
+		if !dirty {
 			return abci.ResponseEndBlock{}
 		}
 
-		var (
-			prevPubKeys, prevPowers         []string
-			proposedPubKeys, proposedPowers []string
-
-			prevPubKeysPath = valsetParamPath(valsetRealm, valsetPrevPubKeysKey)
-			prevPowersPath  = valsetParamPath(valsetRealm, valsetPrevPowersKey)
-			newPubKeysPath  = valsetParamPath(valsetRealm, valsetNewPubKeysKey)
-			newPowersPath   = valsetParamPath(valsetRealm, valsetNewPowersKey)
-			dirtyPath       = valsetParamPath(valsetRealm, valsetDirtyKey)
-		)
-
-		prmk.GetStrings(ctx, prevPubKeysPath, &prevPubKeys)
-		prmk.GetStrings(ctx, prevPowersPath, &prevPowers)
-		prmk.GetStrings(ctx, newPubKeysPath, &proposedPubKeys)
-		prmk.GetStrings(ctx, newPowersPath, &proposedPowers)
+		var prevEntries, proposedEntries []string
+		prmk.GetStrings(ctx, valsetPrevPath, &prevEntries)
+		prmk.GetStrings(ctx, valsetNewPath, &proposedEntries)
 
 		// Parse the previous set.
 		// On parse failure, we do NOT silently halt: clear the pending flag
@@ -579,15 +551,14 @@ func EndBlocker(
 		// future proposals can land. The realm only validates valset_new at
 		// write time, so corruption of valset_prev (which the chain writes)
 		// would otherwise wedge consensus updates forever.
-		prevSet, err := abci.ParseValidatorUpdates(prevPubKeys, prevPowers)
+		prevSet, err := abci.ParseValidatorUpdates(prevEntries)
 		if err != nil {
 			app.Logger().Error(
 				"valset_prev is corrupted; clearing pending flag and advancing prev to recover",
 				"err", err,
 			)
-			prmk.SetStrings(ctx, prevPubKeysPath, proposedPubKeys)
-			prmk.SetStrings(ctx, prevPowersPath, proposedPowers)
-			prmk.SetBool(ctx, dirtyPath, false)
+			prmk.SetStrings(ctx, valsetPrevPath, proposedEntries)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
 			return abci.ResponseEndBlock{}
 		}
 
@@ -595,13 +566,13 @@ func EndBlocker(
 		// Same recovery policy as prev: clear the flag so a future re-propose
 		// can land. (WillSetParam guards normal writes, but a direct param
 		// write could still seed bad data.)
-		proposedSet, err := abci.ParseValidatorUpdates(proposedPubKeys, proposedPowers)
+		proposedSet, err := abci.ParseValidatorUpdates(proposedEntries)
 		if err != nil {
 			app.Logger().Error(
 				"valset_new is corrupted; clearing pending flag to allow re-propose",
 				"err", err,
 			)
-			prmk.SetBool(ctx, dirtyPath, false)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
 			return abci.ResponseEndBlock{}
 		}
 
@@ -613,12 +584,9 @@ func EndBlocker(
 			"count", len(updates),
 		)
 
-		// Advance prev to match proposed.
-		prmk.SetStrings(ctx, prevPubKeysPath, proposedPubKeys)
-		prmk.SetStrings(ctx, prevPowersPath, proposedPowers)
-
-		// Clear the pending-updates flag.
-		prmk.SetBool(ctx, dirtyPath, false)
+		// Advance prev to match proposed and clear the pending-updates flag.
+		prmk.SetStrings(ctx, valsetPrevPath, proposedEntries)
+		prmk.SetBool(ctx, valsetDirtyPath, false)
 
 		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
 

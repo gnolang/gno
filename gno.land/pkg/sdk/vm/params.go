@@ -3,11 +3,11 @@ package vm
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
@@ -22,10 +22,6 @@ const (
 	depositDefault                 = "600000000ugnot"
 	storagePriceDefault            = "100ugnot" // cost per byte (1 gnot per 10KB) 1B GNOT == 10TB
 	storageFeeCollectorNameDefault = "storage_fee_collector"
-
-	// ValsetRealmDefault is the default realm path for on-chain validator set management.
-	// Keep in sync with examples/gno.land/r/sys/validators/v3/poc.gno
-	ValsetRealmDefault = "gno.land/r/sys/validators/v3"
 
 	// Depth floors calibrated for B+32 at 100M items with 10K cache, batched 1000 muts.
 	minGetReadDepth100Default = int64(300) // 3.0 GET read ops
@@ -212,10 +208,6 @@ const (
 	sysUsersPkgParamPath = moduleParamPrefix + ":p:sysnames_pkgpath"
 	sysCLAPkgParamPath   = moduleParamPrefix + ":p:syscla_pkgpath"
 	chainDomainParamPath = moduleParamPrefix + ":p:chain_domain"
-
-	// ValsetRealmParamPath is the param key that stores the path of the
-	// realm responsible for on-chain validator set management.
-	ValsetRealmParamPath = moduleParamPrefix + ":p:valset_realm_path"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
@@ -234,12 +226,6 @@ func (vm *VMKeeper) getSysCLAPkgParam(ctx sdk.Context) string {
 	sysCLAPkg := sysCLAPkgDefault
 	vm.prmk.GetString(ctx, sysCLAPkgParamPath, &sysCLAPkg)
 	return sysCLAPkg
-}
-
-func (vm *VMKeeper) getValsetRealmParam(ctx sdk.Context) string {
-	valsetRealm := ValsetRealmDefault
-	vm.prmk.GetString(ctx, ValsetRealmParamPath, &valsetRealm)
-	return valsetRealm
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
@@ -262,12 +248,21 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 			panic(fmt.Sprintf("invalid storage_fee_collector address: %v", err))
 		}
 		params.StorageFeeCollector = addr
-	case "p:valset_realm_path":
-		// EndBlocker reads this key directly (with const fallback), so we
-		// don't store it on Params; just validate the format here.
-		s := sdkparams.MustParamString("valset_realm_path", value)
-		if s != "" && !gno.IsRealmPath(s) {
-			panic(fmt.Sprintf("invalid valset realm path %q", s))
+	case "p:valset_dirty":
+		// Just type-check; the bool value is opaque.
+		if _, ok := value.(bool); !ok {
+			panic(fmt.Sprintf("value for VM param %s is an invalid type (%T)", key, value))
+		}
+		return
+	case "p:valset_new", "p:valset_prev":
+		// Validate each "<pubkey>:<power>" entry on write so a bad realm
+		// can't seed garbage that EndBlocker has to recover from.
+		entries, ok := value.([]string)
+		if !ok {
+			panic(fmt.Sprintf("value for VM param %s is an invalid type (%T)", key, value))
+		}
+		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
+			panic(fmt.Sprintf("invalid %s: %v", key, err))
 		}
 		return
 	case "p:min_get_read_depth_100":
@@ -288,39 +283,10 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))
 		}
-		// Validate per-element entries written to the active valset realm's
-		// valset_new_pubkeys / valset_new_powers lists. Each list is
-		// validated in isolation (length parity is enforced on the read
-		// side via abci.ParseValidatorUpdates).
-		valsetRealm := vm.getValsetRealmParam(ctx)
-		switch key {
-		case valsetRealm + ":valset_new_pubkeys":
-			vals := mustStringList(key, value)
-			for _, pk := range vals {
-				if _, err := crypto.PubKeyFromBech32(pk); err != nil {
-					panic(fmt.Sprintf("invalid validator pubkey %q: %v", pk, err))
-				}
-			}
-		case valsetRealm + ":valset_new_powers":
-			vals := mustStringList(key, value)
-			for _, p := range vals {
-				if _, err := strconv.ParseUint(p, 10, 63); err != nil {
-					panic(fmt.Sprintf("invalid voting power %q: %v", p, err))
-				}
-			}
-		}
-		// Allow other realm-scoped params through without validation.
+		// Allow realm-scoped params through without validation.
 		return
 	}
 	if err := params.Validate(); err != nil {
 		panic("invalid param: " + err.Error())
 	}
-}
-
-func mustStringList(key string, value any) []string {
-	v, ok := value.([]string)
-	if !ok {
-		panic(fmt.Sprintf("value for VM param %s is an invalid type (%T)", key, value))
-	}
-	return v
 }

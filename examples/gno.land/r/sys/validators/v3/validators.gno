@@ -18,13 +18,24 @@ import (
 
 const errNoChangesProposed = "no set changes proposed"
 
-const realmPath = "gno.land/r/sys/validators/v3"
-
 var vp validators.ValsetProtocol // underlying validator set protocol
 
 func init() {
 	vp = poa.NewPoA()
-	sysparams.InitValsetPrev(realmPath)
+	sysparams.InitValsetPrev()
+}
+
+// NewProposalRequest wraps NewValsetChangeExecutor with a GovDAO proposal
+// title/description (mirrors v2's NewPropRequest signature).
+func NewProposalRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		title = "Valset changes proposal"
+	}
+	if strings.TrimSpace(description) == "" {
+		description = "This proposal applies one or more validator set changes via r/sys/validators/v3."
+	}
+	return dao.NewProposalRequest(title, description, NewValsetChangeExecutor(changesFn))
 }
 
 // NewValsetChangeExecutor creates a GovDAO executor for proposing valset
@@ -63,7 +74,7 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 			pubKeys[i] = v.PubKey.String()
 			powers[i] = int64(v.VotingPower)
 		}
-		sysparams.SetValsetProposal(realmPath, pubKeys, powers)
+		sysparams.SetValsetProposal(pubKeys, powers)
 		return nil
 	}
 

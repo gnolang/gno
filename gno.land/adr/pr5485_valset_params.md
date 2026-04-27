@@ -67,32 +67,33 @@ Because params are durable chain state, restart-safety is structural: a
 shutdown between `DeliverTx` and `EndBlocker` doesn't lose the pending flag
 or the proposed valset. There's no in-memory bridge to drop.
 
-### Params keys (prefix: `vm:gno.land/r/sys/validators/v3:`)
+### Params keys (prefix: `vm:p:`)
 
-Each slot (proposed = `new`, applied = `prev`) is a pair of parallel typed
-lists. Length must match. Address derives from pubkey, so it is not stored.
+Standard `vm:p:*` namespace, same as every other vm-module config param.
+No realm-scoped indirection: the chain reads from a fixed location, and
+only `gno.land/r/sys/params` (via the privileged `sys/params` stdlib) can
+write to it.
 
-| Key                   | Written by         | Read by    | Description                                                           |
-|-----------------------|--------------------|------------|-----------------------------------------------------------------------|
-| `valset_dirty`        | realm + EndBlocker | EndBlocker | Flag: realm sets `true` on change; EndBlocker sets `false` after apply |
-| `valset_new_pubkeys`  | realm              | EndBlocker | `[]string` of bech32 pubkeys (proposed)                                |
-| `valset_new_powers`   | realm              | EndBlocker | `[]string` of decimal powers (proposed)                                |
-| `valset_prev_pubkeys` | EndBlocker (init: realm) | EndBlocker | `[]string` of bech32 pubkeys (applied)                          |
-| `valset_prev_powers`  | EndBlocker (init: realm) | EndBlocker | `[]string` of decimal powers (applied)                          |
+| Key            | Written by         | Read by    | Description                                                           |
+|----------------|--------------------|------------|-----------------------------------------------------------------------|
+| `valset_dirty` | realm + EndBlocker | EndBlocker | Flag: realm sets `true` on change; EndBlocker sets `false` after apply |
+| `valset_new`   | realm              | EndBlocker | `[]string` — each entry is `"<bech32-pubkey>:<decimal-power>"`         |
+| `valset_prev`  | EndBlocker (init: realm) | EndBlocker | Same shape as `valset_new`; the previously applied set          |
 
-Power 0 means removal. No bespoke composite serialization; each list is a
-primitive type that the params keeper natively supports.
+Power 0 means removal. Address derives from pubkey on parse; not stored
+separately. The `pubkey:power` split keeps a one-line, trivially-parseable
+encoding without piling on parallel lists.
 
 ### Realm-side writes
 
 The realm imports `gno.land/r/sys/params` and calls thin wrappers
-(`SetValsetProposal`, `InitValsetPrev`) which in turn use `sys/params`.
+(`SetValsetProposal`, `InitValsetPrev`) that in turn use `sys/params`.
 This matches the convention used by other privileged sys realms (halt,
 fee_collector). The realm never touches `chain/params` directly.
 
 ### Valset diff
 
-A new `ValidatorUpdates.UpdatesFrom(v2)` method on `tm2/pkg/bft/abci/types`
+A `ValidatorUpdates.UpdatesFrom(v2)` method on `tm2/pkg/bft/abci/types`
 computes the minimal diff between two validator sets:
 - Additions: in v2 but not prev.
 - Removals: in prev but not v2 (emitted with `Power=0`).
@@ -102,21 +103,14 @@ Output is sorted to give a deterministic order independent of map iteration.
 
 ### Validation
 
-A shared parser `abci.ParseValidatorUpdate(s)` zips two parallel pubkey/power
-lists into `ValidatorUpdates`. Used by both `WillSetParam` (per-list write
-validation) and `EndBlocker` (read path). It rejects invalid bech32 pubkeys,
-mismatched list lengths, negative powers, and `int64`-overflowing powers.
+`abci.ParseValidatorUpdate(s)` parses entries of the form
+`"<pubkey>:<power>"` into `ValidatorUpdates`. Used by both `WillSetParam`
+(write path) and `EndBlocker` (read path). It rejects invalid bech32
+pubkeys, missing separators, negative powers, and `int64`-overflowing
+powers.
 
-The `EndBlocker` additionally filters consensus updates by allowed pubkey type
-(per `ConsensusParams.Validator.PubKeyTypeURLs`).
-
-### Active valset realm path
-
-`vm:p:valset_realm_path` is a `Set`-only param key (no field on
-`vm.Params`); the EndBlocker reads it directly with a const fallback
-(`ValsetRealmDefault = "gno.land/r/sys/validators/v3"`). `WillSetParam`
-validates the format (`gno.IsRealmPath`) on writes. This allows future
-upgrades without changing the `EndBlocker` code.
+The `EndBlocker` additionally filters consensus updates by allowed pubkey
+type (per `ConsensusParams.Validator.PubKeyTypeURLs`).
 
 ## Alternatives Considered
 
@@ -125,6 +119,16 @@ upgrades without changing the `EndBlocker` code.
   coupling and fragility.
 - **ABCI events with typed payloads**: Would require extending the GnoVM's
   event system with typed values. More invasive; params keeper already exists.
+- **Configurable valset realm path**: Earlier draft made `valset_realm_path`
+  a vm param so different realms could write to different keyspaces.
+  Dropped: only one realm at a time can hold the privilege of writing the
+  valset, and that authority is already controlled at the `sys/params`
+  layer (which restricts writers). Indirection earned no flexibility.
+- **Two parallel typed lists per slot** (`pubkeys[]` + `powers[]`): same
+  goal as the chosen format (no bespoke encoding), but doubled the key
+  count and added a length-parity invariant. The single
+  `"<pubkey>:<power>"` per entry parses with a 1-line `strings.Cut` and
+  keeps the slot self-describing.
 
 ## Consequences
 
@@ -132,9 +136,10 @@ upgrades without changing the `EndBlocker` code.
 - `EndBlocker` no longer needs a `VMKeeperI` reference.
 - No regex parsing of VM responses.
 - Validation happens at write time (fail fast).
-- Realm path is configurable.
+- Standard `vm:p:*` keyspace; consistent with other vm config params.
 
 **Negative / Tradeoffs**:
-- The realm must know about the params keeper API.
-- The param keys must be kept in sync between the realm and `app.go`.
+- The realm must go through `gno.land/r/sys/params` to write valset state.
+- The param keys must be kept in sync between the gno helper and `app.go`
+  (covered by `TestValsetConstsDoNotDrift`).
 - Existing v2 realm/chain state is not migrated (v3 is a fresh start).

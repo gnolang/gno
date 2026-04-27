@@ -560,73 +560,52 @@ func (m *endBlockerParamsMock) SetStruct(sdk.Context, string, any)     {}
 func (m *endBlockerParamsMock) GetAny(sdk.Context, string) any         { return nil }
 func (m *endBlockerParamsMock) SetAny(sdk.Context, string, any)        {}
 
-// valsetState is a tiny in-memory shim mirroring the per-realm valset key
-// space, used by TestEndBlocker to drive endBlockerParamsMock.
+// valsetState is a tiny in-memory shim mirroring the valset key space,
+// used by TestEndBlocker to drive endBlockerParamsMock.
 type valsetState struct {
-	realm                             string
-	prevPubKeys, prevPowers           []string
-	newPubKeys, newPowers             []string
-	dirty                             bool
-	prevPubKeyWrites, prevPowerWrites [][]string
+	prev, new   []string
+	dirty       bool
+	prevWrites  [][]string
+	dirtyWrites []bool
 }
 
-// splitUpdates converts ValidatorUpdates to parallel pubkey/power lists in
-// the wire format used by the params keeper.
-func splitUpdates(us []abci.ValidatorUpdate) (pubKeys, powers []string) {
-	pubKeys = make([]string, len(us))
-	powers = make([]string, len(us))
+// serializeUpdates converts ValidatorUpdates to the wire format
+// "<pubkey>:<power>" used by the params keeper.
+func serializeUpdates(us []abci.ValidatorUpdate) []string {
+	out := make([]string, len(us))
 	for i, u := range us {
-		pubKeys[i] = u.PubKey.String()
-		powers[i] = strconv.FormatInt(u.Power, 10)
+		out[i] = u.PubKey.String() + ":" + strconv.FormatInt(u.Power, 10)
 	}
-	return
+	return out
 }
 
 // newValsetMock returns a mock keeper backed by st. Reads come from st;
 // writes update st (and append to its history slices for assertions).
 func newValsetMock(st *valsetState) *endBlockerParamsMock {
-	prevPubKeysPath := valsetParamPath(st.realm, valsetPrevPubKeysKey)
-	prevPowersPath := valsetParamPath(st.realm, valsetPrevPowersKey)
-	newPubKeysPath := valsetParamPath(st.realm, valsetNewPubKeysKey)
-	newPowersPath := valsetParamPath(st.realm, valsetNewPowersKey)
-	dirtyPath := valsetParamPath(st.realm, valsetDirtyKey)
-
 	return &endBlockerParamsMock{
-		getStringFn: func(_ sdk.Context, key string, ptr *string) {
-			if key == vm.ValsetRealmParamPath {
-				*ptr = st.realm
-			}
-		},
 		getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 			switch key {
-			case prevPubKeysPath:
-				*ptr = st.prevPubKeys
-			case prevPowersPath:
-				*ptr = st.prevPowers
-			case newPubKeysPath:
-				*ptr = st.newPubKeys
-			case newPowersPath:
-				*ptr = st.newPowers
+			case valsetPrevPath:
+				*ptr = st.prev
+			case valsetNewPath:
+				*ptr = st.new
 			}
 		},
 		getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-			if key == dirtyPath {
+			if key == valsetDirtyPath {
 				*ptr = st.dirty
 			}
 		},
 		setBoolFn: func(_ sdk.Context, key string, value bool) {
-			if key == dirtyPath {
+			if key == valsetDirtyPath {
 				st.dirty = value
+				st.dirtyWrites = append(st.dirtyWrites, value)
 			}
 		},
 		setStringsFn: func(_ sdk.Context, key string, value []string) {
-			switch key {
-			case prevPubKeysPath:
-				st.prevPubKeys = value
-				st.prevPubKeyWrites = append(st.prevPubKeyWrites, value)
-			case prevPowersPath:
-				st.prevPowers = value
-				st.prevPowerWrites = append(st.prevPowerWrites, value)
+			if key == valsetPrevPath {
+				st.prev = value
+				st.prevWrites = append(st.prevWrites, value)
 			}
 		},
 	}
@@ -646,68 +625,53 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("no valset changes (dirty=false)", func(t *testing.T) {
 		t.Parallel()
 
-		st := &valsetState{realm: vm.ValsetRealmDefault, dirty: false}
+		st := &valsetState{dirty: false}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 	})
 
-	t.Run("invalid valset changes in prev recovers", func(t *testing.T) {
+	t.Run("invalid valset_prev recovers", func(t *testing.T) {
 		t.Parallel()
 
 		// Recovery contract: a corrupted prev valset must not wedge consensus.
 		// EndBlocker logs loudly, advances prev to proposed, and clears the
-		// pending-updates flag so subsequent proposals can land. Length
-		// mismatch between pubkeys and powers triggers the prev-parse error.
+		// pending flag so subsequent proposals can land.
 		st := &valsetState{
-			realm:       vm.ValsetRealmDefault,
-			prevPubKeys: []string{"some-bogus-pubkey"},
-			prevPowers:  []string{}, // length mismatch -> parse error on prev
-			newPubKeys:  []string{},
-			newPowers:   []string{},
-			dirty:       true,
+			prev:  []string{"garbage:not-a-power"},
+			new:   []string{},
+			dirty: true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
-		require.NotEmpty(t, st.prevPubKeyWrites, "prev pubkeys must be advanced")
-		require.NotEmpty(t, st.prevPowerWrites, "prev powers must be advanced")
-		assert.Empty(t, st.prevPubKeyWrites[len(st.prevPubKeyWrites)-1])
-		assert.Empty(t, st.prevPowerWrites[len(st.prevPowerWrites)-1])
+		require.NotEmpty(t, st.prevWrites, "prev must be advanced")
+		assert.Empty(t, st.prevWrites[len(st.prevWrites)-1], "prev advances to (empty) proposed")
 	})
 
-	t.Run("invalid valset changes in proposed recovers", func(t *testing.T) {
+	t.Run("invalid valset_new recovers", func(t *testing.T) {
 		t.Parallel()
 
 		// Recovery for proposed parse failure: clear the flag so a future
 		// re-propose can land. Do NOT touch prev (it's still good).
 		st := &valsetState{
-			realm:       vm.ValsetRealmDefault,
-			prevPubKeys: []string{},
-			prevPowers:  []string{},
-			newPubKeys:  []string{"bogus"},
-			newPowers:   []string{"7"}, // pubkey is invalid bech32
-			dirty:       true,
+			prev:  []string{},
+			new:   []string{"bogus:7"}, // pubkey is invalid bech32
+			dirty: true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
-		assert.Empty(t, st.prevPubKeyWrites, "prev pubkeys must NOT be touched when proposed is bad")
-		assert.Empty(t, st.prevPowerWrites, "prev powers must NOT be touched when proposed is bad")
+		assert.Empty(t, st.prevWrites, "prev must NOT be touched when proposed is bad")
 	})
 
 	t.Run("valid valset changes (additions only)", func(t *testing.T) {
 		t.Parallel()
 
 		updates := generateValidatorUpdates(t, 10)
-		newPubKeys, newPowers := splitUpdates(updates)
-		st := &valsetState{
-			realm:      vm.ValsetRealmDefault,
-			newPubKeys: newPubKeys,
-			newPowers:  newPowers,
-			dirty:      true,
-		}
+		newEntries := serializeUpdates(updates)
+		st := &valsetState{new: newEntries, dirty: true}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		require.Len(t, res.ValidatorUpdates, len(updates))
@@ -725,21 +689,14 @@ func TestEndBlocker(t *testing.T) {
 		}
 
 		assert.False(t, st.dirty)
-		assert.Equal(t, newPubKeys, st.prevPubKeys, "prev advances to proposed pubkeys")
-		assert.Equal(t, newPowers, st.prevPowers, "prev advances to proposed powers")
+		assert.Equal(t, newEntries, st.prev, "prev advances to proposed")
 	})
 
 	t.Run("wrong pubkey type filtered out", func(t *testing.T) {
 		t.Parallel()
 
 		updates := generateValidatorUpdates(t, 1)
-		newPubKeys, newPowers := splitUpdates(updates)
-		st := &valsetState{
-			realm:      vm.ValsetRealmDefault,
-			newPubKeys: newPubKeys,
-			newPowers:  newPowers,
-			dirty:      true,
-		}
+		st := &valsetState{new: serializeUpdates(updates), dirty: true}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeyEd25519") // wrong type
 
 		assert.Empty(t, res.ValidatorUpdates, "wrong pubkey type must be filtered out")
@@ -761,17 +718,12 @@ func TestEndBlocker(t *testing.T) {
 		v2Changed := prevUpdates[1]
 		v2Changed.Power = 99
 		proposed := []abci.ValidatorUpdate{prevUpdates[0], v2Changed, newcomer}
-
-		prevPubKeys, prevPowers := splitUpdates(prevUpdates)
-		newPubKeys, newPowers := splitUpdates(proposed)
+		newEntries := serializeUpdates(proposed)
 
 		st := &valsetState{
-			realm:       vm.ValsetRealmDefault,
-			prevPubKeys: prevPubKeys,
-			prevPowers:  prevPowers,
-			newPubKeys:  newPubKeys,
-			newPowers:   newPowers,
-			dirty:       true,
+			prev:  serializeUpdates(prevUpdates),
+			new:   newEntries,
+			dirty: true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
@@ -788,22 +740,17 @@ func TestEndBlocker(t *testing.T) {
 		assert.False(t, kept, "v1 (unchanged) must NOT appear in updates")
 
 		assert.False(t, st.dirty)
-		assert.Equal(t, newPubKeys, st.prevPubKeys, "prev advances to proposed")
-		assert.Equal(t, newPowers, st.prevPowers, "prev advances to proposed")
+		assert.Equal(t, newEntries, st.prev, "prev advances to proposed")
 	})
 
 	t.Run("wipe valset: prev=[v1,v2] proposed=[] -> 2 removals", func(t *testing.T) {
 		t.Parallel()
 
 		prev := generateValidatorUpdates(t, 2)
-		prevPubKeys, prevPowers := splitUpdates(prev)
 		st := &valsetState{
-			realm:       vm.ValsetRealmDefault,
-			prevPubKeys: prevPubKeys,
-			prevPowers:  prevPowers,
-			newPubKeys:  []string{},
-			newPowers:   []string{},
-			dirty:       true,
+			prev:  serializeUpdates(prev),
+			new:   []string{},
+			dirty: true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
@@ -811,28 +758,6 @@ func TestEndBlocker(t *testing.T) {
 		for _, u := range res.ValidatorUpdates {
 			assert.Equal(t, int64(0), u.Power)
 		}
-	})
-
-	t.Run("custom valset_realm_path override is honored", func(t *testing.T) {
-		t.Parallel()
-
-		const customRealm = "gno.land/r/test/custom_valset"
-		updates := generateValidatorUpdates(t, 1)
-		newPubKeys, newPowers := splitUpdates(updates)
-
-		st := &valsetState{
-			realm:      customRealm,
-			newPubKeys: newPubKeys,
-			newPowers:  newPowers,
-			dirty:      true,
-		}
-		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
-
-		require.Len(t, res.ValidatorUpdates, 1)
-		// Verify the override took effect: EndBlocker wrote prev under the
-		// custom realm's keyspace.
-		assert.Equal(t, newPubKeys, st.prevPubKeys)
-		assert.Equal(t, newPowers, st.prevPowers)
 	})
 }
 

@@ -4,16 +4,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
-
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
-// TestValsetConstsDoNotDrift asserts the param-key string values in the
-// gno-side helper (examples/gno.land/r/sys/params/valset.gno) match the
-// Go-side constants in this package. The realm and chain communicate
-// through these keys; if they drift, valset rotation silently breaks at
-// runtime with no compile/test error from either side individually.
+// TestValsetConstsDoNotDrift asserts the param-key string values in
+// examples/gno.land/r/sys/params/valset.gno match the keys EndBlocker
+// reads on the Go side. If they drift, valset rotation silently breaks
+// at runtime with no compile/test error from either side individually.
 func TestValsetConstsDoNotDrift(t *testing.T) {
 	t.Parallel()
 
@@ -30,35 +28,32 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 		t.Fatalf("read %s: %v", gnoPath, err)
 	}
 
-	want := map[string]string{
-		"valsetDirtyKey":       valsetDirtyKey,
-		"valsetNewPubKeysKey":  valsetNewPubKeysKey,
-		"valsetNewPowersKey":   valsetNewPowersKey,
-		"valsetPrevPubKeysKey": valsetPrevPubKeysKey,
-		"valsetPrevPowersKey":  valsetPrevPowersKey,
-	}
+	// Build the prefix the gno helper uses: vm:p:
+	prefix := mustGnoConst(t, data, "vmModulePrefix") + ":" +
+		mustGnoConst(t, data, "vmParamSlot") + ":"
 
-	// Match: <name> = "<value>"
-	re := regexp.MustCompile(`(?m)^\s*([a-zA-Z][a-zA-Z0-9]*)\s*=\s*"([^"]+)"`)
-	got := map[string]string{}
-	for _, m := range re.FindAllStringSubmatch(string(data), -1) {
-		got[m[1]] = m[2]
+	cases := []struct {
+		gnoName string
+		goPath  string // expected fully-qualified path
+	}{
+		{"valsetDirtyKey", valsetDirtyPath},
+		{"valsetNewKey", valsetNewPath},
+		{"valsetPrevKey", valsetPrevPath},
 	}
-
-	for name, expected := range want {
-		actual, ok := got[name]
-		if !ok {
-			t.Errorf("%s missing from %s; Go const = %q", name, gnoPath, expected)
-			continue
-		}
-		if actual != expected {
-			t.Errorf("%s: gno = %q, Go = %q (drift)", name, actual, expected)
+	for _, tc := range cases {
+		got := prefix + mustGnoConst(t, data, tc.gnoName)
+		if got != tc.goPath {
+			t.Errorf("%s: gno-built path = %q, Go path = %q (drift)", tc.gnoName, got, tc.goPath)
 		}
 	}
+}
 
-	// Sanity: realm path constant matches v3 realm location.
-	const expectedRealm = "gno.land/r/sys/validators/v3"
-	if vm.ValsetRealmDefault != expectedRealm {
-		t.Errorf("vm.ValsetRealmDefault = %q, expected %q", vm.ValsetRealmDefault, expectedRealm)
+func mustGnoConst(t *testing.T, src []byte, name string) string {
+	t.Helper()
+	re := regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(name) + `\s*=\s*"([^"]+)"`)
+	m := re.FindSubmatch(src)
+	if len(m) < 2 {
+		t.Fatalf("const %q not found in %s", name, strings.TrimSpace(string(src[:80])))
 	}
+	return string(m[1])
 }

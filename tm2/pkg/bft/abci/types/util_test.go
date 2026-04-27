@@ -103,25 +103,25 @@ func TestParseValidatorUpdate(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		pubKey    string
-		power     string
+		entry     string
 		wantPower int64
 		wantErr   string // substring match; empty = no error
 	}{
-		{name: "valid update", pubKey: pub, power: "7", wantPower: 7},
-		{name: "valid removal", pubKey: pub, power: "0", wantPower: 0},
-		{name: "bad pubkey", pubKey: "notapubkey", power: "1", wantErr: "invalid validator pubkey"},
-		{name: "negative power", pubKey: pub, power: "-1", wantErr: "invalid voting power"},
-		{name: "non-numeric power", pubKey: pub, power: "abc", wantErr: "invalid voting power"},
+		{name: "valid update", entry: pub + ":7", wantPower: 7},
+		{name: "valid removal", entry: pub + ":0", wantPower: 0},
+		{name: "missing separator", entry: pub, wantErr: `"<pubkey>:<power>"`},
+		{name: "bad pubkey", entry: "notapubkey:1", wantErr: "invalid validator pubkey"},
+		{name: "negative power", entry: pub + ":-1", wantErr: "invalid voting power"},
+		{name: "non-numeric power", entry: pub + ":abc", wantErr: "invalid voting power"},
 		// math.MaxInt64 + 1; would overflow int64 if not capped.
-		{name: "power overflowing int64", pubKey: pub, power: "9223372036854775808", wantErr: "invalid voting power"},
+		{name: "power overflowing int64", entry: pub + ":9223372036854775808", wantErr: "invalid voting power"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			u, err := ParseValidatorUpdate(tc.pubKey, tc.power)
+			u, err := ParseValidatorUpdate(tc.entry)
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 				assert.Equal(t, tc.wantPower, u.Power)
@@ -142,28 +142,21 @@ func TestParseValidatorUpdates(t *testing.T) {
 
 	t.Run("empty input", func(t *testing.T) {
 		t.Parallel()
-		u, err := ParseValidatorUpdates(nil, nil)
+		u, err := ParseValidatorUpdates(nil)
 		require.NoError(t, err)
 		assert.Empty(t, u)
 	})
 
 	t.Run("two valid entries", func(t *testing.T) {
 		t.Parallel()
-		u, err := ParseValidatorUpdates([]string{pub1, pub2}, []string{"1", "2"})
+		u, err := ParseValidatorUpdates([]string{pub1 + ":1", pub2 + ":2"})
 		require.NoError(t, err)
 		require.Len(t, u, 2)
 	})
 
-	t.Run("length mismatch", func(t *testing.T) {
-		t.Parallel()
-		_, err := ParseValidatorUpdates([]string{pub1, pub2}, []string{"1"})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "length mismatch")
-	})
-
 	t.Run("error reports entry index", func(t *testing.T) {
 		t.Parallel()
-		_, err := ParseValidatorUpdates([]string{pub1, "garbage"}, []string{"1", "2"})
+		_, err := ParseValidatorUpdates([]string{pub1 + ":1", "garbage"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "entry 1:", "error must surface offending entry index")
 	})
