@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 const (
@@ -79,9 +79,9 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 		pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
 	})
 
-	p := MustGetProposal(cross, 1000)
-	if p != nil {
-		panic("proposal must be nil")
+	p, err := GetProposal(cross, 1000)
+	if p != nil || err == nil {
+		panic("proposal should not exist and should return an error")
 	}
 	p = MustGetProposal(cross, pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
@@ -126,6 +126,10 @@ func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
 
 func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 	return true, nil
+}
+
+func (dd *dummyDao) ExecuteProposal(pid ProposalID, e Executor) error {
+	return nil
 }
 
 func (dd *dummyDao) Render(pkgpath string, path string) string {

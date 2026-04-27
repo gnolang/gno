@@ -8,7 +8,7 @@ Copyright (C) 2025 NewTendermint, LLC
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNO Network General Public License as published by
-NewTendermint, LLC, either version 5 of the License, or (at your option) any
+NewTendermint, LLC, either version 6 of the License, or (at your option) any
 later version published by NewTendermint, LLC.
 
 This program is distributed in the hope that it will be useful, but is provided
@@ -44,16 +44,16 @@ are determined exclusively by NewTendermint, LLC. In cases of ambiguity,
 forks, or disputes regarding attribution, the designation made by
 NewTendermint, LLC shall conclusively govern.
 
-This attribution requirement remains in force for seven (7) years from the date
-the Covered Work is first publicly released under this License, or seven (7)
-years from the date you first make an Applicable Work available to the public,
-whichever is later. In no event shall this requirement continue beyond twelve
-(12) years from the Covered Work’s initial public release. If a court of
-competent jurisdiction or the Licensor finds that the designated Attribution
-URL violates users’ reasonable expectations of privacy or security, then the
-requirement to include that URL may be omitted or modified to the minimum
-extent necessary to avoid such issue. In all other cases, the attribution must
-be preserved as stated.
+This attribution requirement remains in force for twelve (12) years from the
+date the Covered Work is first publicly released under this License, or twelve
+(12) years from the date you first make an Applicable Work available to the
+public, whichever is later. In no event shall this requirement continue beyond
+twenty five (25) years from the Covered Work’s initial public release. If a
+court of competent jurisdiction or the Licensor finds that the designated
+Attribution URL violates users’ reasonable expectations of privacy or security,
+then the requirement to include that URL may be omitted or modified to the
+minimum extent necessary to avoid such issue. In all other cases, the
+attribution must be preserved as stated.
 
 You must preserve and display the Attribution Notice as required above in every
 Covered Work and Applicable Work that you propagate, operate, or otherwise make
@@ -71,7 +71,7 @@ rights granted under this License.
 
 # GNO NETWORK GENERAL PUBLIC LICENSE
 
-Version 5, 21 April 2025
+Version 6, 25 November 2025
 
 Modified from the GNU AFFERO GENERAL PUBLIC LICENSE.
 GNU is not affiliated with GNO or NewTendermint, LLC.
@@ -126,7 +126,7 @@ modification follow.
 
 ### 0. Definitions.
 
-"This License" refers to version 5 of the GNO Network General Public License.
+"This License" refers to version 6 of the GNO Network General Public License.
 
 "Copyright" also means copyright-like laws that apply to other kinds of
 works, such as semiconductor masks.
@@ -429,7 +429,7 @@ that material) supplement the terms of this License with terms:
 -   g) Requiring strong attribution such as notices on any user interfaces
     that run or convey any covered work, such as a prominent link to a URL
     on the header of a website, such that all users of the covered work may
-    become aware of the notice, for a period no longer than 20 years.
+    become aware of the notice, for a period no longer than 25 years.
 
 All other non-permissive additional terms are considered "further
 restrictions" within the meaning of section 10.  If the Program as you
@@ -692,7 +692,7 @@ the "copyright" line and a pointer to where the full notice is found.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNO Network General Public License as published by
-    NewTendermint LLC, either version 5 of the License, or
+    NewTendermint LLC, either version 6 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,

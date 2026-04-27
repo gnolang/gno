@@ -1,0 +1,39 @@
+syntax = "proto3";
+package gno;
+
+option go_package = "github.com/gnolang/gno/gno.land/pkg/gnoland/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
+import "github.com/gnolang/gno/tm2/pkg/sdk/auth/auth.proto";
+import "github.com/gnolang/gno/tm2/pkg/sdk/bank/bank.proto";
+import "github.com/gnolang/gno/gno.land/pkg/sdk/vm/vm.proto";
+import "github.com/gnolang/gno/tm2/pkg/sdk/params/params.proto";
+
+// messages
+message Account {
+	std.BaseAccount base_account = 1 [json_name = "BaseAccount"];
+	uint64 attributes = 2;
+}
+
+message SessionAccount {
+	std.BaseSessionAccount base_session_account = 1 [json_name = "BaseSessionAccount"];
+	repeated string allow_paths = 2;
+}
+
+message GenesisState {
+	repeated string balances = 1;
+	repeated TxWithMetadata txs = 2;
+	auth.GenesisState auth = 3;
+	bank.GenesisState bank = 4;
+	vm.GenesisState vm = 5;
+}
+
+message TxWithMetadata {
+	std.Tx tx = 1;
+	GnoTxMetadata metadata = 2;
+}
+
+message GnoTxMetadata {
+	sint64 timestamp = 1;
+}

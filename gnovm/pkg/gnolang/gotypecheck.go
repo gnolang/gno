@@ -10,9 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 /*
@@ -42,6 +43,7 @@ type realm interface {
     Address() address
     PkgPath() string
     Coins() gnocoins
+    SentCoins() gnocoins
     Send(coins gnocoins, to address) error
     Previous() realm
     Origin() realm
@@ -55,12 +57,16 @@ func (a address) IsValid() bool { return false } // shim
 type Address = address
 
 type gnocoins []gnocoin
+func (cz gnocoins) String() string { return "" } // shim
+
 type Gnocoins = gnocoins
 
 type gnocoin struct {
     Denom string
     Amount int64
 }
+func (c gnocoin) String() string { return "" } // shim
+
 type Gnocoin = gnocoin
 `)
 	default:
@@ -132,9 +138,9 @@ func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 type TypeCheckMode int
 
 const (
-	TCLatestStrict  TypeCheckMode = iota // require latest gnomod gno version, forbid drafts
-	TCGenesisStrict                      // require latest gnomod gno version, allow drafts
-	TCLatestRelaxed                      // generate latest gno.mod if missing; for testing
+	TCLatestStrict  TypeCheckMode = iota // require latest gnomod.toml gno version, forbid drafts
+	TCGenesisStrict                      // require latest gnomod.toml gno version, allow drafts
+	TCLatestRelaxed                      // generate latest gnomod.toml if missing
 	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 
@@ -160,6 +166,11 @@ type TypeCheckOptions struct {
 	// libraries. Packages found in the Cache won't need to be type checked
 	// again.
 	Cache TypeCheckCache
+
+	// Fset, if non-nil, is used for Go parsing instead of creating a new one.
+	// After TypeCheckMemPackage returns, it contains the file position
+	// information from the parsed package.
+	Fset *token.FileSet
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -183,6 +194,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		tgetter:   gimpGetterWrapper{mpkg, opts.TestGetter},
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
+		fset:      opts.Fset,
 		cfg: &types.Config{
 			Error: func(err error) {
 				gimp.Error(err)
@@ -215,6 +227,7 @@ type gnoImporter struct {
 	tgetter   MemPackageGetter // used for stdlibs if .testing
 	cache     map[string]*gnoImporterResult
 	permCache TypeCheckCache
+	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
 	errors    []error  // there may be many for a single import
 	stack     []string // stack of pkgpaths for cyclic import detection
@@ -444,7 +457,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Parse the mem package to Go AST.
-	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg)
+	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, gimp.fset)
 	if errs != nil {
 		return nil, errs
 	}
@@ -590,10 +603,14 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 //   - gofs: all normal .gno files (and _test.gno files if wtests).
 //   - _gofs: all xxx_test package _test.gno files if wtests.
 //   - tgofs: all _testfile.gno test files.
-func GoParseMemPackage(mpkg *std.MemPackage) (
+func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 	gofset *token.FileSet, allgofs, gofs, _gofs, tgofs []*ast.File, errs error,
 ) {
-	gofset = token.NewFileSet()
+	if fset != nil {
+		gofset = fset
+	} else {
+		gofset = token.NewFileSet()
+	}
 
 	// This map is used to allow for Go native overrides/redeclarations.
 	decls := make(map[string]struct{}) // (func) decl name

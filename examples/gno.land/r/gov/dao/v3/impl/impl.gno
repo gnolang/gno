@@ -4,16 +4,17 @@ import (
 	"chain/runtime"
 
 	"gno.land/r/gov/dao/v3/memberstore"
-	"gno.land/r/sys/users"
 )
 
-var govDAO *GovDAO = NewGovDAO()
-var law *Law
-var gRealm = runtime.CurrentRealm()
+var (
+	law    *Law
+	govDAO *GovDAO = NewGovDAO()
+	gRealm         = runtime.CurrentRealm()
+)
 
 func init() {
 	law = &Law{
-		Supermajority: 66,
+		Supermajority: 66.66, // Two thirds
 	}
 }
 
@@ -30,10 +31,6 @@ func AddMember(cur realm, addr address) {
 	m, t := memberstore.Get().GetMember(caller.Address())
 	if m == nil {
 		panic("caller is not a member")
-	}
-
-	if users.ResolveAddress(caller.Address()) == nil {
-		panic("voter should have a namespace")
 	}
 
 	if t != memberstore.T1 && t != memberstore.T2 {

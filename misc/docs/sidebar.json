@@ -24,6 +24,7 @@
           "builders/example-minisocial-dapp",
           "builders/deploy-packages",
           "builders/connect-clients-and-apps",
+          "builders/stress-testing-with-supernova",
           "builders/become-a-gnome"
         ]
       },
@@ -33,6 +34,7 @@
         "items": [
           "resources/effective-gno",
           "resources/gno-packages",
+          "resources/gno-data-structures",
           "resources/gnoland-networks",
           "resources/users-and-teams",
           "resources/gas-fees",

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
@@ -23,6 +23,10 @@ func init() {
 }
 
 func Deposit(cur realm) {
+	// Prevent cross-realm MITM: without this, an intermediary could
+	// deposit on behalf of the caller and mint wugnot to itself
+	// instead of the actual sender.
+	runtime.AssertOriginCall()
 	caller := runtime.PreviousRealm().Address()
 	sent := banker.OriginSend()
 	amount := sent.AmountOf("ugnot")
@@ -33,6 +37,7 @@ func Deposit(cur realm) {
 }
 
 func Withdraw(cur realm, amount int64) {
+	runtime.AssertOriginCall()
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
 	caller := runtime.PreviousRealm().Address()

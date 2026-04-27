@@ -88,6 +88,9 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	nodecfg.DB = db
 	nodecfg.TMConfig.DBPath = pcfg.DBDir
 	nodecfg.TMConfig = pcfg.TMConfig
+	// Ensure WAL is disabled for tests. WALDisabled has `json:"-"` tag,
+	// so it's lost when config is serialized to JSON for subprocess communication.
+	nodecfg.TMConfig.Consensus.WALDisabled = true
 	nodecfg.Genesis = pcfg.Genesis.ToGenesisDoc()
 	nodecfg.Genesis.Validators = []bft.GenesisValidator{
 		{

@@ -14,7 +14,7 @@ import (
 const (
 	// persist validators every valSetCheckpointInterval blocks to avoid
 	// LoadValidators taking too much time.
-	// https://github.com/tendermint/classic/pull/3438
+	// https://github.com/tendermint/tendermint/pull/3438
 	// 100000 results in ~ 100ms to get 100 validators (see BenchmarkLoadValidators)
 	valSetCheckpointInterval = 100000
 )
@@ -94,7 +94,6 @@ func loadState(db dbm.DB, key []byte) (state State) {
 		osm.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return state
 }
@@ -178,7 +177,6 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 		osm.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
                 changed: %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return abciResponses, nil
 }
@@ -253,7 +251,7 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 			// release and just panic. Old chains might panic otherwise if they
 			// haven't saved validators at intermediate (%valSetCheckpointInterval)
 			// height yet.
-			// https://github.com/tendermint/classic/issues/3543
+			// https://github.com/tendermint/tendermint/issues/3543
 			valInfo2 = loadValidatorsInfo(db, valInfo.LastHeightChanged)
 			lastStoredHeight = valInfo.LastHeightChanged
 			if valInfo2 == nil || valInfo2.ValidatorSet == nil {
@@ -294,7 +292,6 @@ func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
 		osm.Exit(fmt.Sprintf(`LoadValidators: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return v
 }
@@ -374,7 +371,6 @@ func loadConsensusParamsInfo(db dbm.DB, height int64) *ConsensusParamsInfo {
 		osm.Exit(fmt.Sprintf(`LoadConsensusParams: Data has been corrupted or its spec has changed:
                 %v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
 	return paramsInfo
 }

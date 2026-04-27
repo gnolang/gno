@@ -248,7 +248,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Removing a peer should go last to avoid a situation where a peer
 	// reconnect to our node and the switch calls InitPeer before
 	// RemovePeer is finished.
-	// https://github.com/tendermint/classic/issues/3338
+	// https://github.com/tendermint/tendermint/issues/3338
 	sw.peers.Remove(peer.ID())
 
 	sw.events.Notify(events.PeerDisconnectedEvent{
@@ -287,25 +287,19 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 			// Pop the item from the dial queue
 			item = sw.dialQueue.Pop()
+			peerAddr := item.Address
+
+			// Check if the peer is already connected
+			ps := sw.Peers()
+			if ps.Has(peerAddr.ID) {
+				continue
+			}
 
 			// Dial the peer
 			sw.Logger.Info(
 				"dialing peer",
 				"address", item.Address.String(),
 			)
-
-			peerAddr := item.Address
-
-			// Check if the peer is already connected
-			ps := sw.Peers()
-			if ps.Has(peerAddr.ID) {
-				sw.Logger.Warn(
-					"ignoring dial request for existing peer",
-					"id", peerAddr.ID,
-				)
-
-				continue
-			}
 
 			// Create a dial context
 			dialCtx, cancelFn := context.WithTimeout(ctx, defaultDialTimeout)

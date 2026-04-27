@@ -51,12 +51,12 @@ func (ms *mockSigner) String() string {
 	return fmt.Sprintf("mockSigner{%v}", ms.PubKey().Address())
 }
 
-// newMockSignerWithPrivKey returns a new mockSigner instance.
+// NewMockSignerWithPrivKey returns a new mockSigner instance.
 func NewMockSignerWithPrivKey(privKey crypto.PrivKey) Signer {
 	return &mockSigner{privKey}
 }
 
-// newMockSigner returns a new mockSigner instance.
+// NewMockSigner returns a new mockSigner instance.
 func NewMockSigner() Signer {
 	return &mockSigner{ed25519.GenPrivKey()}
 }

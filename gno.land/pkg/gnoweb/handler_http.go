@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"path"
@@ -31,6 +32,7 @@ type StaticMetadata struct {
 	ChainId    string
 	Analytics  bool
 	BuildTime  string
+	Banner     components.BannerData
 }
 
 type AliasKind int
@@ -116,6 +118,15 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
+	// Read theme preference from cookie for server-side rendering.
+	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.
+	var theme string
+	if c, err := r.Cookie("theme"); err == nil {
+		if c.Value == "light" || c.Value == "dark" {
+			theme = c.Value
+		}
+	}
+
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
@@ -129,6 +140,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			AssetsPath: h.Static.AssetsPath,
 			BuildTime:  h.Static.BuildTime,
 		},
+		Theme:  theme,
+		Banner: h.Static.Banner,
 	}
 
 	// Parse the URL
@@ -197,11 +210,32 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use form data as query
+	// Extract path from hidden form field if present.
+	// The value is HTML-escaped in the form and URL-encoded when building the redirect.
+	if gnoPath := r.PostForm.Get("__gno_path"); gnoPath != "" {
+		gnourl.Args = gnoPath
+		// Remove from form data so it's not included in query params
+		r.PostForm.Del("__gno_path")
+	}
+
+	// Use remaining form data as query
 	gnourl.Query = r.PostForm
 
+	// Build redirect URL using EncodeFormURL.
+	// url.PathEscape encodes slashes and delimiter characters; the args remain part of
+	// the path (e.g. /r/realm:args), not a URL scheme.
+	sanitizedRedirectURL := gnourl.EncodeFormURL()
+
+	// Defense-in-depth: validate redirect URL to prevent open redirects,
+	// This can happen when path is "/" and file is "evil.domain" -> "//evil.domain"
+	if strings.HasPrefix(sanitizedRedirectURL, "//") {
+		h.Logger.Warn("blocked unsafe redirect", "url", sanitizedRedirectURL)
+		http.Error(w, "invalid redirect", http.StatusBadRequest)
+		return
+	}
+
 	// Redirect to the new URL
-	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
+	http.Redirect(w, r, sanitizedRedirectURL, http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
@@ -232,6 +266,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData)
@@ -246,7 +281,11 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent))
+	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent), RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -302,7 +341,11 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	}
 
 	var content bytes.Buffer
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw)
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
@@ -377,7 +420,11 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Render user profile realm
 	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
 	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw)
+		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+			ChainId: h.Static.ChainId,
+			Remote:  h.Static.RemoteHelp,
+			Domain:  h.Static.Domain,
+		})
 	}
 
 	if content.Len() == 0 {
@@ -399,7 +446,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Try to decode the bech32 address
 	username = CreateUsernameFromBech32(username)
 
-	//TODO: get from user r/profile and use placeholder if not set
+	// TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username
 
 	data := components.UserData{
@@ -421,6 +468,21 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	// renderDoc renders a markdown documentation string to a Component.
+	// Returns nil for empty input; renderer errors degrade to escaped text.
+	renderDoc := func(src string) components.Component {
+		if strings.TrimSpace(src) == "" {
+			return nil
+		}
+		var buf bytes.Buffer
+		if err := h.Renderer.RenderDocumentation(&buf, []byte(src)); err != nil {
+			h.Logger.Warn("render doc failed — falling back to escaped plain text",
+				"error", err)
+			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src)))
+		}
+		return components.NewReaderComponent(&buf)
 	}
 
 	// Get public non-method funcs
@@ -456,6 +518,15 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Wrap each function with its pre-rendered documentation Component.
+	functions := make([]components.HelpFunction, 0, len(fsigs))
+	for _, fn := range fsigs {
+		functions = append(functions, components.HelpFunction{
+			JSONFunc:     fn,
+			DocComponent: renderDoc(fn.Doc),
+		})
+	}
+
 	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -466,8 +537,8 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		Functions: functions,
+		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 	})
 }
@@ -481,7 +552,11 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	}
 
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+	}); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}

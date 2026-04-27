@@ -14,7 +14,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/fail"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -164,7 +163,7 @@ func NewConsensusState(
 		timeoutTicker:    NewTimeoutTicker(),
 		statsMsgQueue:    make(chan msgInfo, msgQueueSize),
 		done:             nil,
-		doWALCatchup:     true,
+		doWALCatchup:     !config.WALDisabled, // no catchup if WAL is disabled
 		evsw:             events.NewEventSwitch(),
 		wal:              walm.NopWAL{},
 		walDisabled:      config.WALDisabled,
@@ -482,7 +481,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 		// be processed out of order.
 		// TODO: use CList here for strict determinism and
 		// attempt push to internalMsgQueue in receiveRoutine
-		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
+		cs.Logger.Warn("Internal msg queue is full. Using a go-routine")
 		go func() { cs.internalMsgQueue <- mi }()
 	}
 }
@@ -494,6 +493,9 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 		return
 	}
 	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
+	if seenCommit == nil {
+		panic(fmt.Sprintf("Failed to reconstruct LastCommit: SeenCommit not found for height %d", state.LastBlockHeight))
+	}
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		panic("Failed to reconstruct LastCommit: Does not have +2/3 maj")
@@ -521,7 +523,7 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	// signal the new round step, because other services (eg. txNotifier)
 	// depend on having an up-to-date peer state!
 	if !cs.state.IsEmpty() && (state.LastBlockHeight <= cs.state.LastBlockHeight) {
-		cs.Logger.Info("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
+		cs.Logger.Debug("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
 		cs.newStep()
 		return
 	}
@@ -645,14 +647,6 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 				panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", mi, err))
 			}
 
-			if _, ok := mi.Msg.(*VoteMessage); ok {
-				// we actually want to simulate failing during
-				// the previous WriteSync, but this isn't easy to do.
-				// Equivalent would be to fail here and manually remove
-				// some bytes from the end of the wal.
-				fail.Fail() // XXX
-			}
-
 			// handles proposals, block parts, votes
 			cs.handleMsg(mi)
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
@@ -705,7 +699,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// We probably don't want to stop the peer here. The vote does not
 		// necessarily comes from a malicious peer but can be just broadcasted by
 		// a typical peer.
-		// https://github.com/tendermint/classic/issues/1281
+		// https://github.com/tendermint/tendermint/issues/1281
 		// }
 
 		// NOTE: the vote is broadcast to peers by the reactor listening
@@ -721,7 +715,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 
 	if err != nil { //nolint:staticcheck
 		// Causes TestReactorValidatorSetChanges to timeout
-		// https://github.com/tendermint/classic/issues/3406
+		// https://github.com/tendermint/tendermint/issues/3406
 		// cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
 		// 	"peer", peerID, "err", err, "msg", msg)
 	}
@@ -862,6 +856,9 @@ func (cs *ConsensusState) needProofBlock(height int64) bool {
 	}
 
 	lastBlockMeta := cs.blockStore.LoadBlockMeta(height - 1)
+	if lastBlockMeta == nil {
+		panic(fmt.Sprintf("Failed to load block meta for height %d", height-1))
+	}
 	return !bytes.Equal(cs.state.AppHash, lastBlockMeta.Header.AppHash)
 }
 
@@ -1332,8 +1329,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		"num txs", block.NumTxs,
 	)
 
-	fail.Fail() // XXX
-
 	// Save to blockStore.
 	if cs.blockStore.Height() < block.Height {
 		// NOTE: the seenCommit is local justification to commit this block,
@@ -1345,8 +1340,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		// Happens during replay if we already saved the block but didn't commit
 		cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height)
 	}
-
-	fail.Fail() // XXX
 
 	// Write MetaMessage{Height+1} for this height, implying that the
 	// blockstore has saved the block for height Height.
@@ -1366,8 +1359,6 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", meta, err))
 	}
 
-	fail.Fail() // XXX
-
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
@@ -1384,12 +1375,8 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 		return
 	}
 
-	fail.Fail() // XXX
-
 	// NewHeightStep!
 	cs.updateToState(stateCopy)
-
-	fail.Fail() // XXX
 
 	// cs.StartTime is already set.
 	// Schedule Round0 to start soon.
@@ -1544,7 +1531,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool
 			// Either
 			// 1) bad peer OR
 			// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
-			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/classic/issues/3839).
+			// 3) tmkms use with multiple validators connecting to a single tmkms instance (https://github.com/tendermint/tendermint/issues/3839).
 			cs.Logger.Info("Error attempting to add vote", "err", err)
 			return added, ErrAddingVote
 		}
@@ -1734,7 +1721,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
 	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
 	if cs.LockedBlock != nil {
-		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
+		// See the BFT time spec https://docs.cometbft.com/v0.38/spec/consensus/bft-time
 		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
 	} else if cs.ProposalBlock != nil {
 		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)

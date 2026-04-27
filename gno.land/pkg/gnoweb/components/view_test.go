@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,8 +143,8 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 func TestRealmView(t *testing.T) {
 	content := NewReaderComponent(strings.NewReader("testdata"))
 	tocItems := &RealmTOCData{
-		Items: []*markdown.TocItem{
-			{Title: []byte("Introduction"), ID: []byte("introduction")},
+		Items: []*TocItem{
+			{Title: "Introduction", ID: "introduction"},
 		},
 	}
 	data := RealmData{
@@ -168,10 +167,103 @@ func TestRealmView(t *testing.T) {
 	assert.NoError(t, view.Render(io.Discard))
 }
 
+func TestRealmViewTOCXSSPrevention(t *testing.T) {
+	tests := []struct {
+		name           string
+		tocTitle       string
+		tocID          string
+		mustNotContain []string
+		mustContain    []string
+	}{
+		{
+			name:           "HTML entities in TOC title",
+			tocTitle:       "&lt;script&gt;alert('XSS')&lt;/script&gt; Heading",
+			tocID:          "heading",
+			mustNotContain: []string{"<script>alert", "<script>"},
+			mustContain:    []string{"&amp;lt;script&amp;gt;"},
+		},
+		{
+			name:           "Image tag with onerror via entities",
+			tocTitle:       "&lt;img src=x onerror=alert(1)&gt;",
+			tocID:          "img",
+			mustNotContain: []string{},
+			mustContain:    []string{"&amp;lt;img"},
+		},
+		{
+			name:           "SVG with onload via entities",
+			tocTitle:       "&lt;svg onload=alert(1)&gt;",
+			tocID:          "svg",
+			mustNotContain: []string{},
+			mustContain:    []string{"&amp;lt;svg"},
+		},
+		{
+			name:           "Numeric HTML entities",
+			tocTitle:       "&#60;script&#62;alert(1)&#60;/script&#62;",
+			tocID:          "numeric",
+			mustNotContain: []string{"<script"},
+			mustContain:    []string{"&amp;#60;script"},
+		},
+		{
+			name:           "Normal heading with ampersand",
+			tocTitle:       "API & SDK",
+			tocID:          "api-sdk",
+			mustNotContain: []string{},
+			mustContain:    []string{"API &amp; SDK"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a RealmView with potentially malicious TOC item
+			content := NewReaderComponent(strings.NewReader("test content"))
+			tocItems := &RealmTOCData{
+				Items: []*TocItem{
+					{Title: tt.tocTitle, ID: tt.tocID},
+				},
+			}
+			data := RealmData{
+				ComponentContent: content,
+				TocItems:         tocItems,
+			}
+
+			view := RealmView(data)
+
+			var buf strings.Builder
+			err := view.Render(&buf)
+			assert.NoError(t, err, "expected no error rendering view")
+
+			rendered := buf.String()
+
+			tocStart := strings.Index(rendered, `<ul class="b-toc">`)
+			tocEnd := strings.LastIndex(rendered, `</ul>`)
+			if tocStart == -1 || tocEnd == -1 {
+				t.Fatal("could not find TOC in rendered HTML")
+			}
+			tocHTML := rendered[tocStart : tocEnd+5]
+
+			for _, danger := range tt.mustNotContain {
+				if strings.Contains(tocHTML, danger) {
+					t.Errorf("Found unescaped dangerous pattern %q in TOC HTML.\n"+
+						"TOC HTML: %s",
+						danger, tocHTML)
+				}
+			}
+
+			for _, safe := range tt.mustContain {
+				if !strings.Contains(tocHTML, safe) {
+					t.Errorf("Expected escaped pattern %q not found in TOC HTML.\n"+
+						"Title: %s\nTOC HTML: %s",
+						safe, tt.tocTitle, tocHTML)
+				}
+			}
+		})
+	}
+}
+
 func TestHelpView(t *testing.T) {
-	functions := []*doc.JSONFunc{
-		{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}},
-		{Name: "Func2", Params: []*doc.JSONField{{Name: "param1"}, {Name: "param2"}}},
+	functions := []HelpFunction{
+		{JSONFunc: &doc.JSONFunc{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}}},
+		{JSONFunc: &doc.JSONFunc{Name: "Func2", Params: []*doc.JSONField{{Name: "param1"}, {Name: "param2"}}}},
 	}
 	data := HelpData{
 		SelectedFunc: "Func1",
@@ -212,7 +304,7 @@ func TestDirectoryView(t *testing.T) {
 	assert.True(t, ok, "expected DirData type in component data")
 
 	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
-	assert.Equal(t, len(files), len(dirData.Files), "expected %d files, got %d", len(files), len(dirData.Files))
+	assert.Equal(t, len(files), len(dirData.FilesLinks), "expected %d files, got %d", len(files), len(dirData.FilesLinks))
 	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
 	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
 
@@ -250,52 +342,6 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.linkType.LinkPrefix(tc.pkgPath)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestGetFullLinks(t *testing.T) {
-	cases := []struct {
-		name     string
-		files    []string
-		linkType DirLinkType
-		pkgPath  string
-		expected FilesLinks
-	}{
-		{
-			name:     "Source link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
-				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "File link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeFile,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "file1.gno", Name: "file1.gno"},
-				{Link: "file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "Empty files list",
-			files:    []string{},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{},
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			result := GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

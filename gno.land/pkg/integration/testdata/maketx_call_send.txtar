@@ -1,0 +1,38 @@
+# load the package
+loadpkg gno.land/r/foo/call_realm $WORK/realm
+
+# start a new node
+gnoland start
+
+## user balance before realm send
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "\d+ugnot"'
+
+## realm balance before realm send
+## Pre-send, realm account does not exist (bank.SendCoins short-circuits
+## on zero amount during AddPkg, so no empty BaseAccount is created).
+gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
+stdout 'data: null'
+
+# call to realm with -send
+gnokey maketx call -send 42ugnot -pkgpath gno.land/r/foo/call_realm -func GimmeMoney -gas-fee 240001ugnot -gas-wanted 2_400_000 -broadcast -chainid=tendermint_test test1
+stdout '("send: 42ugnot")'
+
+## user balance after realm send
+# reduced by -gas-fee AND -send
+gnokey query auth/accounts/$test1_user_addr
+stdout '"coins": "\d+ugnot"'
+
+## realm balance after realm send
+gnokey query auth/accounts/g1x4ykzcqksj2hc5qpvr8kd9zaffkd82rvmzqup7
+stdout '"coins": "42ugnot"'
+
+
+-- realm/realm.gno --
+package call_realm
+
+import "chain/banker"
+
+func GimmeMoney(cur realm) string {
+	return "send: " + banker.OriginSend().String()
+}

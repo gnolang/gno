@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
 func TestKeeper(t *testing.T) {
@@ -76,6 +77,10 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param3, uint64(12345))
 	require.Equal(t, param4, int64(1000))
 	require.Equal(t, param5, []byte("bye"))
+
+	// Test SetBytes with nil deletes the key
+	keeper.SetBytes(ctx, "param5", nil)
+	require.False(t, keeper.Has(ctx, "param5"))
 }
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.
@@ -114,7 +119,7 @@ func TestKeeper_internal(t *testing.T) {
 
 	for i, kv := range kvs {
 		vk := storeKey(kv.key)
-		bz := store.Get(vk)
+		bz := store.Get(nil, vk)
 		require.NotNil(t, bz, "store.Get() returns nil, tc #%d", i)
 		err := amino.UnmarshalJSON(bz, kv.ptr)
 		require.NoError(t, err, "cdc.UnmarshalJSON() returns error, tc #%d", i)

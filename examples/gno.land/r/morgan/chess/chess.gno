@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"gno.land/p/morgan/chess"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 )
 
 // realm state
@@ -530,7 +530,7 @@ func checkErr(err error) {
 	}
 }
 
-// Replacement for OriginCall using std.PreviousRealm().
+// Replacement for OriginCall using runtime.PreviousRealm().
 func assertOriginCall() {
 	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-origin call")

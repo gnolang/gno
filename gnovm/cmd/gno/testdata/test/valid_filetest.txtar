@@ -9,7 +9,7 @@ gno test -v .
 
 stdout 'test'
 stderr '=== RUN   ./valid_filetest.gno'
-stderr '--- PASS: ./valid_filetest.gno \(\d+\.\d\ds\)'
+stderr '--- PASS: ./valid_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --
