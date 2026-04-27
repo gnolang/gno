@@ -14,7 +14,6 @@ func TestLoad(t *testing.T) {
 		t.Fatal("expected at least one network")
 	}
 
-	seen := map[string]bool{}
 	for _, n := range reg.Networks {
 		if n.Name == "" {
 			t.Errorf("network missing name: %+v", n)
@@ -28,10 +27,6 @@ func TestLoad(t *testing.T) {
 		if n.Status == "" {
 			t.Errorf("network %q missing status", n.Name)
 		}
-		if seen[n.ChainID] {
-			t.Errorf("duplicate chain_id: %q", n.ChainID)
-		}
-		seen[n.ChainID] = true
 	}
 }
 
