@@ -1,71 +1,100 @@
 package keyscli
 
-import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-)
+import "testing"
 
-func TestGnowebURLFromRemote(t *testing.T) {
-	t.Parallel()
+func TestGnowebURLForPkg(t *testing.T) {
+	tests := []struct {
+		name    string
+		envURL  string
+		chainID string
+		pkgPath string
+		want    string
+	}{
+		{
+			name:    "empty pkgPath",
+			chainID: "gnoland1",
+			pkgPath: "",
+			want:    "",
+		},
+		{
+			name:    "registry hit",
+			chainID: "gnoland1",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "https://gno.land/r/demo/counter",
+		},
+		{
+			name:    "registry hit testnet",
+			chainID: "test11",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "https://test11.testnets.gno.land/r/demo/counter",
+		},
+		{
+			name:    "dev chainID",
+			chainID: "dev",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "http://127.0.0.1:8888/r/demo/counter",
+		},
+		{
+			name:    "unknown chain",
+			chainID: "mydev",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "",
+		},
+		{
+			name:    "env var overrides registry",
+			envURL:  "https://my.private.net",
+			chainID: "gnoland1",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "https://my.private.net/r/demo/counter",
+		},
+		{
+			name:    "env var resolves unknown chain",
+			envURL:  "https://my.private.net",
+			chainID: "private42",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "https://my.private.net/r/demo/counter",
+		},
+		{
+			name:    "env var with trailing slash",
+			envURL:  "https://my.private.net/",
+			chainID: "private42",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "https://my.private.net/r/demo/counter",
+		},
+		{
+			name:    "env var works with empty chainID",
+			envURL:  "https://my.private.net",
+			chainID: "",
+			pkgPath: "gno.land/r/demo/counter",
+			want:    "https://my.private.net/r/demo/counter",
+		},
+		{
+			name:    "pkgPath without gno.land prefix",
+			chainID: "gnoland1",
+			pkgPath: "/r/demo/counter",
+			want:    "https://gno.land/r/demo/counter",
+		},
+		{
+			name:    "pkgPath equal to gno.land",
+			chainID: "gnoland1",
+			pkgPath: "gno.land",
+			want:    "https://gno.land/",
+		},
+		{
+			name:    "pkgPath gno.landfoo not stripped",
+			chainID: "gnoland1",
+			pkgPath: "gno.landfoo/r/demo",
+			want:    "https://gno.land/gno.landfoo/r/demo",
+		},
+	}
 
-	t.Run("empty remote", func(t *testing.T) {
-		t.Parallel()
-		got := GnowebURLFromRemote("", "gno.land/r/demo/counter")
-		if got != "" {
-			t.Errorf("expected empty, got %q", got)
-		}
-	})
-
-	t.Run("empty pkgPath", func(t *testing.T) {
-		t.Parallel()
-		got := GnowebURLFromRemote("127.0.0.1:26657", "")
-		if got != "" {
-			t.Errorf("expected empty, got %q", got)
-		}
-	})
-
-	t.Run("unreachable remote returns empty", func(t *testing.T) {
-		t.Parallel()
-		got := GnowebURLFromRemote("192.0.2.1:26657", "gno.land/r/demo/counter")
-		if got != "" {
-			t.Errorf("expected empty for unreachable host, got %q", got)
-		}
-	})
-}
-
-func TestIsGnowebReachable(t *testing.T) {
-	t.Parallel()
-
-	t.Run("gnoweb instance", func(t *testing.T) {
-		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, `<html><title>gno.land - /r/gnoland/home</title></html>`)
-		}))
-		defer srv.Close()
-
-		if !isGnowebReachable(srv.URL) {
-			t.Error("expected reachable gnoweb")
-		}
-	})
-
-	t.Run("non-gnoweb server", func(t *testing.T) {
-		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, `<html><title>Some Other App</title></html>`)
-		}))
-		defer srv.Close()
-
-		if isGnowebReachable(srv.URL) {
-			t.Error("expected non-gnoweb server to be rejected")
-		}
-	})
-
-	t.Run("unreachable", func(t *testing.T) {
-		t.Parallel()
-		if isGnowebReachable("http://192.0.2.1:9999") {
-			t.Error("expected unreachable")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(gnowebURLEnv, tt.envURL)
+			got := gnowebURLForPkg(tt.chainID, tt.pkgPath)
+			if got != tt.want {
+				t.Errorf("gnowebURLForPkg(%q, %q) [env=%q] = %q, want %q", tt.chainID, tt.pkgPath, tt.envURL, got, tt.want)
+			}
+		})
+	}
 }

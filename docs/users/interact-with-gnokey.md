@@ -221,6 +221,8 @@ GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+PKG PATH:   gno.land/p/examplenamespace/hello_world
+VIEW AT:    https://staging.gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
@@ -230,6 +232,14 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `PKG PATH:   gno.land/p/examplenamespace/hello_world` - the deployed package path (`addpkg` only)
+- `VIEW AT:    https://staging.gno.land/p/...` - gnoweb URL to browse the deployed package (`addpkg` only, omitted if base URL can't be resolved)
+
+`VIEW AT` base URL is resolved in this priority order:
+
+1. `$GNO_GNOWEB_URL` — for private/custom networks.
+2. [Network registry](../resources/gnoland-networks.md) entry matching `--chainid`.
+3. `--chainid dev` → `http://127.0.0.1:8888` (gnodev default).
 
 Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network

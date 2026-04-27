@@ -3,13 +3,10 @@ package keyscli
 
 import (
 	"encoding/base64"
-	"io"
-	"net"
-	"net/http"
-	"net/url"
+	"os"
 	"strings"
-	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/networks"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -19,6 +16,21 @@ import (
 
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/fftoml"
+)
+
+const (
+	// devChainID + devGnowebURL hardcode gnodev's defaults so local
+	// deploys still get a VIEW AT line without being in the registry.
+	devChainID   = "dev"
+	devGnowebURL = "http://127.0.0.1:8888"
+
+	// gnowebURLEnv lets operators of private/custom networks supply a
+	// gnoweb base URL when their chain isn't in the registry.
+	gnowebURLEnv = "GNO_GNOWEB_URL"
+
+	// pkgPathDomain is stripped from pkg paths before joining with the
+	// gnoweb base URL. gnoweb routes use the relative path only.
+	pkgPathDomain = "gno.land"
 )
 
 func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
@@ -39,7 +51,6 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		commands.HelpExec,
 	)
 
-	// OnTxSuccess is only used by NewBroadcastCmd
 	cfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
 		PrintTxInfo(tx, res, io)
 	}
@@ -58,7 +69,6 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewMultisignCmd(cfg, io),
 		client.NewVersionCmd(cfg, io),
 
-		// Custom MakeTX command
 		NewMakeTxCmd(cfg, io),
 	)
 
@@ -117,52 +127,54 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	return bytesDelta, coinsDelta, hasEvents
 }
 
-// GnowebURLFromRemote derives a best-effort gnoweb URL for pkgPath
-// from the RPC remote address. It strips the "rpc." hostname prefix,
-// swaps the port to 8888, and appends the package path without "gno.land".
-// Returns empty string if gnoweb is not reachable at the derived address.
-func GnowebURLFromRemote(remote, pkgPath string) string {
-	if remote == "" || pkgPath == "" {
+// gnowebURLForPkg returns the gnoweb URL where pkgPath can be browsed.
+// Resolution order: GNO_GNOWEB_URL env var, "dev" → gnodev default,
+// then the canonical registry in gno.land/pkg/networks. Returns "" if
+// nothing matches.
+func gnowebURLForPkg(chainID, pkgPath string) string {
+	if pkgPath == "" {
 		return ""
 	}
-
-	if !strings.Contains(remote, "://") {
-		remote = "http://" + remote
-	}
-
-	u, err := url.Parse(remote)
-	if err != nil {
+	base := gnowebBaseFor(chainID)
+	if base == "" {
 		return ""
 	}
-
-	host := strings.TrimPrefix(u.Hostname(), "rpc.")
-	u.Host = net.JoinHostPort(host, "8888")
-	u.Path = strings.TrimPrefix(pkgPath, "gno.land")
-
-	// Check if gnoweb is actually reachable before suggesting the URL.
-	baseURL := u.Scheme + "://" + u.Host
-	if !isGnowebReachable(baseURL) {
-		return ""
-	}
-
-	return u.String()
+	return joinPkgPath(base, pkgPath)
 }
 
-// isGnowebReachable performs a quick HTTP GET and checks that the
-// response contains "gno.land", confirming it is a gnoweb instance
-// rather than an unrelated service.
-func isGnowebReachable(baseURL string) bool {
-	c := &http.Client{Timeout: 2 * time.Second}
-	resp, err := c.Get(baseURL)
-	if err != nil {
-		return false
+func gnowebBaseFor(chainID string) string {
+	if u := strings.TrimSpace(os.Getenv(gnowebURLEnv)); u != "" {
+		return u
 	}
-	defer resp.Body.Close()
+	if chainID == "" {
+		return ""
+	}
+	if chainID == devChainID {
+		return devGnowebURL
+	}
+	reg, err := networks.Load()
+	if err != nil {
+		return ""
+	}
+	for _, n := range reg.Networks {
+		if n.ChainID == chainID && n.GnowebURL != "" {
+			return n.GnowebURL
+		}
+	}
+	return ""
+}
 
-	// Read up to 1KB — the "gno.land" marker appears early in the HTML.
-	buf, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
-	if err != nil {
-		return false
+func joinPkgPath(base, pkgPath string) string {
+	base = strings.TrimRight(base, "/")
+	rel := pkgPath
+	switch {
+	case rel == pkgPathDomain:
+		rel = ""
+	case strings.HasPrefix(rel, pkgPathDomain+"/"):
+		rel = rel[len(pkgPathDomain):]
 	}
-	return strings.Contains(string(buf), "gno.land")
+	if !strings.HasPrefix(rel, "/") {
+		rel = "/" + rel
+	}
+	return base + rel
 }
