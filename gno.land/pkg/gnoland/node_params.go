@@ -144,9 +144,9 @@ func parseGnolandVersion(v string) (major, minor int, ok bool) {
 		return 0, 0, false
 	}
 	maj, err1 := strconv.Atoi(rest[:dot])
-	min, err2 := strconv.Atoi(rest[dot+1:])
+	mnr, err2 := strconv.Atoi(rest[dot+1:])
 	if err1 != nil || err2 != nil {
 		return 0, 0, false
 	}
-	return maj, min, true
+	return maj, mnr, true
 }
