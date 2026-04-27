@@ -201,23 +201,23 @@ func TestFindByPrefix(t *testing.T) {
 	}
 }
 
-// TestIterMemPackage_InconsistentBaseStoreYieldsNil simulates the cross-
-// substore atomicity violation that a SIGKILL mid-AddMemPackage can leave
-// behind: baseStore has a counter + index slot but iavlStore has no body
-// under that path. IterMemPackage must yield nil for the inconsistent slot
-// (not panic) so the downstream consumer (machine.go PreprocessAllFiles
-// AndSaveBlockNodes) can skip+warn and let the node boot.
-//
-// Before this fix, IterMemPackage panicked with "baseStore/iavlStore
-// inconsistency" as soon as it encountered the orphan, crash-looping the
-// node. See commit b15ffde6e for the original symptom.
-func TestIterMemPackage_InconsistentBaseStoreYieldsNil(t *testing.T) {
+// TestIterMemPackage_InconsistentBaseStorePanics simulates the substore
+// divergence that a SIGKILL inside the underlying DB's WAL flush could
+// leave behind: baseStore has a counter + index slot but iavlStore has no
+// body under that path. With body-first ordering in AddMemPackage this
+// should be unreachable in practice; if it ever happens the store is
+// corrupt and the iterator must refuse to feed a nil mpkg to downstream
+// consumers (which would SIGSEGV in ParseMemPackage). IterMemPackage now
+// validates eagerly on the caller's goroutine, so the panic surfaces here
+// at the call site with a message that names the slot and tells the
+// operator to replay from a clean snapshot.
+func TestIterMemPackage_InconsistentBaseStorePanics(t *testing.T) {
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
 	iavlStore := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
 
-	// Add one real mempackage so the store has a normal first slot.
+	// One real mempackage so slot 1 is well-formed.
 	store.AddMemPackage(&std.MemPackage{
 		Type:  MPStdlibAll,
 		Name:  "good",
@@ -225,57 +225,49 @@ func TestIterMemPackage_InconsistentBaseStoreYieldsNil(t *testing.T) {
 		Files: []*std.MemFile{{Name: "good.gno", Body: "package good"}},
 	}, MPStdlibAll)
 
-	// Manually forge an inconsistent second slot: bump counter + write
-	// index entry in baseStore, but write *nothing* to iavlStore. This
-	// is exactly the state a crash between AddMemPackage's index-slot
-	// write and counter bump (old ordering) or between body and index
-	// (new ordering, if WAL flushes reorder across substores) would
-	// produce. The test is ordering-agnostic — it just asserts that the
-	// iterator tolerates orphans at either layer.
-	ds := store
+	// Forge an inconsistent second slot: bump counter + write the index
+	// entry in baseStore, but write *nothing* to iavlStore.
 	baseStore.Set(nil, []byte(backendPackageIndexKey(2)), []byte("orphan"))
 	baseStore.Set(nil, []byte(backendPackageIndexCtrKey()), []byte("2"))
 
-	ch := ds.IterMemPackage()
-	require.NotNil(t, ch)
-
-	seen := make([]*std.MemPackage, 0, 2)
-	for mpkg := range ch {
-		seen = append(seen, mpkg)
-	}
-	require.Len(t, seen, 2, "iterator should yield entries for ctr=2")
-	require.NotNil(t, seen[0], "first slot is fully written")
-	require.Equal(t, "good", seen[0].Name)
-	require.Nil(t, seen[1], "orphan second slot must yield nil, not panic")
+	r := func() (rec any) {
+		defer func() { rec = recover() }()
+		store.IterMemPackage()
+		return nil
+	}()
+	require.NotNil(t, r, "orphan slot must panic, not yield nil")
+	msg, ok := r.(string)
+	require.True(t, ok, "panic value should be a string")
+	assert.Contains(t, msg, "substore divergence")
+	assert.Contains(t, msg, "slot 2")
+	assert.Contains(t, msg, "replay")
 }
 
-// TestIterMemPackage_MissingIndexYieldsNil simulates a crash where the
-// counter was bumped but the index slot was never written (possible with
-// the body-first write ordering introduced in AddMemPackage if a WAL flush
-// commits the counter bump but not the slot, though this is now the
-// least-likely window). IterMemPackage must still yield nil for the missing
-// slot, not panic, for the same bootability reason as above.
-func TestIterMemPackage_MissingIndexYieldsNil(t *testing.T) {
+// TestIterMemPackage_MissingIndexPanics simulates a counter that's been
+// bumped without the matching index slot. With body-first ordering this
+// is also unreachable (counter is the last write); if it shows up the
+// store is corrupt below the gnovm layer and the iterator must surface
+// it loudly so the operator replays.
+func TestIterMemPackage_MissingIndexPanics(t *testing.T) {
 	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
 	iavlStore := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
-	ds := store
 
 	// Forge: counter=3 but no index entries at all.
 	baseStore.Set(nil, []byte(backendPackageIndexCtrKey()), []byte("3"))
 
-	ch := ds.IterMemPackage()
-	require.NotNil(t, ch)
-
-	seen := make([]*std.MemPackage, 0, 3)
-	for mpkg := range ch {
-		seen = append(seen, mpkg)
-	}
-	require.Len(t, seen, 3)
-	for i, mpkg := range seen {
-		require.Nil(t, mpkg, "slot %d should be nil (no index entry)", i+1)
-	}
+	r := func() (rec any) {
+		defer func() { rec = recover() }()
+		store.IterMemPackage()
+		return nil
+	}()
+	require.NotNil(t, r, "missing index must panic, not yield nil")
+	msg, ok := r.(string)
+	require.True(t, ok, "panic value should be a string")
+	assert.Contains(t, msg, "corrupt package index")
+	assert.Contains(t, msg, "slot 1")
+	assert.Contains(t, msg, "replay")
 }
 
 // TestAddMemPackage_WriteOrderIsBodyFirst asserts that AddMemPackage writes
@@ -330,7 +322,7 @@ func TestAddMemPackage_WriteOrderIsBodyFirst(t *testing.T) {
 	// Round-trip via iterator.
 	ch := store.IterMemPackage()
 	require.NotNil(t, ch)
-	names := []string{}
+	names := make([]string, 0, 2)
 	for m := range ch {
 		require.NotNil(t, m, "healthy iteration yields no nils")
 		names = append(names, m.Name)

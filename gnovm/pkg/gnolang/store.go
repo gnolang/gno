@@ -1083,46 +1083,56 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	}
 }
 
+// IterMemPackage iterates persisted mempackages in insertion order.
+//
+// Validation runs eagerly on the caller's goroutine: any inconsistency
+// (counter ahead of index, index without body) panics here, before the
+// channel is returned. With AddMemPackage's body→index→counter ordering
+// neither inconsistency should be reachable; if one is, the underlying
+// substores have diverged (e.g. DB-level WAL crash) and the only safe
+// recovery is to replay from a known-good snapshot. Refusing to boot
+// is preferable to feeding a nil mpkg to consumers — ParseMemPackage
+// would SIGSEGV on `nil.Type.(MemPackageType)` and the node would
+// crash-loop without surfacing the cause.
+//
+// The eager pass loads all mempackages into memory; for restart-time
+// iteration this is acceptable. Callers iterate in insertion order via
+// the returned (buffered) channel exactly as before.
 func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ds.gctx, ctrkey)
 	if ctrbz == nil {
 		return nil
-	} else {
-		ctr, err := strconv.Atoi(string(ctrbz))
-		if err != nil {
-			panic(err)
-		}
-		ch := make(chan *std.MemPackage)
-		go func() {
-			for i := uint64(1); i <= uint64(ctr); i++ {
-				idxkey := []byte(backendPackageIndexKey(i))
-				path := ds.baseStore.Get(ds.gctx, idxkey)
-				if path == nil {
-					// Counter indicates i packages were added, but the
-					// index slot is missing. This can happen if the
-					// process was SIGKILLed mid-AddMemPackage between
-					// incrementing the counter and writing the index
-					// slot (body-first ordering in AddMemPackage closes
-					// most of this window, but cross-substore WAL flush
-					// ordering can still surface it). Yield nil so the
-					// consumer (machine.go PreprocessAllFilesAndSave
-					// BlockNodes) skips the slot with a logged warning
-					// instead of crash-looping the node.
-					ch <- nil
-					continue
-				}
-				mpkg := ds.GetMemPackage(string(path))
-				// Note: mpkg == nil indicates baseStore has an index
-				// entry but iavlStore has no body under that path, i.e.
-				// another cross-substore atomicity violation. Same
-				// handling: yield nil, let the consumer skip+warn.
-				ch <- mpkg
-			}
-			close(ch)
-		}()
-		return ch
 	}
+	ctr, err := strconv.Atoi(string(ctrbz))
+	if err != nil {
+		panic(err)
+	}
+	pkgs := make([]*std.MemPackage, 0, ctr)
+	for i := uint64(1); i <= uint64(ctr); i++ {
+		idxkey := []byte(backendPackageIndexKey(i))
+		path := ds.baseStore.Get(ds.gctx, idxkey)
+		if path == nil {
+			panic(fmt.Sprintf(
+				"gnovm/store: corrupt package index at slot %d "+
+					"(counter=%d, slot empty); replay from a clean "+
+					"snapshot.", i, ctr))
+		}
+		mpkg := ds.GetMemPackage(string(path))
+		if mpkg == nil {
+			panic(fmt.Sprintf(
+				"gnovm/store: package index slot %d points at path %q "+
+					"but iavlStore has no body; substore divergence — "+
+					"replay from a clean snapshot.", i, string(path)))
+		}
+		pkgs = append(pkgs, mpkg)
+	}
+	ch := make(chan *std.MemPackage, len(pkgs))
+	for _, mpkg := range pkgs {
+		ch <- mpkg
+	}
+	close(ch)
+	return ch
 }
 
 func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
