@@ -12,9 +12,9 @@ import (
 
 // Keep in sync with gno.land/pkg/gnoland/app.go
 const (
-	// newUpdatesAvailableKey is a flag indicating the chain valset should be updated.
+	// valsetDirtyKey is a flag indicating the chain valset should be updated.
 	// Set by the contract, but reset by the chain (EndBlocker).
-	newUpdatesAvailableKey = "new_updates_available"
+	valsetDirtyKey = "valset_dirty"
 
 	// valsetNewKey is the param that holds the new proposed valset. Set by the contract,
 	// and read (but never modified) by the chain.
@@ -56,7 +56,7 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		}
 
 		// Propagate the new valset through the VM params keeper.
-		params.SetBool(newUpdatesAvailableKey, true)
+		params.SetBool(valsetDirtyKey, true)
 		params.SetStrings(valsetNewKey, serializeValset(vp.GetValidators()))
 
 		return nil

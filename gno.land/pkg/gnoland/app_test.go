@@ -497,6 +497,68 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	}
 }
 
+// endBlockerParamsMock is a ParamsKeeperI mock with optional per-method
+// hooks, scoped to TestEndBlocker. Unset hooks are no-ops, matching the
+// minimal-by-default behavior of mockParamsKeeper but adding per-key
+// observation/injection where each subtest needs it.
+type endBlockerParamsMock struct {
+	getStringFn  func(sdk.Context, string, *string)
+	getInt64Fn   func(sdk.Context, string, *int64)
+	getBoolFn    func(sdk.Context, string, *bool)
+	getStringsFn func(sdk.Context, string, *[]string)
+	setBoolFn    func(sdk.Context, string, bool)
+	setStringsFn func(sdk.Context, string, []string)
+}
+
+func (m *endBlockerParamsMock) GetString(ctx sdk.Context, key string, ptr *string) {
+	if m.getStringFn != nil {
+		m.getStringFn(ctx, key, ptr)
+	}
+}
+
+func (m *endBlockerParamsMock) GetInt64(ctx sdk.Context, key string, ptr *int64) {
+	if m.getInt64Fn != nil {
+		m.getInt64Fn(ctx, key, ptr)
+	}
+}
+
+func (m *endBlockerParamsMock) GetBool(ctx sdk.Context, key string, ptr *bool) {
+	if m.getBoolFn != nil {
+		m.getBoolFn(ctx, key, ptr)
+	}
+}
+
+func (m *endBlockerParamsMock) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+	if m.getStringsFn != nil {
+		m.getStringsFn(ctx, key, ptr)
+	}
+}
+
+func (m *endBlockerParamsMock) SetBool(ctx sdk.Context, key string, value bool) {
+	if m.setBoolFn != nil {
+		m.setBoolFn(ctx, key, value)
+	}
+}
+
+func (m *endBlockerParamsMock) SetStrings(ctx sdk.Context, key string, value []string) {
+	if m.setStringsFn != nil {
+		m.setStringsFn(ctx, key, value)
+	}
+}
+
+// Remaining ParamsKeeperI methods are not exercised by EndBlocker.
+func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64)         {}
+func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte)          {}
+func (m *endBlockerParamsMock) SetString(sdk.Context, string, string)          {}
+func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64)            {}
+func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64)          {}
+func (m *endBlockerParamsMock) SetBytes(sdk.Context, string, []byte)           {}
+func (m *endBlockerParamsMock) Has(sdk.Context, string) bool                   { return false }
+func (m *endBlockerParamsMock) GetStruct(sdk.Context, string, any)             {}
+func (m *endBlockerParamsMock) SetStruct(sdk.Context, string, any)             {}
+func (m *endBlockerParamsMock) GetAny(sdk.Context, string) any                 { return nil }
+func (m *endBlockerParamsMock) SetAny(sdk.Context, string, any)                {}
+
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
@@ -504,7 +566,7 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		var (
-			mockParamsKeeper = &mockParamsKeeper{
+			mockParamsKeeper = &endBlockerParamsMock{
 				getStringFn: func(_ sdk.Context, key string, ptr *string) {
 					// valset realm lookup - return default
 				},
@@ -539,7 +601,7 @@ func TestEndBlocker(t *testing.T) {
 			updateFlag   = true
 			paramUpdates []string
 
-			mockParamsKeeper = &mockParamsKeeper{
+			mockParamsKeeper = &endBlockerParamsMock{
 				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 					switch key {
@@ -550,7 +612,7 @@ func TestEndBlocker(t *testing.T) {
 					}
 				},
 				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
 						*ptr = updateFlag
 					}
 				},
@@ -589,7 +651,7 @@ func TestEndBlocker(t *testing.T) {
 			prevSetCalls    int
 			updatesProposed = []string{"totally invalid format"}
 
-			mockParamsKeeper = &mockParamsKeeper{
+			mockParamsKeeper = &endBlockerParamsMock{
 				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 					switch key {
@@ -600,7 +662,7 @@ func TestEndBlocker(t *testing.T) {
 					}
 				},
 				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
 						*ptr = updateFlag
 					}
 				},
@@ -640,7 +702,7 @@ func TestEndBlocker(t *testing.T) {
 			updateFlag   = true
 			paramUpdates []string
 
-			mockParamsKeeper = &mockParamsKeeper{
+			mockParamsKeeper = &endBlockerParamsMock{
 				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 					switch key {
@@ -655,7 +717,7 @@ func TestEndBlocker(t *testing.T) {
 					}
 				},
 				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
 						*ptr = updateFlag
 					}
 				},
@@ -711,7 +773,7 @@ func TestEndBlocker(t *testing.T) {
 		var (
 			updateFlag = true
 
-			mockParamsKeeper = &mockParamsKeeper{
+			mockParamsKeeper = &endBlockerParamsMock{
 				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 					switch key {
@@ -722,7 +784,7 @@ func TestEndBlocker(t *testing.T) {
 					}
 				},
 				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
 						*ptr = updateFlag
 					}
 				},
@@ -780,7 +842,7 @@ func TestEndBlocker(t *testing.T) {
 			updateFlag = true
 			prevWrites [][]string
 
-			mockParamsKeeper = &mockParamsKeeper{
+			mockParamsKeeper = &endBlockerParamsMock{
 				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
 				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 					switch key {
@@ -791,7 +853,7 @@ func TestEndBlocker(t *testing.T) {
 					}
 				},
 				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
 						*ptr = updateFlag
 					}
 				},
@@ -838,7 +900,7 @@ func TestEndBlocker(t *testing.T) {
 		prevSerialized := []string{serialize(prev[0]), serialize(prev[1])}
 
 		updateFlag := true
-		mockParamsKeeper := &mockParamsKeeper{
+		mockParamsKeeper := &endBlockerParamsMock{
 			getStringFn: func(_ sdk.Context, key string, ptr *string) {},
 			getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 				switch key {
@@ -849,7 +911,7 @@ func TestEndBlocker(t *testing.T) {
 				}
 			},
 			getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-				if key == valsetParamPath(vm.ValsetRealmDefault, newUpdatesAvailableKey) {
+				if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
 					*ptr = updateFlag
 				}
 			},
@@ -884,7 +946,7 @@ func TestEndBlocker(t *testing.T) {
 			seenRealmInPaths []string
 			updateFlag       = true
 		)
-		mockParamsKeeper := &mockParamsKeeper{
+		mockParamsKeeper := &endBlockerParamsMock{
 			getStringFn: func(_ sdk.Context, key string, ptr *string) {
 				if key == vm.ValsetRealmParamPath {
 					*ptr = customRealm
@@ -900,7 +962,7 @@ func TestEndBlocker(t *testing.T) {
 				}
 			},
 			getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-				if key == valsetParamPath(customRealm, newUpdatesAvailableKey) {
+				if key == valsetParamPath(customRealm, valsetDirtyKey) {
 					*ptr = updateFlag
 				}
 			},

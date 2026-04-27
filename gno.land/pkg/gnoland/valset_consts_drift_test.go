@@ -33,9 +33,9 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 	}
 
 	want := map[string]string{
-		"newUpdatesAvailableKey": newUpdatesAvailableKey,
-		"valsetNewKey":           valsetNewKey,
-		"valsetPrevKey":          valsetPrevKey,
+		"valsetDirtyKey": valsetDirtyKey,
+		"valsetNewKey":   valsetNewKey,
+		"valsetPrevKey":  valsetPrevKey,
 		// ValsetRealmDefault lives in vm package; the realm path itself is
 		// the *file's own location*, so we assert poc.gno sits under it.
 	}

@@ -485,9 +485,9 @@ type endBlockerApp interface {
 const (
 	vmModulePrefix = "vm"
 
-	// newUpdatesAvailableKey is a flag indicating the chain valset should be updated.
+	// valsetDirtyKey is a flag indicating the chain valset should be updated.
 	// Set by the contract, but reset by the chain (EndBlocker).
-	newUpdatesAvailableKey = "new_updates_available"
+	valsetDirtyKey = "valset_dirty"
 
 	// valsetNewKey is the param that holds the new proposed valset. Set by the contract,
 	// and read (but never modified) by the chain.
@@ -551,7 +551,7 @@ func EndBlocker(
 
 		// Check if there are any pending valset changes.
 		updatesAvailable := false
-		prmk.GetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), &updatesAvailable)
+		prmk.GetBool(ctx, valsetParamPath(valsetRealm, valsetDirtyKey), &updatesAvailable)
 
 		if !updatesAvailable {
 			return abci.ResponseEndBlock{}
@@ -582,7 +582,7 @@ func EndBlocker(
 				"prev_valset", prevValset,
 			)
 			prmk.SetStrings(ctx, prevValsetPath, proposedValset)
-			prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
+			prmk.SetBool(ctx, valsetParamPath(valsetRealm, valsetDirtyKey), false)
 			return abci.ResponseEndBlock{}
 		}
 
@@ -597,7 +597,7 @@ func EndBlocker(
 				"err", err,
 				"proposed_valset", proposedValset,
 			)
-			prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
+			prmk.SetBool(ctx, valsetParamPath(valsetRealm, valsetDirtyKey), false)
 			return abci.ResponseEndBlock{}
 		}
 
@@ -613,7 +613,7 @@ func EndBlocker(
 		prmk.SetStrings(ctx, prevValsetPath, proposedValset)
 
 		// Clear the pending-updates flag.
-		prmk.SetBool(ctx, valsetParamPath(valsetRealm, newUpdatesAvailableKey), false)
+		prmk.SetBool(ctx, valsetParamPath(valsetRealm, valsetDirtyKey), false)
 
 		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
 
