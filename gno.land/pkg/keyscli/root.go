@@ -4,6 +4,7 @@ package keyscli
 import (
 	"encoding/base64"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -83,6 +84,11 @@ func PrintTxInfo(tx std.Tx, res *ctypes.ResultBroadcastTxCommit, io commands.IO)
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+	for _, msg := range tx.Msgs {
+		if addPkg, ok := msg.(vm.MsgAddPackage); ok {
+			io.Println("PKGPATH:   ", addPkg.Package.Path)
+		}
+	}
 }
 
 // GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta. The coins delta omits RefundWithheld.

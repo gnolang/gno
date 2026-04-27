@@ -1,0 +1,23 @@
+# Test that PKGPATH is printed once per MsgAddPackage in a multi-msg tx
+# broadcast via `gnokey broadcast` (i.e. not via `maketx addpkg`, which only
+# constructs single-msg txs). Verifies that PrintTxInfo derives PKGPATH lines
+# from the tx messages, not from a CLI flag.
+
+gnoland start
+
+## sign multi-msg tx (two MsgAddPackage at different paths)
+gnokey sign -tx-path $WORK/multi.tx -chainid=tendermint_test -account-number $test1_account_num -account-sequence $test1_account_seq test1
+stdout 'Tx successfully signed and saved to '
+
+## broadcast
+gnokey broadcast $WORK/multi.tx -quiet=false
+
+## check output: one PKGPATH line per addpkg msg, in tx order
+stdout OK!
+stdout 'GAS WANTED: 7500000'
+stdout 'TX HASH:    '
+stdout 'PKGPATH:    gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi1'
+stdout 'PKGPATH:    gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi2'
+
+-- multi.tx --
+{"msg":[{"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"multi1","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi1","files":[{"name":"gnomod.toml","body":"module = \"multi1\"\ngno = \"0.9\"\n"},{"name":"multi1.gno","body":"package multi1\n\nconst Greeting = \"hi from 1\"\n"}]},"send":"","max_deposit":""},{"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"multi2","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi2","files":[{"name":"gnomod.toml","body":"module = \"multi2\"\ngno = \"0.9\"\n"},{"name":"multi2.gno","body":"package multi2\n\nconst Greeting = \"hi from 2\"\n"}]},"send":"","max_deposit":""}],"fee":{"gas_wanted":"7500000","gas_fee":"750001ugnot"},"signatures":null,"memo":""}
