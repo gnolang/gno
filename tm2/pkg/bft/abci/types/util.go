@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -109,61 +108,42 @@ func (vu ValidatorUpdate) Equals(vu2 ValidatorUpdate) bool {
 }
 
 //----------------------------------------
-// Validator update serialization
+// Validator update parsing
 
-// ParseValidatorUpdate parses a single serialized validator update of the form
-//
-//	<address>:<pub-key>:<voting-power>
-//
-// where voting power is an unsigned integer (0 = removal). It checks that the
-// pub key derives the address (defense against typo'd updates).
-func ParseValidatorUpdate(s string) (ValidatorUpdate, error) {
-	parts := strings.Split(s, ":")
-	if len(parts) != 3 {
-		return ValidatorUpdate{}, fmt.Errorf(
-			"valset update is not in the format <address>:<pub-key>:<voting-power>, got %q",
-			s,
-		)
-	}
-
-	address, err := crypto.AddressFromBech32(parts[0])
+// ParseValidatorUpdate builds a ValidatorUpdate from a bech32 pubkey and a
+// decimal-encoded power. Address is derived from the pubkey; powers are
+// non-negative and capped at math.MaxInt64 so the int64 cast can't overflow.
+func ParseValidatorUpdate(pubKey, power string) (ValidatorUpdate, error) {
+	pk, err := crypto.PubKeyFromBech32(pubKey)
 	if err != nil {
-		return ValidatorUpdate{}, fmt.Errorf("invalid validator address %q: %w", parts[0], err)
+		return ValidatorUpdate{}, fmt.Errorf("invalid validator pubkey %q: %w", pubKey, err)
 	}
-
-	pubKey, err := crypto.PubKeyFromBech32(parts[1])
+	// bitSize=63 caps the value at math.MaxInt64, so int64(p) below
+	// can never overflow into a negative.
+	p, err := strconv.ParseUint(power, 10, 63)
 	if err != nil {
-		return ValidatorUpdate{}, fmt.Errorf("invalid validator pubkey %q: %w", parts[1], err)
+		return ValidatorUpdate{}, fmt.Errorf("invalid voting power %q: %w", power, err)
 	}
-
-	if pubKey.Address().Compare(address) != 0 {
-		return ValidatorUpdate{}, fmt.Errorf(
-			"address %s does not match pubkey-derived address %s",
-			address, pubKey.Address(),
-		)
-	}
-
-	// bitSize=63 caps the result at math.MaxInt64, so int64(power) below
-	// can never overflow into a negative value.
-	power, err := strconv.ParseUint(parts[2], 10, 63)
-	if err != nil {
-		return ValidatorUpdate{}, fmt.Errorf("invalid voting power %q: %w", parts[2], err)
-	}
-
 	return ValidatorUpdate{
-		Address: address,
-		PubKey:  pubKey,
-		Power:   int64(power),
+		Address: pk.Address(),
+		PubKey:  pk,
+		Power:   int64(p),
 	}, nil
 }
 
-// ParseValidatorUpdates parses a list of serialized validator updates. See
-// ParseValidatorUpdate for the per-entry format. Errors include the offending
-// entry's index for easier diagnosis.
-func ParseValidatorUpdates(entries []string) (ValidatorUpdates, error) {
-	updates := make(ValidatorUpdates, 0, len(entries))
-	for i, entry := range entries {
-		u, err := ParseValidatorUpdate(entry)
+// ParseValidatorUpdates zips two parallel typed lists (pubkeys and decimal
+// powers) into a ValidatorUpdates slice. Lengths must match; errors carry
+// the offending entry index.
+func ParseValidatorUpdates(pubKeys, powers []string) (ValidatorUpdates, error) {
+	if len(pubKeys) != len(powers) {
+		return nil, fmt.Errorf(
+			"pubkeys (%d) and powers (%d) length mismatch",
+			len(pubKeys), len(powers),
+		)
+	}
+	updates := make(ValidatorUpdates, 0, len(pubKeys))
+	for i := range pubKeys {
+		u, err := ParseValidatorUpdate(pubKeys[i], powers[i])
 		if err != nil {
 			return nil, fmt.Errorf("entry %d: %w", i, err)
 		}

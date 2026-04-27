@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -547,45 +548,106 @@ func (m *endBlockerParamsMock) SetStrings(ctx sdk.Context, key string, value []s
 }
 
 // Remaining ParamsKeeperI methods are not exercised by EndBlocker.
-func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64)         {}
-func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte)          {}
-func (m *endBlockerParamsMock) SetString(sdk.Context, string, string)          {}
-func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64)            {}
-func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64)          {}
-func (m *endBlockerParamsMock) SetBytes(sdk.Context, string, []byte)           {}
-func (m *endBlockerParamsMock) Has(sdk.Context, string) bool                   { return false }
-func (m *endBlockerParamsMock) GetStruct(sdk.Context, string, any)             {}
-func (m *endBlockerParamsMock) SetStruct(sdk.Context, string, any)             {}
-func (m *endBlockerParamsMock) GetAny(sdk.Context, string) any                 { return nil }
-func (m *endBlockerParamsMock) SetAny(sdk.Context, string, any)                {}
+func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64) {}
+func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte)  {}
+func (m *endBlockerParamsMock) SetString(sdk.Context, string, string)  {}
+func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64)    {}
+func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64)  {}
+func (m *endBlockerParamsMock) SetBytes(sdk.Context, string, []byte)   {}
+func (m *endBlockerParamsMock) Has(sdk.Context, string) bool           { return false }
+func (m *endBlockerParamsMock) GetStruct(sdk.Context, string, any)     {}
+func (m *endBlockerParamsMock) SetStruct(sdk.Context, string, any)     {}
+func (m *endBlockerParamsMock) GetAny(sdk.Context, string) any         { return nil }
+func (m *endBlockerParamsMock) SetAny(sdk.Context, string, any)        {}
+
+// valsetState is a tiny in-memory shim mirroring the per-realm valset key
+// space, used by TestEndBlocker to drive endBlockerParamsMock.
+type valsetState struct {
+	realm                             string
+	prevPubKeys, prevPowers           []string
+	newPubKeys, newPowers             []string
+	dirty                             bool
+	prevPubKeyWrites, prevPowerWrites [][]string
+}
+
+// splitUpdates converts ValidatorUpdates to parallel pubkey/power lists in
+// the wire format used by the params keeper.
+func splitUpdates(us []abci.ValidatorUpdate) (pubKeys, powers []string) {
+	pubKeys = make([]string, len(us))
+	powers = make([]string, len(us))
+	for i, u := range us {
+		pubKeys[i] = u.PubKey.String()
+		powers[i] = strconv.FormatInt(u.Power, 10)
+	}
+	return
+}
+
+// newValsetMock returns a mock keeper backed by st. Reads come from st;
+// writes update st (and append to its history slices for assertions).
+func newValsetMock(st *valsetState) *endBlockerParamsMock {
+	prevPubKeysPath := valsetParamPath(st.realm, valsetPrevPubKeysKey)
+	prevPowersPath := valsetParamPath(st.realm, valsetPrevPowersKey)
+	newPubKeysPath := valsetParamPath(st.realm, valsetNewPubKeysKey)
+	newPowersPath := valsetParamPath(st.realm, valsetNewPowersKey)
+	dirtyPath := valsetParamPath(st.realm, valsetDirtyKey)
+
+	return &endBlockerParamsMock{
+		getStringFn: func(_ sdk.Context, key string, ptr *string) {
+			if key == vm.ValsetRealmParamPath {
+				*ptr = st.realm
+			}
+		},
+		getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
+			switch key {
+			case prevPubKeysPath:
+				*ptr = st.prevPubKeys
+			case prevPowersPath:
+				*ptr = st.prevPowers
+			case newPubKeysPath:
+				*ptr = st.newPubKeys
+			case newPowersPath:
+				*ptr = st.newPowers
+			}
+		},
+		getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
+			if key == dirtyPath {
+				*ptr = st.dirty
+			}
+		},
+		setBoolFn: func(_ sdk.Context, key string, value bool) {
+			if key == dirtyPath {
+				st.dirty = value
+			}
+		},
+		setStringsFn: func(_ sdk.Context, key string, value []string) {
+			switch key {
+			case prevPubKeysPath:
+				st.prevPubKeys = value
+				st.prevPubKeyWrites = append(st.prevPubKeyWrites, value)
+			case prevPowersPath:
+				st.prevPowers = value
+				st.prevPowerWrites = append(st.prevPowerWrites, value)
+			}
+		},
+	}
+}
+
+func runEndBlocker(t *testing.T, mock *endBlockerParamsMock, pubKeyType string) abci.ResponseEndBlock {
+	t.Helper()
+	eb := EndBlocker(mock, nil, nil, &mockEndBlockerApp{})
+	return eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+		Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{pubKeyType}},
+	}), abci.RequestEndBlock{})
+}
 
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
-	t.Run("no valset changes", func(t *testing.T) {
+	t.Run("no valset changes (dirty=false)", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			mockParamsKeeper = &endBlockerParamsMock{
-				getStringFn: func(_ sdk.Context, key string, ptr *string) {
-					// valset realm lookup - return default
-				},
-				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					// updatesAvailable stays false (default)
-				},
-			}
-
-			mockApp = &mockEndBlockerApp{}
-		)
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
-
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-
+		st := &valsetState{realm: vm.ValsetRealmDefault, dirty: false}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 	})
 
@@ -594,337 +656,156 @@ func TestEndBlocker(t *testing.T) {
 
 		// Recovery contract: a corrupted prev valset must not wedge consensus.
 		// EndBlocker logs loudly, advances prev to proposed, and clears the
-		// pending-updates flag so subsequent proposals can land.
-		proposed := []string{} // empty proposed set is fine
-
-		var (
-			updateFlag   = true
-			paramUpdates []string
-
-			mockParamsKeeper = &endBlockerParamsMock{
-				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
-				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					switch key {
-					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
-						*ptr = []string{"totally invalid format"}
-					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-						*ptr = proposed
-					}
-				},
-				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
-						*ptr = updateFlag
-					}
-				},
-				setBoolFn: func(_ sdk.Context, key string, value bool) {
-					updateFlag = value
-				},
-				setStringsFn: func(_ sdk.Context, key string, value []string) {
-					paramUpdates = value
-				},
-			}
-
-			mockApp = &mockEndBlockerApp{}
-		)
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
-
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
+		// pending-updates flag so subsequent proposals can land. Length
+		// mismatch between pubkeys and powers triggers the prev-parse error.
+		st := &valsetState{
+			realm:       vm.ValsetRealmDefault,
+			prevPubKeys: []string{"some-bogus-pubkey"},
+			prevPowers:  []string{}, // length mismatch -> parse error on prev
+			newPubKeys:  []string{},
+			newPowers:   []string{},
+			dirty:       true,
+		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
-		// Flag cleared, prev advanced to proposed (recovery applied).
-		assert.False(t, updateFlag, "flag must be cleared so future proposals land")
-		assert.Equal(t, proposed, paramUpdates, "prev must advance to proposed")
+		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
+		require.NotEmpty(t, st.prevPubKeyWrites, "prev pubkeys must be advanced")
+		require.NotEmpty(t, st.prevPowerWrites, "prev powers must be advanced")
+		assert.Empty(t, st.prevPubKeyWrites[len(st.prevPubKeyWrites)-1])
+		assert.Empty(t, st.prevPowerWrites[len(st.prevPowerWrites)-1])
 	})
 
 	t.Run("invalid valset changes in proposed recovers", func(t *testing.T) {
 		t.Parallel()
 
-		// Recovery contract for proposed parse failure: clear the flag so a
-		// future re-propose can land. We do NOT touch prev (it's still good).
-		var (
-			updateFlag      = true
-			prevSetCalls    int
-			updatesProposed = []string{"totally invalid format"}
-
-			mockParamsKeeper = &endBlockerParamsMock{
-				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
-				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					switch key {
-					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
-						*ptr = []string{}
-					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-						*ptr = updatesProposed
-					}
-				},
-				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
-						*ptr = updateFlag
-					}
-				},
-				setBoolFn: func(_ sdk.Context, key string, value bool) {
-					updateFlag = value
-				},
-				setStringsFn: func(_ sdk.Context, key string, value []string) {
-					prevSetCalls++
-				},
-			}
-
-			mockApp = &mockEndBlockerApp{}
-		)
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
+		// Recovery for proposed parse failure: clear the flag so a future
+		// re-propose can land. Do NOT touch prev (it's still good).
+		st := &valsetState{
+			realm:       vm.ValsetRealmDefault,
+			prevPubKeys: []string{},
+			prevPowers:  []string{},
+			newPubKeys:  []string{"bogus"},
+			newPowers:   []string{"7"}, // pubkey is invalid bech32
+			dirty:       true,
+		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
-		assert.False(t, updateFlag, "flag must be cleared so future proposals land")
-		assert.Zero(t, prevSetCalls, "prev must NOT be touched when proposed is bad")
+		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
+		assert.Empty(t, st.prevPubKeyWrites, "prev pubkeys must NOT be touched when proposed is bad")
+		assert.Empty(t, st.prevPowerWrites, "prev powers must NOT be touched when proposed is bad")
 	})
 
-	t.Run("valid valset changes", func(t *testing.T) {
+	t.Run("valid valset changes (additions only)", func(t *testing.T) {
 		t.Parallel()
 
 		updates := generateValidatorUpdates(t, 10)
-
-		serializeUpdate := func(u abci.ValidatorUpdate) string {
-			return fmt.Sprintf("%s:%s:%d", u.Address.String(), u.PubKey, u.Power)
+		newPubKeys, newPowers := splitUpdates(updates)
+		st := &valsetState{
+			realm:      vm.ValsetRealmDefault,
+			newPubKeys: newPubKeys,
+			newPowers:  newPowers,
+			dirty:      true,
 		}
-
-		var (
-			updateFlag   = true
-			paramUpdates []string
-
-			mockParamsKeeper = &endBlockerParamsMock{
-				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
-				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					switch key {
-					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
-						*ptr = []string{} // empty prev set
-					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-						serialized := make([]string, 0, len(updates))
-						for _, u := range updates {
-							serialized = append(serialized, serializeUpdate(u))
-						}
-						*ptr = serialized
-					}
-				},
-				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
-						*ptr = updateFlag
-					}
-				},
-				setBoolFn: func(_ sdk.Context, key string, value bool) {
-					updateFlag = value
-				},
-				setStringsFn: func(_ sdk.Context, key string, value []string) {
-					paramUpdates = value
-				},
-			}
-
-			mockApp = &mockEndBlockerApp{}
-		)
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
-
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		require.Len(t, res.ValidatorUpdates, len(updates))
 
-		// Sort both for comparison
 		sort.Slice(updates, func(i, j int) bool {
 			return updates[i].Address.Compare(updates[j].Address) < 0
 		})
 		sort.Slice(res.ValidatorUpdates, func(i, j int) bool {
 			return res.ValidatorUpdates[i].Address.Compare(res.ValidatorUpdates[j].Address) < 0
 		})
-
 		for i, u := range updates {
 			assert.Equal(t, u.Address.String(), res.ValidatorUpdates[i].Address.String())
 			assert.True(t, u.PubKey.Equals(res.ValidatorUpdates[i].PubKey))
 			assert.Equal(t, u.Power, res.ValidatorUpdates[i].Power)
 		}
 
-		// Flag cleared, prev updated
-		assert.False(t, updateFlag)
-		assert.NotEmpty(t, paramUpdates)
+		assert.False(t, st.dirty)
+		assert.Equal(t, newPubKeys, st.prevPubKeys, "prev advances to proposed pubkeys")
+		assert.Equal(t, newPowers, st.prevPowers, "prev advances to proposed powers")
 	})
 
 	t.Run("wrong pubkey type filtered out", func(t *testing.T) {
 		t.Parallel()
 
 		updates := generateValidatorUpdates(t, 1)
-
-		serializeUpdate := func(u abci.ValidatorUpdate) string {
-			return fmt.Sprintf("%s:%s:%d", u.Address.String(), u.PubKey, u.Power)
+		newPubKeys, newPowers := splitUpdates(updates)
+		st := &valsetState{
+			realm:      vm.ValsetRealmDefault,
+			newPubKeys: newPubKeys,
+			newPowers:  newPowers,
+			dirty:      true,
 		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeyEd25519") // wrong type
 
-		var (
-			updateFlag = true
-
-			mockParamsKeeper = &endBlockerParamsMock{
-				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
-				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					switch key {
-					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
-						*ptr = []string{}
-					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-						*ptr = []string{serializeUpdate(updates[0])}
-					}
-				},
-				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
-						*ptr = updateFlag
-					}
-				},
-				setBoolFn:    func(_ sdk.Context, _ string, value bool) { updateFlag = value },
-				setStringsFn: func(_ sdk.Context, _ string, _ []string) {},
-			}
-
-			mockApp = &mockEndBlockerApp{}
-		)
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
-
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"}, // wrong type
-			},
-		}), abci.RequestEndBlock{})
-
-		// The update is filtered out due to wrong pubkey type
-		assert.Empty(t, res.ValidatorUpdates)
+		assert.Empty(t, res.ValidatorUpdates, "wrong pubkey type must be filtered out")
 	})
 
 	t.Run("diff applied: kept + power-change + new + removed", func(t *testing.T) {
 		t.Parallel()
 
-		// Build prev = [v1@10, v2@20, v3@30]
+		// prev = [v1@10, v2@20, v3@30]
 		// proposed = [v1@10 (kept), v2@99 (power change), v4@40 (new)]
 		// expected updates: v2@99, v3@0 (removal), v4@40
 		prevUpdates := generateValidatorUpdates(t, 3)
-		newUpdate := generateValidatorUpdates(t, 1)[0]
-
-		serialize := func(u abci.ValidatorUpdate) string {
-			return fmt.Sprintf("%s:%s:%d", u.Address.String(), u.PubKey, u.Power)
-		}
+		newcomer := generateValidatorUpdates(t, 1)[0]
 		prevUpdates[0].Power = 10
 		prevUpdates[1].Power = 20
 		prevUpdates[2].Power = 30
-		newUpdate.Power = 40
+		newcomer.Power = 40
 
-		prevSerialized := []string{
-			serialize(prevUpdates[0]),
-			serialize(prevUpdates[1]),
-			serialize(prevUpdates[2]),
-		}
 		v2Changed := prevUpdates[1]
 		v2Changed.Power = 99
-		proposedSerialized := []string{
-			serialize(prevUpdates[0]), // unchanged
-			serialize(v2Changed),      // power change
-			serialize(newUpdate),      // new
-			// prevUpdates[2] dropped → removal
+		proposed := []abci.ValidatorUpdate{prevUpdates[0], v2Changed, newcomer}
+
+		prevPubKeys, prevPowers := splitUpdates(prevUpdates)
+		newPubKeys, newPowers := splitUpdates(proposed)
+
+		st := &valsetState{
+			realm:       vm.ValsetRealmDefault,
+			prevPubKeys: prevPubKeys,
+			prevPowers:  prevPowers,
+			newPubKeys:  newPubKeys,
+			newPowers:   newPowers,
+			dirty:       true,
 		}
-
-		var (
-			updateFlag = true
-			prevWrites [][]string
-
-			mockParamsKeeper = &endBlockerParamsMock{
-				getStringFn: func(_ sdk.Context, key string, ptr *string) {},
-				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-					switch key {
-					case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
-						*ptr = prevSerialized
-					case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-						*ptr = proposedSerialized
-					}
-				},
-				getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-					if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
-						*ptr = updateFlag
-					}
-				},
-				setBoolFn:    func(_ sdk.Context, _ string, value bool) { updateFlag = value },
-				setStringsFn: func(_ sdk.Context, _ string, value []string) { prevWrites = append(prevWrites, value) },
-			}
-			mockApp = &mockEndBlockerApp{}
-		)
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		require.Len(t, res.ValidatorUpdates, 3, "expect: 1 power change, 1 removal, 1 new")
 
-		// Build by-address map for assertion (UpdatesFrom output is sorted but
-		// we don't want to depend on the sort key here).
 		byAddr := map[string]abci.ValidatorUpdate{}
 		for _, u := range res.ValidatorUpdates {
 			byAddr[u.Address.String()] = u
 		}
-
 		assert.Equal(t, int64(99), byAddr[prevUpdates[1].Address.String()].Power, "v2 power must be 99")
 		assert.Equal(t, int64(0), byAddr[prevUpdates[2].Address.String()].Power, "v3 must be removed (Power=0)")
-		assert.Equal(t, int64(40), byAddr[newUpdate.Address.String()].Power, "v4 must be added")
+		assert.Equal(t, int64(40), byAddr[newcomer.Address.String()].Power, "v4 must be added")
 		_, kept := byAddr[prevUpdates[0].Address.String()]
 		assert.False(t, kept, "v1 (unchanged) must NOT appear in updates")
 
-		assert.False(t, updateFlag)
-		require.Len(t, prevWrites, 1)
-		assert.Equal(t, proposedSerialized, prevWrites[0], "prev advances to proposed")
+		assert.False(t, st.dirty)
+		assert.Equal(t, newPubKeys, st.prevPubKeys, "prev advances to proposed")
+		assert.Equal(t, newPowers, st.prevPowers, "prev advances to proposed")
 	})
 
 	t.Run("wipe valset: prev=[v1,v2] proposed=[] -> 2 removals", func(t *testing.T) {
 		t.Parallel()
 
 		prev := generateValidatorUpdates(t, 2)
-		serialize := func(u abci.ValidatorUpdate) string {
-			return fmt.Sprintf("%s:%s:%d", u.Address.String(), u.PubKey, u.Power)
+		prevPubKeys, prevPowers := splitUpdates(prev)
+		st := &valsetState{
+			realm:       vm.ValsetRealmDefault,
+			prevPubKeys: prevPubKeys,
+			prevPowers:  prevPowers,
+			newPubKeys:  []string{},
+			newPowers:   []string{},
+			dirty:       true,
 		}
-		prevSerialized := []string{serialize(prev[0]), serialize(prev[1])}
-
-		updateFlag := true
-		mockParamsKeeper := &endBlockerParamsMock{
-			getStringFn: func(_ sdk.Context, key string, ptr *string) {},
-			getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-				switch key {
-				case valsetParamPath(vm.ValsetRealmDefault, valsetPrevKey):
-					*ptr = prevSerialized
-				case valsetParamPath(vm.ValsetRealmDefault, valsetNewKey):
-					*ptr = []string{}
-				}
-			},
-			getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-				if key == valsetParamPath(vm.ValsetRealmDefault, valsetDirtyKey) {
-					*ptr = updateFlag
-				}
-			},
-			setBoolFn:    func(_ sdk.Context, _ string, value bool) { updateFlag = value },
-			setStringsFn: func(_ sdk.Context, _ string, _ []string) {},
-		}
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, &mockEndBlockerApp{})
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		require.Len(t, res.ValidatorUpdates, 2, "wiping the set must surface 2 removals")
 		for _, u := range res.ValidatorUpdates {
@@ -936,53 +817,22 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		const customRealm = "gno.land/r/test/custom_valset"
-
 		updates := generateValidatorUpdates(t, 1)
-		serialize := func(u abci.ValidatorUpdate) string {
-			return fmt.Sprintf("%s:%s:%d", u.Address.String(), u.PubKey, u.Power)
-		}
+		newPubKeys, newPowers := splitUpdates(updates)
 
-		var (
-			seenRealmInPaths []string
-			updateFlag       = true
-		)
-		mockParamsKeeper := &endBlockerParamsMock{
-			getStringFn: func(_ sdk.Context, key string, ptr *string) {
-				if key == vm.ValsetRealmParamPath {
-					*ptr = customRealm
-				}
-			},
-			getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
-				seenRealmInPaths = append(seenRealmInPaths, key)
-				switch key {
-				case valsetParamPath(customRealm, valsetPrevKey):
-					*ptr = []string{}
-				case valsetParamPath(customRealm, valsetNewKey):
-					*ptr = []string{serialize(updates[0])}
-				}
-			},
-			getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
-				if key == valsetParamPath(customRealm, valsetDirtyKey) {
-					*ptr = updateFlag
-				}
-			},
-			setBoolFn:    func(_ sdk.Context, _ string, value bool) { updateFlag = value },
-			setStringsFn: func(_ sdk.Context, _ string, _ []string) {},
+		st := &valsetState{
+			realm:      customRealm,
+			newPubKeys: newPubKeys,
+			newPowers:  newPowers,
+			dirty:      true,
 		}
-
-		eb := EndBlocker(mockParamsKeeper, nil, nil, &mockEndBlockerApp{})
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		require.Len(t, res.ValidatorUpdates, 1)
-		// Verify EndBlocker actually queried the custom realm's keyspace.
-		require.NotEmpty(t, seenRealmInPaths)
-		for _, p := range seenRealmInPaths {
-			assert.Contains(t, p, customRealm, "EndBlocker must read from custom realm's keyspace")
-		}
+		// Verify the override took effect: EndBlocker wrote prev under the
+		// custom realm's keyspace.
+		assert.Equal(t, newPubKeys, st.prevPubKeys)
+		assert.Equal(t, newPowers, st.prevPowers)
 	})
 }
 

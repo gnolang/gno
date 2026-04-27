@@ -244,11 +244,10 @@ func TestWillSetParamExhaustive(t *testing.T) {
 func TestWillSetParam_ValsetUpdate(t *testing.T) {
 	t.Parallel()
 
-	// valsetNewPath returns the raw key (without vm: prefix) for valset_new param.
-	// "valset_new" must be kept in sync with examples/gno.land/r/sys/validators/v3/poc.gno.
-	valsetNewPath := func() string {
-		return ValsetRealmDefault + ":valset_new"
-	}
+	// "valset_new_pubkeys" / "valset_new_powers" must be kept in sync with
+	// examples/gno.land/r/sys/params/valset.gno.
+	pubKeysPath := ValsetRealmDefault + ":valset_new_pubkeys"
+	powersPath := ValsetRealmDefault + ":valset_new_powers"
 
 	t.Run("non-valset key passes through", func(t *testing.T) {
 		t.Parallel()
@@ -261,72 +260,62 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 		})
 	})
 
-	t.Run("invalid value type", func(t *testing.T) {
+	t.Run("pubkeys: invalid value type", func(t *testing.T) {
 		t.Parallel()
 
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath(), "not a slice")
+			env.vmk.WillSetParam(ctx, pubKeysPath, "not a slice")
 		})
 	})
 
-	t.Run("malformed entry", func(t *testing.T) {
+	t.Run("pubkeys: invalid bech32", func(t *testing.T) {
 		t.Parallel()
 
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{"addr:pubkey:power:extra"})
+			env.vmk.WillSetParam(ctx, pubKeysPath, []string{"notapubkey"})
 		})
 	})
 
-	t.Run("invalid address", func(t *testing.T) {
+	t.Run("powers: invalid value type", func(t *testing.T) {
 		t.Parallel()
 
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-		key := secp256k1.GenPrivKey()
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
-				fmt.Sprintf("notabech32:%s:10", key.PubKey()),
-			})
+			env.vmk.WillSetParam(ctx, powersPath, 42)
 		})
 	})
 
-	t.Run("address pubkey mismatch", func(t *testing.T) {
+	t.Run("powers: non-numeric entry", func(t *testing.T) {
 		t.Parallel()
 
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-		key1 := secp256k1.GenPrivKey()
-		key2 := secp256k1.GenPrivKey()
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
-				fmt.Sprintf("%s:%s:10", key1.PubKey().Address(), key2.PubKey()),
-			})
+			env.vmk.WillSetParam(ctx, powersPath, []string{"abc"})
 		})
 	})
 
-	t.Run("invalid voting power", func(t *testing.T) {
+	t.Run("powers: negative", func(t *testing.T) {
 		t.Parallel()
 
 		env := setupTestEnv()
 		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-		key := secp256k1.GenPrivKey()
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
-				fmt.Sprintf("%s:%s:notanumber", key.PubKey().Address(), key.PubKey()),
-			})
+			env.vmk.WillSetParam(ctx, powersPath, []string{"-1"})
 		})
 	})
 
-	t.Run("valid valset update", func(t *testing.T) {
+	t.Run("valid pubkeys", func(t *testing.T) {
 		t.Parallel()
 
 		env := setupTestEnv()
@@ -334,9 +323,18 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 		key := secp256k1.GenPrivKey()
 
 		assert.NotPanics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetNewPath(), []string{
-				fmt.Sprintf("%s:%s:10", key.PubKey().Address(), key.PubKey()),
-			})
+			env.vmk.WillSetParam(ctx, pubKeysPath, []string{key.PubKey().String()})
+		})
+	})
+
+	t.Run("valid powers", func(t *testing.T) {
+		t.Parallel()
+
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(ctx, powersPath, []string{"10", "0", "42"})
 		})
 	})
 }

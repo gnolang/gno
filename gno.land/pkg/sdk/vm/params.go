@@ -3,11 +3,11 @@ package vm
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
@@ -288,22 +288,28 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown vm param key: %q", key))
 		}
-		// Validate valset updates if the key targets the valset realm's valset_new param.
+		// Validate per-element entries written to the active valset realm's
+		// valset_new_pubkeys / valset_new_powers lists. Each list is
+		// validated in isolation (length parity is enforced on the read
+		// side via abci.ParseValidatorUpdates).
 		valsetRealm := vm.getValsetRealmParam(ctx)
-		if strings.HasPrefix(key, valsetRealm+":valset_new") {
-			changes, ok := value.([]string)
-			if !ok {
-				panic(fmt.Sprintf(
-					"value for VM param %s update is an invalid type (%T)",
-					key,
-					value,
-				))
+		switch key {
+		case valsetRealm + ":valset_new_pubkeys":
+			vals := mustStringList(key, value)
+			for _, pk := range vals {
+				if _, err := crypto.PubKeyFromBech32(pk); err != nil {
+					panic(fmt.Sprintf("invalid validator pubkey %q: %v", pk, err))
+				}
 			}
-			if err := validateValsetUpdate(changes); err != nil {
-				panic(err)
+		case valsetRealm + ":valset_new_powers":
+			vals := mustStringList(key, value)
+			for _, p := range vals {
+				if _, err := strconv.ParseUint(p, 10, 63); err != nil {
+					panic(fmt.Sprintf("invalid voting power %q: %v", p, err))
+				}
 			}
 		}
-		// Allow realm-scoped params through without validation.
+		// Allow other realm-scoped params through without validation.
 		return
 	}
 	if err := params.Validate(); err != nil {
@@ -311,15 +317,10 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	}
 }
 
-// validateValsetUpdate validates the validator set updates,
-// which are serialized in the form:
-//   - <address>:<pub-key>:<voting-power>
-//   - voting power == 0 => validator removal
-//   - voting power != 0 => validator power update / validator addition
-//
-// Delegates to abci.ParseValidatorUpdates so the realm-side write check and
-// EndBlocker-side read share one parser (no ParseInt/ParseUint divergence).
-func validateValsetUpdate(changes []string) error {
-	_, err := abci.ParseValidatorUpdates(changes)
-	return err
+func mustStringList(key string, value any) []string {
+	v, ok := value.([]string)
+	if !ok {
+		panic(fmt.Sprintf("value for VM param %s is an invalid type (%T)", key, value))
+	}
+	return v
 }

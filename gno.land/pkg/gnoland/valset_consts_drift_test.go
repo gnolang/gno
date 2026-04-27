@@ -9,13 +9,11 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
-// TestValsetConstsDoNotDrift asserts the const values in
-// examples/gno.land/r/sys/validators/v3/poc.gno match their Go counterparts.
-//
-// The realm and chain communicate through these param keys; if they drift,
-// valset rotation silently breaks on a running chain with no compile/test
-// error from either side individually. This test catches that 100% of the
-// time, with negligible cost.
+// TestValsetConstsDoNotDrift asserts the param-key string values in the
+// gno-side helper (examples/gno.land/r/sys/params/valset.gno) match the
+// Go-side constants in this package. The realm and chain communicate
+// through these keys; if they drift, valset rotation silently breaks at
+// runtime with no compile/test error from either side individually.
 func TestValsetConstsDoNotDrift(t *testing.T) {
 	t.Parallel()
 
@@ -25,19 +23,19 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 		t.Fatalf("getwd: %v", err)
 	}
 	root := filepath.Join(wd, "..", "..", "..")
-	pocPath := filepath.Join(root, "examples", "gno.land", "r", "sys", "validators", "v3", "poc.gno")
+	gnoPath := filepath.Join(root, "examples", "gno.land", "r", "sys", "params", "valset.gno")
 
-	data, err := os.ReadFile(pocPath)
+	data, err := os.ReadFile(gnoPath)
 	if err != nil {
-		t.Fatalf("read %s: %v", pocPath, err)
+		t.Fatalf("read %s: %v", gnoPath, err)
 	}
 
 	want := map[string]string{
-		"valsetDirtyKey": valsetDirtyKey,
-		"valsetNewKey":   valsetNewKey,
-		"valsetPrevKey":  valsetPrevKey,
-		// ValsetRealmDefault lives in vm package; the realm path itself is
-		// the *file's own location*, so we assert poc.gno sits under it.
+		"valsetDirtyKey":       valsetDirtyKey,
+		"valsetNewPubKeysKey":  valsetNewPubKeysKey,
+		"valsetNewPowersKey":   valsetNewPowersKey,
+		"valsetPrevPubKeysKey": valsetPrevPubKeysKey,
+		"valsetPrevPowersKey":  valsetPrevPowersKey,
 	}
 
 	// Match: <name> = "<value>"
@@ -50,15 +48,15 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 	for name, expected := range want {
 		actual, ok := got[name]
 		if !ok {
-			t.Errorf("%s missing from poc.gno; Go const = %q", name, expected)
+			t.Errorf("%s missing from %s; Go const = %q", name, gnoPath, expected)
 			continue
 		}
 		if actual != expected {
-			t.Errorf("%s: poc.gno = %q, Go = %q (drift)", name, actual, expected)
+			t.Errorf("%s: gno = %q, Go = %q (drift)", name, actual, expected)
 		}
 	}
 
-	// Sanity: poc.gno realm path must match vm.ValsetRealmDefault.
+	// Sanity: realm path constant matches v3 realm location.
 	const expectedRealm = "gno.land/r/sys/validators/v3"
 	if vm.ValsetRealmDefault != expectedRealm {
 		t.Errorf("vm.ValsetRealmDefault = %q, expected %q", vm.ValsetRealmDefault, expectedRealm)

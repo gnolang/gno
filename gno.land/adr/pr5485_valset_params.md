@@ -69,13 +69,26 @@ or the proposed valset. There's no in-memory bridge to drop.
 
 ### Params keys (prefix: `vm:gno.land/r/sys/validators/v3:`)
 
-| Key             | Written by         | Read by    | Description                                                           |
-|-----------------|--------------------|------------|-----------------------------------------------------------------------|
-| `valset_dirty`  | realm + EndBlocker | EndBlocker | Flag: realm sets `true` on change; EndBlocker sets `false` after apply |
-| `valset_new`    | realm              | EndBlocker | Serialized proposed valset                                            |
-| `valset_prev`   | EndBlocker         | EndBlocker | Serialized previously applied valset                                  |
+Each slot (proposed = `new`, applied = `prev`) is a pair of parallel typed
+lists. Length must match. Address derives from pubkey, so it is not stored.
 
-Serialization format: `<bech32-address>:<bech32-pubkey>:<uint64-voting-power>`
+| Key                   | Written by         | Read by    | Description                                                           |
+|-----------------------|--------------------|------------|-----------------------------------------------------------------------|
+| `valset_dirty`        | realm + EndBlocker | EndBlocker | Flag: realm sets `true` on change; EndBlocker sets `false` after apply |
+| `valset_new_pubkeys`  | realm              | EndBlocker | `[]string` of bech32 pubkeys (proposed)                                |
+| `valset_new_powers`   | realm              | EndBlocker | `[]string` of decimal powers (proposed)                                |
+| `valset_prev_pubkeys` | EndBlocker (init: realm) | EndBlocker | `[]string` of bech32 pubkeys (applied)                          |
+| `valset_prev_powers`  | EndBlocker (init: realm) | EndBlocker | `[]string` of decimal powers (applied)                          |
+
+Power 0 means removal. No bespoke composite serialization; each list is a
+primitive type that the params keeper natively supports.
+
+### Realm-side writes
+
+The realm imports `gno.land/r/sys/params` and calls thin wrappers
+(`SetValsetProposal`, `InitValsetPrev`) which in turn use `sys/params`.
+This matches the convention used by other privileged sys realms (halt,
+fee_collector). The realm never touches `chain/params` directly.
 
 ### Valset diff
 
@@ -85,12 +98,14 @@ computes the minimal diff between two validator sets:
 - Removals: in prev but not v2 (emitted with `Power=0`).
 - Power changes: in both but with different power.
 
+Output is sorted to give a deterministic order independent of map iteration.
+
 ### Validation
 
-A single shared parser, `abci.ParseValidatorUpdate(s)` in
-`tm2/pkg/bft/abci/types`, is used by both the realm-side write check
-(`WillSetParam` for `valset_new`) and the `EndBlocker` read path. It enforces
-address/pubkey-match and rejects negative or `int64`-overflowing powers.
+A shared parser `abci.ParseValidatorUpdate(s)` zips two parallel pubkey/power
+lists into `ValidatorUpdates`. Used by both `WillSetParam` (per-list write
+validation) and `EndBlocker` (read path). It rejects invalid bech32 pubkeys,
+mismatched list lengths, negative powers, and `int64`-overflowing powers.
 
 The `EndBlocker` additionally filters consensus updates by allowed pubkey type
 (per `ConsensusParams.Validator.PubKeyTypeURLs`).
