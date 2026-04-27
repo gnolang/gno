@@ -8,12 +8,15 @@ import (
 )
 
 // Kind classifies a package by where it lives.
-// FS packages are in a user workspace or extra root; Remote packages are
-// fetched from a chain (RPC or modcache) and aren't user-editable.
+// KindUnknown is the zero value: a package was constructed without an
+// explicit Kind. FS packages are in a user workspace or extra root;
+// Remote packages are fetched from a chain (RPC or modcache) and aren't
+// user-editable.
 type Kind int
 
 const (
-	KindFS Kind = iota
+	KindUnknown Kind = iota
+	KindFS
 	KindRemote
 )
 

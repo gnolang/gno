@@ -230,3 +230,12 @@ func TestLoader_Reload_PreservesRootIdx(t *testing.T) {
 		"rootIdx must be the same map (no re-walk), not a content-equivalent rebuild",
 	)
 }
+
+// TestPackage_KindZeroValue verifies the zero value of Kind is KindUnknown,
+// not KindFS. This makes a forgotten Kind field trip loudly rather than
+// silently registering the package as filesystem-backed.
+func TestPackage_KindZeroValue(t *testing.T) {
+	var p Package
+	assert.Equal(t, KindUnknown, p.Kind)
+	assert.NotEqual(t, KindFS, p.Kind)
+}
