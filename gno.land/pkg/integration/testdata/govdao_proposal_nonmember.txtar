@@ -12,9 +12,13 @@ gnoland start
 
 # Case 1: Non-member WITHOUT fee (should fail)
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
-stdout 'non-members must send 1000000ugnot to create a proposal'
+stdout 'non-members must send exactly 1000000ugnot to create a proposal'
 
-# Case 2: Non-member WITH fee (should succeed)
+# Case 2: Non-member with INSUFFICIENT fee (should fail)
+gnokey maketx run -send "500000ugnot" -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'non-members must send exactly 1000000ugnot to create a proposal'
+
+# Case 3: Non-member WITH exact fee (should succeed)
 gnokey maketx run -send "1000000ugnot" -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test nonmember $WORK/proposer/create_proposal_must.gno
 stdout OK!
 

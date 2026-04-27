@@ -61,6 +61,11 @@ func NewGovDAO() *GovDAO {
 // realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
+// PreCreateProposal validates proposal creation.
+// Policy: Any non-member can create any proposal type (including law changes,
+// DAO upgrades, and member additions) by paying the proposal fee. Members
+// can propose for free. Governance safety relies on the voting phase —
+// only eligible members can vote and proposals require supermajority.
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	if !g.isValidCall() {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
@@ -70,12 +75,12 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	caller := runtime.OriginCaller()
 	mem, _ := getMembers(cross).GetMember(caller)
 
-	// If the caller is not a member, they must pay a fee
+	// Non-members must pay an exact fee in ugnot only.
 	if mem == nil {
 		sent := banker.OriginSend()
-		if len(sent) == 0 || sent.AmountOf("ugnot") < ProposalFeeAmount {
+		if len(sent) != 1 || sent[0].Denom != "ugnot" || sent[0].Amount != ProposalFeeAmount {
 			return caller, errors.New(ufmt.Sprintf(
-				"non-members must send %dugnot to create a proposal",
+				"non-members must send exactly %dugnot to create a proposal (single denom only)",
 				ProposalFeeAmount,
 			))
 		}

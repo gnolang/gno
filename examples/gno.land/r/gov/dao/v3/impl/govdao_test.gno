@@ -318,15 +318,33 @@ func TestNonMemberProposalFee(cur realm, t *testing.T) {
 	// Test: Non-member without fee should fail with fee message
 	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
 	urequire.Error(t, err)
-	urequire.ErrorContains(t, err, "non-members must send 1000000ugnot to create a proposal")
+	urequire.ErrorContains(t, err, "non-members must send exactly 1000000ugnot to create a proposal")
 
 	// Test: Non-member with insufficient fee should fail
 	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: 500000}}) // 0.5 GNOT - insufficient
 	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
 	urequire.Error(t, err)
-	urequire.ErrorContains(t, err, "non-members must send 1000000ugnot to create a proposal")
+	urequire.ErrorContains(t, err, "non-members must send exactly 1000000ugnot to create a proposal")
 
-	// Test: Non-member with correct fee should succeed
+	// Test: Non-member with overpayment should fail (exact amount required)
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount + 500000}}) // 1.5 GNOT
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send exactly 1000000ugnot to create a proposal")
+
+	// Test: Non-member with multi-denom send should fail
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", ProposalFeeAmount), chain.NewCoin("foo", 500)})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "single denom only")
+
+	// Test: Non-member with wrong denom should fail
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("foo", ProposalFeeAmount)})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "single denom only")
+
+	// Test: Non-member with exact fee should succeed
 	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
 	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
 	urequire.NoError(t, err)

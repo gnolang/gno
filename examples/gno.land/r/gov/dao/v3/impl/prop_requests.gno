@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
@@ -56,7 +57,16 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		panic("A portfolio for the proposed member is required")
 	}
 
+	// Member proposers spend an invitation point; non-members pay the fee in PreCreateProposal.
+	proposer, _ := getMembers(cross).GetMember(runtime.OriginCaller())
+	if proposer != nil && proposer.InvitationPoints <= 0 {
+		panic("proposer does not have enough invitation points for inviting new people to the board")
+	}
+
 	cb := func(_ realm) error {
+		if proposer != nil {
+			proposer.RemoveInvitationPoint()
+		}
 		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 
 		return err
@@ -198,8 +208,8 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 // NewProposalFeeAmountRequest creates a proposal request to update the proposal fee amount
 // required for non-members to create proposals.
 func NewProposalFeeAmountRequest(newAmount int64, reason string) dao.ProposalRequest {
-	if newAmount < 0 {
-		panic("proposal fee amount must be non-negative")
+	if newAmount <= 0 {
+		panic("proposal fee amount must be strictly positive")
 	}
 
 	if reason == "" {
