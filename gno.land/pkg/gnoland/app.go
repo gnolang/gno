@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -575,7 +574,7 @@ func EndBlocker(
 		// that future proposals can land. The realm only validates valset_new
 		// at write time, so corruption of valset_prev (which the chain itself
 		// writes) would otherwise wedge consensus updates forever.
-		prevSet, err := extractUpdatesFromParams(prevValset)
+		prevSet, err := abci.ParseValidatorUpdates(prevValset)
 		if err != nil {
 			app.Logger().Error(
 				"valset_prev is corrupted; clearing pending flag and advancing prev to recover",
@@ -589,9 +588,9 @@ func EndBlocker(
 
 		// Parse the proposed set.
 		// Same recovery policy as prev: clear the flag so a future re-propose can land.
-		// (validateValsetUpdate guards normal writes, but a direct param write could
+		// (WillSetParam guards normal writes, but a direct param write could
 		// still seed bad data.)
-		proposedSet, err := extractUpdatesFromParams(proposedValset)
+		proposedSet, err := abci.ParseValidatorUpdates(proposedValset)
 		if err != nil {
 			app.Logger().Error(
 				"valset_new is corrupted; clearing pending flag to allow re-propose",
@@ -643,49 +642,6 @@ func EndBlocker(
 			ValidatorUpdates: updates,
 		}
 	}
-}
-
-// extractUpdatesFromParams parses serialized validator updates from the params keeper.
-// Each entry is expected to be in the form:
-//
-//	<address>:<pub-key>:<voting-power>
-//
-// A voting power of 0 indicates a validator removal.
-func extractUpdatesFromParams(changes []string) (abci.ValidatorUpdates, error) {
-	updates := make(abci.ValidatorUpdates, 0, len(changes))
-
-	for _, change := range changes {
-		parts := strings.Split(change, ":")
-		if len(parts) != 3 {
-			return nil, fmt.Errorf(
-				"valset update is not in the format <address>:<pub-key>:<voting-power>, but %q",
-				change,
-			)
-		}
-
-		address, err := crypto.AddressFromBech32(parts[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid validator address: %w", err)
-		}
-
-		pubKey, err := crypto.PubKeyFromBech32(parts[1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid validator pubkey: %w", err)
-		}
-
-		votingPower, err := strconv.ParseInt(parts[2], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid voting power: %w", err)
-		}
-
-		updates = append(updates, abci.ValidatorUpdate{
-			Address: address,
-			PubKey:  pubKey,
-			Power:   votingPower,
-		})
-	}
-
-	return updates, nil
 }
 
 // checkSessionRestrictions enforces gno.land session key restrictions:

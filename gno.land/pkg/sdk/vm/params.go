@@ -3,11 +3,11 @@ package vm
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
@@ -316,38 +316,10 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 //   - <address>:<pub-key>:<voting-power>
 //   - voting power == 0 => validator removal
 //   - voting power != 0 => validator power update / validator addition
+//
+// Delegates to abci.ParseValidatorUpdates so the realm-side write check and
+// EndBlocker-side read share one parser (no ParseInt/ParseUint divergence).
 func validateValsetUpdate(changes []string) error {
-	for _, change := range changes {
-		changeParts := strings.Split(change, ":")
-		if len(changeParts) != 3 {
-			return fmt.Errorf(
-				"valset update is not in the format <address>:<pub-key>:<voting-power>, but %q",
-				change,
-			)
-		}
-
-		address, err := crypto.AddressFromBech32(changeParts[0])
-		if err != nil {
-			return fmt.Errorf("invalid validator address: %w", err)
-		}
-
-		pubKey, err := crypto.PubKeyFromBech32(changeParts[1])
-		if err != nil {
-			return fmt.Errorf("invalid validator pubkey: %w", err)
-		}
-
-		if pubKey.Address().Compare(address) != 0 {
-			return fmt.Errorf(
-				"address (%s) does not match public key address (%s)",
-				address,
-				pubKey.Address(),
-			)
-		}
-
-		if _, err = strconv.ParseUint(changeParts[2], 10, 64); err != nil {
-			return fmt.Errorf("invalid voting power: %w", err)
-		}
-	}
-
-	return nil
+	_, err := abci.ParseValidatorUpdates(changes)
+	return err
 }

@@ -2,8 +2,12 @@ package abci
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -102,6 +106,68 @@ func (vu ValidatorUpdate) Equals(vu2 ValidatorUpdate) bool {
 	} else {
 		return false
 	}
+}
+
+//----------------------------------------
+// Validator update serialization
+
+// ParseValidatorUpdate parses a single serialized validator update of the form
+//
+//	<address>:<pub-key>:<voting-power>
+//
+// where voting power is an unsigned integer (0 = removal). It checks that the
+// pub key derives the address (defense against typo'd updates).
+func ParseValidatorUpdate(s string) (ValidatorUpdate, error) {
+	parts := strings.Split(s, ":")
+	if len(parts) != 3 {
+		return ValidatorUpdate{}, fmt.Errorf(
+			"valset update is not in the format <address>:<pub-key>:<voting-power>, got %q",
+			s,
+		)
+	}
+
+	address, err := crypto.AddressFromBech32(parts[0])
+	if err != nil {
+		return ValidatorUpdate{}, fmt.Errorf("invalid validator address %q: %w", parts[0], err)
+	}
+
+	pubKey, err := crypto.PubKeyFromBech32(parts[1])
+	if err != nil {
+		return ValidatorUpdate{}, fmt.Errorf("invalid validator pubkey %q: %w", parts[1], err)
+	}
+
+	if pubKey.Address().Compare(address) != 0 {
+		return ValidatorUpdate{}, fmt.Errorf(
+			"address %s does not match pubkey-derived address %s",
+			address, pubKey.Address(),
+		)
+	}
+
+	power, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return ValidatorUpdate{}, fmt.Errorf("invalid voting power %q: %w", parts[2], err)
+	}
+
+	return ValidatorUpdate{
+		Address: address,
+		PubKey:  pubKey,
+		Power:   int64(power),
+	}, nil
+}
+
+// ParseValidatorUpdates parses a list of serialized validator updates. See
+// ParseValidatorUpdate for the per-entry format. Errors include the offending
+// entry's index for easier diagnosis.
+func ParseValidatorUpdates(entries []string) (ValidatorUpdates, error) {
+	updates := make(ValidatorUpdates, 0, len(entries))
+	for i, entry := range entries {
+		u, err := ParseValidatorUpdate(entry)
+		if err != nil {
+			return nil, fmt.Errorf("entry %d: %w", i, err)
+		}
+		updates = append(updates, u)
+	}
+	return updates, nil
 }
 
 //----------------------------------------
