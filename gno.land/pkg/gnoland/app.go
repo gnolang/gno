@@ -290,6 +290,16 @@ type InitChainerConfig struct {
 	// called several times.
 	CacheStdlibLoad bool
 
+	// StrictReplay refuses to boot the chain if any non-skipped genesis tx
+	// fails replay. Hardfork operators should enable this so a corrupted
+	// genesis aborts InitChain loudly instead of producing a chain whose
+	// AppHash silently diverges from the source.
+	//
+	// Skipped txs (those carrying metadata.Failed = true, which were
+	// intentionally non-applied on the source chain) do not count as
+	// failures.
+	StrictReplay bool
+
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
 	baseApp *sdk.BaseApp
@@ -536,6 +546,22 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 	}
 
 	report.emit(ctx.Logger())
+
+	// StrictReplay: refuse to boot if any non-skipped tx failed. Default off
+	// for backwards compatibility with test setups; hardfork operators must
+	// opt in. Otherwise the chain would happily boot in an inconsistent
+	// state (AppHash diverged from source for any failing tx in
+	// GasReplayMode="strict"), with the operator only noticing via the
+	// per-failure Warn lines emitted by report.emit above.
+	if cfg.StrictReplay {
+		if n := report.FailedCount(); n > 0 {
+			return txResponses, fmt.Errorf(
+				"strict replay: %d genesis tx(s) failed; chain refusing to boot. "+
+					"Inspect the per-failure 'Genesis replay failure' log lines for details.",
+				n,
+			)
+		}
+	}
 
 	return txResponses, nil
 }

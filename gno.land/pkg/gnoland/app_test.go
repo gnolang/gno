@@ -1831,6 +1831,111 @@ func TestInitChainer_InitialHeightMismatch(t *testing.T) {
 	})
 }
 
+// TestInitChainer_StrictReplay verifies that StrictReplay refuses to boot
+// when any non-skipped genesis tx fails replay, and that intentionally
+// skipped txs (metadata.Failed = true) are not counted as failures.
+func TestInitChainer_StrictReplay(t *testing.T) {
+	t.Parallel()
+
+	// A tx that fails to deliver because it has no msgs / no signatures
+	// (ante handler will reject it).
+	failingTx := std.Tx{
+		Msgs: []std.Msg{},
+		Fee:  std.Fee{GasFee: std.NewCoin("ugnot", 1), GasWanted: 100},
+	}
+
+	t.Run("StrictReplay false: failing tx does not abort boot", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = false
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.Nil(t, resp.Error, "StrictReplay false should boot despite failing tx: %v", resp.Error)
+	})
+
+	t.Run("StrictReplay true: failing tx aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = true
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.NotNil(t, resp.Error, "StrictReplay true should refuse to boot on failing tx")
+		assert.Contains(t, resp.Error.Error(), "strict replay")
+	})
+
+	t.Run("StrictReplay true: tx marked Failed in source is skipped, not counted", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = true
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1, Failed: true}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.Nil(t, resp.Error, "intentionally-skipped failed tx should not trigger StrictReplay: %v", resp.Error)
+	})
+}
+
 func TestIsPastChainID(t *testing.T) {
 	t.Parallel()
 

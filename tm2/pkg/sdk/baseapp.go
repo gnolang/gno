@@ -67,12 +67,22 @@ type BaseApp struct {
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
 
-	// lastBlockHeight tracks the height of the most recently committed block,
-	// or InitialHeight-1 immediately after InitChain. Unlike LastBlockHeight()
-	// (which returns the multistore version), this preserves the real chain
-	// height across hardforks where InitialHeight > 1, and is the source of
-	// truth for BeginBlock contiguity checks.
+	// lastBlockHeight tracks the real chain height of the most recently
+	// committed block (or InitialHeight-1 immediately after InitChain).
+	// Unlike LastBlockHeight() (which returns the multistore version), this
+	// preserves real chain height across hardforks where InitialHeight > 1,
+	// and is the source of truth for BeginBlock contiguity checks.
+	//
+	// Always equals app.cms.LastCommitID().Version + initialHeightOffset
+	// after a Commit, with the special pre-commit case being set in
+	// InitChain.
 	lastBlockHeight int64
+
+	// initialHeightOffset is InitialHeight-1 (or 0 for standard chains) and
+	// shifts the multistore version up to real chain height. Persisted in
+	// the base store under mainInitialHeightKey so it survives restarts and
+	// LoadVersion calls.
+	initialHeightOffset int64
 
 	// application's version string
 	appVersion string
@@ -168,6 +178,19 @@ func (app *BaseApp) LastBlockHeight() int64 {
 	return app.cms.LastCommitID().Version
 }
 
+// recomputeLastBlockHeight refreshes app.lastBlockHeight from the current
+// multistore version plus the InitialHeight offset. Called by initFromMainStore
+// and Commit. The result is real chain height (multistore version is shifted
+// up by initialHeightOffset for chains that started at InitialHeight > 1).
+func (app *BaseApp) recomputeLastBlockHeight() {
+	v := app.cms.LastCommitID().Version
+	if v > 0 {
+		app.lastBlockHeight = v + app.initialHeightOffset
+	} else {
+		app.lastBlockHeight = 0
+	}
+}
+
 // initializes the app from app.cms after loading.
 func (app *BaseApp) initFromMainStore() error {
 	baseStore := app.cms.GetStore(app.baseKey)
@@ -212,21 +235,18 @@ func (app *BaseApp) initFromMainStore() error {
 		app.setCheckState(lastHeader)
 	}
 
-	// Compute the real chain height as multistore version + InitialHeight
-	// offset. The multistore version is rewound by LoadVersion; the offset is
-	// a chain-wide constant set in InitChain. Together they reconstruct the
-	// real block height of the last committed block, which is what
-	// validateHeight enforces contiguity against.
-	app.lastBlockHeight = app.cms.LastCommitID().Version
+	// Restore the InitialHeight offset (chain-wide constant set in InitChain)
+	// so we can reconstruct real chain height from the multistore version.
 	if initialHeightBz := baseStore.Get(mainInitialHeightKey); initialHeightBz != nil {
 		var initialHeight int64
 		if err := amino.Unmarshal(initialHeightBz, &initialHeight); err != nil {
 			panic(err)
 		}
-		if initialHeight > 1 && app.lastBlockHeight > 0 {
-			app.lastBlockHeight += initialHeight - 1
+		if initialHeight > 1 {
+			app.initialHeightOffset = initialHeight - 1
 		}
 	}
+	app.recomputeLastBlockHeight()
 	// Done.
 	app.Seal()
 
@@ -369,11 +389,12 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	// Track the height the next block must land at. For standard genesis
 	// (InitialHeight 0 or 1), this stays 0 so the first block at height 1 is
 	// accepted. For hardfork replays (InitialHeight > 1), the first block
-	// must land at exactly InitialHeight, and InitialHeight is persisted as a
-	// chain-wide offset so initFromMainStore can reconstruct real chain
-	// height across process restarts (the multistore version alone lags
-	// chain height after a hardfork).
+	// must land at exactly InitialHeight, and InitialHeight is persisted as
+	// a chain-wide offset so initFromMainStore can reconstruct real chain
+	// height across process restarts (multistore version alone lags chain
+	// height after a hardfork).
 	if req.InitialHeight > 1 {
+		app.initialHeightOffset = req.InitialHeight - 1
 		app.lastBlockHeight = req.InitialHeight - 1
 		baseStore := app.cms.GetStore(app.baseKey)
 		if baseStore != nil {
@@ -397,6 +418,15 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 
 	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
+
+	// If the initChainer returned an error response, return it as-is and
+	// skip the post-init bookkeeping below. The validators-count sanity
+	// check would otherwise panic with a misleading "count mismatch" when
+	// res.Validators is empty (the natural shape of an error response),
+	// masking the real cause from the operator.
+	if res.ResponseBase.Error != nil {
+		return
+	}
 
 	// sanity check
 	if len(req.Validators) > 0 {
@@ -967,8 +997,10 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 
 	// Track the real block height so the next BeginBlock validates against
 	// chain height, not the multistore version (which lags when
-	// InitialHeight > 1).
-	app.lastBlockHeight = header.GetHeight()
+	// InitialHeight > 1). Recompute from multistore version + offset so the
+	// initHeader.Height=0 commit in InitChain still produces the correct
+	// next-block expectation.
+	app.recomputeLastBlockHeight()
 
 	// Reset the Check state to the latest committed.
 	//
