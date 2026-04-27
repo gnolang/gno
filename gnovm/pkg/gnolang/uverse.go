@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -43,6 +45,15 @@ var gErrorType = &DeclaredType{
 		},
 	},
 	sealed: true,
+}
+
+// IsErrorType returns true if the given type implements the error interface.
+// This is useful for checking function return types without a TypedValue.
+func IsErrorType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	return IsImplementedBy(gErrorType, t)
 }
 
 var gStringerType = &DeclaredType{
@@ -96,6 +107,20 @@ var gCoinsType = &DeclaredType{
 	sealed:  true,
 }
 
+// OriginSendProvider is an interface for contexts that can provide origin send information.
+// This interface is implemented by ExecContext to avoid import cycles.
+type OriginSendProvider interface {
+	GetOriginSend() std.Coins
+}
+
+// gnoCoinString formats a gnocoin StructValue as "amountdenom".
+// Used by both gnocoin.String() and gnocoins.String() native methods.
+func gnoCoinString(sv *StructValue) string {
+	denom := sv.Fields[0].GetString()
+	amount := sv.Fields[1].GetInt64()
+	return strconv.FormatInt(amount, 10) + denom
+}
+
 var gRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "realm",
@@ -120,6 +145,14 @@ var gRealmType = &DeclaredType{
 				},
 			}, {
 				Name: "Coins",
+				Type: &FuncType{
+					Params: nil,
+					Results: []FieldType{{
+						Type: gCoinsType,
+					}},
+				},
+			}, {
+				Name: "SentCoins",
 				Type: &FuncType{
 					Params: nil,
 					Results: []FieldType{{
@@ -321,6 +354,7 @@ func makeUverseNode() {
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
 				newArrayValue := m.Alloc.NewDataArray(len(arg1String))
+				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(len(arg1String)))
 				copy(newArrayValue.Data, []byte(arg1String))
 				arg1.TV = &TypedValue{
 					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
@@ -363,6 +397,7 @@ func makeUverseNode() {
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(nil, *SliceValue) new data bytes ---
 						arrayValue := m.Alloc.NewDataArray(arg1Length)
+						m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 						if arg1Base.Data == nil {
 							copyListToData(
 								arrayValue.Data[:arg1Length],
@@ -381,6 +416,7 @@ func makeUverseNode() {
 						// append(nil, *SliceValue) new list ---------
 						arrayValue := m.Alloc.NewListArray(arg1Length)
 						if arg1Length > 0 {
+							m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 							for i := range arg1Length {
 								arrayValue.List[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 							}
@@ -436,6 +472,7 @@ func makeUverseNode() {
 								// to mark arg0Base dirty; no top-level call needed.
 								list := arg0Base.List
 								if arg1Base.Data == nil {
+									m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 									dstStart := arg0Offset + arg0Length
 									srcStart := arg1Offset
 									srcEnd := arg1Offset + arg1Length
@@ -464,6 +501,7 @@ func makeUverseNode() {
 										)
 									}
 								} else {
+									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 									copyDataToList(
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
@@ -477,10 +515,12 @@ func makeUverseNode() {
 								m.Realm.DidUpdate(arg0Base, nil, nil)
 								data := arg0Base.Data
 								if arg1Base.Data == nil {
+									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
 								} else {
+									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length])
@@ -503,6 +543,7 @@ func makeUverseNode() {
 						newLength := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewDataArray(newLength)
 						if 0 < arg0Length {
+							m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg0Length))
 							if arg0Base.Data == nil {
 								copyListToData(
 									arrayValue.Data[:arg0Length],
@@ -514,6 +555,7 @@ func makeUverseNode() {
 							}
 						}
 						if 0 < arg1Length {
+							m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 							if arg1Base.Data == nil {
 								copyListToData(
 									arrayValue.Data[arg0Length:newLength],
@@ -535,6 +577,7 @@ func makeUverseNode() {
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
+								m.incrCPU(OpCPUSlopeCopyElement * int64(arg0Length))
 								for i := range arg0Length {
 									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
@@ -545,10 +588,12 @@ func makeUverseNode() {
 
 						if arg1Length > 0 {
 							if arg1Base.Data == nil {
+								m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 								for i := range arg1Length {
 									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
+								m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 								copyDataToList(
 									arrayValue.List[arg0Length:arg0Length+arg1Length],
 									arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
@@ -635,6 +680,9 @@ func makeUverseNode() {
 				// case without calling DidUpdate. The top-level call ensures the
 				// backing array is always marked dirty in the realm store.
 				m.Realm.DidUpdate(dstBase, nil, nil)
+				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
+				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
+				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
 				// TODO: consider an optimization if dstv.Data != nil.
 				for i := range minl {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
@@ -680,6 +728,7 @@ func makeUverseNode() {
 					start = minl - 1
 					end = -1
 				}
+				m.incrCPU(OpCPUSlopeCopyElement * int64(minl))
 				for i := start; i != end; i += step {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
@@ -780,6 +829,9 @@ func makeUverseNode() {
 				case 1:
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := int(lv.ConvertGetInt())
+					if li < 0 {
+						m.Panic(typedString("runtime error: makeslice: len out of range"))
+					}
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(li)
 						m.PushValue(TypedValue{
@@ -793,6 +845,9 @@ func makeUverseNode() {
 							// leave as is
 						} else {
 							// init zero elements with concrete type.
+							// No CPU charge: for primitives defaultTypedValue is a
+							// zero-cost struct literal; for composite types it
+							// allocates via m.Alloc (covered by alloc gas).
 							for i := range li {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
@@ -809,8 +864,14 @@ func makeUverseNode() {
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := int(cv.ConvertGetInt())
 
+					if li < 0 {
+						m.Panic(typedString("runtime error: makeslice: len out of range"))
+					}
+					if ci < 0 {
+						m.Panic(typedString("runtime error: makeslice: cap out of range"))
+					}
 					if ci < li {
-						m.Panic(typedString(`makeslice: cap out of range`))
+						m.Panic(typedString("runtime error: makeslice: cap out of range"))
 					}
 
 					if et.Kind() == Uint8Kind {
@@ -838,6 +899,9 @@ func makeUverseNode() {
 							// require a bit more work to handle correctly, requiring that
 							// all new TypedValue slice elements be checked to ensure they have
 							// a value for every slice operation, which is not desirable.
+							// No CPU charge: for primitives defaultTypedValue is a
+							// zero-cost struct literal; for composite types it
+							// allocates via m.Alloc (covered by alloc gas).
 							for i := range ci {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
@@ -1009,7 +1073,41 @@ func makeUverseNode() {
 		},
 	)
 	def("gnocoin", asValue(gCoinType))
+	defNativeMethod("gnocoin", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			m.PushValue(typedString(gnoCoinString(arg0.TV.V.(*StructValue))))
+		},
+	)
 	def("gnocoins", asValue(gCoinsType))
+	defNativeMethod("gnocoins", "String",
+		nil, // params
+		Flds( // results
+			"", "string",
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			sv, ok := arg0.TV.V.(*SliceValue)
+			if !ok || sv == nil || sv.GetLength() == 0 {
+				m.PushValue(typedString(""))
+				return
+			}
+			base := sv.GetBase(m.Store)
+			n := sv.GetLength()
+			var res string
+			for i := range n {
+				if i > 0 {
+					res += ","
+				}
+				res += gnoCoinString(base.List[sv.Offset+i].V.(*StructValue))
+			}
+			m.PushValue(typedString(res))
+		},
+	)
 	def("realm", asValue(gRealmType))
 	def(".grealm", asValue(gConcreteRealmType))
 	defNativeMethod(".grealm", "Address",
@@ -1037,6 +1135,61 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			panic("not yet implemented")
+		},
+	)
+	defNativeMethod(".grealm", "SentCoins",
+		nil, // params
+		Flds( // results
+			"", "gnocoins",
+		),
+		func(m *Machine) {
+			// Only return coins if the caller of SentCoins() is the first realm
+			// in the call stack, i.e. the realm that actually received the funds.
+			//
+			// Frame.LastPackage is the package that was active before the frame
+			// was pushed (the caller's package). So the innermost frame's
+			// LastPackage is the package that invoked SentCoins().
+			var callerPkg string
+			if lp := m.Frames[m.NumFrames()-1].LastPackage; lp != nil {
+				callerPkg = lp.PkgPath
+			}
+			// Walk frames from oldest to newest; the first LastPackage that is
+			// a realm path is the first realm that appeared in the call chain.
+			var firstRealmPkg string
+			for i := 1; i < m.NumFrames(); i++ {
+				lp := m.Frames[i].LastPackage
+				if lp == nil {
+					continue
+				}
+				if pkg := lp.PkgPath; IsRealmPath(pkg) {
+					firstRealmPkg = pkg
+					break
+				}
+			}
+			var coins std.Coins
+			if callerPkg != "" && firstRealmPkg == callerPkg {
+				if osp, ok := m.Context.(OriginSendProvider); ok {
+					coins = osp.GetOriginSend()
+				}
+			}
+			// Manually construct a gnocoins.
+			n := len(coins)
+			baseArray := m.Alloc.NewListArray(n)
+			for i, coin := range coins {
+				fields := m.Alloc.NewStructFields(2)
+				fields[0] = TypedValue{T: StringType}
+				fields[0].V = m.Alloc.NewString(coin.Denom)
+				fields[1] = TypedValue{T: Int64Type}
+				fields[1].SetInt64(coin.Amount)
+				baseArray.List[i] = TypedValue{
+					T: gCoinType,
+					V: m.Alloc.NewStruct(fields),
+				}
+			}
+			m.PushValue(TypedValue{
+				T: gCoinsType,
+				V: m.Alloc.NewSlice(baseArray, 0, n, n),
+			})
 		},
 	)
 	defNativeMethod(".grealm", "Send",

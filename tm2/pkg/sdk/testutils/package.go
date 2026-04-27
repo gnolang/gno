@@ -11,6 +11,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).WithDependencies().WithTypes(
 	// ...
 	&TestMsg{}, "TestMsg",
+	MockMsgCall{}, "MockMsgCall",
+	MockMsgRun{}, "MockMsgRun",
+	MockMsgSend{}, "MockMsgSend",
 
 	// testmsgs.go
 	MsgCounter{},

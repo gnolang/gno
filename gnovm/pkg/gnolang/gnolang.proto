@@ -109,14 +109,25 @@ message Block {
 
 message RefValue {
 	string object_id = 1 [json_name = "ObjectID"];
-	bool escaped = 2 [json_name = "Escaped"];
-	string pkg_path = 3 [json_name = "PkgPath"];
-	string hash = 4 [json_name = "Hash"];
+	string pkg_path = 2 [json_name = "PkgPath"];
+	string hash = 3 [json_name = "Hash"];
+}
+
+message ExportRefValue {
+	string object_id = 1 [json_name = "ObjectID"];
 }
 
 message HeapItemValue {
 	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
 	TypedValue value = 2 [json_name = "Value"];
+}
+
+message Realm {
+	string id = 1 [json_name = "ID"];
+	string path = 2 [json_name = "Path"];
+	uint64 time = 3 [json_name = "Time"];
+	uint64 deposit = 4 [json_name = "Deposit"];
+	uint64 storage = 5 [json_name = "Storage"];
 }
 
 message ObjectID {

@@ -7,9 +7,9 @@ stderr '=== RUN   ./x_filetest.gno'
 stderr '--- PASS: ./x_filetest.gno \(elapsed: \d+\.\d\ds, gas: \d+\)'
 stderr 'ok      \. 	\d+\.\d\ds'
 
-cmp x_filetest.gno x_filetest.gno.golden
+cmp filetests/x_filetest.gno x_filetest.gno.golden
 
--- x_filetest.gno --
+-- filetests/x_filetest.gno --
 // PKGPATH: gno.land/r/xx
 package xx
 
@@ -33,14 +33,14 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/xx"]
-// u[aea84df38908f9569d0f552575606e6e6e7e22dd:3](5)=
+// u[0ea84df38908f9569d0f552575606e6e6e7e22dd:3](5)=
 //     @@ -2,11 +2,12 @@
 //          "ObjectInfo": {
-//              "ID": "aea84df38908f9569d0f552575606e6e6e7e22dd:3",
+//              "ID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:3",
 //              "LastObjectSize": "216",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
-//              "OwnerID": "aea84df38908f9569d0f552575606e6e6e7e22dd:2",
+//              "OwnerID": "0ea84df38908f9569d0f552575606e6e6e7e22dd:2",
 //              "RefCount": "1"
 //          },
 //          "Value": {

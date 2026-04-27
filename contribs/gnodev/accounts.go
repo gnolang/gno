@@ -122,7 +122,10 @@ func logAccounts(ctx context.Context, logger *slog.Logger, book *address.Book, _
 			return fmt.Errorf("unable to query account %q: %w", address, err)
 		}
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret struct {
+			BaseAccount std.BaseAccount
+			Attributes  uint64 `json:"attributes"` // GnoAccount extension
+		}
 		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 			return fmt.Errorf("unable to unmarshal query response: %w", err)
 		}

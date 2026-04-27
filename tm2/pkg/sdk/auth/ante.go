@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -108,62 +109,180 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, res, true
 		}
 
-		// stdSigs contains the sequence number, account number, and signatures.
-		// When simulating, this would just be a 0-length slice.
 		signerAddrs := tx.GetSigners()
 		signerAccs := make([]std.Account, len(signerAddrs))
+		stdSigs := tx.GetSignatures()
 		isGenesis := ctx.BlockHeight() == 0
+		sessionAccounts := map[crypto.Address]std.DelegatedAccount{}
 
-		// fetch first signer, who's going to pay the fees
-		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerAddrs[0])
-		if !res.IsOK() {
-			return newCtx, res, true
-		}
+		// ——— Phase 1: Resolve all signers ———
 
-		// deduct the fees
-		if !tx.Fee.GasFee.IsZero() {
-			res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
+		for i, signerAddr := range signerAddrs {
+			signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddr)
 			if !res.IsOK() {
 				return newCtx, res, true
 			}
 
+			if !stdSigs[i].SessionAddr.IsZero() {
+				sa := ak.GetSessionAccount(newCtx, signerAddr, stdSigs[i].SessionAddr)
+				if sa == nil {
+					return newCtx, abciResult(std.ErrUnauthorized("unknown session")), true
+				}
+				da := sa.(std.DelegatedAccount)
+				if da.GetExpiresAt() > 0 && newCtx.BlockTime().Unix() >= da.GetExpiresAt() {
+					return newCtx, abciResult(std.ErrSessionExpired(fmt.Sprintf(
+						"session expired: expires_at=%d, block_time=%d",
+						da.GetExpiresAt(), newCtx.BlockTime().Unix()))), true
+				}
+				sessionAccounts[signerAddr] = da
+			}
+		}
+
+		// ——— Phase 2: Pre-check session outflow, then deduct gas fees ———
+
+		// Phase 2a: If the first signer is a session, pre-check its total
+		// declared outflow (gas fee + each msg's SpendForSigner) against
+		// the session's remaining SpendLimit BEFORE any deduction. This
+		// rejects obviously-over-limit session-signed txs without charging
+		// gas, preventing a mempool-gas-bleed attack where a compromised
+		// session could submit many doomed txs and bleed gas from master
+		// on each ante Phase 2 commit.
+		//
+		// Msgs that don't implement std.SpendEstimator are skipped here;
+		// the bank.Keeper.SendCoins session hook still catches their
+		// actual outflow at execution time, so correctness is unchanged —
+		// this pre-check is purely a gas-efficiency optimization.
+		if da, ok := sessionAccounts[signerAddrs[0]]; ok {
+			total := std.Coins{}
+			if !tx.Fee.GasFee.IsZero() {
+				total = total.Add(std.Coins{tx.Fee.GasFee})
+			}
+			for _, msg := range tx.GetMsgs() {
+				if est, ok := msg.(std.SpendEstimator); ok {
+					total = total.Add(est.SpendForSigner(signerAddrs[0]))
+				}
+			}
+			if err := CheckSessionSpend(da, total, newCtx.BlockTime().Unix()); err != nil {
+				return newCtx, abciResult(err), true
+			}
+		}
+
+		// Phase 2b: Deduct gas fees from first signer (always master).
+		if !tx.Fee.GasFee.IsZero() {
+			// Gas fees count against session spend limits.
+			if da, ok := sessionAccounts[signerAddrs[0]]; ok {
+				if err := DeductSessionSpend(da, std.Coins{tx.Fee.GasFee}, newCtx.BlockTime().Unix()); err != nil {
+					return newCtx, abciResult(err), true
+				}
+				// SpendUsed updated on in-memory da; persisted in Phase 3.
+			}
+			res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
+			if !res.IsOK() {
+				return newCtx, res, true
+			}
 			// reload the account as fees have been deducted
-			signerAccs[0] = ak.GetAccount(newCtx, signerAccs[0].GetAddress())
+			signerAccs[0] = ak.GetAccount(newCtx, signerAddrs[0])
 		}
 
-		// stdSigs contains the sequence number, account number, and signatures.
-		// When simulating, this would just be a 0-length slice.
-		stdSigs := tx.GetSignatures()
+		// ——— Phase 3: Verify signatures, increment sequences ———
 
-		for i := range stdSigs {
-			// skip the fee payer, account is cached and fees were deducted already
-			if i != 0 {
-				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
-				if !res.IsOK() {
-					return newCtx, res, true
-				}
-			}
-
-			// check signature, return account with incremented nonce
-			sacc := signerAccs[i]
+		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
-				// No signatures are needed for genesis.
-			} else {
-				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
-				if err != nil {
-					return newCtx, res, true
-				}
-				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
-				if !res.IsOK() {
-					return newCtx, res, true
-				}
+				continue
 			}
-			ak.SetAccount(newCtx, signerAccs[i])
+
+			da, isSession := sessionAccounts[signerAddrs[i]]
+
+			// Pick the account that holds the pubkey + sequence.
+			var sigAcc std.Account
+			if isSession {
+				sigAcc = da.(std.Account)
+			} else {
+				sigAcc = signerAccs[i]
+			}
+
+			// Resolve pubkey.
+			pubKey := sig.PubKey
+			if pubKey == nil {
+				// No pubkey in signature — use stored key.
+				pubKey = sigAcc.GetPubKey()
+			} else if sigAcc.GetPubKey() == nil {
+				// First tx: set pubkey on account.
+				//
+				// Asymmetry between master and session accounts is intentional.
+				// For MASTER accounts, we MUST verify that the supplied pubkey
+				// hashes to the signer address, because master addresses are
+				// derived lazily on first interaction — the first signer to
+				// claim a never-seen address can fix its pubkey, so we must
+				// reject an address-mismatched pubkey to prevent pubkey squats.
+				//
+				// For SESSION accounts, the address was set at CREATION time
+				// via keeper.NewSessionAccount using msg.SessionKey.Address()
+				// (see auth/keeper.go:NewSessionAccount). The handler already
+				// enforced that sessionAddr == msg.SessionKey.Address() and
+				// rejected collisions with existing accounts. So by the time
+				// we reach this branch for a session, sigAcc.GetAddress() is
+				// guaranteed to equal the pubkey's derived address — there's
+				// nothing to verify.
+				if !isSession {
+					// For master accounts, verify pubkey matches address.
+					if pubKey.Address() != sigAcc.GetAddress() {
+						return newCtx, abciResult(std.ErrInvalidPubKey(
+							fmt.Sprintf("PubKey does not match Signer address %s", sigAcc.GetAddress()))), true
+					}
+				}
+				sigAcc.SetPubKey(pubKey)
+			} else {
+				// Both sig.PubKey and stored pubkey exist — they must match.
+				if !bytes.Equal(pubKey.Bytes(), sigAcc.GetPubKey().Bytes()) {
+					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				}
+				pubKey = sigAcc.GetPubKey()
+			}
+			if pubKey == nil {
+				return newCtx, abciResult(std.ErrInvalidPubKey("PubKey not found")), true
+			}
+
+			// Sign bytes: sigAcc's own AccountNumber and Sequence.
+			// At genesis, both are zero regardless of actual values.
+			var accNum, accSeq uint64
+			if !isGenesis {
+				accNum = sigAcc.GetAccountNumber()
+				accSeq = sigAcc.GetSequence()
+			}
+			signBytes, err := tx.GetSignBytes(
+				newCtx.ChainID(),
+				accNum,
+				accSeq,
+			)
+			if err != nil {
+				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+			}
+
+			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
+				return newCtx, res, true
+			}
+
+			if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+			}
+
+			if isSession {
+				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
+				ak.SetSessionAccount(newCtx, signerAddrs[i], sigAcc)
+			} else {
+				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
+				ak.SetAccount(newCtx, signerAccs[i])
+			}
 		}
 
-		// TODO: tx tags (?)
-		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false // continue...
+		// ——— Phase 4: Propagate session accounts in context ———
+
+		if len(sessionAccounts) > 0 {
+			newCtx = newCtx.WithValue(std.SessionAccountsContextKey{}, sessionAccounts)
+		}
+
+		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false
 	}
 }
 
@@ -207,58 +326,6 @@ func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 	}
 
 	return sdk.Result{}
-}
-
-// verify the signature and increment the sequence. If the account doesn't
-// have a pubkey, set it.
-func processSig(
-	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
-	sigGasConsumer SignatureVerificationGasConsumer,
-) (updatedAcc std.Account, res sdk.Result) {
-	pubKey, res := ProcessPubKey(acc, sig)
-	if !res.IsOK() {
-		return nil, res
-	}
-
-	err := acc.SetPubKey(pubKey)
-	if err != nil {
-		return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
-	}
-
-	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
-		return nil, res
-	}
-
-	if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-		return nil, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id"))
-	}
-
-	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
-		panic(err)
-	}
-
-	return acc, res
-}
-
-// ProcessPubKey verifies that the given account address matches that of the
-// std.Signature. In addition, it will set the public key of the account if it
-// has not been set.
-func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Result) {
-	// If pubkey is not known for account, set it from the std.Signature.
-	pubKey := acc.GetPubKey()
-	if pubKey == nil {
-		pubKey = sig.PubKey
-		if pubKey == nil {
-			return nil, abciResult(std.ErrInvalidPubKey("PubKey not found"))
-		}
-
-		if pubKey.Address() != acc.GetAddress() {
-			return nil, abciResult(std.ErrInvalidPubKey(
-				fmt.Sprintf("PubKey does not match Signer address %s", acc.GetAddress())))
-		}
-	}
-
-	return pubKey, sdk.Result{}
 }
 
 // DefaultSigVerificationGasConsumer is the default implementation of
