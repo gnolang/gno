@@ -41,12 +41,18 @@ serialized content.
 
 ### Scope of Impact
 
-The stale ancestor hashes are a **correctness invariant violation**, not a consensus or
-app-hash issue. Specifically:
+The stale ancestor hashes are a **correctness invariant violation**. Specifically:
 
-- **No consensus impact**: non-escaped realm objects are stored in the flat `baseStore`
-  (`dbadapter`), not the IAVL Merkle tree. Their hashes do not contribute to the app hash.
-  All validators produce the same (incorrect) state deterministically.
+- **No validator disagreement (no fork risk)**: All validators produce the same state
+  deterministically — the bug is in the save logic, not in non-deterministic evaluation.
+- **Fix changes the app hash**: Although the bug doesn't cause non-determinism, the fix
+  *does* change which objects enter the save set. Escaped ancestors (e.g., the
+  PackageValue at the root of the ownership chain) are now correctly re-saved with
+  updated hashes. Since escaped objects are indexed in the IAVL Merkle tree, the IAVL
+  root — and therefore the app hash — changes from what the buggy code produced. See
+  `apphash_crossrealm36_test.go` which pins the new post-fix commitment. A network
+  upgrade that includes this fix will produce a different app hash for any block that
+  modifies a store-restored realm object.
 - **No value retrieval impact**: objects are loaded by `ObjectID`; `RefValue.Hash` is
   written during save but never checked during load (`fillValueTV` ignores it).
 - **Hash chain inconsistency**: parent objects contain `RefValue{OID, Hash}` where `Hash`
