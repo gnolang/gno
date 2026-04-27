@@ -41,7 +41,6 @@ var (
 	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
 	ErrProposalDefinitionPanicked = errors.New("proposal definition panicked")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 )
 
