@@ -255,6 +255,11 @@ type ArrayValue struct {
 	ObjectInfo
 	List []TypedValue
 	Data []byte
+
+	// When non-nil, this is a transient view aliasing BaseArray at BaseOffset
+	// for slice-to-array-pointer conversions.
+	BaseArray  *ArrayValue `json:"-"`
+	BaseOffset int         `json:"-"`
 }
 
 // NOTE: Result should not be written to,
@@ -295,8 +300,42 @@ func (av *ArrayValue) GetLength() int {
 	return len(av.Data)
 }
 
+// newArrayPtrView aliases length elements of base starting at offset.
+// BaseArray forwards element-pointer ops so realm dirty-tracking sees
+// mutations on the real backing.
+func newArrayPtrView(base *ArrayValue, offset, length int) *ArrayValue {
+	view := &ArrayValue{BaseArray: base, BaseOffset: offset}
+	if length == 0 {
+		return view
+	}
+	if base.Data != nil {
+		view.Data = base.Data[offset : offset+length]
+	} else {
+		view.List = base.List[offset : offset+length]
+	}
+	return view
+}
+
+// isSliceToArrayPtrView distinguishes a slice-to-array-pointer view from a
+// real nested-array element pointer; both share PointerValue{Base, Index}
+// shape. For a view, cbv.List[index].T (slice element T) cannot equal the
+// target [N]T (would require T == [N]T). Data-backed arrays hold only bytes,
+// so any *ArrayType pointer into one is a view.
+func isSliceToArrayPtrView(cbv *ArrayValue, index int, at *ArrayType) bool {
+	if cbv.Data != nil {
+		return true
+	}
+	if index >= len(cbv.List) {
+		return true // zero-length view
+	}
+	return cbv.List[index].T.TypeID() != at.TypeID()
+}
+
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
+	if av.BaseArray != nil {
+		return av.BaseArray.GetPointerAtIndexInt2(store, av.BaseOffset+ii, et)
+	}
 	if av.Data == nil {
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
@@ -2744,8 +2783,12 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
-				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
+				if at, ok := et.(*ArrayType); ok && isSliceToArrayPtrView(cbv, cv.Index, at) {
+					cv.TV = &TypedValue{T: at, V: newArrayPtrView(cbv, cv.Index, at.Len)}
+				} else {
+					epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
+					cv.TV = epv.TV // TODO optimize? (epv.* ignored)
+				}
 			case *StructValue:
 				fpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = fpv.TV // TODO optimize?

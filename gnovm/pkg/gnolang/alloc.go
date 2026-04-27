@@ -60,7 +60,7 @@ const (
 	// By-pointer types (pointer receivers on Value interface).
 	// Heap-allocated; *T stored in TypedValue.V.
 	_allocStructValue      = 176 // unsafe.Sizeof(StructValue{})
-	_allocArrayValue       = 200 // unsafe.Sizeof(ArrayValue{})
+	_allocArrayValue       = 216 // unsafe.Sizeof(ArrayValue{})
 	_allocSliceValue       = 40  // unsafe.Sizeof(SliceValue{})
 	_allocFuncValue        = 352 // unsafe.Sizeof(FuncValue{})
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})

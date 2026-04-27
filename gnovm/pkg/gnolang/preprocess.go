@@ -1683,6 +1683,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 
 					//----------------------------------------
+					// LEAVE (TYPE) CALL EXPR SLICE-TO-ARRAY/PTR CASE:
+					// []T(s)    -> [N]T  (Go 1.20)
+					// []T(s)    -> *[N]T (Go 1.17)
+					// Element types must be identical (Go spec).
+					// Length is checked at runtime.
+					//----------------------------------------
+
+					if ast, ok := atBase.(*SliceType); ok {
+						if cat, ok := ctBase.(*ArrayType); ok {
+							if ast.Elem().TypeID() == cat.Elem().TypeID() {
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
+						}
+						if cpt, ok := ctBase.(*PointerType); ok {
+							if cat, ok := cpt.Elem().(*ArrayType); ok {
+								if ast.Elem().TypeID() == cat.Elem().TypeID() {
+									n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+									return n, TRANS_CONTINUE
+								}
+							}
+						}
+					}
+
+					//----------------------------------------
 					// LEAVE (TYPE) CALL EXPR GENERAL CASE:
 					//----------------------------------------
 
