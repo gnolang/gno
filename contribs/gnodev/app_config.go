@@ -32,8 +32,9 @@ type AppConfig struct {
 	webHome             string
 
 	// Loader
-	noExamples bool
-	extraRoots []string
+	noExamples      bool
+	extraRoots      []string
+	remoteOverrides map[string]string
 
 	// Node Configuration
 	logFormat           string
@@ -128,6 +129,12 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		(*commands.StringArr)(&c.extraRoots),
 		"extra-root",
 		"additional workspace root to include (repeatable)",
+	)
+
+	fs.Var(
+		(*remoteOverrideArr)(&c.remoteOverrides),
+		"remote-override",
+		"override RPC for a chain domain in the form `<domain>=<rpc>` (repeatable); applies to packages outside the workspace",
 	)
 
 	fs.StringVar(

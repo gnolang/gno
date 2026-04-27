@@ -185,11 +185,12 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 
 	loaderCfg := packages.Config{
-		Workspace:  ws,
-		Examples:   !ds.cfg.noExamples,
-		ExtraRoots: extraRoots,
-		GnoRoot:    gnoenv.RootDir(),
-		Logger:     loaderLogger,
+		Workspace:       ws,
+		Examples:        !ds.cfg.noExamples,
+		ExtraRoots:      extraRoots,
+		GnoRoot:         gnoenv.RootDir(),
+		RemoteOverrides: ds.cfg.remoteOverrides,
+		Logger:          loaderLogger,
 	}
 	ds.loader = packages.New(loaderCfg)
 
