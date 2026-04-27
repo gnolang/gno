@@ -223,7 +223,9 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 //
 // This method is intended to be called during render to temporary update the
 // status of a proposal so it displays the current status.
-func (dao *CommonDAO) Tally(proposalID uint64) (ProposalStatus, error) {
+// It optionally can validate the proposal to verify potential issues with the
+// current state when the proposal type supports validation.
+func (dao *CommonDAO) Tally(proposalID uint64, validate bool) (ProposalStatus, error) {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return "", ErrProposalNotFound
@@ -231,6 +233,12 @@ func (dao *CommonDAO) Tally(proposalID uint64) (ProposalStatus, error) {
 
 	if p.status != StatusActive && p.status != StatusPassed && p.status != StatusRejected {
 		return "", ErrTallyNotAllowed
+	}
+
+	if validate {
+		if err := p.Validate(); err != nil {
+			return "", err
+		}
 	}
 
 	if err := p.tally(dao.members); err != nil {

@@ -333,10 +333,11 @@ func TestCommonDAOTally(t *testing.T) {
 	errTest := errors.New("test")
 	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	cases := []struct {
-		name   string
-		setup  func(*commondao.CommonDAO) (proposalID uint64)
-		status commondao.ProposalStatus
-		err    error
+		name     string
+		setup    func(*commondao.CommonDAO) (proposalID uint64)
+		status   commondao.ProposalStatus
+		validate bool
+		err      error
 	}{
 		{
 			name: "passed",
@@ -393,6 +394,15 @@ func TestCommonDAOTally(t *testing.T) {
 			},
 			err: commondao.ErrProposalDefinitionPanicked,
 		},
+		{
+			name: "definition validation fails",
+			setup: func(dao *commondao.CommonDAO) uint64 {
+				p, _ := dao.Propose(member, testPropDef{validationErr: errTest})
+				return p.ID()
+			},
+			validate: true,
+			err:      errTest,
+		},
 	}
 
 	for _, tc := range cases {
@@ -400,7 +410,7 @@ func TestCommonDAOTally(t *testing.T) {
 			dao := commondao.New(commondao.WithMember(member))
 			proposalID := tc.setup(dao)
 
-			status, err := dao.Tally(proposalID)
+			status, err := dao.Tally(proposalID, tc.validate)
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err)
