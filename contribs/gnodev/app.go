@@ -207,6 +207,19 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	ds.loader = packages.New(loaderCfg)
 
+	// When examples are disabled, surface unresolvable gno.land/* imports at
+	// startup so users get a clear warning instead of a mysterious VM panic
+	// at first query. Non-fatal: user may be intentionally stubbing.
+	if ds.cfg.noExamples && ws != "" {
+		if missing := packages.CheckMissingExampleImports(ds.loader, ws); len(missing) > 0 {
+			loaderLogger.Warn(
+				"-no-examples is set but workspace packages import gno.land/* paths that are unresolvable",
+				"missing", missing,
+				"hint", "drop -no-examples or add -extra-root <dir> covering these paths",
+			)
+		}
+	}
+
 	// Lazy loading hydrates only the workspace at startup via Reload;
 	// eager loading (staging mode) materializes workspace + examples +
 	// extra roots. The node's first Reset invokes reload, surfacing any
