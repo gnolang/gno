@@ -8,6 +8,7 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
+	github.com/bmatsuo/lmdb-go v1.8.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cockroachdb/apd/v3 v3.2.1
@@ -18,6 +19,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/dgraph-io/ristretto/v2 v2.4.0
 	github.com/emicklei/dot v1.11.0
+	github.com/erigontech/mdbx-go v0.40.0
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/mock v1.6.0
@@ -82,6 +84,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
+	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20241129212102-9c50ad6b591e // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect

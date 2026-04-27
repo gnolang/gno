@@ -157,3 +157,124 @@ func TestAddress(name string) crypto.Address {
 func TestBech32Address(name string) crypto.Bech32Address {
 	return TestAddress(name).Bech32()
 }
+
+// MockMsgCall mimics vm.MsgCall for testing session AllowPaths.
+type MockMsgCall struct {
+	Caller  crypto.Address
+	PkgPath string
+	Send    std.Coins
+}
+
+var _ std.Msg = MockMsgCall{}
+
+func (msg MockMsgCall) Route() string        { return "vm" }
+func (msg MockMsgCall) Type() string         { return "exec" }
+func (msg MockMsgCall) ValidateBasic() error { return nil }
+func (msg MockMsgCall) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgCall) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+func (msg MockMsgCall) GetPkgPath() string { return msg.PkgPath }
+func (msg MockMsgCall) GetReceived() std.Coins {
+	return msg.Send
+}
+
+// SpendForSigner implements std.SpendEstimator for the session ante pre-check.
+func (msg MockMsgCall) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
+	return msg.Send
+}
+
+// MockMsgRun mimics vm.MsgRun for testing session allowlist behavior.
+// Intentionally does NOT implement GetPkgPath — MsgRun has no realm path
+// at the protocol level (the path is auto-derived from Caller), so the
+// session AllowPaths check should treat it as path-less.
+type MockMsgRun struct {
+	Caller crypto.Address
+	Send   std.Coins
+}
+
+var _ std.Msg = MockMsgRun{}
+
+func (msg MockMsgRun) Route() string        { return "vm" }
+func (msg MockMsgRun) Type() string         { return "run" }
+func (msg MockMsgRun) ValidateBasic() error { return nil }
+func (msg MockMsgRun) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgRun) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// SpendForSigner implements std.SpendEstimator for the session ante pre-check.
+func (msg MockMsgRun) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
+	return msg.Send
+}
+
+// MockMsgSend mimics bank.MsgSend for testing session allowlist behavior.
+type MockMsgSend struct {
+	From   crypto.Address
+	To     crypto.Address
+	Amount std.Coins
+}
+
+var _ std.Msg = MockMsgSend{}
+
+func (msg MockMsgSend) Route() string        { return "bank" }
+func (msg MockMsgSend) Type() string         { return "send" }
+func (msg MockMsgSend) ValidateBasic() error { return nil }
+func (msg MockMsgSend) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgSend) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.From}
+}
+
+// SpendForSigner implements std.SpendEstimator for the session ante pre-check.
+func (msg MockMsgSend) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.From {
+		return nil
+	}
+	return msg.Amount
+}
+
+// NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
+func NewSessionTestTx(
+	t *testing.T,
+	chainID string,
+	msgs []std.Msg,
+	sessionPriv crypto.PrivKey,
+	sessionAddr crypto.Address,
+	accNum uint64,
+	seq uint64,
+	fee std.Fee,
+) std.Tx {
+	t.Helper()
+
+	signBytes, err := std.GetSignaturePayload(std.SignDoc{
+		ChainID:       chainID,
+		AccountNumber: accNum,
+		Sequence:      seq,
+		Fee:           fee,
+		Msgs:          msgs,
+	})
+	require.NoError(t, err)
+
+	sig, err := sessionPriv.Sign(signBytes)
+	require.NoError(t, err)
+
+	sigs := []std.Signature{{
+		// PubKey omitted — stored on session account at creation.
+		SessionAddr: sessionAddr,
+		Signature:   sig,
+	}}
+
+	return std.NewTx(msgs, fee, sigs, "")
+}

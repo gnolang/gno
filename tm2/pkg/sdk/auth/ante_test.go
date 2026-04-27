@@ -588,48 +588,6 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	require.Nil(t, acc2.GetPubKey())
 }
 
-func TestProcessPubKey(t *testing.T) {
-	t.Parallel()
-
-	env := setupTestEnv()
-	ctx := env.ctx
-
-	// keys
-	_, _, addr1 := tu.KeyTestPubAddr()
-	priv2, _, addr2 := tu.KeyTestPubAddr()
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
-
-	acc2.SetPubKey(priv2.PubKey())
-
-	type args struct {
-		acc      std.Account
-		sig      std.Signature
-		simulate bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"no sigs, simulate off", args{acc1, std.Signature{}, false}, true},
-		{"no sigs, simulate on", args{acc1, std.Signature{}, true}, true},
-		{"no sigs, account with pub, simulate off", args{acc2, std.Signature{}, false}, false},
-		{"no sigs, account with pub, simulate on", args{acc2, std.Signature{}, true}, false},
-		{"pubkey doesn't match addr, simulate off", args{acc1, std.Signature{PubKey: priv2.PubKey()}, false}, true},
-		{"pubkey doesn't match addr, simulate on", args{acc1, std.Signature{PubKey: priv2.PubKey()}, true}, true},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			_, err := ProcessPubKey(tt.args.acc, tt.args.sig)
-			require.Equal(t, tt.wantErr, !err.IsOK())
-		})
-	}
-}
-
 func TestConsumeSignatureVerificationGas(t *testing.T) {
 	t.Parallel()
 

@@ -3,7 +3,7 @@ package boards
 import (
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -44,11 +44,11 @@ type (
 // NewFlagStorage creates a new storage for post flags.
 // The new storage uses an AVL tree to store flagging info.
 func NewFlagStorage() FlagStorage {
-	return &flagStorage{avl.NewTree()}
+	return &flagStorage{bptree.NewBPTree32()}
 }
 
 type flagStorage struct {
-	flags *avl.Tree // address -> string(reason)
+	flags *bptree.BPTree // address -> string(reason)
 }
 
 // Exists checks if a flag from a user exists

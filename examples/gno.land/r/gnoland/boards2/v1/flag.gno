@@ -4,13 +4,13 @@ import (
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 // DefaultFlaggingThreshold defines the default number of flags that hides flaggable items.
 const DefaultFlaggingThreshold = 1
 
-var gFlaggingThresholds avl.Tree // string(board ID) -> int
+var gFlaggingThresholds bptree.BPTree // string(board ID) -> int
 
 // flagItem adds a flag to a post.
 // Returns whether flag count threshold is reached and post can be hidden.
