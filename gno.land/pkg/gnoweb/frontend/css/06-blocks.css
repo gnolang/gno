@@ -2625,23 +2625,42 @@ main.dev-mode .b-toc a {
 .b-playground-editor {
 	flex: 1;
 	display: flex;
+	min-height: 0;
 }
 
 .b-playground-code {
 	flex: 1;
-	width: 100%;
+	display: flex;
 	min-height: 300px;
-	padding: var(--g-space-2);
-	border: none;
-	border-radius: var(--s-rounded);
-	background-color: var(--s-color-bg-base);
-	color: var(--s-color-text-secondary);
-	font-family: var(--g-font-mono);
-	font-size: var(--g-font-size-75);
-	line-height: 1.6;
-	resize: none;
-	tab-size: 4;
-	outline: none;
+
+	& .cm-editor {
+		flex: 1;
+		width: 100%;
+		border-radius: var(--s-rounded);
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-secondary);
+		outline: none;
+	}
+
+	& .cm-editor.cm-focused {
+		outline: none;
+	}
+
+	& .cm-scroller {
+		font-family: var(--g-font-mono);
+		font-size: var(--g-font-size-75);
+		line-height: 1.6;
+	}
+
+	& .cm-content {
+		padding: var(--g-space-2) 0;
+	}
+
+	& .cm-gutters {
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-muted);
+		border: none;
+	}
 }
 
 .b-playground-output {
