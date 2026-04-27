@@ -27,16 +27,45 @@ func init() {
 }
 
 // NewProposalRequest wraps NewValsetChangeExecutor with a GovDAO proposal
-// title/description (mirrors v2's NewPropRequest signature).
+// title/description (mirrors v2's NewPropRequest signature). The description
+// is augmented with a per-validator "## Validator Updates" section so the
+// proposal text on-chain matches v2's format.
 func NewProposalRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
+	if changesFn == nil {
+		panic(errNoChangesProposed)
+	}
 	title = strings.TrimSpace(title)
 	if title == "" {
-		title = "Valset changes proposal"
+		panic("proposal title is empty")
 	}
-	if strings.TrimSpace(description) == "" {
-		description = "This proposal applies one or more validator set changes via r/sys/validators/v3."
+
+	changes := changesFn()
+	if len(changes) == 0 {
+		panic(errNoChangesProposed)
 	}
-	return dao.NewProposalRequest(title, description, NewValsetChangeExecutor(changesFn))
+	if len(changes) > 40 {
+		panic("max number of allowed validators per proposal is 40")
+	}
+
+	var desc strings.Builder
+	desc.WriteString(description)
+	if len(description) > 0 {
+		desc.WriteString("\n\n")
+	}
+	desc.WriteString("## Validator Updates\n")
+	for _, change := range changes {
+		if change.VotingPower == 0 {
+			desc.WriteString(ufmt.Sprintf("- %s: remove\n", change.Address))
+		} else {
+			desc.WriteString(ufmt.Sprintf("- %s: add\n", change.Address))
+		}
+	}
+
+	// Pass an eager closure so NewValsetChangeExecutor uses the same
+	// pre-computed `changes` slice and doesn't re-invoke changesFn.
+	return dao.NewProposalRequest(title, desc.String(), NewValsetChangeExecutor(func() []validators.Validator {
+		return changes
+	}))
 }
 
 // NewValsetChangeExecutor creates a GovDAO executor for proposing valset
