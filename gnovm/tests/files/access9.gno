@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/access9.gno:9:7-48: implicit assignment to unexported field in struct literal of type struct{PublicField string; privateField string}
+// main/access9.gno:9:7-48: implicit assignment to unexported field in struct literal of type gno.land/p/nt/testutils/v0.TestAccessStruct
 
 // TypeCheckError:
 // main/access9.gno:9:41: implicit assignment to unexported field privateField in struct literal of type testutils.TestAccessStruct

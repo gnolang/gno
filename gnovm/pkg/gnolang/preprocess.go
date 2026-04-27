@@ -1240,13 +1240,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if !found {
 							panic(fmt.Sprintf(
 								"unknown field %s in struct literal of type %s",
-								n.Name, bt.String()))
+								n.Name, clt.String()))
 						}
 						// Check for unexported fields from external packages.
 						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
 							panic(fmt.Sprintf(
 								"cannot refer to unexported field %s in struct literal of type %s",
-								n.Name, bt.String()))
+								n.Name, clt.String()))
 						}
 						n.Path = bt.GetPathForName(n.Name)
 						return n, TRANS_CONTINUE
@@ -2251,7 +2251,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							cclt.hasInaccessibleUnexportedFields(ctxpn.PkgPath) {
 							panic(fmt.Sprintf(
 								"implicit assignment to unexported field in struct literal of type %s",
-								cclt.String()))
+								clt.String()))
 						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
