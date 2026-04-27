@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/access8.gno:9:54-66: cannot refer to unexported field privateField in struct literal of type struct{PublicField string; privateField string}
+// main/access8.gno:9:54-66: cannot refer to unexported field privateField in struct literal of type gno.land/p/nt/testutils/v0.TestAccessStruct
 
 // TypeCheckError:
 // main/access8.gno:9:54: cannot refer to unexported field privateField in struct literal of type testutils.TestAccessStruct

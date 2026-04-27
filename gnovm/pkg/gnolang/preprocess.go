@@ -1234,7 +1234,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
 							panic(fmt.Sprintf(
 								"cannot refer to unexported field %s in struct literal of type %s",
-								n.Name, bt.String()))
+								n.Name, clt.String()))
 						}
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
@@ -2238,7 +2238,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							cclt.hasInaccessibleUnexportedFields(ctxpn.PkgPath) {
 							panic(fmt.Sprintf(
 								"implicit assignment to unexported field in struct literal of type %s",
-								cclt.String()))
+								clt.String()))
 						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
