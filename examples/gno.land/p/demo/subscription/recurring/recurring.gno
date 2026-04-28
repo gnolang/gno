@@ -1,112 +1,94 @@
 package recurring
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"chain"
 	"time"
 
+	"gno.land/p/demo/subscription"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ownable/v0"
 )
 
-// RecurringSubscription represents a subscription that requires periodic payments.
-// It includes the duration of the subscription and the amount required per period.
+// RecurringSubscription represents a subscription that requires periodic
+// payments. Payment is pulled from a subscription.Sender (cap-token)
+// passed by the caller — the lib does not read banker.OriginSend or
+// inspect the call-chain, so it composes through any realm depth.
 type RecurringSubscription struct {
 	ownable.Ownable
-	duration time.Duration
-	amount   int64
-	subs     *avl.Tree // chain.Address -> time.Time
+	duration  time.Duration
+	amount    int64
+	payeeAddr address    // where pulled coins are sent (typically the consumer realm)
+	subs      *avl.Tree // address.String() -> time.Time
 }
 
-// NewRecurringSubscription creates and returns a new recurring subscription.
-func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSubscription {
+// NewRecurringSubscription creates a new recurring subscription.
+// payeeAddr is the address that receives the per-period payment; it is
+// typically the consumer realm's own address.
+func NewRecurringSubscription(duration time.Duration, amount int64, payeeAddr address) *RecurringSubscription {
 	return &RecurringSubscription{
-		Ownable:  *ownable.New(),
-		duration: duration,
-		amount:   amount,
-		subs:     avl.NewTree(),
+		Ownable:   *ownable.New(),
+		duration:  duration,
+		amount:    amount,
+		payeeAddr: payeeAddr,
+		subs:      avl.NewTree(),
 	}
 }
 
-// HasValidSubscription verifies if the caller has an active recurring subscription.
-func (rs *RecurringSubscription) HasValidSubscription(addr address) error {
-	expTime, exists := rs.subs.Get(addr.String())
+// HasValidSubscription verifies whether subscriber holds an active subscription.
+func (rs *RecurringSubscription) HasValidSubscription(subscriber address) error {
+	expTime, exists := rs.subs.Get(subscriber.String())
 	if !exists {
 		return ErrNoSub
 	}
-
 	if time.Now().After(expTime.(time.Time)) {
 		return ErrSubExpired
 	}
-
 	return nil
 }
 
-// processSubscription processes the payment for a given receiver and renews or adds their subscription.
-func (rs *RecurringSubscription) processSubscription(receiver address) error {
-	// banker.OriginSend() describes a real receipt at this realm only when
-	// the caller is a pure EOA. Any consumer realm that wraps Subscribe /
-	// GiftSubscription must therefore be reached via maketx call, not
-	// `maketx run` or via an intermediate code realm.
-	if !runtime.PreviousRealm().IsUserCall() {
-		return ErrNonUserCall
-	}
-	amount := banker.OriginSend()
-
-	if amount.AmountOf("ugnot") != rs.amount {
-		return ErrAmt
-	}
-
-	expTime, exists := rs.subs.Get(receiver.String())
-
-	// If the user is already a subscriber but his subscription has expired, authorize renewal
-	if exists {
-		expiration := expTime.(time.Time)
-		if time.Now().Before(expiration) {
+// Subscribe pulls one period's worth of payment from sender into
+// payeeAddr and records subscriber as having an active subscription
+// until time.Now() + duration. If subscriber already has an unexpired
+// subscription, returns ErrAlreadySub without pulling payment.
+//
+// Subscriber identity is decoupled from sender authority: a code
+// realm holding a Sender can subscribe on any address's behalf
+// (including itself, an EOA, or an unrelated user).
+func (rs *RecurringSubscription) Subscribe(sender subscription.Sender, subscriber address) error {
+	// Already-sub check first (free); avoid burning sender capacity on
+	// a duplicate.
+	if expTime, exists := rs.subs.Get(subscriber.String()); exists {
+		if time.Now().Before(expTime.(time.Time)) {
 			return ErrAlreadySub
 		}
 	}
-
-	// Renew or add subscription
-	newExpiration := time.Now().Add(rs.duration)
-	rs.subs.Set(receiver.String(), newExpiration)
-
+	// Pull payment. If sender refuses (closed, cap exceeded, insufficient
+	// funds), Send panics and the tx reverts — no subscription is
+	// recorded.
+	sender.Send(rs.payeeAddr, chain.NewCoins(chain.NewCoin("ugnot", rs.amount)))
+	rs.subs.Set(subscriber.String(), time.Now().Add(rs.duration))
 	return nil
 }
 
-// Subscribe handles the payment for the caller's subscription.
-func (rs *RecurringSubscription) Subscribe() error {
-	caller := runtime.CurrentRealm().Address()
-
-	return rs.processSubscription(caller)
-}
-
-// GiftSubscription allows the user to pay for a subscription for another user (receiver).
-func (rs *RecurringSubscription) GiftSubscription(receiver address) error {
-	return rs.processSubscription(receiver)
-}
-
-// GetExpiration returns the expiration date of the recurring subscription for a given caller.
-func (rs *RecurringSubscription) GetExpiration(addr address) (time.Time, error) {
-	expTime, exists := rs.subs.Get(addr.String())
+// GetExpiration returns the subscription expiration for subscriber.
+func (rs *RecurringSubscription) GetExpiration(subscriber address) (time.Time, error) {
+	expTime, exists := rs.subs.Get(subscriber.String())
 	if !exists {
 		return time.Time{}, ErrNoSub
 	}
-
 	return expTime.(time.Time), nil
 }
 
-// UpdateAmount allows the owner of the subscription contract to change the required subscription amount.
+// UpdateAmount lets the subscription owner change the per-period amount.
 func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
 	if !rs.Owned() {
 		return ErrNotAuthorized
 	}
-
 	rs.amount = newAmount
 	return nil
 }
 
-// GetAmount returns the current amount required for each subscription period.
+// GetAmount returns the current per-period subscription amount.
 func (rs *RecurringSubscription) GetAmount() int64 {
 	return rs.amount
 }
