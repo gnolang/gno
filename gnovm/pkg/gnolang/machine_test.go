@@ -135,17 +135,12 @@ func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
 
-	// Add a valid package directly to the store.
-	store.AddMemPackage(&std.MemPackage{
-		Type: MPStdlibAll,
-		Name: "good",
-		Path: "good",
-		Files: []*std.MemFile{
-			{Name: "good.gno", Body: `package good; func Hello() string { return "hello" }`},
-		},
-	}, MPAnyAll)
-
-	// Add a package that parses successfully but panics during Preprocess.
+	// Add the broken package FIRST so it is preprocessed before the good
+	// package. IterMemPackage iterates in insertion order, so this ordering
+	// exercises the recovery path directly: broken panics first and leaves
+	// partial data in the store, then we verify good is still preprocessed
+	// correctly afterwards.
+	//
 	// "for range 1000" is valid syntax but triggers a panic in Preprocess
 	// because Gno does not support ranging over integers. This means the
 	// store will contain partial data (PackageNode, predefined types) written
@@ -156,6 +151,16 @@ func TestPreprocessAllFilesAndSaveBlockNodes_skipsBroken(t *testing.T) {
 		Path: "broken",
 		Files: []*std.MemFile{
 			{Name: "broken.gno", Body: "package broken\n\nfunc Crash() { for range 1000 {} }"},
+		},
+	}, MPAnyAll)
+
+	// Add a valid package directly to the store.
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPStdlibAll,
+		Name: "good",
+		Path: "good",
+		Files: []*std.MemFile{
+			{Name: "good.gno", Body: `package good; func Hello() string { return "hello" }`},
 		},
 	}, MPAnyAll)
 
