@@ -79,7 +79,11 @@ export class CopyController extends BaseController {
 		text: string,
 		icons: HTMLElement[],
 	): Promise<void> {
-		const cleaned = text.trim();
+		let cleaned = text.trim();
+		// site-relative paths -> absolute, so the clipboard URL is shareable
+		if (cleaned.startsWith("/")) {
+			cleaned = window.location.origin + cleaned;
+		}
 		await this._writeToClipboard(cleaned, icons);
 	}
 

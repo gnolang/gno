@@ -24,6 +24,7 @@ type HelpData struct {
 	PkgFullPath string
 	Doc         string
 	Domain      string
+	Origin      string // scheme+host the client used; used to make help URLs shareable
 }
 
 type HelpTocData struct {
@@ -61,7 +62,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := pkgPath + "$help&func=" + fn.Name
+		url := data.Origin + pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
 			url += "&"
 			for i, param := range fn.Params {

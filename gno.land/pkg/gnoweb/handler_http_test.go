@@ -183,6 +183,79 @@ func TestHTTPHandler_Get(t *testing.T) {
 	}
 }
 
+// TestHTTPHandler_HelpURLOrigin verifies that the Anchor copy URL on the help page
+// is rendered absolute, using the actual request origin (so the clipboard URL is
+// shareable regardless of deployment: gnodev, gnoweb local, prod, behind proxy).
+func TestHTTPHandler_HelpURLOrigin(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main`},
+		Functions: []*doc.JSONFunc{
+			{Name: "DoThing", Params: []*doc.JSONField{{Name: "arg", Type: "string"}}},
+		},
+	}
+
+	cases := []struct {
+		name     string
+		host     string
+		fwdProto string
+		fwdHost  string
+		wantURL  string // absolute prefix (template HTML-escapes "&" to "&amp;")
+	}{
+		{
+			name:    "direct http",
+			host:    "127.0.0.1:8888",
+			wantURL: "http://127.0.0.1:8888/r/mock/path$help",
+		},
+		{
+			name:     "behind https proxy",
+			host:     "backend.internal",
+			fwdProto: "https",
+			fwdHost:  "gno.land",
+			wantURL:  "https://gno.land/r/mock/path$help",
+		},
+		{
+			name:    "custom domain",
+			host:    "preview.gno.example.com:8443",
+			wantURL: "http://preview.gno.example.com:8443/r/mock/path$help",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, cfg)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/r/mock/path$help", nil)
+			req.Host = tc.host
+			if tc.fwdProto != "" {
+				req.Header.Set("X-Forwarded-Proto", tc.fwdProto)
+			}
+			if tc.fwdHost != "" {
+				req.Header.Set("X-Forwarded-Host", tc.fwdHost)
+			}
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, `data-copy-text-value="`+tc.wantURL,
+				"rendered Anchor copy URL should be absolute and reflect the request origin")
+			assert.Contains(t, body, `action="`+tc.wantURL,
+				"form action should also be absolute (single source of truth with copy URL)")
+		})
+	}
+}
+
 // TestHTTPHandler_NoRender checks if gnoweb displays the `No Render` page properly.
 // This happens when the render being queried does not have a Render function declared.
 func TestHTTPHandler_NoRender(t *testing.T) {
