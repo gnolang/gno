@@ -35,6 +35,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -71,6 +72,24 @@ type VMKeeperI interface {
 }
 
 var _ VMKeeperI = &VMKeeper{}
+
+// getSessionAccount extracts the DelegatedAccount for the given caller
+// from the SDK context, if this is a session tx.
+func getSessionAccount(ctx sdk.Context, caller crypto.Address) std.DelegatedAccount {
+	sa := ctx.Value(std.SessionAccountsContextKey{})
+	if sa == nil {
+		return nil
+	}
+	sessions, ok := sa.(map[crypto.Address]std.DelegatedAccount)
+	if !ok {
+		return nil
+	}
+	da, ok := sessions[caller]
+	if !ok {
+		return nil
+	}
+	return da
+}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
@@ -420,6 +439,7 @@ func (vm *VMKeeper) callRealmBool(
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, creator),
 	}
 
 	m := gno.NewMachineWithOptions(
@@ -542,6 +562,19 @@ func (vm *VMKeeper) checkCLASignature(ctx sdk.Context, creator crypto.Address) e
 
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
+	// Defense-in-depth spend check. MsgAddPackage is currently blocked
+	// from session signers at the gno.land session allowlist
+	// (checkSessionRestrictions in app.go), so this check is unreachable
+	// for session txs today. Kept here so that if the allowlist is ever
+	// relaxed, spend accounting still holds. NOTE: if AddPackage is
+	// added to the session allowlist, this pre-check must be removed
+	// or converted to a check-only variant — otherwise it will
+	// double-count with the bank.Keeper.SendCoins session hook.
+	if !msg.Send.IsZero() {
+		if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, msg.Creator, msg.Send); err != nil {
+			return err
+		}
+	}
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
@@ -659,6 +692,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -696,6 +730,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
+	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins
+	// (tm2/pkg/sdk/bank/keeper.go), which is where the actual coin
+	// transfer happens. No pre-check needed here.
 	params := vm.GetParams(ctx)
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
@@ -745,6 +782,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, caller),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -899,6 +937,7 @@ func doRecoverQueryNoMachine(e *error) {
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
+	// Session spend on msg.Send is enforced inside bank.Keeper.SendCoins.
 	caller := msg.Caller
 	pkgAddr := caller
 	gnostore := vm.getGnoTransactionStore(ctx)
@@ -952,6 +991,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
+		SessionAccount:  getSessionAccount(ctx, caller),
 	}
 
 	buf := new(bytes.Buffer)
@@ -1484,6 +1524,18 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	storageDepositAddr := gno.DeriveStorageDepositCryptoAddr(rlm.Path)
 
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
+
+	// Count storage deposit against a session's SpendLimit. The transfer
+	// itself uses SendCoinsUnrestricted (deposits must bypass
+	// restricted-denom checks), so we perform the session deduction
+	// explicitly here. Refunds via refundStorageDeposit do NOT reverse
+	// SpendUsed — once budget is consumed, it stays consumed, so that
+	// a compromised session cannot churn state (allocate → free →
+	// allocate) to drain master beyond SpendLimit.
+	if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, caller, d); err != nil {
+		return fmt.Errorf("unable to lock deposit %s, %w", rlm.Path, err)
+	}
+
 	err := vm.bank.SendCoinsUnrestricted(ctx, caller, storageDepositAddr, d)
 	if err != nil {
 		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)
