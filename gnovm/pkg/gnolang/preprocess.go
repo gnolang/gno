@@ -4386,29 +4386,21 @@ func isConst(x Expr) bool {
 
 func isAddressable(store Store, last BlockNode, x Expr) bool {
 	switch cx := x.(type) {
-	case *NameExpr:
-		return true
-	case *StarExpr:
-		return true
-	case *CompositeLitExpr:
+	case *NameExpr, *StarExpr, *CompositeLitExpr:
 		return true
 	case *IndexExpr:
-		xt := evalStaticTypeOf(store, last, cx.X)
-		if _, ok := baseOf(xt).(*MapType); ok {
+		switch evalStaticTypeOf(store, last, cx.X).Kind() {
+		case MapKind:
 			return false
-		}
-		if _, ok := baseOf(xt).(*SliceType); ok {
+		case SliceKind:
 			return true
 		}
 		return isAddressable(store, last, cx.X)
 	case *SelectorExpr:
-		xt := evalStaticTypeOf(store, last, cx.X)
-		if _, ok := baseOf(xt).(*PointerType); ok {
+		if evalStaticTypeOf(store, last, cx.X).Kind() == PointerKind {
 			return true
 		}
 		return isAddressable(store, last, cx.X)
-	case *TypeAssertExpr:
-		return false
 	default:
 		return false
 	}
