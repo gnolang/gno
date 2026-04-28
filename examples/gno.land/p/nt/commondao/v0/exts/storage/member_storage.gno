@@ -19,7 +19,7 @@ func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 		return nil
 	}
 
-	v, found := storage.memberGroups.Get(member.String())
+	v, found := storage.uniqueMembers.Get(member.String())
 	if !found {
 		return nil
 	}
@@ -35,10 +35,10 @@ func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 
 // NewMemberStorage creates a new CommonDAO member storage with grouping support.
 //
-// This is a custom storage that automatically adds or removes members that are added
-// or removed from any of the member groups. This allows for quick and inexpensive
-// checks for the number of total unique storage users, including users added to groups,
-// and also to iterate all of them without needing to iterate individual groups.
+// This is a custom storage that automatically keeps track of unique members that are
+// added or removed from any of the member groups or base storage. This allows for quick
+// and inexpensive checks for the number of total unique storage users and also to
+// iterate all of them without needing to iterate individual groups.
 func NewMemberStorage() commondao.MemberStorage {
 	// Create a new broker to allow storages to publish and subscribe to messages
 	// It is used to add/remove users from the storage each time one or more groups change.
@@ -73,22 +73,21 @@ func NewMemberStorage() commondao.MemberStorage {
 type memberStorage struct {
 	commondao.MemberStorage
 
-	memberGroups avl.Tree // string(address) -> *avl.Tree(group -> struct{})
-	messages     message.Subscriber
+	uniqueMembers avl.Tree // string(address) -> *avl.Tree(group -> struct{})
+	messages      message.Subscriber
 }
 
 func (s *memberStorage) handleMemberAddMsg(msg message.Message) {
 	data := msg.Data.(groupMemberUpdateData)
 	key := data.Member.String()
-	v, _ := s.memberGroups.Get(key)
+	v, _ := s.uniqueMembers.Get(key)
 	groups, ok := v.(*avl.Tree)
 	if !ok {
 		// Create a new tree to track member's groups
 		groups = avl.NewTree()
-		s.memberGroups.Set(key, groups)
 
-		// Add the new member to the storage
-		s.MemberStorage.Add(data.Member)
+		// Keep track of unique members
+		s.uniqueMembers.Set(key, groups)
 	}
 
 	// Keep track of the new member group
@@ -98,9 +97,8 @@ func (s *memberStorage) handleMemberAddMsg(msg message.Message) {
 func (s *memberStorage) handleMemberRemoveMsg(msg message.Message) {
 	data := msg.Data.(groupMemberUpdateData)
 	key := data.Member.String()
-	v, found := s.memberGroups.Get(key)
+	v, found := s.uniqueMembers.Get(key)
 	if !found {
-		// Member should always be found
 		return
 	}
 
@@ -108,24 +106,61 @@ func (s *memberStorage) handleMemberRemoveMsg(msg message.Message) {
 	groups := v.(*avl.Tree)
 	groups.Remove(data.Group)
 
-	// Remove the member from the storage when it doesn't belong to any group
-	if groups.Size() == 0 {
-		s.memberGroups.Remove(key)
-		s.MemberStorage.Remove(data.Member)
+	// Remove the member from the unique storage when it doesn't belong
+	// to any group and it doesn't exists in the base storage. Members
+	// can be removed from groups but still exists as ungrouped.
+	if groups.Size() == 0 && !s.MemberStorage.Has(data.Member) {
+		s.uniqueMembers.Remove(data.Member.String())
 	}
 }
 
-// Size returns the number of members in the storage.
-// It also includes unique members that belong to any number of member groups.
+// Size returns the number of unique members in the storage.
+// Members are only counted once, even if the same address is assigned to many groups.
 func (s memberStorage) Size() int {
-	return s.MemberStorage.Size()
+	return s.uniqueMembers.Size()
 }
 
-// IterateByOffset iterates members starting at the given offset.
+// Has checks if a member exists in the storage.
+func (s memberStorage) Has(member address) bool {
+	return s.uniqueMembers.Has(member.String())
+}
+
+// IterateByOffset iterates unique members starting at the given offset.
 // The callback can return true to stop iteration.
-// It also iterates unique members that belong to any of the member groups.
 func (s memberStorage) IterateByOffset(offset, count int, fn commondao.MemberIterFn) bool {
-	return s.MemberStorage.IterateByOffset(offset, count, fn)
+	return s.uniqueMembers.IterateByOffset(offset, count, func(key string, _ any) bool {
+		return fn(address(key))
+	})
+}
+
+// Add adds a member to the storage.
+// Returns true if the member is added, or false if it already existed.
+func (s *memberStorage) Add(member address) bool {
+	added := s.MemberStorage.Add(member)
+	if added && !s.uniqueMembers.Has(member.String()) {
+		s.uniqueMembers.Set(member.String(), nil)
+	}
+	return added
+}
+
+// Remove removes a member from the storage.
+// Returns true if member was removed, or false if it was not found.
+func (s *memberStorage) Remove(member address) bool {
+	removed := s.MemberStorage.Remove(member)
+	if !removed {
+		return false
+	}
+
+	// Check if the member being removed from the base storage is a member of a group
+	v, _ := s.uniqueMembers.Get(member.String())
+	groups, ok := v.(*avl.Tree)
+	if ok && groups.Size() > 0 {
+		return removed
+	}
+
+	// Remove unique member when it has no groups
+	s.uniqueMembers.Remove(member.String())
+	return removed
 }
 
 // groupMemberUpdateData defines a data type for group member updates.
