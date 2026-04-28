@@ -246,11 +246,12 @@ func TestProposalPagination(cur realm, t *testing.T) {
 func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
+	// Non-member cannot propose DAO implementation upgrades.
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-
-	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
-	NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
+	uassert.PanicsWithMessage(t, "only members can propose DAO implementation upgrades", func() {
+		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
+	})
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
@@ -356,6 +357,50 @@ func TestNonMemberProposalFee(cur realm, t *testing.T) {
 	testing.SetOriginCaller(m1)
 	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, m1, memberstore.T2, portfolio))
 	urequire.NoError(t, err)
+}
+
+func TestNonMemberProposalFeeDisabled(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+
+	// Disable fee
+	prevFee := ProposalFeeAmount
+	ProposalFeeAmount = 0
+	defer func() { ProposalFeeAmount = prevFee }()
+
+	testing.SetOriginCaller(noMember)
+	testing.SetOriginSend(chain.Coins{})
+
+	// Test: Non-member can propose without sending coins when fee is 0
+	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
+}
+
+func TestProposalFeeAmountChangeMemberOnly(cur realm, t *testing.T) {
+	loadMembers()
+
+	// Non-member cannot create a fee-change proposal.
+	testing.SetOriginCaller(noMember)
+	uassert.PanicsWithMessage(t, "only members can propose fee amount changes", func() {
+		NewProposalFeeAmountRequest(2_000_000, "test")
+	})
+
+	// Member can create a fee-change proposal.
+	testing.SetOriginCaller(m1)
+	uassert.NotPanics(t, func() {
+		NewProposalFeeAmountRequest(2_000_000, "test")
+	})
+
+	// Member can set fee to 0 (disable).
+	uassert.NotPanics(t, func() {
+		NewProposalFeeAmountRequest(0, "disable fee")
+	})
+
+	// Negative fee is rejected.
+	uassert.PanicsWithMessage(t, "proposal fee amount must be non-negative", func() {
+		NewProposalFeeAmountRequest(-1, "test")
+	})
 }
 
 func TestAbstainVote(cur realm, t *testing.T) {

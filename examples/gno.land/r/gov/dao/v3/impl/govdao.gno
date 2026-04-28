@@ -62,9 +62,9 @@ func NewGovDAO() *GovDAO {
 var _govdao *GovDAO
 
 // PreCreateProposal validates proposal creation.
-// Policy: Any non-member can create any proposal type (including law changes,
-// DAO upgrades, and member additions) by paying the proposal fee. Members
-// can propose for free. Governance safety relies on the voting phase —
+// Policy: non-members can create most proposal types by paying the fee. Members
+// propose for free. Sensitive helpers (law/upgrade/fee changes) gate themselves
+// against non-member callers. Governance safety also relies on the voting phase:
 // only eligible members can vote and proposals require supermajority.
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	if !g.isValidCall() {
@@ -76,7 +76,8 @@ func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	mem, _ := getMembers(cross).GetMember(caller)
 
 	// Non-members must pay an exact fee in ugnot only.
-	if mem == nil {
+	// When ProposalFeeAmount is 0, the fee is disabled and non-members propose freely.
+	if mem == nil && ProposalFeeAmount > 0 {
 		sent := banker.OriginSend()
 		if len(sent) != 1 || sent[0].Denom != "ugnot" || sent[0].Amount != ProposalFeeAmount {
 			return caller, errors.New(ufmt.Sprintf(

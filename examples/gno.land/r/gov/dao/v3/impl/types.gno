@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/nt/avl/v0"
@@ -61,6 +62,15 @@ type proposalStatus struct {
 
 func getMembers(cur realm) memberstore.MembersByTier {
 	return memberstore.Get()
+}
+
+// requireCallerMember panics with the given message if the transaction's origin caller
+// is not a member. Spam fast-fail for member-only helpers; not a security boundary
+// (real protection is package privacy on sensitive state plus member-only voting).
+func requireCallerMember(message string) {
+	if mem, _ := getMembers(cross).GetMember(runtime.OriginCaller()); mem == nil {
+		panic(message)
+	}
 }
 
 func newEmptyVoteStore() memberstore.MembersByTier {
