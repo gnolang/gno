@@ -11,9 +11,9 @@ import (
 // mockBanker implements banker.Banker for unit testing without
 // touching real bank state. Records every SendCoins call.
 type mockBanker struct {
-	sends     []sendCall
-	failNext  bool   // if true, next SendCoins panics
-	failMsg   string // panic message for failNext
+	sends    []sendCall
+	failNext bool   // if true, next SendCoins panics
+	failMsg  string // panic message for failNext
 }
 
 type sendCall struct {
@@ -29,9 +29,9 @@ func (m *mockBanker) SendCoins(from, to address, amt chain.Coins) {
 	}
 	m.sends = append(m.sends, sendCall{from, to, amt})
 }
-func (m *mockBanker) TotalCoin(denom string) int64                            { return 0 }
-func (m *mockBanker) IssueCoin(addr address, denom string, amount int64)      {}
-func (m *mockBanker) RemoveCoin(addr address, denom string, amount int64)     {}
+func (m *mockBanker) TotalCoin(denom string) int64                        { return 0 }
+func (m *mockBanker) IssueCoin(addr address, denom string, amount int64)  {}
+func (m *mockBanker) RemoveCoin(addr address, denom string, amount int64) {}
 
 var (
 	payer = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")

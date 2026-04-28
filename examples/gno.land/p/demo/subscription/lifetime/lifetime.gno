@@ -27,6 +27,13 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 
 // processSubscription handles the subscription process for a given receiver.
 func (ls *LifetimeSubscription) processSubscription(receiver address) error {
+	// banker.OriginSend() describes a real receipt at this realm only when
+	// the caller is a pure EOA. Any consumer realm that wraps Subscribe /
+	// GiftSubscription must therefore be reached via maketx call, not
+	// `maketx run` or via an intermediate code realm.
+	if !runtime.PreviousRealm().IsUserCall() {
+		return ErrNonUserCall
+	}
 	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") != ls.amount {
