@@ -8,12 +8,14 @@ import {
 	bracketMatching,
 	defaultHighlightStyle,
 	indentOnInput,
+	indentUnit,
 	StreamLanguage,
 	syntaxHighlighting,
 } from "@codemirror/language";
 import { go } from "@codemirror/legacy-modes/mode/go";
 import { toml } from "@codemirror/legacy-modes/mode/toml";
 import { Compartment, EditorState } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
 import {
 	drawSelection,
 	EditorView,
@@ -45,6 +47,7 @@ export class PlaygroundController extends BaseController {
 	private declare tabsEl: HTMLElement;
 	private declare view: EditorView;
 	private declare langCompartment: Compartment;
+	private declare themeCompartment: Compartment;
 
 	protected connect(): void {
 		this.files = [];
@@ -57,6 +60,11 @@ export class PlaygroundController extends BaseController {
 
 		this._parseInitialCode(initialEl.value);
 		this._createEditor();
+		this.on("theme:changed", () => {
+			this.view.dispatch({
+				effects: this.themeCompartment.reconfigure(this._getCodeEditorTheme()),
+			});
+		});
 		this.renderTabs();
 	}
 
@@ -78,6 +86,7 @@ export class PlaygroundController extends BaseController {
 
 	private _createEditor(): void {
 		this.langCompartment = new Compartment();
+		this.themeCompartment = new Compartment();
 
 		const runOnEnter = keymap.of([
 			{
@@ -101,14 +110,25 @@ export class PlaygroundController extends BaseController {
 					drawSelection(),
 					history(),
 					indentOnInput(),
+					indentUnit.of("\t"),
 					bracketMatching(),
-					syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
 					this.langCompartment.of(langForFile(this.files[0].name)),
+					this.themeCompartment.of(this._getCodeEditorTheme()),
 					runOnEnter,
 					keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
 				],
 			}),
 		});
+	}
+
+	private _isDarkMode(): boolean {
+		return document.documentElement.getAttribute("data-theme") === "dark";
+	}
+
+	private _getCodeEditorTheme() {
+		return this._isDarkMode()
+			? oneDark
+			: syntaxHighlighting(defaultHighlightStyle, { fallback: true });
 	}
 
 	private _getCode(): string {

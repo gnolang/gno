@@ -84,6 +84,7 @@ export class ThemeController extends BaseController {
 		const theme = this.resolveTheme();
 		document.documentElement.setAttribute("data-theme", theme);
 		this.setCookie(theme, COOKIE_MAX_AGE);
+		this.dispatch("theme:changed", { theme });
 
 		for (const [el, pref] of [
 			[this.sun, Preference.Light],

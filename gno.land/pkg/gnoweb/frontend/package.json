@@ -6,6 +6,7 @@
 		"@codemirror/language": "^6.10.0",
 		"@codemirror/legacy-modes": "^6.4.0",
 		"@codemirror/state": "^6.5.0",
+		"@codemirror/theme-one-dark": "^6.1.0",
 		"@codemirror/view": "^6.34.0",
 		"@fullhuman/postcss-purgecss": "^7.0.2",
 		"chokidar-cli": "^3.0.0",
