@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // This limits the max nesting depth to prevent stack overflow.

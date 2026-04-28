@@ -9,9 +9,9 @@ import (
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/mdalert"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mdalert/v0"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func renderPost(post *boards.Post, path, indent string, levels int) string {
@@ -21,14 +21,14 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	title := post.Title
 	if boards.IsRepost(post) && title == "" {
 		if board, ok := gBoards.Get(post.OriginalBoardID); ok {
-			if src, ok := board.Threads.Get(post.ParentID); ok {
+			if src, ok := getThread(board, post.ParentID); ok {
 				title = src.Title
 			}
 		}
 	}
 
 	if title != "" { // Replies don't have a title
-		b.WriteString(md.H2(title))
+		b.WriteString(md.H2(md.EscapeText(title)))
 	}
 
 	b.WriteString(indent + "\n")
@@ -168,7 +168,7 @@ func renderPostInner(post *boards.Post) string {
 	var (
 		s         string
 		threadID  = post.ThreadID
-		thread, _ = post.Board.Threads.Get(threadID)
+		thread, _ = getThread(post.Board, threadID)
 	)
 
 	// Fully render parent if it's not a repost.
@@ -177,7 +177,7 @@ func renderPostInner(post *boards.Post) string {
 		parent := thread
 
 		if thread.ID != parentID {
-			parent, _ = thread.Replies.Get(parentID)
+			parent, _ = getReply(thread, parentID)
 		}
 
 		s += renderPost(parent, "", "", 0) + "\n"
@@ -201,7 +201,7 @@ func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 		return indentBody(indent, "⚠ Source board has been deleted"), nil
 	}
 
-	srcPost, ok := board.Threads.Get(post.ParentID)
+	srcPost, ok := getThread(board, post.ParentID)
 	if !ok {
 		return indentBody(indent, "⚠ Source post has been deleted"), nil
 	}
@@ -229,7 +229,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
@@ -246,7 +246,7 @@ func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
 			return
 		}
 
-		reply, _ = thread.Replies.Get(boards.ID(replyID))
+		reply, _ = getReply(thread, boards.ID(replyID))
 		if reply == nil {
 			res.Write("Reply not found")
 			return
@@ -351,7 +351,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	thread, found := board.Threads.Get(boards.ID(threadID))
+	thread, found := getThread(board, boards.ID(threadID))
 	if !found {
 		res.Write("Thread not found")
 		return
@@ -370,7 +370,7 @@ func renderFlaggingReasonsPost(res *mux.ResponseWriter, req *mux.Request) {
 			return
 		}
 
-		reply, found = thread.Replies.Get(boards.ID(replyID))
+		reply, found = getReply(thread, boards.ID(replyID))
 		if !found {
 			res.Write("Reply not found")
 			return
@@ -447,7 +447,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 			return
 		}
 
-		reply, _ = thread.Replies.Get(boards.ID(replyID))
+		reply, _ = getReply(thread, boards.ID(replyID))
 		if reply == nil {
 			res.Write("Reply not found")
 			return

@@ -52,7 +52,9 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
-	m.Lastline = s.GetLine()
+	if line := s.GetLine(); line != 0 {
+		m.Lastline = line
+	}
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
@@ -86,7 +88,8 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		bs := m.LastBlock().GetBodyStmt()
+		last := m.LastBlock()
+		bs := last.GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = len(m.Ops)
@@ -120,6 +123,18 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushExpr(bs.Cond)
 				m.PushOp(OpEval)
 			}
+			// copy heap item defines in init to new heap items.
+			m.incrCPU(OpCPUSlopeForLoopHeap * int64(bs.NumInit))
+			for i := 0; i < bs.NumInit; i++ {
+				hiv, ok := last.Values[i].V.(*HeapItemValue)
+				if !ok {
+					continue
+				}
+				last.Values[i].V = &HeapItemValue{
+					Value: hiv.Value,
+				}
+			}
+			// run post if exists.
 			bs.NextBodyIndex = -1
 			if next := bs.Post; next == nil {
 				bs.Active = nil
@@ -146,6 +161,10 @@ func (m *Machine) doOpExec(op Op) {
 			var ll int
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
+				if xv.V == nil {
+					m.pushPanic(typedString("runtime error: nil pointer dereference"))
+					return
+				}
 				dv = xv.V.(PointerValue).TV
 				*xv = *dv
 			} else {
@@ -157,6 +176,7 @@ func (m *Machine) doOpExec(op Op) {
 				m.PopFrameAndReset()
 				return
 			}
+			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = len(m.Values)
@@ -499,10 +519,15 @@ EXEC_SWITCH:
 	case *ForStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		numInit := 0
+		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
+			numInit = len(as.Lhs)
+		}
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
+			NumInit:       numInit,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
 		}
@@ -807,6 +832,7 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
+	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
