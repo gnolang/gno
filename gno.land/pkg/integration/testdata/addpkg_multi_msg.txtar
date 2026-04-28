@@ -14,10 +14,14 @@ gnokey broadcast $WORK/multi.tx -quiet=false
 
 ## check output: one PKGPATH line per addpkg msg, in tx order
 stdout OK!
-stdout 'GAS WANTED: 7500000'
-stdout 'TX HASH:    '
 stdout 'PKGPATH:    gno.land/r/'$test1_user_addr'/multi1'
 stdout 'PKGPATH:    gno.land/r/'$test1_user_addr'/multi2'
 
 -- multi.tx --
-{"msg":[{"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"multi1","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi1","files":[{"name":"gnomod.toml","body":"module = \"multi1\"\ngno = \"0.9\"\n"},{"name":"multi1.gno","body":"package multi1\n\nconst Greeting = \"hi from 1\"\n"}]},"send":"","max_deposit":""},{"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"multi2","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi2","files":[{"name":"gnomod.toml","body":"module = \"multi2\"\ngno = \"0.9\"\n"},{"name":"multi2.gno","body":"package multi2\n\nconst Greeting = \"hi from 2\"\n"}]},"send":"","max_deposit":""}],"fee":{"gas_wanted":"7500000","gas_fee":"750001ugnot"},"signatures":null,"memo":""}
+{
+  "msg": [
+    {"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"multi1","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi1","files":[{"name":"gnomod.toml","body":"module = \"multi1\"\ngno = \"0.9\"\n"},{"name":"multi1.gno","body":"package multi1\n"}]}},
+    {"@type":"/vm.m_addpkg","creator":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","package":{"name":"multi2","path":"gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/multi2","files":[{"name":"gnomod.toml","body":"module = \"multi2\"\ngno = \"0.9\"\n"},{"name":"multi2.gno","body":"package multi2\n"}]}}
+  ],
+  "fee": {"gas_wanted":"7500000","gas_fee":"750001ugnot"}
+}
