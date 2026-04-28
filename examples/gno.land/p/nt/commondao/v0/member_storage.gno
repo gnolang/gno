@@ -53,8 +53,7 @@ func NewMemberStorageWithGrouping(options ...MemberGroupingOption) MemberStorage
 }
 
 type memberStorage struct {
-	addrset.Set
-
+	members  addrset.Set
 	grouping MemberGrouping
 }
 
@@ -63,13 +62,25 @@ type memberStorage struct {
 // grouped members are not included, they must be counted separately.
 // To get the size of the storage including the grouped members use `CountStorageMembers()`.
 func (s memberStorage) Size() int {
-	return s.Set.Size()
+	return s.members.Size()
 }
 
 // Has checks if a member exists in the base underlying storage.
 // Grouped members are not checked.
 func (s memberStorage) Has(member address) bool {
-	return s.Set.Has(member)
+	return s.members.Has(member)
+}
+
+// Add adds a member to the storage.
+// Returns true if the member is added, or false if it already existed.
+func (s *memberStorage) Add(member address) bool {
+	return s.members.Add(member)
+}
+
+// Remove removes a member from the storage.
+// Returns true if member was removed, or false if it was not found.
+func (s *memberStorage) Remove(member address) bool {
+	return s.members.Remove(member)
 }
 
 // Grouping returns member groups.
@@ -83,7 +94,7 @@ func (s memberStorage) Grouping() MemberGrouping {
 // use `MemberStorage.Grouping().IterateByOffset()`.
 func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
 	var stopped bool
-	s.Set.IterateByOffset(offset, count, func(member address) bool {
+	s.members.IterateByOffset(offset, count, func(member address) bool {
 		stopped = fn(member)
 		return stopped
 	})
