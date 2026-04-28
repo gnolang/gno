@@ -431,7 +431,6 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(m *Machine, lv, rv *TypedValue) bool {
-	store := m.Store
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -510,8 +509,8 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		et := at.Elt
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
-			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
+			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
+			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
 			if !isEql(m, &li, &ri) {
 				return false
 			}
@@ -532,8 +531,8 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		}
 		for i := range ls.Fields {
 			m.incrCPU(OpCPUEql)
-			lf := ls.GetPointerToInt(store, i).Deref()
-			rf := rs.GetPointerToInt(store, i).Deref()
+			lf := ls.GetPointerToInt(m.Store, i).Deref()
+			rf := rs.GetPointerToInt(m.Store, i).Deref()
 			if !isEql(m, &lf, &rf) {
 				return false
 			}
