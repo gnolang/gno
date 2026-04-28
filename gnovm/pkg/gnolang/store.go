@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -494,7 +493,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 					"stored hash mismatch for %s: stored %X, computed %X",
 					oid, hash, computed.Bytes()))
 			}
-			fmt.Fprintf(os.Stderr, "debugAssert verify-content: %s OK\n", oid)
 		}
 
 		if pv, ok := oo.(*PackageValue); ok {
