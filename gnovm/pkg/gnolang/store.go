@@ -387,7 +387,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	}
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
-	if debug {
+	if debugStore {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
@@ -480,7 +480,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		// RefValue, e.g. keep sync with copyValueWithRefs().
 		AllocExpanded(ds.alloc, oo)
 
-		if debug {
+		if debugStore {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
@@ -806,7 +806,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				// len(bz) is not the proper cost of tt, but is good enough
 				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
 			}
-			if debug {
+			if debugStore {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -898,7 +898,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
 			size = len(bz)
-			if debug {
+			if debugStore {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))
