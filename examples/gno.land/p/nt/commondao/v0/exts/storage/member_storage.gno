@@ -24,7 +24,12 @@ func GetMemberGroups(s commondao.MemberStorage, member address) []string {
 		return nil
 	}
 
-	tree := v.(*avl.Tree)
+	tree, ok := v.(*avl.Tree)
+	if !ok {
+		// Member doesn't belong to any group
+		return nil
+	}
+
 	groups := make([]string, 0, tree.Size())
 	tree.Iterate("", "", func(group string, _ any) bool {
 		groups = append(groups, group)
