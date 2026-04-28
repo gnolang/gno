@@ -14,10 +14,10 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes    int64
-	bytes       int64
-	collect     func() (left int64, ok bool) // gc callback
-	gasMeter    store.GasMeter
+	maxBytes     int64
+	bytes        int64
+	collect      func() (left int64, ok bool) // gc callback
+	gasMeter     store.GasMeter
 	allocStrings map[uintptr]struct{} // backing pointers of fully-allocated strings
 }
 
@@ -216,7 +216,7 @@ func NewAllocator(maxBytes int64) *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes:    maxBytes,
+		maxBytes:     maxBytes,
 		allocStrings: make(map[uintptr]struct{}),
 	}
 }
@@ -265,8 +265,8 @@ func (alloc *Allocator) Fork() *Allocator {
 		return nil
 	}
 	return &Allocator{
-		maxBytes:    alloc.maxBytes,
-		bytes:       alloc.bytes,
+		maxBytes:     alloc.maxBytes,
+		bytes:        alloc.bytes,
 		allocStrings: alloc.allocStrings,
 	}
 }
