@@ -2640,6 +2640,7 @@ main.dev-mode .b-toc a {
 		background-color: var(--s-color-bg-base);
 		color: var(--s-color-text-secondary);
 		outline: none;
+		padding: var(--g-space-1) 0;
 	}
 
 	& .cm-editor.cm-focused {
@@ -2650,10 +2651,6 @@ main.dev-mode .b-toc a {
 		font-family: var(--g-font-mono);
 		font-size: var(--g-font-size-75);
 		line-height: 1.6;
-	}
-
-	& .cm-content {
-		padding: var(--g-space-2) 0;
 	}
 
 	& .cm-gutters {
