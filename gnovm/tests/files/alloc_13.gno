@@ -24,8 +24,8 @@ func main() {
 }
 
 // Output:
-// ===before GC, MemStats:  Allocator{maxBytes:100000, bytes:98392}
-// ===after GC, MemStats:  Allocator{maxBytes:100000, bytes:14744}
+// ===before GC, MemStats:  Allocator{maxBytes:100000, bytes:41392}
+// ===after GC, MemStats:  Allocator{maxBytes:100000, bytes:15624}
 
 // TypeCheckError:
 // gno.land/r/test/alloc_13.gno:18:2: declared and not used: s1

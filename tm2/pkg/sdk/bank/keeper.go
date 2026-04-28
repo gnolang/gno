@@ -137,6 +137,11 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 
 // SendCoins moves coins from one account to another, restrction could be applied
 func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	// If amt is zero do nothing.
+	if amt.IsZero() {
+		return nil
+	}
+
 	// read restricted boolean value from param.IsRestrictedTransfer()
 	// canSendCoins is true until they have agreed to the waiver
 	if !bank.canSendCoins(ctx, fromAddr, amt) {

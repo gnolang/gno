@@ -150,7 +150,7 @@ Realm B:
 │         EOA         │   │       Realm A        │   │       Realm B       │
 │                     │   │                      │   │                     │
 │  addr:              │   │  addr:               │   │  addr:              │
-│  g1jg...sqf5        ├───►  g17m...8v2s         ├───►  g1rs...cm3v        │
+│  g1jg...sqf5        ├───►  g1dv...u2c6         ├───►  g1rs...cm3v        │
 │                     │   │                      │   │                     │
 │  pkgPath:           │   │  pkgPath:            │   │  pkgPath:           │
 │  ""                 │   │  gno.land/r/demo/a   │   │  gno.land/r/demo/b  │

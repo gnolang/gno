@@ -12,21 +12,21 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 gnoland start
 
 ## Deploy a realm and verify it works
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/test/hello -gas-fee 350001ugnot -gas-wanted 3_500_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -broadcast -chainid=tendermint_test test1
 stdout 'hello world'
 
 ## Propose setting StoragePrice to an invalid value
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
 stdout OK!
 
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 22_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
 stdout OK!
 
 ## Executing the proposal should fail because the value is invalid
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
+! gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/execute_proposal.gno
 stderr 'invalid param'
 
 ## StoragePrice should remain unchanged
@@ -34,7 +34,7 @@ gnokey query params/vm:p:storage_price
 stdout '100ugnot'
 
 ## VM operations should still work
-gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 180001ugnot -gas-wanted 1_800_000 -broadcast -chainid=tendermint_test test1
 stdout 'hello world'
 
 -- hello/gnomod.toml --

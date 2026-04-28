@@ -72,7 +72,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, gasMeter),
+		Store:         tgs.BeginTransaction(tcw, tcw, nil, gasMeter),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		GasMeter:      gasMeter,
@@ -382,7 +382,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Start transaction store.
-		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
+		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil, nil)
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {

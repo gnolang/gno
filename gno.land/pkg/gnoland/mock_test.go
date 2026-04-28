@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/store"
 
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -85,6 +86,18 @@ func (m *mockVMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string) (res str
 	return "", nil
 }
 
+func (m *mockVMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath, expr string) (res string, err error) {
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error) {
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error) {
+	return nil, nil
+}
+
 func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err error) {
 	if m.runFn != nil {
 		return m.runFn(ctx, msg)
@@ -117,6 +130,10 @@ func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 		m.commitGnoTransactionStoreFn(ctx)
 	}
 }
+
+func (m *mockVMKeeper) PopulateStdlibCache() {}
+
+func (m *mockVMKeeper) PopulateStdlibCacheFrom(_ store.MultiStore) {}
 
 func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 

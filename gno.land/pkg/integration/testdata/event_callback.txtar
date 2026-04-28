@@ -4,9 +4,9 @@ loadpkg gno.land/r/demo/cbee $WORK
 # start a new node
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/demo/cbee -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/cbee -func Foo -gas-fee 210001ugnot -gas-wanted 2_100_000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'GAS WANTED: 2000000'
+stdout 'GAS WANTED: 2100000'
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
 stdout 'EVENTS:     \[{\"type\":\"foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\],\"pkg_path\":\"gno.land/r/demo/cbee\"},{\"type\":\"bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\],\"pkg_path\":\"gno.land/r/demo/cbee\"}\]'
