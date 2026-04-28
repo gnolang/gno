@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -24,6 +25,8 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
+	// For session account. The flag for this is registered by derived Cfg structs which need it.
+	Master string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -111,6 +114,29 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+// GetCaller gets the caller Address from nameOrBech32, or from c.Master if provided.
+// If c.Master is already bech32, ignore the keybase and just return its Address.
+func (c *MakeTxCfg) GetCaller(nameOrBech32 string) (crypto.Address, error) {
+	if c.Master != "" {
+		if caller, err := crypto.AddressFromBech32(c.Master); err == nil {
+			// Master is already bech32.
+			return caller, nil
+		}
+		// Master is not already bech32, so look up the name in the keybase.
+		nameOrBech32 = c.Master
+	}
+
+	kb, err := keys.NewKeyBaseFromDir(c.RootCfg.Home)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	return info.GetAddress(), nil
+}
+
 func SignAndBroadcastHandler(
 	cfg *MakeTxCfg,
 	nameOrBech32 string,
@@ -131,27 +157,58 @@ func SignAndBroadcastHandler(
 	}
 	accountAddr := info.GetAddress()
 
+	// query for the account number and sequence
+	var accountNumber uint64
+	var sequence uint64
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
-		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
 	}
-	qres, err := QueryHandler(qopts)
-	if err != nil {
-		return nil, errors.Wrap(err, "query account")
-	}
-	var qret struct {
-		BaseAccount std.BaseAccount
-		Attributes  uint64 `json:"attributes"` // GnoAccount extension
-	}
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-	if err != nil {
-		return nil, err
+	if cfg.Master == "" {
+		qopts.Path = fmt.Sprintf("auth/accounts/%s", accountAddr)
+		qres, err := QueryHandler(qopts)
+		if err != nil {
+			return nil, errors.Wrap(err, "query account")
+		}
+		var qret struct {
+			BaseAccount std.BaseAccount
+			Attributes  uint64 `json:"attributes"` // GnoAccount extension
+		}
+		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+		if err != nil {
+			return nil, err
+		}
+
+		accountNumber = qret.BaseAccount.AccountNumber
+		sequence = qret.BaseAccount.Sequence
+	} else {
+		masterBech32 := cfg.Master
+		if _, err := crypto.AddressFromBech32(masterBech32); err != nil {
+			// Master is not bech32, so look up the name in the keybase.
+			masterInfo, err := kb.GetByNameOrAddress(cfg.Master)
+			if err != nil {
+				return nil, err
+			}
+			masterBech32 = crypto.AddressToBech32(masterInfo.GetAddress())
+		}
+		qopts.Path = fmt.Sprintf("auth/accounts/%s/session/%s", masterBech32, accountAddr)
+		qres, err := QueryHandler(qopts)
+		if err != nil {
+			return nil, errors.Wrap(err, "query session account")
+		}
+		var qret struct {
+			BaseSessionAccount std.BaseSessionAccount
+			AllowPaths         []string `json:"allow_paths,omitempty"` // GnoSessionAccount extension
+		}
+		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+		if err != nil {
+			return nil, err
+		}
+
+		accountNumber = qret.BaseSessionAccount.BaseAccount.AccountNumber
+		sequence = qret.BaseSessionAccount.BaseAccount.Sequence
 	}
 
 	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
-
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,
 		accountSequence: sequence,
@@ -167,6 +224,10 @@ func SignAndBroadcastHandler(
 	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign transaction: %w", err)
+	}
+
+	if cfg.Master != "" {
+		signature.SessionAddr = info.GetAddress()
 	}
 
 	// Add the signature to the tx
