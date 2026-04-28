@@ -2725,7 +2725,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			obj := store.GetObject(cv.ObjectID)
-			if debugStore {
+			if debugAssert {
 				// Verify Merkle chain: parent's claimed child hash
 				// must match child's actual stored hash.
 				// Escaped objects carry zero RefValue hash (resolved via IAVL).

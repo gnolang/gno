@@ -72,7 +72,7 @@ func (b *Block) DeepFill(store Store) Value              { panic("not yet implem
 
 func (rv RefValue) DeepFill(store Store) Value {
 	obj := store.GetObject(rv.ObjectID)
-	if debugStore {
+	if debugAssert {
 		// Verify Merkle chain: parent's RefValue hash must match child's stored hash.
 		// Escaped objects carry zero RefValue hash (resolved via IAVL).
 		if !rv.Hash.IsZero() {

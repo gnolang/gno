@@ -155,15 +155,10 @@ test: _test.filetest _test.cmd _test.pkg _test.stdlibs
 test.debug:
 	go test -tags debug ./pkg/... $(GOTEST_FLAGS)
 
-# Run tests with the debugRealm build tag (enables realm-level debug checks).
-.PHONY: test.debugRealm
-test.debugRealm:
-	go test -tags debugRealm ./pkg/... $(GOTEST_FLAGS)
-
-# Run tests with the debugStore build tag (enables store-level integrity checks).
-.PHONY: test.debugStore
-test.debugStore:
-	go test -tags debugStore ./pkg/... $(GOTEST_FLAGS)
+# Run tests with the debugAssert build tag (enables runtime invariant checks).
+.PHONY: test.debugAssert
+test.debugAssert:
+	go test -tags debugAssert ./pkg/... $(GOTEST_FLAGS)
 
 .PHONY: _test.cmd
 _test.cmd:

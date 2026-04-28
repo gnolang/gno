@@ -20,6 +20,12 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
+// Build tags for zero-cost debug toggles:
+//   -tags debug       → enables debug logging (debug.Printf/Println + pprof server)
+//   -tags debugAssert → enables runtime invariant checks that panic on violation
+// debugAssert sites currently exist in realm.go and store.go; remaining
+// if debug { panic } sites across other files are candidates for migration.
+
 type debugging bool
 
 // using a const is probably faster.
