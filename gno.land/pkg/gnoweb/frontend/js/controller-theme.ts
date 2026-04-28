@@ -84,7 +84,6 @@ export class ThemeController extends BaseController {
 		const theme = this.resolveTheme();
 		document.documentElement.setAttribute("data-theme", theme);
 		this.setCookie(theme, COOKIE_MAX_AGE);
-		this.dispatch("theme:changed", { theme });
 
 		for (const [el, pref] of [
 			[this.sun, Preference.Light],
@@ -93,6 +92,8 @@ export class ThemeController extends BaseController {
 		] as [HTMLElement | null, Preference][]) {
 			el?.classList.toggle("u-hidden", this.preference !== pref);
 		}
+
+		this.dispatch("theme:changed", { theme });
 	}
 
 	private setCookie(value: string, maxAge: number): void {

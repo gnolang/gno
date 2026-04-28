@@ -36,8 +36,10 @@ const DEFAULT_GNO_CONTENT = "package main\n";
 
 const goLang = StreamLanguage.define(go);
 const tomlLang = StreamLanguage.define(toml);
-const langForFile = (name: string) =>
-	name.endsWith(".toml") ? tomlLang : goLang;
+
+function languageFromFilename(name: string): StreamLanguage<unknown> {
+	return name.endsWith(".toml") ? tomlLang : goLang;
+}
 
 export class PlaygroundController extends BaseController {
 	private declare files: PlaygroundFile[];
@@ -50,22 +52,24 @@ export class PlaygroundController extends BaseController {
 	private declare themeCompartment: Compartment;
 
 	protected connect(): void {
+		const initialCodeEl = this.getTarget("initial-code") as HTMLTextAreaElement;
+
 		this.files = [];
 		this.activeFile = 0;
 		this.mountEl = this.getTarget("code") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
 		this.tabsEl = this.getTarget("tabs") as HTMLElement;
-		const initialEl = this.getTarget("initial-code") as HTMLTextAreaElement;
-		if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialEl) return;
+		if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialCodeEl) return;
 
-		this._parseInitialCode(initialEl.value);
+		this._parseInitialCode(initialCodeEl.value);
 		this._createEditor();
+		this.renderTabs();
+
 		this.on("theme:changed", () => {
 			this.view.dispatch({
 				effects: this.themeCompartment.reconfigure(this._getCodeEditorTheme()),
 			});
 		});
-		this.renderTabs();
 	}
 
 	private _parseInitialCode(initialCode: string): void {
@@ -112,7 +116,7 @@ export class PlaygroundController extends BaseController {
 					indentOnInput(),
 					indentUnit.of("\t"),
 					bracketMatching(),
-					this.langCompartment.of(langForFile(this.files[0].name)),
+					this.langCompartment.of(languageFromFilename(this.files[0].name)),
 					this.themeCompartment.of(this._getCodeEditorTheme()),
 					runOnEnter,
 					keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
@@ -143,7 +147,7 @@ export class PlaygroundController extends BaseController {
 
 	private _setLanguage(name: string): void {
 		this.view.dispatch({
-			effects: this.langCompartment.reconfigure(langForFile(name)),
+			effects: this.langCompartment.reconfigure(languageFromFilename(name)),
 		});
 	}
 
@@ -190,13 +194,13 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public addFile(): void {
-		const name = prompt("File name (e.g. helper.gno or config.toml):");
+		const name = prompt("File name (e.g. main.gno or gnomod.toml):");
 		if (name == null) return;
 
 		if (this._switchToFile(name)) return;
 
 		const isGnomod = name === GNOMOD_FILE;
-		if (!/\.(gno|toml)$/.test(name)) return;
+		if (!name.endsWith(".gno") && !isGnomod) return;
 
 		const domain = this.getValue("domain") || "gno.land";
 		let content = DEFAULT_GNO_CONTENT;
