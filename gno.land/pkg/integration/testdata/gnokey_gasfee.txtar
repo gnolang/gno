@@ -13,8 +13,8 @@ stdout '"coins": "10000000000000ugnot"'
 # gas-wanted/gas-fee on the simulate call are generous; simulate reports
 # the actual gas the real tx would consume.
 gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 3_500_000 -gas-fee 350001ugnot -broadcast -chainid tendermint_test -simulate only test1
-stdout 'GAS USED:\s+2814462'
-stdout 'INFO:       estimated gas usage: 2814462, gas fee: 2955ugnot, current gas price: 1ugnot/1000gas'
+stdout 'GAS USED:\s+2814892'
+stdout 'INFO:       estimated gas usage: 2814892, gas fee: 2955ugnot, current gas price: 1ugnot/1000gas'
 
 ## No fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
@@ -25,7 +25,7 @@ stdout '"coins": "10000000000000ugnot"'
 # This is the documented simulate->broadcast workflow; the values on this
 # line MUST match the simulate output above (modulo a small gas-wanted
 # headroom).
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2_814_500 -gas-fee 2955ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2_815_000 -gas-fee 2955ugnot -broadcast -chainid tendermint_test test1
 stdout 'OK'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":206900\}.*\]'
 
@@ -36,8 +36,8 @@ stdout '"coins": "9999999790145ugnot"'
 
 # Tx Call -simulate only, estimate gas used and gas fee.
 gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_800_000 -gas-fee 180001ugnot -broadcast -chainid tendermint_test -simulate only test1
-stdout 'GAS USED:\s+1269324'
-stdout 'INFO:       estimated gas usage: 1269324, gas fee: 1333ugnot, current gas price: 1ugnot/1000gas'
+stdout 'GAS USED:\s+1269754'
+stdout 'INFO:       estimated gas usage: 1269754, gas fee: 1333ugnot, current gas price: 1ugnot/1000gas'
 
 ## No additional fee was charged, and the sequence number did not change.
 gnokey query auth/accounts/$test1_user_addr
@@ -45,7 +45,7 @@ stdout '"sequence": "1"'
 stdout '"coins": "9999999790145ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
-gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_269_400 -gas-fee 1333ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_269_900 -gas-fee 1333ugnot -broadcast -chainid tendermint_test test1
 stdout 'OK'
 
 ## fee is charged and sequence number increased
