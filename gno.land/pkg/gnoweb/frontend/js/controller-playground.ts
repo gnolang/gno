@@ -59,7 +59,9 @@ export class PlaygroundController extends BaseController {
 		this.mountEl = this.getTarget("code") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
 		this.tabsEl = this.getTarget("tabs") as HTMLElement;
-		if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialCodeEl) return;
+		if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialCodeEl) {
+			return;
+		}
 
 		this._parseInitialCode(initialCodeEl.value);
 		this._createEditor();
