@@ -12,24 +12,24 @@ export class SearchbarController extends BaseController {
 		e.preventDefault();
 
 		const inputElement = this.getDOMElement("input") as HTMLInputElement;
-		let url = inputElement?.value.trim();
+		const raw = inputElement?.value.trim();
 
-		if (url) {
-			// Check if the URL has a proper scheme
-			if (!/^https?:\/\//i.test(url)) {
-				const baseUrl = window.location.origin;
-				url = `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
-			}
-
-			try {
-				window.location.href = new URL(url).href;
-			} catch (_error) {
-				console.error(
-					"SearchBarController: Invalid URL. Please enter a valid URL starting with http:// or https://.",
-				);
-			}
-		} else {
+		if (!raw) {
 			console.error("SearchBarController: Please enter a URL to search.");
+			return;
 		}
+
+		window.location.href = SearchbarController.resolveTarget(raw);
+	}
+
+	// resolveTarget strips a leading `gno.land` host (with or without scheme)
+	// so realm paths copied from anywhere resolve locally; non-`gno.land`
+	// absolute URLs pass through, and relatives resolve against the origin.
+	static resolveTarget(input: string): string {
+		const stripped = input.replace(
+			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
+			"",
+		);
+		return URL.parse(stripped, window.location.origin)?.href ?? "";
 	}
 }
