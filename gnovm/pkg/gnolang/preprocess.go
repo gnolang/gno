@@ -2160,8 +2160,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if t.Elem().Kind() != ArrayKind {
 						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
-				case SliceKind, ArrayKind, StringKind:
+				case SliceKind, StringKind:
 					// good.
+				case ArrayKind:
+					if !isAddressable(store, last, n.X) {
+						panic(fmt.Sprintf(
+							"invalid operation: %s (slice of unaddressable value)",
+							n.X.String()))
+					}
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
 				}
