@@ -23,6 +23,14 @@ func (o2 *TestRealmObject2) Modify() {
 	o2.Field = "modified"
 }
 
+// Value-receiver mutator. By Go/Gno semantics this only mutates the
+// method's local copy. Used by readonly-taint filetests to probe
+// whether a receiver carrying the sticky N_Readonly bit propagates
+// the bit onto the method-frame copy.
+func (o2 TestRealmObject2) ModifyVal() {
+	o2.Field = "modified-val"
+}
+
 var (
 	somevalue1 TestRealmObject2
 	SomeValue2 TestRealmObject2
