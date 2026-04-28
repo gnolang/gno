@@ -47,7 +47,7 @@ func NewMemberStorage() MemberStorage {
 
 // NewMemberStorageWithGrouping a new member storage with support for member groups.
 // Member groups can be used by implementations that require grouping users by roles
-// or by tiers for example.
+// or by tiers for example. It also supports members without grouping.
 func NewMemberStorageWithGrouping(options ...MemberGroupingOption) MemberStorage {
 	return &memberStorage{grouping: NewMemberGrouping(options...)}
 }
@@ -61,6 +61,7 @@ type memberStorage struct {
 // Size returns the number of members in the storage.
 // The result is the number of members within the base underlying storage,
 // grouped members are not included, they must be counted separately.
+// To get the size of the storage including the grouped members use `CountStorageMembers()`.
 func (s memberStorage) Size() int {
 	return s.Set.Size()
 }
@@ -68,19 +69,7 @@ func (s memberStorage) Size() int {
 // Has checks if a member exists in the storage.
 // Member is also searched within all defined member groups.
 func (s memberStorage) Has(member address) bool {
-	// Check underlying member address storage
-	if s.Set.Has(member) {
-		return true
-	}
-
-	if s.grouping == nil {
-		return false
-	}
-
-	// Check groups when member is not found in underlying storage
-	return s.grouping.IterateByOffset(0, s.grouping.Size(), func(g MemberGroup) bool {
-		return g.Members().Has(member)
-	})
+	return s.Set.Has(member)
 }
 
 // Grouping returns member groups.
@@ -90,6 +79,8 @@ func (s memberStorage) Grouping() MemberGrouping {
 
 // IterateByOffset iterates members starting at the given offset.
 // The callback can return true to stop iteration.
+// It doesn't iterate grouped members, if you need to iterate grouped members
+// use `MemberStorage.Grouping().IterateByOffset()`.
 func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
 	var stopped bool
 	s.Set.IterateByOffset(offset, count, func(member address) bool {
@@ -151,6 +142,8 @@ func (s ReadonlyMemberStorage) Grouping() *ReadonlyMemberGrouping {
 
 // IterateByOffset iterates members starting at the given offset.
 // The callback can return true to stop iteration.
+// It doesn't iterate grouped members, if you need to iterate grouped
+// members use `ReadonlyMemberStorage.Grouping().IterateByOffset()`.
 func (s ReadonlyMemberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
 	if s.storage != nil {
 		return s.storage.IterateByOffset(offset, count, fn)

@@ -104,8 +104,8 @@ func TestMemberStorageHas(t *testing.T) {
 			},
 		},
 		{
-			name:  "found with grouping",
-			found: true,
+			name:  "not found with grouping",
+			found: false,
 			setup: func() commondao.MemberStorage {
 				s := commondao.NewMemberStorageWithGrouping()
 				g, _ := s.Grouping().Add("foo")
@@ -114,7 +114,7 @@ func TestMemberStorageHas(t *testing.T) {
 			},
 		},
 		{
-			name:  "not found with grouping",
+			name:  "not found with empty grouping",
 			found: false,
 			setup: func() commondao.MemberStorage { return commondao.NewMemberStorageWithGrouping() },
 		},
