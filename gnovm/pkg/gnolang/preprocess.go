@@ -2335,6 +2335,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						"cannot take address of multi-value call (results: %s)",
 						tt.String()))
 				}
+				if !isAddressable(store, last, n.X) {
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s (value of type %s)",
+						n.X.String(), xt.String()))
+				}
 				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
@@ -4377,6 +4382,36 @@ func anyValue(t Type) TypedValue {
 func isConst(x Expr) bool {
 	_, ok := x.(*ConstExpr)
 	return ok
+}
+
+func isAddressable(store Store, last BlockNode, x Expr) bool {
+	switch cx := x.(type) {
+	case *NameExpr:
+		return true
+	case *StarExpr:
+		return true
+	case *CompositeLitExpr:
+		return true
+	case *IndexExpr:
+		xt := evalStaticTypeOf(store, last, cx.X)
+		if _, ok := baseOf(xt).(*MapType); ok {
+			return false
+		}
+		if _, ok := baseOf(xt).(*SliceType); ok {
+			return true
+		}
+		return isAddressable(store, last, cx.X)
+	case *SelectorExpr:
+		xt := evalStaticTypeOf(store, last, cx.X)
+		if _, ok := baseOf(xt).(*PointerType); ok {
+			return true
+		}
+		return isAddressable(store, last, cx.X)
+	case *TypeAssertExpr:
+		return false
+	default:
+		return false
+	}
 }
 
 func isConstType(x Expr) bool {
