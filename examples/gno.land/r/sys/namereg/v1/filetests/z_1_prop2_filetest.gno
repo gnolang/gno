@@ -1,7 +1,5 @@
 package main
 
-// SEND: 20000000ugnot
-
 import (
 	"chain"
 	"chain/runtime"

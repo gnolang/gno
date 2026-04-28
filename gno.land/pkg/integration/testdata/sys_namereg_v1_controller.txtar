@@ -35,7 +35,7 @@ stdout OK!
 # Sanity: the realm is already a whitelisted controller (init.gno did this at
 # genesis height 0). user1 calls namereg/v1.Register with the required 20 GNOT.
 # The username "nym-alice123" matches the Open Nym Tier regex ^nym-[a-z]{5,13}\d{3}$.
-gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-alice123' -send 20000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-alice123' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stdout OK!
 
 # Verify: r/sys/users now resolves user1's address to "nym-alice123".
@@ -76,7 +76,7 @@ stdout OK!
 # Now Register must fail — the realm is no longer in the controller whitelist.
 # A second registration attempt for a different (valid) name from the same
 # user should hard-fail with the whitelist error from r/sys/users.
-! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-bobcat456' -send 20000000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-bobcat456' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
 stderr 'does not exist in whitelist'
 
 -- pkg/gnomod.toml --

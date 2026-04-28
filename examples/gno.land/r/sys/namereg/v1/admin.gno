@@ -102,10 +102,9 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 }
 
 // ProposeNewRegisterPrice allows GovDAO to update the price of registration.
-// Rejects prices below MinRegisterPrice (0.1 GNOT) at proposal-creation time
-// so voters never see a proposal that would zero out the anti-squatting
-// deterrent. (audit finding #14: original code only rejected negative
-// values, accepting zero as a free-registration trapdoor.)
+// Rejects prices below MinRegisterPrice (currently 0) at proposal-creation
+// time. (audit finding #14: original code only rejected negative values,
+// which would have been arithmetically nonsensical.)
 func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 	if newPrice < MinRegisterPrice {
 		panic(ufmt.Sprintf("price below floor: %d ugnot < %d ugnot (MinRegisterPrice)",

@@ -10,14 +10,14 @@ import (
 )
 
 // MinRegisterPrice is the lowest price (in ugnot) that
-// ProposeNewRegisterPrice will accept. Set to 0.1 GNOT — chosen so the
-// default has 3 orders of magnitude of governance headroom for lowering
-// the price without dropping all the way to zero. (audit finding #14)
-const MinRegisterPrice = int64(100_000) // 0.1 GNOT
+// ProposeNewRegisterPrice will accept. Set to 0 — registration is free
+// by default; governance can raise the price via ProposeNewRegisterPrice
+// without a floor.
+const MinRegisterPrice = int64(0)
 
 var (
-	registerPrice = int64(20_000_000) // 20 GNOT (anti-squatting deterrent)
-	latestUsers   = fifo.New(100)     // Save the latest 100 users for rendering purposes
+	registerPrice = int64(0)      // free by default; governance can raise via ProposeNewRegisterPrice
+	latestUsers   = fifo.New(100) // Save the latest 100 users for rendering purposes
 )
 
 // Register registers a new username for the caller.
