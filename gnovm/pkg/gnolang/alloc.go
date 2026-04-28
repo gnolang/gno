@@ -17,7 +17,7 @@ type Allocator struct {
 	bytes       int64
 	collect     func() (left int64, ok bool) // gc callback
 	gasMeter    store.GasMeter
-	stringCache map[uintptr]struct{} // tracks backing pointers of strings allocated via NewString
+	allocStrings map[uintptr]struct{} // backing pointers of fully-allocated strings
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -53,7 +53,6 @@ const (
 const (
 	allocString      = _allocBase
 	allocStringByte  = 1
-	allocStringRef   = _allocBase // string slice/reference: header only, no data bytes
 	allocBigint      = _allocBase + _allocPointer + _allocBigint
 	allocBigintByte  = 1
 	allocBigdec      = _allocBase + _allocPointer + _allocBigdec
@@ -87,7 +86,7 @@ func NewAllocator(maxBytes int64) *Allocator {
 	}
 	return &Allocator{
 		maxBytes:    maxBytes,
-		stringCache: make(map[uintptr]struct{}),
+		allocStrings: make(map[uintptr]struct{}),
 	}
 }
 
@@ -137,7 +136,7 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes:    alloc.maxBytes,
 		bytes:       alloc.bytes,
-		stringCache: alloc.stringCache,
+		allocStrings: alloc.allocStrings,
 	}
 }
 
@@ -170,40 +169,40 @@ func (alloc *Allocator) Allocate(size int64) {
 	}
 }
 
-// CacheString records a string's backing pointer so GC knows
+// TrackString records a string's backing pointer so GC knows
 // this string was fully allocated (header + bytes) and should
 // have its bytes recounted during GC.
-func (alloc *Allocator) CacheString(str string) {
+func (alloc *Allocator) TrackString(str string) {
 	if alloc == nil {
 		return
 	}
 	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
-	alloc.stringCache[p] = struct{}{}
+	alloc.allocStrings[p] = struct{}{}
 }
 
-// PopStringCached checks if the string's backing pointer was
-// registered via CacheString and removes it. Returns true if
-// it was cached. The pop ensures each backing array's bytes
+// PopTrackedString checks if the string's backing pointer was
+// registered via TrackString and removes it. Returns true if
+// it was tracked. The pop ensures each backing array's bytes
 // are only counted once during GC recount.
-func (alloc *Allocator) PopStringCached(str string) bool {
+func (alloc *Allocator) PopTrackedString(str string) bool {
 	if alloc == nil {
 		return false
 	}
 	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
-	_, exists := alloc.stringCache[p]
+	_, exists := alloc.allocStrings[p]
 	if exists {
-		delete(alloc.stringCache, p)
+		delete(alloc.allocStrings, p)
 	}
 	return exists
 }
 
-// ClearStringCache removes all entries from the string cache.
+// ResetStringTracking clears all tracked strings.
 // Called after GC to clean up entries for dead strings.
-func (alloc *Allocator) ClearStringCache() {
+func (alloc *Allocator) ResetStringTracking() {
 	if alloc == nil {
 		return
 	}
-	clear(alloc.stringCache)
+	clear(alloc.allocStrings)
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
@@ -282,15 +281,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	alloc.CacheString(s)
-	return StringValue(s)
-}
-
-// NewStringRef creates a StringValue for slicing operations.
-// Only charges the header cost since Go string slicing shares
-// the underlying byte array — no data is copied.
-func (alloc *Allocator) NewStringRef(s string) StringValue {
-	alloc.Allocate(allocStringRef)
+	alloc.TrackString(s)
 	return StringValue(s)
 }
 
@@ -538,10 +529,10 @@ func (fv *FuncValue) GetShallowSize() int64 {
 
 func (sv StringValue) GetShallowSize() int64 {
 	// Only count header size during GC recount.
-	// String data bytes are tracked at allocation time via
-	// NewString (full) vs NewStringRef (header only).
-	// Counting bytes here would double-count strings that
-	// exist in persisted realm state.
+	// String data bytes are tracked at allocation time and
+	// checked via PopTrackedString during GC. Slices share the
+	// underlying bytes with their source — only the header was
+	// charged, so the bytes belong to the original string.
 	return allocString
 }
 

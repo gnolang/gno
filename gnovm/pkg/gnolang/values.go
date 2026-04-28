@@ -2186,9 +2186,11 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				low, high, tv.GetLength()))})
 		}
 		if t == StringType || t == UntypedStringType {
+			sv := tv.GetString()[low:high]
+			alloc.Allocate(allocString) // header only, underlying bytes shared with source string
 			return TypedValue{
 				T: tv.T,
-				V: alloc.NewStringRef(tv.GetString()[low:high]),
+				V: StringValue(sv),
 			}
 		}
 		panic(&Exception{Value: typedString(

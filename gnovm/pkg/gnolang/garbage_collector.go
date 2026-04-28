@@ -122,7 +122,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Clear remaining string cache entries (dead strings that
 	// were not visited). Prevents leak across GC cycles.
-	m.Alloc.ClearStringCache()
+	m.Alloc.ResetStringTracking()
 
 	// Return bytes remaining.
 	maxBytes, bytes := m.Alloc.Status()
@@ -159,14 +159,14 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// are raw data, not a Value, so they cannot be counted
 		// via VisitAssociated (which visits child Values).
 		// Instead we count them inline here.
-		// PopStringCached checks if this string was allocated via
+		// PopTrackedString checks if this string was allocated via
 		// NewString and removes the entry. The pop ensures each
 		// backing array's bytes are counted only once — if multiple
 		// StringValues share the same backing (e.g. s1 = s), the
 		// first visit pops the entry and counts bytes, subsequent
 		// visits find nothing and count header only.
 		if sv, ok := v.(StringValue); ok {
-			if alloc.PopStringCached(string(sv)) {
+			if alloc.PopTrackedString(string(sv)) {
 				size += allocStringByte * int64(len(sv))
 			}
 		}
