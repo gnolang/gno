@@ -2,6 +2,7 @@ package namereg
 
 import (
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 
 	"gno.land/p/moul/fifo"
@@ -37,26 +38,22 @@ var (
 // canonical-form lookup keyed by full canonical name).
 //
 // Only direct EOA (maketx call) invocations are supported.
-func Register(cur realm, username string) {
+func Register(_ realm, username string) {
 	// Anti-squatting payment check, two paired guards:
 	//
 	//   (a) PreviousRealm must be a pure EOA (IsUserCall: pkgPath == "").
 	//       This excludes intermediate code realms AND user-run ephemeral
 	//       realms ("maketx run" scripts). Both can attach -send to the
 	//       tx but spend the coins on something other than forwarding to
-	//       this realm, leaving the envelope describing a phantom payment.
+	//       this realm, leaving OriginSend() describing a phantom payment.
 	//       IsUserCall is the only PreviousRealm shape where the tx-send
 	//       envelope is guaranteed to have landed at this realm's address.
 	//
-	//   (b) cur.SentCoins() amount must exactly equal registerPrice.
-	//       SentCoins() is the receiving-realm-scoped accessor: it returns
-	//       the tx envelope ONLY when the calling realm is the first realm
-	//       in the call stack. Structurally safer than banker.OriginSend(),
-	//       which any realm in the chain can read.
+	//   (b) OriginSend amount must exactly equal registerPrice. Verifies
+	//       the tx actually attached the expected amount.
 	//
-	// (a) is kept for explicit error messaging (ErrNonUserCall is clearer
-	// than ErrInvalidPayment when the failure mode is "intermediate-realm
-	// caller"). SentCoins() would also reject this case structurally.
+	// Both checks MUST run together. Removing (a) alone makes (b) meaningless
+	// because OriginSend() describes tx intent, not realm receipt.
 	if !runtime.PreviousRealm().IsUserCall() {
 		panic(ErrNonUserCall)
 	}
@@ -65,16 +62,7 @@ func Register(cur realm, username string) {
 		panic(ErrPaused)
 	}
 
-	// Walk the envelope to find ugnot. SentCoins() returns gnocoins
-	// which doesn't expose an AmountOf helper.
-	var ugnotAmount int64
-	for _, c := range cur.SentCoins() {
-		if c.Denom == "ugnot" {
-			ugnotAmount = c.Amount
-			break
-		}
-	}
-	if ugnotAmount != registerPrice {
+	if banker.OriginSend().AmountOf("ugnot") != registerPrice {
 		panic(errInvalidPayment())
 	}
 
