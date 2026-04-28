@@ -66,8 +66,8 @@ func (s memberStorage) Size() int {
 	return s.Set.Size()
 }
 
-// Has checks if a member exists in the storage.
-// Member is also searched within all defined member groups.
+// Has checks if a member exists in the base underlying storage.
+// Grouped members are not checked.
 func (s memberStorage) Has(member address) bool {
 	return s.Set.Has(member)
 }
