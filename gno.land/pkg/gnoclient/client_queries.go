@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -55,7 +56,7 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 		return nil, nil, std.ErrUnknownAddress("unknown address: " + crypto.AddressToBech32(addr))
 	}
 
-	var qret struct{ BaseAccount std.BaseAccount }
+	var qret gnoland.GnoAccount
 	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
 	if err != nil {
 		return nil, nil, err
