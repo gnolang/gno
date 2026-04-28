@@ -191,7 +191,7 @@ func (vm *VMKeeper) Initialize(
 
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start),
-      "failures", len(failed))
+			"failures", len(failed))
 	}
 }
 
