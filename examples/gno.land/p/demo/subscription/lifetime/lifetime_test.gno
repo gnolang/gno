@@ -2,6 +2,7 @@ package lifetime
 
 import (
 	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -12,54 +13,27 @@ var (
 	alice   = testutils.TestAddress("alice")
 	bob     = testutils.TestAddress("bob")
 	charlie = testutils.TestAddress("charlie")
-	payee   = testutils.TestAddress("payee")
 )
 
-// mockSender implements subscription.Sender for unit tests.
-type mockSender struct {
-	sent     []sendRecord
-	failNext bool
-	failMsg  string
-}
-
-type sendRecord struct {
-	to  address
-	amt chain.Coins
-}
-
-func (m *mockSender) Send(to address, amt chain.Coins) {
-	if m.failNext {
-		panic(m.failMsg)
-	}
-	m.sent = append(m.sent, sendRecord{to, amt})
-}
-
-func (m *mockSender) totalUgnot() int64 {
-	var total int64
-	for _, r := range m.sent {
-		total += r.amt.AmountOf("ugnot")
-	}
-	return total
-}
-
 func TestLifetimeSubscription(t *testing.T) {
-	ls := NewLifetimeSubscription(1000, payee)
-	ms := &mockSender{}
+	testing.SetRealm(testing.NewUserRealm(alice))
+	ls := NewLifetimeSubscription(1000)
 
-	err := ls.Subscribe(ms, alice)
-	uassert.NoError(t, err, "Expected Subscribe to succeed for Alice")
-	uassert.Equal(t, ms.totalUgnot(), int64(1000), "Expected 1000 ugnot pulled")
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
+	err := ls.Subscribe()
+	uassert.NoError(t, err, "Expected ProcessPayment to succeed")
 
-	err = ls.HasValidSubscription(alice)
+	err = ls.HasValidSubscription(runtime.CurrentRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access")
 }
 
 func TestLifetimeSubscriptionGift(t *testing.T) {
-	ls := NewLifetimeSubscription(1000, payee)
-	ms := &mockSender{}
+	testing.SetRealm(testing.NewUserRealm(alice))
+	ls := NewLifetimeSubscription(1000)
 
-	err := ls.Subscribe(ms, bob)
-	uassert.NoError(t, err, "Expected gift Subscribe to succeed for Bob")
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
+	err := ls.GiftSubscription(bob)
+	uassert.NoError(t, err, "Expected ProcessPaymentGift to succeed for Bob")
 
 	err = ls.HasValidSubscription(bob)
 	uassert.NoError(t, err, "Expected Bob to have access")
@@ -70,71 +44,63 @@ func TestLifetimeSubscriptionGift(t *testing.T) {
 
 func TestUpdateAmountAuthorization(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
-	ls := NewLifetimeSubscription(1000, payee)
+	ls := NewLifetimeSubscription(1000)
 
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
 	testing.SetRealm(testing.NewUserRealm(bob))
+
 	err = ls.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
 }
 
-// TestSenderFailure replaces TestIncorrectPaymentAmount and
-// TestGiftSubscriptionWithIncorrectAmount: the lib trusts the sender
-// to refuse over-cap or under-funded sends. A failing Send panics out
-// of Subscribe; the lib leaves no subscription record.
-func TestSenderFailure(t *testing.T) {
-	ls := NewLifetimeSubscription(1000, payee)
-	ms := &mockSender{failNext: true, failMsg: "cap exceeded"}
+func TestIncorrectPaymentAmount(t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	ls := NewLifetimeSubscription(1000)
 
-	defer func() {
-		r := recover()
-		uassert.NotEqual(t, r, nil, "Expected Subscribe to panic when Send fails")
-	}()
-	ls.Subscribe(ms, alice)
-	t.Fatal("unreachable; Subscribe should have panicked")
-}
-
-func TestSenderFailureLeavesNoRecord(t *testing.T) {
-	ls := NewLifetimeSubscription(1000, payee)
-	ms := &mockSender{failNext: true, failMsg: "cap exceeded"}
-
-	func() {
-		defer func() { recover() }()
-		ls.Subscribe(ms, bob)
-	}()
-
-	err := ls.HasValidSubscription(bob)
-	uassert.Error(t, err, "Expected Bob to not have access after failed Subscribe")
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 500}})
+	err := ls.Subscribe()
+	uassert.Error(t, err, "Expected payment to fail with incorrect amount")
 }
 
 func TestMultipleSubscriptionAttempts(t *testing.T) {
-	ls := NewLifetimeSubscription(1000, payee)
-	ms := &mockSender{}
+	testing.SetRealm(testing.NewUserRealm(alice))
+	ls := NewLifetimeSubscription(1000)
 
-	err := ls.Subscribe(ms, alice)
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
+	err := ls.Subscribe()
 	uassert.NoError(t, err, "Expected first subscription to succeed")
-	uassert.Equal(t, ms.totalUgnot(), int64(1000), "Expected 1000 ugnot pulled")
 
-	err = ls.Subscribe(ms, alice)
-	uassert.Error(t, err, "Expected second subscription to fail (already-sub)")
-	// No additional payment should have been pulled.
-	uassert.Equal(t, ms.totalUgnot(), int64(1000), "Expected no additional ugnot on duplicate sub")
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
+	err = ls.Subscribe()
+	uassert.Error(t, err, "Expected second subscription to fail as Alice is already subscribed")
 }
 
-// TestUpdateAmountEffectiveness verifies that UpdateAmount actually
-// changes what the lib pulls on subsequent Subscribe calls. The mock
-// sender records each Send so we can verify the new amount lands.
+func TestGiftSubscriptionWithIncorrectAmount(t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	ls := NewLifetimeSubscription(1000)
+
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 500}})
+	err := ls.GiftSubscription(bob)
+	uassert.Error(t, err, "Expected gift subscription to fail with incorrect amount")
+
+	err = ls.HasValidSubscription(bob)
+	uassert.Error(t, err, "Expected Bob to not have access after incorrect gift subscription")
+}
+
 func TestUpdateAmountEffectiveness(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
-	ls := NewLifetimeSubscription(1000, payee)
+	ls := NewLifetimeSubscription(1000)
 
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	ms := &mockSender{}
-	err = ls.Subscribe(ms, bob)
-	uassert.NoError(t, err, "Expected Subscribe to succeed at updated amount")
-	uassert.Equal(t, ms.totalUgnot(), int64(2000), "Expected 2000 ugnot pulled (post-update)")
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
+	err = ls.Subscribe()
+	uassert.Error(t, err, "Expected subscription to fail with old amount after update")
+
+	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 2000}})
+	err = ls.Subscribe()
+	uassert.NoError(t, err, "Expected subscription to succeed with new amount")
 }
