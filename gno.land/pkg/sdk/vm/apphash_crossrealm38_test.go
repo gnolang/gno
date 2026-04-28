@@ -5,19 +5,19 @@ package vm
 // trips the assertion. It does not demonstrate the old behavior.
 //
 // It pins the committed multistore hash (apphash equivalent) after running
-// the scenario from gnovm/tests/files/zrealm_crossrealm36.gno at the SDK
+// the scenario from gnovm/tests/files/zrealm_crossrealm38.gno at the SDK
 // layer. It is the direct consensus-level evidence complementing the
 // filetest's save-set golden.
 //
 // Why an apphash test is needed:
-//   The zrealm_crossrealm36.gno filetest only exercises the opslog (which
+//   The zrealm_crossrealm38.gno filetest only exercises the opslog (which
 //   objects enter the save set). The save set drives writes to the iavlStore
 //   for every escaped object, and the iavlStore Merkle root is what surfaces
 //   as the app hash. So the filetest is an indirect proxy for the commitment.
 //   This test closes the loop by pinning the commitment itself.
 //
 // What this test proves:
-//   - Running the crossrealm36 scenario deterministically produces the pinned
+//   - Running the crossrealm38 scenario deterministically produces the pinned
 //     multistore hash. Any change to the save set shifts the hash
 //     and fails this test.
 //
@@ -39,25 +39,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Expected multistore commit hash after running the crossrealm36 scenario.
+// Expected multistore commit hash after running the crossrealm38 scenario.
 // Capture recipe:
 //
-//	go test ./gno.land/pkg/sdk/vm/ -run TestAppHashCrossrealm36 -v
+//	go test ./gno.land/pkg/sdk/vm/ -run TestAppHashCrossrealm38 -v
 //
 // then paste the "observed hash" from the failure message here.
 //
 // If this test fails after an intentional change to realm/ownership logic,
 // verify the change is actually consensus-breaking before updating this
-// constant — re-run the zrealm_crossrealm36.gno filetest and inspect the
+// constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm36Hash = "e3db1f39e82e0fbc6de8d84f0230bd1a7bbe71819a68ee6b035473632dcabcd3"
+const expectedCrossrealm38Hash = "e3db1f39e82e0fbc6de8d84f0230bd1a7bbe71819a68ee6b035473632dcabcd3"
 
-func TestAppHashCrossrealm36(t *testing.T) {
+func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Fund deployer.
-	addr := crypto.AddressFromPreimage([]byte("crossrealm36-deployer"))
+	addr := crypto.AddressFromPreimage([]byte("crossrealm38-deployer"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
 	env.bankk.SetCoins(ctx, addr, initialBalance)
@@ -72,11 +72,11 @@ func TestAppHashCrossrealm36(t *testing.T) {
 	// points at the cap-1 backing array. That array will be deleted in Tx3
 	// (when AddC's append grows the backing), turning the OwnerID into a
 	// stale cross-tx pointer — the exact condition the bug requires.
-	const implPkg = "gno.land/r/test/crossrealm36impl"
+	const implPkg = "gno.land/r/test/crossrealm38impl"
 	implFiles := []*std.MemFile{
 		{Name: "gnomod.toml", Body: gno.GenGnoModLatest(implPkg)},
 		{Name: "impl.gno", Body: `
-package crossrealm36impl
+package crossrealm38impl
 
 import "gno.land/r/tests/vm/crossrealm_f"
 
@@ -106,12 +106,12 @@ func AddC(cur realm) {
 	env.vmk.CommitGnoTransactionStore(ctx)
 
 	got := commitMultiStoreHash(t, env)
-	if expectedCrossrealm36Hash == "" {
+	if expectedCrossrealm38Hash == "" {
 		t.Fatalf("expected hash not pinned; observed hash = %s\n"+
-			"update expectedCrossrealm36Hash to this value if the scenario "+
+			"update expectedCrossrealm38Hash to this value if the scenario "+
 			"is the one you intend to pin.", got)
 	}
-	require.Equal(t, expectedCrossrealm36Hash, got,
+	require.Equal(t, expectedCrossrealm38Hash, got,
 		"multistore commit hash changed — the save set (and therefore the "+
 			"iavlStore Merkle root) shifted. Verify this is an intentional "+
 			"consensus-breaking change before updating the pinned value.")

@@ -50,7 +50,7 @@ The stale ancestor hashes are a **correctness invariant violation**. Specificall
   PackageValue at the root of the ownership chain) are now correctly re-saved with
   updated hashes. Since escaped objects are indexed in the IAVL Merkle tree, the IAVL
   root — and therefore the app hash — changes from what the buggy code produced. See
-  `apphash_crossrealm36_test.go` which pins the new post-fix commitment. A network
+  `apphash_crossrealm38_test.go` which pins the new post-fix commitment. A network
   upgrade that includes this fix will produce a different app hash for any block that
   modifies a store-restored realm object.
 - **No value retrieval impact**: objects are loaded by `ObjectID`; `RefValue.Hash` is
