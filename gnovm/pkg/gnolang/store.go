@@ -474,13 +474,13 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-			// Allocate atomically: one Allocate call prevents GC from
-		// intercepting between shallow-size and RefValue-size accounting.
 		// See copyValueWithRefs — child Objects become RefValue slots
 		// in the serialized amino bytes, and internalRefSize accounts
 		// for those slots.
 		ss := oo.GetShallowSize()
 		rs := internalRefSize(oo)
+		// Allocate atomically: one Allocate call prevents GC from
+		// intercepting between shallow-size and RefValue-size accounting.
 		ds.alloc.Allocate(ss + rs)
 
 		if debug {
@@ -513,7 +513,6 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
 }
-
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
