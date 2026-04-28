@@ -183,9 +183,8 @@ func TestHTTPHandler_Get(t *testing.T) {
 	}
 }
 
-// TestHTTPHandler_HelpURLOrigin verifies that the Anchor copy URL on the help page
-// is rendered absolute, using the actual request origin (so the clipboard URL is
-// shareable regardless of deployment: gnodev, gnoweb local, prod, behind proxy).
+// TestHTTPHandler_HelpURLOrigin verifies the Anchor copy URL is rendered absolute
+// across deployments (gnodev, prod direct, behind reverse proxy).
 func TestHTTPHandler_HelpURLOrigin(t *testing.T) {
 	t.Parallel()
 

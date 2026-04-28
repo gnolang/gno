@@ -24,7 +24,7 @@ type HelpData struct {
 	PkgFullPath string
 	Doc         string
 	Domain      string
-	Origin      string // scheme+host the client used; used to make help URLs shareable
+	Origin      string // request scheme+host; makes help URLs shareable
 }
 
 type HelpTocData struct {

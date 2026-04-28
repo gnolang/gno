@@ -721,11 +721,8 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Write(source) // write raw file
 }
 
-// requestOrigin returns scheme+host the client used to reach gnoweb,
-// honoring X-Forwarded-{Proto,Host} for deployments behind a reverse proxy.
-// Operators must strip these headers at the edge if exposing gnoweb directly.
-// Returns empty when no host can be determined (e.g. malformed test fixtures);
-// callers degrade gracefully to path-relative URLs.
+// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// Empty when no host is known; callers fall back to path-relative URLs.
 func requestOrigin(r *http.Request) string {
 	host := r.Host
 	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {

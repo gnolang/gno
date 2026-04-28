@@ -23,7 +23,7 @@ type GnoURL struct {
 	WebQuery url.Values // help&a=b
 	Query    url.Values // c=d
 	File     string     // render.gno
-	Origin   string     // https://gno.land (scheme+host the client used)
+	Origin   string     // https://gno.land
 }
 
 // EncodeFlag is used to specify which URL components to encode.
