@@ -1,4 +1,4 @@
-// Package allowancebanker provides a bounded, granter-revocable
+// Package allowancesender provides a bounded, granter-revocable
 // spending capability that wraps a banker.Banker source.
 //
 // # Use case
@@ -12,7 +12,7 @@
 // # Canonical pattern
 //
 //	src := banker.NewBanker(banker.BankerTypeRealmSend)
-//	al  := allowancebanker.New(src, granterAddr,
+//	al  := allowancesender.New(src, granterAddr,
 //	           chain.NewCoins(chain.NewCoin("ugnot", 1_000_000)))
 //	defer al.Close()
 //	bRealm.DoSomething(cross, al)  // B can call al.Send up to cap
@@ -21,9 +21,24 @@
 // flag. If B persisted al, B's stored reference is now dead — any
 // later al.Send() panics with "closed".
 //
+// # Naming note
+//
+// Despite the underlying type wrapping a banker.Banker, *AllowanceSender
+// does NOT satisfy the banker.Banker interface. The other Banker methods
+// (GetCoins, TotalCoin, IssueCoin, RemoveCoin) have no meaningful
+// behavior on an allowance abstraction:
+//
+//   - GetCoins would either leak the granter realm's full balance
+//     (misleading) or return Remaining() (lying about the addr arg).
+//   - TotalCoin/IssueCoin/RemoveCoin are out of scope.
+//
+// Send is the only meaningful operation; hence the "Sender" name. If
+// you need to plug into a banker.Banker-shaped API, write an adapter
+// in your own package.
+//
 // # Security model
 //
-//   - Pointer-based API. All callees that hold a *AllowanceBanker share
+//   - Pointer-based API. All callees that hold a *AllowanceSender share
 //     the same underlying state. Close() flips a bool that every reader
 //     observes synchronously.
 //   - Inner banker is an unexported field. Callees cannot extract it
@@ -44,17 +59,19 @@
 //     funds") rolls back the spent counter — caller's accounting stays
 //     accurate even if a defer-recover swallows the panic. (Without
 //     recovery, the entire tx reverts and the rollback is moot.)
+//   - Arithmetic uses math/overflow.Add64. Overflow on (spent+amount)
+//     panics rather than silently wrapping (which could bypass the cap
+//     check). Negative amounts are explicitly rejected.
 //
 // # Design choices
 //
 //   - Pointer type, not value: forces shared state across references.
-//     Value-copy AllowanceBanker would have separate closed flags and
+//     Value-copy AllowanceSender would have separate closed flags and
 //     defeat the kill switch.
 //   - One-shot Close, not graduated: simpler invariant. If you need
 //     "resume later," create a fresh allowance.
 //   - No destination allowlist: out of scope. If the granter wants to
-//     restrict where funds go, wrap this further (e.g. an
-//     AllowanceWithRecipientCheck that only forwards to specific tos).
+//     restrict where funds go, wrap this further.
 //   - No time-based expiry: rely on Close. Block-height stamping or
 //     deadline checks would require runtime cooperation; this package
 //     is pure Gno.
@@ -62,28 +79,24 @@
 //     heterogeneous payment policies. Most callers use single-denom.
 //   - Idempotent Close: safe to defer-Close even if Close was called
 //     manually earlier in the function.
+//   - Does NOT satisfy banker.Banker: see "Naming note" above.
 //
 // # Limitations
 //
 //   - Granter retains direct access to the underlying source banker.
-//     The AllowanceBanker only constrains the wrapped capability, not
+//     The AllowanceSender only constrains the wrapped capability, not
 //     the granter's ability to spend its own funds via other means.
-//   - No cross-realm enforcement of granter identity. If a malicious
-//     realm somehow constructs an AllowanceBanker with a forged
-//     payer/inner combination, the source banker's own pkgAddr check
-//     (banker.gno:116) would still reject mismatched froms. This
-//     package relies on banker's own protection there.
+//   - No cross-realm enforcement of granter identity. The source
+//     banker's own pkgAddr check (banker.gno) rejects mismatched
+//     froms. This package relies on banker's own protection there.
 //   - Re-entrancy: nested allowances work (each is independent), but
-//     do NOT re-use the same AllowanceBanker pointer across grants —
+//     do NOT re-use the same AllowanceSender pointer across grants —
 //     always create a fresh one. Re-using would mix spent counters.
 //   - Cap with duplicate denoms (constructed by hand, not via
 //     chain.NewCoins) will trigger chain.Coins.AmountOf to panic on
 //     read. Use chain.NewCoins(...) to construct cap; it deduplicates.
-//   - int64 overflow on (spent + amt) is not explicitly guarded.
-//     Practical concern only at amounts approaching MaxInt64; not a
-//     concern for ugnot-scale operations.
 //   - Persistence: granter is responsible for clearing references to
-//     closed AllowanceBanker pointers from its own state if it wants
+//     closed AllowanceSender pointers from its own state if it wants
 //     them garbage-collected; otherwise they linger as dead structs.
 //
 // # What this package does NOT solve
@@ -92,25 +105,25 @@
 //     counter pattern in the granter realm; this package's Close is
 //     binary, not deadline-based.
 //   - "Fungible-token (grc20) allowances." Use the grc20 package's
-//     own Approve/Allowance/TransferFrom triple. AllowanceBanker is
+//     own Approve/Allowance/TransferFrom triple. AllowanceSender is
 //     for native (chain-coin) sends only.
 //
 // # Events
 //
-// AllowanceBanker emits chain events at three points so off-chain
+// AllowanceSender emits chain events at two points so off-chain
 // observers can track allowance lifecycles. Events are emitted from
 // the calling realm's package path (whichever realm holds the
-// AllowanceBanker pointer when the method is called).
+// AllowanceSender pointer when the method is called).
 //
-//   - "AllowanceBankerSend": on each successful Send, with attributes
+//   - "AllowanceSenderSend": on each successful Send, with attributes
 //     "payer", "to", "amount", "spent_total", "remaining".
-//   - "AllowanceBankerClose": on Close (only the first call; idempotent
+//   - "AllowanceSenderClose": on Close (only the first call; idempotent
 //     re-Closes do not re-emit).
 //
 // The underlying inner banker also emits its own bank-keeper events
-// for the actual coin movement; AllowanceBanker's events sit on top of
+// for the actual coin movement; AllowanceSender's events sit on top of
 // those for allowance-level audit trails.
-package allowancebanker
+package allowancesender
 
 import (
 	"chain"
@@ -118,17 +131,21 @@ import (
 	"math/overflow"
 )
 
-// Event names emitted by AllowanceBanker. Use these constants when
+// Event names emitted by AllowanceSender. Use these constants when
 // asserting on events from off-chain observers or test code.
 const (
-	EventSend  = "AllowanceBankerSend"
-	EventClose = "AllowanceBankerClose"
+	EventSend  = "AllowanceSenderSend"
+	EventClose = "AllowanceSenderClose"
 )
 
-// AllowanceBanker is a bounded, revocable spending capability over a
-// source banker.Banker. Always pass *AllowanceBanker (pointer); value
+// AllowanceSender is a bounded, revocable spending capability over a
+// source banker.Banker. Always pass *AllowanceSender (pointer); value
 // copies are not supported and would not share state.
-type AllowanceBanker struct {
+//
+// Does NOT satisfy banker.Banker — the other Banker methods (GetCoins,
+// TotalCoin, IssueCoin, RemoveCoin) have no meaningful behavior on an
+// allowance and are deliberately omitted.
+type AllowanceSender struct {
 	inner  banker.Banker // unexported — callees cannot extract
 	payer  address       // address debited; must match inner's source
 	limit  chain.Coins   // maximum cumulative spend, per-denom
@@ -136,22 +153,22 @@ type AllowanceBanker struct {
 	closed bool          // once true, all further Send calls panic
 }
 
-// New creates a new AllowanceBanker wrapping src with the given cap.
+// New creates a new AllowanceSender wrapping src with the given limit.
 // payer is the address that inner.SendCoins will draw from (must match
 // the realm address src was created against; the banker enforces this
 // at SendCoins time).
 //
-// Panics if inner is nil or payer is invalid. cap may be empty (zero
-// allowance — every Send panics with "cap exceeded"); cap may also
+// Panics if inner is nil or payer is invalid. limit may be empty (zero
+// allowance — every Send panics with "cap exceeded"); limit may also
 // contain multiple denoms.
-func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceBanker {
+func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceSender {
 	if inner == nil {
-		panic("allowancebanker: inner banker is nil")
+		panic("allowancesender: inner banker is nil")
 	}
 	if !payer.IsValid() {
-		panic("allowancebanker: payer address is invalid")
+		panic("allowancesender: payer address is invalid")
 	}
-	return &AllowanceBanker{
+	return &AllowanceSender{
 		inner: inner,
 		payer: payer,
 		limit: limit,
@@ -172,7 +189,7 @@ func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceBanker
 // Negative amounts are rejected explicitly. chain.NewCoin permits
 // signed amounts at construction; we don't accept them.
 //
-// Emits "AllowanceBankerSend" event on success.
+// Emits "AllowanceSenderSend" event on success.
 //
 // Panics:
 //   - "closed" if Close has been called.
@@ -182,25 +199,25 @@ func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceBanker
 //     spent over cap.
 //   - inner.SendCoins panics propagate (typically "insufficient
 //     funds" from the bank keeper); spent is rolled back first.
-func (a *AllowanceBanker) Send(to address, amt chain.Coins) {
+func (a *AllowanceSender) Send(to address, amt chain.Coins) {
 	if a.closed {
-		panic("allowancebanker: closed")
+		panic("allowancesender: closed")
 	}
 
 	// Per-denom validation. Done in a separate pass before any state
 	// mutation so a partial failure doesn't leak into spent.
 	for _, c := range amt {
 		if c.Amount < 0 {
-			panic("allowancebanker: negative amount not allowed for denom " + c.Denom)
+			panic("allowancesender: negative amount not allowed for denom " + c.Denom)
 		}
 		capAmt := a.limit.AmountOf(c.Denom)
 		spentAmt := a.spent.AmountOf(c.Denom)
 		sum, ok := overflow.Add64(spentAmt, c.Amount)
 		if !ok {
-			panic("allowancebanker: amount overflow on spent+amt for denom " + c.Denom)
+			panic("allowancesender: amount overflow on spent+amt for denom " + c.Denom)
 		}
 		if sum > capAmt {
-			panic("allowancebanker: cap exceeded for denom " + c.Denom)
+			panic("allowancesender: cap exceeded for denom " + c.Denom)
 		}
 	}
 
@@ -235,19 +252,19 @@ func (a *AllowanceBanker) Send(to address, amt chain.Coins) {
 
 // Cap returns a defensive copy of the maximum cumulative spend.
 // Mutating the returned slice does not affect internal state.
-func (a *AllowanceBanker) Cap() chain.Coins {
+func (a *AllowanceSender) Cap() chain.Coins {
 	return cloneCoins(a.limit)
 }
 
 // Spent returns a defensive copy of the cumulative amount spent.
 // Mutating the returned slice does not affect internal state.
-func (a *AllowanceBanker) Spent() chain.Coins {
+func (a *AllowanceSender) Spent() chain.Coins {
 	return cloneCoins(a.spent)
 }
 
 // Remaining returns cap - spent, per denom. Denoms with non-positive
 // remainder are omitted.
-func (a *AllowanceBanker) Remaining() chain.Coins {
+func (a *AllowanceSender) Remaining() chain.Coins {
 	if len(a.limit) == 0 {
 		return nil
 	}
@@ -262,14 +279,14 @@ func (a *AllowanceBanker) Remaining() chain.Coins {
 }
 
 // Closed reports whether Close has been called.
-func (a *AllowanceBanker) Closed() bool {
+func (a *AllowanceSender) Closed() bool {
 	return a.closed
 }
 
 // Close terminates the allowance. Subsequent Send calls panic.
 // Idempotent — calling twice is fine; the second call is a no-op and
-// does not re-emit the AllowanceBankerClose event.
-func (a *AllowanceBanker) Close() {
+// does not re-emit the AllowanceSenderClose event.
+func (a *AllowanceSender) Close() {
 	if a.closed {
 		return
 	}
@@ -281,7 +298,7 @@ func (a *AllowanceBanker) Close() {
 }
 
 // Payer returns the address that this allowance debits from.
-func (a *AllowanceBanker) Payer() address {
+func (a *AllowanceSender) Payer() address {
 	return a.payer
 }
 
