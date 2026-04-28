@@ -91,16 +91,38 @@
 //   - "Allowance survives across N txs but not N+1 txs." Use a session
 //     counter pattern in the granter realm; this package's Close is
 //     binary, not deadline-based.
-//   - "Spend on this allowance triggers an event for off-chain
-//     observers." Add hooks via wrapper if needed.
 //   - "Fungible-token (grc20) allowances." Use the grc20 package's
 //     own Approve/Allowance/TransferFrom triple. AllowanceBanker is
 //     for native (chain-coin) sends only.
+//
+// # Events
+//
+// AllowanceBanker emits chain events at three points so off-chain
+// observers can track allowance lifecycles. Events are emitted from
+// the calling realm's package path (whichever realm holds the
+// AllowanceBanker pointer when the method is called).
+//
+//   - "AllowanceBankerSend": on each successful Send, with attributes
+//     "payer", "to", "amount", "spent_total", "remaining".
+//   - "AllowanceBankerClose": on Close (only the first call; idempotent
+//     re-Closes do not re-emit).
+//
+// The underlying inner banker also emits its own bank-keeper events
+// for the actual coin movement; AllowanceBanker's events sit on top of
+// those for allowance-level audit trails.
 package allowancebanker
 
 import (
 	"chain"
 	"chain/banker"
+	"math/overflow"
+)
+
+// Event names emitted by AllowanceBanker. Use these constants when
+// asserting on events from off-chain observers or test code.
+const (
+	EventSend  = "AllowanceBankerSend"
+	EventClose = "AllowanceBankerClose"
 )
 
 // AllowanceBanker is a bounded, revocable spending capability over a
@@ -139,45 +161,76 @@ func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceBanker
 // Send debits up to (cap - spent) per denom from payer to to via the
 // inner banker. Updates spent on success. On any panic (including
 // inner.SendCoins panic for bank-level reasons like insufficient
-// balance), spent is NOT updated — caller's accounting stays accurate.
+// balance), spent is rolled back — caller's accounting stays accurate
+// even if a caller wraps Send in a defer-recover.
+//
+// Arithmetic uses math/overflow.Add64; an overflow on (spent+amount)
+// panics with a distinct message rather than silently wrapping. This
+// closes the int64-overflow vector where a malicious callee passes a
+// MaxInt64-style amount to bypass the cap check.
+//
+// Negative amounts are rejected explicitly. chain.NewCoin permits
+// signed amounts at construction; we don't accept them.
+//
+// Emits "AllowanceBankerSend" event on success.
 //
 // Panics:
 //   - "closed" if Close has been called.
+//   - "negative amount not allowed" if any c.Amount < 0.
+//   - "amount overflow on spent+amt" if int64 addition would overflow.
 //   - "cap exceeded for denom <denom>" if any denom in amt would push
 //     spent over cap.
 //   - inner.SendCoins panics propagate (typically "insufficient
-//     funds" from the bank keeper).
+//     funds" from the bank keeper); spent is rolled back first.
 func (a *AllowanceBanker) Send(to address, amt chain.Coins) {
 	if a.closed {
 		panic("allowancebanker: closed")
 	}
 
-	// Per-denom cap check. Any amt entry whose denom is missing from
-	// cap effectively has capAmt=0 and any positive amt fails.
+	// Per-denom validation. Done in a separate pass before any state
+	// mutation so a partial failure doesn't leak into spent.
 	for _, c := range amt {
+		if c.Amount < 0 {
+			panic("allowancebanker: negative amount not allowed for denom " + c.Denom)
+		}
 		capAmt := a.limit.AmountOf(c.Denom)
 		spentAmt := a.spent.AmountOf(c.Denom)
-		if spentAmt+c.Amount > capAmt {
+		sum, ok := overflow.Add64(spentAmt, c.Amount)
+		if !ok {
+			panic("allowancebanker: amount overflow on spent+amt for denom " + c.Denom)
+		}
+		if sum > capAmt {
 			panic("allowancebanker: cap exceeded for denom " + c.Denom)
 		}
 	}
 
-	// Compute new spent total. If inner.SendCoins panics, we've
-	// already updated a.spent — undo by re-assigning the original.
-	// (This matters if a caller's defer-recover swallows the inner
-	// panic; without recovery, the tx reverts entirely and the spent
-	// update is moot.)
+	// Snapshot for rollback. If inner.SendCoins panics — even if a
+	// caller's defer-recover swallows the panic — the deferred
+	// rollback below restores spent before re-raising. Without this,
+	// a recovered panic would leave spent inflated for a transfer
+	// that didn't move funds at the bank-keeper level, allowing an
+	// adversary to "burn" allowance against failed sends.
 	prevSpent := a.spent
 	a.spent = a.spent.Add(amt)
 
 	defer func() {
 		if r := recover(); r != nil {
 			a.spent = prevSpent
-			panic(r) // re-raise
+			panic(r) // re-raise so caller learns of the failure
 		}
 	}()
 
 	a.inner.SendCoins(a.payer, to, amt)
+
+	// Reached only on successful inner.SendCoins. Emit the audit
+	// event from the granter realm's perspective.
+	chain.Emit(EventSend,
+		"payer", a.payer.String(),
+		"to", to.String(),
+		"amount", amt.String(),
+		"spent_total", a.spent.String(),
+		"remaining", a.Remaining().String(),
+	)
 }
 
 // Cap returns a defensive copy of the maximum cumulative spend.
@@ -214,9 +267,17 @@ func (a *AllowanceBanker) Closed() bool {
 }
 
 // Close terminates the allowance. Subsequent Send calls panic.
-// Idempotent — calling twice is fine.
+// Idempotent — calling twice is fine; the second call is a no-op and
+// does not re-emit the AllowanceBankerClose event.
 func (a *AllowanceBanker) Close() {
+	if a.closed {
+		return
+	}
 	a.closed = true
+	chain.Emit(EventClose,
+		"payer", a.payer.String(),
+		"spent_total", a.spent.String(),
+	)
 }
 
 // Payer returns the address that this allowance debits from.

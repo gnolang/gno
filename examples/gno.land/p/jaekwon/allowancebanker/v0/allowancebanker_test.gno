@@ -427,6 +427,86 @@ func TestMultipleAllowances_Independent(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
+// Overflow / negative-amount adversarial inputs
+// ---------------------------------------------------------------------
+
+// Adversary attempts to bypass the cap check by passing a value that
+// overflows int64 when added to an existing spent counter. Must panic
+// with the overflow-specific message rather than silently wrapping
+// (which would let the cap check pass and allow an absurd send).
+func TestSend_OverflowAttempt(t *testing.T) {
+	mb := &mockBanker{}
+	const maxInt64 = int64(9223372036854775807)
+	al := New(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", maxInt64)))
+
+	// First spend uses most of the cap.
+	urequire.NotPanics(t, func() {
+		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", maxInt64-100)))
+	})
+
+	// Now spent ≈ MaxInt64 - 100. An adversary tries to pass amount
+	// 200, which would overflow when added to spent. Must panic with
+	// "amount overflow", not silently wrap to negative and bypass cap.
+	uassert.PanicsWithMessage(t, "allowancebanker: amount overflow on spent+amt for denom ugnot", func() {
+		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 200)))
+	})
+
+	// State must not have changed.
+	uassert.Equal(t, maxInt64-100, al.Spent().AmountOf("ugnot"))
+	// Bank-side recorded only the first valid send.
+	uassert.Equal(t, 1, len(mb.sends))
+}
+
+func TestSend_NegativeAmount(t *testing.T) {
+	mb := &mockBanker{}
+	al := New(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
+
+	// Spend something so we have a non-zero spent.
+	urequire.NotPanics(t, func() {
+		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 200)))
+	})
+
+	// Adversary tries to "uncharge" the allowance by passing a negative
+	// amount. Without this guard, spent would decrease, allowing more
+	// future spends than originally permitted.
+	uassert.PanicsWithMessage(t, "allowancebanker: negative amount not allowed for denom ugnot", func() {
+		al.Send(bob, chain.Coins{chain.Coin{Denom: "ugnot", Amount: -50}})
+	})
+
+	// Spent is unchanged after the rejected attempt.
+	uassert.Equal(t, int64(200), al.Spent().AmountOf("ugnot"))
+}
+
+// Adversary's defer-recover swallows the panic from inner.SendCoins to
+// hide a failed send. Verifies that even with recovery, spent has been
+// rolled back — i.e., a recovered panic doesn't burn allowance against
+// a transfer that never moved funds.
+func TestSend_RecoveredPanicDoesNotBurnAllowance(t *testing.T) {
+	mb := &mockBanker{failNext: true, failMsg: "insufficient funds"}
+	al := New(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
+
+	// Caller deliberately recovers from the inner panic.
+	func() {
+		defer func() {
+			_ = recover() // swallow
+		}()
+		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 500)))
+	}()
+
+	// After the recovered panic: spent must be 0 (no funds moved →
+	// allowance must not be charged).
+	uassert.Equal(t, int64(0), al.Spent().AmountOf("ugnot"))
+	uassert.Equal(t, int64(1000), al.Remaining().AmountOf("ugnot"))
+
+	// And subsequent valid Send (with non-failing inner) succeeds with
+	// full cap available.
+	urequire.NotPanics(t, func() {
+		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 800)))
+	})
+	uassert.Equal(t, int64(800), al.Spent().AmountOf("ugnot"))
+}
+
+// ---------------------------------------------------------------------
 // Empty/zero-amount edge cases
 // ---------------------------------------------------------------------
 
