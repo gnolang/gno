@@ -18,7 +18,7 @@ type RecurringSubscription struct {
 	ownable.Ownable
 	duration  time.Duration
 	amount    int64
-	payeeAddr address  // payment destination; set at construction.
+	payeeAddr address   // payment destination; set at construction.
 	subs      *avl.Tree // address.String() -> time.Time
 }
 

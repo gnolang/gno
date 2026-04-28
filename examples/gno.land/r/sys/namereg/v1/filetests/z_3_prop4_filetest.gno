@@ -12,11 +12,11 @@ import (
 )
 
 // Test the full governance-driven pause/unpause flow:
-//   1. propose pause via NewSetPausedExecutor(true), vote YES, execute,
-//      observe IsPaused() flip to true.
-//   2. propose unpause via NewSetPausedExecutor(false), vote YES, execute,
-//      observe IsPaused() flip back to false.
-//   3. Register works again post-unpause.
+//  1. propose pause via NewSetPausedExecutor(true), vote YES, execute,
+//     observe IsPaused() flip to true.
+//  2. propose unpause via NewSetPausedExecutor(false), vote YES, execute,
+//     observe IsPaused() flip back to false.
+//  3. Register works again post-unpause.
 var c address = runtime.OriginCaller()
 
 func init() {
