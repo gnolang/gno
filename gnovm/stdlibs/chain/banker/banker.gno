@@ -103,6 +103,24 @@ type banker struct {
 	pkgAddr address
 }
 
+// IsCanonical reports whether b is the canonical bank-keeper-backed
+// Banker produced by NewBanker. The concrete `banker` type is unexported,
+// so only this package can construct values that satisfy this assertion;
+// hand-rolled Banker implementations (no-op fakes, mocks, decorators)
+// return false. Use this in cap-token wrappers (e.g. AllowanceSender) to
+// reject untrusted Banker substitutions at construction time, before
+// any state mutation depends on the banker actually moving coins.
+//
+// Forward-compat: if this package ever introduces additional canonical
+// Banker implementations alongside `banker`, this function MUST be
+// updated to recognize them. New bank-keeper-backed types must be added
+// to the type-switch explicitly — the current single-type assertion is
+// a deliberate allowlist, not an inadvertent restriction.
+func IsCanonical(b Banker) bool {
+	_, ok := b.(banker)
+	return ok
+}
+
 func (b banker) GetCoins(addr address) (dst chain.Coins) {
 	denoms, amounts := bankerGetCoins(uint8(b.bt), string(addr))
 	dst = make(chain.Coins, len(denoms))

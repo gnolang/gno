@@ -153,17 +153,24 @@ type AllowanceSender struct {
 	closed bool          // once true, all further Send calls panic
 }
 
-// New creates a new AllowanceSender wrapping src with the given limit.
+// New creates a new AllowanceSender wrapping inner with the given limit.
 // payer is the address that inner.SendCoins will draw from (must match
-// the realm address src was created against; the banker enforces this
+// the realm address inner was created against; the banker enforces this
 // at SendCoins time).
 //
-// Panics if inner is nil or payer is invalid. limit may be empty (zero
-// allowance — every Send panics with "cap exceeded"); limit may also
-// contain multiple denoms.
+// inner must be the canonical Banker produced by banker.NewBanker;
+// hand-rolled Banker implementations (no-op fakes, decorators) are
+// rejected via banker.IsCanonical. This guarantees that a callee
+// receiving a *AllowanceSender from a granter realm can rely on Send
+// actually moving real coins via the bank-keeper, not via a fake
+// banker that no-ops SendCoins.
+//
+// Panics if inner is not canonical or payer is invalid. limit may be
+// empty (zero allowance — every Send panics with "cap exceeded");
+// limit may also contain multiple denoms.
 func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceSender {
-	if inner == nil {
-		panic("allowancesender: inner banker is nil")
+	if !banker.IsCanonical(inner) {
+		panic("allowancesender: inner banker is not the canonical chain/banker.Banker")
 	}
 	if !payer.IsValid() {
 		panic("allowancesender: payer address is invalid")
