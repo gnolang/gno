@@ -1,51 +1,77 @@
-// Run (maketx run) controller — pre-fills editor with import template, generates gnokey commands
-export default function RunController(element: HTMLElement): void {
-	const codeEl = element.querySelector('[data-run-target="code"]') as HTMLTextAreaElement;
-	const keyEl = element.querySelector('[data-run-target="key"]') as HTMLInputElement;
-	const gasWantedEl = element.querySelector('[data-run-target="gasWanted"]') as HTMLInputElement;
-	const gasFeeEl = element.querySelector('[data-run-target="gasFee"]') as HTMLInputElement;
-	const sendEl = element.querySelector('[data-run-target="send"]') as HTMLInputElement;
-	const dryRunCmdEl = element.querySelector('[data-run-target="dryRunCmd"]') as HTMLElement;
-	const executeCmdEl = element.querySelector('[data-run-target="executeCmd"]') as HTMLElement;
+import { BaseController } from "./controller.js";
 
-	if (!codeEl || !dryRunCmdEl || !executeCmdEl) return;
+export class RunController extends BaseController {
+	private declare pkgPath: string;
+	private declare pkgAlias: string;
+	private declare remote: string;
+	private declare chainId: string;
+	private declare codeEl: HTMLTextAreaElement;
+	private declare keyEl: HTMLInputElement;
+	private declare gasWantedEl: HTMLInputElement;
+	private declare gasFeeEl: HTMLInputElement;
+	private declare sendEl: HTMLInputElement;
+	private declare dryRunCmdEl: HTMLElement;
+	private declare executeCmdEl: HTMLElement;
 
-	const pkgPath = element.getAttribute("data-run-pkg-path-value") || "";
-	const pkgAlias = element.getAttribute("data-run-pkg-alias-value") || "pkg";
-	const remote = element.getAttribute("data-run-remote-value") || "";
-	const chainId = element.getAttribute("data-run-chain-id-value") || "";
+	protected connect(): void {
+		this.pkgPath = this.getValue("pkg-path");
+		this.pkgAlias = this.getValue("pkg-alias") || "pkg";
+		this.remote = this.getValue("remote");
+		this.chainId = this.getValue("chain-id");
+		this.codeEl = this.getTarget("code") as HTMLTextAreaElement;
+		this.keyEl = this.getTarget("key") as HTMLInputElement;
+		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
+		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
+		this.sendEl = this.getTarget("send") as HTMLInputElement;
+		this.dryRunCmdEl = this.getTarget("dryRunCmd") as HTMLElement;
+		this.executeCmdEl = this.getTarget("executeCmd") as HTMLElement;
 
-	const initialCode = buildTemplate(pkgPath, pkgAlias);
-	codeEl.value = initialCode;
+		if (!this.codeEl || !this.dryRunCmdEl || !this.executeCmdEl) return;
 
-	// Tab key inserts spaces instead of changing focus
-	codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
-		if (e.key === "Tab" && !e.shiftKey) {
-			e.preventDefault();
-			const start = codeEl.selectionStart;
-			const end = codeEl.selectionEnd;
-			codeEl.value = codeEl.value.substring(0, start) + "\t" + codeEl.value.substring(end);
-			codeEl.selectionStart = codeEl.selectionEnd = start + 1;
-		}
-	});
+		this.codeEl.value = this._buildTemplate();
 
-	function buildTemplate(pkg: string, alias: string): string {
+		this._setupKeyboardShortcuts();
+		this._setupInputListeners();
+		this._updateCommands();
+	}
+
+	private _buildTemplate(): string {
 		return `package main
 
-import "${pkg}"
+import "${this.pkgPath}"
 
 func main() {
-\t// Call ${alias} functions here, e.g.:
-\t// ${alias}.Render("")
+\t// Call ${this.pkgAlias} functions here, e.g.:
+\t// ${this.pkgAlias}.Render("")
 }
 `;
 	}
 
-	function buildCmd(dryRun: boolean): string {
-		const key = keyEl?.value.trim() || "<key-name>";
-		const gasWanted = gasWantedEl?.value.trim() || "2000000";
-		const gasFee = gasFeeEl?.value.trim() || "1000000ugnot";
-		const send = sendEl?.value.trim();
+	private _setupKeyboardShortcuts(): void {
+		this.codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
+			if (e.key === "Tab" && !e.shiftKey) {
+				e.preventDefault();
+				const start = this.codeEl.selectionStart;
+				const end = this.codeEl.selectionEnd;
+				this.codeEl.value = `${this.codeEl.value.substring(0, start)}\t${this.codeEl.value.substring(end)}`;
+				this.codeEl.selectionStart = this.codeEl.selectionEnd = start + 1;
+			}
+		});
+	}
+
+	private _setupInputListeners(): void {
+		const update = (): void => this._updateCommands();
+		this.keyEl.addEventListener("input", update);
+		this.gasWantedEl.addEventListener("input", update);
+		this.gasFeeEl.addEventListener("input", update);
+		this.sendEl.addEventListener("input", update);
+	}
+
+	private _buildCmd(dryRun: boolean): string {
+		const key = this.keyEl.value.trim() || "<key-name>";
+		const gasWanted = this.gasWantedEl.value.trim() || "2000000";
+		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
+		const send = this.sendEl.value.trim();
 
 		const parts = [
 			"gnokey maketx run",
@@ -53,87 +79,71 @@ func main() {
 			`  -gas-fee ${gasFee}`,
 		];
 
-		if (send && send !== "0ugnot") {
-			parts.push(`  -send "${send}"`);
-		}
-
+		if (send && send !== "0ugnot") parts.push(`  -send "${send}"`);
 		parts.push("  -broadcast");
-
-		if (dryRun) {
-			parts.push("  -simulate only");
-		}
-
-		if (chainId) {
-			parts.push(`  -chainid ${chainId}`);
-		}
-
-		if (remote) {
-			parts.push(`  -remote "${remote}"`);
-		}
-
+		if (dryRun) parts.push("  -simulate only");
+		if (this.chainId) parts.push(`  -chainid ${this.chainId}`);
+		if (this.remote) parts.push(`  -remote "${this.remote}"`);
 		parts.push(`  ${key} script.gno`);
 
 		return parts.join(" \\\n");
 	}
 
-	function updateCommands(): void {
-		dryRunCmdEl.textContent = buildCmd(true);
-		executeCmdEl.textContent = buildCmd(false);
+	private _updateCommands(): void {
+		this.dryRunCmdEl.textContent = this._buildCmd(true);
+		this.executeCmdEl.textContent = this._buildCmd(false);
 	}
 
-	// Update commands on any input change
-	[keyEl, gasWantedEl, gasFeeEl, sendEl].forEach((el) => {
-		if (el) el.addEventListener("input", updateCommands);
-	});
-
-	// Wire actions
-	element.querySelectorAll("[data-action]").forEach((el) => {
-		const attr = el.getAttribute("data-action");
-		if (!attr) return;
-		const match = attr.match(/^(\w+)->run#(\w+)$/);
-		if (!match) return;
-		const [, evt, method] = match;
-
-		const handlers: Record<string, () => void> = {
-			resetCode: () => {
-				codeEl.value = buildTemplate(pkgPath, pkgAlias);
-			},
-			downloadCode: () => {
-				const blob = new Blob([codeEl.value], { type: "text/plain" });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = "script.gno";
-				a.click();
-				URL.revokeObjectURL(url);
-			},
-			copyDryRun: () => copyToClipboard(buildCmd(true), el as HTMLElement),
-			copyExecute: () => copyToClipboard(buildCmd(false), el as HTMLElement),
-		};
-
-		const fn = handlers[method];
-		if (fn) el.addEventListener(evt, fn);
-	});
-
-	function copyToClipboard(text: string, btn: HTMLElement): void {
-		navigator.clipboard.writeText(text).then(() => {
-			const span = btn.querySelector("span");
-			if (!span) return;
-			const orig = span.textContent;
-			span.textContent = "Copied!";
-			setTimeout(() => { span.textContent = orig; }, 1500);
-		}).catch(() => {
-			// fallback: select the pre element content
-			const pre = btn.closest(".b-run-command-block")?.querySelector("pre");
-			if (pre) {
-				const sel = window.getSelection();
-				const range = document.createRange();
-				range.selectNodeContents(pre);
-				sel?.removeAllRanges();
-				sel?.addRange(range);
-			}
-		});
+	private _copyToClipboard(text: string, btn: HTMLElement): void {
+		navigator.clipboard
+			.writeText(text)
+			.then(() => {
+				const span = btn.querySelector("span");
+				if (!span) return;
+				const orig = span.textContent;
+				span.textContent = "Copied!";
+				setTimeout(() => {
+					span.textContent = orig;
+				}, 1500);
+			})
+			.catch(() => {
+				// fallback: select the pre element content
+				const pre = btn.closest(".b-run-command-block")?.querySelector("pre");
+				if (pre) {
+					const sel = window.getSelection();
+					const range = document.createRange();
+					range.selectNodeContents(pre);
+					sel?.removeAllRanges();
+					sel?.addRange(range);
+				}
+			});
 	}
 
-	updateCommands();
+	public resetCode(): void {
+		this.codeEl.value = this._buildTemplate();
+	}
+
+	public downloadCode(): void {
+		const blob = new Blob([this.codeEl.value], { type: "text/plain" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "script.gno";
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	public copyDryRun(event: Event): void {
+		this._copyToClipboard(
+			this._buildCmd(true),
+			event.currentTarget as HTMLElement,
+		);
+	}
+
+	public copyExecute(event: Event): void {
+		this._copyToClipboard(
+			this._buildCmd(false),
+			event.currentTarget as HTMLElement,
+		);
+	}
 }

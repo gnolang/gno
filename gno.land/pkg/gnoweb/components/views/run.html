@@ -1,15 +1,7 @@
 {{/* ===================================================================================
-LAYOUT - Run view wrapper
-=================================================================================== */}}
-{{ define "renderRun" }}
-{{ template "layout/article" .Article }}
-{{ end }}
-
-
-{{/* ===================================================================================
 UI - Run (maketx run) scratchpad
 =================================================================================== */}}
-{{ define "renderRunContent" }}
+{{ define "renderRun" }}
 <div class="b-run"
   data-controller="run"
   data-run-pkg-path-value="{{ .PkgPath }}"
@@ -17,43 +9,39 @@ UI - Run (maketx run) scratchpad
   data-run-remote-value="{{ .Remote }}"
   data-run-chain-id-value="{{ .ChainId }}">
 
-  <div class="b-run-header">
-    <h2 class="b-content-h2">Run Script</h2>
-    <p class="u-color-muted">
-      Write a <code class="u-font-mono">package main</code> script that imports
-      <code class="u-font-mono">{{ .PkgPath }}</code> and runs it with
-      <code class="u-font-mono">gnokey maketx run</code>.
-    </p>
-  </div>
-
-  <!-- Code editor -->
-  <div class="b-run-editor-area">
-    <div class="b-run-editor-toolbar">
-      <div class="b-run-tabs" data-run-target="tabs"></div>
-      <div class="b-run-toolbar-actions">
-        <button class="b-btn b-btn--ghost" data-action="click->run#resetCode" title="Reset to template">
-          <svg class="c-icon"><use href="#ico-refresh"></use></svg>
+  <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+    <h1 class="title b-content-h1">Run Script</h1>
+    <div class="header-info">
+      <div class="b-btns">
+        <button class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
+          <svg class="c-icon"><use href="#ico-code"></use></svg>
           <span>Reset</span>
         </button>
-        <button class="b-btn b-btn--ghost" data-action="click->run#downloadCode" title="Download as .gno file">
-          <svg class="c-icon"><use href="#ico-download"></use></svg>
-          <span>Download .gno</span>
+        <button class="b-inline-btn c-with-icon" data-action="click->run#downloadCode" title="Download script as .gno file">
+          <svg class="c-icon"><use href="#ico-ddl"></use></svg>
+          <span>Download</span>
         </button>
       </div>
     </div>
-    <textarea
-      data-run-target="code"
-      class="b-run-code u-font-mono"
-      spellcheck="false"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-    ></textarea>
+  </header>
+  
+  <!-- Code editor -->
+  <div class="b-playground-editor-area">
+    <div class="b-playground-editor">
+      <textarea
+        data-run-target="code"
+        class="b-playground-code"
+        spellcheck="false"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+      ></textarea>
+    </div>
   </div>
 
   <!-- Command settings -->
   <div class="b-run-settings">
-    <h3 class="b-content-h3">Command Settings</h3>
+    <h2 class="b-content-h2">Command Settings</h2>
     <div class="b-run-settings-grid">
       <div class="b-input">
         <label for="run-key">Key name or address</label>
@@ -86,14 +74,14 @@ UI - Run (maketx run) scratchpad
   <div class="b-run-commands">
     <h3 class="b-content-h3">Generated Commands</h3>
     <p class="u-color-muted">
-      Save the code above as <code class="u-font-mono">script.gno</code> (use
-      <strong>Download .gno</strong> above), then run one of these commands:
+      Save the code above as <code class="u-font-mono">script.gno</code> using
+      the <strong>Download</strong> link above, then run one of these commands:
     </p>
 
     <!-- Dry run -->
     <div class="b-run-command-block">
       <div class="b-run-command-header">
-        <span class="b-run-command-label">Dry Run</span>
+        <h4 class="b-run-command-label">Dry Run</h4>
         <span class="u-color-muted u-text-sm">simulates without broadcasting</span>
         <button class="b-btn b-btn--ghost b-run-copy-btn"
           data-action="click->run#copyDryRun" title="Copy to clipboard">
@@ -107,7 +95,7 @@ UI - Run (maketx run) scratchpad
     <!-- Execute -->
     <div class="b-run-command-block">
       <div class="b-run-command-header">
-        <span class="b-run-command-label">Execute</span>
+        <h4 class="b-run-command-label">Execute</h4>
         <span class="u-color-muted u-text-sm">broadcasts and runs on-chain</span>
         <button class="b-btn b-btn--ghost b-run-copy-btn"
           data-action="click->run#copyExecute" title="Copy to clipboard">

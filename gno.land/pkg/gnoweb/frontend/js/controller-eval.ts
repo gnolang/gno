@@ -1,35 +1,48 @@
-// Expression evaluator controller — standalone, no BaseController dependency
+import { BaseController } from "./controller.js";
+
 interface HistoryEntry {
 	expression: string;
 	result: string;
 	isError: boolean;
 }
 
-export default function EvalController(element: HTMLElement): void {
-	const inputEl = element.querySelector(
-		'[data-eval-target="input"]',
-	) as HTMLInputElement;
-	const resultEl = element.querySelector(
-		'[data-eval-target="result"]',
-	) as HTMLElement;
-	const historyListEl = element.querySelector(
-		'[data-eval-target="history-list"]',
-	) as HTMLElement;
+export class EvalController extends BaseController {
+	private declare history: HistoryEntry[];
+	private declare inputEl: HTMLInputElement;
+	private declare resultEl: HTMLElement;
+	private declare historyListEl: HTMLElement | null;
+	private declare historySection: HTMLElement | null;
 
-	if (!inputEl || !resultEl) return;
+	protected connect(): void {
+		this.history = [];
+		this.inputEl = this.getTarget("input") as HTMLInputElement;
+		this.resultEl = this.getTarget("result") as HTMLElement;
+		this.historyListEl = this.getTarget("history-list") as HTMLElement | null;
+		this.historySection = this.getTarget("history") as HTMLElement | null;
 
-	const pkgPath = element.getAttribute("data-eval-pkg-path-value") || "";
-	const domain = element.getAttribute("data-eval-domain-value") || "gno.land";
-	const history: HistoryEntry[] = [];
+		if (!this.inputEl || !this.resultEl) return;
 
-	inputEl.focus();
+		this._setupKeyboardShortcuts();
+		this.inputEl.focus();
+	}
 
-	async function doEval(expression: string): Promise<void> {
-		resultEl.textContent = "Evaluating...";
-		resultEl.classList.remove("u-color-danger");
+	private _setupKeyboardShortcuts(): void {
+		this.inputEl.addEventListener("keydown", (e: KeyboardEvent) => {
+			if (e.key === "ArrowUp" && this.history.length > 0) {
+				e.preventDefault();
+				this.inputEl.value = this.history[this.history.length - 1].expression;
+			}
+		});
+	}
+
+	private async _doEval(expression: string): Promise<void> {
+		this.resultEl.textContent = "Evaluating...";
+		this.resultEl.classList.remove("u-color-danger");
 
 		try {
-			const relPath = pkgPath.startsWith(domain + "/")
+			const pkgPath = this.getValue("pkg-path");
+			const domain = this.getValue("domain") || "gno.land";
+			const relPath = pkgPath.startsWith(`${domain}/`)
 				? pkgPath.slice(domain.length + 1)
 				: pkgPath;
 
@@ -39,7 +52,9 @@ export default function EvalController(element: HTMLElement): void {
 				body: JSON.stringify({ pkg_path: relPath, expression }),
 			});
 
-			if (response.status === 429) throw new Error("rate limit exceeded — please wait a moment");
+			if (response.status === 429)
+				throw new Error("rate limit exceeded — please wait a moment");
+
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const json = await response.json();
 
@@ -53,28 +68,27 @@ export default function EvalController(element: HTMLElement): void {
 				isError = false;
 			}
 
-			resultEl.textContent = result;
-			resultEl.classList.toggle("u-color-danger", isError);
-			addToHistory(expression, result, isError);
+			this.resultEl.textContent = result;
+			this.resultEl.classList.toggle("u-color-danger", isError);
+			this._addToHistory(expression, result, isError);
 		} catch (err) {
 			const errMsg = `Error: ${err instanceof Error ? err.message : String(err)}`;
-			resultEl.textContent = errMsg;
-			resultEl.classList.add("u-color-danger");
-			addToHistory(expression, errMsg, true);
+			this.resultEl.textContent = errMsg;
+			this.resultEl.classList.add("u-color-danger");
+			this._addToHistory(expression, errMsg, true);
 		}
 	}
 
-	function addToHistory(
+	private _addToHistory(
 		expression: string,
 		result: string,
 		isError: boolean,
 	): void {
-		history.push({ expression, result, isError });
-		if (!historyListEl) return;
+		this.history.push({ expression, result, isError });
+		if (!this.historyListEl) return;
 
-		// Reveal the history section on first entry.
-		const historySection = historyListEl.closest("[data-eval-target='history']") as HTMLElement;
-		if (historySection) historySection.removeAttribute("hidden");
+		// Reveal the history section on first entry
+		if (this.historySection) this.historySection.removeAttribute("hidden");
 
 		const entry = document.createElement("div");
 		entry.className = "b-eval-history-entry";
@@ -89,87 +103,60 @@ export default function EvalController(element: HTMLElement): void {
 
 		const rerunBtn = document.createElement("button");
 		rerunBtn.className = "b-eval-history-rerun";
-		rerunBtn.textContent = "\u21A9";
+		rerunBtn.textContent = "↩";
 		rerunBtn.title = "Re-run";
 		rerunBtn.addEventListener("click", () => {
-			inputEl.value = expression;
-			doEval(expression);
+			this.inputEl.value = expression;
+			this._doEval(expression);
 		});
 		exprDiv.appendChild(rerunBtn);
 
 		const resultPre = document.createElement("pre");
 		resultPre.className = `b-eval-history-result${isError ? " u-color-danger" : ""}`;
 		resultPre.textContent =
-			result.length > 200 ? result.substring(0, 200) + "..." : result;
+			result.length > 200 ? `${result.substring(0, 200)}...` : result;
 
 		entry.appendChild(exprDiv);
 		entry.appendChild(resultPre);
-		historyListEl.prepend(entry);
+		this.historyListEl.prepend(entry);
 	}
 
-	// Enter key submits
-	inputEl.addEventListener("keydown", (e: KeyboardEvent) => {
-		if (e.key === "ArrowUp" && history.length > 0) {
-			e.preventDefault();
-			inputEl.value = history[history.length - 1].expression;
-		}
-		if (e.key === "Enter") {
-			e.preventDefault();
-			const expr = inputEl.value.trim();
-			if (expr) doEval(expr);
-		}
-	});
-
-	// Form submit
-	const form = element.querySelector("form");
-	if (form) {
-		form.addEventListener("submit", (e: Event) => {
-			e.preventDefault();
-			const expr = inputEl.value.trim();
-			if (expr) doEval(expr);
-		});
+	public evalExpression(event: Event): void {
+		event.preventDefault();
+		const expr = this.inputEl.value.trim();
+		if (expr) this._doEval(expr);
 	}
 
-	// Clear button
-	element.querySelectorAll("[data-action]").forEach((el) => {
-		const attr = el.getAttribute("data-action");
-		if (attr === "click->eval#clearResult") {
-			el.addEventListener("click", () => {
-				resultEl.textContent = "// Enter an expression above";
-				resultEl.classList.remove("u-color-danger");
-			});
+	public clearResult(): void {
+		this.resultEl.textContent = "// Enter an expression above";
+		this.resultEl.classList.remove("u-color-danger");
+	}
+
+	public quickCall(event: Event & { params?: Record<string, unknown> }): void {
+		const funcName = (event.params?.funcName as string) || "";
+		const funcSig = (event.params?.funcSig as string) || "";
+		if (!funcName) return;
+
+		const paramMatch = funcSig.match(/\(([^)]*)\)/);
+		const params = paramMatch ? paramMatch[1] : "";
+		if (params) {
+			this.inputEl.value = `${funcName}(${params
+				.split(",")
+				.map((p: string) => {
+					const parts = p.trim().split(/\s+/);
+					const type = parts[parts.length - 1];
+					return type === "string" ? '""' : "0";
+				})
+				.join(", ")})`;
+
+			this.inputEl.focus();
+			this.inputEl.setSelectionRange(
+				funcName.length + 1,
+				this.inputEl.value.length - 1,
+			);
+		} else {
+			this.inputEl.value = `${funcName}()`;
+			this._doEval(`${funcName}()`);
 		}
-	});
-
-	// Quick call buttons
-	element.querySelectorAll("[data-action]").forEach((el) => {
-		const attr = el.getAttribute("data-action");
-		if (attr !== "click->eval#quickCall") return;
-		el.addEventListener("click", () => {
-			const funcName = (el as HTMLElement).dataset.evalFuncNameParam || "";
-			const funcSig = (el as HTMLElement).dataset.evalFuncSigParam || "";
-			if (!funcName) return;
-
-			const paramMatch = funcSig.match(/\(([^)]*)\)/);
-			const params = paramMatch ? paramMatch[1] : "";
-			if (params) {
-				inputEl.value = `${funcName}(${params
-					.split(",")
-					.map((p: string) => {
-						const parts = p.trim().split(/\s+/);
-						const type = parts[parts.length - 1];
-						return type === "string" ? '""' : "0";
-					})
-					.join(", ")})`;
-				inputEl.focus();
-				inputEl.setSelectionRange(
-					funcName.length + 1,
-					inputEl.value.length - 1,
-				);
-			} else {
-				inputEl.value = `${funcName}()`;
-				doEval(`${funcName}()`);
-			}
-		});
-	});
+	}
 }

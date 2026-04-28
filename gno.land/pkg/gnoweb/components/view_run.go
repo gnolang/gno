@@ -18,19 +18,6 @@ func (d RunData) PkgAlias() string {
 	return path.Base(d.PkgPath)
 }
 
-type runViewParams struct {
-	RunData
-	Article ArticleData
-}
-
 func RunView(data RunData) *View {
-	content := NewTemplateComponent("renderRunContent", data)
-	viewData := runViewParams{
-		RunData: data,
-		Article: ArticleData{
-			ComponentContent: content,
-			Classes:          "c-run-view",
-		},
-	}
-	return NewTemplateView(RunViewType, "renderRun", viewData)
+	return NewTemplateView(RunViewType, "renderRun", data)
 }

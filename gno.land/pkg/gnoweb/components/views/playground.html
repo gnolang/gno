@@ -3,51 +3,50 @@ LAYOUT - Playground view
 =================================================================================== */}}
 {{ define "renderPlayground" }}
 <!-- Playground Content -->
-<div class="b-playground u-grid-full" data-controller="playground"
+<div class="b-playground" data-controller="playground"
   data-playground-remote-value="{{ .Remote }}"
   data-playground-chain-id-value="{{ .ChainId }}"
   data-playground-domain-value="{{ .Domain }}"
   {{ with .ForkFrom }}data-playground-fork-from-value="{{ . }}"{{ end }}>
 
-  <!-- Toolbar -->
-  <div class="b-playground-toolbar">
+  <!-- Header Toolbar -->
+  <header class="b-content-header">
     <div class="b-playground-toolbar-left">
-      <h1 class="b-playground-title">
+      <h1 class="title b-content-h1">
         {{ if .ForkFrom }}
-        <span class="u-font-mono">Fork of {{ .ForkFrom }}</span>
+        <span>Fork</span>
+        <span class="b-tag">{{ .ForkFrom }}</span>
         {{ else }}
         Playground
         {{ end }}
       </h1>
     </div>
     <div class="b-playground-toolbar-right">
-      <button class="b-btn b-btn--secondary" data-action="click->playground#formatCode" title="Format code (Ctrl+Shift+F)">
+      <button class="b-btn b-btn--secondary c-with-icon" data-action="click->playground#formatCode" title="Format code (Ctrl+Shift+F)">
         <svg class="c-icon"><use href="#ico-code"></use></svg>
         <span>Format</span>
       </button>
-      <button class="b-btn b-btn--secondary" data-action="click->playground#runTests" title="Run tests (Ctrl+Shift+T)">
+      <button class="b-btn b-btn--secondary c-with-icon" data-action="click->playground#runTests" title="Run tests (Ctrl+Shift+T)">
         <svg class="c-icon"><use href="#ico-helper"></use></svg>
         <span>Test</span>
       </button>
-      <button class="b-btn b-btn--primary" data-action="click->playground#runCode" title="Run code (Ctrl+Enter)">
+      <button class="b-btn b-btn--primary c-with-icon" data-action="click->playground#runCode" title="Run code (Ctrl+Enter)">
         <svg class="c-icon"><use href="#ico-tx-link"></use></svg>
         <span>Run</span>
       </button>
-      <button class="b-btn b-btn--secondary" data-action="click->playground#shareCode" title="Share">
+      <button class="b-btn b-btn--secondary c-with-icon" data-action="click->playground#shareCode" title="Share">
         <svg class="c-icon"><use href="#ico-link"></use></svg>
         <span>Share</span>
       </button>
     </div>
-  </div>
+  </header>
 
   <!-- Editor Area -->
   <div class="b-playground-editor-area">
     <!-- File tabs -->
     <div class="b-playground-tabs" data-playground-target="tabs">
-      <button class="b-playground-tab b-playground-tab--active" data-action="click->playground#switchTab" data-playground-file-param="main.gno">
-        main.gno
-      </button>
-      <button class="b-playground-tab-add" data-action="click->playground#addFile" title="Add file">+</button>
+      <button class="b-playground-tab b-playground-tab--active">main.gno</button>
+      <button class="b-playground-tab-add" title="Add file">+</button>
     </div>
 
     <!-- Code editor -->
