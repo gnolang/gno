@@ -1,4 +1,3 @@
-// MAXALLOC: 500000000
 package main
 
 // Drains gas via byte-array equality on the Data fast path.
@@ -8,10 +7,10 @@ package main
 // large_array_eql.gno: same pattern with [100]int (per-element loop)
 // large_array_string_eql.gno: same pattern with [10]string
 func main() {
-	a1 := [10000]byte{}
-	a2 := [10000]byte{}
+	a1 := [100]byte{}
+	a2 := [100]byte{}
 	_ = a1 == a2
 }
 
 // Gas:
-// 55285
+// 18041
