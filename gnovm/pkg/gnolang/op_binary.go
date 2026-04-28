@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -367,7 +368,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		}
 		// Charge gas proportional to string length, since Go's == on
 		// strings is O(N).
-		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUCmpPerByte))
+		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUSlopeCmp))
 		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
@@ -405,7 +406,6 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		la := lv.V.(*ArrayValue)
 		ra := rv.V.(*ArrayValue)
 		at := baseOf(lv.T).(*ArrayType)
-		et := at.Elt
 		if debug {
 			if la.GetLength() != ra.GetLength() {
 				panic("comparison on arrays of unequal length")
@@ -415,6 +415,12 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
+		// Fast path for byte arrays (Data representation).
+		if la.Data != nil {
+			m.incrCPU(overflow.Mulp(int64(len(la.Data)), OpCPUSlopeCmp))
+			return bytes.Equal(la.Data, ra.Data)
+		}
+		et := at.Elt
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
@@ -496,7 +502,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
 		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
@@ -543,7 +549,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
 		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
@@ -590,7 +596,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
 		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
@@ -637,7 +643,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUCmpPerByte))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
 		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
