@@ -16,6 +16,11 @@ message Account {
 	uint64 attributes = 2;
 }
 
+message SessionAccount {
+	std.BaseSessionAccount base_session_account = 1 [json_name = "BaseSessionAccount"];
+	repeated string allow_paths = 2;
+}
+
 message GenesisState {
 	repeated string balances = 1;
 	repeated TxWithMetadata txs = 2;

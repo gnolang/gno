@@ -3,6 +3,7 @@ package prefix
 import (
 	"bytes"
 
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -25,7 +26,7 @@ func New(parent types.Store, prefix []byte) Store {
 }
 
 func cloneAppend(bz []byte, tail []byte) (res []byte) {
-	res = make([]byte, len(bz)+len(tail))
+	res = make([]byte, overflow.Addp(len(bz), len(tail)))
 	copy(res, bz)
 	copy(res[len(bz):], tail)
 	return
@@ -50,31 +51,31 @@ func (s Store) Write() {
 }
 
 // Implements Store
-func (s Store) Get(key []byte) []byte {
-	res := s.parent.Get(s.key(key))
+func (s Store) Get(gctx *types.GasContext, key []byte) []byte {
+	res := s.parent.Get(gctx, s.key(key))
 	return res
 }
 
 // Implements Store
-func (s Store) Has(key []byte) bool {
-	return s.parent.Has(s.key(key))
+func (s Store) Has(gctx *types.GasContext, key []byte) bool {
+	return s.parent.Has(gctx, s.key(key))
 }
 
 // Implements Store
-func (s Store) Set(key, value []byte) {
+func (s Store) Set(gctx *types.GasContext, key, value []byte) {
 	types.AssertValidKey(key)
 	types.AssertValidValue(value)
-	s.parent.Set(s.key(key), value)
+	s.parent.Set(gctx, s.key(key), value)
 }
 
 // Implements Store
-func (s Store) Delete(key []byte) {
-	s.parent.Delete(s.key(key))
+func (s Store) Delete(gctx *types.GasContext, key []byte) {
+	s.parent.Delete(gctx, s.key(key))
 }
 
 // Implements Store
 // Check https://github.com/tendermint/tendermint/blob/master/libs/db/prefix_db.go#L106
-func (s Store) Iterator(start, end []byte) types.Iterator {
+func (s Store) Iterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	newstart := cloneAppend(s.prefix, start)
 
 	var newend []byte
@@ -84,14 +85,14 @@ func (s Store) Iterator(start, end []byte) types.Iterator {
 		newend = cloneAppend(s.prefix, end)
 	}
 
-	iter := s.parent.Iterator(newstart, newend)
+	iter := s.parent.Iterator(gctx, newstart, newend)
 
 	return newPrefixIterator(s.prefix, start, end, iter)
 }
 
 // Implements Store
 // Check https://github.com/tendermint/tendermint/blob/master/libs/db/prefix_db.go#L129
-func (s Store) ReverseIterator(start, end []byte) types.Iterator {
+func (s Store) ReverseIterator(gctx *types.GasContext, start, end []byte) types.Iterator {
 	newstart := cloneAppend(s.prefix, start)
 
 	var newend []byte
@@ -101,7 +102,7 @@ func (s Store) ReverseIterator(start, end []byte) types.Iterator {
 		newend = cloneAppend(s.prefix, end)
 	}
 
-	iter := s.parent.ReverseIterator(newstart, newend)
+	iter := s.parent.ReverseIterator(gctx, newstart, newend)
 
 	return newPrefixIterator(s.prefix, start, end, iter)
 }

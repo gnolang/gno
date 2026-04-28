@@ -91,10 +91,12 @@ func TestCodecStruct(t *testing.T) {
 // (write_empty, nil_elements) that have no proto3 equivalent.
 // Same checks as TestCodecStruct but skips proto.Marshal byte comparison.
 //
-// FuzzNilElements has a pre-existing amino roundtrip bug where nil struct
-// pointers in slices decode as zero-value structs. For that type we run
-// byte-stability and cross-encoder/decoder checks instead of strict
-// struct equality, which still catch new regressions.
+// FuzzNilElements is structurally lossy: with amino:"nil_elements", both
+// a nil *Struct and a non-nil zero-valued *Struct encode to 0x00 (proto3
+// can't distinguish "nil" from "empty message"), and 0x00 always decodes
+// to nil. So orig-containing-&Struct{} round-trips to decoded-containing-nil,
+// and strict equality cannot hold. For that type we run byte-stability
+// and cross-encoder/decoder checks instead, which still catch regressions.
 func TestCodecAminoTags(t *testing.T) {
 	t.Parallel()
 
@@ -197,10 +199,12 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		rv2 = reflect.New(rt)
 		ptr2 = rv2.Interface()
 
-		// Encode to bz.
+		// Encode to bz. Use MarshalReflect explicitly so the encoder-parity
+		// check against MarshalBinary2 below (bz vs bz2) is a real cross-codec
+		// test rather than comparing genproto2 to itself via dispatch.
 		switch codecType {
 		case "binary":
-			bz, err = cdc.Marshal(ptr)
+			bz, err = cdc.MarshalReflect(ptr)
 		case "json":
 			bz, err = cdc.JSONMarshal(ptr)
 		default:
@@ -210,10 +214,13 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			"failed to marshal %v to bytes: %v\n",
 			spw(ptr), err)
 
-		// Decode from bz.
+		// Decode from bz. Use UnmarshalReflect explicitly for the binary
+		// roundtrip so genproto2-registered types don't dispatch away from
+		// the reflect path — the genproto2 path is exercised separately
+		// below, and we want a real reflect-vs-genproto2 cross-check.
 		switch codecType {
 		case "binary":
-			err = cdc.Unmarshal(bz, ptr2)
+			err = cdc.UnmarshalReflect(bz, ptr2)
 		case "json":
 			err = cdc.JSONUnmarshal(bz, ptr2)
 		default:
@@ -361,17 +368,21 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyD
 		}
 	}()
 
+	// Clamp the binary path to MarshalReflect/UnmarshalReflect so the
+	// cross-encoder (bz vs bz2) and cross-decoder (ptr2 vs ptr5) checks
+	// below are genuine reflect-vs-genproto2 comparisons instead of
+	// comparing genproto2 to itself via dispatch.
 	marshal := func(p any) ([]byte, error) {
 		if codecType == "json" {
 			return cdc.JSONMarshal(p)
 		}
-		return cdc.Marshal(p)
+		return cdc.MarshalReflect(p)
 	}
 	unmarshal := func(b []byte, p any) error {
 		if codecType == "json" {
 			return cdc.JSONUnmarshal(b, p)
 		}
-		return cdc.Unmarshal(b, p)
+		return cdc.UnmarshalReflect(b, p)
 	}
 
 	var deadline time.Time
@@ -895,6 +906,22 @@ var fuzzFuncs = []any{
 			*esz = make([]*tests.EmptyStruct, n)
 			for i := range n {
 				(*esz)[i] = &tests.EmptyStruct{}
+			}
+		}
+	},
+	func(sl *[]*tests.StructWithStringRepr, c fuzz.Continue) {
+		n := c.Intn(4)
+		switch n {
+		case 0:
+			*sl = nil
+		default:
+			// Slice elements must be non-nil, since StructPtrSliceWithStringRepr
+			// does not set amino:"nil_elements" (the fix #8 contract).
+			*sl = make([]*tests.StructWithStringRepr, n)
+			for i := range n {
+				var elem tests.StructWithStringRepr
+				c.Fuzz(&elem)
+				(*sl)[i] = &elem
 			}
 		}
 	},

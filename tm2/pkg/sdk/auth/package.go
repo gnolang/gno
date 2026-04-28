@@ -14,4 +14,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).WithTypes(
 	GenesisState{}, "GenesisState",
 	Params{}, "Params",
+	MsgCreateSession{}, "m_create_session",
+	MsgRevokeSession{}, "m_revoke_session",
+	MsgRevokeAllSessions{}, "m_revoke_all_sessions",
 ))

@@ -62,10 +62,7 @@ def least_squares(points):
 # For the plot, we fit ns = a + b * Q where Q is the code's scaling variable.
 QUADRATIC_BIGINT = {'Mul (BigInt)', 'Quo (BigInt)', 'Rem (BigInt)'}  # Q = (bits/32)^2 / 32
 QUADRATIC_BIGDEC = {'Mul (BigDec)', 'Quo (BigDec)'}                 # Q = (digits/10)^2 / 10
-QUADRATIC_VMOP = {'EnterCrossing (depth)'}                          # Q = depth^2 / 10
-# TODO: if doOpEnterCrossing is rewritten to O(depth) (cursor walk of m.Frames),
-# move 'EnterCrossing (depth)' out of QUADRATIC_VMOP and rely on the linear fit.
-QUADRATIC_FAMILIES = QUADRATIC_BIGINT | QUADRATIC_BIGDEC | QUADRATIC_VMOP
+QUADRATIC_FAMILIES = QUADRATIC_BIGINT | QUADRATIC_BIGDEC
 
 # All parameterized families: (name, param_label, [(bench_name, N), ...])
 FAMILIES = [
@@ -118,9 +115,6 @@ FAMILIES = [
     ('ReturnCallDefers', 'defers', [
         ('BenchmarkOpReturnCallDefers_1', 1), ('BenchmarkOpReturnCallDefers_10', 10),
         ('BenchmarkOpReturnCallDefers_100', 100), ('BenchmarkOpReturnCallDefers_1000', 1000)]),
-    ('EnterCrossing (depth)', 'call depth', [
-        ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
-        ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
     ('TypeSwitch (concrete)', 'clauses', [
         ('BenchmarkOpTypeSwitch_1', 1), ('BenchmarkOpTypeSwitch_10', 10),
         ('BenchmarkOpTypeSwitch_100', 100), ('BenchmarkOpTypeSwitch_1000', 1000)]),
@@ -221,16 +215,9 @@ FLAT_FAMILIES = [
     ('Selector (field)', 'fields', [
         ('BenchmarkOpSelector_1field', 1), ('BenchmarkOpSelector_10fields', 10),
         ('BenchmarkOpSelector_100fields', 100), ('BenchmarkOpSelector_1000fields', 1000)]),
-    ('Add (string)', 'sum(|A|,|B|) bytes', [
-        ('BenchmarkOpAdd_String_10', 20),
-        ('BenchmarkOpAdd_String_100', 200),
-        ('BenchmarkOpAdd_String_1000', 2000),
-        ('BenchmarkOpAdd_String_10000', 20000),
-        ('BenchmarkOpAdd_String_1KB_1MB', 1024+1024*1024),
-        ('BenchmarkOpAdd_String_1MB_10MB', 1024*1024+10*1024*1024),
-        ('BenchmarkOpAdd_String_10MB_100MB', 10*1024*1024+100*1024*1024),
-        ('BenchmarkOpAdd_String_100MB_10MB', 100*1024*1024+10*1024*1024),
-    ]),
+    ('Add (string)', 'total chars', [
+        ('BenchmarkOpAdd_String_10', 10), ('BenchmarkOpAdd_String_100', 100),
+        ('BenchmarkOpAdd_String_1000', 1000), ('BenchmarkOpAdd_String_10000', 10000)]),
     ('Slice (string)', 'string len', [
         ('BenchmarkOpSlice_String_10', 10), ('BenchmarkOpSlice_String_100', 100),
         ('BenchmarkOpSlice_String_1000', 1000), ('BenchmarkOpSlice_String_10000', 10000)]),
@@ -299,11 +286,6 @@ def main():
             # Q = (digits/10)^2 / 10
             quad_points = [((x/10)**2/10, y) for x, y in points]
             a, b, r2 = least_squares(quad_points)
-        elif name in QUADRATIC_VMOP:
-            # Code formula: gas = depth^2 * slope / 10
-            # Q = depth^2 / 10
-            quad_points = [(x*x/10, y) for x, y in points]
-            a, b, r2 = least_squares(quad_points)
         else:
             a, b, r2 = least_squares(points)
 
@@ -337,11 +319,6 @@ def main():
             q_fit = (x_fit / 10)**2 / 10
             y_fit = a + b * q_fit
             eq = f'{a:.0f} + {b:.1f}*Q  [Q=(N/10)\u00b2/10]'
-            color = '#4CAF50' if r2 >= 0.95 else '#FF9800' if r2 >= 0.8 else '#F44336'
-        elif name in QUADRATIC_VMOP:
-            q_fit = x_fit * x_fit / 10
-            y_fit = a + b * q_fit
-            eq = f'{a:.0f} + {b:.1f}*Q  [Q=N\u00b2/10]'
             color = '#4CAF50' if r2 >= 0.95 else '#FF9800' if r2 >= 0.8 else '#F44336'
         else:
             y_fit = a + b * x_fit
