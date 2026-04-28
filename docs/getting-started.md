@@ -7,16 +7,7 @@ write Gno.
 This page is the shortest path from zero to a working local chain and
 your first on-chain query. Plan around 10 minutes.
 
-## Try it first (no install)
-
-Before installing anything, you can explore Gno.land in the browser:
-
-- **[Gno Playground](https://play.gno.land)** — write, run, and share
-  Gno code instantly, no local setup.
-- **[gno.land/r/docs](https://gno.land/r/docs)** — an on-chain guided
-  tour of the language and the most common realms.
-
-Come back here when you're ready to build locally.
+> Try the **[Playground](https://play.gno.land)** to write Gno in your browser
 
 ## TL;DR
 
@@ -35,14 +26,14 @@ gnokey add dev
 gnokey query bank/balances/g1... -remote https://rpc.gno.land:443
 ```
 
-Next: explore **[r/docs](https://gno.land/r/docs)**, read
-[Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md), or
-keep the [Cheatsheet](./builders/cheatsheet.md) open while you build.
+- [r/docs](https://gno.land/r/docs/home) — on-chain docs
+- [Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md)
+- [Cheatsheet](./builders/cheatsheet.md)
 
 ## What is Gno.land?
 
-Gno.land runs smart contracts written in Gno — Go, minus the
-non-deterministic parts. Realms (`r/`) hold on-chain state, packages
+Gno.land runs smart contracts written in Gno, an interpreted Go-like
+language built for deterministic execution. Realms (`r/`) hold on-chain state, packages
 (`p/`) are stateless libraries, and everything is interpreted by the
 GnoVM. For the full picture, see
 [What is Gno.land?](./builders/what-is-gnolang.md).
@@ -55,25 +46,32 @@ One-liner:
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-For prerequisites, building from source, Docker images, and per-binary
-details, see **[Install](./builders/install.md)**.
+See [Install](./builders/install.md) if you'd rather build from source, use Docker, or check prerequisites.
 
 After installing, `gno`, `gnokey`, and `gnodev` should be on your `PATH`.
 
 ## Build locally with gnodev
 
-`gnodev` is the recommended way to iterate. It runs a preconfigured
-local chain with premined test accounts, a web UI, and hot reload on any
-`.gno` file you edit under `examples/`.
+Start a new realm and run it on a local chain:
 
 ```sh
-gnodev
-# banner + http://localhost:8888
-# Ctrl+C to stop
+gno init gno.land/r/myname/myrealm
+gnodev .
+# open http://localhost:8888 — Ctrl+C to stop
 ```
 
+The first command creates a `gnomod.toml` and a starter `.gno` file in
+the current directory — it's like `cargo init` or `npm init` for Gno.
+Run it with no arguments to pick interactively (realm, package, or run
+script).
+
+The second command starts a local Gno blockchain with funded test
+accounts and a web UI, and reloads automatically when you edit your
+`.gno` files. Pass directories to load your own realms; with no
+arguments it just loads the bundled `examples/`.
+
 See [Running a local dev node](./builders/local-dev-with-gnodev.md) for
-genesis config, resolvers, and multi-realm workflows.
+genesis, resolvers, and multi-realm setups.
 
 ## Deploy to a shared network
 
@@ -134,16 +132,11 @@ gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
 
 ## Next steps
 
-1. **[r/docs](https://gno.land/r/docs)** — the on-chain tour, read
-   straight from the network.
-2. **[Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md)**
-   — how a realm is structured, through a Counter example.
-3. **[Running a local dev node](./builders/local-dev-with-gnodev.md)**
-   — deeper `gnodev` reference.
-4. **[Example: the `minisocial` dApp](./builders/example-minisocial-dapp.md)**
-   — a full end-to-end walkthrough, deploy included.
-5. **[Cheatsheet](./builders/cheatsheet.md)** — the commands from this
-   page, plus everything you'll use next, on one screen.
+1. [r/docs](https://gno.land/r/docs) — on-chain tour
+2. [Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md) — realm structure via Counter
+3. [Running a local dev node](./builders/local-dev-with-gnodev.md) — `gnodev` reference
+4. [Example: the `minisocial` dApp](./builders/example-minisocial-dapp.md) — end-to-end with deploy
+5. [Cheatsheet](./builders/cheatsheet.md) — all commands, one screen
 
 ## Troubleshooting
 
