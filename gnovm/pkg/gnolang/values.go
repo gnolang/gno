@@ -2726,16 +2726,13 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		} else { // load object
 			obj := store.GetObject(cv.ObjectID)
 			if debugAssert {
-				// Verify Merkle chain: parent's claimed child hash
+				// Verify hash chain: parent's claimed child hash
 				// must match child's actual stored hash.
 				// Escaped objects carry zero RefValue hash (resolved via IAVL).
-
-				if !cv.Hash.IsZero() {
-					if childHash := obj.GetHash(); cv.Hash != childHash {
-						panic(fmt.Sprintf(
-							"hash chain broken at %s: parent claims child hash %X, but child has %X",
-							cv.ObjectID, cv.Hash.Bytes(), childHash.Bytes()))
-					}
+				if childHash := obj.GetHash(); !cv.Hash.IsZero() && cv.Hash != childHash {
+					panic(fmt.Sprintf(
+						"hash chain broken at %s: parent claims child hash %X, but child has %X",
+						cv.ObjectID, cv.Hash.Bytes(), childHash.Bytes()))
 				}
 			}
 			tv.V = obj

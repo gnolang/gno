@@ -73,14 +73,12 @@ func (b *Block) DeepFill(store Store) Value              { panic("not yet implem
 func (rv RefValue) DeepFill(store Store) Value {
 	obj := store.GetObject(rv.ObjectID)
 	if debugAssert {
-		// Verify Merkle chain: parent's RefValue hash must match child's stored hash.
+		// Verify hash chain: parent's RefValue hash must match child's stored hash.
 		// Escaped objects carry zero RefValue hash (resolved via IAVL).
-		if !rv.Hash.IsZero() {
-			if rv.Hash != obj.GetHash() {
-				panic(fmt.Sprintf(
-					"hash chain broken at %s: parent claims child hash %X, but child has %X",
-					rv.ObjectID, rv.Hash.Bytes(), obj.GetHash().Bytes()))
-			}
+		if childHash := obj.GetHash(); !rv.Hash.IsZero() && rv.Hash != childHash {
+			panic(fmt.Sprintf(
+				"hash chain broken at %s: parent claims child hash %X, but child has %X",
+				rv.ObjectID, rv.Hash.Bytes(), childHash.Bytes()))
 		}
 	}
 	return obj
