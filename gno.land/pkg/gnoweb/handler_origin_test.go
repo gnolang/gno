@@ -12,12 +12,12 @@ func TestRequestOrigin(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name    string
-		host    string
-		tls     bool
+		name     string
+		host     string
+		tls      bool
 		fwdProto string
 		fwdHost  string
-		want    string
+		want     string
 	}{
 		{
 			name: "plain http no proxy",
