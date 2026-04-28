@@ -42,6 +42,7 @@ type AppOptions struct {
 	EventSwitch                events.EventSwitch // required
 	VMOutput                   io.Writer          // optional
 	SkipGenesisSigVerification bool               // default to verify genesis transactions
+	SkipUpgradeHeight          int64              // if set, skip the halt_min_version check at this height
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
@@ -115,6 +116,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -213,6 +215,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			acck,
 			gpk,
 			vmk,
+			prmk,
 			baseApp,
 		),
 	)
@@ -232,6 +235,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
+
+	// Verify node startup constraints set by governance halt proposals.
+	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore(), baseApp.LastBlockHeight(), cfg.SkipUpgradeHeight); err != nil {
+		return nil, err
+	}
 
 	return baseApp, nil
 }
@@ -258,6 +266,7 @@ func NewApp(
 	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	skipUpgradeHeight int64,
 ) (abci.Application, error) {
 	var err error
 
@@ -270,6 +279,7 @@ func NewApp(
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
+		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
@@ -475,22 +485,26 @@ type endBlockerApp interface {
 
 	// Logger returns the logger reference
 	Logger() *slog.Logger
+
+	// SetHaltHeight sets the block height at which the node will halt.
+	SetHaltHeight(uint64)
 }
 
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
-// validator set changes
+// validator set changes, and checks for a governance-requested chain halt.
 func EndBlocker(
 	collector *collector[validatorUpdate],
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
+	prmk params.ParamsKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
@@ -498,6 +512,24 @@ func EndBlocker(
 		}
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
+		}
+
+		// Check if GovDAO has requested a halt at this height.
+		// Use == (not >=) so we only trigger once: at the exact halt height.
+		// SetHaltHeight causes BeginBlock of the *next* block to panic, ensuring
+		// this block is fully committed before the node stops.
+		// On restart, req.Height > halt_height, so == never re-fires — no infinite loop.
+		if prmk != nil {
+			var haltHeight int64
+			prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+			if haltHeight > 0 && req.Height == haltHeight {
+				app.Logger().Info(
+					"GovDAO halt height reached, will halt after this block",
+					"height", req.Height,
+					"halt_height", haltHeight,
+				)
+				app.SetHaltHeight(uint64(haltHeight))
+			}
 		}
 
 		// Check if there was a valset change

@@ -22,8 +22,16 @@ func init() {
 func (goo TxMessage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Tx) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Tx)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Tx)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -37,6 +45,7 @@ func (goo TxMessage) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *TxMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = TxMessage{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -44,7 +53,7 @@ func (goo *TxMessage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
