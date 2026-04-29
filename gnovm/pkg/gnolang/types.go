@@ -776,6 +776,15 @@ func (st *StructType) GetPkgPath() string {
 	return st.PkgPath
 }
 
+// hasInaccessibleUnexportedFields reports whether this struct, viewed from
+// callerPkgPath, has unexported fields the caller cannot set via a positional
+// (unkeyed) composite literal. The cheap PkgPath comparison short-circuits
+// before iterating fields.
+func (st *StructType) hasInaccessibleUnexportedFields(callerPkgPath string) bool {
+	return st.PkgPath != callerPkgPath &&
+		FieldTypeList(st.Fields).HasUnexported()
+}
+
 func (st *StructType) IsNamed() bool {
 	return false
 }

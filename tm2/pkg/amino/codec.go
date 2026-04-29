@@ -97,6 +97,22 @@ func (info *TypeInfo) IsStructOrUnpacked(fopt FieldOptions) bool {
 	return false
 }
 
+// IsStructOrUnpackedTopLevel is the top-level (non-struct-field) variant of
+// IsStructOrUnpacked. Top-level contexts (e.g. MarshalReflect / MarshalBinary2
+// entry points, writeReprMarshal / writeReprUnmarshal) have no field-level
+// BinFixed tag, so fopts is zero. Calling this helper instead of passing a
+// literal FieldOptions{} makes the invariant explicit and greppable.
+//
+// NOTE: a future top-level list type whose element's typ3 depends on BinFixed
+// (e.g. `type Fixed64s []int64` used directly as a top-level message) would
+// need the caller to thread a real fopts; today no such type exists and typ3
+// for non-BinFixed Int64 is Varint anyway, so this helper's behavior is
+// identical to IsStructOrUnpacked(FieldOptions{}). Callers must ensure they
+// are genuinely in a top-level context before using this helper.
+func (info *TypeInfo) IsStructOrUnpackedTopLevel() bool {
+	return info.IsStructOrUnpacked(FieldOptions{})
+}
+
 // If this is a slice or array, get .Elem.ReprType until no longer slice or
 // array.
 func (info *TypeInfo) GetUltimateElem() *TypeInfo {
@@ -720,7 +736,19 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 				for etype.Kind() == reflect.Ptr {
 					etype = etype.Elem()
 				}
-				typ3 := typeToTyp3(etype, fopts)
+				// Consult the element's ReprType for AminoMarshaler types: a
+				// Go-Struct element whose MarshalAmino returns uint8 (e.g.
+				// ReprElem7) has WIRE kind Varint, not ByteLength. The unpacked
+				// path assumes per-element length prefixing, which doesn't hold
+				// for non-ByteLength wire kinds — without this lookup,
+				// encodeReflectBinaryList would emit packed bytes with bare=true
+				// (no outer key+length wrapper), producing non-roundtrippable
+				// bytes.
+				eTypeInfo, eErr := cdc.getTypeInfoWLocked(etype)
+				if eErr != nil {
+					panic(eErr)
+				}
+				typ3 := typeToTyp3(eTypeInfo.ReprType.Type, fopts)
 				if typ3 == Typ3ByteLength {
 					unpackedList = true
 				}
@@ -858,8 +886,15 @@ func typeToTyp3(rt reflect.Type, opts FieldOptions) Typ3 {
 		}
 		return Typ3Varint
 
-	case reflect.Int16, reflect.Int8, reflect.Int,
-		reflect.Uint16, reflect.Uint8, reflect.Uint, reflect.Bool:
+	case reflect.Int, reflect.Uint:
+		// ValidateBasic allows BinFixed64 on bare int/uint; the body encoders
+		// write 8 fixed bytes in that case, so the field-key typ3 must match.
+		if opts.BinFixed64 {
+			return Typ38Byte
+		}
+		return Typ3Varint
+	case reflect.Int16, reflect.Int8,
+		reflect.Uint16, reflect.Uint8, reflect.Bool:
 		return Typ3Varint
 	case reflect.Float64:
 		return Typ38Byte

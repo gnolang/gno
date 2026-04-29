@@ -1,4 +1,20 @@
 all:
+	@echo ""
+	@echo "============================================================"
+	@echo "  WARNING: misc/genproto (genproto1 / pbbindings) is DEPRECATED"
+	@echo "  for the gno.land project."
+	@echo ""
+	@echo "  Use misc/genproto2 instead. genproto1's pbbindings are"
+	@echo "  not guaranteed to match the reflect codec byte-for-byte;"
+	@echo "  genproto2 is the source-of-truth generator with a tested"
+	@echo "  parity contract against the reflect codec."
+	@echo ""
+	@echo "  The underlying library tm2/pkg/amino/genproto is kept"
+	@echo "  in-tree for future projects that need protobuf3-compatible"
+	@echo "  generated code. To revive it, follow"
+	@echo "  tm2/pkg/amino/genproto/HARDENING.md."
+	@echo "============================================================"
+	@echo ""
 	find ../.. -name pbbindings.go -delete
 	find ../.. -name "*.pb.go"     -delete
 	mkdir -p proto

@@ -1633,6 +1633,8 @@ func defaultExpr(k reflect.Kind) ast.Expr {
 		reflect.Int8, reflect.Uint, reflect.Uint64, reflect.Uint32,
 		reflect.Uint16, reflect.Uint8:
 		return _x("0")
+	case reflect.Float32, reflect.Float64:
+		return _x("0")
 	case reflect.Bool:
 		return _x("false")
 	default:

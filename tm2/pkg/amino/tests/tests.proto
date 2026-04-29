@@ -524,6 +524,13 @@ message FuzzDeepNest {
 	GnoVMAttrs meta = 2 [json_name = "Meta"];
 }
 
+message FuzzUnsafeFloat {
+	double score = 1 [json_name = "Score"];
+	float weight = 2 [json_name = "Weight"];
+	string label = 3 [json_name = "Label"];
+	sint32 count = 4 [json_name = "Count"];
+}
+
 message FuzzWriteEmpty {
 	string name = 1 [json_name = "Name"];
 	repeated sint32 values = 2 [json_name = "Values"];
@@ -549,6 +556,14 @@ message FuzzContainsAminoMarshaler {
 	AminoMarshalerStruct1 am = 1 [json_name = "AM"];
 }
 
+message EmptyReprOnZero {
+	string value = 1;
+}
+
+message FuzzNilEmptyRepr {
+	repeated string vals = 1 [json_name = "Vals"];
+}
+
 message SimpleAddress {
 	string value = 1;
 }
@@ -564,6 +579,26 @@ message CounterRepr {
 message ContainerWithAminoLists {
 	repeated string addrs = 1 [json_name = "Addrs"];
 	repeated string top_addrs = 2 [json_name = "TopAddrs"];
+}
+
+message StructWithStringRepr {
+	string value = 1;
+}
+
+message StructPtrSliceWithStringRepr {
+	repeated string items = 1 [json_name = "Items"];
+}
+
+message ByteArraySliceStruct {
+	repeated bytes items = 1 [json_name = "Items"];
+}
+
+message FixedStringArrayStruct {
+	repeated string names = 1 [json_name = "Names"];
+}
+
+message StructUint8ReprSliceStruct {
+	bytes vals = 1 [json_name = "Vals"];
 }
 
 message CrossPkgPointerSlice {

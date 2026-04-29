@@ -57,7 +57,7 @@ func (ctx *P3Context2) writeReprSize(sb *strings.Builder, rinfo *amino.TypeInfo)
 		ctx.writeStructSizeBody(sb, rinfo, "repr")
 
 	case isListType(rt):
-		if !rinfo.IsStructOrUnpacked(fopts) {
+		if !rinfo.IsStructOrUnpackedTopLevel() {
 			// Packed slice repr: wrapped in implicit struct field 1.
 			ctx.writePackedSliceReprSize(sb, rinfo)
 		} else {
@@ -66,15 +66,19 @@ func (ctx *P3Context2) writeReprSize(sb *strings.Builder, rinfo *amino.TypeInfo)
 
 	default:
 		// Primitive repr wrapped in implicit struct field 1.
+		// Match the emission decision in gen_marshal.go writeReprMarshal:
+		// skip if repr is the zero value of its type (encodes to nothing
+		// or a single 0x00 byte that writeFieldIfNotEmpty rolls back).
 		typ3 := rinfo.GetTyp3(fopts)
 		fks := fieldKeySize(1, typ3)
-		sb.WriteString("\t{\n")
-		fmt.Fprintf(sb, "\t\tvs := %s\n", ctx.primitiveValueSizeExpr("repr", rinfo, fopts))
-		// Match writeFieldIfNotEmpty: skip if value is just 0x00.
-		fmt.Fprintf(sb, "\t\tif vs > 0 {\n")
-		fmt.Fprintf(sb, "\t\t\ts += %d + vs\n", fks)
-		sb.WriteString("\t\t}\n")
-		sb.WriteString("\t}\n")
+		zeroChk := ctx.zeroCheck("repr", rinfo, fopts)
+		if zeroChk != "" {
+			fmt.Fprintf(sb, "\tif %s {\n", zeroChk)
+			fmt.Fprintf(sb, "\t\ts += %d + %s\n", fks, ctx.primitiveValueSizeExpr("repr", rinfo, fopts))
+			sb.WriteString("\t}\n")
+		} else {
+			fmt.Fprintf(sb, "\ts += %d + %s\n", fks, ctx.primitiveValueSizeExpr("repr", rinfo, fopts))
+		}
 	}
 }
 
@@ -184,21 +188,21 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 	}
 
 	// Handle AminoMarshaler fields: convert to repr, then size repr.
+	// The emission decision must use the REPR value's zeroness, not the
+	// original Go value's — see the matching comment in gen_marshal.go.
 	if finfo.IsAminoMarshaler && finfo.Type.Kind() != reflect.Struct {
-		origZeroCheck := ctx.zeroCheckOriginal(accessor, finfo)
-		if origZeroCheck != "" && !field.WriteEmpty {
-			fmt.Fprintf(sb, "\tif %s {\n", origZeroCheck)
-			fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
-			ctx.writeFieldValueSize(sb, "repr", fnum, finfo.ReprType, fopts, false, "\t\t")
-			sb.WriteString("\t}\n")
+		fmt.Fprintf(sb, "\t{\n")
+		fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
+		sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
+		reprZeroCheck := ctx.zeroCheck("repr", finfo.ReprType, fopts)
+		if reprZeroCheck != "" && !field.WriteEmpty {
+			fmt.Fprintf(sb, "\t\tif %s {\n", reprZeroCheck)
+			ctx.writeFieldValueSize(sb, "repr", fnum, finfo.ReprType, fopts, false, "\t\t\t")
+			sb.WriteString("\t\t}\n")
 		} else {
-			fmt.Fprintf(sb, "\t{\n")
-			fmt.Fprintf(sb, "\t\trepr, err := %s.MarshalAmino()\n", accessor)
-			sb.WriteString("\t\tif err != nil {\n\t\t\treturn 0, err\n\t\t}\n")
 			ctx.writeFieldValueSize(sb, "repr", fnum, finfo.ReprType, fopts, field.WriteEmpty, "\t\t")
-			sb.WriteString("\t}\n")
 		}
+		sb.WriteString("\t}\n")
 		return
 	}
 	if finfo.IsAminoMarshaler && finfo.Type.Kind() == reflect.Struct {
@@ -216,7 +220,16 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 			fks := fieldKeySize(fnum, finfo.GetTyp3(fopts))
 			ctx.writeByteFieldSizeCheck(sb, fks, field.WriteEmpty, "\t")
 		} else {
-			ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
+			// Mirror the marshal-side repr-zeroness guard so SizeBinary2
+			// agrees with MarshalBinary2 on which fields are skipped.
+			reprZeroCheck := ctx.zeroCheck("repr", rinfo, fopts)
+			if reprZeroCheck != "" && !field.WriteEmpty {
+				fmt.Fprintf(sb, "\t\tif %s {\n", reprZeroCheck)
+				ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, false, "\t\t\t")
+				sb.WriteString("\t\t}\n")
+			} else {
+				ctx.writeFieldValueSize(sb, "repr", fnum, rinfo, fopts, field.WriteEmpty, "\t\t")
+			}
 		}
 		sb.WriteString("\t}\n")
 		return
@@ -372,15 +385,19 @@ func (ctx *P3Context2) writeUnpackedListSize(sb *strings.Builder, accessor strin
 	} else {
 		// Unpacked form: repeated field key per element.
 		fks := fieldKeySize(fopts.BinFieldNum, amino.Typ3ByteLength)
+		// TypeInfo invariant: einfo.Elem is non-nil for list types; match
+		// reflect (binary_encode.go:400) which derefs without a nil guard.
 		ertIsPointer := ert.Kind() == reflect.Ptr
 		writeImplicit := isListType(einfo.Type) &&
-			einfo.Elem != nil &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != amino.Typ3ByteLength
 		fmt.Fprintf(sb, "\tfor _, elem := range %s {\n", accessor)
 
 		if ertIsPointer {
-			ertIsStruct := einfo.ReprType.Type.Kind() == reflect.Struct
+			// Key off the Go element type (einfo.Type), not the repr type.
+			// nil_elements is a Go-side semantic guard (see gen_marshal.go
+			// counterpart; matches binary_encode.go:399 ertIsStruct).
+			ertIsStruct := einfo.Type.Kind() == reflect.Struct
 			sb.WriteString("\t\tif elem == nil {\n")
 			if ertIsStruct && !fopts.NilElements {
 				// Match MarshalBinary2's error surface: Size is a public method
@@ -589,8 +606,15 @@ func (ctx *P3Context2) primitiveValueSizeExpr(accessor string, info *amino.TypeI
 		}
 		return fmt.Sprintf("amino.UvarintSize(uint64(%s))", accessor)
 	case reflect.Float32:
+		// Mirror writePrimitiveEncode: floats require amino:"unsafe".
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: float32 size requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		return "4"
 	case reflect.Float64:
+		if !fopts.Unsafe {
+			panic(fmt.Sprintf("genproto2: primitiveValueSizeExpr: float64 size requires amino:\"unsafe\" (type=%v, accessor=%s)", rt, accessor))
+		}
 		return "8"
 	case reflect.String:
 		return fmt.Sprintf("amino.UvarintSize(uint64(len(%s))) + len(%s)", accessor, accessor)

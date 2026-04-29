@@ -7,6 +7,7 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // TODO, make this into a struct that implements crypto.Symmetric.
@@ -27,7 +28,7 @@ func EncryptSymmetric(plaintext []byte, secret []byte) (ciphertext []byte) {
 	copy(nonceArr[:], nonce)
 	secretArr := [secretLen]byte{}
 	copy(secretArr[:], secret)
-	ciphertext = make([]byte, nonceLen+secretbox.Overhead+len(plaintext))
+	ciphertext = make([]byte, overflow.Addp(overflow.Addp(nonceLen, secretbox.Overhead), len(plaintext)))
 	copy(ciphertext, nonce)
 	secretbox.Seal(ciphertext[nonceLen:nonceLen], plaintext, &nonceArr, &secretArr)
 	return ciphertext
