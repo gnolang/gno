@@ -545,12 +545,12 @@ func TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs(t *testing.T) {
 	t.Parallel()
 
 	var (
-		genesisTime    = time.Now()
-		migrationTime  = genesisTime.Add(7 * 24 * time.Hour) // 7 days later
-		chainID        = "test-chain"
-		pastChainIDs   = []string{chainID}
-		path           = "gno.land/r/demo/migration"
-		body           = `package migration
+		genesisTime   = time.Now()
+		migrationTime = genesisTime.Add(7 * 24 * time.Hour) // 7 days later
+		chainID       = "test-chain"
+		pastChainIDs  = []string{chainID}
+		path          = "gno.land/r/demo/migration"
+		body          = `package migration
 
 import "time"
 

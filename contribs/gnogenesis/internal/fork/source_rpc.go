@@ -211,7 +211,7 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 					BlockHeight: h,
 					ChainID:     chainID,
 					Failed:      failed,
-					SignerInfo:   signerInfos,
+					SignerInfo:  signerInfos,
 				},
 			})
 			txCount++

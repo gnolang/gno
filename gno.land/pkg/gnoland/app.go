@@ -620,8 +620,8 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 	if cfg.StrictReplay {
 		if n := report.FailedCount(); n > 0 {
 			return txResponses, fmt.Errorf(
-				"strict replay: %d genesis tx(s) failed; chain refusing to boot. "+
-					"Inspect the per-failure 'Genesis replay failure' log lines for details.",
+				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
+					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
 				n,
 			)
 		}

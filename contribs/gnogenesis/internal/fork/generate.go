@@ -362,8 +362,9 @@ func readMigrationTxs(path string) ([]gnoland.TxWithMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out []gnoland.TxWithMetadata
-	for i, line := range strings.Split(string(data), "\n") {
+	lines := strings.Split(string(data), "\n")
+	out := make([]gnoland.TxWithMetadata, 0, len(lines))
+	for i, line := range lines {
 		trim := strings.TrimSpace(line)
 		if trim == "" || strings.HasPrefix(trim, "#") {
 			continue

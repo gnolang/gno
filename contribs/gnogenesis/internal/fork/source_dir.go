@@ -103,7 +103,7 @@ func (s *dirSource) LatestHeight(_ context.Context) (int64, error) {
 	}
 
 	return 0, fmt.Errorf(
-		"cannot auto-detect halt height from local directory %s; " +
+		"cannot auto-detect halt height from local directory %s; "+
 			"please specify --halt-height explicitly, or point --source to a running node RPC",
 		s.dir,
 	)
