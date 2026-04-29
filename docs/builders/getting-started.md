@@ -9,7 +9,7 @@ your first on-chain query. Plan around 10 minutes.
 
 > Try the **[Playground](https://play.gno.land)** to write Gno in your browser
 
-## TL;DR
+## TL;DR - [Cheatsheet](./cheatsheet.md)
 
 ```sh
 # 1. Install the toolchain (gno, gnokey, gnodev)
@@ -27,8 +27,8 @@ gnokey query bank/balances/g1... -remote https://rpc.gno.land:443
 ```
 
 - [r/docs](https://gno.land/r/docs/home) — on-chain docs
-- [Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md)
-- [Cheatsheet](./builders/cheatsheet.md)
+- [Anatomy of a Gno package](./anatomy-of-a-gno-package.md)
+- [Install](./install.md) — source builds, Docker, prerequisites
 
 ## What is Gno.land?
 
@@ -36,17 +36,18 @@ Gno.land runs smart contracts written in Gno, an interpreted Go-like
 language built for deterministic execution. Realms (`r/`) hold on-chain state, packages
 (`p/`) are stateless libraries, and everything is interpreted by the
 GnoVM. For the full picture, see
-[What is Gno.land?](./builders/what-is-gnolang.md).
+[What is Gno.land?](./what-is-gnolang.md).
 
 ## Install
 
 One-liner:
 
 ```sh
+# Installs gno, gnokey, gnodev to ~/.gno/bin
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-See [Install](./builders/install.md) if you'd rather build from source, use Docker, or check prerequisites.
+See [Install](./install.md) if you'd rather build from source, use Docker, or check prerequisites.
 
 After installing, `gno`, `gnokey`, and `gnodev` should be on your `PATH`.
 
@@ -55,22 +56,23 @@ After installing, `gno`, `gnokey`, and `gnodev` should be on your `PATH`.
 Start a new realm and run it on a local chain:
 
 ```sh
-gno init gno.land/r/myname/myrealm
+# Write gnomod.toml in current dir, declaring the module path
+gno mod init gno.land/r/myname/myrealm
+
+# Run a local chain that loads the current dir; hot reloads on edits
 gnodev .
 # open http://localhost:8888 — Ctrl+C to stop
 ```
 
-The first command creates a `gnomod.toml` and a starter `.gno` file in
-the current directory — it's like `cargo init` or `npm init` for Gno.
-Run it with no arguments to pick interactively (realm, package, or run
-script).
+The first command writes a `gnomod.toml` in the current directory,
+declaring the module path. Add your own `.gno` files next to it.
 
 The second command starts a local Gno blockchain with funded test
 accounts and a web UI, and reloads automatically when you edit your
 `.gno` files. Pass directories to load your own realms; with no
 arguments it just loads the bundled `examples/`.
 
-See [Running a local dev node](./builders/local-dev-with-gnodev.md) for
+See [Running a local dev node](./local-dev-with-gnodev.md) for
 genesis, resolvers, and multi-realm setups.
 
 ## Deploy to a shared network
@@ -81,6 +83,7 @@ fund it, and query on-chain.
 ### 1. Create a key
 
 ```sh
+# Create a new dev key named "dev"; prompts for password, prints mnemonic
 gnokey add dev
 ```
 
@@ -101,11 +104,12 @@ address, pick a network, and submit. Tokens arrive in seconds.
 ### 3. Query on-chain
 
 ```sh
+# Query the bank module for the balance of a g1... address
 gnokey query bank/balances/g1... -remote https://rpc.gno.land:443
 ```
 
 The response shows your balance as `<amount>ugnot`. See
-[Networks](./resources/gnoland-networks.md) for all chain IDs and RPC
+[Networks](../resources/gnoland-networks.md) for all chain IDs and RPC
 endpoints.
 
 :::info Betanet
@@ -125,6 +129,7 @@ fetch the current hash from [`r/sys/cla`](https://gno.land/r/sys/cla)
 and sign once:
 
 ```sh
+# Sign the CLA on-chain with the "dev" key
 gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
   -args "<current-hash>" -gas-fee 100000ugnot -gas-wanted 2000000 \
   -chainid gnoland1 -remote https://rpc.gno.land:443 dev
@@ -133,10 +138,9 @@ gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
 ## Next steps
 
 1. [r/docs](https://gno.land/r/docs) — on-chain tour
-2. [Anatomy of a Gno package](./builders/anatomy-of-a-gno-package.md) — realm structure via Counter
-3. [Running a local dev node](./builders/local-dev-with-gnodev.md) — `gnodev` reference
-4. [Example: the `minisocial` dApp](./builders/example-minisocial-dapp.md) — end-to-end with deploy
-5. [Cheatsheet](./builders/cheatsheet.md) — all commands, one screen
+2. [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — realm structure via Counter
+3. [Running a local dev node](./local-dev-with-gnodev.md) — `gnodev` reference
+4. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
 
 ## Troubleshooting
 
@@ -145,14 +149,13 @@ gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
   `make install` from source uses `$(go env GOPATH)/bin`. Add whichever
   applies:
   ```sh
+  # Append both install dirs to PATH (add to ~/.bashrc or ~/.zshrc to persist)
   export PATH="$PATH:$HOME/.gno/bin:$(go env GOPATH)/bin"
   ```
-- **`unable to determine GNOROOT`** — set it explicitly:
-  `export GNOROOT=/path/to/gno`.
-- **Go version error when building from source** — see the
-  [Install](./builders/install.md) page for the current minimum.
 - **Windows** — use [WSL2](https://learn.microsoft.com/windows/wsl/install)
   and run everything from inside Linux.
+
+Full list: [Troubleshooting](../troubleshooting.md).
 
 ## Getting help
 
