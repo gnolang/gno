@@ -4,13 +4,6 @@
     [
       {
         "type": "category",
-        "label": "Cheatsheet",
-        "items": [
-          "builders/cheatsheet"
-        ]
-      },
-      {
-        "type": "category",
         "label": "Use Gno.land",
         "items": [
           "users/discover-gnoland",
@@ -32,7 +25,8 @@
           "builders/deploy-packages",
           "builders/connect-clients-and-apps",
           "builders/stress-testing-with-supernova",
-          "builders/become-a-gnome"
+          "builders/become-a-gnome",
+          "builders/cheatsheet"
         ]
       },
       {
