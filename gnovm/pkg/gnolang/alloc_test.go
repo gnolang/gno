@@ -105,6 +105,57 @@ func TestStringGCRecount(t *testing.T) {
 	}
 }
 
+// TestStringSliceGCRecount verifies that a sliced string (s2 := s[x:y])
+// counts only the header during GC — the backing bytes are shared with
+// the source string and accounted via its allocStrings entry.
+func TestStringSliceGCRecount(t *testing.T) {
+	alloc := NewAllocator(1_000_000)
+
+	// Create a tracked source string via NewString.
+	src := alloc.NewString("abcdefghijklmnopqrstuvwxyz")
+
+	// Simulate s2 := src[2:5] ("cde").
+	// Go string slicing shares the backing — only a new header is allocated.
+	sliced := StringValue(string(src)[2:5])
+
+	// Verify the sliced string is NOT tracked (only the source is).
+	srcPtr := uintptr(unsafe.Pointer(unsafe.StringData(string(src))))
+	slicedPtr := uintptr(unsafe.Pointer(unsafe.StringData(string(sliced))))
+	if _, ok := alloc.allocStrings[slicedPtr]; ok {
+		t.Error("sliced string should NOT be tracked (not created via NewString)")
+	}
+	t.Logf("source pointer: %d, sliced pointer: %d (offset by 2)", srcPtr, slicedPtr)
+
+	gcCycle := int64(1)
+	var vc int64
+	vis := GCVisitorFn(gcCycle, alloc, &vc)
+
+	alloc.Reset()
+
+	// Visit source: counts header + full backing bytes.
+	vis(src)
+	bytesAfterSrc := alloc.bytes
+	fullSize := int64(allocString) + allocStringByte*int64(len(src))
+	if bytesAfterSrc != fullSize {
+		t.Errorf("source visit: got %d, want %d (header + full bytes)", bytesAfterSrc, fullSize)
+	}
+
+	// Visit sliced: counts header only (backing shared with source, not tracked).
+	vis(sliced)
+	bytesAfterSliced := alloc.bytes
+	wantAfterSliced := fullSize + int64(allocString) // +header only
+	if bytesAfterSliced != wantAfterSliced {
+		t.Errorf("sliced visit: got %d, want %d (source + header only for slice)",
+			bytesAfterSliced, wantAfterSliced)
+	}
+
+	// Source entry should survive cleanup (visited).
+	alloc.CleanupTrackedStrings(gcCycle)
+	if len(alloc.allocStrings) != 1 {
+		t.Errorf("after cleanup: want 1 tracked entry (source only), got %d", len(alloc.allocStrings))
+	}
+}
+
 func TestBlockGetShallowSize_WithRefNodeSource(t *testing.T) {
 	t.Parallel()
 
