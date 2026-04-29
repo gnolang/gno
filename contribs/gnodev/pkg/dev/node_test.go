@@ -331,7 +331,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 		// Ensure sufficient gas is provided for the transaction to be committed.
 		// However, avoid providing too much gas to allow the
 		// transaction to succeed (OutOfGasError).
-		GasWanted: 1_000_000,
+		GasWanted: 1_400_000,
 	}
 
 	_, err = testingCallRealmWithConfig(t, node, callCfg, msg)
