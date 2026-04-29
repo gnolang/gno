@@ -90,6 +90,13 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 		if !bank.canSendCoins(ctx, in.Address, in.Coins) {
 			return std.RestrictedTransferError{}
 		}
+		// Per-input session spend check: each Input.Address is a tx
+		// signer (per MsgMultiSend.GetSigners), so if any input belongs
+		// to a session's master, the input amount counts against that
+		// session's SpendLimit. No-op for non-session signers.
+		if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, in.Address, in.Coins); err != nil {
+			return err
+		}
 		_, err := bank.SubtractCoins(ctx, in.Address, in.Coins)
 		if err != nil {
 			return err
@@ -144,10 +151,23 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 
 // SendCoins moves coins from one account to another, restrction could be applied
 func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	// If amt is zero do nothing.
+	if amt.IsZero() {
+		return nil
+	}
+
 	// read restricted boolean value from param.IsRestrictedTransfer()
 	// canSendCoins is true until they have agreed to the waiver
 	if !bank.canSendCoins(ctx, fromAddr, amt) {
 		return std.RestrictedTransferError{}
+	}
+
+	// If the tx is session-signed and fromAddr is the session's master,
+	// deduct from the session's SpendLimit. No-op otherwise.
+	// SendCoinsUnrestricted deliberately bypasses this (gas collection,
+	// storage deposit refunds).
+	if err := auth.CheckAndDeductSessionSpend(ctx, bank.acck, fromAddr, amt); err != nil {
+		return err
 	}
 
 	return bank.sendCoins(ctx, fromAddr, toAddr, amt)
@@ -284,18 +304,18 @@ func (bank BankKeeper) updateSupply(ctx sdk.Context, oldCoins, newCoins std.Coin
 		if delta == 0 {
 			continue
 		}
-		supply := bank.getSupply(stor, denom)
+		supply := bank.getSupply(ctx, stor, denom)
 		newSupply, ok := overflow.Add(supply, delta)
 		if !ok {
 			panic(fmt.Sprintf("total supply overflow for denom %q: %d + %d", denom, supply, delta))
 		}
-		bank.setSupply(stor, denom, newSupply)
+		bank.setSupply(ctx, stor, denom, newSupply)
 	}
 }
 
 // getSupply reads the total supply of a denomination from the store.
-func (bank BankKeeper) getSupply(stor store.Store, denom string) int64 {
-	bz := stor.Get(SupplyStoreKey(denom))
+func (bank BankKeeper) getSupply(ctx sdk.Context, stor store.Store, denom string) int64 {
+	bz := stor.Get(ctx.GasContext(), SupplyStoreKey(denom))
 	if bz == nil {
 		return 0
 	}
@@ -309,24 +329,24 @@ func (bank BankKeeper) getSupply(stor store.Store, denom string) int64 {
 
 // setSupply writes the total supply of a denomination to the store.
 // If supply is zero, the key is deleted to avoid storing nil values.
-func (bank BankKeeper) setSupply(stor store.Store, denom string, supply int64) {
+func (bank BankKeeper) setSupply(ctx sdk.Context, stor store.Store, denom string, supply int64) {
 	key := SupplyStoreKey(denom)
 	if supply == 0 {
-		stor.Delete(key)
+		stor.Delete(ctx.GasContext(), key)
 		return
 	}
 	if supply < 0 {
 		panic(fmt.Sprintf("negative supply for denom %q: %d", denom, supply))
 	}
 	bz := amino.MustMarshal(supply)
-	stor.Set(key, bz)
+	stor.Set(ctx.GasContext(), key, bz)
 }
 
 // TotalCoin returns the total supply of a given coin denomination.
 // This is an O(1) read from the supply index.
 func (bank BankKeeper) TotalCoin(ctx sdk.Context, denom string) int64 {
 	stor := ctx.Store(bank.key)
-	return bank.getSupply(stor, denom)
+	return bank.getSupply(ctx, stor, denom)
 }
 
 // ----------------------------------------

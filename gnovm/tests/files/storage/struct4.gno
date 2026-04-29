@@ -35,7 +35,7 @@ func main() {
 
 // Realm:
 // finalizerealm["gno.land/r/storage"]
-// c[34f997a9ca158338c03cfc00686d77220a6cf62f:13](215)={
+// c[04f997a9ca158338c03cfc00686d77220a6cf62f:13](215)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -45,14 +45,14 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:13",
+//         "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:13",
 //         "LastObjectSize": "215",
 //         "ModTime": "0",
-//         "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
+//         "OwnerID": "04f997a9ca158338c03cfc00686d77220a6cf62f:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:12](6)=
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:12](6)=
 //     @@ -7,14 +7,14 @@
 //                  },
 //                  "V": {
@@ -63,21 +63,21 @@ func main() {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:12",
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:12",
 //              "LastObjectSize": "241",
 //     -        "ModTime": "0",
 //     +        "ModTime": "12",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
+//              "OwnerID": "04f997a9ca158338c03cfc00686d77220a6cf62f:11",
 //              "RefCount": "1"
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:6](135)=
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:6](135)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:6",
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:6",
 //              "LastObjectSize": "254",
 //     -        "ModTime": "0",
 //     +        "ModTime": "12",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "OwnerID": "04f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,6 +13,15 @@
@@ -89,61 +89,61 @@ func main() {
 //     +            "@type": "/gno.PointerValue",
 //     +            "Base": {
 //     +                "@type": "/gno.RefValue",
-//     +                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11"
+//     +                "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:11"
 //     +            },
 //     +            "Index": "0",
 //     +            "TV": null
 //              }
 //          }
 //      }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:11](5)=
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:11](5)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11",
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:11",
 //              "LastObjectSize": "340",
 //     -        "ModTime": "0",
 //     +        "ModTime": "12",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5",
+//              "OwnerID": "04f997a9ca158338c03cfc00686d77220a6cf62f:5",
 //              "RefCount": "1"
 //          },
 //     @@ -13,7 +13,7 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "2b6a1dd38af88a40a05ffd55e77e7ea3b4b3a156",
-//     +            "Hash": "6c3ebd5509617364a76aada1372a2c3f2afa0dc4",
-//                  "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:12"
+//     -            "Hash": "51c6fa6364690a448a418ec9a08004b1bb4c6769",
+//     +            "Hash": "496985af13c208547556c56c1148bcd7bda561ef",
+//                  "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:12"
 //              }
 //          }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:3](0)=
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:3](0)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:3",
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:3",
 //              "LastObjectSize": "344",
 //     -        "ModTime": "9",
 //     +        "ModTime": "12",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "OwnerID": "04f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,8 +13,8 @@
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "332e3d0f721fc783bbd5d5fec75baae6488cad5a",
-//     -            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:10"
-//     +            "Hash": "95a698670cebb93239a3707db3d217c4799691dd",
-//     +            "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:13"
+//     -            "Hash": "04e1534ca648348a54ba752206271062e0c1496a",
+//     -            "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:10"
+//     +            "Hash": "326d056615debb3591e04b2be40e3f29bcfb4701",
+//     +            "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:13"
 //              }
 //          }
 //      }
-// u[34f997a9ca158338c03cfc00686d77220a6cf62f:5](-130)=
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:5](-130)=
 //     @@ -2,7 +2,7 @@
 //          "ObjectInfo": {
-//              "ID": "34f997a9ca158338c03cfc00686d77220a6cf62f:5",
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:5",
 //              "LastObjectSize": "389",
 //     -        "ModTime": "9",
 //     +        "ModTime": "12",
-//              "OwnerID": "34f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "OwnerID": "04f997a9ca158338c03cfc00686d77220a6cf62f:2",
 //              "RefCount": "1"
 //          },
 //     @@ -13,16 +13,6 @@
@@ -155,12 +155,12 @@ func main() {
 //     -            "@type": "/gno.PointerValue",
 //     -            "Base": {
 //     -                "@type": "/gno.RefValue",
-//     -                "Hash": "ca7da93d48d5cf7282da3ef614d9a6718a9a9b4f",
-//     -                "ObjectID": "34f997a9ca158338c03cfc00686d77220a6cf62f:11"
+//     -                "Hash": "1e9529eaabb65e7bdcac367f5fe455f6ef66f98c",
+//     -                "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:11"
 //     -            },
 //     -            "Index": "0",
 //     -            "TV": null
 //              }
 //          }
 //      }
-// d[34f997a9ca158338c03cfc00686d77220a6cf62f:10](-240)
+// d[04f997a9ca158338c03cfc00686d77220a6cf62f:10](-240)

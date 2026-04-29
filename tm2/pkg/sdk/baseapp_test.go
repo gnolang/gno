@@ -344,7 +344,7 @@ func TestInitChainer(t *testing.T) {
 	key, value := []byte("hello"), []byte("goodbye")
 	var initChainer InitChainer = func(ctx Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		store := ctx.Store(mainKey)
-		store.Set(key, value)
+		store.Set(nil, key, value)
 		return abci.ResponseInitChain{}
 	}
 
@@ -447,13 +447,13 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 	t.Helper()
 
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-		store := ctx.GasStore(capKey)
+		store := ctx.Store(capKey)
 		if getFailOnAnte(tx) {
 			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 			return newCtx, res, true
 		}
 
-		res = incrementingCounter(t, store, storeKey, getCounter(tx))
+		res = incrementingCounter(t, store, ctx.GasContext(), storeKey, getCounter(tx))
 		newCtx = ctx
 		return
 	}
@@ -505,15 +505,15 @@ func (mch msgCounterHandler) Process(ctx Context, msg Msg) (res Result) {
 	default:
 		panic(fmt.Sprint("unexpected msg type", reflect.TypeOf(msg)))
 	}
-	return incrementingCounter(mch.t, store, mch.deliverKey, msgCount)
+	return incrementingCounter(mch.t, store, ctx.GasContext(), mch.deliverKey, msgCount)
 }
 
 func (mch msgCounterHandler) Query(ctx Context, req abci.RequestQuery) abci.ResponseQuery {
 	panic("should not happen")
 }
 
-func getIntFromStore(store store.Store, key []byte) int64 {
-	bz := store.Get(key)
+func getIntFromStore(stor store.Store, gctx *store.GasContext, key []byte) int64 {
+	bz := stor.Get(gctx, key)
 	if len(bz) == 0 {
 		return 0
 	}
@@ -524,20 +524,20 @@ func getIntFromStore(store store.Store, key []byte) int64 {
 	return i
 }
 
-func setIntOnStore(store store.Store, key []byte, i int64) {
+func setIntOnStore(stor store.Store, gctx *store.GasContext, key []byte, i int64) {
 	bz := make([]byte, 8)
 	n := binary.PutVarint(bz, i)
-	store.Set(key, bz[:n])
+	stor.Set(gctx, key, bz[:n])
 }
 
 // check counter matches what's in store.
 // increment and store
-func incrementingCounter(t *testing.T, store store.Store, counterKey []byte, counter int64) (res Result) {
+func incrementingCounter(t *testing.T, stor store.Store, gctx *store.GasContext, counterKey []byte, counter int64) (res Result) {
 	t.Helper()
 
-	storedCounter := getIntFromStore(store, counterKey)
+	storedCounter := getIntFromStore(stor, gctx, counterKey)
 	require.Equal(t, storedCounter, counter)
-	setIntOnStore(store, counterKey, counter+1)
+	setIntOnStore(stor, gctx, counterKey, counter+1)
 	return
 }
 
@@ -577,7 +577,7 @@ func TestCheckTx(t *testing.T) {
 	}
 
 	checkStateStore := app.checkState.ctx.Store(mainKey)
-	storedCounter := getIntFromStore(checkStateStore, counterKey)
+	storedCounter := getIntFromStore(checkStateStore, nil, counterKey)
 
 	// Ensure AnteHandler ran
 	require.Equal(t, nTxs, storedCounter)
@@ -589,8 +589,34 @@ func TestCheckTx(t *testing.T) {
 	app.Commit()
 
 	checkStateStore = app.checkState.ctx.Store(mainKey)
-	storedBytes := checkStateStore.Get(counterKey)
+	storedBytes := checkStateStore.Get(nil, counterKey)
 	require.Nil(t, storedBytes)
+}
+
+// TestCheckTxMalformedTypeURL verifies that CheckTx returns a decode error
+// (and does not panic) when given a transaction whose amino type_url contains
+// no slash — the bug that previously caused a consensus-halting panic.
+func TestCheckTxMalformedTypeURL(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Build a valid tx and corrupt its type_url to have no slash.
+	tx := newTxCounter(0, 0)
+	validBz, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	typeURL := amino.GetTypeURL(msgCounter{})
+	idx := bytes.Index(validBz, []byte(typeURL))
+	require.True(t, idx >= 0, "type_url not found in encoded tx")
+
+	mutated := make([]byte, len(validBz))
+	copy(mutated, validBz)
+	mutated[idx] = '}' // strip leading '/' so type_url has no slash
+
+	res := app.CheckTx(abci.RequestCheckTx{Tx: mutated})
+	require.False(t, res.IsOK(), "expected a decode error, got OK")
 }
 
 // Test that successive DeliverTx can see each others' effects
@@ -656,7 +682,7 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 	txBytes, err := amino.Marshal(tx)
 	require.Nil(t, err)
 
-	simulateRes := app.Simulate(txBytes, tx)
+	simulateRes := app.Simulate(txBytes)
 	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
 	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
 
@@ -698,11 +724,11 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	store := app.deliverState.ctx.Store(mainKey)
 
 	// tx counter only incremented once
-	txCounter := getIntFromStore(store, anteKey)
+	txCounter := getIntFromStore(store, nil, anteKey)
 	require.Equal(t, int64(1), txCounter)
 
 	// msg counter incremented three times
-	msgCounter := getIntFromStore(store, deliverKey)
+	msgCounter := getIntFromStore(store, nil, deliverKey)
 	require.Equal(t, int64(3), msgCounter)
 
 	// replace the second message with a msgCounter2
@@ -718,14 +744,14 @@ func TestMultiMsgDeliverTx(t *testing.T) {
 	store = app.deliverState.ctx.Store(mainKey)
 
 	// tx counter only incremented once
-	txCounter = getIntFromStore(store, anteKey)
+	txCounter = getIntFromStore(store, nil, anteKey)
 	require.Equal(t, int64(2), txCounter)
 
 	// original counter increments by one
 	// new counter increments by two
-	msgCounter = getIntFromStore(store, deliverKey)
+	msgCounter = getIntFromStore(store, nil, deliverKey)
 	require.Equal(t, int64(4), msgCounter)
-	msgCounter2 := getIntFromStore(store, deliverKey2)
+	msgCounter2 := getIntFromStore(store, nil, deliverKey2)
 	require.Equal(t, int64(2), msgCounter2)
 }
 
@@ -767,12 +793,12 @@ func TestSimulateTx(t *testing.T) {
 		require.Nil(t, err)
 
 		// simulate a message, check gas reported
-		result := app.Simulate(txBytes, tx)
+		result := app.Simulate(txBytes)
 		require.True(t, result.IsOK(), result.Log)
 		require.Equal(t, gasConsumed, result.GasUsed)
 
 		// simulate again, same result
-		result = app.Simulate(txBytes, tx)
+		result = app.Simulate(txBytes)
 		require.True(t, result.IsOK(), result.Log)
 		require.Equal(t, gasConsumed, result.GasUsed)
 
@@ -1070,7 +1096,7 @@ func TestBaseAppAnteHandler(t *testing.T) {
 
 	ctx := app.getState(RunTxModeDeliver).ctx
 	store := ctx.Store(mainKey)
-	require.Equal(t, int64(0), getIntFromStore(store, anteKey))
+	require.Equal(t, int64(0), getIntFromStore(store, nil, anteKey))
 
 	// execute at tx that will pass the ante handler (the checkTx state should
 	// mutate) but will fail the message handler
@@ -1085,8 +1111,8 @@ func TestBaseAppAnteHandler(t *testing.T) {
 
 	ctx = app.getState(RunTxModeDeliver).ctx
 	store = ctx.Store(mainKey)
-	require.Equal(t, int64(1), getIntFromStore(store, anteKey))
-	require.Equal(t, int64(0), getIntFromStore(store, deliverKey))
+	require.Equal(t, int64(1), getIntFromStore(store, nil, anteKey))
+	require.Equal(t, int64(0), getIntFromStore(store, nil, deliverKey))
 
 	// execute a successful ante handler and message execution where state is
 	// implicitly checked by previous tx executions
@@ -1100,8 +1126,8 @@ func TestBaseAppAnteHandler(t *testing.T) {
 
 	ctx = app.getState(RunTxModeDeliver).ctx
 	store = ctx.Store(mainKey)
-	require.Equal(t, int64(2), getIntFromStore(store, anteKey))
-	require.Equal(t, int64(1), getIntFromStore(store, deliverKey))
+	require.Equal(t, int64(2), getIntFromStore(store, nil, anteKey))
+	require.Equal(t, int64(1), getIntFromStore(store, nil, deliverKey))
 
 	// commit
 	app.EndBlock(abci.RequestEndBlock{})
@@ -1181,7 +1207,7 @@ func TestQuery(t *testing.T) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			newCtx = ctx
 			store := ctx.Store(mainKey)
-			store.Set(key, value)
+			store.Set(nil, key, value)
 			return
 		})
 	}
@@ -1189,7 +1215,7 @@ func TestQuery(t *testing.T) {
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
 			store := ctx.Store(mainKey)
-			store.Set(key, value)
+			store.Set(nil, key, value)
 			return Result{}
 		}))
 	}
@@ -1246,4 +1272,82 @@ func TestGetMaximumBlockGas(t *testing.T) {
 
 	app.setConsensusParams(&abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: -5000000}})
 	require.Panics(t, func() { app.getMaximumBlockGas() })
+}
+
+func TestHaltHeight(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		haltHeight  uint64
+		blockHeight int64
+		shouldPanic bool
+	}{
+		{
+			name:        "no halt configured",
+			haltHeight:  0,
+			blockHeight: 10,
+			shouldPanic: false,
+		},
+		{
+			name:        "block before halt height",
+			haltHeight:  5,
+			blockHeight: 4,
+			shouldPanic: false,
+		},
+		{
+			name:        "block at halt height processes normally",
+			haltHeight:  5,
+			blockHeight: 5,
+			shouldPanic: false,
+		},
+		{
+			name:        "block after halt height panics",
+			haltHeight:  5,
+			blockHeight: 6,
+			shouldPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := setupBaseApp(t)
+			app.SetHaltHeight(tt.haltHeight)
+
+			// Process blocks up to the target height.
+			for h := int64(1); h < tt.blockHeight; h++ {
+				header := &bft.Header{ChainID: "test-chain", Height: h}
+				app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				app.Commit()
+			}
+
+			// Process the target block.
+			header := &bft.Header{ChainID: "test-chain", Height: tt.blockHeight}
+			if tt.shouldPanic {
+				require.Panics(t, func() {
+					app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				})
+			} else {
+				require.NotPanics(t, func() {
+					app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				})
+				app.Commit()
+			}
+		})
+	}
+}
+
+func TestSetHaltHeight(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	require.Equal(t, uint64(0), app.haltHeight)
+
+	app.SetHaltHeight(100)
+	require.Equal(t, uint64(100), app.haltHeight)
+
+	app.SetHaltHeight(0)
+	require.Equal(t, uint64(0), app.haltHeight)
 }

@@ -16,6 +16,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -72,7 +73,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	tcw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, gasMeter),
+		Store:         tgs.BeginTransaction(tcw, tcw, nil, gasMeter),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
 		GasMeter:      gasMeter,
@@ -191,6 +192,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectiveStorage:
 			rlmDiff := realmDiffsString(m.Store.RealmStorageDiffs())
 			match(dir, rlmDiff)
+		case DirectiveTypes:
+			match(dir, packageTypesString(m, pkgPath))
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
 			match(dir, result.TypeCheckError)
@@ -211,6 +214,65 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	return "", m.GasMeter.GasConsumed(), returnErr
+}
+
+// packageTypesString returns a deterministic listing of every type
+// declaration in the given package's block, one entry per line group:
+//
+//	<DeclName>[<TypeID>]=
+//	    <indented amino JSON of the persisted form>
+//
+// The persisted form is produced via gno.PersistedTypeFormForTypeValue,
+// so DeclaredTypes appear as RefType{ID} (matching the on-the-wire shape
+// that copyValueWithRefs's TypeValue case emits), and aliases share the
+// referenced type's TypeID.
+//
+// Entries are emitted in declaration (block-index) order. Unlike "Realm:"
+// this is NOT a diff — every declared type is printed on every run.
+func packageTypesString(m *gno.Machine, pkgPath string) string {
+	pv := m.Store.GetPackage(pkgPath, false)
+	if pv == nil {
+		return ""
+	}
+	pb := pv.GetBlock(m.Store)
+	if pb == nil || pb.Source == nil {
+		return ""
+	}
+	names := pb.Source.GetBlockNames()
+	var sb strings.Builder
+	for i, tv := range pb.Values {
+		if tv.T == nil || tv.T.Kind() != gno.TypeKind {
+			continue
+		}
+		var name gno.Name
+		if i < len(names) {
+			name = names[i]
+		}
+		t := tv.GetType()
+		tid := t.TypeID()
+		persisted := gno.PersistedTypeFormForTypeValue(t)
+		bz := amino.MustMarshalJSON(persisted)
+		fmt.Fprintf(&sb, "%s[%s]=\n", name, tid)
+		pretty := prettyTypeJSON(bz)
+		indented := "    " + strings.ReplaceAll(string(pretty), "\n", "\n    ")
+		sb.WriteString(indented)
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+// prettyTypeJSON indents JSON for readability, matching the Realm
+// directive's style.
+func prettyTypeJSON(jstr []byte) []byte {
+	var c any
+	if err := json.Unmarshal(jstr, &c); err != nil {
+		return jstr
+	}
+	out, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		return jstr
+	}
+	return out
 }
 
 // returns a sorted string representation of realm diffs map
@@ -382,7 +444,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 			},
 		}
 		// Start transaction store.
-		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil)
+		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil, nil)
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
@@ -439,6 +501,7 @@ const (
 	DirectiveStacktrace     = "Stacktrace"
 	DirectiveGas            = "Gas"
 	DirectiveStorage        = "Storage"
+	DirectiveTypes          = "Types"
 	DirectiveTypeCheckError = "TypeCheckError"
 )
 
@@ -454,6 +517,7 @@ var allDirectives = []string{
 	DirectiveStacktrace,
 	DirectiveGas,
 	DirectiveStorage,
+	DirectiveTypes,
 	DirectiveTypeCheckError,
 }
 
