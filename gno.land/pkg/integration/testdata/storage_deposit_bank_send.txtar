@@ -3,13 +3,13 @@
 ## start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 420001ugnot -gas-wanted 4_200_000 -max-deposit 1500000ugnot -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/contracts -pkgpath gno.land/r/foo -gas-fee 420001ugnot -gas-wanted 8_800_000 -max-deposit 1500000ugnot -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 
 # Users are not allowed to withdraw deposits from the realm balance via the realm banker.
 ## Get realm gno.land/r/foo (g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469) balance
-gnokey maketx call -pkgpath gno.land/r/foo -func PkgAddress -gas-fee 200001ugnot -gas-wanted 2_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func PkgAddress -gas-fee 200001ugnot -gas-wanted 4_400_000 -broadcast -chainid=tendermint_test test1
 stdout 'g1evezrh92xaucffmtgsaa3rvmz5s8kedffsg469'
 stdout OK!
 
@@ -21,7 +21,7 @@ stdout 'data: null'
 
 
 ## Get realm gno.land/r/foo storage deposit address  balance (g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9) balance
-gnokey maketx call -pkgpath gno.land/r/foo -func StorageDepositAddress -gas-fee 200001ugnot -gas-wanted 2_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func StorageDepositAddress -gas-fee 200001ugnot -gas-wanted 4_400_000 -broadcast -chainid=tendermint_test test1
 stdout 'g1nln0nrcd20s6a2736n864ma8lac0zep8hw7th9'
 stdout OK!
 
@@ -62,7 +62,7 @@ stderr 'insufficient coins error'
 
 
 ## Origin banker send within user's allowed amount
-gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 240001ugnot -gas-wanted 2_400_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 240001ugnot -gas-wanted 5_200_000 -broadcast -chainid=tendermint_test test1
 stdout 'OK'
 
 ## Origin banker send more than user's allowed amount
