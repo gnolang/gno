@@ -337,6 +337,20 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	ctx.Logger().Debug("InitChainer: standard libraries loaded",
 		"elapsed", time.Since(start))
 
+	// Seed valset:current from genesis validators BEFORE loadAppState so
+	// that v3.init() (run during a genesis tx in loadAppState) can read
+	// it via sysparams.GetValsetEntries() to bootstrap its in-realm PoA
+	// from truth, not from empty.
+	//
+	// Note on sentinel scope: internalWriteCtxKey is set on the LOCAL
+	// ictx variable, NOT on app.deliverState.ctx. baseapp.Deliver pulls
+	// a fresh ctx via getContextForTx (tm2/pkg/sdk/baseapp.go:606-611),
+	// so this sentinel does NOT propagate into genesis-tx execution —
+	// a malicious genesis tx cannot manufacture a sentinel-bearing ctx
+	// and write valset:current directly.
+	ictx := ctx.WithValue(internalWriteCtxKey{}, true)
+	cfg.prmk.SetStrings(ictx, valsetCurrentPath, abci.EncodeValidatorUpdates(abci.ValidatorUpdates(req.Validators)))
+
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState)
@@ -528,78 +542,115 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
-		var prevEntries, proposedEntries []string
-		prmk.GetStrings(ctx, valsetPrevPath, &prevEntries)
-		prmk.GetStrings(ctx, valsetNewPath, &proposedEntries)
+		var currentEntries, proposedEntries []string
+		prmk.GetStrings(ctx, valsetCurrentPath, &currentEntries)
+		prmk.GetStrings(ctx, valsetProposedPath, &proposedEntries)
 
-		// Parse the previous set.
-		// On parse failure, we do NOT silently halt: clear the pending flag
-		// and advance prev to proposed (best-effort recovery), so that
-		// future proposals can land. The realm only validates valset_new at
-		// write time, so corruption of valset_prev (which the chain writes)
-		// would otherwise wedge consensus updates forever.
-		prevSet, err := abci.ParseValidatorUpdates(prevEntries)
-		if err != nil {
-			app.Logger().Error(
-				"valset_prev is corrupted; clearing pending flag and advancing prev to recover",
-				"err", err,
-			)
-			prmk.SetStrings(ctx, valsetPrevPath, proposedEntries)
-			prmk.SetBool(ctx, valsetDirtyPath, false)
-			return abci.ResponseEndBlock{}
-		}
-
-		// Parse the proposed set.
-		// Same recovery policy as prev: clear the flag so a future re-propose
-		// can land. (WillSetParam guards normal writes, but a direct param
-		// write could still seed bad data.)
+		// Parse proposed first; on parse failure, drop the proposal by
+		// clearing dirty without writing anything else. WillSetParam
+		// guards realm-side writes, but a direct chain-internal write
+		// could still seed bad data; either way the recovery is just
+		// "drop the bad proposal."
 		proposedSet, err := abci.ParseValidatorUpdates(proposedEntries)
 		if err != nil {
-			app.Logger().Error(
-				"valset_new is corrupted; clearing pending flag to allow re-propose",
-				"err", err,
-			)
+			app.Logger().Error("valset:proposed corrupted; dropping proposal", "err", err)
 			prmk.SetBool(ctx, valsetDirtyPath, false)
 			return abci.ResponseEndBlock{}
 		}
 
-		// Compute the diff between prev and proposed.
-		updates := prevSet.UpdatesFrom(proposedSet)
+		// Parse current; corruption here is chain-internal (only chain
+		// code writes valset:current via ctx-sentinel + WillSetParam
+		// validates on every write) so panic.
+		//
+		// Why not "recover by applying the proposal as adds-only when
+		// current is corrupt but proposed parses"? Because ABCI's
+		// ResponseEndBlock.ValidatorUpdates is a DELTA, not a snapshot.
+		// tm2 applies it on top of state.NextValidators (the prior set)
+		// and commits the result; there's no "replace whole set"
+		// primitive at the ABCI boundary. To produce a delta that
+		// yields consensus == proposed, we must know what's currently
+		// in consensus so we can emit removals for the validators that
+		// proposed drops. valset:current is the chain's record of that
+		// set. If it's unparseable we can't compute the right delta —
+		// we could only emit "add everything in proposed", which leaves
+		// the real (now-untracked) prior validators in consensus and
+		// produces permanent divergence between valset:current and the
+		// actual signing set (the v1 prev-vs-actual bug we redesigned
+		// to fix). Silent recovery would be a wrong proposal applied
+		// while pretending it was the right one.
+		//
+		// In practice this branch is unreachable in normal operation:
+		// store damage, partial commit, or a chain-code bug that wrote
+		// past WillSetParam are the only ways to get here. Panic is
+		// the right "this shouldn't happen, investigate" signal.
+		currentSet, err := abci.ParseValidatorUpdates(currentEntries)
+		if err != nil {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
+		}
 
-		app.Logger().Info(
-			"valset changes to be applied",
-			"count", len(updates),
-		)
-
-		// Advance prev to match proposed and clear the pending-updates flag.
-		prmk.SetStrings(ctx, valsetPrevPath, proposedEntries)
-		prmk.SetBool(ctx, valsetDirtyPath, false)
-
-		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
-
-		// Filter out updates that fail consensus-level validation.
-		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
-			// Power == 0 means removal; skip further validation for removals.
-			if u.Power == 0 {
-				return false
+		// Min-validator floor: refuse to empty consensus.
+		// proposed is the full target set, so the post-apply set has
+		// exactly the entries with Power > 0. v3's normal flow (vp.
+		// GetValidators) emits only live entries, so all-Power=0 is
+		// unreachable today — but checking the live count makes this
+		// the defense-in-depth backstop the comment claims.
+		liveCount := 0
+		for _, u := range proposedSet {
+			if u.Power > 0 {
+				liveCount++
 			}
+		}
+		if liveCount == 0 {
+			app.Logger().Error("valset proposal would empty consensus; rejecting",
+				"proposed_len", len(proposedSet),
+				"live_count", liveCount)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
+			return abci.ResponseEndBlock{}
+		}
 
-			// Make sure the public key is an allowed consensus key type.
+		// Compute diff. Whole-reject if any add/update has a disallowed
+		// pubkey type — atomic accept-or-reject avoids partial-application
+		// ambiguity (no filter losses, so valset:current = proposed exactly).
+		diff := currentSet.UpdatesFrom(proposedSet)
+		var allowedKeyTypes []string
+		if cp := ctx.ConsensusParams(); cp != nil && cp.Validator != nil {
+			allowedKeyTypes = cp.Validator.PubKeyTypeURLs
+		}
+		for _, u := range diff {
+			if u.Power == 0 {
+				continue // removals always allowed
+			}
+			if len(allowedKeyTypes) == 0 {
+				continue // no allow-list configured -> accept all
+			}
 			if !slices.Contains(allowedKeyTypes, amino.GetTypeURL(u.PubKey)) {
 				app.Logger().Error(
-					"valset update invalid; unsupported pubkey type",
+					"valset proposal contains disallowed pubkey type; rejecting whole proposal",
 					"address", u.Address.String(),
 					"pubkey_type", amino.GetTypeURL(u.PubKey),
 				)
-
-				return true // delete it
+				prmk.SetBool(ctx, valsetDirtyPath, false)
+				return abci.ResponseEndBlock{}
 			}
+		}
 
-			return false // keep it
-		})
+		app.Logger().Info("valset changes to be applied", "count", len(diff))
+
+		// Whole-apply: advance valset:current = proposed (no filter losses
+		// possible since the disallowed-pubkey scan above whole-rejects).
+		// At this point valset:current records V_{H+2} — the set that will
+		// be active at H+2 once the most recent EndBlock's updates apply
+		// (NOT the active-signing set at H+1, which tm2 has already
+		// locked in from the prior commit).
+		intCtx := ctx.WithValue(internalWriteCtxKey{}, true)
+		prmk.SetStrings(intCtx, valsetCurrentPath, abci.EncodeValidatorUpdates(proposedSet))
+		// dirty clear uses original (no-sentinel) ctx; valset:dirty is
+		// not sentinel-gated since it's bool-typed only and the realm
+		// side already enforces single-writer via assertValsetCaller.
+		prmk.SetBool(ctx, valsetDirtyPath, false)
 
 		return abci.ResponseEndBlock{
-			ValidatorUpdates: updates,
+			ValidatorUpdates: diff,
 		}
 	}
 }

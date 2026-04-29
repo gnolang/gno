@@ -8,18 +8,19 @@ loadpkg gno.land/r/gov/dao
 
 gnoland start
 
-# Sanity: v3.init() seeded valset:prev to the empty list.
-gnokey query params/node:valset:prev
-stdout 'data: \[\]\n'
+# Sanity: v3.init() bootstrapped its PoA from the chain-seeded
+# valset:current. The chain has at least one genesis validator (the
+# txtar harness's mock PV), so valset:current is non-empty.
+gnokey query params/node:valset:current
+stdout 'data:'
 
 # Exploit attempt: any user calls SetValsetProposal directly via MsgRun.
 # Must fail with the auth panic; tx should be rejected.
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/exploit.gno
 stderr 'unauthorized: only gno.land/r/sys/validators/v3 may write valset params'
 
-# Confirm the attacker's pubkey did NOT reach consensus state.
-gnokey query params/node:valset:prev
-stdout 'data: \[\]\n'
+# Confirm the attacker's pubkey did NOT reach valset:current.
+gnokey query params/node:valset:current
 ! stdout 'gpub1pgfj7ard'
 
 -- run/exploit.gno --

@@ -37,8 +37,8 @@ func TestValsetConstsDoNotDrift(t *testing.T) {
 		goPath  string // expected fully-qualified path
 	}{
 		{"valsetDirtyKey", valsetDirtyPath},
-		{"valsetNewKey", valsetNewPath},
-		{"valsetPrevKey", valsetPrevPath},
+		{"valsetProposedKey", valsetProposedPath},
+		{"valsetCurrentKey", valsetCurrentPath},
 	}
 	for _, tc := range cases {
 		got := prefix + mustGnoConst(t, data, tc.gnoName)

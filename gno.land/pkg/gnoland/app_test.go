@@ -563,10 +563,10 @@ func (m *endBlockerParamsMock) SetAny(sdk.Context, string, any)        {}
 // valsetState is a tiny in-memory shim mirroring the valset key space,
 // used by TestEndBlocker to drive endBlockerParamsMock.
 type valsetState struct {
-	prev, new   []string
-	dirty       bool
-	prevWrites  [][]string
-	dirtyWrites []bool
+	current, proposed []string
+	dirty             bool
+	currentWrites     [][]string
+	dirtyWrites       []bool
 }
 
 // serializeUpdates converts ValidatorUpdates to the wire format
@@ -585,10 +585,10 @@ func newValsetMock(st *valsetState) *endBlockerParamsMock {
 	return &endBlockerParamsMock{
 		getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
 			switch key {
-			case valsetPrevPath:
-				*ptr = st.prev
-			case valsetNewPath:
-				*ptr = st.new
+			case valsetCurrentPath:
+				*ptr = st.current
+			case valsetProposedPath:
+				*ptr = st.proposed
 			}
 		},
 		getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
@@ -603,9 +603,9 @@ func newValsetMock(st *valsetState) *endBlockerParamsMock {
 			}
 		},
 		setStringsFn: func(_ sdk.Context, key string, value []string) {
-			if key == valsetPrevPath {
-				st.prev = value
-				st.prevWrites = append(st.prevWrites, value)
+			if key == valsetCurrentPath {
+				st.current = value
+				st.currentWrites = append(st.currentWrites, value)
 			}
 		},
 	}
@@ -614,9 +614,15 @@ func newValsetMock(st *valsetState) *endBlockerParamsMock {
 func runEndBlocker(t *testing.T, mock *endBlockerParamsMock, pubKeyType string) abci.ResponseEndBlock {
 	t.Helper()
 	eb := EndBlocker(mock, nil, nil, &mockEndBlockerApp{})
-	return eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-		Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{pubKeyType}},
-	}), abci.RequestEndBlock{})
+	// Use context.Background() as the wrapped context so ctx.Value()
+	// (which the new EndBlocker calls for internalWriteCtxKey) and
+	// ctx.WithValue() don't nil-deref the underlying context.Context.
+	ctx := sdk.Context{}.
+		WithContext(context.Background()).
+		WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{pubKeyType}},
+		})
+	return eb(ctx, abci.RequestEndBlock{})
 }
 
 func TestEndBlocker(t *testing.T) {
@@ -630,48 +636,46 @@ func TestEndBlocker(t *testing.T) {
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 	})
 
-	t.Run("invalid valset_prev recovers", func(t *testing.T) {
+	t.Run("valset:current corrupted panics (chain-internal)", func(t *testing.T) {
 		t.Parallel()
 
-		// Recovery contract: a corrupted prev valset must not wedge consensus.
-		// EndBlocker logs loudly, advances prev to proposed, and clears the
-		// pending flag so subsequent proposals can land.
+		// Tier 1 semantic flip: corrupted current is no longer
+		// silently recovered. Only chain code writes valset:current
+		// (via ctx-sentinel), so corruption is by definition a
+		// chain-internal bug or store damage and warrants a panic.
 		st := &valsetState{
-			prev:  []string{"garbage:not-a-power"},
-			new:   []string{},
-			dirty: true,
+			current:  []string{"garbage:not-a-power"},
+			proposed: serializeUpdates(generateValidatorUpdates(t, 1)),
+			dirty:    true,
 		}
-		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
-
-		assert.Equal(t, abci.ResponseEndBlock{}, res)
-		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
-		require.NotEmpty(t, st.prevWrites, "prev must be advanced")
-		assert.Empty(t, st.prevWrites[len(st.prevWrites)-1], "prev advances to (empty) proposed")
+		assert.Panics(t, func() {
+			runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
+		})
 	})
 
-	t.Run("invalid valset_new recovers", func(t *testing.T) {
+	t.Run("invalid valset:proposed drops dirty (no current write)", func(t *testing.T) {
 		t.Parallel()
 
 		// Recovery for proposed parse failure: clear the flag so a future
-		// re-propose can land. Do NOT touch prev (it's still good).
+		// re-propose can land. Do NOT touch current.
 		st := &valsetState{
-			prev:  []string{},
-			new:   []string{"bogus:7"}, // pubkey is invalid bech32
-			dirty: true,
+			current:  serializeUpdates(generateValidatorUpdates(t, 1)),
+			proposed: []string{"bogus:7"}, // pubkey is invalid bech32
+			dirty:    true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
-		assert.Empty(t, st.prevWrites, "prev must NOT be touched when proposed is bad")
+		assert.Empty(t, st.currentWrites, "current must NOT be touched when proposed is bad")
 	})
 
 	t.Run("valid valset changes (additions only)", func(t *testing.T) {
 		t.Parallel()
 
 		updates := generateValidatorUpdates(t, 10)
-		newEntries := serializeUpdates(updates)
-		st := &valsetState{new: newEntries, dirty: true}
+		proposedEntries := serializeUpdates(updates)
+		st := &valsetState{proposed: proposedEntries, dirty: true}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
 		require.Len(t, res.ValidatorUpdates, len(updates))
@@ -689,41 +693,50 @@ func TestEndBlocker(t *testing.T) {
 		}
 
 		assert.False(t, st.dirty)
-		assert.Equal(t, newEntries, st.prev, "prev advances to proposed")
+		// current = EncodeValidatorUpdates(proposedSet) which sorts by
+		// pubkey-bytes; so the written value is sorted. Just check
+		// that it has the same set of entries.
+		require.Len(t, st.currentWrites, 1)
+		assert.ElementsMatch(t, proposedEntries, st.currentWrites[0],
+			"current must equal proposed (modulo canonical sort)")
 	})
 
-	t.Run("wrong pubkey type filtered out", func(t *testing.T) {
+	t.Run("wrong pubkey type whole-rejects proposal", func(t *testing.T) {
 		t.Parallel()
 
+		// Whole-reject: a proposal containing any disallowed pubkey
+		// type is refused atomically. current is untouched.
 		updates := generateValidatorUpdates(t, 1)
-		st := &valsetState{new: serializeUpdates(updates), dirty: true}
+		st := &valsetState{proposed: serializeUpdates(updates), dirty: true}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeyEd25519") // wrong type
 
-		assert.Empty(t, res.ValidatorUpdates, "wrong pubkey type must be filtered out")
+		assert.Empty(t, res.ValidatorUpdates, "whole-reject means no updates emitted")
+		assert.False(t, st.dirty, "dirty cleared")
+		assert.Empty(t, st.currentWrites, "current MUST NOT be advanced on whole-reject")
 	})
 
 	t.Run("diff applied: kept + power-change + new + removed", func(t *testing.T) {
 		t.Parallel()
 
-		// prev = [v1@10, v2@20, v3@30]
+		// current = [v1@10, v2@20, v3@30]
 		// proposed = [v1@10 (kept), v2@99 (power change), v4@40 (new)]
 		// expected updates: v2@99, v3@0 (removal), v4@40
-		prevUpdates := generateValidatorUpdates(t, 3)
+		currentUpdates := generateValidatorUpdates(t, 3)
 		newcomer := generateValidatorUpdates(t, 1)[0]
-		prevUpdates[0].Power = 10
-		prevUpdates[1].Power = 20
-		prevUpdates[2].Power = 30
+		currentUpdates[0].Power = 10
+		currentUpdates[1].Power = 20
+		currentUpdates[2].Power = 30
 		newcomer.Power = 40
 
-		v2Changed := prevUpdates[1]
+		v2Changed := currentUpdates[1]
 		v2Changed.Power = 99
-		proposed := []abci.ValidatorUpdate{prevUpdates[0], v2Changed, newcomer}
-		newEntries := serializeUpdates(proposed)
+		proposed := []abci.ValidatorUpdate{currentUpdates[0], v2Changed, newcomer}
+		proposedEntries := serializeUpdates(proposed)
 
 		st := &valsetState{
-			prev:  serializeUpdates(prevUpdates),
-			new:   newEntries,
-			dirty: true,
+			current:  serializeUpdates(currentUpdates),
+			proposed: proposedEntries,
+			dirty:    true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
@@ -733,31 +746,62 @@ func TestEndBlocker(t *testing.T) {
 		for _, u := range res.ValidatorUpdates {
 			byAddr[u.Address.String()] = u
 		}
-		assert.Equal(t, int64(99), byAddr[prevUpdates[1].Address.String()].Power, "v2 power must be 99")
-		assert.Equal(t, int64(0), byAddr[prevUpdates[2].Address.String()].Power, "v3 must be removed (Power=0)")
+		assert.Equal(t, int64(99), byAddr[currentUpdates[1].Address.String()].Power, "v2 power must be 99")
+		assert.Equal(t, int64(0), byAddr[currentUpdates[2].Address.String()].Power, "v3 must be removed (Power=0)")
 		assert.Equal(t, int64(40), byAddr[newcomer.Address.String()].Power, "v4 must be added")
-		_, kept := byAddr[prevUpdates[0].Address.String()]
+		_, kept := byAddr[currentUpdates[0].Address.String()]
 		assert.False(t, kept, "v1 (unchanged) must NOT appear in updates")
 
 		assert.False(t, st.dirty)
-		assert.Equal(t, newEntries, st.prev, "prev advances to proposed")
+		require.Len(t, st.currentWrites, 1)
+		assert.ElementsMatch(t, proposedEntries, st.currentWrites[0],
+			"current must equal proposed (modulo canonical sort)")
 	})
 
-	t.Run("wipe valset: prev=[v1,v2] proposed=[] -> 2 removals", func(t *testing.T) {
+	t.Run("min-floor: empty proposed rejected", func(t *testing.T) {
 		t.Parallel()
 
-		prev := generateValidatorUpdates(t, 2)
+		// Min-floor: proposed=[] is the "remove all" shape; refuse it
+		// to keep consensus from halting at H+2 with zero validators.
+		current := generateValidatorUpdates(t, 2)
 		st := &valsetState{
-			prev:  serializeUpdates(prev),
-			new:   []string{},
-			dirty: true,
+			current:  serializeUpdates(current),
+			proposed: []string{},
+			dirty:    true,
 		}
 		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
-		require.Len(t, res.ValidatorUpdates, 2, "wiping the set must surface 2 removals")
-		for _, u := range res.ValidatorUpdates {
-			assert.Equal(t, int64(0), u.Power)
+		assert.Empty(t, res.ValidatorUpdates, "min-floor means no updates emitted")
+		assert.False(t, st.dirty, "dirty cleared")
+		assert.Empty(t, st.currentWrites, "current MUST NOT be advanced on min-floor reject")
+	})
+
+	t.Run("min-floor: all-Power=0 proposed rejected", func(t *testing.T) {
+		t.Parallel()
+
+		// Defense-in-depth: a non-empty proposed where every entry has
+		// Power=0 is still a "remove all" — len > 0 but live count is
+		// zero. Floor must catch this regardless of outer-list length.
+		// (Unreachable through v3's normal flow — vp.GetValidators()
+		// emits only live entries — but the floor is the backstop.)
+		current := generateValidatorUpdates(t, 2)
+		// Build a proposed list that mirrors current's pubkeys but with
+		// Power=0. This is the "explicitly remove all" shape.
+		proposed := make([]abci.ValidatorUpdate, len(current))
+		copy(proposed, current)
+		for i := range proposed {
+			proposed[i].Power = 0
 		}
+		st := &valsetState{
+			current:  serializeUpdates(current),
+			proposed: serializeUpdates(proposed),
+			dirty:    true,
+		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
+
+		assert.Empty(t, res.ValidatorUpdates, "min-floor means no updates emitted")
+		assert.False(t, st.dirty, "dirty cleared")
+		assert.Empty(t, st.currentWrites, "current MUST NOT be advanced on all-Power=0 reject")
 	})
 }
 
@@ -1278,48 +1322,81 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 		})
 	})
 
-	t.Run("valset:new wrong type panics", func(t *testing.T) {
+	t.Run("valset:proposed wrong type panics", func(t *testing.T) {
 		t.Parallel()
 		assert.Panics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:new", 42)
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", 42)
 		})
 	})
 
-	t.Run("valset:new malformed entry panics", func(t *testing.T) {
+	t.Run("valset:proposed malformed entry panics", func(t *testing.T) {
 		t.Parallel()
 		assert.Panics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:new", []string{"no-colon"})
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{"no-colon"})
 		})
 	})
 
-	t.Run("valset:new bad pubkey panics", func(t *testing.T) {
+	t.Run("valset:proposed bad pubkey panics", func(t *testing.T) {
 		t.Parallel()
 		assert.Panics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:new", []string{"notapubkey:10"})
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{"notapubkey:10"})
 		})
 	})
 
-	t.Run("valset:new negative power panics", func(t *testing.T) {
+	t.Run("valset:proposed negative power panics", func(t *testing.T) {
 		t.Parallel()
 		assert.Panics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:new", []string{pub + ":-1"})
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{pub + ":-1"})
 		})
 	})
 
-	t.Run("valset:new valid passes", func(t *testing.T) {
+	t.Run("valset:proposed valid passes", func(t *testing.T) {
 		t.Parallel()
 		assert.NotPanics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:new", []string{good})
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good})
 		})
 	})
 
-	t.Run("valset:prev shares validation with new", func(t *testing.T) {
+	t.Run("valset:proposed boundary cap accepts len==max", func(t *testing.T) {
+		t.Parallel()
+		// Cap is inclusive (predicate is `> maxValsetEntries`).
+		entries := serializeUpdates(generateValidatorUpdates(t, maxValsetEntries))
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", entries)
+		})
+	})
+
+	t.Run("valset:proposed boundary cap rejects len==max+1", func(t *testing.T) {
+		t.Parallel()
+		entries := serializeUpdates(generateValidatorUpdates(t, maxValsetEntries+1))
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", entries)
+		})
+	})
+
+	t.Run("valset:current rejected without sentinel", func(t *testing.T) {
+		t.Parallel()
+		// The new ctx-sentinel test path: writes from non-internal ctx
+		// must be rejected even with valid entry format.
+		ctx := sdk.Context{}.WithContext(context.Background())
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "valset:current", []string{good})
+		})
+	})
+
+	t.Run("valset:current accepted with sentinel", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithContext(context.Background()).
+			WithValue(internalWriteCtxKey{}, true)
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(ctx, "valset:current", []string{good})
+		})
+	})
+
+	t.Run("unknown valset:* key panics", func(t *testing.T) {
 		t.Parallel()
 		assert.Panics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:prev", []string{"garbage"})
-		})
-		assert.NotPanics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:prev", []string{good})
+			npk.WillSetParam(sdk.Context{}, "valset:bogus", []string{good})
 		})
 	})
 }

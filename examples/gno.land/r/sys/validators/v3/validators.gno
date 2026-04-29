@@ -23,10 +23,24 @@ var vp validators.ValsetProtocol // underlying validator set protocol
 
 func init() {
 	vp = poa.NewPoA()
-	sysparams.InitValsetPrev(cross)
+	// Bootstrap the in-realm PoA from the chain's authoritative current
+	// valset (seeded by InitChainer from req.Validators at genesis).
+	// Without this, the first proposal would diff from empty and emit
+	// removals for every genesis validator — wiping consensus on the
+	// first v3-driven update.
+	//
+	// Genesis-time-only deploy: a misconfigured genesis validator (e.g.,
+	// unsupported pubkey type) makes vp.AddValidator panic, which fails
+	// init and refuses to deploy v3. That's the correct unrecoverable
+	// signal — the operator must fix genesis.json and retry.
+	for _, v := range sysparams.GetValsetEntries() {
+		if _, err := vp.AddValidator(v.Address, v.PubKey, v.VotingPower); err != nil {
+			panic("v3 PoA bootstrap failed: " + err.Error())
+		}
+	}
 }
 
-// NewProposalRequest wraps NewValsetChangeExecutor with a GovDAO proposal
+// NewProposalRequest wraps newValsetChangeExecutor with a GovDAO proposal
 // title/description (mirrors v2's NewPropRequest signature). The description
 // is augmented with a per-validator "## Validator Updates" section so the
 // proposal text on-chain matches v2's format.
@@ -61,18 +75,18 @@ func NewProposalRequest(changesFn func() []validators.Validator, title, descript
 		}
 	}
 
-	// Pass an eager closure so NewValsetChangeExecutor uses the same
+	// Pass an eager closure so newValsetChangeExecutor uses the same
 	// pre-computed `changes` slice and doesn't re-invoke changesFn.
-	return dao.NewProposalRequest(title, desc.String(), NewValsetChangeExecutor(func() []validators.Validator {
+	return dao.NewProposalRequest(title, desc.String(), newValsetChangeExecutor(func() []validators.Validator {
 		return changes
 	}))
 }
 
-// NewValsetChangeExecutor creates a GovDAO executor for proposing valset
+// newValsetChangeExecutor creates a GovDAO executor for proposing valset
 // changes. changesFn is evaluated eagerly; the resulting slice is captured
 // by the returned Executor. Lazy evaluation would close over the caller's
 // ephemeral realm and fail to persist via dao.MustCreateProposal.
-func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Executor {
+func newValsetChangeExecutor(changesFn func() []validators.Validator) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
