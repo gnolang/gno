@@ -260,7 +260,8 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 
 // IsQuorumReached checks if a participation quorum is reach.
 func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
-	if members.Size() <= 0 || quorum <= 0 {
+	memberCount := members.TotalSize()
+	if memberCount <= 0 || quorum <= 0 {
 		return false
 	}
 
@@ -273,7 +274,7 @@ func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMem
 		return false
 	})
 
-	percentage := float64(totalCount) / float64(members.Size())
+	percentage := float64(totalCount) / float64(memberCount)
 	return percentage >= quorum
 }
 

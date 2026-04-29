@@ -12,8 +12,12 @@ type (
 
 	// MemberStorage defines an interface for member storages.
 	MemberStorage interface {
-		// Size returns the number of members in the storage.
+		// Size returns the number of ungrouped members in the storage.
 		Size() int
+
+		// TotalSize returns the number of members in the storage.
+		// It counts grouped and ungrouped members.
+		TotalSize() int
 
 		// Has checks if a member exists in the storage.
 		Has(address) bool
@@ -57,12 +61,25 @@ type memberStorage struct {
 	grouping MemberGrouping
 }
 
-// Size returns the number of members in the storage.
-// The result is the number of members within the base underlying storage,
-// grouped members are not included, they must be counted separately.
-// To get the size of the storage including the grouped members use `CountStorageMembers()`.
+// Size returns the number of ungrouped members in the storage.
+// To get the size including ungrouped members use `MemberStorage.TotalSize()`.
 func (s memberStorage) Size() int {
 	return s.members.Size()
+}
+
+// TotalSize returns the number of members in the storage.
+// It counts grouped and ungrouped members.
+func (s memberStorage) TotalSize() int {
+	count := s.Size()
+	if s.grouping == nil {
+		return count
+	}
+
+	s.grouping.IterateByOffset(0, s.Grouping().Size(), func(g MemberGroup) bool {
+		count += g.Members().Size()
+		return false
+	})
+	return count
 }
 
 // Has checks if a member exists in the base underlying storage.
@@ -123,7 +140,8 @@ type ReadonlyMemberStorage struct {
 	storage MemberStorage
 }
 
-// Size returns the number of members in the storage.
+// Size returns the number of ungrouped members in the storage.
+// To get the size including ungrouped members use `ReadonlyMemberStorage.TotalSize()`.
 func (s ReadonlyMemberStorage) Size() int {
 	if s.storage == nil {
 		return 0
@@ -131,7 +149,17 @@ func (s ReadonlyMemberStorage) Size() int {
 	return s.storage.Size()
 }
 
-// Has checks if a member exists in the storage.
+// TotalSize returns the number of members in the storage.
+// It counts grouped and ungrouped members.
+func (s ReadonlyMemberStorage) TotalSize() int {
+	if s.storage == nil {
+		return 0
+	}
+	return s.storage.TotalSize()
+}
+
+// Has checks if a member exists in the base underlying storage.
+// Grouped members are not checked.
 func (s ReadonlyMemberStorage) Has(member address) bool {
 	if s.storage == nil {
 		return false
@@ -160,24 +188,4 @@ func (s ReadonlyMemberStorage) IterateByOffset(offset, count int, fn MemberIterF
 		return s.storage.IterateByOffset(offset, count, fn)
 	}
 	return false
-}
-
-// CountStorageMembers returns the total number of members in the storage.
-// It counts all members in each group and the ones without group.
-func CountStorageMembers(s *ReadonlyMemberStorage) int {
-	if s == nil {
-		return 0
-	}
-
-	count := s.Size()
-	grouping := s.Grouping()
-	if grouping == nil {
-		return count
-	}
-
-	grouping.IterateByOffset(0, s.Grouping().Size(), func(g *ReadonlyMemberGroup) bool {
-		count += g.Members().Size()
-		return false
-	})
-	return count
 }
