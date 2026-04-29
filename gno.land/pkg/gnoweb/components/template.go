@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"strings"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
@@ -34,6 +35,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		return vals.Has(key)
 	}
 	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
+	funcs["hasPrefix"] = strings.HasPrefix
 	// dict creates a map from key-value pairs for passing multiple values to templates
 	funcs["dict"] = func(kv ...any) (map[string]any, error) {
 		if len(kv)%2 != 0 {

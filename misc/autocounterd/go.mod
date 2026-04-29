@@ -7,11 +7,21 @@ toolchain go1.24.4
 require github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 
 require (
+	dario.cat/mergo v1.0.2 // indirect
+	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bmatsuo/lmdb-go v1.8.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
+	github.com/cockroachdb/errors v1.11.3 // indirect
+	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
+	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
+	github.com/cockroachdb/pebble v1.1.5 // indirect
+	github.com/cockroachdb/redact v1.1.5 // indirect
+	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/cosmos/gogoproto v1.7.0 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v1.0.0 // indirect
@@ -20,9 +30,12 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emicklei/dot v1.11.0 // indirect
+	github.com/erigontech/mdbx-go v0.40.0 // indirect
+	github.com/getsentry/sentry-go v0.35.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -30,11 +43,22 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20241129212102-9c50ad6b591e // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/prometheus/client_golang v1.23.0 // indirect
+	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/common v0.65.0 // indirect
+	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
@@ -43,6 +67,7 @@ require (
 	github.com/zondax/golem v0.27.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v1.0.1 // indirect
+	go.etcd.io/bbolt v1.4.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.41.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.37.0 // indirect
@@ -57,6 +82,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect

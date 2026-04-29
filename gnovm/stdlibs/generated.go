@@ -726,6 +726,44 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"chain/runtime",
+		"getSessionInfo",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1, r2, r3 := libs_chain_runtime.X_getSessionInfo(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+		},
+	},
+	{
 		"crypto/ed25519",
 		"verify",
 		[]gno.FieldTypeExpr{

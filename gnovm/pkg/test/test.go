@@ -232,7 +232,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
 	tcw := opts.BaseStore.CacheWrap()
-	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil)
+	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil, nil)
 
 	// Let opts.TestStore load itself.
 	// This needs to happen before LoadImports, as LoadImports will
@@ -305,7 +305,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, testFileName)
+			testFilePath := filepath.Join(fsDir, "filetests", testFileName)
 			// XXX consider this
 			testName := fsDir + "/" + testFileName
 			// testName := "file/" + testFileName
