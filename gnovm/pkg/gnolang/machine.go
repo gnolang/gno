@@ -1407,8 +1407,6 @@ const (
 	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
-	OpCPUSlopeEqlArray        = 141 // per element (fit: 141.2)
-	OpCPUSlopeEqlStruct       = 136 // per field (fit: 136.0)
 	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)
 	OpCPUSlopeInterfaceType   = 27  // per method (fit: 26.6)
 	OpCPUSlopeFuncType        = 22  // per param+result (fit: 22.3)
