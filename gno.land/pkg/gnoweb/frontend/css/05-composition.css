@@ -662,9 +662,10 @@
 	display: inline;
 }
 
-:is(.c-realm-view, .c-readme-view, .c-doc-view)
-	:is(h1, h2, h3, h4)
-	.heading-anchor:focus-visible {
+/* Hoisted out of the view scope so the built CSS produces one rule
+   instead of (3 views × 4 heading levels) duplicates. The class itself
+   is only emitted inside one of the three views, so global scope is safe. */
+.heading-anchor:focus-visible {
 	outline: var(--g-space-px) solid var(--s-color-border-brand);
 	outline-offset: var(--g-space-1);
 	border-radius: var(--g-border-radius-sm);
