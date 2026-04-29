@@ -101,7 +101,7 @@ func (g memberGrouping) Get(name string) (_ MemberGroup, found bool) {
 	if !found {
 		return nil, false
 	}
-	return g.maySealGroup(v.(MemberGroup)), true
+	return g.trySealGroup(v.(MemberGroup)), true
 }
 
 // Delete deletes a member group.
@@ -115,13 +115,18 @@ func (g *memberGrouping) Delete(name string) error {
 // IterateByOffset iterates all member groups.
 func (g memberGrouping) IterateByOffset(offset, count int, fn MemberGroupIterFn) bool {
 	return g.groups.IterateByOffset(offset, count, func(_ string, v any) bool {
-		return fn(g.maySealGroup(v.(MemberGroup)))
+		return fn(g.trySealGroup(v.(MemberGroup)))
 	})
 }
 
-func (g memberGrouping) maySealGroup(mg MemberGroup) MemberGroup {
+func (g memberGrouping) trySealGroup(mg MemberGroup) MemberGroup {
 	if g.sealed {
-		return mg.Seal().(MemberGroup)
+		// A factory can be used to create custom member groups, so make sure
+		// that Seal() is actually returning a MemberGroup implementation.
+		mg, _ = mg.Seal().(MemberGroup)
+		if mg == nil {
+			panic("expected custom member group to return a sealed copy")
+		}
 	}
 	return mg
 }
