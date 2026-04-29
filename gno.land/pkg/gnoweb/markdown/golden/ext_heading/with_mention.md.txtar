@@ -1,0 +1,7 @@
+-- input.md --
+## Hello @alice here
+
+### Send to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 today
+-- output.html --
+<h2 id="hello-alice-here"><a class="heading-anchor" href="#hello-alice-here">Hello </a><a href="/u/alice">@alice<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a><a class="heading-anchor" href="#hello-alice-here"> here</a></h2>
+<h3 id="send-to-g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5-today"><a class="heading-anchor" href="#send-to-g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5-today">Send to </a><a href="/u/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5">g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a><a class="heading-anchor" href="#send-to-g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5-today"> today</a></h3>

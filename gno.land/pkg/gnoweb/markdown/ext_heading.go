@@ -57,6 +57,9 @@ func (t *headingAnchorTransformer) Transform(doc *ast.Document, _ text.Reader, _
 // contiguous run of non-link nodes is moved under a fresh headingAnchorNode.
 // Inline link nodes act as run boundaries and stay where they are.
 // Pre-escapes the heading id once so the renderer doesn't re-escape per run.
+//
+// Idempotent: an existing headingAnchorNode child is treated as already-wrapped
+// and skipped (it is neither a run boundary nor wrapped again).
 func wrapHeadingChildren(h *ast.Heading) {
 	id, ok := h.AttributeString("id")
 	if !ok {
@@ -72,9 +75,13 @@ func wrapHeadingChildren(h *ast.Heading) {
 	c := h.FirstChild()
 	for c != nil {
 		next := c.NextSibling()
-		if isLinkLike(c) {
+		switch {
+		case c.Kind() == KindHeadingAnchor:
+			// Already wrapped (re-running the transformer is a no-op).
 			run = nil
-		} else {
+		case isLinkLike(c):
+			run = nil
+		default:
 			if run == nil {
 				run = &headingAnchorNode{href: href}
 				h.InsertBefore(h, c, run)
@@ -87,8 +94,11 @@ func wrapHeadingChildren(h *ast.Heading) {
 }
 
 // isLinkLike reports whether the node renders as an <a> tag — i.e. would
-// produce nested <a> if wrapped by the heading-anchor. Extend this list
-// when new link-producing inline kinds are added.
+// produce nested <a> if wrapped by the heading-anchor.
+//
+// MAINTAINERS: when adding a new inline extension that emits an <a> element
+// (footnote refs, card links, etc.), add its NodeKind here. Otherwise the
+// heading-anchor will silently wrap it and produce nested anchors.
 func isLinkLike(n ast.Node) bool {
 	switch n.Kind() {
 	case ast.KindLink, ast.KindAutoLink, KindGnoLink:
@@ -121,12 +131,15 @@ type headingExtension struct{}
 // with the package's other ExtXxx singletons (ExtLinks, ExtAlerts, …).
 var ExtHeading = &headingExtension{}
 
+// priorityHeadingAnchor must run after PriorityLinkTransformer so that
+// linkTransformer has already rewritten Link/AutoLink → GnoLink — isLinkLike
+// classifies children by their final kind. The +499 leaves a wide gap for
+// any other transformer that needs to slot in between the two.
+const priorityHeadingAnchor = PriorityLinkTransformer + 499
+
 func (e *headingExtension) Extend(m goldmark.Markdown) {
-	// Run last (priority 999) so we observe the final inline tree —
-	// in particular linkTransformer (priority 500) rewrites Link nodes
-	// to GnoLink before we classify children with isLinkLike.
 	m.Parser().AddOptions(parser.WithASTTransformers(
-		util.Prioritized(&headingAnchorTransformer{}, 999),
+		util.Prioritized(&headingAnchorTransformer{}, priorityHeadingAnchor),
 	))
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
 		util.Prioritized(&headingAnchorRenderer{}, 1),

@@ -29,6 +29,7 @@ No `aria-label` is set on the heading-anchor. Its accessible name falls back to 
 
 - Headings with auto-generated IDs are clickable: the whole heading text in the plain case, and every non-link span in the inline-link case. The inline link inside a heading retains its own destination on click.
 - A heading whose entire content is a single link (e.g. `## [foo](/x)`) gets no permalink anchor — the inline link wins the click. Users still reach the section via the address bar / ToC sidebar / Tab key on the heading id. This is judged acceptable given the rarity of the pattern.
+- An image embedded in a heading (e.g. `## ![alt](/img.png)`) is wrapped by the heading-anchor; clicking the image now sets `window.location.hash` instead of doing nothing. Mixed image-in-link headings (`## [![alt](/img)](/x)`) still let the inline link win.
 - The golden test suite gained `parser.WithAutoHeadingID()` in the test setup to match production; existing fixtures gained `id` attributes and the anchor markup.
-- The extension requires `parser.WithAutoHeadingID()` to emit anchors. Without it, headings render plain — the transformer is a no-op when no id is present.
+- The extension is a no-op when a heading has no `id` (e.g. `parser.WithAutoHeadingID()` is not enabled, or a raw HTML heading slips through). The heading renders plain.
 - No new external dependencies.

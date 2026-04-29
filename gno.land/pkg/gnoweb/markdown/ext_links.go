@@ -309,14 +309,19 @@ type linkExtension struct{}
 // ExtLinks instance for extending markdown with link functionality
 var ExtLinks = &linkExtension{}
 
+// PriorityLinkTransformer is the AST-transformer priority for linkTransformer.
+// Other transformers that depend on Link → GnoLink rewriting (e.g. ExtHeading)
+// must register with a strictly higher number so they observe the final kinds.
+const PriorityLinkTransformer = 500
+
 // Extend adds the LinkExtension to the provided Goldmark markdown processor
 func (l *linkExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithASTTransformers(
-		util.Prioritized(&linkTransformer{}, 500),
+		util.Prioritized(&linkTransformer{}, PriorityLinkTransformer),
 	))
 
 	// Register our renderer with a higher priority than the default renderer
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&linkRenderer{}, 500),
+		util.Prioritized(&linkRenderer{}, PriorityLinkTransformer),
 	))
 }
