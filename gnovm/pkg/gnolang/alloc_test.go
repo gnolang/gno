@@ -25,6 +25,86 @@ func TestAllocSizes(t *testing.T) {
 	println("ObjectInfo{}", unsafe.Sizeof(ObjectInfo{}))
 }
 
+// TestStringGCRecount verifies string byte counting behavior across GC cycles:
+//  1. Within one GC cycle, shared backings (s1 := s) are counted only once.
+//  2. Across GC cycles, the full string bytes are recounted each cycle.
+//  3. Dead strings (not visited) are cleaned up after GC.
+func TestStringGCRecount(t *testing.T) {
+	alloc := NewAllocator(1_000_000)
+
+	// Create a tracked string via NewString.
+	sv := alloc.NewString("hello world, this is a test string")
+	strLen := int64(len(sv))
+
+	// Verify it's tracked.
+	if _, exists := alloc.allocStrings[uintptr(unsafe.Pointer(unsafe.StringData(string(sv))))]; !exists {
+		t.Fatal("NewString did not track the backing pointer")
+	}
+
+	// --- GC cycle 1 ---
+	gcCycle1 := int64(1)
+	var vc1 int64
+	vis1 := GCVisitorFn(gcCycle1, alloc, &vc1)
+
+	alloc.Reset()
+
+	// First visit: should count full string bytes.
+	vis1(sv)
+	bytesAfterFirst := alloc.bytes
+	headerSize := int64(allocString)
+	expectedFull := headerSize + allocStringByte*strLen
+	if bytesAfterFirst != expectedFull {
+		t.Errorf("cycle 1, first visit: got %d bytes, want %d (header %d + %d bytes)",
+			bytesAfterFirst, expectedFull, headerSize, strLen)
+	}
+
+	// Second visit (simulating s1 := s, shared backing): header only.
+	vis1(sv)
+	bytesAfterSecond := alloc.bytes
+	wantAfterSecond := expectedFull + headerSize // +headerSize: second visit counts header only (dedup)
+	if bytesAfterSecond != wantAfterSecond {
+		t.Errorf("cycle 1, second visit: got %d bytes, want %d (previous %d + header %d)",
+			bytesAfterSecond, wantAfterSecond, expectedFull, headerSize)
+	}
+
+	// Cleanup: visited entry should survive.
+	alloc.CleanupTrackedStrings(gcCycle1)
+	if len(alloc.allocStrings) != 1 {
+		t.Errorf("after cycle 1 cleanup: want 1 tracked entry, got %d", len(alloc.allocStrings))
+	}
+
+	// --- GC cycle 2 ---
+	gcCycle2 := int64(2)
+	var vc2 int64
+	vis2 := GCVisitorFn(gcCycle2, alloc, &vc2)
+
+	alloc.Reset()
+
+	// First visit in cycle 2: should count full string bytes again.
+	vis2(sv)
+	bytesAfterCycle2 := alloc.bytes
+	if bytesAfterCycle2 != expectedFull {
+		t.Errorf("cycle 2, first visit: got %d bytes, want %d (header %d + %d bytes)",
+			bytesAfterCycle2, expectedFull, headerSize, strLen)
+	}
+
+	// Cleanup: entry should still survive (visited in cycle 2).
+	alloc.CleanupTrackedStrings(gcCycle2)
+	if len(alloc.allocStrings) != 1 {
+		t.Errorf("after cycle 2 cleanup: want 1 tracked entry, got %d", len(alloc.allocStrings))
+	}
+
+	// --- Dead string cleanup ---
+	// Simulate a GC cycle where the string is NOT visited.
+	gcCycle3 := int64(3)
+	alloc.CleanupTrackedStrings(gcCycle3)
+
+	// Entry should be removed (not visited in cycle 3).
+	if len(alloc.allocStrings) != 0 {
+		t.Errorf("after cycle 3 cleanup (not visited): want 0 tracked entries, got %d", len(alloc.allocStrings))
+	}
+}
+
 func TestBlockGetShallowSize_WithRefNodeSource(t *testing.T) {
 	t.Parallel()
 

@@ -18,7 +18,7 @@ type Allocator struct {
 	bytes        int64
 	collect      func() (left int64, ok bool) // gc callback
 	gasMeter     store.GasMeter
-	allocStrings map[uintptr]struct{} // backing pointers of fully-allocated strings
+	allocStrings map[uintptr]int64 // backing pointer -> last GCCycle counted (0 = never counted)
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -217,7 +217,7 @@ func NewAllocator(maxBytes int64) *Allocator {
 	}
 	return &Allocator{
 		maxBytes:     maxBytes,
-		allocStrings: make(map[uintptr]struct{}),
+		allocStrings: make(map[uintptr]int64),
 	}
 }
 
@@ -316,32 +316,48 @@ func (alloc *Allocator) TrackString(str string) {
 		return
 	}
 	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
-	alloc.allocStrings[p] = struct{}{}
+	alloc.allocStrings[p] = 0
 }
 
-// PopTrackedString checks if the string's backing pointer was
-// registered via TrackString and removes it. Returns true if
-// it was tracked. The pop ensures each backing array's bytes
-// are only counted once during GC recount.
-func (alloc *Allocator) PopTrackedString(str string) bool {
+// CountStringBytes checks if the string's backing pointer was
+// registered via TrackString and should have its bytes counted
+// in this GC cycle. Returns true if the string has NOT yet been
+// counted in gcCycle (first time this cycle). Uses a per-cycle
+// marker (instead of popping) so the string's bytes are correctly
+// recounted in subsequent GC cycles.
+// The cycle check also handles the dedup case: if multiple
+// StringValues share the same backing (e.g. s1 = s), only the
+// first visit counts the bytes.
+func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) bool {
 	if alloc == nil {
 		return false
 	}
 	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
-	_, exists := alloc.allocStrings[p]
-	if exists {
-		delete(alloc.allocStrings, p)
+	lastCycle, exists := alloc.allocStrings[p]
+	if !exists {
+		return false
 	}
-	return exists
+	if lastCycle == gcCycle {
+		// Already counted in this GC cycle (dedup for shared backing).
+		return false
+	}
+	alloc.allocStrings[p] = gcCycle // bump cycle.
+	return true
 }
 
-// ResetStringTracking clears all tracked strings.
-// Called after GC to clean up entries for dead strings.
-func (alloc *Allocator) ResetStringTracking() {
+// CleanupTrackedStrings removes tracked string entries that were
+// NOT visited in gcCycle (dead strings), preventing unbounded map
+// growth. Entries visited (cycle == gcCycle) are preserved so they
+// can be recounted in the next GC.
+func (alloc *Allocator) CleanupTrackedStrings(gcCycle int64) {
 	if alloc == nil {
 		return
 	}
-	clear(alloc.allocStrings)
+	for p, lastCycle := range alloc.allocStrings {
+		if lastCycle != gcCycle {
+			delete(alloc.allocStrings, p)
+		}
+	}
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
