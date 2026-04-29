@@ -525,7 +525,7 @@ func TestCollectVotes(t *testing.T) {
 			}
 
 			storage := tc.setup()
-			ctx := commondao.MustNewVotingContext(&r, storage)
+			ctx := commondao.MustNewVotingContext(&r, storage.Seal().(commondao.MemberStorage))
 
 			// Act
 			votes, err := commondao.CollectVotes(ctx, tc.groups...)

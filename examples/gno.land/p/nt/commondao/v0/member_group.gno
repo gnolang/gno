@@ -7,6 +7,8 @@ import (
 
 // MemberGroup defines an interface for a group of members.
 type MemberGroup interface {
+	Sealable
+
 	// Name returns the name of the group.
 	Name() string
 
@@ -54,6 +56,19 @@ type memberGroup struct {
 	name    string
 	members MemberStorage
 	meta    any
+	sealed  bool
+}
+
+// Seal returns a sealed copy of the group.
+// No further changes are accepted on the returned copy once sealed.
+func (g memberGroup) Seal() Sealable {
+	g.sealed = true
+	return &g
+}
+
+// IsSealed checks if grouping is sealed.
+func (g memberGroup) IsSealed() bool {
+	return g.sealed
 }
 
 // Name returns the name of the group.
@@ -67,57 +82,25 @@ func (g memberGroup) Members() MemberStorage {
 }
 
 // SetMeta sets any metadata relevant to the group.
+// It panics when group is sealed.
 func (g *memberGroup) SetMeta(meta any) {
+	assertNotSealed(g)
 	g.meta = meta
 }
 
 // GetMeta returns the group metadata.
+// It panics when group is sealed and metadata is not sealable.
+// Metadata must implement `Sealable` interface to be exposed when group is sealed.
 func (g memberGroup) GetMeta() any {
-	return g.meta
-}
-
-// NewReadonlyMemberGroup creates a new readonly member group.
-func NewReadonlyMemberGroup(g MemberGroup) (*ReadonlyMemberGroup, error) {
-	if g == nil {
-		return nil, errors.New("member group is required")
+	if !g.sealed {
+		return g.meta
 	}
-	return &ReadonlyMemberGroup{g}, nil
-}
 
-// MustNewReadonlyMemberGroup creates a new readonly member group or panics on error.
-func MustNewReadonlyMemberGroup(g MemberGroup) *ReadonlyMemberGroup {
-	group, err := NewReadonlyMemberGroup(g)
-	if err != nil {
-		panic(err)
+	s, ok := g.meta.(Sealable)
+	if !ok {
+		// Don't return metadata when group is sealed and metadata
+		// is not sealable to avoid exposing data unintentionally.
+		panic("failed to get metadata, group is sealed and metadata is not sealable")
 	}
-	return group
-}
-
-// ReadonlyMemberGroup defines a readonly member group.
-type ReadonlyMemberGroup struct {
-	group MemberGroup
-}
-
-// Name returns the name of the group.
-func (g ReadonlyMemberGroup) Name() string {
-	if g.group == nil {
-		return ""
-	}
-	return g.group.Name()
-}
-
-// Members returns the members that belong to the group.
-func (g ReadonlyMemberGroup) Members() *ReadonlyMemberStorage {
-	if g.group == nil {
-		return nil
-	}
-	return MustNewReadonlyMemberStorage(g.group.Members())
-}
-
-// GetMeta returns the group metadata.
-func (g ReadonlyMemberGroup) GetMeta() any {
-	if g.group == nil {
-		return nil
-	}
-	return g.group.GetMeta()
+	return s.Seal()
 }

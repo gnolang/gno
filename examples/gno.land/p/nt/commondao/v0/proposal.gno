@@ -266,7 +266,7 @@ func (p *Proposal) Tally(members MemberStorage) error {
 		return ErrStatusIsNotActive
 	}
 
-	ctx := MustNewVotingContext(p.VotingRecord(), members)
+	ctx := MustNewVotingContext(p.VotingRecord(), members.Seal().(MemberStorage))
 	passes, err := p.Definition().Tally(ctx)
 	if err != nil {
 		return err
@@ -281,7 +281,7 @@ func (p *Proposal) Tally(members MemberStorage) error {
 }
 
 // IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberStorage) bool {
 	if members.Size() <= 0 || quorum <= 0 {
 		return false
 	}
