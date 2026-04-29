@@ -181,7 +181,7 @@ func TestFindMostVotedChoice(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice := commondao.FindMostVotedChoice(record.Readonly())
+			choice := commondao.FindMostVotedChoice(record)
 
 			uassert.Equal(t, string(choice), string(tc.choice))
 		})
@@ -268,7 +268,7 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := commondao.SelectChoiceByAbsoluteMajority(record.Readonly(), tc.membersCount)
+			choice, success := commondao.SelectChoiceByAbsoluteMajority(record, tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -356,7 +356,7 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := commondao.SelectChoiceBySuperMajority(record.Readonly(), tc.membersCount)
+			choice, success := commondao.SelectChoiceBySuperMajority(record, tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -443,7 +443,7 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := commondao.SelectChoiceByPlurality(record.Readonly())
+			choice, success := commondao.SelectChoiceByPlurality(record)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")

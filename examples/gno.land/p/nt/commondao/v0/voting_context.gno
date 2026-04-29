@@ -6,7 +6,7 @@ import "errors"
 // record for the votes that has been submitted for a proposal and also
 // the list of DAO members. Context is readonly.
 type VotingContext struct {
-	VotingRecord ReadonlyVotingRecord
+	VotingRecord VotingRecord
 	Members      MemberStorage
 }
 
@@ -20,12 +20,22 @@ func NewVotingContext(r *VotingRecord, s MemberStorage) (VotingContext, error) {
 		return VotingContext{}, errors.New("member storage is required")
 	}
 
+	if !r.IsSealed() {
+		r, _ = r.Seal().(*VotingRecord)
+		if r == nil {
+			return VotingContext{}, errors.New("expected voting record to return a sealed copy")
+		}
+	}
+
 	if !s.IsSealed() {
-		return VotingContext{}, errors.New("member storage is not sealed")
+		s, _ = s.Seal().(MemberStorage)
+		if s == nil {
+			return VotingContext{}, errors.New("expected member storage to return a sealed copy")
+		}
 	}
 
 	return VotingContext{
-		VotingRecord: r.Readonly(),
+		VotingRecord: *r,
 		Members:      s,
 	}, nil
 }

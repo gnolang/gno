@@ -346,7 +346,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), members)
+			success := commondao.IsQuorumReached(tc.quorum, &record, members)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")

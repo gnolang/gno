@@ -281,7 +281,11 @@ func (p *Proposal) Tally(members MemberStorage) error {
 }
 
 // IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberStorage) bool {
+func IsQuorumReached(quorum float64, r *VotingRecord, members MemberStorage) bool {
+	if r == nil {
+		return false
+	}
+
 	if members.Size() <= 0 || quorum <= 0 {
 		return false
 	}

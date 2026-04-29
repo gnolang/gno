@@ -119,7 +119,7 @@ func (d Definition) Executor() commondao.ExecFunc {
 // Tally considers that proposals passes when more than half of members votes YES.
 func TallyByAbsoluteMajority(ctx commondao.VotingContext) (bool, error) {
 	// Check if a quorum of 51% has been met
-	if !commondao.IsQuorumReached(commondao.QuorumMoreThanHalf, ctx.VotingRecord, ctx.Members) {
+	if !commondao.IsQuorumReached(commondao.QuorumMoreThanHalf, &ctx.VotingRecord, ctx.Members) {
 		return false, commondao.ErrNoQuorum
 	}
 
