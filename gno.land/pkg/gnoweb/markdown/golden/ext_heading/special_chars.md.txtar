@@ -1,0 +1,7 @@
+-- input.md --
+## A & B <c>
+
+### Title with "quotes" and 'apostrophes'
+-- output.html --
+<h2 id="a--b-c"><a class="heading-anchor" href="#a--b-c">A &amp; B <!-- raw HTML omitted --></a></h2>
+<h3 id="title-with-quotes-and-apostrophes"><a class="heading-anchor" href="#title-with-quotes-and-apostrophes">Title with &quot;quotes&quot; and 'apostrophes'</a></h3>

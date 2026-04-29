@@ -652,10 +652,14 @@
 }
 
 /* ===== HEADING ANCHORS =====
-   Shared across c-realm-view, c-readme-view, and c-doc-view. */
+   Shared across c-realm-view, c-readme-view, and c-doc-view. The display
+   reset is required so trailing whitespace inside the wrapped run (e.g.
+   "Title with " before an inline link) is not collapsed by the
+   inline-block default that .c-realm-view a applies. */
 :is(.c-realm-view, .c-readme-view, .c-doc-view) .heading-anchor {
 	color: inherit;
 	text-decoration: none;
+	display: inline;
 }
 
 :is(.c-realm-view, .c-readme-view, .c-doc-view)

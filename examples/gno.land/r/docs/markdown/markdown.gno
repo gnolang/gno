@@ -36,6 +36,14 @@ Headings are created using hash symbols (#). The number of hash symbols indicate
 ##### Heading 5
 ###### Heading 6
 
+Headings with inline links are also supported. Clicking the inline link follows it; clicking anywhere else on the heading text copies the section link to the URL hash. The heading-anchor wraps each non-link run of text individually so nested ±<a>± tags never appear.
+
+±±±markdown
+## Heading with [inline link](https://example.com)
+±±±
+
+## Heading with [inline link](https://example.com)
+
 ### Text Formatting
 
 You can format text using the following syntax:

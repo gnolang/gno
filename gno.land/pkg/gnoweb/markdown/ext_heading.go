@@ -3,120 +3,121 @@ package markdown
 import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
 
-type anchorMode int
+// KindHeadingAnchor identifies the synthetic inline node that wraps a
+// contiguous run of non-link inline children inside a heading. The
+// transformer creates these so that the wrapped text is clickable to
+// update window.location.hash, without producing nested <a> when the
+// heading already contains an inline link.
+var KindHeadingAnchor = ast.NewNodeKind("HeadingAnchor")
 
-const (
-	anchorNone anchorMode = iota
-	anchorWrap
-	anchorSibling
-)
-
-type headingRenderer struct{}
-
-var _ renderer.NodeRenderer = (*headingRenderer)(nil)
-
-func (r *headingRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.KindHeading, r.renderHeading)
+type headingAnchorNode struct {
+	ast.BaseInline
+	id []byte
 }
 
-// renderHeading emits a heading with a clickable anchor link targeting its
-// auto-generated id. Two modes:
-//   - anchorWrap (no interactive descendants): wraps the heading text in
-//     <a class="heading-anchor" href="#id">, so clicking any of the text
-//     updates window.location.hash.
-//   - anchorSibling (heading contains a link/autolink): emits
-//     <a class="heading-anchor" href="#id"> with a visually-hidden label
-//     after the heading text. Wrapping would produce nested <a> (invalid
-//     HTML). The label keeps the sibling anchor accessible to screen
-//     readers when focused via keyboard.
-//
-// When the heading has no usable id, no anchor is emitted.
-func (r *headingRenderer) renderHeading(
-	w util.BufWriter, source []byte, node ast.Node, entering bool,
-) (ast.WalkStatus, error) {
-	n := node.(*ast.Heading)
-	id, mode := headingAnchor(n)
-	levelCh := "0123456"[n.Level]
+func (n *headingAnchorNode) Kind() ast.NodeKind { return KindHeadingAnchor }
 
-	if entering {
-		_, _ = w.WriteString("<h")
-		_ = w.WriteByte(levelCh)
-		if n.Attributes() != nil {
-			html.RenderAttributes(w, node, html.HeadingAttributeFilter)
+func (n *headingAnchorNode) Dump(source []byte, level int) {
+	ast.DumpHelper(n, source, level, map[string]string{"id": string(n.id)}, nil)
+}
+
+// headingAnchorTransformer wraps each contiguous run of non-link inline
+// children of a heading in a headingAnchorNode, so the wrapped text is
+// clickable while existing inline links keep their own destination. A
+// heading containing only link descendants gets no anchor wrap (nested
+// <a> would be invalid HTML, and the inline link already carries the
+// click target).
+type headingAnchorTransformer struct{}
+
+func (t *headingAnchorTransformer) Transform(doc *ast.Document, _ text.Reader, _ parser.Context) {
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
 		}
-		_ = w.WriteByte('>')
-		if mode == anchorWrap {
-			writeAnchorOpen(w, id)
+		h, ok := n.(*ast.Heading)
+		if !ok {
+			return ast.WalkContinue, nil
 		}
-		return ast.WalkContinue, nil
-	}
-
-	switch mode {
-	case anchorWrap:
-		_, _ = w.WriteString(`</a>`)
-	case anchorSibling:
-		writeAnchorOpen(w, id)
-		_, _ = w.WriteString(`<span class="u-sr-only">Permalink to this section</span></a>`)
-	}
-	_, _ = w.WriteString("</h")
-	_ = w.WriteByte(levelCh)
-	_, _ = w.WriteString(">\n")
-	return ast.WalkContinue, nil
+		wrapHeadingChildren(h)
+		return ast.WalkSkipChildren, nil
+	})
 }
 
-func writeAnchorOpen(w util.BufWriter, id []byte) {
-	_, _ = w.WriteString(`<a class="heading-anchor" href="#`)
-	_, _ = w.Write(util.EscapeHTML(id))
-	_, _ = w.WriteString(`">`)
-}
-
-// headingAnchor returns the heading's anchor id and which anchor mode to
-// use. Wrapping is skipped when the heading contains a link / autolink
-// descendant (nested <a> is invalid HTML).
-func headingAnchor(n *ast.Heading) ([]byte, anchorMode) {
-	id, ok := n.AttributeString("id")
+func wrapHeadingChildren(h *ast.Heading) {
+	id, ok := h.AttributeString("id")
 	if !ok {
-		return nil, anchorNone
+		return
 	}
 	idBytes, ok := id.([]byte)
 	if !ok || len(idBytes) == 0 {
-		return nil, anchorNone
+		return
 	}
-	if hasLinkDescendant(n) {
-		return idBytes, anchorSibling
+
+	var run *headingAnchorNode
+	c := h.FirstChild()
+	for c != nil {
+		next := c.NextSibling()
+		if isLinkLike(c) {
+			run = nil
+		} else {
+			if run == nil {
+				run = &headingAnchorNode{id: idBytes}
+				h.InsertBefore(h, c, run)
+			}
+			h.RemoveChild(h, c)
+			run.AppendChild(run, c)
+		}
+		c = next
 	}
-	return idBytes, anchorWrap
 }
 
-func hasLinkDescendant(root ast.Node) bool {
-	var found bool
-	_ = ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering || n == root {
-			return ast.WalkContinue, nil
-		}
-		switch n.Kind() {
-		case ast.KindLink, ast.KindAutoLink, KindGnoLink:
-			found = true
-			return ast.WalkStop, nil
-		}
+// isLinkLike reports whether the node renders as an <a> tag — i.e. would
+// produce nested <a> if wrapped by the heading-anchor. Extend this list
+// when new link-producing inline kinds are added.
+func isLinkLike(n ast.Node) bool {
+	switch n.Kind() {
+	case ast.KindLink, ast.KindAutoLink, KindGnoLink:
+		return true
+	}
+	return false
+}
+
+type headingAnchorRenderer struct{}
+
+func (r *headingAnchorRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindHeadingAnchor, r.render)
+}
+
+func (r *headingAnchorRenderer) render(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		_, _ = w.WriteString(`</a>`)
 		return ast.WalkContinue, nil
-	})
-	return found
+	}
+	n := node.(*headingAnchorNode)
+	_, _ = w.WriteString(`<a class="heading-anchor" href="#`)
+	_, _ = w.Write(util.EscapeHTML(n.id))
+	_, _ = w.WriteString(`">`)
+	return ast.WalkContinue, nil
 }
 
 type headingExtension struct{}
 
 var extHeading = &headingExtension{}
 
-// Extend registers the heading renderer at priority 1 so it overrides
-// goldmark's default HTML heading renderer (priority 10).
 func (e *headingExtension) Extend(m goldmark.Markdown) {
+	// Run last (priority 999) so we observe the final inline tree —
+	// in particular linkTransformer (priority 500) rewrites Link nodes
+	// to GnoLink before we classify children with isLinkLike.
+	m.Parser().AddOptions(parser.WithASTTransformers(
+		util.Prioritized(&headingAnchorTransformer{}, 999),
+	))
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&headingRenderer{}, 1),
+		util.Prioritized(&headingAnchorRenderer{}, 1),
 	))
 }
