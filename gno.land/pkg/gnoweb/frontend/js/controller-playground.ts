@@ -29,7 +29,9 @@ export class PlaygroundController extends BaseController {
 		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
 		if (!this.codeEl || !this.outputEl || !this.tabsEl) return;
 
-		this.codeEl.addEventListener("focus", () => this._scrollActiveTabIntoView());
+		this.codeEl.addEventListener("focus", () =>
+			this._scrollActiveTabIntoView(),
+		);
 
 		this._parseInitialCode();
 		this._setupKeyboardShortcuts();
