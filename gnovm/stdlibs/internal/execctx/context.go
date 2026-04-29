@@ -23,6 +23,12 @@ type ParamsInterface interface {
 	SetBytes(key string, val []byte)
 	SetStrings(key string, val []string)
 	UpdateStrings(key string, val []string, add bool)
+	GetString(key string, ptr *string)
+	GetBool(key string, ptr *bool)
+	GetInt64(key string, ptr *int64)
+	GetUint64(key string, ptr *uint64)
+	GetBytes(key string, ptr *[]byte)
+	GetStrings(key string, ptr *[]string)
 }
 
 type ExecContext struct {

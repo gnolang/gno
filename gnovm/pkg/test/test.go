@@ -115,6 +115,16 @@ func (tp *testParams) SetString(key string, val string)                 { /* noo
 func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
 func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
 
+// G1 Get* methods — no-op (filetests don't exercise read behavior;
+// pointer destinations are left at zero value, matching keeper.go's
+// getIfExists semantics for unset keys).
+func (tp *testParams) GetBool(key string, ptr *bool)        { /* noop */ }
+func (tp *testParams) GetBytes(key string, ptr *[]byte)     { /* noop */ }
+func (tp *testParams) GetInt64(key string, ptr *int64)      { /* noop */ }
+func (tp *testParams) GetUint64(key string, ptr *uint64)    { /* noop */ }
+func (tp *testParams) GetString(key string, ptr *string)    { /* noop */ }
+func (tp *testParams) GetStrings(key string, ptr *[]string) { /* noop */ }
+
 // ----------------------------------------
 // main test function
 
