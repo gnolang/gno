@@ -81,7 +81,7 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	ExtMention.Extend(m)
 
 	// Add heading anchor extension
-	extHeading.Extend(m)
+	ExtHeading.Extend(m)
 
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {

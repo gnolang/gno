@@ -18,13 +18,13 @@ var KindHeadingAnchor = ast.NewNodeKind("HeadingAnchor")
 
 type headingAnchorNode struct {
 	ast.BaseInline
-	id []byte
+	href []byte // pre-escaped, ready to emit between `href="#` and `"`.
 }
 
 func (n *headingAnchorNode) Kind() ast.NodeKind { return KindHeadingAnchor }
 
 func (n *headingAnchorNode) Dump(source []byte, level int) {
-	ast.DumpHelper(n, source, level, map[string]string{"id": string(n.id)}, nil)
+	ast.DumpHelper(n, source, level, map[string]string{"href": string(n.href)}, nil)
 }
 
 // headingAnchorTransformer wraps each contiguous run of non-link inline
@@ -40,15 +40,23 @@ func (t *headingAnchorTransformer) Transform(doc *ast.Document, _ text.Reader, _
 		if !entering {
 			return ast.WalkContinue, nil
 		}
-		h, ok := n.(*ast.Heading)
-		if !ok {
-			return ast.WalkContinue, nil
+		// Headings are block nodes — skip into inline subtrees, they
+		// can't contain headings and would be a wasted descent.
+		if n.Type() == ast.TypeInline {
+			return ast.WalkSkipChildren, nil
 		}
-		wrapHeadingChildren(h)
-		return ast.WalkSkipChildren, nil
+		if h, ok := n.(*ast.Heading); ok {
+			wrapHeadingChildren(h)
+			return ast.WalkSkipChildren, nil
+		}
+		return ast.WalkContinue, nil
 	})
 }
 
+// wrapHeadingChildren regroups the heading's inline children so that each
+// contiguous run of non-link nodes is moved under a fresh headingAnchorNode.
+// Inline link nodes act as run boundaries and stay where they are.
+// Pre-escapes the heading id once so the renderer doesn't re-escape per run.
 func wrapHeadingChildren(h *ast.Heading) {
 	id, ok := h.AttributeString("id")
 	if !ok {
@@ -58,6 +66,7 @@ func wrapHeadingChildren(h *ast.Heading) {
 	if !ok || len(idBytes) == 0 {
 		return
 	}
+	href := util.EscapeHTML(idBytes)
 
 	var run *headingAnchorNode
 	c := h.FirstChild()
@@ -67,7 +76,7 @@ func wrapHeadingChildren(h *ast.Heading) {
 			run = nil
 		} else {
 			if run == nil {
-				run = &headingAnchorNode{id: idBytes}
+				run = &headingAnchorNode{href: href}
 				h.InsertBefore(h, c, run)
 			}
 			h.RemoveChild(h, c)
@@ -101,14 +110,16 @@ func (r *headingAnchorRenderer) render(w util.BufWriter, _ []byte, node ast.Node
 	}
 	n := node.(*headingAnchorNode)
 	_, _ = w.WriteString(`<a class="heading-anchor" href="#`)
-	_, _ = w.Write(util.EscapeHTML(n.id))
+	_, _ = w.Write(n.href)
 	_, _ = w.WriteString(`">`)
 	return ast.WalkContinue, nil
 }
 
 type headingExtension struct{}
 
-var extHeading = &headingExtension{}
+// ExtHeading is the heading-anchor extension instance, kept consistent
+// with the package's other ExtXxx singletons (ExtLinks, ExtAlerts, …).
+var ExtHeading = &headingExtension{}
 
 func (e *headingExtension) Extend(m goldmark.Markdown) {
 	// Run last (priority 999) so we observe the final inline tree —
