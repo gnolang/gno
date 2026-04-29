@@ -83,6 +83,10 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
+	// Per-N CPU gas for BigInt equality.
+	if lv.T != nil && lv.T.Kind() == BigintKind {
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
+	}
 	// set result in lv.
 	res := isEql(m, lv, rv)
 	lv.T = UntypedBoolType
@@ -116,6 +120,8 @@ func (m *Machine) doOpLss() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
 	res := isLss(m, lv, rv)
@@ -468,12 +474,10 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 		return lb.Cmp(rb) == 0
 	case BigdecKind:
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
-		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 		return lb.Cmp(rb) == 0
 	case ArrayKind:
 		la := lv.V.(*ArrayValue)
@@ -604,12 +608,10 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 		return lb.Cmp(rb) < 0
 	case BigdecKind:
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
-		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 		return lb.Cmp(rb) < 0
 	default:
 		panic(fmt.Sprintf(
@@ -653,12 +655,10 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 		return lb.Cmp(rb) <= 0
 	case BigdecKind:
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
-		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 		return lb.Cmp(rb) <= 0
 	default:
 		panic(fmt.Sprintf(
@@ -702,12 +702,10 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 		return lb.Cmp(rb) > 0
 	case BigdecKind:
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
-		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 		return lb.Cmp(rb) > 0
 	default:
 		panic(fmt.Sprintf(
@@ -751,12 +749,10 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 		return lb.Cmp(rb) >= 0
 	case BigdecKind:
 		lb := lv.V.(BigdecValue).V
 		rb := rv.V.(BigdecValue).V
-		m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 		return lb.Cmp(rb) >= 0
 	default:
 		panic(fmt.Sprintf(
