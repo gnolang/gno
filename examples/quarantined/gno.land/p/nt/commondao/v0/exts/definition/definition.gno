@@ -124,7 +124,7 @@ func TallyByAbsoluteMajority(ctx commondao.VotingContext) (bool, error) {
 	}
 
 	// Tally votes by absolute majority, which requires 51% votes
-	c, success := commondao.SelectChoiceByAbsoluteMajority(ctx.VotingRecord, ctx.Members.Size())
+	c, success := commondao.SelectChoiceByAbsoluteMajority(ctx.VotingRecord, ctx.Members.TotalSize())
 	if success {
 		return c == commondao.ChoiceYes, nil
 	}

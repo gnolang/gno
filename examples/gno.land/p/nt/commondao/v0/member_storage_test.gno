@@ -134,7 +134,7 @@ func TestMemberStorageHas(t *testing.T) {
 	}
 }
 
-func TestCountStorageMembers(t *testing.T) {
+func TestMemberStorageTotalSize(t *testing.T) {
 	cases := []struct {
 		name  string
 		setup func() commondao.MemberStorage
@@ -184,10 +184,9 @@ func TestCountStorageMembers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			storage := tc.setup()
-			s := commondao.MustNewReadonlyMemberStorage(storage)
 
 			// Act
-			got := commondao.CountStorageMembers(s)
+			got := storage.TotalSize()
 
 			// Assert
 			uassert.Equal(t, tc.want, got)

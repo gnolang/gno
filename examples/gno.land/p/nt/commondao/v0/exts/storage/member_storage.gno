@@ -125,6 +125,12 @@ func (s memberStorage) Size() int {
 	return s.uniqueMembers.Size()
 }
 
+// TotalSize returns the number of unique members in the storage.
+// Members are only counted once, even if the same address is assigned to many groups.
+func (s memberStorage) TotalSize() int {
+	return s.uniqueMembers.Size()
+}
+
 // Has checks if a member exists in the storage.
 func (s memberStorage) Has(member address) bool {
 	return s.uniqueMembers.Has(member.String())
