@@ -14,6 +14,9 @@ export class PlaygroundController extends BaseController {
 	private declare codeEl: HTMLTextAreaElement;
 	private declare outputEl: HTMLElement;
 	private declare tabsEl: HTMLElement;
+	private declare tabsWrapEl: HTMLElement;
+	private declare prevBtnEl: HTMLButtonElement;
+	private declare nextBtnEl: HTMLButtonElement;
 
 	protected connect(): void {
 		this.files = [];
@@ -21,11 +24,68 @@ export class PlaygroundController extends BaseController {
 		this.codeEl = this.getTarget("code") as HTMLTextAreaElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
 		this.tabsEl = this.getTarget("tabs") as HTMLElement;
+		this.tabsWrapEl = this.getTarget("tabs-wrap") as HTMLElement;
+		this.prevBtnEl = this.getTarget("prev-button") as HTMLButtonElement;
+		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
 		if (!this.codeEl || !this.outputEl || !this.tabsEl) return;
+
+		this.codeEl.addEventListener("focus", () => this._scrollActiveTabIntoView());
 
 		this._parseInitialCode();
 		this._setupKeyboardShortcuts();
+		this._setupTabsScroll();
 		this.renderTabs();
+	}
+
+	private _setupTabsScroll(): void {
+		if (!this.tabsWrapEl || !this.prevBtnEl || !this.nextBtnEl) return;
+
+		this.tabsEl.addEventListener("scroll", () => this._updateNavButtons(), {
+			passive: true,
+		});
+
+		const observer = new ResizeObserver(() => this._updateNavButtons());
+		observer.observe(this.tabsWrapEl);
+		observer.observe(this.tabsEl);
+	}
+
+	private _updateNavButtons(): void {
+		if (!this.tabsWrapEl || !this.prevBtnEl || !this.nextBtnEl) return;
+
+		const overflows = this.tabsEl.scrollWidth > this.tabsWrapEl.clientWidth + 1;
+		this.prevBtnEl.hidden = !overflows;
+		this.nextBtnEl.hidden = !overflows;
+		if (!overflows) return;
+
+		const { scrollLeft, scrollWidth, clientWidth } = this.tabsEl;
+		this.prevBtnEl.disabled = scrollLeft <= 0;
+		this.nextBtnEl.disabled = scrollLeft + clientWidth >= scrollWidth - 1;
+	}
+
+	private _scrollByPage(direction: 1 | -1): void {
+		// Calculate the scroll distance, keeping 70% of the tab bar visible,
+		// keeping ~30% overlap, so user keeps visual context across clicks.
+		// The 80px floor guarantees a meaningful jump when the tab bar is
+		// very narrow, where 70% could be tiny.
+		const amount = Math.max(this.tabsEl.clientWidth * 0.7, 80);
+		this.tabsEl.scrollBy({ left: direction * amount, behavior: "smooth" });
+	}
+
+	private _scrollActiveTabIntoView(): void {
+		const active = this.tabsEl.querySelector(
+			".b-playground-tab--active",
+		) as HTMLElement | null;
+		if (!active) return;
+
+		active.scrollIntoView({ inline: "nearest", block: "nearest" });
+	}
+
+	public scrollTabsPrev(): void {
+		this._scrollByPage(-1);
+	}
+
+	public scrollTabsNext(): void {
+		this._scrollByPage(1);
 	}
 
 	private _parseInitialCode(): void {
@@ -95,12 +155,8 @@ export class PlaygroundController extends BaseController {
 			this.tabsEl.appendChild(btn);
 		});
 
-		const addBtn = document.createElement("button");
-		addBtn.className = "b-playground-tab-add";
-		addBtn.textContent = "+";
-		addBtn.title = "Add file";
-		addBtn.addEventListener("click", () => this.addFile());
-		this.tabsEl.appendChild(addBtn);
+		this._updateNavButtons();
+		this._scrollActiveTabIntoView();
 	}
 
 	public switchTab(event: Event & { params?: Record<string, unknown> }): void {
