@@ -535,7 +535,7 @@
 	/* ===== FOOTNOTES ===== */
 
 	:is(h1, h2, h3, h4, sup, .footnote-backref) {
-		scroll-margin-top: var(--g-space-16);
+		scroll-margin-top: var(--cr-space-24);
 	}
 
 	.b-btn {
