@@ -777,6 +777,15 @@ func (st *StructType) GetPkgPath() string {
 	return st.PkgPath
 }
 
+// hasInaccessibleUnexportedFields reports whether this struct, viewed from
+// callerPkgPath, has unexported fields the caller cannot set via a positional
+// (unkeyed) composite literal. The cheap PkgPath comparison short-circuits
+// before iterating fields.
+func (st *StructType) hasInaccessibleUnexportedFields(callerPkgPath string) bool {
+	return st.PkgPath != callerPkgPath &&
+		FieldTypeList(st.Fields).HasUnexported()
+}
+
 func (st *StructType) IsNamed() bool {
 	return false
 }
@@ -1095,9 +1104,8 @@ func countTypeMethodsForGas(t Type) int64 {
 	return 1
 }
 
-// interfaceVerifyGasCost returns the gas to charge for a VerifyImplementedBy
-// call, computed as costPerMethod * interfaceMethods * concreteMethods with
-// overflow protection.
+// calcMethodCheckGasCost returns gas for a VerifyImplementedBy call:
+// costPerMethod * interfaceMethods * concreteMethods, with overflow protection.
 func calcMethodCheckGasCost(costPerMethod int64, it *InterfaceType, concreteType Type) int64 {
 	n := int64(it.TotalMethodCount())
 	m := countTypeMethodsForGas(concreteType)

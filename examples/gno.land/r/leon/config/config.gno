@@ -18,8 +18,8 @@ var (
 	absPath = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
 
 	// SafeObjects
-	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
-	OwnableBackup = ownable.NewWithAddress("g1lavlav7zwsjqlzzl3qdl3nl242qtf638vnhdjh")
+	OwnableMain   = ownable.NewWithAddressByPrevious("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
+	OwnableBackup = ownable.NewWithAddressByPrevious("g1lavlav7zwsjqlzzl3qdl3nl242qtf638vnhdjh")
 
 	ErrUnauthorized = errors.New("leon's config: unauthorized")
 )

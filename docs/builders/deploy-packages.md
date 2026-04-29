@@ -66,7 +66,6 @@ We need to tell `gnokey` a couple of things:
 - `pkgdir` in which the package is found locally,
 - `gas-fee` and `gas-wanted` values,
 - the `remote` (RPC endpoint) and `chainid` of the Staging network[^2],
-- that we want to broadcast the transaction, and
 - the key or the address we want to use to deploy the package.
 
 The full command would look something like the following:
@@ -76,9 +75,8 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 MyKey
 ```
 
@@ -107,14 +105,14 @@ TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 
 ## Understanding Deployment Parameters
 
-- `--pkgpath` - The on-chain path where your code will be stored
-- `--pkgdir` - The local directory containing your code
-- `--send` - Amount of GNOT to send to the realm with the transaction (optional)
-- `--max-deposit` - Maximum GNOT to lock for on-chain storage (optional)
-- `--gas-fee` - The fee per unit of gas (typically 1 GNOT)
-- `--gas-wanted` - Maximum gas units for the transaction
-- `--remote` - The RPC endpoint for the network
-- `--chainid` - The ID of the blockchain network
+- `-pkgpath` - The on-chain path where your code will be stored
+- `-pkgdir` - The local directory containing your code
+- `-send` - Amount of GNOT to send to the realm with the transaction (optional)
+- `-max-deposit` - Maximum GNOT to lock for on-chain storage (optional)
+- `-gas-fee` - The fee per unit of gas (typically 1 GNOT)
+- `-gas-wanted` - Maximum gas units for the transaction
+- `-remote` - The RPC endpoint for the network
+- `-chainid` - The ID of the blockchain network
 
 For more details on gas fees and optimization strategies, see the [Gas Fees
 documentation](../resources/gas-fees.md).
@@ -130,7 +128,7 @@ to tolerate. Learn about [storage deposits](../resources/storage-deposit.md).
 
 Congratulations! If everything went as expected, you've successfully deployed a
 realm to the Staging network. To see it on `gnoweb` for the Staging chain,
-append `r/<your_address>/counter` to https://gno.land in your browser.
+append `r/<your_address>/counter` to https://staging.gno.land in your browser.
 
 :::info
 

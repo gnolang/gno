@@ -37,6 +37,7 @@ type ExecContext struct {
 	Banker          BankerInterface
 	Params          ParamsInterface
 	EventLogger     *sdk.EventLogger
+	SessionAccount  std.DelegatedAccount // nil for master-key txs
 }
 
 // GetContext returns the execution context.
@@ -46,7 +47,14 @@ func (e ExecContext) GetExecContext() ExecContext {
 	return e
 }
 
+// GetOriginSend returns the OriginSend coins.
+// This implements gno.OriginSendProvider to avoid import cycles.
+func (e ExecContext) GetOriginSend() std.Coins {
+	return e.OriginSend
+}
+
 var _ ExecContexter = ExecContext{}
+var _ gno.OriginSendProvider = ExecContext{}
 
 // ExecContexter is a type capable of returning the parent [ExecContext]. When
 // using these standard libraries, m.Context should always implement this

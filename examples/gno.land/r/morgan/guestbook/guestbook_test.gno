@@ -93,7 +93,7 @@ func TestAdminDelete(t *testing.T) {
 
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
-	owner = ownable.NewWithAddress(adminAddr)
+	owner = ownable.NewWithAddressByPrevious(adminAddr)
 	signatureID = 0
 
 	testing.SetRealm(testing.NewUserRealm(userAddr))

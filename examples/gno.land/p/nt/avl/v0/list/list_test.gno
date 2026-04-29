@@ -173,6 +173,31 @@ func TestList_Clone(t *testing.T) {
 	if clone.Get(0) == l.Get(0) {
 		t.Error("clone should be independent of original")
 	}
+
+	// Test that appending to both after clone works independently.
+	var l2 List
+	l2.Append("a", "b", "c")
+	clone2 := l2.Clone()
+
+	l2.Append("d", "e")
+	clone2.Append("x", "y")
+
+	if l2.Len() != 5 {
+		t.Errorf("original after append: Len() = %d; want 5", l2.Len())
+	}
+	if clone2.Len() != 5 {
+		t.Errorf("clone after append: Len() = %d; want 5", clone2.Len())
+	}
+	origExpected := []any{"a", "b", "c", "d", "e"}
+	cloneExpected := []any{"a", "b", "c", "x", "y"}
+	for i := 0; i < 5; i++ {
+		if l2.Get(i) != origExpected[i] {
+			t.Errorf("original.Get(%d) = %v; want %v", i, l2.Get(i), origExpected[i])
+		}
+		if clone2.Get(i) != cloneExpected[i] {
+			t.Errorf("clone.Get(%d) = %v; want %v", i, clone2.Get(i), cloneExpected[i])
+		}
+	}
 }
 
 func TestList_DeleteRange(t *testing.T) {

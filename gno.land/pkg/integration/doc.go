@@ -87,6 +87,13 @@
 //     file. The content will be quoted with txtar.Quote if needed, requiring
 //     manual edits if it's not unquoted in the script.
 //
+// To update gas-wanted values in txtar tests after gas model changes, run:
+//
+//	./gno.land/pkg/integration/update_gas_wanted.sh
+//
+// This captures actual gas usage and sets gas-wanted to 110% of actual,
+// rounded to 2 significant digits with _ separators.
+//
 // Output (available inside testscripts files):
 //
 //   - WORK:
