@@ -1,6 +1,9 @@
 package params
 
-import prms "sys/params"
+import (
+	"chain/runtime"
+	prms "sys/params"
+)
 
 // Param keys read by gno.land/pkg/gnoland (EndBlocker).
 // Keep in sync with gno.land/pkg/gnoland/node_params.go.
@@ -19,19 +22,32 @@ const (
 	//   prev = previously applied valset (what consensus is running)
 	valsetNewKey  = "new"
 	valsetPrevKey = "prev"
+
+	// Only this realm may write valset:* params. The chain reads
+	// valset:new + valset:dirty in the EndBlocker, so any other writer
+	// could take over consensus.
+	valsetAuthorizedRealm = "gno.land/r/sys/validators/v3"
 )
 
 // SetValsetProposal publishes the realm's desired valset. Each entry is
 // "<bech32-pubkey>:<decimal-power>"; power=0 removes the validator. The
 // chain reads this on the next EndBlocker, diffs it against the prev
 // set, and propagates the changes to consensus.
-func SetValsetProposal(entries []string) {
+func SetValsetProposal(cur realm, entries []string) {
+	assertValsetCaller()
 	prms.SetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetNewKey, entries)
 	prms.SetSysParamBool(nodeModulePrefix, valsetSubmodule, valsetDirtyKey, true)
 }
 
 // InitValsetPrev seeds an empty prev valset. Called once at realm init
 // so that EndBlocker reads a valid (empty) list before any update.
-func InitValsetPrev() {
+func InitValsetPrev(cur realm) {
+	assertValsetCaller()
 	prms.SetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetPrevKey, []string{})
+}
+
+func assertValsetCaller() {
+	if runtime.PreviousRealm().PkgPath() != valsetAuthorizedRealm {
+		panic("unauthorized: only " + valsetAuthorizedRealm + " may write valset params")
+	}
 }

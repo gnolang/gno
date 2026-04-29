@@ -23,7 +23,7 @@ var vp validators.ValsetProtocol // underlying validator set protocol
 
 func init() {
 	vp = poa.NewPoA()
-	sysparams.InitValsetPrev()
+	sysparams.InitValsetPrev(cross)
 }
 
 // NewProposalRequest wraps NewValsetChangeExecutor with a GovDAO proposal
@@ -103,7 +103,7 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		for i, v := range set {
 			entries[i] = v.PubKey + ":" + strconv.FormatUint(v.VotingPower, 10)
 		}
-		sysparams.SetValsetProposal(entries)
+		sysparams.SetValsetProposal(cross, entries)
 		return nil
 	}
 
