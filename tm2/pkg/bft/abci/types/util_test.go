@@ -1,6 +1,9 @@
 package abci
 
 import (
+	"bytes"
+	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -115,6 +118,12 @@ func TestParseValidatorUpdate(t *testing.T) {
 		{name: "non-numeric power", entry: pub + ":abc", wantErr: "invalid voting power"},
 		// math.MaxInt64 + 1; would overflow int64 if not capped.
 		{name: "power overflowing int64", entry: pub + ":9223372036854775808", wantErr: "invalid voting power"},
+		// C2 regression: bech32 payloads that amino-decode to no concrete
+		// PubKey (empty/zero-byte payload) made PubKeyFromBech32 return
+		// (nil, nil), which then nil-deref'd at pk.Address(). Must error,
+		// not panic — a panic inside EndBlocker would halt the chain.
+		{name: "C2 nil pubkey lowercase", entry: "gpub1mdgqmw:5", wantErr: "nil pubkey"},
+		{name: "C2 nil pubkey uppercase", entry: "GPUB1MDGQMW:5", wantErr: "nil pubkey"},
 	}
 
 	for _, tc := range tests {
@@ -160,4 +169,122 @@ func TestParseValidatorUpdates(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "entry 1:", "error must surface offending entry index")
 	})
+}
+
+func TestEncodeValidatorUpdates(t *testing.T) {
+	t.Parallel()
+
+	pk1 := ed25519.GenPrivKey().PubKey()
+	pk2 := ed25519.GenPrivKey().PubKey()
+	pk3 := ed25519.GenPrivKey().PubKey()
+
+	t.Run("empty input -> empty output", func(t *testing.T) {
+		t.Parallel()
+		got := EncodeValidatorUpdates(ValidatorUpdates{})
+		require.NotNil(t, got)
+		require.Empty(t, got)
+	})
+
+	t.Run("round-trip via ParseValidatorUpdates", func(t *testing.T) {
+		t.Parallel()
+		input := ValidatorUpdates{
+			{Address: pk1.Address(), PubKey: pk1, Power: 5},
+			{Address: pk2.Address(), PubKey: pk2, Power: 10},
+			{Address: pk3.Address(), PubKey: pk3, Power: 3},
+		}
+		entries := EncodeValidatorUpdates(input)
+		parsed, err := ParseValidatorUpdates(entries)
+		require.NoError(t, err)
+		require.Equal(t, len(input), len(parsed))
+		// Equality modulo the in-place sort EncodeValidatorUpdates did.
+		for i := range parsed {
+			assert.Equal(t, input[i].PubKey.Address(), parsed[i].Address)
+			assert.Equal(t, input[i].Power, parsed[i].Power)
+		}
+	})
+
+	t.Run("output reflects pubkey-bytes Less ordering", func(t *testing.T) {
+		t.Parallel()
+		input := ValidatorUpdates{
+			{Address: pk1.Address(), PubKey: pk1, Power: 1},
+			{Address: pk2.Address(), PubKey: pk2, Power: 2},
+			{Address: pk3.Address(), PubKey: pk3, Power: 3},
+		}
+		// Compute expected by sorting first, then encoding.
+		sortedExpect := append(ValidatorUpdates(nil), input...)
+		sort.Sort(sortedExpect)
+		expectStrs := make([]string, len(sortedExpect))
+		for i, u := range sortedExpect {
+			expectStrs[i] = crypto.PubKeyToBech32(u.PubKey) + ":" + strconv.FormatInt(u.Power, 10)
+		}
+		got := EncodeValidatorUpdates(input)
+		assert.Equal(t, expectStrs, got)
+		require.True(t, sort.IsSorted(input), "input must be sorted in place post-call")
+	})
+
+	t.Run("deterministic across calls", func(t *testing.T) {
+		t.Parallel()
+		input := ValidatorUpdates{
+			{Address: pk1.Address(), PubKey: pk1, Power: 5},
+			{Address: pk2.Address(), PubKey: pk2, Power: 10},
+		}
+		a := EncodeValidatorUpdates(append(ValidatorUpdates(nil), input...))
+		b := EncodeValidatorUpdates(append(ValidatorUpdates(nil), input...))
+		require.Equal(t, a, b)
+	})
+
+	t.Run("nil PubKey panics", func(t *testing.T) {
+		t.Parallel()
+		// Use TWO entries with the second having nil PubKey. Sort by
+		// Less is called on input first; if the non-nil one sorts
+		// after the nil one, encoding would have already deref'd nil
+		// during sort. To make the test deterministic, both have
+		// nil PubKey == nil interface, and sort.Sort needs to handle
+		// the comparison... actually nil.Bytes() panics in Less.
+		// Skip this complication: test just one entry with nil PubKey.
+		input := ValidatorUpdates{
+			{Power: 1}, // PubKey nil; len=1 so sort is a no-op
+		}
+		assert.PanicsWithValue(t,
+			"EncodeValidatorUpdates: nil PubKey at index 0 (genesis misconfig)",
+			func() { _ = EncodeValidatorUpdates(input) },
+		)
+	})
+}
+
+// TestLessIsPubkeyBytes pins ValidatorUpdates.Less semantics with a
+// hand-crafted golden input. Any silent change to Less (e.g. switching
+// to address-bytes) would break this test, forcing a coordinated
+// on-disk format version bump rather than a quiet wire-format drift.
+func TestLessIsPubkeyBytes(t *testing.T) {
+	t.Parallel()
+
+	// Deterministic seeds so pubkey bytes are stable across runs.
+	pkA := ed25519.GenPrivKeyFromSecret([]byte("seed-A")).PubKey()
+	pkB := ed25519.GenPrivKeyFromSecret([]byte("seed-B")).PubKey()
+	pkC := ed25519.GenPrivKeyFromSecret([]byte("seed-C")).PubKey()
+
+	// Manually compute expected order by raw pubkey-bytes.
+	all := []crypto.PubKey{pkA, pkB, pkC}
+	sort.Slice(all, func(i, j int) bool {
+		return bytes.Compare(all[i].Bytes(), all[j].Bytes()) < 0
+	})
+	expected := []ValidatorUpdate{
+		{Address: all[0].Address(), PubKey: all[0], Power: 1},
+		{Address: all[1].Address(), PubKey: all[1], Power: 2},
+		{Address: all[2].Address(), PubKey: all[2], Power: 3},
+	}
+
+	// Feed in deliberately-shuffled order; assert sort.Sort produces
+	// the pubkey-bytes-ordered result.
+	input := ValidatorUpdates{
+		{Address: pkC.Address(), PubKey: pkC, Power: 3},
+		{Address: pkA.Address(), PubKey: pkA, Power: 1},
+		{Address: pkB.Address(), PubKey: pkB, Power: 2},
+	}
+	sort.Sort(input)
+	for i, want := range expected {
+		assert.Equal(t, want.PubKey.Address(), input[i].Address,
+			"index %d: Less must order by pubkey-bytes (was the sort key changed?)", i)
+	}
 }

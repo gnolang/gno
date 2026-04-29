@@ -153,6 +153,11 @@ func (pk ParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {
 }
 
 func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
+	// H1: route validation through the same hook as `set`, so module
+	// keepers' WillSetParam fires for byte-typed writes too. Storage
+	// stays raw (GetBytes reads raw, no amino unmarshal) — we only
+	// borrow the validate step from `set`, not the JSON encoding.
+	pk.validate(ctx, key, value)
 	stor := ctx.Store(pk.key)
 	if value == nil {
 		stor.Delete(nil, storeKey(key))
@@ -238,17 +243,23 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 	amino.MustUnmarshalJSON(bz, ptr)
 }
 
-func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
+// validate runs the registered module keeper's WillSetParam hook for
+// the prefix in key. Extracted from `set` so that SetBytes (which
+// keeps raw storage) can also enforce module-level validation.
+func (pk ParamsKeeper) validate(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
-
-	if module != "" {
-		kpr, ok := pk.GetRegisteredKeeper(module)
-		if !ok {
-			panic("module not registered: " + module)
-		}
-		kpr.WillSetParam(ctx, rawKey, value)
+	if module == "" {
+		return
 	}
+	kpr, ok := pk.GetRegisteredKeeper(module)
+	if !ok {
+		panic("module not registered: " + module)
+	}
+	kpr.WillSetParam(ctx, rawKey, value)
+}
 
+func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
+	pk.validate(ctx, key, value)
 	stor := ctx.Store(pk.key)
 	bz := amino.MustMarshalJSON(value)
 	stor.Set(nil, storeKey(key), bz)

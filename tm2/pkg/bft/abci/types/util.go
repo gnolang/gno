@@ -126,6 +126,14 @@ func ParseValidatorUpdate(entry string) (ValidatorUpdate, error) {
 	if err != nil {
 		return ValidatorUpdate{}, fmt.Errorf("invalid validator pubkey %q: %w", pubKey, err)
 	}
+	// PubKeyFromBech32 returns (nil, nil) when the bech32 payload
+	// amino-decodes to no concrete crypto.PubKey (e.g., empty payload
+	// like "gpub1mdgqmw"). Without this guard, pk.Address() below
+	// nil-derefs and panics — propagating to a chain halt if reached
+	// from EndBlocker.
+	if pk == nil {
+		return ValidatorUpdate{}, fmt.Errorf("nil pubkey from bech32 %q (empty/non-decodable amino payload)", pubKey)
+	}
 	// bitSize=63 caps the value at math.MaxInt64, so int64(p) below
 	// can never overflow into a negative.
 	p, err := strconv.ParseUint(power, 10, 63)
@@ -151,6 +159,32 @@ func ParseValidatorUpdates(entries []string) (ValidatorUpdates, error) {
 		updates = append(updates, u)
 	}
 	return updates, nil
+}
+
+// EncodeValidatorUpdates is the inverse of ParseValidatorUpdates: it
+// formats updates as "<bech32-pubkey>:<decimal-power>" strings, sorted
+// canonically via ValidatorUpdates.Less (pubkey-bytes — see comment
+// at Less above).
+//
+// Used by the chain's InitChainer (to seed valset:current from genesis
+// validators) and EndBlocker (to write valset:current after applying a
+// proposal). One canonical encoding eliminates drift between the two
+// writers and lets round-trip tests live in one package.
+//
+// The input is sorted in place. Panics on a nil PubKey at any index —
+// genesis is operator-supplied and a nil pubkey would otherwise nil-deref
+// inside crypto.PubKeyToBech32; panic at InitChainer surfaces as an
+// unrecoverable genesis-misconfig error, which is the correct semantic.
+func EncodeValidatorUpdates(v ValidatorUpdates) []string {
+	sort.Sort(v)
+	out := make([]string, 0, len(v))
+	for i, u := range v {
+		if u.PubKey == nil {
+			panic(fmt.Sprintf("EncodeValidatorUpdates: nil PubKey at index %d (genesis misconfig)", i))
+		}
+		out = append(out, crypto.PubKeyToBech32(u.PubKey)+":"+strconv.FormatInt(u.Power, 10))
+	}
+	return out
 }
 
 //----------------------------------------
