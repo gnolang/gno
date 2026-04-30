@@ -832,10 +832,11 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
+	var perCheck int64
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
+		perCheck = perInterfaceMethodCheckCost(xv.T)
 	}
 	// NOTE: all cases should be *constTypeExprs, which
 	// lets us optimize the implementation by
@@ -866,9 +867,7 @@ func (m *Machine) doOpTypeSwitch() {
 				} else if ct.Kind() == InterfaceKind {
 					gnot := ct
 					it := baseOf(gnot).(*InterfaceType)
-					// Charge gas proportional to interface and concrete method counts.
-					m.incrCPU(calcMethodCheckGasCost(OpCPUInterfaceMethodCheck, it, xv.T))
-					if it.IsImplementedBy(xv.T) {
+					if it.verifyImplementedBy(m, perCheck, xv.T) == nil {
 						// match
 						match = true
 					}

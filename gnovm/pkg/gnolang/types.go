@@ -647,16 +647,16 @@ func (pt *PointerType) IsNamed() bool {
 	return false
 }
 
-func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, seen map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
 ) {
 	// Recursion guard.
-	if m == nil {
-		m = map[Type]struct{}{pt: (struct{}{})}
-	} else if _, exists := m[pt]; exists {
+	if seen == nil {
+		seen = map[Type]struct{}{pt: (struct{}{})}
+	} else if _, exists := seen[pt]; exists {
 		return nil, false, nil, nil, false
 	} else {
-		m[pt] = struct{}{}
+		seen[pt] = struct{}{}
 	}
 	// ...
 	switch cet := pt.Elt.(type) {
@@ -664,7 +664,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 		// Pointer to declared types and structs
 		// expose embedded methods and fields.
 		// See tests/selector_test.go for examples.
-		trail, hasPtr, rcvr, field, accessError = findEmbeddedFieldType(callerPath, cet, n, m)
+		trail, hasPtr, rcvr, field, accessError = findEmbeddedFieldType(callerPath, cet, n, seen)
 		if trail != nil { // found
 			hasPtr = true // pt *is* a pointer.
 			switch trail[0].Type {
@@ -826,16 +826,16 @@ func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 // it may be better to implement it on DeclaredType. The resulting
 // ValuePaths may be modified.  If not found, all returned values
 // are nil; for consistency, check the trail.
-func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, seen map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, field Type, accessError bool,
 ) {
 	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{st: (struct{}{})}
-	} else if _, exists := m[st]; exists {
+	if seen == nil {
+		seen = map[Type]struct{}{st: (struct{}{})}
+	} else if _, exists := seen[st]; exists {
 		return nil, false, nil, nil, false
 	} else {
-		m[st] = struct{}{}
+		seen[st] = struct{}{}
 	}
 	// Search fields.
 	for i := range st.Fields {
@@ -852,7 +852,7 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 		// Maybe is embedded within a field.
 		if sf.Embedded {
 			st := sf.Type
-			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, m)
+			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, seen)
 			if accessError2 {
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
@@ -983,16 +983,16 @@ func (it *InterfaceType) IsNamed() bool {
 	return false
 }
 
-func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, seen map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
 	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{it: (struct{}{})}
-	} else if _, exists := m[it]; exists {
+	if seen == nil {
+		seen = map[Type]struct{}{it: (struct{}{})}
+	} else if _, exists := seen[it]; exists {
 		return nil, false, nil, nil, false
 	} else {
-		m[it] = struct{}{}
+		seen[it] = struct{}{}
 	}
 	// ...
 	for _, im := range it.Methods {
@@ -1014,7 +1014,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 		}
 		if et, ok := baseOf(im.Type).(*InterfaceType); ok {
 			// embedded interfaces must be recursively searched.
-			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, m)
+			trail, hasPtr, rcvr, ft, accessError = et.FindEmbeddedFieldType(callerPath, n, seen)
 			if accessError {
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
@@ -1031,18 +1031,37 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 	return nil, false, nil, nil, false
 }
 
-// For run-time type assertion.
+// For run-time type assertion. When m is non-nil, charges interface-method-check
+// gas per probed method; pass nil from non-VM paths (compile-time, debug).
 // TODO: optimize somehow.
-func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
+func (it *InterfaceType) VerifyImplementedBy(m *Machine, ot Type) error {
+	var perCheck int64
+	if m != nil {
+		perCheck = perInterfaceMethodCheckCost(ot)
+	}
+	return it.verifyImplementedBy(m, perCheck, ot)
+}
+
+// perInterfaceMethodCheckCost is the gas charged for a single
+// findEmbeddedFieldType probe when verifying that ot satisfies an interface.
+// Hoist out of clause loops when the same ot is checked against multiple interfaces.
+func perInterfaceMethodCheckCost(ot Type) int64 {
+	return overflow.Mulp(OpCPUInterfaceMethodCheck, countTypeMethodsForGas(ot, nil))
+}
+
+func (it *InterfaceType) verifyImplementedBy(m *Machine, perCheck int64, ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
-			if err := im2.VerifyImplementedBy(ot); err != nil {
+			if err := im2.verifyImplementedBy(m, perCheck, ot); err != nil {
 				return err
 			} else {
 				continue
 			}
+		}
+		if m != nil {
+			m.incrCPU(perCheck)
 		}
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
@@ -1067,49 +1086,64 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	return nil
 }
 
-func (it *InterfaceType) IsImplementedBy(ot Type) bool {
-	return it.VerifyImplementedBy(ot) == nil
-}
-
-// TotalMethodCount returns the total number of methods in the interface,
-// recursively counting methods from embedded interfaces.
-// This is used for accurate gas metering in type assertions and type switches.
-func (it *InterfaceType) TotalMethodCount() int {
-	count := 0
-	for _, im := range it.Methods {
-		if im.Type.Kind() == InterfaceKind {
-			// Recursively count methods from embedded interface.
-			embedded := baseOf(im.Type).(*InterfaceType)
-			count += embedded.TotalMethodCount()
-		} else {
-			count++
-		}
-	}
-	return count
+func (it *InterfaceType) IsImplementedBy(m *Machine, ot Type) bool {
+	return it.VerifyImplementedBy(m, ot) == nil
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
 	return NewValuePathInterface(n)
 }
 
-// countTypeMethodsForGas returns the declared method count of concrete type t,
-// used to meter the O(N*M) cost of VerifyImplementedBy.
-func countTypeMethodsForGas(t Type) int64 {
-	if dt, ok := t.(*DeclaredType); ok {
-		n := int64(len(dt.Methods))
-		if n > 0 {
-			return n
-		}
+// countTypeMethodsForGas returns an upper bound on the method set walked by
+// findEmbeddedFieldType when checking interface satisfaction against t.
+// Used to meter the O(N*M) cost of VerifyImplementedBy. Returns at least 1.
+// The seen map guards against cyclic types (e.g. self-referential structs);
+// pass nil to start a fresh walk.
+func countTypeMethodsForGas(t Type, seen map[Type]struct{}) int64 {
+	if t == nil {
+		return 1
 	}
-	return 1
+	if seen == nil {
+		seen = map[Type]struct{}{}
+	}
+	if _, exists := seen[t]; exists {
+		return 1
+	}
+	seen[t] = struct{}{}
+	var n int64
+	switch tt := t.(type) {
+	case *PointerType:
+		return countTypeMethodsForGas(tt.Elt, seen)
+	case *InterfaceType:
+		for _, im := range tt.Methods {
+			if im.Type.Kind() == InterfaceKind {
+				n += countTypeMethodsForGas(baseOf(im.Type), seen)
+			} else {
+				n++
+			}
+		}
+	case *DeclaredType:
+		n = int64(len(tt.Methods))
+		if st, ok := baseOf(tt).(*StructType); ok {
+			n += countEmbeddedFieldMethods(st, seen)
+		}
+	case *StructType:
+		n = countEmbeddedFieldMethods(tt, seen)
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
 }
 
-// calcMethodCheckGasCost returns gas for a VerifyImplementedBy call:
-// costPerMethod * interfaceMethods * concreteMethods, with overflow protection.
-func calcMethodCheckGasCost(costPerMethod int64, it *InterfaceType, concreteType Type) int64 {
-	n := int64(it.TotalMethodCount())
-	m := countTypeMethodsForGas(concreteType)
-	return overflow.Mulp(overflow.Mulp(costPerMethod, n), m)
+func countEmbeddedFieldMethods(st *StructType, seen map[Type]struct{}) int64 {
+	var n int64
+	for i := range st.Fields {
+		if st.Fields[i].Embedded {
+			n += countTypeMethodsForGas(st.Fields[i].Type, seen)
+		}
+	}
+	return n
 }
 
 // ----------------------------------------
@@ -1713,16 +1747,16 @@ func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
 // Searches embedded fields to find matching field or method.
 // This function is slow.
 // TODO: consider memoizing for successful matches.
-func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
+func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, seen map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
 	// Recursion guard
-	if m == nil {
-		m = map[Type]struct{}{dt: (struct{}{})}
-	} else if _, exists := m[dt]; exists {
+	if seen == nil {
+		seen = map[Type]struct{}{dt: (struct{}{})}
+	} else if _, exists := seen[dt]; exists {
 		return nil, false, nil, nil, false
 	} else {
-		m[dt] = struct{}{}
+		seen[dt] = struct{}{}
 	}
 	// Search direct methods.
 	for i := range dt.Methods {
@@ -1748,7 +1782,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 		}
 	}
 	// Otherwise, search base.
-	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
+	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, seen)
 	if trail == nil {
 		return nil, false, nil, nil, accessError
 	}
@@ -2247,7 +2281,7 @@ func fillEmbeddedName(ft *FieldType) {
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
-		return cbt.IsImplementedBy(ot)
+		return cbt.IsImplementedBy(nil, ot)
 	default:
 		panic("should not happen")
 	}
@@ -2508,18 +2542,18 @@ func isGeneric(t Type) bool {
 // TODO: could this be more optimized for the runtime?
 // are Go-style itables the solution or?
 // callerPath: the path of package where selector node was declared.
-func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{}) (
+func findEmbeddedFieldType(callerPath string, t Type, n Name, seen map[Type]struct{}) (
 	trail []ValuePath, hasPtr bool, rcvr Type, ft Type, accessError bool,
 ) {
 	switch ct := t.(type) {
 	case *DeclaredType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, seen)
 	case *PointerType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, seen)
 	case *StructType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, seen)
 	case *InterfaceType:
-		return ct.FindEmbeddedFieldType(callerPath, n, m)
+		return ct.FindEmbeddedFieldType(callerPath, n, seen)
 	default:
 		return nil, false, nil, nil, false
 	}

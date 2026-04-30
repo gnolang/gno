@@ -1401,7 +1401,6 @@ const (
 	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
 	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
 	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
-	OpCPUSlopeTypeSwitchCase  = 254 // per clause concrete (fit: 253.9)
 	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
