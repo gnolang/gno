@@ -55,28 +55,26 @@ import (
 )
 
 // Remove the existing entry and re-add at the new power in the same
-// executor. EndBlocker computes a single UpdatesFrom diff covering both,
+// proposal. EndBlocker computes a single UpdatesFrom diff covering both,
 // so the tm2 valset transitions directly to the new power without an
 // intermediate "validator absent" step.
 func main() {
-	executor := valr.NewValsetChangeExecutor(func() []validators.Validator {
-		return []validators.Validator{
-			{
-				Address:     address("${ADDR}"),
-				VotingPower: 0, // remove first
-			},
-			{
-				Address:     address("${ADDR}"),
-				PubKey:      "${PUB_KEY}",
-				VotingPower: ${POWER}, // re-add at new power
-			},
-		}
-	})
-
-	r := dao.NewProposalRequest(
+	r := valr.NewProposalRequest(
+		func() []validators.Validator {
+			return []validators.Validator{
+				{
+					Address:     address("${ADDR}"),
+					VotingPower: 0, // remove first
+				},
+				{
+					Address:     address("${ADDR}"),
+					PubKey:      "${PUB_KEY}",
+					VotingPower: ${POWER}, // re-add at new power
+				},
+			}
+		},
 		"Update validator ${ADDR} power → ${POWER}",
 		"Atomic remove+add to change ${ADDR}'s voting power.",
-		executor,
 	)
 
 	pid := dao.MustCreateProposal(cross, r)

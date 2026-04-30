@@ -133,29 +133,22 @@ check_eq 'r/sys/names.IsEnabled() still true after migration' \
 
 # ---- Migration 06 (addpkg r/sys/validators/v3)
 v3funcs="$(query_qfuncs_raw 'gno.land/r/sys/validators/v3')"
-check_contains 'migration 06: v3 realm deployed (NewValsetChangeExecutor exported)' \
-  'NewValsetChangeExecutor' "$v3funcs"
+check_contains 'migration 06: v3 realm deployed (NewProposalRequest exported)' \
+  'NewProposalRequest' "$v3funcs"
 check_contains 'migration 06: v3 realm deployed (GetValidators exported)' \
   'GetValidators' "$v3funcs"
 
-# ---- Migration 08 (valset_realm_path points at v3)
-check_eq 'migration 08: vm:p:valset_realm_path = v3' \
-  '"gno.land/r/sys/validators/v3"' \
-  "$(query_param 'vm:p:valset_realm_path')"
-
 # ---- v3 pending-update drain
-# If new_updates_available=true, EndBlocker hasn't consumed the last proposal
-# yet — either the chain isn't producing blocks or the param path is wrong.
-# valset_prev reflects the last applied valset; no strict assertion because
-# it legitimately evolves as add-validator proposals land. Accept empty as
-# equivalent to false: v3's init.gno only seeds valset_prev, so this key is
-# unset at fresh boot until the first change proposal writes it.
-nua="$(query_param 'vm:gno.land/r/sys/validators/v3:new_updates_available')"
-if [[ "$nua" == "false" || -z "$nua" ]]; then
+# If node:valset:dirty=true, EndBlocker hasn't consumed the last proposal yet
+# — either the chain isn't producing blocks or the params write failed.
+# Accept empty as equivalent to false: the key is unset until v3's
+# SetValsetProposal writes it for the first time.
+dirty="$(query_param 'node:valset:dirty')"
+if [[ "$dirty" == "false" || -z "$dirty" ]]; then
   printf '  [OK]   v3: no pending valset update unconsumed by EndBlocker\n'
   pass=$((pass + 1))
 else
-  printf '  [FAIL] v3: no pending valset update unconsumed by EndBlocker\n         got =%s\n' "$nua"
+  printf '  [FAIL] v3: no pending valset update unconsumed by EndBlocker\n         got =%s\n' "$dirty"
   fail=$((fail + 1))
 fi
 

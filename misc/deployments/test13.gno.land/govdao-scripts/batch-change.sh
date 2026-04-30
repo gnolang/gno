@@ -122,15 +122,13 @@ import (
 )
 
 func main() {
-	executor := valr.NewValsetChangeExecutor(func() []validators.Validator {
-		return []validators.Validator{${entries}
-		}
-	})
-
-	r := dao.NewProposalRequest(
+	r := valr.NewProposalRequest(
+		func() []validators.Validator {
+			return []validators.Validator{${entries}
+			}
+		},
 		"Batch valset change (${CHANGES_FILE})",
 		"Apply a batch of add/remove/update changes atomically via v3.",
-		executor,
 	)
 
 	pid := dao.MustCreateProposal(cross, r)

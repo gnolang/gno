@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Remove a validator from test-13 via govDAO proposal, using
 # r/sys/validators/v3. Mirror of add-validator.sh — a voting_power of 0
-# signals "remove" in v3's NewValsetChangeExecutor.
+# signals "remove" in v3's NewProposalRequest.
 #
 # Usage:
 #   ./rm-validator.sh <address>
@@ -49,19 +49,17 @@ import (
 )
 
 func main() {
-	executor := valr.NewValsetChangeExecutor(func() []validators.Validator {
-		return []validators.Validator{
-			{
-				Address:     address("${ADDR}"),
-				VotingPower: 0, // 0 = remove
-			},
-		}
-	})
-
-	r := dao.NewProposalRequest(
+	r := valr.NewProposalRequest(
+		func() []validators.Validator {
+			return []validators.Validator{
+				{
+					Address:     address("${ADDR}"),
+					VotingPower: 0, // 0 = remove
+				},
+			}
+		},
 		"Remove validator ${ADDR}",
 		"Remove validator ${ADDR} from the valset.",
-		executor,
 	)
 
 	pid := dao.MustCreateProposal(cross, r)

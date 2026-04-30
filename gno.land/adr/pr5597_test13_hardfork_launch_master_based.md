@@ -29,14 +29,15 @@ gnoland1-history input. They differ in the resulting node behaviour
 (notably gas accounting at the SDK layer) and in the migration
 mechanics required to make the new VM accept the source genesis.
 
-The launch playbook itself — migration sequence 01 → 08, replay
+The launch playbook itself — migration sequence 01 → 07, replay
 posture (`-skip-genesis-sig-verification` + `-skip-failing-genesis-txs`),
 intentional divergences from source, launch verification gates,
-alternatives considered — is identical to #5589's. Everything in
-[`pr5589_test13_hardfork_launch.md` §2 through §5 plus Consequences
-and Alternatives](./pr5589_test13_hardfork_launch.md) applies here
-unchanged. This document only records the decisions that are
-**specific to master-basing** the stack.
+alternatives considered — is identical to #5589's modulo step 08
+(see §2 below). Everything in [`pr5589_test13_hardfork_launch.md`
+§2 through §5 plus Consequences and Alternatives](./pr5589_test13_hardfork_launch.md)
+applies here unchanged except for that step. This document only
+records the decisions that are **specific to master-basing** the
+stack.
 
 ## Decision
 
@@ -126,14 +127,22 @@ lands" is always the topmost rc:
 | `chain/test13-rc4`     | `chain/test13-rc1-master`  | Tier-1 audits (audit-balances, state-diff, verify-txs-jsonl, assert-migrations)     |
 | `chain/test13-rc5`     | `chain/test13-rc2-master`  | Tier-2 resilience (verify-reproducibility, partial-mpkg-skip, val-ops, assert fix)   |
 | `chain/test13-rc6`     | `chain/test13-rc3-master`  | Tier-3 audits (audit-realm-imports, compare-gas-modes, repro-doc fix, ADR import)   |
-| `chain/test13-rc2/rc3` | `chain/test13-rc4-master`  | Valset v3 cherry-pick + supporting deploy / migration commits — drops out when #5485 lands |
+| `chain/test13-rc2/rc3` | `chain/test13-rc4-master`  | v3 deploy / migration plumbing only — the v3 realm itself now lives in master via #5485 |
 | _(new)_                | `chain/test13-rc5-master`  | Master-specific launch fixes (this ADR's §1)                                         |
 
-The "drops out" stacking matters: `rc4-master` is the cherry-pick of
-[#5485](https://github.com/gnolang/gno/pull/5485) (`r/sys/validators/v3` via params keeper) plus the
-test13-specific deploy/migration plumbing for it. Once #5485 merges
-to master, `rc4-master` rebases to a near-empty layer (only the
-deploy plumbing remains) and `rc5-master` rebases trivially on top.
+After #5485 landed on master, `rc4-master` was rebased to drop the
+redundant v3 cherry-pick (`a0f175de5`), the eager-eval fix
+(`c994c89bd` — master already evaluates the change function eagerly
+in `NewProposalRequest`), and the `vm:p:valset_realm_path` migration
+step (`2f7155303` — the configurable `ValsetRealmPath` field was
+removed from `vm.Params` in the merged version, with the realm path
+hardcoded in `r/sys/params/valset.gno` instead). What remains is the
+test-13-specific deploy plumbing: the `addpkg r/sys/validators/v3`
+migration step (mainnet has no v3 yet), its `sysnames` disable/restore
+wrap, and the `add-validator.sh` operator script (adapted to the
+renamed `valr.NewProposalRequest(fn, title, description)` signature).
+The migration sequence is therefore 01 → 07 on the master-based
+stack vs 01 → 08 on #5589's chain/gnoland1 stack.
 
 ### 3. Operational consequences vs the chain/gnoland1 stack
 
@@ -179,7 +188,7 @@ not the right long-term shape for any of the three concerns:
 
 Implemented for the master-based test-13 launch path.
 Validated end-to-end on a 4-node gno-cluster boot (replay completes,
-chain advances past genesis, all 8 migration txs succeed, post-fork
+chain advances past genesis, all 7 migration txs succeed, post-fork
 state matches `assert-migrations` expectations). See PR
 [#5597](https://github.com/gnolang/gno/pull/5597) for the rc-by-rc
 delta.
