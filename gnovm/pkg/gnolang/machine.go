@@ -1327,7 +1327,10 @@ const (
 	OpCPURef                 = 210
 	OpCPUTypeAssert1         = 83 // concrete; interface case parameterized in handler
 	OpCPUTypeAssert2         = 96 // max(hit=85, miss=96)
-	// TODO: calibrate via bench grid over (N, M).
+	// OpCPUInterfaceMethodCheck is the per-probe cost of one
+	// findEmbeddedFieldType call when verifying interface satisfaction.
+	// TODO: calibrate via bench grid over interface method count (N) and
+	// concrete method-set size (M); 4 is a placeholder.
 	OpCPUInterfaceMethodCheck = 4
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
@@ -1401,7 +1404,6 @@ const (
 	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
 	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
 	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
-	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
 	OpCPUSlopeEqlArray        = 141 // per element (fit: 141.2)

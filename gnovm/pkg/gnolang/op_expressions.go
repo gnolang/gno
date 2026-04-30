@@ -258,7 +258,7 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			err := it.VerifyImplementedBy(m, xt)
+			err := it.verifyImplementedBy(m, perInterfaceMethodCheckCost(xt), xt)
 			if err != nil {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
@@ -334,7 +334,7 @@ func (m *Machine) doOpTypeAssert2() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := it.IsImplementedBy(m, xt)
+			impl := it.verifyImplementedBy(m, perInterfaceMethodCheckCost(xt), xt) == nil
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)

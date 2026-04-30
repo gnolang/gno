@@ -416,7 +416,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.VerifyImplementedBy(nil, xt); err == nil {
+			} else if err := idt.VerifyImplementedBy(xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
