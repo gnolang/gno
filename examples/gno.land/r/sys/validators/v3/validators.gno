@@ -144,6 +144,17 @@ func newValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 			}
 		}
 
+		// Reject all-remove / empty-result proposals before publishing.
+		// The chain's EndBlocker rejects an empty proposed set as a
+		// liveness floor; without this guard, the proposal would still
+		// land here, get published, and silently no-op at apply time
+		// while GovDAO already recorded it as accepted (govdao marks
+		// acceptance before callback returns). Failing in the callback
+		// at least surfaces the no-op as a proposal-execution error.
+		if len(set) == 0 {
+			panic("valset proposal would empty the validator set; refused to keep consensus liveness")
+		}
+
 		// Encode and publish. Sort before publishing — gno map
 		// iteration is unspecified; the chain-side diff is set-based
 		// so consensus is unaffected, but deterministic bytes keep

@@ -222,11 +222,13 @@ func TestNewProposalRequest_RemoveSkipsPubKeyCheck(t *testing.T) {
 	})
 }
 
-func TestCallback_AllZeroPowerPublishesEmpty(t *testing.T) {
-	// All-remove proposal: every entry power=0. The callback does
-	// not panic at the v3 boundary; it publishes entries=[]string{}
-	// + dirty=true, leaving the chain-side liveCount==0 floor to
-	// reject at EndBlocker (covered by app_test.go).
+func TestCallback_AllRemovePanicsAtCallback(t *testing.T) {
+	// All-remove proposal: every entry power=0. The v3 callback now
+	// REJECTS empty final sets (D4ryl00 review): otherwise GovDAO
+	// records the proposal as accepted while EndBlocker silently no-
+	// ops at apply time, leaving governance UI and chain state out of
+	// sync. Failing in the callback surfaces it as a proposal-execution
+	// error.
 	resetValset(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
 
@@ -234,9 +236,12 @@ func TestCallback_AllZeroPowerPublishesEmpty(t *testing.T) {
 	exec := newValsetChangeExecutor(func() []pVals.Validator {
 		return []pVals.Validator{{Address: addrA, VotingPower: 0}}
 	})
-	urequire.NoError(t, exec.Execute(cross), "all-remove callback does not panic")
+	urequire.PanicsWithMessage(
+		t,
+		"valset proposal would empty the validator set; refused to keep consensus liveness",
+		func() { _ = exec.Execute(cross) },
+	)
 
-	// dirty=true now; effective view = proposed = empty.
-	urequire.Equal(t, 0, len(GetValidators()), "set drained")
-	urequire.False(t, IsValidator(addrA))
+	// Effective view unchanged (no publish).
+	urequire.True(t, IsValidator(addrA), "valset must remain unchanged when callback rejects")
 }
