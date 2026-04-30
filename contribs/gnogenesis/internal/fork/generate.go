@@ -441,6 +441,12 @@ func baseGenesisModeTxs(appState *gnoland.GnoGenesisState) []gnoland.TxWithMetad
 // The source genesis on disk is NOT touched — this operates on the in-memory
 // GnoGenesisState that we assembled for the output.
 //
+// To make the patched addpkg succeed under master's storage-deposit rules
+// when the new source is larger than the original (which the original
+// genesis-mode tx's creator balance was sized for), each patched-creator
+// balance is topped up by a conservative estimate of the deposit needed
+// for the new files. See ensureCreatorCanAffordDeposit for the heuristic.
+//
 // Returns the number of txs rewritten.
 func patchGenesisModeAddPkg(appState *gnoland.GnoGenesisState, pkgPath, srcDir string) (int, error) {
 	files, err := loadGnoPackageFiles(srcDir)
@@ -477,10 +483,55 @@ func patchGenesisModeAddPkg(appState *gnoland.GnoGenesisState, pkgPath, srcDir s
 				}
 			}
 			txm.Tx.Msgs[mi] = addpkg
+			ensureCreatorCanAffordDeposit(appState, addpkg.Creator, files)
 			patched++
 		}
 	}
 	return patched, nil
+}
+
+// ensureCreatorCanAffordDeposit tops up `creator`'s genesis balance so the
+// post-fork chain's storage-deposit lock for the patched files succeeds.
+//
+// Realm storage at deploy time includes parsed AST + type info, which
+// empirically runs ~5–50× the raw file body size. We use 100× per byte at
+// 100 ugnot/byte (the default StoragePrice) as a conservative upper bound,
+// then add 100M ugnot of slack for fees and other genesis-mode txs the
+// creator may sign before this addpkg runs. Over-topping is benign — the
+// extra ugnot just sits in the creator account post-fork.
+func ensureCreatorCanAffordDeposit(appState *gnoland.GnoGenesisState, creator bftypes.Address, files []*std.MemFile) {
+	if creator.IsZero() {
+		return
+	}
+	bodyBytes := int64(0)
+	for _, f := range files {
+		bodyBytes += int64(len(f.Body))
+	}
+	const (
+		storagePricePerByte = int64(100)
+		realmOverheadFactor = int64(100)
+		flatSlack           = int64(100_000_000) // 100M ugnot
+	)
+	required := bodyBytes*realmOverheadFactor*storagePricePerByte + flatSlack
+
+	// Find the creator's existing genesis balance, if any.
+	for i := range appState.Balances {
+		b := &appState.Balances[i]
+		if b.Address != creator {
+			continue
+		}
+		current := b.Amount.AmountOf("ugnot")
+		if current >= required {
+			return
+		}
+		b.Amount = b.Amount.Add(std.Coins{std.Coin{Denom: "ugnot", Amount: required - current}})
+		return
+	}
+	// Creator has no genesis balance entry yet — add one.
+	appState.Balances = append(appState.Balances, gnoland.Balance{
+		Address: creator,
+		Amount:  std.Coins{std.Coin{Denom: "ugnot", Amount: required}},
+	})
 }
 
 // loadGnoPackageFiles reads *.gno and gnomod.toml files from srcDir
