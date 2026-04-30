@@ -106,13 +106,38 @@ migrations" workflow without manual JSON patching:
   on the test-13 genesis (the order change avoids a pebble write
   amplification pattern that the previous order triggered). Covered
   by 3 unit tests in `gnovm/pkg/gnolang/store_test.go`.
+- **`fix(gnogenesis): top up patched-addpkg creator balance for
+  storage deposit`** — `patchGenesisModeAddPkg` rewrites a
+  genesis-mode addpkg in place with new files. Master added storage
+  deposits ([#5415](https://github.com/gnolang/gno/pull/5415)) where
+  `lockStorageDeposit` transfers `realm_bytes × StoragePrice` from
+  the creator at deploy time. When the patched files are larger than
+  the original (master's `r/sys/params` grew by `valset.gno` from
+  [#5485](https://github.com/gnolang/gno/pull/5485)), the creator's
+  balance — sized for the original gnoland1 package — falls short
+  and the addpkg fails with "insufficient coins". That single
+  failure cascades to every realm that depends on `r/sys/params`
+  (including all four migration txs), leaving the post-fork chain
+  bootable on the surface but with `r/sys/params`, `r/sys/validators/v3`,
+  and the migration sequence all silently absent. Fix tops up the
+  creator's genesis balance to a conservative
+  `body_bytes × 100 (realm overhead) × StoragePrice + 100M ugnot
+  slack` upper bound — over-topping is benign. Covered by 6 sub-tests
+  in `contribs/gnogenesis/internal/fork/generate_test.go`. Empirical
+  validation: in-memory smoketest dropped from 44 cascaded failures
+  to 0; cluster `assert-migrations` went from 6 of 8 ok to 9 of 9.
 
-There is also a `feat(gnogenesis): add --skip-failing-genesis-txs
-and --skip-genesis-sig-verification flags to fork test` commit so
-that `make smoketest` matches what production validators are
-configured for — the in-process replay used to fail on the same
-~2580 absorbed-by-cluster failures, which made the smoketest output
-read as "every build is broken" and obscured real failures.
+There are also smaller adapter commits for master CLI changes:
+- **`fix(test13): adapt build.sh/init-node.sh/Makefile to master
+  gnokey/gnoland CLI changes`** — `gnokey maketx` now defaults
+  `--broadcast=true` and prompts for a password unconditionally;
+  `gnoland config init` refuses to overwrite an existing file
+  without `-force`. Both broke the migration build and node init.
+- **`feat(gnogenesis): add --skip-failing-genesis-txs and
+  --skip-genesis-sig-verification flags to fork test`** + Makefile
+  wiring so `make smoketest` matches what production validators
+  are configured for — without them, smoketest would fail on the
+  first absorbed-by-cluster failure and look like a regression.
 
 ### 2. Branch numbering
 
@@ -147,9 +172,15 @@ stack vs 01 → 08 on #5589's chain/gnoland1 stack.
 ### 3. Operational consequences vs the chain/gnoland1 stack
 
 - **Smoketest baseline**: the chain/gnoland1 stack documents 2605
-  expected failures (#5589 §5.3). The master stack measures 2604
-  with rc5-master active (one fewer because the hardened migration 01
-  now succeeds where it previously contributed one of the 2605).
+  expected failures (#5589 §5.3). The master stack measures 0
+  with `gas_replay_mode=source` (set by `d4a163644`) and `r/sys/params`
+  deposit-funded (set by `ffe5adee9`). The historical-tx failures
+  that #5589 absorbs via `--skip-failing-genesis-txs` are
+  `InsufficientFundsError` from gas charging — `gas_replay_mode=source`
+  bypasses gas metering for `BlockHeight > 0` txs, so they pass
+  through unmodified. A run with `gas_replay_mode=strict` confirms
+  the original ~2591 failures resurface (see `make compare-gas-modes`
+  output in `out/GAS-MODES-COMPARE.md`).
 - **Replay walltime**: ~36 s on master vs ~13 min on chain/gnoland1
   on identical hardware (M3 Pro, gno-cluster docker). The delta is
   the body-first AddMemPackage ordering — the chain/gnoland1 stack
@@ -183,12 +214,43 @@ not the right long-term shape for any of the three concerns:
   solution is `vm.Params.UnmarshalJSON` (or amino post-decode hook)
   applying defaults for any newly-introduced field; that lets every
   consumer of the type benefit, not just the hardfork tool.
+- **Storage-deposit handling at genesis** — `ensureCreatorCanAffordDeposit`
+  tops up patched-addpkg creators with a heuristic upper bound. A
+  cleaner upstream fix is one of: (a) skip storage-deposit locking
+  entirely for genesis-mode txs (`BlockHeight == 0`), since they
+  precede any economic activity and the "creator pays" model is
+  meaningless at chain bootstrap; or (b) compute the precise
+  `realm_bytes × StoragePrice` requirement at genesis and ensure
+  it's covered by either the tx's `MaxDeposit` or the creator's
+  balance before the tx runs (so the failure mode is "tx pre-flight
+  rejection" rather than "silent deposit transfer failure mid-flight
+  cascading to dependents"). Either eliminates the need for the
+  heuristic top-up.
 
 ## Status
 
-Implemented for the master-based test-13 launch path.
-Validated end-to-end on a 4-node gno-cluster boot (replay completes,
-chain advances past genesis, all 7 migration txs succeed, post-fork
-state matches `assert-migrations` expectations). See PR
-[#5597](https://github.com/gnolang/gno/pull/5597) for the rc-by-rc
-delta.
+Implemented and end-to-end validated for the master-based test-13
+launch path. Specifically:
+
+- **`make smoketest`** (in-memory fork test): 0 failures.
+- **`make verify-reproducibility`**: byte-identical SHA across two
+  clean builds.
+- **`make verify-txs-jsonl`**: 2637 source-chain txs cardinality +
+  10 spot-checks all match.
+- **`make audit-realm-imports`**: 368 import edges, 0 unresolved.
+- **`make compare-gas-modes`**: confirms `gas_replay_mode=source`
+  is necessary (strict mode reproduces the ~2591 historical-tx
+  gas-mismatch failures).
+- **2-node cluster boot**: both nodes replay genesis cleanly and
+  advance in lockstep past `942743` with peer connectivity.
+- **`make assert-migrations`** against the live cluster: 9 of 9 ok
+  (with `EXPECTED_T1=g1manfred47kzduec920z88wfr64ylksmdcedlf5` —
+  no T1 rotation in this dry-run; rotation tested separately on
+  the chain/gnoland1 stack).
+- **Keyless validator mode** (`VALIDATOR_ADDRESS` + `VALIDATOR_PUBKEY`):
+  end-to-end migrate + init produces a bootable genesis without a
+  `priv_validator_key.json` on disk, matching the gnokms-backed
+  production validator topology.
+
+See PR [#5597](https://github.com/gnolang/gno/pull/5597) for the
+rc-by-rc delta.
