@@ -2,8 +2,9 @@
 # (proposal 1). Exercises the Power=0 removal path through the full
 # pipeline:
 #
-#   v3 callback -> vp.RemoveValidator -> vp.GetValidators (smaller)
-#   -> SetValsetProposal (full target without removed) -> dirty=true
+#   v3 callback -> reads effective valset, drops removed entry from
+#   the local map -> SetValsetProposal (full target without removed)
+#   -> dirty=true
 #   -> EndBlocker reads, diffs current vs proposed
 #   -> emits Power=0 update for removed validator
 #   -> writes valset:current (sans removed)

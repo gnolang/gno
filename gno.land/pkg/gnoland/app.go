@@ -338,9 +338,8 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		"elapsed", time.Since(start))
 
 	// Seed valset:current from genesis validators BEFORE loadAppState so
-	// that v3.init() (run during a genesis tx in loadAppState) can read
-	// it via sysparams.GetValsetEntries() to bootstrap its in-realm PoA
-	// from truth, not from empty.
+	// that any genesis-time realm reads of sysparams.GetValsetEffective /
+	// GetValsetEntries see the authoritative set instead of empty.
 	//
 	// Note on sentinel scope: internalWriteCtxKey is set on the LOCAL
 	// ictx variable, NOT on app.deliverState.ctx. baseapp.Deliver pulls
@@ -590,10 +589,12 @@ func EndBlocker(
 
 		// Min-validator floor: refuse to empty consensus.
 		// proposed is the full target set, so the post-apply set has
-		// exactly the entries with Power > 0. v3's normal flow (vp.
-		// GetValidators) emits only live entries, so all-Power=0 is
-		// unreachable today — but checking the live count makes this
-		// the defense-in-depth backstop the comment claims.
+		// exactly the entries with Power > 0. v3's normal flow emits
+		// the effective set as positive-power entries — but the
+		// callback also accepts an all-removes proposal that
+		// publishes entries=[]string{}, so all-Power=0 is reachable
+		// at the v3 boundary; this floor is the consensus-safety
+		// backstop.
 		liveCount := 0
 		for _, u := range proposedSet {
 			if u.Power > 0 {

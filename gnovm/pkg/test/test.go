@@ -100,30 +100,87 @@ func (o outputWithError) StderrWrite(p []byte) (int, error) { return o.errW.Writ
 
 // ----------------------------------------
 // testParams
+//
+// In-memory backing for the gno test runner's param store. Mirrors
+// the production keeper's missing-key semantics: a Get against an
+// absent key leaves the destination at its zero value (matches
+// tm2/pkg/sdk/params/keeper.go:getIfExists). Type safety is
+// per-method, so values are stored as any and asserted on read.
+//
+// State lifetime: a fresh testParams is constructed per top-level
+// Machine setup; t.Run subtests share the same map and must
+// explicitly seed/reset to isolate.
 
-type testParams struct{}
-
-func newTestParams() *testParams {
-	return &testParams{}
+type testParams struct {
+	values map[string]any
 }
 
-func (tp *testParams) SetBool(key string, val bool)                     { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)                  { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)                   { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)                 { /* noop */ }
-func (tp *testParams) SetString(key string, val string)                 { /* noop */ }
-func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
-func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
+func newTestParams() *testParams {
+	return &testParams{values: map[string]any{}}
+}
 
-// G1 Get* methods — no-op (filetests don't exercise read behavior;
-// pointer destinations are left at zero value, matching keeper.go's
-// getIfExists semantics for unset keys).
-func (tp *testParams) GetBool(key string, ptr *bool)        { /* noop */ }
-func (tp *testParams) GetBytes(key string, ptr *[]byte)     { /* noop */ }
-func (tp *testParams) GetInt64(key string, ptr *int64)      { /* noop */ }
-func (tp *testParams) GetUint64(key string, ptr *uint64)    { /* noop */ }
-func (tp *testParams) GetString(key string, ptr *string)    { /* noop */ }
-func (tp *testParams) GetStrings(key string, ptr *[]string) { /* noop */ }
+func (tp *testParams) SetBool(key string, val bool)        { tp.values[key] = val }
+func (tp *testParams) SetBytes(key string, val []byte)     { tp.values[key] = val }
+func (tp *testParams) SetInt64(key string, val int64)      { tp.values[key] = val }
+func (tp *testParams) SetUint64(key string, val uint64)    { tp.values[key] = val }
+func (tp *testParams) SetString(key string, val string)    { tp.values[key] = val }
+func (tp *testParams) SetStrings(key string, val []string) { tp.values[key] = val }
+
+func (tp *testParams) UpdateStrings(key string, val []string, add bool) {
+	cur, _ := tp.values[key].([]string)
+	if add {
+		cur = append(cur, val...)
+	} else {
+		out := cur[:0]
+		drop := map[string]bool{}
+		for _, v := range val {
+			drop[v] = true
+		}
+		for _, v := range cur {
+			if !drop[v] {
+				out = append(out, v)
+			}
+		}
+		cur = out
+	}
+	tp.values[key] = cur
+}
+
+func (tp *testParams) GetBool(key string, ptr *bool) {
+	if v, ok := tp.values[key].(bool); ok {
+		*ptr = v
+	}
+}
+
+func (tp *testParams) GetBytes(key string, ptr *[]byte) {
+	if v, ok := tp.values[key].([]byte); ok {
+		*ptr = v
+	}
+}
+
+func (tp *testParams) GetInt64(key string, ptr *int64) {
+	if v, ok := tp.values[key].(int64); ok {
+		*ptr = v
+	}
+}
+
+func (tp *testParams) GetUint64(key string, ptr *uint64) {
+	if v, ok := tp.values[key].(uint64); ok {
+		*ptr = v
+	}
+}
+
+func (tp *testParams) GetString(key string, ptr *string) {
+	if v, ok := tp.values[key].(string); ok {
+		*ptr = v
+	}
+}
+
+func (tp *testParams) GetStrings(key string, ptr *[]string) {
+	if v, ok := tp.values[key].([]string); ok {
+		*ptr = v
+	}
+}
 
 // ----------------------------------------
 // main test function

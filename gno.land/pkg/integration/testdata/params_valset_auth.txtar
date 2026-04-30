@@ -8,9 +8,9 @@ loadpkg gno.land/r/gov/dao
 
 gnoland start
 
-# Sanity: v3.init() bootstrapped its PoA from the chain-seeded
-# valset:current. The chain has at least one genesis validator (the
-# txtar harness's mock PV), so valset:current is non-empty.
+# Sanity: chain-seeded valset:current is non-empty. The txtar harness
+# uses a mock PV with at least one genesis validator, so InitChainer
+# wrote that set to valset:current via the sentinel-scoped ictx.
 gnokey query params/node:valset:current
 stdout 'data:'
 

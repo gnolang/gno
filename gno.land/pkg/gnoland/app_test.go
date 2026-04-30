@@ -782,8 +782,9 @@ func TestEndBlocker(t *testing.T) {
 		// Defense-in-depth: a non-empty proposed where every entry has
 		// Power=0 is still a "remove all" — len > 0 but live count is
 		// zero. Floor must catch this regardless of outer-list length.
-		// (Unreachable through v3's normal flow — vp.GetValidators()
-		// emits only live entries — but the floor is the backstop.)
+		// (Reachable via v3 if a proposal's deltas remove every
+		// validator and produce an empty published set; the floor is
+		// the consensus-safety backstop.)
 		current := generateValidatorUpdates(t, 2)
 		// Build a proposed list that mirrors current's pubkeys but with
 		// Power=0. This is the "explicitly remove all" shape.

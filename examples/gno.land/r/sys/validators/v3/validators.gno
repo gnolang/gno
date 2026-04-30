@@ -1,16 +1,20 @@
-// Package validators implements on-chain validator set management through
-// Proof of Authority. The realm exposes a public executor for GovDAO
-// proposals to suggest validator set changes. Approved changes are
-// published to the VM params keeper via gno.land/r/sys/params; the chain
-// (EndBlocker) reads them on the next block and propagates to consensus.
+// Package validators implements on-chain validator set management
+// through Proof of Authority. The realm exposes a public proposal
+// constructor for GovDAO; on approval, the proposal callback applies
+// the captured deltas to the chain's effective valset and publishes
+// the new full set via gno.land/r/sys/params. The chain's EndBlocker
+// reads the result on the next block and propagates to consensus.
+//
+// No in-realm validator state. All reads go through
+// sysparams.GetValsetEffective (proposed-if-dirty, else current).
 package validators
 
 import (
 	"chain/runtime"
+	"sort"
 	"strconv"
 	"strings"
 
-	"gno.land/p/nt/poa/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
@@ -19,31 +23,21 @@ import (
 
 const errNoChangesProposed = "no set changes proposed"
 
-var vp validators.ValsetProtocol // underlying validator set protocol
-
-func init() {
-	vp = poa.NewPoA()
-	// Bootstrap the in-realm PoA from the chain's authoritative current
-	// valset (seeded by InitChainer from req.Validators at genesis).
-	// Without this, the first proposal would diff from empty and emit
-	// removals for every genesis validator — wiping consensus on the
-	// first v3-driven update.
-	//
-	// Genesis-time-only deploy: a misconfigured genesis validator (e.g.,
-	// unsupported pubkey type) makes vp.AddValidator panic, which fails
-	// init and refuses to deploy v3. That's the correct unrecoverable
-	// signal — the operator must fix genesis.json and retry.
-	for _, v := range sysparams.GetValsetEntries() {
-		if _, err := vp.AddValidator(v.Address, v.PubKey, v.VotingPower); err != nil {
-			panic("v3 PoA bootstrap failed: " + err.Error())
-		}
-	}
-}
-
-// NewProposalRequest wraps newValsetChangeExecutor with a GovDAO proposal
-// title/description (mirrors v2's NewPropRequest signature). The description
-// is augmented with a per-validator "## Validator Updates" section so the
-// proposal text on-chain matches v2's format.
+// NewProposalRequest builds a GovDAO proposal that, when executed,
+// applies the deltas from changesFn to the chain's effective valset
+// and publishes the new full set via SetValsetProposal.
+//
+// changesFn is evaluated EAGERLY at creation; the resulting slice is
+// captured into the executor and replayed against the execution-time
+// effective baseline. Description is rendered against creation-time
+// deltas; application is against execution-time baseline. If a prior
+// proposal landed between creation and execution, the captured
+// changes apply on top of its result (not on top of pre-creation
+// state).
+//
+// Each Validator with VotingPower > 0 is an add; VotingPower == 0 is
+// a removal. Power-update is expressed as the [{power=0},{power=N}]
+// remove-then-add pair within one proposal.
 func NewProposalRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
@@ -67,25 +61,24 @@ func NewProposalRequest(changesFn func() []validators.Validator, title, descript
 		desc.WriteString("\n\n")
 	}
 	desc.WriteString("## Validator Updates\n")
-	for _, change := range changes {
-		if change.VotingPower == 0 {
-			desc.WriteString(ufmt.Sprintf("- %s: remove\n", change.Address))
+	for _, c := range changes {
+		if c.VotingPower == 0 {
+			desc.WriteString(ufmt.Sprintf("- %s: remove\n", c.Address))
 		} else {
-			desc.WriteString(ufmt.Sprintf("- %s: add\n", change.Address))
+			desc.WriteString(ufmt.Sprintf("- %s: add\n", c.Address))
 		}
 	}
 
-	// Pass an eager closure so newValsetChangeExecutor uses the same
-	// pre-computed `changes` slice and doesn't re-invoke changesFn.
 	return dao.NewProposalRequest(title, desc.String(), newValsetChangeExecutor(func() []validators.Validator {
 		return changes
 	}))
 }
 
-// newValsetChangeExecutor creates a GovDAO executor for proposing valset
-// changes. changesFn is evaluated eagerly; the resulting slice is captured
-// by the returned Executor. Lazy evaluation would close over the caller's
-// ephemeral realm and fail to persist via dao.MustCreateProposal.
+// newValsetChangeExecutor builds a GovDAO executor that, on approval,
+// applies the captured deltas to a fresh read of the effective valset
+// and publishes the result. Unexported by design — only callers
+// within this realm should construct executors that reach
+// SetValsetProposal.
 func newValsetChangeExecutor(changesFn func() []validators.Validator) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
@@ -97,26 +90,45 @@ func newValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 	}
 
 	callback := func(cur realm) error {
-		// Apply each change to the on-chain valset.
-		for _, change := range changes {
-			if change.VotingPower == 0 {
-				if _, err := vp.RemoveValidator(change.Address); err != nil {
-					panic(err)
+		// Read effective view at execution time: proposed-if-dirty,
+		// else current. Robust to:
+		//   1. Cross-block sequential — dirty cleared by EndBlocker,
+		//      so we read current (== prior proposal's applied result).
+		//   2. Same-block sequential — a prior callback wrote
+		//      proposed + dirty=true; we accumulate on top instead
+		//      of clobbering its result.
+		baseline := sysparams.GetValsetEffective()
+		set := make(map[address]validators.Validator, len(baseline))
+		for _, v := range baseline {
+			set[v.Address] = v
+		}
+
+		for _, c := range changes {
+			if c.VotingPower == 0 {
+				if _, ok := set[c.Address]; !ok {
+					panic("validator does not exist: " + c.Address.String())
 				}
-				continue
-			}
-			if _, err := vp.AddValidator(change.Address, change.PubKey, change.VotingPower); err != nil {
-				panic(err)
+				delete(set, c.Address)
+			} else {
+				// Add OR power-update. PoA semantics today reject re-add;
+				// preserve to keep proposal-author intent unambiguous (use
+				// the [{power=0},{power=N}] pair to update).
+				if _, ok := set[c.Address]; ok {
+					panic("validator already exists: " + c.Address.String())
+				}
+				set[c.Address] = c
 			}
 		}
 
-		// Publish the new full valset for the chain to diff & apply.
-		// Each entry is "<bech32-pubkey>:<decimal-power>".
-		set := vp.GetValidators()
-		entries := make([]string, len(set))
-		for i, v := range set {
-			entries[i] = v.PubKey + ":" + strconv.FormatUint(v.VotingPower, 10)
+		// Encode and publish. Sort before publishing — gno map
+		// iteration is unspecified; the chain-side diff is set-based
+		// so consensus is unaffected, but deterministic bytes keep
+		// cross-node diffs clean.
+		entries := make([]string, 0, len(set))
+		for _, v := range set {
+			entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 		}
+		sort.Strings(entries)
 		sysparams.SetValsetProposal(cross, entries)
 		return nil
 	}
@@ -124,28 +136,39 @@ func newValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 	return dao.NewSimpleExecutor(callback, "")
 }
 
-// IsValidator returns true if addr is part of the current validator set.
-func IsValidator(addr address) bool { return vp.IsValidator(addr) }
-
-// GetValidator returns the validator with the given address; panics if absent.
-func GetValidator(addr address) validators.Validator {
-	v, err := vp.GetValidator(addr)
-	if err != nil {
-		panic("validator not found")
+// IsValidator returns true if addr is part of the effective validator
+// set (proposed if a v3 proposal is awaiting EndBlocker, else
+// current).
+func IsValidator(addr address) bool {
+	for _, v := range sysparams.GetValsetEffective() {
+		if v.Address == addr {
+			return true
+		}
 	}
-	return v
+	return false
 }
 
-// GetValidators returns the current validator set.
-func GetValidators() []validators.Validator { return vp.GetValidators() }
+// GetValidator returns the validator with the given address from the
+// effective set; panics if absent.
+func GetValidator(addr address) validators.Validator {
+	for _, v := range sysparams.GetValsetEffective() {
+		if v.Address == addr {
+			return v
+		}
+	}
+	panic("validator not found")
+}
 
-// Render displays the current validator set.
+// GetValidators returns the effective validator set.
+func GetValidators() []validators.Validator {
+	return sysparams.GetValsetEffective()
+}
+
+// Render displays the effective validator set.
 func Render(string) string {
-	var (
-		sb  strings.Builder
-		h   = runtime.ChainHeight()
-		set = GetValidators()
-	)
+	var sb strings.Builder
+	h := runtime.ChainHeight()
+	set := sysparams.GetValsetEffective()
 	sb.WriteString(ufmt.Sprintf("## Valset at height %d\n\n", h))
 	if len(set) == 0 {
 		sb.WriteString("Valset is empty.\n")

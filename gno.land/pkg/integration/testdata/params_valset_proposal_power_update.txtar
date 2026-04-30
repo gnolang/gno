@@ -99,12 +99,12 @@ import (
 )
 
 func main() {
-	// v3's NewValsetChangeExecutor callback treats a Validator with
-	// non-zero power and an existing address as an update — calls
-	// vp.AddValidator, which on the PoA returns ErrValidatorExists
-	// unless we first remove. To keep the test simple, we use the
-	// remove-then-add pattern: remove the existing validator (power
-	// 0) AND re-add it at the new power, in one proposal.
+	// v3's callback rejects re-add of an existing validator (the
+	// rewrite preserves the original PoA semantics: an "add" delta
+	// with an already-present address panics). To express a power
+	// change, use the remove-then-add pattern in one proposal:
+	// emit power=0 first to drop the existing entry from the local
+	// map, then power=N to re-insert at the new power.
 	const (
 		addr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
 		pubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"

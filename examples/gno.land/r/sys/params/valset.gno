@@ -49,24 +49,51 @@ func SetValsetProposal(cur realm, entries []string) {
 	prms.SetSysParamBool(nodeModulePrefix, valsetSubmodule, valsetDirtyKey, true)
 }
 
-// GetValsetEntries returns the chain's authoritative validator set.
-//
-// IMPORTANT: this is the V_{H+2} view — the set that will be active
-// at H+2 once the most recent EndBlock's updates apply, NOT the set
-// actively signing the current block. Callers gating runtime decisions
-// on "is X a validator right now" should be aware of the one-block
-// transition window.
-//
-// Used by r/sys/validators/v3.init() to bootstrap its in-realm PoA
-// from the genesis-seeded current set, so the first proposal diffs
-// from truth (not from empty).
+// GetValsetEntries returns the chain's authoritative committed
+// validator set (the contents of valset:current). This is the
+// V_{H+2} view — the set that will be active at H+2 once the most
+// recent EndBlock's updates apply, NOT the set signing the current
+// block. Callers that want "what v3 reports as the current
+// validator set" — including the in-flight proposed set during
+// the dirty window — should call GetValsetEffective instead.
 func GetValsetEntries() []validators.Validator {
-	raw, _ := prms.GetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetCurrentKey)
+	return parseValsetSlot(valsetCurrentKey)
+}
+
+// ValsetDirty reports whether valset:proposed is awaiting EndBlocker.
+// Realm callers MUST treat this as transient: the dirty flag is set
+// by SetValsetProposal and cleared by the chain's EndBlocker (every
+// block where dirty=true on entry exits with dirty=false).
+func ValsetDirty() bool {
+	d, _ := prms.GetSysParamBool(nodeModulePrefix, valsetSubmodule, valsetDirtyKey)
+	return d
+}
+
+// GetValsetEffective returns the set that WILL be active at H+2:
+// valset:proposed if dirty, else valset:current. Used by v3 so that
+// (a) reads after a same-block proposal callback see that proposal's
+// effects, and (b) sequential same-block proposals accumulate
+// correctly on top of each other.
+//
+// Misuse warning: this exists for r/sys/validators/v3's internal
+// reads. Other realms making "is X a validator" decisions should
+// call v3.IsValidator, not this directly, so future changes to v3's
+// read semantics propagate uniformly.
+func GetValsetEffective() []validators.Validator {
+	key := valsetCurrentKey
+	if ValsetDirty() {
+		key = valsetProposedKey
+	}
+	return parseValsetSlot(key)
+}
+
+func parseValsetSlot(key string) []validators.Validator {
+	raw, _ := prms.GetSysParamStrings(nodeModulePrefix, valsetSubmodule, key)
 	out := make([]validators.Validator, 0, len(raw))
 	for _, e := range raw {
 		v, err := parseEntry(e)
 		if err != nil {
-			panic("valset:current corrupted: " + err.Error())
+			panic("valset:" + key + " corrupted: " + err.Error())
 		}
 		out = append(out, v)
 	}
