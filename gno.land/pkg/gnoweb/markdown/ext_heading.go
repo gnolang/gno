@@ -75,13 +75,12 @@ func wrapHeadingChildren(h *ast.Heading) {
 	c := h.FirstChild()
 	for c != nil {
 		next := c.NextSibling()
-		switch {
-		case c.Kind() == KindHeadingAnchor:
-			// Already wrapped (re-running the transformer is a no-op).
+		if isLinkLike(c) {
+			// Either an inline link (run boundary) or an existing
+			// headingAnchorNode from a previous Transform pass — treat
+			// both the same: end the current run, leave the node in place.
 			run = nil
-		case isLinkLike(c):
-			run = nil
-		default:
+		} else {
 			if run == nil {
 				run = &headingAnchorNode{href: href}
 				h.InsertBefore(h, c, run)
@@ -94,14 +93,16 @@ func wrapHeadingChildren(h *ast.Heading) {
 }
 
 // isLinkLike reports whether the node renders as an <a> tag — i.e. would
-// produce nested <a> if wrapped by the heading-anchor.
+// produce nested <a> if wrapped by the heading-anchor. KindHeadingAnchor
+// is included so that re-running the transformer on a doc that already
+// has wrapped runs is a no-op.
 //
 // MAINTAINERS: when adding a new inline extension that emits an <a> element
 // (footnote refs, card links, etc.), add its NodeKind here. Otherwise the
 // heading-anchor will silently wrap it and produce nested anchors.
 func isLinkLike(n ast.Node) bool {
 	switch n.Kind() {
-	case ast.KindLink, ast.KindAutoLink, KindGnoLink:
+	case ast.KindLink, ast.KindAutoLink, KindGnoLink, KindHeadingAnchor:
 		return true
 	}
 	return false
