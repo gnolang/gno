@@ -128,14 +128,25 @@ func (tp *testParams) SetStrings(key string, val []string) { tp.values[key] = va
 
 func (tp *testParams) UpdateStrings(key string, val []string, add bool) {
 	cur, _ := tp.values[key].([]string)
+	// Mirror production semantics in gno.land/pkg/sdk/vm/builtins.go: add
+	// dedupes against the existing set; remove drops any element listed.
+	existing := make(map[string]bool, len(cur))
+	for _, s := range cur {
+		existing[s] = true
+	}
 	if add {
-		cur = append(cur, val...)
+		for _, v := range val {
+			if !existing[v] {
+				cur = append(cur, v)
+				existing[v] = true
+			}
+		}
 	} else {
-		out := cur[:0]
-		drop := map[string]bool{}
+		drop := make(map[string]bool, len(val))
 		for _, v := range val {
 			drop[v] = true
 		}
+		out := cur[:0]
 		for _, v := range cur {
 			if !drop[v] {
 				out = append(out, v)

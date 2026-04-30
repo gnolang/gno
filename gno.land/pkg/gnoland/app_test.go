@@ -567,6 +567,12 @@ type valsetState struct {
 	dirty             bool
 	currentWrites     [][]string
 	dirtyWrites       []bool
+	// currentWriteCtxSentinels records ctx.Value(internalWriteCtxKey{})
+	// observed on each valset:current write — TestEndBlocker_SentinelOnCurrentWrite
+	// asserts the sentinel is always true so a future regression that
+	// drops `intCtx := ctx.WithValue(internalWriteCtxKey{}, true)` at
+	// app.go:646 fails CI rather than silently re-opening F2.
+	currentWriteCtxSentinels []bool
 }
 
 // serializeUpdates converts ValidatorUpdates to the wire format
@@ -602,10 +608,12 @@ func newValsetMock(st *valsetState) *endBlockerParamsMock {
 				st.dirtyWrites = append(st.dirtyWrites, value)
 			}
 		},
-		setStringsFn: func(_ sdk.Context, key string, value []string) {
+		setStringsFn: func(ctx sdk.Context, key string, value []string) {
 			if key == valsetCurrentPath {
 				st.current = value
 				st.currentWrites = append(st.currentWrites, value)
+				sentinel, _ := ctx.Value(internalWriteCtxKey{}).(bool)
+				st.currentWriteCtxSentinels = append(st.currentWriteCtxSentinels, sentinel)
 			}
 		},
 	}
@@ -699,6 +707,16 @@ func TestEndBlocker(t *testing.T) {
 		require.Len(t, st.currentWrites, 1)
 		assert.ElementsMatch(t, proposedEntries, st.currentWrites[0],
 			"current must equal proposed (modulo canonical sort)")
+
+		// Sentinel-flow regression guard: the valset:current write must
+		// carry internalWriteCtxKey{}=true so the chain-side
+		// WillSetParam in node_params.go accepts it. A future change
+		// that drops `intCtx := ctx.WithValue(...)` at app.go would
+		// silently re-open the F2 vector (any realm could write
+		// valset:current via a generic factory). Pin it here.
+		require.Len(t, st.currentWriteCtxSentinels, 1)
+		assert.True(t, st.currentWriteCtxSentinels[0],
+			"valset:current write must carry the internalWriteCtxKey sentinel")
 	})
 
 	t.Run("wrong pubkey type whole-rejects proposal", func(t *testing.T) {
@@ -974,9 +992,11 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
+	icc.prmk = prmk
 	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 

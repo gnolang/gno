@@ -15,11 +15,12 @@ import (
 )
 
 const (
-	// Two distinct deterministic test pubkeys (and the addresses
+	// Three distinct deterministic test pubkeys (and the addresses
 	// they derive to) used across the cases below. Stable across
 	// runs.
 	pubKeyA = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	pubKeyB = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
+	pubKeyC = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5cjrffs"
 
 	module    = "node"
 	submodule = "valset"
@@ -84,29 +85,79 @@ func TestRender_DefaultTestHeight(t *testing.T) {
 		out)
 }
 
-func TestCallback_AccumulatesOnDirtyProposed(t *testing.T) {
-	// Same-block accumulation: a prior callback wrote
-	// valset:proposed + dirty=true. A second callback in the same
-	// block must read effective (= proposed) and apply on top of it.
+func TestCallback_AccumulatesOnDirtyProposed_SecondRemoves(t *testing.T) {
+	// Same-block accumulation, remove path: a prior callback wrote
+	// valset:proposed + dirty=true with B added. A second callback
+	// removes B. Effective view post-second must show only A.
 	resetValset(t)
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
-	// Simulate "proposal A added validator B at power 1, EndBlocker
-	// has not yet promoted." dirty=true points reads at proposed.
 	testing.SetSysParamStrings(module, submodule, propKey, []string{pubKeyA + ":10", pubKeyB + ":1"})
 	testing.SetSysParamBool(module, submodule, dirtyKey, true)
 
-	// Second callback removes B. Construct an executor and run its
-	// callback directly (full govdao flow exercised in txtar).
 	addrB := mustAddr(t, pubKeyB)
 	exec := newValsetChangeExecutor(func() []pVals.Validator {
 		return []pVals.Validator{{Address: addrB, VotingPower: 0}}
 	})
 	urequire.NoError(t, exec.Execute(cross), "second callback succeeds")
 
-	// Effective view (still dirty=true) must now show only A.
 	set := GetValidators()
 	urequire.Equal(t, 1, len(set), "only A remains")
 	urequire.Equal(t, pubKeyA, set[0].PubKey)
+}
+
+func TestCallback_AccumulatesOnDirtyProposed_SecondAdds(t *testing.T) {
+	// Same-block accumulation, add path: this is the regression test
+	// the remove-only case can't catch — if the second callback
+	// clobbered proposed instead of accumulating, it would publish
+	// [A,C] (losing B) instead of [A,B,C].
+	resetValset(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
+	testing.SetSysParamStrings(module, submodule, propKey, []string{pubKeyA + ":10", pubKeyB + ":1"})
+	testing.SetSysParamBool(module, submodule, dirtyKey, true)
+
+	addrC := mustAddr(t, pubKeyC)
+	exec := newValsetChangeExecutor(func() []pVals.Validator {
+		return []pVals.Validator{{Address: addrC, PubKey: pubKeyC, VotingPower: 2}}
+	})
+	urequire.NoError(t, exec.Execute(cross), "second callback succeeds")
+
+	// Effective view must contain all three: A from current, B from
+	// the prior callback's proposed, and C from this callback.
+	set := GetValidators()
+	urequire.Equal(t, 3, len(set), "A, B, and C all present")
+	seen := map[string]bool{}
+	for _, v := range set {
+		seen[v.PubKey] = true
+	}
+	urequire.True(t, seen[pubKeyA], "A retained")
+	urequire.True(t, seen[pubKeyB], "B retained from prior callback")
+	urequire.True(t, seen[pubKeyC], "C added by second callback")
+}
+
+func TestCallback_PanicsOnRemoveOfMissing(t *testing.T) {
+	resetValset(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
+
+	addrC := mustAddr(t, pubKeyC) // not in set
+	exec := newValsetChangeExecutor(func() []pVals.Validator {
+		return []pVals.Validator{{Address: addrC, VotingPower: 0}}
+	})
+	urequire.AbortsWithMessage(t,
+		"validator does not exist: "+addrC.String(),
+		func() { exec.Execute(cross) })
+}
+
+func TestCallback_PanicsOnAddOfExisting(t *testing.T) {
+	resetValset(t)
+	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
+
+	addrA := mustAddr(t, pubKeyA) // already in set
+	exec := newValsetChangeExecutor(func() []pVals.Validator {
+		return []pVals.Validator{{Address: addrA, PubKey: pubKeyA, VotingPower: 5}}
+	})
+	urequire.AbortsWithMessage(t,
+		"validator already exists: "+addrA.String(),
+		func() { exec.Execute(cross) })
 }
 
 func TestCallback_AllZeroPowerPublishesEmpty(t *testing.T) {
