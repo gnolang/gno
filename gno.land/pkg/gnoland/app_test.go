@@ -503,36 +503,40 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 // minimal-by-default behavior of mockParamsKeeper but adding per-key
 // observation/injection where each subtest needs it.
 type endBlockerParamsMock struct {
-	getStringFn  func(sdk.Context, string, *string)
-	getInt64Fn   func(sdk.Context, string, *int64)
-	getBoolFn    func(sdk.Context, string, *bool)
-	getStringsFn func(sdk.Context, string, *[]string)
+	getStringFn  func(sdk.Context, string, *string) bool
+	getInt64Fn   func(sdk.Context, string, *int64) bool
+	getBoolFn    func(sdk.Context, string, *bool) bool
+	getStringsFn func(sdk.Context, string, *[]string) bool
 	setBoolFn    func(sdk.Context, string, bool)
 	setStringsFn func(sdk.Context, string, []string)
 }
 
-func (m *endBlockerParamsMock) GetString(ctx sdk.Context, key string, ptr *string) {
+func (m *endBlockerParamsMock) GetString(ctx sdk.Context, key string, ptr *string) bool {
 	if m.getStringFn != nil {
-		m.getStringFn(ctx, key, ptr)
+		return m.getStringFn(ctx, key, ptr)
 	}
+	return false
 }
 
-func (m *endBlockerParamsMock) GetInt64(ctx sdk.Context, key string, ptr *int64) {
+func (m *endBlockerParamsMock) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
 	if m.getInt64Fn != nil {
-		m.getInt64Fn(ctx, key, ptr)
+		return m.getInt64Fn(ctx, key, ptr)
 	}
+	return false
 }
 
-func (m *endBlockerParamsMock) GetBool(ctx sdk.Context, key string, ptr *bool) {
+func (m *endBlockerParamsMock) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
 	if m.getBoolFn != nil {
-		m.getBoolFn(ctx, key, ptr)
+		return m.getBoolFn(ctx, key, ptr)
 	}
+	return false
 }
 
-func (m *endBlockerParamsMock) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+func (m *endBlockerParamsMock) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
 	if m.getStringsFn != nil {
-		m.getStringsFn(ctx, key, ptr)
+		return m.getStringsFn(ctx, key, ptr)
 	}
+	return false
 }
 
 func (m *endBlockerParamsMock) SetBool(ctx sdk.Context, key string, value bool) {
@@ -548,8 +552,8 @@ func (m *endBlockerParamsMock) SetStrings(ctx sdk.Context, key string, value []s
 }
 
 // Remaining ParamsKeeperI methods are not exercised by EndBlocker.
-func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64) {}
-func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte)  {}
+func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64) bool { return false }
+func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte) bool  { return false }
 func (m *endBlockerParamsMock) SetString(sdk.Context, string, string)  {}
 func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64)    {}
 func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64)  {}
@@ -589,18 +593,29 @@ func serializeUpdates(us []abci.ValidatorUpdate) []string {
 // writes update st (and append to its history slices for assertions).
 func newValsetMock(st *valsetState) *endBlockerParamsMock {
 	return &endBlockerParamsMock{
-		getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
+		getStringsFn: func(_ sdk.Context, key string, ptr *[]string) bool {
 			switch key {
 			case valsetCurrentPath:
+				if st.current == nil {
+					return false
+				}
 				*ptr = st.current
+				return true
 			case valsetProposedPath:
+				if st.proposed == nil {
+					return false
+				}
 				*ptr = st.proposed
+				return true
 			}
+			return false
 		},
-		getBoolFn: func(_ sdk.Context, key string, ptr *bool) {
+		getBoolFn: func(_ sdk.Context, key string, ptr *bool) bool {
 			if key == valsetDirtyPath {
 				*ptr = st.dirty
+				return true
 			}
+			return false
 		},
 		setBoolFn: func(_ sdk.Context, key string, value bool) {
 			if key == valsetDirtyPath {

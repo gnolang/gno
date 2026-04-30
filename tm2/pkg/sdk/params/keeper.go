@@ -25,12 +25,16 @@ func storeKey(key string) []byte {
 }
 
 type ParamsKeeperI interface {
-	GetString(ctx sdk.Context, key string, ptr *string)
-	GetInt64(ctx sdk.Context, key string, ptr *int64)
-	GetUint64(ctx sdk.Context, key string, ptr *uint64)
-	GetBool(ctx sdk.Context, key string, ptr *bool)
-	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
-	GetStrings(ctx sdk.Context, key string, ptr *[]string)
+	// GetXxx writes the stored value (if any) into *ptr and returns
+	// whether the key existed. A return of false leaves *ptr at its
+	// zero value, distinguishing "never set" from "set to zero" —
+	// which the in-memory backed types alone could not.
+	GetString(ctx sdk.Context, key string, ptr *string) bool
+	GetInt64(ctx sdk.Context, key string, ptr *int64) bool
+	GetUint64(ctx sdk.Context, key string, ptr *uint64) bool
+	GetBool(ctx sdk.Context, key string, ptr *bool) bool
+	GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool
+	GetStrings(ctx sdk.Context, key string, ptr *[]string) bool
 
 	SetString(ctx sdk.Context, key string, value string)
 	SetInt64(ctx sdk.Context, key string, value int64)
@@ -108,32 +112,34 @@ func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {
 	return stor.Has(nil, storeKey(key))
 }
 
-func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
-	pk.getIfExists(ctx, key, ptr)
+func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
+	return pk.getIfExists(ctx, key, ptr)
 }
 
-func (pk ParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
-	pk.getIfExists(ctx, key, ptr)
+func (pk ParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	return pk.getIfExists(ctx, key, ptr)
 }
 
-func (pk ParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
-	pk.getIfExists(ctx, key, ptr)
+func (pk ParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
+	return pk.getIfExists(ctx, key, ptr)
 }
 
-func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
-	pk.getIfExists(ctx, key, ptr)
+func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
+	return pk.getIfExists(ctx, key, ptr)
 }
 
-func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
+func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
 	stor := ctx.Store(pk.key)
 	bz := stor.Get(nil, storeKey(key))
-	if bz != nil {
-		*ptr = bz
+	if bz == nil {
+		return false
 	}
+	*ptr = bz
+	return true
 }
 
-func (pk ParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
-	pk.getIfExists(ctx, key, ptr)
+func (pk ParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
+	return pk.getIfExists(ctx, key, ptr)
 }
 
 func (pk ParamsKeeper) SetString(ctx sdk.Context, key, value string) {
@@ -234,13 +240,14 @@ func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {
 	}
 }
 
-func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
+func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) bool {
 	stor := ctx.Store(pk.key)
 	bz := stor.Get(nil, storeKey(key))
 	if bz == nil {
-		return
+		return false
 	}
 	amino.MustUnmarshalJSON(bz, ptr)
+	return true
 }
 
 // validate runs the registered module keeper's WillSetParam hook for
@@ -297,28 +304,28 @@ func (ppk prefixParamsKeeper) prefixed(key string) string {
 	return ppk.prefix + key
 }
 
-func (ppk prefixParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
-	ppk.pk.GetString(ctx, ppk.prefixed(key), ptr)
+func (ppk prefixParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
+	return ppk.pk.GetString(ctx, ppk.prefixed(key), ptr)
 }
 
-func (ppk prefixParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
-	ppk.pk.GetInt64(ctx, ppk.prefixed(key), ptr)
+func (ppk prefixParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
+	return ppk.pk.GetInt64(ctx, ppk.prefixed(key), ptr)
 }
 
-func (ppk prefixParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {
-	ppk.pk.GetUint64(ctx, ppk.prefixed(key), ptr)
+func (ppk prefixParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
+	return ppk.pk.GetUint64(ctx, ppk.prefixed(key), ptr)
 }
 
-func (ppk prefixParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) {
-	ppk.pk.GetBool(ctx, ppk.prefixed(key), ptr)
+func (ppk prefixParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	return ppk.pk.GetBool(ctx, ppk.prefixed(key), ptr)
 }
 
-func (ppk prefixParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
-	ppk.pk.GetBytes(ctx, ppk.prefixed(key), ptr)
+func (ppk prefixParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
+	return ppk.pk.GetBytes(ctx, ppk.prefixed(key), ptr)
 }
 
-func (ppk prefixParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
-	ppk.pk.GetStrings(ctx, ppk.prefixed(key), ptr)
+func (ppk prefixParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
+	return ppk.pk.GetStrings(ctx, ppk.prefixed(key), ptr)
 }
 
 func (ppk prefixParamsKeeper) SetString(ctx sdk.Context, key string, value string) {

@@ -50,60 +50,52 @@ func X_updateSysParamStrings(m *gno.Machine, module, submodule, name string, val
 }
 
 // G1: typed read helpers. Same realm gate as writes — only
-// gno.land/r/sys/params can call these. The (value, found) shape lets
-// callers like v3.init() distinguish "key never written" from
-// "key written as zero/empty value".
+// gno.land/r/sys/params can call these. The (value, found) shape
+// lets callers distinguish "key never written" from "key written as
+// zero/empty value." `found` comes directly from the keeper's
+// existence check, so set-to-zero and unset are always reliably
+// distinguishable for every type.
 
 func X_getSysParamString(m *gno.Machine, module, submodule, name string) (string, bool) {
 	assertSysParamsRealm(m)
-	pk := prmkey(module, submodule, name)
 	var out string
-	execctx.GetContext(m).Params.GetString(pk, &out)
-	return out, out != ""
+	ok := execctx.GetContext(m).Params.GetString(prmkey(module, submodule, name), &out)
+	return out, ok
 }
 
 func X_getSysParamBool(m *gno.Machine, module, submodule, name string) (bool, bool) {
 	assertSysParamsRealm(m)
-	pk := prmkey(module, submodule, name)
-	// Bool's zero value is false; we cannot distinguish "unset" from
-	// "set to false" via the keeper's getIfExists. Callers that need
-	// this distinction should use a string/bytes key instead. For
-	// API symmetry, return (val, true) — i.e., always-found.
 	var out bool
-	execctx.GetContext(m).Params.GetBool(pk, &out)
-	return out, true
+	ok := execctx.GetContext(m).Params.GetBool(prmkey(module, submodule, name), &out)
+	return out, ok
 }
 
 func X_getSysParamInt64(m *gno.Machine, module, submodule, name string) (int64, bool) {
 	assertSysParamsRealm(m)
-	pk := prmkey(module, submodule, name)
 	var out int64
-	execctx.GetContext(m).Params.GetInt64(pk, &out)
-	return out, true // see GetBool comment re: zero-vs-unset.
+	ok := execctx.GetContext(m).Params.GetInt64(prmkey(module, submodule, name), &out)
+	return out, ok
 }
 
 func X_getSysParamUint64(m *gno.Machine, module, submodule, name string) (uint64, bool) {
 	assertSysParamsRealm(m)
-	pk := prmkey(module, submodule, name)
 	var out uint64
-	execctx.GetContext(m).Params.GetUint64(pk, &out)
-	return out, true
+	ok := execctx.GetContext(m).Params.GetUint64(prmkey(module, submodule, name), &out)
+	return out, ok
 }
 
 func X_getSysParamBytes(m *gno.Machine, module, submodule, name string) ([]byte, bool) {
 	assertSysParamsRealm(m)
-	pk := prmkey(module, submodule, name)
 	var out []byte
-	execctx.GetContext(m).Params.GetBytes(pk, &out)
-	return out, out != nil
+	ok := execctx.GetContext(m).Params.GetBytes(prmkey(module, submodule, name), &out)
+	return out, ok
 }
 
 func X_getSysParamStrings(m *gno.Machine, module, submodule, name string) ([]string, bool) {
 	assertSysParamsRealm(m)
-	pk := prmkey(module, submodule, name)
 	var out []string
-	execctx.GetContext(m).Params.GetStrings(pk, &out)
-	return out, out != nil
+	ok := execctx.GetContext(m).Params.GetStrings(prmkey(module, submodule, name), &out)
+	return out, ok
 }
 
 func assertSysParamsRealm(m *gno.Machine) {

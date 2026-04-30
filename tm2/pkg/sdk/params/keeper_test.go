@@ -137,6 +137,57 @@ type Params struct {
 	p2 string
 }
 
+// TestKeeperGetReturnsFound verifies the (value, found) contract on
+// the typed Get methods: an absent key returns false with the ptr
+// untouched; a key SET to a zero value returns true. Without the
+// found bit, callers couldn't distinguish "never written" from
+// "written as 0/false/empty".
+func TestKeeperGetReturnsFound(t *testing.T) {
+	env := setupTestEnv()
+	ctx, keeper := env.ctx, env.keeper
+
+	// Set each typed key to its zero value.
+	keeper.SetString(ctx, "s", "")
+	keeper.SetBool(ctx, "b", false)
+	keeper.SetInt64(ctx, "i", 0)
+	keeper.SetUint64(ctx, "u", 0)
+	keeper.SetBytes(ctx, "y", []byte{})
+	keeper.SetStrings(ctx, "ss", []string{})
+
+	var (
+		s  string
+		b  bool
+		i  int64
+		u  uint64
+		y  []byte
+		ss []string
+	)
+	require.True(t, keeper.GetString(ctx, "s", &s), "set-to-empty string is found")
+	require.True(t, keeper.GetBool(ctx, "b", &b), "set-to-false bool is found")
+	require.True(t, keeper.GetInt64(ctx, "i", &i), "set-to-zero int64 is found")
+	require.True(t, keeper.GetUint64(ctx, "u", &u), "set-to-zero uint64 is found")
+	require.True(t, keeper.GetBytes(ctx, "y", &y), "set-to-empty bytes is found")
+	require.True(t, keeper.GetStrings(ctx, "ss", &ss), "set-to-empty strings is found")
+
+	// Pre-set ptrs to non-zero so we can detect mutation on absent
+	// keys.
+	s, b, i, u = "preset", true, 7, 7
+	y, ss = []byte("preset"), []string{"preset"}
+	require.False(t, keeper.GetString(ctx, "absent", &s))
+	require.False(t, keeper.GetBool(ctx, "absent", &b))
+	require.False(t, keeper.GetInt64(ctx, "absent", &i))
+	require.False(t, keeper.GetUint64(ctx, "absent", &u))
+	require.False(t, keeper.GetBytes(ctx, "absent", &y))
+	require.False(t, keeper.GetStrings(ctx, "absent", &ss))
+	// Ptrs left untouched on absent.
+	require.Equal(t, "preset", s)
+	require.True(t, b)
+	require.Equal(t, int64(7), i)
+	require.Equal(t, uint64(7), u)
+	require.Equal(t, []byte("preset"), y)
+	require.Equal(t, []string{"preset"}, ss)
+}
+
 func TestGetAndSetStruct(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx

@@ -157,40 +157,62 @@ func (tp *testParams) UpdateStrings(key string, val []string, add bool) {
 	tp.values[key] = cur
 }
 
-func (tp *testParams) GetBool(key string, ptr *bool) {
-	if v, ok := tp.values[key].(bool); ok {
-		*ptr = v
+// GetXxx return false on absent key OR present-with-wrong-type
+// (treated as not-present for this getter — same fail-safe shape as
+// the production keeper's amino-unmarshal would surface).
+
+func (tp *testParams) GetBool(key string, ptr *bool) bool {
+	v, ok := tp.values[key].(bool)
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
 
-func (tp *testParams) GetBytes(key string, ptr *[]byte) {
-	if v, ok := tp.values[key].([]byte); ok {
-		*ptr = v
+func (tp *testParams) GetBytes(key string, ptr *[]byte) bool {
+	v, ok := tp.values[key].([]byte)
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
 
-func (tp *testParams) GetInt64(key string, ptr *int64) {
-	if v, ok := tp.values[key].(int64); ok {
-		*ptr = v
+func (tp *testParams) GetInt64(key string, ptr *int64) bool {
+	v, ok := tp.values[key].(int64)
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
 
-func (tp *testParams) GetUint64(key string, ptr *uint64) {
-	if v, ok := tp.values[key].(uint64); ok {
-		*ptr = v
+func (tp *testParams) GetUint64(key string, ptr *uint64) bool {
+	v, ok := tp.values[key].(uint64)
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
 
-func (tp *testParams) GetString(key string, ptr *string) {
-	if v, ok := tp.values[key].(string); ok {
-		*ptr = v
+func (tp *testParams) GetString(key string, ptr *string) bool {
+	v, ok := tp.values[key].(string)
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
 
-func (tp *testParams) GetStrings(key string, ptr *[]string) {
-	if v, ok := tp.values[key].([]string); ok {
-		*ptr = v
+func (tp *testParams) GetStrings(key string, ptr *[]string) bool {
+	v, ok := tp.values[key].([]string)
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
 
 // ----------------------------------------
