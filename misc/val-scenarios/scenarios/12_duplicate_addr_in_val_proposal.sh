@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Disabled in CI: outdated, needs to be updated.
-SCENARIO_CI=false
+SCENARIO_CI=true
 
 # Scenario 12: governance proposal with a duplicate validator address.
 #
@@ -10,8 +9,8 @@ SCENARIO_CI=false
 #   1. { Address: val1, VotingPower: 0 }                    — remove
 #   2. { Address: val1, PubKey: ..., VotingPower: 5 } — re-add with new power
 #
-# val1 should end up with VotingPower=5 (last entry wins) and the chain should
-# keep advancing.
+# The EndBlocker deduplicates per-block changes (last entry wins), so val1
+# ends up with VotingPower=5 and the chain keeps advancing.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/lib/scenario.sh"
@@ -36,7 +35,7 @@ mkdir -p "$script_dir"
 # Generate the MsgRun script with actual validator values substituted in.
 # The script also bootstraps itself as a T1 DAO member, which is safe because
 # allowedDAOs is intentionally left empty after genesis (see lib/valset-init.gno.tpl).
-cat > "${script_dir}/change_voting_power.gno" << GNOEOF
+cat >"${script_dir}/change_voting_power.gno" <<GNOEOF
 package main
 
 import (
@@ -85,6 +84,27 @@ func must(err error) {
 }
 GNOEOF
 
+cat >"${script_dir}/assert_validator_added.gno" <<GNOEOF
+package main
+
+import valr "gno.land/r/sys/validators/v2"
+
+func main() {
+	addr := address("${TARGET_ADDR}")
+	if !valr.IsValidator(addr) {
+		panic("val4 validator was not added")
+	}
+
+	val := valr.GetValidator(addr)
+	if val.PubKey != "${TARGET_PUBKEY}" {
+		panic("val4 validator pubkey mismatch")
+	}
+	if val.VotingPower != ${TARGET_POWER} {
+		panic("val4 validator voting power mismatch")
+	}
+}
+GNOEOF
+
 # Estimate gas; if the simulation itself fails (e.g. the script panics during
 # dry-run), fall back to a generous fixed value so the broadcast can still run.
 log "estimating gas for the validator proposal script"
@@ -105,19 +125,9 @@ run_script val1 "${script_dir}/change_voting_power.gno" "$run_gas"
 run_status=$?
 set -e
 
-# BUG: the proposal should be rejected because a single NewPropRequest contains
-# two entries for the same validator address. On unpatched master, both
-# saveChange calls succeed and the transaction is accepted (run_status=0). The
-# duplicate is only detected in EndBlocker, which then kills the node via
-# osm.Kill. Assert the known-buggy behaviour so CI stays green until the fix
-# lands. When fixed, replace the two lines below with:
-#   [ "$run_status" -ne 0 ] || die "expected the validator proposal script to fail, but it succeeded"
-#   assert_chain_advances val1 120 5
-[ "$run_status" -eq 0 ] || die "expected the validator proposal script to succeed on unpatched master (got exit ${run_status})"
-log "validator proposal script succeeded (bug: duplicate address not rejected at VM level; node will crash in EndBlocker)"
+[ "$run_status" -eq 0 ] || die "expected the validator proposal script to succeed (got exit ${run_status})"
 
-# BUG: with the fix, the failed transaction would be rolled back and the chain
-# would keep advancing. On unpatched master, the node crashes in EndBlocker.
-assert_chain_halted val1 120
+run_script val1 "${script_dir}/assert_validator_added.gno" 50000000 only >/dev/null
+assert_chain_advances val1 120 5
 
 print_cluster_status

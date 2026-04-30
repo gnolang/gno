@@ -93,7 +93,7 @@ KEEP_UP=1 ./scenarios/05_sentry_ip_rotation.sh
 All scenario scripts live in `scenarios/`. Each script declares whether it should run in CI:
 
 - `SCENARIO_CI=true`: included in `.github/workflows/ci-val-scenarios.yml` and `make test`
-- `SCENARIO_CI=false`: requires `valsignerd` and is local-only
+- `SCENARIO_CI=false`: local-only, usually because the scenario needs `valsignerd`
 
 ### CI Scenarios
 
@@ -108,9 +108,10 @@ All scenario scripts live in `scenarios/`. Each script declares whether it shoul
 - `scenarios/09_four_validators_safe_reset_one.sh`: same as 07 but uses a safe reset (db + wal only, `priv_validator_state` preserved) to avoid double signing
 - `scenarios/10_four_validators_safe_reset_two_below_consensus.sh`: start 4 validators, safe-reset 2, verify the chain halts below consensus and resumes after restart
 - `scenarios/11_weighted_voting_power_majority.sh`: 4 validators with voting power 10/1/1/1; val1 alone holds more than 2/3 of total power, so stopping val2-4 must not halt the chain
-- `scenarios/12_duplicate_addr_in_val_proposal.sh`: governance proposal with two entries for the same validator address (VotingPower=0 then VotingPower=5)
-- `scenarios/13_duplicate_addr_across_proposals.sh`: two valid validator proposals in the same block target the same address
-- `scenarios/17_govdao_add_remove_validator.sh`: add and remove a validator through GovDAO proposals
+- `scenarios/12_duplicate_addr_in_val_proposal.sh`: single proposal with two entries for the same validator address; EndBlocker deduplicates, val1 ends up with VotingPower=5 and the chain keeps advancing
+- `scenarios/13_duplicate_addr_across_proposals.sh`: two separate proposals in the same block targeting the same validator address; EndBlocker deduplicates, val1 ends up with VotingPower=5 and the chain keeps advancing
+- `scenarios/17_govdao_add_remove_validator.sh`: add and remove a validator through GovDAO proposals using `r/sys/validators/v2`
+- `scenarios/18_govdao_v3_add_remove_validator.sh`: add and remove a synced val4 node through `r/sys/validators/v3` GovDAO proposals (registers val4 in `r/gnops/valopers` first)
 
 ### Local-Only Valsignerd Scenarios
 

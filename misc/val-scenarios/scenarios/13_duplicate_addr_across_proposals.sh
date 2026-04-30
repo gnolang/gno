@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Disabled in CI: outdated, needs to be updated.
-SCENARIO_CI=false
+SCENARIO_CI=true
 
 # Scenario 13: duplicate validator address across two separate proposals in the
 # same block.
@@ -11,15 +10,8 @@ SCENARIO_CI=false
 #   Proposal 1: remove val1 (VotingPower: 0)
 #   Proposal 2: re-add val1 (VotingPower: 5)
 #
-# Each proposal passes its own validation, but saveChange in
-# r/sys/validators/v2/validators.gno blindly appends every change to the
-# per-block slice. The block-level aggregate therefore contains two entries for
-# the same address [{val1, 0}, {val1, 5}].
-#
-# At EndBlocker, GetChanges returns that aggregate. tm2 processChanges detects
-# the duplicate, ApplyBlock fails, and the node is killed (osm.Kill).
-#
-# val1 should end up with VotingPower=5 and the chain should keep advancing.
+# The EndBlocker deduplicates per-block changes (second proposal overwrites the
+# first), so val1 ends up with VotingPower=5 and the chain keeps advancing.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/lib/scenario.sh"
@@ -41,7 +33,7 @@ TARGET_POWER=5
 script_dir="${SCENARIO_DIR}/scripts"
 mkdir -p "$script_dir"
 
-cat > "${script_dir}/two_proposals.gno" << GNOEOF
+cat >"${script_dir}/two_proposals.gno" <<GNOEOF
 package main
 
 import (
@@ -101,13 +93,34 @@ func must(err error) {
 }
 GNOEOF
 
+cat >"${script_dir}/assert_validator_added.gno" <<GNOEOF
+package main
+
+import valr "gno.land/r/sys/validators/v2"
+
+func main() {
+	addr := address("${TARGET_ADDR}")
+	if !valr.IsValidator(addr) {
+		panic("val4 validator was not added")
+	}
+
+	val := valr.GetValidator(addr)
+	if val.PubKey != "${TARGET_PUBKEY}" {
+		panic("val4 validator pubkey mismatch")
+	}
+	if val.VotingPower != ${TARGET_POWER} {
+		panic("val4 validator voting power mismatch")
+	}
+}
+GNOEOF
+
 log "estimating gas for the two-proposal script"
 set +e
-run_gas="$(estimate_run_gas val1 "${script_dir}/two_proposals.gno" 50000000)"
+run_gas="$(estimate_run_gas val1 "${script_dir}/two_proposals.gno" 200000000)"
 estimate_status=$?
 set -e
 if [ "$estimate_status" -ne 0 ]; then
-  run_gas=50000000
+  run_gas=200000000
   log "gas estimation failed; using fallback gas=${run_gas}"
 else
   log "gas estimate: ${run_gas}"
@@ -116,14 +129,7 @@ fi
 log "submitting two-proposal script"
 run_script val1 "${script_dir}/two_proposals.gno" "$run_gas"
 
-# BUG: once saveChange deduplicates per-block changes, the second proposal
-# should overwrite the first and val1 should end up with VotingPower=5, with
-# the chain advancing normally. On unpatched master, both saveChange calls
-# succeed, GetChanges returns two entries for the same address, processChanges
-# in tm2 detects the duplicate, ApplyBlock fails, and the node is killed via
-# osm.Kill. Assert the known-buggy behaviour so CI stays green until the fix
-# lands. When fixed, replace the line below with:
-#   assert_chain_advances val1 120 5
-assert_chain_halted val1 120
+run_script val1 "${script_dir}/assert_validator_added.gno" 50000000 only >/dev/null
+assert_chain_advances val1 120 5
 
 print_cluster_status
