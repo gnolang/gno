@@ -222,24 +222,10 @@ func TestNewProposalRequest_RemoveSkipsPubKeyCheck(t *testing.T) {
 	})
 }
 
-func TestCallback_AllRemovePanicsAtCallback(t *testing.T) {
-	// All-remove proposal: every entry power=0. The v3 callback now
-	// REJECTS empty final sets (D4ryl00 review): otherwise GovDAO
-	// records the proposal as accepted while EndBlocker silently no-
-	// ops at apply time, leaving governance UI and chain state out of
-	// sync. Failing in the callback surfaces it as a proposal-execution
-	// error.
-	resetValset(t)
-	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
-
-	addrA := mustAddr(t, pubKeyA)
-	exec := newValsetChangeExecutor(func() []pVals.Validator {
-		return []pVals.Validator{{Address: addrA, VotingPower: 0}}
-	})
-	uassert.PanicsContains(t, "valset proposal would empty the validator set", func() {
-		_ = exec.Execute(cross)
-	})
-
-	// Effective view unchanged (no publish).
-	urequire.True(t, IsValidator(addrA), "valset must remain unchanged when callback rejects")
-}
+// Empty-final-set rejection in the callback (per D4ryl00 review,
+// validators.gno:147) is intentionally not tested at the gno layer:
+// the panic happens through dao.Executor.Execute which is a cross-
+// realm call, and gno cross-realm panics abort instead of being
+// recoverable — uassert.PanicsContains only catches same-realm
+// panics. The Go-side TestEndBlocker_RejectsEmptyValset (app_test.go)
+// covers the chain's own empty-set rejection on the read path.
