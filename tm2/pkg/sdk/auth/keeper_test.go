@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 func TestAccountMapperGetSet(t *testing.T) {
@@ -178,14 +179,14 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	require.Equal(t, int64(100), newGasPrice.Price.Amount)
 }
 
-func TestNewAccountWithNumber(t *testing.T) {
+func TestNewAccountWithUncheckedNumber(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
 	addr := crypto.AddressFromPreimage([]byte("test-addr-1"))
 
 	// Create account with specific number
-	acc := env.acck.NewAccountWithNumber(env.ctx, addr, 42)
+	acc := env.acck.NewAccountWithUncheckedNumber(env.ctx, addr, 42)
 	require.NotNil(t, acc)
 	require.Equal(t, addr, acc.GetAddress())
 	require.EqualValues(t, 42, acc.GetAccountNumber())
@@ -199,14 +200,14 @@ func TestNewAccountWithNumber(t *testing.T) {
 	require.EqualValues(t, 44, nextNum2)
 }
 
-func TestNewAccountWithNumber_Zero(t *testing.T) {
+func TestNewAccountWithUncheckedNumber_Zero(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
 	addr := crypto.AddressFromPreimage([]byte("test-addr-zero"))
 
 	// Account number 0 is valid (first account)
-	acc := env.acck.NewAccountWithNumber(env.ctx, addr, 0)
+	acc := env.acck.NewAccountWithUncheckedNumber(env.ctx, addr, 0)
 	require.NotNil(t, acc)
 	require.EqualValues(t, 0, acc.GetAccountNumber())
 
@@ -215,7 +216,7 @@ func TestNewAccountWithNumber_Zero(t *testing.T) {
 	require.EqualValues(t, 1, nextNum)
 }
 
-func TestNewAccountWithNumber_DoesNotLowerCounter(t *testing.T) {
+func TestNewAccountWithUncheckedNumber_DoesNotLowerCounter(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
@@ -230,7 +231,7 @@ func TestNewAccountWithNumber_DoesNotLowerCounter(t *testing.T) {
 
 	// Create account with number lower than counter
 	addr := crypto.AddressFromPreimage([]byte("low-number-addr"))
-	acc := env.acck.NewAccountWithNumber(env.ctx, addr, 2)
+	acc := env.acck.NewAccountWithUncheckedNumber(env.ctx, addr, 2)
 	require.NotNil(t, acc)
 	require.EqualValues(t, 2, acc.GetAccountNumber())
 
@@ -239,14 +240,14 @@ func TestNewAccountWithNumber_DoesNotLowerCounter(t *testing.T) {
 	require.EqualValues(t, 5, nextNum)
 }
 
-func TestNewAccountWithNumber_HighNumber(t *testing.T) {
+func TestNewAccountWithUncheckedNumber_HighNumber(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
 
 	// Create account with high number (simulating hardfork replay)
 	addr := crypto.AddressFromPreimage([]byte("high-number-addr"))
-	acc := env.acck.NewAccountWithNumber(env.ctx, addr, 1000000)
+	acc := env.acck.NewAccountWithUncheckedNumber(env.ctx, addr, 1000000)
 	require.NotNil(t, acc)
 	require.EqualValues(t, 1000000, acc.GetAccountNumber())
 
@@ -258,4 +259,70 @@ func TestNewAccountWithNumber_HighNumber(t *testing.T) {
 	addr2 := crypto.AddressFromPreimage([]byte("normal-addr"))
 	acc2 := env.acck.NewAccountWithAddress(env.ctx, addr2)
 	require.EqualValues(t, 1000002, acc2.GetAccountNumber())
+}
+
+// TestNewAccountWithUncheckedNumber_DocumentedUnchecked exercises the
+// documented precondition: the keeper does NOT check uniqueness, so calling
+// twice with the same accNum but different addresses produces two accounts
+// with the same number. Callers must enforce uniqueness upstream (see
+// validateSignerInfo in gno.land/pkg/gnoland).
+func TestNewAccountWithUncheckedNumber_DocumentedUnchecked(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+
+	addrA := crypto.AddressFromPreimage([]byte("a"))
+	addrB := crypto.AddressFromPreimage([]byte("b"))
+
+	accA := env.acck.NewAccountWithUncheckedNumber(env.ctx, addrA, 99)
+	env.acck.SetAccount(env.ctx, accA)
+	accB := env.acck.NewAccountWithUncheckedNumber(env.ctx, addrB, 99)
+	env.acck.SetAccount(env.ctx, accB)
+
+	// Both accounts exist, both claim accNum 99. No keeper-level rejection.
+	gotA := env.acck.GetAccount(env.ctx, addrA)
+	gotB := env.acck.GetAccount(env.ctx, addrB)
+	require.NotNil(t, gotA)
+	require.NotNil(t, gotB)
+	require.EqualValues(t, 99, gotA.GetAccountNumber())
+	require.EqualValues(t, 99, gotB.GetAccountNumber())
+}
+
+// TestIterateAccountsChargesGas asserts that IterateAccounts propagates
+// gas through the gctx it threads to PrefixIterator. Today all
+// production query contexts carry an infinite meter, so this mostly
+// confirms the wiring works and the charge fires; if a future caller
+// sets a bounded meter the enforcement is already in place.
+func TestIterateAccountsChargesGas(t *testing.T) {
+	t.Parallel()
+	env := setupTestEnv()
+
+	// Populate a handful of accounts.
+	const n = 5
+	for i := 0; i < n; i++ {
+		addr := crypto.AddressFromPreimage([]byte(fmt.Sprintf("addr-%d", i)))
+		acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+		env.acck.SetAccount(env.ctx, acc)
+	}
+
+	// Swap in a bounded meter AND a cache-wrapped multistore. Gas is
+	// only charged at the cache.Store iterator layer, so we must
+	// cache-wrap the multistore for this test. Production tx paths
+	// cache-wrap inside runTx; query paths do not (see ADR).
+	meter := store.NewGasMeter(1 << 62)
+	ctx := env.ctx.
+		WithGasMeter(meter).
+		WithMultiStore(env.ctx.MultiStore().MultiCacheWrap())
+
+	before := meter.GasConsumed()
+	count := 0
+	env.acck.IterateAccounts(ctx, func(acc std.Account) bool {
+		count++
+		return false
+	})
+	used := meter.GasConsumed() - before
+
+	require.Equal(t, n, count)
+	require.Greater(t, used, store.Gas(0),
+		"IterateAccounts should consume gas through the threaded gctx")
 }

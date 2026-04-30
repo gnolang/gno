@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -41,6 +42,7 @@ type AppOptions struct {
 	EventSwitch                events.EventSwitch // required
 	VMOutput                   io.Writer          // optional
 	SkipGenesisSigVerification bool               // default to verify genesis transactions
+	SkipUpgradeHeight          int64              // if set, skip the halt_min_version check at this height
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
@@ -59,7 +61,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			CacheStdlibLoad:        true,
 		},
 		SkipGenesisSigVerification: true,
-		PruneStrategy:              types.PruneNothingStrategy,
+		PruneStrategy:              types.PruneSyncableStrategy,
 	}
 }
 
@@ -105,7 +107,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -114,6 +116,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -136,6 +139,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+			// Apply VM gas config so all store operations (including
+			// ante handler account reads/writes) use the governed
+			// depth parameters.
+			// NOTE: GetParams reads use nil GasContext internally
+			// (params keeper passes nil to store.Get), so no gas is
+			// charged for these reads. The underlying store values
+			// are also amortized in the block-level cache — only
+			// the first tx in a block hits the IAVL tree, and
+			// subsequent txs get free cache hits.
+			gasCfg := store.DefaultGasConfig()
+			vmk.GetParams(ctx).ApplyToGasConfig(&gasCfg)
+			ctx = ctx.WithGasConfig(gasCfg)
 
 			// During genesis (block height 0), automatically create accounts for signers
 			// if they don't exist. This allows packages with custom creators to be loaded.
@@ -157,6 +172,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
+			if abort {
+				return
+			}
+
+			// Session message restrictions (gno.land layer). Only
+			// overwrite res when the check aborts — on success,
+			// preserve the ante's res (which carries GasWanted from
+			// tx.Fee). checkSessionRestrictions returns sdk.Result{}
+			// on success, which would otherwise zero out GasWanted.
+			if sessRes, sessAbort := checkSessionRestrictions(newCtx, tx); sessAbort {
+				return newCtx, sessRes, true
+			}
 			return
 		},
 	)
@@ -188,6 +215,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			acck,
 			gpk,
 			vmk,
+			prmk,
 			baseApp,
 		),
 	)
@@ -207,6 +235,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
+
+	// Verify node startup constraints set by governance halt proposals.
+	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore(), baseApp.LastBlockHeight(), cfg.SkipUpgradeHeight); err != nil {
+		return nil, err
+	}
 
 	return baseApp, nil
 }
@@ -233,6 +266,7 @@ func NewApp(
 	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	skipUpgradeHeight int64,
 ) (abci.Application, error) {
 	var err error
 
@@ -245,6 +279,7 @@ func NewApp(
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
+		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
@@ -289,6 +324,16 @@ type InitChainerConfig struct {
 	// This should be used for integration testing, where InitChainer will be
 	// called several times.
 	CacheStdlibLoad bool
+
+	// StrictReplay refuses to boot the chain if any non-skipped genesis tx
+	// fails replay. Hardfork operators should enable this so a corrupted
+	// genesis aborts InitChain loudly instead of producing a chain whose
+	// AppHash silently diverges from the source.
+	//
+	// Skipped txs (those carrying metadata.Failed = true, which were
+	// intentionally non-applied on the source chain) do not count as
+	// failures.
+	StrictReplay bool
 
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
@@ -348,6 +393,12 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	cfg.vmk.CommitGnoTransactionStore(stdlibCtx)
 
 	msCache.MultiWrite()
+
+	// Populate stdlib byte cache for gas-free stdlib reads.
+	// Must read from the deliver state's baseStore (where stdlib objects
+	// were written), not the persistent gnoStore's baseStore (which is
+	// a different cache layer that doesn't have them yet).
+	cfg.vmk.PopulateStdlibCacheFrom(ms)
 }
 
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
@@ -368,6 +419,16 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 	}
 
 	if err := validateGasReplayMode(state.GasReplayMode); err != nil {
+		return nil, err
+	}
+
+	// Preflight: every (account-number, address) pair claimed by SignerInfo
+	// must be unique, and must not collide with a balance-init account at a
+	// different address. NewAccountWithUncheckedNumber does NOT verify this
+	// at write-time; a duplicate accNum used with a different address would
+	// silently zero the original account's balance. Failing here surfaces a
+	// malformed genesis loudly before any state is mutated.
+	if err := validateSignerInfo(state); err != nil {
 		return nil, err
 	}
 
@@ -457,6 +518,27 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 			}
 		}
 
+		// Genesis-mode txs (no metadata) were signed with the original chain
+		// ID. During a hardfork (PastChainIDs is set), verify their
+		// signatures against the original chain ID. Migration txs
+		// (metadata != nil with BlockHeight == 0) carry their own per-tx
+		// settings via metadata and are handled in the first branch above;
+		// excluding them here prevents the previous overwrite bug where
+		// this assignment stomped the metadata-driven Timestamp override.
+		//
+		// Compose with any prior ctxFn so future broadening of the
+		// predicate cannot silently regress.
+		if metadata == nil && len(state.PastChainIDs) > 0 {
+			originalChainID := state.PastChainIDs[0]
+			prev := ctxFn
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				if prev != nil {
+					ctx = prev(ctx)
+				}
+				return ctx.WithChainID(originalChainID)
+			}
+		}
+
 		// For historical txs with signer metadata, force-set account state
 		// so signature verification succeeds even if prior txs diverged.
 		// Uses pre-tx sequence — the value the signature was signed with.
@@ -469,9 +551,12 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 			for _, si := range metadata.SignerInfo {
 				acc := cfg.acck.GetAccount(ctx, si.Address)
 				if acc == nil {
-					// Account doesn't exist yet — create with specific account
-					// number, bypassing the auto-increment counter.
-					acc = cfg.acck.NewAccountWithNumber(ctx, si.Address, si.AccountNum)
+					// Account doesn't exist yet, create with specific account
+					// number, bypassing the auto-increment counter. Uniqueness
+					// of (Address, AccountNum) is enforced by the
+					// validateSignerInfo preflight above; the keeper does not
+					// re-check.
+					acc = cfg.acck.NewAccountWithUncheckedNumber(ctx, si.Address, si.AccountNum)
 				} else {
 					acc.SetAccountNumber(si.AccountNum)
 				}
@@ -526,6 +611,22 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 
 	report.emit(ctx.Logger())
 
+	// StrictReplay: refuse to boot if any non-skipped tx failed. Default off
+	// for backwards compatibility with test setups; hardfork operators must
+	// opt in. Otherwise the chain would happily boot in an inconsistent
+	// state (AppHash diverged from source for any failing tx in
+	// GasReplayMode="strict"), with the operator only noticing via the
+	// per-failure Warn lines emitted by report.emit above.
+	if cfg.StrictReplay {
+		if n := report.FailedCount(); n > 0 {
+			return txResponses, fmt.Errorf(
+				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
+					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
+				n,
+			)
+		}
+	}
+
 	return txResponses, nil
 }
 
@@ -536,6 +637,9 @@ type endBlockerApp interface {
 
 	// Logger returns the logger reference
 	Logger() *slog.Logger
+
+	// SetHaltHeight sets the block height at which the node will halt.
+	SetHaltHeight(uint64)
 }
 
 // isPastChainID reports whether chainID is present in the pastChainIDs allowlist.
@@ -543,20 +647,63 @@ func isPastChainID(pastChainIDs []string, chainID string) bool {
 	return slices.Contains(pastChainIDs, chainID)
 }
 
+// validateSignerInfo scans every SignerInfo entry across all txs and
+// rejects the genesis if two different addresses claim the same account
+// number, OR if a SignerInfo claims an account number already reserved by a
+// balance-init account at a different address. NewAccountWithUncheckedNumber
+// (the keeper primitive replay uses) does not perform this check at
+// write-time, so the invariant is enforced here, before any state mutates.
+//
+// genesis-mode txs (BlockHeight == 0) carry no SignerInfo by invariant of
+// the export tool, but we still skip them defensively.
+func validateSignerInfo(state GnoGenesisState) error {
+	// Map: account number -> address that reserves it.
+	numToAddr := map[uint64]crypto.Address{}
+
+	// Treat balance-init accounts as reserving accNum=N, where N is assigned
+	// by the auto-increment counter in the order they appear in
+	// state.Balances. After all balances are processed, the counter is
+	// len(state.Balances). Any SignerInfo with accNum < len(state.Balances)
+	// must therefore reference one of those addresses (or it would collide
+	// with a different balance-init address).
+	for i, bal := range state.Balances {
+		numToAddr[uint64(i)] = bal.Address
+	}
+
+	for txIdx, tx := range state.Txs {
+		if tx.Metadata == nil {
+			continue
+		}
+		for siIdx, si := range tx.Metadata.SignerInfo {
+			existing, seen := numToAddr[si.AccountNum]
+			if seen && existing != si.Address {
+				return fmt.Errorf(
+					"genesis SignerInfo collision at txs[%d].SignerInfo[%d]: "+
+						"account number %d already assigned to %s, cannot reassign to %s",
+					txIdx, siIdx, si.AccountNum, existing, si.Address,
+				)
+			}
+			numToAddr[si.AccountNum] = si.Address
+		}
+	}
+	return nil
+}
+
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
-// validator set changes
+// validator set changes, and checks for a governance-requested chain halt.
 func EndBlocker(
 	collector *collector[validatorUpdate],
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
+	prmk params.ParamsKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
@@ -564,6 +711,24 @@ func EndBlocker(
 		}
 		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
+		}
+
+		// Check if GovDAO has requested a halt at this height.
+		// Use == (not >=) so we only trigger once: at the exact halt height.
+		// SetHaltHeight causes BeginBlock of the *next* block to panic, ensuring
+		// this block is fully committed before the node stops.
+		// On restart, req.Height > halt_height, so == never re-fires — no infinite loop.
+		if prmk != nil {
+			var haltHeight int64
+			prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+			if haltHeight > 0 && req.Height == haltHeight {
+				app.Logger().Info(
+					"GovDAO halt height reached, will halt after this block",
+					"height", req.Height,
+					"halt_height", haltHeight,
+				)
+				app.SetHaltHeight(uint64(haltHeight))
+			}
 		}
 
 		// Check if there was a valset change
@@ -682,4 +847,109 @@ func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error)
 	}
 
 	return updates, nil
+}
+
+// checkSessionRestrictions enforces gno.land session key restrictions:
+// sessions can only send msg types in the allowlist below, and if
+// AllowPaths is set, the target path must match one of the allowed
+// prefixes (which blocks path-less msgs in that mode — see below).
+func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
+	sa := ctx.Value(std.SessionAccountsContextKey{})
+	if sa == nil {
+		return sdk.Result{}, false
+	}
+	sessions := sa.(map[crypto.Address]std.DelegatedAccount)
+	for _, msg := range tx.GetMsgs() {
+		for _, signer := range msg.GetSigners() {
+			_, ok := sessions[signer]
+			if !ok {
+				continue
+			}
+			// Allowlist of msg types a session key may send.
+			// Allowed:
+			//   - "exec" (MsgCall)       — coin moves via bank.SendCoins
+			//   - "run"  (MsgRun)        — coin moves via bank.SendCoins
+			//   - "send" (bank.MsgSend)  — coin moves via bank.SendCoins
+			//   - "multisend" (bank.MsgMultiSend) — coin moves via
+			//     bank.InputOutputCoins
+			//
+			// Session spend for all of these is enforced inside the tm2
+			// bank keeper: SendCoins calls auth.CheckAndDeductSessionSpend
+			// after its canSendCoins check, and InputOutputCoins does the
+			// same per input. Storage deposits (via lockStorageDeposit)
+			// also call CheckAndDeductSessionSpend before their
+			// SendCoinsUnrestricted transfer. So SpendLimit is
+			// authoritative across every tx-initiated outflow, including
+			// in-realm std.Send calls from gno code.
+			//
+			// Permanently blocked (design, not TODO):
+			//   - "add_package" — sessions must not claim realm paths
+			//     in master's namespace.
+			//   - "create_session" / "revoke_session" /
+			//     "revoke_all_sessions" — privilege escalation; a session
+			//     that can mint or revoke sessions is equivalent to the
+			//     master key.
+			//
+			// This check uses DelegatedAccount presence in the map, NOT
+			// a type assertion to *GnoSessionAccount, so it cannot be
+			// bypassed by a different session account type.
+			switch msg.Type() {
+			case "exec", "run", "send", "multisend":
+				// allowed
+			default:
+				return sdk.ABCIResultFromError(
+					std.ErrSessionNotAllowed(fmt.Sprintf(
+						"msg type %q not allowed for session key (allowed: exec, run, send, multisend)",
+						msg.Type()))), true
+			}
+			// AllowPaths check — only applies to GnoSessionAccount.
+			// Other DelegatedAccount types have no path restrictions
+			// (but are still restricted to the allowlist above).
+			//
+			// Note: MsgRun, MsgSend, and MsgMultiSend do not implement
+			// pkgPather, so when AllowPaths is non-empty,
+			// pathAllowedForSession returns false and they are blocked.
+			// This is intentional: a session with AllowPaths set is
+			// realm-scoped; path-less msgs (arbitrary code execution,
+			// direct value transfers) would escape that scope.
+			type pathRestricted interface{ GetAllowPaths() []string }
+			if pr, ok := sessions[signer].(pathRestricted); ok {
+				if paths := pr.GetAllowPaths(); len(paths) > 0 && !pathAllowedForSession(paths, msg) {
+					type pkgPather interface{ GetPkgPath() string }
+					attemptedPath := ""
+					if pp, ok := msg.(pkgPather); ok {
+						attemptedPath = pp.GetPkgPath()
+					}
+					if attemptedPath == "" {
+						// Path-less msg (MsgRun / MsgSend / MsgMultiSend).
+						return sdk.ABCIResultFromError(
+							std.ErrSessionNotAllowed(fmt.Sprintf(
+								"msg type %q has no realm path but session has AllowPaths set (%v); path-less msgs are blocked for realm-scoped sessions",
+								msg.Type(), paths))), true
+					}
+					return sdk.ABCIResultFromError(
+						std.ErrSessionNotAllowed(fmt.Sprintf(
+							"path %q not in session AllowPaths %v", attemptedPath, paths))), true
+				}
+			}
+		}
+	}
+	return sdk.Result{}, false
+}
+
+// pathAllowedForSession checks if a message's target path is allowed
+// by the session's AllowPaths.
+func pathAllowedForSession(allowPaths []string, msg std.Msg) bool {
+	type pkgPather interface{ GetPkgPath() string }
+	pp, ok := msg.(pkgPather)
+	if !ok {
+		return false
+	}
+	path := pp.GetPkgPath()
+	for _, prefix := range allowPaths {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }

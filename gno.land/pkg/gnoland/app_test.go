@@ -143,11 +143,29 @@ func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
 	assert.ErrorContains(t, err, "no db provided")
 }
 
+func TestNewAppWithOptions_ErrNoLogger(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.Logger = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no logger provided")
+}
+
+func TestNewAppWithOptions_ErrNoEventSwitch(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.EventSwitch = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no event switch provided")
+}
+
 func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger())
+	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
@@ -517,6 +535,104 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	}
 }
 
+// TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs is a regression
+// test for the bug where, with PastChainIDs set, a tx whose metadata had
+// BlockHeight == 0 but a non-zero Timestamp (a migration tx) had its
+// ctxFn silently overwritten by the genesis-mode branch, dropping the
+// timestamp override. The fix tightens the genesis-mode predicate to
+// metadata == nil so migration txs keep their metadata-driven ctxFn.
+func TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs(t *testing.T) {
+	t.Parallel()
+
+	var (
+		genesisTime   = time.Now()
+		migrationTime = genesisTime.Add(7 * 24 * time.Hour) // 7 days later
+		chainID       = "test-chain"
+		pastChainIDs  = []string{chainID}
+		path          = "gno.land/r/demo/migration"
+		body          = `package migration
+
+import "time"
+
+var t time.Time = time.Now()
+
+func GetT(cur realm) int64 { return t.Unix() }
+`
+	)
+
+	key := getDummyKey(t)
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+
+	msg := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "migration",
+			Path: path,
+			Files: []*std.MemFile{
+				{Name: "file.gno", Body: body},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			},
+		},
+		MaxDeposit: nil,
+	}
+	tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    genesisTime,
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     defaultBlockParams(),
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+		},
+		AppState: GnoGenesisState{
+			Txs: []TxWithMetadata{
+				{
+					Tx: tx,
+					// migration-tx shape: BlockHeight == 0 but Timestamp != 0
+					Metadata: &GnoTxMetadata{
+						Timestamp:   migrationTime.Unix(),
+						BlockHeight: 0,
+					},
+				},
+			},
+			Balances: []Balance{
+				{
+					Address: key.PubKey().Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				},
+			},
+			Auth:         auth.DefaultGenesisState(),
+			Bank:         bank.DefaultGenesisState(),
+			VM:           vm.DefaultGenesisState(),
+			PastChainIDs: pastChainIDs, // triggers the genesis-mode branch pre-fix
+		},
+	})
+
+	callMsg := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path,
+		Func:    "GetT",
+	}
+	tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+	marshalledTx, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+	require.True(t, resp.IsOK(), "expected OK, got: %s", resp.Log)
+
+	// Before the fix, the second ctxFn assignment in the loop stomped the
+	// metadata-driven Timestamp override and the realm initialized at
+	// genesisTime instead of migrationTime.
+	assert.Contains(
+		t,
+		string(resp.Data),
+		fmt.Sprintf("(%d int64)", migrationTime.Unix()),
+		"realm should have been initialized at metadata.Timestamp, not genesis time",
+	)
+}
+
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
@@ -569,7 +685,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -613,7 +729,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -660,7 +776,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(chain.Event{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -732,7 +848,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(txEvent)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
@@ -806,7 +922,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
 
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, nil, &mockEndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -871,7 +987,7 @@ func TestEndBlocker(t *testing.T) {
 
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, nil, &mockEndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
@@ -926,7 +1042,7 @@ func TestEndBlocker(t *testing.T) {
 
 		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
 		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, nil, &mockEndBlockerApp{})
 		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
 			Validator: &abci.ValidatorParams{
 				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},
@@ -935,6 +1051,40 @@ func TestEndBlocker(t *testing.T) {
 
 		// Verify only the valid update is returned
 		require.Len(t, res.ValidatorUpdates, 0)
+	})
+
+	t.Run("extract updates error", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			noFilter = func(_ events.Event) []validatorUpdate {
+				return make([]validatorUpdate, 1) // 1 update
+			}
+
+			mockEventSwitchInner = newCommonEvSwitch()
+
+			mockVMKeeperInner = &mockVMKeeper{
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+					require.Equal(t, valRealm, pkgPath)
+					// Return a response that matches the regex but has an invalid bech32 address.
+					// This causes extractUpdatesFromResponse to return an error.
+					return `{("notabech32" std.Address),("notapubkey" string),(1 uint64)}`, nil
+				},
+			}
+		)
+
+		c := newCollector[validatorUpdate](mockEventSwitchInner, noFilter)
+		mockEventSwitchInner.FireEvent(chain.Event{})
+
+		eb := EndBlocker(c, nil, nil, mockVMKeeperInner, nil, &mockEndBlockerApp{})
+		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
+			},
+		}), abci.RequestEndBlock{})
+
+		// Error from extractUpdatesFromResponse → EndBlocker returns empty response
+		assert.Equal(t, abci.ResponseEndBlock{}, res)
 	})
 }
 
@@ -950,7 +1100,7 @@ func TestGasPriceUpdate(t *testing.T) {
 		ChainID:  "test-chain",
 		ConsensusParams: &abci.ConsensusParams{
 			Block: &abci.BlockParams{
-				MaxGas: 10000,
+				MaxGas: 1_000_000,
 			},
 		},
 	})
@@ -961,7 +1111,7 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	tx := newCounterTx(100)
 	tx.Fee = std.Fee{
-		GasWanted: 100,
+		GasWanted: 10000,
 		GasFee: sdk.Coin{
 			Amount: 9,
 			Denom:  "ugnot",
@@ -977,9 +1127,9 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Check Tx Ok
 	tx2 := newCounterTx(100)
 	tx2.Fee = std.Fee{
-		GasWanted: 1000,
+		GasWanted: 100000,
 		GasFee: sdk.Coin{
-			Amount: 100,
+			Amount: 10000,
 			Denom:  "ugnot",
 		},
 	}
@@ -991,13 +1141,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	// After replaying a block, the gas price increased.
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-	// Delvier Tx consumes more than that target block gas 6000.
+	// Delvier Tx consumes more than that target block gas 600000.
 
-	tx6001 := newCounterTx(6001)
+	tx6001 := newCounterTx(610000)
 	tx6001.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200,
+			Amount: 200000,
 			Denom:  "ugnot",
 		},
 	}
@@ -1021,13 +1171,13 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Replayed a Block, the gas price decrease
 	header = &bft.Header{ChainID: "test-chain", Height: 2}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
-	// Delvier Tx consumes less than that target block gas 6000.
+	// Delvier Tx consumes less than that target block gas 600000.
 
-	tx200 := newCounterTx(200)
+	tx200 := newCounterTx(20000)
 	tx200.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
-			Amount: 200,
+			Amount: 200000,
 			Denom:  "ugnot",
 		},
 	}
@@ -1046,9 +1196,9 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	// Case 4
 	// require matching expected GasPrice after three blocks ( increase case)
-	replayBlock(t, baseApp, 8000, 3)
-	replayBlock(t, baseApp, 8000, 4)
-	replayBlock(t, baseApp, 6000, 5)
+	replayBlock(t, baseApp, 800000, 3)
+	replayBlock(t, baseApp, 800000, 4)
+	replayBlock(t, baseApp, 600000, 5)
 
 	key := []byte("gasPrice")
 	query := abci.RequestQuery{
@@ -1064,16 +1214,16 @@ func TestGasPriceUpdate(t *testing.T) {
 	// Case 5,
 	// require matching expected GasPrice after low gas blocks ( decrease below initial gas price case)
 
-	replayBlock(t, baseApp, 5000, 6)
-	replayBlock(t, baseApp, 5000, 7)
-	replayBlock(t, baseApp, 5000, 8)
+	replayBlock(t, baseApp, 500000, 6)
+	replayBlock(t, baseApp, 500000, 7)
+	replayBlock(t, baseApp, 500000, 8)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
 	require.NoError(t, err)
 	require.Equal(t, "102ugnot", gp.Price.String())
 
-	replayBlock(t, baseApp, 5000, 9)
+	replayBlock(t, baseApp, 500000, 9)
 
 	qr = app.Query(query)
 	err = amino.Unmarshal(qr.Value, &gp)
@@ -1099,7 +1249,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 
 	// Construct keepers.
 	prmk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -1156,6 +1306,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 			acck,
 			gpk,
 			nil,
+			nil,
 			baseApp,
 		),
 	)
@@ -1210,7 +1361,6 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
 	t.Helper()
 	gen := GnoGenesisState{}
 	genBytes := []byte(`{
-    "@type": "/gno.GenesisState",
     "auth": {
       "params": {
         "gas_price_change_compressor": "8",
@@ -1243,7 +1393,7 @@ func replayBlock(t *testing.T, app *sdk.BaseApp, gas int64, hight int64) {
 	t.Helper()
 	tx := newCounterTx(gas)
 	tx.Fee = std.Fee{
-		GasWanted: 20000,
+		GasWanted: 2000000,
 		GasFee: sdk.Coin{
 			Amount: 1000,
 			Denom:  "ugnot",
@@ -1297,6 +1447,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 		appCfg,
 		events.NewEventSwitch(),
 		log.NewNoopLogger(),
+		0,
 	)
 	require.NoError(t, err)
 
@@ -1747,6 +1898,100 @@ var Deployed = true
 	})
 }
 
+func TestNodeParamsKeeperWillSetParam(t *testing.T) {
+	t.Parallel()
+
+	npk := nodeParamsKeeper{}
+
+	t.Run("valid halt_height (no block context)", func(t *testing.T) {
+		t.Parallel()
+		// Without a block header, safeBlockHeight returns 0, so no future check.
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height zero is allowed (cancel sentinel)", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(0))
+		})
+	})
+
+	t.Run("halt_height in the future is valid when block height is known", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 50})
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height equal to current block height panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 100})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height in the past panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 200})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("negative halt_height panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(-1))
+		})
+	})
+
+	t.Run("halt_height wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", "not-an-int64")
+		})
+	})
+
+	t.Run("valid halt_min_version", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", "chain/gnoland1.1")
+		})
+	})
+
+	t.Run("empty halt_min_version is allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", "")
+		})
+	})
+
+	t.Run("halt_min_version wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", int64(1))
+		})
+	})
+
+	t.Run("unknown p: key panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:unknown_key", int64(0))
+		})
+	})
+
+	t.Run("non-p: key is allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "other:key", "value")
+		})
+	})
+}
+
 // TestInitChainer_InitialHeightMismatch verifies that loadAppState rejects
 // a genesis where GnoGenesisState.InitialHeight diverges from the
 // GenesisDoc.InitialHeight passed in via RequestInitChain.
@@ -1829,6 +2074,275 @@ func TestInitChainer_InitialHeightMismatch(t *testing.T) {
 		})
 		require.Nil(t, resp.Error, "zero app-level InitialHeight should pass validation: %v", resp.Error)
 	})
+}
+
+// TestInitChainer_StrictReplay verifies that StrictReplay refuses to boot
+// when any non-skipped genesis tx fails replay, and that intentionally
+// skipped txs (metadata.Failed = true) are not counted as failures.
+func TestInitChainer_StrictReplay(t *testing.T) {
+	t.Parallel()
+
+	// A tx that fails to deliver because it has no msgs / no signatures
+	// (ante handler will reject it).
+	failingTx := std.Tx{
+		Msgs: []std.Msg{},
+		Fee:  std.Fee{GasFee: std.NewCoin("ugnot", 1), GasWanted: 100},
+	}
+
+	t.Run("StrictReplay false: failing tx does not abort boot", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = false
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.Nil(t, resp.Error, "StrictReplay false should boot despite failing tx: %v", resp.Error)
+	})
+
+	t.Run("StrictReplay true: failing tx aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = true
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.NotNil(t, resp.Error, "StrictReplay true should refuse to boot on failing tx")
+		assert.Contains(t, resp.Error.Error(), "strict replay")
+	})
+
+	t.Run("StrictReplay true: tx marked Failed in source is skipped, not counted", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = true
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1, Failed: true}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.Nil(t, resp.Error, "intentionally-skipped failed tx should not trigger StrictReplay: %v", resp.Error)
+	})
+}
+
+// TestValidateSignerInfo verifies the preflight catches account-number
+// collisions before any state mutates. Without this check,
+// NewAccountWithUncheckedNumber would silently overwrite accounts.
+func TestValidateSignerInfo(t *testing.T) {
+	t.Parallel()
+
+	addrA := crypto.AddressFromPreimage([]byte("addr-a"))
+	addrB := crypto.AddressFromPreimage([]byte("addr-b"))
+
+	tests := []struct {
+		name      string
+		state     GnoGenesisState
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "empty state passes",
+			state:   GnoGenesisState{},
+			wantErr: false,
+		},
+		{
+			name: "no SignerInfo passes",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "same accNum same addr is fine (legitimate per-tx repeat)",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5, Sequence: 0}}}},
+					{Metadata: &GnoTxMetadata{BlockHeight: 2, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5, Sequence: 1}}}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "same accNum different addrs collides",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5}}}},
+					{Metadata: &GnoTxMetadata{BlockHeight: 2, SignerInfo: []SignerAccountInfo{{Address: addrB, AccountNum: 5}}}},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "SignerInfo collision",
+		},
+		{
+			name: "SignerInfo collides with balance-init account",
+			state: GnoGenesisState{
+				// state.Balances[0] reserves accNum=0 for addrA
+				Balances: []Balance{{Address: addrA, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}},
+				Txs: []TxWithMetadata{
+					// SignerInfo claims accNum=0 for addrB; collision
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrB, AccountNum: 0}}}},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "SignerInfo collision",
+		},
+		{
+			name: "SignerInfo matching balance-init address is fine",
+			state: GnoGenesisState{
+				Balances: []Balance{{Address: addrA, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}},
+				Txs: []TxWithMetadata{
+					// SignerInfo claims accNum=0 for addrA, matches balance-init
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 0}}}},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateSignerInfo(tc.state)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errSubstr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMeetsMinVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		binary string
+		minVer string
+		want   bool
+	}{
+		// Empty minVersion always passes
+		{"chain/gnoland1.0", "", true},
+		{"develop", "", true},
+
+		// Same version passes
+		{"chain/gnoland1.0", "chain/gnoland1.0", true},
+		{"chain/gnoland1.1", "chain/gnoland1.1", true},
+
+		// Newer binary passes
+		{"chain/gnoland1.1", "chain/gnoland1.0", true},
+		{"chain/gnoland2.0", "chain/gnoland1.0", true},
+		{"chain/gnoland1.2", "chain/gnoland1.1", true},
+
+		// Older binary fails
+		{"chain/gnoland1.0", "chain/gnoland1.1", false},
+		{"chain/gnoland1.0", "chain/gnoland2.0", false},
+
+		// Non-gnoland format: requires exact match
+		{"develop", "chain/gnoland1.1", false},
+		{"v1.0.0", "v1.0.0", true},
+		{"v1.0.0", "v1.1.0", false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
+			t.Parallel()
+			got := meetsMinVersion(tc.binary, tc.minVer)
+			assert.Equal(t, tc.want, got,
+				"meetsMinVersion(%q, %q)", tc.binary, tc.minVer)
+		})
+	}
+}
+
+func TestParseGnolandVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input string
+		major int
+		minor int
+		ok    bool
+	}{
+		{"chain/gnoland1.0", 1, 0, true},
+		{"chain/gnoland1.1", 1, 1, true},
+		{"chain/gnoland2.3", 2, 3, true},
+		{"develop", 0, 0, false},
+		{"v1.0.0", 0, 0, false},
+		{"chain/gnoland", 0, 0, false},
+		{"chain/gnolandX.Y", 0, 0, false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			major, minor, ok := parseGnolandVersion(tc.input)
+			assert.Equal(t, tc.ok, ok)
+			if tc.ok {
+				assert.Equal(t, tc.major, major)
+				assert.Equal(t, tc.minor, minor)
+			}
+		})
+	}
 }
 
 func TestIsPastChainID(t *testing.T) {
@@ -1986,8 +2500,8 @@ func IsDeployed(cur realm) bool { return Deployed }
 			},
 		}
 
-		// Sign with accNum=7 — account won't exist from balances,
-		// so NewAccountWithNumber must be called.
+		// Sign with accNum=7. Account won't exist from balances, so
+		// NewAccountWithUncheckedNumber must be called.
 		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 7, 0)
 
 		app.InitChain(abci.RequestInitChain{
@@ -2241,5 +2755,202 @@ func IsDeployed(cur realm) bool { return Deployed }
 		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
 		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
 		assert.Contains(t, string(resp.Data), "true")
+	})
+}
+
+// newTestParamsKeeper creates a minimal ParamsKeeper with an in-memory store
+// and pre-seeds it with the given halt params.
+func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (params.ParamsKeeper, store.MultiStore) {
+	t.Helper()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("main")
+
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	require.NoError(t, cms.LoadLatestVersion())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	prmk.Register("node", nodeParamsKeeper{})
+
+	ms := cms.MultiCacheWrap()
+	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
+
+	prmk.SetInt64(ctx, nodeParamHaltHeight, haltHeight)
+	prmk.SetString(ctx, nodeParamHaltMinVersion, minVersion)
+	ms.MultiWrite()
+	cms.Commit()
+
+	return prmk, cms.MultiCacheWrap()
+}
+
+func TestCheckNodeStartupParams(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no halt configured", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 0, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("halt with no version passes", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("binary meets version after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion (exact match), lastBlock >= haltHeight
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("old binary rejected after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9" -> rejected
+		err := checkNodeStartupParams(prmk, ms, 100, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not meet the minimum version")
+	})
+
+	t.Run("new binary rejected before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion, but chain hasn't halted yet
+		err := checkNodeStartupParams(prmk, ms, 50, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upgrade intended for halt height")
+	})
+
+	t.Run("old binary allowed before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9", chain hasn't halted -> old binary, OK
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("skip_upgrade_height bypasses check", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// Even though binary meets version before halt, skip_upgrade_height=100 bypasses
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 100))
+	})
+}
+
+func TestEndBlockerHalt(t *testing.T) {
+	t.Parallel()
+
+	noFilter := func(_ events.Event) []validatorUpdate { return nil }
+
+	t.Run("halts at exact height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(100), haltSet, "SetHaltHeight should be called with halt_height")
+	})
+
+	t.Run("does not halt before halt height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 99})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called before halt height")
+	})
+
+	t.Run("does not re-halt after halt height (no infinite loop)", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		// After restart at height 101, halt_height=100 still in params but == doesn't re-fire
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 101})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight must NOT be called after halt height (prevents infinite loop)")
+	})
+
+	t.Run("cancel: halt_height zero never halts", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 0},
+		}
+
+		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
+		eb := EndBlocker(c, nil, nil, nil, mockPrmk, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called when halt_height=0 (cancelled)")
+	})
+}
+
+func TestExtractUpdatesFromResponse(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty response returns nil", func(t *testing.T) {
+		t.Parallel()
+		updates, err := extractUpdatesFromResponse("")
+		require.NoError(t, err)
+		assert.Nil(t, updates)
+	})
+
+	t.Run("no regex match returns nil", func(t *testing.T) {
+		t.Parallel()
+		updates, err := extractUpdatesFromResponse("some random string with no validator data")
+		require.NoError(t, err)
+		assert.Nil(t, updates)
+	})
+
+	t.Run("invalid address", func(t *testing.T) {
+		t.Parallel()
+		// The regex captures any quoted string as the address, so we can inject an invalid bech32.
+		response := `{("notabech32" std.Address),("notapubkey" string),(1 uint64)}`
+		_, err := extractUpdatesFromResponse(response)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse address")
+	})
+
+	t.Run("invalid pubkey", func(t *testing.T) {
+		t.Parallel()
+		// Valid bech32 address, but invalid pubkey string.
+		addr := crypto.AddressFromPreimage([]byte("test"))
+		response := fmt.Sprintf(`{(%q std.Address),("notapubkey" string),(1 uint64)}`, addr)
+		_, err := extractUpdatesFromResponse(response)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to parse public key")
 	})
 }

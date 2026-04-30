@@ -85,10 +85,12 @@ type MachineOptions struct {
 }
 
 const (
-	startingOpsCap = 1024
-	// sizeof(TypedValue) is 40 at time of writing; this ensures that the values
-	// slice occupies 1000 bytes by default.
-	startingValuesCap = 25
+	startingOpsCap    = 1024
+	startingValuesCap = 512
+	startingExprsCap  = 128
+	startingStmtsCap  = 128
+	startingBlocksCap = 64
+	startingFramesCap = 32
 )
 
 // the machine constructor gets spammed
@@ -100,6 +102,10 @@ var machinePool = sync.Pool{
 		return &Machine{
 			Ops:    make([]Op, 0, startingOpsCap),
 			Values: make([]TypedValue, 0, startingValuesCap),
+			Exprs:  make([]Expr, 0, startingExprsCap),
+			Stmts:  make([]Stmt, 0, startingStmtsCap),
+			Blocks: make([]*Block, 0, startingBlocksCap),
+			Frames: make([]Frame, 0, startingFramesCap),
 		}
 	},
 }
@@ -167,11 +173,49 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 // package's constructors should be released.
 func (m *Machine) Release() {
 	// here we zero in the values for the next user
-	ops, values := m.Ops[:0:startingOpsCap], m.Values[:0:startingValuesCap]
+	ops := m.Ops[:0:startingOpsCap]
+	values := m.Values[:0:startingValuesCap]
 	clear(ops[:startingOpsCap])
 	clear(values[:startingValuesCap])
-	*m = Machine{Ops: ops, Values: values}
 
+	// Preserve other stacks if they have sufficient capacity.
+	var exprs []Expr
+	if cap(m.Exprs) >= startingExprsCap {
+		exprs = m.Exprs[:0:startingExprsCap]
+		clear(exprs[:startingExprsCap])
+	} else {
+		exprs = make([]Expr, 0, startingExprsCap)
+	}
+	var stmts []Stmt
+	if cap(m.Stmts) >= startingStmtsCap {
+		stmts = m.Stmts[:0:startingStmtsCap]
+		clear(stmts[:startingStmtsCap])
+	} else {
+		stmts = make([]Stmt, 0, startingStmtsCap)
+	}
+	var blocks []*Block
+	if cap(m.Blocks) >= startingBlocksCap {
+		blocks = m.Blocks[:0:startingBlocksCap]
+		clear(blocks[:startingBlocksCap])
+	} else {
+		blocks = make([]*Block, 0, startingBlocksCap)
+	}
+	var frames []Frame
+	if cap(m.Frames) >= startingFramesCap {
+		frames = m.Frames[:0:startingFramesCap]
+		clear(frames[:startingFramesCap])
+	} else {
+		frames = make([]Frame, 0, startingFramesCap)
+	}
+
+	*m = Machine{
+		Ops:    ops,
+		Values: values,
+		Exprs:  exprs,
+		Stmts:  stmts,
+		Blocks: blocks,
+		Frames: frames,
+	}
 	machinePool.Put(m)
 }
 
@@ -744,11 +788,15 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types.
+	// save declared types — only those that belong to this package.
+	// Aliases to uverse types or to types from other packages have a
+	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
+	// be redundant (cross-pkg: the owning pkg already SetType'd them;
+	// uverse: lives in the in-memory VM registry, not in chain state).
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
-				if dt, ok := tvv.Type.(*DeclaredType); ok {
+				if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pv.PkgPath {
 					m.Store.SetType(dt)
 				}
 			}
@@ -1132,6 +1180,64 @@ const GasFactorCPU int64 = 1
 //----------------------------------------
 // "CPU" steps.
 
+// incrCPUBigInt charges per-kilobit CPU gas for BigInt binary ops.
+// slopePerKb is the gas cost per 1024 bits of max(lv, rv) bit length.
+func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
+	if lv.T == UntypedBigintType {
+		lb := int64(lv.GetBigInt().BitLen())
+		rb := int64(rv.GetBigInt().BitLen())
+		m.incrCPU(max(lb, rb) * slopePerKb / 1024)
+	}
+}
+
+// incrCPUBigIntQuad charges quadratic CPU gas for BigInt Mul.
+// gas = (bits/32)^2 * slope / 32. Uses overflow.Mulp so a future
+// maxAllocTx bump (current 500MB caps bit-length at ~4B, safe under
+// int64) can't silently wrap into a negative charge.
+func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
+	if lv.T == UntypedBigintType {
+		lb := int64(lv.GetBigInt().BitLen()) / 32
+		rb := int64(rv.GetBigInt().BitLen()) / 32
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 32)
+	}
+}
+
+// incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
+func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
+	if lv.T == UntypedBigdecType {
+		lb := lv.GetBigDec().NumDigits()
+		rb := rv.GetBigDec().NumDigits()
+		m.incrCPU(max(lb, rb) * slopePer100 / 100)
+	}
+}
+
+// incrCPUBigDecQuad charges quadratic CPU gas for BigDec Mul/Quo.
+// gas = (digits/10)^2 * slope / 10. overflow.Mulp keeps the compute
+// safe if maxAllocTx is ever raised.
+func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
+	if lv.T == UntypedBigdecType {
+		lb := lv.GetBigDec().NumDigits() / 10
+		rb := rv.GetBigDec().NumDigits() / 10
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
+	}
+}
+
+// incrCPUBigUnary charges per-kilobit CPU gas for unary BigInt ops.
+func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
+	if xv.T == UntypedBigintType {
+		bits := int64(xv.GetBigInt().BitLen())
+		m.incrCPU(bits * slopePerKb / 1024)
+	}
+}
+
+// incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
+func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
+	if xv.T == UntypedBigdecType {
+		digits := xv.GetBigDec().NumDigits()
+		m.incrCPU(digits * slopePer100 / 100)
+	}
+}
+
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
@@ -1141,125 +1247,224 @@ func (m *Machine) incrCPU(cycles int64) {
 }
 
 const (
-	// CPU cycles
+	// CPU gas costs: 1 gas = 1 nanosecond of wall time on reference hardware.
+	// Reference: Intel Xeon Platinum 8168 @ 2.70GHz (DigitalOcean Dedicated).
+	// Values are ns/op(pure) from bench_ops_test.go, minus alloc gas.
+	// Parameterized ops use base cost here; per-N cost is added in the handler.
+	// See gnovm/cmd/calibrate/op_bench_analysis.txt for full derivation.
+
 	/* Control operators */
 	OpCPUInvalid             = 1
 	OpCPUHalt                = 1
 	OpCPUNoop                = 1
-	OpCPUExec                = 25
-	OpCPUPrecall             = 207
-	OpCPUEnterCrossing       = 100 // XXX
-	OpCPUCall                = 256
-	OpCPUCallNativeBody      = 424 // Todo benchmark this properly
-	OpCPUDefer               = 64
-	OpCPUCallDeferNativeBody = 33
-	OpCPUGo                  = 1 // Not yet implemented
-	OpCPUSelect              = 1 // Not yet implemented
-	OpCPUSwitchClause        = 38
-	OpCPUSwitchClauseCase    = 143
-	OpCPUTypeSwitch          = 171
-	OpCPUIfCond              = 38
+	OpCPUExec                = 130
+	OpCPUPrecallTypeConv     = 72   // type conversion
+	OpCPUPrecallFunc         = 178  // function call
+	OpCPUPrecallBoundMethod  = 199  // bound method call
+	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
+	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
+	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
+	OpCPUDefer               = 71
+	OpCPUCallDeferNativeBody = 172 // XXX arbitrary, not properly benchmarked
+	OpCPUGo                  = 1   // XXX not yet implemented
+	OpCPUSelect              = 1   // XXX not yet implemented
+	OpCPUSwitchClause        = 87
+	OpCPUSwitchClauseCase    = 109 // max(match=109, miss=106)
+	OpCPUTypeSwitch          = 280 // parameterized; base from fit (280.5); per-clause added in handler
+	OpCPUIfCond              = 87  // max(true=86, false=87)
 	OpCPUPopValue            = 1
 	OpCPUPopResults          = 1
-	OpCPUPopBlock            = 3
-	OpCPUPopFrameAndReset    = 15
-	OpCPUPanic1              = 121
-	OpCPUPanic2              = 21
-	OpCPUReturn              = 38
-	OpCPUReturnAfterCopy     = 38 // XXX
-	OpCPUReturnFromBlock     = 36
-	OpCPUReturnToBlock       = 23
+	OpCPUPopBlock            = 16
+	OpCPUPopFrameAndReset    = 78
+	OpCPUPanic1              = 629
+	OpCPUPanic2              = 67
+	OpCPUReturn              = 137
+	OpCPUReturnAfterCopy     = 168
+	OpCPUReturnFromBlock     = 167
+	OpCPUReturnToBlock       = 119
 
 	/* Unary & binary operators */
-	OpCPUUpos  = 7
-	OpCPUUneg  = 25
-	OpCPUUnot  = 6
-	OpCPUUxor  = 14
-	OpCPUUrecv = 1 // Not yet implemented
-	OpCPULor   = 26
-	OpCPULand  = 24
-	OpCPUEql   = 160
-	OpCPUNeq   = 95
-	OpCPULss   = 13
-	OpCPULeq   = 19
-	OpCPUGtr   = 20
-	OpCPUGeq   = 26
-	OpCPUAdd   = 18
-	OpCPUSub   = 6
-	OpCPUBor   = 23
-	OpCPUXor   = 13
-	OpCPUMul   = 19
-	OpCPUQuo   = 16
-	OpCPURem   = 18
-	OpCPUShl   = 22
-	OpCPUShr   = 20
-	OpCPUBand  = 9
-	OpCPUBandn = 15
+	OpCPUUpos      = 64
+	OpCPUUneg      = 69
+	OpCPUUnot      = 70
+	OpCPUUxor      = 69
+	OpCPUUrecv     = 1 // XXX not yet implemented
+	OpCPULor       = 83
+	OpCPULand      = 86 // benchmark: true=69, false=66; 86 includes dispatch overhead not isolated by benchops
+	OpCPUEql       = 93 // max(int=85, float64=93); parameterized cases added in handler
+	OpCPUNeq       = 83
+	OpCPULss       = 73
+	OpCPULeq       = 72
+	OpCPUGtr       = 72
+	OpCPUGeq       = 72
+	OpCPUAddInt    = 81  // int add (81.0 ns)
+	OpCPUAddFloat  = 148 // float64 add (148.0 ns)
+	OpCPUAddString = 186 // string concat (191.5 ns - 5 alloc)
+	OpCPUSubInt    = 70  // int sub (69.9 ns)
+	OpCPUSubFloat  = 137 // float64 sub (137.3 ns)
+	OpCPUBor       = 71
+	OpCPUXor       = 71
+	OpCPUMulInt    = 71  // int mul (70.8 ns)
+	OpCPUMulFloat  = 142 // float64 mul (142.1 ns)
+	OpCPUQuoInt    = 138 // int quo (137.7 ns)
+	OpCPUQuoFloat  = 234 // float64 quo (234.1 ns)
+	OpCPURem       = 142
+	OpCPUShl       = 80
+	OpCPUShr       = 79
+	OpCPUBand      = 71
+	OpCPUBandn     = 71
 
 	/* Other expression operators */
-	OpCPUEval        = 29
-	OpCPUBinary1     = 19
-	OpCPUIndex1      = 77
-	OpCPUIndex2      = 195
-	OpCPUSelector    = 32
-	OpCPUSlice       = 103
-	OpCPUStar        = 40
-	OpCPURef         = 125
-	OpCPUTypeAssert1 = 30
-	OpCPUTypeAssert2 = 25
+	OpCPUEval                = 82  // parameterized for NameExpr; base from fit (81.7)
+	OpCPUBinary1             = 69  // max(LAND true=69, LAND false=66)
+	OpCPUIndex1              = 106 // max(array=102, slice=106, map/string similar)
+	OpCPUIndex2              = 1014
+	OpCPUSelectorField       = 101 // flat; field access (1-1000 fields all ~100ns)
+	OpCPUSelectorVPValMethod = 635 // flat; all method paths: Val/DerefVal/Ptr/DerefPtr (684ns - 52 alloc)
+	OpCPUSelectorInterface   = 751 // base; VPInterface, per-method added in handler
+	OpCPUSlice               = 264 // max(array=258, slice=211, byte=264, 3idx=236, string=219)
+	OpCPUStar                = 102
+	OpCPURef                 = 210
+	OpCPUTypeAssert1         = 83 // concrete; interface case parameterized in handler
+	OpCPUTypeAssert2         = 96 // max(hit=85, miss=96)
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
-	OpCPUStaticTypeOf = 100
-	OpCPUCompositeLit = 50
-	OpCPUArrayLit     = 137
-	OpCPUSliceLit     = 183
-	OpCPUSliceLit2    = 467
-	OpCPUMapLit       = 475
-	OpCPUStructLit    = 179
-	OpCPUFuncLit      = 61
-	OpCPUConvert      = 16
+	OpCPUStaticTypeOf    = 520 // XXX arbitrary
+	OpCPUCompositeLit    = 76
+	OpCPUArrayLit        = 292 // base from fit; per-element added in handler
+	OpCPUSliceLit        = 342 // base from fit; per-element added in handler
+	OpCPUSliceLit2       = 966 // base from fit; per-alloc-size added in handler
+	OpCPUMapLit          = 536 // base; per-entry added in handler (fit base negative, clamped to ~536)
+	OpCPUStructLit       = 326 // base from fit; per-field added in handler (max of unnamed=307, named=326)
+	OpCPUFuncLit         = 269 // base from fit; per-capture added in handler
+	OpCPUConvertNumeric  = 151 // int->int64 and similar (151.2 ns)
+	OpCPUConvertStrBytes = 363 // string->[]byte (381.7 ns - 19 alloc)
 
 	/* Type operators */
-	OpCPUFieldType     = 59
-	OpCPUArrayType     = 57
-	OpCPUSliceType     = 55
-	OpCPUPointerType   = 1 // Not yet implemented
-	OpCPUInterfaceType = 75
-	OpCPUChanType      = 57
-	OpCPUFuncType      = 81
-	OpCPUMapType       = 59
-	OpCPUStructType    = 174
+	OpCPUFieldType     = 164 // (164.4 ns)
+	OpCPUArrayType     = 153
+	OpCPUSliceType     = 152
+	OpCPUPointerType   = 1   // dead code (no dispatch case)
+	OpCPUInterfaceType = 382 // base from fit; per-method added in handler
+	OpCPUChanType      = 153
+	OpCPUFuncType      = 283 // base from fit (283.2); per-param+result added in handler
+	OpCPUMapType       = 150
+	OpCPUStructType    = 321 // base from fit; per-field added in handler
 
 	/* Statement operators */
-	OpCPUAssign      = 79
-	OpCPUAddAssign   = 85
-	OpCPUSubAssign   = 57
-	OpCPUMulAssign   = 55
-	OpCPUQuoAssign   = 50
-	OpCPURemAssign   = 46
-	OpCPUBandAssign  = 54
-	OpCPUBandnAssign = 44
-	OpCPUBorAssign   = 55
-	OpCPUXorAssign   = 48
-	OpCPUShlAssign   = 68
-	OpCPUShrAssign   = 76
-	OpCPUDefine      = 111
-	OpCPUInc         = 76
-	OpCPUDec         = 46
+	OpCPUAssign      = 89 // base from fit; per-LHS added in handler
+	OpCPUAddAssign   = 97
+	OpCPUSubAssign   = 88
+	OpCPUMulAssign   = 86
+	OpCPUQuoAssign   = 166
+	OpCPURemAssign   = 169
+	OpCPUBandAssign  = 89
+	OpCPUBandnAssign = 88
+	OpCPUBorAssign   = 89
+	OpCPUXorAssign   = 90
+	OpCPUShlAssign   = 99
+	OpCPUShrAssign   = 99
+	OpCPUDefine      = 114 // base from fit; per-LHS added in handler
+	OpCPUIncInt      = 81  // int inc (80.8 ns)
+	OpCPUIncFloat    = 188 // float64 inc (187.6 ns)
+	OpCPUDecInt      = 81  // int dec (80.9 ns)
+	OpCPUDecFloat    = 189 // float64 dec (189.3 ns)
 
 	/* Decl operators */
-	OpCPUValueDecl = 113
-	OpCPUTypeDecl  = 100
+	OpCPUValueDecl = 197
+	OpCPUTypeDecl  = 143
 
 	/* Loop (sticky) operators (>= 0xD0) */
-	OpCPUSticky            = 1 // Not a real op
-	OpCPUBody              = 43
-	OpCPUForLoop           = 27
-	OpCPURangeIter         = 105
-	OpCPURangeIterString   = 55
-	OpCPURangeIterMap      = 48
-	OpCPURangeIterArrayPtr = 46
-	OpCPUReturnCallDefers  = 78
+	OpCPUSticky            = 1 // not a real op
+	OpCPUBody              = 73
+	OpCPUForLoop           = 48  // base from fit; per-heap-var added in handler
+	OpCPURangeIter         = 232 // base from fit; per-element added in handler
+	OpCPURangeIterString   = 78  // flat (called once per rune)
+	OpCPURangeIterMap      = 73  // flat (called once per entry)
+	OpCPURangeIterArrayPtr = 239
+	OpCPUReturnCallDefers  = 724 // base from fit; per-defer charging happens via sticky-op re-dispatch
+
+	// Per-N slope constants for parameterized ops.
+	// Each value is the CPU gas cost per unit of the parameter N.
+	// 1 gas = 1 ns on reference hardware.
+	OpCPUSlopeDefine          = 79  // per LHS variable (fit: 79.2)
+	OpCPUSlopeAssign          = 86  // per LHS variable (fit: 86.2)
+	OpCPUSlopeMapLit          = 335 // per map entry (fit: 335.0)
+	OpCPUSlopeArrayLit        = 52  // per element (max of int=52, uint8=9)
+	OpCPUSlopeSliceLit        = 28  // per element (fit: 28.5)
+	OpCPUSlopeSliceLit2       = 31  // per alloc size (fit: 31.4)
+	OpCPUSlopeStructLit       = 51  // per field (max of unnamed=29, named=51)
+	OpCPUSlopeFuncLit         = 34  // per capture (fit: 34.0)
+	OpCPUSlopeCallParam       = 53  // per param in OpCall (fit: 52.5)
+	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
+	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
+	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
+	OpCPUSlopeTypeSwitchCase  = 254 // per clause concrete (fit: 253.9)
+	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
+	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
+	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
+	OpCPUSlopeEqlArray        = 141 // per element (fit: 141.2)
+	OpCPUSlopeEqlStruct       = 136 // per field (fit: 136.0)
+	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)
+	OpCPUSlopeInterfaceType   = 27  // per method (fit: 26.6)
+	OpCPUSlopeFuncType        = 22  // per param+result (fit: 22.3)
+	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
+	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
+	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+
+	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
+	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
+	// path. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
+	// 8168).
+	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element
+	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
+	// copy path — unrefCopy and Assign2 general case. Under-charges the
+	// RefValue case where unrefCopy hits the store; that worst-case is
+	// paid via store gas when GetObject is called.
+	OpCPUSlopeCopyElement = 40 // per element
+	// OpCPUSlopeEnterCrossingQuad: quadratic component of doOpEnterCrossing.
+	// gas = depth^2 * slope / 10.
+	OpCPUSlopeEnterCrossingQuad = 6
+
+	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
+	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
+	OpCPUSlopeBigIntAdd   = 46 // fit: 0.0449 ns/bit * 1024 = 46.0
+	OpCPUSlopeBigIntSub   = 68 // fit: 0.0664 ns/bit * 1024 = 68.0
+	OpCPUSlopeBigIntBand  = 58 // fit: 0.0562 ns/bit * 1024 = 57.6
+	OpCPUSlopeBigIntBor   = 59 // fit: 0.0581 ns/bit * 1024 = 59.5
+	OpCPUSlopeBigIntXor   = 69 // fit: 0.0671 ns/bit * 1024 = 68.7
+	OpCPUSlopeBigIntBandn = 68 // fit: 0.0669 ns/bit * 1024 = 68.5
+	OpCPUSlopeBigIntUneg  = 43 // fit: 0.0422 ns/bit * 1024 = 43.2
+	OpCPUSlopeBigIntUxor  = 46 // fit: 0.0446 ns/bit * 1024 = 45.6
+	OpCPUSlopeBigIntInc   = 62 // fit: 0.0604 ns/bit * 1024 = 61.9
+	OpCPUSlopeBigIntDec   = 62 // fit: 0.0606 ns/bit * 1024 = 62.1
+	OpCPUSlopeBigIntEql   = 10 // fit: 0.0097 ns/bit * 1024 = 9.9
+	OpCPUSlopeBigIntLss   = 9  // fit: 0.0089 ns/bit * 1024 = 9.1
+	// Quadratic: gas = (bits/32) * (bits/32) * slope / 32.
+	// Fit includes both same-width and cross-width benchmarks.
+	// Cross-width ops (e.g. 4096÷64) are cheaper per Q-unit than same-width,
+	// pulling the fit coefficient below the same-width-only value (~4).
+	// NOTE: small operands (<128 bits) are undercharged because the quadratic
+	// term rounds to 0 in integer math. A minimum BigInt overhead would fix this.
+	OpCPUSlopeBigIntMulQ = 4 // per lb*rb/32 (fit: 3.83, R²=0.99, same+cross width)
+	OpCPUSlopeBigIntQuoQ = 4 // per lb*rb/32 (fit: 3.59, R²=0.54, same+cross width)
+	OpCPUSlopeBigIntRemQ = 3 // per lb*rb/32 (fit: 3.40, R²=0.52, same+cross width)
+	// Shift ops: Shl charges per-kilobit of shift amount (output growth).
+	// Shr charges per-kilobit of input bit width.
+	OpCPUSlopeBigIntShl = 39 // fit: 0.038 ns/bit * 1024 = 38.9
+	OpCPUSlopeBigIntShr = 51 // fit: 0.0498 ns/bit * 1024 = 51.0 (abs of negative fit)
+
+	// BigDec per-digit slopes: gas = digits * slope / 100.
+	OpCPUSlopeBigDecAdd  = 375 // fit: 3.7522 ns/digit * 100 = 375.2
+	OpCPUSlopeBigDecSub  = 20  // fit: 0.2031 ns/digit * 100 = 20.3
+	OpCPUSlopeBigDecUneg = 13  // fit: 0.1279 ns/digit * 100 = 12.8
+	OpCPUSlopeBigDecInc  = 372 // fit: 3.7230 ns/digit * 100 = 372.3
+	OpCPUSlopeBigDecDec  = 371 // fit: 3.7058 ns/digit * 100 = 370.6
+	// Quadratic: gas = (digits/10)^2 * slope / 10.
+	// Mul: 0.005875 ns/digit^2. slope = 0.005875 * 1000 = 5.875 → 6.
+	OpCPUSlopeBigDecMulQ = 6 // per (digits/10)^2 / 10
+	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
+	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
 )
 
 //----------------------------------------
@@ -1308,7 +1513,7 @@ func (m *Machine) runOnce() (caught *Exception) {
 		}
 		op := m.PopOp()
 		if bm.Enabled {
-			bm.SwitchOpCode(bm.CPUOp(op))
+			bm.SwitchOpCode(byte(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1326,7 +1531,6 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUExec)
 			m.doOpExec(op)
 		case OpPrecall:
-			m.incrCPU(OpCPUPrecall)
 			m.doOpPrecall()
 		case OpEnterCrossing:
 			m.incrCPU(OpCPUEnterCrossing)
@@ -1429,10 +1633,8 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUGeq)
 			m.doOpGeq()
 		case OpAdd:
-			m.incrCPU(OpCPUAdd)
 			m.doOpAdd()
 		case OpSub:
-			m.incrCPU(OpCPUSub)
 			m.doOpSub()
 		case OpBor:
 			m.incrCPU(OpCPUBor)
@@ -1441,10 +1643,8 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUXor)
 			m.doOpXor()
 		case OpMul:
-			m.incrCPU(OpCPUMul)
 			m.doOpMul()
 		case OpQuo:
-			m.incrCPU(OpCPUQuo)
 			m.doOpQuo()
 		case OpRem:
 			m.incrCPU(OpCPURem)
@@ -1475,7 +1675,6 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUIndex2)
 			m.doOpIndex2()
 		case OpSelector:
-			m.incrCPU(OpCPUSelector)
 			m.doOpSelector()
 		case OpSlice:
 			m.incrCPU(OpCPUSlice)
@@ -1517,7 +1716,6 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUStructLit)
 			m.doOpStructLit()
 		case OpConvert:
-			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
 		/* Type operators */
 		case OpFieldType:
@@ -1584,10 +1782,8 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUDefine)
 			m.doOpDefine()
 		case OpInc:
-			m.incrCPU(OpCPUInc)
 			m.doOpInc()
 		case OpDec:
-			m.incrCPU(OpCPUDec)
 			m.doOpDec()
 		/* Decl operators */
 		case OpValueDecl:
@@ -2260,19 +2456,18 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 }
 
 func readonlyAccessPanic(x Expr) string {
-	return "cannot directly modify readonly tainted object (w/o method): " + x.String()
+	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
-// Returns true iff:
-//   - m.Realm is nil (single user mode), or
+// Returns false if m.Realm is nil (single user mode, nothing is readonly).
+// Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
 //   - tv is N_Readonly, or
 //   - tv is not an object ("first object" ID is zero), or
 //   - tv is an unreal object (no object id), or
 //   - tv is an object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
-	// Returns true iff:
-	//  - m.Realm is nil (single user mode)
+	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
 		return false
 	}
@@ -2291,9 +2486,26 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
+// isExternalRealm returns true if base is a real Object belonging to
+// a different realm than m.Realm. Used for NameExpr cross-realm checks
+// where we have a Base (Block) rather than a TypedValue.
+func (m *Machine) isExternalRealm(base Value) bool {
+	if m.Realm == nil {
+		return false
+	}
+	obj, ok := base.(Object)
+	if !ok {
+		return false
+	}
+	oid := obj.GetObjectID()
+	if oid.IsZero() {
+		return false // transient (local var, unreal block)
+	}
+	return oid.PkgID != m.Realm.ID
+}
+
 // Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
-// and the lx isn't a name (base is a block),
 // and the lx isn't a composite lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
@@ -2302,11 +2514,11 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
 			pv = lb.GetPointerTo(m.Store, lx.Path)
-			ro = false // always mutable
+			ro = m.isExternalRealm(pv.Base)
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -2350,7 +2562,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			Base:  hv,
 			Index: 0,
 		}
-		ro = false // always mutable
+		ro = false // always mutable; composite literals are freshly allocated (unreal) values not yet owned by any realm.
 	default:
 		panic("should not happen")
 	}

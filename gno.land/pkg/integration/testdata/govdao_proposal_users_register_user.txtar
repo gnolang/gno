@@ -9,7 +9,7 @@ stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 gnoland start
 
 # Initialize GovDAO members
-gnokey maketx run -gas-fee 100000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
 stdout OK!
 
 # Render GovDAO to check it's working
@@ -17,7 +17,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
 
 # Create proposal to register @user1
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_register_user_proposal.gno
+gnokey maketx run -gas-fee 3300001ugnot -gas-wanted 33_000_000 -chainid=tendermint_test test1 $WORK/run/create_register_user_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -25,11 +25,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'Register User to \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 0 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3000000ugnot -gas-wanted 30000000 -args 0 -chainid=tendermint_test test1
 stdout OK!
 
 # Check user is registered
@@ -37,7 +37,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1\")"
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 
 # Create proposal for name alias @user1alias
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_update_name_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1 $WORK/run/create_update_name_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -45,11 +45,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'Update Name Alias in \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 1 -args YES -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 1 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 1 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3000000ugnot -gas-wanted 30000000 -args 1 -chainid=tendermint_test test1
 stdout OK!
 
 # Check alias is registered
@@ -57,7 +57,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/users.ResolveName(\"user1alias\")"
 stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 
 # Create proposal for to delete @user1
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_delete_user_proposal.gno
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1 $WORK/run/create_delete_user_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -65,11 +65,11 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
 stdout 'Delete User in \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1000000ugnot -gas-wanted 10000000 -args 2 -args YES -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 2 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -args 2 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 3000000ugnot -gas-wanted 30000000 -args 2 -chainid=tendermint_test test1
 stdout OK!
 
 # Check user is deleted

@@ -1459,3 +1459,101 @@ func TestHandshaker_InitialHeight(t *testing.T) {
 	savedState := sm.LoadState(stateDB)
 	assert.Equal(t, initialHeight-1, savedState.LastBlockHeight)
 }
+
+// recordingBlockStore records which heights are requested, and returns nil
+// for any height < minValidHeight (simulating a chain that starts above 1).
+type recordingBlockStore struct {
+	height         int64
+	minValidHeight int64
+	loaded         []int64
+}
+
+func (bs *recordingBlockStore) Height() int64 { return bs.height }
+func (bs *recordingBlockStore) LoadBlock(height int64) *types.Block {
+	bs.loaded = append(bs.loaded, height)
+	if height < bs.minValidHeight {
+		return nil
+	}
+	return &types.Block{Header: types.Header{Height: height}}
+}
+
+func (bs *recordingBlockStore) LoadBlockMeta(height int64) *types.BlockMeta {
+	if height < bs.minValidHeight {
+		return nil
+	}
+	return &types.BlockMeta{Header: types.Header{Height: height}}
+}
+
+func (bs *recordingBlockStore) LoadBlockPart(int64, int) *types.Part { return nil }
+func (bs *recordingBlockStore) LoadBlockCommit(int64) *types.Commit  { return nil }
+func (bs *recordingBlockStore) LoadSeenCommit(int64) *types.Commit   { return nil }
+func (bs *recordingBlockStore) SaveBlock(*types.Block, *types.PartSet, *types.Commit) {
+}
+
+// TestReplayBlocks_SkipsPhantomHeightsAtInitialHeight is a regression for the
+// crash-recovery path at InitialHeight > 1:
+//
+//   - InitChain runs and saves state.LastBlockHeight = InitialHeight-1.
+//   - Consensus produces & stores block at height=InitialHeight but the node
+//     crashes before the app commits.
+//   - On restart: appBlockHeight=0, storeBlockHeight=InitialHeight,
+//     stateBlockHeight=InitialHeight-1. The replay loop was starting from
+//     appBlockHeight+1 = 1 and calling LoadBlock(1) — but heights below
+//     InitialHeight are "phantom" (never had a block), so it errored with
+//     "block not found for height 1".
+//
+// Fix: clamp the loop start to max(appBlockHeight+1, InitialHeight).
+// This test asserts the loop never asks for a height < InitialHeight.
+func TestReplayBlocks_SkipsPhantomHeightsAtInitialHeight(t *testing.T) {
+	t.Parallel()
+
+	testCfg, genesisFile := ResetConfig("replay_phantom_heights_test")
+	t.Cleanup(func() { os.RemoveAll(testCfg.RootDir) })
+
+	state, err := sm.MakeGenesisStateFromFile(genesisFile)
+	require.NoError(t, err)
+
+	genDoc, err := sm.MakeGenesisDocFromFile(genesisFile)
+	require.NoError(t, err)
+
+	const initialHeight = int64(100)
+	genDoc.InitialHeight = initialHeight
+
+	// Mirror the post-InitChain state (LastBlockHeight = InitialHeight-1) so
+	// the switch in ReplayBlocks routes to the replayBlocks-with-mutateState
+	// path (storeBlockHeight == stateBlockHeight+1, appBlockHeight < state).
+	state.LastBlockHeight = initialHeight - 1
+	stateDB := memdb.NewMemDB()
+	sm.SaveState(stateDB, state)
+
+	store := &recordingBlockStore{height: initialHeight, minValidHeight: initialHeight}
+
+	handshaker := NewHandshaker(stateDB, state, store, genDoc)
+	handshaker.SetLogger(log.NewNoopLogger())
+
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication()))
+	require.NoError(t, proxyApp.Start())
+	t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
+
+	// appBlockHeight=0 (app post-InitChain, no Commit), storeBlockHeight=initialHeight.
+	// Before the fix: the replay loop would LoadBlock(1) and return
+	// "block not found for height 1".
+	_, err = handshaker.ReplayBlocks(state, nil, 0, proxyApp)
+
+	// We don't assert success: the mutateState replayBlock path will likely
+	// fail later (blockExec.ApplyBlock requires a well-formed block/meta pair
+	// that our mock doesn't produce). What matters is *where* it fails —
+	// never on a phantom height < InitialHeight.
+	if err != nil {
+		assert.NotContains(t, err.Error(), "block not found for height 1",
+			"replay loop must not query heights below InitialHeight")
+		for h := int64(1); h < initialHeight; h++ {
+			assert.NotContains(t, err.Error(), fmt.Sprintf("block not found for height %d", h),
+				"replay loop must not query phantom height %d (< InitialHeight %d)", h, initialHeight)
+		}
+	}
+	for _, h := range store.loaded {
+		assert.GreaterOrEqual(t, h, initialHeight,
+			"LoadBlock(%d) was called but %d < InitialHeight %d", h, h, initialHeight)
+	}
+}

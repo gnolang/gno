@@ -19,4 +19,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): somevalue<~VPBlock(3,0)>.Field
+// cannot directly modify readonly tainted object (use a method or crossing function): somevalue<~VPBlock(3,0)>.Field

@@ -132,6 +132,19 @@ func (r *replayReport) Outcomes() []replayOutcome {
 	return out
 }
 
+// FailedCount returns the number of outcomes categorized as ReplayCategoryFailed
+// (real replay failures), excluding ReplayCategorySkippedFailed (txs intentionally
+// skipped because they were marked Failed in source metadata).
+func (r *replayReport) FailedCount() int {
+	n := 0
+	for _, o := range r.outcomes {
+		if o.Category == ReplayCategoryFailed {
+			n++
+		}
+	}
+	return n
+}
+
 func modeOrDefault(mode string) string {
 	if mode == "" {
 		return "strict"

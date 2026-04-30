@@ -126,11 +126,30 @@ mkdir p/ && cd p
 touch hello_world.gno
 ```
 
+Next, initialize a `gnomod.toml` file for the package. This file defines
+package metadata, and the `pkgpath` it contains must match the `-pkgpath`
+flag you will use when deploying:
+
+```bash
+gno mod init gno.land/p/<your_namespace>/hello_world
+```
+
+This will generate a `gnomod.toml` with the following content:
+
+```toml
+gno = "0.9"
+module = "gno.land/p/<your_namespace>/hello_world"
+```
+
+For more details on `gnomod.toml` and its fields, see
+[Configuring Gno Projects](../resources/configuring-gno-projects.md#gnomodtoml).
+
 Now, we should have the following folder structure:
 
 ```bash
 └── example/
 │   └── p/
+│       ├── gnomod.toml
 │       └── hello_world.gno
 ```
 
@@ -150,7 +169,7 @@ correct flags for the `addpkg` subcommand.
 The `addpkg` subcommand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your code is located
-- `-broadcast` - enables broadcasting the transaction to the chain
+- `-broadcast` - enables broadcasting the transaction to the chain (default: true)
 - `-send` - Amount of GNOT to send to the realm with the transaction (optional)
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
@@ -174,7 +193,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443"
 ```
@@ -188,7 +206,6 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443"
 mykey
@@ -251,7 +268,6 @@ gnokey maketx call \
 -send "1000ugnot" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -291,7 +307,6 @@ gnokey maketx call \
 -args "<your_address>" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -368,7 +383,6 @@ gnokey maketx send \
 -send 100ugnot \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey
@@ -419,7 +433,7 @@ package main
 import "gno.land/r/demo/counter"
 
 func main() {
-	println(counter.Increment())
+	println(counter.Increment(cross))
 }
 ```
 
@@ -429,7 +443,6 @@ Now we will be able to provide this to the `maketx run` subcommand:
 gnokey maketx run \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
--broadcast \
 -chainid staging \
 -remote "https://rpc.staging.gno.land:443" \
 mykey ./script.gno
@@ -615,7 +628,7 @@ of the transaction, preventing replay attacks.
 ### 2. Creating an unsigned transaction locally
 
 To create the transaction you want, you can use the [`call` API](#call),
-without the `-broadcast` flag, while redirecting the output to a local file:
+with `-broadcast=false`, while redirecting the output to a local file:
 
 ```bash
 gnokey maketx call \
@@ -623,6 +636,7 @@ gnokey maketx call \
 -func "Increment" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
+-broadcast=false \
 mykey > counter.tx
 ```
 
@@ -1281,12 +1295,12 @@ data: {
     {
       "type": "",
       "name": "GetByAddr",
-      "signature": "func GetByAddr(address std.Address) Valoper",
+      "signature": "func GetByAddr(address address) Valoper",
       "doc": "GetByAddr fetches the valoper using the address, if present\n",
       "params": [
         {
           "Name": "address",
-          "Type": "std.Address"
+          "Type": "address"
         }
       ],
       "results": [
@@ -1315,7 +1329,7 @@ data: {
   "types": [
     {
       "name": "Valoper",
-      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
       "doc": "Valoper represents a validator operator profile\n"
     }
   ]

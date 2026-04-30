@@ -120,6 +120,32 @@ func ProtoGnoAccount() std.Account {
 	return &GnoAccount{}
 }
 
+// GetBaseAccount returns a pointer to the embedded BaseAccount.
+func (ga *GnoAccount) GetBaseAccount() *std.BaseAccount {
+	return &ga.BaseAccount
+}
+
+// GnoSessionAccount extends BaseSessionAccount with gno.land-specific
+// session fields (AllowPaths for realm path restriction).
+type GnoSessionAccount struct {
+	std.BaseSessionAccount
+	AllowPaths []string `json:"allow_paths,omitempty" yaml:"allow_paths,omitempty"`
+}
+
+func (gsa *GnoSessionAccount) SetAllowPaths(paths []string) {
+	gsa.AllowPaths = paths
+}
+
+func (gsa *GnoSessionAccount) GetAllowPaths() []string {
+	return gsa.AllowPaths
+}
+
+func ProtoGnoSessionAccount() std.Account {
+	return &GnoSessionAccount{}
+}
+
+var _ std.DelegatedAccount = &GnoSessionAccount{}
+
 type GnoGenesisState struct {
 	Balances []Balance         `json:"balances"`
 	Txs      []TxWithMetadata  `json:"txs"`
