@@ -185,12 +185,12 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// are raw data, not a Value, so they cannot be counted
 		// via VisitAssociated (which visits child Values).
 		// Instead we count them inline here.
-		// PopTrackedString checks if this string was allocated via
-		// NewString and removes the entry. The pop ensures each
+		// CountStringBytes checks if this string was allocated via
+		// NewString and marks it with the current gcCycle. The per-cycle marker ensures each
 		// backing array's bytes are counted only once — if multiple
 		// StringValues share the same backing (e.g. s1 = s), the
-		// first visit pops the entry and counts bytes, subsequent
-		// visits find nothing and count header only.
+		// first visit marks the cycle and counts bytes, subsequent
+		// visits count header only. On the next GC cycle the string is recounted.
 		if sv, ok := v.(StringValue); ok {
 			if alloc.CountStringBytes(string(sv), gcCycle) {
 				size += allocStringByte * int64(len(sv))

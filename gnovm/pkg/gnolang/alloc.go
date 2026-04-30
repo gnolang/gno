@@ -684,7 +684,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 func (sv StringValue) GetShallowSize() int64 {
 	// Only count header size during GC recount.
 	// String data bytes are tracked at allocation time and
-	// checked via PopTrackedString during GC. Slices share the
+	// checked via CountStringBytes during GC. Slices share the
 	// underlying bytes with their source — only the header was
 	// charged, so the bytes belong to the original string.
 	return allocString
