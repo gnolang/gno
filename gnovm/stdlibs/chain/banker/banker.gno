@@ -88,12 +88,37 @@ func NewBanker(bt BankerType) Banker {
 	}
 }
 
-// These are native bindings to the banker's functions.
-func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
+// bankerGetCoins queries the banker module for the coins owned by the given
+// addr. It returns the amounts and the denominations in two matching slices
+// of the same size (ie., any amounts[i] is specified in the corresponding denoms[i]).
+func bankerGetCoins(addr string) (denoms []string, amounts []int64)
+
+// bankerSendCoins uses the banker module to send the coins from the address "from"
+// to the address "to". The coins are specified using two slices, denoms and amounts,
+// which must be of the same size and specify for each amounts[i], its matching
+// denoms[i].
+//
+// The bt (banker type) parameter will be either of 1 (BankerTypeOriginSend),
+// 2 (BankerTypeRealmSend), 3 (BankerTypeRealmIssue).
+//
+// If the bt is 1, the implementation will only to be allowed to spend coins up
+// to the maximum specified in the execution context value OriginSend. Furthermore,
+// the already spent amounts should be kept track in OriginSendSpent.
+//
+// All other validation is already performed by the banker Gno package.
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
-func bankerTotalCoin(bt uint8, denom string) int64
-func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
-func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
+
+// bankerTotalCoin queries the banker module to determine the total supply of
+// the coin with the given denom.
+func bankerTotalCoin(denom string) int64
+
+// bankerIssueCoin uses the banker module to issue (mint) the given amount of
+// the coin with the given denom to the address specified in addr.
+func bankerIssueCoin(addr string, denom string, amount int64)
+
+// bankerRemoveCoin uses the banker module to remove (burn) the given amount of
+// the coin with the given denom from the address specified in addr.
+func bankerRemoveCoin(addr string, denom string, amount int64)
 
 type banker struct {
 	bt      BankerType
@@ -179,7 +204,22 @@ func OriginSend() chain.Coins {
 	return coins
 }
 
+// assertCallerIsRealm ensures that the caller of the function calling it has a
+// realm pkgPath.
+//
+// In order to be a realm, the caller's package path must match the following regular expression:
+//
+//	^(?P<PKGPATH>(?:(?P<DOMAIN>(?:(?P<SLD>(?:(?:(?:[a-z0-9-])+\.)+))(?P<TLD>(?:(?:[a-z]){2,63}))))(?P<URLPATH>(?:/(?P<LETTER>(?:[a-z]))/(?P<USER>(?:(?:(?:_)?[a-z](?:[a-z0-9_])*)))(?:/(?P<REPO>(?:(?:(?:_)?[a-z](?:[a-z0-9_])*)(?:/(?:(?:_)?[a-z](?:[a-z0-9_])*))*)))?))))$
+//
+// Additionally, the value of the LETTER capture group must be "r", and the REPO
+// subgroup must not terminate in "_test".
 func assertCallerIsRealm()
+
+// originSend returns the coins specified in the execution context variable
+// OriginSend, which specifies the coins sent within the same transaction from
+// the caller to the called realm. It returns the amounts and the denominations
+// in two matching slices of the same size (ie., any amounts[i] is specified in
+// the corresponding denoms[i]).
 func originSend() (denoms []string, amounts []int64)
 
 // expandNative expands coins for usage within natively bound functions.
