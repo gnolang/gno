@@ -1031,23 +1031,17 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, seen m
 	return nil, false, nil, nil, false
 }
 
-// VerifyImplementedBy is the gas-free check used by compile-time and debug paths.
-// VM paths must use verifyImplementedBy directly with a precomputed perCheck so
-// the per-probe cost can be hoisted out of clause loops.
-// TODO: optimize somehow.
-func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
-	return it.verifyImplementedBy(nil, 0, ot)
-}
-
 // perInterfaceMethodCheckCost is the gas charged for a single
 // findEmbeddedFieldType probe when verifying that ot satisfies an interface.
 func perInterfaceMethodCheckCost(ot Type) int64 {
 	return overflow.Mulp(OpCPUInterfaceMethodCheck, countTypeMethodsForGas(ot, nil))
 }
 
-// verifyImplementedBy is the gas-charging probe. When m is non-nil, perCheck gas
-// is charged per leaf method probe (embedded interfaces don't probe ot directly;
-// their leaves charge during recursion).
+// verifyImplementedBy reports whether ot satisfies it. When m is non-nil,
+// perCheck gas is charged per leaf method probe (embedded interfaces don't
+// probe ot directly; their leaves charge during recursion). Pass m=nil and
+// perCheck=0 from compile-time, debug, and other gas-free paths.
+// TODO: optimize somehow.
 func (it *InterfaceType) verifyImplementedBy(m *Machine, perCheck int64, ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
@@ -1083,10 +1077,6 @@ func (it *InterfaceType) verifyImplementedBy(m *Machine, perCheck int64, ot Type
 		}
 	}
 	return nil
-}
-
-func (it *InterfaceType) IsImplementedBy(ot Type) bool {
-	return it.VerifyImplementedBy(ot) == nil
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
@@ -2280,7 +2270,9 @@ func fillEmbeddedName(ft *FieldType) {
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
-		return cbt.IsImplementedBy(ot)
+		// Gas-free check: pass nil machine and 0 perCheck. VM paths instead call
+		// verifyImplementedBy directly with a precomputed perCheck.
+		return cbt.verifyImplementedBy(nil, 0, ot) == nil
 	default:
 		panic("should not happen")
 	}
