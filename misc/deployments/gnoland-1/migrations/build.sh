@@ -212,11 +212,16 @@ render_tx() {
   local gno_path="$1" caller="$2"
   local tx_json="$WORK/$(basename "$gno_path" .gno).tx.json"
 
-  "$GNOKEY_BIN" maketx run \
+  # --broadcast defaults to true in master; we want a signed tx blob, not
+  # a chain submission, so disable it explicitly. --insecure-password-stdin
+  # silences the password prompt for the (unencrypted) ephemeral key.
+  echo "" | "$GNOKEY_BIN" maketx run \
     --gas-wanted 100000000 \
     --gas-fee 1ugnot \
     --chainid "$CHAIN_ID" \
     --home "$GK_HOME" \
+    --broadcast=false \
+    --insecure-password-stdin \
     ephemeral \
     "$gno_path" >"$tx_json"
 
@@ -344,13 +349,15 @@ printf '  migration: %-38s caller=%s\n' "$(basename "$RENDERED_05")" "$T1_CALLER
 # 06 — addpkg r/sys/validators/v3 (MsgAddPackage, creator=manfred; sig-skip
 # applies since this is a genesis-mode migration tx).
 RENDERED_06="$WORK/06_addpkg_validators_v3.tx.json"
-"$GNOKEY_BIN" maketx addpkg \
+echo "" | "$GNOKEY_BIN" maketx addpkg \
   --gas-wanted 100000000 \
   --gas-fee 1ugnot \
   --pkgpath "gno.land/r/sys/validators/v3" \
   --pkgdir "$V3_PKGDIR" \
   --chainid "$CHAIN_ID" \
   --home "$GK_HOME" \
+  --broadcast=false \
+  --insecure-password-stdin \
   ephemeral >"$RENDERED_06"
 
 # MsgAddPackage uses `creator` (not `caller`). Patch to manfred so the

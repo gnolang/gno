@@ -88,7 +88,10 @@ fi
 # ---- 3. write config.toml so RPC binds to 0.0.0.0 (accessible from host) ----
 CONFIG_DIR="$HOME_DIR/config"
 mkdir -p "$CONFIG_DIR"
-go run -C "$REPO" ./gno.land/cmd/gnoland config init -config-path "$CONFIG_DIR/config.toml"
+# `gnoland config init` refuses to overwrite an existing file; pass -force so
+# re-running `make init` after `make migrate` (the documented workflow) just
+# regenerates the config rather than aborting.
+go run -C "$REPO" ./gno.land/cmd/gnoland config init -force -config-path "$CONFIG_DIR/config.toml"
 # Patch the generated config to bind to 0.0.0.0 (accessible from Docker host)
 if command -v sed >/dev/null 2>&1; then
   sed -i.bak 's|tcp://127.0.0.1:26657|tcp://0.0.0.0:26657|' "$CONFIG_DIR/config.toml"

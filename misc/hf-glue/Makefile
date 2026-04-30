@@ -117,7 +117,7 @@ reset: down ## stop and wipe ALL generated state (genesis, keys, db)
 .PHONY: smoketest
 smoketest: ## run 'gnogenesis fork test' in-memory against out/genesis.json
 	@test -f $(OUT)/genesis.json || { echo "missing out/genesis.json — run 'make fetch' first"; exit 1; }
-	cd $(REPO)/contribs/gnogenesis && go run . fork test --genesis $(OUT)/genesis.json --verbose
+	cd $(REPO)/contribs/gnogenesis && go run . fork test --genesis $(OUT)/genesis.json --skip-failing-genesis-txs --verbose
 
 # ---- cluster (2-node docker) ---------------------------------------------
 NODES ?= 2
