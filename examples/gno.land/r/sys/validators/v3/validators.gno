@@ -10,6 +10,7 @@
 package validators
 
 import (
+	"chain"
 	"chain/runtime"
 	"sort"
 	"strconv"
@@ -53,6 +54,29 @@ func NewProposalRequest(changesFn func() []validators.Validator, title, descript
 	}
 	if len(changes) > 40 {
 		panic("max number of allowed validators per proposal is 40")
+	}
+
+	// For adds, the proposer-supplied Address must equal the
+	// pubkey-derived consensus address. Otherwise the proposal
+	// description (rendered against c.Address below) would advertise
+	// A while the callback's published entry (which encodes only
+	// c.PubKey, see line ~129) makes consensus apply pk_B's owner —
+	// voters and the on-chain UI would see different identities than
+	// what actually lands. Removes (Power==0) carry no PubKey to
+	// verify; their c.Address is the lookup key into the effective
+	// set and a mismatch panics at execution time.
+	for _, c := range changes {
+		if c.VotingPower == 0 {
+			continue
+		}
+		derived, err := chain.PubKeyAddress(c.PubKey)
+		if err != nil {
+			panic("invalid pubkey: " + err.Error())
+		}
+		if derived != c.Address {
+			panic("address/pubkey mismatch: address=" +
+				c.Address.String() + " pubkey-derived=" + derived.String())
+		}
 	}
 
 	var desc strings.Builder

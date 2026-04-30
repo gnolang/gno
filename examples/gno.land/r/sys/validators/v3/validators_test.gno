@@ -10,6 +10,7 @@ import (
 	"chain"
 	"testing"
 
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 	pVals "gno.land/p/sys/validators"
 )
@@ -158,6 +159,67 @@ func TestCallback_PanicsOnAddOfExisting(t *testing.T) {
 	urequire.AbortsWithMessage(t,
 		"validator already exists: "+addrA.String(),
 		func() { exec.Execute(cross) })
+}
+
+func TestNewProposalRequest_RejectsAddressPubKeyMismatch(t *testing.T) {
+	// Adversarial proposal: c.Address is one identity but c.PubKey
+	// derives to another. Without the validation the proposal's
+	// description would advertise the proposer-supplied address,
+	// while the callback would publish PubKey only and consensus
+	// would apply the pubkey-derived owner — voters mislead. The
+	// validation rejects at creation, before voting.
+	resetValset(t)
+
+	addrA := mustAddr(t, pubKeyA)
+	derivedB := mustAddr(t, pubKeyB)
+
+	urequire.PanicsWithMessage(t,
+		"address/pubkey mismatch: address="+addrA.String()+" pubkey-derived="+derivedB.String(),
+		func() {
+			_ = NewProposalRequest(func() []pVals.Validator {
+				return []pVals.Validator{{Address: addrA, PubKey: pubKeyB, VotingPower: 1}}
+			}, "title", "")
+		})
+}
+
+func TestNewProposalRequest_RejectsInvalidPubKey(t *testing.T) {
+	resetValset(t)
+
+	uassert.PanicsContains(t, "invalid pubkey:", func() {
+		_ = NewProposalRequest(func() []pVals.Validator {
+			return []pVals.Validator{{Address: mustAddr(t, pubKeyA), PubKey: "not-a-pubkey", VotingPower: 1}}
+		}, "title", "")
+	})
+}
+
+func TestNewProposalRequest_AcceptsConsistentAddressAndPubKey(t *testing.T) {
+	// Sanity: a proposer that supplies a pubkey-derived address
+	// passes validation. Mirrors what valopers/proposal/proposal.gno
+	// does in production.
+	resetValset(t)
+
+	addrA := mustAddr(t, pubKeyA)
+	urequire.NotPanics(t, func() {
+		_ = NewProposalRequest(func() []pVals.Validator {
+			return []pVals.Validator{{Address: addrA, PubKey: pubKeyA, VotingPower: 1}}
+		}, "title", "")
+	})
+}
+
+func TestNewProposalRequest_RemoveSkipsPubKeyCheck(t *testing.T) {
+	// Removes carry no PubKey. The validation must not require one
+	// for power=0 entries; the lookup-and-panic happens at execution
+	// time against the effective set.
+	resetValset(t)
+
+	addrA := mustAddr(t, pubKeyA)
+	urequire.NotPanics(t, func() {
+		// Empty PubKey on a power=0 entry: must build the request
+		// without firing "invalid pubkey".
+		_ = NewProposalRequest(func() []pVals.Validator {
+			return []pVals.Validator{{Address: addrA, VotingPower: 0}}
+		}, "title", "")
+	})
 }
 
 func TestCallback_AllZeroPowerPublishesEmpty(t *testing.T) {
