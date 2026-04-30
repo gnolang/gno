@@ -14,11 +14,10 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
+// NewChangeLawRequest creates a proposal to change the DAO law.
+// Members only.
 func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
+	requireCallerMember("only members can propose law changes")
 
 	cb := func(_ realm) error {
 		law = &newLaw
@@ -30,11 +29,10 @@ func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
+// NewUpgradeDaoImplRequest creates a proposal to replace the DAO implementation.
+// Members only.
 func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
+	requireCallerMember("only members can propose DAO implementation upgrades")
 
 	cb := func(_ realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
@@ -53,6 +51,8 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
+// NewAddMemberRequest creates a proposal to add a T1 or T2 member.
+// Member proposers spend an invitation point; non-members pay the fee.
 func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.GetTier(tier)
 	if !ok {
@@ -67,17 +67,16 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
-	if member == nil {
-		panic("proposer is not a member")
-	}
-
-	if member.InvitationPoints <= 0 {
+	// Member proposers spend an invitation point; non-members pay the fee in PreCreateProposal.
+	proposer, _ := getMembers(cross).GetMember(runtime.OriginCaller())
+	if proposer != nil && proposer.InvitationPoints <= 0 {
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
 	cb := func(_ realm) error {
-		member.RemoveInvitationPoint()
+		if proposer != nil {
+			proposer.RemoveInvitationPoint()
+		}
 		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 
 		return err
@@ -94,6 +93,7 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 	)
 }
 
+// NewWithdrawMemberRequest creates a proposal to remove a member. T1 removals require a reason.
 func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
@@ -119,6 +119,7 @@ func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.Proposal
 	)
 }
 
+// NewPromoteMemberRequest creates a proposal to move a member from one tier to another.
 func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func(_ realm) error {
 		prevTier := memberstore.Get().RemoveMember(addr)
@@ -145,6 +146,7 @@ func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.P
 	)
 }
 
+// NewTreasuryPaymentRequest creates a proposal to send a payment from the treasury. Reason required.
 func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.ProposalRequest {
 	if !treasury.HasBanker(payment.BankerID()) {
 		panic("banker not registered in treasury with ID: " + payment.BankerID())
@@ -211,6 +213,45 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 		ufmt.Sprintf(
 			"This proposal is looking to update the list of GRC20 tokens used by the treasury.\n\nNew Token Keys:\n%s",
 			bulletList,
+		),
+		e,
+	)
+}
+
+// NewProposalFeeAmountRequest creates a proposal to update the non-member fee amount. Set 0 to disable fee.
+// Members only.
+func NewProposalFeeAmountRequest(newAmount int64, reason string) dao.ProposalRequest {
+	requireCallerMember("only members can propose fee amount changes")
+
+	if newAmount < 0 {
+		panic("proposal fee amount must be non-negative")
+	}
+
+	if reason == "" {
+		panic("proposal fee amount change requires a reason")
+	}
+
+	cb := func(_ realm) error {
+		ProposalFeeAmount = newAmount
+		return nil
+	}
+
+	e := dao.NewSimpleExecutor(
+		cb,
+		ufmt.Sprintf(
+			"The proposal fee amount for non-members will be changed to %d ugnot.\n\nReason: %s",
+			newAmount,
+			reason,
+		),
+	)
+
+	return dao.NewProposalRequest(
+		"Proposal Fee Amount Change",
+		ufmt.Sprintf(
+			"This proposal is looking to change the proposal fee amount for non-members from %d ugnot to %d ugnot.\n\nReason: %s",
+			ProposalFeeAmount,
+			newAmount,
+			reason,
 		),
 		e,
 	)

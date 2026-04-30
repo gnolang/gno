@@ -5,7 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"chain"
+
 	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -70,7 +73,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
-	urequire.AbortsWithMessage(t, "proposer is not a member", func(cur realm) {
+	uassert.AbortsContains(t, "proposal creation must be done directly by a user or through the r/gov/dao proxy", func(cur realm) {
 		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
@@ -243,10 +246,10 @@ func TestProposalPagination(cur realm, t *testing.T) {
 func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
+	// Non-member cannot propose DAO implementation upgrades.
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
+	uassert.PanicsWithMessage(t, "only members can propose DAO implementation upgrades", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
@@ -304,6 +307,100 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
+}
+
+func TestNonMemberProposalFee(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+
+	testing.SetOriginCaller(noMember)
+
+	// Test: Non-member without fee should fail with fee message
+	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send exactly 1000000ugnot to create a proposal")
+
+	// Test: Non-member with insufficient fee should fail
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: 500000}}) // 0.5 GNOT - insufficient
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send exactly 1000000ugnot to create a proposal")
+
+	// Test: Non-member with overpayment should fail (exact amount required)
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount + 500000}}) // 1.5 GNOT
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "non-members must send exactly 1000000ugnot to create a proposal")
+
+	// Test: Non-member with multi-denom send should fail
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", ProposalFeeAmount), chain.NewCoin("foo", 500)})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "single denom only")
+
+	// Test: Non-member with wrong denom should fail
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("foo", ProposalFeeAmount)})
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.Error(t, err)
+	urequire.ErrorContains(t, err, "single denom only")
+
+	// Test: Non-member with exact fee should succeed
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: ProposalFeeAmount}}) // 1 GNOT
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
+
+	// Reset OrigSend
+	testing.SetOriginSend(chain.Coins{})
+
+	// Test: Members don't need to pay a fee
+	testing.SetOriginCaller(m1)
+	_, err = govDAO.PreCreateProposal(NewAddMemberRequest(cur, m1, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
+}
+
+func TestNonMemberProposalFeeDisabled(cur realm, t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
+
+	// Disable fee
+	prevFee := ProposalFeeAmount
+	ProposalFeeAmount = 0
+	defer func() { ProposalFeeAmount = prevFee }()
+
+	testing.SetOriginCaller(noMember)
+	testing.SetOriginSend(chain.Coins{})
+
+	// Test: Non-member can propose without sending coins when fee is 0
+	_, err := govDAO.PreCreateProposal(NewAddMemberRequest(cur, noMember, memberstore.T2, portfolio))
+	urequire.NoError(t, err)
+}
+
+func TestProposalFeeAmountChangeMemberOnly(cur realm, t *testing.T) {
+	loadMembers()
+
+	// Non-member cannot create a fee-change proposal.
+	testing.SetOriginCaller(noMember)
+	uassert.PanicsWithMessage(t, "only members can propose fee amount changes", func() {
+		NewProposalFeeAmountRequest(2_000_000, "test")
+	})
+
+	// Member can create a fee-change proposal.
+	testing.SetOriginCaller(m1)
+	uassert.NotPanics(t, func() {
+		NewProposalFeeAmountRequest(2_000_000, "test")
+	})
+
+	// Member can set fee to 0 (disable).
+	uassert.NotPanics(t, func() {
+		NewProposalFeeAmountRequest(0, "disable fee")
+	})
+
+	// Negative fee is rejected.
+	uassert.PanicsWithMessage(t, "proposal fee amount must be non-negative", func() {
+		NewProposalFeeAmountRequest(-1, "test")
+	})
 }
 
 func TestAbstainVote(cur realm, t *testing.T) {

@@ -2,6 +2,7 @@ package impl
 
 import (
 	"chain"
+	"chain/banker"
 	"chain/runtime"
 	"errors"
 
@@ -11,6 +12,9 @@ import (
 )
 
 var ErrMemberNotFound = errors.New("member not found")
+
+// ProposalFeeAmount is the fee required for non-members to create proposals (in ugnot)
+var ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
 
 type GovDAO struct {
 	pss    ProposalsStatuses
@@ -57,17 +61,30 @@ func NewGovDAO() *GovDAO {
 // realm. TODO replace with future `attach()`.
 var _govdao *GovDAO
 
+// PreCreateProposal validates proposal creation.
+// Policy: non-members can create most proposal types by paying the fee. Members
+// propose for free. Sensitive helpers (law/upgrade/fee changes) gate themselves
+// against non-member callers. Governance safety also relies on the voting phase:
+// only eligible members can vote and proposals require supermajority.
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (address, error) {
 	if !g.isValidCall() {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
 			runtime.CurrentRealm(), runtime.PreviousRealm()))
 	}
 
-	// Verify that the one creating the proposal is a member.
 	caller := runtime.OriginCaller()
 	mem, _ := getMembers(cross).GetMember(caller)
-	if mem == nil {
-		return caller, errors.New("only members can create new proposals")
+
+	// Non-members must pay an exact fee in ugnot only.
+	// When ProposalFeeAmount is 0, the fee is disabled and non-members propose freely.
+	if mem == nil && ProposalFeeAmount > 0 {
+		sent := banker.OriginSend()
+		if len(sent) != 1 || sent[0].Denom != "ugnot" || sent[0].Amount != ProposalFeeAmount {
+			return caller, errors.New(ufmt.Sprintf(
+				"non-members must send exactly %dugnot to create a proposal (single denom only)",
+				ProposalFeeAmount,
+			))
+		}
 	}
 
 	return caller, nil
