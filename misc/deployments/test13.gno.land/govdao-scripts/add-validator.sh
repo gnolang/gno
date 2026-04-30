@@ -46,20 +46,18 @@ import (
 )
 
 func main() {
-	executor := valr.NewValsetChangeExecutor(func() []validators.Validator {
-		return []validators.Validator{
-			{
-				Address:     address("${ADDR}"),
-				PubKey:      "${PUB_KEY}",
-				VotingPower: ${POWER},
-			},
-		}
-	})
-
-	r := dao.NewProposalRequest(
+	r := valr.NewProposalRequest(
+		func() []validators.Validator {
+			return []validators.Validator{
+				{
+					Address:     address("${ADDR}"),
+					PubKey:      "${PUB_KEY}",
+					VotingPower: ${POWER},
+				},
+			}
+		},
 		"Add validator ${ADDR}",
 		"Add validator ${ADDR} with power ${POWER}",
-		executor,
 	)
 
 	pid := dao.MustCreateProposal(cross, r)
