@@ -201,6 +201,101 @@ func TestBuildHardforkGenesis_PreservesExplicitGasReplayMode(t *testing.T) {
 		"explicit GasReplayMode must not be overwritten")
 }
 
+// TestEnsureCreatorCanAffordDeposit covers the storage-deposit top-up
+// applied to patched-package creators. The patch logic re-uses the
+// original genesis-mode addpkg tx; if the new (replacement) source is
+// larger than the original, the creator's balance — sized for the old
+// package — won't cover the post-fork lockStorageDeposit and the
+// addpkg fails, cascading every dependent realm/proposal. See
+// patchGenesisModeAddPkg + ensureCreatorCanAffordDeposit.
+func TestEnsureCreatorCanAffordDeposit(t *testing.T) {
+	t.Parallel()
+
+	mkFiles := func(bytes int) []*std.MemFile {
+		return []*std.MemFile{{
+			Name: "p.gno",
+			Body: string(make([]byte, bytes)),
+		}}
+	}
+
+	creator := crypto.AddressFromPreimage([]byte("creator"))
+
+	t.Run("creator absent from balances is added", func(t *testing.T) {
+		t.Parallel()
+
+		appState := &gnoland.GnoGenesisState{
+			VM: vm.GenesisState{Params: vm.Params{StoragePrice: "100ugnot"}},
+		}
+		ensureCreatorCanAffordDeposit(appState, creator, mkFiles(1000))
+		require.Len(t, appState.Balances, 1)
+		assert.Equal(t, creator, appState.Balances[0].Address)
+		// 1000 * 100 (overhead) * 100 (price) + 100M slack = 110M
+		assert.Equal(t, int64(110_000_000), appState.Balances[0].Amount.AmountOf("ugnot"))
+	})
+
+	t.Run("under-funded creator topped up to required", func(t *testing.T) {
+		t.Parallel()
+
+		appState := &gnoland.GnoGenesisState{
+			VM: vm.GenesisState{Params: vm.Params{StoragePrice: "100ugnot"}},
+			Balances: []gnoland.Balance{
+				{Address: creator, Amount: std.Coins{std.Coin{Denom: "ugnot", Amount: 50_000_000}}},
+			},
+		}
+		ensureCreatorCanAffordDeposit(appState, creator, mkFiles(1000))
+		require.Len(t, appState.Balances, 1)
+		// 1000 * 100 * 100 + 100M = 110M required; was 50M; topped to 110M.
+		assert.Equal(t, int64(110_000_000), appState.Balances[0].Amount.AmountOf("ugnot"))
+	})
+
+	t.Run("creator already has enough is not modified", func(t *testing.T) {
+		t.Parallel()
+
+		appState := &gnoland.GnoGenesisState{
+			VM: vm.GenesisState{Params: vm.Params{StoragePrice: "100ugnot"}},
+			Balances: []gnoland.Balance{
+				{Address: creator, Amount: std.Coins{std.Coin{Denom: "ugnot", Amount: 500_000_000}}},
+			},
+		}
+		ensureCreatorCanAffordDeposit(appState, creator, mkFiles(1000))
+		require.Len(t, appState.Balances, 1)
+		assert.Equal(t, int64(500_000_000), appState.Balances[0].Amount.AmountOf("ugnot"),
+			"already-sufficient balance must not be reduced or rewritten")
+	})
+
+	t.Run("storage_price scales requirement", func(t *testing.T) {
+		t.Parallel()
+
+		appState := &gnoland.GnoGenesisState{
+			VM: vm.GenesisState{Params: vm.Params{StoragePrice: "200ugnot"}},
+		}
+		ensureCreatorCanAffordDeposit(appState, creator, mkFiles(1000))
+		require.Len(t, appState.Balances, 1)
+		// 1000 * 100 * 200 + 100M = 120M.
+		assert.Equal(t, int64(120_000_000), appState.Balances[0].Amount.AmountOf("ugnot"))
+	})
+
+	t.Run("missing storage_price falls back to 100 ugnot/byte", func(t *testing.T) {
+		t.Parallel()
+
+		appState := &gnoland.GnoGenesisState{} // empty params (gnoland1 pre-#5415 schema)
+		ensureCreatorCanAffordDeposit(appState, creator, mkFiles(1000))
+		require.Len(t, appState.Balances, 1)
+		// fallback 100 ugnot/byte: 1000 * 100 * 100 + 100M = 110M.
+		assert.Equal(t, int64(110_000_000), appState.Balances[0].Amount.AmountOf("ugnot"))
+	})
+
+	t.Run("zero address is no-op", func(t *testing.T) {
+		t.Parallel()
+
+		appState := &gnoland.GnoGenesisState{
+			VM: vm.GenesisState{Params: vm.Params{StoragePrice: "100ugnot"}},
+		}
+		ensureCreatorCanAffordDeposit(appState, crypto.Address{}, mkFiles(1000))
+		assert.Empty(t, appState.Balances, "must not add a balance for the zero address")
+	})
+}
+
 // TestVerifyGenesisFile_Invalid verifies that verifyGenesisFile returns an
 // error for a malformed genesis file (so the calling tool can abort).
 func TestVerifyGenesisFile_Invalid(t *testing.T) {

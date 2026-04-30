@@ -1,5 +1,16 @@
 # ADR: test-13 hardfork launch
 
+> **Note:** This ADR documents the original `chain/gnoland1`-based launch
+> stack ([PR #5589](https://github.com/gnolang/gno/pull/5589)). After
+> [PR #5485](https://github.com/gnolang/gno/pull/5485) (v3 valset via
+> params keeper) landed on master, the master-based companion stack
+> ([PR #5597](https://github.com/gnolang/gno/pull/5597)) supersedes
+> this one for any new launch — see
+> [`pr5597_test13_hardfork_launch_master_based.md`](./pr5597_test13_hardfork_launch_master_based.md)
+> for the deltas (notably: migration sequence shrinks from 01 → 08 to
+> 01 → 07 because `vm:p:valset_realm_path` is no longer a configurable
+> param).
+
 ## Context
 
 [PR #5511](https://github.com/gnolang/gno/pull/5511) shipped the

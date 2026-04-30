@@ -494,11 +494,14 @@ func patchGenesisModeAddPkg(appState *gnoland.GnoGenesisState, pkgPath, srcDir s
 // post-fork chain's storage-deposit lock for the patched files succeeds.
 //
 // Realm storage at deploy time includes parsed AST + type info, which
-// empirically runs ~5–50× the raw file body size. We use 100× per byte at
-// 100 ugnot/byte (the default StoragePrice) as a conservative upper bound,
-// then add 100M ugnot of slack for fees and other genesis-mode txs the
-// creator may sign before this addpkg runs. Over-topping is benign — the
-// extra ugnot just sits in the creator account post-fork.
+// empirically runs ~5–50× the raw file body size. We use 100× per byte as
+// a conservative upper bound on that overhead, multiplied by the
+// post-fork StoragePrice (read from the genesis-mode vm.Params, falling
+// back to 100 ugnot/byte if the field is empty/unparseable — gnoland1's
+// pre-#5415 schema doesn't carry it). On top of that we add 100M ugnot
+// of slack for fees and other genesis-mode txs the creator may sign
+// before this addpkg runs. Over-topping is benign — the extra ugnot
+// just sits in the creator account post-fork.
 func ensureCreatorCanAffordDeposit(appState *gnoland.GnoGenesisState, creator bftypes.Address, files []*std.MemFile) {
 	if creator.IsZero() {
 		return
@@ -508,11 +511,17 @@ func ensureCreatorCanAffordDeposit(appState *gnoland.GnoGenesisState, creator bf
 		bodyBytes += int64(len(f.Body))
 	}
 	const (
-		storagePricePerByte = int64(100)
-		realmOverheadFactor = int64(100)
-		flatSlack           = int64(100_000_000) // 100M ugnot
+		realmOverheadFactor  = int64(100)
+		flatSlack            = int64(100_000_000) // 100M ugnot
+		fallbackPricePerByte = int64(100)         // matches vm.DefaultParams default
 	)
-	required := bodyBytes*realmOverheadFactor*storagePricePerByte + flatSlack
+	pricePerByte := fallbackPricePerByte
+	if sp := appState.VM.Params.StoragePrice; sp != "" {
+		if c, err := std.ParseCoin(sp); err == nil && c.Denom == "ugnot" && c.Amount > 0 {
+			pricePerByte = c.Amount
+		}
+	}
+	required := bodyBytes*realmOverheadFactor*pricePerByte + flatSlack
 
 	// Find the creator's existing genesis balance, if any.
 	for i := range appState.Balances {
