@@ -50,8 +50,9 @@ gen-local-genesis: ## rebuild gnoland1 base genesis locally (runs misc/deploymen
 	@mkdir -p $(OUT)
 	@OUT=$(OUT) REPO=$(REPO) $(HERE)/scripts/gen-local-genesis.sh
 
-.PHONY: fetch migrate
+.PHONY: fetch genesis migrate
 fetch: migrate ## alias for `make migrate` (kept for back-compat)
+genesis: migrate ## alias for `make migrate` — name used by verify-reproducibility.sh
 
 migrate: ## run scripts/migrate.sh — declarative hardfork recipe (fetch + patch + assemble)
 	@mkdir -p $(OUT)

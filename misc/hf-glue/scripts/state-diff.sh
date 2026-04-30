@@ -109,6 +109,23 @@ normalize() {
     -e 's|Generated [^\\n]*|Generated <TIME>|g' \
     -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)/src/|\1<SRC>/|g' \
     -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)gno/|\1<SRC>/|g' \
+    -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)/gnoroot/|\1<SRC>/|g' \
+    -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)/usr/lib/go/src/|\1<GOROOT>/|g' \
+    -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)/usr/local/go/src/|\1<GOROOT>/|g' \
+    -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)/usr/pkg/mod/|\1<GOMOD>/|g' \
+    -e 's|^\([[:space:]]*[0-9]*[[:space:]]*\)/root/\.cache/go-build/|\1<GOMOD>/|g' \
+    -e 's|errors\.go:[0-9]*|errors.go:<L>|g' \
+    -e 's|keeper\.go:[0-9]*|keeper.go:<L>|g' \
+    -e 's|handler\.go:[0-9]*|handler.go:<L>|g' \
+    -e 's|baseapp\.go:[0-9]*|baseapp.go:<L>|g' \
+    -e 's|local_client\.go:[0-9]*|local_client.go:<L>|g' \
+    -e 's|app_conn\.go:[0-9]*|app_conn.go:<L>|g' \
+    -e 's|abci\.go:[0-9]*|abci.go:<L>|g' \
+    -e 's|http_server\.go:[0-9]*|http_server.go:<L>|g' \
+    -e 's|handlers\.go:[0-9]*|handlers.go:<L>|g' \
+    -e 's|server\.go:[0-9]*|server.go:<L>|g' \
+    -e 's|asm[^.]*\.s:[0-9]*|asm.s:<L>|g' \
+    -e 's|reflect/value\.go:[0-9]*|reflect/value.go:<L>|g' \
     -e 's|[[:space:]]*$||'
 }
 
