@@ -267,9 +267,15 @@ func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, pt
 	*ptr = v
 	return true
 }
-func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool { return false }
-func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool     { return false }
-func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool  { return false }
+func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
+	return false
+}
 func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
 	return false
 }
