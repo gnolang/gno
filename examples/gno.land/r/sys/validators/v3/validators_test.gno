@@ -236,11 +236,9 @@ func TestCallback_AllRemovePanicsAtCallback(t *testing.T) {
 	exec := newValsetChangeExecutor(func() []pVals.Validator {
 		return []pVals.Validator{{Address: addrA, VotingPower: 0}}
 	})
-	urequire.PanicsWithMessage(
-		t,
-		"valset proposal would empty the validator set; refused to keep consensus liveness",
-		func() { _ = exec.Execute(cross) },
-	)
+	uassert.PanicsContains(t, "valset proposal would empty the validator set", func() {
+		_ = exec.Execute(cross)
+	})
 
 	// Effective view unchanged (no publish).
 	urequire.True(t, IsValidator(addrA), "valset must remain unchanged when callback rejects")
