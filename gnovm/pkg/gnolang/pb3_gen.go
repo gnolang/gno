@@ -12798,6 +12798,35 @@ func (goo *StaticBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 					return err
 				}
 			}
+		case 10:
+			switch typ3 {
+			case amino.Typ3Varint:
+				_, n, err := amino.DecodeVarint(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			case amino.Typ38Byte:
+				_, n, err := amino.DecodeInt64(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			case amino.Typ3ByteLength:
+				_, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			case amino.Typ34Byte:
+				_, n, err := amino.DecodeInt32(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			default:
+				return fmt.Errorf("invalid typ3 %v for reserved field 10", typ3)
+			}
 		default:
 			return fmt.Errorf("unknown field number %d for StaticBlock", fnum)
 		}
