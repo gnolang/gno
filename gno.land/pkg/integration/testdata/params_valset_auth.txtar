@@ -1,0 +1,35 @@
+# Regression test for PR #5485: SetValsetProposal must reject callers
+# other than gno.land/r/sys/validators/v3. Adapted from the proof-of-concept
+# posted by @omarsy in the PR review.
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gov/dao
+
+gnoland start
+
+# Sanity: chain-seeded valset:current is non-empty. The txtar harness
+# uses a mock PV with at least one genesis validator, so InitChainer
+# wrote that set to valset:current via the sentinel-scoped ictx.
+gnokey query params/node:valset:current
+stdout 'data:'
+
+# Exploit attempt: any user calls SetValsetProposal directly via MsgRun.
+# Must fail with the auth panic; tx should be rejected.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/exploit.gno
+stderr 'unauthorized: only gno.land/r/sys/validators/v3 may write valset params'
+
+# Confirm the attacker's pubkey did NOT reach valset:current.
+gnokey query params/node:valset:current
+! stdout 'gpub1pgfj7ard'
+
+-- run/exploit.gno --
+package main
+
+import sysparams "gno.land/r/sys/params"
+
+func main() {
+	sysparams.SetValsetProposal(cross, []string{
+		"gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj:1000000",
+	})
+}

@@ -49,6 +49,55 @@ func X_updateSysParamStrings(m *gno.Machine, module, submodule, name string, val
 	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
+// G1: typed read helpers. Same realm gate as writes — only
+// gno.land/r/sys/params can call these. The (value, found) shape
+// lets callers distinguish "key never written" from "key written as
+// zero/empty value." `found` comes directly from the keeper's
+// existence check, so set-to-zero and unset are always reliably
+// distinguishable for every type.
+
+func X_getSysParamString(m *gno.Machine, module, submodule, name string) (string, bool) {
+	assertSysParamsRealm(m)
+	var out string
+	ok := execctx.GetContext(m).Params.GetString(prmkey(module, submodule, name), &out)
+	return out, ok
+}
+
+func X_getSysParamBool(m *gno.Machine, module, submodule, name string) (bool, bool) {
+	assertSysParamsRealm(m)
+	var out bool
+	ok := execctx.GetContext(m).Params.GetBool(prmkey(module, submodule, name), &out)
+	return out, ok
+}
+
+func X_getSysParamInt64(m *gno.Machine, module, submodule, name string) (int64, bool) {
+	assertSysParamsRealm(m)
+	var out int64
+	ok := execctx.GetContext(m).Params.GetInt64(prmkey(module, submodule, name), &out)
+	return out, ok
+}
+
+func X_getSysParamUint64(m *gno.Machine, module, submodule, name string) (uint64, bool) {
+	assertSysParamsRealm(m)
+	var out uint64
+	ok := execctx.GetContext(m).Params.GetUint64(prmkey(module, submodule, name), &out)
+	return out, ok
+}
+
+func X_getSysParamBytes(m *gno.Machine, module, submodule, name string) ([]byte, bool) {
+	assertSysParamsRealm(m)
+	var out []byte
+	ok := execctx.GetContext(m).Params.GetBytes(prmkey(module, submodule, name), &out)
+	return out, ok
+}
+
+func X_getSysParamStrings(m *gno.Machine, module, submodule, name string) ([]string, bool) {
+	assertSysParamsRealm(m)
+	var out []string
+	ok := execctx.GetContext(m).Params.GetStrings(prmkey(module, submodule, name), &out)
+	return out, ok
+}
+
 func assertSysParamsRealm(m *gno.Machine) {
 	// XXX improve
 	if len(m.Frames) < 2 {

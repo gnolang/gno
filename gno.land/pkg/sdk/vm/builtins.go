@@ -104,6 +104,34 @@ func (prm *SDKParams) SetStrings(key string, value []string) {
 	prm.setWithCheck(key, func() { prm.pmk.SetStrings(prm.ctx, key, value) })
 }
 
+// ParamsInterface read methods (G1). Reads do not require module
+// registration since they're idempotent and read-only — but they do
+// require a colon-prefix to keep the API symmetric with writes.
+
+func (prm *SDKParams) GetString(key string, ptr *string) bool {
+	return prm.pmk.GetString(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetBool(key string, ptr *bool) bool {
+	return prm.pmk.GetBool(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetInt64(key string, ptr *int64) bool {
+	return prm.pmk.GetInt64(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetUint64(key string, ptr *uint64) bool {
+	return prm.pmk.GetUint64(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetBytes(key string, ptr *[]byte) bool {
+	return prm.pmk.GetBytes(prm.ctx, key, ptr)
+}
+
+func (prm *SDKParams) GetStrings(key string, ptr *[]string) bool {
+	return prm.pmk.GetStrings(prm.ctx, key, ptr)
+}
+
 func (prm *SDKParams) UpdateStrings(key string, vals []string, add bool) {
 	prm.mustHaveModuleKeeper(key)
 	ss := &[]string{}

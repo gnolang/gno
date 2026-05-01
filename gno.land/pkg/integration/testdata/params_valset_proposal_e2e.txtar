@@ -1,0 +1,138 @@
+# End-to-end test for the v3 valset propagation pipeline:
+#
+#   v3.NewProposalRequest(changesFn) -> dao.MustCreateProposal
+#   -> member votes YES
+#   -> dao.ExecuteProposal
+#   -> v3 callback applies changes to in-realm PoA
+#   -> v3 callback writes valset:proposed + valset:dirty=true
+#   -> EndBlocker (next block) reads dirty, diffs current vs proposed,
+#      emits ValidatorUpdates, writes valset:current = proposed
+#
+# Verifies the FULL pipeline by querying valset:current after each
+# block transition and confirming the new validator's pubkey appears
+# (= EndBlocker actually wrote it). Then forces a block past
+# H_exec+2 (the block where the validator-set transition takes
+# effect per ABCI semantics) by submitting another tx, proving
+# consensus made progress with the new set.
+#
+# Power=1 on the added validator keeps the genesis validator at
+# 10/11 ≈ 91% majority, well above the 2/3 quorum, so the genesis
+# mock PV alone can keep producing blocks even though the added
+# validator has no signing key in this test setup.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+# Load specific govDAO implementation + member registration.
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Pre-state sanity: valset:current was seeded by InitChainer from
+# req.Validators (the txtar harness's mock PV — exactly one ed25519
+# validator). It must be non-empty. Capture its content so we can
+# verify post-execute that the genesis validator is preserved (not
+# wiped) by the proposal application.
+gnokey query params/node:valset:current
+stdout 'gpub1'
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+
+# Submit a v3 proposal to add a new validator (deterministic ed25519
+# pubkey from seed "e2e-valset-test-validator-seed-v1").
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+stdout OK!
+
+# Sanity: proposal is in gov/dao at id 0. The proposal text shows
+# the validator's address derived from the new pubkey.
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9: add'
+
+# Vote YES.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Execute. v3 callback runs -> SetValsetProposal writes proposed +
+# dirty=true. The execute tx itself is a block; EndBlocker at the
+# end of THAT block reads dirty=true, computes diff, writes
+# valset:current = proposed, emits ValidatorUpdates.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Post-EndBlocker state: valset:current must now contain BOTH the
+# original genesis validator AND the new e2e-test-validator. The
+# new pubkey appears verbatim in the encoded entries; the comma
+# between entries proves the genesis validator is still present
+# (a wipe regression where current = [new_only] would not match).
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+stdout '","gpub1'
+
+# valset:dirty must be cleared (EndBlocker successfully consumed the
+# proposal — it didn't drop it via the parse-error or whole-reject
+# paths).
+gnokey query params/node:valset:dirty
+stdout 'false'
+
+# Force a block past H_exec+2 (the height where ABCI applies the
+# validator-set update) by submitting another write-tx — a small
+# self-transfer. If the chain stalled at H+2 because the new
+# validator can't sign, this maketx would time out. A successful
+# OK! proves consensus made progress through the transition.
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+-- proposer/create_proposal.gno --
+package main
+
+import (
+	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	// Deterministic ed25519 pubkey from seed "e2e-valset-test-validator-seed-v1".
+	// Stable across test runs so we can grep for it post-EndBlock.
+	const (
+		newAddr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
+		newPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	)
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{
+				Address:     address(newAddr),
+				PubKey:      newPubKey,
+				VotingPower: 1, // small power so genesis (power 10) keeps 91% quorum past H+2
+			},
+		}
+	}
+	pr := v3.NewProposalRequest(changesFn, "Add e2e-test-validator", "regression for v3 propagation")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
