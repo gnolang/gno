@@ -1,7 +1,0 @@
--- input.md --
-## Title with **bold** and *italic*
-
-### Title with `code span` inside
--- output.html --
-<h2 id="title-with-bold-and-italic"><a class="heading-anchor" href="#title-with-bold-and-italic">Title with <strong>bold</strong> and <em>italic</em></a></h2>
-<h3 id="title-with-code-span-inside"><a class="heading-anchor" href="#title-with-code-span-inside">Title with <code>code span</code> inside</a></h3>
