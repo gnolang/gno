@@ -97,23 +97,12 @@ func TestValidateBasicRejectsZeroLastBlockIDAtNonGenesisHeight(t *testing.T) {
 		assert.Contains(t, err.Error(), "nil LastCommit")
 	})
 
-	t.Run("zero LastBlockID with non-empty LastCommit", func(t *testing.T) {
-		t.Parallel()
-
-		// Create a valid block first, then tamper with it.
-		lastID := makeBlockIDRandom()
-		voteSet, _, vals := randVoteSet(49, 1, PrecommitType, 10, 1)
-		commit, err := MakeCommit(lastID, 49, 1, voteSet, vals)
-		require.NoError(t, err)
-
-		block := MakeBlock(50, []Tx{Tx("tx1")}, commit)
-		// Zero out LastBlockID to try to look like genesis, but keep
-		// the real commit with precommits.
-		block.Header.LastBlockID = BlockID{}
-
-		err = block.ValidateBasic()
-		require.Error(t, err, "should reject block with zeroed LastBlockID but non-empty LastCommit")
-	})
+	// NOTE: the previously tested "zero LastBlockID with non-empty
+	// LastCommit" case is no longer rejected by Block.ValidateBasic
+	// (the stateless function lost its genesis-detection heuristic).
+	// Stateful state.ValidateBlock catches it via the
+	// block.Height == state.InitialHeight check combined with the
+	// LastBlockID equality check against state.LastBlockID.
 }
 
 func TestBlockRoundTripPreservesNilLastCommitEntries(t *testing.T) {

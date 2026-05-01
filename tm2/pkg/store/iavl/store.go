@@ -59,6 +59,11 @@ func (st *Store) ExpectedWriteDepth100() int64   { return expectedDepth100(st.tr
 type Store struct {
 	tree Tree
 	opts types.StoreOptions
+	// initialVersion, when > 0, is the chain's first persisted version
+	// (set via SetInitialVersion from BaseApp.InitChain on hardfork chains).
+	// Used by Commit() to skip the prune branch for toRelease < initialVersion,
+	// avoiding a per-Commit no-op DeleteVersionsTo call. 0 for standard chains.
+	initialVersion int64
 }
 
 func UnsafeNewStore(tree *iavl.MutableTree, opts types.StoreOptions) *Store {
@@ -102,14 +107,19 @@ func (st *Store) Commit() types.CommitID {
 		panic(err)
 	}
 
-	// Release an old version of history, if not a sync waypoint.
+	// Release an old version of history, if not a sync waypoint. Skip when
+	// toRelease is below the chain's initial version (set via
+	// SetInitialVersion). For standard chains, initialVersion=0 so the check
+	// is always-true and existing behavior is preserved byte-identically.
 	previous := version - 1
-	if st.opts.KeepRecent < previous {
+	if previous > st.opts.KeepRecent {
 		toRelease := previous - st.opts.KeepRecent
-		if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
-			err := st.tree.DeleteVersionsTo(toRelease)
-			if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
-				panic(err)
+		if toRelease >= st.initialVersion {
+			if st.opts.KeepEvery == 0 || toRelease%st.opts.KeepEvery != 0 {
+				err := st.tree.DeleteVersionsTo(toRelease)
+				if errCause := errors.Cause(err); errCause != nil && !goerrors.Is(errCause, iavl.ErrVersionDoesNotExist) {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -126,6 +136,22 @@ func (st *Store) LastCommitID() types.CommitID {
 		Version: st.tree.Version(),
 		Hash:    st.tree.Hash(),
 	}
+}
+
+// SetInitialVersion sets the version that the next Commit() will produce
+// (via the underlying MutableTree) AND records initialVersion on the Store
+// for the prune-skip guard. Used at chain initialization (InitChain) to
+// align the multistore's commit version with the chain's InitialHeight when
+// starting a hardfork chain at height > 1. Has no effect on the iavl tree
+// once it has any saved versions; the initialVersion field is set
+// unconditionally for the prune guard. Implements types.InitialVersionSetter.
+func (st *Store) SetInitialVersion(v int64) {
+	mt, ok := st.tree.(*iavl.MutableTree)
+	if !ok {
+		panic("SetInitialVersion on immutable iavl store")
+	}
+	mt.SetInitialVersion(uint64(v))
+	st.initialVersion = v
 }
 
 // Implements Committer.

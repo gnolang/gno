@@ -1319,6 +1319,7 @@ func TestReconstructLastCommit_InitialHeight(t *testing.T) {
 
 	// Simulate what the Handshaker does after InitChain with InitialHeight=100:
 	// LastBlockHeight is set to InitialHeight-1 but the block store is empty.
+	state.InitialHeight = 100
 	state.LastBlockHeight = 99
 
 	stateDB := memdb.NewMemDB()
@@ -1348,7 +1349,8 @@ func TestCreateProposalBlock_InitialHeight(t *testing.T) {
 	state, err := sm.MakeGenesisStateFromFile(genesisFile)
 	require.NoError(t, err)
 
-	state.LastBlockHeight = 99 // simulates InitialHeight=100
+	state.InitialHeight = 100  // simulates InitialHeight=100
+	state.LastBlockHeight = 99 // post-handshake LastBlockHeight = InitialHeight - 1
 
 	stateDB := memdb.NewMemDB()
 	sm.SaveState(stateDB, state)
@@ -1386,7 +1388,9 @@ func TestNeedProofBlock_InitialHeight(t *testing.T) {
 	state, err := sm.MakeGenesisStateFromFile(genesisFile)
 	require.NoError(t, err)
 
-	// Simulate InitialHeight=100: LastBlockHeight is set to 99, block store empty.
+	// Simulate InitialHeight=100: state.InitialHeight=100, LastBlockHeight=99,
+	// block store empty.
+	state.InitialHeight = 100
 	state.LastBlockHeight = 99
 
 	stateDB := memdb.NewMemDB()
@@ -1401,9 +1405,8 @@ func TestNeedProofBlock_InitialHeight(t *testing.T) {
 
 	cs := NewConsensusState(testCfg.Consensus, state, blockExec, store, mempool)
 
-	// cs.Height is 100 (LastBlockHeight+1).
-	// needProofBlock(100) used to panic: LoadBlockMeta(99) == nil on empty store.
-	// After the fix it should return true (genesis-equivalent block).
+	// cs.Height is 100 (LastBlockHeight+1 == state.InitialHeight).
+	// needProofBlock(100) returns true because height == InitialHeight.
 	var result bool
 	require.NotPanics(t, func() {
 		result = cs.needProofBlock(cs.Height)

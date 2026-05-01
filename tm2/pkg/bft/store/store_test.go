@@ -203,7 +203,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			// seenCommit that gets marshaled.
 			block:     newBlock(header2, commitAtH10),
 			parts:     uncontiguousPartSet,
-			wantPanic: "nil pointer",
+			wantPanic: "nil *Commit pointer",
 		},
 
 		{

@@ -57,6 +57,6 @@ func SaveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *type
 // GetBeginBlockLastCommitInfo is an alias for the private
 // getBeginBlockLastCommitInfo function in execution.go, exported exclusively
 // and explicitly for testing.
-func GetBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCommitInfo {
-	return getBeginBlockLastCommitInfo(block, stateDB)
+func GetBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB) abci.LastCommitInfo {
+	return getBeginBlockLastCommitInfo(block, state, stateDB)
 }
