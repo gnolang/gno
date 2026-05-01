@@ -241,7 +241,7 @@ func TestNeg1_NoReservedDeclared_FieldShifts(t *testing.T) {
 
 // TestNeg2_ReservedDeclared_GeneratorRegressed proves the "buggy generator"
 // failure mode: even when the source code correctly declares
-// `_ struct{} `amino:"reserved"``, if the generator regresses and stops
+// `_ struct{} `amino:"reserved"“, if the generator regresses and stops
 // emitting the case-N skip stub, old-encoder bytes carrying the reserved
 // fnum hit `default:` and fail with "unknown field number N for <Type>".
 //

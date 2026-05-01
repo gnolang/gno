@@ -715,14 +715,14 @@ func (*InterfaceFieldsStruct) AssertInterface1() {}
 // These two types model a V1→V2 migration of a struct with three fields
 // (A int32 at fnum 1, B int32 at fnum 2, C string at fnum 3):
 //
-//   FixtureV2Reserved — CORRECT migration: B was removed and replaced with
-//   a `_ struct{} `amino:"reserved"`` placeholder so C's fnum 3 is preserved
-//   and old wire bytes carrying B at fnum 2 can still be decoded (the
-//   generator emits a per-typ3 skip stub at the reserved fnum).
+//	FixtureV2Reserved — CORRECT migration: B was removed and replaced with
+//	a `_ struct{} `amino:"reserved"`` placeholder so C's fnum 3 is preserved
+//	and old wire bytes carrying B at fnum 2 can still be decoded (the
+//	generator emits a per-typ3 skip stub at the reserved fnum).
 //
-//   FixtureV2Shifted — BAD migration: B was simply deleted with no
-//   placeholder. Amino auto-numbers fields by source order, so C silently
-//   slides from fnum 3 to fnum 2; old wire bytes hit a typ3 mismatch.
+//	FixtureV2Shifted — BAD migration: B was simply deleted with no
+//	placeholder. Amino auto-numbers fields by source order, so C silently
+//	slides from fnum 3 to fnum 2; old wire bytes hit a typ3 mismatch.
 type FixtureV2Reserved struct {
 	A int32    // fnum 1
 	_ struct{} `amino:"reserved"` // fnum 2 — was: B int32
