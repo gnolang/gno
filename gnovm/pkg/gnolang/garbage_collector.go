@@ -181,16 +181,14 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// GetShallowSize returns header-only for strings.
 		size := v.GetShallowSize()
 
-		// Special case for StringValue: string underlying bytes
-		// are raw data, not a Value, so they cannot be counted
-		// via VisitAssociated (which visits child Values).
-		// Instead we count them inline here.
-		// CountStringBytes checks if this string was allocated via
-		// NewString and marks it with the current gcCycle. The per-cycle marker ensures each
-		// backing array's bytes are counted only once — if multiple
-		// StringValues share the same backing (e.g. s1 = s), the
-		// first visit marks the cycle and counts bytes, subsequent
-		// visits count header only. On the next GC cycle the string is recounted.
+		// Special case for StringValue: the backing bytes are raw data,
+		// not a Value, so VisitAssociated (which visits child Values)
+		// can't reach them. Count them inline here.
+		//
+		// CountStringBytes returns true the first time a tracked backing
+		// is seen in this gcCycle, false on subsequent visits in the same
+		// cycle. This dedups shared backings (e.g. s1 := s, or s[i:j])
+		// and recounts the bytes on each new GC cycle.
 		if sv, ok := v.(StringValue); ok {
 			if alloc.CountStringBytes(string(sv), gcCycle) {
 				size += allocStringByte * int64(len(sv))

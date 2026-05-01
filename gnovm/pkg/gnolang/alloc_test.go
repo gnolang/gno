@@ -3,6 +3,10 @@ package gnolang
 import (
 	"testing"
 	"unsafe"
+
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 func TestAllocSizes(t *testing.T) {
@@ -153,6 +157,53 @@ func TestStringSliceGCRecount(t *testing.T) {
 	alloc.CleanupTrackedStrings(gcCycle)
 	if len(alloc.allocStrings) != 1 {
 		t.Errorf("after cleanup: want 1 tracked entry (source only), got %d", len(alloc.allocStrings))
+	}
+}
+
+// TestFillTypesOfValue_StringTracking verifies the load-path contract:
+// when a persisted StringValue is rehydrated through fillTypesOfValue,
+// its backing must be registered in the rehydrating allocator's
+// allocStrings map. Without this, a string that pre-existed the current
+// tx allocator would never be tracked, and CountStringBytes would
+// silently skip its bytes during GC.
+func TestFillTypesOfValue_StringTracking(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2Store := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	st := NewStore(nil, tm2Store, tm2Store)
+	st.SetAllocator(NewAllocator(1_000_000))
+
+	const body = "loaded-from-store"
+	loaded := fillTypesOfValue(st, StringValue(body))
+
+	sv, ok := loaded.(StringValue)
+	if !ok {
+		t.Fatalf("fillTypesOfValue returned %T, want StringValue", loaded)
+	}
+	if string(sv) != body {
+		t.Fatalf("fillTypesOfValue mutated content: got %q, want %q", string(sv), body)
+	}
+
+	alloc := st.GetAllocator()
+	p := uintptr(unsafe.Pointer(unsafe.StringData(string(sv))))
+	if _, exists := alloc.allocStrings[p]; !exists {
+		t.Fatal("fillTypesOfValue did not register the string's backing in allocStrings")
+	}
+}
+
+// TestNewString_EmptyStringNotTracked verifies the len==0 guard:
+// empty strings must not enter allocStrings. unsafe.StringData on an
+// empty string returns an unspecified (typically shared sentinel)
+// pointer, so tracking would alias every empty string onto one key.
+func TestNewString_EmptyStringNotTracked(t *testing.T) {
+	alloc := NewAllocator(1_000_000)
+	_ = alloc.NewString("")
+	_ = alloc.NewString("")
+	if got := len(alloc.allocStrings); got != 0 {
+		t.Errorf("empty strings should not be tracked, got %d entries", got)
+	}
+
+	if alloc.CountStringBytes("", 1) {
+		t.Error("CountStringBytes should return false for empty strings")
 	}
 }
 

@@ -2184,7 +2184,11 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		if t == StringType || t == UntypedStringType {
 			sv := tv.GetString()[low:high]
-			alloc.Allocate(allocString) // header only, underlying bytes shared with source string
+			// Header only: the slice shares the source's backing array,
+			// which is already tracked in alloc.allocStrings under the
+			// source's NewString call. The GC will recount the source's
+			// bytes once per cycle; the slice contributes only its header.
+			alloc.Allocate(allocString)
 			return TypedValue{
 				T: tv.T,
 				V: StringValue(sv),

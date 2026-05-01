@@ -14,11 +14,30 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes     int64
-	bytes        int64
-	collect      func() (left int64, ok bool) // gc callback
-	gasMeter     store.GasMeter
-	allocStrings map[uintptr]int64 // backing pointer -> last GCCycle counted (0 = never counted)
+	maxBytes int64
+	bytes    int64
+	collect  func() (left int64, ok bool) // gc callback
+	gasMeter store.GasMeter
+
+	// allocStrings tracks strings allocated through this allocator so the
+	// GC can recount their backing bytes once per cycle (see CountStringBytes).
+	// Key: raw uintptr from unsafe.StringData(s); value: last GCCycle that
+	// counted this backing (0 = never counted).
+	//
+	// Keying by raw pointer assumes the Go runtime keeps the backing alive
+	// for as long as we hold a StringValue referencing it (true: strings are
+	// immutable and rooted from the GnoVM Value graph). After Go's runtime
+	// frees an unreferenced string, a different string could in principle
+	// reuse the address; entries are pruned at the end of each GnoVM GC
+	// cycle (CleanupTrackedStrings) so the aliasing window is bounded to a
+	// single cycle.
+	//
+	// Fork() intentionally aliases this map: a forked allocator and its
+	// parent share string-tracking state so a string allocated on either
+	// side is visible to whichever runs the next GC. This works because
+	// the only Fork() caller (store.go's tx-scoped allocator) does not run
+	// concurrently with its parent.
+	allocStrings map[uintptr]int64
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -322,15 +341,15 @@ func (alloc *Allocator) TrackString(str string) {
 	alloc.allocStrings[p] = 0
 }
 
-// CountStringBytes checks if the string's backing pointer was
-// registered via TrackString and should have its bytes counted
-// in this GC cycle. Returns true if the string has NOT yet been
-// counted in gcCycle (first time this cycle). Uses a per-cycle
-// marker (instead of popping) so the string's bytes are correctly
-// recounted in subsequent GC cycles.
-// The cycle check also handles the dedup case: if multiple
-// StringValues share the same backing (e.g. s1 = s), only the
-// first visit counts the bytes.
+// CountStringBytes reports whether the GC visitor should count this
+// string's backing bytes during gcCycle. It returns true the first
+// time a tracked backing is seen in a given cycle, and false on
+// subsequent visits in the same cycle.
+//
+// The per-cycle marker (instead of popping the entry) lets the string
+// be recounted on the next GC cycle, while the same-cycle check dedups
+// shared backings: if multiple StringValues alias the same data
+// (e.g. s1 := s, or s[i:j]), only the first visit charges the bytes.
 func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) bool {
 	if alloc == nil || len(str) == 0 {
 		return false
