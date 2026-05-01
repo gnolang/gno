@@ -312,7 +312,10 @@ func (alloc *Allocator) Allocate(size int64) {
 // this string was fully allocated (header + bytes) and should
 // have its bytes recounted during GC.
 func (alloc *Allocator) TrackString(str string) {
-	if alloc == nil {
+	if alloc == nil || len(str) == 0 {
+		// unsafe.StringData on an empty string returns an unspecified
+		// (typically shared sentinel) pointer; skip tracking so all
+		// empty strings don't collapse onto one map key.
 		return
 	}
 	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
@@ -329,7 +332,7 @@ func (alloc *Allocator) TrackString(str string) {
 // StringValues share the same backing (e.g. s1 = s), only the
 // first visit counts the bytes.
 func (alloc *Allocator) CountStringBytes(str string, gcCycle int64) bool {
-	if alloc == nil {
+	if alloc == nil || len(str) == 0 {
 		return false
 	}
 	p := uintptr(unsafe.Pointer(unsafe.StringData(str)))
