@@ -116,6 +116,9 @@ func (s *memberStorage) Remove(member address) bool {
 
 // Grouping returns member groups.
 func (s memberStorage) Grouping() MemberGrouping {
+	if s.sealed && s.grouping != nil {
+		return s.grouping.Seal().(MemberGrouping)
+	}
 	return s.grouping
 }
 

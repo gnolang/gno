@@ -266,7 +266,7 @@ func (p *Proposal) Tally(members MemberStorage) error {
 		return ErrStatusIsNotActive
 	}
 
-	ctx := MustNewVotingContext(p.VotingRecord(), members.Seal().(MemberStorage))
+	ctx := MustNewVotingContext(p.VotingRecord(), members)
 	passes, err := p.Definition().Tally(ctx)
 	if err != nil {
 		return err

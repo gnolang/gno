@@ -78,6 +78,9 @@ func (g memberGroup) Name() string {
 
 // Members returns the members that belong to the group.
 func (g memberGroup) Members() MemberStorage {
+	if g.sealed {
+		return g.members.Seal().(MemberStorage)
+	}
 	return g.members
 }
 

@@ -65,12 +65,7 @@ func (r VotingRecord) Size() int {
 func (r VotingRecord) Iterate(offset, count int, reverse bool, fn VoteIterFn) bool {
 	cb := func(_ string, v any) bool {
 		vote := v.(Vote)
-		if r.sealed {
-			// Context will be nil if it's not sealable to avoid unintentional exposure
-			vote.Context, _ = vote.Context.(Sealable)
-		}
-
-		return fn(vote)
+		return fn(r.trySealVote(vote))
 	}
 
 	if reverse {
@@ -102,7 +97,7 @@ func (r VotingRecord) HasVoted(user address) bool {
 // GetVote returns a vote.
 func (r VotingRecord) GetVote(user address) (_ Vote, found bool) {
 	if v, found := r.votes.Get(user.String()); found {
-		return v.(Vote), true
+		return r.trySealVote(v.(Vote)), true
 	}
 	return Vote{}, false
 }
@@ -125,6 +120,14 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 
 	r.count.Set(string(vote.Choice), r.VoteCount(vote.Choice)+1)
 	return
+}
+
+func (r VotingRecord) trySealVote(v Vote) Vote {
+	if r.sealed {
+		// Context will be nil if it's not sealable to avoid unintentional exposure
+		v.Context, _ = v.Context.(Sealable)
+	}
+	return v
 }
 
 // FindMostVotedChoice returns the most voted choice.
