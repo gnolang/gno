@@ -19,7 +19,7 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
-    runs-on: [ self-hosted, Linux, X64, benchmarks ]
+    runs-on: gnolang-self-runner-xlarge
     permissions:
       deployments: write # to deploy GitHub pages website
       contents: write # to update benchmark data in gh-benchmarks branch
@@ -60,7 +60,7 @@ jobs:
           alert-threshold: "120%"
           fail-on-alert: false
           comment-on-alert: true
-          alert-comment-cc-users: "@ajnavarro,@thehowl,@zivkovicmilos"
+          alert-comment-cc-users: "@ajnavarro,@thehowl"
           # Enable Job Summary for PRs
           summary-always: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
