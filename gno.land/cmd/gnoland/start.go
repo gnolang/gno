@@ -264,6 +264,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		cfg.Application,
 		evsw,
 		logger,
+		cfg.BaseConfig.SkipUpgradeHeight,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)

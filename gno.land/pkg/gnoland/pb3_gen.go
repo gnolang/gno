@@ -17,6 +17,7 @@ var _ reflect.Type
 
 func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoAccount)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoSessionAccount)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoGenesisState)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*TxWithMetadata)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GnoTxMetadata)(nil)).Elem())
@@ -25,8 +26,16 @@ func init() {
 func (goo GnoAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Attributes != 0 {
-		offset = amino.PrependUvarint(buf, offset, uint64(goo.Attributes))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependUvarint(buf, offset, uint64(goo.Attributes))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	{
 		before := offset
@@ -63,6 +72,7 @@ func (goo GnoAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoAccount{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -70,7 +80,7 @@ func (goo *GnoAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -100,6 +110,121 @@ func (goo *GnoAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 			goo.Attributes = BitSet(v)
 		default:
 			return fmt.Errorf("unknown field number %d for GnoAccount", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo GnoSessionAccount) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	for i := len(goo.AllowPaths) - 1; i >= 0; i-- {
+		elem := goo.AllowPaths[i]
+		if elem != "" {
+			offset = amino.PrependString(buf, offset, string(elem))
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+	}
+	{
+		before := offset
+		offset, err = goo.BaseSessionAccount.MarshalBinary2(cdc, buf, offset)
+		if err != nil {
+			return offset, err
+		}
+		dataLen := before - offset
+		if dataLen > 0 {
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo GnoSessionAccount) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	{
+		cs, err := goo.BaseSessionAccount.SizeBinary2(cdc)
+		if err != nil {
+			return 0, err
+		}
+		if cs > 0 {
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
+	}
+	for _, elem := range goo.AllowPaths {
+		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
+		s += 1 + vs
+	}
+	return s, nil
+}
+
+func (goo *GnoSessionAccount) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoSessionAccount{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			fbz, n, err := amino.DecodeByteSlice(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			if err := goo.BaseSessionAccount.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+				return err
+			}
+		case 2:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var ev string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			ev = string(v)
+			goo.AllowPaths = append(goo.AllowPaths, ev)
+			for len(bz) > 0 {
+				var nextFnum uint32
+				var nextTyp3 amino.Typ3
+				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
+				if err != nil {
+					return err
+				}
+				if nextFnum != 2 {
+					break
+				}
+				if nextTyp3 != amino.Typ3ByteLength {
+					return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
+				}
+				bz = bz[n:]
+				var ev string
+				v, n, err := amino.DecodeString(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				ev = string(v)
+				goo.AllowPaths = append(goo.AllowPaths, ev)
+			}
+		default:
+			return fmt.Errorf("unknown field number %d for GnoSessionAccount", fnum)
 		}
 	}
 	return nil
@@ -220,6 +345,7 @@ func (goo GnoGenesisState) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoGenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoGenesisState{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -227,7 +353,7 @@ func (goo *GnoGenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -413,6 +539,7 @@ func (goo TxWithMetadata) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *TxWithMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = TxWithMetadata{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -420,7 +547,7 @@ func (goo *TxWithMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -464,8 +591,16 @@ func (goo *TxWithMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 func (goo GnoTxMetadata) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if goo.Timestamp != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Timestamp))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Timestamp))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -479,6 +614,7 @@ func (goo GnoTxMetadata) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *GnoTxMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = GnoTxMetadata{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -486,7 +622,7 @@ func (goo *GnoTxMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

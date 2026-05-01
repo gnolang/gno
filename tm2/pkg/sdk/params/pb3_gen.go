@@ -29,7 +29,7 @@ func (goo Param) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, 
 		before := offset
 		offset = amino.PrependString(buf, offset, string(repr))
 		valueLen := before - offset
-		if valueLen > 0 {
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
 			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
 		} else {
 			offset = before
@@ -44,11 +44,8 @@ func (goo Param) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	{
-		vs := amino.UvarintSize(uint64(len(repr))) + len(repr)
-		if vs > 0 {
-			s += 1 + vs
-		}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 	}
 	return s, nil
 }
@@ -64,11 +61,15 @@ func (goo *Param) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
 		}
 		bz = bz[n:]
-		v, _, err := amino.DecodeString(bz)
+		v, n, err := amino.DecodeString(bz)
 		if err != nil {
 			return err
 		}
+		bz = bz[n:]
 		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }

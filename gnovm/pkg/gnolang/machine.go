@@ -788,11 +788,15 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types.
+	// save declared types — only those that belong to this package.
+	// Aliases to uverse types or to types from other packages have a
+	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
+	// be redundant (cross-pkg: the owning pkg already SetType'd them;
+	// uverse: lives in the in-memory VM registry, not in chain state).
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
-				if dt, ok := tvv.Type.(*DeclaredType); ok {
+				if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pv.PkgPath {
 					m.Store.SetType(dt)
 				}
 			}
