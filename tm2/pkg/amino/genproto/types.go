@@ -281,6 +281,7 @@ func nListFieldOptions(fopts amino.FieldOptions) amino.FieldOptions {
 	return amino.FieldOptions{
 		BinFixed64:     fopts.BinFixed64,
 		BinFixed32:     fopts.BinFixed32,
+		BinPlainVarint: fopts.BinPlainVarint,
 		UseGoogleTypes: fopts.UseGoogleTypes,
 	}
 }
@@ -341,6 +342,8 @@ func (nl NList) Name() string {
 		prefix = "Fixed64"
 	} else if nl.FieldOptions.BinFixed32 {
 		prefix = "Fixed32"
+	} else if nl.FieldOptions.BinPlainVarint {
+		prefix = "Varint"
 	}
 	if nl.FieldOptions.UseGoogleTypes {
 		prefix = "G" + prefix
