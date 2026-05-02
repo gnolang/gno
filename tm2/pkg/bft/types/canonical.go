@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+	"math"
 	"time"
 
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
@@ -56,8 +58,13 @@ func CanonicalizeBlockID(blockID BlockID) CanonicalBlockID {
 }
 
 func CanonicalizePartSetHeader(psh PartSetHeader) CanonicalPartSetHeader {
-	if psh.Total < 0 {
-		panic("PartSetHeader.Total is negative; canonical encoding requires non-negative")
+	// PartSetHeader.Total is platform-int. Reject anything that doesn't fit
+	// in the canonical uint32 — both negatives and values > math.MaxUint32 —
+	// before the cast silently truncates. Without the upper-bound check on
+	// 64-bit, Total = MaxInt64 would canonicalize as Total = uint32(0xFFFFFFFF),
+	// producing the same sign-bytes as a different operational PartSetHeader.
+	if psh.Total < 0 || int64(psh.Total) > math.MaxUint32 {
+		panic(fmt.Sprintf("PartSetHeader.Total (%d) out of canonical uint32 range", psh.Total))
 	}
 	return CanonicalPartSetHeader{
 		Total: uint32(psh.Total),
