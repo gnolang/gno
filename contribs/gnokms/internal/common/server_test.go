@@ -180,12 +180,14 @@ func TestRunSignerServer(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		filePath := filepath.Join(t.TempDir(), "invalid")
+		dir := t.TempDir()
+		filePath := filepath.Join(dir, "invalid")
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
 
 		serverFlags := &ServerFlags{
-			Listener: "tcp://127.0.0.1:0",
-			LogLevel: zapcore.ErrorLevel.String(),
+			Listener:  "tcp://127.0.0.1:0",
+			StateFile: filepath.Join(dir, "signer_state.json"),
+			LogLevel:  zapcore.ErrorLevel.String(),
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -211,8 +213,9 @@ func TestRunSignerServer(t *testing.T) {
 
 		// Use the address:port for the server flags.
 		serverFlags := &ServerFlags{
-			Listener: fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
-			LogLevel: zapcore.ErrorLevel.String(),
+			Listener:  fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
+			StateFile: filepath.Join(t.TempDir(), "signer_state.json"),
+			LogLevel:  zapcore.ErrorLevel.String(),
 		}
 
 		assert.Error(t, RunSignerServer(
@@ -230,8 +233,9 @@ func TestRunSignerServer(t *testing.T) {
 		defer cancel()
 
 		serverFlags := &ServerFlags{
-			Listener: "tcp://127.0.0.1:0",
-			LogLevel: zapcore.ErrorLevel.String(),
+			Listener:  "tcp://127.0.0.1:0",
+			StateFile: filepath.Join(t.TempDir(), "signer_state.json"),
+			LogLevel:  zapcore.ErrorLevel.String(),
 		}
 
 		assert.ErrorIs(t, RunSignerServer(
@@ -251,8 +255,9 @@ func TestRunSignerServer(t *testing.T) {
 		defer cancel()
 
 		serverFlags := &ServerFlags{
-			Listener: "tcp://127.0.0.1:0",
-			LogLevel: zapcore.ErrorLevel.String(),
+			Listener:  "tcp://127.0.0.1:0",
+			StateFile: filepath.Join(t.TempDir(), "signer_state.json"),
+			LogLevel:  zapcore.ErrorLevel.String(),
 		}
 
 		assert.NoError(t, RunSignerServer(
