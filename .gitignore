@@ -22,6 +22,10 @@ testdir
 *.gno.gen.go
 *.gno.gen_test.go
 *.pb.go
+# Tests in tm2/pkg/bft/privval/upstream depend on a checked-in
+# protoc-generated upstream Tendermint proto fixture. Negate the
+# wildcard above so the file is tracked.
+!tm2/pkg/bft/privval/upstream/testdata/upstreampb/upstream.pb.go
 pbbindings.go
 *~
 .#*
