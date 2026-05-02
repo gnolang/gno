@@ -1,6 +1,7 @@
 package types
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -64,6 +65,40 @@ func TestProposalSignBytesTestVectors(t *testing.T) {
 		0x08, 0x80, 0x92, 0xb8, 0xc3, 0x98, 0xfe, 0xff, 0xff, 0xff, 0x01,
 	}
 	require.Equal(t, want, prop.SignBytes(""))
+}
+
+// TestCanonicalizePartSetHeader_Bounds locks down the canonical-uint32 range
+// check. PartSetHeader.Total is a platform-int; on 64-bit, values larger than
+// math.MaxUint32 used to silently truncate via the uint32 cast, producing
+// canonical bytes that disagreed with the operational PartSetHeader
+// (two distinct Totals canonicalizing to the same sign-bytes — a slashing-
+// shaped collision). The check now panics on out-of-range values.
+func TestCanonicalizePartSetHeader_Bounds(t *testing.T) {
+	t.Parallel()
+
+	t.Run("negative", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			_ = CanonicalizePartSetHeader(PartSetHeader{Total: -1})
+		})
+	})
+	t.Run("max-uint32-ok", func(t *testing.T) {
+		t.Parallel()
+		c := CanonicalizePartSetHeader(PartSetHeader{Total: math.MaxUint32})
+		assert.Equal(t, uint32(math.MaxUint32), c.Total)
+	})
+	t.Run("over-uint32-rejected", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			_ = CanonicalizePartSetHeader(PartSetHeader{Total: math.MaxUint32 + 1})
+		})
+	})
+	t.Run("max-int64-rejected", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			_ = CanonicalizePartSetHeader(PartSetHeader{Total: math.MaxInt64})
+		})
+	})
 }
 
 func TestProposalString(t *testing.T) {
