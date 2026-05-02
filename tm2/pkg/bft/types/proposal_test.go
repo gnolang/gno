@@ -40,10 +40,13 @@ func TestProposalSignable(t *testing.T) {
 
 // TestProposalSignBytesTestVectors locks down the exact on-wire sign-bytes
 // for a known CanonicalProposal. A wire-format regression in the fixed64
-// Height/Round/POLRound fields or the field ordering would invalidate every
-// historical proposal signature — catching that here is cheaper than
+// Height/Round, the varint POLRound, or the field ordering would invalidate
+// every historical proposal signature — catching that here is cheaper than
 // discovering it via cross-validator signature failure. Mirrors the coverage
 // TestVoteSignBytesTestVectors provides for Vote.
+//
+// Wire layout matches upstream Tendermint v0.34's CanonicalProposal:
+// height/round are sfixed64; pol_round is plain varint int64.
 func TestProposalSignBytesTestVectors(t *testing.T) {
 	t.Parallel()
 
@@ -52,11 +55,11 @@ func TestProposalSignBytesTestVectors(t *testing.T) {
 	prop := &Proposal{Type: ProposalType, Height: 1, Round: 1, POLRound: -1}
 
 	want := []byte{
-		0x2a,       // length = 42
+		0x2c,       // length = 44
 		0x08, 0x20, // Type = ProposalType (0x20)
-		0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Height = 1 (fixed64 LE)
-		0x19, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Round = 1 (fixed64 LE)
-		0x21, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // POLRound = -1 (fixed64 LE)
+		0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Height = 1 (sfixed64 LE)
+		0x19, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Round = 1 (sfixed64 LE)
+		0x20, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01, // POLRound = -1 (plain varint int64)
 		0x32, 0x0b, // Timestamp field + length
 		0x08, 0x80, 0x92, 0xb8, 0xc3, 0x98, 0xfe, 0xff, 0xff, 0xff, 0x01,
 	}
