@@ -11,21 +11,26 @@ import (
 // TimeFormat is used for generating the sigs
 const TimeFormat = time.RFC3339Nano
 
+// Canonical types are defined to be wire-byte-compatible with upstream
+// Tendermint v0.34's canonical.proto. Field order, types, and tags here
+// determine the bytes that get signed; any divergence breaks signature
+// verification against tmkms and other upstream-protocol consumers.
+
 type CanonicalBlockID struct {
 	Hash        []byte
 	PartsHeader CanonicalPartSetHeader
 }
 
 type CanonicalPartSetHeader struct {
-	Hash  []byte
-	Total int
+	Total uint32 // upstream: field 1, uint32
+	Hash  []byte // upstream: field 2, bytes
 }
 
 type CanonicalProposal struct {
 	Type      SignedMsgType // type alias for byte
 	Height    int64         `binary:"fixed64"`
 	Round     int64         `binary:"fixed64"`
-	POLRound  int64         `binary:"fixed64"`
+	POLRound  int64         `binary:"varint"` // upstream: int64 (plain varint), not sfixed64
 	BlockID   CanonicalBlockID
 	Timestamp time.Time
 	ChainID   string
@@ -51,9 +56,12 @@ func CanonicalizeBlockID(blockID BlockID) CanonicalBlockID {
 }
 
 func CanonicalizePartSetHeader(psh PartSetHeader) CanonicalPartSetHeader {
+	if psh.Total < 0 {
+		panic("PartSetHeader.Total is negative; canonical encoding requires non-negative")
+	}
 	return CanonicalPartSetHeader{
-		psh.Hash,
-		psh.Total,
+		Total: uint32(psh.Total),
+		Hash:  psh.Hash,
 	}
 }
 
