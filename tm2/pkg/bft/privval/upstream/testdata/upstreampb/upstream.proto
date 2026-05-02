@@ -1,0 +1,94 @@
+// upstream.proto: minimal subset of upstream Tendermint v0.34's
+// types.proto and canonical.proto — only the messages exchanged on the
+// privval socket boundary, plus the canonical types whose bytes get
+// signed.
+//
+// Generated bindings (upstream.pb.go) are checked in alongside this file
+// and used as test fixtures by Layer 2 round-trip tests in the parent
+// package. To regenerate:
+//
+//   protoc --go_out=. --go_opt=paths=source_relative \
+//          --proto_path=. --proto_path=$PROTOC_INCLUDE \
+//          upstream.proto
+//
+// where PROTOC_INCLUDE points at protoc's "include" directory containing
+// google/protobuf/timestamp.proto.
+syntax = "proto3";
+
+package gno.tendermint.v034;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/testdata/upstreampb";
+
+import "google/protobuf/timestamp.proto";
+
+enum SignedMsgType {
+  SIGNED_MSG_TYPE_UNKNOWN = 0;
+  SIGNED_MSG_TYPE_PREVOTE = 1;
+  SIGNED_MSG_TYPE_PRECOMMIT = 2;
+  SIGNED_MSG_TYPE_PROPOSAL = 32;
+}
+
+// Operational types — exchanged on the privval socket.
+
+message PartSetHeader {
+  uint32 total = 1;
+  bytes  hash  = 2;
+}
+
+message BlockID {
+  bytes         hash             = 1;
+  PartSetHeader part_set_header  = 2;
+}
+
+message Vote {
+  SignedMsgType type              = 1;
+  int64         height            = 2;
+  int32         round             = 3;
+  BlockID       block_id          = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  bytes         validator_address = 6;
+  int32         validator_index   = 7;
+  bytes         signature         = 8;
+}
+
+message Proposal {
+  SignedMsgType type      = 1;
+  int64         height    = 2;
+  int32         round     = 3;
+  int32         pol_round = 4;
+  BlockID       block_id  = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  bytes         signature = 7;
+}
+
+// Canonical types — what gets signed. Field ordering and types match
+// upstream's canonical.proto exactly.
+
+message CanonicalPartSetHeader {
+  uint32 total = 1;
+  bytes  hash  = 2;
+}
+
+message CanonicalBlockID {
+  bytes                  hash             = 1;
+  CanonicalPartSetHeader part_set_header  = 2;
+}
+
+message CanonicalVote {
+  SignedMsgType    type      = 1;
+  sfixed64         height    = 2;
+  sfixed64         round     = 3;
+  CanonicalBlockID block_id  = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  string           chain_id  = 6;
+}
+
+message CanonicalProposal {
+  SignedMsgType    type      = 1;
+  sfixed64         height    = 2;
+  sfixed64         round     = 3;
+  int64            pol_round = 4;
+  CanonicalBlockID block_id  = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  string           chain_id  = 7;
+}
