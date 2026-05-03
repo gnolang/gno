@@ -23,7 +23,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -190,15 +189,8 @@ func TestNoBlockResponse(t *testing.T) {
 	}
 }
 
-// NOTE: This is too hard to test without
-// an easy way to add test peer to switch
-// or without significant refactoring of the module.
-// Alternatively we could actually dial a TCP conn but
-// that seems extreme.
-func TestFlappyBadBlockStopsPeer(t *testing.T) {
+func TestBadBlockStopsPeer(t *testing.T) {
 	t.Parallel()
-
-	testutils.FilterStability(t, testutils.Flappy)
 
 	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
