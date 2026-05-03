@@ -1,0 +1,73 @@
+name: ci / tmkms-integration
+
+# Phase 7 of the tmkms-compat plan: end-to-end test against a real
+# tmkms binary on the privval listener path. Heavyweight (builds
+# tmkms from source via cargo, ~5 min on a cold cache), so we run it
+# only when the upstream privval code or the workflow itself
+# changes — not on every PR.
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    paths:
+      - tm2/pkg/bft/privval/upstream/**
+      - tm2/pkg/bft/privval/upstream_config.go
+      - tm2/pkg/p2p/conn/secret_connection.go
+      - go.mod
+      - .github/workflows/ci-tmkms-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tmkms-integration:
+    name: tmkms / softsign / v0.34 handshake
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+
+      # Install Rust toolchain. tmkms isn't published as a pre-built
+      # binary, so we build it from source.
+      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # stable
+        with:
+          toolchain: stable
+
+      # Cache the cargo build between runs — tmkms compiles in
+      # ~5 minutes on a cold build, ~15 seconds incremental.
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          path: |
+            ~/.cargo/bin/tmkms
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # Pin a specific tmkms version. Bump intentionally to pick
+          # up upstream changes (and re-verify our compat at that
+          # version). 0.15.0 defaults to v0.38 but still accepts
+          # `protocol_version = "v0.34"` — see iqlusioninc/tmkms's
+          # config/validator.rs::ProtocolVersion.
+          key: tmkms-${{ runner.os }}-v0.15.0
+
+      - name: Install tmkms (softsign feature only)
+        run: |
+          if ! command -v tmkms >/dev/null 2>&1; then
+            cargo install tmkms --version 0.15.0 --features softsign --locked
+          fi
+          tmkms --version
+
+      - name: Run integration test
+        working-directory: tm2
+        run: |
+          go test -tags=tmkms_integration -count=1 -timeout 60s \
+            -run TestTmkmsIntegration \
+            ./pkg/bft/privval/upstream/...

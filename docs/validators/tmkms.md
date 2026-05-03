@@ -209,6 +209,41 @@ divergence is pinned by `TestSecretConnectionWire_AuthSigMessage_KnownDivergence
 so an accidental "fix" to the chain path can't sneak in without a
 chain-wide review (changing chain p2p bytes is a hard fork).
 
+## Verifying compat with a real tmkms binary
+
+The repo ships a build-tagged Go integration test that orchestrates
+a real tmkms binary against the gnoland listener path. CI runs it
+via `.github/workflows/ci-tmkms-integration.yml` (only when the
+upstream privval code or the workflow itself changes — it builds
+tmkms from source and isn't cheap).
+
+To run locally:
+
+```sh
+# Install tmkms once (Rust toolchain required).
+cargo install tmkms --version 0.15.0 --features softsign --locked
+
+# From the repo root:
+go test -tags=tmkms_integration -count=1 -v \
+    ./tm2/pkg/bft/privval/upstream/...
+```
+
+The test (`TestTmkmsIntegration_FullSigningFlow`) generates fresh
+ed25519 keys, writes a tmkms.toml that pins
+`protocol_version = "v0.34"`, spawns `tmkms start` against an
+ephemeral listener, and asserts:
+
+- `PubKey()` reported by tmkms matches the consensus key in
+  softsign,
+- `SignVote` at heights 1 and 2 round-trip with valid signatures
+  (verified against the consensus pubkey),
+- `SignProposal` at height 3 round-trips with a valid signature.
+
+If the test fails, check tmkms's stdout/stderr in the test logs —
+the most common failure modes are protocol-version skew (set
+`protocol_version = "v0.34"` on both sides) and chain_id
+mismatches.
+
 ## Operational checklist
 
 - [ ] One signer mode enabled in `config.toml` (gnokms OR tmkms, not both).
