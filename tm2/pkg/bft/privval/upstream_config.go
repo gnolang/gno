@@ -25,6 +25,7 @@ var (
 	errInvalidTmkmsListenAddr     = errors.New("invalid tmkms_listener.listen_addr")
 	errInvalidTmkmsAllowedPubkeys = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
 	errEmptyTmkmsChainID          = errors.New("tmkms_listener.chain_id must not be empty")
+	errEmptyTmkmsAllowedPubkeys   = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty (an empty list accepts any peer that completes the SecretConnection handshake — set explicitly only for dev/test)")
 	errBothExternalSignersEnabled = errors.New("only one of remote_signer or tmkms_listener may be configured")
 )
 
@@ -94,12 +95,23 @@ func (c *TmkmsListenerConfig) IsEnabled() bool {
 
 // ValidateBasic is invoked by the parent PrivValidatorConfig.ValidateBasic.
 // Only checks fields when the mode is enabled.
+//
+// Refuses an empty AllowedKMSPubKeys when the mode is enabled. The
+// underlying TCPListener treats an empty allowlist as "accept any peer
+// that completes the SecretConnection handshake" — useful for dev/test
+// but a footgun in production: a misconfigured firewall plus an attacker
+// who can mint an ed25519 keypair would be enough to substitute the
+// signer. We force the operator to put their tmkms identity in the
+// allowlist explicitly.
 func (c *TmkmsListenerConfig) ValidateBasic() error {
 	if !c.IsEnabled() {
 		return nil
 	}
 	if c.ChainID == "" {
 		return errEmptyTmkmsChainID
+	}
+	if len(c.AllowedKMSPubKeys) == 0 {
+		return errEmptyTmkmsAllowedPubkeys
 	}
 	if _, err := c.ParseAllowlist(); err != nil {
 		return fmt.Errorf("%w: %v", errInvalidTmkmsAllowedPubkeys, err)
