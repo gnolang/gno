@@ -244,9 +244,13 @@ func validateHeader(header []string) error {
 	return nil
 }
 
-// validateRow checks all per-row invariants. Derives no fields on the
-// row itself — the emit pass re-parses the (validated) string forms,
-// trading a tiny bit of work for a smaller in-memory representation.
+// validateRow checks all per-row invariants and **canonicalizes** the
+// operator_addr and signing_pubkey strings on the row in-place.
+// Canonicalization defeats case-aliasing dedup bypass: bech32 accepts
+// both lowercase and uppercase encodings of the same payload, so two
+// rows with the same canonical operator but different cases would
+// otherwise pass the seenOps dedup check and produce duplicate Valoper
+// profiles for the same canonical operator.
 func validateRow(row *seedRow, csvRow int) error {
 	if row.Moniker == "" {
 		return fmt.Errorf("row %d: moniker is empty", csvRow)
@@ -261,9 +265,11 @@ func validateRow(row *seedRow, csvRow int) error {
 		return fmt.Errorf("row %d: server_type %q not in {cloud, on-prem, data-center}", csvRow, row.ServerType)
 	}
 
-	if _, err := crypto.AddressFromBech32(row.OperatorAddr); err != nil {
+	addr, err := crypto.AddressFromBech32(row.OperatorAddr)
+	if err != nil {
 		return fmt.Errorf("row %d: invalid operator_addr %q: %w", csvRow, row.OperatorAddr, err)
 	}
+	row.OperatorAddr = addr.String() // canonicalize (lowercase bech32)
 
 	pk, err := crypto.PubKeyFromBech32(row.SigningPubKey)
 	if err != nil {
@@ -272,6 +278,10 @@ func validateRow(row *seedRow, csvRow int) error {
 	if pk == nil {
 		return fmt.Errorf("row %d: signing_pubkey %q decoded to nil PubKey", csvRow, row.SigningPubKey)
 	}
+	// Canonicalize the pubkey by re-encoding from the parsed PubKey.
+	// PubKeyToBech32 always emits lowercase, matching what the realm
+	// stores at write time.
+	row.SigningPubKey = crypto.PubKeyToBech32(pk)
 
 	return nil
 }

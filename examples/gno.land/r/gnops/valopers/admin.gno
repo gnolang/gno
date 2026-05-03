@@ -29,16 +29,11 @@ func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	return cb
 }
 
-// NewMinFeeProposalCallback is preserved for historical-replay
-// compatibility. The fee now lives in sysparams (node:valoper:register_fee);
-// on each invocation the callback no-ops the historical update because
-// proposal.ProposeNewMinFeeProposalRequest returns a generic
-// NewSysParamUint64PropRequest. Kept as a zero-effect shim in case any
-// historical tx calls it directly (none observed in the gnoland-1 archive).
-func NewMinFeeProposalCallback(newMinFee int64) func(realm) error {
-	cb := func(cur realm) error {
-		// no-op: governance now updates register_fee via sys/params.
-		return nil
-	}
-	return cb
-}
+// NewMinFeeProposalCallback was deleted as part of VALOPLAN2: the fee
+// now lives in sysparams (node:valoper:register_fee), and
+// proposal.ProposeNewMinFeeProposalRequest delegates to
+// sys/params.NewSysParamUint64PropRequest. The gnoland-1 tx archive
+// contains zero historical callers of this function (only one
+// historical reference exists, via proposal.ProposeNewMinFeeProposalRequest,
+// which is rewired to the new path). Removing avoids forward-compat
+// hazard of a no-op shim with no caller-auth gating.

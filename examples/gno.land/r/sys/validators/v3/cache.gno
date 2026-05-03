@@ -138,19 +138,30 @@ func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string)
 // (the seeded genesis valset) lacks a corresponding valoperCache profile
 // whose SigningAddress matches.
 //
-// Intended to run as the LAST migration .jsonl tx during genesis-mode
-// replay — after every Register tx has populated valoperCache. If the
-// assertion fires, gnogenesis fork test --skip-failing-genesis-txs=false
-// surfaces it and the chain refuses to boot. valoper-seed automatically
-// emits this call as the final line of its output; hand-crafted
-// migration .jsonls should include it explicitly.
+// **Genesis-mode only.** The function refuses to run unless
+// runtime.ChainHeight() == 0. This is the documented intended usage
+// (last migration .jsonl tx, before any block has been produced) and
+// also closes a post-genesis MsgCall DoS surface — without the guard,
+// an attacker could pay gas to repeatedly invoke an O(N) iteration
+// over valoperCache + valset:current after the chain is live.
 //
-// Crossing function: callable via MsgCall. Doesn't mutate state — pure
-// invariant check. Inverse direction (every valoperCache entry must
-// have a corresponding valset:current entry) is intentionally NOT
-// checked: extra valoper profiles registered without immediate valset
-// inclusion are a normal post-genesis state.
+// If the assertion fires during genesis-mode replay, gnogenesis fork
+// test --skip-failing-genesis-txs=false surfaces it and the chain
+// refuses to boot. valoper-seed automatically emits this call as the
+// final line of its output; hand-crafted migration .jsonls should
+// include it explicitly.
+//
+// Crossing function: callable via MsgCall (only at genesis-mode).
+// Doesn't mutate state — pure invariant check. Inverse direction
+// (every valoperCache entry must have a corresponding valset:current
+// entry) is intentionally NOT checked: extra valoper profiles
+// registered without immediate valset inclusion are a normal
+// post-genesis state.
 func AssertGenesisValopersConsistent(cur realm) {
+	if runtime.ChainHeight() != 0 {
+		panic("AssertGenesisValopersConsistent is only callable during genesis-mode replay (ChainHeight()==0)")
+	}
+
 	// Collect the signing addresses present in valoperCache.
 	seen := map[string]bool{}
 	valoperCache.Iterate("", "", func(_ string, raw any) bool {

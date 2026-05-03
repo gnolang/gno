@@ -243,3 +243,34 @@ func TestValoperSeed_RejectsEmptyCSV(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no data rows")
 }
+
+func TestValoperSeed_RejectsEmptyDescription(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "description is empty")
+}
+
+func TestValoperSeed_DedupsCaseAliasedAddress(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Two rows with the same canonical operator address but different
+	// cases — bech32 accepts both. Without normalization, the dedup
+	// check passes both rows and produces duplicate Valoper profiles
+	// for the same canonical operator. With normalization, the second
+	// row is rejected as a duplicate.
+	upper := strings.ToUpper(opAddrA)
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,cloud\n" +
+		upper + "," + validPubKeyB + ",alice2,Alice2,on-prem\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err, "case-aliased operator must trip the duplicate check")
+	assert.Contains(t, err.Error(), "duplicate operator_addr")
+}

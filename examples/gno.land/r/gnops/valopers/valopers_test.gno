@@ -201,6 +201,29 @@ func TestValopers_Register(t *testing.T) {
 			Register(cross, info.Moniker, info.Description, info.ServerType, other, info.PubKey)
 		})
 	})
+
+	t.Run("front-running guard rejects post-genesis if signing addr already validates", func(t *testing.T) {
+		resetState()
+
+		info := validValidatorInfo(t)
+		// Seed v3's valset:current with the very signing address that
+		// `info.PubKey` derives to (g1sp8v98...). Any post-genesis
+		// Register attempting the same pubkey now trips
+		// `ChainHeight()>0 && validators.IsValidator(signingAddr)`.
+		testing.SetSysParamStrings("node", "valset", "current", []string{info.PubKey + ":1"})
+
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+		testing.SetOriginSend(chain.Coins{minFee})
+
+		uassert.AbortsWithMessage(t, ErrFrontrunValidator.Error(), func() {
+			Register(cross, info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+
+		// Cleanup: clear the seeded valset to avoid leaking into
+		// later subtests if the package state isn't reset between
+		// them in this test runner mode.
+		testing.SetSysParamStrings("node", "valset", "current", []string{})
+	})
 }
 
 func TestValopers_UpdateAuthMembers(t *testing.T) {

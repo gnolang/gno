@@ -135,6 +135,7 @@ func TestRotateValoperSigningKey_RejectsNonValopersCaller(t *testing.T) {
 func TestAssertGenesisValopersConsistent_HappyPath(t *testing.T) {
 	resetValset(t)
 	resetCache()
+	testing.SetHeight(0) // assertion is genesis-mode only
 
 	// Seed valset:current with two genesis validators.
 	testing.SetSysParamStrings(module, submodule, currKey, []string{
@@ -162,6 +163,7 @@ func TestAssertGenesisValopersConsistent_HappyPath(t *testing.T) {
 func TestAssertGenesisValopersConsistent_PanicsOnMissingProfile(t *testing.T) {
 	resetValset(t)
 	resetCache()
+	testing.SetHeight(0)
 
 	// Two validators in valset:current but only one has a profile.
 	testing.SetSysParamStrings(module, submodule, currKey, []string{
@@ -187,9 +189,20 @@ func TestAssertGenesisValopersConsistent_PanicsOnMissingProfile(t *testing.T) {
 func TestAssertGenesisValopersConsistent_EmptyValsetTrivial(t *testing.T) {
 	resetValset(t)
 	resetCache()
+	testing.SetHeight(0)
 
 	// Empty valset → assertion trivially holds (no entries to check).
 	uassert.NotAborts(t, func() {
+		AssertGenesisValopersConsistent(cross)
+	})
+}
+
+func TestAssertGenesisValopersConsistent_RejectsPostGenesis(t *testing.T) {
+	resetValset(t)
+	resetCache()
+	// Default test height is non-zero (123); the assertion must
+	// refuse to run outside genesis-mode replay.
+	uassert.AbortsContains(t, "only callable during genesis-mode replay", func() {
 		AssertGenesisValopersConsistent(cross)
 	})
 }

@@ -107,7 +107,10 @@ func TestUpdateSigningKey_RejectsNonAuthListCaller(t *testing.T) {
 	// Switch to a caller not on the auth list.
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("attacker")))
 
-	uassert.AbortsContains(t, "", func() {
+	// Pin the exact authorizable error so this catches an auth
+	// regression rather than any abort. Empty-substring match (the
+	// previous form) accepted any panic, including unrelated ones.
+	uassert.AbortsContains(t, "not in authorized list", func() {
 		UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
 	})
 }
