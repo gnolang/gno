@@ -2,8 +2,10 @@ package privval
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
@@ -101,8 +103,12 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.NotNil(t, privval)
 		require.NoError(t, err)
-		assert.IsType(t, &local.LocalSigner{}, privval.signer)
-		privval.Close()
+		// Local/remote-client paths return the concrete *PrivValidator;
+		// type-assert to inspect the inner signer.
+		pv, ok := privval.(*PrivValidator)
+		require.True(t, ok, "expected *PrivValidator, got %T", privval)
+		assert.IsType(t, &local.LocalSigner{}, pv.signer)
+		pv.Close()
 	})
 
 	t.Run("valid remote signer", func(t *testing.T) {
@@ -131,8 +137,10 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.NotNil(t, privval)
 		require.NoError(t, err)
-		assert.IsType(t, &rsclient.RemoteSignerClient{}, privval.signer)
-		privval.Close()
+		pv, ok := privval.(*PrivValidator)
+		require.True(t, ok, "expected *PrivValidator, got %T", privval)
+		assert.IsType(t, &rsclient.RemoteSignerClient{}, pv.signer)
+		pv.Close()
 		rss.Stop()
 	})
 
@@ -147,5 +155,41 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.Nil(t, privval)
 		assert.Error(t, err)
+	})
+
+	t.Run("both external signers configured rejected", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.RemoteSigner.ServerAddress = "unix:///tmp/x.sock"
+		cfg.TmkmsListener.ListenAddr = "tcp://127.0.0.1:0"
+		cfg.TmkmsListener.ChainID = "test"
+
+		_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		require.ErrorIs(t, err, errBothExternalSignersEnabled)
+	})
+
+	t.Run("tmkms listener wait-timeout surfaces as error", func(t *testing.T) {
+		t.Parallel()
+
+		// Configure a TCP listener at an OS-chosen port (no signer will
+		// dial in within the test budget — Init must surface the
+		// connection-wait timeout as an error).
+		probe, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		addr := probe.Addr().String()
+		require.NoError(t, probe.Close())
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.RemoteSigner.ServerAddress = "" // disable gnokms path
+		cfg.TmkmsListener.ListenAddr = "tcp://" + addr
+		cfg.TmkmsListener.ChainID = "test-chain"
+		cfg.TmkmsListener.WaitForConnectionTimeout = 50 * time.Millisecond
+
+		privVal, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+		require.Nil(t, privVal)
+		require.Error(t, err)
 	})
 }
