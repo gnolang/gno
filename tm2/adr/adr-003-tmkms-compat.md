@@ -93,21 +93,21 @@ Three guiding principles:
 
 | Commit | Description |
 |---|---|
-| `be87336c9` | amino `binary:"varint"` tag — opt-in plain protobuf varint instead of zigzag |
-| `d46cd62c6` | Re-tag CanonicalProposal/PartSetHeader for upstream byte-compat |
-| `3cbbb8242` | Upstream-shaped Vote/Proposal types |
-| `b341fd9ba` | Three-layer wire-compat test suite vs upstream |
-| `05a71080b` | Route privval-protocol wire I/O through protoc-generated upstreampb |
-| `d27bedae1` | SignerListenerEndpoint + base endpoint (port of cometbft v0.39.1) |
-| `5ed3100bd` | SignerClient + RetrySignerClient + socket listener |
-| `48ef71b5c` | Wire upstream listener mode into NewPrivValidatorFromConfig |
-| `be1f81540` | Security hardening for tmkms-compat path (six fixes) |
-| `d774f92c3` | Pin protocol version to v0.34 |
-| `f3d0181c2` | SecretConnection byte-compat verification |
-| `ba2b8213f` | tmkms-compat SecretConnection (port of cometbft v0.34 STS, Merlin-bound) |
-| `c7c378a11` | tmkms binary integration test |
-| `6b14be41c` | Wire fixes surfaced by the real-tmkms test |
-| `a8eb5b73b` | Cross-link contribs/gnokms/README.md to the operator doc |
+| `c4bf6bc5b` | amino `binary:"varint"` tag — opt-in plain protobuf varint instead of zigzag, plus generalized binary-tag mutual-exclusion check, BinFixed32 support on bare int/uint, and reflection-vs-codegen parity tests |
+| `1b69d4392` | Re-tag CanonicalProposal/PartSetHeader for upstream byte-compat |
+| `0941bcdca` | Upstream-shaped Vote/Proposal types |
+| `40d017080` | Three-layer wire-compat test suite vs upstream |
+| `dc83d4425` | Route privval-protocol wire I/O through protoc-generated upstreampb |
+| `1d57ee584` | SignerListenerEndpoint + base endpoint (port of cometbft v0.39.1) |
+| `b59de0fd1` | SignerClient + RetrySignerClient + socket listener |
+| `bcf3b505b` | Wire upstream listener mode into NewPrivValidatorFromConfig |
+| `f5314c24f` | Security hardening for tmkms-compat path (six fixes) |
+| `ca640acdb` | Pin protocol version to v0.34 |
+| `99cca1094` | SecretConnection byte-compat verification |
+| `9af0b5186` | tmkms-compat SecretConnection (port of cometbft v0.34 STS, Merlin-bound) |
+| `45c82bc68` | tmkms binary integration test |
+| `6c970a8e0` | Wire fixes surfaced by the real-tmkms test |
+| `c845c0d10` | Cross-link contribs/gnokms/README.md to the operator doc |
 
 ## Architecture
 
