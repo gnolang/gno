@@ -165,6 +165,54 @@ func MakeConnectedPeers(
 	return sws, ts
 }
 
+// MakeConnectedPeer creates a single new peer (transport + switch) with
+// the given options and starts it. Unlike MakeConnectedPeers, this does
+// NOT build a fresh cluster — it produces one peer ready to be wired
+// into an already-running mesh, typically via p2p.WithPersistentPeers.
+// Use this to extend an existing cluster with one more node.
+//
+// The transport listens on a random 127.0.0.1 port; both the transport
+// and the switch are stopped automatically via t.Cleanup.
+func MakeConnectedPeer(
+	t *testing.T,
+	p2pCfg *p2pcfg.P2PConfig,
+	channels []byte,
+	moniker string,
+	opts ...p2p.SwitchOption,
+) (*p2p.MultiplexSwitch, *p2p.MultiplexTransport) {
+	t.Helper()
+
+	key := p2pTypes.GenerateNodeKey()
+	addr, err := p2pTypes.NewNetAddress(
+		key.ID(),
+		&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
+	)
+	require.NoError(t, err)
+
+	info := p2pTypes.NodeInfo{
+		VersionSet: versionset.VersionSet{
+			versionset.VersionInfo{Name: "p2p", Version: "v0.0.0"},
+		},
+		NetAddress: addr,
+		Network:    "testing",
+		Software:   "p2ptest",
+		Version:    "v1.2.3-rc.0-deadbeef",
+		Channels:   channels,
+		Moniker:    moniker,
+	}
+
+	transport := p2p.NewMultiplexTransport(info, *key,
+		conn.MConfigFromP2P(p2pCfg), log.NewNoopLogger())
+	require.NoError(t, transport.Listen(*addr))
+	t.Cleanup(func() { _ = transport.Close() })
+
+	sw := p2p.NewMultiplexSwitch(transport, opts...)
+	require.NoError(t, sw.Start())
+	t.Cleanup(func() { sw.Stop() })
+
+	return sw, transport
+}
+
 // createRoutableAddr generates a valid, routable NetAddress for the given node ID using a secure random IP
 func createRoutableAddr(t *testing.T, id p2pTypes.ID) *p2pTypes.NetAddress {
 	t.Helper()
