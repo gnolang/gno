@@ -77,6 +77,12 @@ allowed_kms_pubkeys = [
 # matches and refuses to sign if it doesn't. Required.
 chain_id = "test4"
 
+# Upstream Tendermint privval dialect to speak. Today only "v0.34" is
+# supported; gnoland refuses to start with any other value. Must
+# match tmkms.toml's [[validator]].protocol_version. See "Protocol
+# version pin" below.
+protocol_version = "v0.34"
+
 # Read/write deadline applied to the held signer connection.
 timeout_read_write = "5s"
 
@@ -144,6 +150,25 @@ local non-root user can't reach the SecretConn handshake stage at all.
 You should still keep the parent directory's perms tight (e.g. only
 the gnoland service user has search bit on it).
 
+## Protocol version pin
+
+Both sides of the privval socket must agree on the dialect. The
+upstream Tendermint privval protocol changed shape between v0.34
+(used by the Cosmos Hub for years) and v0.38+ (added new fields that
+alter canonical sign-bytes). gnoland's `upstreampb` types are wired
+to **v0.34** and only that value is accepted in
+`tmkms_listener.protocol_version`.
+
+In `tmkms.toml`, set `protocol_version = "v0.34"` on the matching
+`[[validator]]` block. A future gnoland release adding v0.38 support
+will accept new values; until then anything else is rejected at
+startup with a clear error.
+
+This is deliberate: silently misencoding a vote because the dialect
+drifted would produce a signature tmkms thinks is valid but the chain
+rejects (or vice versa) — a hard-to-debug consensus failure mode.
+We'd rather fail loud at startup.
+
 ## Security notes
 
 - **Empty allowlist is refused at startup.** A misconfigured firewall
@@ -168,6 +193,7 @@ the gnoland service user has search bit on it).
 - [ ] One signer mode enabled in `config.toml` (gnokms OR tmkms, not both).
 - [ ] `chain_id` in `tmkms_listener` matches both the genesis chain ID
       and the `chain_id` in tmkms's `[[validator]]` block.
+- [ ] `protocol_version = "v0.34"` set on both sides.
 - [ ] `allowed_kms_pubkeys` lists the hex pubkey of every tmkms
       identity (or every Horcrux cosigner) expected to connect.
 - [ ] If using TCP, `listen_addr` is reachable from the signer host
