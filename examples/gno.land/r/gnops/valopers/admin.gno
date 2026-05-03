@@ -1,8 +1,6 @@
 package valopers
 
 import (
-	"chain"
-
 	"gno.land/p/moul/authz"
 )
 
@@ -22,16 +20,6 @@ func updateInstructions(newInstructions string) {
 	}
 }
 
-func updateMinFee(newMinFee int64) {
-	err := auth.DoByCurrent("update-min-fee", func() error {
-		minFee = chain.NewCoin("ugnot", newMinFee)
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
 func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	cb := func(cur realm) error {
 		updateInstructions(newInstructions)
@@ -41,11 +29,16 @@ func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	return cb
 }
 
+// NewMinFeeProposalCallback is preserved for historical-replay
+// compatibility. The fee now lives in sysparams (node:valoper:register_fee);
+// on each invocation the callback no-ops the historical update because
+// proposal.ProposeNewMinFeeProposalRequest returns a generic
+// NewSysParamUint64PropRequest. Kept as a zero-effect shim in case any
+// historical tx calls it directly (none observed in the gnoland-1 archive).
 func NewMinFeeProposalCallback(newMinFee int64) func(realm) error {
 	cb := func(cur realm) error {
-		updateMinFee(newMinFee)
+		// no-op: governance now updates register_fee via sys/params.
 		return nil
 	}
-
 	return cb
 }
