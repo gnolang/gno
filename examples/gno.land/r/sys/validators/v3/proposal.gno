@@ -45,13 +45,21 @@ const errNoValoperChanges = "no valoper changes proposed"
 // this guard closes the bypass where a future proposer realm calls
 // v3 directly.
 //
+// Power-update idiom [{op,0},{op,N}] (remove + re-add at new power
+// in one payload) remains supported even for opted-out operators.
+// The KeepRunning check is position-aware: an add for an op that
+// also appears with Power=0 in the same payload is exempted, since
+// the proposal as a whole is a power-update, not a fresh add.
+// Same exemption applies at execution time.
+//
 // Pubkey resolution at execution time: the executor callback
 // re-reads valoperCache for each entry to capture the CURRENT
 // signing pubkey/address — not the creation-time one. Defends
 // against a stale (now-retired) key publication if the operator
 // rotated while the proposal sat in GovDAO. Also re-checks
 // KeepRunning so an operator flipping to KeepRunning=false between
-// propose-create and propose-execute is honored. Removes are unaffected
+// propose-create and propose-execute is honored (modulo the same
+// power-update exemption above). Removes are unaffected
 // (operator address is the lookup key, not signing address).
 //
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
@@ -68,17 +76,30 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 		panic("max number of allowed validators per proposal is 40")
 	}
 
+	// Pre-pass: collect operators being REMOVED (Power=0) in this
+	// payload. Used by the position-aware KeepRunning check below
+	// so the documented power-update idiom [{op,0},{op,N}] still
+	// works for opted-out operators.
+	beingRemoved := map[string]bool{}
+	for _, c := range changes {
+		if c.Power == 0 {
+			beingRemoved[c.OperatorAddress.String()] = true
+		}
+	}
+
 	// Creation-time validation: every operator must exist in cache,
-	// and adds require KeepRunning=true. Unknown operators or opted-
-	// out operators panic now, before voters see the proposal.
+	// and adds require KeepRunning=true UNLESS the same operator is
+	// also being removed in this payload (the [{op,0},{op,N}] power-
+	// update idiom). Unknown operators or fresh-add of opted-out
+	// operators panic now, before voters see the proposal.
 	for _, c := range changes {
 		rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
 		if !ok {
 			panic("unknown operator: " + c.OperatorAddress.String())
 		}
 		entry := rawCache.(cacheEntry)
-		if c.Power > 0 && !entry.KeepRunning {
-			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (use UpdateKeepRunning(true) first)")
+		if c.Power > 0 && !entry.KeepRunning && !beingRemoved[c.OperatorAddress.String()] {
+			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (use UpdateKeepRunning(true) first, or pair the add with a same-payload remove for power-update)")
 		}
 	}
 
@@ -109,6 +130,17 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 // Removes resolve the operator's CURRENT signing address (also via
 // cache) — operator-keyed removes are immune to rotation churn.
 func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
+	// Pre-compute the set of operators being removed in this payload,
+	// matching the creation-time pre-pass. Used to keep the
+	// [{op,0},{op,N}] power-update idiom working for opted-out
+	// operators at execution time too.
+	beingRemoved := map[string]bool{}
+	for _, c := range changes {
+		if c.Power == 0 {
+			beingRemoved[c.OperatorAddress.String()] = true
+		}
+	}
+
 	callback := func(cur realm) error {
 		baseline := sysparams.GetValsetEffective()
 		set := make(map[address]validators.Validator, len(baseline))
@@ -137,8 +169,10 @@ func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
 			}
 
 			// Race-safety: operator may have flipped KeepRunning=false
-			// between propose-create and propose-execute. Re-check.
-			if !entry.KeepRunning {
+			// between propose-create and propose-execute. Re-check —
+			// but exempt power-update pairs (same op also has a Power=0
+			// entry in this payload).
+			if !entry.KeepRunning && !beingRemoved[c.OperatorAddress.String()] {
 				panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false at execution; refusing to add")
 			}
 

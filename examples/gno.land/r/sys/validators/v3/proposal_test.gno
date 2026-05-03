@@ -267,6 +267,53 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T
 	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross))
 }
 
+func TestNewValidatorProposalRequest_PowerUpdateIdiomWorksForOptedOutOp(t *testing.T) {
+	// Regression: the documented power-update encoding
+	// [{op,0},{op,N}] must still work for an opted-out operator.
+	// The remove half is the "exit" path (always allowed); the add
+	// half should be exempted from the KeepRunning check because
+	// the same op is being removed in the same payload. Without
+	// the position-aware exemption, the add would panic and the
+	// idiom would be broken for any KeepRunning=false op.
+	resetValset(t)
+	resetCache()
+
+	op := testutils.TestAddress("op-A")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{{op: op, pubKey: pubKeyA, keepRunning: false}}) // opted out
+
+	// Seed the valset with a second operator so removal doesn't
+	// trip the empty-valset liveness floor when remove half runs.
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":1",
+		pubKeyB + ":1",
+	})
+
+	changes := []ValoperChange{
+		{OperatorAddress: op, Power: 0}, // remove
+		{OperatorAddress: op, Power: 7}, // re-add at new power
+	}
+
+	// Creation must NOT panic.
+	uassert.NotPanics(t, func() {
+		_ = NewValidatorProposalRequest(changes, "power-update for op-A", "")
+	})
+
+	// Executor must NOT panic and must publish the new power.
+	urequire.NoError(t, newValoperChangeExecutor(changes).Execute(cross))
+
+	effective := sysparams.GetValsetEffective()
+	powerOf := map[string]uint64{}
+	for _, v := range effective {
+		powerOf[v.PubKey] = v.VotingPower
+	}
+	uassert.Equal(t, uint64(7), powerOf[pubKeyA], "op-A re-added at power 7")
+	uassert.Equal(t, uint64(1), powerOf[pubKeyB], "op-B retained")
+}
+
 func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *testing.T) {
 	// KeepRunning=true at proposal-create time; operator flips to
 	// false BEFORE the executor runs. Race-safety check rejects.

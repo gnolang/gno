@@ -30,6 +30,7 @@ Subcommands:
   generate     Assemble a new-chain genesis.json from a source chain's state + tx history.
   test         Run an in-memory InitChain replay against a genesis.json (fast smoke-test).
   valoper-seed Build a deterministic .jsonl of valopers.Register migration txs from a CSV.
+  addpkg       Build a .jsonl of MsgAddPackage migration txs from local package dirs.
 
 Source modes (auto-detected from --source):
   http(s)://...    RPC of a running or recently-halted node
@@ -44,6 +45,7 @@ Source modes (auto-detected from --source):
 		newGenerateCmd(io),
 		newTestCmd(io),
 		newValoperSeedCmd(io),
+		newAddpkgCmd(io),
 	)
 
 	return cmd
