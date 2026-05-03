@@ -89,25 +89,25 @@ Three guiding principles:
    same value on both sides — silent canonical-bytes drift is the
    feared failure mode and we'd rather refuse to start.
 
-### Phases (all shipped on `feat/jae/gnokms-hrs`)
+### Implementation history (all shipped on `feat/jae/gnokms-hrs`)
 
-| # | Description | Commit |
-|---|---|---|
-| 0 | amino `binary:"varint"` tag — opt-in plain protobuf varint instead of zigzag | `910b5ad71` |
-| 1 | Re-tag CanonicalProposal/PartSetHeader for upstream byte-compat | `1d3210de2` |
-| 2 | Upstream-shaped Vote/Proposal types | `86bbae90d` |
-| 3 | Three-layer wire-compat test suite vs upstream | `413ed9016` |
-|   | …protoc-generated upstreampb routing | `e34a4f5cd` |
-| 4 | SignerListenerEndpoint + base endpoint (port of cometbft v0.39.1) | `7e070ab1a` |
-|   | SignerClient + RetrySignerClient + socket listener | `9e507a157` |
-|   | Wire upstream listener mode into NewPrivValidatorFromConfig | `aaff0fc87` |
-|   | Security hardening for tmkms-compat path (six fixes) | `2e84471f9` |
-| 5 | Pin protocol version to v0.34 | `edb0de5bf` |
-| 6 | SecretConnection byte-compat verification | `1c48ce60e` |
-|   | tmkms-compat SecretConnection (port of cometbft v0.34 STS, Merlin-bound) | `c401b23fb` |
-| 7 | tmkms binary integration test | `ea10ad550` |
-|   | Wire fixes surfaced by the real-tmkms test | `68282b930` |
-| 8 | Cross-link contribs/gnokms/README.md to the operator doc | `6a7674c9a` |
+| Commit | Description |
+|---|---|
+| `910b5ad71` | amino `binary:"varint"` tag — opt-in plain protobuf varint instead of zigzag |
+| `1d3210de2` | Re-tag CanonicalProposal/PartSetHeader for upstream byte-compat |
+| `86bbae90d` | Upstream-shaped Vote/Proposal types |
+| `413ed9016` | Three-layer wire-compat test suite vs upstream |
+| `e34a4f5cd` | Route privval-protocol wire I/O through protoc-generated upstreampb |
+| `7e070ab1a` | SignerListenerEndpoint + base endpoint (port of cometbft v0.39.1) |
+| `9e507a157` | SignerClient + RetrySignerClient + socket listener |
+| `aaff0fc87` | Wire upstream listener mode into NewPrivValidatorFromConfig |
+| `2e84471f9` | Security hardening for tmkms-compat path (six fixes) |
+| `edb0de5bf` | Pin protocol version to v0.34 |
+| `1c48ce60e` | SecretConnection byte-compat verification |
+| `c401b23fb` | tmkms-compat SecretConnection (port of cometbft v0.34 STS, Merlin-bound) |
+| `ea10ad550` | tmkms binary integration test |
+| `68282b930` | Wire fixes surfaced by the real-tmkms test |
+| `6a7674c9a` | Cross-link contribs/gnokms/README.md to the operator doc |
 
 ## Architecture
 
@@ -168,7 +168,7 @@ listener one as a positive match against upstream byte-for-byte.
 | Listener leak on Init failure | `endpoint.Stop()` (not `sc.Close()`) drains goroutines and releases the bound port. |
 | Protocol-dialect drift | Pinned to `v0.34`; `ValidateBasic` refuses any other value. |
 
-### Wire-format requirements (learned from Phase 7)
+### Wire-format requirements (learned from real-tmkms integration test)
 
 The integration test surfaced two non-obvious requirements pinned in
 `translator_pb.go`:
