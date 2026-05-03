@@ -100,7 +100,7 @@ state_file = "%s"
 [[providers.softsign]]
 chain_ids = ["%s"]
 key_type = "consensus"
-key_format = { type = "base64" }
+key_format = "base64"
 path = "%s"
 
 [[validator]]
@@ -160,18 +160,33 @@ reconnect = false
 	require.NoError(t, sc.Init(testWaitForConnection),
 		"tmkms did not complete the SecretConnection handshake within %s", testWaitForConnection)
 
-	gotPub := sc.PubKey().Bytes()
-	wantPub := []byte(consensusPub)
-	require.Equal(t, wantPub, gotPub,
+	// sc.PubKey().Bytes() returns the amino-wrapped bytes (4-byte
+	// type prefix + 32 raw bytes); we want to compare the raw 32-byte
+	// ed25519 pubkey against what we generated.
+	gotEd, ok := sc.PubKey().(ed25519.PubKeyEd25519)
+	require.True(t, ok, "remote pubkey must be ed25519, got %T", sc.PubKey())
+	require.Equal(t, []byte(consensusPub), gotEd[:],
 		"validator pubkey reported by tmkms must match the consensus key we wrote to softsign")
 
 	// --- 6. SignVote × 2 (monotonic), SignProposal ---------------
 
+	// tmkms's `StringTracer` validation panics on a nil Timestamp
+	// field. Set explicit (non-zero) timestamps so we exercise the
+	// happy path; Phase 6's tsOrNil zero-time normalization is
+	// orthogonal and dropped a separate test below.
+	now := time.Now().UTC().Truncate(time.Nanosecond)
+	// Real-network votes always carry a populated PartSetHeader; using
+	// an empty one would expose an amino-vs-proto canonicalization gap
+	// in tm2 (amino omits a default-valued embedded message; upstream
+	// proto emits "tag len=0"). That gap is real but doesn't show up
+	// in production. See PHASE7-NOTES below.
+	psh := types.PartSetHeader{Total: 100, Hash: bytesOfLen(0xee, 32)}
 	vote1 := &types.Vote{
 		Type:             types.PrecommitType,
 		Height:           1,
 		Round:            0,
-		BlockID:          types.BlockID{Hash: bytesOfLen(0xaa, 32)},
+		BlockID:          types.BlockID{Hash: bytesOfLen(0xaa, 32), PartsHeader: psh},
+		Timestamp:        now,
 		ValidatorAddress: addrOfLen(0x01),
 	}
 	mustSignAndVerify(t, sc, vote1, consensusPub)
@@ -180,17 +195,19 @@ reconnect = false
 		Type:             types.PrecommitType,
 		Height:           2,
 		Round:            0,
-		BlockID:          types.BlockID{Hash: bytesOfLen(0xbb, 32)},
+		BlockID:          types.BlockID{Hash: bytesOfLen(0xbb, 32), PartsHeader: psh},
+		Timestamp:        now.Add(time.Second),
 		ValidatorAddress: addrOfLen(0x01),
 	}
 	mustSignAndVerify(t, sc, vote2, consensusPub)
 
 	prop := &types.Proposal{
-		Type:     types.ProposalType,
-		Height:   3,
-		Round:    0,
-		POLRound: -1,
-		BlockID:  types.BlockID{Hash: bytesOfLen(0xcc, 32)},
+		Type:      types.ProposalType,
+		Height:    3,
+		Round:     0,
+		POLRound:  -1,
+		BlockID:   types.BlockID{Hash: bytesOfLen(0xcc, 32), PartsHeader: psh},
+		Timestamp: now.Add(2 * time.Second),
 	}
 	pbBefore, err := proposalSignBytes(prop)
 	require.NoError(t, err)
@@ -209,9 +226,15 @@ func mustSignAndVerify(t *testing.T, sc *upstream.SignerClient, vote *types.Vote
 	require.NoError(t, sc.SignVote(testChainID, vote),
 		"SignVote h=%d r=%d must succeed", vote.Height, vote.Round)
 	require.NotEmpty(t, vote.Signature, "tmkms must populate Vote.Signature for h=%d r=%d", vote.Height, vote.Round)
-	assert.True(t,
-		stded25519.Verify(consPub, signBytes, vote.Signature),
-		"vote signature h=%d r=%d must verify against the consensus pubkey", vote.Height, vote.Round)
+	if !stded25519.Verify(consPub, signBytes, vote.Signature) {
+		// Re-canonicalize after the signer's response to surface
+		// any Timestamp drift (signer may canonicalize differently).
+		postSignBytes := vote.SignBytes(testChainID)
+		t.Logf("h=%d r=%d  pre-sign bytes:  %x", vote.Height, vote.Round, signBytes)
+		t.Logf("h=%d r=%d  post-sign bytes: %x", vote.Height, vote.Round, postSignBytes)
+		t.Logf("h=%d r=%d  signature:       %x", vote.Height, vote.Round, vote.Signature)
+		t.Errorf("vote signature h=%d r=%d does not verify against the consensus pubkey", vote.Height, vote.Round)
+	}
 }
 
 func proposalSignBytes(p *types.Proposal) ([]byte, error) {
