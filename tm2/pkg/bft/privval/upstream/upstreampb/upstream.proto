@@ -42,6 +42,18 @@ message PublicKey {
   }
 }
 
+// ---- p2p SecretConnection auth-sig handshake -----------------------------
+//
+// AuthSigMessage mirrors upstream Tendermint v0.34's tendermint.p2p
+// AuthSigMessage. It's the post-DH authentication frame on the
+// SecretConnection — each side proves knowledge of its consensus key
+// by signing the Merlin-bound challenge.
+
+message AuthSigMessage {
+  PublicKey pub_key = 1;
+  bytes     sig     = 2;
+}
+
 // ---- Operational types — exchanged on the privval socket ------------------
 
 message PartSetHeader {

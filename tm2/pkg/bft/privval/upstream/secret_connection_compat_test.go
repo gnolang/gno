@@ -1,8 +1,22 @@
 package upstream_test
 
-// secret_connection_compat_test.go: black-box wire-format capture for
-// the SecretConnection handshake messages, comparing what tm2 emits
-// to what upstream Tendermint v0.34 expects.
+// secret_connection_compat_test.go: byte-format and round-trip
+// verification for the upstream-compat SecretConnection used on the
+// tmkms-listener path (this package's MakeSecretConnection, ported
+// from cometbft v0.34).
+//
+// Two distinct check kinds:
+//
+//  1. **Old-path divergence canary** — tm2/pkg/p2p/conn's
+//     SecretConnection (amino-based authSigMessage) is wire-different
+//     from upstream by 2 bytes. We pin that divergence so a later
+//     edit can't silently "fix" it (which would change chain p2p).
+//
+//  2. **New-path positive checks** — the upstream-compat
+//     SecretConnection in this package speaks the v0.34 AuthSigMessage
+//     shape. We assert the proto-encoded bytes match upstream byte-
+//     for-byte, and that two halves successfully handshake against
+//     each other end-to-end.
 //
 // The handshake has two pre-AEAD writes (ephemeral pubkey exchange)
 // and two post-AEAD writes (auth-sig message exchange). The encoding
@@ -58,12 +72,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"io"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // upstreamEphPubKeyBytes returns the on-the-wire representation an
@@ -242,6 +260,118 @@ func TestSecretConnectionWire_AuthSigMessage_Tm2Emit(t *testing.T) {
 
 	assert.Equal(t, want, got,
 		"tm2's amino encoding of authSigMessage{Key ed25519.PubKeyEd25519, Sig []byte} drifted")
+}
+
+// TestUpstreamSecretConnection_AuthSigMessage_MatchesUpstream checks
+// the NEW path: the upstreampb.AuthSigMessage proto used by this
+// package's MakeSecretConnection emits bytes byte-identical to what
+// upstream Tendermint v0.34's tendermint.p2p.AuthSigMessage emits.
+// Combined with the self-handshake test below, this is the
+// positive-side proof that the listener path is wire-compatible
+// with tmkms.
+func TestUpstreamSecretConnection_AuthSigMessage_MatchesUpstream(t *testing.T) {
+	t.Parallel()
+
+	var pub [32]byte
+	for i := range pub {
+		pub[i] = byte(0xa0 + i%16)
+	}
+	sig := make([]byte, 64)
+	for i := range sig {
+		sig[i] = byte(0x10 + i%16)
+	}
+
+	// What tm2's NEW path emits: upstreampb.AuthSigMessage marshaled
+	// via google.golang.org/protobuf/proto.Marshal, length-delimited
+	// the way protoio does on the wire.
+	asm := &upstreampb.AuthSigMessage{
+		PubKey: &upstreampb.PublicKey{
+			Sum: &upstreampb.PublicKey_Ed25519{Ed25519: pub[:]},
+		},
+		Sig: sig,
+	}
+	body, err := proto.Marshal(asm)
+	require.NoError(t, err)
+	got := append(appendVarint(nil, uint64(len(body))), body...)
+
+	want := upstreamAuthSigMessageBytes(pub, sig)
+
+	if !bytes.Equal(want, got) {
+		t.Logf("upstream-expected: %s (%d bytes)", hex.EncodeToString(want), len(want))
+		t.Logf("upstreampb emits:  %s (%d bytes)", hex.EncodeToString(got), len(got))
+	}
+	assert.Equal(t, want, got,
+		"upstream-compat AuthSigMessage encoding must match upstream Tendermint v0.34 byte-for-byte")
+}
+
+// TestUpstreamSecretConnection_SelfHandshake runs MakeSecretConnection
+// from both ends of an io.Pipe, asserts both succeed, and exercises
+// the encrypted Read/Write loop. Implicitly proves the entire
+// adapted handshake (Merlin transcript + HKDF + AuthSigMessage) is
+// internally consistent.
+func TestUpstreamSecretConnection_SelfHandshake(t *testing.T) {
+	t.Parallel()
+
+	fooConn, barConn := pipeConnPair()
+	defer fooConn.Close()
+	defer barConn.Close()
+
+	fooPriv := ed25519.GenPrivKey()
+	barPriv := ed25519.GenPrivKey()
+
+	type out struct {
+		sc  *upstream.SecretConnection
+		err error
+	}
+	fooCh := make(chan out, 1)
+	barCh := make(chan out, 1)
+	go func() {
+		sc, err := upstream.MakeSecretConnection(fooConn, fooPriv)
+		fooCh <- out{sc, err}
+	}()
+	go func() {
+		sc, err := upstream.MakeSecretConnection(barConn, barPriv)
+		barCh <- out{sc, err}
+	}()
+
+	fooRes := <-fooCh
+	barRes := <-barCh
+	require.NoError(t, fooRes.err, "foo handshake failed")
+	require.NoError(t, barRes.err, "bar handshake failed")
+
+	// Each side should know the other's consensus pubkey.
+	assert.True(t, fooRes.sc.RemotePubKey().Equals(barPriv.PubKey()),
+		"foo's view of remote pubkey must match bar's actual pubkey")
+	assert.True(t, barRes.sc.RemotePubKey().Equals(fooPriv.PubKey()),
+		"bar's view of remote pubkey must match foo's actual pubkey")
+
+	// Round-trip a payload.
+	want := []byte("hello from upstream-compat secret_connection")
+	go func() { _, _ = fooRes.sc.Write(want) }()
+	got := make([]byte, len(want))
+	_, err := io.ReadFull(barRes.sc, got)
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
+}
+
+// pipeConnPair returns two halves of an in-memory connection that
+// satisfy io.ReadWriteCloser. SecretConnection only needs the
+// io.ReadWriteCloser surface for the handshake; net.Conn-typed
+// methods are not exercised in this test.
+type pipeConn struct {
+	*io.PipeReader
+	*io.PipeWriter
+}
+
+func (p pipeConn) Close() error {
+	_ = p.PipeReader.Close()
+	return p.PipeWriter.Close()
+}
+
+func pipeConnPair() (a, b pipeConn) {
+	aReader, bWriter := io.Pipe()
+	bReader, aWriter := io.Pipe()
+	return pipeConn{aReader, aWriter}, pipeConn{bReader, bWriter}
 }
 
 // TestSecretConnectionWire_VarintHelperSelfCheck guards the helper

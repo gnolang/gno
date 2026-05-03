@@ -21,8 +21,6 @@ import (
 	"slices"
 	"time"
 
-	p2pconn "github.com/gnolang/gno/tm2/pkg/p2p/conn"
-
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
@@ -101,13 +99,25 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 	// Apply read/write deadlines transparently for downstream readers.
 	timeoutConn := newTimeoutConn(tc, ln.timeoutReadWrite)
 
-	sconn, err := p2pconn.MakeSecretConnection(timeoutConn, ln.secretConnKey)
+	// Use the upstream-compat SecretConnection (Merlin-bound, v0.34
+	// AuthSigMessage shape) instead of tm2's chain-internal handshake;
+	// see secret_connection.go for the audit trail vs cometbft v0.34.
+	sconn, err := MakeSecretConnection(timeoutConn, ln.secretConnKey)
 	if err != nil {
 		_ = timeoutConn.Close()
 		return nil, fmt.Errorf("upstream.TCPListener: SecretConnection handshake: %w", err)
 	}
 
-	if err := checkAuthorizedKey(sconn.RemotePubKey(), ln.authorizedKeys); err != nil {
+	// MakeSecretConnection returns crypto.PubKey (interface); guarantee
+	// it's ed25519 for allowlist comparison. The handshake itself
+	// rejects non-ed25519 pubkeys, so this assertion should never fail
+	// here, but the explicit check keeps the listener self-contained.
+	remEd25519, ok := sconn.RemotePubKey().(ed25519.PubKeyEd25519)
+	if !ok {
+		_ = sconn.Close()
+		return nil, fmt.Errorf("upstream.TCPListener: remote pubkey is %T, expected ed25519", sconn.RemotePubKey())
+	}
+	if err := checkAuthorizedKey(remEd25519, ln.authorizedKeys); err != nil {
 		_ = sconn.Close()
 		return nil, err
 	}
