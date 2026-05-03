@@ -22,7 +22,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/testdata/upstreampb"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
