@@ -172,8 +172,7 @@ reconnect = false
 
 	// tmkms's `StringTracer` validation panics on a nil Timestamp
 	// field. Set explicit (non-zero) timestamps so we exercise the
-	// happy path; Phase 6's tsOrNil zero-time normalization is
-	// orthogonal and dropped a separate test below.
+	// happy path.
 	now := time.Now().UTC().Truncate(time.Nanosecond)
 	// Real-network votes always carry a populated PartSetHeader; using
 	// an empty one would expose an amino-vs-proto canonicalization gap
