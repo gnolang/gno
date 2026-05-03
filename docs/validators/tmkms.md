@@ -188,6 +188,38 @@ We'd rather fail loud at startup.
   Horcrux equivalent) as the canonical double-sign gate. Never restore
   a stale copy of it.
 
+## Known issue: SecretConnection auth-sig wire incompat
+
+Phase 6 byte-compat verification surfaced a **2-byte divergence**
+between tm2's SecretConnection AuthSigMessage encoding and upstream
+Tendermint v0.34's. The ephemeral-pubkey exchange and the HKDF /
+nonce / frame layers all match upstream byte-for-byte, but the
+post-DH authentication message diverges:
+
+- Upstream wraps the ed25519 pubkey in a `PublicKey` oneof
+  (`AuthSigMessage{pub_key: PublicKey{ed25519: ...}, sig: ...}`).
+- tm2 emits the ed25519 pubkey directly under field 1 of the
+  unexported `authSigMessage{Key, Sig}` struct via amino, with no
+  oneof wrapper.
+
+**Effect**: gnoland in tmkms-listener mode completes the ephemeral
+key exchange, derives matching keys, and then deadlocks at the
+auth-sig step — tmkms's protobuf decoder can't parse our amino-shaped
+bytes (and vice versa). End-to-end signing against a real tmkms
+binary will not work until this is addressed.
+
+**Why we haven't fixed it yet**: the encoding is shared with tm2's
+node-to-node p2p SecretConnection. Changing it is a chain-wide wire
+break (post-mainnet hard fork). The right fix is an upstream-compat
+handshake variant used only on the tmkms-listener path; that work is
+tracked separately and is not in scope for the verification phase.
+
+The divergence is pinned in
+`tm2/pkg/bft/privval/upstream/secret_connection_compat_test.go` —
+`TestSecretConnectionWire_AuthSigMessage_KnownDivergence` will fail
+loud the moment anyone fixes the encoding (intentionally or not),
+forcing a chain-wide review before the change lands.
+
 ## Operational checklist
 
 - [ ] One signer mode enabled in `config.toml` (gnokms OR tmkms, not both).
