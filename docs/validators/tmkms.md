@@ -200,16 +200,16 @@ gnoland uses two distinct SecretConnection implementations:
   protobuf `AuthSigMessage` (`PublicKey` oneof + signature). Used
   only on the listener path the signer dials in to.
 
-Phase 6 byte-compat verification confirms the listener-path
-implementation is wire-identical to upstream Tendermint v0.34
-(see `secret_connection_compat_test.go` —
+Byte-compat tests confirm the listener-path implementation is
+wire-identical to upstream Tendermint v0.34 (see
+`secret_connection_compat_test.go` —
 `TestUpstreamSecretConnection_AuthSigMessage_MatchesUpstream` and
 `TestUpstreamSecretConnection_SelfHandshake`). The chain-p2p
 divergence is pinned by `TestSecretConnectionWire_AuthSigMessage_KnownDivergence`
 so an accidental "fix" to the chain path can't sneak in without a
 chain-wide review (changing chain p2p bytes is a hard fork).
 
-## Wire-format requirements (learned from Phase 7)
+## Wire-format requirements
 
 The integration test against a real tmkms binary surfaced two
 non-obvious wire requirements; they're encoded in

@@ -183,17 +183,17 @@ func TestSecretConnectionWire_EphemeralPubKey_MatchesUpstream(t *testing.T) {
 // ed25519 in a PublicKey oneof message, adding two bytes (0x0a 0x22)
 // of inner framing.
 //
-// **Consequence**: tm2's SecretConnection auth handshake is wire-
-// incompatible with tmkms. The tmkms-listener path (Phase 4-5)
-// completes ephemeral-pubkey exchange and DH, then deadlocks in
-// shareAuthSignature because the protobuf decoder on the tmkms side
-// can't parse our amino-shaped bytes (and vice versa).
+// **Consequence**: tm2's chain-p2p SecretConnection auth handshake is
+// wire-incompatible with tmkms — it would complete ephemeral-pubkey
+// exchange and DH, then deadlock in shareAuthSignature because the
+// protobuf decoder on the tmkms side can't parse our amino-shaped
+// bytes (and vice versa).
 //
-// Fix path (deferred to a follow-up; out of scope for Phase 6
-// verification): introduce an upstream-compat handshake variant for
-// the tmkms-listener path that uses gogoproto AuthSigMessage with
-// the PublicKey oneof. Cannot blanket-fix tm2/pkg/p2p/conn/
-// secret_connection.go without breaking p2p wire compatibility.
+// The tmkms-listener path uses a separate upstream-compat handshake
+// (see tm2/pkg/bft/privval/upstream/secret_connection.go) with
+// gogoproto AuthSigMessage and the PublicKey oneof. The chain-p2p
+// SecretConnection cannot be blanket-fixed without breaking p2p wire
+// compatibility, hence the divergence below stays.
 //
 // **This test is the canary**: if anyone ever fixes the divergence
 // (intentionally or by accident), this test FAILS — flagging that
@@ -221,8 +221,8 @@ func TestSecretConnectionWire_AuthSigMessage_KnownDivergence(t *testing.T) {
 	// pub_key entry, plus the corresponding 2-byte bump in the outer
 	// length prefix.
 	require.NotEqual(t, upstreamBytes, tm2Bytes,
-		"tm2 AuthSigMessage now matches upstream — the known divergence has been fixed; "+
-			"update Phase 6 docs and remove the tmkms-listener compat shim")
+		"tm2 chain-p2p AuthSigMessage now matches upstream — the known divergence has been fixed; "+
+			"update docs and remove the tmkms-listener compat shim")
 	require.Equal(t, len(upstreamBytes)-2, len(tm2Bytes),
 		"divergence size has changed; the documented 2-byte PublicKey-oneof wrapper "+
 			"may no longer fully describe the shape of the gap")

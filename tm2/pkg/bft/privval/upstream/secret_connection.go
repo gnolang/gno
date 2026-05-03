@@ -7,8 +7,8 @@ package upstream
 // Merlin-transcript-bound STS handshake that tmkms / tendermint-rs
 // speak. tm2's chain-internal SecretConnection in
 // tm2/pkg/p2p/conn/secret_connection.go is a pre-Merlin variant that
-// is wire-incompatible with tmkms — see Phase 6's
-// secret_connection_compat_test.go for the byte-level diff.
+// is wire-incompatible with tmkms — see secret_connection_compat_test.go
+// for the byte-level diff.
 //
 // We keep tm2's variant unchanged (changing it is a chain wire break)
 // and use this adapted upstream-compat copy ONLY on the tmkms

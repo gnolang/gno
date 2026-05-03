@@ -1,10 +1,9 @@
 name: ci / tmkms-integration
 
-# Phase 7 of the tmkms-compat plan: end-to-end test against a real
-# tmkms binary on the privval listener path. Heavyweight (builds
-# tmkms from source via cargo, ~5 min on a cold cache), so we run it
-# only when the upstream privval code or the workflow itself
-# changes — not on every PR.
+# End-to-end test against a real tmkms binary on the privval listener
+# path. Heavyweight (builds tmkms from source via cargo, ~5 min on a
+# cold cache), so we run it only when the upstream privval code or
+# the workflow itself changes — not on every PR.
 
 on:
   push:
