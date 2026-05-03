@@ -39,11 +39,13 @@ func NewRetrySignerClient(sc *SignerClient, retries int, timeout time.Duration) 
 	return &RetrySignerClient{next: sc, retries: retries, timeout: timeout}
 }
 
-func (rsc *RetrySignerClient) Close() error                              { return rsc.next.Close() }
-func (rsc *RetrySignerClient) IsConnected() bool                         { return rsc.next.IsConnected() }
-func (rsc *RetrySignerClient) WaitForConnection(maxWait time.Duration) error { return rsc.next.WaitForConnection(maxWait) }
-func (rsc *RetrySignerClient) Init(maxWait time.Duration) error          { return rsc.next.Init(maxWait) }
-func (rsc *RetrySignerClient) Ping() error                               { return rsc.next.Ping() }
+func (rsc *RetrySignerClient) Close() error      { return rsc.next.Close() }
+func (rsc *RetrySignerClient) IsConnected() bool { return rsc.next.IsConnected() }
+func (rsc *RetrySignerClient) WaitForConnection(maxWait time.Duration) error {
+	return rsc.next.WaitForConnection(maxWait)
+}
+func (rsc *RetrySignerClient) Init(maxWait time.Duration) error { return rsc.next.Init(maxWait) }
+func (rsc *RetrySignerClient) Ping() error                      { return rsc.next.Ping() }
 
 // PubKey returns the cached pubkey from the inner client. Init must
 // have been called on the wrapped client (or via this wrapper's Init).
@@ -94,7 +96,7 @@ func shouldRetry(err error) bool {
 	if err == nil {
 		return false
 	}
-	var rse *RemoteSignerErrorWrapper
+	var rse *WrappedRemoteSignerError
 	if errors.As(err, &rse) {
 		return false // signer explicitly refused; retrying would be wrong
 	}

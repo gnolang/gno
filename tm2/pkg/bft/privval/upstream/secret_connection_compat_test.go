@@ -214,7 +214,7 @@ func TestSecretConnectionWire_AuthSigMessage_KnownDivergence(t *testing.T) {
 	tm2Bytes := tm2AuthSigMessageBytes(t, pub, sig)
 
 	t.Logf("upstream-expected: %s (%d bytes)", hex.EncodeToString(upstreamBytes), len(upstreamBytes))
-	t.Logf("tm2 emits:         %s (%d bytes)",  hex.EncodeToString(tm2Bytes),     len(tm2Bytes))
+	t.Logf("tm2 emits:         %s (%d bytes)", hex.EncodeToString(tm2Bytes), len(tm2Bytes))
 
 	// The expected divergence is exactly the missing PublicKey oneof
 	// wrapper: 0x0a 0x22 ahead of the inner [0x0a, 0x20, ...32 bytes...]
