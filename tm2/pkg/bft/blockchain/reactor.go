@@ -270,10 +270,11 @@ FOR_LOOP:
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
 
-				bcR.switchToConsensusFn(state, blocksSynced)
-				// else {
-				// should only happen during testing
-				// }
+				if bcR.switchToConsensusFn != nil {
+					bcR.switchToConsensusFn(state, blocksSynced)
+				}
+				// else: should only happen during testing — the
+				// reactor_test.go::newBlockchainReactor helper passes nil.
 
 				break FOR_LOOP
 			}
