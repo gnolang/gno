@@ -13,11 +13,11 @@ signer that speaks the upstream Tendermint privval protocol, like
 Gnoland supports three privval setups. Pick one — they're mutually
 exclusive.
 
-| Mode | Key holder | Connection direction | Use when |
-|---|---|---|---|
-| Local file | gnoland | n/a | Dev, testnets, single-host |
-| `gnokms` (remote signer) | gnokms | gnoland *dials* gnokms | You run our native signer; gnokms is on a network the validator can reach |
-| `tmkms` listener | tmkms | tmkms *dials* gnoland | You already run tmkms (e.g. for other Cosmos chains), or you want the signer host to have **no inbound network surface** |
+| Mode | Key holder | Connection direction | Production-ready? | Use when |
+|---|---|---|---|---|
+| Local file | gnoland | n/a | **No** — consensus key sits on the validator host next to a network process; no signer-side double-sign protection. Never for material stake. | Dev, testnets, single-host |
+| `gnokms` (remote signer) | gnokms | gnoland *dials* gnokms | **No** — alpha-tier. `contribs/gnokms/README.md` enumerates the gaps: no reverse-dial mode, fail-open allowlist default, no HSM/Ledger/cloud-KMS backends, no threshold signing. Acceptable for testnets with the limitations explicitly accepted; not for material stake. | Dev, testnets, low-stake validators that have read the gnokms limitations |
+| `tmkms` listener | tmkms | tmkms *dials* gnoland | **Yes** — unmodified upstream tmkms with YubiHSM 2 / Ledger / Fortanix DSM / cloud-KMS backends, Horcrux threshold signing, consensus.json HRS gate, NCC Group audit, ~7 years of production use across major Cosmos chains. | Mainnet, institutional stake, anything with material slashing risk |
 
 The defining property of tmkms mode is the dial direction: the
 **validator listens** and the **signer dials in**. The signer machine
