@@ -186,7 +186,7 @@ func TestSignerClient_SignVote_RoundTrip(t *testing.T) {
 
 // TestSignerClient_SignVote_RemoteError: signer-side refusal (e.g.
 // HRS regression detected by tmkms's consensus.json gate) surfaces as
-// *RemoteSignerErrorWrapper.
+// *WrappedRemoteSignerError.
 func TestSignerClient_SignVote_RemoteError(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -210,7 +210,7 @@ func TestSignerClient_SignVote_RemoteError(t *testing.T) {
 	err = sc.SignVote("test-chain", vote)
 	require.Error(t, err)
 
-	rse := &upstream.RemoteSignerErrorWrapper{}
+	rse := &upstream.WrappedRemoteSignerError{}
 	require.ErrorAs(t, err, &rse)
 	assert.EqualValues(t, 1, rse.Code)
 	assert.Equal(t, "test refusal", rse.Description)
@@ -376,7 +376,7 @@ func TestRetrySignerClient_NoRetryOnRemoteError(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
-	rse := &upstream.RemoteSignerErrorWrapper{}
+	rse := &upstream.WrappedRemoteSignerError{}
 	require.ErrorAs(t, err, &rse)
 	// Should NOT have slept 5*10ms = 50ms — passed through immediately.
 	assert.Less(t, elapsed, 30*time.Millisecond, "RemoteSignerError must pass through without retry sleep")

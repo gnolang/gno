@@ -133,7 +133,7 @@ func (sl *SignerListenerEndpoint) WaitForConnection(maxWait time.Duration) error
 //
 // Resets the ping timer on success — successful traffic counts as a
 // keepalive, no need to send an explicit ping right after.
-func (sl *SignerListenerEndpoint) SendRequest(request upstreampb.Message) (*upstreampb.Message, error) {
+func (sl *SignerListenerEndpoint) SendRequest(request *upstreampb.Message) (*upstreampb.Message, error) {
 	sl.instanceMtx.Lock()
 	defer sl.instanceMtx.Unlock()
 	return sl.sendRequestLocked(request)
@@ -149,11 +149,11 @@ func (sl *SignerListenerEndpoint) Unlock() { sl.instanceMtx.Unlock() }
 
 // SendRequestLocked is SendRequest without taking the instance mutex.
 // Caller MUST hold the lock via Lock().
-func (sl *SignerListenerEndpoint) SendRequestLocked(request upstreampb.Message) (*upstreampb.Message, error) {
+func (sl *SignerListenerEndpoint) SendRequestLocked(request *upstreampb.Message) (*upstreampb.Message, error) {
 	return sl.sendRequestLocked(request)
 }
 
-func (sl *SignerListenerEndpoint) sendRequestLocked(request upstreampb.Message) (*upstreampb.Message, error) {
+func (sl *SignerListenerEndpoint) sendRequestLocked(request *upstreampb.Message) (*upstreampb.Message, error) {
 	if err := sl.ensureConnection(sl.timeoutAccept); err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (sl *SignerListenerEndpoint) sendRequestLocked(request upstreampb.Message) 
 		return nil, err
 	}
 	sl.pingTimer.Reset(sl.pingInterval)
-	return &res, nil
+	return res, nil
 }
 
 func (sl *SignerListenerEndpoint) ensureConnection(maxWait time.Duration) error {
@@ -244,7 +244,7 @@ func (sl *SignerListenerEndpoint) pingLoop() {
 	for {
 		select {
 		case <-sl.pingTimer.C:
-			_, err := sl.SendRequest(*WrapMsg(&upstreampb.PingRequest{}))
+			_, err := sl.SendRequest(WrapMsg(&upstreampb.PingRequest{}))
 			if err != nil {
 				sl.Logger.Error("SignerListener: ping timeout, reconnecting")
 				sl.triggerReconnect()

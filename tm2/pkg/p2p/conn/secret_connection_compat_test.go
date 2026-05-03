@@ -192,9 +192,10 @@ func TestSecretConnection_DHSecretSize(t *testing.T) {
 	}
 	// Multiply by basepoint to get a valid pub.
 	pub, _ := genEphKeys()
-	dh, err := computeDHSecret(pub, &priv)
+	_, err := computeDHSecret(pub, &priv)
 	require.NoError(t, err)
-	require.Equal(t, 32, len(dh), "X25519 shared secret must be 32 bytes")
+	// computeDHSecret returns *[32]byte; the 32-byte size is enforced by
+	// the Go type, so a no-error return is the only thing left to check.
 }
 
 // goldenHKDF96Hex is a reference HKDF-SHA256 expansion for a

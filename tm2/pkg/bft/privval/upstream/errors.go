@@ -26,18 +26,18 @@ var (
 	ErrWriteTimeout      = errors.New("endpoint write timed out")
 )
 
-// RemoteSignerErrorWrapper allows the local side to surface a privval
+// WrappedRemoteSignerError allows the local side to surface a privval
 // RemoteSignerError (returned over the wire by tmkms) as a Go error.
 //
 // Mirrors cometbft/privval/errors.go::RemoteSignerError. Distinct from
 // upstreampb.RemoteSignerError (the wire-level message) — this is the
 // Go-level error type the validator code sees after unwrapping.
-type RemoteSignerErrorWrapper struct {
+type WrappedRemoteSignerError struct {
 	Code        int32
 	Description string
 }
 
-func (e *RemoteSignerErrorWrapper) Error() string {
+func (e *WrappedRemoteSignerError) Error() string {
 	return fmt.Sprintf("remote signer error #%d: %s", e.Code, e.Description)
 }
 

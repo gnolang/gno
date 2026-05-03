@@ -102,7 +102,7 @@ func (sc *SignerClient) WaitForConnection(maxWait time.Duration) error {
 // connection without doing a sign request. CometBFT's pingLoop already
 // handles application-level keepalive; this is a manual-poke alternative.
 func (sc *SignerClient) Ping() error {
-	resp, err := sc.endpoint.SendRequest(*WrapMsg(&upstreampb.PingRequest{}))
+	resp, err := sc.endpoint.SendRequest(WrapMsg(&upstreampb.PingRequest{}))
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 		return err
 	}
 
-	resp, err := sc.endpoint.SendRequestLocked(*WrapMsg(&upstreampb.SignVoteRequest{
+	resp, err := sc.endpoint.SendRequestLocked(WrapMsg(&upstreampb.SignVoteRequest{
 		Vote: pbVote, ChainId: chainID,
 	}))
 	if err != nil {
@@ -165,7 +165,7 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 		return fmt.Errorf("upstream.SignerClient: expected SignedVoteResponse, got %T", inner)
 	}
 	if signed.Error != nil {
-		return &RemoteSignerErrorWrapper{Code: signed.Error.Code, Description: signed.Error.Description}
+		return &WrappedRemoteSignerError{Code: signed.Error.Code, Description: signed.Error.Description}
 	}
 	if signed.Vote == nil {
 		return fmt.Errorf("upstream.SignerClient: SignedVoteResponse missing Vote")
@@ -204,7 +204,7 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 		return err
 	}
 
-	resp, err := sc.endpoint.SendRequestLocked(*WrapMsg(&upstreampb.SignProposalRequest{
+	resp, err := sc.endpoint.SendRequestLocked(WrapMsg(&upstreampb.SignProposalRequest{
 		Proposal: pbProp, ChainId: chainID,
 	}))
 	if err != nil {
@@ -220,7 +220,7 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 		return fmt.Errorf("upstream.SignerClient: expected SignedProposalResponse, got %T", inner)
 	}
 	if signed.Error != nil {
-		return &RemoteSignerErrorWrapper{Code: signed.Error.Code, Description: signed.Error.Description}
+		return &WrappedRemoteSignerError{Code: signed.Error.Code, Description: signed.Error.Description}
 	}
 	if signed.Proposal == nil {
 		return fmt.Errorf("upstream.SignerClient: SignedProposalResponse missing Proposal")
@@ -278,7 +278,7 @@ func (sc *SignerClient) verifyIdentityLocked() error {
 // and verifyIdentityLocked, both of which need the lock for atomicity
 // across the multi-RPC sequence.
 func (sc *SignerClient) fetchPubKeyLocked() (crypto.PubKey, error) {
-	resp, err := sc.endpoint.SendRequestLocked(*WrapMsg(&upstreampb.PubKeyRequest{ChainId: sc.chainID}))
+	resp, err := sc.endpoint.SendRequestLocked(WrapMsg(&upstreampb.PubKeyRequest{ChainId: sc.chainID}))
 	if err != nil {
 		return nil, fmt.Errorf("upstream.SignerClient: PubKeyRequest send: %w", err)
 	}
@@ -292,7 +292,7 @@ func (sc *SignerClient) fetchPubKeyLocked() (crypto.PubKey, error) {
 		return nil, fmt.Errorf("upstream.SignerClient: expected PubKeyResponse, got %T", inner)
 	}
 	if pkResp.Error != nil {
-		return nil, &RemoteSignerErrorWrapper{Code: pkResp.Error.Code, Description: pkResp.Error.Description}
+		return nil, &WrappedRemoteSignerError{Code: pkResp.Error.Code, Description: pkResp.Error.Description}
 	}
 	return PubKeyFromProto(pkResp.PubKey)
 }

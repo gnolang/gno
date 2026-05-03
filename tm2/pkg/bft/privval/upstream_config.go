@@ -23,12 +23,11 @@ import (
 
 // Errors returned by TmkmsListenerConfig.
 var (
-	errInvalidTmkmsListenAddr      = errors.New("invalid tmkms_listener.listen_addr")
-	errInvalidTmkmsAllowedPubkeys  = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
-	errEmptyTmkmsChainID           = errors.New("tmkms_listener.chain_id must not be empty")
-	errEmptyTmkmsAllowedPubkeys    = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty (an empty list accepts any peer that completes the SecretConnection handshake — set explicitly only for dev/test)")
-	errUnsupportedProtocolVersion  = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
-	errBothExternalSignersEnabled  = errors.New("only one of remote_signer or tmkms_listener may be configured")
+	errInvalidTmkmsAllowedPubkeys = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
+	errEmptyTmkmsChainID          = errors.New("tmkms_listener.chain_id must not be empty")
+	errEmptyTmkmsAllowedPubkeys   = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty (an empty list accepts any peer that completes the SecretConnection handshake — set explicitly only for dev/test)")
+	errUnsupportedProtocolVersion = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
+	errBothExternalSignersEnabled = errors.New("only one of remote_signer or tmkms_listener may be configured")
 )
 
 // TmkmsListenerConfig configures the upstream-Tendermint-protocol listener.
@@ -124,7 +123,7 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 		return errEmptyTmkmsAllowedPubkeys
 	}
 	if _, err := c.ParseAllowlist(); err != nil {
-		return fmt.Errorf("%w: %v", errInvalidTmkmsAllowedPubkeys, err)
+		return fmt.Errorf("%w: %w", errInvalidTmkmsAllowedPubkeys, err)
 	}
 	if c.ProtocolVersion != upstream.ProtocolVersion {
 		return fmt.Errorf("%w: got %q, supported: %q",

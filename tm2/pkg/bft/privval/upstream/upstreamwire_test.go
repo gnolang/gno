@@ -209,8 +209,8 @@ func TestUpstreamWire_Vote_ByteIdentical(t *testing.T) {
 	cases := []upstream.Vote{
 		mkVote(0, 0, false),
 		mkVote(3, 7, false),
-		mkVote(-1, 0, true),               // negative round → 10-byte plain varint
-		mkVote(1, -1, false),              // negative index → 10-byte plain varint
+		mkVote(-1, 0, true),  // negative round → 10-byte plain varint
+		mkVote(1, -1, false), // negative index → 10-byte plain varint
 		{Type: types.PrevoteType, Height: 1, Round: 1, ValidatorAddress: make([]byte, 20)},
 	}
 	for i, c := range cases {

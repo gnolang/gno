@@ -9,6 +9,7 @@ package upstream_test
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -72,7 +73,7 @@ func (f *fakeSigner) connect(t *testing.T, ctx context.Context) {
 		// Read one request from the listener.
 		r := upstream.NewDelimitedReader(conn, upstream.MaxRemoteSignerMsgSize)
 		var msg upstreampb.Message
-		if _, err := r.ReadMsg(&msg); err != nil && err != io.EOF {
+		if _, err := r.ReadMsg(&msg); err != nil && !errors.Is(err, io.EOF) {
 			t.Errorf("fakeSigner: ReadMsg: %v", err)
 			return
 		}
@@ -139,7 +140,7 @@ func TestSignerListenerEndpoint_SendRequest_RoundTrip(t *testing.T) {
 		close(signer.respondCh)
 	}()
 
-	resp, err := ep.SendRequest(*upstream.WrapMsg(&upstreampb.PubKeyRequest{ChainId: "test"}))
+	resp, err := ep.SendRequest(upstream.WrapMsg(&upstreampb.PubKeyRequest{ChainId: "test"}))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
