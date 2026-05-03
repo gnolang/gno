@@ -188,37 +188,26 @@ We'd rather fail loud at startup.
   Horcrux equivalent) as the canonical double-sign gate. Never restore
   a stale copy of it.
 
-## Known issue: SecretConnection auth-sig wire incompat
+## SecretConnection: tmkms-compat vs chain p2p
 
-Phase 6 byte-compat verification surfaced a **2-byte divergence**
-between tm2's SecretConnection AuthSigMessage encoding and upstream
-Tendermint v0.34's. The ephemeral-pubkey exchange and the HKDF /
-nonce / frame layers all match upstream byte-for-byte, but the
-post-DH authentication message diverges:
+gnoland uses two distinct SecretConnection implementations:
 
-- Upstream wraps the ed25519 pubkey in a `PublicKey` oneof
-  (`AuthSigMessage{pub_key: PublicKey{ed25519: ...}, sig: ...}`).
-- tm2 emits the ed25519 pubkey directly under field 1 of the
-  unexported `authSigMessage{Key, Sig}` struct via amino, with no
-  oneof wrapper.
+- **chain p2p** (`tm2/pkg/p2p/conn/secret_connection.go`) — pre-Merlin
+  STS handshake, amino-encoded `AuthSigMessage`. Internal to gnoland
+  validators talking to each other; unchanged.
+- **tmkms listener** (`tm2/pkg/bft/privval/upstream/secret_connection.go`)
+  — direct port of cometbft v0.34's Merlin-bound STS handshake with
+  protobuf `AuthSigMessage` (`PublicKey` oneof + signature). Used
+  only on the listener path the signer dials in to.
 
-**Effect**: gnoland in tmkms-listener mode completes the ephemeral
-key exchange, derives matching keys, and then deadlocks at the
-auth-sig step — tmkms's protobuf decoder can't parse our amino-shaped
-bytes (and vice versa). End-to-end signing against a real tmkms
-binary will not work until this is addressed.
-
-**Why we haven't fixed it yet**: the encoding is shared with tm2's
-node-to-node p2p SecretConnection. Changing it is a chain-wide wire
-break (post-mainnet hard fork). The right fix is an upstream-compat
-handshake variant used only on the tmkms-listener path; that work is
-tracked separately and is not in scope for the verification phase.
-
-The divergence is pinned in
-`tm2/pkg/bft/privval/upstream/secret_connection_compat_test.go` —
-`TestSecretConnectionWire_AuthSigMessage_KnownDivergence` will fail
-loud the moment anyone fixes the encoding (intentionally or not),
-forcing a chain-wide review before the change lands.
+Phase 6 byte-compat verification confirms the listener-path
+implementation is wire-identical to upstream Tendermint v0.34
+(see `secret_connection_compat_test.go` —
+`TestUpstreamSecretConnection_AuthSigMessage_MatchesUpstream` and
+`TestUpstreamSecretConnection_SelfHandshake`). The chain-p2p
+divergence is pinned by `TestSecretConnectionWire_AuthSigMessage_KnownDivergence`
+so an accidental "fix" to the chain path can't sneak in without a
+chain-wide review (changing chain p2p bytes is a hard fork).
 
 ## Operational checklist
 
