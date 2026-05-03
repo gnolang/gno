@@ -188,6 +188,62 @@ We'd rather fail loud at startup.
   Horcrux equivalent) as the canonical double-sign gate. Never restore
   a stale copy of it.
 
+## SecretConnection: tmkms-compat vs chain p2p
+
+gnoland uses two distinct SecretConnection implementations:
+
+- **chain p2p** (`tm2/pkg/p2p/conn/secret_connection.go`) — pre-Merlin
+  STS handshake, amino-encoded `AuthSigMessage`. Internal to gnoland
+  validators talking to each other; unchanged.
+- **tmkms listener** (`tm2/pkg/bft/privval/upstream/secret_connection.go`)
+  — direct port of cometbft v0.34's Merlin-bound STS handshake with
+  protobuf `AuthSigMessage` (`PublicKey` oneof + signature). Used
+  only on the listener path the signer dials in to.
+
+Phase 6 byte-compat verification confirms the listener-path
+implementation is wire-identical to upstream Tendermint v0.34
+(see `secret_connection_compat_test.go` —
+`TestUpstreamSecretConnection_AuthSigMessage_MatchesUpstream` and
+`TestUpstreamSecretConnection_SelfHandshake`). The chain-p2p
+divergence is pinned by `TestSecretConnectionWire_AuthSigMessage_KnownDivergence`
+so an accidental "fix" to the chain path can't sneak in without a
+chain-wide review (changing chain p2p bytes is a hard fork).
+
+## Verifying compat with a real tmkms binary
+
+The repo ships a build-tagged Go integration test that orchestrates
+a real tmkms binary against the gnoland listener path. CI runs it
+via `.github/workflows/ci-tmkms-integration.yml` (only when the
+upstream privval code or the workflow itself changes — it builds
+tmkms from source and isn't cheap).
+
+To run locally:
+
+```sh
+# Install tmkms once (Rust toolchain required).
+cargo install tmkms --version 0.15.0 --features softsign --locked
+
+# From the repo root:
+go test -tags=tmkms_integration -count=1 -v \
+    ./tm2/pkg/bft/privval/upstream/...
+```
+
+The test (`TestTmkmsIntegration_FullSigningFlow`) generates fresh
+ed25519 keys, writes a tmkms.toml that pins
+`protocol_version = "v0.34"`, spawns `tmkms start` against an
+ephemeral listener, and asserts:
+
+- `PubKey()` reported by tmkms matches the consensus key in
+  softsign,
+- `SignVote` at heights 1 and 2 round-trip with valid signatures
+  (verified against the consensus pubkey),
+- `SignProposal` at height 3 round-trips with a valid signature.
+
+If the test fails, check tmkms's stdout/stderr in the test logs —
+the most common failure modes are protocol-version skew (set
+`protocol_version = "v0.34"` on both sides) and chain_id
+mismatches.
+
 ## Operational checklist
 
 - [ ] One signer mode enabled in `config.toml` (gnokms OR tmkms, not both).
