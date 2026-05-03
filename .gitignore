@@ -22,10 +22,12 @@ testdir
 *.gno.gen.go
 *.gno.gen_test.go
 *.pb.go
-# Tests in tm2/pkg/bft/privval/upstream depend on a checked-in
-# protoc-generated upstream Tendermint proto fixture. Negate the
-# wildcard above so the file is tracked.
-!tm2/pkg/bft/privval/upstream/testdata/upstreampb/upstream.pb.go
+# tm2/pkg/bft/privval/upstream's tmkms-compat path uses protoc-generated
+# upstream Tendermint protobuf types directly at the wire boundary
+# (mirrors how cometbft/privval uses cometbft/proto). The generated file
+# is checked in; regenerated rarely (when the upstream Tendermint v0.34
+# protocol shape would matter).
+!tm2/pkg/bft/privval/upstream/upstreampb/upstream.pb.go
 pbbindings.go
 *~
 .#*

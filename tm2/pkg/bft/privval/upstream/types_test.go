@@ -345,32 +345,12 @@ func TestTranslator_NegativeTotalRejected(t *testing.T) {
 		"negative Total must panic — upstream uint32 cannot represent it")
 }
 
-// ---- Privval messages -----------------------------------------------------
-//
-//	message SignVoteRequest {
-//	  Vote   vote     = 1;
-//	  string chain_id = 2;
-//	}
-func TestUpstream_SignVoteRequest_Schema(t *testing.T) {
-	t.Parallel()
-	cdc := codec(t)
-	v := upstream.SignVoteRequest{
-		Vote: &upstream.Vote{
-			Type:             types.PrecommitType,
-			Height:           42,
-			Round:            3,
-			ValidatorAddress: make([]byte, 20),
-		},
-		ChainID: "test-chain",
-	}
-	bz, err := cdc.Marshal(&v)
-	require.NoError(t, err)
-
-	assertSchema(t, bz, []fieldDesc{
-		{num: 1, typ: protowire.BytesType, name: "vote"},
-		{num: 2, typ: protowire.BytesType, name: "chain_id"},
-	})
-}
+// Privval message schema tests removed: privval-protocol messages
+// (PubKeyRequest, SignVoteRequest, Message envelope, etc.) are now
+// protoc-generated upstreampb types, not amino-encoded. Their wire-format
+// is correct by construction (proto.Marshal). Tests for those live in
+// stdlibproto_test.go (round-trip via protobuf-go) or msgs_test.go
+// (wrap/unwrap via WrapMsg/UnwrapMsg).
 
 // ---- helpers --------------------------------------------------------------
 
