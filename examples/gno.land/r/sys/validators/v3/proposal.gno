@@ -39,13 +39,19 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Validation at creation time: every ValoperChange's OperatorAddress
 // must exist in valoperCache (unknown operator panics). This
 // enforces validator-must-be-valoper before the proposal goes to a
-// vote.
+// vote. Adds (Power > 0) ALSO require KeepRunning=true at creation
+// time — the v3-side enforcement of the operator's opt-out signal.
+// r/gnops/valopers/proposal honors KeepRunning via its own check;
+// this guard closes the bypass where a future proposer realm calls
+// v3 directly.
 //
 // Pubkey resolution at execution time: the executor callback
 // re-reads valoperCache for each entry to capture the CURRENT
 // signing pubkey/address — not the creation-time one. Defends
 // against a stale (now-retired) key publication if the operator
-// rotated while the proposal sat in GovDAO. Removes are unaffected
+// rotated while the proposal sat in GovDAO. Also re-checks
+// KeepRunning so an operator flipping to KeepRunning=false between
+// propose-create and propose-execute is honored. Removes are unaffected
 // (operator address is the lookup key, not signing address).
 //
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
@@ -62,11 +68,17 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 		panic("max number of allowed validators per proposal is 40")
 	}
 
-	// Creation-time validation: every operator must exist in cache.
-	// Unknown operators panic now, before voters see the proposal.
+	// Creation-time validation: every operator must exist in cache,
+	// and adds require KeepRunning=true. Unknown operators or opted-
+	// out operators panic now, before voters see the proposal.
 	for _, c := range changes {
-		if !valoperCache.Has(c.OperatorAddress.String()) {
+		rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
+		if !ok {
 			panic("unknown operator: " + c.OperatorAddress.String())
+		}
+		entry := rawCache.(cacheEntry)
+		if c.Power > 0 && !entry.KeepRunning {
+			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (use UpdateKeepRunning(true) first)")
 		}
 	}
 
@@ -122,6 +134,12 @@ func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
 					"signingAddr", entry.SigningAddress.String(),
 				)
 				continue
+			}
+
+			// Race-safety: operator may have flipped KeepRunning=false
+			// between propose-create and propose-execute. Re-check.
+			if !entry.KeepRunning {
+				panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false at execution; refusing to add")
 			}
 
 			// Add (or fresh-set power). Re-add of an existing entry

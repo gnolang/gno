@@ -214,6 +214,87 @@ func TestNewValidatorProposalRequest_RemoveLeavesOthers(t *testing.T) {
 	uassert.Equal(t, pubKeyB, effective[0].PubKey)
 }
 
+func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(t *testing.T) {
+	resetCache()
+	op := testutils.TestAddress("op-A")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{{op: op, pubKey: pubKeyA, keepRunning: false}})
+
+	uassert.PanicsContains(t, "KeepRunning=false", func() {
+		_ = NewValidatorProposalRequest(
+			[]ValoperChange{{OperatorAddress: op, Power: 1}},
+			"add opted-out", "",
+		)
+	})
+}
+
+func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T) {
+	// KeepRunning=false is the operator's opt-out signal; removing
+	// such an operator must still be allowed (it's the standard
+	// exit path). Only adds are gated.
+	resetValset(t)
+	resetCache()
+
+	// Seed the valset with two operators so removing one doesn't
+	// trip the empty-valset liveness floor.
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":10",
+		pubKeyB + ":5",
+	})
+
+	opA := testutils.TestAddress("op-A")
+	opB := testutils.TestAddress("op-B")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{
+		{op: opA, pubKey: pubKeyA, keepRunning: false}, // opted out
+		{op: opB, pubKey: pubKeyB, keepRunning: true},
+	})
+
+	// Build proposal succeeds (remove path: Power=0 ignores KeepRunning).
+	pr := NewValidatorProposalRequest(
+		[]ValoperChange{{OperatorAddress: opA, Power: 0}},
+		"remove opted-out opA", "",
+	)
+	_ = pr
+
+	// Executor also succeeds.
+	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross))
+}
+
+func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *testing.T) {
+	// KeepRunning=true at proposal-create time; operator flips to
+	// false BEFORE the executor runs. Race-safety check rejects.
+	resetValset(t)
+	resetCache()
+
+	op := testutils.TestAddress("op-A")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
+
+	changes := []ValoperChange{{OperatorAddress: op, Power: 5}}
+	exec := newValoperChangeExecutor(changes)
+
+	// Operator flips KeepRunning=false BEFORE the executor runs.
+	valoperCache.Set(op.String(), cacheEntry{
+		SigningPubKey:  pubKeyA,
+		SigningAddress: mustAddr(t, pubKeyA),
+		KeepRunning:    false,
+	})
+
+	uassert.AbortsContains(t, "KeepRunning=false at execution", func() {
+		_ = exec.Execute(cross)
+	})
+}
+
 // contains is a tiny strings.Contains shim so tests don't import a
 // new package.
 func contains(s, substr string) bool {

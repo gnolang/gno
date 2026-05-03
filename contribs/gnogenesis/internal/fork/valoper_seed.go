@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -18,6 +19,14 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+// monikerRe mirrors r/gnops/valopers/valopers.gno's validateMonikerRe
+// (^[a-zA-Z0-9][\w -]{0,30}[a-zA-Z0-9]$ — alphanumeric start/end, with
+// alphanumerics/spaces/hyphens/underscores in between, total length
+// 2..32). The realm panics on regex failure during chain replay; this
+// pre-flight catches misformatted monikers at CSV-validation time so
+// the .jsonl is never emitted with rows that would explode at boot.
+var monikerRe = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,30}[a-zA-Z0-9]$`)
 
 // validServerTypes mirrors r/gnops/valopers ServerType*. Kept in sync
 // with the realm; if the realm grows a new variant, add it here.
@@ -257,6 +266,9 @@ func validateRow(row *seedRow, csvRow int) error {
 	}
 	if len(row.Moniker) > 32 {
 		return fmt.Errorf("row %d: moniker %q exceeds 32 characters", csvRow, row.Moniker)
+	}
+	if !monikerRe.MatchString(row.Moniker) {
+		return fmt.Errorf("row %d: moniker %q must match the realm regex (2..32 chars, alphanumeric start/end, alphanumeric/space/hyphen/underscore middle)", csvRow, row.Moniker)
 	}
 	if row.Description == "" {
 		return fmt.Errorf("row %d: description is empty", csvRow)

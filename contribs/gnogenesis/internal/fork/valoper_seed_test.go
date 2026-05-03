@@ -256,6 +256,31 @@ func TestValoperSeed_RejectsEmptyDescription(t *testing.T) {
 	assert.Contains(t, err.Error(), "description is empty")
 }
 
+func TestValoperSeed_RejectsBadMoniker(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		moniker string
+	}{
+		{"too-short", "a"},
+		{"trailing-hyphen", "alice-"},
+		{"leading-hyphen", "-alice"},
+		{"special-char", "alice!"},
+		// Note: leading/trailing whitespace passes through CSV
+		// because validateRow trims. That's intentional ergonomics.
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			csv := validHeader + "\n" +
+				opAddrA + "," + validPubKeyA + "," + tc.moniker + ",Alice,cloud\n"
+			_, err := runSeed(t, dir, csv)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "moniker")
+		})
+	}
+}
+
 func TestValoperSeed_DedupsCaseAliasedAddress(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
