@@ -32,7 +32,7 @@ Both TCP and Unix domain socket connections are supported for communication betw
 
 - **Dev/test/local chains:** `gnokms` is fine. Use it.
 - **Public testnets, low-stake validators:** `gnokms` is acceptable if you (a) configure the mutual-auth allowlist, (b) avoid `/tmp` socket paths, (c) harden the host with systemd settings, and (d) treat `priv_validator_state.json` and `signer_state.json` as crown-jewels (do not restore from snapshots without a known-good HRS marker).
-- **Mainnet, institutional stake:** prefer running upstream tmkms once the TM2 compatibility shim lands. The compatibility work is planned and bounded but not yet shipped. Until then, accept the limitations above explicitly or wait. Running `gnokms` with material stake without the limitations addressed is an unforced operational risk.
+- **Mainnet, institutional stake:** prefer running upstream tmkms. The TM2 compatibility shim has landed — gnoland accepts an inbound dial from a stock tmkms binary speaking the v0.34 privval protocol. See [`docs/validators/tmkms.md`](../../docs/validators/tmkms.md) for the operator setup guide. Running `gnokms` with material stake without the limitations above addressed is an unforced operational risk.
 
 ### Tracking
 
@@ -40,7 +40,7 @@ The roadmap to feature parity is tracked across:
 - Reverse-dial topology
 - YubiHSM 2 / Ledger / cloud-KMS-signing backends
 - Threshold signing (`gnocrux`)
-- tmkms-compat path: lets unmodified upstream tmkms speak to gno.land
+- tmkms-compat path: lets unmodified upstream tmkms speak to gno.land — **shipped**; see [`docs/validators/tmkms.md`](../../docs/validators/tmkms.md)
 
 ### Flowchart
 
