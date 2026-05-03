@@ -209,6 +209,33 @@ divergence is pinned by `TestSecretConnectionWire_AuthSigMessage_KnownDivergence
 so an accidental "fix" to the chain path can't sneak in without a
 chain-wide review (changing chain p2p bytes is a hard fork).
 
+## Wire-format requirements (learned from Phase 7)
+
+The integration test against a real tmkms binary surfaced two
+non-obvious wire requirements; they're encoded in
+`translator_pb.go::VoteToProto / ProposalToProto / blockIDToProto`:
+
+- **Timestamp must always be present.** A SignVoteRequest with a
+  missing (nil) Timestamp triggers tendermint-rs's `MissingTimestamp`
+  error and tmkms drops the connection. Zero-valued time
+  (`time.Time{}`) serializes as the protobuf year-0001 timestamp;
+  both sides canonicalize that case identically.
+- **PartSetHeader must always be present.** A BlockID with a missing
+  (nil) part_set_header field triggers tendermint-rs's
+  `InvalidPartSetHeader: part_set_header is None`. Empty values
+  (Total=0, Hash=nil) are accepted as long as the field is encoded
+  (`tag len=0`).
+
+There is one remaining tm2-internal divergence: amino's
+canonicalization (used by `Vote.SignBytes`) omits a default-valued
+embedded message, while upstream proto encodes it as `tag len=0`.
+The gap surfaces only when a vote carries an empty PartSetHeader,
+which never happens in real consensus traffic — every block has
+parts. Real-network signatures from a tmkms-using validator verify
+correctly on tm2 nodes because both sides hit the populated-header
+case. The integration test populates PartSetHeader explicitly to
+exercise that path.
+
 ## Verifying compat with a real tmkms binary
 
 The repo ships a build-tagged Go integration test that orchestrates

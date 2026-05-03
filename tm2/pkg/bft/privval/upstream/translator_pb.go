@@ -67,6 +67,12 @@ func PubKeyFromProto(p *upstreampb.PublicKey) (crypto.PubKey, error) {
 // ---- Vote ↔ upstreampb.Vote ----------------------------------------------
 
 // VoteToProto converts a tm2 types.Vote to upstreampb.Vote.
+//
+// Timestamp is ALWAYS emitted (even for the zero time, which becomes the
+// protobuf year-0001 timestamp) because tendermint-rs / tmkms reject a
+// SignVoteRequest with a missing Timestamp field. Both sides
+// canonicalize the year-0001 case to the same bytes, so the signature
+// still verifies.
 func VoteToProto(v *types.Vote) (*upstreampb.Vote, error) {
 	if v == nil {
 		return nil, nil
@@ -88,7 +94,7 @@ func VoteToProto(v *types.Vote) (*upstreampb.Vote, error) {
 		Height:           v.Height,
 		Round:            round,
 		BlockId:          bid,
-		Timestamp:        tsOrNil(v.Timestamp),
+		Timestamp:        timestamppb.New(v.Timestamp),
 		ValidatorAddress: append([]byte(nil), v.ValidatorAddress[:]...),
 		ValidatorIndex:   idx,
 		Signature:        append([]byte(nil), v.Signature...),
@@ -148,7 +154,7 @@ func ProposalToProto(p *types.Proposal) (*upstreampb.Proposal, error) {
 		Round:     round,
 		PolRound:  pol,
 		BlockId:   bid,
-		Timestamp: tsOrNil(p.Timestamp),
+		Timestamp: timestamppb.New(p.Timestamp),
 		Signature: append([]byte(nil), p.Signature...),
 	}, nil
 }
@@ -179,6 +185,11 @@ func ProposalFromProto(p *upstreampb.Proposal) (*types.Proposal, error) {
 // ---- Internal helpers ----------------------------------------------------
 
 func blockIDToProto(b types.BlockID) (*upstreampb.BlockID, error) {
+	// PartSetHeader is ALWAYS emitted (as Some(empty) for the zero
+	// case, not None). tendermint-rs's BlockId::TryFrom rejects a
+	// missing part_set_header field with `invalid part set header:
+	// part_set_header is None`. Upstream Go encodes nil PartSetHeader
+	// as Some(empty) for the same reason; we match that wire shape.
 	psh, err := partSetHeaderToProto(b.PartsHeader)
 	if err != nil {
 		return nil, err
@@ -234,15 +245,4 @@ func narrowInt32(v int, name string) (int32, error) {
 		return 0, fmt.Errorf("%s value %d out of int32 range", name, v)
 	}
 	return int32(v), nil
-}
-
-// tsOrNil returns nil for the zero time so we don't emit a year-0001
-// timestamp on the wire. Upstream Tendermint omits the field when the
-// caller has not set Timestamp; matching that keeps byte-level parity
-// with cometbft for unset-Timestamp votes/proposals.
-func tsOrNil(t time.Time) *timestamppb.Timestamp {
-	if t.IsZero() {
-		return nil
-	}
-	return timestamppb.New(t)
 }
