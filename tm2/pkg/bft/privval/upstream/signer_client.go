@@ -14,6 +14,7 @@ package upstream
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb"
@@ -28,6 +29,13 @@ type SignerClient struct {
 
 	pubKeyMtx    sync.RWMutex
 	cachedPubKey crypto.PubKey
+
+	// verifiedGen is the endpoint connection generation at which the
+	// signer's pubkey was last verified to match cachedPubKey. When the
+	// endpoint reconnects (a new generation), the next sign call must
+	// re-verify before signing — guards against a swap to a different
+	// tmkms instance during a connection drop.
+	verifiedGen atomic.Uint64
 }
 
 var _ types.PrivValidator = (*SignerClient)(nil)
@@ -57,13 +65,19 @@ func (sc *SignerClient) Init(maxWait time.Duration) error {
 	if err := sc.endpoint.WaitForConnection(maxWait); err != nil {
 		return fmt.Errorf("upstream.SignerClient: wait for signer: %w", err)
 	}
-	pk, err := sc.fetchPubKey()
+	// Take the instance lock for the whole "fetch pubkey + record gen"
+	// transaction so no reconnect can advance the gen between the fetch
+	// and the record.
+	sc.endpoint.Lock()
+	defer sc.endpoint.Unlock()
+	pk, err := sc.fetchPubKeyLocked()
 	if err != nil {
 		return err
 	}
 	sc.pubKeyMtx.Lock()
 	sc.cachedPubKey = pk
 	sc.pubKeyMtx.Unlock()
+	sc.verifiedGen.Store(sc.endpoint.ConnectionGeneration())
 	return nil
 }
 
@@ -110,17 +124,32 @@ func (sc *SignerClient) PubKey() crypto.PubKey {
 	return pk
 }
 
-// SignVote sends the vote to the signer; on success the response's
-// signed Vote (Signature populated, possibly Timestamp canonicalized)
-// replaces the input vote — matching cometbft/privval/signer_client.go's
-// `*vote = resp.Vote` convention.
+// SignVote sends the vote to the signer; on success only the Signature
+// (and the canonicalized Timestamp) from the response are copied back
+// into the caller's vote. Defense-in-depth: if a compromised or
+// misbehaving signer returns a Vote with a different Height, Round,
+// BlockID, or any other identifying field, we reject the response
+// rather than letting the signer dictate WHAT we sign for. CometBFT's
+// upstream `*vote = resp.Vote` convention conflates "trust the wire"
+// with "trust the signer" — we don't.
+//
+// The whole sequence (identity re-verification + sign request) runs
+// under the endpoint's instance lock so a reconnect can't substitute
+// a different signer between the pubkey check and the vote signing.
 func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 	pbVote, err := VoteToProto(vote)
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: VoteToProto: %w", err)
 	}
 
-	resp, err := sc.endpoint.SendRequest(*WrapMsg(&upstreampb.SignVoteRequest{
+	sc.endpoint.Lock()
+	defer sc.endpoint.Unlock()
+
+	if err := sc.verifyIdentityLocked(); err != nil {
+		return err
+	}
+
+	resp, err := sc.endpoint.SendRequestLocked(*WrapMsg(&upstreampb.SignVoteRequest{
 		Vote: pbVote, ChainId: chainID,
 	}))
 	if err != nil {
@@ -146,18 +175,36 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: VoteFromProto: %w", err)
 	}
-	*vote = *signedVote
+	if signedVote.Type != vote.Type ||
+		signedVote.Height != vote.Height ||
+		signedVote.Round != vote.Round ||
+		signedVote.ValidatorIndex != vote.ValidatorIndex ||
+		signedVote.ValidatorAddress != vote.ValidatorAddress ||
+		!signedVote.BlockID.Equals(vote.BlockID) {
+		return fmt.Errorf("upstream.SignerClient: signer echoed mismatched vote fields — refusing to use signature")
+	}
+	vote.Signature = signedVote.Signature
+	vote.Timestamp = signedVote.Timestamp
 	return nil
 }
 
-// SignProposal mirrors SignVote for proposals.
+// SignProposal mirrors SignVote for proposals — same echo verification
+// applies (signer may only fill in Signature and canonicalize Timestamp),
+// and identity is re-verified atomically with the sign request.
 func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) error {
 	pbProp, err := ProposalToProto(proposal)
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: ProposalToProto: %w", err)
 	}
 
-	resp, err := sc.endpoint.SendRequest(*WrapMsg(&upstreampb.SignProposalRequest{
+	sc.endpoint.Lock()
+	defer sc.endpoint.Unlock()
+
+	if err := sc.verifyIdentityLocked(); err != nil {
+		return err
+	}
+
+	resp, err := sc.endpoint.SendRequestLocked(*WrapMsg(&upstreampb.SignProposalRequest{
 		Proposal: pbProp, ChainId: chainID,
 	}))
 	if err != nil {
@@ -183,15 +230,55 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: ProposalFromProto: %w", err)
 	}
-	*proposal = *signedProp
+	if signedProp.Type != proposal.Type ||
+		signedProp.Height != proposal.Height ||
+		signedProp.Round != proposal.Round ||
+		signedProp.POLRound != proposal.POLRound ||
+		!signedProp.BlockID.Equals(proposal.BlockID) {
+		return fmt.Errorf("upstream.SignerClient: signer echoed mismatched proposal fields — refusing to use signature")
+	}
+	proposal.Signature = signedProp.Signature
+	proposal.Timestamp = signedProp.Timestamp
 	return nil
 }
 
-// fetchPubKey sends a PubKeyRequest and unwraps the response into a
-// crypto.PubKey. Used by Init() to populate the cache; not exported
-// because callers should go through Init().
-func (sc *SignerClient) fetchPubKey() (crypto.PubKey, error) {
-	resp, err := sc.endpoint.SendRequest(*WrapMsg(&upstreampb.PubKeyRequest{ChainId: sc.chainID}))
+// verifyIdentityLocked re-fetches the signer's pubkey and compares it
+// against the cached identity if the endpoint has reconnected since the
+// last verification. Caller MUST hold endpoint.Lock(). Returns an error
+// if the pubkey changed (refuse to sign for a swapped signer) or if the
+// re-fetch fails.
+//
+// No-op when the conn generation hasn't advanced — the cached identity
+// is still valid for the current conn.
+func (sc *SignerClient) verifyIdentityLocked() error {
+	currentGen := sc.endpoint.ConnectionGeneration()
+	if currentGen == sc.verifiedGen.Load() {
+		return nil
+	}
+	pk, err := sc.fetchPubKeyLocked()
+	if err != nil {
+		return fmt.Errorf("upstream.SignerClient: re-fetch pubkey on reconnect: %w", err)
+	}
+	sc.pubKeyMtx.RLock()
+	cached := sc.cachedPubKey
+	sc.pubKeyMtx.RUnlock()
+	if cached == nil {
+		return fmt.Errorf("upstream.SignerClient: identity check before Init — cachedPubKey is nil")
+	}
+	if !pk.Equals(cached) {
+		return fmt.Errorf("upstream.SignerClient: signer pubkey changed across reconnect (was %s, now %s) — refusing to sign",
+			cached.Address(), pk.Address())
+	}
+	sc.verifiedGen.Store(currentGen)
+	return nil
+}
+
+// fetchPubKeyLocked sends a PubKeyRequest and unwraps the response into
+// a crypto.PubKey. Caller MUST hold endpoint.Lock() — used by both Init
+// and verifyIdentityLocked, both of which need the lock for atomicity
+// across the multi-RPC sequence.
+func (sc *SignerClient) fetchPubKeyLocked() (crypto.PubKey, error) {
+	resp, err := sc.endpoint.SendRequestLocked(*WrapMsg(&upstreampb.PubKeyRequest{ChainId: sc.chainID}))
 	if err != nil {
 		return nil, fmt.Errorf("upstream.SignerClient: PubKeyRequest send: %w", err)
 	}

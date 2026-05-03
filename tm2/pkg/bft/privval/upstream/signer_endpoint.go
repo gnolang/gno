@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb"
@@ -31,6 +32,12 @@ type signerEndpoint struct {
 
 	connMtx sync.Mutex
 	conn    net.Conn
+
+	// connGen counts each install of a new conn on this endpoint. Used by
+	// SignerClient to detect reconnects and re-verify the signer's pubkey
+	// against its cached identity (defense against tmkms-instance swap
+	// during a connection drop).
+	connGen atomic.Uint64
 
 	timeoutReadWrite time.Duration
 }
@@ -56,6 +63,7 @@ func (se *signerEndpoint) GetAvailableConnection(connectionAvailableCh chan net.
 
 	select {
 	case se.conn = <-connectionAvailableCh:
+		se.connGen.Add(1)
 		return true
 	default:
 	}
@@ -79,6 +87,14 @@ func (se *signerEndpoint) SetConnection(newConnection net.Conn) {
 	se.connMtx.Lock()
 	defer se.connMtx.Unlock()
 	se.conn = newConnection
+	se.connGen.Add(1)
+}
+
+// ConnectionGeneration returns a counter that increments every time a
+// new conn is installed. Used by SignerClient to spot a reconnect and
+// re-verify the signer's identity before signing for it.
+func (se *signerEndpoint) ConnectionGeneration() uint64 {
+	return se.connGen.Load()
 }
 
 // DropConnection closes and clears the held conn. Idempotent.

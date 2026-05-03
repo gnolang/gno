@@ -4,15 +4,16 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 // PrivValidatorConfig defines the configuration for the PrivValidator, with a local
@@ -196,6 +197,15 @@ func newTmkmsListenerPrivValidator(
 		compatLn = upstream.NewTCPListener(t, clientPrivKey, allowlist,
 			upstream.TCPListenerTimeoutReadWrite(cfg.TimeoutReadWrite))
 	case *net.UnixListener:
+		// Default umask leaves the socket world-writable on most distros;
+		// any local user could connect and (with an SecretConnection handshake
+		// that we can't gate by allowlist on UDS) become the signer. Tighten
+		// to owner-only RW. Best-effort: ignore the error (some filesystems
+		// don't honor chmod on sockets) but log it.
+		if err := os.Chmod(address, 0o600); err != nil {
+			logger.Warn("tmkms_listener: chmod 0600 on unix socket failed; falling back to default perms",
+				"path", address, "err", err)
+		}
 		compatLn = upstream.NewUnixListener(t,
 			upstream.UnixListenerTimeoutReadWrite(cfg.TimeoutReadWrite))
 	default:
@@ -213,7 +223,10 @@ func newTmkmsListenerPrivValidator(
 	}
 
 	if err := sc.Init(cfg.WaitForConnectionTimeout); err != nil {
-		_ = sc.Close()
+		// sc.Close() only drops the conn — the endpoint goroutines and
+		// listener stay live and the port stays held. Stop the endpoint
+		// to drain serviceLoop/pingLoop and close the listener.
+		_ = endpoint.Stop()
 		return nil, err
 	}
 

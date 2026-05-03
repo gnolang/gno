@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -67,6 +69,21 @@ func TestValidateBasic(t *testing.T) {
 		cfg.RemoteSigner.AuthorizedKeys = []string{"invalid"}
 
 		assert.Error(t, cfg.ValidateBasic())
+	})
+
+	t.Run("tmkms listener enabled with empty allowlist rejected", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RemoteSigner.ServerAddress = "" // disable gnokms path
+		cfg.TmkmsListener.ListenAddr = "tcp://127.0.0.1:0"
+		cfg.TmkmsListener.ChainID = "test-chain"
+		// Leave AllowedKMSPubKeys empty — production-mode footgun must
+		// be refused at ValidateBasic time so operators don't ship a
+		// validator that accepts any peer who completes the SecretConn
+		// handshake.
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errEmptyTmkmsAllowedPubkeys)
 	})
 }
 
@@ -191,5 +208,103 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		privVal, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.Nil(t, privVal)
 		require.Error(t, err)
+	})
+
+	t.Run("tmkms listener UDS socket has 0600 perms", func(t *testing.T) {
+		t.Parallel()
+		// Default umask on most distros leaves UDS sockets group/world
+		// readable+writable. The factory chmods 0600 so a local
+		// non-root user can't enter the SecretConn handshake and
+		// attempt to become the signer.
+		if runtime.GOOS == "windows" {
+			t.Skip("UDS perm semantics differ on windows")
+		}
+
+		// macOS limits AF_UNIX paths to 104 chars; t.TempDir's path is
+		// long enough to overshoot, so use a short /tmp directory.
+		dir, err := os.MkdirTemp("/tmp", "pv")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		sockPath := filepath.Join(dir, "p.sock")
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "unix://" + sockPath
+		cfg.TmkmsListener.ChainID = "test-chain"
+		// Long enough that the socket exists while we stat it; short
+		// enough that the test exits quickly.
+		cfg.TmkmsListener.WaitForConnectionTimeout = 800 * time.Millisecond
+
+		// Run the factory in a goroutine — Init will block waiting for
+		// a signer that never arrives, then time out. Meanwhile we stat
+		// the socket from the main goroutine.
+		done := make(chan error, 1)
+		go func() {
+			_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+			done <- err
+		}()
+
+		// Poll for the socket to exist (Listen is fast; chmod runs
+		// immediately after).
+		var info os.FileInfo
+		var statErr error
+		deadline := time.Now().Add(500 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			info, statErr = os.Stat(sockPath)
+			if statErr == nil {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		require.NoError(t, statErr, "socket must exist before Init times out")
+
+		// Mode bits: only owner-RW. Higher bits (S_IFSOCK, etc.) are
+		// fine; mask to the perm bits we care about.
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
+			"UDS socket must be 0600 to keep non-owner users from connecting")
+
+		// Drain the goroutine.
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("NewPrivValidatorFromConfig did not return")
+		}
+	})
+
+	t.Run("tmkms listener Init failure releases the listener", func(t *testing.T) {
+		t.Parallel()
+
+		// Get an OS-chosen port, release it.
+		probe, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		addr := probe.Addr().String()
+		require.NoError(t, probe.Close())
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RootDir = t.TempDir()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "tcp://" + addr
+		cfg.TmkmsListener.ChainID = "test-chain"
+		cfg.TmkmsListener.WaitForConnectionTimeout = 30 * time.Millisecond
+
+		// First call: Init times out waiting for a signer to dial in.
+		// Pre-fix this leaked the bound port — the second Listen below
+		// would then fail with EADDRINUSE.
+		_, err = NewPrivValidatorFromConfig(cfg, privKey, logger)
+		require.Error(t, err)
+
+		// Listener must be released so we can re-bind the same port.
+		// Loop briefly because port release is async on some kernels.
+		var rebound net.Listener
+		for i := 0; i < 50; i++ {
+			rebound, err = net.Listen("tcp", addr)
+			if err == nil {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		require.NoError(t, err, "port must be released after Init failure")
+		require.NoError(t, rebound.Close())
 	})
 }

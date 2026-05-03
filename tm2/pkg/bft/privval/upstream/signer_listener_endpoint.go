@@ -136,7 +136,24 @@ func (sl *SignerListenerEndpoint) WaitForConnection(maxWait time.Duration) error
 func (sl *SignerListenerEndpoint) SendRequest(request upstreampb.Message) (*upstreampb.Message, error) {
 	sl.instanceMtx.Lock()
 	defer sl.instanceMtx.Unlock()
+	return sl.sendRequestLocked(request)
+}
 
+// Lock and Unlock expose the per-instance mutex so callers can bracket
+// a multi-RPC sequence atomically (e.g., SignerClient does PubKeyRequest
+// + SignVoteRequest under one lock so a reconnect can't sneak a different
+// signer in between the identity check and the vote signing). Pair with
+// SendRequestLocked.
+func (sl *SignerListenerEndpoint) Lock()   { sl.instanceMtx.Lock() }
+func (sl *SignerListenerEndpoint) Unlock() { sl.instanceMtx.Unlock() }
+
+// SendRequestLocked is SendRequest without taking the instance mutex.
+// Caller MUST hold the lock via Lock().
+func (sl *SignerListenerEndpoint) SendRequestLocked(request upstreampb.Message) (*upstreampb.Message, error) {
+	return sl.sendRequestLocked(request)
+}
+
+func (sl *SignerListenerEndpoint) sendRequestLocked(request upstreampb.Message) (*upstreampb.Message, error) {
 	if err := sl.ensureConnection(sl.timeoutAccept); err != nil {
 		return nil, err
 	}
