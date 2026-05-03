@@ -85,6 +85,24 @@ func TestValidateBasic(t *testing.T) {
 
 		assert.ErrorIs(t, cfg.ValidateBasic(), errEmptyTmkmsAllowedPubkeys)
 	})
+
+	t.Run("tmkms listener with unsupported protocol_version rejected", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultPrivValidatorConfig()
+		cfg.RemoteSigner.ServerAddress = ""
+		cfg.TmkmsListener.ListenAddr = "tcp://127.0.0.1:0"
+		cfg.TmkmsListener.ChainID = "test-chain"
+		cfg.TmkmsListener.AllowedKMSPubKeys = []string{
+			// Any 64-hex-char ed25519 pubkey suffices to clear the
+			// allowlist and parse checks; we only want to reach the
+			// protocol-version check after them.
+			"0000000000000000000000000000000000000000000000000000000000000000",
+		}
+		cfg.TmkmsListener.ProtocolVersion = "v0.99"
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), errUnsupportedProtocolVersion)
+	})
 }
 
 func TestPathGetters(t *testing.T) {

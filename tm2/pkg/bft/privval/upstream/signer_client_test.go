@@ -240,6 +240,26 @@ func TestSignerClient_SignProposal_RoundTrip(t *testing.T) {
 	assert.Equal(t, []byte{0xca, 0xfe, 0xba, 0xbe}, prop.Signature)
 }
 
+// TestSignerClient_Ping_RoundTrip: explicit Ping() round-trip exercise
+// against the fake signer's PingResponse handler. CometBFT's pingLoop
+// uses Ping for keepalive; we want a direct unit-level proof that the
+// request reaches the signer and the response is parsed correctly.
+func TestSignerClient_Ping_RoundTrip(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+	signer := newFakePrivvalSigner(t, ln.Addr().String())
+	signer.serve(t, ctx)
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+
+	require.NoError(t, sc.Ping(), "Ping must round-trip cleanly against a healthy signer")
+}
+
 // TestSignerClient_SignVote_RejectsMismatchedEcho: a misbehaving (or
 // compromised) signer that echoes a vote with mismatched fields must
 // have its signature refused — we don't let the signer dictate WHAT

@@ -17,16 +17,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
 // Errors returned by TmkmsListenerConfig.
 var (
-	errInvalidTmkmsListenAddr     = errors.New("invalid tmkms_listener.listen_addr")
-	errInvalidTmkmsAllowedPubkeys = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
-	errEmptyTmkmsChainID          = errors.New("tmkms_listener.chain_id must not be empty")
-	errEmptyTmkmsAllowedPubkeys   = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty (an empty list accepts any peer that completes the SecretConnection handshake — set explicitly only for dev/test)")
-	errBothExternalSignersEnabled = errors.New("only one of remote_signer or tmkms_listener may be configured")
+	errInvalidTmkmsListenAddr      = errors.New("invalid tmkms_listener.listen_addr")
+	errInvalidTmkmsAllowedPubkeys  = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
+	errEmptyTmkmsChainID           = errors.New("tmkms_listener.chain_id must not be empty")
+	errEmptyTmkmsAllowedPubkeys    = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty (an empty list accepts any peer that completes the SecretConnection handshake — set explicitly only for dev/test)")
+	errUnsupportedProtocolVersion  = errors.New("tmkms_listener.protocol_version must match the supported upstream Tendermint privval dialect")
+	errBothExternalSignersEnabled  = errors.New("only one of remote_signer or tmkms_listener may be configured")
 )
 
 // TmkmsListenerConfig configures the upstream-Tendermint-protocol listener.
@@ -51,6 +53,13 @@ type TmkmsListenerConfig struct {
 	// for a different network. Required for production; equivalent to
 	// the chain_id field in tmkms's [[validator]] block.
 	ChainID string `json:"chain_id" toml:"chain_id" comment:"Chain ID sent to the signer; must match tmkms.toml's [[validator]] chain_id."`
+
+	// ProtocolVersion pins the upstream Tendermint privval dialect.
+	// Today only "v0.34" is supported — the canonical sign-bytes in
+	// upstreampb are wired to v0.34's protobuf shape. Mirrors tmkms's
+	// [[validator]].protocol_version; both sides MUST agree. We refuse
+	// any other value at startup rather than silently misencode votes.
+	ProtocolVersion string `json:"protocol_version" toml:"protocol_version" comment:"Upstream Tendermint privval dialect to speak (only \"v0.34\" supported). Must match tmkms.toml's [[validator]] protocol_version."`
 
 	// TimeoutReadWrite is the read/write deadline applied to the held
 	// signer connection. Default 5s, matching cometbft.
@@ -79,6 +88,7 @@ func DefaultTmkmsListenerConfig() *TmkmsListenerConfig {
 		ListenAddr:               "",
 		AllowedKMSPubKeys:        []string{},
 		ChainID:                  "",
+		ProtocolVersion:          upstream.ProtocolVersion,
 		TimeoutReadWrite:         5 * time.Second,
 		WaitForConnectionTimeout: 60 * time.Second,
 		Retries:                  5,
@@ -115,6 +125,10 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 	}
 	if _, err := c.ParseAllowlist(); err != nil {
 		return fmt.Errorf("%w: %v", errInvalidTmkmsAllowedPubkeys, err)
+	}
+	if c.ProtocolVersion != upstream.ProtocolVersion {
+		return fmt.Errorf("%w: got %q, supported: %q",
+			errUnsupportedProtocolVersion, c.ProtocolVersion, upstream.ProtocolVersion)
 	}
 	return nil
 }
