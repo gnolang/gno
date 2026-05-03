@@ -27,8 +27,9 @@ func NewForkCmd(io commands.IO) *commands.Command {
 			LongHelp: `Build a hardfork genesis from a source chain and smoke-test it locally.
 
 Subcommands:
-  generate  Assemble a new-chain genesis.json from a source chain's state + tx history.
-  test      Run an in-memory InitChain replay against a genesis.json (fast smoke-test).
+  generate     Assemble a new-chain genesis.json from a source chain's state + tx history.
+  test         Run an in-memory InitChain replay against a genesis.json (fast smoke-test).
+  valoper-seed Build a deterministic .jsonl of valopers.Register migration txs from a CSV.
 
 Source modes (auto-detected from --source):
   http(s)://...    RPC of a running or recently-halted node
@@ -42,6 +43,7 @@ Source modes (auto-detected from --source):
 	cmd.AddSubCommands(
 		newGenerateCmd(io),
 		newTestCmd(io),
+		newValoperSeedCmd(io),
 	)
 
 	return cmd

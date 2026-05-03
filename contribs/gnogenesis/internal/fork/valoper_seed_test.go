@@ -1,0 +1,245 @@
+package fork
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// validPubKey is a deterministic ed25519 pubkey usable across cases.
+// Re-used from existing v3 test fixtures so it's a known-good string.
+const (
+	validPubKeyA = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	validPubKeyB = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
+	validPubKeyC = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5cjrffs"
+
+	// Valid g1 addresses (any valid bech32, used as operator addrs).
+	opAddrA = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	opAddrB = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	opAddrC = "g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"
+)
+
+const validHeader = "operator_addr,signing_pubkey,moniker,description,server_type"
+
+func writeCSV(t *testing.T, dir, content string) string {
+	t.Helper()
+	path := filepath.Join(dir, "valopers.csv")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+	return path
+}
+
+func runSeed(t *testing.T, dir, csvContent string) (string, error) {
+	t.Helper()
+	csvPath := writeCSV(t, dir, csvContent)
+	outPath := filepath.Join(dir, "out.jsonl")
+	cfg := &valoperSeedCfg{csvPath: csvPath, output: outPath}
+	io := commands.NewTestIO()
+	if err := execValoperSeed(t.Context(), cfg, io); err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(outPath)
+	require.NoError(t, err)
+	return string(data), nil
+}
+
+func TestValoperSeed_HappyPath(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csvContent := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice-validator,Alice's validator,cloud\n" +
+		opAddrB + "," + validPubKeyB + ",bob-validator,Bob's validator,on-prem\n"
+
+	out, err := runSeed(t, dir, csvContent)
+	require.NoError(t, err)
+
+	// Two Register lines + one final consistency-assertion line.
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	require.Len(t, lines, 3)
+
+	// Output is sorted by operator addr; opAddrB < opAddrA lexically
+	// because "g1c0j..." < "g1jg8...".
+	require.True(t, opAddrB < opAddrA, "fixture ordering assumption")
+
+	var first gnoland.TxWithMetadata
+	require.NoError(t, amino.UnmarshalJSON([]byte(lines[0]), &first))
+	require.Len(t, first.Tx.Msgs, 1)
+	msg, ok := first.Tx.Msgs[0].(vm.MsgCall)
+	require.True(t, ok, "first msg is MsgCall")
+	assert.Equal(t, "gno.land/r/gnops/valopers", msg.PkgPath)
+	assert.Equal(t, "Register", msg.Func)
+	assert.Equal(t, opAddrB, msg.Caller.String())
+	require.Len(t, msg.Args, 5)
+	assert.Equal(t, "bob-validator", msg.Args[0])
+	assert.Equal(t, opAddrB, msg.Args[3])
+	assert.Equal(t, validPubKeyB, msg.Args[4])
+	require.NotNil(t, first.Metadata)
+	assert.Equal(t, int64(0), first.Metadata.BlockHeight)
+
+	var second gnoland.TxWithMetadata
+	require.NoError(t, amino.UnmarshalJSON([]byte(lines[1]), &second))
+	msg2 := second.Tx.Msgs[0].(vm.MsgCall)
+	assert.Equal(t, opAddrA, msg2.Caller.String())
+
+	// Final line is the consistency assertion.
+	var third gnoland.TxWithMetadata
+	require.NoError(t, amino.UnmarshalJSON([]byte(lines[2]), &third))
+	require.Len(t, third.Tx.Msgs, 1)
+	msg3 := third.Tx.Msgs[0].(vm.MsgCall)
+	assert.Equal(t, "gno.land/r/sys/validators/v3", msg3.PkgPath)
+	assert.Equal(t, "AssertGenesisValopersConsistent", msg3.Func)
+	assert.Empty(t, msg3.Args, "assertion takes no args")
+}
+
+func TestValoperSeed_Idempotent(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Same CSV in two different orderings — output must be byte-equal
+	// because the tool sorts by operator address.
+	csv1 := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,cloud\n" +
+		opAddrB + "," + validPubKeyB + ",bob,Bob,on-prem\n" +
+		opAddrC + "," + validPubKeyC + ",carol,Carol,data-center\n"
+	csv2 := validHeader + "\n" +
+		opAddrC + "," + validPubKeyC + ",carol,Carol,data-center\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,cloud\n" +
+		opAddrB + "," + validPubKeyB + ",bob,Bob,on-prem\n"
+
+	dir1 := t.TempDir()
+	out1, err := runSeed(t, dir1, csv1)
+	require.NoError(t, err)
+	dir2 := t.TempDir()
+	out2, err := runSeed(t, dir2, csv2)
+	require.NoError(t, err)
+	_ = dir
+
+	hash := func(s string) string {
+		h := sha256.Sum256([]byte(s))
+		return hex.EncodeToString(h[:])
+	}
+	assert.Equal(t, hash(out1), hash(out2), "different row orders must produce byte-equal output")
+}
+
+func TestValoperSeed_RejectsDuplicateOperator(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,cloud\n" +
+		opAddrA + "," + validPubKeyB + ",alice2,Alice2,on-prem\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate operator_addr")
+
+	// No output file produced (fail-fast).
+	_, statErr := os.Stat(filepath.Join(dir, "out.jsonl"))
+	assert.True(t, os.IsNotExist(statErr), "no partial output on validation failure")
+}
+
+func TestValoperSeed_RejectsDuplicateSigningPubKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,cloud\n" +
+		opAddrB + "," + validPubKeyA + ",bob,Bob,on-prem\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate signing_pubkey")
+}
+
+func TestValoperSeed_RejectsBadPubKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + "gpub1notreallyapubkey" + ",alice,Alice,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid signing_pubkey")
+}
+
+func TestValoperSeed_RejectsBadOperatorAddr(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		"not-bech32" + "," + validPubKeyA + ",alice,Alice,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid operator_addr")
+}
+
+func TestValoperSeed_RejectsBadServerType(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",alice,Alice,bare-metal\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server_type")
+}
+
+func TestValoperSeed_RejectsEmptyMoniker(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + ",,Alice,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "moniker is empty")
+}
+
+func TestValoperSeed_RejectsTooLongMoniker(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	long := strings.Repeat("a", 33)
+	csv := validHeader + "\n" +
+		opAddrA + "," + validPubKeyA + "," + long + ",Alice,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds 32 characters")
+}
+
+func TestValoperSeed_RejectsMissingHeader(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Wrong column order.
+	csv := "signing_pubkey,operator_addr,moniker,description,server_type\n" +
+		validPubKeyA + "," + opAddrA + ",alice,Alice,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "header column")
+}
+
+func TestValoperSeed_RejectsEmptyCSV(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	_, err := runSeed(t, dir, validHeader+"\n")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no data rows")
+}
