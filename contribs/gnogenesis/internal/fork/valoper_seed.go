@@ -109,10 +109,35 @@ Validations (fail-fast, no partial output):
 Output is sorted by operator_addr so the same CSV produces a byte-equal
 .jsonl across runs. Idempotent: re-running with the same CSV is safe.
 
-Example:
+PREREQUISITE: the migration .jsonl emitted here calls
+gno.land/r/sys/validators/v3.AssertGenesisValopersConsistent and each
+Register call cross-calls v3.NotifyValoperChanged. v3 must therefore
+already be deployed at genesis. If the source chain (the one being
+forked from) does not have v3 deployed in its genesis-mode addpkg
+txs, you MUST hand-write a separate addpkg .jsonl that deploys v3
+(and any other new realms valopers transitively imports), and pass
+it BEFORE this seed via repeated --migration-tx flags. Order matters
+— addpkg first, then this seed:
+
+  gnogenesis fork generate \
+      --source ... \
+      --migration-tx addpkg-v3.jsonl \
+      --migration-tx valoper-seed.jsonl \
+      --output genesis.json
+
+If the source chain already has v3 deployed (e.g., a fresh launch or
+a fork from a chain where v3 was already live), pass --patch-realm
+on the existing addpkg and skip the manual addpkg-v3.jsonl.
+
+Example (full flow, source is gnoland-1 with v3 NOT pre-deployed):
 
   gnogenesis fork valoper-seed --csv valopers.csv --output valoper-seed.jsonl
-  gnogenesis fork generate --source ... --migration-tx valoper-seed.jsonl ...`,
+  # hand-write addpkg-v3.jsonl with MsgAddPackage for gno.land/r/sys/validators/v3
+  gnogenesis fork generate --source ... \
+      --migration-tx addpkg-v3.jsonl --migration-tx valoper-seed.jsonl \
+      --patch-realm gno.land/r/gnops/valopers=examples/gno.land/r/gnops/valopers \
+      --patch-realm gno.land/r/gnops/valopers/proposal=examples/gno.land/r/gnops/valopers/proposal \
+      --output genesis.json`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
