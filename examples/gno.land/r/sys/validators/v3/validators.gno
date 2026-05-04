@@ -20,9 +20,9 @@ import (
 
 // Operator-keyed proposal builder lives in proposal.gno
 // (NewValidatorProposalRequest + newValoperChangeExecutor). The legacy
-// signing-keyed NewProposalRequest was removed — see VALOPLAN2.md
-// for the rationale (every valid signing-keyed input is also a valid
-// operator-keyed input under always-on valoper enforcement).
+// signing-keyed NewProposalRequest was removed: every valid
+// signing-keyed input is also a valid operator-keyed input under
+// always-on valoper enforcement.
 
 // IsValidator returns true if addr is part of the effective validator
 // set (proposed if a v3 proposal is awaiting EndBlocker, else
