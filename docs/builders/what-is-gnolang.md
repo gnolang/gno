@@ -1,7 +1,8 @@
 # What is Gno?
 
-> New to Gno.land? Start with [Getting started](../getting-started.md) to go
-> from zero to a working local chain in about 10 minutes.
+> New to Gno.land? Start with [Getting started](./getting-started.md) to go
+> from zero to a working local chain in about 10 minutes — or jump to the
+> [Quick Start](./quick-start.md) if you just want the commands.
 
 [Gno](https://github.com/gnolang/gno) is an interpretation of the widely-used Go
 (Golang) programming language for blockchain created by Cosmos co-founder Jae

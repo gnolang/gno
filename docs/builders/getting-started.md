@@ -13,23 +13,6 @@ on-chain transaction. Just want the commands? See [Quick Start](./quick-start.md
 
 > Try the **[Playground](https://play.gno.land)** to write Gno in your browser
 
-## Contents
-
-- [Install](#install) — toolchain
-- [Build locally with gnodev](#build-locally-with-gnodev)
-  - [Declare the module path](#declare-the-module-path)
-  - [Write Gno code](#write-gno-code)
-  - [Format and test](#format-and-test)
-  - [Run a local chain](#run-a-local-chain)
-- [Deploy to a shared network](#deploy-to-a-shared-network)
-  - [1. Create a key](#1-create-a-key)
-  - [2. Get test tokens](#2-get-test-tokens)
-  - [3. Query on-chain](#3-query-on-chain)
-  - [4. Deploy your package](#4-deploy-your-package)
-  - [5. Call your realm](#5-call-your-realm)
-- [Next steps](#next-steps)
-- [Getting help](#getting-help)
-
 ## Install
 
 The toolchain has three binaries:
@@ -136,8 +119,8 @@ browse exported functions and source code, and view prefunded account
 balances. The `test1` account is preloaded, so no faucet is needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass multiple
-directories to load several packages at once. It
-loads by default the bundled `examples/`.
+directories to load several packages at once; the bundled `examples/`
+are loaded by default.
 
 For more options, see
 [Running a local dev node](./local-dev-with-gnodev.md) and
@@ -148,17 +131,28 @@ For more options, see
 Publish your package to a live testnet. You'll need a key, some test
 `ugnot` for gas, and one `addpkg` transaction.
 
-:::info Staging testnet
-Examples below target the staging testnet:
-`-chainid staging -remote https://rpc.staging.gno.land:443`. See
-[Networks](../resources/gnoland-networks.md) for other chain IDs and
-RPC endpoints.
-:::
+Every command that hits the chain (faucet, query, deploy, call) must
+target the same network. Pick one up front and keep `-remote` (and
+`-chainid`) consistent throughout:
+
+| Network  | `-chainid` | `-remote`                                  |
+|----------|------------|--------------------------------------------|
+| Staging  | `staging`  | `https://rpc.staging.gno.land:443`         |
+| Testnet  | `testN`    | `https://rpc.testN.testnets.gno.land:443`  |
+
+Replace `testN` with the current testnet chainid (e.g. `test13`) — see
+[Networks](../resources/gnoland-networks.md) for the full list, the
+active testnet, mainnet status, and reset cadence.
+
+Examples below use **staging** because it resets on a short cadence —
+fine for a throwaway first deploy. For anything you want to keep around,
+use the current **testnet** instead; staging wipes regularly and your
+realm will disappear with it.
 
 ### 1. Create a key
 
-Every transaction (deploy, function call) is signed by a key. Create
-one with `gnokey`:
+Every transaction (deploy, function call) is signed by a key. 
+Create one with `gnokey`:
 
 ```sh
 gnokey add dev
@@ -172,8 +166,12 @@ derived `g1...` address:
 gnokey list
 ```
 
-That address is your on-chain identity. It owns funds, signs deploys,
-and forms the base of your address-based namespace.
+```text
+0. dev (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
+```
+
+That `g1...` address is your on-chain identity. It owns funds, signs
+deploys, and forms the base of your address-based namespace.
 
 :::warning
 Keys created this way are **development-only**. Do not reuse the
@@ -217,21 +215,31 @@ gnokey maketx addpkg \
   dev
 ```
 
-Replace `<your-g1-addr>` with your address from `gnokey list`. The
-trailing `dev` is the key name from step 1. On success the response
-includes the tx hash and the new package is queryable at
-`gno.land/r/<your-g1-addr>/myrealm`. For a full flag reference, see
+The trailing `dev` is the key name from step 1. On success you'll see:
+
+```text
+OK!
+GAS WANTED: 20000000
+GAS USED:   3456789
+HEIGHT:     12345
+EVENTS:     []
+TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+```
+
+The package is now live and browsable at
+**`https://staging.gno.land/r/<your-g1-addr>/myrealm`**
+(or `https://testN.testnets.gno.land/r/...` on the current testnet).
+For a full flag reference, see
 [Cheatsheet: Deploy a Package](../cheatsheet.md#deploy-a-package).
 
-**Namespaces.** Anyone can deploy under their address-based namespace
-today. Username-based namespaces like `gno.land/r/alice/…` are not
+**Namespaces:** Anyone can deploy under their address-based namespace. Username-based namespaces like `gno.land/r/alice/…` are not
 available yet and will require registration.
 
-**CLA.** Publishing code on gno.land may require signing a
-[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md).
-If `addpkg` fails with `has not signed the required CLA`, fetch the
-current hash from [`r/sys/cla`](https://gno.land/r/sys/cla) and sign
-once, then retry the deploy:
+**CLA.** Publishing code on gno.land may require acknowledging a
+[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md) —
+read it first. If `addpkg` fails with `has not signed the required CLA`,
+fetch the current hash from [`r/sys/cla`](https://gno.land/r/sys/cla) and
+sign once to acknowledge, then retry the deploy:
 
 ```sh
 gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
@@ -253,8 +261,20 @@ gnokey maketx call \
   dev
 ```
 
-On success the response prints the return value (`(5 int)`) and a tx
-hash. To read the state without spending gas, query the realm's render:
+On success the response leads with the return value, then the tx
+receipt:
+
+```text
+(5 int)
+OK!
+GAS WANTED: 2000000
+GAS USED:   234567
+HEIGHT:     12346
+EVENTS:     []
+TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+```
+
+To read the state without spending gas, query the realm's render:
 
 ```sh
 gnokey query vm/qrender \
@@ -277,7 +297,7 @@ and [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Getting help
 
-- **[Discord](https://discord.gg/S8GTM5G9Qk)** — community chat.
+- **[Discord](https://discord.gg/TOADD)** — community chat.
 - **[Gno Forum](https://gno.land/r/gnoland/boards2/v1)** — long-form
   questions and proposals, on-chain.
 - **[GitHub issues](https://github.com/gnolang/gno/issues)** — bugs,
