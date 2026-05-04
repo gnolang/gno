@@ -241,12 +241,8 @@ func (p Proposal) HasVotingDeadlinePassed() bool {
 }
 
 // Validate validates that a proposal is valid for the current state.
-// Validation is done when proposal status is active and when the definition supports validation.
+// Validation is done when the definition supports validation.
 func (p Proposal) Validate() error {
-	if p.status != StatusActive {
-		return nil
-	}
-
 	if v, ok := p.definition.(Validable); ok {
 		return v.Validate()
 	}
