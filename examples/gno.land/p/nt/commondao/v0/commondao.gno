@@ -282,7 +282,8 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	if err == nil {
 		err = p.tally(dao.Members())
 		if err == nil && p.Status() == StatusRejected {
-			// Don't try to execute proposal if it's been rejected
+			// Don't execute proposal if it's been rejected
+			dao.finishProposal(p)
 			return nil
 		}
 	}
@@ -304,9 +305,12 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		p.status = StatusExecuted
 	}
 
-	// Whichever the outcome of the validation, tallying
-	// and execution consider the proposal finished.
+	// Whichever the outcome consider the proposal finished
+	dao.finishProposal(p)
+	return nil
+}
+
+func (dao *CommonDAO) finishProposal(p *Proposal) {
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
-	return nil
 }
