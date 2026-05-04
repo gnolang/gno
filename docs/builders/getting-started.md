@@ -11,7 +11,9 @@ libraries, and the GnoVM interprets everything. See
 This page walks you from zero to a working local chain and your first
 on-chain transaction. Just want the commands? See [Quick Start](./quick-start.md).
 
-> Try the **[Playground](https://play.gno.land)** to write Gno in your browser
+:::tip
+Try the **[Playground](https://play.gno.land)** to write Gno in your browser.
+:::
 
 ## Install
 
@@ -31,7 +33,7 @@ Binaries land in `$GOPATH/bin` — make sure it's on your `$PATH`. The
 script is bash-only; Windows users should use WSL or see
 [Other methods](./install.md) for source builds and Docker.
 
-## Build locally with gnodev
+## Run locally with gnodev
 
 This section creates a realm, runs a local chain with `gnodev`, and
 opens it in `gnoweb` in a browser.
@@ -63,7 +65,7 @@ func Increment(_ realm, n int) int {
 	return count
 }
 
-func Render(_ string) string {
+func Render(path string) string {
 	return "Count: " + strconv.Itoa(count)
 }
 ```
@@ -87,7 +89,6 @@ package myrealm
 import "testing"
 
 func TestIncrement(t *testing.T) {
-	count = 0
 	val := Increment(cross, 5)
 	if val != 5 {
 		t.Fatalf("expected 5, got %d", val)
@@ -135,10 +136,11 @@ Every command that hits the chain (faucet, query, deploy, call) must
 target the same network. Pick one up front and keep `-remote` (and
 `-chainid`) consistent throughout:
 
-| Network  | `-chainid` | `-remote`                                  |
-|----------|------------|--------------------------------------------|
-| Staging  | `staging`  | `https://rpc.staging.gno.land:443`         |
-| Testnet  | `testN`    | `https://rpc.testN.testnets.gno.land:443`  |
+| Network    | `-chainid` | `-remote`                                  |
+|------------|------------|--------------------------------------------|
+| Local      | `dev`      | `http://localhost:26657`                   |
+| Staging    | `staging`  | `https://rpc.staging.gno.land:443`         |
+| Testnet    | `testN`    | `https://rpc.testN.testnets.gno.land:443`  |
 
 Replace `testN` with the current testnet chainid (e.g. `test13`) — see
 [Networks](../resources/gnoland-networks.md) for the full list, the
@@ -199,11 +201,30 @@ Response shows your balance as `<amount>ugnot` (1 GNOT = 1,000,000
 ugnot). Read-only queries like this don't need a chainid or a key —
 they hit the RPC endpoint directly.
 
-### 4. Deploy your package
+### 4. Before you deploy
+
+Two things to know before publishing your first package:
+
+**Namespaces.** Anyone can deploy under their address-based namespace
+(`gno.land/r/<your-g1-addr>/…`). Username-based namespaces like
+`gno.land/r/alice/…` are not available yet and will require registration.
+
+**CLA.** Publishing code on gno.land may require acknowledging a
+[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md) —
+read it first. If `addpkg` fails with `has not signed the required CLA`,
+fetch the current hash from [`r/sys/cla`](https://gno.land/r/sys/cla) and
+sign once to acknowledge, then retry the deploy:
+
+```sh
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
+  -args "<current-hash>" -gas-fee 100000ugnot -gas-wanted 2000000 \
+  -chainid staging -remote https://rpc.staging.gno.land:443 dev
+```
+
+### 5. Deploy your package
 
 `addpkg` uploads a directory of `.gno` files (with its `gnomod.toml`)
-as a single package on-chain. The package path is permanent: pick it
-carefully.
+as a single package on-chain.
 
 ```sh
 gnokey maketx addpkg \
@@ -232,22 +253,7 @@ The package is now live and browsable at
 For a full flag reference, see
 [Cheatsheet: Deploy a Package](../cheatsheet.md#deploy-a-package).
 
-**Namespaces:** Anyone can deploy under their address-based namespace. Username-based namespaces like `gno.land/r/alice/…` are not
-available yet and will require registration.
-
-**CLA.** Publishing code on gno.land may require acknowledging a
-[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md) —
-read it first. If `addpkg` fails with `has not signed the required CLA`,
-fetch the current hash from [`r/sys/cla`](https://gno.land/r/sys/cla) and
-sign once to acknowledge, then retry the deploy:
-
-```sh
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
-  -args "<current-hash>" -gas-fee 100000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 dev
-```
-
-### 5. Call your realm
+### 6. Call your realm
 
 After deploying, call `Increment` to change on-chain state:
 
