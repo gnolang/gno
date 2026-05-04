@@ -114,6 +114,12 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 //   - Front-running guard: post-genesis, derived(pubKey) must not
 //     already be an active validator (a fresh registration cannot
 //     squat on the consensus address of an existing validator).
+//
+// Auth-list seeding: the profile's Authorizable owner is set to addr
+// (NOT OriginCaller). At H>0 the squat guard makes them equal anyway;
+// at H==0 the deployer pattern (one signer registers many operators)
+// requires owner == addr so each operator can manage their own profile
+// post-genesis without needing the deployer's auth.
 func Register(cur realm, moniker string, description string, serverType string, addr address, pubKey string) {
 	// Operator-slot squat guard.
 	if runtime.ChainHeight() > 0 && runtime.OriginCaller() != addr {
@@ -161,7 +167,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		SigningAddress:     signingAddr,
 		LastRotationHeight: runtime.ChainHeight(),
 		KeepRunning:        true,
-		auth:               authorizable.New(ownable.NewWithOrigin()),
+		auth:               authorizable.New(ownable.NewWithAddressByPrevious(addr)),
 	}
 
 	if err := v.Validate(); err != nil {

@@ -226,6 +226,77 @@ func TestValopers_Register(t *testing.T) {
 	})
 }
 
+func TestValopers_Register_AuthOwnerIsOperatorAddress(t *testing.T) {
+	// Pin: the Authorizable owner is bound to the OperatorAddress
+	// (the addr arg), NOT to OriginCaller. This matters in the
+	// genesis-mode deployer pattern: one signer (e.g., the hardfork
+	// ceremony deployer) registers profiles for many operators.
+	// Each operator must end up on their own profile's auth list
+	// so they can manage it post-genesis without depending on the
+	// deployer.
+	t.Run("genesis deployer pattern: operator (not deployer) is owner", func(t *testing.T) {
+		resetState()
+
+		info := validValidatorInfo(t)
+		deployer := testutils.TestAddress("deployer")
+
+		// Genesis mode: ChainHeight()==0 bypasses the squat guard so
+		// deployer (OriginCaller) can register a profile for a
+		// different operator addr.
+		testing.SetHeight(0)
+		testing.SetRealm(testing.NewUserRealm(deployer))
+		testing.SetOriginCaller(deployer)
+		testing.SetOriginSend(chain.Coins{minFee})
+
+		uassert.NotPanics(t, func() {
+			Register(cross, info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+
+		// Auth owner must be the operator addr (info.Address), NOT
+		// the deployer.
+		v := GetByAddr(info.Address)
+		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String(),
+			"auth owner must equal OperatorAddress, not OriginCaller")
+
+		// Operator can manage their own profile post-genesis.
+		testing.SetHeight(100)
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+		testing.SetOriginCaller(info.Address)
+		uassert.NotPanics(t, func() {
+			UpdateMoniker(cross, info.Address, "operator-renamed")
+		})
+		uassert.Equal(t, "operator-renamed", GetByAddr(info.Address).Moniker)
+
+		// Deployer cannot manage the operator's profile (not on the
+		// auth list).
+		testing.SetRealm(testing.NewUserRealm(deployer))
+		testing.SetOriginCaller(deployer)
+		uassert.AbortsContains(t, "caller is not in authorized list", func() {
+			UpdateMoniker(cross, info.Address, "deployer-attempt")
+		})
+	})
+
+	t.Run("post-genesis self-Register: operator is owner", func(t *testing.T) {
+		// At H>0 the squat guard forces OriginCaller==addr, so owner
+		// would be the same regardless. This subtest pins that the
+		// post-genesis behavior is unchanged.
+		resetState()
+
+		info := validValidatorInfo(t)
+		testing.SetHeight(100)
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+		testing.SetOriginCaller(info.Address)
+		testing.SetOriginSend(chain.Coins{minFee})
+
+		uassert.NotPanics(t, func() {
+			Register(cross, info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+
+		v := GetByAddr(info.Address)
+		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String())
+	})
+}
+
 func TestValopers_UpdateAuthMembers(t *testing.T) {
 	test2Address := testutils.TestAddress("test2")
 
