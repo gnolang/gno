@@ -88,6 +88,8 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 		}
 	}
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
+
+	incrementAvailableVotesForAllMembers(cross)
 }
 
 func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
@@ -132,6 +134,8 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	default:
 		return errors.New("voting can only be YES, NO, or ABSTAIN")
 	}
+
+	incrementMemberActivity(caller)
 
 	return nil
 }

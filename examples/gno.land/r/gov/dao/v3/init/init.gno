@@ -31,7 +31,7 @@ func InitWithUsers(addrs ...address) {
 		if !a.IsValid() {
 			panic("invalid address: " + a.String())
 		}
-		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})
+		memberstore.Get().SetMember(memberstore.T1, a, memberstore.NewMember(3))
 	}
 
 	dao.UpdateImpl(cross, dao.UpdateRequest{
