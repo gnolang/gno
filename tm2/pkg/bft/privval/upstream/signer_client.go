@@ -67,9 +67,22 @@ func (sc *SignerClient) Init(maxWait time.Duration) error {
 	}
 	// Take the instance lock for the whole "fetch pubkey + record gen"
 	// transaction so no reconnect can advance the gen between the fetch
-	// and the record.
+	// and the record. The lock also serializes concurrent Init() calls
+	// so the "already initialized" check below is race-free.
 	sc.endpoint.Lock()
 	defer sc.endpoint.Unlock()
+
+	// Refuse re-initialization. cachedPubKey is the validator's committed
+	// identity for this client; a second Init() against a different signer
+	// would silently overwrite it, defeating the verifyIdentityLocked
+	// invariant that anchors all subsequent SignVote / SignProposal calls.
+	sc.pubKeyMtx.RLock()
+	already := sc.cachedPubKey != nil
+	sc.pubKeyMtx.RUnlock()
+	if already {
+		return fmt.Errorf("upstream.SignerClient: Init() already called — refusing to re-initialize")
+	}
+
 	pk, err := sc.fetchPubKeyLocked()
 	if err != nil {
 		return err

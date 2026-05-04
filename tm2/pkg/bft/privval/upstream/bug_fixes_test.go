@@ -380,3 +380,50 @@ func TestBugFix_VerifyIdentityRunsAfterEnsureConnection(t *testing.T) {
 	// Mute unused-helper warnings if the test infra changes.
 	_ = bytes.Equal
 }
+
+// ---- Bug #7 ------------------------------------------------------
+//
+// Init() previously overwrote cachedPubKey unconditionally on every
+// call. A second Init() against a swapped signer (different keypair)
+// silently replaced the validator's committed identity, defeating the
+// verifyIdentityLocked invariant that anchors all subsequent
+// SignVote / SignProposal calls — pubkey-swap detection is
+// meaningless if Init can quietly re-anchor to the new key. Fix:
+// reject the second Init() outright.
+
+func TestBugFix_InitRefusesSecondCall(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+
+	sigA := []byte{0xAA, 0xAA, 0xAA, 0xAA}
+	signerA := newMarkedSigner(t, ln.Addr().String(), sigA)
+	signerA.serveOnce(t, ctx, nil)
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+	pubA := signerA.priv.PubKey()
+	require.Equal(t, pubA.Bytes(), sc.PubKey().Bytes())
+
+	// Drop the conn and let signerB take its place — exactly the
+	// hostile scenario where unguarded Init would re-anchor.
+	ep.DropConnection()
+	signerB := newMarkedSigner(t, ln.Addr().String(), []byte{0xBB, 0xBB, 0xBB, 0xBB})
+	bReady := make(chan struct{})
+	signerB.serveOnce(t, ctx, bReady)
+	select {
+	case <-bReady:
+	case <-time.After(2 * time.Second):
+		t.Fatal("signerB dial did not complete")
+	}
+
+	// Second Init() must refuse outright — never replace cachedPubKey.
+	err = sc.Init(3 * time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already called")
+	assert.Equal(t, pubA.Bytes(), sc.PubKey().Bytes(),
+		"cachedPubKey must remain signerA's key — second Init must not replace it")
+}
