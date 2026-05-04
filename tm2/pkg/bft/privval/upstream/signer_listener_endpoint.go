@@ -50,6 +50,13 @@ type SignerListenerEndpoint struct {
 	connectRequestCh      chan struct{}
 	connectionAvailableCh chan net.Conn
 
+	// stopCh is closed at the START of OnStop — before any lock
+	// acquisition — so a pending WaitForConnection that has released
+	// instanceMtx and is blocking on connectionAvailableCh can bail
+	// out immediately. BaseService.Quit() is closed only AFTER OnStop
+	// returns, which is too late to unblock such waiters.
+	stopCh chan struct{}
+
 	timeoutAccept   time.Duration
 	acceptFailCount atomic.Uint32
 	pingTimer       *time.Ticker
@@ -86,6 +93,7 @@ func NewSignerListenerEndpoint(
 func (sl *SignerListenerEndpoint) OnStart() error {
 	sl.connectRequestCh = make(chan struct{}, 1)
 	sl.connectionAvailableCh = make(chan net.Conn)
+	sl.stopCh = make(chan struct{})
 
 	// Ping interval is 2/3 of the read/write timeout, matching CometBFT.
 	sl.pingInterval = time.Duration(sl.timeoutReadWrite.Milliseconds()*2/3) * time.Millisecond
@@ -100,7 +108,22 @@ func (sl *SignerListenerEndpoint) OnStart() error {
 }
 
 // OnStop implements service.Service.
+//
+// Closes stopCh BEFORE acquiring instanceMtx so a pending
+// WaitForConnection (which has released instanceMtx for its blocking
+// wait) can observe the stop and return promptly. Without this, an
+// operator-recommended Init(60s) wait would pin Stop() for the full
+// timeout if no signer dialed in.
 func (sl *SignerListenerEndpoint) OnStop() {
+	if sl.stopCh != nil {
+		select {
+		case <-sl.stopCh:
+			// already closed
+		default:
+			close(sl.stopCh)
+		}
+	}
+
 	sl.instanceMtx.Lock()
 	defer sl.instanceMtx.Unlock()
 	_ = sl.Close()
@@ -117,15 +140,39 @@ func (sl *SignerListenerEndpoint) OnStop() {
 }
 
 // WaitForConnection blocks for up to maxWait waiting for a connected
-// signer. Returns ErrConnectionTimeout if no signer connects in time.
+// signer. Returns ErrConnectionTimeout if no signer connects in time
+// or the endpoint is stopped.
 //
 // Validator startup typically calls this once before consensus begins,
 // so the validator's identity (returned by SignerClient.GetPubKey()) is
 // available before the first vote is needed.
+//
+// instanceMtx is held only for the synchronous "check connected /
+// trigger connect" step — the blocking wait runs without the lock so
+// OnStop can take it and proceed.
 func (sl *SignerListenerEndpoint) WaitForConnection(maxWait time.Duration) error {
 	sl.instanceMtx.Lock()
-	defer sl.instanceMtx.Unlock()
-	return sl.ensureConnection(maxWait)
+	if sl.IsConnected() {
+		sl.instanceMtx.Unlock()
+		return nil
+	}
+	if sl.GetAvailableConnection(sl.connectionAvailableCh) {
+		sl.instanceMtx.Unlock()
+		return nil
+	}
+	sl.Logger.Info("SignerListener: blocking for connection")
+	sl.triggerConnect()
+	sl.instanceMtx.Unlock()
+
+	select {
+	case conn := <-sl.connectionAvailableCh:
+		sl.SetConnection(conn)
+		return nil
+	case <-time.After(maxWait):
+		return ErrConnectionTimeout
+	case <-sl.stopCh:
+		return ErrConnectionTimeout
+	}
 }
 
 // SendRequest writes one privval message and reads the response. Used by
