@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -379,6 +380,194 @@ func TestBugFix_VerifyIdentityRunsAfterEnsureConnection(t *testing.T) {
 
 	// Mute unused-helper warnings if the test infra changes.
 	_ = bytes.Equal
+}
+
+// ---- Bug #8 (chainID mismatch) -----------------------------------
+//
+// SignVote / SignProposal forwarded the caller's chainID arg to the
+// wire envelope without checking it against sc.chainID (set at
+// construction). A buggy caller passing the wrong chainID would get
+// a signature against an unintended chain. Defensive guard: refuse
+// the call.
+
+func TestBugFix_SignVoteChainIDMismatchRefused(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+	signer := newFakePrivvalSigner(t, ln.Addr().String())
+	signer.serve(t, ctx)
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           1,
+		Round:            0,
+		ValidatorAddress: makeAddr(t, 0xee),
+	}
+	err = sc.SignVote("WRONG-chain", vote)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "chainID mismatch")
+	assert.Empty(t, vote.Signature)
+}
+
+// ---- Bug #9 (drop conn on malformed envelope) --------------------
+//
+// signerEndpoint.ReadMessage drops the conn only on framing errors;
+// a syntactically valid envelope that fails UnwrapMsg / type-assert
+// / response-validation passed framing but the conn was left
+// "phantom-connected" — IsConnected() reported true and the next
+// SendRequest reused a conn that just produced garbage. Fix:
+// SignerClient drops the conn on any response-validation failure
+// (NOT on signed.Error, which is a legitimate refusal).
+
+func TestBugFix_SignVoteDropsConnOnWrongResponseType(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+
+	// Custom signer: PubKeyRequest answered correctly so Init succeeds,
+	// but SignVoteRequest answered with a PingResponse (wrong type) to
+	// trigger SignerClient's type-assert error path.
+	priv := ed25519.GenPrivKey()
+	go func() {
+		conn, err := net.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			t.Logf("dial: %v", err)
+			return
+		}
+		defer conn.Close()
+		r := upstream.NewDelimitedReader(conn, upstream.MaxRemoteSignerMsgSize)
+		w := upstream.NewDelimitedWriter(conn)
+		for ctx.Err() == nil {
+			var req upstreampb.Message
+			if _, err := r.ReadMsg(&req); err != nil {
+				return
+			}
+			inner, err := upstream.UnwrapMsg(&req)
+			if err != nil {
+				return
+			}
+			var resp interface{}
+			switch inner.(type) {
+			case *upstreampb.PubKeyRequest:
+				pbk, perr := upstream.PubKeyToProto(priv.PubKey())
+				if perr != nil {
+					return
+				}
+				resp = &upstreampb.PubKeyResponse{PubKey: pbk}
+			case *upstreampb.SignVoteRequest:
+				resp = &upstreampb.PingResponse{} // wrong type
+			default:
+				return
+			}
+			if _, werr := w.WriteMsg(upstream.WrapMsg(resp)); werr != nil {
+				return
+			}
+		}
+	}()
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+	require.True(t, ep.IsConnected())
+
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           1,
+		Round:            0,
+		ValidatorAddress: makeAddr(t, 0xcd),
+	}
+	err = sc.SignVote("test-chain", vote)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected SignedVoteResponse")
+	assert.False(t, ep.IsConnected(),
+		"conn must be dropped after a wrong-type response — pre-fix it stayed live and the next call would reuse the dirty conn")
+}
+
+// ---- Bug #10 (RetrySignerClient too narrow) ----------------------
+//
+// shouldRetry previously only retried on four named timeout sentinels
+// (ErrConnectionTimeout / ErrReadTimeout / ErrWriteTimeout /
+// ErrNoConnection). Raw io.EOF, net.ErrClosed, and decode errors —
+// all of which signer_endpoint returns unwrapped on a peer drop —
+// fell through as fatal, defeating RetrySignerClient on common
+// signer-side conn drops. Upstream cometbft retries on everything
+// except *RemoteSignerError; the tm2 narrowing was the deviation.
+
+func TestBugFix_RetrySignerClient_RetriesOnTransportError(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+
+	// Signer that answers PubKey correctly (so Init works) and then
+	// closes the conn after reading SignVoteRequest. Each retry
+	// triggers a fresh dial-in.
+	priv := ed25519.GenPrivKey()
+	var dials atomic.Int32
+	go func() {
+		for ctx.Err() == nil {
+			conn, err := net.Dial("tcp", ln.Addr().String())
+			if err != nil {
+				return
+			}
+			dials.Add(1)
+			r := upstream.NewDelimitedReader(conn, upstream.MaxRemoteSignerMsgSize)
+			w := upstream.NewDelimitedWriter(conn)
+			for {
+				var req upstreampb.Message
+				if _, err := r.ReadMsg(&req); err != nil {
+					break
+				}
+				inner, err := upstream.UnwrapMsg(&req)
+				if err != nil {
+					break
+				}
+				switch inner.(type) {
+				case *upstreampb.PubKeyRequest:
+					pbk, perr := upstream.PubKeyToProto(priv.PubKey())
+					if perr != nil {
+						break
+					}
+					_, _ = w.WriteMsg(upstream.WrapMsg(&upstreampb.PubKeyResponse{PubKey: pbk}))
+				case *upstreampb.SignVoteRequest:
+					// Drop the conn after reading — caller sees EOF.
+					_ = conn.Close()
+				}
+			}
+			_ = conn.Close()
+		}
+	}()
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+
+	rsc := upstream.NewRetrySignerClient(sc, 3, 10*time.Millisecond)
+	dialsBeforeSign := dials.Load()
+
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           1,
+		Round:            0,
+		ValidatorAddress: makeAddr(t, 0xab),
+	}
+	err = rsc.SignVote("test-chain", vote)
+	require.Error(t, err, "all attempts EOFed; final error must surface")
+	assert.Contains(t, err.Error(), "exhausted attempts",
+		"pre-fix: raw io.EOF bypassed shouldRetry and surfaced as 'send: EOF' on the first attempt")
+
+	dialsDuringSign := dials.Load() - dialsBeforeSign
+	assert.GreaterOrEqual(t, int(dialsDuringSign), 2,
+		"signer must have been dialed at least twice — proves retry happened on the EOF (got %d dials)", dialsDuringSign)
 }
 
 // ---- Bug #7 ------------------------------------------------------

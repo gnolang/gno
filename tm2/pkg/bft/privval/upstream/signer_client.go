@@ -151,6 +151,9 @@ func (sc *SignerClient) PubKey() crypto.PubKey {
 // under the endpoint's instance lock so a reconnect can't substitute
 // a different signer between the pubkey check and the vote signing.
 func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
+	if chainID != sc.chainID {
+		return fmt.Errorf("upstream.SignerClient: chainID mismatch: got %q, client constructed for %q", chainID, sc.chainID)
+	}
 	pbVote, err := VoteToProto(vote)
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: VoteToProto: %w", err)
@@ -187,23 +190,37 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 		return fmt.Errorf("upstream.SignerClient: send: %w", err)
 	}
 
+	// Response-validation failures below indicate a malformed wire
+	// message from the signer (corrupt envelope, wrong type,
+	// proto-decodable but semantically broken Vote). The framing layer
+	// has already accepted the bytes, so signer_endpoint won't drop the
+	// conn — but reusing a conn that produced garbage is unsafe (the
+	// next response could be the orphaned tail of the bad one). Drop
+	// the conn here so the next sign call forces a fresh dial.
+	// Exception: signed.Error is a legitimate refusal — the wire
+	// envelope is well-formed and the signer is alive — so we leave
+	// the conn intact for the next request.
 	inner, err := UnwrapMsg(resp)
 	if err != nil {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: unwrap: %w", err)
 	}
 	signed, ok := inner.(*upstreampb.SignedVoteResponse)
 	if !ok {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: expected SignedVoteResponse, got %T", inner)
 	}
 	if signed.Error != nil {
 		return &WrappedRemoteSignerError{Code: signed.Error.Code, Description: signed.Error.Description}
 	}
 	if signed.Vote == nil {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: SignedVoteResponse missing Vote")
 	}
 
 	signedVote, err := VoteFromProto(signed.Vote)
 	if err != nil {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: VoteFromProto: %w", err)
 	}
 	if signedVote.Type != vote.Type ||
@@ -212,6 +229,7 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 		signedVote.ValidatorIndex != vote.ValidatorIndex ||
 		signedVote.ValidatorAddress != vote.ValidatorAddress ||
 		!signedVote.BlockID.Equals(vote.BlockID) {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: signer echoed mismatched vote fields — refusing to use signature")
 	}
 	vote.Signature = signedVote.Signature
@@ -223,6 +241,9 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 // applies (signer may only fill in Signature and canonicalize Timestamp),
 // and identity is re-verified atomically with the sign request.
 func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) error {
+	if chainID != sc.chainID {
+		return fmt.Errorf("upstream.SignerClient: chainID mismatch: got %q, client constructed for %q", chainID, sc.chainID)
+	}
 	pbProp, err := ProposalToProto(proposal)
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: ProposalToProto: %w", err)
@@ -254,23 +275,30 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 		return fmt.Errorf("upstream.SignerClient: send: %w", err)
 	}
 
+	// See SignVote: drop the conn on response-validation failures to
+	// avoid reusing a conn that produced garbage. signed.Error is a
+	// legitimate refusal — leave the conn intact.
 	inner, err := UnwrapMsg(resp)
 	if err != nil {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: unwrap: %w", err)
 	}
 	signed, ok := inner.(*upstreampb.SignedProposalResponse)
 	if !ok {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: expected SignedProposalResponse, got %T", inner)
 	}
 	if signed.Error != nil {
 		return &WrappedRemoteSignerError{Code: signed.Error.Code, Description: signed.Error.Description}
 	}
 	if signed.Proposal == nil {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: SignedProposalResponse missing Proposal")
 	}
 
 	signedProp, err := ProposalFromProto(signed.Proposal)
 	if err != nil {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: ProposalFromProto: %w", err)
 	}
 	if signedProp.Type != proposal.Type ||
@@ -278,6 +306,7 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 		signedProp.Round != proposal.Round ||
 		signedProp.POLRound != proposal.POLRound ||
 		!signedProp.BlockID.Equals(proposal.BlockID) {
+		sc.endpoint.DropConnection()
 		return fmt.Errorf("upstream.SignerClient: signer echoed mismatched proposal fields — refusing to use signature")
 	}
 	proposal.Signature = signedProp.Signature
