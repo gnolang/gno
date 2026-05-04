@@ -510,6 +510,68 @@ func TestNewValidatorProposalRequest_PhantomBaselineWouldGhost(t *testing.T) {
 		"three entries — phantom-state ghost; this state is unreachable via natural flow")
 }
 
+func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
+	// Pin GetValsetEffective semantics under same-block ordering:
+	// proposal-execute first writes valset:proposed (dirty=true);
+	// the next rotation (also same-block) reads proposed-when-dirty
+	// as its baseline and accumulates instead of clobbering. The
+	// final published valset must reflect BOTH changes — power
+	// upserted on the operator AND the operator's signing key
+	// rotated to NEW.
+	resetValset(t)
+	resetCache()
+
+	// Seed valset with two operators: opA at OLD (pubKeyA) power=1,
+	// opB at pubKeyB power=5.
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":1",
+		pubKeyB + ":5",
+	})
+
+	opA := testutils.TestAddress("op-A")
+	opB := testutils.TestAddress("op-B")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{
+		{op: opA, pubKey: pubKeyA, keepRunning: true},
+		{op: opB, pubKey: pubKeyB, keepRunning: true},
+	})
+
+	// Phase 1 (same block): proposal-execute upserts opA's power
+	// from 1 to 3. baseline=current, set[addrA]=power=3, publish
+	// proposed=[pubKeyA:3, pubKeyB:5], dirty=true.
+	urequire.NoError(t, newValoperChangeExecutor(
+		[]ValoperChange{{OperatorAddress: opA, Power: 3}},
+	).Execute(cross))
+
+	// Phase 2 (same block): rotate opA OLD -> NEW (pubKeyA -> pubKeyC).
+	// RotateValoperSigningKey reads GetValsetEffective which returns
+	// proposed-when-dirty = [pubKeyA:3, pubKeyB:5]. It deletes
+	// addrA, inserts addrC carrying the SAME power (3) preserved
+	// from the previous proposal — accumulation, not clobber.
+	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
+	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyC)
+	NotifyValoperChanged(cross, opA, pubKeyC, mustAddr(t, pubKeyC), true)
+
+	// Final published valset must have pubKeyC at power=3 (both the
+	// power update AND the rotation applied) and pubKeyB unchanged.
+	// Critically, pubKeyA must NOT appear (no clobber back to old
+	// state) and pubKeyC must NOT be at the old power=1 (no missed
+	// upsert).
+	effective := sysparams.GetValsetEffective()
+	powerOf := map[string]uint64{}
+	for _, v := range effective {
+		powerOf[v.PubKey] = v.VotingPower
+	}
+	uassert.Equal(t, uint64(3), powerOf[pubKeyC], "rotation accumulates with prior upsert; final power=3")
+	uassert.Equal(t, uint64(5), powerOf[pubKeyB], "opB unchanged")
+	_, gotOld := powerOf[pubKeyA]
+	uassert.False(t, gotOld, "OLD signing key (pubKeyA) must not appear after rotation")
+	urequire.Equal(t, 2, len(effective), "exactly two entries — opA(NEW) and opB")
+}
+
 // contains is a tiny strings.Contains shim so tests don't import a
 // new package.
 func contains(s, substr string) bool {
