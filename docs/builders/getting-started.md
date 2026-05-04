@@ -64,9 +64,11 @@ gnokey query bank/balances/g1... -remote https://rpc.gno.land:443
 
 The toolchain has three binaries:
 
-- **`gno`** — language tool: format, test, run, init modules.
-- **`gnokey`** — wallet + transaction CLI: keys, queries, deploys.
-- **`gnodev`** — local dev chain with hot reload and a web UI.
+| Binary    | What it is                                              |
+|-----------|---------------------------------------------------------|
+| `gno`     | the Gno language toolchain (format, test, run, mod init)|
+| `gnokey`  | key management for interacting with the network         |
+| `gnodev`  | local development environment with hot reload + web UI  |
 
 One-liner installs all three:
 
@@ -75,17 +77,19 @@ One-liner installs all three:
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-After installing, `gno`, `gnokey`, and `gnodev` should be available in
-`$GOPATH/bin`. Verify with `gno --help`. If the shell can't find them,
-see [Other methods](./install.md) for source builds, Docker, and PATH
-fixes.
+Verify the install:
+
+```sh
+gno --help
+```
+
+Binaries land in `$GOPATH/bin`. If your shell can't find them, verify
+`$GOPATH/bin` is in `$PATH`. See [Other methods](./install.md) for source
+builds and Docker.
 
 ## Build locally with gnodev
 
-`gnodev` is the local tool to build Gno packages. It runs a private
-chain on your machine with test wallets already funded, a web UI, and
-hot reload on every save. Iterate here before deploying to a real
-chain ([Deploy](#deploy-to-a-shared-network)).
+`gnodev` is your local sandbox for building Gno packages.
 
 ### Declare the module path
 
