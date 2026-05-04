@@ -318,6 +318,37 @@ func TestShouldAssertValoperCoverage(t *testing.T) {
 	}
 }
 
+// TestInitChainer_SkipValoperCoverageAssertion guards the cfg-level
+// override against the hardfork auto-assertion. Without it, gnogenesis
+// fork test (synthetic MockPV with no valoper profile) trips the
+// assertion and aborts boot. Underlying request-level gating is
+// covered by TestShouldAssertValoperCoverage; this test only exercises
+// the flag composition.
+func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
+	t.Parallel()
+
+	hardforkReq := abci.RequestInitChain{
+		Validators: generateValidatorUpdates(t, 1),
+		AppState:   GnoGenesisState{PastChainIDs: []string{"old-chain"}},
+	}
+
+	cases := []struct {
+		name string
+		skip bool
+		want bool
+	}{
+		{name: "flag false: assertion runs", skip: false, want: true},
+		{name: "flag true: assertion skipped", skip: true, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := InitChainerConfig{SkipValoperCoverageAssertion: tc.skip}
+			got := cfg.shouldRunValoperCoverageAssertion(hardforkReq)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // generateValidatorUpdates generates dummy validator updates
 func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	t.Helper()

@@ -33,8 +33,7 @@ const errNoValoperChanges = "no valoper changes proposed"
 //
 // NON-CROSSING (no `cur realm`). Direct MsgCall is unsupported;
 // proposers route through r/gnops/valopers/proposal's facade
-// (which IS crossing and accepts user txs). Mirrors the existing
-// v3 NewProposalRequest convention.
+// (which IS crossing and accepts user txs).
 //
 // Validation at creation time:
 //   - Each operator may appear AT MOST ONCE in changes; duplicates

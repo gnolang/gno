@@ -397,7 +397,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// Failure here is unconditionally fatal — independent of StrictReplay
 	// — because a hardfork that boots with uncovered genesis validators
 	// has lost the operator-keyed management plane for those validators.
-	if !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req) {
+	if cfg.shouldRunValoperCoverageAssertion(req) {
 		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
 			return abci.ResponseInitChain{
 				ResponseBase: abci.ResponseBase{
@@ -413,6 +413,13 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		Validators:  req.Validators,
 		TxResponses: txResponses,
 	}
+}
+
+// shouldRunValoperCoverageAssertion combines the cfg override with the
+// request-level gate. See SkipValoperCoverageAssertion for why the
+// override exists.
+func (cfg InitChainerConfig) shouldRunValoperCoverageAssertion(req abci.RequestInitChain) bool {
+	return !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req)
 }
 
 // shouldAssertValoperCoverage gates the hardfork-mode v3 invariant
