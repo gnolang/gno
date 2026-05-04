@@ -62,27 +62,28 @@ func NewSignerClient(endpoint *SignerListenerEndpoint, chainID string) (*SignerC
 // Typical startup flow: construct client, call Init(maxWait); from then
 // on PubKey()/SignVote/SignProposal are safe.
 func (sc *SignerClient) Init(maxWait time.Duration) error {
+	// Init is one-shot. cachedPubKey is the validator's committed
+	// identity for this client; a second Init() against a swapped
+	// signer would silently overwrite it, defeating the
+	// verifyIdentityLocked invariant. The only legitimate caller is
+	// node startup (privval/config.go), which calls Init exactly
+	// once — a second call is a programmer bug, not a runtime
+	// condition, so panic rather than return an error.
+	sc.pubKeyMtx.RLock()
+	already := sc.cachedPubKey != nil
+	sc.pubKeyMtx.RUnlock()
+	if already {
+		panic("upstream.SignerClient: Init() called more than once — Init is one-shot")
+	}
+
 	if err := sc.endpoint.WaitForConnection(maxWait); err != nil {
 		return fmt.Errorf("upstream.SignerClient: wait for signer: %w", err)
 	}
 	// Take the instance lock for the whole "fetch pubkey + record gen"
 	// transaction so no reconnect can advance the gen between the fetch
-	// and the record. The lock also serializes concurrent Init() calls
-	// so the "already initialized" check below is race-free.
+	// and the record.
 	sc.endpoint.Lock()
 	defer sc.endpoint.Unlock()
-
-	// Refuse re-initialization. cachedPubKey is the validator's committed
-	// identity for this client; a second Init() against a different signer
-	// would silently overwrite it, defeating the verifyIdentityLocked
-	// invariant that anchors all subsequent SignVote / SignProposal calls.
-	sc.pubKeyMtx.RLock()
-	already := sc.cachedPubKey != nil
-	sc.pubKeyMtx.RUnlock()
-	if already {
-		return fmt.Errorf("upstream.SignerClient: Init() already called — refusing to re-initialize")
-	}
-
 	pk, err := sc.fetchPubKeyLocked()
 	if err != nil {
 		return err

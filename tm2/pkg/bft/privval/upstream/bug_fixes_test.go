@@ -388,10 +388,12 @@ func TestBugFix_VerifyIdentityRunsAfterEnsureConnection(t *testing.T) {
 // silently replaced the validator's committed identity, defeating the
 // verifyIdentityLocked invariant that anchors all subsequent
 // SignVote / SignProposal calls — pubkey-swap detection is
-// meaningless if Init can quietly re-anchor to the new key. Fix:
-// reject the second Init() outright.
+// meaningless if Init can quietly re-anchor to the new key. Init is
+// one-shot in correct caller code (only node startup calls it), so
+// the fix is to panic on a second call rather than return an error
+// — a second call is a programmer bug, not a runtime condition.
 
-func TestBugFix_InitRefusesSecondCall(t *testing.T) {
+func TestBugFix_InitPanicsOnSecondCall(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -408,22 +410,11 @@ func TestBugFix_InitRefusesSecondCall(t *testing.T) {
 	pubA := signerA.priv.PubKey()
 	require.Equal(t, pubA.Bytes(), sc.PubKey().Bytes())
 
-	// Drop the conn and let signerB take its place — exactly the
-	// hostile scenario where unguarded Init would re-anchor.
-	ep.DropConnection()
-	signerB := newMarkedSigner(t, ln.Addr().String(), []byte{0xBB, 0xBB, 0xBB, 0xBB})
-	bReady := make(chan struct{})
-	signerB.serveOnce(t, ctx, bReady)
-	select {
-	case <-bReady:
-	case <-time.After(2 * time.Second):
-		t.Fatal("signerB dial did not complete")
-	}
-
-	// Second Init() must refuse outright — never replace cachedPubKey.
-	err = sc.Init(3 * time.Second)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already called")
+	// Second Init() must panic — never replace cachedPubKey.
+	assert.PanicsWithValue(t,
+		"upstream.SignerClient: Init() called more than once — Init is one-shot",
+		func() { _ = sc.Init(3 * time.Second) },
+	)
 	assert.Equal(t, pubA.Bytes(), sc.PubKey().Bytes(),
-		"cachedPubKey must remain signerA's key — second Init must not replace it")
+		"cachedPubKey must remain signerA's key after the second-Init panic")
 }
