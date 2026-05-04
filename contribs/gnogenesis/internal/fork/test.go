@@ -199,6 +199,10 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			GenesisTxResultHandler: txResultHandler,
 			StdlibDir:              stdlibDir,
 			CacheStdlibLoad:        false,
+			// fork test injects a fresh MockPV as the sole genesis
+			// validator; its signing addr has no valoper profile, so
+			// the hardfork-mode coverage assertion would fire spuriously.
+			SkipValoperCoverageAssertion: true,
 		},
 	}
 

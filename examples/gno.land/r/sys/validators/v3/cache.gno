@@ -156,11 +156,11 @@ func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string)
 // an attacker could pay gas to repeatedly invoke an O(N) iteration
 // over valoperCache + valset:current after the chain is live.
 //
-// If the assertion fires during genesis-mode replay, gnogenesis fork
-// test --skip-failing-genesis-txs=false surfaces it and the chain
-// refuses to boot. valoper-seed automatically emits this call as the
-// final line of its output; hand-crafted migration .jsonls should
-// include it explicitly.
+// gnoland's InitChainer auto-runs this assertion at end of
+// genesis-mode replay when GnoGenesisState.PastChainIDs is non-empty;
+// failure aborts the boot unconditionally. valoper-seed and
+// hand-crafted migration .jsonls do NOT need to emit the call
+// themselves.
 //
 // Crossing function: callable via MsgCall (only at genesis-mode).
 // Doesn't mutate state — pure invariant check. Inverse direction

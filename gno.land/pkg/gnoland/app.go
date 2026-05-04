@@ -326,6 +326,15 @@ type InitChainerConfig struct {
 	// failures.
 	StrictReplay bool
 
+	// SkipValoperCoverageAssertion turns off the hardfork-mode
+	// AssertGenesisValopersConsistent auto-call. Useful for paths that
+	// boot a chain with PastChainIDs set but a synthetic req.Validators
+	// that won't match any seeded valoper profile — e.g. gnogenesis
+	// fork test replaces genDoc.Validators with a fresh MockPV whose
+	// signing addr is never registered, so the assertion would fire
+	// spuriously. Production hardfork boots leave this false.
+	SkipValoperCoverageAssertion bool
+
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
 	baseApp *sdk.BaseApp
@@ -388,7 +397,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// Failure here is unconditionally fatal — independent of StrictReplay
 	// — because a hardfork that boots with uncovered genesis validators
 	// has lost the operator-keyed management plane for those validators.
-	if shouldAssertValoperCoverage(req) {
+	if !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req) {
 		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
 			return abci.ResponseInitChain{
 				ResponseBase: abci.ResponseBase{
