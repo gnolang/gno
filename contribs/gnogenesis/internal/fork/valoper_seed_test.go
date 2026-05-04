@@ -63,9 +63,13 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	out, err := runSeed(t, dir, csvContent)
 	require.NoError(t, err)
 
-	// Two Register lines + one final consistency-assertion line.
+	// Two Register lines, no tail-line assertion: the consistency
+	// check is auto-run by gnoland's InitChainer at end of genesis-
+	// mode replay (and is unconditionally fatal there), so emitting
+	// it as a tx here would be both redundant and less load-bearing
+	// (a tx-form failure is swallowed without --strict-replay).
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	require.Len(t, lines, 3)
+	require.Len(t, lines, 2)
 
 	// Output is sorted by operator addr; opAddrB < opAddrA lexically
 	// because "g1c0j..." < "g1jg8...".
@@ -90,15 +94,6 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	require.NoError(t, amino.UnmarshalJSON([]byte(lines[1]), &second))
 	msg2 := second.Tx.Msgs[0].(vm.MsgCall)
 	assert.Equal(t, opAddrA, msg2.Caller.String())
-
-	// Final line is the consistency assertion.
-	var third gnoland.TxWithMetadata
-	require.NoError(t, amino.UnmarshalJSON([]byte(lines[2]), &third))
-	require.Len(t, third.Tx.Msgs, 1)
-	msg3 := third.Tx.Msgs[0].(vm.MsgCall)
-	assert.Equal(t, "gno.land/r/sys/validators/v3", msg3.PkgPath)
-	assert.Equal(t, "AssertGenesisValopersConsistent", msg3.Func)
-	assert.Empty(t, msg3.Args, "assertion takes no args")
 }
 
 func TestValoperSeed_Idempotent(t *testing.T) {

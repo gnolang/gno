@@ -40,18 +40,10 @@ const (
 	valopersPkgPath = "gno.land/r/gnops/valopers"
 	registerFunc    = "Register"
 
-	v3PkgPath              = "gno.land/r/sys/validators/v3"
-	assertConsistentFunc   = "AssertGenesisValopersConsistent"
-
 	// gas budget per Register tx — enough headroom for the realm's
 	// signingRegistry insert + cross-call into v3 NotifyValoperChanged.
 	// Tuned against the txtar e2e tests (60M was sufficient there).
 	defaultRegisterGasWanted = 60_000_000
-
-	// gas budget for the final consistency-assertion tx. Walks the
-	// valoperCache once + iterates valset:current; bounded by the
-	// validator-set size (≤ ~50 in practice).
-	defaultAssertGasWanted = 30_000_000
 )
 
 type valoperSeedCfg struct {
@@ -109,9 +101,10 @@ Validations (fail-fast, no partial output):
 Output is sorted by operator_addr so the same CSV produces a byte-equal
 .jsonl across runs. Idempotent: re-running with the same CSV is safe.
 
-PREREQUISITE: the migration .jsonl emitted here calls
-gno.land/r/sys/validators/v3.AssertGenesisValopersConsistent and each
-Register call cross-calls v3.NotifyValoperChanged. v3 must therefore
+PREREQUISITE: each Register call cross-calls
+gno.land/r/sys/validators/v3.NotifyValoperChanged, and gnoland's
+InitChainer auto-runs v3.AssertGenesisValopersConsistent at end of
+genesis-mode replay (when PastChainIDs is set). v3 must therefore
 already be deployed at genesis. If the source chain (the one being
 forked from) does not have v3 deployed in its genesis-mode addpkg
 txs, use 'gnogenesis fork addpkg' to produce a separate .jsonl
@@ -183,23 +176,19 @@ func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) err
 		buf.WriteByte('\n')
 	}
 
-	// Final tx: invariant assertion. Caller is the first row's
-	// operator address (any valid g1 caller works for a no-side-
-	// effect assertion call; using a row's address avoids needing
-	// a separate test fixture).
-	assertTx := buildAssertTx(rows[0])
-	assertLine, err := amino.MarshalJSON(assertTx)
-	if err != nil {
-		return fmt.Errorf("marshal assertion tx: %w", err)
-	}
-	buf.Write(assertLine)
-	buf.WriteByte('\n')
+	// No tail-line invariant tx is emitted: gnoland InitChainer auto-runs
+	// AssertGenesisValopersConsistent at end of genesis-mode replay in
+	// hardfork mode (PastChainIDs > 0). That path is unconditionally
+	// fatal on assertion failure — independent of --strict-replay — so
+	// embedding the assertion as a tx here would be both redundant and
+	// less load-bearing (a tx-form failure is swallowed without strict
+	// mode).
 
 	if err := os.WriteFile(cfg.output, []byte(buf.String()), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", cfg.output, err)
 	}
 
-	io.Printfln("wrote %d valoper Register txs + 1 invariant assertion to %s", len(rows), cfg.output)
+	io.Printfln("wrote %d valoper Register txs to %s", len(rows), cfg.output)
 	return nil
 }
 
@@ -371,34 +360,3 @@ func buildRegisterTx(row seedRow) gnoland.TxWithMetadata {
 	}
 }
 
-// buildAssertTx produces the invariant-check tx that runs as the LAST
-// line of the migration .jsonl. v3.AssertGenesisValopersConsistent
-// panics if any genesis-valset entry lacks a corresponding valoper
-// profile — which would mean the .jsonl was missing rows, the CSV
-// was incomplete, or someone hand-edited GenesisDoc.Validators
-// without a matching profile entry. Failing here aborts genesis-mode
-// replay (under --skip-failing-genesis-txs=false) and the chain
-// refuses to boot, surfacing the misconfiguration loudly.
-func buildAssertTx(callerRow seedRow) gnoland.TxWithMetadata {
-	caller, _ := crypto.AddressFromBech32(callerRow.OperatorAddr)
-
-	msg := vm.MsgCall{
-		Caller:  caller,
-		PkgPath: v3PkgPath,
-		Func:    assertConsistentFunc,
-		Args:    nil,
-	}
-
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(defaultAssertGasWanted, std.NewCoin("ugnot", 0)),
-		Signatures: []std.Signature{},
-	}
-
-	return gnoland.TxWithMetadata{
-		Tx: tx,
-		Metadata: &gnoland.GnoTxMetadata{
-			BlockHeight: 0,
-		},
-	}
-}

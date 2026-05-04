@@ -374,11 +374,55 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	ctx.Logger().Debug("InitChainer: genesis transactions loaded",
 		"elapsed", time.Since(start))
 
+	// Hardfork-mode invariant: every signing addr in valset:current must
+	// have a corresponding valoper profile in r/sys/validators/v3's
+	// valoperCache. valoper-seed migration .jsonls produce these profiles;
+	// the chain refuses to boot if any genesis validator is uncovered.
+	//
+	// Gated on (a) the hardfork signal (non-empty GnoGenesisState.PastChainIDs)
+	// and (b) non-empty req.Validators. Fresh chains and dev/lazy-init/txtar
+	// setups have empty PastChainIDs and trivially skip; hardfork tests
+	// that set PastChainIDs without seeding validators also skip — there's
+	// nothing to cover and the realm may not be loaded.
+	//
+	// Failure here is unconditionally fatal — independent of StrictReplay
+	// — because a hardfork that boots with uncovered genesis validators
+	// has lost the operator-keyed management plane for those validators.
+	if cfg.shouldAssertValoperCoverage(req) {
+		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
+			return abci.ResponseInitChain{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError(fmt.Errorf("genesis valoper coverage assertion failed: %w", err).Error()),
+				},
+				TxResponses: txResponses,
+			}
+		}
+	}
+
 	// Done!
 	return abci.ResponseInitChain{
 		Validators:  req.Validators,
 		TxResponses: txResponses,
 	}
+}
+
+// shouldAssertValoperCoverage returns true when InitChainer must run
+// the v3 valoper-coverage invariant after loadAppState succeeds.
+// Conditions: (1) the AppState carries non-empty PastChainIDs (the
+// authoritative hardfork-mode signal — InitialHeight alone is not,
+// since tests/devnets use InitialHeight > 1 for non-hardfork
+// scenarios); (2) the genesis valset is non-empty (otherwise the
+// assertion is trivially satisfied and would just require v3 to be
+// loaded for no benefit).
+func (cfg InitChainerConfig) shouldAssertValoperCoverage(req abci.RequestInitChain) bool {
+	if len(req.Validators) == 0 {
+		return false
+	}
+	state, ok := req.AppState.(GnoGenesisState)
+	if !ok {
+		return false
+	}
+	return len(state.PastChainIDs) > 0
 }
 
 func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
@@ -632,6 +676,51 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 	}
 
 	return txResponses, nil
+}
+
+// assertGenesisValopersConsistent invokes
+// gno.land/r/sys/validators/v3.AssertGenesisValopersConsistent at the
+// end of genesis-mode replay via the VM keeper directly (no tx
+// pipeline, no AnteHandler, no fee accounting). Returns nil on
+// success or a wrapped panic on assertion failure.
+//
+// Caller is the first genesis validator's address. Any valid bech32
+// works because the call sends zero coins (bank.SendCoins is a no-op
+// for zero amount), so no account need exist for that caller.
+//
+// If v3 itself is not deployed in the genesis state, the underlying
+// gnostore lookup panics outside of vmk.Call's own recover. A defer
+// here catches that case and skips with a warning rather than
+// crashing the node — production hardfork ceremonies always deploy
+// v3 (via gnogenesis fork addpkg), and if they don't the
+// valoper-seed Register migration txs panic loudly anyway, so
+// skipping here doesn't mask a real failure.
+func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci.RequestInitChain) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg := fmt.Sprint(r)
+			if strings.Contains(msg, "unexpected node with location gno.land/r/sys/validators/v3") {
+				ctx.Logger().Warn(
+					"valoper coverage assertion skipped: v3 not deployed in genesis",
+					"detail", msg,
+				)
+				err = nil
+				return
+			}
+			err = fmt.Errorf("assertion panic: %s", msg)
+		}
+	}()
+	msg := vm.MsgCall{
+		Caller:  req.Validators[0].Address,
+		PkgPath: "gno.land/r/sys/validators/v3",
+		Func:    "AssertGenesisValopersConsistent",
+	}
+	vmCtx := vmk.MakeGnoTransactionStore(ctx)
+	if _, e := vmk.Call(vmCtx, msg); e != nil {
+		return e
+	}
+	vmk.CommitGnoTransactionStore(vmCtx)
+	return nil
 }
 
 // endBlockerApp is the app abstraction required by any EndBlocker

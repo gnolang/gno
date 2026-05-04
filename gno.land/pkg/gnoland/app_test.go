@@ -269,6 +269,56 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	}
 }
 
+func TestShouldAssertValoperCoverage(t *testing.T) {
+	t.Parallel()
+
+	cfg := InitChainerConfig{}
+	dummyVals := generateValidatorUpdates(t, 1)
+
+	cases := []struct {
+		name string
+		req  abci.RequestInitChain
+		want bool
+	}{
+		{
+			name: "fresh chain, no validators",
+			req:  abci.RequestInitChain{AppState: GnoGenesisState{}},
+			want: false,
+		},
+		{
+			name: "fresh chain, validators present",
+			req:  abci.RequestInitChain{Validators: dummyVals, AppState: GnoGenesisState{}},
+			want: false,
+		},
+		{
+			name: "hardfork PastChainIDs but no validators",
+			req:  abci.RequestInitChain{AppState: GnoGenesisState{PastChainIDs: []string{"old"}}},
+			want: false,
+		},
+		{
+			name: "hardfork PastChainIDs + validators",
+			req:  abci.RequestInitChain{Validators: dummyVals, AppState: GnoGenesisState{PastChainIDs: []string{"old"}}},
+			want: true,
+		},
+		{
+			name: "non-genesis InitialHeight alone (NOT a hardfork signal)",
+			req:  abci.RequestInitChain{Validators: dummyVals, InitialHeight: 100, AppState: GnoGenesisState{}},
+			want: false,
+		},
+		{
+			name: "AppState wrong type (defensive)",
+			req:  abci.RequestInitChain{Validators: dummyVals, AppState: nil},
+			want: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := cfg.shouldAssertValoperCoverage(tc.req)
+			assert.Equal(t, tc.want, got, "case %q", tc.name)
+		})
+	}
+}
+
 // generateValidatorUpdates generates dummy validator updates
 func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	t.Helper()
