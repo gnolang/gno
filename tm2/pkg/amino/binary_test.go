@@ -265,6 +265,63 @@ func TestStructPointerSlice2(t *testing.T) {
 	assert.NotNil(t, f2.C[0])
 }
 
+// TestNonStructPointerSliceNilElements exercises []*string (non-struct pointer
+// element) with amino:"nil_elements". Prior to the fix in binary_decode.go the
+// reflect decoder returned new(string)=&"" for 0x00 slots, while genproto2
+// (post-nil_elements fix) returned nil — a silent cross-codec divergence that
+// no existing test covered because all existing nil_elements uses target
+// struct pointers.
+func TestNonStructPointerSliceNilElements(t *testing.T) {
+	t.Parallel()
+
+	type Foo struct {
+		Vals []*string `amino:"nil_elements"`
+	}
+
+	cdc := amino.NewCodec()
+
+	s := "hi"
+	orig := Foo{Vals: []*string{&s, nil, &s}}
+	bz, err := cdc.MarshalReflect(orig)
+	require.NoError(t, err)
+
+	var decoded Foo
+	require.NoError(t, cdc.UnmarshalReflect(bz, &decoded))
+	require.Len(t, decoded.Vals, 3)
+	require.NotNil(t, decoded.Vals[0])
+	assert.Equal(t, "hi", *decoded.Vals[0])
+	assert.Nil(t, decoded.Vals[1], "0x00 with nil_elements must decode as nil, not &\"\"")
+	require.NotNil(t, decoded.Vals[2])
+	assert.Equal(t, "hi", *decoded.Vals[2])
+}
+
+// TestNonStructPointerArrayNilElements is the array-path companion to
+// TestNonStructPointerSliceNilElements. The reflect decoder's 0x00 sentinel
+// lives at two sites in binary_decode.go — the array path and the slice
+// path — and the fix must apply to both.
+func TestNonStructPointerArrayNilElements(t *testing.T) {
+	t.Parallel()
+
+	type Foo struct {
+		Vals [3]*string `amino:"nil_elements"`
+	}
+
+	cdc := amino.NewCodec()
+
+	s := "hi"
+	orig := Foo{Vals: [3]*string{&s, nil, &s}}
+	bz, err := cdc.MarshalReflect(orig)
+	require.NoError(t, err)
+
+	var decoded Foo
+	require.NoError(t, cdc.UnmarshalReflect(bz, &decoded))
+	require.NotNil(t, decoded.Vals[0])
+	assert.Equal(t, "hi", *decoded.Vals[0])
+	assert.Nil(t, decoded.Vals[1], "0x00 with nil_elements must decode as nil, not &\"\"")
+	require.NotNil(t, decoded.Vals[2])
+	assert.Equal(t, "hi", *decoded.Vals[2])
+}
+
 func TestBasicTypes(t *testing.T) {
 	t.Parallel()
 
