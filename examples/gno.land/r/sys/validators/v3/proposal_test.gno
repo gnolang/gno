@@ -382,6 +382,134 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *te
 	})
 }
 
+func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(t *testing.T) {
+	// Regression: under the natural rotation-then-power-update flow,
+	// the executor must not leave a stale OLD signing addr in the
+	// published valset. The flow is:
+	//
+	//   1. opA in valset under OLD (pubKeyA) at power=1.
+	//   2. RotateValoperSigningKey(opA, OLD, NEW) — this is what
+	//      valopers.UpdateSigningKey calls. The rotate function
+	//      reads GetValsetEffective, deletes set[OLD], inserts
+	//      set[NEW]@1, and publishes via SetValsetProposal. Sets
+	//      dirty=true. valset:proposed now has NEW (no OLD).
+	//   3. NotifyValoperChanged updates cache to NEW.
+	//   4. Later, a proposal {opA, power=2} executes. Its baseline
+	//      = GetValsetEffective() returns proposed (since
+	//      dirty=true), reflecting the post-rotation NEW signing
+	//      addr — NOT OLD. Executor upserts set[NEW]=NEW@2. No
+	//      OLD ghost.
+	//
+	// The pre-existing "rotation-crossover" concern was speculation
+	// that baseline could carry OLD while cache carries NEW; under
+	// the natural flow that state never arises because rotation
+	// publishes BEFORE any subsequent executor reads.
+	resetValset(t)
+	resetCache()
+
+	// Step 1: seed valset:current with opA at OLD@1 and a peer.
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":1",
+		pubKeyB + ":5",
+	})
+	opA := testutils.TestAddress("op-A")
+	opB := testutils.TestAddress("op-B")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{
+		{op: opA, pubKey: pubKeyA, keepRunning: true},
+		{op: opB, pubKey: pubKeyB, keepRunning: true},
+	})
+
+	// Step 2: rotate opA OLD -> NEW (pubKeyA -> pubKeyC). This is
+	// the gate-protected v3 entrypoint; auth requires PreviousRealm
+	// == valopers.
+	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
+	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyC)
+
+	// Step 3: simulate NotifyValoperChanged updating the cache —
+	// in the real flow this is the next call from valopers.
+	NotifyValoperChanged(cross, opA, pubKeyC, mustAddr(t, pubKeyC), true)
+
+	// Step 4: proposal {opA, power=2} now executes. Reset realm
+	// to a non-restricted context so SetValsetProposal can run via
+	// the executor's internal cross-call.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	urequire.NoError(t, newValoperChangeExecutor(
+		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
+	).Execute(cross))
+
+	// Verify: final published valset has opA at NEW@2 and opB
+	// unchanged. The OLD signing addr (pubKeyA) MUST NOT appear.
+	effective := sysparams.GetValsetEffective()
+	powerOf := map[string]uint64{}
+	for _, v := range effective {
+		powerOf[v.PubKey] = v.VotingPower
+	}
+	uassert.Equal(t, uint64(2), powerOf[pubKeyC], "opA published at NEW power=2")
+	uassert.Equal(t, uint64(5), powerOf[pubKeyB], "opB unchanged")
+	_, ghost := powerOf[pubKeyA]
+	uassert.False(t, ghost, "OLD signing key (pubKeyA) must not linger in valset")
+	urequire.Equal(t, 2, len(effective), "exactly two entries — opA(NEW), opB")
+}
+
+func TestNewValidatorProposalRequest_PhantomBaselineWouldGhost(t *testing.T) {
+	// Adversarial / documentation-of-risk: directly inject a
+	// phantom state where the cache has been updated to NEW but
+	// the valset still holds OLD (and dirty=false, so baseline
+	// reads current). Confirm what the executor does — and
+	// document that the natural flow cannot produce this state
+	// (RotateValoperSigningKey publishes proposed before
+	// NotifyValoperChanged updates the cache).
+	//
+	// If this test ever ASSERTS NO GHOST while the natural-flow
+	// invariant breaks (e.g., if a future code path updates cache
+	// without going through Rotate), the asymmetry would be a
+	// real bug.
+	resetValset(t)
+	resetCache()
+
+	// Phantom: valset:current still has OLD; proposed empty, dirty=false.
+	testing.SetSysParamStrings(module, submodule, currKey, []string{
+		pubKeyA + ":1",
+		pubKeyB + ":5",
+	})
+
+	opA := testutils.TestAddress("op-A")
+	opB := testutils.TestAddress("op-B")
+	// Cache: opA points to NEW (pubKeyC) without rotate ever publishing.
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{
+		{op: opA, pubKey: pubKeyC, keepRunning: true}, // phantom NEW
+		{op: opB, pubKey: pubKeyB, keepRunning: true},
+	})
+
+	urequire.NoError(t, newValoperChangeExecutor(
+		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
+	).Execute(cross))
+
+	effective := sysparams.GetValsetEffective()
+	powerOf := map[string]uint64{}
+	for _, v := range effective {
+		powerOf[v.PubKey] = v.VotingPower
+	}
+
+	// Under the phantom state the executor DOES leave a ghost:
+	// it upserts at addr_NEW (cache) while addr_OLD lingers from
+	// baseline. Document this with assertions so a future
+	// behavioral change is caught.
+	uassert.Equal(t, uint64(1), powerOf[pubKeyA], "phantom OLD lingers from baseline")
+	uassert.Equal(t, uint64(2), powerOf[pubKeyC], "executor upserts at NEW")
+	uassert.Equal(t, uint64(5), powerOf[pubKeyB], "opB unchanged")
+	urequire.Equal(t, 3, len(effective),
+		"three entries — phantom-state ghost; this state is unreachable via natural flow")
+}
+
 // contains is a tiny strings.Contains shim so tests don't import a
 // new package.
 func contains(s, substr string) bool {
