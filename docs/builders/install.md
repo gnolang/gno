@@ -4,6 +4,16 @@ This page covers how to install the Gno toolchain: `gnokey` (key & transaction C
 `gno` (language tooling), `gnodev` (local development node with hot reload),
 `gnobro` (package browser), and `gnoweb` (realm explorer).
 
+## Contents
+
+- [One-line installer](#one-line-installer)
+  - [Environment variables](#environment-variables)
+- [Install from source](#install-from-source)
+- [Docker](#docker)
+- [Verify installation](#verify-installation)
+- [Troubleshooting](#troubleshooting)
+- [Next steps](#next-steps)
+
 ## One-line installer
 
 Download precompiled binaries (Linux/macOS, amd64/arm64) into `$GOPATH/bin` so
