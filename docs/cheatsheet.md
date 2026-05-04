@@ -6,8 +6,13 @@
 
 - [Install](#install)
 - [Generate a Key](#generate-a-key)
+- [Manage Keys](#manage-keys)
 - [Query](#query)
 - [Call a Function](#call-a-function)
+- [Send Coins](#send-coins)
+- [Deploy a Package](#deploy-a-package)
+- [Verify a Signature](#verify-a-signature)
+- [Multisig](#multisig)
 - [Airgap Transaction](#airgap-transaction)
 
 ### Developer
@@ -62,6 +67,25 @@ Default `gnodev` test account (`devtest`, `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvs
 source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
 ```
 
+### Manage Keys
+
+```bash
+# delete a key
+gnokey delete MyKey
+
+# export an encrypted armored key to a file
+gnokey export -key MyKey -output-path mykey.asc
+
+# import an encrypted armored key from a file
+gnokey import -armor-path mykey.asc -name MyKey
+
+# rotate the password protecting a key
+gnokey rotate MyKey
+
+# generate a fresh BIP39 mnemonic (does not save a key)
+gnokey generate
+```
+
 ### Query
 
 > [Using `gnokey`](../users/interact-with-gnokey.md#querying-a-gnoland-network)
@@ -92,6 +116,104 @@ gnokey maketx call \
   -gas-fee 1000000ugnot \
   -gas-wanted 20000000 \
   MyKey
+```
+
+### Send Coins
+
+```bash
+gnokey maketx send \
+  -send "1000000ugnot" \
+  -to "$RECIPIENT_ADDR" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 2000000 \
+  -broadcast \
+  -chainid "staging" \
+  -remote "https://rpc.staging.gno.land:443" \
+  MyKey
+```
+
+### Deploy a Package
+
+```bash
+# upload package files at ./counter to the chain
+gnokey maketx addpkg \
+  -pkgpath "gno.land/r/myuser/counter" \
+  -pkgdir "./counter" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 20000000 \
+  -broadcast \
+  -chainid "staging" \
+  -remote "https://rpc.staging.gno.land:443" \
+  MyKey
+
+# run an arbitrary script (Run() entrypoint) without publishing
+gnokey maketx run \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 20000000 \
+  -broadcast \
+  MyKey ./script.gno
+```
+
+### Verify a Signature
+
+```bash
+# verify the signature embedded in tx.json against MyKey's pubkey
+gnokey verify \
+  -tx-path tx.json \
+  -chainid "staging" \
+  -account-number $N -account-sequence $S \
+  MyKey
+
+# verify a detached signature file instead
+gnokey verify \
+  -tx-path tx.json \
+  -sig-path alice.sig \
+  -chainid "staging" \
+  -account-number $N -account-sequence $S \
+  MyKey
+```
+
+### Multisig
+
+> [Multisig keys](../users/interact-with-gnokey.md)
+
+```bash
+# 1. add a K-of-N multisig key from existing local keys (alice, bob, carol)
+gnokey add Multi \
+  --multisig alice --multisig bob --multisig carol \
+  --threshold 2
+
+# 2. craft an unsigned tx (any maketx subcommand) using the multisig address
+gnokey maketx call \
+  -pkgpath "gno.land/r/dev/counter" \
+  -func "Increment" \
+  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -broadcast=false \
+  Multi > tx.json
+
+# 3. each co-signer produces a partial signature
+gnokey sign \
+  -tx-path tx.json \
+  -chainid "staging" \
+  -account-number $N -account-sequence $S \
+  -output-document alice.sig \
+  alice
+
+gnokey sign \
+  -tx-path tx.json \
+  -chainid "staging" \
+  -account-number $N -account-sequence $S \
+  -output-document bob.sig \
+  bob
+
+# 4. assemble the partials into a fully signed tx
+gnokey multisign \
+  -tx-path tx.json \
+  -signature alice.sig -signature bob.sig \
+  Multi
+
+# 5. broadcast
+gnokey broadcast -remote "https://rpc.staging.gno.land:443" tx.json
 ```
 
 ### Airgap Transaction
@@ -167,8 +289,6 @@ gno test -run "_filetest.gno" .
 
 ### Format & Lint
 
-> [Effective Gno](../resources/effective-gno.md)
-
 ```bash
 gno fmt .
 gno lint .
@@ -218,7 +338,7 @@ gnoland secrets init -data-dir gnoland-data
 gnoland secrets verify -data-dir gnoland-data
 
 # show validator address + pubkey
-gnoland secrets get -data-dir gnoland-data ValidatorPrivateKey
+gnoland secrets get -data-dir gnoland-data validator_key
 ```
 
 ### Register Valoper Profile
