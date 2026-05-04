@@ -51,7 +51,7 @@ script is bash-only; Windows users should use WSL or see
 ## Build locally with gnodev
 
 This section creates a realm, runs a local chain with `gnodev`, and
-opens it in `gnoweb`.
+opens it in `gnoweb` in a browser.
 
 ### Declare the module path
 
@@ -136,10 +136,10 @@ browse exported functions and source code, and view prefunded account
 balances. The `test1` account is preloaded, so no faucet is needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass multiple
-directories to load several packages at once; with no arguments it
-loads the bundled `examples/`.
+directories to load several packages at once. It
+loads by default the bundled `examples/`.
 
-For hot-reload options, resolvers, and multi-realm setups, see
+For more options, see
 [Running a local dev node](./local-dev-with-gnodev.md) and
 [Cheatsheet: Run Locally](../cheatsheet.md#run-locally).
 
