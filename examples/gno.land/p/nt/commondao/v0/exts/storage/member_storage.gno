@@ -191,20 +191,28 @@ type groupMemberStorage struct {
 
 // Add adds a member to the storage.
 // Returns true if the member is added, or false if it already existed.
+// It panics when storage is sealed.
 func (s *groupMemberStorage) Add(member address) bool {
-	s.messages.Publish(msgMemberAdd, groupMemberUpdateData{
-		Group:  s.group,
-		Member: member,
-	})
-	return s.MemberStorage.Add(member)
+	added := s.MemberStorage.Add(member)
+	if added {
+		s.messages.Publish(msgMemberAdd, groupMemberUpdateData{
+			Group:  s.group,
+			Member: member,
+		})
+	}
+	return added
 }
 
 // Remove removes a member from the storage.
 // Returns true if member was removed, or false if it was not found.
+// It panics when storage is sealed.
 func (s *groupMemberStorage) Remove(member address) bool {
-	s.messages.Publish(msgMemberRemove, groupMemberUpdateData{
-		Group:  s.group,
-		Member: member,
-	})
-	return s.MemberStorage.Remove(member)
+	removed := s.MemberStorage.Remove(member)
+	if removed {
+		s.messages.Publish(msgMemberRemove, groupMemberUpdateData{
+			Group:  s.group,
+			Member: member,
+		})
+	}
+	return removed
 }

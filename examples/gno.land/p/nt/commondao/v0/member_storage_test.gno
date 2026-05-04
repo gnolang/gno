@@ -193,3 +193,148 @@ func TestMemberStorageTotalSize(t *testing.T) {
 		})
 	}
 }
+
+func TestMemberStorageAdd(t *testing.T) {
+	cases := []struct {
+		name     string
+		member   address
+		want     bool
+		setup    func() commondao.MemberStorage
+		panicMsg string
+	}{
+		{
+			name:   "success",
+			member: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			want:   true,
+			setup: func() commondao.MemberStorage {
+				return commondao.NewMemberStorage()
+			},
+		},
+		{
+			name:   "existing member",
+			member: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			want:   false,
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorage()
+				s.Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				return s
+			},
+		},
+		{
+			name:   "sealed storage",
+			member: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorage()
+				return s.Seal().(commondao.MemberStorage)
+			},
+			panicMsg: "type is sealed so it can't be modified",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var got bool
+			storage := tc.setup()
+
+			// Act
+			fn := func() {
+				got = storage.Add(tc.member)
+			}
+
+			// Assert
+			if tc.panicMsg != "" {
+				urequire.PanicsWithMessage(t, tc.panicMsg, fn)
+				urequire.False(t, storage.Has(tc.member), "expect member to be missing")
+			} else {
+				urequire.NotPanics(t, fn)
+				urequire.True(t, got == tc.want, "expect member to be added")
+				urequire.True(t, storage.Has(tc.member), "expect member to be found")
+			}
+		})
+	}
+}
+
+func TestMemberStorageRemove(t *testing.T) {
+	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	cases := []struct {
+		name     string
+		member   address
+		want     bool
+		setup    func() commondao.MemberStorage
+		panicMsg string
+	}{
+		{
+			name:   "success",
+			member: member,
+			want:   true,
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorage()
+				s.Add(member)
+				return s
+			},
+		},
+		{
+			name:   "member not found",
+			member: member,
+			want:   false,
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorage()
+				return s
+			},
+		},
+		{
+			name:   "sealed storage",
+			member: member,
+			setup: func() commondao.MemberStorage {
+				s := commondao.NewMemberStorage()
+				s.Add(member)
+				return s.Seal().(commondao.MemberStorage)
+			},
+			panicMsg: "type is sealed so it can't be modified",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var got bool
+			storage := tc.setup()
+
+			// Act
+			fn := func() {
+				got = storage.Remove(tc.member)
+			}
+
+			// Assert
+			if tc.panicMsg != "" {
+				urequire.PanicsWithMessage(t, tc.panicMsg, fn)
+				urequire.True(t, storage.Has(tc.member), "expect member to be found")
+			} else {
+				urequire.NotPanics(t, fn)
+				urequire.True(t, got == tc.want, "expect member to be removed")
+				urequire.False(t, storage.Has(tc.member), "expect member to be missing")
+			}
+		})
+	}
+}
+
+func TestMemberStorageGrouping(t *testing.T) {
+	t.Run("with grouping", func(t *testing.T) {
+		storage := commondao.NewMemberStorageWithGrouping()
+		urequire.True(t, storage.Grouping() != nil, "expect a grouping to be returned")
+		uassert.False(t, storage.Grouping().IsSealed(), "expect a non sealed grouping")
+	})
+
+	t.Run("without grouping", func(t *testing.T) {
+		storage := commondao.NewMemberStorage()
+		urequire.True(t, storage.Grouping() == nil, "expect a grouping to be nil")
+	})
+
+	t.Run("sealed storage", func(t *testing.T) {
+		storage := commondao.NewMemberStorageWithGrouping()
+		storage = storage.Seal().(commondao.MemberStorage)
+		urequire.True(t, storage.Grouping() != nil, "expect a grouping to be returned")
+		uassert.True(t, storage.Grouping().IsSealed(), "expect a sealed grouping")
+	})
+}

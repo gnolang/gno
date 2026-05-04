@@ -255,7 +255,11 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 }
 
 // IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members ReadonlyMemberStorage) bool {
+func IsQuorumReached(quorum float64, r *VotingRecord, members MemberStorage) bool {
+	if r == nil {
+		return false
+	}
+
 	memberCount := members.TotalSize()
 	if memberCount <= 0 || quorum <= 0 {
 		return false

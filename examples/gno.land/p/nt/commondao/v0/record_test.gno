@@ -22,83 +22,277 @@ func TestVotingRecordDefaults(t *testing.T) {
 	uassert.False(t, record.HasVoted(user))
 }
 
-func TestVotingRecordAddVote(t *testing.T) {
+func TestVotingRecordIterate(t *testing.T) {
+	ctxValue := 42
+	votes := []commondao.Vote{
+		{Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt", Context: ctxValue},
+		{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Context: ctxValue},
+		{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Context: ctxValue},
+	}
+
+	var r commondao.VotingRecord
+	for _, v := range votes {
+		r.AddVote(v)
+	}
+
+	t.Run("forward", func(t *testing.T) {
+		var i int
+		r.Iterate(0, r.Size(), false, func(v commondao.Vote) (stop bool) {
+			uassert.True(t, votes[i].Address == v.Address, "expect vote address to match")
+			uassert.True(t, v.Context == ctxValue, "expect context to be not nil")
+
+			i++
+			return false
+		})
+	})
+
+	t.Run("reverse", func(t *testing.T) {
+		i := r.Size() - 1
+		r.Iterate(0, r.Size(), true, func(v commondao.Vote) (stop bool) {
+			uassert.True(t, votes[i].Address == v.Address, "expect vote address to match")
+			uassert.True(t, v.Context == ctxValue, "expect context to be not nil")
+
+			i--
+			return false
+		})
+	})
+
+	t.Run("sealed record", func(t *testing.T) {
+		r := &commondao.VotingRecord{}
+		for _, v := range votes {
+			r.AddVote(v)
+		}
+
+		// Sealing makes non sealable context nil
+		r = r.Seal().(*commondao.VotingRecord)
+
+		r.Iterate(0, r.Size(), false, func(v commondao.Vote) (stop bool) {
+			uassert.Nil(t, v.Context, "expect context to be nil")
+			return false
+		})
+	})
+
+	t.Run("sealed record with sealable context value", func(t *testing.T) {
+		r := &commondao.VotingRecord{}
+		for _, v := range votes {
+			// Assign a sealable value to the context
+			v.Context = sealableInt(v.Context.(int))
+			r.AddVote(v)
+		}
+
+		r = r.Seal().(*commondao.VotingRecord)
+		want := sealableInt(ctxValue)
+
+		r.Iterate(0, r.Size(), false, func(v commondao.Vote) (stop bool) {
+			uassert.NotNil(t, v.Context, "expect context have a non nil value")
+			uassert.True(t, v.Context == want, "expect context value to match")
+			return false
+		})
+	})
+}
+
+func TestVotingRecordVoteCount(t *testing.T) {
 	cases := []struct {
 		name                            string
 		setup                           func(*commondao.VotingRecord)
-		votes                           []commondao.Vote
 		yesCount, noCount, abstainCount int
-		updated                         bool
 	}{
 		{
+			name: "no votes",
+		},
+		{
 			name: "single vote",
-			votes: []commondao.Vote{
-				{
+			setup: func(r *commondao.VotingRecord) {
+				r.AddVote(commondao.Vote{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 					Choice:  commondao.ChoiceYes,
-				},
+				})
 			},
 			yesCount: 1,
 		},
 		{
 			name: "multiple votes",
-			votes: []commondao.Vote{
-				{
-					Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-					Choice:  commondao.ChoiceNo,
-				},
-				{
-					Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
-					Choice:  commondao.ChoiceYes,
-				},
-				{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceNo,
-				},
-				{
-					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
-					Choice:  commondao.ChoiceAbstain,
-				},
+			setup: func(r *commondao.VotingRecord) {
+				votes := []commondao.Vote{
+					{
+						Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+						Choice:  commondao.ChoiceNo,
+					},
+					{
+						Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk",
+						Choice:  commondao.ChoiceYes,
+					},
+					{
+						Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+						Choice:  commondao.ChoiceNo,
+					},
+					{
+						Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+						Choice:  commondao.ChoiceAbstain,
+					},
+				}
+
+				for _, v := range votes {
+					r.AddVote(v)
+				}
 			},
 			yesCount:     1,
 			noCount:      2,
 			abstainCount: 1,
 		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var record commondao.VotingRecord
+			if tc.setup != nil {
+				tc.setup(&record)
+			}
+
+			uassert.Equal(t, record.VoteCount(commondao.ChoiceYes), tc.yesCount, "expect YES vote count to match")
+			uassert.Equal(t, record.VoteCount(commondao.ChoiceNo), tc.noCount, "expect NO vote count to match")
+			uassert.Equal(t, record.VoteCount(commondao.ChoiceAbstain), tc.abstainCount, "expect ABSTAIN vote count to match")
+		})
+	}
+}
+
+func TestVotingRecordGetVote(t *testing.T) {
+	user := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	cases := []struct {
+		name        string
+		setup       func() *commondao.VotingRecord
+		address     address
+		found       bool
+		wantContext any
+	}{
 		{
-			name: "vote exists",
-			votes: []commondao.Vote{
-				{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceYes,
-				},
+			name: "vote found",
+			setup: func() *commondao.VotingRecord {
+				r := &commondao.VotingRecord{}
+				r.AddVote(commondao.Vote{Address: user})
+				return r
 			},
-			setup: func(r *commondao.VotingRecord) {
-				r.AddVote(commondao.Vote{
-					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-					Choice:  commondao.ChoiceAbstain,
-				})
+			address: user,
+			found:   true,
+		},
+		{
+			name:    "vote not found",
+			setup:   func() *commondao.VotingRecord { return &commondao.VotingRecord{} },
+			address: user,
+		},
+		{
+			name: "sealed record",
+			setup: func() *commondao.VotingRecord {
+				r := &commondao.VotingRecord{}
+				r.AddVote(commondao.Vote{Address: user, Context: 42})
+				return r.Seal().(*commondao.VotingRecord)
 			},
-			yesCount:     1,
-			abstainCount: 0,
-			updated:      true,
+			address:     user,
+			found:       true,
+			wantContext: nil,
+		},
+		{
+			name: "sealed record with sealable context",
+			setup: func() *commondao.VotingRecord {
+				r := &commondao.VotingRecord{}
+				r.AddVote(commondao.Vote{Address: user, Context: sealableInt(42)})
+				return r.Seal().(*commondao.VotingRecord)
+			},
+			address:     user,
+			found:       true,
+			wantContext: sealableInt(42),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var (
-				record  commondao.VotingRecord
-				updated bool
-			)
+			record := tc.setup()
 
-			if tc.setup != nil {
-				tc.setup(&record)
+			vote, found := record.GetVote(tc.address)
+
+			uassert.Equal(t, tc.found, found, "expect found to match")
+			if !tc.found {
+				return
 			}
 
-			for _, v := range tc.votes {
-				updated = updated || record.AddVote(v)
+			uassert.Equal(t, tc.address, vote.Address, "expect vote address to match")
+
+			if tc.wantContext == nil {
+				uassert.Nil(t, vote.Context, "expect context to be nil")
+			} else {
+				uassert.True(t, vote.Context == tc.wantContext, "expect context to match")
+			}
+		})
+	}
+}
+
+func TestVotingRecordAddVote(t *testing.T) {
+	cases := []struct {
+		name     string
+		setup    func() *commondao.VotingRecord
+		votes    []commondao.Vote
+		updated  bool
+		panicMsg string
+	}{
+		{
+			name: "single vote",
+			votes: []commondao.Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			},
+			setup: func() *commondao.VotingRecord { return &commondao.VotingRecord{} },
+		},
+		{
+			name: "multiple votes",
+			votes: []commondao.Vote{
+				{Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt"},
+				{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk"},
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+				{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
+			},
+			setup: func() *commondao.VotingRecord { return &commondao.VotingRecord{} },
+		},
+		{
+			name: "vote exists",
+			votes: []commondao.Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			},
+			setup: func() *commondao.VotingRecord {
+				var r commondao.VotingRecord
+				r.AddVote(commondao.Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
+				return &r
+			},
+			updated: true,
+		},
+		{
+			name: "sealed record",
+			votes: []commondao.Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},
+			},
+			setup: func() *commondao.VotingRecord {
+				r := &commondao.VotingRecord{}
+				return r.Seal().(*commondao.VotingRecord)
+			},
+			panicMsg: "type is sealed so it can't be modified",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var updated bool
+			record := tc.setup()
+
+			fn := func() {
+				for _, v := range tc.votes {
+					updated = updated || record.AddVote(v)
+				}
 			}
 
+			if tc.panicMsg != "" {
+				uassert.PanicsWithMessage(t, tc.panicMsg, fn, "expect a panic")
+				return
+			}
+
+			uassert.NotPanics(t, fn, "expect no panic")
 			urequire.Equal(t, updated, tc.updated, "expect vote to be updated")
 			urequire.Equal(t, record.Size(), len(tc.votes), "expect record size to match")
 
@@ -111,10 +305,6 @@ func TestVotingRecordAddVote(t *testing.T) {
 				i++
 				return false
 			})
-
-			uassert.Equal(t, record.VoteCount(commondao.ChoiceYes), tc.yesCount, "expect YES vote count to match")
-			uassert.Equal(t, record.VoteCount(commondao.ChoiceNo), tc.noCount, "expect NO vote count to match")
-			uassert.Equal(t, record.VoteCount(commondao.ChoiceAbstain), tc.abstainCount, "expect ABSTAIN vote count to match")
 		})
 	}
 }
@@ -181,7 +371,7 @@ func TestFindMostVotedChoice(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice := commondao.FindMostVotedChoice(record.Readonly())
+			choice := commondao.FindMostVotedChoice(record)
 
 			uassert.Equal(t, string(choice), string(tc.choice))
 		})
@@ -268,7 +458,7 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := commondao.SelectChoiceByAbsoluteMajority(record.Readonly(), tc.membersCount)
+			choice, success := commondao.SelectChoiceByAbsoluteMajority(record, tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -356,7 +546,7 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := commondao.SelectChoiceBySuperMajority(record.Readonly(), tc.membersCount)
+			choice, success := commondao.SelectChoiceBySuperMajority(record, tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -443,7 +633,7 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := commondao.SelectChoiceByPlurality(record.Readonly())
+			choice, success := commondao.SelectChoiceByPlurality(record)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")

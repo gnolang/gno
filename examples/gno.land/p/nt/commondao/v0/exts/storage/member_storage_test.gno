@@ -11,10 +11,11 @@ import (
 
 func TestMemberStorageGroupingMemberAdd(t *testing.T) {
 	tests := []struct {
-		name   string
-		setup  func() commondao.MemberStorage
-		group  string
-		member address
+		name     string
+		setup    func() commondao.MemberStorage
+		group    string
+		member   address
+		panicMsg string
 	}{
 		{
 			name: "empty group",
@@ -51,6 +52,16 @@ func TestMemberStorageGroupingMemberAdd(t *testing.T) {
 			group:  "bar",
 			member: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 		},
+		{
+			name: "sealed group",
+			setup: func() commondao.MemberStorage {
+				s := storage.NewMemberStorage()
+				s.Grouping().Add("foo")
+				return s.Seal().(commondao.MemberStorage)
+			},
+			group:    "foo",
+			panicMsg: "type is sealed so it can't be modified",
+		},
 	}
 
 	for _, tt := range tests {
@@ -60,20 +71,29 @@ func TestMemberStorageGroupingMemberAdd(t *testing.T) {
 			group, _ := s.Grouping().Get(tt.group)
 
 			// Act
-			group.Members().Add(tt.member)
+			fn := func() {
+				group.Members().Add(tt.member)
+			}
 
 			// Assert
-			urequire.True(t, s.Has(tt.member), "expect member to also be added to parent storage")
+			if tt.panicMsg != "" {
+				urequire.PanicsWithMessage(t, tt.panicMsg, fn)
+				urequire.False(t, s.Has(tt.member), "expect member not to be added to storage")
+			} else {
+				urequire.NotPanics(t, fn)
+				urequire.True(t, s.Has(tt.member), "expect member to also be added to storage")
+			}
 		})
 	}
 }
 
 func TestMemberStorageGroupingMemberRemove(t *testing.T) {
 	tests := []struct {
-		name   string
-		setup  func() commondao.MemberStorage
-		group  string
-		member address
+		name     string
+		setup    func() commondao.MemberStorage
+		group    string
+		member   address
+		panicMsg string
 	}{
 		{
 			name: "one group one member",
@@ -113,6 +133,18 @@ func TestMemberStorageGroupingMemberRemove(t *testing.T) {
 			group:  "foo",
 			member: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 		},
+		{
+			name: "sealed storage",
+			setup: func() commondao.MemberStorage {
+				s := storage.NewMemberStorage()
+				group, _ := s.Grouping().Add("foo")
+				group.Members().Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+				return s.Seal().(commondao.MemberStorage)
+			},
+			group:    "foo",
+			member:   "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			panicMsg: "type is sealed so it can't be modified",
+		},
 	}
 
 	for _, tt := range tests {
@@ -122,10 +154,18 @@ func TestMemberStorageGroupingMemberRemove(t *testing.T) {
 			group, _ := s.Grouping().Get(tt.group)
 
 			// Act
-			group.Members().Remove(tt.member)
+			fn := func() {
+				group.Members().Remove(tt.member)
+			}
 
 			// Assert
-			urequire.False(t, s.Has(tt.member), "expect member to also be removed from parent storage")
+			if tt.panicMsg != "" {
+				urequire.PanicsWithMessage(t, tt.panicMsg, fn)
+				urequire.True(t, group.Members().Has(tt.member), "expect member not to be removed from group")
+			} else {
+				urequire.NotPanics(t, fn)
+				urequire.False(t, s.Has(tt.member), "expect member to also be removed from storage")
+			}
 		})
 	}
 }

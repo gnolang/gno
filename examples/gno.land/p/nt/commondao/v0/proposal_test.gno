@@ -337,7 +337,6 @@ func TestIsQuorumReached(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			members := commondao.NewMemberStorage()
-			storage := commondao.MustNewReadonlyMemberStorage(members)
 			for _, m := range tc.members {
 				members.Add(m)
 			}
@@ -347,7 +346,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := commondao.IsQuorumReached(tc.quorum, record.Readonly(), *storage)
+			success := commondao.IsQuorumReached(tc.quorum, &record, members)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")
