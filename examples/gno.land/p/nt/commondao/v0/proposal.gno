@@ -41,7 +41,7 @@ var (
 	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
 	ErrProposalDefinitionPanicked = errors.New("proposal definition panicked")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
-	ErrTallyNotAllowed            = errors.New("tally not allowd, proposal status must be active, passed or rejected")
+	ErrTallyNotAllowed            = errors.New("tally not allowed, proposal status must be active, passed or rejected")
 )
 
 type (
@@ -282,6 +282,10 @@ func (p *Proposal) tally(members MemberStorage) (err error) {
 	// Make sure to handle proposal definition Tally() call panics
 	defer func() {
 		r := recover()
+		if r == nil {
+			return
+		}
+
 		switch v := r.(type) {
 		case string:
 			err = errors.New(v)
