@@ -9,8 +9,7 @@ libraries, and the GnoVM interprets everything. See
 [What is Gno.land?](./what-is-gnolang.md) for the full picture.
 
 This page walks you from zero to a working local chain and your first
-on-chain transaction. For a copy-paste command sequence, see the
-[Cheatsheet: Quick Start](../cheatsheet.md#quick-start).
+on-chain transaction. Just want the commands? See [Quick Start](./quick-start.md).
 
 > Try the **[Playground](https://play.gno.land)** to write Gno in your browser
 
@@ -124,8 +123,6 @@ func TestIncrement(t *testing.T) {
 gno fmt ./...     # rewrite .gno files in canonical style
 gno test ./...    # run _test.gno files
 ```
-
-Both work offline — no running node needed.
 
 ### Run a local chain
 
