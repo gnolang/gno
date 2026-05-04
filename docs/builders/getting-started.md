@@ -9,8 +9,8 @@ libraries, and the GnoVM interprets everything. See
 [What is Gno.land?](./what-is-gnolang.md) for the full picture.
 
 This page walks you from zero to a working local chain and your first
-on-chain transaction. For a command-only reference, see the
-[Cheatsheet](../cheatsheet.md).
+on-chain transaction. For a copy-paste command sequence, see the
+[Cheatsheet: Quick Start](../cheatsheet.md#quick-start).
 
 > Try the **[Playground](https://play.gno.land)** to write Gno in your browser
 
