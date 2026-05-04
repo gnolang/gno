@@ -5,30 +5,40 @@ Gno.land is a Layer 1 blockchain where smart contracts are written in
 write Gno.
 
 This page is the shortest path from zero to a working local chain and
-your first on-chain query. Plan around 10 minutes.
+your first on-chain query.
 
 > Try the **[Playground](https://play.gno.land)** to write Gno in your browser
 
 ## TL;DR - [Cheatsheet](./cheatsheet.md)
 
+**Local** — install + run a chain on your machine:
+
 ```sh
 # 1. Install the toolchain (gno, gnokey, gnodev)
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 
-# 2. Run a local dev chain with hot reload
-gnodev
+# 2. Declare a module path (writes gnomod.toml in current dir)
+gno mod init gno.land/r/myname/myrealm
+
+# 3. Add .gno files in the same directory, then run a local chain (hot reload)
+gnodev .
 # → open http://localhost:8888
+```
 
-# 3. Create a development key
+**Live network** — key, faucet, query:
+
+```sh
+# 4. Create a key, then fund it at https://faucet.gno.land
 gnokey add dev
+gnokey list   # copy the g1... address
 
-# 4. Fund it at https://faucet.gno.land, then query your balance
+# 5. Query your balance
 gnokey query bank/balances/g1... -remote https://rpc.gno.land:443
 ```
 
 - [r/docs](https://gno.land/r/docs/home) — on-chain docs
-- [Anatomy of a Gno package](./anatomy-of-a-gno-package.md)
-- [Install](./install.md) — source builds, Docker, prerequisites
+- [Networks](../resources/gnoland-networks.md) — chain IDs + RPC endpoints
+- [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — realm structure
 
 ## What is Gno.land?
 
@@ -38,7 +48,7 @@ language built for deterministic execution. Realms (`r/`) hold on-chain state, p
 GnoVM. For the full picture, see
 [What is Gno.land?](./what-is-gnolang.md).
 
-## Install
+## Install - [Other methods](./install.md)
 
 One-liner:
 
@@ -47,13 +57,19 @@ One-liner:
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-See [Install](./install.md) if you'd rather build from source, use Docker, or check prerequisites.
-
 After installing, `gno`, `gnokey`, and `gnodev` should be on your `PATH`.
+
+:::info Troubleshooting
+- **`command not found`** — install dir not on `PATH`. Installer uses `$HOME/.gno/bin`; `make install` from source uses `$(go env GOPATH)/bin`. Add to `~/.bashrc` or `~/.zshrc`:
+  ```sh
+  export PATH="$PATH:$HOME/.gno/bin:$(go env GOPATH)/bin"
+  ```
+- **Windows** — use [WSL2](https://learn.microsoft.com/windows/wsl/install) and run from inside Linux.
+:::
 
 ## Build locally with gnodev
 
-Start a new realm and run it on a local chain:
+Declare a module path, then run a local chain against the current dir:
 
 ```sh
 # Write gnomod.toml in current dir, declaring the module path
@@ -64,13 +80,9 @@ gnodev .
 # open http://localhost:8888 — Ctrl+C to stop
 ```
 
-The first command writes a `gnomod.toml` in the current directory,
-declaring the module path. Add your own `.gno` files next to it.
-
-The second command starts a local Gno blockchain with funded test
-accounts and a web UI, and reloads automatically when you edit your
-`.gno` files. Pass directories to load your own realms; with no
-arguments it just loads the bundled `examples/`.
+Add your own `.gno` files next to `gnomod.toml`; `gnodev` reloads on
+save. Pass directories to load multiple realms; with no arguments it
+loads the bundled `examples/`.
 
 See [Running a local dev node](./local-dev-with-gnodev.md) for
 genesis, resolvers, and multi-realm setups.
@@ -141,21 +153,6 @@ gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
 2. [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — realm structure via Counter
 3. [Running a local dev node](./local-dev-with-gnodev.md) — `gnodev` reference
 4. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
-
-## Troubleshooting
-
-- **`command not found: gno` (or `gnokey`, `gnodev`)** — the install
-  directory isn't on `PATH`. The installer uses `$HOME/.gno/bin`;
-  `make install` from source uses `$(go env GOPATH)/bin`. Add whichever
-  applies:
-  ```sh
-  # Append both install dirs to PATH (add to ~/.bashrc or ~/.zshrc to persist)
-  export PATH="$PATH:$HOME/.gno/bin:$(go env GOPATH)/bin"
-  ```
-- **Windows** — use [WSL2](https://learn.microsoft.com/windows/wsl/install)
-  and run everything from inside Linux.
-
-Full list: [Troubleshooting](../troubleshooting.md).
 
 ## Getting help
 
