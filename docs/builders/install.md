@@ -16,16 +16,14 @@ This page covers how to install the Gno toolchain: `gnokey` (key & transaction C
 
 ## One-line installer
 
-Download precompiled binaries (Linux/macOS, amd64/arm64) into `$GOPATH/bin` so
-they sit alongside any `make install` output:
+Install precompiled `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb`
+(Linux/macOS, amd64/arm64) from [GitHub Releases](https://github.com/gnolang/gno/releases)
+into `$GOPATH/bin`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --dir "$(go env GOPATH)/bin"
 ```
 
-This installs `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb` into
-`$GOPATH/bin`, which keeps them alongside any source-built binaries and avoids
-stale-binary shadowing on your `PATH`.
 
 To pin a version:
 
@@ -78,8 +76,9 @@ make install
 You can also install individual tools:
 
 ```sh
-make install.gnokey   # Only gnokey
 make install.gno      # Only gno
+make install.gnokey   # Only gnokey
+make install.gnodev   # Only gnodev
 ```
 
 Make sure `$GOPATH/bin` is in your `PATH` if `gno`/`gnokey`/`gnodev` are not
