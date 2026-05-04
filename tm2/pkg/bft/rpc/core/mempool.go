@@ -409,8 +409,13 @@ func (td *txDispatcher) listenRoutine() {
 		select {
 		case event, ok := <-td.sub:
 			if !ok {
-				td.Stop()
-				panic("txDispatcher subscription unexpectedly closed")
+				// The event switch closed our subscription during shutdown
+				// (see events.SubscribeFilteredOn: the listener callback
+				// closes the channel when it would otherwise block and
+				// evsw.Quit() has fired). Stop cleanly rather than panic —
+				// pending getTxResult waiters will time out normally.
+				go func() { _ = td.Stop() }()
+				return
 			}
 			txEvent := event.(types.EventTx)
 			td.notifyTxEvent(txEvent)
