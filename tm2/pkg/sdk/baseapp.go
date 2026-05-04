@@ -524,10 +524,18 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 // BeginBlock implements the ABCI application interface.
 //
-// Block-height contiguity is enforced upstream by consensus
-// (state.ValidateBlock at tm2/pkg/bft/state/validation.go and the
-// BlockStore's contiguity check at SaveBlock); BaseApp does not duplicate
-// the check.
+// Block-height contiguity is the consensus engine's responsibility, not
+// BaseApp's. tm2/pkg/bft/state/validation.go (ValidateBlock) and the
+// BlockStore's SaveBlock contiguity check together guarantee that any
+// header reaching this method is height = lastBlockHeight + 1. BaseApp
+// intentionally does NOT re-check that invariant: duplicating it here
+// would mask consensus bugs as SDK panics, and after the InitialHeight
+// refactor (multistore version == chain height) every site that used to
+// translate offsets is gone, so a stateless check would either be wrong
+// or trivially redundant. Embedders driving BaseApp without a real
+// consensus engine (fuzzers, custom test harnesses) must enforce the
+// invariant themselves; see TestBeginBlock_NoStatelessContiguityGuard
+// in baseapp_test.go for the pinned behavior.
 func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeginBlock) {
 	// Check if we should halt before processing this block.
 	// We halt at the beginning of the block *after* haltHeight,

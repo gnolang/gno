@@ -106,14 +106,23 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // consensus signing pubkey, from which the signing address is derived.
 //
 // Auth shape:
-//   - Post-genesis: OriginCaller must equal addr (operator-slot squat
-//     guard). Genesis-mode replay (ChainHeight()==0) bypasses, so
-//     migration .jsonl txs and historical Register replays succeed.
+//   - Post-genesis: PreviousRealm must be a pure EOA (IsUserCall) AND
+//     OriginCaller must equal addr (operator-slot squat guard).
+//     Genesis-mode replay (ChainHeight()==0) bypasses, so migration
+//     .jsonl txs and historical Register replays succeed.
 //   - Signing-address uniqueness: derived(pubKey) must not already be
 //     in signingRegistry, active or retired.
 //   - Front-running guard: post-genesis, derived(pubKey) must not
 //     already be an active validator (a fresh registration cannot
 //     squat on the consensus address of an existing validator).
+//
+// IsUserCall + OriginCaller==addr together: the IsUserCall check
+// matches the same-shape guard used elsewhere in this PR (e.g.
+// r/sys/namereg/v1.Register). It rejects relay-style flows (a third
+// realm forwarding a user's tx) and `maketx run` ephemeral realms,
+// both of which leave OriginCaller==operator but PreviousRealm()
+// pointing at code, not the EOA. OriginCaller==addr alone is a
+// strictly weaker guard.
 //
 // Auth-list seeding: the profile's Authorizable owner is set to addr
 // (NOT OriginCaller). At H>0 the squat guard makes them equal anyway;
@@ -122,8 +131,13 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // post-genesis without needing the deployer's auth.
 func Register(cur realm, moniker string, description string, serverType string, addr address, pubKey string) {
 	// Operator-slot squat guard.
-	if runtime.ChainHeight() > 0 && runtime.OriginCaller() != addr {
-		panic(ErrOperatorSquatGuard)
+	if runtime.ChainHeight() > 0 {
+		if !runtime.PreviousRealm().IsUserCall() {
+			panic(ErrOperatorSquatGuard)
+		}
+		if runtime.OriginCaller() != addr {
+			panic(ErrOperatorSquatGuard)
+		}
 	}
 
 	// Fee enforcement (read from sysparams; defaults to 0 until
