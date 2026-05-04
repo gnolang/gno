@@ -209,9 +209,9 @@ func loadAndValidateCSV(path string) ([]seedRow, error) {
 	}
 
 	var (
-		rows         []seedRow
-		seenOps      = map[string]int{} // operator -> CSV row index
-		seenPubKeys  = map[string]int{} // pubkey -> CSV row index
+		rows        []seedRow
+		seenOps     = map[string]int{} // operator -> CSV row index
+		seenPubKeys = map[string]int{} // pubkey -> CSV row index
 	)
 	for i := 0; ; i++ {
 		rec, err := r.Read()
@@ -355,4 +355,3 @@ func buildRegisterTx(row seedRow) gnoland.TxWithMetadata {
 		},
 	}
 }
-

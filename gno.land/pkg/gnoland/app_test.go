@@ -312,6 +312,7 @@ func TestShouldAssertValoperCoverage(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := shouldAssertValoperCoverage(tc.req)
 			assert.Equal(t, tc.want, got, "case %q", tc.name)
 		})
@@ -342,6 +343,7 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := InitChainerConfig{SkipValoperCoverageAssertion: tc.skip}
 			got := cfg.shouldRunValoperCoverageAssertion(hardforkReq)
 			assert.Equal(t, tc.want, got)

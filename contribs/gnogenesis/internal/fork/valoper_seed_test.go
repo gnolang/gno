@@ -265,6 +265,7 @@ func TestValoperSeed_RejectsBadMoniker(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			csv := validHeader + "\n" +
 				opAddrA + "," + validPubKeyA + "," + tc.moniker + ",Alice,cloud\n"

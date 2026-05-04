@@ -695,9 +695,9 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 // validatorsV3PkgPath is the realm whose AssertGenesisValopersConsistent
 // invariant gates hardfork-mode boot.
 const (
-	validatorsV3PkgPath              = "gno.land/r/sys/validators/v3"
-	assertGenesisValopersFunc        = "AssertGenesisValopersConsistent"
-	missingV3PkgPanicSubstr          = "unexpected node with location " + validatorsV3PkgPath
+	validatorsV3PkgPath       = "gno.land/r/sys/validators/v3"
+	assertGenesisValopersFunc = "AssertGenesisValopersConsistent"
+	missingV3PkgPanicSubstr   = "unexpected node with location " + validatorsV3PkgPath
 )
 
 // assertGenesisValopersConsistent invokes the v3 assertion via the VM
