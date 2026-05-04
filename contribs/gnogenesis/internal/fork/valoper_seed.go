@@ -322,6 +322,18 @@ func validateRow(row *seedRow, csvRow int) error {
 	// stores at write time.
 	row.SigningPubKey = crypto.PubKeyToBech32(pk)
 
+	// Reject operator_addr == derive(signing_pubkey). Collapsing the
+	// two identities into one address makes signing-key compromise
+	// equivalent to operator-slot compromise: anyone holding the
+	// validator's private key could call valopers entrypoints as the
+	// operator. The whole point of separating the operator profile
+	// from the consensus signing key is that their security domains
+	// stay distinct. Catch the misconfiguration here (cheapest layer)
+	// before it ships into a hardfork ceremony's migration .jsonl.
+	if addr == pk.Address() {
+		return fmt.Errorf("row %d: operator_addr %s equals the address derived from signing_pubkey — operator identity must be distinct from the consensus signing key", csvRow, row.OperatorAddr)
+	}
+
 	return nil
 }
 

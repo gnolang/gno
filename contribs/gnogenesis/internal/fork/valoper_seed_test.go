@@ -281,6 +281,25 @@ func TestValoperSeed_RejectsBadMoniker(t *testing.T) {
 	}
 }
 
+func TestValoperSeed_RejectsOperatorEqualsDerivedSigningAddress(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Pair where chain.PubKeyAddress(pubkey) derives to opAddrA
+	// (g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5) — same fixture used
+	// in valopers.txtar's "by coincidence" register case. With the
+	// new check, valoper-seed must refuse this row at CSV-validation
+	// time so the misconfiguration never ships in a migration .jsonl.
+	const pubKeyDerivingToOpA = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
+
+	csv := validHeader + "\n" +
+		opAddrA + "," + pubKeyDerivingToOpA + ",alice,Alice,cloud\n"
+
+	_, err := runSeed(t, dir, csv)
+	require.Error(t, err, "operator_addr equal to derived signing address must be rejected")
+	assert.Contains(t, err.Error(), "equals the address derived from signing_pubkey")
+}
+
 func TestValoperSeed_DedupsCaseAliasedAddress(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
