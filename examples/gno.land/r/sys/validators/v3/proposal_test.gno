@@ -508,6 +508,45 @@ func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
 	urequire.Equal(t, 2, len(effective), "exactly two entries — opA(NEW) and opB")
 }
 
+// TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics pins
+// the "operator vanished from valoperCache between propose and execute"
+// branch. No production path deletes from valoperCache today (only Set
+// is called by NotifyValoperChanged), but bptree.BPTree exposes Remove
+// so the underlying data structure does support deletion. This test
+// simulates that hypothetical state directly via the package-private
+// cache var to confirm the executor panics with the documented message
+// rather than silently mis-publishing an empty/wrong valset.
+//
+// If a future commit ever introduces a public cache-delete path, this
+// test still passes — it's a contract-pinning test for the panic itself.
+// If the team decides the branch is unreachable enough to drop, this
+// test is the first thing to break.
+func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(t *testing.T) {
+	resetValset(t)
+	resetCache()
+
+	op := testutils.TestAddress("op-A")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
+
+	exec := newValoperChangeExecutor(
+		[]ValoperChange{{OperatorAddress: op, Power: 5}},
+	)
+
+	// Simulate the unreachable-today state: cache entry deleted between
+	// proposal-create and proposal-execute. Direct package-private mutation
+	// (NOT a public API) — production code has no path here today.
+	_, removed := valoperCache.Remove(op.String())
+	urequire.True(t, removed, "fixture: cache entry must have been present before Remove")
+
+	uassert.AbortsContains(t, "operator vanished from valoperCache between propose and execute", func() {
+		_ = exec.Execute(cross)
+	})
+}
+
 // contains is a tiny strings.Contains shim so tests don't import a
 // new package.
 func contains(s, substr string) bool {
