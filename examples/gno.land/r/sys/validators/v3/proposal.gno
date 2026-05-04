@@ -14,12 +14,12 @@ import (
 )
 
 // ValoperChange is the operator-keyed input shape for the v3 valset
-// proposal builder. Power=0 removes; Power>0 adds (or sets power on
-// fresh add — re-add of an existing validator is rejected at exec).
+// proposal builder. Power=0 removes; Power>0 adds (or upserts the
+// power on an op already in the active set — Tendermint's natural
+// ValidatorUpdate semantics).
 //
-// Power-update is encoded as the [{op, 0}, {op, N}] remove-then-add
-// pair within one proposal — same convention as the legacy
-// signing-keyed NewProposalRequest.
+// Each operator may appear AT MOST ONCE per proposal; duplicates are
+// rejected at create-time.
 type ValoperChange struct {
 	OperatorAddress address
 	Power           uint64
@@ -36,21 +36,16 @@ const errNoValoperChanges = "no valoper changes proposed"
 // (which IS crossing and accepts user txs). Mirrors the existing
 // v3 NewProposalRequest convention.
 //
-// Validation at creation time: every ValoperChange's OperatorAddress
-// must exist in valoperCache (unknown operator panics). This
-// enforces validator-must-be-valoper before the proposal goes to a
-// vote. Adds (Power > 0) ALSO require KeepRunning=true at creation
-// time — the v3-side enforcement of the operator's opt-out signal.
-// r/gnops/valopers/proposal honors KeepRunning via its own check;
-// this guard closes the bypass where a future proposer realm calls
-// v3 directly.
-//
-// Power-update idiom [{op,0},{op,N}] (remove + re-add at new power
-// in one payload) remains supported even for opted-out operators.
-// The KeepRunning check is position-aware: an add for an op that
-// also appears with Power=0 in the same payload is exempted, since
-// the proposal as a whole is a power-update, not a fresh add.
-// Same exemption applies at execution time.
+// Validation at creation time:
+//   - Each operator may appear AT MOST ONCE in changes; duplicates
+//     panic. Power changes for an op already in the active set use
+//     a single {op, newPower} entry (upsert), not the legacy
+//     remove/re-add pair.
+//   - Every ValoperChange's OperatorAddress must exist in
+//     valoperCache. Unknown operators panic.
+//   - Adds (Power > 0) require KeepRunning=true. An op that has
+//     called UpdateKeepRunning(false) signals opt-out; no proposal
+//     can keep them in the active set, period.
 //
 // Pubkey resolution at execution time: the executor callback
 // re-reads valoperCache for each entry to capture the CURRENT
@@ -58,12 +53,13 @@ const errNoValoperChanges = "no valoper changes proposed"
 // against a stale (now-retired) key publication if the operator
 // rotated while the proposal sat in GovDAO. Also re-checks
 // KeepRunning so an operator flipping to KeepRunning=false between
-// propose-create and propose-execute is honored (modulo the same
-// power-update exemption above). Removes are unaffected
-// (operator address is the lookup key, not signing address).
+// propose-create and propose-execute is honored. Removes are
+// unaffected (operator address is the lookup key, not signing
+// address).
 //
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
-// successful execution.
+// successful execution. (Power-upsert on an existing op also emits
+// ValidatorAdded with the new power.)
 func NewValidatorProposalRequest(changes []ValoperChange, title, description string) dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
@@ -76,30 +72,30 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 		panic("max number of allowed validators per proposal is 40")
 	}
 
-	// Pre-pass: collect operators being REMOVED (Power=0) in this
-	// payload. Used by the position-aware KeepRunning check below
-	// so the documented power-update idiom [{op,0},{op,N}] still
-	// works for opted-out operators.
-	beingRemoved := map[string]bool{}
+	// Dedupe: each operator may appear at most once per proposal.
+	// Power changes are now expressed as a single {op, newPower}
+	// upsert entry, so the legacy [{op,0},{op,N}] pair is a duplicate
+	// and rejected.
+	seen := map[string]bool{}
 	for _, c := range changes {
-		if c.Power == 0 {
-			beingRemoved[c.OperatorAddress.String()] = true
+		key := c.OperatorAddress.String()
+		if seen[key] {
+			panic("duplicate operator in proposal: " + key)
 		}
+		seen[key] = true
 	}
 
 	// Creation-time validation: every operator must exist in cache,
-	// and adds require KeepRunning=true UNLESS the same operator is
-	// also being removed in this payload (the [{op,0},{op,N}] power-
-	// update idiom). Unknown operators or fresh-add of opted-out
-	// operators panic now, before voters see the proposal.
+	// and adds require KeepRunning=true. KeepRunning=false is a
+	// binding opt-out; no proposal shape can override it.
 	for _, c := range changes {
 		rawCache, ok := valoperCache.Get(c.OperatorAddress.String())
 		if !ok {
 			panic("unknown operator: " + c.OperatorAddress.String())
 		}
 		entry := rawCache.(cacheEntry)
-		if c.Power > 0 && !entry.KeepRunning && !beingRemoved[c.OperatorAddress.String()] {
-			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (use UpdateKeepRunning(true) first, or pair the add with a same-payload remove for power-update)")
+		if c.Power > 0 && !entry.KeepRunning {
+			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (operator must call UpdateKeepRunning(true) first)")
 		}
 	}
 
@@ -129,18 +125,13 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 // for adds (so a mid-flight rotation doesn't publish a stale key).
 // Removes resolve the operator's CURRENT signing address (also via
 // cache) — operator-keyed removes are immune to rotation churn.
+//
+// Power>0 is an upsert against the effective valset map (keyed on
+// signing address): if the op is already present under that signing
+// address, the entry's voting power is overwritten. Tendermint
+// natively handles ValidatorUpdates as upserts, so a single-entry
+// power change is the canonical form.
 func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
-	// Pre-compute the set of operators being removed in this payload,
-	// matching the creation-time pre-pass. Used to keep the
-	// [{op,0},{op,N}] power-update idiom working for opted-out
-	// operators at execution time too.
-	beingRemoved := map[string]bool{}
-	for _, c := range changes {
-		if c.Power == 0 {
-			beingRemoved[c.OperatorAddress.String()] = true
-		}
-	}
-
 	callback := func(cur realm) error {
 		baseline := sysparams.GetValsetEffective()
 		set := make(map[address]validators.Validator, len(baseline))
@@ -169,18 +160,15 @@ func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
 			}
 
 			// Race-safety: operator may have flipped KeepRunning=false
-			// between propose-create and propose-execute. Re-check —
-			// but exempt power-update pairs (same op also has a Power=0
-			// entry in this payload).
-			if !entry.KeepRunning && !beingRemoved[c.OperatorAddress.String()] {
+			// between propose-create and propose-execute. Re-check.
+			// The opt-out is binding regardless of proposal shape.
+			if !entry.KeepRunning {
 				panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false at execution; refusing to add")
 			}
 
-			// Add (or fresh-set power). Re-add of an existing entry
-			// rejected — use [{op,0},{op,N}] for power update.
-			if _, exists := set[entry.SigningAddress]; exists {
-				panic("validator already exists: " + entry.SigningAddress.String())
-			}
+			// Upsert at the current signing address. If the entry was
+			// already present (single-entry power change on an active
+			// validator), this overwrites the prior power.
 			set[entry.SigningAddress] = validators.Validator{
 				Address:     entry.SigningAddress,
 				PubKey:      entry.SigningPubKey,

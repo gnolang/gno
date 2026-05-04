@@ -267,42 +267,82 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T
 	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross))
 }
 
-func TestNewValidatorProposalRequest_PowerUpdateIdiomWorksForOptedOutOp(t *testing.T) {
-	// Regression: the documented power-update encoding
-	// [{op,0},{op,N}] must still work for an opted-out operator.
-	// The remove half is the "exit" path (always allowed); the add
-	// half should be exempted from the KeepRunning check because
-	// the same op is being removed in the same payload. Without
-	// the position-aware exemption, the add would panic and the
-	// idiom would be broken for any KeepRunning=false op.
-	resetValset(t)
+func TestNewValidatorProposalRequest_RejectsDuplicateOp(t *testing.T) {
+	// Dedupe: each operator may appear at most once per proposal.
+	// The legacy [{op,0},{op,N}] power-update pair is now a
+	// duplicate and must panic at create-time. So is any other
+	// shape that mentions the same op twice ([{op,N},{op,M}],
+	// [{op,0},{op,0}]).
 	resetCache()
-
 	op := testutils.TestAddress("op-A")
 	seedCache(t, []struct {
 		op          address
 		pubKey      string
 		keepRunning bool
-	}{{op: op, pubKey: pubKeyA, keepRunning: false}}) // opted out
+	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
 
-	// Seed the valset with a second operator so removal doesn't
-	// trip the empty-valset liveness floor when remove half runs.
+	cases := [][]ValoperChange{
+		{{OperatorAddress: op, Power: 0}, {OperatorAddress: op, Power: 7}}, // remove + re-add
+		{{OperatorAddress: op, Power: 7}, {OperatorAddress: op, Power: 8}}, // double add
+		{{OperatorAddress: op, Power: 0}, {OperatorAddress: op, Power: 0}}, // double remove
+	}
+	for _, changes := range cases {
+		uassert.PanicsContains(t, "duplicate operator in proposal", func() {
+			_ = NewValidatorProposalRequest(changes, "dup", "")
+		})
+	}
+}
+
+func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(t *testing.T) {
+	// KeepRunning=false is a BINDING opt-out: no proposal shape can
+	// keep an opted-out operator in the active set. The legacy
+	// [{op,0},{op,N}] pair previously bypassed the KR check via the
+	// position-aware exemption; that bypass is now closed at the
+	// dedupe layer.
+	resetCache()
+	op := testutils.TestAddress("op-A")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{{op: op, pubKey: pubKeyA, keepRunning: false}})
+
+	uassert.PanicsContains(t, "duplicate operator in proposal", func() {
+		_ = NewValidatorProposalRequest(
+			[]ValoperChange{
+				{OperatorAddress: op, Power: 0},
+				{OperatorAddress: op, Power: 7},
+			},
+			"bypass attempt", "",
+		)
+	})
+}
+
+func TestNewValidatorProposalRequest_UpsertExistingValidator(t *testing.T) {
+	// Single-entry {op, newPower} against an op already in the
+	// effective valset must upsert: the existing entry's power is
+	// overwritten, no remove/re-add ceremony required.
+	resetValset(t)
+	resetCache()
+
+	// Seed valset with two validators; we upsert opA's power.
 	testing.SetSysParamStrings(module, submodule, currKey, []string{
 		pubKeyA + ":1",
 		pubKeyB + ":1",
 	})
 
-	changes := []ValoperChange{
-		{OperatorAddress: op, Power: 0}, // remove
-		{OperatorAddress: op, Power: 7}, // re-add at new power
-	}
-
-	// Creation must NOT panic.
-	uassert.NotPanics(t, func() {
-		_ = NewValidatorProposalRequest(changes, "power-update for op-A", "")
+	opA := testutils.TestAddress("op-A")
+	opB := testutils.TestAddress("op-B")
+	seedCache(t, []struct {
+		op          address
+		pubKey      string
+		keepRunning bool
+	}{
+		{op: opA, pubKey: pubKeyA, keepRunning: true},
+		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
 
-	// Executor must NOT panic and must publish the new power.
+	changes := []ValoperChange{{OperatorAddress: opA, Power: 9}}
 	urequire.NoError(t, newValoperChangeExecutor(changes).Execute(cross))
 
 	effective := sysparams.GetValsetEffective()
@@ -310,8 +350,8 @@ func TestNewValidatorProposalRequest_PowerUpdateIdiomWorksForOptedOutOp(t *testi
 	for _, v := range effective {
 		powerOf[v.PubKey] = v.VotingPower
 	}
-	uassert.Equal(t, uint64(7), powerOf[pubKeyA], "op-A re-added at power 7")
-	uassert.Equal(t, uint64(1), powerOf[pubKeyB], "op-B retained")
+	uassert.Equal(t, uint64(9), powerOf[pubKeyA], "opA power upserted from 1 to 9")
+	uassert.Equal(t, uint64(1), powerOf[pubKeyB], "opB unchanged")
 }
 
 func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *testing.T) {
