@@ -117,6 +117,17 @@ func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string)
 		VotingPower: prev.VotingPower,
 	}
 
+	// Defense-in-depth: a delete+insert in this branch always leaves
+	// at least one entry (the freshly inserted newAddr), so an empty
+	// set is unreachable today. Panic explicitly anyway: a future
+	// refactor of this body that ends up publishing an empty set
+	// would otherwise be silently swallowed by the EndBlocker
+	// (which logs and clears dirty for empty publishes), masking
+	// the regression.
+	if len(set) == 0 {
+		panic("rotation would empty the validator set; refused to keep consensus liveness")
+	}
+
 	entries := make([]string, 0, len(set))
 	for _, v := range set {
 		entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
