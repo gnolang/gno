@@ -90,8 +90,13 @@ func (rsc *RetrySignerClient) SignProposal(chainID string, proposal *types.Propo
 }
 
 // shouldRetry decides whether an error is transient. Mirrors cometbft's
-// "if RemoteSignerError, don't retry" check, plus tm2-specific transient
-// errors (connection timeouts, no-conn).
+// rule exactly: retry everything *except* a signer-side refusal
+// (WrappedRemoteSignerError). The earlier narrower allow-list — only
+// the four named timeout sentinels — leaked raw io.EOF, net.ErrClosed,
+// and other connection-drop errors through to the caller as fatal,
+// because signer_endpoint's ReadMessage / WriteMessage return those
+// unwrapped on any non-timeout failure. The result was that a single
+// peer EOF during a SignVote response read defeated the retry layer.
 func shouldRetry(err error) bool {
 	if err == nil {
 		return false
@@ -100,14 +105,5 @@ func shouldRetry(err error) bool {
 	if errors.As(err, &rse) {
 		return false // signer explicitly refused; retrying would be wrong
 	}
-	if errors.Is(err, ErrConnectionTimeout) ||
-		errors.Is(err, ErrReadTimeout) ||
-		errors.Is(err, ErrWriteTimeout) ||
-		errors.Is(err, ErrNoConnection) {
-		return true
-	}
-	// Anything else (marshaling errors, decode errors, malformed responses)
-	// is a programming/protocol bug, not a transient network issue. Don't
-	// retry — surfacing the error fast helps debug.
-	return false
+	return true
 }
