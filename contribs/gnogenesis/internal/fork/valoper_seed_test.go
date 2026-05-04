@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -293,6 +295,58 @@ func TestValoperSeed_RejectsOperatorEqualsDerivedSigningAddress(t *testing.T) {
 	_, err := runSeed(t, dir, csv)
 	require.Error(t, err, "operator_addr equal to derived signing address must be rejected")
 	assert.Contains(t, err.Error(), "equals the address derived from signing_pubkey")
+}
+
+func TestValoperSeed_MonikerRegexDoesNotDrift(t *testing.T) {
+	t.Parallel()
+
+	// The realm derives its moniker regex from MonikerMaxLength
+	// (`^[a-zA-Z0-9][\w -]{0,MonikerMaxLength-2}[a-zA-Z0-9]$`).
+	// gnogenesis hardcodes the middle-bound integer for performance
+	// and to avoid pulling Gno into Go. If MonikerMaxLength ever
+	// changes on the realm side without the gnogenesis hardcode
+	// being updated, the pre-flight would silently accept inputs
+	// the realm rejects (or vice versa), producing migration .jsonls
+	// that explode at chain replay. This test pins the two together.
+	//
+	// Source of truth: examples/gno.land/r/gnops/valopers/valopers.gno's
+	// `MonikerMaxLength` constant. Read with regex (Go can't import
+	// Gno) and compare to the bound encoded in monikerRe.
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	// Walk up from contribs/gnogenesis/internal/fork to repo root
+	// (4 levels: fork -> internal -> gnogenesis -> contribs -> gno).
+	root := filepath.Join(wd, "..", "..", "..", "..")
+	gnoPath := filepath.Join(root, "examples", "gno.land", "r", "gnops", "valopers", "valopers.gno")
+
+	data, err := os.ReadFile(gnoPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", gnoPath, err)
+	}
+
+	re := regexp.MustCompile(`(?m)^\s*MonikerMaxLength\s*=\s*(\d+)`)
+	m := re.FindSubmatch(data)
+	require.Len(t, m, 2, "could not parse MonikerMaxLength from %s", gnoPath)
+	gnoMax, err := strconv.Atoi(string(m[1]))
+	require.NoError(t, err)
+
+	// Realm regex middle bound = MonikerMaxLength - 2 (subtracts the
+	// leading + trailing alphanumeric chars).
+	wantMiddle := gnoMax - 2
+
+	// Extract the middle bound from monikerRe by parsing the integer
+	// inside `{0,N}`.
+	reBound := regexp.MustCompile(`\{0,(\d+)\}`)
+	gotBound := reBound.FindStringSubmatch(monikerRe.String())
+	require.Len(t, gotBound, 2, "could not parse middle bound from monikerRe %q", monikerRe.String())
+	gotMiddle, err := strconv.Atoi(gotBound[1])
+	require.NoError(t, err)
+
+	assert.Equal(t, wantMiddle, gotMiddle,
+		"moniker regex drift: realm MonikerMaxLength=%d implies middle-bound=%d, gnogenesis monikerRe encodes middle-bound=%d (update the hardcode in valoper_seed.go to match)",
+		gnoMax, wantMiddle, gotMiddle)
 }
 
 func TestValoperSeed_DedupsCaseAliasedAddress(t *testing.T) {
