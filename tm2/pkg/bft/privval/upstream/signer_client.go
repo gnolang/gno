@@ -142,14 +142,31 @@ func (sc *SignerClient) SignVote(chainID string, vote *types.Vote) error {
 		return fmt.Errorf("upstream.SignerClient: VoteToProto: %w", err)
 	}
 
+	// Pre-flight: refuse fast if Init() was never called. Without
+	// this, EnsureConnectionLocked below would block for the full
+	// timeoutAccept on a never-Initialized client.
+	if err := sc.requireInitialized(); err != nil {
+		return err
+	}
+
 	sc.endpoint.Lock()
 	defer sc.endpoint.Unlock()
 
+	// Establish the conn FIRST. ensureConnection is what bumps the
+	// connection-generation counter on a re-dial; calling it before
+	// verifyIdentityLocked closes the TOCTOU window where a
+	// DropConnection (which doesn't touch connGen) leaves the gen
+	// short-circuit passing on stale state, then a fresh peer dials
+	// in and would have its response accepted under the old cached
+	// identity.
+	if err := sc.endpoint.EnsureConnectionLocked(); err != nil {
+		return fmt.Errorf("upstream.SignerClient: ensure connection: %w", err)
+	}
 	if err := sc.verifyIdentityLocked(); err != nil {
 		return err
 	}
 
-	resp, err := sc.endpoint.SendRequestLocked(WrapMsg(&upstreampb.SignVoteRequest{
+	resp, err := sc.endpoint.SendRequestOnConnLocked(WrapMsg(&upstreampb.SignVoteRequest{
 		Vote: pbVote, ChainId: chainID,
 	}))
 	if err != nil {
@@ -197,14 +214,26 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 		return fmt.Errorf("upstream.SignerClient: ProposalToProto: %w", err)
 	}
 
+	// Pre-flight: refuse fast if Init() was never called. Without
+	// this, EnsureConnectionLocked below would block for the full
+	// timeoutAccept on a never-Initialized client.
+	if err := sc.requireInitialized(); err != nil {
+		return err
+	}
+
 	sc.endpoint.Lock()
 	defer sc.endpoint.Unlock()
 
+	// See SignVote: ensureConnection BEFORE verifyIdentity to close
+	// the DropConnection-doesn't-bump-gen TOCTOU window.
+	if err := sc.endpoint.EnsureConnectionLocked(); err != nil {
+		return fmt.Errorf("upstream.SignerClient: ensure connection: %w", err)
+	}
 	if err := sc.verifyIdentityLocked(); err != nil {
 		return err
 	}
 
-	resp, err := sc.endpoint.SendRequestLocked(WrapMsg(&upstreampb.SignProposalRequest{
+	resp, err := sc.endpoint.SendRequestOnConnLocked(WrapMsg(&upstreampb.SignProposalRequest{
 		Proposal: pbProp, ChainId: chainID,
 	}))
 	if err != nil {
@@ -239,6 +268,22 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 	}
 	proposal.Signature = signedProp.Signature
 	proposal.Timestamp = signedProp.Timestamp
+	return nil
+}
+
+// requireInitialized returns a clear error if Init() has never been
+// called, before any wire I/O is attempted. Without this short-
+// circuit, SignVote/SignProposal would call EnsureConnectionLocked
+// first and block for the full timeoutAccept on a never-Initialized
+// client — caller would see "endpoint connection timed out" instead
+// of the actionable "called before Init()" message.
+func (sc *SignerClient) requireInitialized() error {
+	sc.pubKeyMtx.RLock()
+	cached := sc.cachedPubKey
+	sc.pubKeyMtx.RUnlock()
+	if cached == nil {
+		return fmt.Errorf("upstream.SignerClient: SignVote/SignProposal called before Init() — refusing to sign without a cached identity")
+	}
 	return nil
 }
 

@@ -1,10 +1,11 @@
 package upstream_test
 
-// bug_fixes_test.go: regression tests for four bugs surfaced by an
+// bug_fixes_test.go: regression tests for bugs surfaced by an
 // exploratory bug-hunt loop. Each test pins the post-fix behavior so
 // the bug can't silently come back.
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -211,4 +213,170 @@ func TestBugFix_DropConnOnPeerEOF(t *testing.T) {
 
 	assert.False(t, ep.IsConnected(),
 		"after a peer-close + failed read/write, IsConnected must be false (conn dropped)")
+}
+
+// ---- Bug #6 ------------------------------------------------------
+//
+// verifyIdentityLocked had a TOCTOU window: DropConnection clears
+// se.conn but does NOT bump connGen. That left the verify gen-check
+// short-circuit (currentGen == verifiedGen) passing on stale state,
+// after which SendRequestLocked → ensureConnection installed a fresh
+// (potentially swapped) signer's conn — bumping connGen only AFTER
+// the identity check had already passed. The vote then traveled down
+// the unverified conn and the swapped signer's signature was copied
+// into the caller's vote, attributed to the cached pubA identity.
+//
+// Fix: split SendRequestLocked into EnsureConnectionLocked +
+// SendRequestOnConnLocked, and have SignerClient call them as
+// ensure → verify → send. Identity verification now sees the
+// up-to-date connGen produced by the fresh conn install.
+
+// markedSigner: a fake privval signer with a caller-controlled
+// signature marker, so the test can tell which signer produced a
+// given signed vote.
+type markedSigner struct {
+	priv ed25519.PrivKeyEd25519
+	sig  []byte
+	addr string
+}
+
+func newMarkedSigner(t *testing.T, addr string, sig []byte) *markedSigner {
+	t.Helper()
+	return &markedSigner{
+		priv: ed25519.GenPrivKey(),
+		sig:  sig,
+		addr: addr,
+	}
+}
+
+func (m *markedSigner) serveOnce(t *testing.T, ctx context.Context, ready chan<- struct{}) {
+	t.Helper()
+	go func() {
+		conn, err := net.Dial("tcp", m.addr)
+		if err != nil {
+			t.Logf("markedSigner: dial: %v", err)
+			return
+		}
+		defer conn.Close()
+		if ready != nil {
+			close(ready)
+		}
+
+		r := upstream.NewDelimitedReader(conn, upstream.MaxRemoteSignerMsgSize)
+		w := upstream.NewDelimitedWriter(conn)
+
+		for ctx.Err() == nil {
+			var req upstreampb.Message
+			if _, err := r.ReadMsg(&req); err != nil {
+				return
+			}
+			inner, err := upstream.UnwrapMsg(&req)
+			if err != nil {
+				return
+			}
+			var resp interface{}
+			switch req := inner.(type) {
+			case *upstreampb.PingRequest:
+				resp = &upstreampb.PingResponse{}
+			case *upstreampb.PubKeyRequest:
+				_ = req
+				pbk, perr := upstream.PubKeyToProto(m.priv.PubKey())
+				if perr != nil {
+					return
+				}
+				resp = &upstreampb.PubKeyResponse{PubKey: pbk}
+			case *upstreampb.SignVoteRequest:
+				v := req.Vote
+				if v != nil {
+					v.Signature = append([]byte(nil), m.sig...)
+				}
+				resp = &upstreampb.SignedVoteResponse{Vote: v}
+			default:
+				return
+			}
+			if _, werr := w.WriteMsg(upstream.WrapMsg(resp)); werr != nil {
+				return
+			}
+		}
+	}()
+}
+
+// TestBugFix_VerifyIdentityRunsAfterEnsureConnection reproduces the
+// TOCTOU race: signerA dials in and Init caches its key, then
+// DropConnection clears the conn (but NOT connGen), then signerB
+// dials in with a different key. Pre-fix: SignVote silently signed
+// under signerB while sc.PubKey() still reported signerA. Post-fix:
+// EnsureConnectionLocked runs first, bumping connGen to reflect
+// signerB's conn, and verifyIdentityLocked then catches the swap and
+// errors with "pubkey changed across reconnect".
+func TestBugFix_VerifyIdentityRunsAfterEnsureConnection(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+
+	sigA := []byte{0xAA, 0xAA, 0xAA, 0xAA}
+	sigB := []byte{0xBB, 0xBB, 0xBB, 0xBB}
+
+	// signerA dials in and caches its identity.
+	signerA := newMarkedSigner(t, ln.Addr().String(), sigA)
+	signerA.serveOnce(t, ctx, nil)
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+	pubA := signerA.priv.PubKey()
+	require.Equal(t, pubA.Bytes(), sc.PubKey().Bytes())
+	gen1 := ep.ConnectionGeneration()
+
+	// Simulate the post-pingLoop-timeout state: conn cleared, connGen
+	// unchanged. (This is exactly what dropConnection() leaves behind
+	// when ReadMessage hits EOF/timeout — see signer_endpoint.go.)
+	ep.DropConnection()
+	require.False(t, ep.IsConnected())
+	require.Equal(t, gen1, ep.ConnectionGeneration(),
+		"DropConnection must NOT bump connGen — that's what makes the TOCTOU window real")
+
+	// signerB dials in with a different keypair.
+	signerB := newMarkedSigner(t, ln.Addr().String(), sigB)
+	pubB := signerB.priv.PubKey()
+	require.NotEqual(t, pubA.Bytes(), pubB.Bytes())
+
+	bReady := make(chan struct{})
+	signerB.serveOnce(t, ctx, bReady)
+	select {
+	case <-bReady:
+	case <-time.After(2 * time.Second):
+		t.Fatal("signerB dial did not complete")
+	}
+	time.Sleep(100 * time.Millisecond) // let the listener enqueue B's conn
+
+	// Drive a SignVote. With the fix, verifyIdentityLocked runs AFTER
+	// ensureConnection installs signerB's conn, sees the new gen,
+	// re-fetches pubkey, compares against cached pubA, and refuses.
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           42,
+		Round:            3,
+		ValidatorAddress: makeAddr(t, 0x99),
+	}
+	signErr := sc.SignVote("test-chain", vote)
+
+	// Two acceptable post-fix outcomes:
+	// (1) the conn that gets installed is signerB's, identity check
+	//     sees the mismatch, SignVote errors.
+	// (2) (rare) signerB's conn is dropped before install for some
+	//     reason and SignVote errors with a connection error.
+	// Either way, we MUST NOT see SignVote return success with sigB.
+	require.Error(t, signErr, "SignVote must refuse after a swap; pre-fix it succeeded with signerB's signature")
+	assert.NotEqual(t, sigB, vote.Signature,
+		"vote.Signature must not contain signerB's marker — the swap must be rejected before the signature is copied back")
+
+	// Cached identity must remain signerA's.
+	assert.Equal(t, pubA.Bytes(), sc.PubKey().Bytes(),
+		"PubKey() must continue to return signerA's key — cachedPubKey must not drift on a reconnect race")
+
+	// Mute unused-helper warnings if the test infra changes.
+	_ = bytes.Equal
 }

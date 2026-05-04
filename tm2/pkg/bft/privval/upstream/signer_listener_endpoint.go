@@ -192,10 +192,25 @@ func (sl *SignerListenerEndpoint) SendRequestLocked(request *upstreampb.Message)
 	return sl.sendRequestLocked(request)
 }
 
-func (sl *SignerListenerEndpoint) sendRequestLocked(request *upstreampb.Message) (*upstreampb.Message, error) {
-	if err := sl.ensureConnection(sl.timeoutAccept); err != nil {
-		return nil, err
-	}
+// EnsureConnectionLocked exposes the conn-establishment step so callers
+// (notably SignerClient.SignVote / SignProposal) can run their identity
+// verification AFTER a fresh conn is installed. Without this split, a
+// DropConnection that leaves connGen unchanged would let
+// verifyIdentityLocked's gen short-circuit pass (currentGen ==
+// verifiedGen) before ensureConnection bumps the gen on a re-dial,
+// producing a TOCTOU window where a swapped signer's response is
+// accepted under the old cached identity.
+//
+// Caller MUST hold the lock via Lock(). Uses the endpoint's
+// timeoutAccept as the wait budget.
+func (sl *SignerListenerEndpoint) EnsureConnectionLocked() error {
+	return sl.ensureConnection(sl.timeoutAccept)
+}
+
+// SendRequestOnConnLocked writes and reads on the held conn. Does NOT
+// call ensureConnection — callers that need that should pair this with
+// EnsureConnectionLocked. Caller MUST hold the lock.
+func (sl *SignerListenerEndpoint) SendRequestOnConnLocked(request *upstreampb.Message) (*upstreampb.Message, error) {
 	if err := sl.WriteMessage(request); err != nil {
 		return nil, err
 	}
@@ -205,6 +220,13 @@ func (sl *SignerListenerEndpoint) sendRequestLocked(request *upstreampb.Message)
 	}
 	sl.pingTimer.Reset(sl.pingInterval)
 	return res, nil
+}
+
+func (sl *SignerListenerEndpoint) sendRequestLocked(request *upstreampb.Message) (*upstreampb.Message, error) {
+	if err := sl.ensureConnection(sl.timeoutAccept); err != nil {
+		return nil, err
+	}
+	return sl.SendRequestOnConnLocked(request)
 }
 
 func (sl *SignerListenerEndpoint) ensureConnection(maxWait time.Duration) error {
