@@ -11,7 +11,7 @@ import (
 const PathSeparator = "/"
 
 var (
-	ErrExecutionNotAllowed  = errors.New("execution not allowd, proposal status must be active, passed or rejected")
+	ErrExecutionNotAllowed  = errors.New("execution not allowed, proposal status must be active, passed or rejected")
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
