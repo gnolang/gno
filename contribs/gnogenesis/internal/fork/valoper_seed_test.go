@@ -65,11 +65,8 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	out, err := runSeed(t, dir, csvContent)
 	require.NoError(t, err)
 
-	// Two Register lines, no tail-line assertion: the consistency
-	// check is auto-run by gnoland's InitChainer at end of genesis-
-	// mode replay (and is unconditionally fatal there), so emitting
-	// it as a tx here would be both redundant and less load-bearing
-	// (a tx-form failure is swallowed without --strict-replay).
+	// Two Register lines, no tail-line assertion (gnoland InitChainer
+	// runs the assertion unconditionally in hardfork mode).
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	require.Len(t, lines, 2)
 

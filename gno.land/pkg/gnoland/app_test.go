@@ -272,7 +272,6 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 func TestShouldAssertValoperCoverage(t *testing.T) {
 	t.Parallel()
 
-	cfg := InitChainerConfig{}
 	dummyVals := generateValidatorUpdates(t, 1)
 
 	cases := []struct {
@@ -313,7 +312,7 @@ func TestShouldAssertValoperCoverage(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := cfg.shouldAssertValoperCoverage(tc.req)
+			got := shouldAssertValoperCoverage(tc.req)
 			assert.Equal(t, tc.want, got, "case %q", tc.name)
 		})
 	}

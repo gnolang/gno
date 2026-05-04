@@ -176,13 +176,9 @@ func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) err
 		buf.WriteByte('\n')
 	}
 
-	// No tail-line invariant tx is emitted: gnoland InitChainer auto-runs
-	// AssertGenesisValopersConsistent at end of genesis-mode replay in
-	// hardfork mode (PastChainIDs > 0). That path is unconditionally
-	// fatal on assertion failure — independent of --strict-replay — so
-	// embedding the assertion as a tx here would be both redundant and
-	// less load-bearing (a tx-form failure is swallowed without strict
-	// mode).
+	// AssertGenesisValopersConsistent runs unconditionally in
+	// gnoland's InitChainer for hardfork-mode boots, so the .jsonl
+	// itself need not include it.
 
 	if err := os.WriteFile(cfg.output, []byte(buf.String()), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", cfg.output, err)
