@@ -350,8 +350,8 @@ func runTest_cur(runFlag string, verbose bool, failfast bool, test InternalTest)
 	return report.marshal()
 }
 
-// RunExampleTest runs the example test function of no arguments. If the function
-// panics, then print the stack trace and return true. If the function doesn't panic,
+// RunExampleTest runs the example test function. If the function
+// panics, then this prints the stack trace and returns true. If the function doesn't panic,
 // then the caller is responsible for collecting the output from the Machine and comparing
 // with the expected output.
 func RunExampleTest(exampleTestFunc func()) (panicked bool) {
