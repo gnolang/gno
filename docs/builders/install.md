@@ -14,7 +14,6 @@ into `$GOPATH/bin`:
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --dir "$(go env GOPATH)/bin"
 ```
 
-
 To pin a version:
 
 ```sh
