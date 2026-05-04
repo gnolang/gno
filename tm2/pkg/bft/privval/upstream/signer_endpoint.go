@@ -105,8 +105,10 @@ func (se *signerEndpoint) DropConnection() {
 }
 
 // ReadMessage reads one privval message from the held conn, applying the
-// configured read deadline. On timeout, the conn is dropped so the next
-// read attempt forces a reconnect.
+// configured read deadline. On ANY error (timeout, peer EOF, closed
+// conn, decode failure) the conn is dropped so the next read forces a
+// reconnect — leaving a half-dead conn live would have IsConnected()
+// lie and skip the reconnect path on the next SendRequest.
 //
 // The pointer return shape is dictated by upstreampb.Message embedding
 // google.golang.org/protobuf/runtime/protoimpl.MessageState (which itself
@@ -122,15 +124,16 @@ func (se *signerEndpoint) ReadMessage() (*upstreampb.Message, error) {
 
 	deadline := time.Now().Add(se.timeoutReadWrite)
 	if err := se.conn.SetReadDeadline(deadline); err != nil {
+		se.dropConnection()
 		return nil, err
 	}
 
 	msg := &upstreampb.Message{}
 	r := NewDelimitedReader(se.conn, MaxRemoteSignerMsgSize)
 	if _, err := r.ReadMsg(msg); err != nil {
+		se.Logger.Debug("dropping conn on read error", "err", err)
+		se.dropConnection()
 		if _, ok := err.(timeoutError); ok {
-			se.Logger.Debug("dropping conn on read timeout")
-			se.dropConnection()
 			return nil, fmt.Errorf("%w: %w", ErrReadTimeout, err)
 		}
 		return nil, err
@@ -139,8 +142,10 @@ func (se *signerEndpoint) ReadMessage() (*upstreampb.Message, error) {
 }
 
 // WriteMessage writes one privval message to the held conn, applying the
-// configured write deadline. On timeout, the conn is dropped. msg must
-// be non-nil.
+// configured write deadline. On ANY error the conn is dropped. msg must
+// be non-nil. Same rationale as ReadMessage — a partially-written
+// stream after EOF/ErrClosed cannot be recovered, so the next caller
+// must see "not connected" and trigger reconnect.
 func (se *signerEndpoint) WriteMessage(msg *upstreampb.Message) (err error) {
 	se.connMtx.Lock()
 	defer se.connMtx.Unlock()
@@ -151,15 +156,16 @@ func (se *signerEndpoint) WriteMessage(msg *upstreampb.Message) (err error) {
 
 	deadline := time.Now().Add(se.timeoutReadWrite)
 	if err = se.conn.SetWriteDeadline(deadline); err != nil {
+		se.dropConnection()
 		return
 	}
 
 	w := NewDelimitedWriter(se.conn)
 	if _, err = w.WriteMsg(msg); err != nil {
+		se.Logger.Debug("dropping conn on write error", "err", err)
+		se.dropConnection()
 		if _, ok := err.(timeoutError); ok {
 			err = fmt.Errorf("%w: %w", ErrWriteTimeout, err)
-			se.Logger.Debug("dropping conn on write timeout")
-			se.dropConnection()
 		}
 		return
 	}

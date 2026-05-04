@@ -245,12 +245,22 @@ func (sc *SignerClient) SignProposal(chainID string, proposal *types.Proposal) e
 // verifyIdentityLocked re-fetches the signer's pubkey and compares it
 // against the cached identity if the endpoint has reconnected since the
 // last verification. Caller MUST hold endpoint.Lock(). Returns an error
-// if the pubkey changed (refuse to sign for a swapped signer) or if the
+// if Init() was never called (no cached identity to verify against),
+// the pubkey changed (refuse to sign for a swapped signer), or the
 // re-fetch fails.
 //
-// No-op when the conn generation hasn't advanced — the cached identity
-// is still valid for the current conn.
+// The cachedPubKey nil-check runs FIRST, before the gen short-circuit.
+// Otherwise, before any conn is established (currentGen == verifiedGen
+// == 0), the gen check would return early and SignVote/SignProposal
+// would proceed to sign without ever verifying the signer's identity
+// against an expected pubkey — a defense-in-depth gap.
 func (sc *SignerClient) verifyIdentityLocked() error {
+	sc.pubKeyMtx.RLock()
+	cached := sc.cachedPubKey
+	sc.pubKeyMtx.RUnlock()
+	if cached == nil {
+		return fmt.Errorf("upstream.SignerClient: SignVote/SignProposal called before Init() — refusing to sign without a cached identity")
+	}
 	currentGen := sc.endpoint.ConnectionGeneration()
 	if currentGen == sc.verifiedGen.Load() {
 		return nil
@@ -258,12 +268,6 @@ func (sc *SignerClient) verifyIdentityLocked() error {
 	pk, err := sc.fetchPubKeyLocked()
 	if err != nil {
 		return fmt.Errorf("upstream.SignerClient: re-fetch pubkey on reconnect: %w", err)
-	}
-	sc.pubKeyMtx.RLock()
-	cached := sc.cachedPubKey
-	sc.pubKeyMtx.RUnlock()
-	if cached == nil {
-		return fmt.Errorf("upstream.SignerClient: identity check before Init — cachedPubKey is nil")
 	}
 	if !pk.Equals(cached) {
 		return fmt.Errorf("upstream.SignerClient: signer pubkey changed across reconnect (was %s, now %s) — refusing to sign",
