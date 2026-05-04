@@ -40,6 +40,15 @@ func TestMemberGroupingAdd(t *testing.T) {
 		_, err = g.Add(name)
 		uassert.ErrorContains(t, err, "member group already exists: Foo", "expect duplication error")
 	})
+
+	t.Run("sealed grouping", func(t *testing.T) {
+		g := commondao.NewMemberGrouping()
+		g = g.Seal().(commondao.MemberGrouping)
+
+		uassert.PanicsWithMessage(t, "type is sealed so it can't be modified", func() {
+			g.Add("Foo")
+		}, "expect panic")
+	})
 }
 
 func TestMemberGroupingGet(t *testing.T) {
@@ -62,36 +71,78 @@ func TestMemberGroupingGet(t *testing.T) {
 
 		urequire.False(t, found, "expect grouping group to be not found")
 	})
+
+	t.Run("sealed grouping", func(t *testing.T) {
+		name := "Foo"
+		g := commondao.NewMemberGrouping()
+		g.Add(name)
+		g = g.Seal().(commondao.MemberGrouping)
+
+		mg, found := g.Get(name)
+
+		urequire.True(t, found, "expect grouping group to be found")
+		urequire.True(t, mg != nil, "expect grouping group to be not nil")
+		uassert.True(t, mg.IsSealed(), "expect group to be sealed")
+	})
 }
 
 func TestMemberGroupingDelete(t *testing.T) {
-	name := "Foo"
-	g := commondao.NewMemberGrouping()
-	g.Add(name)
+	t.Run("success", func(t *testing.T) {
+		name := "Foo"
+		g := commondao.NewMemberGrouping()
+		g.Add(name)
 
-	err := g.Delete(name)
+		err := g.Delete(name)
 
-	urequire.NoError(t, err, "expect no error")
-	uassert.False(t, g.Has(name), "expect grouping group not to be found")
+		urequire.NoError(t, err, "expect no error")
+		uassert.False(t, g.Has(name), "expect grouping group not to be found")
+	})
+
+	t.Run("sealed grouping", func(t *testing.T) {
+		name := "Foo"
+		g := commondao.NewMemberGrouping()
+		g = g.Seal().(commondao.MemberGrouping)
+
+		uassert.PanicsWithMessage(t, "type is sealed so it can't be modified", func() {
+			g.Delete(name)
+		}, "expect panic")
+	})
 }
 
 func TestMemberGroupingIterate(t *testing.T) {
-	groups := []string{"Tier 1", "Tier 2", "Tier 3"}
-	g := commondao.NewMemberGrouping()
-	for _, name := range groups {
-		g.Add(name)
-	}
+	t.Run("success", func(t *testing.T) {
+		groups := []string{"Tier 1", "Tier 2", "Tier 3"}
+		g := commondao.NewMemberGrouping()
+		for _, name := range groups {
+			g.Add(name)
+		}
 
-	var i int
-	g.IterateByOffset(0, g.Size(), func(mg commondao.MemberGroup) bool {
-		urequire.True(t, mg != nil, "expect member group not to be nil")
-		urequire.Equal(t, groups[i], mg.Name(), "expect group to be iterated in order")
+		var i int
+		g.IterateByOffset(0, g.Size(), func(mg commondao.MemberGroup) bool {
+			urequire.True(t, mg != nil, "expect member group not to be nil")
+			urequire.Equal(t, groups[i], mg.Name(), "expect group to be iterated in order")
 
-		i++
-		return false
+			i++
+			return false
+		})
+
+		uassert.Equal(t, len(groups), i, "expect all groups to be iterated")
 	})
 
-	uassert.Equal(t, len(groups), i, "expect all groups to be iterated")
+	t.Run("sealed grouping", func(t *testing.T) {
+		groups := []string{"Tier 1", "Tier 2", "Tier 3"}
+		g := commondao.NewMemberGrouping()
+		for _, name := range groups {
+			g.Add(name)
+		}
+
+		g = g.Seal().(commondao.MemberGrouping)
+
+		g.IterateByOffset(0, g.Size(), func(mg commondao.MemberGroup) bool {
+			uassert.True(t, mg.IsSealed(), "expect group to be sealed")
+			return false
+		})
+	})
 }
 
 func TestMemberGroupingUseStorageFactory(t *testing.T) {

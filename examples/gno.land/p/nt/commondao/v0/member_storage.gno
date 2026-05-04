@@ -1,8 +1,6 @@
 package commondao
 
 import (
-	"errors"
-
 	"gno.land/p/moul/addrset"
 )
 
@@ -12,6 +10,8 @@ type (
 
 	// MemberStorage defines an interface for member storages.
 	MemberStorage interface {
+		Sealable
+
 		// Size returns the number of ungrouped members in the storage.
 		Size() int
 
@@ -59,6 +59,22 @@ func NewMemberStorageWithGrouping(options ...MemberGroupingOption) MemberStorage
 type memberStorage struct {
 	members  addrset.Set
 	grouping MemberGrouping
+	sealed   bool
+}
+
+// Seal returns a sealed copy of the storage.
+// No further changes are accepted on the returned copy once sealed.
+func (s memberStorage) Seal() Sealable {
+	s.sealed = true
+	if s.grouping != nil {
+		s.grouping = s.grouping.Seal().(MemberGrouping)
+	}
+	return &s
+}
+
+// IsSealed checks if storage is sealed.
+func (s memberStorage) IsSealed() bool {
+	return s.sealed
 }
 
 // Size returns the number of ungrouped members in the storage.
@@ -90,18 +106,25 @@ func (s memberStorage) Has(member address) bool {
 
 // Add adds a member to the storage.
 // Returns true if the member is added, or false if it already existed.
+// It panics when storage is sealed.
 func (s *memberStorage) Add(member address) bool {
+	assertNotSealed(s)
 	return s.members.Add(member)
 }
 
 // Remove removes a member from the storage.
 // Returns true if member was removed, or false if it was not found.
+// It panics when storage is sealed.
 func (s *memberStorage) Remove(member address) bool {
+	assertNotSealed(s)
 	return s.members.Remove(member)
 }
 
 // Grouping returns member groups.
 func (s memberStorage) Grouping() MemberGrouping {
+	if s.sealed && s.grouping != nil {
+		return s.grouping.Seal().(MemberGrouping)
+	}
 	return s.grouping
 }
 
@@ -116,76 +139,4 @@ func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool 
 		return stopped
 	})
 	return stopped
-}
-
-// NewReadonlyMemberStorage creates a new readonly member storage.
-func NewReadonlyMemberStorage(s MemberStorage) (*ReadonlyMemberStorage, error) {
-	if s == nil {
-		return nil, errors.New("member storage is required")
-	}
-	return &ReadonlyMemberStorage{s}, nil
-}
-
-// MustNewReadonlyMemberStorage creates a new readonly member storage or panics on error.
-func MustNewReadonlyMemberStorage(s MemberStorage) *ReadonlyMemberStorage {
-	storage, err := NewReadonlyMemberStorage(s)
-	if err != nil {
-		panic(err)
-	}
-	return storage
-}
-
-// ReadonlyMemberStorage defines a readonly member storage.
-type ReadonlyMemberStorage struct {
-	storage MemberStorage
-}
-
-// Size returns the number of ungrouped members in the storage.
-// To get the size including ungrouped members use `ReadonlyMemberStorage.TotalSize()`.
-func (s ReadonlyMemberStorage) Size() int {
-	if s.storage == nil {
-		return 0
-	}
-	return s.storage.Size()
-}
-
-// TotalSize returns the number of members in the storage.
-// It counts grouped and ungrouped members.
-func (s ReadonlyMemberStorage) TotalSize() int {
-	if s.storage == nil {
-		return 0
-	}
-	return s.storage.TotalSize()
-}
-
-// Has checks if a member exists in the base underlying storage.
-// Grouped members are not checked.
-func (s ReadonlyMemberStorage) Has(member address) bool {
-	if s.storage == nil {
-		return false
-	}
-	return s.storage.Has(member)
-}
-
-// Grouping returns member groups.
-func (s ReadonlyMemberStorage) Grouping() *ReadonlyMemberGrouping {
-	if s.storage == nil {
-		return nil
-	}
-
-	if g := s.storage.Grouping(); g != nil {
-		return MustNewReadonlyMemberGrouping(g)
-	}
-	return nil
-}
-
-// IterateByOffset iterates members starting at the given offset.
-// The callback can return true to stop iteration.
-// It doesn't iterate grouped members, if you need to iterate grouped
-// members use `ReadonlyMemberStorage.Grouping().IterateByOffset()`.
-func (s ReadonlyMemberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool {
-	if s.storage != nil {
-		return s.storage.IterateByOffset(offset, count, fn)
-	}
-	return false
 }
