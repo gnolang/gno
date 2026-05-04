@@ -29,11 +29,8 @@ func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	return cb
 }
 
-// NewMinFeeProposalCallback was deleted as part of VALOPLAN2: the fee
-// now lives in sysparams (node:valoper:register_fee), and
+// The min-fee callback was removed: the fee now lives in sysparams
+// under node:valoper:register_fee, and
 // proposal.ProposeNewMinFeeProposalRequest delegates to
-// sys/params.NewSysParamUint64PropRequest. The gnoland-1 tx archive
-// contains zero historical callers of this function (only one
-// historical reference exists, via proposal.ProposeNewMinFeeProposalRequest,
-// which is rewired to the new path). Removing avoids forward-compat
-// hazard of a no-op shim with no caller-auth gating.
+// sys/params.NewSysParamUint64PropRequest. Removing avoids the
+// forward-compat hazard of a no-op shim with no caller-auth gating.

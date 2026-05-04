@@ -38,7 +38,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	// The operator address is g1user (the GovDAO member); the
 	// signing address is derived separately from pubKey. Splitting
-	// them exercises the post-VALOPLAN2 separation.
+	// them exercises the operator/signer separation.
 	opAddr := g1user
 
 	// Set origin caller for valoper operations: must equal the

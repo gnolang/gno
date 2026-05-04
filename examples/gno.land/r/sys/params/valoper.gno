@@ -17,8 +17,8 @@ const (
 )
 
 // Default values used when the sys-param has never been set by
-// governance. Mirrors VALOPLAN2's defaults: zero fees (GNOT transfers
-// disabled chain-wide pre-fork), and a 1-hour throttle at 6s/block.
+// governance. Zero fees (GNOT transfers are disabled chain-wide
+// pre-fork) and a ~1-hour throttle at 6s/block.
 const (
 	defaultValoperRegisterFee          = uint64(0)
 	defaultValoperRotationFee          = uint64(0)
