@@ -11,8 +11,8 @@ import (
 const (
 	valoperSubmodule = "valoper"
 
-	valoperRegisterFeeKey         = "register_fee"
-	valoperRotationFeeKey         = "rotation_fee"
+	valoperRegisterFeeKey          = "register_fee"
+	valoperRotationFeeKey          = "rotation_fee"
 	valoperRotationPeriodBlocksKey = "rotation_period_blocks"
 )
 
@@ -20,8 +20,8 @@ const (
 // governance. Mirrors VALOPLAN2's defaults: zero fees (GNOT transfers
 // disabled chain-wide pre-fork), and a 1-hour throttle at 6s/block.
 const (
-	defaultValoperRegisterFee         = uint64(0)
-	defaultValoperRotationFee         = uint64(0)
+	defaultValoperRegisterFee          = uint64(0)
+	defaultValoperRotationFee          = uint64(0)
 	defaultValoperRotationPeriodBlocks = int64(600)
 )
 
