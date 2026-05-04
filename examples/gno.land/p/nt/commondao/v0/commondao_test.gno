@@ -439,10 +439,20 @@ func TestCommonDAOExecute(t *testing.T) {
 			name: "success",
 			setup: func() *commondao.CommonDAO {
 				dao := commondao.New(commondao.WithMember(member))
-				dao.Propose(member, testPropDef{tallyResult: true}) // Non crossing definition
+				dao.Propose(member, testPropDef{tallyResult: true})
 				return dao
 			},
 			status:     commondao.StatusExecuted,
+			proposalID: 1,
+		},
+		{
+			name: "rejected",
+			setup: func() *commondao.CommonDAO {
+				dao := commondao.New(commondao.WithMember(member))
+				dao.Propose(member, testPropDef{tallyResult: false})
+				return dao
+			},
+			status:     commondao.StatusRejected,
 			proposalID: 1,
 		},
 		{
