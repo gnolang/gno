@@ -18,19 +18,19 @@ curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh 
 To pin a version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --version <tag>
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --version <tag> --dir "$(go env GOPATH)/bin"
 ```
 
 To also install the validator node (`gnoland`), pass `--full`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --full
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --full --dir "$(go env GOPATH)/bin"
 ```
 
 To uninstall:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.sh | sh
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.sh | sh -s -- --dir "$(go env GOPATH)/bin"
 ```
 
 Scripts used by the one-line installer:
@@ -129,7 +129,7 @@ Requires Go **1.24+**: check with `go version`, upgrade from [go.dev/dl](https:/
 capped at 60/hour. Set `GITHUB_TOKEN` to authenticate:
 
 ```sh
-GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
+GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --dir "$(go env GOPATH)/bin"
 ```
 
 ## Next steps
