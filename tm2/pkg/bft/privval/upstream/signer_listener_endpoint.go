@@ -164,15 +164,7 @@ func (sl *SignerListenerEndpoint) WaitForConnection(maxWait time.Duration) error
 	sl.triggerConnect()
 	sl.instanceMtx.Unlock()
 
-	select {
-	case conn := <-sl.connectionAvailableCh:
-		sl.SetConnection(conn)
-		return nil
-	case <-time.After(maxWait):
-		return ErrConnectionTimeout
-	case <-sl.stopCh:
-		return ErrConnectionTimeout
-	}
+	return sl.WaitConnection(sl.connectionAvailableCh, maxWait, sl.stopCh)
 }
 
 // SendRequest writes one privval message and reads the response. Used by
@@ -224,7 +216,7 @@ func (sl *SignerListenerEndpoint) ensureConnection(maxWait time.Duration) error 
 	}
 	sl.Logger.Info("SignerListener: blocking for connection")
 	sl.triggerConnect()
-	return sl.WaitConnection(sl.connectionAvailableCh, maxWait)
+	return sl.WaitConnection(sl.connectionAvailableCh, maxWait, sl.stopCh)
 }
 
 func (sl *SignerListenerEndpoint) acceptNewConnection() (net.Conn, error) {

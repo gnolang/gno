@@ -71,12 +71,19 @@ func (se *signerEndpoint) GetAvailableConnection(connectionAvailableCh chan net.
 }
 
 // WaitConnection blocks for up to maxWait waiting for a queued conn,
-// returning ErrConnectionTimeout if none arrives in time.
-func (se *signerEndpoint) WaitConnection(connectionAvailableCh chan net.Conn, maxWait time.Duration) error {
+// returning ErrConnectionTimeout if none arrives in time. If stopCh
+// is non-nil and gets closed before the conn or timeout, the wait
+// also returns ErrConnectionTimeout — callers thread the
+// owning endpoint's stop signal so SendRequest / WaitForConnection
+// unblock promptly when the service is stopping rather than pinning
+// the caller (and instanceMtx) for the full maxWait.
+func (se *signerEndpoint) WaitConnection(connectionAvailableCh chan net.Conn, maxWait time.Duration, stopCh <-chan struct{}) error {
 	select {
 	case conn := <-connectionAvailableCh:
 		se.SetConnection(conn)
 	case <-time.After(maxWait):
+		return ErrConnectionTimeout
+	case <-stopCh:
 		return ErrConnectionTimeout
 	}
 	return nil

@@ -1,10 +1,11 @@
 package upstream_test
 
-// bug_fixes_test.go: regression tests for three bugs surfaced by an
+// bug_fixes_test.go: regression tests for four bugs surfaced by an
 // exploratory bug-hunt loop. Each test pins the post-fix behavior so
 // the bug can't silently come back.
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net"
@@ -119,6 +120,46 @@ func TestBugFix_SignProposalWithoutInitRefuses(t *testing.T) {
 	require.Error(t, err, "SignProposal without Init must refuse rather than sign")
 	assert.Contains(t, err.Error(), "called before Init()")
 	assert.Empty(t, prop.Signature)
+}
+
+// ---- Bug #4 ------------------------------------------------------
+//
+// SignVote / SendRequest after Stop previously blocked for the full
+// timeoutAccept (default 3s). Bug #1's fix added stopCh to
+// WaitForConnection, but ensureConnection (called from
+// SendRequestLocked → sendRequestLocked) used base WaitConnection
+// without a stopCh select arm. Fix: thread stopCh through
+// signerEndpoint.WaitConnection so both WaitForConnection AND
+// SendRequest unblock promptly when the endpoint is stopped.
+
+func TestBugFix_SignVoteAfterStopReturnsPromptly(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ep, ln := startEndpoint(t)
+	signer := newFakePrivvalSigner(t, ln.Addr().String())
+	signer.serve(t, ctx)
+
+	sc, err := upstream.NewSignerClient(ep, "test-chain")
+	require.NoError(t, err)
+	require.NoError(t, sc.Init(3*time.Second))
+
+	require.NoError(t, ep.Stop())
+
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           1,
+		Round:            0,
+		ValidatorAddress: makeAddr(t, 0xff),
+	}
+	start := time.Now()
+	err = sc.SignVote("test-chain", vote)
+	dur := time.Since(start)
+
+	require.Error(t, err, "SignVote on a stopped endpoint must error")
+	assert.Less(t, dur, 500*time.Millisecond,
+		"SignVote after Stop must return promptly via stopCh, not block for timeoutAccept (took %v)", dur)
 }
 
 // ---- Bug #3 ------------------------------------------------------
