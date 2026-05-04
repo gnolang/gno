@@ -11,9 +11,9 @@
 - [Call a Function](#call-a-function)
 - [Send Coins](#send-coins)
 - [Deploy a Package](#deploy-a-package)
-- [Verify a Signature](#verify-a-signature)
 - [Multisig](#multisig)
 - [Airgap Transaction](#airgap-transaction)
+- [Verify a Signature](#verify-a-signature)
 
 ### Developer
 
@@ -44,15 +44,19 @@
 
 ### Install
 
-> [Installation](install.md)
+> [Installation](builders/install.md)
 
 ```bash
+# install pre-built binaries
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
+
+# uninstall binaries in $GOPATH/bin
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.sh | sh
 ```
 
 ### Generate a Key
 
-> [Managing key pairs](../users/interact-with-gnokey.md#managing-key-pairs)
+> [Managing key pairs](users/interact-with-gnokey.md#managing-key-pairs)
 
 ```bash
 # create a new keypair
@@ -82,13 +86,19 @@ gnokey import -armor-path mykey.asc -name MyKey
 # rotate the password protecting a key
 gnokey rotate MyKey
 
+# recover a key from an existing BIP39 mnemonic (prompts for the phrase)
+gnokey add -recover MyKey
+
+# recover at a custom HD account / index
+gnokey add -recover -account 0 -index 1 MyKey
+
 # generate a fresh BIP39 mnemonic (does not save a key)
 gnokey generate
 ```
 
 ### Query
 
-> [Using `gnokey`](../users/interact-with-gnokey.md#querying-a-gnoland-network)
+> [Using `gnokey`](users/interact-with-gnokey.md#querying-a-gnoland-network)
 
 ```bash
 # render the realm output
@@ -106,7 +116,7 @@ gnokey query auth/accounts/$ADDRESS
 
 ### Call a Function
 
-> [Using `gnokey`](../users/interact-with-gnokey.md#call)
+> [Using `gnokey`](users/interact-with-gnokey.md#call)
 
 ```bash
 gnokey maketx call \
@@ -154,28 +164,9 @@ gnokey maketx run \
   MyKey ./script.gno
 ```
 
-### Verify a Signature
-
-```bash
-# verify the signature embedded in tx.json against MyKey's pubkey
-gnokey verify \
-  -tx-path tx.json \
-  -chainid "staging" \
-  -account-number $N -account-sequence $S \
-  MyKey
-
-# verify a detached signature file instead
-gnokey verify \
-  -tx-path tx.json \
-  -sig-path alice.sig \
-  -chainid "staging" \
-  -account-number $N -account-sequence $S \
-  MyKey
-```
-
 ### Multisig
 
-> [Multisig keys](../users/interact-with-gnokey.md)
+> [Multisig keys](users/interact-with-gnokey.md)
 
 ```bash
 # 1. add a K-of-N multisig key from existing local keys (alice, bob, carol)
@@ -218,7 +209,7 @@ gnokey broadcast -remote "https://rpc.staging.gno.land:443" tx.json
 
 ### Airgap Transaction
 
-> [Making an airgapped transaction](../users/interact-with-gnokey.md#making-an-airgapped-transaction)
+> [Making an airgapped transaction](users/interact-with-gnokey.md#making-an-airgapped-transaction)
 
 ```bash
 # 1. online machine: fetch account info
@@ -245,13 +236,32 @@ gnokey sign \
 gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 ```
 
+### Verify a Signature
+
+```bash
+# verify the signature embedded in tx.json against MyKey's pubkey
+gnokey verify \
+  -tx-path tx.json \
+  -chainid "staging" \
+  -account-number $N -account-sequence $S \
+  MyKey
+
+# verify a detached signature file instead
+gnokey verify \
+  -tx-path tx.json \
+  -sig-path alice.sig \
+  -chainid "staging" \
+  -account-number $N -account-sequence $S \
+  MyKey
+```
+
 ---
 
 ## Developer
 
 ### Create a Realm
 
-> [Writing Gno code](anatomy-of-a-gno-package.md)
+> [Writing Gno code](builders/anatomy-of-a-gno-package.md)
 
 ```bash
 mkdir counter && cd counter
@@ -262,7 +272,7 @@ gno mod init gno.land/r/example/counter
 
 ### Run Locally
 
-> [Local development with `gnodev`](local-dev-with-gnodev.md)
+> [Local development with `gnodev`](builders/local-dev-with-gnodev.md)
 
 ```bash
 # starts a local node + gnoweb on http://localhost:8888
@@ -277,7 +287,7 @@ gnodev -no-watch
 
 ### Test
 
-> [Testing Gno](../resources/gno-testing.md)
+> [Testing Gno](resources/gno-testing.md)
 
 ```bash
 # run tests for current package
@@ -296,7 +306,7 @@ gno lint .
 
 ### Create a Run Script
 
-> [Using `gnokey`](../users/interact-with-gnokey.md#run)
+> [Using `gnokey`](users/interact-with-gnokey.md#run)
 
 ```bash
 # write run/create_proposal.gno, then run:
@@ -308,7 +318,7 @@ gnokey maketx run \
 
 ### Deploy to Staging
 
-> [Deploying packages](deploy-packages.md) | [Networks](../resources/gnoland-networks.md)
+> [Deploying packages](builders/deploy-packages.md) | [Networks](resources/gnoland-networks.md)
 
 ```bash
 # get testnet GNOT from https://faucet.gno.land
@@ -341,7 +351,7 @@ gnoland secrets verify -data-dir gnoland-data
 gnoland secrets get -data-dir gnoland-data validator_key
 ```
 
-### Register Valoper Profile
+### Register Valoper Profile (on-chain)
 
 > Realm: `gno.land/r/gnops/valopers`
 
@@ -389,9 +399,9 @@ gnokey query vm/qeval -data "gno.land/r/gnops/valopers.GetByAddr(\"$ADDRESS\")"
 
 ## Contributor
 
-### Build & Test Go
-
 > [Contributing guide](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md)
+
+### Build & Test Go
 
 ```bash
 # install all binaries
@@ -407,7 +417,7 @@ make -C gno.land test
 
 ### Start a Local Chain
 
-> [Local development with `gnodev`](local-dev-with-gnodev.md)
+> [Local development with `gnodev`](builders/local-dev-with-gnodev.md)
 
 ```bash
 # lightweight in-memory node (recommended for dev)
@@ -422,7 +432,7 @@ gnoland start -genesis genesis.json -data-dir gnoland-data
 
 ### Update Golden Files
 
-> [Testing Gno](../resources/gno-testing.md)
+> [Testing Gno](resources/gno-testing.md)
 
 ```bash
 # update golden outputs for *_filetest.gno files in current package
@@ -453,8 +463,8 @@ make tidy
 
 ## Next Steps
 
-- [Writing Gno code](anatomy-of-a-gno-package.md) - Language basics and package structure
-- [Local development with `gnodev`](local-dev-with-gnodev.md) - Hot reload, premining, auto-deploy
-- [Deploying packages](deploy-packages.md) - Gas fees, namespaces, deployment details
-- [Effective Gno](../resources/effective-gno.md) - Best practices for writing Gno
-- [Using `gnokey`](../users/interact-with-gnokey.md) - Full key management and transaction reference
+- [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Language basics and package structure
+- [Local development with `gnodev`](builders/local-dev-with-gnodev.md) - Hot reload, premining, auto-deploy
+- [Deploying packages](builders/deploy-packages.md) - Gas fees, namespaces, deployment details
+- [Effective Gno](resources/effective-gno.md) - Best practices for writing Gno
+- [Using `gnokey`](users/interact-with-gnokey.md) - Full key management and transaction reference
