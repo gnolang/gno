@@ -103,7 +103,8 @@ func (membersUpdatePropDefinition) Tally(ctx commondao.VotingContext) (bool, err
 		return ctx.VotingRecord.VoteCount(commondao.ChoiceYes) > 0, nil
 	}
 
-	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, &ctx.VotingRecord, ctx.Members) {
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, memberCount, ctx.VotingRecord) {
 		return false, nil
 	}
 
