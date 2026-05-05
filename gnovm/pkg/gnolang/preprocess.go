@@ -2476,17 +2476,29 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case *TypeType:
 					// unbound method
 					xt := evalStaticType(store, last, n.X)
+					var dt *DeclaredType
 					switch ct := xt.(type) {
 					case *PointerType:
-						dt := ct.Elt.(*DeclaredType)
-						n.Path = dt.GetUnboundPathForName(n.Sel)
+						dt = ct.Elt.(*DeclaredType)
 					case *DeclaredType:
-						n.Path = ct.GetUnboundPathForName(n.Sel)
+						dt = ct
 					default:
 						panic(fmt.Sprintf(
 							"unexpected selector expression type value %s",
 							xt.String()))
 					}
+					// Ensure exposed or package path match. Without this gate,
+					// `(*pkg.Type).unexportedMethod` from outside pkg resolves
+					// successfully and yields a callable *FuncValue, since
+					// GetUnboundPathForName does not enforce visibility (cf.
+					// FindEmbeddedFieldType which does, at types.go:1685).
+					// A confused-deputy callback in pkg can then invoke the
+					// unexported method on pkg's own state.
+					if !(isUpper(string(n.Sel)) || ctxpn.PkgPath == dt.PkgPath) {
+						panic(fmt.Sprintf("cannot access unexported method %s.%s from %s",
+							dt.PkgPath, n.Sel, ctxpn.PkgPath))
+					}
+					n.Path = dt.GetUnboundPathForName(n.Sel)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %v",

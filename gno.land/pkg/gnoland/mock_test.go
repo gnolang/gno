@@ -184,12 +184,12 @@ func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                 
 
 type mockParamsKeeper struct{}
 
-func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)    {}
-func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
-func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
-func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
-func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool    { return false }
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool      { return false }
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool    { return false }
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool        { return false }
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool     { return false }
+func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool { return false }
 
 func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
 func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)      {}
@@ -251,20 +251,33 @@ type mockConfigurableParamsKeeper struct {
 	strings map[string]string
 }
 
-func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) {
-	if v, ok := m.int64s[key]; ok {
-		*ptr = v
+func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
+	v, ok := m.int64s[key]
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
-func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
-	if v, ok := m.strings[key]; ok {
-		*ptr = v
+func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
+	v, ok := m.strings[key]
+	if !ok {
+		return false
 	}
+	*ptr = v
+	return true
 }
-func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {}
-func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)     {}
-func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)  {}
-func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
+	return false
 }
 func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value string)        {}
 func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)   {}
