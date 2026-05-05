@@ -32,5 +32,5 @@ func main(cur realm) {
 }
 
 // Output:
-// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh owner
 // g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj admin
+// g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh owner
