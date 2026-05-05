@@ -184,12 +184,12 @@ func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                 
 
 type mockParamsKeeper struct{}
 
-func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)    {}
-func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
-func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
-func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
-func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool    { return false }
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool      { return false }
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool    { return false }
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool        { return false }
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool     { return false }
+func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool { return false }
 
 func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
 func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)      {}
@@ -214,11 +214,13 @@ func (m *mockGasPriceKeeper) UpdateGasPrice(ctx sdk.Context)               {}
 type (
 	lastBlockHeightDelegate func() int64
 	loggerDelegate          func() *slog.Logger
+	setHaltHeightDelegate   func(uint64)
 )
 
 type mockEndBlockerApp struct {
 	lastBlockHeightFn lastBlockHeightDelegate
 	loggerFn          loggerDelegate
+	setHaltHeightFn   setHaltHeightDelegate
 }
 
 func (m *mockEndBlockerApp) LastBlockHeight() int64 {
@@ -236,3 +238,56 @@ func (m *mockEndBlockerApp) Logger() *slog.Logger {
 
 	return log.NewNoopLogger()
 }
+
+func (m *mockEndBlockerApp) SetHaltHeight(height uint64) {
+	if m.setHaltHeightFn != nil {
+		m.setHaltHeightFn(height)
+	}
+}
+
+// mockConfigurableParamsKeeper is a ParamsKeeperI that returns values from pre-seeded maps.
+type mockConfigurableParamsKeeper struct {
+	int64s  map[string]int64
+	strings map[string]string
+}
+
+func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
+	v, ok := m.int64s[key]
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
+	v, ok := m.strings[key]
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
+	return false
+}
+func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value string)        {}
+func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)   {}
+func (m *mockConfigurableParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {}
+func (m *mockConfigurableParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)     {}
+func (m *mockConfigurableParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)  {}
+func (m *mockConfigurableParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+}
+func (m *mockConfigurableParamsKeeper) Has(ctx sdk.Context, key string) bool                { return false }
+func (m *mockConfigurableParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {}
+func (m *mockConfigurableParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any)    {}
+func (m *mockConfigurableParamsKeeper) GetAny(ctx sdk.Context, key string) any              { return nil }
+func (m *mockConfigurableParamsKeeper) SetAny(ctx sdk.Context, key string, value any)       {}

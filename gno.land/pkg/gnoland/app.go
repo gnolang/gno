@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +41,7 @@ type AppOptions struct {
 	EventSwitch                events.EventSwitch // required
 	VMOutput                   io.Writer          // optional
 	SkipGenesisSigVerification bool               // default to verify genesis transactions
+	SkipUpgradeHeight          int64              // if set, skip the halt_min_version check at this height
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
@@ -115,6 +115,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -200,19 +201,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		}
 	})
 
-	// Set up the event collector
-	c := newCollector[validatorUpdate](
-		cfg.EventSwitch,      // global event switch filled by the node
-		validatorEventFilter, // filter fn that keeps the collector valid
-	)
-
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
 		EndBlocker(
-			c,
+			prmk,
 			acck,
 			gpk,
-			vmk,
 			baseApp,
 		),
 	)
@@ -232,6 +226,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
+
+	// Verify node startup constraints set by governance halt proposals.
+	if err := checkNodeStartupParams(prmk, baseApp.GetCacheMultiStore(), baseApp.LastBlockHeight(), cfg.SkipUpgradeHeight); err != nil {
+		return nil, err
+	}
 
 	return baseApp, nil
 }
@@ -258,6 +257,7 @@ func NewApp(
 	appCfg *sdkCfg.AppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	skipUpgradeHeight int64,
 ) (abci.Application, error) {
 	var err error
 
@@ -270,6 +270,7 @@ func NewApp(
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
+		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
 	}
 	if genesisCfg.SkipFailingTxs {
@@ -335,6 +336,19 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	cfg.loadStdlibs(ctx)
 	ctx.Logger().Debug("InitChainer: standard libraries loaded",
 		"elapsed", time.Since(start))
+
+	// Seed valset:current from genesis validators BEFORE loadAppState so
+	// that any genesis-time realm reads of sysparams.GetValsetEffective /
+	// GetValsetEntries see the authoritative set instead of empty.
+	//
+	// Note on sentinel scope: internalWriteCtxKey is set on the LOCAL
+	// ictx variable, NOT on app.deliverState.ctx. baseapp.Deliver pulls
+	// a fresh ctx via getContextForTx (tm2/pkg/sdk/baseapp.go:606-611),
+	// so this sentinel does NOT propagate into genesis-tx execution —
+	// a malicious genesis tx cannot manufacture a sentinel-bearing ctx
+	// and write valset:current directly.
+	ictx := ctx.WithValue(internalWriteCtxKey{}, true)
+	cfg.prmk.SetStrings(ictx, valsetCurrentPath, abci.EncodeValidatorUpdates(abci.ValidatorUpdates(req.Validators)))
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
@@ -475,23 +489,25 @@ type endBlockerApp interface {
 
 	// Logger returns the logger reference
 	Logger() *slog.Logger
+
+	// SetHaltHeight sets the block height at which the node will halt.
+	SetHaltHeight(uint64)
 }
 
 // EndBlocker defines the logic executed after every block.
-// Currently, it parses events that happened during execution to calculate
-// validator set changes
+// It checks for a governance-requested chain halt, then reads valset changes
+// from the params keeper and propagates them to consensus.
 func EndBlocker(
-	collector *collector[validatorUpdate],
+	prmk params.ParamsKeeperI,
 	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
-	vmk vm.VMKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
-		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
+	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+		// Set the auth params value in the ctx. The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
 		if acck != nil {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
@@ -500,122 +516,144 @@ func EndBlocker(
 			auth.EndBlocker(ctx, gpk)
 		}
 
-		// Check if there was a valset change
-		if len(collector.getEvents()) == 0 {
-			// No valset updates
-			return abci.ResponseEndBlock{}
-		}
-
-		// Run the VM to get the validator changes for the last committed block.
-		lastHeight := app.LastBlockHeight()
-		response, err := vmk.QueryEval(
-			ctx,
-			valRealm,
-			fmt.Sprintf("%s(%d,%d)", valChangesFn, lastHeight, lastHeight),
-		)
-		if err != nil {
-			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
-
-			return abci.ResponseEndBlock{}
-		}
-
-		// Extract the updates from the VM response
-		updates, err := extractUpdatesFromResponse(response)
-		if err != nil {
-			app.Logger().Error("unable to extract updates from response", "err", err)
-
-			return abci.ResponseEndBlock{}
-		}
-
-		allowedKeyTypes := ctx.ConsensusParams().Validator.PubKeyTypeURLs
-
-		// Filter out the updates that are not valid
-		updates = slices.DeleteFunc(updates, func(u abci.ValidatorUpdate) bool {
-			// Make sure the power is valid
-			if u.Power < 0 {
-				app.Logger().Error(
-					"valset update invalid; voting power < 0",
-					"address", u.Address.String(),
-					"power", u.Power,
+		// Check if GovDAO has requested a halt at this height.
+		// Use == (not >=) so we only trigger once: at the exact halt height.
+		// SetHaltHeight causes BeginBlock of the *next* block to panic, ensuring
+		// this block is fully committed before the node stops.
+		// On restart, req.Height > halt_height, so == never re-fires — no infinite loop.
+		if prmk != nil {
+			var haltHeight int64
+			prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+			if haltHeight > 0 && req.Height == haltHeight {
+				app.Logger().Info(
+					"GovDAO halt height reached, will halt after this block",
+					"height", req.Height,
+					"halt_height", haltHeight,
 				)
-
-				return true // delete it
+				app.SetHaltHeight(uint64(haltHeight))
 			}
+		}
 
-			// Make sure the public key matches the address
-			if u.PubKey.Address().Compare(u.Address) != 0 {
-				app.Logger().Error(
-					"valset update invalid; pubkey + address mismatch",
-					"address", u.Address.String(),
-					"pubkey", u.PubKey.String(),
-				)
+		// Check if there are any pending valset changes.
+		dirty := false
+		prmk.GetBool(ctx, valsetDirtyPath, &dirty)
+		if !dirty {
+			return abci.ResponseEndBlock{}
+		}
 
-				return true // delete it
+		var currentEntries, proposedEntries []string
+		prmk.GetStrings(ctx, valsetCurrentPath, &currentEntries)
+		prmk.GetStrings(ctx, valsetProposedPath, &proposedEntries)
+
+		// Parse proposed first; on parse failure, drop the proposal by
+		// clearing dirty without writing anything else. WillSetParam
+		// guards realm-side writes, but a direct chain-internal write
+		// could still seed bad data; either way the recovery is just
+		// "drop the bad proposal."
+		proposedSet, err := abci.ParseValidatorUpdates(proposedEntries)
+		if err != nil {
+			app.Logger().Error("valset:proposed corrupted; dropping proposal", "err", err)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
+			return abci.ResponseEndBlock{}
+		}
+
+		// Parse current; corruption here is chain-internal (only chain
+		// code writes valset:current via ctx-sentinel + WillSetParam
+		// validates on every write) so panic.
+		//
+		// Why not "recover by applying the proposal as adds-only when
+		// current is corrupt but proposed parses"? Because ABCI's
+		// ResponseEndBlock.ValidatorUpdates is a DELTA, not a snapshot.
+		// tm2 applies it on top of state.NextValidators (the prior set)
+		// and commits the result; there's no "replace whole set"
+		// primitive at the ABCI boundary. To produce a delta that
+		// yields consensus == proposed, we must know what's currently
+		// in consensus so we can emit removals for the validators that
+		// proposed drops. valset:current is the chain's record of that
+		// set. If it's unparseable we can't compute the right delta —
+		// we could only emit "add everything in proposed", which leaves
+		// the real (now-untracked) prior validators in consensus and
+		// produces permanent divergence between valset:current and the
+		// actual signing set (the v1 prev-vs-actual bug we redesigned
+		// to fix). Silent recovery would be a wrong proposal applied
+		// while pretending it was the right one.
+		//
+		// In practice this branch is unreachable in normal operation:
+		// store damage, partial commit, or a chain-code bug that wrote
+		// past WillSetParam are the only ways to get here. Panic is
+		// the right "this shouldn't happen, investigate" signal.
+		currentSet, err := abci.ParseValidatorUpdates(currentEntries)
+		if err != nil {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
+		}
+
+		// Min-validator floor: refuse to empty consensus.
+		// proposed is the full target set, so the post-apply set has
+		// exactly the entries with Power > 0. v3's normal flow emits
+		// the effective set as positive-power entries — but the
+		// callback also accepts an all-removes proposal that
+		// publishes entries=[]string{}, so all-Power=0 is reachable
+		// at the v3 boundary; this floor is the consensus-safety
+		// backstop.
+		liveCount := 0
+		for _, u := range proposedSet {
+			if u.Power > 0 {
+				liveCount++
 			}
+		}
+		if liveCount == 0 {
+			app.Logger().Error("valset proposal would empty consensus; rejecting",
+				"proposed_len", len(proposedSet),
+				"live_count", liveCount)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
+			return abci.ResponseEndBlock{}
+		}
 
-			// Make sure the public key is an allowed consensus key type
+		// Compute diff. Whole-reject if any add/update has a disallowed
+		// pubkey type — atomic accept-or-reject avoids partial-application
+		// ambiguity (no filter losses, so valset:current = proposed exactly).
+		diff := currentSet.UpdatesFrom(proposedSet)
+		var allowedKeyTypes []string
+		if cp := ctx.ConsensusParams(); cp != nil && cp.Validator != nil {
+			allowedKeyTypes = cp.Validator.PubKeyTypeURLs
+		}
+		for _, u := range diff {
+			if u.Power == 0 {
+				continue // removals always allowed
+			}
+			if len(allowedKeyTypes) == 0 {
+				continue // no allow-list configured -> accept all
+			}
 			if !slices.Contains(allowedKeyTypes, amino.GetTypeURL(u.PubKey)) {
-				return true // delete it
+				app.Logger().Error(
+					"valset proposal contains disallowed pubkey type; rejecting whole proposal",
+					"address", u.Address.String(),
+					"pubkey_type", amino.GetTypeURL(u.PubKey),
+				)
+				prmk.SetBool(ctx, valsetDirtyPath, false)
+				return abci.ResponseEndBlock{}
 			}
+		}
 
-			return false // keep it, update is valid
-		})
+		app.Logger().Info("valset changes to be applied", "count", len(diff))
+
+		// Whole-apply: advance valset:current = proposed (no filter losses
+		// possible since the disallowed-pubkey scan above whole-rejects).
+		// At this point valset:current records V_{H+2} — the set that will
+		// be active at H+2 once the most recent EndBlock's updates apply
+		// (NOT the active-signing set at H+1, which tm2 has already
+		// locked in from the prior commit).
+		intCtx := ctx.WithValue(internalWriteCtxKey{}, true)
+		prmk.SetStrings(intCtx, valsetCurrentPath, abci.EncodeValidatorUpdates(proposedSet))
+		// dirty clear uses original (no-sentinel) ctx; valset:dirty is
+		// not sentinel-gated since it's bool-typed only and the realm
+		// side already enforces single-writer via assertValsetCaller.
+		prmk.SetBool(ctx, valsetDirtyPath, false)
 
 		return abci.ResponseEndBlock{
-			ValidatorUpdates: updates,
+			ValidatorUpdates: diff,
 		}
 	}
-}
-
-// extractUpdatesFromResponse extracts the validator set updates
-// from the VM response.
-//
-// This method is not ideal, but currently there is no mechanism
-// in place to parse typed VM responses
-func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error) {
-	// Find the submatches
-	matches := valRegexp.FindAllStringSubmatch(response, -1)
-	if len(matches) == 0 {
-		// No changes to extract
-		return nil, nil
-	}
-
-	updates := make([]abci.ValidatorUpdate, 0, len(matches))
-	for _, match := range matches {
-		var (
-			addressRaw = match[1]
-			pubKeyRaw  = match[2]
-			powerRaw   = match[3]
-		)
-
-		// Parse the address
-		address, err := crypto.AddressFromBech32(addressRaw)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse address, %w", err)
-		}
-
-		// Parse the public key
-		pubKey, err := crypto.PubKeyFromBech32(pubKeyRaw)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse public key, %w", err)
-		}
-
-		// Parse the voting power
-		power, err := strconv.ParseInt(powerRaw, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse voting power, %w", err)
-		}
-
-		update := abci.ValidatorUpdate{
-			Address: address,
-			PubKey:  pubKey,
-			Power:   power,
-		}
-
-		updates = append(updates, update)
-	}
-
-	return updates, nil
 }
 
 // checkSessionRestrictions enforces gno.land session key restrictions:

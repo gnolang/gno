@@ -15,10 +15,11 @@ import (
 )
 
 func TestTxHandler(t *testing.T) {
-	// Tests are not run in parallel because the JSON-RPC
-	// handlers utilize global package-level variables,
-	// that are not friendly with concurrent test runs (or anything, really)
+	t.Parallel()
+
 	t.Run("tx result generated", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -55,10 +56,6 @@ func TestTxHandler(t *testing.T) {
 		// Save the ABCI response to the DB
 		sdb.Set(state.CalcABCIResponsesKey(height), responses.Bytes())
 
-		// Set the GLOBALLY referenced db
-		SetStateDB(sdb)
-
-		// Set the GLOBALLY referenced blockstore
 		blockStore := &mockBlockStore{
 			heightFn: func() int64 {
 				return height
@@ -76,10 +73,10 @@ func TestTxHandler(t *testing.T) {
 			},
 		}
 
-		SetBlockStore(blockStore)
+		env := &Environment{StateDB: sdb, BlockStore: blockStore}
 
 		// Load the result
-		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
+		loadedTxResult, err := env.Tx(&rpctypes.Context{}, tx.Hash())
 
 		require.NoError(t, err)
 		require.NotNil(t, loadedTxResult)
@@ -93,6 +90,8 @@ func TestTxHandler(t *testing.T) {
 	})
 
 	t.Run("tx result index not found", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			sdb         = memdb.NewMemDB()
 			hash        = []byte("hash")
@@ -101,17 +100,18 @@ func TestTxHandler(t *testing.T) {
 			}
 		)
 
-		// Set the GLOBALLY referenced db
-		SetStateDB(sdb)
+		env := &Environment{StateDB: sdb}
 
 		// Load the result
-		loadedTxResult, err := Tx(&rpctypes.Context{}, hash)
+		loadedTxResult, err := env.Tx(&rpctypes.Context{}, hash)
 		require.Nil(t, loadedTxResult)
 
 		assert.Equal(t, expectedErr, err)
 	})
 
 	t.Run("invalid block transaction index", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -137,10 +137,6 @@ func TestTxHandler(t *testing.T) {
 		// Save the result index to the DB
 		sdb.Set(state.CalcTxResultKey(tx.Hash()), txResultIndex.Bytes())
 
-		// Set the GLOBALLY referenced db
-		SetStateDB(sdb)
-
-		// Set the GLOBALLY referenced blockstore
 		blockStore := &mockBlockStore{
 			heightFn: func() int64 {
 				return height
@@ -156,16 +152,18 @@ func TestTxHandler(t *testing.T) {
 			},
 		}
 
-		SetBlockStore(blockStore)
+		env := &Environment{StateDB: sdb, BlockStore: blockStore}
 
 		// Load the result
-		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
+		loadedTxResult, err := env.Tx(&rpctypes.Context{}, tx.Hash())
 		require.Nil(t, loadedTxResult)
 
 		assert.ErrorContains(t, err, "unable to get block transaction")
 	})
 
 	t.Run("invalid ABCI response index (corrupted state)", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -191,10 +189,6 @@ func TestTxHandler(t *testing.T) {
 		// Save the result index to the DB
 		sdb.Set(state.CalcTxResultKey(tx.Hash()), txResultIndex.Bytes())
 
-		// Set the GLOBALLY referenced db
-		SetStateDB(sdb)
-
-		// Set the GLOBALLY referenced blockstore
 		blockStore := &mockBlockStore{
 			heightFn: func() int64 {
 				return height
@@ -212,16 +206,18 @@ func TestTxHandler(t *testing.T) {
 			},
 		}
 
-		SetBlockStore(blockStore)
+		env := &Environment{StateDB: sdb, BlockStore: blockStore}
 
 		// Load the result
-		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
+		loadedTxResult, err := env.Tx(&rpctypes.Context{}, tx.Hash())
 		require.Nil(t, loadedTxResult)
 
 		assert.ErrorContains(t, err, "unable to load block results")
 	})
 
 	t.Run("nil block", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			height = int64(10)
 
@@ -247,10 +243,6 @@ func TestTxHandler(t *testing.T) {
 		// Save the result index to the DB
 		sdb.Set(state.CalcTxResultKey(tx.Hash()), txResultIndex.Bytes())
 
-		// Set the GLOBALLY referenced db
-		SetStateDB(sdb)
-
-		// Set the GLOBALLY referenced blockstore that returns nil block
 		blockStore := &mockBlockStore{
 			heightFn: func() int64 {
 				return height
@@ -260,10 +252,10 @@ func TestTxHandler(t *testing.T) {
 			},
 		}
 
-		SetBlockStore(blockStore)
+		env := &Environment{StateDB: sdb, BlockStore: blockStore}
 
 		// Load the result
-		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
+		loadedTxResult, err := env.Tx(&rpctypes.Context{}, tx.Hash())
 		require.Nil(t, loadedTxResult)
 
 		assert.ErrorContains(t, err, "block not found for height 10")
