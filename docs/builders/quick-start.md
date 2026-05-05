@@ -1,4 +1,4 @@
-## Quick Start
+# Quick Start
 
 > [Getting started](./getting-started.md) — full walkthrough
 
@@ -29,6 +29,7 @@ gnokey add dev
 gnokey list   # copy the g1... address
 
 # 6. Deploy your package
+# (first deploy may require signing the CLA — see Getting started)
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast \
