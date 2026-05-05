@@ -80,7 +80,8 @@ func (p subDAOPropDefinition) Validate() (err error) {
 }
 
 func (subDAOPropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(commondao.QuorumFull, &ctx.VotingRecord, ctx.Members) {
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumFull, memberCount, ctx.VotingRecord) {
 		return false, nil
 	}
 
@@ -143,7 +144,8 @@ func (p dissolvePropDefinition) Validate() (err error) {
 }
 
 func (dissolvePropDefinition) Tally(ctx commondao.VotingContext) (bool, error) {
-	if !commondao.IsQuorumReached(commondao.QuorumFull, &ctx.VotingRecord, ctx.Members) {
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumFull, memberCount, ctx.VotingRecord) {
 		return false, nil
 	}
 
