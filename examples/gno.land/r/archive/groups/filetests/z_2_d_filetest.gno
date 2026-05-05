@@ -15,7 +15,9 @@ import (
 var gid groups.GroupID
 
 func main() {
+	testing.SetHeight(0)
 	uinit.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetHeight(123)
 	gid = groups.CreateGroup(cross, "test_group")
 	println(gid)
 

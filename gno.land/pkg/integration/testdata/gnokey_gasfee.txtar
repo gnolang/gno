@@ -25,7 +25,7 @@ stdout '"coins": "10000000000000ugnot"'
 # This is the documented simulate->broadcast workflow; the values on this
 # line MUST match the simulate output above (modulo a small gas-wanted
 # headroom).
-gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2_814_500 -gas-fee 2955ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2_815_000 -gas-fee 2955ugnot -broadcast -chainid tendermint_test test1
 stdout 'OK'
 stdout 'EVENTS:     \[.*"fee_delta":\{"denom":"ugnot","amount":206900\}.*\]'
 
@@ -45,7 +45,7 @@ stdout '"sequence": "1"'
 stdout '"coins": "9999999790145ugnot"'
 
 # Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
-gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_269_400 -gas-fee 1333ugnot -broadcast -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 1_269_900 -gas-fee 1333ugnot -broadcast -chainid tendermint_test test1
 stdout 'OK'
 
 ## fee is charged and sequence number increased

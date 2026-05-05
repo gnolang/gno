@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/gnorkle/feeds/static"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/message"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 const (
@@ -21,8 +21,8 @@ var (
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
-	handleToAddressMap = avl.NewTree()
-	addressToHandleMap = avl.NewTree()
+	handleToAddressMap = bptree.NewBPTree32()
+	addressToHandleMap = bptree.NewBPTree32()
 )
 
 func init() {

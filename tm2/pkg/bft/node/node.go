@@ -679,6 +679,11 @@ func (n *Node) OnStop() {
 		n.Logger.Error("Error closing private validator", "err", err)
 	}
 
+	// Stop the package-level rpc/core txDispatcher before the event switch so
+	// its listenRoutine exits via its own Quit channel instead of racing
+	// evsw.Quit().
+	rpccore.Stop()
+
 	// Stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
