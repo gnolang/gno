@@ -1,5 +1,10 @@
 package tests
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Condensed test types inspired by gnovm amino-registered types.
 // These capture the key field patterns found across ~100 gnovm types:
 //   - Interface fields (Type, Value, Expr, Stmt, etc.)
@@ -310,6 +315,47 @@ type FuzzFixedInt struct {
 // "should we emit the field key?" decision.
 type FuzzContainsAminoMarshaler struct {
 	AM AminoMarshalerStruct1
+}
+
+// EmptyReprOnZero: a struct AminoMarshaler whose MarshalAmino returns the
+// empty string for the zero value and a decimal representation otherwise.
+// Mirrors std.Coin's "zero → empty string repr" behavior but is self-
+// contained in the tests package. Used by FuzzNilEmptyRepr and as a
+// standalone field to exercise the gen_marshal.go zero-check branch for
+// struct Go type + non-struct repr where the repr IS zero (the path
+// production AminoMarshalers rarely hit).
+type EmptyReprOnZero struct {
+	Val int32
+}
+
+func (e EmptyReprOnZero) MarshalAmino() (string, error) {
+	if e.Val == 0 {
+		return "", nil
+	}
+	return fmt.Sprintf("%d", e.Val), nil
+}
+
+func (e *EmptyReprOnZero) UnmarshalAmino(s string) error {
+	if s == "" {
+		e.Val = 0
+		return nil
+	}
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return err
+	}
+	e.Val = int32(v)
+	return nil
+}
+
+// FuzzNilEmptyRepr: []*EmptyReprOnZero amino:"nil_elements". Under
+// nil_elements semantics both nil and a non-nil pointer whose MarshalAmino
+// produces "" serialize identically (zero-length element) and both decode
+// to nil, so strict DeepEqual roundtrip is intentionally lossy for the
+// empty-repr case. The parity invariants that still apply are (1) encoder
+// parity, (2) size correctness, and (3) cross-decoder agreement.
+type FuzzNilEmptyRepr struct {
+	Vals []*EmptyReprOnZero `amino:"nil_elements"`
 }
 
 // InterfaceHeavy: benchmarks MarshalAnyBinary2 with multiple interface fields.

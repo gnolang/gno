@@ -309,6 +309,27 @@ func TestRoundtripBinary2_PointerSlicesStruct(t *testing.T) {
 	compareEncoding(t, cdc, "PointerSlicesStruct", orig)
 }
 
+func TestRoundtripBinary2_FuzzNilElements(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	orig := FuzzNilElements{
+		Entries: []*FuzzFieldInfo{
+			{Name: "present", Embedded: true, Tag: "json:\"present\"", Index: 1},
+			nil,
+			{Name: "tail", Tag: "json:\"tail\"", Index: 2},
+		},
+		Poses: []*GnoVMPos{
+			{Line: 7, Column: 9},
+			nil,
+		},
+		Name: "nil-elements",
+	}
+
+	compareEncoding(t, cdc, "FuzzNilElements", orig)
+}
+
 func TestRoundtripBinary2_EmbeddedSt2(t *testing.T) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(Package)
@@ -757,9 +778,12 @@ func compareEncoding(t *testing.T, cdc *amino.Codec, name string, orig interface
 
 	// Compare against amino reflect's roundtrip (unmarshal fills in default
 	// pointer values, so re-encoded bytes may differ from original).
+	// Use UnmarshalReflect explicitly: cdc.Unmarshal dispatches to genproto2
+	// for registered types, which would make the cross-decoder check below
+	// compare genproto2 against itself.
 	decodedAmino := reflect.New(rt)
-	if err := cdc.Unmarshal(bz1, decodedAmino.Interface()); err != nil {
-		t.Fatalf("%s: amino Unmarshal: %v", name, err)
+	if err := cdc.UnmarshalReflect(bz1, decodedAmino.Interface()); err != nil {
+		t.Fatalf("%s: amino UnmarshalReflect: %v", name, err)
 	}
 
 	// Cross-decoder struct equality: both unmarshal paths should produce
