@@ -7,9 +7,6 @@ import (
 	"gno.land/p/nt/avl/v0"
 )
 
-// ErrVoteExists indicates that a user already voted.
-var ErrVoteExists = errors.New("user already voted")
-
 type (
 	// VoteIterFn defines a callback to iterate votes.
 	VoteIterFn func(Vote) (stop bool)
@@ -19,7 +16,7 @@ type (
 
 	// Vote defines a single vote.
 	Vote struct {
-		// Address is the address of the user that this vote belons to.
+		// Address is the address of the user that this vote belongs to.
 		Address address
 
 		// Choice contains the voted choice.
@@ -132,7 +129,7 @@ func (r VotingRecord) trySealVote(v Vote) Vote {
 
 // FindMostVotedChoice returns the most voted choice.
 // ChoiceNone is returned when there is a tie between different
-// voting choices or when the voting record has are no votes.
+// voting choices or when the voting record has no votes.
 func FindMostVotedChoice(r VotingRecord) VoteChoice {
 	var (
 		choice                  VoteChoice
@@ -159,7 +156,7 @@ func FindMostVotedChoice(r VotingRecord) VoteChoice {
 // Absolute majority considers abstentions when counting votes.
 func SelectChoiceByAbsoluteMajority(r VotingRecord, membersCount int) (VoteChoice, bool) {
 	choice := FindMostVotedChoice(r)
-	if choice != ChoiceNone && r.VoteCount(choice) > int(membersCount/2) {
+	if choice != ChoiceNone && r.VoteCount(choice) > membersCount/2 {
 		return choice, true
 	}
 	return ChoiceNone, false

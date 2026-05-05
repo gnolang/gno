@@ -116,20 +116,16 @@ func TestProposalVoteChoices(t *testing.T) {
 
 func TestIsQuorumReached(t *testing.T) {
 	cases := []struct {
-		name    string
-		quorum  float64
-		members []address
-		votes   []commondao.Vote
-		fail    bool
+		name        string
+		quorum      float64
+		memberCount int
+		votes       []commondao.Vote
+		fail        bool
 	}{
 		{
-			name:   "one third",
-			quorum: commondao.QuorumOneThird,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
+			name:        "one third",
+			quorum:      commondao.QuorumOneThird,
+			memberCount: 3,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -138,24 +134,15 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "one third no quorum",
-			quorum: commondao.QuorumOneThird,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
-			fail: true,
+			name:        "one third no quorum",
+			quorum:      commondao.QuorumOneThird,
+			memberCount: 3,
+			fail:        true,
 		},
 		{
-			name:   "simple majority",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "simple majority",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -172,14 +159,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "simple majority no quorum",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "simple majority no quorum",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -189,13 +171,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "two thirds",
-			quorum: commondao.QuorumTwoThirds,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
+			name:        "two thirds",
+			quorum:      commondao.QuorumTwoThirds,
+			memberCount: 3,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -208,13 +186,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "two thirds no quorum",
-			quorum: commondao.QuorumTwoThirds,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-			},
+			name:        "two thirds no quorum",
+			quorum:      commondao.QuorumTwoThirds,
+			memberCount: 3,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
@@ -224,14 +198,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "three fourths",
-			quorum: commondao.QuorumThreeFourths,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "three fourths",
+			quorum:      commondao.QuorumThreeFourths,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -248,14 +217,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "three fourths no quorum",
-			quorum: commondao.QuorumThreeFourths,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
-				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
-			},
+			name:        "three fourths no quorum",
+			quorum:      commondao.QuorumThreeFourths,
+			memberCount: 4,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -265,12 +229,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "full",
-			quorum: commondao.QuorumFull,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "full",
+			quorum:      commondao.QuorumFull,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
@@ -283,12 +244,9 @@ func TestIsQuorumReached(t *testing.T) {
 			},
 		},
 		{
-			name:   "full no quorum",
-			quorum: commondao.QuorumFull,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "full no quorum",
+			quorum:      commondao.QuorumFull,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -298,12 +256,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "no quorum with empty vote",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "no quorum with empty vote",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -313,12 +268,9 @@ func TestIsQuorumReached(t *testing.T) {
 			fail: true,
 		},
 		{
-			name:   "no quorum with abstention",
-			quorum: commondao.QuorumMoreThanHalf,
-			members: []address{
-				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
-			},
+			name:        "no quorum with abstention",
+			quorum:      commondao.QuorumMoreThanHalf,
+			memberCount: 2,
 			votes: []commondao.Vote{
 				{
 					Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
@@ -336,17 +288,12 @@ func TestIsQuorumReached(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			members := commondao.NewMemberStorage()
-			for _, m := range tc.members {
-				members.Add(m)
-			}
-
 			var record commondao.VotingRecord
 			for _, v := range tc.votes {
 				record.AddVote(v)
 			}
 
-			success := commondao.IsQuorumReached(tc.quorum, &record, members)
+			success := commondao.IsQuorumReached(tc.quorum, tc.memberCount, record)
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")

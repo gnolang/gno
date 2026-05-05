@@ -72,10 +72,10 @@ func (dao CommonDAO) Description() string {
 }
 
 // Path returns the full path to the DAO.
-// Paths are normally used when working with hierarchical
-// DAOs and is created by concatenating DAO slugs.
+// Paths are normally used when working with hierarchical DAOs and is created
+// by concatenating DAO slugs. Method doesn't validate that DAOs have a slug,
+// is up to the caller to make sure all DAOs within a path have a valid slug.
 func (dao CommonDAO) Path() string {
-	// NOTE: Path could be a value but there might be use cases where dynamic path is useful (?)
 	parent := dao.Parent()
 	if parent != nil {
 		prefix := parent.Path()
@@ -118,7 +118,7 @@ func (dao CommonDAO) ActiveProposals() ProposalStorage {
 	return dao.activeProposals
 }
 
-// FinishedProposalsi returns finished DAO proposals.
+// FinishedProposals returns finished DAO proposals.
 func (dao CommonDAO) FinishedProposals() ProposalStorage {
 	return dao.finishedProposals
 }
@@ -168,8 +168,7 @@ func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
 }
 
 // Withdraw withdraws a proposal that has no votes.
-// Only proposals without votes can be withdrawn, and once
-// withdrawn they are considered finished.
+// Only proposals without votes can be withdrawn, and once withdrawn they are considered finished.
 func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
@@ -181,8 +180,7 @@ func (dao *CommonDAO) Withdraw(proposalID uint64) error {
 	}
 
 	p.status = StatusWithdrawn
-	dao.activeProposals.Remove(p.id)
-	dao.finishedProposals.Add(p)
+	dao.finishProposal(p)
 	return nil
 }
 
@@ -221,8 +219,6 @@ func (dao *CommonDAO) Vote(member address, proposalID uint64, c VoteChoice, reas
 // Proposal status is updated to "passed" when proposal is approved
 // or to "rejected" if proposal doesn't pass.
 //
-// This method is intended to be called during render to temporary update the
-// status of a proposal so it displays the current status.
 // It optionally can validate the proposal to verify potential issues with the
 // current state when the proposal type supports validation.
 func (dao *CommonDAO) Tally(proposalID uint64, validate bool) (ProposalStatus, error) {
