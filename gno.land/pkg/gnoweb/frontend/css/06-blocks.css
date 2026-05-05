@@ -2553,11 +2553,9 @@ main.dev-mode .b-toc a {
 .b-playground-editor-area {
 	display: flex;
 	flex-direction: column;
-	flex: 1;
 	border: 1px solid var(--s-color-border-default);
 	border-radius: var(--g-radius-2);
 	overflow: hidden;
-	min-height: 40vh;
 	margin-bottom: var(--g-space-8);
 }
 
@@ -2623,9 +2621,11 @@ main.dev-mode .b-toc a {
 }
 
 .b-playground-editor {
-	flex: 1;
 	display: flex;
-	min-height: 0;
+	height: 60vh;
+	min-height: 300px;
+	resize: vertical;
+	overflow: hidden;
 }
 
 .b-playground-code {
