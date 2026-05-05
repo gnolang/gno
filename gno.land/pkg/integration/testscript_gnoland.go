@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -232,6 +233,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"patchpkg":    patchpkgCmd(),
 		"loadpkg":     loadpkgCmd(gnoRootDir),
 		"scanf":       loadpkgCmd(gnoRootDir),
+		"genesiscall": genesiscallCmd(defaultPK),
 		"input":       inputCmd(),
 	}
 
@@ -619,6 +621,42 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 	}
 }
 
+func genesiscallCmd(defaultPK crypto.PrivKey) func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if len(args) < 2 {
+			ts.Fatalf("`genesiscall` requires at least 2 arguments: <pkgpath> <func> [args...]")
+		}
+
+		pkgPath := args[0]
+		funcName := args[1]
+		var callArgs []string
+		if len(args) > 2 {
+			callArgs = args[2:]
+		}
+
+		txs := []gnoland.TxWithMetadata{{
+			Tx: std.Tx{
+				Msgs: []std.Msg{vm.MsgCall{
+					Caller:  defaultPK.PubKey().Address(),
+					PkgPath: pkgPath,
+					Func:    funcName,
+					Args:    callArgs,
+				}},
+				Fee: std.NewFee(2_000_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+			},
+		}}
+
+		if err := gnoland.SignGenesisTxs(txs, defaultPK, "tendermint_test"); err != nil {
+			ts.Fatalf("`genesiscall` unable to sign tx: %s", err)
+		}
+
+		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+		genesis.Txs = append(genesis.Txs, txs...)
+
+		ts.Logf("genesis call %s.%s added", pkgPath, funcName)
+	}
+}
+
 func loadUserEnv(ts *testscript.TestScript, remote string) error {
 	const path = "auth/accounts"
 
@@ -660,7 +698,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
 		}
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret gnoland.GnoAccount
 		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
 		}

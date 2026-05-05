@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"chain/banker"
 	"chain/runtime"
 
 	"gno.land/p/demo/nestedpkg"
@@ -119,4 +120,12 @@ func IsCallerParentPath(cur realm) bool {
 
 func HasCallerSameNamespace(cur realm) bool {
 	return nestedpkg.IsSameNamespace()
+}
+
+func BankerOriginSend(cur realm) string {
+	return banker.OriginSend().String()
+}
+
+func RTestsOriginSend(cur realm) string {
+	return rsubtests.BankerOriginSend(cross)
 }

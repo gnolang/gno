@@ -220,4 +220,52 @@ func TestTxHandler(t *testing.T) {
 
 		assert.ErrorContains(t, err, "unable to load block results")
 	})
+
+	t.Run("nil block", func(t *testing.T) {
+		var (
+			height = int64(10)
+
+			stdTx = &std.Tx{
+				Memo: "example tx",
+			}
+
+			txResultIndex = state.TxResultIndex{
+				BlockNum: height,
+				TxIndex:  0,
+			}
+		)
+
+		// Prepare the transaction
+		marshalledTx, err := amino.Marshal(stdTx)
+		require.NoError(t, err)
+
+		tx := types.Tx(marshalledTx)
+
+		// Prepare the DB
+		sdb := memdb.NewMemDB()
+
+		// Save the result index to the DB
+		sdb.Set(state.CalcTxResultKey(tx.Hash()), txResultIndex.Bytes())
+
+		// Set the GLOBALLY referenced db
+		SetStateDB(sdb)
+
+		// Set the GLOBALLY referenced blockstore that returns nil block
+		blockStore := &mockBlockStore{
+			heightFn: func() int64 {
+				return height
+			},
+			loadBlockFn: func(h int64) *types.Block {
+				return nil
+			},
+		}
+
+		SetBlockStore(blockStore)
+
+		// Load the result
+		loadedTxResult, err := Tx(&rpctypes.Context{}, tx.Hash())
+		require.Nil(t, loadedTxResult)
+
+		assert.ErrorContains(t, err, "block not found for height 10")
+	})
 }

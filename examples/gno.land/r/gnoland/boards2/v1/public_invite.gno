@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/bptree/v0"
 )
 
 // Invite contains a user invitation.
@@ -45,6 +45,11 @@ func RequestInvite(_ realm, boardID boards.ID) {
 	}
 
 	// TODO: Request a fee (returned on accept) or registered user to avoid spam?
+	//   WARNING: if a fee is added via banker.OriginSend(), the guard above
+	//   must be tightened to IsUserCall() — IsUser() accepts maketx-run
+	//   ephemeral realms which can consume the origin-send envelope before
+	//   calling us, bypassing the fee. See
+	//   docs/resources/effective-gno.md#verifying-inbound-coin-payments.
 	// TODO: Make open invite requests optional (per board)
 
 	board := mustGetBoard(boardID)
@@ -56,7 +61,7 @@ func RequestInvite(_ realm, boardID boards.ID) {
 	invitee := user.String()
 	requests, found := getInviteRequests(boardID)
 	if !found {
-		requests = avl.NewTree()
+		requests = bptree.NewBPTree32()
 		requests.Set(invitee, time.Now())
 		gInviteRequests.Set(boardID.Key(), requests)
 		return

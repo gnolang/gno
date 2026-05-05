@@ -27,7 +27,7 @@ func main() {
 //
 // Package address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
 //
-// Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// Admin: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 //
 //  Controllers:
 //
