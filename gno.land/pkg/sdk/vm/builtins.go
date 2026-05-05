@@ -80,28 +80,58 @@ func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 }
 
 // The key has the format <module>:(<realm>:)?<paramname>.
+//
+// Each Set wraps in setWithCheck for module-prefix validation and reads
+// the prior value's byte length before writing. The pre/post sizes feed
+// recordParamsDelta which accumulates per-realm byte deltas on the
+// sdk.Context for processStorageDeposit to lock/refund gnot at message
+// end. See gno.land/pkg/sdk/vm/params_deposit.go.
 func (prm *SDKParams) SetString(key string, value string) {
-	prm.setWithCheck(key, func() { prm.pmk.SetString(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		old := getCurrentSize(prm.ctx, prm.pmk, key)
+		prm.pmk.SetString(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, old, sizeAfterSetString(value))
+	})
 }
 
 func (prm *SDKParams) SetBool(key string, value bool) {
-	prm.setWithCheck(key, func() { prm.pmk.SetBool(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		old := getCurrentSize(prm.ctx, prm.pmk, key)
+		prm.pmk.SetBool(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, old, sizeAfterSetBool(value))
+	})
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
-	prm.setWithCheck(key, func() { prm.pmk.SetInt64(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		old := getCurrentSize(prm.ctx, prm.pmk, key)
+		prm.pmk.SetInt64(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, old, sizeAfterSetInt64(value))
+	})
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	prm.setWithCheck(key, func() { prm.pmk.SetUint64(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		old := getCurrentSize(prm.ctx, prm.pmk, key)
+		prm.pmk.SetUint64(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, old, sizeAfterSetUint64(value))
+	})
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
-	prm.setWithCheck(key, func() { prm.pmk.SetBytes(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		old := getCurrentSize(prm.ctx, prm.pmk, key)
+		prm.pmk.SetBytes(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, old, sizeAfterSetBytes(value))
+	})
 }
 
 func (prm *SDKParams) SetStrings(key string, value []string) {
-	prm.setWithCheck(key, func() { prm.pmk.SetStrings(prm.ctx, key, value) })
+	prm.setWithCheck(key, func() {
+		old := getCurrentSize(prm.ctx, prm.pmk, key)
+		prm.pmk.SetStrings(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, old, sizeAfterSetStrings(value))
+	})
 }
 
 // ParamsInterface read methods (G1). Reads do not require module

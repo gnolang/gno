@@ -680,6 +680,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return err
 	}
 
+	// Seed per-message accumulator for chain/params byte tracking. Must
+	// happen BEFORE NewSDKParams captures ctx into its struct field.
+	ctx = ContextWithParamsAccum(ctx)
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -771,6 +774,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	caller := msg.Caller
 	send := msg.Send
 	chainDomain := vm.getChainDomainParam(ctx)
+	// Seed per-message accumulator before NewSDKParams captures ctx.
+	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
 		ChainDomain:     chainDomain,
@@ -979,6 +984,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", err
 	}
 
+	// Seed per-message accumulator before NewSDKParams captures ctx.
+	ctx = ContextWithParamsAccum(ctx)
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -1429,7 +1436,18 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 // transfer errors.
 
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
+	if ctx.IsCheckTx() {
+		// Defense-in-depth: baseapp already skips handler.Process in
+		// CheckTx, but keep the guard so any future caller invoking
+		// this directly during a non-deliver phase doesn't lock funds.
+		return nil
+	}
 	realmDiffs := gnostore.RealmStorageDiffs()
+	// Merge per-realm chain/params byte deltas accumulated on ctx.
+	// See gno.land/pkg/sdk/vm/params_deposit.go.
+	for path, diff := range ParamsRealmDiffs(ctx) {
+		realmDiffs[path] += diff
+	}
 	depositAmt := deposit.AmountOf(ugnot.Denom)
 	if depositAmt == 0 {
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
@@ -1450,6 +1468,15 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			continue
 		}
 		rlm := gnostore.GetPackageRealm(rlmPath)
+		if rlm == nil {
+			// Should not happen: any executing realm is preprocessed
+			// and materialized before it can call chain/params. Defend
+			// against the rlm.Path nil-deref in lockStorageDeposit.
+			allErrs = goerrors.Join(allErrs, fmt.Errorf(
+				"params storage diff for unknown realm %q (size=%d) — deposit skipped",
+				rlmPath, diff))
+			continue
+		}
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
@@ -1466,6 +1493,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					rlmPath, err))
 				continue
 			}
+			// Commit the per-realm meta-key only after the deposit is
+			// held — keeps bank state and params meta consistent on
+			// partial failure.
+			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
@@ -1502,6 +1533,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			if err != nil {
 				return err
 			}
+			// Commit the per-realm meta-key only after the refund
+			// transfers — symmetry with the lock branch above.
+			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
 			evt := chain.StorageUnlockEvent{
 				// For unlock, BytesDelta is negative

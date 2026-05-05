@@ -93,10 +93,14 @@ func (m *Machine) chargeNativeGas(fv *FuncValue) *NativeGasInfo {
 	}
 	gi := nativeGasIndex[fv.NativePkg+"\x00"+string(fv.NativeName)]
 	if gi == nil {
-		if m.GasMeter == nil {
-			return nil
-		}
-		panic(fmt.Sprintf("native %s.%s has no calibrated gas entry", fv.NativePkg, fv.NativeName))
+		// Uncalibrated native — fall back to the historical flat
+		// charge. Many gno stdlib bindings (fmt.*, strings.*, errors.*,
+		// etc.) aren't in the table yet; panicking would break every
+		// realm that uses them. TODO: extend the calibration sweep to
+		// cover these and re-introduce the panic as a build-time
+		// forcing function once the table is comprehensive.
+		m.incrCPU(OpCPUCallNativeBody)
+		return nil
 	}
 	cost := gi.Base
 	if gi.Slope != 0 {
