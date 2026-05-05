@@ -57,6 +57,7 @@ func TestEnvironment_IsolatedBetweenInstances(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		defer close(errsA)
 		for range iters {
 			res, err := envA.Block(&rpctypes.Context{}, nil)
 			if err != nil {
@@ -68,10 +69,10 @@ func TestEnvironment_IsolatedBetweenInstances(t *testing.T) {
 				return
 			}
 		}
-		close(errsA)
 	}()
 	go func() {
 		defer wg.Done()
+		defer close(errsB)
 		for range iters {
 			res, err := envB.Block(&rpctypes.Context{}, nil)
 			if err != nil {
@@ -83,7 +84,6 @@ func TestEnvironment_IsolatedBetweenInstances(t *testing.T) {
 				return
 			}
 		}
-		close(errsB)
 	}()
 	wg.Wait()
 
