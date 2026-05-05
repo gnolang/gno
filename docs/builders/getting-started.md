@@ -126,7 +126,9 @@ balances. The `test1` account is preloaded, so no faucet is needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass multiple
 directories to load several packages at once; the bundled `examples/`
-are loaded by default.
+are loaded by default — including
+[`r/docs`](http://localhost:8888/r/docs), an on-chain guided tour you
+can browse locally.
 
 For more options, see
 [Running a local dev node](./local-dev-with-gnodev.md) and
