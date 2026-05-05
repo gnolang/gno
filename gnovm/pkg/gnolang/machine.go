@@ -1314,10 +1314,6 @@ const (
 	OpCPUBand      = 71
 	OpCPUBandn     = 71
 
-	/* Per-unit scaling costs (multiplied by size) */
-	// TODO: OpCPUSlopeCmp is an arbitrary number; needs benchmarking.
-	OpCPUSlopeCmp = 1 // per-byte cost for string comparisons (hardware-optimized memcmp)
-
 	/* Other expression operators */
 	OpCPUEval                = 82  // parameterized for NameExpr; base from fit (81.7)
 	OpCPUBinary1             = 69  // max(LAND true=69, LAND false=66)
@@ -1413,6 +1409,8 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
+	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
 	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
 	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast

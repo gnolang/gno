@@ -445,7 +445,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		}
 		// Charge gas proportional to string length, since Go's == on
 		// strings is O(N).
-		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUSlopeCmp))
+		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUSlopeBytesCmp))
 		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
@@ -494,7 +494,7 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 		}
 		// Fast path for byte arrays (Data representation).
 		if la.Data != nil {
-			m.incrCPU(overflow.Mulp(int64(len(la.Data)), OpCPUSlopeCmp))
+			m.incrCPU(overflow.Mulp(int64(len(la.Data)), OpCPUSlopeBytesCmp))
 			return bytes.Equal(la.Data, ra.Data)
 		}
 		et := at.Elt
@@ -579,7 +579,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
 		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
@@ -626,7 +626,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
 		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
@@ -673,7 +673,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
 		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
@@ -720,7 +720,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case StringKind:
 		ls := lv.GetString()
 		rs := rv.GetString()
-		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeCmp))
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
 		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
