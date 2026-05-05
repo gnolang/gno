@@ -55,8 +55,9 @@ package's on-chain path. Use `gno.land/r/…` for realms (stateful) or
 
 ### Write Gno code
 
-Add `.gno` files next to the freshly created `gnomod.toml`. A minimal
-realm with persistent state:
+Add `.gno` files next to the freshly created `gnomod.toml`. We'll build
+a counter, a realm that stores a number and exposes a function to
+increment it:
 
 ```gno
 package myrealm
@@ -75,8 +76,6 @@ func Render(path string) string {
 }
 ```
 
-This is the classic Counter pattern:
-
 - **`var count int`** — top-level variables are automatically persisted
   to chain state after each transaction.
 - **`Increment`** — the `_ realm` parameter makes the function
@@ -86,7 +85,7 @@ This is the classic Counter pattern:
 - **`Render`** — gnoweb calls this to display your realm in the
   browser. The signature must be `func Render(path string) string`.
 
-Add a test file alongside it — `myrealm_test.gno`:
+Add a test file alongside it, `myrealm_test.gno`:
 
 ```gno
 package myrealm
@@ -126,9 +125,9 @@ balances. The `test1` account is preloaded, so no faucet is needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass multiple
 directories to load several packages at once; the bundled `examples/`
-are loaded by default — including
+are loaded by default including
 [`r/docs`](http://localhost:8888/r/docs), an on-chain guided tour you
-can browse locally.
+can modify and browse locally.
 
 For more options, see
 [Running a local dev node](./local-dev-with-gnodev.md) and
@@ -167,9 +166,9 @@ Create one with `gnokey`:
 gnokey add dev
 ```
 
-Prompts for an encryption password and prints a 24-word mnemonic —
-write it down to recover the key later. List your keys to read the
-derived `g1...` address:
+Prompts for an encryption password and prints a 24-word mnemonic,
+store it securely to recover the key later. List your keys to read
+the derived `g1...` address:
 
 ```sh
 gnokey list
@@ -205,7 +204,7 @@ gnokey query bank/balances/<your-g1-addr> -remote https://rpc.staging.gno.land:4
 ```
 
 Response shows your balance as `<amount>ugnot` (1 GNOT = 1,000,000
-ugnot). Read-only queries like this don't need a chainid or a key —
+ugnot). Read-only queries like this don't need a chainid or a key,
 they hit the RPC endpoint directly.
 
 ### 4. Before you deploy
@@ -217,7 +216,7 @@ Two things to know before publishing your first package:
 `gno.land/r/alice/…` are not available yet and will require registration.
 
 **CLA.** Publishing code on gno.land may require acknowledging a
-[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md) —
+[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md),
 read it first. If `addpkg` fails with `has not signed the required CLA`,
 fetch the current hash from [`r/sys/cla`](https://gno.land/r/sys/cla) and
 sign once to acknowledge, then retry the deploy:
