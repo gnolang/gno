@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 )
@@ -18,8 +18,8 @@ var (
 
 var (
 	adminAddr     = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
-	moderatorList = avl.NewTree()
-	commenterList = avl.NewTree()
+	moderatorList = bptree.NewBPTree32()
+	commenterList = bptree.NewBPTree32()
 	inPause       bool
 )
 

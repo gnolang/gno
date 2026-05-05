@@ -20,7 +20,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
 
 # Create proposal to add @test1 as controller
-gnokey maketx run -gas-fee 2700001ugnot -gas-wanted 27_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_add_proposal.gno
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 30_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_add_proposal.gno
 stdout OK!
 
 # Check proposal exists
@@ -36,11 +36,11 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 23
 stdout OK!
 
 # Register a new user as a controller
-gnokey maketx run -gas-fee 2000001ugnot -gas-wanted 20_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/register_user1.gno
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 22_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/register_user1.gno
 stdout OK!
 
 # Create proposal to remove @test1 from controllers
-gnokey maketx run -gas-fee 2700001ugnot -gas-wanted 27_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_remove_proposal.gno
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/create_controller_remove_proposal.gno
 stdout OK!
 
 # Check proposal exists
