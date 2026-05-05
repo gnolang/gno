@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 const (
@@ -62,7 +62,7 @@ type (
 		creator        address
 		record         *VotingRecord // TODO: Add support for multiple voting records
 		statusReason   string
-		voteChoices    *avl.Tree // string(VoteChoice) -> struct{}
+		voteChoices    *bptree.BPTree // string(VoteChoice) -> struct{}
 		votingDeadline time.Time
 		createdAt      time.Time
 	}
@@ -158,7 +158,7 @@ func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, e
 		definition:     d,
 		creator:        creator,
 		record:         &VotingRecord{},
-		voteChoices:    avl.NewTree(),
+		voteChoices:    bptree.NewBPTree32(),
 		votingDeadline: now.Add(d.VotingPeriod()),
 		createdAt:      now,
 	}

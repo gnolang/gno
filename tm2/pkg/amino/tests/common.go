@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -299,6 +300,9 @@ func (am *AminoMarshalerInt5) UnmarshalAmino(repr string) error {
 	i, err := strconv.Atoi(repr)
 	if err != nil {
 		return err
+	}
+	if i < math.MinInt32 || i > math.MaxInt32 {
+		return fmt.Errorf("value %d overflows int32", i)
 	}
 	*am = AminoMarshalerInt5(i)
 	return nil

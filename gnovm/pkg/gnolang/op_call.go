@@ -407,7 +407,12 @@ func (m *Machine) doOpReturnCallDefers() {
 	fv := dfr.Func
 	ft := fv.GetType(m.Store)
 	// Push frame for defer.
-	m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
+	if dfr.IsBoundMethod {
+		// args[0] is the receiver, per popCopyArgs bound-method invariant.
+		m.PushFrameCall(&dfr.Source.Call, fv, dfr.Args[0], true)
+	} else {
+		m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
+	}
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.
@@ -536,10 +541,11 @@ func (m *Machine) doOpDefer() {
 			ds.Call.Varg,
 			recv)
 		cfr.PushDefer(Defer{
-			Func:   fv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
+			Func:          fv,
+			IsBoundMethod: true,
+			Args:          args,
+			Source:        ds,
+			Parent:        lb,
 		})
 	case nil:
 		cfr.PushDefer(Defer{

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 type (
@@ -36,8 +36,8 @@ type (
 
 // VotingRecord stores accounts that voted and vote choices.
 type VotingRecord struct {
-	votes  avl.Tree // string(address) -> Vote
-	count  avl.Tree // string(choice) -> int
+	votes  bptree.BPTree // string(address) -> Vote
+	count  bptree.BPTree // string(choice) -> int
 	sealed bool
 }
 

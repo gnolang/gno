@@ -3,7 +3,7 @@ package poa
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/sys/validators"
 )
 
@@ -18,14 +18,14 @@ var ErrInvalidVotingPower = errors.New("invalid voting power")
 // To remove:
 // - proposed validator must be part of the set already
 type PoA struct {
-	validators *avl.Tree // address -> validators.Validator
+	validators *bptree.BPTree // address -> validators.Validator
 }
 
 // NewPoA creates a new empty Proof of Authority validator set
 func NewPoA(opts ...Option) *PoA {
 	// Create the empty set
 	p := &PoA{
-		validators: avl.NewTree(),
+		validators: bptree.NewBPTree32(),
 	}
 
 	// Apply the options
