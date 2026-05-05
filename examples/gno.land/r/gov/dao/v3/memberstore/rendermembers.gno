@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/samcrew/tablesort"
 	"gno.land/p/samcrew/urlfilter"
@@ -15,7 +15,7 @@ import (
 // RenderMembers returns the members list with tier filters and pagination.
 func RenderMembers(path string, members MembersByTier) string {
 	u, _ := url.Parse(path)
-	mdFilters, items := urlfilter.ApplyFilters(u, members.Tree, "filter")
+	mdFilters, items := urlfilter.ApplyFilters(u, members.BPTree, "filter")
 	var sb strings.Builder
 
 	sb.WriteString(md.Link("> Go to Tiers summary <", "/r/gov/dao/v3/memberstore") + "\n\n")
@@ -33,7 +33,7 @@ func RenderMembers(path string, members MembersByTier) string {
 }
 
 // renderMembersPages returns the members of each page.
-func renderMembersPages(u *url.URL, page *pager.Page, members *avl.Tree) string {
+func renderMembersPages(u *url.URL, page *pager.Page, members *bptree.BPTree) string {
 	var sb strings.Builder
 
 	table := &tablesort.Table{

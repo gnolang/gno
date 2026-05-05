@@ -4,6 +4,7 @@ package valopers
 import (
 	"chain"
 	"chain/banker"
+	"chain/runtime"
 	"crypto/bech32"
 	"errors"
 	"regexp"
@@ -80,6 +81,14 @@ func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 func Register(cur realm, moniker string, description string, serverType string, address_XXX address, pubKey string) {
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
+		// Reject non-EOA callers: only direct user-call (maketx call) leaves
+		// banker.OriginSend() pointing at coins that actually landed at this
+		// realm. Intermediate code realms or `maketx run` ephemeral realms
+		// can attach -send to the tx but spend it elsewhere, leaving
+		// OriginSend() describing a phantom payment.
+		if !runtime.PreviousRealm().IsUserCall() {
+			panic("only user-call (maketx call) accepted")
+		}
 		sentCoins := banker.OriginSend()
 
 		// Coins must be sent and cover the min fee

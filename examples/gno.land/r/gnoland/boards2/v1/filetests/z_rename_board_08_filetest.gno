@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	owner   address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner   address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	member  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 	member2 address = "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"
 	name            = "foo123"
@@ -28,7 +28,10 @@ func init() {
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
+	// uinit.RegisterUser is genesis-only since the security fix.
+	testing.SetHeight(0)
 	uinit.RegisterUser(cross, newName, member)
+	testing.SetHeight(123)
 
 	// Invite a new member that doesn't own the user that matches the new board name
 	boards2.InviteMember(cross, bid, member2, boards2.RoleOwner)

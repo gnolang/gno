@@ -31,14 +31,14 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:13](-98)=
+// u[06279d1e03ecb38b84822f9caf584bd16913470d:13](-98)=
 //     @@ -2,20 +2,15 @@
 //          "ObjectInfo": {
-//              "ID": "46279d1e03ecb38b84822f9caf584bd16913470d:13",
+//              "ID": "06279d1e03ecb38b84822f9caf584bd16913470d:13",
 //              "LastObjectSize": "320",
 //     -        "ModTime": "18",
 //     +        "ModTime": "19",
-//              "OwnerID": "46279d1e03ecb38b84822f9caf584bd16913470d:2",
+//              "OwnerID": "06279d1e03ecb38b84822f9caf584bd16913470d:2",
 //              "RefCount": "1"
 //          },
 //          "Value": {
@@ -50,16 +50,16 @@ func main(cur realm) {
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",
-//     -            "Hash": "3fa519e4001c6f5839834b18d33f97c7f94139c5",
-//     -            "ObjectID": "46279d1e03ecb38b84822f9caf584bd16913470d:19"
+//     -            "Hash": "8b50fbe1097c0c1a442a7b9da3b4162702c78318",
+//     -            "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:19"
 //     +            "@type": "/gno.PrimitiveType",
 //     +            "value": "32"
 //              }
 //          }
 //      }
-// d[46279d1e03ecb38b84822f9caf584bd16913470d:19](-298)
+// d[06279d1e03ecb38b84822f9caf584bd16913470d:19](-298)
 // finalizerealm["gno.land/r/crossrealm"]
-// u[dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8](5)=
+// u[0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8](5)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "Fields": [
@@ -71,10 +71,10 @@ func main(cur realm) {
 //                      "value": "32"
 //     @@ -11,7 +11,7 @@
 //          "ObjectInfo": {
-//              "ID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8",
+//              "ID": "0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:8",
 //              "LastObjectSize": "214",
 //     -        "ModTime": "0",
 //     +        "ModTime": "8",
-//              "OwnerID": "dc8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7",
+//              "OwnerID": "0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7",
 //              "RefCount": "1"
 //          }

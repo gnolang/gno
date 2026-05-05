@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -112,12 +112,12 @@ func (p *Proposal) AllowedDAOs() []string {
 }
 
 type Proposals struct {
-	seq       seqid.ID
-	*avl.Tree // *avl.Tree[ProposalID]*Proposal
+	seq            seqid.ID
+	*bptree.BPTree // *bptree.BPTree[ProposalID]*Proposal
 }
 
 func NewProposals() *Proposals {
-	return &Proposals{Tree: avl.NewTree()}
+	return &Proposals{BPTree: bptree.NewBPTree32()}
 }
 
 func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
@@ -240,6 +240,11 @@ type DAO interface {
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
 	PreExecuteProposal(pid ProposalID) (bool, error)
+
+	// ExecuteProposal executes the proposal executor and on error changes proposal
+	// status to denied with the error message being the denial reason.
+	// It returns the executor error when it fails.
+	ExecuteProposal(pid ProposalID, e Executor) error
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
