@@ -458,13 +458,3 @@ make lint
 # tidy go.mod files
 make tidy
 ```
-
----
-
-## Next Steps
-
-- [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Language basics and package structure
-- [Local development with `gnodev`](builders/local-dev-with-gnodev.md) - Hot reload, premining, auto-deploy
-- [Deploying packages](builders/deploy-packages.md) - Gas fees, namespaces, deployment details
-- [Effective Gno](resources/effective-gno.md) - Best practices for writing Gno
-- [Using `gnokey`](users/interact-with-gnokey.md) - Full key management and transaction reference
