@@ -6,9 +6,9 @@ package main
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/boards"
-	"gno.land/r/gnoland/users/v1"
+	uinit "gno.land/r/sys/users/init"
 )
 
 func main() {
@@ -16,8 +16,9 @@ func main() {
 
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
-
-	users.Register(cross, "alice_123")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross, "alice_123", aliceAddr)
+	testing.SetHeight(123)
 
 	bid := boards.CreateBoard(cross, "testboard")
 	boards.CreateThread(cross, bid, "testthread", "testbody")

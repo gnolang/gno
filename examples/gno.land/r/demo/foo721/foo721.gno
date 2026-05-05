@@ -4,17 +4,17 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
-	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+	admin address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
 )
 
 func init() {
 	mintNNFT(admin, 10)                                     // @administrator (10)
-	mintNNFT("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", 5) // @hariom (5)
+	mintNNFT("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", 5) // govdao t1 multisig (5)
 }
 
 func mintNNFT(owner address, n int64) {

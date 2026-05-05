@@ -5,6 +5,7 @@ option go_package = "github.com/gnolang/gno/gno.land/pkg/sdk/vm/pb";
 
 // imports
 import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
+import "github.com/gnolang/gno/tm2/pkg/sdk/params/params.proto";
 
 // messages
 message m_call {
@@ -56,4 +57,28 @@ message InvalidPackageError {
 }
 
 message InvalidFileError {
+}
+
+message ObjectNotFoundError {
+}
+
+message GenesisState {
+	Params params = 1;
+	repeated string realm_params = 2;
+}
+
+message Params {
+	string sys_names_pkg_path = 1 [json_name = "sysnames_pkgpath"];
+	string sys_cla_pkg_path = 2 [json_name = "syscla_pkgpath"];
+	string chain_domain = 3;
+	string default_deposit = 4;
+	string storage_price = 5;
+	string storage_fee_collector = 6;
+	sint64 min_get_read_depth100 = 7 [json_name = "min_get_read_depth_100"];
+	sint64 min_set_read_depth100 = 8 [json_name = "min_set_read_depth_100"];
+	sint64 min_write_depth100 = 9 [json_name = "min_write_depth_100"];
+	sint64 fixed_get_read_depth100 = 10 [json_name = "fixed_get_read_depth_100"];
+	sint64 fixed_set_read_depth100 = 11 [json_name = "fixed_set_read_depth_100"];
+	sint64 fixed_write_depth100 = 12 [json_name = "fixed_write_depth_100"];
+	sint64 iter_next_cost_flat = 13;
 }

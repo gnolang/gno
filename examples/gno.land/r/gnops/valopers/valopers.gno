@@ -4,16 +4,18 @@ package valopers
 import (
 	"chain"
 	"chain/banker"
+	"chain/runtime"
 	"crypto/bech32"
 	"errors"
 	"regexp"
 
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/combinederr"
-	"gno.land/p/nt/ownable/exts/authorizable"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/combinederr/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ownable/v0/exts/authorizable"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const (
@@ -63,14 +65,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
-	if err := v.Auth().AddToAuthListByPrevious(member); err != nil {
+	if err := v.Auth().AddToAuthList(member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 	v := GetByAddr(address_XXX)
-	if err := v.Auth().DeleteFromAuthListByPrevious(member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(member); err != nil {
 		panic(err)
 	}
 }
@@ -79,6 +81,14 @@ func DeleteFromAuthList(cur realm, address_XXX address, member address) {
 func Register(cur realm, moniker string, description string, serverType string, address_XXX address, pubKey string) {
 	// Check if a fee is enforced
 	if !minFee.IsZero() {
+		// Reject non-EOA callers: only direct user-call (maketx call) leaves
+		// banker.OriginSend() pointing at coins that actually landed at this
+		// realm. Intermediate code realms or `maketx run` ephemeral realms
+		// can attach -send to the tx but spend it elsewhere, leaving
+		// OriginSend() describing a phantom payment.
+		if !runtime.PreviousRealm().IsUserCall() {
+			panic("only user-call (maketx call) accepted")
+		}
 		sentCoins := banker.OriginSend()
 
 		// Coins must be sent and cover the min fee
@@ -99,7 +109,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		Address:     address_XXX,
 		PubKey:      pubKey,
 		KeepRunning: true,
-		auth:        authorizable.NewAuthorizableWithOrigin(),
+		auth:        authorizable.New(ownable.NewWithOrigin()),
 	}
 
 	if err := v.Validate(); err != nil {

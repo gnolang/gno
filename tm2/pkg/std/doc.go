@@ -45,4 +45,10 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 type Signature struct {
 	PubKey    crypto.PubKey `json:"pub_key" yaml:"pub_key"` // optional
 	Signature []byte        `json:"signature" yaml:"signature"`
+	// SessionAddr identifies a session account for delegated signing.
+	// Zero-value means a master-key signature. When non-zero, the AnteHandler
+	// loads the session account at /a/<signer>/s/<SessionAddr> for verification.
+	// Amino binary and JSON both skip the field when the address is zero
+	// ([20]byte{}), so master-signed txs pay no wire-size overhead.
+	SessionAddr crypto.Address `json:"session_addr,omitempty" yaml:"session_addr,omitempty"`
 }

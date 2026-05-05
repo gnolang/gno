@@ -1,0 +1,140 @@
+# Sequential e2e: add a validator (proposal 0), then remove it
+# (proposal 1). Exercises the Power=0 removal path through the full
+# pipeline:
+#
+#   v3 callback -> reads effective valset, drops removed entry from
+#   the local map -> SetValsetProposal (full target without removed)
+#   -> dirty=true
+#   -> EndBlocker reads, diffs current vs proposed
+#   -> emits Power=0 update for removed validator
+#   -> writes valset:current (sans removed)
+#
+# Verifies that the removal half of the v3 flow works end-to-end and
+# valset:current shrinks correctly.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# === PROPOSAL 0: ADD VALIDATOR ===
+
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Post-add: valset:current contains both genesis + new validator.
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+stdout '","gpub1'
+
+# === PROPOSAL 1: REMOVE THE SAME VALIDATOR ===
+
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/remove_proposal.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Post-remove: the e2e-test-validator pubkey must be GONE from
+# valset:current. The genesis validator's pubkey (prefix gpub1)
+# must still be present (the comma-separator that proved both
+# validators were there before is also gone — only one remains).
+gnokey query params/node:valset:current
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+stdout 'gpub1'
+! stdout '","gpub1'
+
+# valset:dirty should be false again (EndBlocker consumed proposal 1).
+gnokey query params/node:valset:dirty
+stdout 'false'
+
+# Liveness check past H+2 — chain made progress through both the
+# add and the remove validator-set transitions.
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+-- run/add_proposal.gno --
+package main
+
+import (
+	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	const (
+		addAddr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
+		addPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	)
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{Address: address(addAddr), PubKey: addPubKey, VotingPower: 1},
+		}
+	}
+	pr := v3.NewProposalRequest(changesFn, "Add e2e-test-validator", "")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- run/remove_proposal.gno --
+package main
+
+import (
+	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	// Same pubkey/address as the add proposal. VotingPower=0 signals
+	// removal to v3's NewValsetChangeExecutor callback (validators.gno
+	// line ~102).
+	const (
+		removeAddr = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
+	)
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{Address: address(removeAddr), VotingPower: 0},
+		}
+	}
+	pr := v3.NewProposalRequest(changesFn, "Remove e2e-test-validator", "")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// slice index out of bounds: 6 (len=5)
+// runtime error: slice index out of bounds: 6 (len=5)

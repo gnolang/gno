@@ -9,7 +9,7 @@ package loci
 import (
 	"chain/runtime"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // LociStore is a simple key-value store that uses
@@ -25,7 +25,7 @@ func New() *LociStore {
 	}
 }
 
-// Set stores a byte slice in the AVL tree using the `std.PreviousRealm().Address()`
+// Set stores a byte slice in the AVL tree using the `runtime.PreviousRealm().Address()`
 // string as the key.
 func (s *LociStore) Set(value []byte) {
 	key := string(runtime.PreviousRealm().Address())
