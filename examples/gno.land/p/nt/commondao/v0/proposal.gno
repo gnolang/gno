@@ -9,27 +9,27 @@ import (
 
 const (
 	StatusActive    ProposalStatus = "active"
-	StatusPassed                   = "passed"
-	StatusRejected                 = "rejected"
-	StatusExecuted                 = "executed"
-	StatusFailed                   = "failed"
-	StatusWithdrawn                = "withdrawn"
+	StatusPassed    ProposalStatus = "passed"
+	StatusRejected  ProposalStatus = "rejected"
+	StatusExecuted  ProposalStatus = "executed"
+	StatusFailed    ProposalStatus = "failed"
+	StatusWithdrawn ProposalStatus = "withdrawn"
 )
 
 const (
 	ChoiceNone       VoteChoice = ""
-	ChoiceYes                   = "YES"
-	ChoiceNo                    = "NO"
-	ChoiceNoWithVeto            = "NO WITH VETO"
-	ChoiceAbstain               = "ABSTAIN"
+	ChoiceYes        VoteChoice = "YES"
+	ChoiceNo         VoteChoice = "NO"
+	ChoiceNoWithVeto VoteChoice = "NO WITH VETO"
+	ChoiceAbstain    VoteChoice = "ABSTAIN"
 )
 
 const (
 	QuorumOneThird     float64 = 0.33 // percentage, checked as >= than quorum
-	QuorumMoreThanHalf         = 0.51
-	QuorumTwoThirds            = 0.66
-	QuorumThreeFourths         = 0.75
-	QuorumFull                 = 1
+	QuorumMoreThanHalf float64 = 0.51
+	QuorumTwoThirds    float64 = 0.66
+	QuorumThreeFourths float64 = 0.75
+	QuorumFull         float64 = 1
 )
 
 // MaxCustomVoteChoices defines the maximum number of custom
@@ -81,7 +81,7 @@ type (
 		Body() string
 
 		// VotingPeriod returns the period where votes are allowed after proposal creation.
-		// It is used to calculate the voting deadline from the proposal's creationd date.
+		// It is used to calculate the voting deadline from the proposal's creation date.
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
@@ -183,7 +183,7 @@ func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, e
 	return p, nil
 }
 
-// ID returns the unique proposal identifies.
+// ID returns the unique proposal identifier.
 func (p Proposal) ID() uint64 {
 	return p.id
 }
@@ -215,7 +215,7 @@ func (p Proposal) VotingRecord() *VotingRecord {
 }
 
 // StatusReason returns an optional reason that lead to the current proposal status.
-// Reason is mostyl useful when a proposal fails.
+// Reason is mostly useful when a proposal fails.
 func (p Proposal) StatusReason() string {
 	return p.statusReason
 }
@@ -254,13 +254,8 @@ func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
-// IsQuorumReached checks if a participation quorum is reach.
-func IsQuorumReached(quorum float64, r *VotingRecord, members MemberStorage) bool {
-	if r == nil {
-		return false
-	}
-
-	memberCount := members.TotalSize()
+// IsQuorumReached checks if a participation quorum is reached.
+func IsQuorumReached(quorum float64, memberCount int, r VotingRecord) bool {
 	if memberCount <= 0 || quorum <= 0 {
 		return false
 	}
@@ -269,7 +264,7 @@ func IsQuorumReached(quorum float64, r *VotingRecord, members MemberStorage) boo
 	r.IterateVotesCount(func(c VoteChoice, voteCount int) bool {
 		// Don't count explicit abstentions or invalid votes
 		if c != ChoiceNone && c != ChoiceAbstain {
-			totalCount += r.VoteCount(c)
+			totalCount += voteCount
 		}
 		return false
 	})

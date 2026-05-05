@@ -234,7 +234,7 @@ Custom implementations are supported though the **MemberStorage** and
 
 ```go
 type MemberStorage interface {
-	// Size returns the number of members in the storage.
+	// Size returns the number of ungrouped members in the storage.
 	Size() int
 
 	// Has checks if a member exists in the storage.
@@ -247,6 +247,7 @@ type MemberStorage interface {
 	Remove(address) bool
 
 	// Grouping returns member groups when supported.
+	// When nil is returned it means that grouping of members is not supported.
 	Grouping() MemberGrouping
 
 	// IterateByOffset iterates members starting at the given offset.
