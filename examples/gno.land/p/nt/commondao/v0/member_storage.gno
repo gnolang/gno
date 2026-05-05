@@ -15,10 +15,6 @@ type (
 		// Size returns the number of ungrouped members in the storage.
 		Size() int
 
-		// TotalSize returns the number of members in the storage.
-		// It counts grouped and ungrouped members.
-		TotalSize() int
-
 		// Has checks if a member exists in the storage.
 		Has(address) bool
 
@@ -78,24 +74,8 @@ func (s memberStorage) IsSealed() bool {
 }
 
 // Size returns the number of ungrouped members in the storage.
-// To get the size including ungrouped members use `MemberStorage.TotalSize()`.
 func (s memberStorage) Size() int {
 	return s.members.Size()
-}
-
-// TotalSize returns the number of members in the storage.
-// It counts grouped and ungrouped members.
-func (s memberStorage) TotalSize() int {
-	count := s.Size()
-	if s.grouping == nil {
-		return count
-	}
-
-	s.grouping.IterateByOffset(0, s.Grouping().Size(), func(g MemberGroup) bool {
-		count += g.Members().Size()
-		return false
-	})
-	return count
 }
 
 // Has checks if a member exists in the base underlying storage.
@@ -137,6 +117,97 @@ func (s memberStorage) IterateByOffset(offset, count int, fn MemberIterFn) bool 
 	s.members.IterateByOffset(offset, count, func(member address) bool {
 		stopped = fn(member)
 		return stopped
+	})
+	return stopped
+}
+
+// GetTotalMemberStorageSize returns the number of members in the storage.
+// It counts all grouped and ungrouped members, without considering potential
+// duplicate members which could be assigned for example to multiple groups.
+func GetTotalMemberStorageSize(s MemberStorage) int {
+	// TODO: Support duplications, for example though a UniqueMemberIterator interaface
+
+	count := s.Size()
+	if s.Grouping() == nil {
+		return count
+	}
+
+	s.Grouping().IterateByOffset(0, s.Grouping().Size(), func(g MemberGroup) bool {
+		count += g.Members().Size()
+		return false
+	})
+	return count
+}
+
+// ExistsInMemberStorage checks if a member exists within a storage.
+// It checks grouped and ungrouped members.
+func ExistsInMemberStorage(s MemberStorage, member address) bool {
+	if s.Has(member) {
+		// Member exists as an ungrouped member
+		return true
+	}
+
+	if s.Grouping() == nil {
+		return false
+	}
+
+	// Check if member exists within any of the groups
+	return s.Grouping().IterateByOffset(0, s.Grouping().Size(), func(g MemberGroup) bool {
+		return g.Members().Has(member)
+	})
+}
+
+// IterateMemberStorage iterates members starting at the given offset across
+// the entire storage. Ungrouped members are iterated first, followed by the
+// members of each group in group iteration order. Members that appear in
+// multiple groups (or in both grouped and ungrouped) are visited once per
+// occurrence. The callback can return true to stop iteration.
+func IterateMemberStorage(s MemberStorage, offset, count int, fn MemberIterFn) bool {
+	if count <= 0 {
+		return false
+	}
+
+	// Define a callback to walk storage members
+	var stopped bool
+	walk := func(storage MemberStorage) bool {
+		size := storage.Size()
+		if offset >= size {
+			offset -= size
+			return false
+		}
+
+		// Update current count to fit storage boundaries
+		currentCount := count
+		if currentCount > size-offset {
+			currentCount = size - offset
+		}
+
+		if storage.IterateByOffset(offset, currentCount, fn) {
+			stopped = true
+			return true // Walk stopped by the callback
+		}
+
+		// Discount iterated members and reset offset for next grouping storage
+		count -= currentCount
+		offset = 0
+
+		// When zero walk stops because specified amount of members were iterated
+		return count == 0
+	}
+
+	// Walk ungrouped members
+	if walk(s) {
+		return stopped
+	}
+
+	grouping := s.Grouping()
+	if grouping == nil {
+		return false
+	}
+
+	// Walk grouped members
+	grouping.IterateByOffset(0, grouping.Size(), func(g MemberGroup) bool {
+		return walk(g.Members())
 	})
 	return stopped
 }

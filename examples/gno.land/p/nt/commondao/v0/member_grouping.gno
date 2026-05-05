@@ -130,3 +130,20 @@ func (g memberGrouping) trySealGroup(mg MemberGroup) MemberGroup {
 	}
 	return mg
 }
+
+// GetMemberGroups returns the groups that a member belongs to.
+func GetMemberGroups(s MemberStorage, member address) []string {
+	grouping := s.Grouping()
+	if grouping == nil {
+		return nil
+	}
+
+	var groups []string
+	grouping.IterateByOffset(0, grouping.Size(), func(g MemberGroup) bool {
+		if g.Members().Has(member) {
+			groups = append(groups, g.Name())
+		}
+		return false
+	})
+	return groups
+}
