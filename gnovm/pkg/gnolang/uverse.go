@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strconv"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -87,40 +85,6 @@ var gAddressType = &DeclaredType{
 	// methods defined in makeUverseNode()
 }
 
-var gCoinType = &DeclaredType{
-	PkgPath: uversePkgPath,
-	Name:    "gnocoin",
-	Base: &StructType{
-		PkgPath: uversePkgPath,
-		Fields: []FieldType{
-			{Name: "Denom", Type: StringType},
-			{Name: "Amount", Type: Int64Type},
-		},
-	},
-	sealed: true,
-}
-
-var gCoinsType = &DeclaredType{
-	PkgPath: uversePkgPath,
-	Name:    "gnocoins",
-	Base:    &SliceType{Elt: gCoinType},
-	sealed:  true,
-}
-
-// OriginSendProvider is an interface for contexts that can provide origin send information.
-// This interface is implemented by ExecContext to avoid import cycles.
-type OriginSendProvider interface {
-	GetOriginSend() std.Coins
-}
-
-// gnoCoinString formats a gnocoin StructValue as "amountdenom".
-// Used by both gnocoin.String() and gnocoins.String() native methods.
-func gnoCoinString(sv *StructValue) string {
-	denom := sv.Fields[0].GetString()
-	amount := sv.Fields[1].GetInt64()
-	return strconv.FormatInt(amount, 10) + denom
-}
-
 var gRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    "realm",
@@ -141,34 +105,6 @@ var gRealmType = &DeclaredType{
 					Params: nil,
 					Results: []FieldType{{
 						Type: StringType,
-					}},
-				},
-			}, {
-				Name: "Coins",
-				Type: &FuncType{
-					Params: nil,
-					Results: []FieldType{{
-						Type: gCoinsType,
-					}},
-				},
-			}, {
-				Name: "SentCoins",
-				Type: &FuncType{
-					Params: nil,
-					Results: []FieldType{{
-						Type: gCoinsType,
-					}},
-				},
-			}, {
-				Name: "Send",
-				Type: &FuncType{
-					Params: []FieldType{{
-						Name: "coins", Type: gCoinsType,
-					}, {
-						Name: "to", Type: gAddressType,
-					}},
-					Results: []FieldType{{
-						Type: gErrorType,
 					}},
 				},
 			}, { // gets filled in init() below.
@@ -1072,42 +1008,6 @@ func makeUverseNode() {
 			m.PushValue(typedBool(len(addr) == 20))
 		},
 	)
-	def("gnocoin", asValue(gCoinType))
-	defNativeMethod("gnocoin", "String",
-		nil, // params
-		Flds( // results
-			"", "string",
-		),
-		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1(m.Store)
-			m.PushValue(typedString(gnoCoinString(arg0.TV.V.(*StructValue))))
-		},
-	)
-	def("gnocoins", asValue(gCoinsType))
-	defNativeMethod("gnocoins", "String",
-		nil, // params
-		Flds( // results
-			"", "string",
-		),
-		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1(m.Store)
-			sv, ok := arg0.TV.V.(*SliceValue)
-			if !ok || sv == nil || sv.GetLength() == 0 {
-				m.PushValue(typedString(""))
-				return
-			}
-			base := sv.GetBase(m.Store)
-			n := sv.GetLength()
-			var res string
-			for i := range n {
-				if i > 0 {
-					res += ","
-				}
-				res += gnoCoinString(base.List[sv.Offset+i].V.(*StructValue))
-			}
-			m.PushValue(typedString(res))
-		},
-	)
 	def("realm", asValue(gRealmType))
 	def(".grealm", asValue(gConcreteRealmType))
 	defNativeMethod(".grealm", "Address",
@@ -1123,82 +1023,6 @@ func makeUverseNode() {
 		nil, // params
 		Flds( // results
 			"", "string",
-		),
-		func(m *Machine) {
-			panic("not yet implemented")
-		},
-	)
-	defNativeMethod(".grealm", "Coins",
-		nil, // params
-		Flds( // results
-			"", "gnocoins",
-		),
-		func(m *Machine) {
-			panic("not yet implemented")
-		},
-	)
-	defNativeMethod(".grealm", "SentCoins",
-		nil, // params
-		Flds( // results
-			"", "gnocoins",
-		),
-		func(m *Machine) {
-			// Only return coins if the caller of SentCoins() is the first realm
-			// in the call stack, i.e. the realm that actually received the funds.
-			//
-			// Frame.LastPackage is the package that was active before the frame
-			// was pushed (the caller's package). So the innermost frame's
-			// LastPackage is the package that invoked SentCoins().
-			var callerPkg string
-			if lp := m.Frames[m.NumFrames()-1].LastPackage; lp != nil {
-				callerPkg = lp.PkgPath
-			}
-			// Walk frames from oldest to newest; the first LastPackage that is
-			// a realm path is the first realm that appeared in the call chain.
-			var firstRealmPkg string
-			for i := 1; i < m.NumFrames(); i++ {
-				lp := m.Frames[i].LastPackage
-				if lp == nil {
-					continue
-				}
-				if pkg := lp.PkgPath; IsRealmPath(pkg) {
-					firstRealmPkg = pkg
-					break
-				}
-			}
-			var coins std.Coins
-			if callerPkg != "" && firstRealmPkg == callerPkg {
-				if osp, ok := m.Context.(OriginSendProvider); ok {
-					coins = osp.GetOriginSend()
-				}
-			}
-			// Manually construct a gnocoins.
-			n := len(coins)
-			baseArray := m.Alloc.NewListArray(n)
-			for i, coin := range coins {
-				fields := m.Alloc.NewStructFields(2)
-				fields[0] = TypedValue{T: StringType}
-				fields[0].V = m.Alloc.NewString(coin.Denom)
-				fields[1] = TypedValue{T: Int64Type}
-				fields[1].SetInt64(coin.Amount)
-				baseArray.List[i] = TypedValue{
-					T: gCoinType,
-					V: m.Alloc.NewStruct(fields),
-				}
-			}
-			m.PushValue(TypedValue{
-				T: gCoinsType,
-				V: m.Alloc.NewSlice(baseArray, 0, n, n),
-			})
-		},
-	)
-	defNativeMethod(".grealm", "Send",
-		Flds( // params
-			"coins", "gnocoins",
-			"to", "address",
-		),
-		Flds( // results
-			"", "error",
 		),
 		func(m *Machine) {
 			panic("not yet implemented")

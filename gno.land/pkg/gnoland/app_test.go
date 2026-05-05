@@ -2,10 +2,10 @@ package gnoland
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
+	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,7 +14,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -143,11 +142,29 @@ func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
 	assert.ErrorContains(t, err, "no db provided")
 }
 
+func TestNewAppWithOptions_ErrNoLogger(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.Logger = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no logger provided")
+}
+
+func TestNewAppWithOptions_ErrNoEventSwitch(t *testing.T) {
+	t.Parallel()
+
+	opts := TestAppOptions(memdb.NewMemDB())
+	opts.EventSwitch = nil
+	_, err := NewAppWithOptions(opts)
+	assert.ErrorContains(t, err, "no event switch provided")
+}
+
 func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger())
+	app, err := NewApp(td, NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
@@ -481,424 +498,344 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	}
 }
 
+// endBlockerParamsMock is a ParamsKeeperI mock with optional per-method
+// hooks, scoped to TestEndBlocker. Unset hooks are no-ops, matching the
+// minimal-by-default behavior of mockParamsKeeper but adding per-key
+// observation/injection where each subtest needs it.
+type endBlockerParamsMock struct {
+	getStringFn  func(sdk.Context, string, *string) bool
+	getInt64Fn   func(sdk.Context, string, *int64) bool
+	getBoolFn    func(sdk.Context, string, *bool) bool
+	getStringsFn func(sdk.Context, string, *[]string) bool
+	setBoolFn    func(sdk.Context, string, bool)
+	setStringsFn func(sdk.Context, string, []string)
+}
+
+func (m *endBlockerParamsMock) GetString(ctx sdk.Context, key string, ptr *string) bool {
+	if m.getStringFn != nil {
+		return m.getStringFn(ctx, key, ptr)
+	}
+	return false
+}
+
+func (m *endBlockerParamsMock) GetInt64(ctx sdk.Context, key string, ptr *int64) bool {
+	if m.getInt64Fn != nil {
+		return m.getInt64Fn(ctx, key, ptr)
+	}
+	return false
+}
+
+func (m *endBlockerParamsMock) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
+	if m.getBoolFn != nil {
+		return m.getBoolFn(ctx, key, ptr)
+	}
+	return false
+}
+
+func (m *endBlockerParamsMock) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
+	if m.getStringsFn != nil {
+		return m.getStringsFn(ctx, key, ptr)
+	}
+	return false
+}
+
+func (m *endBlockerParamsMock) SetBool(ctx sdk.Context, key string, value bool) {
+	if m.setBoolFn != nil {
+		m.setBoolFn(ctx, key, value)
+	}
+}
+
+func (m *endBlockerParamsMock) SetStrings(ctx sdk.Context, key string, value []string) {
+	if m.setStringsFn != nil {
+		m.setStringsFn(ctx, key, value)
+	}
+}
+
+// Remaining ParamsKeeperI methods are not exercised by EndBlocker.
+func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64) bool { return false }
+func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte) bool  { return false }
+func (m *endBlockerParamsMock) SetString(sdk.Context, string, string)       {}
+func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64)         {}
+func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64)       {}
+func (m *endBlockerParamsMock) SetBytes(sdk.Context, string, []byte)        {}
+func (m *endBlockerParamsMock) Has(sdk.Context, string) bool                { return false }
+func (m *endBlockerParamsMock) GetStruct(sdk.Context, string, any)          {}
+func (m *endBlockerParamsMock) SetStruct(sdk.Context, string, any)          {}
+func (m *endBlockerParamsMock) GetAny(sdk.Context, string) any              { return nil }
+func (m *endBlockerParamsMock) SetAny(sdk.Context, string, any)             {}
+
+// valsetState is a tiny in-memory shim mirroring the valset key space,
+// used by TestEndBlocker to drive endBlockerParamsMock.
+type valsetState struct {
+	current, proposed []string
+	dirty             bool
+	currentWrites     [][]string
+	dirtyWrites       []bool
+	// currentWriteCtxSentinels records ctx.Value(internalWriteCtxKey{})
+	// observed on each valset:current write — TestEndBlocker_SentinelOnCurrentWrite
+	// asserts the sentinel is always true so a future regression that
+	// drops `intCtx := ctx.WithValue(internalWriteCtxKey{}, true)` at
+	// app.go:646 fails CI rather than silently re-opening F2.
+	currentWriteCtxSentinels []bool
+}
+
+// serializeUpdates converts ValidatorUpdates to the wire format
+// "<pubkey>:<power>" used by the params keeper.
+func serializeUpdates(us []abci.ValidatorUpdate) []string {
+	out := make([]string, len(us))
+	for i, u := range us {
+		out[i] = u.PubKey.String() + ":" + strconv.FormatInt(u.Power, 10)
+	}
+	return out
+}
+
+// newValsetMock returns a mock keeper backed by st. Reads come from st;
+// writes update st (and append to its history slices for assertions).
+func newValsetMock(st *valsetState) *endBlockerParamsMock {
+	return &endBlockerParamsMock{
+		getStringsFn: func(_ sdk.Context, key string, ptr *[]string) bool {
+			switch key {
+			case valsetCurrentPath:
+				if st.current == nil {
+					return false
+				}
+				*ptr = st.current
+				return true
+			case valsetProposedPath:
+				if st.proposed == nil {
+					return false
+				}
+				*ptr = st.proposed
+				return true
+			}
+			return false
+		},
+		getBoolFn: func(_ sdk.Context, key string, ptr *bool) bool {
+			if key == valsetDirtyPath {
+				*ptr = st.dirty
+				return true
+			}
+			return false
+		},
+		setBoolFn: func(_ sdk.Context, key string, value bool) {
+			if key == valsetDirtyPath {
+				st.dirty = value
+				st.dirtyWrites = append(st.dirtyWrites, value)
+			}
+		},
+		setStringsFn: func(ctx sdk.Context, key string, value []string) {
+			if key == valsetCurrentPath {
+				st.current = value
+				st.currentWrites = append(st.currentWrites, value)
+				sentinel, _ := ctx.Value(internalWriteCtxKey{}).(bool)
+				st.currentWriteCtxSentinels = append(st.currentWriteCtxSentinels, sentinel)
+			}
+		},
+	}
+}
+
+func runEndBlocker(t *testing.T, mock *endBlockerParamsMock, pubKeyType string) abci.ResponseEndBlock {
+	t.Helper()
+	eb := EndBlocker(mock, nil, nil, &mockEndBlockerApp{})
+	// Use context.Background() as the wrapped context so ctx.Value()
+	// (which the new EndBlocker calls for internalWriteCtxKey) and
+	// ctx.WithValue() don't nil-deref the underlying context.Context.
+	ctx := sdk.Context{}.
+		WithContext(context.Background()).
+		WithConsensusParams(&abci.ConsensusParams{
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{pubKeyType}},
+		})
+	return eb(ctx, abci.RequestEndBlock{})
+}
+
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
-	constructVMResponse := func(updates []abci.ValidatorUpdate) string {
-		var builder strings.Builder
-
-		builder.WriteString("(slice[")
-
-		for i, update := range updates {
-			builder.WriteString(
-				fmt.Sprintf(
-					"(struct{(%q std.Address),(%q string),(%d uint64)} gno.land/p/sys/validators.Validator)",
-					update.Address,
-					update.PubKey,
-					update.Power,
-				),
-			)
-
-			if i < len(updates)-1 {
-				builder.WriteString(",")
-			}
-		}
-
-		builder.WriteString("] []gno.land/p/sys/validators.Validator)")
-
-		return builder.String()
-	}
-
-	newCommonEvSwitch := func() *mockEventSwitch {
-		var cb events.EventCallback
-
-		return &mockEventSwitch{
-			addListenerFn: func(_ string, callback events.EventCallback) {
-				cb = callback
-			},
-			fireEventFn: func(event events.Event) {
-				cb(event)
-			},
-		}
-	}
-
-	t.Run("no collector events", func(t *testing.T) {
+	t.Run("no valset changes (dirty=false)", func(t *testing.T) {
 		t.Parallel()
 
-		noFilter := func(_ events.Event) []validatorUpdate {
-			return []validatorUpdate{}
-		}
-
-		// Create the collector
-		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
-
-		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
-
-		// Run the EndBlocker
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-
-		// Verify the response was empty
+		st := &valsetState{dirty: false}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
 	})
 
-	t.Run("invalid VM call", func(t *testing.T) {
+	t.Run("valset:current corrupted panics (chain-internal)", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			noFilter = func(_ events.Event) []validatorUpdate {
-				return make([]validatorUpdate, 1) // 1 update
-			}
+		// Tier 1 semantic flip: corrupted current is no longer
+		// silently recovered. Only chain code writes valset:current
+		// (via ctx-sentinel), so corruption is by definition a
+		// chain-internal bug or store damage and warrants a panic.
+		st := &valsetState{
+			current:  []string{"garbage:not-a-power"},
+			proposed: serializeUpdates(generateValidatorUpdates(t, 1)),
+			dirty:    true,
+		}
+		assert.Panics(t, func() {
+			runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
+		})
+	})
 
-			vmCalled bool
+	t.Run("invalid valset:proposed drops dirty (no current write)", func(t *testing.T) {
+		t.Parallel()
 
-			mockEventSwitch = newCommonEvSwitch()
+		// Recovery for proposed parse failure: clear the flag so a future
+		// re-propose can land. Do NOT touch current.
+		st := &valsetState{
+			current:  serializeUpdates(generateValidatorUpdates(t, 1)),
+			proposed: []string{"bogus:7"}, // pubkey is invalid bech32
+			dirty:    true,
+		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					vmCalled = true
-
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return "", errors.New("random call error")
-				},
-			}
-		)
-
-		// Create the collector
-		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
-
-		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(chain.Event{})
-
-		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-
-		// Run the EndBlocker
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-
-		// Verify the response was empty
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
-
-		// Make sure the VM was called
-		assert.True(t, vmCalled)
+		assert.False(t, st.dirty, "flag must be cleared so future proposals land")
+		assert.Empty(t, st.currentWrites, "current must NOT be touched when proposed is bad")
 	})
 
-	t.Run("empty VM response", func(t *testing.T) {
+	t.Run("valid valset changes (additions only)", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			noFilter = func(_ events.Event) []validatorUpdate {
-				return make([]validatorUpdate, 1) // 1 update
-			}
+		updates := generateValidatorUpdates(t, 10)
+		proposedEntries := serializeUpdates(updates)
+		st := &valsetState{proposed: proposedEntries, dirty: true}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
-			vmCalled bool
+		require.Len(t, res.ValidatorUpdates, len(updates))
 
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					vmCalled = true
-
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return constructVMResponse([]abci.ValidatorUpdate{}), nil
-				},
-			}
-		)
-
-		// Create the collector
-		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
-
-		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(chain.Event{})
-
-		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-
-		// Run the EndBlocker
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-
-		// Verify the response was empty
-		assert.Equal(t, abci.ResponseEndBlock{}, res)
-
-		// Make sure the VM was called
-		assert.True(t, vmCalled)
-	})
-
-	t.Run("multiple valset updates", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			changes = generateValidatorUpdates(t, 100)
-
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return constructVMResponse(changes), nil
-				},
-			}
-		)
-
-		// Create the collector
-		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
-
-		// Construct the GnoVM events
-		vmEvents := make([]abci.Event, 0, len(changes))
-		for index := range changes {
-			event := chain.Event{
-				Type:    validatorAddedEvent,
-				PkgPath: valRealm,
-			}
-
-			// Make half the changes validator removes
-			if index%2 == 0 {
-				changes[index].Power = 0
-
-				event = chain.Event{
-					Type:    validatorRemovedEvent,
-					PkgPath: valRealm,
-				}
-			}
-
-			vmEvents = append(vmEvents, event)
+		sort.Slice(updates, func(i, j int) bool {
+			return updates[i].Address.Compare(updates[j].Address) < 0
+		})
+		sort.Slice(res.ValidatorUpdates, func(i, j int) bool {
+			return res.ValidatorUpdates[i].Address.Compare(res.ValidatorUpdates[j].Address) < 0
+		})
+		for i, u := range updates {
+			assert.Equal(t, u.Address.String(), res.ValidatorUpdates[i].Address.String())
+			assert.True(t, u.PubKey.Equals(res.ValidatorUpdates[i].PubKey))
+			assert.Equal(t, u.Power, res.ValidatorUpdates[i].Power)
 		}
 
-		// Fire the tx result event
-		txEvent := bft.EventTx{
-			Result: bft.TxResult{
-				Response: abci.ResponseDeliverTx{
-					ResponseBase: abci.ResponseBase{
-						Events: vmEvents,
-					},
-				},
-			},
+		assert.False(t, st.dirty)
+		// current = EncodeValidatorUpdates(proposedSet) which sorts by
+		// pubkey-bytes; so the written value is sorted. Just check
+		// that it has the same set of entries.
+		require.Len(t, st.currentWrites, 1)
+		assert.ElementsMatch(t, proposedEntries, st.currentWrites[0],
+			"current must equal proposed (modulo canonical sort)")
+
+		// Sentinel-flow regression guard: the valset:current write must
+		// carry internalWriteCtxKey{}=true so the chain-side
+		// WillSetParam in node_params.go accepts it. A future change
+		// that drops `intCtx := ctx.WithValue(...)` at app.go would
+		// silently re-open the F2 vector (any realm could write
+		// valset:current via a generic factory). Pin it here.
+		require.Len(t, st.currentWriteCtxSentinels, 1)
+		assert.True(t, st.currentWriteCtxSentinels[0],
+			"valset:current write must carry the internalWriteCtxKey sentinel")
+	})
+
+	t.Run("wrong pubkey type whole-rejects proposal", func(t *testing.T) {
+		t.Parallel()
+
+		// Whole-reject: a proposal containing any disallowed pubkey
+		// type is refused atomically. current is untouched.
+		updates := generateValidatorUpdates(t, 1)
+		st := &valsetState{proposed: serializeUpdates(updates), dirty: true}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeyEd25519") // wrong type
+
+		assert.Empty(t, res.ValidatorUpdates, "whole-reject means no updates emitted")
+		assert.False(t, st.dirty, "dirty cleared")
+		assert.Empty(t, st.currentWrites, "current MUST NOT be advanced on whole-reject")
+	})
+
+	t.Run("diff applied: kept + power-change + new + removed", func(t *testing.T) {
+		t.Parallel()
+
+		// current = [v1@10, v2@20, v3@30]
+		// proposed = [v1@10 (kept), v2@99 (power change), v4@40 (new)]
+		// expected updates: v2@99, v3@0 (removal), v4@40
+		currentUpdates := generateValidatorUpdates(t, 3)
+		newcomer := generateValidatorUpdates(t, 1)[0]
+		currentUpdates[0].Power = 10
+		currentUpdates[1].Power = 20
+		currentUpdates[2].Power = 30
+		newcomer.Power = 40
+
+		v2Changed := currentUpdates[1]
+		v2Changed.Power = 99
+		proposed := []abci.ValidatorUpdate{currentUpdates[0], v2Changed, newcomer}
+		proposedEntries := serializeUpdates(proposed)
+
+		st := &valsetState{
+			current:  serializeUpdates(currentUpdates),
+			proposed: proposedEntries,
+			dirty:    true,
 		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
-		mockEventSwitch.FireEvent(txEvent)
+		require.Len(t, res.ValidatorUpdates, 3, "expect: 1 power change, 1 removal, 1 new")
 
-		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-
-		// Run the EndBlocker
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-
-		// Verify the response was not empty
-		require.Len(t, res.ValidatorUpdates, len(changes))
-
-		for index, update := range res.ValidatorUpdates {
-			assert.Equal(t, changes[index].Address, update.Address)
-			assert.True(t, changes[index].PubKey.Equals(update.PubKey))
-			assert.Equal(t, changes[index].Power, update.Power)
+		byAddr := map[string]abci.ValidatorUpdate{}
+		for _, u := range res.ValidatorUpdates {
+			byAddr[u.Address.String()] = u
 		}
+		assert.Equal(t, int64(99), byAddr[currentUpdates[1].Address.String()].Power, "v2 power must be 99")
+		assert.Equal(t, int64(0), byAddr[currentUpdates[2].Address.String()].Power, "v3 must be removed (Power=0)")
+		assert.Equal(t, int64(40), byAddr[newcomer.Address.String()].Power, "v4 must be added")
+		_, kept := byAddr[currentUpdates[0].Address.String()]
+		assert.False(t, kept, "v1 (unchanged) must NOT appear in updates")
+
+		assert.False(t, st.dirty)
+		require.Len(t, st.currentWrites, 1)
+		assert.ElementsMatch(t, proposedEntries, st.currentWrites[0],
+			"current must equal proposed (modulo canonical sort)")
 	})
 
-	t.Run("negative power filtered out", func(t *testing.T) {
+	t.Run("min-floor: empty proposed rejected", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			keys = generateDummyKeys(t, 2)
+		// Min-floor: proposed=[] is the "remove all" shape; refuse it
+		// to keep consensus from halting at H+2 with zero validators.
+		current := generateValidatorUpdates(t, 2)
+		st := &valsetState{
+			current:  serializeUpdates(current),
+			proposed: []string{},
+			dirty:    true,
+		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
-			validUpdate = abci.ValidatorUpdate{
-				Address: keys[0].PubKey().Address(),
-				PubKey:  keys[0].PubKey(),
-				Power:   1,
-			}
-
-			invalidUpdate = abci.ValidatorUpdate{
-				Address: keys[1].PubKey().Address(),
-				PubKey:  keys[1].PubKey(),
-				Power:   -1, // Invalid negative power
-			}
-
-			updates = []abci.ValidatorUpdate{validUpdate, invalidUpdate}
-
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return constructVMResponse(updates), nil
-				},
-			}
-
-			vmEvents = []abci.Event{
-				chain.Event{
-					Type:    validatorAddedEvent,
-					PkgPath: valRealm,
-				},
-				chain.Event{
-					Type:    validatorAddedEvent,
-					PkgPath: valRealm,
-				},
-			}
-			txEvent = bft.EventTx{
-				Result: bft.TxResult{
-					Response: abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Events: vmEvents,
-						},
-					},
-				},
-			}
-		)
-
-		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
-		mockEventSwitch.FireEvent(txEvent)
-
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-		require.Len(t, res.ValidatorUpdates, 1)
-		assert.Equal(t, validUpdate.Address, res.ValidatorUpdates[0].Address)
-		assert.Equal(t, validUpdate.Power, res.ValidatorUpdates[0].Power)
+		assert.Empty(t, res.ValidatorUpdates, "min-floor means no updates emitted")
+		assert.False(t, st.dirty, "dirty cleared")
+		assert.Empty(t, st.currentWrites, "current MUST NOT be advanced on min-floor reject")
 	})
 
-	t.Run("pubkey address mismatch filtered out", func(t *testing.T) {
+	t.Run("min-floor: all-Power=0 proposed rejected", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			keys = generateDummyKeys(t, 3)
+		// Defense-in-depth: a non-empty proposed where every entry has
+		// Power=0 is still a "remove all" — len > 0 but live count is
+		// zero. Floor must catch this regardless of outer-list length.
+		// (Reachable via v3 if a proposal's deltas remove every
+		// validator and produce an empty published set; the floor is
+		// the consensus-safety backstop.)
+		current := generateValidatorUpdates(t, 2)
+		// Build a proposed list that mirrors current's pubkeys but with
+		// Power=0. This is the "explicitly remove all" shape.
+		proposed := make([]abci.ValidatorUpdate, len(current))
+		copy(proposed, current)
+		for i := range proposed {
+			proposed[i].Power = 0
+		}
+		st := &valsetState{
+			current:  serializeUpdates(current),
+			proposed: serializeUpdates(proposed),
+			dirty:    true,
+		}
+		res := runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 
-			validUpdate = abci.ValidatorUpdate{
-				Address: keys[0].PubKey().Address(),
-				PubKey:  keys[0].PubKey(),
-				Power:   1,
-			}
-
-			invalidUpdate = abci.ValidatorUpdate{
-				Address: keys[1].PubKey().Address(), // Address from key1
-				PubKey:  keys[2].PubKey(),           // PubKey from key2 (mismatch)
-				Power:   1,
-			}
-
-			updates = []abci.ValidatorUpdate{validUpdate, invalidUpdate}
-
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return constructVMResponse(updates), nil
-				},
-			}
-
-			vmEvents = []abci.Event{
-				chain.Event{
-					Type:    validatorAddedEvent,
-					PkgPath: valRealm,
-				},
-				chain.Event{
-					Type:    validatorAddedEvent,
-					PkgPath: valRealm,
-				},
-			}
-			txEvent = bft.EventTx{
-				Result: bft.TxResult{
-					Response: abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Events: vmEvents,
-						},
-					},
-				},
-			}
-		)
-
-		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
-		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeySecp256k1"},
-			},
-		}), abci.RequestEndBlock{})
-
-		// Verify only the valid update is returned
-		require.Len(t, res.ValidatorUpdates, 1)
-		assert.Equal(t, validUpdate.Address, res.ValidatorUpdates[0].Address)
-		assert.True(t, validUpdate.PubKey.Equals(res.ValidatorUpdates[0].PubKey))
-	})
-
-	t.Run("wrong pubkey type", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			key1 = getDummyKey(t)
-
-			updates = []abci.ValidatorUpdate{
-				{
-					Address: key1.PubKey().Address(),
-					PubKey:  key1.PubKey(),
-					Power:   1,
-				},
-			}
-
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return constructVMResponse(updates), nil
-				},
-			}
-			txEvent = bft.EventTx{
-				Result: bft.TxResult{
-					Response: abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Events: []abci.Event{
-								chain.Event{
-									Type:    validatorAddedEvent,
-									PkgPath: valRealm,
-								},
-							},
-						},
-					},
-				},
-			}
-		)
-
-		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
-		mockEventSwitch.FireEvent(txEvent)
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
-		res := eb(sdk.Context{}.WithConsensusParams(&abci.ConsensusParams{
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{"/tm.PubKeyEd25519"},
-			},
-		}), abci.RequestEndBlock{})
-
-		// Verify only the valid update is returned
-		require.Len(t, res.ValidatorUpdates, 0)
+		assert.Empty(t, res.ValidatorUpdates, "min-floor means no updates emitted")
+		assert.False(t, st.dirty, "dirty cleared")
+		assert.Empty(t, st.currentWrites, "current MUST NOT be advanced on all-Power=0 reject")
 	})
 }
 
@@ -1070,9 +1007,11 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
+	prmk.Register("node", nodeParamsKeeper{})
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
+	icc.prmk = prmk
 	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
@@ -1107,19 +1046,12 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		},
 	)
 
-	// Set up the event collector
-	c := newCollector[validatorUpdate](
-		cfg.EventSwitch,      // global event switch filled by the node
-		validatorEventFilter, // filter fn that keeps the collector valid
-	)
-
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
 		EndBlocker(
-			c,
+			prmk,
 			acck,
 			gpk,
-			nil,
 			baseApp,
 		),
 	)
@@ -1260,6 +1192,7 @@ func TestPruneStrategyNothing(t *testing.T) {
 		appCfg,
 		events.NewEventSwitch(),
 		log.NewNoopLogger(),
+		0,
 	)
 	require.NoError(t, err)
 
@@ -1313,4 +1246,421 @@ func TestPruneStrategyNothing(t *testing.T) {
 
 	err = db.Close()
 	require.NoError(t, err)
+}
+
+func TestNodeParamsKeeperWillSetParam(t *testing.T) {
+	t.Parallel()
+
+	npk := nodeParamsKeeper{}
+
+	t.Run("valid halt_height (no block context)", func(t *testing.T) {
+		t.Parallel()
+		// Without a block header, safeBlockHeight returns 0, so no future check.
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height zero is allowed (cancel sentinel)", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(0))
+		})
+	})
+
+	t.Run("halt_height in the future is valid when block height is known", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 50})
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height equal to current block height panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 100})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("halt_height in the past panics", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithBlockHeader(&bft.Header{Height: 200})
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "p:halt_height", int64(100))
+		})
+	})
+
+	t.Run("negative halt_height panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", int64(-1))
+		})
+	})
+
+	t.Run("halt_height wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_height", "not-an-int64")
+		})
+	})
+
+	t.Run("valid halt_min_version", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", "chain/gnoland1.1")
+		})
+	})
+
+	t.Run("empty halt_min_version is allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", "")
+		})
+	})
+
+	t.Run("halt_min_version wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:halt_min_version", int64(1))
+		})
+	})
+
+	t.Run("unknown p: key panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "p:unknown_key", int64(0))
+		})
+	})
+
+	t.Run("non-p: key is allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "other:key", "value")
+		})
+	})
+
+	pub := getDummyKey(t).PubKey().String()
+	good := pub + ":10"
+
+	t.Run("valset:dirty bool passes", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:dirty", true)
+		})
+	})
+
+	t.Run("valset:dirty wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:dirty", "yes")
+		})
+	})
+
+	t.Run("valset:proposed wrong type panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", 42)
+		})
+	})
+
+	t.Run("valset:proposed malformed entry panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{"no-colon"})
+		})
+	})
+
+	t.Run("valset:proposed bad pubkey panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{"notapubkey:10"})
+		})
+	})
+
+	t.Run("valset:proposed negative power panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{pub + ":-1"})
+		})
+	})
+
+	t.Run("valset:proposed valid passes", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good})
+		})
+	})
+
+	t.Run("valset:proposed boundary cap accepts len==max", func(t *testing.T) {
+		t.Parallel()
+		// Cap is inclusive (predicate is `> maxValsetEntries`).
+		entries := serializeUpdates(generateValidatorUpdates(t, maxValsetEntries))
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", entries)
+		})
+	})
+
+	t.Run("valset:proposed boundary cap rejects len==max+1", func(t *testing.T) {
+		t.Parallel()
+		entries := serializeUpdates(generateValidatorUpdates(t, maxValsetEntries+1))
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", entries)
+		})
+	})
+
+	t.Run("valset:current rejected without sentinel", func(t *testing.T) {
+		t.Parallel()
+		// The new ctx-sentinel test path: writes from non-internal ctx
+		// must be rejected even with valid entry format.
+		ctx := sdk.Context{}.WithContext(context.Background())
+		assert.Panics(t, func() {
+			npk.WillSetParam(ctx, "valset:current", []string{good})
+		})
+	})
+
+	t.Run("valset:current accepted with sentinel", func(t *testing.T) {
+		t.Parallel()
+		ctx := sdk.Context{}.WithContext(context.Background()).
+			WithValue(internalWriteCtxKey{}, true)
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(ctx, "valset:current", []string{good})
+		})
+	})
+
+	t.Run("unknown valset:* key panics", func(t *testing.T) {
+		t.Parallel()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:bogus", []string{good})
+		})
+	})
+}
+
+func TestMeetsMinVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		binary string
+		minVer string
+		want   bool
+	}{
+		// Empty minVersion always passes
+		{"chain/gnoland1.0", "", true},
+		{"develop", "", true},
+
+		// Same version passes
+		{"chain/gnoland1.0", "chain/gnoland1.0", true},
+		{"chain/gnoland1.1", "chain/gnoland1.1", true},
+
+		// Newer binary passes
+		{"chain/gnoland1.1", "chain/gnoland1.0", true},
+		{"chain/gnoland2.0", "chain/gnoland1.0", true},
+		{"chain/gnoland1.2", "chain/gnoland1.1", true},
+
+		// Older binary fails
+		{"chain/gnoland1.0", "chain/gnoland1.1", false},
+		{"chain/gnoland1.0", "chain/gnoland2.0", false},
+
+		// Non-gnoland format: requires exact match
+		{"develop", "chain/gnoland1.1", false},
+		{"v1.0.0", "v1.0.0", true},
+		{"v1.0.0", "v1.1.0", false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
+			t.Parallel()
+			got := meetsMinVersion(tc.binary, tc.minVer)
+			assert.Equal(t, tc.want, got,
+				"meetsMinVersion(%q, %q)", tc.binary, tc.minVer)
+		})
+	}
+}
+
+func TestParseGnolandVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		input string
+		major int
+		minor int
+		ok    bool
+	}{
+		{"chain/gnoland1.0", 1, 0, true},
+		{"chain/gnoland1.1", 1, 1, true},
+		{"chain/gnoland2.3", 2, 3, true},
+		{"develop", 0, 0, false},
+		{"v1.0.0", 0, 0, false},
+		{"chain/gnoland", 0, 0, false},
+		{"chain/gnolandX.Y", 0, 0, false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+			major, minor, ok := parseGnolandVersion(tc.input)
+			assert.Equal(t, tc.ok, ok)
+			if tc.ok {
+				assert.Equal(t, tc.major, major)
+				assert.Equal(t, tc.minor, minor)
+			}
+		})
+	}
+}
+
+// newTestParamsKeeper creates a minimal ParamsKeeper with an in-memory store
+// and pre-seeds it with the given halt params.
+func newTestParamsKeeper(t *testing.T, haltHeight int64, minVersion string) (params.ParamsKeeper, store.MultiStore) {
+	t.Helper()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("main")
+
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
+	require.NoError(t, cms.LoadLatestVersion())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	prmk.Register("node", nodeParamsKeeper{})
+
+	ms := cms.MultiCacheWrap()
+	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
+
+	prmk.SetInt64(ctx, nodeParamHaltHeight, haltHeight)
+	prmk.SetString(ctx, nodeParamHaltMinVersion, minVersion)
+	ms.MultiWrite()
+	cms.Commit()
+
+	return prmk, cms.MultiCacheWrap()
+}
+
+func TestCheckNodeStartupParams(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no halt configured", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 0, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("halt with no version passes", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "")
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("binary meets version after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion (exact match), lastBlock >= haltHeight
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 100, 0))
+	})
+
+	t.Run("old binary rejected after halt", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9" -> rejected
+		err := checkNodeStartupParams(prmk, ms, 100, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not meet the minimum version")
+	})
+
+	t.Run("new binary rejected before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// binary "develop" == "develop" -> meetsMinVersion, but chain hasn't halted yet
+		err := checkNodeStartupParams(prmk, ms, 50, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upgrade intended for halt height")
+	})
+
+	t.Run("old binary allowed before halt height", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "chain/gnoland9.9")
+		// binary "develop" doesn't meet "chain/gnoland9.9", chain hasn't halted -> old binary, OK
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 0))
+	})
+
+	t.Run("skip_upgrade_height bypasses check", func(t *testing.T) {
+		t.Parallel()
+		prmk, ms := newTestParamsKeeper(t, 100, "develop")
+		// Even though binary meets version before halt, skip_upgrade_height=100 bypasses
+		require.NoError(t, checkNodeStartupParams(prmk, ms, 50, 100))
+	})
+}
+
+func TestEndBlockerHalt(t *testing.T) {
+	t.Parallel()
+
+	t.Run("halts at exact height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(100), haltSet, "SetHaltHeight should be called with halt_height")
+	})
+
+	t.Run("does not halt before halt height", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 99})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called before halt height")
+	})
+
+	t.Run("does not re-halt after halt height (no infinite loop)", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 100},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		// After restart at height 101, halt_height=100 still in params but == doesn't re-fire
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 101})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight must NOT be called after halt height (prevents infinite loop)")
+	})
+
+	t.Run("cancel: halt_height zero never halts", func(t *testing.T) {
+		t.Parallel()
+
+		var haltSet uint64
+		mockApp := &mockEndBlockerApp{
+			setHaltHeightFn: func(h uint64) { haltSet = h },
+		}
+		mockPrmk := &mockConfigurableParamsKeeper{
+			int64s: map[string]int64{nodeParamHaltHeight: 0},
+		}
+
+		eb := EndBlocker(mockPrmk, nil, nil, mockApp)
+		eb(sdk.Context{}, abci.RequestEndBlock{Height: 100})
+
+		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called when halt_height=0 (cancelled)")
+	})
 }

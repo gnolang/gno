@@ -218,6 +218,9 @@ func isAuthorized(addr address) bool {
 }
 
 func SponsorGnoProject(_ realm, projectName string) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	address_XXX := runtime.OriginCaller()
 	amount := banker.OriginSend()
 
@@ -241,6 +244,9 @@ func SponsorGnoProject(_ realm, projectName string) {
 }
 
 func SponsorOtherProject(_ realm, projectName string) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	address_XXX := runtime.OriginCaller()
 	amount := banker.OriginSend()
 
