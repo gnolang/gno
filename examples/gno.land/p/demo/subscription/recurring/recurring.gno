@@ -1,105 +1,106 @@
 package recurring
 
 import (
-	"chain/banker"
-	"chain/runtime"
+	"chain"
 	"time"
 
+	"gno.land/p/jaekwon/allowancesender/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ownable/v0"
 )
 
-// RecurringSubscription represents a subscription that requires periodic payments.
-// It includes the duration of the subscription and the amount required per period.
+// RecurringSubscription represents a subscription that requires periodic
+// payments. Payment is pulled from a caller-supplied *AllowanceSender
+// cap-token (which the constructor of this struct trusts via
+// banker.IsCanonical). Funds are sent to payeeAddr, locked at
+// construction so that a leaked struct pointer cannot redirect payment.
 type RecurringSubscription struct {
 	ownable.Ownable
-	duration time.Duration
-	amount   int64
-	subs     *avl.Tree // chain.Address -> time.Time
+	duration  time.Duration
+	amount    int64
+	payeeAddr address   // payment destination; set at construction.
+	subs      *avl.Tree // address.String() -> time.Time
 }
 
-// NewRecurringSubscription creates and returns a new recurring subscription.
-func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSubscription {
+// NewRecurringSubscription creates a new recurring subscription. payeeAddr
+// must be valid (typically the constructing realm's own address) and is
+// the fixed destination for every Send pulled by Subscribe.
+func NewRecurringSubscription(duration time.Duration, amount int64, payeeAddr address) *RecurringSubscription {
+	if !payeeAddr.IsValid() {
+		panic(ErrInvalidPayee)
+	}
 	return &RecurringSubscription{
-		Ownable:  *ownable.New(),
-		duration: duration,
-		amount:   amount,
-		subs:     avl.NewTree(),
+		Ownable:   *ownable.New(),
+		duration:  duration,
+		amount:    amount,
+		payeeAddr: payeeAddr,
+		subs:      avl.NewTree(),
 	}
 }
 
-// HasValidSubscription verifies if the caller has an active recurring subscription.
-func (rs *RecurringSubscription) HasValidSubscription(addr address) error {
-	expTime, exists := rs.subs.Get(addr.String())
+// HasValidSubscription verifies whether subscriber holds an active
+// recurring subscription.
+func (rs *RecurringSubscription) HasValidSubscription(subscriber address) error {
+	expTime, exists := rs.subs.Get(subscriber.String())
 	if !exists {
 		return ErrNoSub
 	}
-
 	if time.Now().After(expTime.(time.Time)) {
 		return ErrSubExpired
 	}
-
 	return nil
 }
 
-// processSubscription processes the payment for a given receiver and renews or adds their subscription.
-func (rs *RecurringSubscription) processSubscription(receiver address) error {
-	amount := banker.OriginSend()
-
-	if amount.AmountOf("ugnot") != rs.amount {
-		return ErrAmt
+// Subscribe pulls one period's worth of payment from al into payeeAddr
+// and records subscriber as having an active subscription until
+// time.Now() + duration. Already-subscribed-and-active returns
+// ErrAlreadySub WITHOUT pulling payment. Subscriber identity is
+// decoupled from cap-token authority: a single AllowanceSender holder
+// can subscribe any address (gift, self, or third-party).
+//
+// On Send-side failure (closed allowance, cap exceeded, insufficient
+// funds, etc.), al.Send panics — the whole tx reverts and no
+// subscription is recorded. Atomicity covers any half-state.
+func (rs *RecurringSubscription) Subscribe(al *allowancesender.AllowanceSender, subscriber address) error {
+	if !subscriber.IsValid() {
+		return ErrInvalidSubscriber
 	}
-
-	expTime, exists := rs.subs.Get(receiver.String())
-
-	// If the user is already a subscriber but his subscription has expired, authorize renewal
-	if exists {
-		expiration := expTime.(time.Time)
-		if time.Now().Before(expiration) {
+	// Already-sub check first; avoid burning cap-token capacity on a
+	// duplicate that would just be rejected.
+	if expTime, exists := rs.subs.Get(subscriber.String()); exists {
+		if time.Now().Before(expTime.(time.Time)) {
 			return ErrAlreadySub
 		}
 	}
-
-	// Renew or add subscription
-	newExpiration := time.Now().Add(rs.duration)
-	rs.subs.Set(receiver.String(), newExpiration)
-
+	al.Send(rs.payeeAddr, chain.NewCoins(chain.NewCoin("ugnot", rs.amount)))
+	rs.subs.Set(subscriber.String(), time.Now().Add(rs.duration))
 	return nil
 }
 
-// Subscribe handles the payment for the caller's subscription.
-func (rs *RecurringSubscription) Subscribe() error {
-	caller := runtime.CurrentRealm().Address()
-
-	return rs.processSubscription(caller)
-}
-
-// GiftSubscription allows the user to pay for a subscription for another user (receiver).
-func (rs *RecurringSubscription) GiftSubscription(receiver address) error {
-	return rs.processSubscription(receiver)
-}
-
-// GetExpiration returns the expiration date of the recurring subscription for a given caller.
-func (rs *RecurringSubscription) GetExpiration(addr address) (time.Time, error) {
-	expTime, exists := rs.subs.Get(addr.String())
+// GetExpiration returns the subscription expiration for subscriber.
+func (rs *RecurringSubscription) GetExpiration(subscriber address) (time.Time, error) {
+	expTime, exists := rs.subs.Get(subscriber.String())
 	if !exists {
 		return time.Time{}, ErrNoSub
 	}
-
 	return expTime.(time.Time), nil
 }
 
-// UpdateAmount allows the owner of the subscription contract to change the required subscription amount.
+// UpdateAmount lets the subscription owner change the per-period amount.
 func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
 	if !rs.Owned() {
 		return ErrNotAuthorized
 	}
-
 	rs.amount = newAmount
 	return nil
 }
 
-// GetAmount returns the current amount required for each subscription period.
+// GetAmount returns the current per-period subscription amount.
 func (rs *RecurringSubscription) GetAmount() int64 {
 	return rs.amount
+}
+
+// GetPayee returns the locked payment destination.
+func (rs *RecurringSubscription) GetPayee() address {
+	return rs.payeeAddr
 }

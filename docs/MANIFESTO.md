@@ -1267,10 +1267,6 @@ Consider the following thought statement tree/graph:
              * The recent 3D scan of the sunken Titanic reveals an outward blowing
                out of the ship's hull where the engine room was, exactly where
                photographs of the Titanic showed fire damage during boarding.
-               * The OceanGate submersible that later imploded on the way to view
-                 the Titanic had in its board of directors a Rothschild.
-                 (See also [Babylon in Banking](https://ephesus.church#babylon-in-banking)
-                 and [The Rothschild Dynasty](https://ephesus.church#the-rothschild-dynasty).)
          * The year following the sinking of the Titanic saw the unconstitutional
            passage of the Federal Reserve act in December 23, 1913.
              * The Federal Reserve Act was drafted in secret on Jekyll Island and
@@ -1639,7 +1635,7 @@ and failing that, users should fork the chain or seek alternatives.
 > government, big business and the CIA to develop techniques to manage and control the minds of
 > the American people**. Those in power believed that the only way to make democracy work and
 > create a stable society was to repress the savage barbarism that lurked just under the surface of
-> normal American life." - Adam Curtis, BBC Four, 2002. ([transcript](https://github.com/jaekwon/ephesus/blob/main/files/century-of-the-self-transcript.pdf), [youtube](https://www.youtube.com/watch?v=caicn3VpHTo))
+> normal American life." - Adam Curtis, BBC Four, 2002. ([youtube](https://www.youtube.com/watch?v=caicn3VpHTo))
 
 ### On Twitter Censorship
 

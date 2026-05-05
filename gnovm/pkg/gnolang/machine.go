@@ -2455,6 +2455,12 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
+// "tainted" here is loose: most failures are not the sticky N_Readonly
+// bit but the contextual ownership check (tvoid.PkgID != m.Realm.ID) —
+// i.e., the target is owned by a realm different from the one currently
+// executing. Either way, going through a method or crossing function
+// re-enters via PushFrameCall, whose implicit borrow-realm switch (or
+// hard cross-call) lines m.Realm up with the target's owner.
 func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }

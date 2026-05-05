@@ -1,4 +1,4 @@
-package users
+package namereg
 
 import (
 	"gno.land/p/moul/md"
@@ -44,21 +44,22 @@ func renderHomePage() string {
 func renderIntroParagraph() string {
 	out := md.Paragraph("Welcome to the Gno.land User Registry (v1). Please register a username.")
 	out += md.Paragraph(`Registering a username grants the registering address the right to deploy packages and realms
-under that username’s namespace. For example, if an address registers the username ` + md.InlineCode("gnome123") + `, it 
-will gain permission to deploy packages and realms to package paths with the pattern ` + md.InlineCode("gno.land/{p,r}/gnome123/*") + `.`)
+under that username’s namespace. For example, if an address registers the username ` + md.InlineCode("nym-alice123") + `, it
+will gain permission to deploy packages and realms to package paths with the pattern ` + md.InlineCode("gno.land/{p,r}/nym-alice123/*") + `.`)
 
-	out += md.Paragraph("In V1, usernames must follow these rules, in order to prevent username squatting:")
+	out += md.Paragraph("In V1, usernames must match `nym-<stem><digits>`, where:")
 	items := []string{
-		"Must start with 3 letters",
-		"Letters must be lowercase",
-		"Must end with 3 numbers",
-		"Have a maximum length of 20 characters",
-		"With the only special character allowed being `_`",
+		"`<stem>` is 5 to 13 lowercase ASCII letters",
+		"`<digits>` is exactly 3 decimal digits",
+		"The stem must NOT start with `gno`, `gl`, `atom`, `atone`, `photon`, or `cosmos` (reserved prefixes)",
+		"The stem must NOT match a reserved role name (admin, root, support, ...)",
+		"Confusable variants (e.g. `vitaiik` vs `vitalik` via `l↔i`) are blocked via canonical-form collision detection",
+		"Total username length: 12–20 chars (distinct from `g1...` addresses, which are always 40 chars)",
 	}
 	out += md.BulletList(items)
 
 	out += "\n\n"
-	out += md.Paragraph("In later versions of the registry, vanity usernames will be allowed through specific mechanisms.")
+	out += md.Paragraph("Vanity names outside this format may be allocated by GovDAO governance through `ProposeNewName`.")
 
 	if !paused {
 		amount := ufmt.Sprintf("%dugnot", registerPrice)
@@ -119,8 +120,8 @@ func renderUserPage(path string) string {
 	return out
 }
 
-// RenderLatestUsersWidget renders the latest num registered users
-// For num = -1, maximum number (10) will be displayed
+// RenderLatestUsersWidget renders the latest num registered users.
+// For num = -1, the maximum number (100) will be displayed.
 func RenderLatestUsersWidget(num int) string {
 	size := latestUsers.Size()
 	if size == 0 {
