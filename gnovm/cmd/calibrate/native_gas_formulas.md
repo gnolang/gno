@@ -5,37 +5,49 @@ Slope is ns/N; runtime stores it as `Slope/1024` and computes `base + slope*N/10
 
 | Native | Shape | Base (ns) | Slope (ns/N) | N | R² |
 |---|---|---:|---:|---|---:|
-| `crypto/sha256.sum256` | base+slope·N | 231.3 | 9.1751 | len(p0) bytes | 0.998 |
-| `crypto/ed25519.verify` | base+slope·N | 53545.0 | 8.9226 | len(p1) bytes | 0.997 |
-| `chain.packageAddress` | base+slope·N | 542.8 | 16.3700 | len(p0) string | 1.000 |
-| `chain.deriveStorageDepositAddr` | base+slope·N | 532.4 | 0.4457 | len(p0) string | 1.000 |
-| `chain.pubKeyAddress` | flat | 2594.0 | — | — | — |
-| `time.loadFromEmbeddedTZData` | flat | 18635.0 | — | — | — |
-| `math.Float32bits` | flat | 33.5 | — | — | — |
-| `math.Float32frombits` | flat | 38.4 | — | — | — |
-| `math.Float64bits` | flat | 28.9 | — | — | — |
-| `math.Float64frombits` | flat | 31.0 | — | — | — |
-| `chain/banker.bankerSendCoins` | base+slope·N | 319.2 | 33.9052 | len(p3) slice | 0.999 |
-| `chain/banker.bankerGetCoins` | base+slope·N | 338.6 | 37.1480 | len(return[1]) | 0.999 |
-| `chain/banker.bankerTotalCoin` | flat | 88.4 | — | — | — |
-| `chain/banker.bankerIssueCoin` | flat | 137.4 | — | — | — |
-| `chain/banker.bankerRemoveCoin` | flat | 136.7 | — | — | — |
-| `chain/banker.originSend` | flat | 197.3 | — | — | — |
+| `crypto/sha256.sum256` | base+slope·N | 206.0 | 8.6575 | len(p0) bytes | 1.000 |
+| `crypto/ed25519.verify` | base+slope·N | 56407.0 | 9.0296 | len(p1) bytes | 0.993 |
+| `chain.packageAddress` | base+slope·N | 547.5 | 14.6672 | len(p0) string | 0.999 |
+| `chain.deriveStorageDepositAddr` | base+slope·N | 515.2 | 0.4422 | len(p0) string | 1.000 |
+| `chain.pubKeyAddress` | flat | 2571.0 | — | — | — |
+| `time.loadFromEmbeddedTZData` | flat | 15507.0 | — | — | — |
+| `math.Float32bits` | flat | 38.0 | — | — | — |
+| `math.Float32frombits` | flat | 33.0 | — | — | — |
+| `math.Float64bits` | flat | 29.2 | — | — | — |
+| `math.Float64frombits` | flat | 30.1 | — | — | — |
+| `chain/banker.bankerSendCoins` | base+slope·N | 314.5 | 33.7086 | len(p3) slice | 0.999 |
+| `chain/banker.bankerGetCoins` | base+slope·N | 339.5 | 35.4328 | len(return[1]) | 0.998 |
+| `chain/banker.bankerTotalCoin` | flat | 87.0 | — | — | — |
+| `chain/banker.bankerIssueCoin` | flat | 136.4 | — | — | — |
+| `chain/banker.bankerRemoveCoin` | flat | 137.3 | — | — | — |
+| `chain/banker.originSend` | flat | 196.8 | — | — | — |
 | `chain/banker.assertCallerIsRealm` | flat | 467.0 | — | — | — |
-| `chain.emit` | base+slope·N | 296.6 | 30.8562 | len(p1) slice | 0.997 |
-| `chain/params.SetBytes` | base+slope·N | 1343.8 | 8.9202 | len(p1) bytes | 0.975 |
-| `chain/params.SetString` | flat | 1136.4 | — | — | — |
-| `chain/params.SetStrings` | base+slope·N | 1222.0 | 22.9121 | len(p1) slice | 1.000 |
-| `chain/params.SetBool` | flat | 1108.0 | — | — | — |
-| `chain/params.SetInt64` | flat | 1117.0 | — | — | — |
-| `chain/params.SetUint64` | flat | 1111.0 | — | — | — |
-| `sys/params.setSysParamBytes` | base+slope·N | 290.9 | 9.0222 | len(p4) bytes | 0.998 |
-| `sys/params.getSysParamBytes` | base+slope·N | 407.2 | 10.8525 | len(return[0]) | 0.992 |
-| `chain/runtime.ChainID` | flat | 44.5 | — | — | — |
-| `chain/runtime.ChainDomain` | flat | 44.4 | — | — | — |
-| `chain/runtime.ChainHeight` | flat | 29.9 | — | — | — |
-| `chain/runtime.originCaller` | flat | 44.4 | — | — | — |
-| `chain/runtime.getSessionInfo` | flat | 146.7 | — | — | — |
+| `chain.emit` | base+slope·N | 286.3 | 30.4606 | len(p1) slice | 0.998 |
+| `chain/params.SetBytes` | base+slope·N | 1192.0 | 8.3504 | len(p1) bytes | 1.000 |
+| `chain/params.SetString` | base+slope·N | 1135.0 | 0.0014 | len(p1) string | -1.058 |
+| `chain/params.SetStrings` | base+slope·N | 1205.0 | 22.6433 | len(p1) slice | 1.000 |
+| `chain/params.SetBool` | flat | 1100.0 | — | — | — |
+| `chain/params.SetInt64` | flat | 1108.0 | — | — | — |
+| `chain/params.SetUint64` | flat | 1106.0 | — | — | — |
+| `sys/params.setSysParamBytes` | base+slope·N | 290.3 | 8.3360 | len(p4) bytes | 1.000 |
+| `sys/params.getSysParamBytes` | base+slope·N | 339.9 | 10.0192 | len(return[0]) | 0.999 |
+| `sys/params.setSysParamString` | flat | 239.4 | — | — | — |
+| `sys/params.setSysParamStrings` | base+slope·N | 304.0 | 22.4114 | len(p4) slice | 0.999 |
+| `sys/params.updateSysParamStrings` | base+slope·N | 328.1 | 22.3049 | len(p4) slice | 1.000 |
+| `sys/params.setSysParamBool` | flat | 197.5 | — | — | — |
+| `sys/params.setSysParamInt64` | flat | 209.4 | — | — | — |
+| `sys/params.setSysParamUint64` | flat | 209.9 | — | — | — |
+| `sys/params.getSysParamBool` | flat | 202.4 | — | — | — |
+| `sys/params.getSysParamInt64` | flat | 205.9 | — | — | — |
+| `sys/params.getSysParamUint64` | flat | 208.4 | — | — | — |
+| `sys/params.getSysParamString` | flat | 224.2 | — | — | — |
+| `sys/params.getSysParamStrings` | base+slope·N | 363.9 | 22.7099 | len(return[0]) | 1.000 |
+| `chain/params.UpdateParamStrings` | base+slope·N | 1253.0 | 22.2500 | len(p1) slice | 1.000 |
+| `chain/runtime.ChainID` | flat | 43.8 | — | — | — |
+| `chain/runtime.ChainDomain` | flat | 43.8 | — | — | — |
+| `chain/runtime.ChainHeight` | flat | 30.0 | — | — | — |
+| `chain/runtime.originCaller` | flat | 44.5 | — | — | — |
+| `chain/runtime.getSessionInfo` | flat | 144.1 | — | — | — |
 | `chain/runtime.AssertOriginCall` | flat | 5.0 | — | — | — |
-| `chain/runtime.getRealm` | base+slope·N | 989.7 | 1.2894 | m.NumFrames() | 0.996 |
-| `time.now` | flat | 47.6 | — | — | — |
+| `chain/runtime.getRealm` | base+slope·N | 986.4 | 1.2807 | m.NumFrames() | 0.995 |
+| `time.now` | flat | 47.1 | — | — | — |

@@ -148,16 +148,28 @@ func TestChargeNativeGas_NumCallFrames(t *testing.T) {
 	}
 }
 
-func TestChargeNativeGas_FallbackForUncalibratedStdlib(t *testing.T) {
-	// Stdlib native (non-empty NativePkg) without a registered entry
-	// falls back to OpCPUCallNativeBody flat. (Used to panic when the
-	// table was meant to be exhaustive; relaxed because gno-side stdlib
-	// native bindings — fmt.*, strings.*, etc. — aren't yet in the
-	// table.)
+func TestChargeNativeGas_PanicOnUncalibratedStdlib(t *testing.T) {
+	// Stdlib native (non-empty NativePkg) without a registered gas
+	// entry, with a real GasMeter installed → panic. This is the
+	// forcing function ensuring every new native ships with a gas
+	// entry. Test/no-meter Machines bypass the panic (see next test).
 	m := stubMachine(nil)
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic on uncalibrated stdlib native")
+		}
+	}()
 	m.chargeNativeGas(&FuncValue{NativePkg: "uncalibrated", NativeName: "fn"})
-	if m.Cycles != int64(OpCPUCallNativeBody) {
-		t.Fatalf("uncalibrated stdlib fallback: got %d cycles, want %d", m.Cycles, OpCPUCallNativeBody)
+}
+
+func TestChargeNativeGas_NoPanicWithoutMeter(t *testing.T) {
+	// No GasMeter installed → silent no-op for uncalibrated natives.
+	// Lets unit tests build minimal Machines without registering gas.
+	m := &Machine{Blocks: []*Block{{}}}
+	m.chargeNativeGas(&FuncValue{NativePkg: "uncalibrated", NativeName: "fn"})
+	if m.Cycles != 0 {
+		t.Fatalf("no-meter path: got %d cycles, want 0", m.Cycles)
 	}
 }
 

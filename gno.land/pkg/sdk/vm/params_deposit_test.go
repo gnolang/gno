@@ -1,0 +1,278 @@
+package vm
+
+import (
+	"encoding/binary"
+	"testing"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// Tests for the per-realm chain/params storage deposit flow.
+// See gno.land/pkg/sdk/vm/params_deposit.go for the implementation.
+
+
+func TestParamsDepositSetBytesLocks(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("deployer"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/test/dep"
+	files := []*std.MemFile{
+		{Name: "dep.gno", Body: `
+package dep
+import params_ "chain/params"
+func SetK(cur realm, val string) { params_.SetBytes("k", []byte(val)) }
+func DelK(cur realm)             { params_.SetBytes("k", nil) }
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+
+	// Snapshot deposit address balance after AddPackage but before our Set.
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	depBefore := env.bankk.GetCoins(ctx, depAddr)
+
+	// Call SetK with a 100-byte value.
+	const valLen = 100
+	bigBlob := make([]byte, valLen)
+	for i := range bigBlob {
+		bigBlob[i] = byte(i)
+	}
+	call := NewMsgCall(addr, std.Coins{}, pkgPath, "SetK", []string{string(bigBlob)})
+	call.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err := env.vmk.Call(ctx, call)
+	require.NoError(t, err)
+
+	// Expected delta: value bytes + key bytes ("vm:gno.land/r/test/dep:k").
+	expectedKeyLen := len("vm:" + pkgPath + ":k")
+	expectedDelta := int64(valLen + expectedKeyLen)
+
+	// Read meta-key directly via the params keeper.
+	got := readMetaKey(t, env, ctx, pkgPath)
+	assert.Equal(t, expectedDelta, got, "meta total should equal value+key bytes")
+
+	// Deposit address balance should have grown by expectedDelta * StoragePrice.
+	storagePrice := std.MustParseCoin(env.vmk.GetParams(ctx).StoragePrice)
+	expectedLock := expectedDelta * storagePrice.Amount
+	depAfter := env.bankk.GetCoins(ctx, depAddr)
+	assert.Equal(t, expectedLock, depAfter.AmountOf(ugnot.Denom)-depBefore.AmountOf(ugnot.Denom),
+		"deposit address should hold value+key * StoragePrice extra")
+}
+
+func TestParamsDepositUpdateRefunds(t *testing.T) {
+	env, ctx, addr, pkgPath := setupParamsDepRealm(t)
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	// Tx1: Set 100 bytes.
+	callSet(t, env, ctx, addr, pkgPath, make([]byte, 100))
+	depAfterFirst := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	metaAfterFirst := readMetaKey(t, env, ctx, pkgPath)
+
+	// Tx2: Set 50 bytes (overwrite, same key).
+	callSet(t, env, ctx, addr, pkgPath, make([]byte, 50))
+	depAfterSecond := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	metaAfterSecond := readMetaKey(t, env, ctx, pkgPath)
+
+	// Update doesn't change key bytes; only the 50-byte value diff.
+	storagePrice := std.MustParseCoin(env.vmk.GetParams(ctx).StoragePrice).Amount
+	assert.Equal(t, int64(50), metaAfterFirst-metaAfterSecond, "meta should drop by 50 (value-only diff)")
+	assert.Equal(t, int64(50)*storagePrice, depAfterFirst-depAfterSecond,
+		"deposit should refund 50 bytes' worth")
+}
+
+func TestParamsDepositDeleteRefundsFull(t *testing.T) {
+	env, ctx, addr, pkgPath := setupParamsDepRealm(t)
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	depBefore := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	callSet(t, env, ctx, addr, pkgPath, make([]byte, 100))
+	depAfterSet := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+
+	// Delete returns key+value bytes worth of deposit.
+	callDel(t, env, ctx, addr, pkgPath)
+	depAfterDel := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	metaAfterDel := readMetaKey(t, env, ctx, pkgPath)
+
+	assert.Equal(t, int64(0), metaAfterDel, "meta total should be 0 after delete")
+	assert.Equal(t, depBefore, depAfterDel, "deposit should return to pre-Set balance")
+	assert.Greater(t, depAfterSet, depBefore, "Set should have locked deposit (sanity)")
+}
+
+func TestParamsDepositPreFeatureClampNoPanic(t *testing.T) {
+	env, ctx, addr, pkgPath := setupParamsDepRealm(t)
+
+	// Inject a "pre-feature" key directly into the params store
+	// (bypassing recordParamsDelta). The realm's meta-key remains 0.
+	env.prmk.SetBytes(ctx, "vm:"+pkgPath+":k", []byte("pre-feature data"))
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	depBefore := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+
+	// Realm tries to delete the pre-feature key. Without the floor/clamp,
+	// processStorageDeposit would panic at keeper.go:1487 because
+	// rlm.Deposit < depositUnlocked. With the clamp, delta is forced to
+	// 0 and no refund is attempted.
+	require.NotPanics(t, func() {
+		callDel(t, env, ctx, addr, pkgPath)
+	})
+
+	depAfter := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	assert.Equal(t, depBefore, depAfter, "no deposit movement on pre-feature delete")
+	assert.Equal(t, int64(0), readMetaKey(t, env, ctx, pkgPath), "meta stays at 0 (floored)")
+}
+
+func TestParamsDepositInsufficientFails(t *testing.T) {
+	env, ctx, addr, pkgPath := setupParamsDepRealm(t)
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+
+	// Snapshot balance after AddPackage (which locks deposit for the
+	// realm's own code bytes). The failing call should not move it.
+	depBefore := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	metaBefore := readMetaKey(t, env, ctx, pkgPath)
+
+	// Set a large value with insufficient MaxDeposit.
+	bigBlob := make([]byte, 10_000)
+	call := NewMsgCall(addr, std.Coins{}, pkgPath, "SetK", []string{string(bigBlob)})
+	call.MaxDeposit = std.MustParseCoins(ugnot.ValueString(100)) // 100 ugnot, not enough
+	_, err := env.vmk.Call(ctx, call)
+	require.Error(t, err, "should fail on insufficient deposit")
+
+	// Meta-key unchanged — flush only fires after lock success, and
+	// failed message rolls back via cache.Store discard.
+	assert.Equal(t, metaBefore, readMetaKey(t, env, ctx, pkgPath))
+	assert.Equal(t, depBefore, env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom))
+}
+
+// TestParamsRecordDeltaSkipsNonRealmKeys is a focused unit test for
+// recordParamsDelta's prefix filter — sys/params keys (any key without
+// a "vm:" prefix) must not accumulate into any realm bucket.
+func TestParamsRecordDeltaSkipsNonRealmKeys(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	ctx = ContextWithParamsAccum(ctx)
+
+	// Various non-vm key shapes: sys/params (module:sub:name), the
+	// meta-key prefix itself, a key with no colon at all.
+	for _, k := range []string{
+		"mod:sub:name",                   // sys/params shape
+		realmMetaPrefix + "any/realm",    // meta-key under reserved prefix
+		"plain_key",                      // no colon → realmFromKey rejects
+	} {
+		recordParamsDelta(ctx, env.prmk, k, 0, 100)
+	}
+
+	diffs := ParamsRealmDiffs(ctx)
+	assert.Empty(t, diffs, "no realm should have accumulated a delta from non-vm keys")
+}
+
+func TestParamsDepositMultiRealmIndependent(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	pkg1 := "gno.land/r/test/multi1"
+	pkg2 := "gno.land/r/test/multi2"
+	for _, p := range []string{pkg1, pkg2} {
+		files := []*std.MemFile{
+			{Name: "dep.gno", Body: `
+package dep
+import params_ "chain/params"
+func SetK(cur realm, val string) { params_.SetBytes("k", []byte(val)) }
+`},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(p)},
+		}
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, p, files)))
+	}
+
+	dep1 := gnolang.DeriveStorageDepositCryptoAddr(pkg1)
+	dep2 := gnolang.DeriveStorageDepositCryptoAddr(pkg2)
+	dep1Before := env.bankk.GetCoins(ctx, dep1).AmountOf(ugnot.Denom)
+	dep2Before := env.bankk.GetCoins(ctx, dep2).AmountOf(ugnot.Denom)
+
+	callSet(t, env, ctx, addr, pkg1, make([]byte, 100))
+	callSet(t, env, ctx, addr, pkg2, make([]byte, 200))
+
+	storagePrice := std.MustParseCoin(env.vmk.GetParams(ctx).StoragePrice).Amount
+	dep1Delta := env.bankk.GetCoins(ctx, dep1).AmountOf(ugnot.Denom) - dep1Before
+	dep2Delta := env.bankk.GetCoins(ctx, dep2).AmountOf(ugnot.Denom) - dep2Before
+
+	// realm1: 100 bytes value + 26-byte key ("vm:gno.land/r/test/multi1:k") = 126 bytes
+	// realm2: 200 bytes value + 26-byte key                                  = 226 bytes
+	expected1 := int64(100+len("vm:"+pkg1+":k")) * storagePrice
+	expected2 := int64(200+len("vm:"+pkg2+":k")) * storagePrice
+	assert.Equal(t, expected1, dep1Delta, "realm1 deposit")
+	assert.Equal(t, expected2, dep2Delta, "realm2 deposit")
+
+	assert.Equal(t, int64(100+len("vm:"+pkg1+":k")), readMetaKey(t, env, ctx, pkg1))
+	assert.Equal(t, int64(200+len("vm:"+pkg2+":k")), readMetaKey(t, env, ctx, pkg2))
+}
+
+// ---- helpers ----
+
+// setupParamsDepRealm provisions an addr with funds and deploys a small
+// realm exposing SetK/DelK. Returns env, the SHARED ctx (must reuse
+// across calls so the gno transaction store stays warm), the deployer
+// addr, and the realm path.
+func setupParamsDepRealm(t *testing.T) (testEnv, sdk.Context, crypto.Address, string) {
+	t.Helper()
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+	const pkgPath = "gno.land/r/test/dep"
+	files := []*std.MemFile{
+		{Name: "dep.gno", Body: `
+package dep
+import params_ "chain/params"
+func SetK(cur realm, val string) { params_.SetBytes("k", []byte(val)) }
+func DelK(cur realm)             { params_.SetBytes("k", nil) }
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+	return env, ctx, addr, pkgPath
+}
+
+func callSet(t *testing.T, env testEnv, ctx sdk.Context, addr crypto.Address, pkgPath string, val []byte) {
+	t.Helper()
+	c := NewMsgCall(addr, std.Coins{}, pkgPath, "SetK", []string{string(val)})
+	c.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err := env.vmk.Call(ctx, c)
+	require.NoError(t, err)
+}
+
+func callDel(t *testing.T, env testEnv, ctx sdk.Context, addr crypto.Address, pkgPath string) {
+	t.Helper()
+	c := NewMsgCall(addr, std.Coins{}, pkgPath, "DelK", nil)
+	c.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err := env.vmk.Call(ctx, c)
+	require.NoError(t, err)
+}
+
+// readMetaKey reads the persisted byte total stored under the
+// per-realm meta-key. Returns 0 if the key doesn't exist.
+func readMetaKey(t *testing.T, env testEnv, ctx sdk.Context, pkgPath string) int64 {
+	t.Helper()
+	var bz []byte
+	if !env.prmk.GetBytes(ctx, realmMetaPrefix+pkgPath, &bz) {
+		return 0
+	}
+	if len(bz) < 8 {
+		return 0
+	}
+	return int64(binary.BigEndian.Uint64(bz))
+}

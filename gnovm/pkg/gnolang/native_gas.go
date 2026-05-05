@@ -93,14 +93,20 @@ func (m *Machine) chargeNativeGas(fv *FuncValue) *NativeGasInfo {
 	}
 	gi := nativeGasIndex[fv.NativePkg+"\x00"+string(fv.NativeName)]
 	if gi == nil {
-		// Uncalibrated native — fall back to the historical flat
-		// charge. Many gno stdlib bindings (fmt.*, strings.*, errors.*,
-		// etc.) aren't in the table yet; panicking would break every
-		// realm that uses them. TODO: extend the calibration sweep to
-		// cover these and re-introduce the panic as a build-time
-		// forcing function once the table is comprehensive.
-		m.incrCPU(OpCPUCallNativeBody)
-		return nil
+		if m.GasMeter == nil {
+			// Test/no-meter Machine — silently no-op rather than panic
+			// so unit tests that build minimal Machines without a gas
+			// meter can still call natives.
+			return nil
+		}
+		// Forcing function: every native must register a gas entry at
+		// init time. Production stdlibs do this in
+		// gnovm/stdlibs/native_gas.go; test stdlibs in
+		// gnovm/tests/stdlibs/native_gas.go. A new native missing from
+		// either trips this panic at first invocation, surfacing the
+		// gap immediately rather than silently undercharging.
+		panic(fmt.Sprintf("native %s.%s has no calibrated gas entry — register one in gnovm/stdlibs/native_gas.go (or tests/stdlibs/native_gas.go for test-only)",
+			fv.NativePkg, fv.NativeName))
 	}
 	cost := gi.Base
 	if gi.Slope != 0 {

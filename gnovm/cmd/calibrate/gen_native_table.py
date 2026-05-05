@@ -239,41 +239,80 @@ def emit_go_table(rows, out):
     out.write("}\n")
 
 
-def plot_fits(var_data, rows, out_path):
+def _param_label(r):
+    """Human-readable parameter description shown on each panel's x-axis.
+
+    Linear fits get the size source (e.g. "N = len(p1) slice") so the
+    reader can map the slope back to what gas charge it produces.
+    Flat fits get an explicit "(flat)" annotation."""
+    if r["shape"] == "flat":
+        return "(flat — no size parameter)"
+    kind = r["kind"]
+    if kind == "NumFrames":
+        return "N = m.NumFrames()"
+    if kind == "ReturnLen":
+        return f"N = len(return[{r['slope_idx']}])"
+    if kind == "SumLenStrings":
+        return f"N = sum_len(p{r['slope_idx']})"
+    return f"N = len(p{r['slope_idx']}) — {kind}"
+
+
+def plot_fits(var_data, flat_data, rows, out_path):
+    """Render every calibrated native — both linear and flat fits.
+
+    - Linear panels: median data points (blue) + fit line (red dashed).
+    - Flat panels: median annotated as a single horizontal reference
+      with the value on the title; no x-axis sweep to plot.
+    Each panel's x-axis label states the parameter being measured (or
+    "(flat)" for natives with no size dependence) so the reader can
+    map every slope back to the runtime gas charge."""
     try:
         import matplotlib.pyplot as plt
     except ImportError:
         print("matplotlib not installed, skipping plot", file=sys.stderr)
         return
-    var_rows = [r for r in rows if r["shape"] != "flat"]
-    if not var_rows:
+    if not rows:
         return
-    n = len(var_rows)
+    n = len(rows)
     cols = 3
     rows_n = (n + cols - 1) // cols
     fig, axes = plt.subplots(rows_n, cols,
                              figsize=(5 * cols, 3.2 * rows_n), squeeze=False)
-    for i, r in enumerate(var_rows):
+    for i, r in enumerate(rows):
         ax = axes[i // cols][i % cols]
-        d = var_data[(r["pkg"], r["fn"])]
-        sizes = np.array(sorted(d.keys()), dtype=float)
-        med = np.array([np.median(d[s]) for s in sizes])
-        ax.plot(sizes, med, "bo-", markersize=5, label="median ns/op")
-        if sizes.min() <= 0:
-            xs = np.linspace(0, sizes.max(), 200)
+        param = _param_label(r)
+
+        if r["shape"] == "flat":
+            base = r["base"]
+            ax.axhline(base, color="green", linestyle="-", linewidth=2,
+                       label=f"flat = {base:.1f} ns")
+            ax.set_xlim(0, 1)
+            ax.set_xticks([])
+            ax.set_ylim(0, max(base * 2.0, 10))
+            ax.set_title(f"{r['pkg']}.{r['fn']}\n→ {base:.1f} ns flat",
+                         fontsize=9)
         else:
-            xs = np.geomspace(sizes.min(), sizes.max(), 200)
-        ys = r["base"] + r["slope"] * xs
-        ax.plot(xs, ys, "r--",
-                label=f"fit: {r['base']:.0f}+{r['slope']:.3f}·N  R²={r['r2']:.3f}")
-        ax.set_title(f"{r['pkg']}.{r['fn']}", fontsize=9)
-        ax.set_xlabel(f"N = {r['kind']}", fontsize=8)
+            d = var_data[(r["pkg"], r["fn"])]
+            sizes = np.array(sorted(d.keys()), dtype=float)
+            med = np.array([np.median(d[s]) for s in sizes])
+            ax.plot(sizes, med, "bo-", markersize=5, label="median ns/op")
+            if sizes.min() <= 0:
+                xs = np.linspace(0, sizes.max(), 200)
+            else:
+                xs = np.geomspace(sizes.min(), sizes.max(), 200)
+            ys = r["base"] + r["slope"] * xs
+            ax.plot(xs, ys, "r--",
+                    label=f"fit: {r['base']:.0f}+{r['slope']:.3f}·N  R²={r['r2']:.3f}")
+            if sizes.min() > 0:
+                ax.set_xscale("log", base=10)
+                ax.set_yscale("log")
+            ax.set_title(f"{r['pkg']}.{r['fn']}", fontsize=9)
+
+        ax.set_xlabel(param, fontsize=8)
         ax.set_ylabel("ns/op", fontsize=8)
-        if sizes.min() > 0:
-            ax.set_xscale("log", base=10)
-            ax.set_yscale("log")
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=7, loc="best")
         ax.grid(True, which="both", alpha=0.3)
+
     for j in range(n, rows_n * cols):
         axes[j // cols][j % cols].axis("off")
     plt.tight_layout()
@@ -327,7 +366,7 @@ def main():
     print()
     emit_go_table(rows, sys.stdout)
     if not args.no_plot:
-        plot_fits(var_data, rows, args.plot)
+        plot_fits(var_data, flat_data, rows, args.plot)
 
 
 if __name__ == "__main__":
