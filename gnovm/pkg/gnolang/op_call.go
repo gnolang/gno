@@ -232,12 +232,21 @@ func (m *Machine) doOpCall() {
 }
 
 func (m *Machine) doOpCallNativeBody() {
-	m.LastFrame().Func.nativeBody(m)
+	fv := m.LastFrame().Func
+	gi := m.chargeNativeGas(fv)
+	fv.nativeBody(m)
+	if gi != nil {
+		m.chargeNativeGasPost(gi)
+	}
 }
 
 func (m *Machine) doOpCallDeferNativeBody() {
 	fv := m.PopValue().V.(*FuncValue)
+	gi := m.chargeNativeGas(fv)
 	fv.nativeBody(m)
+	if gi != nil {
+		m.chargeNativeGasPost(gi)
+	}
 }
 
 // Used by return and panic operation handlers.

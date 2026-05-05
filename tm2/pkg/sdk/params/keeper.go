@@ -129,8 +129,9 @@ func (pk ParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool 
 }
 
 func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
-	bz := stor.Get(nil, storeKey(key))
+	bz := stor.Get(gctx, storeKey(key))
 	if bz == nil {
 		return false
 	}
@@ -164,15 +165,16 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 	// stays raw (GetBytes reads raw, no amino unmarshal) — we only
 	// borrow the validate step from `set`, not the JSON encoding.
 	pk.validate(ctx, key, value)
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
 	if value == nil {
-		stor.Delete(nil, storeKey(key))
+		stor.Delete(gctx, storeKey(key))
 		return
 	}
 	// Copy to avoid altering the input bytes
 	valueCopy := make([]byte, len(value))
 	copy(valueCopy, value)
-	stor.Set(nil, storeKey(key), valueCopy)
+	stor.Set(gctx, storeKey(key), valueCopy)
 }
 
 func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
@@ -192,8 +194,9 @@ func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
 	if structName != "p" {
 		panic("the only supported struct name is 'p'")
 	}
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
-	kvz := getStructFieldsFromStore(strctPtr, stor, storeKey(key))
+	kvz := getStructFieldsFromStore(gctx, strctPtr, stor, storeKey(key))
 	decodeStructFields(strctPtr, kvz)
 }
 
@@ -210,10 +213,11 @@ func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any) {
 	if structName != "p" {
 		panic("the only supported struct name is 'p'")
 	}
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
 	kvz := encodeStructFields(strct)
 	for _, kv := range kvz {
-		stor.Set(nil, storeKey(key+":"+string(kv.Key)), kv.Value)
+		stor.Set(gctx, storeKey(key+":"+string(kv.Key)), kv.Value)
 	}
 }
 
@@ -241,8 +245,9 @@ func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {
 }
 
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) bool {
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
-	bz := stor.Get(nil, storeKey(key))
+	bz := stor.Get(gctx, storeKey(key))
 	if bz == nil {
 		return false
 	}
@@ -267,9 +272,10 @@ func (pk ParamsKeeper) validate(ctx sdk.Context, key string, value any) {
 
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	pk.validate(ctx, key, value)
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
 	bz := amino.MustMarshalJSON(value)
-	stor.Set(nil, storeKey(key), bz)
+	stor.Set(gctx, storeKey(key), bz)
 }
 
 func parsePrefix(key string) (prefix, rawKey string) {

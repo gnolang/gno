@@ -1539,7 +1539,9 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUCall)
 			m.doOpCall()
 		case OpCallNativeBody:
-			m.incrCPU(OpCPUCallNativeBody)
+			// Per-native gas is charged inside doOpCallNativeBody via
+			// chargeNativeGas (uses the calibrated table or, for natives
+			// not in the table, falls back to OpCPUCallNativeBody flat).
 			m.doOpCallNativeBody()
 		case OpReturn:
 			m.incrCPU(OpCPUReturn)
@@ -1562,7 +1564,7 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUPanic2)
 			m.doOpPanic2()
 		case OpCallDeferNativeBody:
-			m.incrCPU(OpCPUCallDeferNativeBody)
+			// Per-native gas charged inside doOpCallDeferNativeBody.
 			m.doOpCallDeferNativeBody()
 		case OpGo:
 			panic("goroutines are not yet supported")
