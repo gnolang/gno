@@ -36,7 +36,7 @@ script is bash-only; Windows users should use WSL or see
 ## Run locally with gnodev
 
 This section creates a realm, runs a local chain with `gnodev`, and
-opens it in `gnoweb` in a browser.
+opens it in a browser in `gnoweb`.
 
 ### Declare the module path
 
@@ -144,7 +144,7 @@ target the same network. Pick one up front and keep `-remote` (and
 
 Replace `testN` with the current testnet chainid (e.g. `test13`) — see
 [Networks](../resources/gnoland-networks.md) for the full list, the
-active testnet, mainnet status, and reset cadence.
+active testnet and mainnet status.
 
 Examples below use **staging** because it resets on a short cadence —
 fine for a throwaway first deploy. For anything you want to keep around,
@@ -298,12 +298,11 @@ and [Interact with gnokey](../users/interact-with-gnokey.md).
 1. [r/docs](https://gno.land/r/docs) — on-chain tour
 2. [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — realm structure via Counter
 3. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
-4. [Running a local dev node](./local-dev-with-gnodev.md) — `gnodev` reference
-5. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
+4. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
 
 ## Getting help
 
-- **[Discord](https://discord.gg/TOADD)** — community chat.
+- **[Discord](https://discord.gg/vb4KVPFUKE)** — community chat.
 - **[Gno Forum](https://gno.land/r/gnoland/boards2/v1)** — long-form
   questions and proposals, on-chain.
 - **[GitHub issues](https://github.com/gnolang/gno/issues)** — bugs,
