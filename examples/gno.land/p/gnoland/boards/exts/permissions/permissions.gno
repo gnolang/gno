@@ -4,7 +4,6 @@ import (
 	"gno.land/p/gnoland/boards"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
-	"gno.land/p/nt/commondao/v0/exts/storage"
 )
 
 // ValidatorFunc defines a function type for permissions validators.
@@ -31,7 +30,7 @@ type Permissions struct {
 
 // New creates a new permissions type.
 func New(options ...Option) *Permissions {
-	s := storage.NewMemberStorage()
+	s := commondao.NewMemberStorageWithGrouping()
 	ps := &Permissions{
 		validators: bptree.NewBPTree32(),
 		dao:        commondao.New(commondao.WithMemberStorage(s)),
@@ -93,7 +92,7 @@ func (ps Permissions) RoleExists(r boards.Role) bool {
 
 // GetUserRoles returns the list of roles assigned to a user.
 func (ps Permissions) GetUserRoles(user address) []boards.Role {
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := commondao.GetMemberGroups(ps.dao.Members(), user)
 	if groups == nil {
 		return nil
 	}
@@ -121,7 +120,7 @@ func (ps Permissions) HasPermission(user address, perm boards.Permission) bool {
 		return true
 	}
 
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := commondao.GetMemberGroups(ps.dao.Members(), user)
 	if groups == nil {
 		return false
 	}
@@ -155,7 +154,7 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 		panic("user can only have one role")
 	}
 
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := commondao.GetMemberGroups(ps.dao.Members(), user)
 	isGuest := len(roles) == 0
 
 	// Clear current user roles
@@ -189,7 +188,7 @@ func (ps *Permissions) SetUserRoles(user address, roles ...boards.Role) {
 
 // RemoveUser removes a user from permissions.
 func (ps *Permissions) RemoveUser(user address) bool {
-	groups := storage.GetMemberGroups(ps.dao.Members(), user)
+	groups := commondao.GetMemberGroups(ps.dao.Members(), user)
 	if groups == nil {
 		return ps.dao.Members().Remove(user)
 	}
@@ -208,19 +207,19 @@ func (ps *Permissions) RemoveUser(user address) bool {
 
 // HasUser checks if a user exists.
 func (ps Permissions) HasUser(user address) bool {
-	return ps.dao.Members().Has(user)
+	return commondao.ExistsInMemberStorage(ps.dao.Members(), user)
 }
 
 // UsersCount returns the total number of users the permissioner contains.
 func (ps Permissions) UsersCount() int {
-	return ps.dao.Members().Size()
+	return commondao.GetTotalMemberStorageSize(ps.dao.Members())
 }
 
 // IterateUsers iterates permissions' users.
 func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (stopped bool) {
-	ps.dao.Members().IterateByOffset(start, count, func(addr address) bool {
+	return commondao.IterateMemberStorage(ps.dao.Members(), start, count, func(addr address) bool {
 		user := boards.User{Address: addr}
-		groups := storage.GetMemberGroups(ps.dao.Members(), addr)
+		groups := commondao.GetMemberGroups(ps.dao.Members(), addr)
 		if groups != nil {
 			user.Roles = make([]boards.Role, len(groups))
 			for i, name := range groups {
@@ -230,7 +229,6 @@ func (ps Permissions) IterateUsers(start, count int, fn boards.UsersIterFn) (sto
 
 		return fn(user)
 	})
-	return
 }
 
 // WithPermission calls a callback when a user has a specific permission.

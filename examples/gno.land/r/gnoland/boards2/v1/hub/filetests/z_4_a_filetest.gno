@@ -33,6 +33,6 @@ func main() {
 }
 
 // Output:
+// g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj slice[("admin" gno.land/p/gnoland/boards.Role)]
 // g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 slice[("owner" gno.land/p/gnoland/boards.Role)]
 // g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh slice[("owner" gno.land/p/gnoland/boards.Role)]
-// g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj slice[("admin" gno.land/p/gnoland/boards.Role)]

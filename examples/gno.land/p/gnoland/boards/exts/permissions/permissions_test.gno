@@ -504,16 +504,16 @@ func TestBasicPermissionsRemoveUser(t *testing.T) {
 func TestBasicPermissionsIterateUsers(t *testing.T) {
 	users := []boards.User{
 		{
-			Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-			Roles:   []boards.Role{"foo"},
-		},
-		{
 			Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 			Roles:   []boards.Role{"bar", "foo"},
 		},
 		{
 			Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5",
 			Roles:   []boards.Role{"bar"},
+		},
+		{
+			Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			Roles:   []boards.Role{"foo"},
 		},
 	}
 
