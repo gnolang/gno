@@ -1,0 +1,131 @@
+# End-to-end test of r/sys/namereg/v1 as a wired-up controller of r/sys/users.
+#
+# Verifies the full flow:
+#   1. Realm is auto-whitelisted at genesis (via init.gno).
+#   2. EOA can call Register with 1 GNOT and acquire a name.
+#   3. ResolveAddress in r/sys/users returns the new (name, addr) pair.
+#   4. DAO can REMOVE the realm from the controller whitelist.
+#   5. After removal, Register hard-fails with "does not exist in whitelist".
+#
+# Audit notes covered: this exercises the post-genesis controller-removal
+# path (ProposeControllerRemoval), which sat unverified after the original
+# r/gnoland/users/v1 was archived in PR #5194.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/names
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/sys/namereg/v1
+
+# Override the hardcoded admin in r/sys/names with test1 so the test can
+# call Enable() — necessary to actually exercise the verifier (pre-Enable
+# the verifier short-circuits to true and the bridge path is untested).
+patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# Initialize GovDAO members so we can drive proposals later in the test.
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# Sanity: the realm is already a whitelisted controller (init.gno did this at
+# genesis height 0). user1 calls namereg/v1.Register with the required 20 GNOT.
+# The username "nym-alice123" matches the Open Nym Tier regex ^nym-[a-z]{5,13}\d{3}$.
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-alice123' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+
+# Verify: r/sys/users now resolves user1's address to "nym-alice123".
+gnokey maketx run -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/verify_registered.gno
+stdout OK!
+
+# End-to-end bridge check: enable r/sys/names so the verifier actually runs,
+# then attempt to deploy a package under user1's registered namespace. This
+# exercises the chain → reNamespace regex → verifier → r/sys/users lookup
+# path. Regression guard: an earlier version of `reNamespace` truncated
+# captured paths at the first `-`, so a deploy under `gno.land/r/nym-alice123/*`
+# would have lookup-up "nym" instead of "nym-alice123" and failed with
+# "is not authorized to deploy packages to namespace nym".
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 2_600_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/nym-alice123/hello -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+
+# Sanity: a different namespace user1 doesn't own must still fail. Confirms
+# the verifier is actually consulted (i.e. Enable took effect) and didn't
+# silently allow everything.
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/notmine999/hello -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test user1
+stderr 'is not authorized to deploy packages to namespace'
+
+# Now exercise the removal path. DAO proposes to REMOVE namereg/v1 from the
+# controller whitelist.
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 30_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_remove_namereg.gno
+stdout OK!
+
+# Vote + execute.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Now Register must fail — the realm is no longer in the controller whitelist.
+# A second registration attempt for a different (valid) name from the same
+# user should hard-fail with the whitelist error from r/sys/users.
+! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-bobcat456' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+stderr 'does not exist in whitelist'
+
+-- pkg/gnomod.toml --
+module = "gno.land/r/hello"
+gno = "0.9"
+
+-- pkg/hello.gno --
+package hello
+
+func Hello(cur realm) string {
+	return "hi from nym-alice123"
+}
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/verify_registered.gno --
+package main
+
+import "gno.land/r/sys/users"
+
+func main() {
+	data := users.ResolveAddress("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	if data == nil {
+		panic("nym-alice123 not registered")
+	}
+	if got := data.Name(); got != "nym-alice123" {
+		panic("wrong name: " + got)
+	}
+}
+
+-- run/propose_remove_namereg.gno --
+package main
+
+import (
+	"chain"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/users"
+)
+
+func main() {
+	addr := chain.PackageAddress("gno.land/r/sys/namereg/v1")
+	r := users.ProposeControllerRemoval(addr)
+	dao.MustCreateProposal(cross, r)
+}

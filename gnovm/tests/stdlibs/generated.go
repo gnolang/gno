@@ -10,6 +10,7 @@ import (
 	testlibs_chain_runtime "github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	testlibs_fmt "github.com/gnolang/gno/gnovm/tests/stdlibs/fmt"
 	testlibs_os "github.com/gnolang/gno/gnovm/tests/stdlibs/os"
+	testlibs_runtime "github.com/gnolang/gno/gnovm/tests/stdlibs/runtime"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
 	testlibs_unicode "github.com/gnolang/gno/gnovm/tests/stdlibs/unicode"
 )
@@ -366,6 +367,38 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"runtime",
+		"GC",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			testlibs_runtime.GC(
+				m,
+			)
+		},
+	},
+	{
+		"runtime",
+		"MemStats",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := testlibs_runtime.MemStats(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
 		"testing",
 		"getContext",
 		[]gno.FieldTypeExpr{},
@@ -617,6 +650,90 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
+		},
+	},
+	{
+		"testing",
+		"setSysParamStrings",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]string")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []string
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			testlibs_testing.X_setSysParamStrings(
+				m,
+				p0, p1, p2, p3)
+		},
+	},
+	{
+		"testing",
+		"setSysParamBool",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("bool")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  bool
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			testlibs_testing.X_setSysParamBool(
+				m,
+				p0, p1, p2, p3)
 		},
 	},
 	{

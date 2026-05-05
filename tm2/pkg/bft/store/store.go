@@ -61,6 +61,11 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 	buf := []byte{}
 	for i := range blockMeta.BlockID.PartsHeader.Total {
 		part := bs.LoadBlockPart(height, i)
+		// If the part is missing (e.g. since it has been deleted after we
+		// loaded the block meta) we consider the whole block to be missing.
+		if part == nil {
+			return nil
+		}
 		buf = append(buf, part.Bytes...)
 	}
 	err := amino.UnmarshalSized(buf, block)

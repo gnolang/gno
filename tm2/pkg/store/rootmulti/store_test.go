@@ -55,7 +55,7 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	k, v := []byte("wind"), []byte("blows")
 
 	store1 := ms.getStoreByName("store1")
-	store1.Set(k, v)
+	store1.Set(nil, k, v)
 
 	cID := ms.Commit()
 	require.Equal(t, int64(1), cID.Version)
@@ -71,11 +71,11 @@ func TestCacheMultiStoreWithVersion(t *testing.T) {
 	// require a valid key lookup yields the correct value
 	kvStore := cms.GetStore(ms.keysByName["store1"])
 	require.NotNil(t, kvStore)
-	require.Equal(t, kvStore.Get(k), v)
+	require.Equal(t, kvStore.Get(nil, k), v)
 
 	// require we cannot commit (write) to a cache-versioned multi-store
 	require.Panics(t, func() {
-		kvStore.Set(k, []byte("newValue"))
+		kvStore.Set(nil, k, []byte("newValue"))
 		cms.(types.Committer).Commit()
 	})
 }
@@ -94,7 +94,7 @@ func TestHashStableWithEmptyCommit(t *testing.T) {
 	k, v := []byte("wind"), []byte("blows")
 
 	store1 := ms.getStoreByName("store1")
-	store1.Set(k, v)
+	store1.Set(nil, k, v)
 
 	cID := ms.Commit()
 	require.Equal(t, int64(1), cID.Version)
@@ -210,11 +210,11 @@ func TestMultiStoreQuery(t *testing.T) {
 
 	// Set and commit data in one store.
 	store1 := multi.getStoreByName("store1")
-	store1.Set(k, v)
+	store1.Set(nil, k, v)
 
 	// ... and another.
 	store2 := multi.getStoreByName("store2")
-	store2.Set(k2, v2)
+	store2.Set(nil, k2, v2)
 
 	// Commit the multistore.
 	cid = multi.Commit()
