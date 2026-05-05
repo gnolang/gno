@@ -93,7 +93,7 @@ func (d Definition) VotingPeriod() time.Duration {
 
 // CustomVoteChoices returns a list of valid voting choices.
 func (d Definition) CustomVoteChoices() []commondao.VoteChoice {
-	return d.voteChoices
+	return append([]commondao.VoteChoice(nil), d.voteChoices...)
 }
 
 // Tally counts the number of votes and verifies if proposal passes.
@@ -119,12 +119,14 @@ func (d Definition) Executor() commondao.ExecFunc {
 // Tally considers that proposals passes when more than half of members votes YES.
 func TallyByAbsoluteMajority(ctx commondao.VotingContext) (bool, error) {
 	// Check if a quorum of 51% has been met
-	if !commondao.IsQuorumReached(commondao.QuorumMoreThanHalf, &ctx.VotingRecord, ctx.Members) {
+	memberCount := commondao.GetTotalMemberStorageSize(ctx.Members)
+	if !commondao.IsQuorumReached(commondao.QuorumMoreThanHalf, memberCount, ctx.VotingRecord) {
 		return false, nil
 	}
 
 	// Tally votes by absolute majority, which requires 51% votes
-	c, success := commondao.SelectChoiceByAbsoluteMajority(ctx.VotingRecord, ctx.Members.TotalSize())
+	count := commondao.GetTotalMemberStorageSize(ctx.Members)
+	c, success := commondao.SelectChoiceByAbsoluteMajority(ctx.VotingRecord, count)
 	if success {
 		return c == commondao.ChoiceYes, nil
 	}
