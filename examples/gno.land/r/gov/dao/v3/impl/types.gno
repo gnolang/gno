@@ -3,7 +3,7 @@ package impl
 import (
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -19,15 +19,15 @@ func (l *Law) String() string {
 
 // ProposalsStatuses contains the status of all the proposals indexed by the proposal ID.
 type ProposalsStatuses struct {
-	*avl.Tree // map[int]*proposalStatus
+	*bptree.BPTree // map[int]*proposalStatus
 }
 
 func NewProposalsStatuses() ProposalsStatuses {
-	return ProposalsStatuses{avl.NewTree()}
+	return ProposalsStatuses{bptree.NewBPTree32()}
 }
 
 func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
-	if pss.Tree == nil {
+	if pss.BPTree == nil {
 		return nil
 	}
 
@@ -180,7 +180,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 		power := memberstore.GetTierPower(tn, members)
 
 		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n\n", title, tn, power))
-		ms, _ := value.(*avl.Tree)
+		ms, _ := value.(*bptree.BPTree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("- " + tryResolveAddr(address(addr)) + "\n")
 			return false

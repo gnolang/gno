@@ -18,6 +18,12 @@ adduser user1 1ugnot
 adduser user2 1ugnot
 adduser user3 100000000000ugnot
 
+# Pre-register users for boards at genesis (boards requires registered users for
+# board creation). users/init.RegisterUser is genesis-only since the security
+# fix; post-genesis registration must go through a paid/validated controller.
+genesiscall gno.land/r/sys/users/init RegisterUser user333 ${user3_user_addr}
+genesiscall gno.land/r/sys/users/init RegisterUser user222 ${user2_user_addr}
+
 # Start the node
 gnoland start
 
@@ -144,11 +150,8 @@ stdout '220 int64'
 # Users discuss on Boards #
 ###########################
 
-# Register users for boards (boards requires registered users for board creation)
-gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "user333" -args "$user3_user_addr" -gas-fee 1500001ugnot -gas-wanted 15_000_000 -broadcast -chainid=tendermint_test user3
-stdout 'OK!'
-gnokey maketx call -pkgpath gno.land/r/sys/users/init -func RegisterUser -args "user222" -args "$user2_user_addr" -gas-fee 1600001ugnot -gas-wanted 16_000_000 -broadcast -chainid=tendermint_test user2
-stdout 'OK!'
+# (Users user333 and user222 were registered at genesis above; see the
+# genesiscall lines before `gnoland start`.)
 
 # user3 creates a new board and a thread
 gnokey maketx call -pkgpath gno.land/r/archive/boards -func CreateBoard -args 'user3_awesome_board' -gas-fee 1700001ugnot -gas-wanted 17_000_000 -broadcast -chainid=tendermint_test user3
