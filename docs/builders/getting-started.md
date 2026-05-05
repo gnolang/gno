@@ -29,9 +29,14 @@ The toolchain has three binaries:
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-Binaries land in `$GOPATH/bin` — make sure it's on your `$PATH`. The
-script is bash-only; Windows users should use WSL or see
-[Other methods](./install.md) for source builds and Docker.
+Binaries land in `$GOPATH/bin`. The script is bash-only; Windows users
+should use WSL or see [Other methods](./install.md) for source builds
+and Docker.
+
+:::tip
+`gno: command not found`? Add `$GOPATH/bin` to
+your `$PATH`: `export PATH="$PATH:$(go env GOPATH)/bin"`.
+:::
 
 ## Run locally with gnodev
 
