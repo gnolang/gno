@@ -41,8 +41,8 @@ var testNativeGas = []struct {
 	{"os", "sleep", 100},  // simulated — not actually sleeping in tests
 
 	// runtime — GC / MemStats test helpers.
-	{"runtime", "GC", 10000},       // flushes object cache; conservatively heavy
-	{"runtime", "MemStats", 1000},  // reads alloc counters
+	{"runtime", "GC", 10000},      // flushes object cache; conservatively heavy
+	{"runtime", "MemStats", 1000}, // reads alloc counters
 
 	// testing — context / assertions / regex.
 	{"testing", "getContext", 200},

@@ -29,9 +29,12 @@ const (
 // NativeGasInfo is the per-function gas descriptor.
 //
 // Pre-call charge:  Base + Slope*N1/1024 + Slope2*N2/1024
-//                   (read off the call block before nativeBody)
+//
+//	(read off the call block before nativeBody)
+//
 // Post-call charge: PostBase + PostSlope*M1/1024 + PostSlope2*M2/1024
-//                   (read off the return stack after nativeBody)
+//
+//	(read off the return stack after nativeBody)
 //
 // The two pre-call slopes are independent additive components (mirrors
 // the `base + slopeP * P + slopeC * C` shape used for some CPU ops in

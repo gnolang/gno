@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/binary"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
@@ -128,6 +129,78 @@ func TestParamsDepositPreFeatureClampNoPanic(t *testing.T) {
 	depAfter := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
 	assert.Equal(t, depBefore, depAfter, "no deposit movement on pre-feature delete")
 	assert.Equal(t, int64(0), readMetaKey(t, env, ctx, pkgPath), "meta stays at 0 (floored)")
+}
+
+// Mixed pre/post-feature delete in create-then-delete order: realm has
+// pre-feature data on disk, then post-feature SetK builds up meta and
+// deposit, then deletes the pre-feature key. The floor doesn't fire
+// (a.bytes stays positive because post-feature meta > pre-feature
+// delete), so delta flows through as a refund. No panic — refund stays
+// within rlm.Deposit — but the realm receives credit for bytes it
+// never locked. See params_deposit.go's "Floor/clamp" comment for the
+// full bounded-leak rationale; this test pins down the observable
+// behavior so changes to the floor/clamp logic surface here.
+func TestParamsDepositMixedPreFeatureCreateThenDeleteLeaks(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/test/mixedpre"
+	// Realm exposes BOTH SetK (post-feature 200-byte set) and
+	// DelPreX (delete the pre-injected pre-feature key).
+	files := []*std.MemFile{
+		{Name: "dep.gno", Body: `
+package dep
+import params_ "chain/params"
+func SetK(cur realm, val string)  { params_.SetBytes("k", []byte(val)) }
+func DelPreX(cur realm)           { params_.SetBytes("preX", nil) }
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+
+	// Inject a 100-byte pre-feature value at "preX" directly into the
+	// store, bypassing recordParamsDelta (so no meta, no deposit lock).
+	env.prmk.SetBytes(ctx, "vm:"+pkgPath+":preX", []byte(strings.Repeat("p", 100)))
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	depBefore := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+
+	// TX1: SetK with 200-byte value — locks (keyLen+200)*price.
+	callSet(t, env, ctx, addr, pkgPath, make([]byte, 200))
+	metaAfterSet := readMetaKey(t, env, ctx, pkgPath)
+	depAfterSet := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	t.Logf("after SetK: meta=%d deposit=%d", metaAfterSet, depAfterSet-depBefore)
+
+	// TX2: DelPreX. d = -(keyLen("vm:<path>:preX") + 100). Meta loaded
+	// is metaAfterSet (~keyLen+200). |d| < meta → floor doesn't fire,
+	// delta flows through as a refund.
+	c := NewMsgCall(addr, std.Coins{}, pkgPath, "DelPreX", nil)
+	c.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	require.NotPanics(t, func() {
+		_, err := env.vmk.Call(ctx, c)
+		require.NoError(t, err)
+	})
+	depAfterDel := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+	metaAfterDel := readMetaKey(t, env, ctx, pkgPath)
+
+	// Concrete invariants that pin the leak:
+	preXKeyLen := int64(len("vm:" + pkgPath + ":preX"))
+	expectedRefundedBytes := preXKeyLen + 100
+	storagePrice := std.MustParseCoin(env.vmk.GetParams(ctx).StoragePrice).Amount
+	assert.Equal(t, metaAfterSet-expectedRefundedBytes, metaAfterDel,
+		"meta drops by full key+val of the pre-feature delete")
+	assert.Equal(t, expectedRefundedBytes*storagePrice,
+		depAfterSet-depAfterDel,
+		"deposit refunded for pre-feature bytes — the bounded leak documented in params_deposit.go")
+	// The realm now stores 229 bytes (from SetK) but its deposit only
+	// covers (229 - expectedRefundedBytes) = ~96 bytes worth — short
+	// by ~133 bytes' worth of locked deposit relative to actual on-disk.
+	t.Logf("leak summary: on-disk=%d bytes, deposit-covered=%d bytes (short by %d bytes)",
+		metaAfterSet, metaAfterDel, expectedRefundedBytes)
 }
 
 func TestParamsDepositInsufficientFails(t *testing.T) {

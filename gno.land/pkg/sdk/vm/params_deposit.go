@@ -28,13 +28,35 @@ import (
 //     any accidental routing through here is safely skipped.
 //   - sys/params (governance-gated, no "vm:" prefix) is skipped.
 //
-// Floor/clamp asymmetry on negative bytes: at feature rollout, realms
-// have no meta-key baseline (loads as 0). A delete of a pre-feature
-// value would compute a.bytes < 0; we floor to 0. We then clamp delta
-// to 0 to avoid asking for a refund that was never deposited (which
-// would panic processStorageDeposit at keeper.go:1487). Trade-off:
-// realms with mixed pre-/post-feature state may permanently lock some
-// deposit. Acceptable: locked deposit > minted deposit out of thin air.
+// Floor/clamp on negative bytes: at feature rollout, realms have no
+// meta-key baseline (loads as 0). A delete of a pre-feature value
+// would compute a.bytes < 0; we floor to 0 and clamp delta to 0 to
+// avoid panicking processStorageDeposit at keeper.go:1518 (refund >
+// rlm.Deposit).
+//
+// Asymmetric pre-/post-feature behavior — two failure modes depending
+// on operation order, both bounded by the realm's lifetime locks:
+//
+//   1. Delete-then-create: pre-feature delete first → floor fires →
+//      delta clamped to 0 → no refund. The pre-feature bytes are gone
+//      from disk but no money returned. Realm permanently donates the
+//      pre-feature deposit it never paid (it never paid to begin with,
+//      so this is just "free bytes go away with no refund").
+//
+//   2. Create-then-delete: post-feature create first builds up
+//      meta and deposit. Subsequent pre-feature delete computes
+//      a.bytes = meta - delete_size, which may stay positive (no
+//      floor) → delta becomes negative → refund attempted against the
+//      post-feature deposit. Realm receives a refund for bytes it
+//      never locked, effectively "minting" deposit credit up to
+//      min(pre_feature_bytes_deleted, loaded_meta) * StoragePrice.
+//      No panic (refund <= rlm.Deposit since rlm.Deposit >= meta*price)
+//      but the deposit balance no longer matches actual on-disk bytes.
+//
+// Both modes are unreachable for realms deployed AFTER the feature
+// gate (no pre-feature data to delete). For pre-existing realms,
+// migrate to the deposit accounting via a one-time first-touch lock
+// or a manual migration tx before relying on these invariants.
 
 const (
 	// pkey() in gnovm/stdlibs/chain/params produces "vm:<rlmPath>:<key>"

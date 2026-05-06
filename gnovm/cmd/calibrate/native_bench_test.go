@@ -147,10 +147,14 @@ func benchMathFlat(b *testing.B, fn gno.Name, paramVal interface{}) {
 	}
 }
 
-func BenchmarkNative_Math_Float32bits(b *testing.B)     { benchMathFlat(b, "Float32bits", float32(1.5)) }
-func BenchmarkNative_Math_Float32frombits(b *testing.B) { benchMathFlat(b, "Float32frombits", uint32(0x3FC00000)) }
-func BenchmarkNative_Math_Float64bits(b *testing.B)     { benchMathFlat(b, "Float64bits", float64(1.5)) }
-func BenchmarkNative_Math_Float64frombits(b *testing.B) { benchMathFlat(b, "Float64frombits", uint64(0x3FF8000000000000)) }
+func BenchmarkNative_Math_Float32bits(b *testing.B) { benchMathFlat(b, "Float32bits", float32(1.5)) }
+func BenchmarkNative_Math_Float32frombits(b *testing.B) {
+	benchMathFlat(b, "Float32frombits", uint32(0x3FC00000))
+}
+func BenchmarkNative_Math_Float64bits(b *testing.B) { benchMathFlat(b, "Float64bits", float64(1.5)) }
+func BenchmarkNative_Math_Float64frombits(b *testing.B) {
+	benchMathFlat(b, "Float64frombits", uint64(0x3FF8000000000000))
+}
 
 // ----- chain.packageAddress(pkgPath string) string -----
 

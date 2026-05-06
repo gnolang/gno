@@ -36,9 +36,9 @@ func newMockBanker() *mockBanker {
 func (b *mockBanker) GetCoins(addr crypto.Bech32Address) std.Coins {
 	return b.coins[addr]
 }
-func (b *mockBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {}
-func (b *mockBanker) TotalCoin(denom string) int64                            { return 0 }
-func (b *mockBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64) {}
+func (b *mockBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins)           {}
+func (b *mockBanker) TotalCoin(denom string) int64                                     { return 0 }
+func (b *mockBanker) IssueCoin(addr crypto.Bech32Address, denom string, amount int64)  {}
 func (b *mockBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amount int64) {}
 
 type mockParams struct {
@@ -47,12 +47,12 @@ type mockParams struct {
 
 func newMockParams() *mockParams { return &mockParams{data: map[string]any{}} }
 
-func (p *mockParams) SetString(k, v string)            { p.data[k] = v }
-func (p *mockParams) SetBool(k string, v bool)         { p.data[k] = v }
-func (p *mockParams) SetInt64(k string, v int64)       { p.data[k] = v }
-func (p *mockParams) SetUint64(k string, v uint64)     { p.data[k] = v }
-func (p *mockParams) SetBytes(k string, v []byte)      { p.data[k] = v }
-func (p *mockParams) SetStrings(k string, v []string)  { p.data[k] = v }
+func (p *mockParams) SetString(k, v string)           { p.data[k] = v }
+func (p *mockParams) SetBool(k string, v bool)        { p.data[k] = v }
+func (p *mockParams) SetInt64(k string, v int64)      { p.data[k] = v }
+func (p *mockParams) SetUint64(k string, v uint64)    { p.data[k] = v }
+func (p *mockParams) SetBytes(k string, v []byte)     { p.data[k] = v }
+func (p *mockParams) SetStrings(k string, v []string) { p.data[k] = v }
 func (p *mockParams) UpdateStrings(k string, v []string, add bool) {
 	if add {
 		cur, _ := p.data[k].([]string)
@@ -285,6 +285,7 @@ func benchChainEmit(b *testing.B, nAttrs, perElemBytes int) {
 func BenchmarkNative_Chain_Emit_2_1(b *testing.B)   { benchChainEmit(b, 2, 1) }
 func BenchmarkNative_Chain_Emit_10_1(b *testing.B)  { benchChainEmit(b, 10, 1) }
 func BenchmarkNative_Chain_Emit_100_1(b *testing.B) { benchChainEmit(b, 100, 1) }
+
 // 128 = MaxEventPairs * 2 — the new hard cap from emit_event.go.
 func BenchmarkNative_Chain_Emit_128_1(b *testing.B) { benchChainEmit(b, 128, 1) }
 
@@ -356,10 +357,10 @@ func benchParamsSetStrings(b *testing.B, n, perElemBytes int) {
 	}
 }
 
-func BenchmarkNative_Params_SetStrings_1_1(b *testing.B)    { benchParamsSetStrings(b, 1, 1) }
-func BenchmarkNative_Params_SetStrings_10_1(b *testing.B)   { benchParamsSetStrings(b, 10, 1) }
-func BenchmarkNative_Params_SetStrings_100_1(b *testing.B)  { benchParamsSetStrings(b, 100, 1) }
-func BenchmarkNative_Params_SetStrings_1000_1(b *testing.B) { benchParamsSetStrings(b, 1000, 1) }
+func BenchmarkNative_Params_SetStrings_1_1(b *testing.B)     { benchParamsSetStrings(b, 1, 1) }
+func BenchmarkNative_Params_SetStrings_10_1(b *testing.B)    { benchParamsSetStrings(b, 10, 1) }
+func BenchmarkNative_Params_SetStrings_100_1(b *testing.B)   { benchParamsSetStrings(b, 100, 1) }
+func BenchmarkNative_Params_SetStrings_1000_1(b *testing.B)  { benchParamsSetStrings(b, 1000, 1) }
 func BenchmarkNative_Params_SetStrings_2_50(b *testing.B)    { benchParamsSetStrings(b, 2, 50) }
 func BenchmarkNative_Params_SetStrings_2_500(b *testing.B)   { benchParamsSetStrings(b, 2, 500) }
 func BenchmarkNative_Params_SetStrings_2_5000(b *testing.B)  { benchParamsSetStrings(b, 2, 5000) }
@@ -498,10 +499,12 @@ func BenchmarkNative_SysParams_SetStrings_1_1(b *testing.B)    { benchSysParamsS
 func BenchmarkNative_SysParams_SetStrings_10_1(b *testing.B)   { benchSysParamsSetStrings(b, 10, 1) }
 func BenchmarkNative_SysParams_SetStrings_100_1(b *testing.B)  { benchSysParamsSetStrings(b, 100, 1) }
 func BenchmarkNative_SysParams_SetStrings_1000_1(b *testing.B) { benchSysParamsSetStrings(b, 1000, 1) }
-func BenchmarkNative_SysParams_SetStrings_2_50(b *testing.B)    { benchSysParamsSetStrings(b, 2, 50) }
-func BenchmarkNative_SysParams_SetStrings_2_500(b *testing.B)   { benchSysParamsSetStrings(b, 2, 500) }
-func BenchmarkNative_SysParams_SetStrings_2_5000(b *testing.B)  { benchSysParamsSetStrings(b, 2, 5000) }
-func BenchmarkNative_SysParams_SetStrings_2_50000(b *testing.B) { benchSysParamsSetStrings(b, 2, 50000) }
+func BenchmarkNative_SysParams_SetStrings_2_50(b *testing.B)   { benchSysParamsSetStrings(b, 2, 50) }
+func BenchmarkNative_SysParams_SetStrings_2_500(b *testing.B)  { benchSysParamsSetStrings(b, 2, 500) }
+func BenchmarkNative_SysParams_SetStrings_2_5000(b *testing.B) { benchSysParamsSetStrings(b, 2, 5000) }
+func BenchmarkNative_SysParams_SetStrings_2_50000(b *testing.B) {
+	benchSysParamsSetStrings(b, 2, 50000)
+}
 
 // ---- sys/params: updateSysParamStrings ----
 
@@ -526,14 +529,28 @@ func benchSysParamsUpdateStrings(b *testing.B, n, perElemBytes int) {
 	}
 }
 
-func BenchmarkNative_SysParams_UpdateStrings_1_1(b *testing.B)    { benchSysParamsUpdateStrings(b, 1, 1) }
-func BenchmarkNative_SysParams_UpdateStrings_10_1(b *testing.B)   { benchSysParamsUpdateStrings(b, 10, 1) }
-func BenchmarkNative_SysParams_UpdateStrings_100_1(b *testing.B)  { benchSysParamsUpdateStrings(b, 100, 1) }
-func BenchmarkNative_SysParams_UpdateStrings_1000_1(b *testing.B) { benchSysParamsUpdateStrings(b, 1000, 1) }
-func BenchmarkNative_SysParams_UpdateStrings_2_50(b *testing.B)    { benchSysParamsUpdateStrings(b, 2, 50) }
-func BenchmarkNative_SysParams_UpdateStrings_2_500(b *testing.B)   { benchSysParamsUpdateStrings(b, 2, 500) }
-func BenchmarkNative_SysParams_UpdateStrings_2_5000(b *testing.B)  { benchSysParamsUpdateStrings(b, 2, 5000) }
-func BenchmarkNative_SysParams_UpdateStrings_2_50000(b *testing.B) { benchSysParamsUpdateStrings(b, 2, 50000) }
+func BenchmarkNative_SysParams_UpdateStrings_1_1(b *testing.B) { benchSysParamsUpdateStrings(b, 1, 1) }
+func BenchmarkNative_SysParams_UpdateStrings_10_1(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 10, 1)
+}
+func BenchmarkNative_SysParams_UpdateStrings_100_1(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 100, 1)
+}
+func BenchmarkNative_SysParams_UpdateStrings_1000_1(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 1000, 1)
+}
+func BenchmarkNative_SysParams_UpdateStrings_2_50(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 2, 50)
+}
+func BenchmarkNative_SysParams_UpdateStrings_2_500(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 2, 500)
+}
+func BenchmarkNative_SysParams_UpdateStrings_2_5000(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 2, 5000)
+}
+func BenchmarkNative_SysParams_UpdateStrings_2_50000(b *testing.B) {
+	benchSysParamsUpdateStrings(b, 2, 50000)
+}
 
 // ---- sys/params: flat setters (Bool/Int64/Uint64) ----
 
@@ -657,10 +674,12 @@ func BenchmarkNative_SysParams_GetStrings_1_1(b *testing.B)    { benchSysParamsG
 func BenchmarkNative_SysParams_GetStrings_10_1(b *testing.B)   { benchSysParamsGetStrings(b, 10, 1) }
 func BenchmarkNative_SysParams_GetStrings_100_1(b *testing.B)  { benchSysParamsGetStrings(b, 100, 1) }
 func BenchmarkNative_SysParams_GetStrings_1000_1(b *testing.B) { benchSysParamsGetStrings(b, 1000, 1) }
-func BenchmarkNative_SysParams_GetStrings_2_50(b *testing.B)    { benchSysParamsGetStrings(b, 2, 50) }
-func BenchmarkNative_SysParams_GetStrings_2_500(b *testing.B)   { benchSysParamsGetStrings(b, 2, 500) }
-func BenchmarkNative_SysParams_GetStrings_2_5000(b *testing.B)  { benchSysParamsGetStrings(b, 2, 5000) }
-func BenchmarkNative_SysParams_GetStrings_2_50000(b *testing.B) { benchSysParamsGetStrings(b, 2, 50000) }
+func BenchmarkNative_SysParams_GetStrings_2_50(b *testing.B)   { benchSysParamsGetStrings(b, 2, 50) }
+func BenchmarkNative_SysParams_GetStrings_2_500(b *testing.B)  { benchSysParamsGetStrings(b, 2, 500) }
+func BenchmarkNative_SysParams_GetStrings_2_5000(b *testing.B) { benchSysParamsGetStrings(b, 2, 5000) }
+func BenchmarkNative_SysParams_GetStrings_2_50000(b *testing.B) {
+	benchSysParamsGetStrings(b, 2, 50000)
+}
 
 // ---- chain/params: UpdateParamStrings ----
 
@@ -687,10 +706,12 @@ func BenchmarkNative_Params_UpdateStrings_1_1(b *testing.B)    { benchParamsUpda
 func BenchmarkNative_Params_UpdateStrings_10_1(b *testing.B)   { benchParamsUpdateStrings(b, 10, 1) }
 func BenchmarkNative_Params_UpdateStrings_100_1(b *testing.B)  { benchParamsUpdateStrings(b, 100, 1) }
 func BenchmarkNative_Params_UpdateStrings_1000_1(b *testing.B) { benchParamsUpdateStrings(b, 1000, 1) }
-func BenchmarkNative_Params_UpdateStrings_2_50(b *testing.B)    { benchParamsUpdateStrings(b, 2, 50) }
-func BenchmarkNative_Params_UpdateStrings_2_500(b *testing.B)   { benchParamsUpdateStrings(b, 2, 500) }
-func BenchmarkNative_Params_UpdateStrings_2_5000(b *testing.B)  { benchParamsUpdateStrings(b, 2, 5000) }
-func BenchmarkNative_Params_UpdateStrings_2_50000(b *testing.B) { benchParamsUpdateStrings(b, 2, 50000) }
+func BenchmarkNative_Params_UpdateStrings_2_50(b *testing.B)   { benchParamsUpdateStrings(b, 2, 50) }
+func BenchmarkNative_Params_UpdateStrings_2_500(b *testing.B)  { benchParamsUpdateStrings(b, 2, 500) }
+func BenchmarkNative_Params_UpdateStrings_2_5000(b *testing.B) { benchParamsUpdateStrings(b, 2, 5000) }
+func BenchmarkNative_Params_UpdateStrings_2_50000(b *testing.B) {
+	benchParamsUpdateStrings(b, 2, 50000)
+}
 
 // ---------------- chain/runtime ----------------
 

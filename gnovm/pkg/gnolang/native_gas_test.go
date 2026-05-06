@@ -77,10 +77,10 @@ func TestChargeNativeGas_LinearScalesWithInput(t *testing.T) {
 		n    int
 		want int64
 	}{
-		{0, 45},                // base only
-		{1024, 45 + 390},       // +1 KiB → +slope
-		{2048, 45 + 780},       // +2 KiB → +2*slope
-		{65536, 45 + 390*64},   // +64 KiB
+		{0, 45},              // base only
+		{1024, 45 + 390},     // +1 KiB → +slope
+		{2048, 45 + 780},     // +2 KiB → +2*slope
+		{65536, 45 + 390*64}, // +64 KiB
 	}
 	for _, c := range cases {
 		m := stubMachine([]int{c.n})
@@ -203,8 +203,8 @@ func TestChargeNativeGas_SliceTotalBytes(t *testing.T) {
 	// per-element slope = 1024 (=> 1 ns/element), per-byte slope = 1024
 	// (=> 1 ns/byte). For count=4, innerLen=10 → cost = base + 4 + 40.
 	cleanup := registerTestNative(t, &NativeGasInfo{
-		Base:       100,
-		Slope:      1024, SlopeIdx: 0, SlopeKind: SizeLenSlice,
+		Base:  100,
+		Slope: 1024, SlopeIdx: 0, SlopeKind: SizeLenSlice,
 		Slope2: 1024, Slope2Idx: 0, Slope2Kind: SizeSliceTotalBytes,
 	})
 	defer cleanup()
@@ -233,8 +233,8 @@ func TestChargeNativeGas_PostCallTwoSlopes(t *testing.T) {
 	// total inner bytes on the returned []string at stack offset 2.
 	cleanup := registerTestNative(t, &NativeGasInfo{
 		Base: 50, SlopeIdx: -1, SlopeKind: SizeFlat,
-		PostBase:       30,
-		PostSlope:      1024, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen,
+		PostBase:  30,
+		PostSlope: 1024, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen,
 		PostSlope2: 1024, PostSlope2Idx: 2, PostSlope2Kind: SizeSliceTotalBytes,
 	})
 	defer cleanup()
@@ -269,8 +269,8 @@ func TestChargeNativeGas_PostCallTwoSlopes(t *testing.T) {
 func TestChargeNativeGas_SliceTotalBytes_NilAndOffset(t *testing.T) {
 	// Empty / nil slice TV → SizeSliceTotalBytes returns 0 cleanly.
 	cleanup := registerTestNative(t, &NativeGasInfo{
-		Base:   10,
-		Slope:  1024, SlopeIdx: 0, SlopeKind: SizeSliceTotalBytes,
+		Base:  10,
+		Slope: 1024, SlopeIdx: 0, SlopeKind: SizeSliceTotalBytes,
 	})
 	defer cleanup()
 

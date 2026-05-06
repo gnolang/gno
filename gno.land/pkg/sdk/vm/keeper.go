@@ -420,6 +420,17 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // callRealmBool creates a Machine, imports pkgPath, calls funcName with args,
 // and expects a single bool return value.
+//
+// Read-only contract: the called function MUST NOT mutate chain/params
+// state. The ctx passed here is NOT seeded with a paramsAccum (that
+// happens later in AddPackage/Call/Run, after this callout), so any
+// chain/params.SetX from inside the realm would silently no-op the
+// storage-deposit accounting while still persisting the on-disk write —
+// leaving meta and reality divergent. In practice this constraint is
+// only relevant to the sys realms invoked from here (sys/cla,
+// sys/names) which are governance-controlled and structurally
+// read-only checks. If a non-sys realm is ever invoked through this
+// path, wrap Params in a read-only adapter that panics on Set/Update.
 func (vm *VMKeeper) callRealmBool(
 	ctx sdk.Context,
 	creator crypto.Address,
