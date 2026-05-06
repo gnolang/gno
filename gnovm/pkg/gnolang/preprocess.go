@@ -328,7 +328,7 @@ func preprocessNodeCode(stage TransStage, n Node) bm.PreprocessOp {
 //
 // This function must be called on *FileSets because declarations
 // in file sets may be unordered.
-func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet, gasMeter store.GasMeter) {
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Reserve().
@@ -362,7 +362,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d, nil)
+				predefineRecursively(store, fn, d, gasMeter)
 				fn.Decls[i] = d
 			}
 		}
@@ -381,7 +381,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d, nil)
+				predefineRecursively(store, fn, d, gasMeter)
 				fn.Decls[i] = d
 			}
 		}
@@ -400,7 +400,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d, nil)
+				predefineRecursively(store, fn, d, gasMeter)
 				fn.Decls[i] = d
 			}
 		}
@@ -465,13 +465,13 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					if split[j].GetAttribute(ATTR_PREDEFINED) == true {
 						continue
 					}
-					predefineRecursively(store, fn, split[j], nil)
+					predefineRecursively(store, fn, split[j], gasMeter)
 				}
 				i += len(vd.NameExprs) - 1
 				continue
 			} else {
 				// recursively predefine dependencies.
-				predefineRecursively(store, fn, d, nil)
+				predefineRecursively(store, fn, d, gasMeter)
 				continue
 			}
 		}

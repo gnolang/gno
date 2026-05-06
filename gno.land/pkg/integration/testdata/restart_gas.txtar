@@ -10,15 +10,15 @@
 gnoland start
 
 gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2846430'
+stdout 'GAS USED:\s+2865685'
 
 gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2848759'
+stdout 'GAS USED:\s+2868014'
 
 gnoland restart
 
 gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 360001ugnot -gas-wanted 3_600_000 -broadcast -chainid=tendermint_test test1
-stdout 'GAS USED:\s+2848773'
+stdout 'GAS USED:\s+2868028'
 
 -- bar/gnomod.toml --
 module = "bar"

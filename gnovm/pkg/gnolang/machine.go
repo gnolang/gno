@@ -245,7 +245,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
+		PredefineFileSet(m.Store, pn, fset, m.GasMeter)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
 			fn = Preprocess(m.Store, pn, fn, m.GasMeter).(*FileNode)
@@ -537,7 +537,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
-	PredefineFileSet(m.Store, pn, fset)
+	PredefineFileSet(m.Store, pn, fset, m.GasMeter)
 	for _, fn := range fset.Files {
 		fn = Preprocess(m.Store, pn, fn, m.GasMeter).(*FileNode)
 		// After preprocessing, save blocknodes to store.
@@ -626,7 +626,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	}
 
 	// Predefine declarations across all files.
-	PredefineFileSet(m.Store, pn, fs)
+	PredefineFileSet(m.Store, pn, fs, m.GasMeter)
 
 	// Preprocess each new file.
 	for _, fn := range fns {
