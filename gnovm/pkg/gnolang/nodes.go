@@ -1932,20 +1932,21 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {
-				if sb.Source == nil {
+				var nt string
+				if sb.Source != nil {
+					nt = reflect.TypeOf(sb.Source).String()
+				} else {
 					// sb.Source is nil only for the empty PackageNode{}
 					// stub returned by UverseNode() during re-entrant
 					// uverse initialization.
 					if sb.Location.PkgPath != uversePkgPath {
 						panic("nil Source outside uverse")
 					}
-					debug.Printf("StaticBlock(%p <uverse>).GetLocalIndex(%s) = %v, %v\n",
-						sb, n, i, name)
-				} else {
-					nt := reflect.TypeOf(sb.Source).String()
-					debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
-						sb, nt, n, i, name)
+					nt = "<uverse>"
 				}
+				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+					sb, nt, n, i, name)
+			}
 			}
 			return uint16(i), true
 		}
