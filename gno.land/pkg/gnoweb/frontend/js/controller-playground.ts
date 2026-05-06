@@ -24,6 +24,7 @@ export class PlaygroundController extends BaseController {
 		if (!this.codeEl || !this.outputEl || !this.tabsEl) return;
 
 		this._parseInitialCode();
+		this._switchToDefaultFile();
 		this._setupKeyboardShortcuts();
 		this.renderTabs();
 	}
@@ -44,6 +45,13 @@ export class PlaygroundController extends BaseController {
 			this.codeEl.value = this.files[0].content;
 		} else {
 			this.files = [{ name: "main.gno", content: initialCode }];
+		}
+	}
+
+	private _switchToDefaultFile(): void {
+		const defaultFile = this.getValue("default-file");
+		if (defaultFile) {
+			this._switchToFile(defaultFile);
 		}
 	}
 

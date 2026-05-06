@@ -7,7 +7,8 @@ LAYOUT - Playground view
   data-playground-remote-value="{{ .Remote }}"
   data-playground-chain-id-value="{{ .ChainId }}"
   data-playground-domain-value="{{ .Domain }}"
-  {{ with .ForkFrom }}data-playground-fork-from-value="{{ . }}"{{ end }}>
+  {{ with .ForkFrom }}data-playground-fork-from-value="{{ . }}"{{ end }}
+  {{ with .DefaultFile }}data-playground-default-file-value="{{ . }}"{{ end }}>
 
   <!-- Header Toolbar -->
   <header class="b-content-header">
