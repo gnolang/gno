@@ -41,8 +41,6 @@ this Constitution for Gno.land.
  * Core Software: The minimal set of reference or standard software needed for
    the Gno.land blockchain and its users. See "Software Security".
 
- * Fully Audited: See "Software Security".
-
  * GnotDAO: A $GNOT-bonded on-chain voting DAO for broader community
    participation in certain governance decisions. See "GnotDAO".
 
@@ -115,22 +113,25 @@ this Constitution for Gno.land.
 
 ## Genesis Allocation
 
-At Gno.land Genesis there will be one billion $GNOT tokens.
+At Gno.land Genesis there will be 1.333 billion $GNOT tokens.
 
- * Airdrop1:               35.0% - from partial Cosmos governance snapshot 3 years ago
- * Airdrop2:               23.1% - from recent AtomOne snapshot prior to launch
- * Ecosystem Treasury:     11.9% - for prior and future Gno.land ecosystem development
- * Investors:               7.0% - reserved for current and future investments
- * NT,LLC:                 23.0% - of which a significant portion is allocated for prior loans
+ * Airdrop1:               350M - from partial Cosmos governance snapshot 3 years ago
+ * Airdrop2:               231M - from recent AtomOne snapshot prior to launch
+ * Core Treasury:           40M - for paying for core development
+ * Ecosystem Treasury:      60M - for prior and future Gno.land ecosystem development
+ * Validator Treasury:      20M - for paying validators 
+ * Investors:              300M - for past and future investors
+ * NT,LLC:                 332M - for use at NT,LLC discretion
 
 $GNOT will not be transferrable initially except for whitelisted addresses.
 Whitelisted addresses include "Ecosystem" and "Investors" funds and any
-additional addresses needed for the operation of the chain.
+additional addresses needed for the operation of the chain, and funding needs or
+payment of investors. Whitelisted funds remain subject to the vesting schedule
+below.
 
-The 7% (qualified, private) investors allocation will be held by NT,LLC in a
-segregated account. Proceeds of sales of these tokens will go toward NT,LLC for
-past or future development of Gno.land, Gno, Tendermint2, other Core Software,
-and ecosystem development.
+All Genesis $GNOT allocations vest on a common schedule: 7% released on the day
+$GNOT becomes transferrable (aka the mainnet), 7% each subsequent month, and 9%
+in the final month (fully vested 13 months after the mainnet).
 
 GovDAO is responsible for distributing the $GNOT of the Ecosystem Treasury
 allocation to prior and future Gno.land ecosystem contributors (as well as
@@ -174,8 +175,8 @@ token.
  * Every transaction that ends up freeing up persistent state space will
    receive a refund of $GNOT.
  * One billion $GNOT corresponds to 10TB of persistent state space.
- * The $GNOT inflation schedule will never change, thus the total created $GNOT
-   will never exceed 1.333~ billion $GNOT.
+ * The $GNOT will not inflate, thus the total created $GNOT
+   will never exceed 1.333 billion $GNOT.
  * The $GNOT Storage Deposit Price (per byte) will never increase.
  * The $GNOT Storage Deposit Price may decrease by at most 10% a year.
  * The $GNOT Storage Deposit Price may not decrease if the total existing
@@ -203,39 +204,6 @@ ICS consumer chain on Atom.One especially in the beginning even as Atom.One is
 free to offer its ICS services to other applications unrelated to Gno.land and
 $GNOT, or even those forked of Gno.land and the GnoVM in the future. 
 
-## $GNOT (Deflationary) Inflation
-
-From the date of launch every year 33.33*(0.9^Y) million $GNOT will be inflated
-continuously (where Y is the year from launch starting from 0). This is 3.333%
-of the Gno.land Genesis $GNOT supply in the first year, decaying by 10% each
-subsequent year. Any inflationary $GNOT not
-transferred will accrue until the Gno.land software is updated to transfer such
-funds.
-
- * After   3 years this represents  90.32 million $GNOT.
- * After  10 years this represents 217.09 million $GNOT.
- * After 100 years this represents 333.29 million $GNOT.
-
-At most there will be 1.333... billion $GNOT, representing a total inflation of
-one third of the genesis $GNOT distribution. This amount cannot change even
-with amendments to the Gno.land Constitution. This makes $GNOT a deflationary
-token similar to Bitcoin.
-
-The inflated tokens will be distributed as follows:
-
- * 10% to the Validator Services Treasury.
- * 18% to the Core Treasury.
- * 18% to the Ecosystem Treasury.
- * 18% to the GovDAO Pay Treasury.
- * 18% to the Security Treasury.
- * 18% to the Reserve Treasury.
-
-The ValTreasury and PayTreasury inflation shares are each scaled linearly from
-100% at zero years of runway to 0% at five years of runway; the unallocated
-portion is redirected to the Ecosystem Treasury. This prevents these treasuries
-from accumulating excessive surpluses during periods of high $GNOT valuation
-while directing the surplus toward ecosystem contributor rewards.
-
 ## Gno.land Treasuries
 
 The Gno.land Treasuries are as follows:
@@ -243,8 +211,6 @@ The Gno.land Treasuries are as follows:
  * Core Treasury
  * Ecosystem Treasury
  * Validator Services Treasury (ValTreasury for short)
- * GovDAO Pay Treasury (PayTreasury for short)
- * Security Treasury
  * Reserve Treasury
 
 A Treasury is defined as account or DAO that can hold funds where its type,
@@ -387,70 +353,6 @@ implemented.
 
 See also "Gno.land Pre-Migration Validators" and "Core Treasury".
 
-### GovDAO Pay Treasury
-
-These funds are reserved for paying GovDAO members who are actively
-contributing to Gno.land. Participation in the governance of GovDAO itself is
-not considered active contribution.
-
-All funding decisions from the GovDAO Pay Treasury require a Supermajority
-Decision by GovDAO (naturally in accordance with the Constitution).
-
-No payment may go to GovDAO members for any contributions older than 3 months.
-That is, retroactive compensation is prohibited.
-
-T1 and T2 members who are actively contributing full-time must get paid
-equally. T3 members must get paid strictly less by comparison.
-
-T3 members may not get paid unless there exists in the GovDAO Pay Treasury
-sufficient funds to pay all T1 and T2 members for 7 years after launch taking
-into account the latest estimated projections including new T1 and T2 members.
-That said, T3 members may get paid by other means outside of the GovDAO Pay
-Treasury.
-
-Payment for any member from the GovDAO Pay Treasury may not exceed the 75th
-percentile of senior software architect roles in the second highest paid city
-globally.
-
-Members already employed by another company will not receive any compensation
-unless they disclose their compensation to GovDAO T1 members via a process
-defined in the Governing Documents; afterwards they may be compensated up to
-50% of the usual limit to top up their net payment to the usual limit.
-
-If there are not enough funds in the GovDAO Pay Treasury to pay all GovDAO
-members for the next quarter, payment must be reduced equally by up to 10% of
-the usual amount for the next quarter. If this reduction is not sufficient then
-all T3 members must lose their funding (if any). If this reduction is still not
-sufficient then T2 members must lose their funding for the next quarter based
-on seniority. If this reduction is still not sufficient then T1 members must
-lose their funding for the next quarter based on seniority.
-
-Members who lose their pay due to inadequate funds of the GovDAO Pay Treasury
-do not automatically lose their membership; and must not be required to work
-more than 25% of full-time to maintain any status regarding activity.
-
-### Security Treasury
-
-The Security Treasury may only be used to fund the auditing of code deployed
-to Gno.land by Qualified Auditors, to fund the development of AI-based
-auditing systems, to assess and reward Bonded Auditors who submit valid Bonded
-Vulnerability Reports, and to recompense victims of exploits and fraud.
-
-All funding decisions from the Security Treasury require a Supermajority
-Decision by GovDAO (naturally with members with any conflict of interests
-abstaining).
-
-There is no obligation to compensate anyone; and furthermore no Core DAO may
-make guarantees of recompensation to anyone.
-
-Recompensation decisions must be preceded by a thorough analysis of the problem
-and tasking of a task-force to recover any ill-gotten gains and at least two
-weeks for all relevant parties to review the analysis and task-force for
-approval.
-
-GovDAO by Supermajority Decision may choose to burn tokens from the Security
-Treasury at a rate not exceeding 10% a year.
-
 ### Reserve Treasury
 
 No funding decisions are allowed from the Reserve Treasury without a GovDAO
@@ -470,26 +372,15 @@ funded.
     *  5% if less than 5 years of runway, or
     *  0% if more than 5 years of runway.
 
- 2. **PayTreasury** receives a runway-based share of the remainder:
-    * 50% if less than 1 year of runway, or
-    * 25% if less than 2 years of runway, or
-    * 10% if less than 3 years of runway, or
-    *  5% if less than 5 years of runway, or
-    *  0% if more than 5 years of runway.
-
- 3. The remainder is split as follows:
-    * **Core Treasury**: 20%
-    * **Security Treasury**: 25%
+ 2. The remainder is split as follows:
+    * **Core Treasury**: 40%
     * **Ecosystem Treasury**: 40%
-    * **Reserve Treasury**: 15%
+    * **Reserve Treasury**: 20%
 
-ValTreasury and PayTreasury have priority because the blockchain cannot
-function without validators or governance. The PayTreasury runway must take
-into account future projected growth of the paid T1 and T2 members. The
-Ecosystem Treasury receives the largest share of the remainder to ensure
-meaningful and perpetual funding for contributor rewards. All four treasuries
-also receive inflation shares, and inflation surplus from treasuries with
-sufficient runway is redirected to the Ecosystem Treasury.
+ValTreasury has priority because the blockchain cannot function without
+validators or governance. The Core Treasury and Ecosystem Treasury receives the
+remainder to ensure meaningful and perpetual funding for essential software and
+services as well as contributor rewards.
 
 ## Excess $GNOT Deposits
 
@@ -656,10 +547,6 @@ thus a T3 member may lose their membership immediately as a consequence of
 undelegation, and this may cause another T3 member to lose their membership
 concurrently.
 
-#### Payment to GovDAO Members
-
-See "GovDAO Pay Treasury".
-
 ### GovDAO Decisions
 
 A Simple Majority Decision of GovDAO requires more than 1/2 of voting power of
@@ -707,10 +594,6 @@ candidates:
    government intelligence agency or program, any defense contractor, nor any
    law enforcement agency. Candidates may have served in a military but they
    may not be actively serving.
-
- * No candidate is eligible who has or has had any affiliation with a communist
-   or fascist or Nazi or Neo Nazi nor Zionist party or organization; nor any
-   gang.
 
  * If an existing member gains any association that violates the above general
    requirements they must cease all GovDAO related activity and immediately
@@ -950,12 +833,11 @@ constitution and with a new governance body. Such a fork will be considered a
 Qualified Fork even if its governance member set is completely independent of
 the original GovDAO members.
 
-
 ## Principle of the Chain
 
 In all cases the latest released Gno.land node software must be able to run the
 transactions from the first Genesis launch until current latest transaction.
-This is achieved by the following:
+This may be achieved by the following:
 
  * A chain upgrade may have a sequential number in the chain ID.
  * Each unique chain ID has its own Genesis State & transactions from index 0.
@@ -979,6 +861,16 @@ offending transaction data they may prune past transactions as long as they
 maintain a recent qualified snapshot as determined by this Constitution or
 GovDAO and all transactions since the snapshot such that the latest blockchain
 state may be derived from the snapshot.
+
+Until GNOT transfers are enabled, and for VM bugs that are best mitigated by
+replaying historical transactions or patching state, or in extreme cases of
+theft or exploits that affect large TVL, a transaction-replay hard-fork and/or
+state "surgery" may be performed a decided by GovDAO supermajority decision by
+those members who do not have a direct conflict of interest. While the number of
+transactions pruned from the hard-fork must be minimized, transactions dependent
+on said pruned transactions may also be pruned or fail if the dependency cannot
+be easily untangled. Independent transactions of unaffected realms will not be
+affected.
 
 ### Gno.land Node Upgrades
 
@@ -1386,7 +1278,7 @@ and the following:
  * In no case may the total amount of $GNOT sold for all treasuries per month
    for diversification purposes exceed 50% of the average of ($GNOT inflation
    rate, and the past month's transaction fee revenue), with priority given to
-   ValTreasury, then to PayTreasury, then to CoreTreasury.
+   ValTreasury, then to CoreTreasury.
 
  * All trades for diversification purposes must be performed by audited and
    approved Gno logic for Gno AMM contracts running on Gno.land. No person or

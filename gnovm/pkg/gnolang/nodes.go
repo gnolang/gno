@@ -1908,7 +1908,18 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {
-				nt := reflect.TypeOf(sb.Source).String()
+				var nt string
+				if sb.Source != nil {
+					nt = reflect.TypeOf(sb.Source).String()
+				} else {
+					// sb.Source is nil only for the empty PackageNode{}
+					// stub returned by UverseNode() during re-entrant
+					// uverse initialization.
+					if sb.Location.PkgPath != uversePkgPath {
+						panic("nil Source outside uverse")
+					}
+					nt = "<uverse>"
+				}
 				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
 					sb, nt, n, i, name)
 			}
@@ -1916,9 +1927,17 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 		}
 	}
 	if debug {
-		nt := reflect.TypeOf(sb.Source).String()
-		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
-			sb, nt, n)
+		if sb.Source == nil {
+			if sb.Location.PkgPath != uversePkgPath {
+				panic("nil Source outside uverse")
+			}
+			debug.Printf("StaticBlock(%p <uverse>).GetLocalIndex(%s) = undefined\n",
+				sb, n)
+		} else {
+			nt := reflect.TypeOf(sb.Source).String()
+			debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+				sb, nt, n)
+		}
 	}
 	return 0, false
 }
@@ -2260,7 +2279,22 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 				sb.oldValues = append(sb.oldValues,
 					oldValue{idx, old.V})
 			} else {
-				if tv.T.TypeID() != old.T.TypeID() {
+				if isGeneric(tv.T) || isGeneric(old.T) {
+					// Generic types are only used in uverse
+					// (e.g. cap(x <X>{})) and have no TypeID;
+					// skip the TypeID comparison.
+					if debug {
+						pkgPath := sb.Location.PkgPath
+						if pkgPath == "" {
+							if pn := sb.GetParentNode(nil); pn != nil {
+								pkgPath = pn.GetLocation().PkgPath
+							}
+						}
+						if pkgPath != uversePkgPath {
+							panic("generic type outside uverse")
+						}
+					}
+				} else if tv.T.TypeID() != old.T.TypeID() {
 					panic(fmt.Sprintf(
 						"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 						n, old.T, tv.T))
