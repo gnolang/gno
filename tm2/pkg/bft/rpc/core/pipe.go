@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
@@ -47,116 +48,75 @@ type peers interface {
 }
 
 // ----------------------------------------------
-// These package level globals come with setters
-// that are expected to be called only once, on startup
-
-var (
-	// external, thread safe interfaces
-	proxyAppQuery appconn.Query
+// Environment holds all per-node state that RPC handlers operate on.
+// One Environment is created per Node instance, replacing the package-level
+// globals this package used previously. All fields are expected to be
+// populated before Start is called; individual handlers may only need a
+// subset (tests construct partial Environments).
+type Environment struct {
+	// external, thread-safe interfaces
+	ProxyAppQuery appconn.Query
 
 	// interfaces defined in types and above
-	stateDB        dbm.DB
-	blockStore     sm.BlockStore
-	consensusState Consensus
-	p2pPeers       peers
-	p2pTransport   transport
+	StateDB      dbm.DB
+	BlockStore   sm.BlockStore
+	Consensus    Consensus
+	P2PPeers     peers
+	P2PTransport transport
 
 	// objects
-	pubKey        crypto.PubKey
-	genDoc        *types.GenesisDoc // cache the genesis structure
-	evsw          events.EventSwitch
-	gTxDispatcher *txDispatcher
-	mempool       mempl.Mempool
-	getFastSync   func() bool // avoids dependency on consensus pkg
+	PubKey      crypto.PubKey
+	GenDoc      *types.GenesisDoc // cache the genesis structure
+	EventSwitch events.EventSwitch
+	Mempool     mempl.Mempool
+	GetFastSync func() bool // avoids dependency on consensus pkg
 
-	logger *slog.Logger
+	Logger *slog.Logger
+	Config cfg.RPCConfig // value, not pointer — TimeoutBroadcastTxCommit must be stable
 
-	config cfg.RPCConfig
-)
-
-func SetStateDB(db dbm.DB) {
-	stateDB = db
+	// Internal state. Populated by Start; nil before.
+	mtx          sync.Mutex
+	txDispatcher *txDispatcher
+	started      bool
+	stopped      bool
 }
 
-func SetBlockStore(bs sm.BlockStore) {
-	blockStore = bs
-}
-
-func SetMempool(mem mempl.Mempool) {
-	mempool = mem
-}
-
-func SetConsensusState(cs Consensus) {
-	consensusState = cs
-}
-
-func SetP2PPeers(p peers) {
-	p2pPeers = p
-}
-
-func SetP2PTransport(t transport) {
-	p2pTransport = t
-}
-
-func SetPubKey(pk crypto.PubKey) {
-	pubKey = pk
-}
-
-func SetGenesisDoc(doc *types.GenesisDoc) {
-	genDoc = doc
-}
-
-func SetProxyAppQuery(appConn appconn.Query) {
-	proxyAppQuery = appConn
-}
-
-func SetGetFastSync(v func() bool) {
-	getFastSync = v
-}
-
-func SetLogger(l *slog.Logger) {
-	logger = l
-}
-
-// SetEventSwitch wires the event switch into rpc/core and (re)creates the
-// package-level txDispatcher bound to it.
-//
-// NOTE: rpc/core holds process-wide singletons (evsw, mempool, blockStore,
-// consensusState, gTxDispatcher, …). Running multiple nodes in the same
-// process — e.g. INMEMORY_TS integration tests, or in-process tests using
-// TestingInMemoryNode with t.Parallel — is not safe: whoever calls the Set*
-// functions last owns every global, so RPC handlers like BroadcastTxCommit
-// can route through another node's state. Subprocess-isolated test modes
-// (commandKindTesting, the default in CI) sidestep this. A proper fix
-// requires threading per-node state through the RPC handlers; until then,
-// treat rpc/core as single-node-per-process.
-func SetEventSwitch(sw events.EventSwitch) {
-	// A previous node in this process may have left a running dispatcher
-	// behind; stop it before replacing it to avoid leaking its goroutine.
-	if gTxDispatcher != nil && gTxDispatcher.IsRunning() {
-		gTxDispatcher.Stop()
+// Start initializes any per-Environment background services. Currently this
+// only creates and starts the txDispatcher if EventSwitch is non-nil.
+// Start is idempotent but panics if called after Stop.
+func (env *Environment) Start() error {
+	env.mtx.Lock()
+	defer env.mtx.Unlock()
+	if env.stopped {
+		panic("cannot Start a stopped Environment")
 	}
-	evsw = sw
-	gTxDispatcher = newTxDispatcher(evsw)
-}
-
-func Start() {
-	gTxDispatcher.Start()
-}
-
-// Stop tears down the package-level resources created by SetEventSwitch.
-// It should be called before the associated event switch is stopped so the
-// txDispatcher goroutine exits via its own Quit channel rather than racing
-// the event switch's shutdown.
-func Stop() {
-	if gTxDispatcher != nil && gTxDispatcher.IsRunning() {
-		gTxDispatcher.Stop()
+	if env.started {
+		return nil
 	}
+	if env.EventSwitch != nil {
+		env.txDispatcher = newTxDispatcher(env.EventSwitch)
+	}
+	env.started = true
+	return nil
 }
 
-// SetConfig sets an RPCConfig.
-func SetConfig(c cfg.RPCConfig) {
-	config = c
+// Stop tears down the services started by Start. It should be called before
+// the associated EventSwitch is stopped so the txDispatcher goroutine exits
+// via its own Quit channel rather than racing evsw.Quit(). Stop is idempotent.
+func (env *Environment) Stop() error {
+	env.mtx.Lock()
+	defer env.mtx.Unlock()
+	if env.stopped {
+		return nil
+	}
+	env.stopped = true
+	if env.txDispatcher != nil && env.txDispatcher.IsRunning() {
+		if err := env.txDispatcher.Stop(); err != nil {
+			panic(fmt.Sprintf("txDispatcher.Stop: %v", err))
+		}
+	}
+	env.started = false
+	return nil
 }
 
 func validatePage(page, perPage, totalCount int) (int, error) {
