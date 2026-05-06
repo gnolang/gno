@@ -1,0 +1,143 @@
+# Empirical test: can granter recover from the readonly-taint panic
+# raised when al.Close() runs after callee persisted *AllowanceSender?
+#
+# The hypothesis: if recover() works on the taint panic, an adversary
+# can engineer a scenario where:
+#   1. Granter creates *AllowanceSender, defer-Close wrapped in recover.
+#   2. Callee persists the pointer (`stored = al`).
+#   3. Granter's defer fires Close, taint panic, recover swallows it.
+#   4. Granter's tx commits successfully.
+#   5. In tx2, callee uses the persisted (still-open) allowance to
+#      drain granter's address — no kill switch.
+#
+# If true: the package's "defer Close" UX is dangerously broken.
+# If false: the taint panic is structurally un-recoverable in this
+# scenario and the package is safe by virtue of tx revert.
+
+loadpkg gno.land/p/jaekwon/allowancesender/v0
+loadpkg gno.land/r/test/recovercallee $WORK/recovercallee
+loadpkg gno.land/r/test/recovergranter $WORK/recovergranter
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# tx1: granter creates allowance with cap 1M, callee persists, granter
+# tries to recover from the Close-time taint panic. Observe: does the
+# tx succeed (recover worked) or fail (taint panic is un-recoverable)?
+gnokey maketx call -pkgpath gno.land/r/test/recovergranter -func GrantAndStoreWithRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stdout '.'  # match anything; we'll inspect the actual outcome below
+
+# tx2: state inspection. Use qeval to read the persisted state without
+# going through gnokey call (which loses println output).
+gnokey query vm/qeval --data 'gno.land/r/test/recovercallee.IsStoredClosed()'
+stdout 'true|false|nil'
+
+# tx3: try to actually use the persisted struct. If it's closed, the
+# call panics with "allowancesender: closed".
+! gnokey maketx call -pkgpath gno.land/r/test/recovercallee -func DrainStored -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+stderr 'allowancesender: closed'
+
+# tx4: DIRECT defer al.Close() — with the VM fix (Defer.IsBoundMethod
+# threading the receiver through PushFrameCall), this now succeeds:
+# the implicit borrow-realm switch fires for deferred method calls,
+# Close runs in callee's realm context, the field write is allowed,
+# and the kill switch engages. Pre-fix this panicked with
+# "cannot directly modify readonly tainted object".
+gnokey maketx call -pkgpath gno.land/r/test/recovergranter -func GrantAndStoreDirect -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+
+-- recovercallee/gnomod.toml --
+module = "gno.land/r/test/recovercallee"
+gno = "0.9"
+
+-- recovercallee/recovercallee.gno --
+package recovercallee
+
+import (
+	"chain"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+)
+
+var stored *allowancesender.AllowanceSender
+
+func Store(cur realm, al *allowancesender.AllowanceSender) {
+	stored = al
+}
+
+// IsStoredClosed reports the closed flag on the persisted allowance.
+// Returns "nil" if no allowance is stored, "true" if closed, "false"
+// if open. Used to inspect tx1's outcome.
+func IsStoredClosed() string {
+	if stored == nil {
+		return "nil"
+	}
+	if stored.Closed() {
+		return "true"
+	}
+	return "false"
+}
+
+// DrainStored attempts to use the persisted allowance to send `amount`
+// from payer back to itself. Surfaces whether the persisted reference
+// is usable post-tx1.
+func DrainStored(cur realm, amount int64) {
+	if stored == nil {
+		panic("DRAIN: stored is nil")
+	}
+	stored.Send(stored.Payer(),
+		chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+-- recovergranter/gnomod.toml --
+module = "gno.land/r/test/recovergranter"
+gno = "0.9"
+
+-- recovergranter/recovergranter.gno --
+package recovergranter
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+
+	"gno.land/r/test/recovercallee"
+)
+
+// GrantAndStoreWithRecover wraps defer Close() in a recover.
+func GrantAndStoreWithRecover(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+
+	defer func() {
+		defer func() {
+			if r := recover(); r != nil {
+				println("RECOVERED_FROM_CLOSE_PANIC:", r)
+			}
+		}()
+		al.Close()
+		println("CLOSE_COMPLETED")
+	}()
+
+	recovercallee.Store(cross, al)
+	println("AFTER_STORE")
+}
+
+// GrantAndStoreDirect uses the simple `defer al.Close()` pattern with
+// no recover wrapper. Used to isolate whether the closure-wrap is what
+// changes behavior.
+func GrantAndStoreDirect(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+	defer al.Close()
+
+	recovercallee.Store(cross, al)
+}

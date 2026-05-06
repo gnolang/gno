@@ -1,0 +1,108 @@
+# Further diagnostic: isolate exactly what triggers the readonly taint.
+# Inline al.Close() AFTER persist works (per allowancesender_diag).
+# Now test whether deferred-call always panics, or only after persist.
+
+loadpkg gno.land/p/jaekwon/allowancesender/v0
+loadpkg gno.land/r/test/diag2callee $WORK/diag2callee
+loadpkg gno.land/r/test/diag2granter $WORK/diag2granter
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# Variant D: defer al.Close() with NO cross call at all. Should succeed.
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseNoCross -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+
+# Variant E: defer al.Close() + cross call WITHOUT persistence.
+# Callee receives but discards. Does the cross call alone (without
+# persistence) trigger taint on the deferred receiver?
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossNoPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+
+# Variant F: defer + cross + persist. With the VM fix (Defer.IsBoundMethod
+# threading the receiver through PushFrameCall so the implicit borrow-
+# realm switch fires for deferred method calls), this now SUCCEEDS.
+# Pre-fix behavior was a "cannot directly modify readonly tainted" panic.
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+
+# Variant G: defer + cross + persist + INLINE al.Close() before defer fires.
+# Diagnostic question: does the inline close succeed AND does the
+# deferred close still panic?
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersistAlsoInline -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+
+-- diag2callee/gnomod.toml --
+module = "gno.land/r/test/diag2callee"
+gno = "0.9"
+
+-- diag2callee/diag2callee.gno --
+package diag2callee
+
+import "gno.land/p/jaekwon/allowancesender/v0"
+
+var stored *allowancesender.AllowanceSender
+
+// Receive but DISCARD (don't persist).
+func Receive(cur realm, al *allowancesender.AllowanceSender) {
+	_ = al
+}
+
+// Persist — assigns to package var.
+func Store(cur realm, al *allowancesender.AllowanceSender) {
+	stored = al
+}
+
+-- diag2granter/gnomod.toml --
+module = "gno.land/r/test/diag2granter"
+gno = "0.9"
+
+-- diag2granter/diag2granter.gno --
+package diag2granter
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+
+	"gno.land/r/test/diag2callee"
+)
+
+func newAllowance() *allowancesender.AllowanceSender {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	return allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+}
+
+// D: defer Close, no cross.
+func DeferCloseNoCross(cur realm) {
+	al := newAllowance()
+	defer al.Close()
+}
+
+// E: defer Close + cross call but callee does NOT persist.
+func DeferCloseCrossNoPersist(cur realm) {
+	al := newAllowance()
+	defer al.Close()
+	diag2callee.Receive(cross, al)
+}
+
+// F: defer Close + cross + callee persists. Original failing case.
+func DeferCloseCrossPersist(cur realm) {
+	al := newAllowance()
+	defer al.Close()
+	diag2callee.Store(cross, al)
+}
+
+// G: defer Close + cross + callee persists + INLINE al.Close().
+// Inline close happens BEFORE deferred fires. If inline succeeds and
+// deferred fails, the difference is purely in defer-mechanics.
+func DeferCloseCrossPersistAlsoInline(cur realm) {
+	al := newAllowance()
+	defer al.Close()
+	diag2callee.Store(cross, al)
+	al.Close() // inline; should succeed per earlier diagnostic
+}

@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sunspirit/md"
 )
@@ -16,8 +16,8 @@ import (
 // and generates a Markdown representation of all available filters.
 //
 // Expected `items` structure:
-//   - `items` is an *avl.Tree where each key is a filter name (e.g., "T1", "size:XL", "on_sale")
-//     and each value is an *avl.Tree containing the items for that filter.
+//   - `items` is an *bptree.BPTree where each key is a filter name (e.g., "T1", "size:XL", "on_sale")
+//     and each value is an *bptree.BPTree containing the items for that filter.
 //   - Each item tree uses:
 //     Key   (string): Unique item identifier
 //     Value (any)   : Optional associated item data
@@ -25,10 +25,10 @@ import (
 // Example:
 //
 //	// Build the main filters tree
-//	filters := avl.NewTree()
+//	filters := bptree.NewBPTree32()
 //
 //	// Subtree for filter "T1"
-//	t1Items := avl.NewTree()
+//	t1Items := bptree.NewBPTree32()
 //	t1Items.Set("item1", nil)
 //	t1Items.Set("item2", nil)
 //	filters.Set("T1", t1Items)
@@ -40,16 +40,16 @@ import (
 //
 //	// mdFilters	→ Markdown links for toggling filters
 //	// items    	→ AVL tree containing the filtered items
-func ApplyFilters(u *url.URL, items *avl.Tree, paramName string) (string, *avl.Tree) {
+func ApplyFilters(u *url.URL, items *bptree.BPTree, paramName string) (string, *bptree.BPTree) {
 	active := parseFilterMap(u.Query(), paramName)
 	allFilters := make([]string, 0)
-	resultTree := avl.NewTree()
+	resultTree := bptree.NewBPTree32()
 
 	// Iterate over each filter group in the items tree
 	items.Iterate("", "", func(filterKey string, subtree interface{}) bool {
 		allFilters = append(allFilters, filterKey)
 
-		tree, ok := subtree.(*avl.Tree)
+		tree, ok := subtree.(*bptree.BPTree)
 		if !ok {
 			return false
 		}
