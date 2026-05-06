@@ -1923,7 +1923,6 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
 					sb, nt, n, i, name)
 			}
-			}
 			return uint16(i), true
 		}
 	}
