@@ -246,7 +246,9 @@ export class ActionFunctionController extends BaseController {
 	// Dispatch eval:expression event (DOM action).
 	// If the function has params, fills type-based placeholders without auto-evaluating.
 	// If no params, auto-evaluates immediately.
-	public triggerEval(event: Event & { params?: Record<string, unknown> }): void {
+	public triggerEval(
+		event: Event & { params?: Record<string, unknown> },
+	): void {
 		const funcName = this._funcName || "";
 		const funcSig = (event.params?.sig as string) || "";
 

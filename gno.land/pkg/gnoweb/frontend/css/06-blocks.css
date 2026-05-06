@@ -1444,7 +1444,7 @@ main.dev-mode .b-toc a {
 	align-items: center;
 	background-color: var(--s-color-bg-muted);
 	border-bottom: 1px solid var(--s-color-border-default);
-  margin-bottom: var(--g-space-1);
+	margin-bottom: var(--g-space-1);
 }
 
 .b-action-eval-result-title {
@@ -1481,7 +1481,7 @@ main.dev-mode .b-toc a {
 .b-action-eval-history {
 	display: flex;
 	flex-direction: column;
-	gap: var(--g-space-2)
+	gap: var(--g-space-2);
 }
 
 .b-action-eval-history-list {
