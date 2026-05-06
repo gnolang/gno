@@ -23,7 +23,27 @@ export class ActionEvalController extends BaseController {
 		if (!this.inputEl || !this.resultEl) return;
 
 		this._setupKeyboardShortcuts();
+		this._listenForEvents();
 		this.inputEl.focus();
+	}
+
+	private _listenForEvents(): void {
+		this.on("eval:expression", (e: Event) => {
+			this.clearResult();
+
+			const { expression, autoEval } = (e as CustomEvent).detail;
+			this.inputEl.value = expression;
+			this.inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+			if (autoEval) {
+				this._doEval(expression);
+			} else {
+				this.inputEl.focus();
+				const start = expression.indexOf("(") + 1;
+				const end = expression.lastIndexOf(")");
+				this.inputEl.setSelectionRange(start, end);
+			}
+		});
 	}
 
 	private _setupKeyboardShortcuts(): void {

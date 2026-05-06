@@ -242,6 +242,35 @@ export class ActionFunctionController extends BaseController {
 	}
 
 	// DOM ACTIONS
+
+	// Dispatch eval:expression event (DOM action).
+	// If the function has params, fills type-based placeholders without auto-evaluating.
+	// If no params, auto-evaluates immediately.
+	public triggerEval(event: Event & { params?: Record<string, unknown> }): void {
+		const funcName = this._funcName || "";
+		const funcSig = (event.params?.sig as string) || "";
+
+		const paramMatch = funcSig.match(/\(([^)]*)\)/);
+		const params = paramMatch ? paramMatch[1].trim() : "";
+
+		if (params) {
+			const expression = `${funcName}(${params
+				.split(",")
+				.map((p: string) => {
+					const parts = p.trim().split(/\s+/);
+					const type = parts[parts.length - 1];
+					return type === "string" ? '""' : "0";
+				})
+				.join(", ")})`;
+			this.dispatch("eval:expression", { expression, autoEval: false });
+		} else {
+			this.dispatch("eval:expression", {
+				expression: `${funcName}()`,
+				autoEval: true,
+			});
+		}
+	}
+
 	// update all args (DOM action)
 	public updateAllArgs(event: Event): void {
 		const target = event.target as HTMLInputElement;
