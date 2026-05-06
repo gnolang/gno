@@ -27,7 +27,7 @@ Slope is ns/N; runtime stores it as `Slope/1024` and computes `base + slope*N/10
 | `chain/params.SetBool` | flat | 1643.0 | — | — | — | — |
 | `chain/params.SetInt64` | flat | 1201.0 | — | — | — | — |
 | `chain/params.SetUint64` | flat | 1219.0 | — | — | — | — |
-| `sys/params.setSysParamBytes` | base+α·N | 323.3 | 9.4757 | — | len(p4) bytes | 0.995 |
+| `sys/params.setSysParamBytes` | base+α·N | 323.3 | 9.4757 | — | len(p3) bytes | 0.995 |
 | `sys/params.getSysParamBytes` | base+α·N | 415.7 | 10.3357 | — | len(return[2]) | 1.000 |
 | `sys/params.setSysParamString` | flat | 269.1 | — | — | — | — |
 | `sys/params.setSysParamBool` | flat | 217.4 | — | — | — | — |
@@ -48,6 +48,6 @@ Slope is ns/N; runtime stores it as `Slope/1024` and computes `base + slope*N/10
 | `chain.emit` | base+α·N | 361.9 | 39.2750 | — | len(p1) slice | 0.955 |
 | `chain/params.SetStrings` | base+α·N | 1601.1 | 38.9082 | — | len(p1) slice | 0.993 |
 | `chain/params.UpdateParamStrings` | base+α·N | 1298.0 | 23.5122 | — | len(p1) slice | 1.000 |
-| `sys/params.setSysParamStrings` | base+α·N | 341.0 | 26.4006 | — | len(p4) slice | 0.997 |
-| `sys/params.updateSysParamStrings` | base+α·N | 413.4 | 26.2318 | — | len(p4) slice | 0.998 |
+| `sys/params.setSysParamStrings` | base+α·N | 341.0 | 26.4006 | — | len(p3) slice | 0.997 |
+| `sys/params.updateSysParamStrings` | base+α·N | 413.4 | 26.2318 | — | len(p3) slice | 0.998 |
 | `sys/params.getSysParamStrings` | base+α·N | 348.9 | 22.6713 | — | len(return[2]) | 0.999 |

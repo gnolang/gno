@@ -137,6 +137,9 @@ func FlushParamsRealmAccum(ctx sdk.Context, pmk ParamsKeeperI, rlmPath string) {
 // subtracted on delete). Skips sys/params keys (no "vm:" prefix).
 // Lazily loads the persistent baseline once per realm per message.
 func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, diff int) {
+	if diff == 0 {
+		return // same-size update or no-op delete; nothing to flush
+	}
 	rlm, ok := realmFromKey(key)
 	if !ok {
 		return // sys/params or meta key

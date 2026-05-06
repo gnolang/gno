@@ -117,8 +117,9 @@ func (pk ParamsKeeper) Logger(ctx sdk.Context) *slog.Logger {
 }
 
 func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {
+	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
-	return stor.Has(nil, storeKey(key))
+	return stor.Has(gctx, storeKey(key))
 }
 
 func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
