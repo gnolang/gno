@@ -30,6 +30,7 @@ type Config struct {
 	// use InMemoryFetcher. Leave nil in production.
 	Fetcher pkgdownload.PackageFetcher
 
-	// Logger is the slog logger used for all loader output. Required.
+	// Logger is the slog logger used for all loader output.
+	// Defaults to slog.Default() if nil.
 	Logger *slog.Logger
 }

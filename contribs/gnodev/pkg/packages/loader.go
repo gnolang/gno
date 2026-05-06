@@ -41,6 +41,9 @@ func New(cfg Config) *Loader {
 	if cfg.GnoRoot == "" {
 		cfg.GnoRoot = gnoenv.RootDir()
 	}
+	if cfg.Logger == nil {
+		cfg.Logger = slog.Default()
+	}
 	fetcher := cfg.Fetcher
 	if fetcher == nil {
 		fetcher = rpcpkgfetcher.New(cfg.RemoteOverrides)
