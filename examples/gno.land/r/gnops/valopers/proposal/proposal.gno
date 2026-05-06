@@ -7,7 +7,7 @@ import (
 	pVals "gno.land/p/sys/validators"
 	valopers "gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
-	validators "gno.land/r/sys/validators/v2"
+	validators "gno.land/r/sys/validators/v3"
 )
 
 var (
@@ -63,7 +63,7 @@ func NewValidatorProposalRequest(cur realm, address_XXX address) dao.ProposalReq
 	)
 
 	// Create the request
-	return validators.NewPropRequest(changesFn, title, description)
+	return validators.NewProposalRequest(changesFn, title, description)
 }
 
 // ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO

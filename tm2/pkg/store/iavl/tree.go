@@ -23,6 +23,7 @@ type Tree interface {
 	SaveVersion() ([]byte, int64, error)
 	DeleteVersionsTo(version int64) error
 	Version() int64
+	Size() int64
 	Hash() []byte
 	GetLatestVersion() (int64, error)
 	VersionExists(version int64) bool

@@ -1,0 +1,115 @@
+# Tests an adversarial pattern: granter installs an outer defer-recover
+# wrap and direct `defer al.Close()`. With the buggy pre-fix VM, this
+# defeated the kill switch (recover swallowed the taint panic, close
+# never engaged, persisted allowance stayed OPEN, adversary drained).
+#
+# With the VM fix (Defer.IsBoundMethod threading the receiver through
+# PushFrameCall so the implicit borrow-realm switch fires for deferred
+# method calls), Close runs successfully — there's no panic for the
+# recover to swallow. The kill switch engages normally; the persisted
+# struct ends up closed=true; adversary's drain attempt fails.
+#
+# This test now locks in the post-fix safe behavior.
+
+loadpkg gno.land/p/jaekwon/allowancesender/v0
+loadpkg gno.land/r/test/outerrecovercallee $WORK/outerrecovercallee
+loadpkg gno.land/r/test/outerrecovergranter $WORK/outerrecovergranter
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# tx1: granter installs outer recover-defer FIRST, then defer al.Close()
+# (so Close runs first on unwind, then outer recover catches if needed).
+# Callee persists the pointer. Outcome under test.
+gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+
+# tx2: inspect the persisted state. With the fix, Close ran cleanly
+# (no panic) and the persisted struct is closed.
+gnokey query vm/qeval --data 'gno.land/r/test/outerrecovercallee.IsStoredClosed()'
+stdout '"true"'
+
+# tx3: drain attempt. Persisted allowance is closed → panics with
+# "allowancesender: closed". Kill switch holds.
+! gnokey maketx call -pkgpath gno.land/r/test/outerrecovercallee -func DrainStored -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+stderr 'allowancesender: closed'
+
+-- outerrecovercallee/gnomod.toml --
+module = "gno.land/r/test/outerrecovercallee"
+gno = "0.9"
+
+-- outerrecovercallee/outerrecovercallee.gno --
+package outerrecovercallee
+
+import (
+	"chain"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+)
+
+var stored *allowancesender.AllowanceSender
+
+func Store(cur realm, al *allowancesender.AllowanceSender) {
+	stored = al
+}
+
+func IsStoredClosed() string {
+	if stored == nil {
+		return "nil"
+	}
+	if stored.Closed() {
+		return "true"
+	}
+	return "false"
+}
+
+func DrainStored(cur realm, amount int64) {
+	if stored == nil {
+		panic("DRAIN: stored is nil")
+	}
+	stored.Send(stored.Payer(),
+		chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+-- outerrecovergranter/gnomod.toml --
+module = "gno.land/r/test/outerrecovergranter"
+gno = "0.9"
+
+-- outerrecovergranter/outerrecovergranter.gno --
+package outerrecovergranter
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+
+	"gno.land/r/test/outerrecovercallee"
+)
+
+// GrantWithOuterRecover installs the recover-defer in the containing
+// function's scope (NOT inside the close-defer's closure). Defer
+// ordering: recover registered first → al.Close() registered second.
+// LIFO unwind: al.Close() runs first (potential panic), then recover
+// runs and catches.
+//
+// Question: does the outer recover swallow the readonly-taint panic
+// from `defer al.Close()`? And if so, does the tx commit with the
+// persisted allowance still in open (closed=false) state?
+func GrantWithOuterRecover(cur realm) {
+	defer func() {
+		if r := recover(); r != nil {
+			println("OUTER_RECOVERED_FROM:", r)
+		}
+	}()
+
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+	defer al.Close()
+
+	outerrecovercallee.Store(cross, al)
+}
