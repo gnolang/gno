@@ -790,11 +790,15 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types.
+	// save declared types — only those that belong to this package.
+	// Aliases to uverse types or to types from other packages have a
+	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
+	// be redundant (cross-pkg: the owning pkg already SetType'd them;
+	// uverse: lives in the in-memory VM registry, not in chain state).
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
 			if tvv, ok := tv.V.(TypeValue); ok {
-				if dt, ok := tvv.Type.(*DeclaredType); ok {
+				if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pv.PkgPath {
 					m.Store.SetType(dt)
 				}
 			}
@@ -1189,12 +1193,14 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 }
 
 // incrCPUBigIntQuad charges quadratic CPU gas for BigInt Mul.
-// gas = (bits/32)^2 * slope / 32.
+// gas = (bits/32)^2 * slope / 32. Uses overflow.Mulp so a future
+// maxAllocTx bump (current 500MB caps bit-length at ~4B, safe under
+// int64) can't silently wrap into a negative charge.
 func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigintType {
 		lb := int64(lv.GetBigInt().BitLen()) / 32
 		rb := int64(rv.GetBigInt().BitLen()) / 32
-		m.incrCPU(lb * rb * slope / 32)
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 32)
 	}
 }
 
@@ -1208,12 +1214,13 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 }
 
 // incrCPUBigDecQuad charges quadratic CPU gas for BigDec Mul/Quo.
-// gas = (digits/10)^2 * slope / 10.
+// gas = (digits/10)^2 * slope / 10. overflow.Mulp keeps the compute
+// safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 	if lv.T == UntypedBigdecType {
 		lb := lv.GetBigDec().NumDigits() / 10
 		rb := rv.GetBigDec().NumDigits() / 10
-		m.incrCPU(lb * rb * slope / 10)
+		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
 	}
 }
 
@@ -1256,7 +1263,7 @@ const (
 	OpCPUPrecallTypeConv     = 72   // type conversion
 	OpCPUPrecallFunc         = 178  // function call
 	OpCPUPrecallBoundMethod  = 199  // bound method call
-	OpCPUEnterCrossing       = 1000 // base; adds quadratic per-depth via OpCPUSlopeEnterCrossingQuad
+	OpCPUEnterCrossing       = 520  // XXX arbitrary, not yet benchmarked
 	OpCPUCall                = 310  // base for 0 params, 0 captures (340.8ns - 31 alloc)
 	OpCPUCallNativeBody      = 2205 // XXX arbitrary, not properly benchmarked
 	OpCPUDefer               = 71
@@ -1406,25 +1413,20 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+
 	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
 	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
-	// path. Groups all byte-level copy work under one slope at the cost of a
-	// ~40× overcharge on pure memcpy (acceptable: source bytes are gas-charged
-	// on the way into the VM already). Calibrated to the slower helper
-	// (copyListToData, ~2 ns/elem M2 → ~4 ns/elem DO Xeon 8168).
-	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element (fit: ~2 ns M2 × 2)
+	// path. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
+	// 8168).
+	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element
 	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
-	// copy path — unrefCopy and Assign2 general case. Calibrated to
-	// unrefCopy on IntType (~20 ns/elem M2 → ~40 ns/elem DO). Under-charges
-	// the RefValue case where unrefCopy hits the store; that worst-case is
+	// copy path — unrefCopy and Assign2 general case. Under-charges the
+	// RefValue case where unrefCopy hits the store; that worst-case is
 	// paid via store gas when GetObject is called.
-	OpCPUSlopeCopyElement = 40 // per element (fit: ~20 ns M2 × 2)
-	// Quadratic: gas = depth * depth * slope / 10.
-	// doOpEnterCrossing walks PeekCallFrame(i) for i=1..depth; each O(i).
-	// PERF/TODO: if doOpEnterCrossing is rewritten to walk m.Frames once
-	// with a cursor (linear in depth), drop this constant and replace with
-	// a linear OpCPUSlopeEnterCrossing charged once per frame visited.
-	OpCPUSlopeEnterCrossingQuad = 6 // fit: depth^2/10 × 6 ≈ 0.6*depth^2 ns
+	OpCPUSlopeCopyElement = 40 // per element
+	// OpCPUSlopeEnterCrossingQuad: quadratic component of doOpEnterCrossing.
+	// gas = depth^2 * slope / 10.
+	OpCPUSlopeEnterCrossingQuad = 6
 
 	// BigInt per-kilobit slopes: gas = bits * slope / 1024.
 	// Linear ops (Add/Sub/Band/Bor/Xor/Bandn/Uneg/Uxor/Inc/Dec/Eql/Lss).
@@ -1513,7 +1515,7 @@ func (m *Machine) runOnce() (caught *Exception) {
 		}
 		op := m.PopOp()
 		if bm.Enabled {
-			bm.SwitchOpCode(bm.CPUOp(op))
+			bm.SwitchOpCode(byte(op))
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -2455,6 +2457,12 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
+// "tainted" here is loose: most failures are not the sticky N_Readonly
+// bit but the contextual ownership check (tvoid.PkgID != m.Realm.ID) —
+// i.e., the target is owned by a realm different from the one currently
+// executing. Either way, going through a method or crossing function
+// re-enters via PushFrameCall, whose implicit borrow-realm switch (or
+// hard cross-call) lines m.Realm up with the target's owner.
 func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }

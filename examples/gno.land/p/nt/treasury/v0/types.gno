@@ -3,15 +3,15 @@ package treasury
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/list"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/bptree/v0/list"
 	"gno.land/p/nt/mux/v0"
 )
 
 // Treasury is the main structure that holds all bankers and their payment
 // history. It also provides a router for rendering the treasury pages.
 type Treasury struct {
-	bankers *avl.Tree // string -> *bankerRecord
+	bankers *bptree.BPTree // string -> *bankerRecord
 	router  *mux.Router
 }
 

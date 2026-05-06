@@ -53,7 +53,7 @@ const (
 	// By-value types (value receivers on Value interface).
 	// Escape to heap when stored in TypedValue.V.
 	_allocPointerValue = 32 // unsafe.Sizeof(PointerValue{})
-	_allocRefValue     = 80 // unsafe.Sizeof(RefValue{})
+	_allocRefValue     = 72 // unsafe.Sizeof(RefValue{})
 	_allocTypeValue    = 16 // unsafe.Sizeof(TypeValue{})
 	_allocTypedValue   = 40 // unsafe.Sizeof(TypedValue{})
 
@@ -68,7 +68,7 @@ const (
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
 	_allocPackageValue     = 272 // unsafe.Sizeof(PackageValue{})
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
-	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{})
+	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
 
 	// Estimated heap sizes for pointed-to objects.
 	// BigintValue and BigdecValue are just 8-byte pointers;
@@ -77,6 +77,7 @@ const (
 	_allocBigdec = 200 // estimated: apd.Decimal + internals
 	_allocType   = 200 // estimated: average Type implementation
 	_allocAny    = 200 // estimated: generic fallback
+
 )
 
 const (
@@ -113,7 +114,7 @@ const (
 	allocHeapItem    = _allocHeap + _allocHeapItemValue
 	allocPackage     = _allocHeap + _allocPackageValue
 
-	// RefValue (80 bytes, by value, escapes to heap via interface).
+	// RefValue (72 bytes, by value, escapes to heap via interface).
 	allocRefValue = _allocHeap + _allocRefValue
 	// RefNode (88 bytes, by value).
 	allocRefNode = _allocHeap + _allocRefNode
@@ -144,7 +145,6 @@ func init() {
 	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
 	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
 	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
-	check("_allocRefNode", _allocRefNode, unsafe.Sizeof(RefNode{}))
 }
 
 // allocGasTable[k] = gas for a Go heap allocation of 2^k bytes.
@@ -274,8 +274,16 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
+		if alloc.collect == nil {
+			// Forked allocators (e.g. the store's tx-scoped allocator
+			// before NewMachineWithOptions installs a GC callback, and
+			// query-path store allocators which never get one) have no
+			// collect function — there's nothing to GC, so cap is final.
+			panic("allocation limit exceeded (no GC)")
+		}
 		if left, ok := alloc.collect(); !ok {
-			panic("should not happen, allocation limit exceeded while gc.")
+			// GC could not free enough.
+			panic("allocation limit exceeded")
 		} else {
 			if debug {
 				debug.Printf("GC finished, %d left after GC, required size: %d\n", left, size)
@@ -378,7 +386,7 @@ func (alloc *Allocator) NewString(s string) StringValue {
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	if n < 0 {
-		panic("NewListArray: n must not be negative")
+		panic(&Exception{Value: typedString("len out of range")})
 	}
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
@@ -388,11 +396,11 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 
 func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
 	if l < 0 || c < 0 {
-		panic("NewListArray2: l and c must not be negative")
+		panic(&Exception{Value: typedString("len or cap out of range")})
 	}
 
 	if c < l {
-		panic("NewListArray2: c must not be less than l")
+		panic(&Exception{Value: typedString("length and capacity swapped")})
 	}
 
 	alloc.AllocateListArray(int64(c))
@@ -403,7 +411,7 @@ func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	if n < 0 {
-		panic("NewDataArray: n must not be negative")
+		panic(&Exception{Value: typedString("len out of range")})
 	}
 
 	alloc.AllocateDataArray(int64(n))
@@ -489,9 +497,6 @@ func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
 }
 
 func (alloc *Allocator) NewMap(size int) *MapValue {
-	if size < 0 {
-		size = 0
-	}
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
@@ -553,6 +558,8 @@ func (b *Block) GetShallowSize() int64 {
 	}
 
 	var ss int64
+	// RefNode is not value, put it here
+	// for convinence
 	if _, ok := b.Source.(RefNode); ok {
 		ss += allocRefNode
 	}
@@ -592,10 +599,6 @@ func (hiv *HeapItemValue) GetShallowSize() int64 {
 
 func (rv RefValue) GetShallowSize() int64 {
 	return allocRefValue
-}
-
-func (ExportRefValue) GetShallowSize() int64 {
-	return allocRefValue // same size class as RefValue
 }
 
 func (pv PointerValue) GetShallowSize() int64 {
@@ -642,4 +645,101 @@ func (dbv DataByteValue) GetShallowSize() int64 {
 // as the type should  pre-exist.
 func (tv TypeValue) GetShallowSize() int64 {
 	return 0
+}
+
+// internalRefSize computes the allocation size for RefValue slots stored
+// within an object's amino-serialized form. During copyValueWithRefs, child
+// Objects are replaced with RefValue{ObjectID, Hash} placeholders. These
+// RefValue slots are not counted by GetShallowSize (which only counts the
+// object's own structure), so we must account for them here to keep the
+// allocator consistent with the store's memory usage.
+func internalRefSize(val Value) int64 {
+	var size int64
+	switch v := val.(type) {
+	case *PackageValue:
+		if _, ok := v.Block.(RefValue); ok {
+			size += allocRefValue // .Block ref
+		}
+		// include RefValue size
+		for _, fb := range v.FBlocks {
+			if _, ok := fb.(RefValue); !ok {
+				continue
+			}
+			size += allocRefValue
+		}
+	case *Block:
+		for _, v := range v.Values {
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, tv := range v.List {
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
+			}
+		}
+	case *StructValue:
+		for _, tv := range v.Fields {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *BoundMethodValue:
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *HeapItemValue:
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case RefValue:
+		// do nothing
+	case *PointerValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *SliceValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *FuncValue:
+		for _, tv := range v.Captures {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case StringValue:
+		// do nothing
+	case BigintValue:
+		// do nothing
+	case BigdecValue:
+		// do nothing
+	case DataByteValue:
+		// do nothing
+	case TypeValue:
+		// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %T",
+			val))
+	}
+	return size
 }
