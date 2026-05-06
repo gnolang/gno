@@ -1,7 +1,8 @@
 import { BaseController } from "./controller.js";
 
-// Matches Amino object IDs like "a]0000000001" or "ff61a23bc5:12"
-const OID_PATTERN = /^[a-f0-9\]:.]+$/i;
+// Matches Amino object IDs like "ff61a23bc5:12" or ":1" (cycle-break refs).
+// Format: `<hex>:<uint>` per ObjectID.MarshalAmino in gnovm/pkg/gnolang/ownership.go.
+const OID_PATTERN = /^[a-f0-9]*:\d+$/i;
 
 export class SearchbarController extends BaseController {
 	protected connect(): void {
