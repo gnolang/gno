@@ -185,13 +185,15 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 		// not a Value, so VisitAssociated (which visits child Values)
 		// can't reach them. Count them inline here.
 		//
-		// CountStringBytes returns true the first time a tracked backing
-		// is seen in this gcCycle, false on subsequent visits in the same
-		// cycle. This dedups shared backings (e.g. s1 := s, or s[i:j])
-		// and recounts the bytes on each new GC cycle.
+		// CountStringBytes returns the FULL backing length the first time
+		// a containing range is seen this cycle, and (0, false) on
+		// subsequent visits or for untracked pointers. Charging the full
+		// backing (not len(sv)) is what makes slices whose source is
+		// dead account correctly: the slice's pointer resolves to the
+		// source's range via containment.
 		if sv, ok := v.(StringValue); ok {
-			if alloc.CountStringBytes(string(sv), gcCycle) {
-				size += allocStringByte * int64(len(sv))
+			if backingBytes, charge := alloc.CountStringBytes(string(sv), gcCycle); charge {
+				size += allocStringByte * backingBytes
 			}
 		}
 
