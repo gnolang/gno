@@ -539,25 +539,27 @@ func (m *endBlockerParamsMock) GetStrings(ctx sdk.Context, key string, ptr *[]st
 	return false
 }
 
-func (m *endBlockerParamsMock) SetBool(ctx sdk.Context, key string, value bool) {
+func (m *endBlockerParamsMock) SetBool(ctx sdk.Context, key string, value bool) int {
 	if m.setBoolFn != nil {
 		m.setBoolFn(ctx, key, value)
 	}
+	return 0
 }
 
-func (m *endBlockerParamsMock) SetStrings(ctx sdk.Context, key string, value []string) {
+func (m *endBlockerParamsMock) SetStrings(ctx sdk.Context, key string, value []string) int {
 	if m.setStringsFn != nil {
 		m.setStringsFn(ctx, key, value)
 	}
+	return 0
 }
 
 // Remaining ParamsKeeperI methods are not exercised by EndBlocker.
 func (m *endBlockerParamsMock) GetUint64(sdk.Context, string, *uint64) bool { return false }
 func (m *endBlockerParamsMock) GetBytes(sdk.Context, string, *[]byte) bool  { return false }
-func (m *endBlockerParamsMock) SetString(sdk.Context, string, string)       {}
-func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64)         {}
-func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64)       {}
-func (m *endBlockerParamsMock) SetBytes(sdk.Context, string, []byte)        {}
+func (m *endBlockerParamsMock) SetString(sdk.Context, string, string) int   { return 0 }
+func (m *endBlockerParamsMock) SetInt64(sdk.Context, string, int64) int     { return 0 }
+func (m *endBlockerParamsMock) SetUint64(sdk.Context, string, uint64) int   { return 0 }
+func (m *endBlockerParamsMock) SetBytes(sdk.Context, string, []byte) int    { return 0 }
 func (m *endBlockerParamsMock) Has(sdk.Context, string) bool                { return false }
 func (m *endBlockerParamsMock) GetStruct(sdk.Context, string, any)          {}
 func (m *endBlockerParamsMock) SetStruct(sdk.Context, string, any)          {}
