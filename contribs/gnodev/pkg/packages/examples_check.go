@@ -34,7 +34,7 @@ func CheckMissingExampleImports(l *Loader, workspace string) []string {
 			seen[imp] = struct{}{}
 		}
 	}
-	var missing []string
+	missing := make([]string, 0, len(seen))
 	for imp := range seen {
 		if !strings.HasPrefix(imp, "gno.land/") {
 			continue
