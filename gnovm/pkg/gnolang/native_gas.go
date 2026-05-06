@@ -17,42 +17,62 @@ import "fmt"
 type NativeGasSize uint8
 
 const (
-	SizeFlat          NativeGasSize = 0 // no slope, no N
-	SizeLenBytes      NativeGasSize = 1 // len(params[SlopeIdx]) — []byte
-	SizeLenString     NativeGasSize = 2 // len(params[SlopeIdx]) — string
-	SizeLenSlice      NativeGasSize = 3 // len(params[SlopeIdx]) — slice of any
-	SizeNumCallFrames NativeGasSize = 4 // m.NumCallFrames(); SlopeIdx ignored
-	SizeReturnLen     NativeGasSize = 5 // len(return at PostSlopeIdx) — POST-CALL only
+	SizeFlat            NativeGasSize = 0 // no slope, no N
+	SizeLenBytes        NativeGasSize = 1 // len(param[idx]) — []byte
+	SizeLenString       NativeGasSize = 2 // len(param[idx]) — string
+	SizeLenSlice        NativeGasSize = 3 // len(param[idx]) — slice of any
+	SizeNumCallFrames   NativeGasSize = 4 // m.NumCallFrames(); idx ignored
+	SizeReturnLen       NativeGasSize = 5 // len(return[idx]); POST-CALL only (legacy name kept; functionally identical to SizeLenSlice but reads the return stack)
+	SizeSliceTotalBytes NativeGasSize = 6 // sum of inner element lengths for a []string or []byte-slice; works pre- and post-call
 )
 
 // NativeGasInfo is the per-function gas descriptor.
 //
-// Pre-call charge:  Base  + Slope  * N / 1024  (read off block before nativeBody)
-// Post-call charge: PostBase + PostSlope * N / 1024  (read off return stack after)
+// Pre-call charge:  Base + Slope*N1/1024 + Slope2*N2/1024
+//                   (read off the call block before nativeBody)
+// Post-call charge: PostBase + PostSlope*M1/1024 + PostSlope2*M2/1024
+//                   (read off the return stack after nativeBody)
 //
-// Bases are calibrated end-to-end through the dispatcher (Gno↔Go reflect +
-// X_ work + return push). The /1024 mirrors machine.go:incrCPUBigInt's
+// The two pre-call slopes are independent additive components (mirrors
+// the `base + slopeP * P + slopeC * C` shape used for some CPU ops in
+// op_gas_formulas.md). Typical use: Slope on len(slice) for per-element
+// loop overhead, Slope2 on SizeSliceTotalBytes for per-byte marshal cost
+// in []string params (chain.emit, chain/params.SetStrings, etc.).
+//
+// Bases are calibrated end-to-end through the dispatcher (Gno↔Go reflect
+// + X_ work + return push). The /1024 mirrors machine.go:incrCPUBigInt's
 // slopePerKb convention so sub-1 ns/byte slopes survive integer math.
 type NativeGasInfo struct {
 	Base      int64
-	Slope     int64 // per 1024 units of N
-	SlopeIdx  int8  // -1 for flat
+	Slope     int64 // per 1024 units of N1
+	SlopeIdx  int8  // -1 for flat; ignored when SlopeKind == SizeNumCallFrames
 	SlopeKind NativeGasSize
 
-	// Optional post-call charge. Zero PostBase + zero PostSlope = no
-	// post-charge (skipped via the gi-nil-or-flat shortcut in
-	// doOpCallNativeBody). PostSlopeIdx is the stack offset from the
-	// top of m.Values (1 = topmost = last-pushed return). PostSlopeKind
-	// must be SizeReturnLen if set.
-	PostBase     int64
-	PostSlope    int64
-	PostSlopeIdx int8
+	// Optional second pre-call slope, summed independently.
+	// Zero Slope2 = unused.
+	Slope2     int64
+	Slope2Idx  int8
+	Slope2Kind NativeGasSize
+
+	// Optional post-call charge. Zero PostBase + zero PostSlope +
+	// zero PostSlope2 = no post-charge (skipped via the gi-nil
+	// shortcut returned by chargeNativeGas). PostSlopeIdx is the
+	// stack offset from the top of m.Values (1 = topmost = last-pushed
+	// return).
+	PostBase      int64
+	PostSlope     int64
+	PostSlopeIdx  int8
 	PostSlopeKind NativeGasSize
+
+	// Optional second post-call slope, summed independently.
+	PostSlope2     int64
+	PostSlope2Idx  int8
+	PostSlope2Kind NativeGasSize
 }
 
 // hasPost reports whether gi requires a post-call charge.
 func (gi *NativeGasInfo) hasPost() bool {
-	return gi.PostBase != 0 || gi.PostSlope != 0
+	return gi.PostBase != 0 || gi.PostSlope != 0 || gi.PostSlope2 != 0
 }
 
 // nativeGasIndex maps "pkgPath\x00name" → calibrated descriptor. Populated
@@ -82,7 +102,7 @@ func RegisterNativeGas(pkgPath string, name Name, info *NativeGasInfo) {
 //     historical OpCPUCallNativeBody flat. Variable-cost ones like print
 //     also self-charge (see uversePrint). TODO: extend the calibration
 //     table to cover uverse natives too.
-//   - Calibrated stdlibs charge Base + Slope*N/1024.
+//   - Calibrated stdlibs charge Base + Slope*N1/1024 + Slope2*N2/1024.
 //   - Stdlibs with no calibrated entry panic when a real GasMeter is
 //     attached. This forces every new native to come with a benchmark.
 //     Test/no-meter Machines silently fall through (no charge).
@@ -110,16 +130,10 @@ func (m *Machine) chargeNativeGas(fv *FuncValue) *NativeGasInfo {
 	}
 	cost := gi.Base
 	if gi.Slope != 0 {
-		var n int64
-		switch gi.SlopeKind {
-		case SizeNumCallFrames:
-			n = int64(m.NumCallFrames())
-		default:
-			if gi.SlopeIdx >= 0 {
-				n = int64(m.LastBlock().Values[gi.SlopeIdx].GetLength())
-			}
-		}
-		cost += gi.Slope * n / 1024
+		cost += gi.Slope * m.nativeSizeFromBlock(gi.SlopeKind, gi.SlopeIdx) / 1024
+	}
+	if gi.Slope2 != 0 {
+		cost += gi.Slope2 * m.nativeSizeFromBlock(gi.Slope2Kind, gi.Slope2Idx) / 1024
 	}
 	m.incrCPU(cost)
 	if !gi.hasPost() {
@@ -134,12 +148,86 @@ func (m *Machine) chargeNativeGas(fv *FuncValue) *NativeGasInfo {
 func (m *Machine) chargeNativeGasPost(gi *NativeGasInfo) {
 	cost := gi.PostBase
 	if gi.PostSlope != 0 {
-		var n int64
-		switch gi.PostSlopeKind {
-		case SizeReturnLen:
-			n = int64(m.PeekValue(int(gi.PostSlopeIdx)).GetLength())
-		}
-		cost += gi.PostSlope * n / 1024
+		cost += gi.PostSlope * m.nativeSizeFromStack(gi.PostSlopeKind, gi.PostSlopeIdx) / 1024
+	}
+	if gi.PostSlope2 != 0 {
+		cost += gi.PostSlope2 * m.nativeSizeFromStack(gi.PostSlope2Kind, gi.PostSlope2Idx) / 1024
 	}
 	m.incrCPU(cost)
+}
+
+// nativeSizeFromBlock extracts N from the call block (pre-call params).
+func (m *Machine) nativeSizeFromBlock(kind NativeGasSize, idx int8) int64 {
+	if kind == SizeNumCallFrames {
+		return int64(m.NumCallFrames())
+	}
+	if idx < 0 {
+		return 0
+	}
+	tv := &m.LastBlock().Values[idx]
+	return nativeSizeOf(tv, kind, m.Store)
+}
+
+// nativeSizeFromStack extracts N from the return stack (post-call returns).
+func (m *Machine) nativeSizeFromStack(kind NativeGasSize, idx int8) int64 {
+	if kind == SizeNumCallFrames {
+		return int64(m.NumCallFrames())
+	}
+	if idx < 0 {
+		return 0
+	}
+	tv := m.PeekValue(int(idx))
+	return nativeSizeOf(tv, kind, m.Store)
+}
+
+// nativeSizeOf computes the metric for a single TypedValue under the
+// given kind. SizeReturnLen is treated identically to SizeLenSlice (the
+// distinction is only documentary — which side of the call the kind is
+// expected to be used).
+func nativeSizeOf(tv *TypedValue, kind NativeGasSize, store Store) int64 {
+	switch kind {
+	case SizeSliceTotalBytes:
+		return sumSliceInnerLen(tv, store)
+	default: // SizeLenBytes / SizeLenString / SizeLenSlice / SizeReturnLen
+		return int64(tv.GetLength())
+	}
+}
+
+// sumSliceInnerLen sums the lengths of inner elements in a slice or
+// array TypedValue. Used to compute total payload bytes of e.g.
+// []string params for chain.emit and chain/params.SetStrings.
+//
+// For data-backed []byte arrays (av.Data != nil), returns the byte
+// count directly — consistent with what GetLength reports.
+func sumSliceInnerLen(tv *TypedValue, store Store) int64 {
+	var list []TypedValue
+	switch v := tv.V.(type) {
+	case nil:
+		return 0
+	case *ArrayValue:
+		if v.Data != nil {
+			return int64(len(v.Data))
+		}
+		list = v.List
+	case *SliceValue:
+		base := v.GetBase(store)
+		if base == nil {
+			return 0
+		}
+		if base.Data != nil {
+			return int64(v.Length)
+		}
+		end := v.Offset + v.Length
+		if end > len(base.List) {
+			end = len(base.List)
+		}
+		list = base.List[v.Offset:end]
+	default:
+		return 0
+	}
+	var total int64
+	for i := range list {
+		total += int64(list[i].GetLength())
+	}
+	return total
 }

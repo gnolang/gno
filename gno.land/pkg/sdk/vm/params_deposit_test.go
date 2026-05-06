@@ -16,7 +16,6 @@ import (
 // Tests for the per-realm chain/params storage deposit flow.
 // See gno.land/pkg/sdk/vm/params_deposit.go for the implementation.
 
-
 func TestParamsDepositSetBytesLocks(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -161,12 +160,17 @@ func TestParamsRecordDeltaSkipsNonRealmKeys(t *testing.T) {
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 	ctx = ContextWithParamsAccum(ctx)
 
-	// Various non-vm key shapes: sys/params (module:sub:name), the
-	// meta-key prefix itself, a key with no colon at all.
+	// Various non-vm key shapes plus sys/params writes that DO start
+	// with "vm:" but address a bare submodule (e.g. from
+	// sys/params.SetSysParamString("vm","bar","baz",...)). All must be
+	// skipped — only "vm:<rlmPath>:<key>" with rlmPath containing "/"
+	// is realm-attributable.
 	for _, k := range []string{
-		"mod:sub:name",                   // sys/params shape
-		realmMetaPrefix + "any/realm",    // meta-key under reserved prefix
-		"plain_key",                      // no colon → realmFromKey rejects
+		"mod:sub:name",                // sys/params shape (no "vm:" prefix)
+		realmMetaPrefix + "any/realm", // meta-key under reserved prefix
+		"plain_key",                   // no colon → realmFromKey rejects
+		"vm:bar:baz",                  // sys/params via "vm" module — bare submodule, no "/"
+		"vm:p:something",              // VM-internal config writes ("vm:p" struct)
 	} {
 		recordParamsDelta(ctx, env.prmk, k, 0, 100)
 	}
@@ -218,6 +222,73 @@ func SetK(cur realm, val string) { params_.SetBytes("k", []byte(val)) }
 
 	assert.Equal(t, int64(100+len("vm:"+pkg1+":k")), readMetaKey(t, env, ctx, pkg1))
 	assert.Equal(t, int64(200+len("vm:"+pkg2+":k")), readMetaKey(t, env, ctx, pkg2))
+}
+
+// TestParamsDepositEmptyValueIsCreate exercises the bug case the
+// keysize refactor was written to fix: SetBytes(k, []byte{}) on an
+// absent key is a *create* (key bytes lock), while SetBytes(k, nil) on
+// the same absent key is a no-op (no movement). The pre-refactor logic
+// conflated the two via `newSize == 0`. Subtests run in order; each
+// observes state left by the previous one.
+func TestParamsDepositEmptyValueIsCreate(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/test/empty"
+	files := []*std.MemFile{
+		{Name: "dep.gno", Body: `
+package dep
+import params_ "chain/params"
+func SetEmpty(cur realm) { params_.SetBytes("k", []byte{}) }
+func SetNil(cur realm)   { params_.SetBytes("k", nil) }
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+
+	depAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	storagePrice := std.MustParseCoin(env.vmk.GetParams(ctx).StoragePrice).Amount
+	keyLen := int64(len("vm:" + pkgPath + ":k"))
+
+	call := func(t *testing.T, fn string) {
+		t.Helper()
+		c := NewMsgCall(addr, std.Coins{}, pkgPath, fn, nil)
+		c.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+		_, err := env.vmk.Call(ctx, c)
+		require.NoError(t, err)
+	}
+
+	// Snapshot once; subtests reference it as the baseline.
+	depBefore := env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)
+
+	t.Run("SetNil_on_absent_is_noop", func(t *testing.T) {
+		call(t, "SetNil")
+		assert.Equal(t, depBefore, env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom),
+			"SetBytes(nil) on absent key must not move deposit")
+		assert.Equal(t, int64(0), readMetaKey(t, env, ctx, pkgPath),
+			"meta stays 0 after no-op delete")
+	})
+
+	t.Run("SetEmpty_on_absent_locks_key_bytes", func(t *testing.T) {
+		call(t, "SetEmpty")
+		assert.Equal(t, keyLen, readMetaKey(t, env, ctx, pkgPath),
+			"empty value still creates entry; meta == key bytes")
+		assert.Equal(t, keyLen*storagePrice,
+			env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom)-depBefore,
+			"empty-value create locks key bytes worth of deposit")
+	})
+
+	t.Run("SetNil_on_empty_refunds_key_bytes", func(t *testing.T) {
+		call(t, "SetNil")
+		assert.Equal(t, int64(0), readMetaKey(t, env, ctx, pkgPath),
+			"meta returns to 0 after delete")
+		assert.Equal(t, depBefore, env.bankk.GetCoins(ctx, depAddr).AmountOf(ugnot.Denom),
+			"delete refunds the key bytes")
+	})
 }
 
 // ---- helpers ----

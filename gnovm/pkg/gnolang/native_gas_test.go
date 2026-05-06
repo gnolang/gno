@@ -182,6 +182,122 @@ func TestChargeNativeGas_FallbackForUverseBuiltin(t *testing.T) {
 	}
 }
 
+// stubMachineWithSliceParam builds a Machine with one block slot
+// holding a []string SliceValue whose inner elements each have length
+// `innerLen`. Used to exercise SizeSliceTotalBytes and SizeLenSlice on
+// the same param.
+func stubMachineWithSliceParam(count, innerLen int) *Machine {
+	m := &Machine{GasMeter: &recordingMeter{}}
+	av := &ArrayValue{List: make([]TypedValue, count)}
+	for i := range av.List {
+		av.List[i] = TypedValue{T: StringType, V: StringValue(string(make([]byte, innerLen)))}
+	}
+	sv := &SliceValue{Base: av, Offset: 0, Length: count, Maxcap: count}
+	blk := &Block{Values: []TypedValue{{T: &SliceType{Elt: StringType}, V: sv}}}
+	m.Blocks = []*Block{blk}
+	return m
+}
+
+func TestChargeNativeGas_SliceTotalBytes(t *testing.T) {
+	// Slope1 on count, Slope2 on total inner bytes — both at SlopeIdx 0.
+	// per-element slope = 1024 (=> 1 ns/element), per-byte slope = 1024
+	// (=> 1 ns/byte). For count=4, innerLen=10 → cost = base + 4 + 40.
+	cleanup := registerTestNative(t, &NativeGasInfo{
+		Base:       100,
+		Slope:      1024, SlopeIdx: 0, SlopeKind: SizeLenSlice,
+		Slope2: 1024, Slope2Idx: 0, Slope2Kind: SizeSliceTotalBytes,
+	})
+	defer cleanup()
+
+	cases := []struct {
+		count, innerLen int
+		want            int64
+	}{
+		{0, 0, 100},                       // base only
+		{4, 10, 100 + 4 + 40},             // 4 elements, 40 bytes total
+		{16, 100, 100 + 16 + 1600},        // larger
+		{2, 50_000, 100 + 2 + 100_000},    // bytes-dominated
+		{128, 1024, 100 + 128 + 128*1024}, // large in both dims
+	}
+	for _, c := range cases {
+		m := stubMachineWithSliceParam(c.count, c.innerLen)
+		_ = m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+		if m.Cycles != c.want {
+			t.Errorf("count=%d innerLen=%d: got %d, want %d", c.count, c.innerLen, m.Cycles, c.want)
+		}
+	}
+}
+
+func TestChargeNativeGas_PostCallTwoSlopes(t *testing.T) {
+	// Mimic getSysParamStrings: post-call charges per element AND per
+	// total inner bytes on the returned []string at stack offset 2.
+	cleanup := registerTestNative(t, &NativeGasInfo{
+		Base: 50, SlopeIdx: -1, SlopeKind: SizeFlat,
+		PostBase:       30,
+		PostSlope:      1024, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen,
+		PostSlope2: 1024, PostSlope2Idx: 2, PostSlope2Kind: SizeSliceTotalBytes,
+	})
+	defer cleanup()
+
+	m := stubMachine(nil)
+	gi := m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+	if gi == nil {
+		t.Fatal("expected non-nil gi for post-charge native")
+	}
+	if m.Cycles != 50 {
+		t.Fatalf("pre-call: got %d, want 50", m.Cycles)
+	}
+
+	// Push 8 returns of 32 bytes each at offset 2 (slice), plus a dummy
+	// at offset 1 (any TV). Expected post: 30 + 8 + 8*32 = 294.
+	count, innerLen := 8, 32
+	av := &ArrayValue{List: make([]TypedValue, count)}
+	for i := range av.List {
+		av.List[i] = TypedValue{T: StringType, V: StringValue(string(make([]byte, innerLen)))}
+	}
+	sv := &SliceValue{Base: av, Offset: 0, Length: count, Maxcap: count}
+	returnSlice := TypedValue{T: &SliceType{Elt: StringType}, V: sv}
+	dummy := TypedValue{T: StringType, V: StringValue("")}
+	m.PushValue(returnSlice)
+	m.PushValue(dummy)
+	m.chargeNativeGasPost(gi)
+	if want := int64(50 + 30 + count + count*innerLen); m.Cycles != want {
+		t.Fatalf("post-call: got %d, want %d", m.Cycles, want)
+	}
+}
+
+func TestChargeNativeGas_SliceTotalBytes_NilAndOffset(t *testing.T) {
+	// Empty / nil slice TV → SizeSliceTotalBytes returns 0 cleanly.
+	cleanup := registerTestNative(t, &NativeGasInfo{
+		Base:   10,
+		Slope:  1024, SlopeIdx: 0, SlopeKind: SizeSliceTotalBytes,
+	})
+	defer cleanup()
+
+	// Nil V → 0 inner bytes.
+	m := &Machine{GasMeter: &recordingMeter{}}
+	m.Blocks = []*Block{{Values: []TypedValue{{T: &SliceType{Elt: StringType}, V: nil}}}}
+	_ = m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+	if m.Cycles != 10 {
+		t.Fatalf("nil slice V: got %d, want 10 (base only)", m.Cycles)
+	}
+
+	// Sliced array with offset — only the [Offset:Length] window counts.
+	av := &ArrayValue{List: []TypedValue{
+		{T: StringType, V: StringValue("aa")},     // 2 — outside window
+		{T: StringType, V: StringValue("bbbbb")},  // 5 — in window
+		{T: StringType, V: StringValue("ccc")},    // 3 — in window
+		{T: StringType, V: StringValue("dddddd")}, // 6 — outside window
+	}}
+	sv := &SliceValue{Base: av, Offset: 1, Length: 2, Maxcap: 3}
+	m2 := &Machine{GasMeter: &recordingMeter{}}
+	m2.Blocks = []*Block{{Values: []TypedValue{{T: &SliceType{Elt: StringType}, V: sv}}}}
+	_ = m2.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+	if want := int64(10 + 5 + 3); m2.Cycles != want {
+		t.Fatalf("offset window: got %d, want %d (only inner bbbbb+ccc count)", m2.Cycles, want)
+	}
+}
+
 // ---- Microbenchmarks for chargeNativeGas overhead ----
 
 func benchStubMachine(b *testing.B, gi *NativeGasInfo, paramLen int, registerKey bool) (*Machine, *FuncValue) {

@@ -110,33 +110,40 @@ func FlushParamsRealmAccum(ctx sdk.Context, pmk ParamsKeeperI, rlmPath string) {
 	pmk.SetBytes(ctx, realmMetaPrefix+rlmPath, packMeta(a.bytes))
 }
 
-// getCurrentSize reads the current persisted bytes for `key`. Uses
-// pmk.GetBytes which does a raw stor.Get — works for any Set type
-// because params keeper stores raw bytes (SetBytes) or amino-JSON
-// (set()) under the same byte stream.
-func getCurrentSize(ctx sdk.Context, pmk ParamsKeeperI, key string) int {
+// priorSize returns len(key)+len(prior value) when `key` exists, 0
+// otherwise — the oldSize that recordParamsDelta expects (key bytes
+// counted alongside value bytes). pmk.GetBytes does a raw stor.Get,
+// which works for any Set type because the keeper stores either raw
+// bytes (SetBytes) or amino-JSON (set()) under the same byte stream.
+func priorSize(ctx sdk.Context, pmk ParamsKeeperI, key string) int {
 	var bz []byte
 	if pmk.GetBytes(ctx, key, &bz) {
-		return len(bz)
+		return len(key) + len(bz)
 	}
 	return 0
 }
 
 // Encoded sizes after a Set call — match what actually persists via the
-// keeper, computed without re-reading the store.
+// keeper, computed without re-reading the store. SetBytes stores raw,
+// so its post-size is just len(value) inline at the caller.
 func sizeAfterSetString(v string) int    { return len(amino.MustMarshalJSON(v)) }
 func sizeAfterSetBool(v bool) int        { return len(amino.MustMarshalJSON(v)) }
 func sizeAfterSetInt64(v int64) int      { return len(amino.MustMarshalJSON(v)) }
 func sizeAfterSetUint64(v uint64) int    { return len(amino.MustMarshalJSON(v)) }
-func sizeAfterSetBytes(v []byte) int     { return len(v) } // SetBytes stores raw
 func sizeAfterSetStrings(v []string) int { return len(amino.MustMarshalJSON(v)) }
 
 // recordParamsDelta is called from each SDKParams.Set* AFTER the keeper
 // write succeeds. Skips sys/params keys (no "vm:" prefix). Lazily loads
 // the persistent baseline once per realm per message.
 //
-// Key bytes count alongside value bytes (both persist on disk):
-// added on first-create, subtracted on delete, unchanged on update.
+// oldSize and newSize already include key bytes alongside value bytes
+// (both persist on disk). Conventions enforced by callers:
+//   - oldSize: 0 if absent before this write, else len(key)+len(prior value)
+//   - newSize: 0 if this write deletes (SetBytes nil), else
+//     len(key)+len(new value)
+//
+// The delta is unconditionally newSize-oldSize; create/delete/update
+// fall out naturally.
 func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, oldSize, newSize int) {
 	rlm, ok := realmFromKey(key)
 	if !ok {
@@ -159,12 +166,6 @@ func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, oldSize, 
 		a.loaded = true
 	}
 	d := int64(newSize - oldSize)
-	switch {
-	case oldSize == 0 && newSize > 0:
-		d += int64(len(key)) // key persists alongside value
-	case oldSize > 0 && newSize == 0:
-		d -= int64(len(key))
-	}
 	a.bytes += d
 	floored := false
 	if a.bytes < 0 {
@@ -179,7 +180,11 @@ func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, oldSize, 
 }
 
 // realmFromKey parses "vm:<rlmPath>:<key>" → rlmPath. Returns ok=false
-// for any non-"vm:" key.
+// for any non-"vm:" key, or for "vm:" keys whose middle segment isn't a
+// realm path. sys/params writes (e.g. "vm:bar:baz" from
+// sys/params.SetSysParamString("vm","bar","baz",...)) collide with the
+// "vm:" prefix but use bare submodule names — real realm paths always
+// contain "/" (e.g. "gno.land/r/foo"), so the slash check disambiguates.
 func realmFromKey(key string) (string, bool) {
 	if !strings.HasPrefix(key, userRealmKeyPrefix) {
 		return "", false
@@ -189,7 +194,11 @@ func realmFromKey(key string) (string, bool) {
 	if colon < 0 {
 		return "", false
 	}
-	return rest[:colon], true
+	rlm := rest[:colon]
+	if !strings.Contains(rlm, "/") {
+		return "", false
+	}
+	return rlm, true
 }
 
 func packMeta(bytes int64) []byte {

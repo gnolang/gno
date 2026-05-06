@@ -253,12 +253,19 @@ func BenchmarkNative_Banker_AssertCallerIsRealm(b *testing.B) {
 }
 
 // ---------------- chain.emit ----------------
+// Bench grid is 2-D: (nAttrs, perElemBytes). The fitter regresses
+// cost = base + α·nAttrs + β·totalBytes. Constant-byte benches isolate
+// the count slope (α); constant-count benches isolate the byte slope (β).
+// emit truncates each value to MaxEventAttrLen=1024, so per-element
+// payloads above that cap don't grow the marshal cost — we keep the
+// bytes-grid at ≤1024/element so β reflects real marshal work.
 
-func benchChainEmit(b *testing.B, nAttrs int) {
+func benchChainEmit(b *testing.B, nAttrs, perElemBytes int) {
 	b.Helper()
+	elem := strings.Repeat("k", perElemBytes)
 	attrs := make([]string, nAttrs)
 	for i := range attrs {
-		attrs[i] = "k"
+		attrs[i] = elem
 	}
 	if len(attrs)%2 != 0 {
 		attrs = attrs[:len(attrs)-1]
@@ -274,11 +281,18 @@ func benchChainEmit(b *testing.B, nAttrs int) {
 	}
 }
 
-func BenchmarkNative_Chain_Emit_2(b *testing.B)   { benchChainEmit(b, 2) }
-func BenchmarkNative_Chain_Emit_10(b *testing.B)  { benchChainEmit(b, 10) }
-func BenchmarkNative_Chain_Emit_100(b *testing.B) { benchChainEmit(b, 100) }
+// Count axis (perElemBytes=1).
+func BenchmarkNative_Chain_Emit_2_1(b *testing.B)   { benchChainEmit(b, 2, 1) }
+func BenchmarkNative_Chain_Emit_10_1(b *testing.B)  { benchChainEmit(b, 10, 1) }
+func BenchmarkNative_Chain_Emit_100_1(b *testing.B) { benchChainEmit(b, 100, 1) }
 // 128 = MaxEventPairs * 2 — the new hard cap from emit_event.go.
-func BenchmarkNative_Chain_Emit_128(b *testing.B) { benchChainEmit(b, 128) }
+func BenchmarkNative_Chain_Emit_128_1(b *testing.B) { benchChainEmit(b, 128, 1) }
+
+// Bytes axis (nAttrs=2). 1024 is MaxEventAttrLen; above that emit truncates
+// silently so additional bytes don't grow the marshal slope.
+func BenchmarkNative_Chain_Emit_2_50(b *testing.B)   { benchChainEmit(b, 2, 50) }
+func BenchmarkNative_Chain_Emit_2_500(b *testing.B)  { benchChainEmit(b, 2, 500) }
+func BenchmarkNative_Chain_Emit_2_1024(b *testing.B) { benchChainEmit(b, 2, 1024) }
 
 // ---------------- chain/params ----------------
 // Per-native cost is X_ wrapper overhead only; per-byte storage cost is
@@ -322,11 +336,14 @@ func BenchmarkNative_Params_SetString_10(b *testing.B)   { benchParamsSetString(
 func BenchmarkNative_Params_SetString_100(b *testing.B)  { benchParamsSetString(b, 100) }
 func BenchmarkNative_Params_SetString_1000(b *testing.B) { benchParamsSetString(b, 1000) }
 
-func benchParamsSetStrings(b *testing.B, n int) {
+// 2-D grid: count varies (perElem=1) for α; per-elem varies (count=2)
+// for β. Bytes are unbounded (no truncation), so β extends to 50k/element.
+func benchParamsSetStrings(b *testing.B, n, perElemBytes int) {
 	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
 	val := make([]string, n)
 	for i := range val {
-		val[i] = "x"
+		val[i] = elem
 	}
 	m := newDispatchMachine(2)
 	addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
@@ -339,10 +356,14 @@ func benchParamsSetStrings(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Params_SetStrings_1(b *testing.B)    { benchParamsSetStrings(b, 1) }
-func BenchmarkNative_Params_SetStrings_10(b *testing.B)   { benchParamsSetStrings(b, 10) }
-func BenchmarkNative_Params_SetStrings_100(b *testing.B)  { benchParamsSetStrings(b, 100) }
-func BenchmarkNative_Params_SetStrings_1000(b *testing.B) { benchParamsSetStrings(b, 1000) }
+func BenchmarkNative_Params_SetStrings_1_1(b *testing.B)    { benchParamsSetStrings(b, 1, 1) }
+func BenchmarkNative_Params_SetStrings_10_1(b *testing.B)   { benchParamsSetStrings(b, 10, 1) }
+func BenchmarkNative_Params_SetStrings_100_1(b *testing.B)  { benchParamsSetStrings(b, 100, 1) }
+func BenchmarkNative_Params_SetStrings_1000_1(b *testing.B) { benchParamsSetStrings(b, 1000, 1) }
+func BenchmarkNative_Params_SetStrings_2_50(b *testing.B)    { benchParamsSetStrings(b, 2, 50) }
+func BenchmarkNative_Params_SetStrings_2_500(b *testing.B)   { benchParamsSetStrings(b, 2, 500) }
+func BenchmarkNative_Params_SetStrings_2_5000(b *testing.B)  { benchParamsSetStrings(b, 2, 5000) }
+func BenchmarkNative_Params_SetStrings_2_50000(b *testing.B) { benchParamsSetStrings(b, 2, 50000) }
 
 func BenchmarkNative_Params_SetBool(b *testing.B) {
 	m := newDispatchMachine(2)
@@ -453,11 +474,12 @@ func BenchmarkNative_SysParams_SetString_1000(b *testing.B) { benchSysParamsSetS
 
 // ---- sys/params: setSysParamStrings ----
 
-func benchSysParamsSetStrings(b *testing.B, n int) {
+func benchSysParamsSetStrings(b *testing.B, n, perElemBytes int) {
 	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
 	val := make([]string, n)
 	for i := range val {
-		val[i] = "x"
+		val[i] = elem
 	}
 	m := newDispatchMachine(4)
 	addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
@@ -472,18 +494,23 @@ func benchSysParamsSetStrings(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_SysParams_SetStrings_1(b *testing.B)    { benchSysParamsSetStrings(b, 1) }
-func BenchmarkNative_SysParams_SetStrings_10(b *testing.B)   { benchSysParamsSetStrings(b, 10) }
-func BenchmarkNative_SysParams_SetStrings_100(b *testing.B)  { benchSysParamsSetStrings(b, 100) }
-func BenchmarkNative_SysParams_SetStrings_1000(b *testing.B) { benchSysParamsSetStrings(b, 1000) }
+func BenchmarkNative_SysParams_SetStrings_1_1(b *testing.B)    { benchSysParamsSetStrings(b, 1, 1) }
+func BenchmarkNative_SysParams_SetStrings_10_1(b *testing.B)   { benchSysParamsSetStrings(b, 10, 1) }
+func BenchmarkNative_SysParams_SetStrings_100_1(b *testing.B)  { benchSysParamsSetStrings(b, 100, 1) }
+func BenchmarkNative_SysParams_SetStrings_1000_1(b *testing.B) { benchSysParamsSetStrings(b, 1000, 1) }
+func BenchmarkNative_SysParams_SetStrings_2_50(b *testing.B)    { benchSysParamsSetStrings(b, 2, 50) }
+func BenchmarkNative_SysParams_SetStrings_2_500(b *testing.B)   { benchSysParamsSetStrings(b, 2, 500) }
+func BenchmarkNative_SysParams_SetStrings_2_5000(b *testing.B)  { benchSysParamsSetStrings(b, 2, 5000) }
+func BenchmarkNative_SysParams_SetStrings_2_50000(b *testing.B) { benchSysParamsSetStrings(b, 2, 50000) }
 
 // ---- sys/params: updateSysParamStrings ----
 
-func benchSysParamsUpdateStrings(b *testing.B, n int) {
+func benchSysParamsUpdateStrings(b *testing.B, n, perElemBytes int) {
 	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
 	val := make([]string, n)
 	for i := range val {
-		val[i] = "x"
+		val[i] = elem
 	}
 	m := newDispatchMachine(5)
 	addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
@@ -499,10 +526,14 @@ func benchSysParamsUpdateStrings(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_SysParams_UpdateStrings_1(b *testing.B)    { benchSysParamsUpdateStrings(b, 1) }
-func BenchmarkNative_SysParams_UpdateStrings_10(b *testing.B)   { benchSysParamsUpdateStrings(b, 10) }
-func BenchmarkNative_SysParams_UpdateStrings_100(b *testing.B)  { benchSysParamsUpdateStrings(b, 100) }
-func BenchmarkNative_SysParams_UpdateStrings_1000(b *testing.B) { benchSysParamsUpdateStrings(b, 1000) }
+func BenchmarkNative_SysParams_UpdateStrings_1_1(b *testing.B)    { benchSysParamsUpdateStrings(b, 1, 1) }
+func BenchmarkNative_SysParams_UpdateStrings_10_1(b *testing.B)   { benchSysParamsUpdateStrings(b, 10, 1) }
+func BenchmarkNative_SysParams_UpdateStrings_100_1(b *testing.B)  { benchSysParamsUpdateStrings(b, 100, 1) }
+func BenchmarkNative_SysParams_UpdateStrings_1000_1(b *testing.B) { benchSysParamsUpdateStrings(b, 1000, 1) }
+func BenchmarkNative_SysParams_UpdateStrings_2_50(b *testing.B)    { benchSysParamsUpdateStrings(b, 2, 50) }
+func BenchmarkNative_SysParams_UpdateStrings_2_500(b *testing.B)   { benchSysParamsUpdateStrings(b, 2, 500) }
+func BenchmarkNative_SysParams_UpdateStrings_2_5000(b *testing.B)  { benchSysParamsUpdateStrings(b, 2, 5000) }
+func BenchmarkNative_SysParams_UpdateStrings_2_50000(b *testing.B) { benchSysParamsUpdateStrings(b, 2, 50000) }
 
 // ---- sys/params: flat setters (Bool/Int64/Uint64) ----
 
@@ -602,11 +633,12 @@ func BenchmarkNative_SysParams_GetString_1000(b *testing.B) { benchSysParamsGetS
 
 // ---- sys/params: getSysParamStrings ---- (post-call slope on returned []string len)
 
-func benchSysParamsGetStrings(b *testing.B, n int) {
+func benchSysParamsGetStrings(b *testing.B, n, perElemBytes int) {
 	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
 	val := make([]string, n)
 	for i := range val {
-		val[i] = "x"
+		val[i] = elem
 	}
 	m := newDispatchMachine(3)
 	_, pm := addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
@@ -621,18 +653,23 @@ func benchSysParamsGetStrings(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_SysParams_GetStrings_1(b *testing.B)    { benchSysParamsGetStrings(b, 1) }
-func BenchmarkNative_SysParams_GetStrings_10(b *testing.B)   { benchSysParamsGetStrings(b, 10) }
-func BenchmarkNative_SysParams_GetStrings_100(b *testing.B)  { benchSysParamsGetStrings(b, 100) }
-func BenchmarkNative_SysParams_GetStrings_1000(b *testing.B) { benchSysParamsGetStrings(b, 1000) }
+func BenchmarkNative_SysParams_GetStrings_1_1(b *testing.B)    { benchSysParamsGetStrings(b, 1, 1) }
+func BenchmarkNative_SysParams_GetStrings_10_1(b *testing.B)   { benchSysParamsGetStrings(b, 10, 1) }
+func BenchmarkNative_SysParams_GetStrings_100_1(b *testing.B)  { benchSysParamsGetStrings(b, 100, 1) }
+func BenchmarkNative_SysParams_GetStrings_1000_1(b *testing.B) { benchSysParamsGetStrings(b, 1000, 1) }
+func BenchmarkNative_SysParams_GetStrings_2_50(b *testing.B)    { benchSysParamsGetStrings(b, 2, 50) }
+func BenchmarkNative_SysParams_GetStrings_2_500(b *testing.B)   { benchSysParamsGetStrings(b, 2, 500) }
+func BenchmarkNative_SysParams_GetStrings_2_5000(b *testing.B)  { benchSysParamsGetStrings(b, 2, 5000) }
+func BenchmarkNative_SysParams_GetStrings_2_50000(b *testing.B) { benchSysParamsGetStrings(b, 2, 50000) }
 
 // ---- chain/params: UpdateParamStrings ----
 
-func benchParamsUpdateStrings(b *testing.B, n int) {
+func benchParamsUpdateStrings(b *testing.B, n, perElemBytes int) {
 	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
 	val := make([]string, n)
 	for i := range val {
-		val[i] = "x"
+		val[i] = elem
 	}
 	m := newDispatchMachine(3)
 	addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
@@ -646,10 +683,14 @@ func benchParamsUpdateStrings(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Params_UpdateStrings_1(b *testing.B)    { benchParamsUpdateStrings(b, 1) }
-func BenchmarkNative_Params_UpdateStrings_10(b *testing.B)   { benchParamsUpdateStrings(b, 10) }
-func BenchmarkNative_Params_UpdateStrings_100(b *testing.B)  { benchParamsUpdateStrings(b, 100) }
-func BenchmarkNative_Params_UpdateStrings_1000(b *testing.B) { benchParamsUpdateStrings(b, 1000) }
+func BenchmarkNative_Params_UpdateStrings_1_1(b *testing.B)    { benchParamsUpdateStrings(b, 1, 1) }
+func BenchmarkNative_Params_UpdateStrings_10_1(b *testing.B)   { benchParamsUpdateStrings(b, 10, 1) }
+func BenchmarkNative_Params_UpdateStrings_100_1(b *testing.B)  { benchParamsUpdateStrings(b, 100, 1) }
+func BenchmarkNative_Params_UpdateStrings_1000_1(b *testing.B) { benchParamsUpdateStrings(b, 1000, 1) }
+func BenchmarkNative_Params_UpdateStrings_2_50(b *testing.B)    { benchParamsUpdateStrings(b, 2, 50) }
+func BenchmarkNative_Params_UpdateStrings_2_500(b *testing.B)   { benchParamsUpdateStrings(b, 2, 500) }
+func BenchmarkNative_Params_UpdateStrings_2_5000(b *testing.B)  { benchParamsUpdateStrings(b, 2, 5000) }
+func BenchmarkNative_Params_UpdateStrings_2_50000(b *testing.B) { benchParamsUpdateStrings(b, 2, 50000) }
 
 // ---------------- chain/runtime ----------------
 
