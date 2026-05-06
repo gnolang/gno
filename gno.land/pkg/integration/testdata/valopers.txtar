@@ -35,7 +35,7 @@ stdout '\* \[berty\]'
 stderr 'panic: valoper does not exist'
 
 # make a proposal
-gnokey maketx run  -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/new_proposal_good.gno
+gnokey maketx run  -gas-fee 4400001ugnot -gas-wanted 44_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run/new_proposal_good.gno
 stdout OK!
 
 # see the valoper in gov/dao Render
