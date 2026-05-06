@@ -32,11 +32,11 @@ const (
 // registerTestNative installs a temporary entry into the package-global
 // nativeGasIndex and returns a cleanup func. Tests that need a "no entry"
 // state should NOT call this; they get the panic / no-meter behavior.
-func registerTestNative(t testing.TB, gi *NativeGasInfo) func() {
-	t.Helper()
+func registerTestNative(tb testing.TB, gi *NativeGasInfo) func() {
+	tb.Helper()
 	key := testNativePkg + "\x00" + string(testNativeFn)
 	if _, exists := nativeGasIndex[key]; exists {
-		t.Fatalf("test native key %q already registered — fix test cleanup", key)
+		tb.Fatalf("test native key %q already registered — fix test cleanup", key)
 	}
 	nativeGasIndex[key] = gi
 	return func() { delete(nativeGasIndex, key) }

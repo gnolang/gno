@@ -555,6 +555,7 @@ func BenchmarkNative_SysParams_UpdateStrings_2_50000(b *testing.B) {
 // ---- sys/params: flat setters (Bool/Int64/Uint64) ----
 
 func newSysParamsFlatSetBench(b *testing.B, fn gno.Name, val interface{}) *dispatchHarness {
+	b.Helper()
 	m := newDispatchMachine(4)
 	addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
 	setBlockValueFromGo(m, 0, "mod")
@@ -591,6 +592,7 @@ func BenchmarkNative_SysParams_SetUint64(b *testing.B) {
 // ---- sys/params: flat getters (Bool/Int64/Uint64) ----
 
 func newSysParamsFlatGetBench(b *testing.B, fn gno.Name, seed func(*mockParams)) *dispatchHarness {
+	b.Helper()
 	m := newDispatchMachine(3)
 	_, pm := addContextAndFrames(m, "gno.land/r/sys/params", "sys/params")
 	if seed != nil {
@@ -716,6 +718,7 @@ func BenchmarkNative_Params_UpdateStrings_2_50000(b *testing.B) {
 // ---------------- chain/runtime ----------------
 
 func newRuntimeBench(b *testing.B, fn gno.Name, nReturns int) *dispatchHarness {
+	b.Helper()
 	m := newDispatchMachine(0)
 	addContextAndFrames(m, "gno.land/r/x")
 	return &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", fn), nReturns: nReturns}
