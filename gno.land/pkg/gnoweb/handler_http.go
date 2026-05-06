@@ -766,7 +766,6 @@ func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *compon
 	})
 }
 
-
 // GetForkView loads all source files from a package and redirects to playground with the code.
 func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
