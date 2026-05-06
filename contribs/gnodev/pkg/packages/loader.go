@@ -355,11 +355,7 @@ func (l *Loader) LoadAll() ([]*Package, error) {
 	}
 	for i, root := range extraRoots {
 		l.cfg.Logger.Info("loading root", "root", root, "n", i+1, "of", len(extraRoots))
-		pkgs, err := l.loadRootStandalone(root)
-		if err != nil {
-			l.cfg.Logger.Warn("load extra root failed", "root", root, "err", err)
-			continue
-		}
+		pkgs := l.loadRootStandalone(root)
 		l.cfg.Logger.Info("loaded root", "root", root, "packages", len(pkgs))
 		appendUnique(pkgs)
 	}
@@ -370,7 +366,9 @@ func (l *Loader) LoadAll() ([]*Package, error) {
 // loadRootStandalone loads every gnomod.toml-rooted package found under root
 // by resolving each import path individually. Avoids gnovm.Load's "pattern
 // must be inside workspace" check for roots outside the current workspace.
-func (l *Loader) loadRootStandalone(root string) ([]*Package, error) {
+// Per-path failures are warning-logged and skipped; the function never
+// returns a top-level error.
+func (l *Loader) loadRootStandalone(root string) []*Package {
 	l.mu.Lock()
 	idx := l.ensureRootIndexLocked(root)
 	paths := make([]string, 0, len(idx))
@@ -388,7 +386,7 @@ func (l *Loader) loadRootStandalone(root string) ([]*Package, error) {
 		}
 		out = append(out, pkg)
 	}
-	return out, nil
+	return out
 }
 
 func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
