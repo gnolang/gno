@@ -1371,36 +1371,6 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 	}
 }
 
-// TestHTTPHandler_EvalView tests the ?eval query on a realm page.
-func TestHTTPHandler_EvalView(t *testing.T) {
-	t.Parallel()
-
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"mock.gno": `package mock`},
-		Functions: []*doc.JSONFunc{
-			{Name: "Hello", Signature: "Hello() string"},
-			{Name: "unexported", Signature: "unexported()"},
-		},
-	}
-
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/mock/path$eval", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	assert.Contains(t, body, "Expression Evaluator")
-	assert.Contains(t, body, "Hello")
-	assert.NotContains(t, body, "unexported") // non-exported should be filtered
-}
-
 // TestHTTPHandler_ForkView tests the ?fork query on a package page.
 func TestHTTPHandler_ForkView(t *testing.T) {
 	t.Parallel()

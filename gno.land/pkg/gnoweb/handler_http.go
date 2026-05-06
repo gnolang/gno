@@ -316,11 +316,6 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Eval page (expression evaluator)
-	if gnourl.WebQuery.Has("eval") {
-		return h.GetEvalView(ctx, gnourl)
-	}
-
 	// Handle Fork page (fork source to playground)
 	if gnourl.WebQuery.Has("fork") {
 		return h.GetForkView(ctx, gnourl)
@@ -771,23 +766,6 @@ func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *compon
 	})
 }
 
-// GetEvalView renders the expression evaluator page for a package/realm.
-func (h *HTTPHandler) GetEvalView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
-	if err != nil {
-		h.Logger.Error("unable to fetch qdoc for eval", "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
-	}
-
-	funcs := components.BuildEvalFuncs(jdoc)
-
-	return http.StatusOK, components.EvalView(components.EvalData{
-		Remote:    h.Static.RemoteHelp,
-		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
-		Domain:    h.Static.Domain,
-		Functions: funcs,
-	})
-}
 
 // GetForkView loads all source files from a package and redirects to playground with the code.
 func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
