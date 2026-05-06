@@ -58,9 +58,11 @@ func New(cfg Config) *Loader {
 // Resolve returns a previously-seen Package if known, else tries FS and RPC
 // lookups in order. Hits are memoized in the index and added to tracked.
 //
-// Locking: fast path is RLock-only; cold path takes the write lock for the
-// duration of the FS walk and RPC fetch so concurrent Resolve calls for the
-// same path serialize rather than duplicate work.
+// Locking: fast path is RLock-only. The FS walk runs under the write lock
+// (so the per-root index cache is built once). The RPC fetch runs WITHOUT
+// the lock held, so a slow rpcLookup for one path does not block Resolve
+// for unrelated paths. Two concurrent Resolve calls for the same missing
+// path may both hit RPC; the second insert is a no-op via re-check.
 func (l *Loader) Resolve(path string) (*Package, error) {
 	l.mu.RLock()
 	if p, ok := l.index[path]; ok {
@@ -69,24 +71,36 @@ func (l *Loader) Resolve(path string) (*Package, error) {
 	}
 	l.mu.RUnlock()
 
+	// FS lookup under write lock: ensureRootIndexLocked mutates l.rootIdx.
 	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	// Re-check: another goroutine may have inserted it while we waited.
 	if p, ok := l.index[path]; ok {
+		l.mu.Unlock()
 		return p, nil
 	}
 	if pkg := l.fsLookupLocked(path); pkg != nil {
 		l.index[pkg.ImportPath] = pkg
 		l.tracked[pkg.ImportPath] = struct{}{}
+		l.mu.Unlock()
 		return pkg, nil
 	}
-	if pkg := l.rpcLookup(path); pkg != nil {
-		l.index[pkg.ImportPath] = pkg
-		l.tracked[pkg.ImportPath] = struct{}{}
-		return pkg, nil
+	l.mu.Unlock()
+
+	// RPC fetch with no lock held: the fetcher field is set once in New and
+	// never mutated, and a slow network call must not block unrelated paths.
+	pkg := l.rpcLookup(path)
+	if pkg == nil {
+		return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
 	}
-	return nil, fmt.Errorf("%w: %s", ErrPackageNotFound, path)
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	// Re-check: another goroutine may have inserted while we were fetching.
+	if existing, ok := l.index[pkg.ImportPath]; ok {
+		return existing, nil
+	}
+	l.index[pkg.ImportPath] = pkg
+	l.tracked[pkg.ImportPath] = struct{}{}
+	return pkg, nil
 }
 
 // LookupFS reports whether path is reachable via the loader's filesystem
