@@ -64,10 +64,11 @@ type Loader struct { /* cfg, fetcher, index, tracked, rootIdx, mu */ }
 
 func New(cfg Config) *Loader
 
-func (l *Loader) LoadWorkspace() ([]*Package, error) // eager, workspace only
-func (l *Loader) Reload()        ([]*Package, error) // workspace + tracked
-func (l *Loader) LoadAll()       ([]*Package, error) // workspace + examples + roots, all eager
-func (l *Loader) Resolve(path string) (*Package, error) // per-path lookup for the proxy
+func (l *Loader) LoadWorkspace() ([]*Package, error)        // eager, workspace only
+func (l *Loader) Reload()        ([]*Package, error)        // workspace + tracked
+func (l *Loader) LoadAll()       ([]*Package, error)        // workspace + examples + roots, all eager
+func (l *Loader) Resolve(path string) (*Package, error)     // per-path lookup for the proxy
+func (l *Loader) LookupFS(path string) bool                 // FS-only, non-mutating lookup for diagnostics
 ```
 
 `LoadWorkspace` and `LoadAll` call `gnovm.Load` directly — they pass
@@ -76,12 +77,13 @@ workspace / root patterns that `expandPatterns` understands.
 `Reload` is hybrid, because `gnovm`'s pattern expander treats bare import
 paths (what the proxy accumulates via `Resolve`) as modcache lookups, not
 filesystem scans. So `Reload` calls `gnovm.Load` once for the workspace
-pattern, then invalidates the per-root index (so on-disk changes are
-picked up), clears tracked entries from `index`, and re-runs `Resolve`
-for every tracked path. The union of workspace pkgs + re-resolved tracked
-pkgs is returned. Dep walking happens at the workspace level via
-`gnovm.Load`; proxy-discovered deps are re-discovered request-by-request
-by the proxy itself, consistent with the lazy model.
+pattern, clears tracked entries from `index` (so they are re-derived from
+disk on the next `Resolve`), and re-runs `Resolve` for every tracked
+path. The union of workspace pkgs + re-resolved tracked pkgs is
+returned. Dep walking happens at the workspace level via `gnovm.Load`;
+proxy-discovered deps are re-discovered request-by-request by the proxy
+itself, consistent with the lazy model. `rootIdx` is preserved across
+Reload — see the Root scan caching section.
 
 `Resolve` does **not** call `gnovm.Load`. It:
 1. Hits the internal index if already loaded.
@@ -92,10 +94,22 @@ by the proxy itself, consistent with the lazy model.
 
 Hits populate the index and a `tracked` set used by `Reload`.
 
+`LookupFS` is the read-only sibling of `Resolve`: it tells the caller
+whether a path is reachable on the filesystem (workspace + extra roots
++ `$GNOROOT/examples` when enabled) without consulting the rpc fetcher
+and without mutating the index or tracked sets. Used by pre-flight
+diagnostics (e.g. the `-no-examples` import-graph check) that must
+neither block startup on the network nor pollute loader state.
+
 ### Package kind rule
 
-Every `*Package` carries a `Kind` of `FS` or `Remote`:
+Every `*Package` carries a `Kind`:
 
+- `Kind = KindUnknown` is the iota=0 zero value. A `Package{}` literal
+  constructed without setting `Kind` reads as `KindUnknown` rather than
+  silently registering as filesystem-backed; the watcher's `Kind == KindFS`
+  filter then excludes it loudly instead of trying to watch a nonexistent
+  dir.
 - `Kind = KindRemote` iff the package's directory lives under
   `gnomod.ModCachePath()` (RPC-fetched packages) or was constructed from an
   in-memory `MemPackage` (tests, RPC fallback). The watcher skips these —
@@ -114,7 +128,11 @@ watcher's reload already picks up newly added packages via
 
 rootIdx is **not** invalidated on Reload — directories are stable
 mid-session, and re-walking large extra roots on every watcher tick is
-too expensive. New directories require a gnodev restart.
+too expensive. New directories require a gnodev restart. The same
+property has a corollary cost: deletion of an extra-root directory
+mid-session is not detected; `Resolve` returns the stale dir from the
+cached index until restart, and the subsequent `ReadMemPackage` then
+fails at use time. Acceptable for a dev tool.
 
 ### User-facing changes
 
@@ -122,18 +140,33 @@ too expensive. New directories require a gnodev restart.
 |---|---|
 | `-resolver <name>=<loc>` | `-extra-root <dir>` (repeatable) |
 | `-lazy-loader` | `-no-examples` |
+|  | `-remote-override <domain>=<rpc>` (repeatable) |
+
+`-remote-override` closes the migration gap left by removing
+`-resolver remote=<rpc>`: it populates `Config.RemoteOverrides`, which
+`rpcpkgfetcher.New` consumes when resolving paths outside the workspace.
+Workspace packages hit the FS lookup first, so the override only ever
+applies to cross-workspace and unresolved imports.
+
+When `gnodev local` runs in a directory without `gnomod.toml`, the
+fallback import path is derived from the directory basename. The
+basename is sanitized to match gno's `Re_name` rule (lowercase
+`[a-z0-9_]`, must start with a letter or `_<letter>`); inputs with no
+letters fall back to `app`.
 
 Modes are not exposed. Behavior is derived from filesystem state
-(workspace detected via `gnowork.toml` / `gnomod.toml`) plus the two flags.
+(workspace detected via `gnowork.toml` / `gnomod.toml`) plus the three
+loader flags (`-no-examples`, `-extra-root`, `-remote-override`).
 
 | CWD state | Flags | Behavior |
 |---|---|---|
 | In workspace | default | Eager load workspace; examples lazy via proxy |
-| In workspace | `-no-examples` | Eager load workspace; no proxy |
-| No workspace | default | Warning logged; examples lazy via proxy |
+| In workspace | `-no-examples` | Eager load workspace; no proxy. Workspace imports of `gno.land/*` paths unreachable via FS roots are warned at startup. |
+| No workspace | default | Discovery-mode banner on stderr; examples lazy via proxy. `gnodev local` registers CWD as an extra-root automatically so loose-realm dirs still resolve. |
 | No workspace | `-no-examples`, no `-extra-root` | **Fatal**: "nothing to load". Explicit combination of flags asks gnodev to do nothing. |
 | Any | `-extra-root <dir>` (nonexistent) | Warning logged; invalid root skipped |
 | Any | `-extra-root <dir>` (valid) | `<dir>` added to the lazy set |
+| Any | `-remote-override gno.land=<rpc>` | Cross-workspace fetches for the given domain go to `<rpc>` instead of the default |
 
 `gnodev staging` continues to eager-load everything (workspace + examples +
 extra roots) and does not start the proxy. Internally it calls
@@ -152,11 +185,16 @@ Fatal only in two cases:
 Everything else is a warning and gnodev proceeds with whatever it managed
 to assemble:
 
-- Missing workspace: warn, run in discovery mode.
+- Missing workspace: a multi-line banner is written to stderr before the
+  slog pipeline starts (so the user sees "discovery mode" as a distinct
+  startup message rather than buried in a log group); gnodev proceeds.
 - Nonexistent `-extra-root`: warn, skip that root.
 - `Resolve` miss in the proxy: debug log, skip — normal in lazy mode.
 - `rpcpkgfetcher` failure: warn, skip — remote not reachable or path
   absent.
+- `-no-examples` + workspace pkg imports unresolvable `gno.land/*` paths:
+  one-shot pre-flight via `LookupFS` warns with the missing import paths
+  and a hint. Non-fatal — the user may be intentionally stubbing.
 - Reload failure after startup: error log; node keeps the previous state
   live so the user can fix and re-save.
 
@@ -246,7 +284,7 @@ real capability.
 
 - One loader. No parallel implementation to keep in sync.
 - ~1000 lines removed from `contribs/gnodev/pkg/packages/`.
-- Simpler user UX: two flags, no modes, one subcommand.
+- Simpler user UX: three flags (no modes, no resolver chain), one subcommand.
 - Testing surface shrinks: no middleware chain to cover.
 - Mock/test fixture support moves upstream where other tools can reuse it.
 
@@ -266,14 +304,20 @@ real capability.
 
 ### Deferred
 
-- Whether `Config.RemoteOverrides` needs a dedicated user-facing flag, or
-  whether `-chain-domain` + `rpcpkgfetcher` defaults cover the common case.
 - Whether `gnodev staging` should grow a distinct name (`sim`, `genesis`,
   etc.). Keeping `staging` for now; rename if intent diverges.
+- A `gnodev packages list` subcommand that dumps the loader's index,
+  tracked set, and rootIdx for diagnosing "why isn't my package
+  loading?" without grep-walking debug logs.
 
 ## References
 
-- PR [#4957](https://github.com/gnolang/gno/pull/4957)
+- PR [#4957](https://github.com/gnolang/gno/pull/4957) — initial migration
+- PR [#5604](https://github.com/gnolang/gno/pull/5604) — follow-up
+  refinements (`-remote-override` flag, discovery-mode banner,
+  `-no-examples` import-graph diagnostic, `LookupFS` FS-only lookup,
+  `KindUnknown` zero value, rootIdx Reload preservation, guessPath
+  basename sanitization, staging progress logging)
 - `gnovm/pkg/packages/` — native loader
-- `contribs/gnodev/pkg/packages/` — code being replaced
+- `contribs/gnodev/pkg/packages/` — gnodev's loader package
 - `contribs/gnodev/pkg/proxy/path_interceptor.go` — lazy proxy
