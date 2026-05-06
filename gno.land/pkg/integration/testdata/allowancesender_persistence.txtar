@@ -34,7 +34,7 @@ gnoland start
 # granter creates 500_000 ugnot allowance, callee spends 200_000
 # during the call, granter's defer closes after. Funds move via
 # the inner banker; allowance correctly tracks spent.
-gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpend -args 500000 -args 200000 -send 500000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpend -args 500000 -args 200000 -send 500000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
 stdout OK!
 
 # ============================================================
@@ -42,7 +42,7 @@ stdout OK!
 # ============================================================
 # granter creates 100_000 cap, callee tries to spend 200_000.
 # Wrapper rejects with "cap exceeded".
-! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpend -args 100000 -args 200000 -send 100000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpend -args 100000 -args 200000 -send 100000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
 stderr 'cap exceeded'
 
 # ============================================================
@@ -50,7 +50,7 @@ stderr 'cap exceeded'
 # ============================================================
 # callee constructs a negative chain.Coin and passes to Send.
 # Wrapper rejects with "negative amount not allowed".
-! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpendNegative -send 100000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpendNegative -send 100000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
 stderr 'negative amount not allowed'
 
 # ============================================================
@@ -63,7 +63,7 @@ stderr 'negative amount not allowed'
 # the receiver is propagated through the deferred call's
 # PushFrameCall, the implicit borrow-realm switch fires, m.Realm
 # becomes callee inside Close, and the field write succeeds.
-gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
 stdout OK!
 
 -- callee/gnomod.toml --

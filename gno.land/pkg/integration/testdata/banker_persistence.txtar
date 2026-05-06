@@ -19,25 +19,25 @@ gnoland start
 # Phase 1: same-realm persistence over multiple txs + exhaustion.
 # ============================================================
 # tx1: A.Save() stores a banker for itself, funded with 1M ugnot.
-gnokey maketx call -pkgpath gno.land/r/test/bankera -func Save -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func Save -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx2: A's balance is 1_000_000. Spend 600_000 via the persisted banker.
-gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 600000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 600000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx3: A's balance is now 400_000. Spend 300_000.
-gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 300000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 300000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx4: A's balance is now 100_000. Spend 99_000 (cuts it close).
-gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 99000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 99000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx5: A has only 1000 left. Try to spend 50_000 — must fail with
 # bank-level insufficient-funds error. Confirms the persisted banker
 # isn't somehow detached from real-time balance state.
-! gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 50000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 50000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stderr 'insufficient'
 
 # ============================================================
@@ -49,26 +49,26 @@ stderr 'insufficient'
 # tx6: A.GiveBankerToB() creates a RealmSend-typed banker (scoped to
 #      A's address) and passes it to B. -send funds A's address with
 #      another 500_000 ugnot to give B something to drain.
-gnokey maketx call -pkgpath gno.land/r/test/bankera -func GiveBankerToB -send 500000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func GiveBankerToB -send 500000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx7: B.UseGivenBanker spends 200_000 from A's address. (A had 1000
 #      left + 500_000 added = 501_000 going into this.)
-gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 200000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 200000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx8: A's balance is now 301_000. B drains another 250_000.
-gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 250000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 250000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 # tx9: A's balance is now 51_000. Try to drain 100_000 — must fail.
 # Confirms cross-realm persisted banker also enforces bank-level limits.
-! gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stderr 'insufficient'
 
 # tx10: B confirms the persisted banker still works for any amount
 #       within balance (sanity check after the failed overdraft).
-gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 50000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 50000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stdout OK!
 
 -- bankera/gnomod.toml --

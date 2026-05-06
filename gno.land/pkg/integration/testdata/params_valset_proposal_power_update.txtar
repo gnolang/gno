@@ -29,13 +29,13 @@ gnoland start
 
 # === PROPOSAL 0: ADD VALIDATOR AT POWER 1 ===
 
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # Post-add: pubkey at power 1.
@@ -44,13 +44,13 @@ stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aad
 
 # === PROPOSAL 1: UPDATE POWER 1 → 3 ===
 
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/update_proposal.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/update_proposal.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -chainid=tendermint_test member
 stdout OK!
 
 # Post-update: pubkey at power 3, NOT at power 1.
@@ -63,7 +63,7 @@ stdout 'false'
 
 # Liveness check past H+2 — chain made progress through the
 # power-update transition.
-gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
 stdout OK!
 
 -- run/add_proposal.gno --
