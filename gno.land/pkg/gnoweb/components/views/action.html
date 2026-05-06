@@ -56,6 +56,8 @@ UI - Help Function component
 </div>
 {{ end }}
 
+{{ template "ui/eval_expression" $data }}
+
 <h2 class="b-content-h2">
   Function{{- if gt (len .Functions) 1 }}s{{- end }}
 </h2>
@@ -175,5 +177,49 @@ UI - Help Function component
     {{ end }}
   </article>
   {{ end }}
+</div>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Eval expression snippet (inline evaluator for action page)
+=================================================================================== */}}
+{{ define "ui/eval_expression" }}
+<div class="b-action-eval" data-controller="action-eval"
+  data-action-eval-pkg-path-value="{{ .PkgPath }}">
+
+  <h2 class="b-content-h2">Gno Expression Evaluator</h2>
+  <p class="u-color-muted">
+    Evaluate read-only expressions against <code class="u-font-mono">{{ .PkgPath }}</code>
+  </p>
+
+  <form data-action="submit->action-eval#evalExpression" class="b-action-eval-form">
+    <div class="b-input b-input--full">
+      <label for="action-eval-expression">Expression</label>
+      <input type="text" id="action-eval-expression"
+        data-action-eval-target="input"
+        placeholder='Render("")' class="u-font-mono"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+    </div>
+    <button type="submit" class="b-btn b-btn--primary c-with-icon">
+      <svg class="c-icon"><use href="#ico-tx-link"></use></svg>
+      <span>Eval</span>
+    </button>
+  </form>
+
+  <div class="b-action-eval-result">
+    <div class="b-action-eval-result-header">
+      <span class="b-action-eval-result-title">Result</span>
+      <button class="b-action-eval-result-clear"
+        data-action="click->action-eval#clearResult">Clear</button>
+    </div>
+    <pre class="b-action-eval-result-content"
+      data-action-eval-target="result"><span class="u-color-muted">// Enter an expression above</span></pre>
+  </div>
+
+  <div class="b-action-eval-history" data-action-eval-target="history" hidden>
+    <h3 class="b-content-h3">History</h3>
+    <div class="b-action-eval-history-list" data-action-eval-target="history-list"></div>
+  </div>
 </div>
 {{ end }}
