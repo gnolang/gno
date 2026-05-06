@@ -202,6 +202,9 @@ func (ak AccountKeeper) GetSessionAccount(ctx sdk.Context, master, session crypt
 
 // SetSessionAccount stores a session account at /a/<master>/s/<session>.
 func (ak AccountKeeper) SetSessionAccount(ctx sdk.Context, master crypto.Address, acc std.Account) {
+	if acc.GetPubKey() == nil {
+		panic("SetSessionAccount: invariant violation: session account must have a non-nil PubKey")
+	}
 	addr := acc.GetAddress()
 	gctx := ctx.GasContext()
 	stor := ctx.Store(ak.key)

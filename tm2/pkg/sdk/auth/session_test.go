@@ -1617,3 +1617,20 @@ func TestSessionExpiredErrorIncludesTimestamps(t *testing.T) {
 	assert.Contains(t, res.Log, "expires_at=", "expiry error should include expires_at")
 	assert.Contains(t, res.Log, "block_time=", "expiry error should include block_time")
 }
+
+func TestSetSessionAccountPanicsOnNilPubKey(t *testing.T) {
+	t.Parallel()
+
+	env, _, _, masterAddr := setupSessionEnv(t)
+
+	// Create a session account but clear its PubKey to violate the invariant.
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(env.ctx, masterAddr, sessionPub)
+	require.NoError(t, sa.SetPubKey(nil))
+
+	assert.PanicsWithValue(
+		t,
+		"SetSessionAccount: invariant violation: session account must have a non-nil PubKey",
+		func() { env.acck.SetSessionAccount(env.ctx, masterAddr, sa) },
+	)
+}
