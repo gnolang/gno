@@ -108,8 +108,12 @@ func (l *Loader) Resolve(path string) (*Package, error) {
 // root not yet cached. Does NOT consult the rpc fetcher and does NOT mutate
 // l.index or l.tracked, so it is safe for diagnostic / pre-flight use.
 func (l *Loader) LookupFS(path string) bool {
+	// The root list is derived from cfg, which is immutable after New.
+	// Compute it once to avoid duplicate allocations across the lock dance.
+	roots := l.lookupRoots()
+
 	l.mu.RLock()
-	for _, root := range l.lookupRoots() {
+	for _, root := range roots {
 		if rootIdx, ok := l.rootIdx[root]; ok {
 			if _, hit := rootIdx[path]; hit {
 				l.mu.RUnlock()
@@ -123,7 +127,7 @@ func (l *Loader) LookupFS(path string) bool {
 	// concurrent callers serialize on the FS walk rather than duplicating it.
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	for _, root := range l.lookupRoots() {
+	for _, root := range roots {
 		rootIdx := l.ensureRootIndexLocked(root)
 		if _, hit := rootIdx[path]; hit {
 			return true
