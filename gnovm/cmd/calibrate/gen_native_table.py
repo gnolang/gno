@@ -388,10 +388,13 @@ def _param_label(r):
 
 
 def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
-    """Render every calibrated native — linear, flat, and 2-D fits.
+    """Render the parameterized fits — linear and 2-D.
+
+    Flat natives (single horizontal reference; no parameter on the x-axis)
+    are excluded — their plots are visually redundant with the median
+    they encode, and the markdown/table already captures the value.
 
     - Linear panels: median data points (blue) + fit line (red dashed).
-    - Flat panels: median annotated as a single horizontal reference.
     - 2-D panels: two overlaid series — vs count (perElem=1, blue) and
       vs total bytes (count=2, orange). Each series gets the model's
       prediction (dashed) so visual deviation flags a poor fit."""
@@ -400,6 +403,7 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
     except ImportError:
         print("matplotlib not installed, skipping plot", file=sys.stderr)
         return
+    rows = [r for r in rows if r["shape"] != "flat"]
     if not rows:
         return
     n = len(rows)
@@ -411,18 +415,7 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
         ax = axes[i // cols][i % cols]
         param = _param_label(r)
 
-        if r["shape"] == "flat":
-            base = r["base"]
-            ax.axhline(base, color="green", linestyle="-", linewidth=2,
-                       label=f"flat = {base:.1f} ns")
-            ax.set_xlim(0, 1)
-            ax.set_xticks([])
-            ax.spines["bottom"].set_visible(False)
-            ax.tick_params(bottom=False)
-            ax.set_ylim(0, max(base * 2.0, 10))
-            ax.set_title(f"{r['pkg']}.{r['fn']}\n→ {base:.1f} ns flat",
-                         fontsize=9)
-        elif r["shape"] == "2d":
+        if r["shape"] == "2d":
             grid = two_d_data[(r["pkg"], r["fn"])]
             # Series 1: vary count, hold per-elem at min observed (≈1).
             min_p = min(p for (_, p) in grid.keys())
@@ -462,7 +455,20 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
                 f"{r['pkg']}.{r['fn']}\nbase={r['base']:.0f}+α·c+β·b R²={r['r2']:.3f}",
                 fontsize=9)
         else:  # linear
-            d = var_data[(r["pkg"], r["fn"])]
+            # 2-D entries that demoted to 1-D (β rounded to zero) live
+            # in two_d_data, not var_data. Project them onto the count
+            # axis (use the smallest perElem observed; that's the "vs
+            # count, holding bytes near zero" slice that motivated the
+            # 1-D fit).
+            d = var_data.get((r["pkg"], r["fn"]))
+            if d is None:
+                grid = two_d_data.get((r["pkg"], r["fn"]), {})
+                if not grid:
+                    ax.set_title(f"{r['pkg']}.{r['fn']}\n(no data)", fontsize=9)
+                    continue
+                min_p = min(p for (_, p) in grid.keys())
+                d = {c: grid[(c, min_p)]
+                     for (c, p) in grid.keys() if p == min_p}
             sizes = np.array(sorted(d.keys()), dtype=float)
             med = np.array([np.median(d[s]) for s in sizes])
             ax.plot(sizes, med, "bo-", markersize=5, label="median ns/op")
@@ -482,10 +488,7 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
             ax.set_xlabel(param, fontsize=8)
         ax.set_ylabel("ns/op", fontsize=8)
         ax.legend(fontsize=7, loc="best")
-        if r["shape"] == "flat":
-            ax.grid(True, axis="y", alpha=0.3)
-        else:
-            ax.grid(True, which="both", alpha=0.3)
+        ax.grid(True, which="both", alpha=0.3)
 
     for j in range(n, rows_n * cols):
         axes[j // cols][j % cols].axis("off")
