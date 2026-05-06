@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
@@ -132,41 +131,12 @@ func FlushParamsRealmAccum(ctx sdk.Context, pmk ParamsKeeperI, rlmPath string) {
 	pmk.SetBytes(ctx, realmMetaPrefix+rlmPath, packMeta(a.bytes))
 }
 
-// priorSize returns len(key)+len(prior value) when `key` exists, 0
-// otherwise — the oldSize that recordParamsDelta expects (key bytes
-// counted alongside value bytes). pmk.GetBytes does a raw stor.Get,
-// which works for any Set type because the keeper stores either raw
-// bytes (SetBytes) or amino-JSON (set()) under the same byte stream.
-func priorSize(ctx sdk.Context, pmk ParamsKeeperI, key string) int {
-	var bz []byte
-	if pmk.GetBytes(ctx, key, &bz) {
-		return len(key) + len(bz)
-	}
-	return 0
-}
-
-// Encoded sizes after a Set call — match what actually persists via the
-// keeper, computed without re-reading the store. SetBytes stores raw,
-// so its post-size is just len(value) inline at the caller.
-func sizeAfterSetString(v string) int    { return len(amino.MustMarshalJSON(v)) }
-func sizeAfterSetBool(v bool) int        { return len(amino.MustMarshalJSON(v)) }
-func sizeAfterSetInt64(v int64) int      { return len(amino.MustMarshalJSON(v)) }
-func sizeAfterSetUint64(v uint64) int    { return len(amino.MustMarshalJSON(v)) }
-func sizeAfterSetStrings(v []string) int { return len(amino.MustMarshalJSON(v)) }
-
 // recordParamsDelta is called from each SDKParams.Set* AFTER the keeper
-// write succeeds. Skips sys/params keys (no "vm:" prefix). Lazily loads
-// the persistent baseline once per realm per message.
-//
-// oldSize and newSize already include key bytes alongside value bytes
-// (both persist on disk). Conventions enforced by callers:
-//   - oldSize: 0 if absent before this write, else len(key)+len(prior value)
-//   - newSize: 0 if this write deletes (SetBytes nil), else
-//     len(key)+len(new value)
-//
-// The delta is unconditionally newSize-oldSize; create/delete/update
-// fall out naturally.
-func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, oldSize, newSize int) {
+// write succeeds, with the signed byte delta returned by the keeper's
+// Set method (newSize-oldSize, key bytes added on first-create or
+// subtracted on delete). Skips sys/params keys (no "vm:" prefix).
+// Lazily loads the persistent baseline once per realm per message.
+func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, diff int) {
 	rlm, ok := realmFromKey(key)
 	if !ok {
 		return // sys/params or meta key
@@ -187,7 +157,7 @@ func recordParamsDelta(ctx sdk.Context, pmk ParamsKeeperI, key string, oldSize, 
 		}
 		a.loaded = true
 	}
-	d := int64(newSize - oldSize)
+	d := int64(diff)
 	a.bytes += d
 	floored := false
 	if a.bytes < 0 {

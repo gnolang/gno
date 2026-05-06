@@ -245,7 +245,7 @@ func TestParamsRecordDeltaSkipsNonRealmKeys(t *testing.T) {
 		"vm:bar:baz",                  // sys/params via "vm" module — bare submodule, no "/"
 		"vm:p:something",              // VM-internal config writes ("vm:p" struct)
 	} {
-		recordParamsDelta(ctx, env.prmk, k, 0, 100)
+		recordParamsDelta(ctx, env.prmk, k, 100)
 	}
 
 	diffs := ParamsRealmDiffs(ctx)

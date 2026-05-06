@@ -80,60 +80,51 @@ func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 }
 
 // The key has the format <module>:(<realm>:)?<paramname>. Each Set
-// wraps in setWithCheck for module-prefix validation and feeds
-// recordParamsDelta with pre/post sizes for per-realm storage deposit
-// accounting. See gno.land/pkg/sdk/vm/params_deposit.go.
+// wraps in setWithCheck for module-prefix validation, then captures
+// the byte delta returned by the params keeper and feeds it to
+// recordParamsDelta for per-realm storage-deposit accounting. The
+// keeper's Set methods do their own internal Get-with-nil-gctx to
+// compute the delta — no separate metered read is needed here.
+// See gno.land/pkg/sdk/vm/params_deposit.go.
 func (prm *SDKParams) SetString(key string, value string) {
 	prm.setWithCheck(key, func() {
-		old := priorSize(prm.ctx, prm.pmk, key)
-		prm.pmk.SetString(prm.ctx, key, value)
-		recordParamsDelta(prm.ctx, prm.pmk, key, old, len(key)+sizeAfterSetString(value))
+		diff := prm.pmk.SetString(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
 	})
 }
 
 func (prm *SDKParams) SetBool(key string, value bool) {
 	prm.setWithCheck(key, func() {
-		old := priorSize(prm.ctx, prm.pmk, key)
-		prm.pmk.SetBool(prm.ctx, key, value)
-		recordParamsDelta(prm.ctx, prm.pmk, key, old, len(key)+sizeAfterSetBool(value))
+		diff := prm.pmk.SetBool(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
 	})
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
 	prm.setWithCheck(key, func() {
-		old := priorSize(prm.ctx, prm.pmk, key)
-		prm.pmk.SetInt64(prm.ctx, key, value)
-		recordParamsDelta(prm.ctx, prm.pmk, key, old, len(key)+sizeAfterSetInt64(value))
+		diff := prm.pmk.SetInt64(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
 	})
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
 	prm.setWithCheck(key, func() {
-		old := priorSize(prm.ctx, prm.pmk, key)
-		prm.pmk.SetUint64(prm.ctx, key, value)
-		recordParamsDelta(prm.ctx, prm.pmk, key, old, len(key)+sizeAfterSetUint64(value))
+		diff := prm.pmk.SetUint64(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
 	})
 }
 
 func (prm *SDKParams) SetBytes(key string, value []byte) {
 	prm.setWithCheck(key, func() {
-		old := priorSize(prm.ctx, prm.pmk, key)
-		prm.pmk.SetBytes(prm.ctx, key, value)
-		// SetBytes(key, nil) deletes the entry; []byte{} stores empty.
-		// Only the delete path collapses to newSize=0.
-		newSize := 0
-		if value != nil {
-			newSize = len(key) + len(value)
-		}
-		recordParamsDelta(prm.ctx, prm.pmk, key, old, newSize)
+		diff := prm.pmk.SetBytes(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
 	})
 }
 
 func (prm *SDKParams) SetStrings(key string, value []string) {
 	prm.setWithCheck(key, func() {
-		old := priorSize(prm.ctx, prm.pmk, key)
-		prm.pmk.SetStrings(prm.ctx, key, value)
-		recordParamsDelta(prm.ctx, prm.pmk, key, old, len(key)+sizeAfterSetStrings(value))
+		diff := prm.pmk.SetStrings(prm.ctx, key, value)
+		recordParamsDelta(prm.ctx, prm.pmk, key, diff)
 	})
 }
 
