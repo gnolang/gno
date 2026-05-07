@@ -22,3 +22,8 @@
 
 - Before writing or reviewing any caller-authentication, access-control, or cross-realm code in Gno (`/r/`, `/p/`, `/e/` packages), read `docs/resources/gno-interrealm.md`. Do not pattern-match from Solidity `msg.sender` or other-language intuition.
 - `runtime.PreviousRealm()` only shifts on explicit cross-calls (`fn(cross, ...)`) into crossing functions (`func fn(cur realm, ...){...}`). A `PreviousRealm().PkgPath() == "..."` check inside a non-crossing function does NOT identify the immediate caller and is a security bug.
+
+## Realm-editing gotchas
+
+- When editing a realm that accepts payment via `banker.OriginSend()`, the caller guard must be `runtime.PreviousRealm().IsUserCall()`, NOT `IsUser()`. `IsUser()` accepts `maketx run` ephemeral realms, which can consume the origin-send envelope before calling your function, bypassing the payment check. See [docs/resources/effective-gno.md § Verifying inbound Coin payments](docs/resources/effective-gno.md#verifying-inbound-coin-payments).
+- When you see an existing realm using `IsUser()` + `banker.OriginSend()`, flag it — it's the same bug. `grep -rn "IsUser()" examples/ | xargs ...` to cross-check against `OriginSend` usage in the same files.

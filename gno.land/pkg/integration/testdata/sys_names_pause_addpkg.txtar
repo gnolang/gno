@@ -1,0 +1,149 @@
+# End-to-end test of r/sys/names pause flow against the REAL addpkg path.
+#
+# The companion test sys_names_pause.txtar exercises the DAO-vote round-trip
+# and asserts IsPaused()/event semantics. This test goes further: it runs
+# actual MsgAddPackage transactions through the VM so the verifier wiring
+# (vm-keeper → IsAuthorizedAddressForNamespace → verifier) is exercised
+# end-to-end, not just by direct calls to verifier() in unit tests.
+#
+# Verifies:
+#   1. Pre-Enable: addpkg succeeds under arbitrary namespace (bypass).
+#   2. Post-Enable: addpkg succeeds under PA, fails under non-PA.
+#   3. After DAO pause executes: addpkg fails under PA TOO (fail-closed).
+#   4. MsgCall against an existing package keeps working while paused
+#      (pause is scoped to MsgAddPackage per package doc).
+#   5. After DAO unpause executes: addpkg under PA succeeds again.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/names
+loadpkg gno.land/r/sys/users
+
+# Override the hardcoded admin in r/sys/names with test1 so we can call
+# Enable() from the test. test1 also serves as the T1 GovDAO member via
+# the InitWithUsers() call in run/init_govdao.gno, so test1 plays both
+# the admin and the governance roles.
+patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
+
+gnoland start
+
+# Initialize GovDAO members so test1 can drive proposals.
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# Sanity: r/sys/names disabled at start.
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
+stdout 'false bool'
+
+# (1) Pre-Enable bypass: deploy under an arbitrary (non-PA) namespace succeeds.
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/preenable/hello -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Enable namespace enforcement.
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 2_600_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
+stdout 'true bool'
+
+# (2a) Post-Enable: deploy under test1's PA namespace succeeds.
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test test1
+stdout OK!
+
+# (2b) Post-Enable: deploy under non-PA namespace fails (no registered name).
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/notmyspace/hello -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'is not authorized to deploy packages to namespace'
+
+# Propose pause via GovDAO (T1 tier). Vote + execute.
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_pause.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsPaused()"
+stdout 'true bool'
+
+# (3) After pause: addpkg under test1's PA namespace MUST fail. This is
+# the fail-closed semantic — pause halts every deploy including PA.
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/paused_attempt -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'is not authorized to deploy packages to namespace'
+
+# Non-PA also still fails (would've failed pre-pause too — confirm pause
+# doesn't accidentally invert behavior).
+! gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/anotherspace/paused_attempt -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'is not authorized to deploy packages to namespace'
+
+# (4) MsgCall against the package deployed pre-pause MUST keep working.
+# The package doc claims pause is scoped to MsgAddPackage; existing
+# realms continue to receive MsgCall traffic normally. This locks that in.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -func Hello -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+stdout 'hi from hello'
+
+# Propose unpause. Vote + execute.
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unpause.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 1 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/sys/names.IsPaused()"
+stdout 'false bool'
+
+# (5) After unpause: addpkg under PA succeeds again.
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/after_unpause -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test test1
+stdout OK!
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/propose_pause.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/names"
+)
+
+func main() {
+	r := names.ProposeSetPaused(true)
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/propose_unpause.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/names"
+)
+
+func main() {
+	r := names.ProposeSetPaused(false)
+	dao.MustCreateProposal(cross, r)
+}
+
+-- pkg/gnomod.toml --
+module = "gno.land/r/hello"
+gno = "0.9"
+
+-- pkg/hello.gno --
+package hello
+
+func Hello(cur realm) string {
+	return "hi from hello"
+}

@@ -44,7 +44,7 @@ stdout 'gpub1'
 
 # Submit a v3 proposal to add a new validator (deterministic ed25519
 # pubkey from seed "e2e-valset-test-validator-seed-v1").
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # Sanity: proposal is in gov/dao at id 0. The proposal text shows
@@ -53,14 +53,14 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9: add'
 
 # Vote YES.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # Execute. v3 callback runs -> SetValsetProposal writes proposed +
 # dirty=true. The execute tx itself is a block; EndBlocker at the
 # end of THAT block reads dirty=true, computes diff, writes
 # valset:current = proposed, emits ValidatorUpdates.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # Post-EndBlocker state: valset:current must now contain BOTH the
@@ -83,7 +83,7 @@ stdout 'false'
 # self-transfer. If the chain stalled at H+2 because the new
 # validator can't sign, this maketx would time out. A successful
 # OK! proves consensus made progress through the transition.
-gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
 stdout OK!
 
 -- proposer/create_proposal.gno --

@@ -16,7 +16,7 @@ stdout 'data:'
 
 # Exploit attempt: any user calls SetValsetProposal directly via MsgRun.
 # Must fail with the auth panic; tx should be rejected.
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/exploit.gno
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/exploit.gno
 stderr 'unauthorized: only gno.land/r/sys/validators/v3 may write valset params'
 
 # Confirm the attacker's pubkey did NOT reach valset:current.
