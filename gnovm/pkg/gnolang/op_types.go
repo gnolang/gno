@@ -155,6 +155,33 @@ func (m *Machine) doOpInterfaceType() {
 	})
 }
 
+// staticTypeOfX returns the static type of x. Short-circuits via
+// ATTR_TYPEOF_VALUE / *ConstExpr / *constTypeExpr when possible; otherwise
+// runs a Machine sub-evaluation (Push OpHalt, OpStaticTypeOf, Run, Reap).
+// Used to flatten the recursive Machine sub-runs in doOpStaticTypeOf cases
+// (IndexExpr, SliceExpr, StarExpr, ...) that would otherwise re-evaluate
+// inner subexpression types whose ATTR_TYPEOF_VALUE is already cached.
+func (m *Machine) staticTypeOfX(x Expr) Type {
+	if t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
+		if tt, ok := t.(*tupleType); ok && len(tt.Elts) == 1 {
+			return tt.Elts[0]
+		}
+		return t
+	}
+	if cx, ok := x.(*ConstExpr); ok {
+		return cx.T
+	}
+	if _, ok := x.(*constTypeExpr); ok {
+		return gTypeType
+	}
+	start := len(m.Values)
+	m.PushOp(OpHalt)
+	m.PushExpr(x)
+	m.PushOp(OpStaticTypeOf)
+	m.Run(StageRun)
+	return m.ReapValues(start)[0].GetType()
+}
+
 // Evaluate the type of a typed (i.e. not untyped) value.
 // This function expects const expressions to have been
 // already swapped for *ConstExpr in the preprocessor.  If not, panics.
@@ -196,20 +223,10 @@ func (m *Machine) doOpStaticTypeOf() {
 		t := getTypeOf(x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		xt := m.staticTypeOfX(x.X)
 		m.PushValue(asValue(xt.Elem()))
 	case *SelectorExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		xt := m.staticTypeOfX(x.X)
 
 		// NOTE: this code segment similar to that in op_types.go
 		var dxt Type
@@ -374,12 +391,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 
 	case *SliceExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].V.(TypeValue).Type
+		xt := m.staticTypeOfX(x.X)
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
@@ -392,12 +404,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			}))
 		}
 	case *StarExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		xt := m.staticTypeOfX(x.X)
 		if pt, ok := baseOf(xt).(*PointerType); ok {
 			m.PushValue(asValue(pt.Elt))
 		} else if _, ok := xt.(*TypeType); ok {
