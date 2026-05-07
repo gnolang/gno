@@ -46,7 +46,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'Add valoper berty'
 
 # make a proposal for updating instructions
-gnokey maketx run  -gas-fee 3500001ugnot -gas-wanted 35_000_000 -chainid=tendermint_test test1 $WORK/run/new_instructions_proposal.gno
+gnokey maketx run  -gas-fee 6000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/new_instructions_proposal.gno
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
