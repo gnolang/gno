@@ -1,0 +1,142 @@
+# Sequential e2e: add a validator at power 1 (proposal 0), then
+# update its power from 1 to 3 (proposal 1).
+#
+# Exercises the third major v3 flow: the diff path "address present
+# in both current and proposed but with different power", which
+# UpdatesFrom emits as a single power-change ValidatorUpdate (not
+# add+remove).
+#
+# Verifies that:
+#   - valset:current reflects the new power post-update.
+#   - The pubkey appears at the new power and NOT at the old power.
+#   - The chain is alive past the H+2 transition (post-update tx
+#     succeeds).
+#
+# Power=1 then Power=3 keeps the genesis validator (power 10) at
+# 10/(10+3) ≈ 77% majority, above the 2/3 quorum.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# === PROPOSAL 0: ADD VALIDATOR AT POWER 1 ===
+
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# Post-add: pubkey at power 1.
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+# === PROPOSAL 1: UPDATE POWER 1 → 3 ===
+
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/update_proposal.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -chainid=tendermint_test member
+stdout OK!
+
+# Post-update: pubkey at power 3, NOT at power 1.
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:3'
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+gnokey query params/node:valset:dirty
+stdout 'false'
+
+# Liveness check past H+2 — chain made progress through the
+# power-update transition.
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+stdout OK!
+
+-- run/add_proposal.gno --
+package main
+
+import (
+	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	const (
+		addAddr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
+		addPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	)
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{Address: address(addAddr), PubKey: addPubKey, VotingPower: 1},
+		}
+	}
+	pr := v3.NewProposalRequest(changesFn, "Add validator at power 1", "")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- run/update_proposal.gno --
+package main
+
+import (
+	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	// v3's callback rejects re-add of an existing validator (the
+	// rewrite preserves the original PoA semantics: an "add" delta
+	// with an already-present address panics). To express a power
+	// change, use the remove-then-add pattern in one proposal:
+	// emit power=0 first to drop the existing entry from the local
+	// map, then power=N to re-insert at the new power.
+	const (
+		addr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
+		pubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	)
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{Address: address(addr), VotingPower: 0},                       // remove
+			{Address: address(addr), PubKey: pubKey, VotingPower: 3},       // re-add at power 3
+		}
+	}
+	pr := v3.NewProposalRequest(changesFn, "Update validator power 1->3", "")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

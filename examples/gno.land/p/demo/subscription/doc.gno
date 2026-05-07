@@ -1,66 +1,51 @@
-// Package subscription provides a flexible system for managing both recurring and
-// lifetime subscriptions in Gno applications. It enables developers to handle
-// payment-based access control for services or products. The library supports
-// both subscriptions requiring periodic payments (recurring) and one-time payments
-// (lifetime). Subscriptions are tracked using an AVL tree for efficient management
-// of subscription statuses.
+// Package subscription provides recurring and lifetime subscription
+// primitives. Payment is pulled through a caller-supplied
+// *allowancesender.AllowanceSender (a cap-token whose construction is
+// gated on banker.IsCanonical, so the lib can rely on Send actually
+// moving real coins). Subscriber identity is decoupled from cap-token
+// authority; the lib does not inspect call-chain shape.
 //
-// Usage:
-//
-// Import the required sub-packages (`recurring` and/or `lifetime`) to manage specific
-// subscription types. The methods provided allow users to subscribe, check subscription
-// status, and manage payments.
+// Each subscription instance locks its payment destination at
+// construction time (payeeAddr) and pulls a fixed per-period amount
+// from the cap on each Subscribe call. A leaked struct pointer cannot
+// redirect payment.
 //
 // Recurring Subscription:
 //
-// Recurring subscriptions require periodic payments to maintain access.
-// Users pay to extend their access for a specific duration.
+//	// In the consumer realm, at deployment:
+//	var recSub = recurring.NewRecurringSubscription(
+//	    time.Hour*24*30,                    // 30-day periods
+//	    100,                                // 100 ugnot per period
+//	    runtime.CurrentRealm().Address(),   // payee = this realm
+//	)
 //
-// Example:
-//
-//	// Create a recurring subscription requiring 100 ugnot every 30 days
-//	recSub := recurring.NewRecurringSubscription(time.Hour * 24 * 30, 100)
-//
-//	// Process payment for the recurring subscription
-//	recSub.Subscribe()
-//
-//	// Gift a recurring subscription to another user
-//	recSub.GiftSubscription(recipientAddress)
-//
-//	// Check if a user has a valid subscription
-//	recSub.HasValidSubscription(addr)
-//
-//	// Get the expiration date of the subscription
-//	recSub.GetExpiration(caller)
-//
-//	// Update the subscription amount to 200 ugnot
-//	recSub.UpdateAmount(200)
-//
-//	// Get the current subscription amount
-//	recSub.GetAmount()
+//	// Wrapper exposed to users. The wrapper builds an AllowanceSender
+//	// from a real banker, defers Close, and forwards the call. Subscribe
+//	// pulls 100 ugnot from the consumer realm (whose -send envelope
+//	// the wrapper validated) and records `subscriber` as active until
+//	// time.Now() + 30 days.
+//	func Subscribe(_ realm, subscriber address) {
+//	    if !runtime.PreviousRealm().IsUserCall() { panic("EOA only") }
+//	    src := banker.NewBanker(banker.BankerTypeRealmSend)
+//	    al := allowancesender.New(src, runtime.CurrentRealm().Address(),
+//	        chain.NewCoins(chain.NewCoin("ugnot", recSub.GetAmount())))
+//	    defer al.Close()
+//	    if err := recSub.Subscribe(al, subscriber); err != nil {
+//	        panic(err)
+//	    }
+//	}
 //
 // Lifetime Subscription:
 //
-// Lifetime subscriptions require a one-time payment for permanent access.
-// Once paid, users have indefinite access without further payments.
+//	var lifeSub = lifetime.NewLifetimeSubscription(
+//	    500,                                // 500 ugnot one-time
+//	    runtime.CurrentRealm().Address(),
+//	)
 //
-// Example:
+//	// Same wrapper shape as recurring.
 //
-//	// Create a lifetime subscription costing 500 ugnot
-//	lifeSub := lifetime.NewLifetimeSubscription(500)
-//
-//	// Process payment for lifetime access
-//	lifeSub.Subscribe()
-//
-//	// Gift a lifetime subscription to another user
-//	lifeSub.GiftSubscription(recipientAddress)
-//
-//	// Check if a user has a valid subscription
-//	lifeSub.HasValidSubscription(addr)
-//
-//	// Update the lifetime subscription amount to 1000 ugnot
-//	lifeSub.UpdateAmount(1000)
-//
-//	// Get the current lifetime subscription amount
-//	lifeSub.GetAmount()
+// Both libraries trust whatever address the consumer's wrapper passes
+// as `subscriber` — the wrapper's policy decides who's allowed to
+// register, who can be gifted, etc. Self-Subscribe and gift collapse
+// into the same call with different `subscriber` arguments.
 package subscription

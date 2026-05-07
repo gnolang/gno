@@ -1,0 +1,115 @@
+# Diagnostic: isolate whether the taint depends on the defer mechanism
+# or is purely a property of the struct after callee persists it.
+#
+# Test variants:
+#   InlineCloseAfterStore:    no defer; al.Close() called inline AFTER
+#                              callee.Store(cross, al). If this panics
+#                              with taint, the taint is value-based and
+#                              the defer mechanism is not the cause.
+#
+#   InlineCloseBeforeStore:   no defer; al.Close() called inline BEFORE
+#                              callee.Store(cross, al). Should succeed
+#                              if taint comes from store, not from cross.
+#
+#   ClosureCallAfterStore:    no defer; (func(){ al.Close() })() called
+#                              inline AFTER callee.Store. If closure-call
+#                              succeeds where direct call fails, the
+#                              difference is in dispatch semantics.
+
+loadpkg gno.land/p/jaekwon/allowancesender/v0
+loadpkg gno.land/r/test/diagcallee $WORK/diagcallee
+loadpkg gno.land/r/test/diaggranter $WORK/diaggranter
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# Variant A: close BEFORE callee.Store (no taint expected).
+gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func InlineCloseBeforeStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stdout OK!
+
+# Variant B: close AFTER callee.Store, INLINE (no defer wrapper).
+# If this panics with taint, value-based taint is the cause.
+# If this succeeds, the defer mechanism specifically is the issue.
+gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func InlineCloseAfterStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+
+# Variant C: close AFTER callee.Store, via inline closure call.
+gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func ClosureCallAfterStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+
+-- diagcallee/gnomod.toml --
+module = "gno.land/r/test/diagcallee"
+gno = "0.9"
+
+-- diagcallee/diagcallee.gno --
+package diagcallee
+
+import "gno.land/p/jaekwon/allowancesender/v0"
+
+var stored *allowancesender.AllowanceSender
+
+func Store(cur realm, al *allowancesender.AllowanceSender) {
+	stored = al
+}
+
+func StoredClosed() string {
+	if stored == nil {
+		return "nil"
+	}
+	if stored.Closed() {
+		return "true"
+	}
+	return "false"
+}
+
+-- diaggranter/gnomod.toml --
+module = "gno.land/r/test/diaggranter"
+gno = "0.9"
+
+-- diaggranter/diaggranter.gno --
+package diaggranter
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+
+	"gno.land/r/test/diagcallee"
+)
+
+// Variant A: close BEFORE store. Sanity check; should succeed.
+func InlineCloseBeforeStore(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+	al.Close()
+	diagcallee.Store(cross, al)
+}
+
+// Variant B: close AFTER store, inline (no defer). Hypothesis: if
+// the taint is value-based (struct now owned by callee), this should
+// panic with "cannot directly modify readonly tainted".
+func InlineCloseAfterStore(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+	diagcallee.Store(cross, al)
+	al.Close()
+}
+
+// Variant C: close AFTER store via closure call. Hypothesis: if
+// closure-call succeeds while direct call fails, the difference is
+// specifically in how method dispatch handles the taint state at
+// invocation vs dispatch time.
+func ClosureCallAfterStore(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+	diagcallee.Store(cross, al)
+	(func() { al.Close() })()
+}

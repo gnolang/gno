@@ -1,0 +1,148 @@
+# Tests whether a RealmSend-typed banker survives realm finalization
+# (cross-tx persistence) AND continues to behave correctly across
+# many operations — including exhausting the underlying balance to
+# verify bank-level enforcement still fires on a persisted banker.
+#
+# banker.gno:11 says "Banker objects cannot be persisted" — this test
+# empirically demonstrates the doc is stale. Both same-realm and
+# cross-realm capability persistence work, including failure modes.
+
+loadpkg gno.land/r/test/bankerb $WORK/bankerb
+loadpkg gno.land/r/test/bankera $WORK/bankera
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# ============================================================
+# Phase 1: same-realm persistence over multiple txs + exhaustion.
+# ============================================================
+# tx1: A.Save() stores a banker for itself, funded with 1M ugnot.
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func Save -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx2: A's balance is 1_000_000. Spend 600_000 via the persisted banker.
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 600000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx3: A's balance is now 400_000. Spend 300_000.
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 300000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx4: A's balance is now 100_000. Spend 99_000 (cuts it close).
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 99000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx5: A has only 1000 left. Try to spend 50_000 — must fail with
+# bank-level insufficient-funds error. Confirms the persisted banker
+# isn't somehow detached from real-time balance state.
+! gnokey maketx call -pkgpath gno.land/r/test/bankera -func UseSelfAmount -args 50000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stderr 'insufficient'
+
+# ============================================================
+# Phase 2: cross-realm capability persistence + exhaustion.
+# A creates a banker scoped to its own address and hands it to B.
+# B persists it. B then uses it to drain A's address across txs.
+# Final tx tries to overdraft and must fail.
+# ============================================================
+# tx6: A.GiveBankerToB() creates a RealmSend-typed banker (scoped to
+#      A's address) and passes it to B. -send funds A's address with
+#      another 500_000 ugnot to give B something to drain.
+gnokey maketx call -pkgpath gno.land/r/test/bankera -func GiveBankerToB -send 500000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx7: B.UseGivenBanker spends 200_000 from A's address. (A had 1000
+#      left + 500_000 added = 501_000 going into this.)
+gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 200000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx8: A's balance is now 301_000. B drains another 250_000.
+gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 250000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx9: A's balance is now 51_000. Try to drain 100_000 — must fail.
+# Confirms cross-realm persisted banker also enforces bank-level limits.
+! gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stderr 'insufficient'
+
+# tx10: B confirms the persisted banker still works for any amount
+#       within balance (sanity check after the failed overdraft).
+gnokey maketx call -pkgpath gno.land/r/test/bankerb -func UseGivenBankerAmount -args 50000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+-- bankera/gnomod.toml --
+module = "gno.land/r/test/bankera"
+gno = "0.9"
+
+-- bankera/bankera.gno --
+package bankera
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+
+	"gno.land/r/test/bankerb"
+)
+
+// Persistent banker scoped to this realm's own address.
+var saved banker.Banker
+
+func Save(cur realm) {
+	saved = banker.NewBanker(banker.BankerTypeRealmSend)
+}
+
+// UseSelfAmount sends `amount` ugnot from this realm's address back
+// to the caller via the persisted banker.
+func UseSelfAmount(cur realm, amount int64) {
+	if saved == nil {
+		panic("Phase 1: saved banker is nil after persistence")
+	}
+	caller := runtime.PreviousRealm().Address()
+	pkgaddr := runtime.CurrentRealm().Address()
+	saved.SendCoins(pkgaddr, caller, chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+// GiveBankerToB creates a RealmSend banker scoped to A's address and
+// hands it to realm B. Any -send envelope on this call accrues to A's
+// address as additional funds B can later drain.
+func GiveBankerToB(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	bankerb.Receive(cross, b)
+}
+
+-- bankerb/gnomod.toml --
+module = "gno.land/r/test/bankerb"
+gno = "0.9"
+
+-- bankerb/bankerb.gno --
+package bankerb
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
+
+// Persistent banker received from another realm.
+var fromOther banker.Banker
+
+// Address that funded the banker (the donor realm).
+var donor address
+
+// Receive accepts a banker from a calling realm and persists it.
+func Receive(cur realm, b banker.Banker) {
+	fromOther = b
+	donor = runtime.PreviousRealm().Address()
+}
+
+// UseGivenBankerAmount spends `amount` from the donor realm's address
+// using the persisted banker. Sends to the caller of this function.
+func UseGivenBankerAmount(cur realm, amount int64) {
+	if fromOther == nil {
+		panic("Phase 2: fromOther banker is nil after persistence")
+	}
+	caller := runtime.PreviousRealm().Address()
+	fromOther.SendCoins(donor, caller, chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
