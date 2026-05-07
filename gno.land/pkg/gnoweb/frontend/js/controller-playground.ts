@@ -205,7 +205,94 @@ export class PlaygroundController extends BaseController {
 			});
 	}
 
+	public downloadFiles(): void {
+		// Make sure current file content is the latest when downloading
+		this.files[this.activeFile].content = this.codeEl.value;
+
+		if (this.files.length === 1) {
+			this._triggerDownload(
+				new Blob([this.files[0].content], { type: "text/plain" }),
+				this.files[0].name,
+			);
+		} else {
+			this._triggerDownload(
+				new Blob([createTar(this.files)], { type: "application/x-tar" }),
+				"playground-gno-source-code.tar",
+			);
+		}
+	}
+
+	private _triggerDownload(blob: Blob, filename: string): void {
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = filename;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
 	public clearOutput(): void {
 		this._setOutput("// Run code to see output here");
 	}
+}
+
+function createTar(files: { name: string; content: string }[]): Uint8Array {
+	const encoder = new TextEncoder();
+	const blocks: Uint8Array[] = [];
+
+	for (const file of files) {
+		const data = encoder.encode(file.content);
+
+		// TAR's numeric fields are ASCII octal strings
+		const timestamp = Math.floor(Date.now() / 1000).toString(8);
+
+		// Unix Standard TAR header: 512-byte fixed-field block preceding each file's data.
+		// Spec: https://www.gnu.org/software/tar/manual/html_node/Standard.html
+		// Fields: https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format
+		const header = new Uint8Array(512);
+
+		header.set(encoder.encode(file.name).slice(0, 100), 0);
+		header.set(encoder.encode("0000644\0"), 100); // file mode
+		header.set(encoder.encode("0000000\0"), 108); // uid
+		header.set(encoder.encode("0000000\0"), 116); // gid
+		header.set(
+			encoder.encode(`${data.length.toString(8).padStart(11, "0")}\0`),
+			124,
+		); // file size
+		header.set(encoder.encode(`${timestamp.padStart(11, "0")}\0`), 136); // mtime
+		header.fill(0x20, 148, 156); // checksum placeholder (spaces)
+		header[156] = 0x30; // typeflag '0' = regular file
+		header.set(encoder.encode("ustar\0"), 257); // magic
+		header.set(encoder.encode("00"), 263); // version
+
+		// Sum all 512 header bytes (the 8 checksum bytes count as spaces, already
+		// set above), then write the result as 6 octal digits + NUL + space
+		// back into the checksum field at offset 148.
+		let sum = 0;
+		for (let i = 0; i < 512; i++) sum += header[i];
+		header.set(encoder.encode(`${sum.toString(8).padStart(6, "0")}\0 `), 148);
+
+		// Round up to the next 512-byte boundary because TAR requires
+		// file data to be padded to a multiple of 512 bytes.
+		// Extra space is padded with zeros.
+		const padded = new Uint8Array(Math.ceil(data.length / 512) * 512);
+		padded.set(data);
+
+		blocks.push(header);
+		blocks.push(padded);
+	}
+
+	// EOF, marked by two zero blocks
+	blocks.push(new Uint8Array(1024));
+
+	// Concatenate all blocks into a single flat byte array. Each block is
+	// copied into its position in the output buffer using a running offset.
+	const total = blocks.reduce((n, b) => n + b.length, 0);
+	const out = new Uint8Array(total);
+	let off = 0;
+	for (const b of blocks) {
+		out.set(b, off);
+		off += b.length;
+	}
+	return out;
 }
