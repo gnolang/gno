@@ -1,0 +1,158 @@
+# Tests gno.land/p/jaekwon/allowancesender/v0 end-to-end and pins
+# down both the working semantics AND the structural limitation
+# discovered during integration.
+#
+# WORKS (the supported pattern):
+#   - granter creates *AllowanceSender, passes to callee via cross,
+#     callee uses it WITHIN THE CALL via Send, returns.
+#   - granter's defer al.Close() runs successfully.
+#   - cap-exceeded and negative-amount inputs are rejected.
+#
+# FAILS BY DESIGN (gno interrealm rule):
+#   - if callee persists the *AllowanceSender pointer in its own
+#     realm state (`stored = al`), the struct's ownership transfers
+#     to callee. granter's later `defer al.Close()` then panics with
+#     "cannot directly modify readonly tainted object" because the
+#     struct is no longer granter's to mutate.
+#
+# This means AllowanceSender is a within-call capability primitive.
+# Callees MUST NOT persist the pointer across tx boundaries; the
+# pattern only works for the duration of granter's call.
+
+loadpkg gno.land/p/jaekwon/allowancesender/v0
+loadpkg gno.land/r/test/callee $WORK/callee
+loadpkg gno.land/r/test/granter $WORK/granter
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# ============================================================
+# Phase 1: in-call spending happy path
+# ============================================================
+# granter creates 500_000 ugnot allowance, callee spends 200_000
+# during the call, granter's defer closes after. Funds move via
+# the inner banker; allowance correctly tracks spent.
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpend -args 500000 -args 200000 -send 500000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stdout OK!
+
+# ============================================================
+# Phase 2: cap-exceeded rejection
+# ============================================================
+# granter creates 100_000 cap, callee tries to spend 200_000.
+# Wrapper rejects with "cap exceeded".
+! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpend -args 100000 -args 200000 -send 100000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stderr 'cap exceeded'
+
+# ============================================================
+# Phase 3: negative-amount rejection
+# ============================================================
+# callee constructs a negative chain.Coin and passes to Send.
+# Wrapper rejects with "negative amount not allowed".
+! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndSpendNegative -send 100000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stderr 'negative amount not allowed'
+
+# ============================================================
+# Phase 4: persistence-by-callee + defer-Close kill switch (works
+# with the VM fix that threads the receiver through deferred
+# method calls)
+# ============================================================
+# granter creates allowance, callee persists pointer via
+# `stored = al`, granter's defer al.Close() runs successfully —
+# the receiver is propagated through the deferred call's
+# PushFrameCall, the implicit borrow-realm switch fires, m.Realm
+# becomes callee inside Close, and the field write succeeds.
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+stdout OK!
+
+-- callee/gnomod.toml --
+module = "gno.land/r/test/callee"
+gno = "0.9"
+
+-- callee/callee.gno --
+package callee
+
+import (
+	"chain"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+)
+
+// stored exists to demonstrate that callee CAN write the pointer
+// into its own realm state — but doing so triggers the interrealm
+// taint failure when the granter later calls Close. See Phase 4.
+var stored *allowancesender.AllowanceSender
+
+// Store persists the pointer to demonstrate the failure mode.
+// In a real, supported usage, callees should NOT do this.
+func Store(cur realm, al *allowancesender.AllowanceSender) {
+	stored = al
+}
+
+// SpendTo is the supported within-call pattern: callee uses the
+// allowance during the cross call without persisting.
+func SpendTo(cur realm, al *allowancesender.AllowanceSender, to address, amount int64) {
+	al.Send(to, chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+// SpendNegative exercises the negative-amount panic path.
+func SpendNegative(cur realm, al *allowancesender.AllowanceSender, to address) {
+	al.Send(to, chain.Coins{chain.Coin{Denom: "ugnot", Amount: -50}})
+}
+
+-- granter/gnomod.toml --
+module = "gno.land/r/test/granter"
+gno = "0.9"
+
+-- granter/granter.gno --
+package granter
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+
+	"gno.land/r/test/callee"
+)
+
+// GrantAndSpend creates an allowance with `limit` cap, lets callee
+// spend `amount` to the original caller, then closes via defer.
+// Supported within-call pattern.
+func GrantAndSpend(cur realm, limit int64, amount int64) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", limit)))
+	defer al.Close()
+
+	caller := runtime.PreviousRealm().Address()
+	callee.SpendTo(cross, al, caller, amount)
+}
+
+// GrantAndSpendNegative exercises the negative-amount path.
+func GrantAndSpendNegative(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 100000)))
+	defer al.Close()
+
+	caller := runtime.PreviousRealm().Address()
+	callee.SpendNegative(cross, al, caller)
+}
+
+// GrantAndStore demonstrates the unsupported pattern: callee persists
+// the pointer. granter's defer Close() then fails because the struct
+// is no longer granter-owned. The whole tx reverts.
+func GrantAndStore(cur realm) {
+	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	al := allowancesender.New(src,
+		runtime.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
+	defer al.Close()
+
+	callee.Store(cross, al)
+}
