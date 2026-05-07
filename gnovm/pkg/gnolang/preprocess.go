@@ -647,8 +647,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if stage != TRANS_ENTER {
 					return n, TRANS_CONTINUE
 				}
-				n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
-				n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+				if n.HasAttribute(ATTR_PREPROCESS_SKIPPED) {
+					n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
+				}
+				if n.HasAttribute(ATTR_PREPROCESS_INCOMPLETE) {
+					n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+				}
 				return n, TRANS_CONTINUE
 			})
 	}()
@@ -1230,6 +1234,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					switch bt := baseOf(clt).(type) {
 					case *StructType:
 						n.Path = bt.GetPathForName(n.Name)
+						// Check for unexported fields from external packages.
+						if !isUpper(string(n.Name)) && bt.PkgPath != ctxpn.PkgPath {
+							panic(fmt.Sprintf(
+								"cannot refer to unexported field %s in struct literal of type %s",
+								n.Name, clt.String()))
+						}
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
@@ -2215,6 +2225,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
 					if n.IsKeyed() {
+						// NOTE: unexported field check for keyed literals
+						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
 						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
@@ -2222,6 +2234,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
 						}
 					} else {
+						// Check for unexported fields in unkeyed struct literals
+						// from external packages (implicit assignment).
+						// Empty struct literals (T{}) are always allowed, even
+						// from external packages, as they are zero-value initializations.
+						if len(n.Elts) > 0 &&
+							cclt.hasInaccessibleUnexportedFields(ctxpn.PkgPath) {
+							panic(fmt.Sprintf(
+								"implicit assignment to unexported field in struct literal of type %s",
+								clt.String()))
+						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
@@ -2406,7 +2428,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						setPreprocessed(n.X)
 					}
 					// bound method or underlying.
-					// TODO check for unexported fields.
+					// NOTE: unexported field access is already checked
+					// by findEmbeddedFieldType above (aerr).
 					n.Path = tr[len(tr)-1]
 
 					// n.Path = cxt.GetPathForName(n.Sel)
@@ -2457,17 +2480,29 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case *TypeType:
 					// unbound method
 					xt := evalStaticType(store, last, n.X)
+					var dt *DeclaredType
 					switch ct := xt.(type) {
 					case *PointerType:
-						dt := ct.Elt.(*DeclaredType)
-						n.Path = dt.GetUnboundPathForName(n.Sel)
+						dt = ct.Elt.(*DeclaredType)
 					case *DeclaredType:
-						n.Path = ct.GetUnboundPathForName(n.Sel)
+						dt = ct
 					default:
 						panic(fmt.Sprintf(
 							"unexpected selector expression type value %s",
 							xt.String()))
 					}
+					// Ensure exposed or package path match. Without this gate,
+					// `(*pkg.Type).unexportedMethod` from outside pkg resolves
+					// successfully and yields a callable *FuncValue, since
+					// GetUnboundPathForName does not enforce visibility (cf.
+					// FindEmbeddedFieldType which does, at types.go:1685).
+					// A confused-deputy callback in pkg can then invoke the
+					// unexported method on pkg's own state.
+					if !(isUpper(string(n.Sel)) || ctxpn.PkgPath == dt.PkgPath) {
+						panic(fmt.Sprintf("cannot access unexported method %s.%s from %s",
+							dt.PkgPath, n.Sel, ctxpn.PkgPath))
+					}
+					n.Path = dt.GetUnboundPathForName(n.Sel)
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %v",

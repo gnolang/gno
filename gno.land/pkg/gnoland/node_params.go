@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -14,7 +15,32 @@ import (
 const (
 	nodeParamHaltHeight     = "node:p:halt_height"
 	nodeParamHaltMinVersion = "node:p:halt_min_version"
+
+	// Valset keys live under the "valset" submodule of the node module.
+	// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
+	//
+	//   dirty    flag set by realm; EndBlocker clears after applying.
+	//   proposed v3's full target valset.
+	//   current  chain-managed: the set that becomes active at H+2 once
+	//            the most recent EndBlock's updates apply. NOT the set
+	//            actively signing the current block.
+	//
+	// Each "proposed"/"current" entry has the form
+	// "<bech32-pubkey>:<decimal-power>".
+	valsetDirtyPath    = "node:valset:dirty"
+	valsetProposedPath = "node:valset:proposed"
+	valsetCurrentPath  = "node:valset:current"
+
+	// maxValsetEntries caps len(valset:proposed) at WillSetParam time.
+	// v3 enforces 40 at proposal-creation; this is defense-in-depth at
+	// 2.5x to protect against future writers that bypass v3's cap.
+	maxValsetEntries = 100
 )
+
+// internalWriteCtxKey marks chain-internal writes (InitChainer,
+// EndBlocker). User-routed writes (governance proposals via the
+// generic params factories) carry no such value.
+type internalWriteCtxKey struct{}
 
 // nodeParamsKeeper implements a minimal ParamfulKeeper for the "node" module.
 // It validates node-level parameters set through governance proposals.
@@ -42,9 +68,48 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if !ok {
 			panic(fmt.Sprintf("halt_min_version must be a string, got %T", value))
 		}
+	case "valset:dirty":
+		// Just type-check; the bool value is opaque.
+		// Note: dirty has no ctx-sentinel gate because the realm side
+		// is gated by assertValsetCaller in r/sys/params/valset.gno;
+		// dirty is bool-typed only and not safety-critical on its own.
+		if _, ok := value.(bool); !ok {
+			panic(fmt.Sprintf("valset:dirty must be a bool, got %T", value))
+		}
+	case "valset:proposed":
+		// Validate each "<pubkey>:<power>" entry on write so a bad realm
+		// can't seed garbage that EndBlocker has to recover from.
+		entries, ok := value.([]string)
+		if !ok {
+			panic(fmt.Sprintf("valset:proposed must be []string, got %T", value))
+		}
+		if len(entries) > maxValsetEntries {
+			panic(fmt.Sprintf("valset:proposed too long: %d > %d", len(entries), maxValsetEntries))
+		}
+		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
+			panic(fmt.Sprintf("invalid valset:proposed: %v", err))
+		}
+	case "valset:current":
+		// Chain-only key. Use type-assertion idiom (codebase
+		// convention; sdk/auth/params.go:204 etc.) rather than `!= true`,
+		// which works but is non-idiomatic.
+		v, _ := ctx.Value(internalWriteCtxKey{}).(bool)
+		if !v {
+			panic("valset:current is chain-managed; not writable via params")
+		}
+		entries, ok := value.([]string)
+		if !ok {
+			panic(fmt.Sprintf("valset:current must be []string, got %T", value))
+		}
+		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
+			panic(fmt.Sprintf("invalid valset:current (chain-internal corruption): %v", err))
+		}
 	default:
 		if strings.HasPrefix(key, "p:") {
 			panic(fmt.Sprintf("unknown node param key: %q", key))
+		}
+		if strings.HasPrefix(key, "valset:") {
+			panic(fmt.Sprintf("unknown valset key: %q", key))
 		}
 	}
 }

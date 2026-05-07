@@ -154,7 +154,11 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	ak.prmk.GetStruct(ctx, "p", &params)
+	// Bypass store-side gas metering for module config reads — these
+	// are bootstrap-frequency, in-cache after the first hit, and the
+	// caller (AnteHandler/handlers) hasn't necessarily applied the
+	// gas config that we'd be metering against yet.
+	ak.prmk.GetStruct(ctx.WithGasMeter(nil), "p", &params)
 	return params
 }
 
