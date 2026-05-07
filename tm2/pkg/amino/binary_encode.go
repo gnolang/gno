@@ -115,6 +115,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			err = EncodeInt64(w, rv.Int())
+		} else if fopts.BinPlainVarint {
+			err = EncodePlainVarint(w, rv.Int())
 		} else {
 			err = EncodeVarint(w, rv.Int())
 		}
@@ -122,6 +124,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			err = EncodeInt32(w, int32(rv.Int()))
+		} else if fopts.BinPlainVarint {
+			err = EncodePlainVarint32(w, int32(rv.Int()))
 		} else {
 			err = EncodeVarint(w, rv.Int())
 		}
@@ -137,6 +141,8 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 			err = EncodeInt64(w, rv.Int())
 		} else if fopts.BinFixed32 {
 			err = EncodeInt32(w, int32(rv.Int()))
+		} else if fopts.BinPlainVarint {
+			err = EncodePlainVarint(w, rv.Int())
 		} else {
 			err = EncodeVarint(w, rv.Int())
 		}

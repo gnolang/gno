@@ -23,7 +23,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -190,15 +189,8 @@ func TestNoBlockResponse(t *testing.T) {
 	}
 }
 
-// NOTE: This is too hard to test without
-// an easy way to add test peer to switch
-// or without significant refactoring of the module.
-// Alternatively we could actually dial a TCP conn but
-// that seems extreme.
-func TestFlappyBadBlockStopsPeer(t *testing.T) {
+func TestBadBlockStopsPeer(t *testing.T) {
 	t.Parallel()
-
-	testutils.FilterStability(t, testutils.Flappy)
 
 	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
@@ -263,29 +255,21 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 	reactorPairs = append(reactorPairs, lastReactorPair)
 
 	persistentPeers := make([]*p2pTypes.NetAddress, 0, len(transports))
-
 	for _, tr := range transports {
 		addr := tr.NetAddress()
 		persistentPeers = append(persistentPeers, &addr)
 	}
 
-	for i, opt := range options {
-		opt = append(opt, p2p.WithPersistentPeers(persistentPeers))
-
-		options[i] = opt
-	}
-
-	ctx, cancelFn = context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFn()
-
-	testingCfg = p2pTesting.TestingConfig{
-		Count:         1,
-		P2PCfg:        config.P2P,
-		SwitchOptions: options,
-		Channels:      []byte{BlockchainChannel},
-	}
-
-	p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
+	// Bring the 5th peer up against the already-running cluster.
+	// MakeConnectedPeers can't extend a cluster — every call builds a
+	// fresh isolated mesh and would try to re-start the existing 4
+	// reactors. MakeConnectedPeer adds one node ready to dial in.
+	extraSwitch, _ := p2pTesting.MakeConnectedPeer(t, config.P2P,
+		[]byte{BlockchainChannel}, "node-extra",
+		p2p.WithReactor("BLOCKCHAIN", lastReactorPair.reactor),
+		p2p.WithPersistentPeers(persistentPeers),
+	)
+	extraSwitch.DialPeers(persistentPeers...)
 
 	for !lastReactorPair.reactor.pool.IsCaughtUp() && len(lastReactorPair.reactor.Switch.Peers().List()) != 0 {
 		time.Sleep(1 * time.Second)

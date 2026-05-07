@@ -37,6 +37,14 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		PartSet{},
 		PartSetHeader{},
 
+		// Canonical (sign-byte) types — exported in proto schema so
+		// external implementations (notably upstream Tendermint / tmkms)
+		// can verify wire-byte compatibility.
+		CanonicalBlockID{},
+		CanonicalPartSetHeader{},
+		CanonicalProposal{},
+		CanonicalVote{},
+
 		// Internal state types
 		Validator{},
 		ValidatorSet{},

@@ -569,10 +569,16 @@ func (ctx *P3Context2) primitiveValueSizeExpr(accessor string, info *amino.TypeI
 		if fopts.BinFixed32 {
 			return "4"
 		}
+		if fopts.BinPlainVarint {
+			return fmt.Sprintf("amino.PlainVarintSize(int64(%s))", accessor)
+		}
 		return fmt.Sprintf("amino.VarintSize(int64(%s))", accessor)
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			return "8"
+		}
+		if fopts.BinPlainVarint {
+			return fmt.Sprintf("amino.PlainVarintSize(int64(%s))", accessor)
 		}
 		return fmt.Sprintf("amino.VarintSize(int64(%s))", accessor)
 	case reflect.Int:
@@ -581,6 +587,9 @@ func (ctx *P3Context2) primitiveValueSizeExpr(accessor string, info *amino.TypeI
 		}
 		if fopts.BinFixed32 {
 			return "4"
+		}
+		if fopts.BinPlainVarint {
+			return fmt.Sprintf("amino.PlainVarintSize(int64(%s))", accessor)
 		}
 		return fmt.Sprintf("amino.VarintSize(int64(%s))", accessor)
 	case reflect.Uint8:

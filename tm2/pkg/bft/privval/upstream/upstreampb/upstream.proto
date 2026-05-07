@@ -1,0 +1,177 @@
+// upstream.proto: subset of upstream Tendermint v0.34's types.proto,
+// canonical.proto, crypto.proto, and privval/types.proto — sufficient
+// to implement the privval socket protocol for tmkms compatibility.
+//
+// This package's protoc-generated Go types are used DIRECTLY for wire I/O
+// at the validator/signer boundary. They are NOT test fixtures — they are
+// production code, mirroring how cometbft/privval uses cometbft/proto's
+// generated types.
+//
+// To regenerate:
+//
+//   cd tm2/pkg/bft/privval/upstream/upstreampb
+//   protoc --go_out=. --go_opt=paths=source_relative \
+//          --proto_path=. --proto_path=$PROTOC_INCLUDE \
+//          upstream.proto
+//
+// where PROTOC_INCLUDE points at protoc's "include" directory containing
+// google/protobuf/timestamp.proto.
+syntax = "proto3";
+
+package gno.tendermint.v034;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/privval/upstream/upstreampb";
+
+import "google/protobuf/timestamp.proto";
+
+enum SignedMsgType {
+  SIGNED_MSG_TYPE_UNKNOWN = 0;
+  SIGNED_MSG_TYPE_PREVOTE = 1;
+  SIGNED_MSG_TYPE_PRECOMMIT = 2;
+  SIGNED_MSG_TYPE_PROPOSAL = 32;
+}
+
+// ---- Crypto ---------------------------------------------------------------
+//
+// PublicKey mirrors upstream Tendermint's tendermint.crypto.PublicKey oneof.
+
+message PublicKey {
+  oneof sum {
+    bytes ed25519 = 1;
+    bytes secp256k1 = 2;
+  }
+}
+
+// ---- p2p SecretConnection auth-sig handshake -----------------------------
+//
+// AuthSigMessage mirrors upstream Tendermint v0.34's tendermint.p2p
+// AuthSigMessage. It's the post-DH authentication frame on the
+// SecretConnection — each side proves knowledge of its consensus key
+// by signing the Merlin-bound challenge.
+
+message AuthSigMessage {
+  PublicKey pub_key = 1;
+  bytes     sig     = 2;
+}
+
+// ---- Operational types — exchanged on the privval socket ------------------
+
+message PartSetHeader {
+  uint32 total = 1;
+  bytes  hash  = 2;
+}
+
+message BlockID {
+  bytes         hash             = 1;
+  PartSetHeader part_set_header  = 2;
+}
+
+message Vote {
+  SignedMsgType type              = 1;
+  int64         height            = 2;
+  int32         round             = 3;
+  BlockID       block_id          = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  bytes         validator_address = 6;
+  int32         validator_index   = 7;
+  bytes         signature         = 8;
+}
+
+message Proposal {
+  SignedMsgType type      = 1;
+  int64         height    = 2;
+  int32         round     = 3;
+  int32         pol_round = 4;
+  BlockID       block_id  = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  bytes         signature = 7;
+}
+
+// ---- Canonical types — what gets signed -----------------------------------
+
+message CanonicalPartSetHeader {
+  uint32 total = 1;
+  bytes  hash  = 2;
+}
+
+message CanonicalBlockID {
+  bytes                  hash             = 1;
+  CanonicalPartSetHeader part_set_header  = 2;
+}
+
+message CanonicalVote {
+  SignedMsgType    type      = 1;
+  sfixed64         height    = 2;
+  sfixed64         round     = 3;
+  CanonicalBlockID block_id  = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  string           chain_id  = 6;
+}
+
+message CanonicalProposal {
+  SignedMsgType    type      = 1;
+  sfixed64         height    = 2;
+  sfixed64         round     = 3;
+  int64            pol_round = 4;
+  CanonicalBlockID block_id  = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  string           chain_id  = 7;
+}
+
+// ---- Privval socket protocol ---------------------------------------------
+//
+// Mirrors upstream Tendermint v0.34's privval/types.proto.
+
+message RemoteSignerError {
+  int32  code        = 1;
+  string description = 2;
+}
+
+message PubKeyRequest {
+  string chain_id = 1;
+}
+
+message PubKeyResponse {
+  PublicKey         pub_key = 1;
+  RemoteSignerError error   = 2;
+}
+
+message SignVoteRequest {
+  Vote   vote     = 1;
+  string chain_id = 2;
+}
+
+message SignedVoteResponse {
+  Vote              vote  = 1;
+  RemoteSignerError error = 2;
+}
+
+message SignProposalRequest {
+  Proposal proposal = 1;
+  string   chain_id = 2;
+}
+
+message SignedProposalResponse {
+  Proposal          proposal = 1;
+  RemoteSignerError error    = 2;
+}
+
+message PingRequest  {}
+message PingResponse {}
+
+// Message is the wire envelope for all privval socket protocol exchanges.
+// Exactly one Sum branch is set per Message. Generated Go code emits
+// proper oneof-shape bytes; multi-set or zero-set is a programming error
+// rejected at marshal time by protobuf-go.
+message Message {
+  oneof sum {
+    PubKeyRequest          pub_key_request           = 1;
+    PubKeyResponse         pub_key_response          = 2;
+    SignVoteRequest        sign_vote_request         = 3;
+    SignedVoteResponse     signed_vote_response      = 4;
+    SignProposalRequest    sign_proposal_request     = 5;
+    SignedProposalResponse signed_proposal_response  = 6;
+    PingRequest            ping_request              = 7;
+    PingResponse           ping_response             = 8;
+  }
+}

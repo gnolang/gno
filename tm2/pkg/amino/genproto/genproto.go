@@ -338,6 +338,8 @@ func typeToP3Type(root *amino.Package, info *amino.TypeInfo, fopts amino.FieldOp
 			return P3ScalarTypeSfixed64, false, false
 		} else if fopts.BinFixed32 {
 			return P3ScalarTypeSfixed32, false, false
+		} else if fopts.BinPlainVarint {
+			return P3ScalarTypeInt64, false, false
 		} else {
 			return P3ScalarTypeSint64, false, false
 		}
@@ -348,12 +350,16 @@ func typeToP3Type(root *amino.Package, info *amino.TypeInfo, fopts amino.FieldOp
 	case reflect.Int32:
 		if fopts.BinFixed32 {
 			return P3ScalarTypeSfixed32, false, false
+		} else if fopts.BinPlainVarint {
+			return P3ScalarTypeInt32, false, false
 		} else {
 			return P3ScalarTypeSint32, false, false
 		}
 	case reflect.Int64:
 		if fopts.BinFixed64 {
 			return P3ScalarTypeSfixed64, false, false
+		} else if fopts.BinPlainVarint {
+			return P3ScalarTypeInt64, false, false
 		} else {
 			return P3ScalarTypeSint64, false, false
 		}
