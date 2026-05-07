@@ -5866,10 +5866,8 @@ func resolveDeclDep(name Name, pn *PackageNode) Decl {
 		if !ok {
 			panic(fmt.Sprintf("type %s is not a *DeclaredType in package %s", id, pn.PkgName))
 		}
-		idx := slices.IndexFunc(dt.Methods, func(m TypedValue) bool {
-			return m.V.(*FuncValue).Name == Name(sel)
-		})
-		if idx < 0 {
+		idx, ok := dt.lookupMethod(Name(sel))
+		if !ok {
 			panic(fmt.Sprintf("method %s not found in type %s", sel, id))
 		}
 		return dt.Methods[idx].V.(*FuncValue).Source.(*FuncDecl)

@@ -1452,7 +1452,35 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
+
+	// methodIndex maps method Name → its position in Methods for O(1)
+	// lookup once len(Methods) exceeds methodIndexThreshold. Holds both
+	// value- and pointer-receiver methods (they share the Methods slice).
+	// Built lazily; maintained by TryDefineMethod on append. Not serialized.
+	//
+	// CONTRACT: any code mutating Methods directly (instead of via
+	// TryDefineMethod) must nil out methodIndex, or the index goes stale.
+	// Known direct writers, all currently safe:
+	//   - amino UnmarshalBinary2 zeros the whole struct then re-populates
+	//     Methods; methodIndex is correctly nil and lazily rebuilt on
+	//     first lookupMethod.
+	//   - realm.fillType rewrites Methods[i].T/V in place but never
+	//     changes Name or len(Methods); invariant preserved.
+	//   - test fixtures construct DeclaredType directly with empty or
+	//     single-method slices; threshold is never crossed.
+	// There is currently no method-removal API; if one is added, it must
+	// either nil methodIndex or rewrite it.
+	//
+	// Single-threaded-preprocess invariant: lazy build via lookupMethod
+	// mutates *dt; not safe for concurrent first-lookup access.
+	methodIndex map[Name]uint16
 }
+
+// methodIndexThreshold gates the map build: most user types have ≤ a
+// handful of methods, so linear scan wins below this. Above it, the map's
+// O(1) lookup dominates the K-method × K-assignment workload that drives
+// DEGEN11 WideIfaceConvK.
+const methodIndexThreshold = 8
 
 // Returns an unsealed *DeclaredType.
 // Do not use for aliases.
@@ -1583,17 +1611,48 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	}
 }
 
+// lookupMethod returns the index of method n in dt.Methods, or (0, false)
+// if absent. Uses methodIndex for O(1) lookup once len(Methods) exceeds
+// methodIndexThreshold; builds the index lazily on first call past
+// threshold (e.g. after amino deserialization).
+func (dt *DeclaredType) lookupMethod(n Name) (uint16, bool) {
+	if dt.methodIndex == nil && len(dt.Methods) > methodIndexThreshold {
+		dt.buildMethodIndex()
+	}
+	if dt.methodIndex != nil {
+		i, ok := dt.methodIndex[n]
+		return i, ok
+	}
+	for i, tv := range dt.Methods {
+		if tv.V.(*FuncValue).Name == n {
+			return uint16(i), true
+		}
+	}
+	return 0, false
+}
+
+// buildMethodIndex populates methodIndex from Methods. Uses first-wins on
+// duplicates to match the linear-scan path's first-match contract;
+// TryDefineMethod prevents duplicate appends, but the guard preserves
+// invariants on directly-constructed test fixtures.
+func (dt *DeclaredType) buildMethodIndex() {
+	dt.methodIndex = make(map[Name]uint16, len(dt.Methods))
+	for i, tv := range dt.Methods {
+		name := tv.V.(*FuncValue).Name
+		if _, ok := dt.methodIndex[name]; !ok {
+			dt.methodIndex[name] = uint16(i)
+		}
+	}
+}
+
 // TryDefineMethod attempts to define the method fv on type dt.
 // It returns false if this does not succeeds, as a result of a re-declaration.
 func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 	name := fv.Name
 
-	// Handle redeclarations.
-	for i, tv := range dt.Methods {
-		ofv := tv.V.(*FuncValue)
-		if ofv.Name != name {
-			continue
-		}
+	// Handle redeclarations via O(1) name lookup.
+	if i, exists := dt.lookupMethod(name); exists {
+		ofv := dt.Methods[i].V.(*FuncValue)
 
 		// Do not allow redeclaring (override) a method.
 		// In the future we may allow this, just like we
@@ -1613,6 +1672,7 @@ func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 		}
 
 		// Special case: allow defining a native body.
+		// Name and index unchanged → methodIndex stays valid.
 		if fv.Type.TypeID() == ofv.Type.TypeID() &&
 			!ofv.IsNative() && fv.IsNative() {
 			dt.Methods[i] = TypedValue{
@@ -1631,25 +1691,26 @@ func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 		T: fv.Type,
 		V: fv,
 	})
+	// Maintain methodIndex consistent with Methods: build at threshold-cross,
+	// otherwise insert incrementally if the map already exists.
+	if dt.methodIndex == nil && len(dt.Methods) > methodIndexThreshold {
+		dt.buildMethodIndex()
+	} else if dt.methodIndex != nil {
+		dt.methodIndex[name] = uint16(len(dt.Methods) - 1)
+	}
 	return true
 }
 
 func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	// May be a method.
-	for i, tv := range dt.Methods {
-		fv := tv.V.(*FuncValue)
-		if fv.Name == n {
-			if i > 2<<16-1 {
-				panic("too many methods")
-			}
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			if fv.GetType(nil).HasPointerReceiver() {
-				return NewValuePathPtrMethod(uint16(i), n)
-			} else {
-				return NewValuePathValMethod(uint16(i), n)
-			}
+	if i, ok := dt.lookupMethod(n); ok {
+		fv := dt.Methods[i].V.(*FuncValue)
+		// NOTE: makes code simple but requires preprocessor's
+		// Store to pre-load method types.
+		if fv.GetType(nil).HasPointerReceiver() {
+			return NewValuePathPtrMethod(i, n)
 		}
+		return NewValuePathValMethod(i, n)
 	}
 	// Otherwise it is underlying.
 	path := dt.Base.(ValuePather).GetPathForName(n)
@@ -1658,14 +1719,8 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 }
 
 func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
-	for i, tv := range dt.Methods {
-		fv := tv.V.(*FuncValue)
-		if fv.Name == n {
-			if i > 2<<16-1 {
-				panic("too many methods")
-			}
-			return NewValuePathField(0, uint16(i), n)
-		}
+	if i, ok := dt.lookupMethod(n); ok {
+		return NewValuePathField(0, i, n)
 	}
 	panic(fmt.Sprintf(
 		"unknown *DeclaredType method named %s",
@@ -1686,28 +1741,26 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	} else {
 		m[dt] = struct{}{}
 	}
-	// Search direct methods.
-	for i := range dt.Methods {
-		mv := &dt.Methods[i]
-		if fv := mv.GetFunc(); fv.Name == n {
-			// Ensure exposed or package match.
-			if !isUpper(string(n)) && dt.PkgPath != callerPath {
-				return nil, false, nil, nil, true
-			}
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			rt := fv.GetType(nil).Params[0].Type
-			var vp ValuePath
-			if _, ok := rt.(*PointerType); ok {
-				vp = NewValuePathPtrMethod(uint16(i), n)
-			} else {
-				vp = NewValuePathValMethod(uint16(i), n)
-			}
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			bt := fv.GetType(nil).BoundType()
-			return []ValuePath{vp}, false, rt, bt, false
+	// Search direct methods via O(1) name lookup.
+	if i, ok := dt.lookupMethod(n); ok {
+		fv := dt.Methods[i].V.(*FuncValue)
+		// Ensure exposed or package match.
+		if !isUpper(string(n)) && dt.PkgPath != callerPath {
+			return nil, false, nil, nil, true
 		}
+		// NOTE: makes code simple but requires preprocessor's
+		// Store to pre-load method types.
+		rt := fv.GetType(nil).Params[0].Type
+		var vp ValuePath
+		if _, isPtr := rt.(*PointerType); isPtr {
+			vp = NewValuePathPtrMethod(i, n)
+		} else {
+			vp = NewValuePathValMethod(i, n)
+		}
+		// NOTE: makes code simple but requires preprocessor's
+		// Store to pre-load method types.
+		bt := fv.GetType(nil).BoundType()
+		return []ValuePath{vp}, false, rt, bt, false
 	}
 	// Otherwise, search base.
 	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
