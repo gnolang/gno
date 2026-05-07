@@ -569,6 +569,13 @@ type FuncLitExpr struct {
 	Type         FuncTypeExpr // function type
 	Body                      // function body
 	HeapCaptures NameExprs    // filled in findLoopUses1
+
+	// heapCapturesIdx maps capture name → its position in HeapCaptures
+	// for O(1) lookup in addHeapCapture. addHeapCapture is preprocess-
+	// only and accumulates idx alongside HeapCaptures from empty;
+	// no lazy rebuild needed. Closes the K-fold scan that drove DEGEN3
+	// DeepClosureCapture / DEGEN1 #3 WideClosureCapture. Not serialized.
+	heapCapturesIdx map[Name]uint16
 }
 
 func (*FuncLitExpr) GetName() Name {

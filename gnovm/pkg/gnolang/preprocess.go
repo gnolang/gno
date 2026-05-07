@@ -3506,23 +3506,25 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// TODO consider adding to Names type.
-func addName(names []Name, name Name) []Name {
-	if !slices.Contains(names, name) {
-		names = append(names, name)
-	}
-	return names
-}
-
+// addAttrHeapUse adds name to bn's heap-use set. ATTR_HEAP_USES holds a
+// map[Name]struct{} (was []Name pre-fix); membership and insertion are
+// O(1). DEGEN3 DeepClosureCapture: K refs × D closures × O(1) = O(K*D).
 func addAttrHeapUse(bn BlockNode, name Name) {
-	lus, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
-	lus = addName(lus, name)
-	bn.SetAttribute(ATTR_HEAP_USES, lus)
+	set, _ := bn.GetAttribute(ATTR_HEAP_USES).(map[Name]struct{})
+	if _, ok := set[name]; ok {
+		return
+	}
+	if set == nil {
+		set = map[Name]struct{}{}
+		bn.SetAttribute(ATTR_HEAP_USES, set)
+	}
+	set[name] = struct{}{}
 }
 
 func hasAttrHeapUse(bn BlockNode, name Name) bool {
-	hds, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
-	return slices.Contains(hds, name)
+	set, _ := bn.GetAttribute(ATTR_HEAP_USES).(map[Name]struct{})
+	_, ok := set[name]
+	return ok
 }
 
 // adds ~name to func lit static block and to heap captures atomically.
@@ -3531,16 +3533,14 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		panic("invalid depth")
 	}
 	name := nx.Name
-	for _, ne := range fle.HeapCaptures {
-		if ne.Name == name {
-			// assert ~name also already defined.
-			var ok bool
-			idx, ok = fle.GetLocalIndex("~" + name)
-			if !ok {
-				panic("~name not added to fle atomically")
-			}
-			return // already exists
+	if _, exists := fle.heapCapturesIdx[name]; exists {
+		// assert ~name also already defined.
+		var ok bool
+		idx, ok = fle.GetLocalIndex("~" + name)
+		if !ok {
+			panic("~name not added to fle atomically")
 		}
+		return // already exists
 	}
 
 	// define ~name to fle.
@@ -3564,6 +3564,10 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		Type: NameExprTypeHeapClosure,
 	}
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
+	if fle.heapCapturesIdx == nil {
+		fle.heapCapturesIdx = map[Name]uint16{}
+	}
+	fle.heapCapturesIdx[name] = uint16(len(fle.HeapCaptures) - 1)
 
 	// find index after define
 	for i, n := range fle.GetBlockNames() {
