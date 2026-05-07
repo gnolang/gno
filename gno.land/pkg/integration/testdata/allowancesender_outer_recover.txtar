@@ -23,7 +23,7 @@ gnoland start
 # tx1: granter installs outer recover-defer FIRST, then defer al.Close()
 # (so Close runs first on unwind, then outer recover catches if needed).
 # Callee persists the pointer. Outcome under test.
-gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/outerrecovergranter -func GrantWithOuterRecover -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
 
 # tx2: inspect the persisted state. With the fix, Close ran cleanly
 # (no panic) and the persisted struct is closed.
@@ -32,7 +32,7 @@ stdout '"true"'
 
 # tx3: drain attempt. Persisted allowance is closed → panics with
 # "allowancesender: closed". Kill switch holds.
-! gnokey maketx call -pkgpath gno.land/r/test/outerrecovercallee -func DrainStored -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test user1
+! gnokey maketx call -pkgpath gno.land/r/test/outerrecovercallee -func DrainStored -args 100000 -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 stderr 'allowancesender: closed'
 
 -- outerrecovercallee/gnomod.toml --
