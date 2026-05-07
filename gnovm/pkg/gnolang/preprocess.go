@@ -4011,6 +4011,7 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			Fields:  buildFieldTypesAST(store, last, x.Fields, true),
 		}
 		validateEmbedDepth(st, "<anonymous struct>")
+		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
 		it := &InterfaceType{
@@ -4019,6 +4020,7 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			Generic: x.Generic,
 		}
 		validateEmbedDepth(it, "<anonymous interface>")
+		validateInterfaceMethods(it, "<anonymous interface>")
 		return it, true
 	}
 	return nil, false

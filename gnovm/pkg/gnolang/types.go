@@ -743,6 +743,15 @@ type StructType struct {
 	Fields  []FieldType
 
 	typeid TypeID
+
+	// effectiveFields caches the total accessible-name count: direct
+	// fields + promoted names through embedded structs/interfaces (each
+	// embedded named type contributes its Methods + Base). Sentinel 0
+	// means "not computed" (or "0 fields"); len(Fields)==0 short-
+	// circuits before consulting the cache. Set only when the walk
+	// fully resolves (no cycle break and no early-exit past cap).
+	// Not serialized.
+	effectiveFields uint16
 }
 
 func (st *StructType) Kind() Kind {
@@ -918,6 +927,11 @@ type InterfaceType struct {
 	Generic Name // for uverse "generics"
 
 	typeid TypeID
+
+	// effectiveMethods caches the total method count counting through
+	// embedded interfaces. Same sentinel/caching semantics as
+	// StructType.effectiveFields. Not serialized.
+	effectiveMethods uint16
 }
 
 // General empty interface.
@@ -1645,6 +1659,160 @@ func validateTypeDepth(t Type, displayName string) {
 		panic(fmt.Sprintf(
 			"type %s nesting depth %d exceeds max %d",
 			displayName, d, MaxTypeDepth))
+	}
+}
+
+// MaxInterfaceMethods bounds the effective method count of an
+// InterfaceType (counting methods reached through any depth of
+// interface embedding). Caps the per-VerifyImplementedBy iteration;
+// combined with the methodIndex O(1) per-method lookup on concrete
+// types, K assignments × MaxInterfaceMethods = bytes-linear preprocess
+// work for interface-conversion patterns (DEGEN11 WideIfaceConvK).
+const MaxInterfaceMethods = 128
+
+// MaxStructFields bounds the effective accessible-name count of a
+// StructType: direct fields + promoted names from embedded structs and
+// interfaces. Embedding a named type contributes that type's Methods
+// count plus its Base's effective count. Caps per-FindEmbeddedFieldType
+// walk size for wide-embedding patterns (DEGEN9 WideEmbed).
+const MaxStructFields = 128
+
+// embeddedInterface returns the underlying InterfaceType if t represents
+// an embedded interface (raw *InterfaceType or *DeclaredType wrapping
+// one); nil otherwise. Mirrors isInterfaceMethodEmbed but returns the
+// underlying type for cache lookup rather than just a bool.
+func embeddedInterface(t Type) *InterfaceType {
+	switch ct := t.(type) {
+	case *InterfaceType:
+		return ct
+	case *DeclaredType:
+		if it, ok := ct.Base.(*InterfaceType); ok {
+			return it
+		}
+	}
+	return nil
+}
+
+// effectiveReachable returns (count, fullyResolved) — the total
+// accessible-name count of t, counting through DeclaredType (its
+// Methods + Base), PointerType (passthrough), structs (effective
+// fields), and interfaces (effective methods). fullyResolved is false
+// if any sub-walk hit a cycle break; callers use it to gate caching.
+func effectiveReachable(t Type, visited map[Type]struct{}) (int, bool) {
+	switch ct := t.(type) {
+	case *DeclaredType:
+		baseN, ok := effectiveReachable(ct.Base, visited)
+		return len(ct.Methods) + baseN, ok
+	case *PointerType:
+		return effectiveReachable(ct.Elt, visited)
+	case *StructType:
+		return effectiveStructFields(ct, visited)
+	case *InterfaceType:
+		return effectiveInterfaceMethods(ct, visited)
+	}
+	return 0, true
+}
+
+// effectiveInterfaceMethods returns (count, fullyResolved) for it.
+// Memoized via it.effectiveMethods. Cycle-safe via visited map.
+// Cache write is gated on fullyResolved && n ≤ MaxInterfaceMethods.
+func effectiveInterfaceMethods(it *InterfaceType, visited map[Type]struct{}) (int, bool) {
+	if it.effectiveMethods > 0 {
+		return int(it.effectiveMethods), true
+	}
+	if len(it.Methods) == 0 {
+		return 0, true
+	}
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[it]; ok {
+		return 0, false // cycle break — value depends on caller's visited
+	}
+	visited[it] = struct{}{}
+
+	n := 0
+	fully := true
+	for i := range it.Methods {
+		if eit := embeddedInterface(it.Methods[i].Type); eit != nil {
+			sub, ok := effectiveInterfaceMethods(eit, visited)
+			n += sub
+			if !ok {
+				fully = false
+			}
+		} else {
+			n++ // regular method
+		}
+		if n > MaxInterfaceMethods {
+			return n, fully
+		}
+	}
+	if fully {
+		it.effectiveMethods = uint16(n)
+	}
+	return n, fully
+}
+
+// effectiveStructFields returns (count, fullyResolved) for st.
+// Each direct field contributes 1 (the field name). Embedded fields
+// additionally contribute effectiveReachable of the field type
+// (struct's effectiveFields, interface's effectiveMethods, or
+// DeclaredType's Methods + Base). Same caching rules as
+// effectiveInterfaceMethods.
+func effectiveStructFields(st *StructType, visited map[Type]struct{}) (int, bool) {
+	if st.effectiveFields > 0 {
+		return int(st.effectiveFields), true
+	}
+	if len(st.Fields) == 0 {
+		return 0, true
+	}
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[st]; ok {
+		return 0, false
+	}
+	visited[st] = struct{}{}
+
+	n := 0
+	fully := true
+	for i := range st.Fields {
+		f := &st.Fields[i]
+		n++ // the field name itself is accessible
+		if f.Embedded {
+			sub, ok := effectiveReachable(f.Type, visited)
+			n += sub
+			if !ok {
+				fully = false
+			}
+		}
+		if n > MaxStructFields {
+			return n, fully
+		}
+	}
+	if fully {
+		st.effectiveFields = uint16(n)
+	}
+	return n, fully
+}
+
+// validateInterfaceMethods panics if it has more than
+// MaxInterfaceMethods effective methods. Called at construction.
+func validateInterfaceMethods(it *InterfaceType, displayName string) {
+	if n, _ := effectiveInterfaceMethods(it, nil); n > MaxInterfaceMethods {
+		panic(fmt.Sprintf(
+			"interface %s has %d effective methods, exceeds max %d",
+			displayName, n, MaxInterfaceMethods))
+	}
+}
+
+// validateStructFields panics if st has more than MaxStructFields
+// effective accessible names. Called at construction.
+func validateStructFields(st *StructType, displayName string) {
+	if n, _ := effectiveStructFields(st, nil); n > MaxStructFields {
+		panic(fmt.Sprintf(
+			"struct %s has %d effective fields, exceeds max %d",
+			displayName, n, MaxStructFields))
 	}
 }
 
