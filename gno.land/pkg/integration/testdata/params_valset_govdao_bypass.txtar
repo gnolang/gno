@@ -33,21 +33,21 @@ gnokey query params/node:valset:current
 stdout 'gpub1'
 
 # 1) Strings factory targeting node:valset:proposed — must panic.
-! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/bypass_strings.gno
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_strings.gno
 stderr 'node:valset:\* is reserved for r/sys/validators/v3'
 
 # 2) Bytes factory targeting node:valset:proposed — must panic.
-! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/bypass_bytes.gno
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bytes.gno
 stderr 'node:valset:\* is reserved for r/sys/validators/v3'
 
 # 3) Bool factory targeting node:valset:dirty — must panic.
-! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/bypass_bool.gno
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bool.gno
 stderr 'node:valset:\* is reserved for r/sys/validators/v3'
 
 # 4) Positive control: a legitimate non-valset write through the same
 # factory family must still succeed. (Construction; we don't execute
 # the proposal — just prove proposal-creation doesn't panic.)
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/legit_nonvalset.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/legit_nonvalset.gno
 stdout OK!
 
 # Post-state: valset:current and valset:dirty unchanged. The

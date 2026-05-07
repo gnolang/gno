@@ -4,7 +4,7 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -112,12 +112,12 @@ func (p *Proposal) AllowedDAOs() []string {
 }
 
 type Proposals struct {
-	seq       seqid.ID
-	*avl.Tree // *avl.Tree[ProposalID]*Proposal
+	seq            seqid.ID
+	*bptree.BPTree // *bptree.BPTree[ProposalID]*Proposal
 }
 
 func NewProposals() *Proposals {
-	return &Proposals{Tree: avl.NewTree()}
+	return &Proposals{BPTree: bptree.NewBPTree32()}
 }
 
 func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
