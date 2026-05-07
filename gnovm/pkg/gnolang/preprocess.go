@@ -3914,7 +3914,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	// like [][]…[]int costs O(N²) doOp invocations (one full sub-walk per
 	// TRANS_LEAVE level).
 	if t, ok := staticTypeFromAST(store, last, x); ok {
-		validateTypeDepth(t, x.String())
+		validateTypeDepth(t, x)
 		x.SetAttribute(ATTR_TYPE_VALUE, t)
 		return t
 	}
@@ -3948,7 +3948,7 @@ func evalStaticTypeMachine(store Store, last BlockNode, x Expr) Type {
 		panic(fmt.Sprintf("%s is not a type", x.String()))
 	}
 	t := tv.GetType()
-	validateTypeDepth(t, x.String())
+	validateTypeDepth(t, x)
 	x.SetAttribute(ATTR_TYPE_VALUE, t)
 	return t
 }
@@ -4109,7 +4109,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		m := NewMachine(pn.PkgPath, store)
 		t = m.EvalStaticTypeOf(last, x)
 		m.Release()
-		validateTypeDepth(t, x.String())
+		validateTypeDepth(t, x)
 		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
 		return t
 	}

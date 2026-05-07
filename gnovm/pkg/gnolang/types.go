@@ -1654,11 +1654,21 @@ func typeDepth(t Type, visited map[Type]struct{}) int {
 // Called at type-construction points in preprocess.go (evalStaticType,
 // evalStaticTypeMachine, evalStaticTypeOfRawMachine) before the result
 // is cached. Per-call O(MaxTypeDepth) thanks to typeDepth's early-exit.
-func validateTypeDepth(t Type, displayName string) {
+//
+// The display name is taken from x lazily — only on panic — because
+// x.String() walks the entire AST subtree (O(expr-size)) and this
+// function is on the hot path of every static-type evaluation; eager
+// stringification produced an O(K^3) regression on cascading var-dep
+// shapes (K^2 calls × O(K) stringify each).
+func validateTypeDepth(t Type, x Expr) {
 	if d := typeDepth(t, nil); d > MaxTypeDepth {
+		var name string
+		if x != nil {
+			name = x.String()
+		}
 		panic(fmt.Sprintf(
 			"type %s nesting depth %d exceeds max %d",
-			displayName, d, MaxTypeDepth))
+			name, d, MaxTypeDepth))
 	}
 }
 
