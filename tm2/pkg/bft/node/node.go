@@ -186,6 +186,7 @@ type Node struct {
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
 	proxyApp          appconn.AppConns     // connection to the application
 	rpcListeners      []net.Listener       // rpc servers
+	rpcEnv            *rpccore.Environment // per-node RPC handler state
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
@@ -595,15 +596,13 @@ func (n *Node) OnStart() error {
 		n.Logger.Info("Genesis time is in the future. Starting RPC+P2P early (-x-early-start)", "genTime", genTime)
 	}
 
-	// Set up the GLOBAL variables in rpc/core which refer to this node.
-	// This is done separately from startRPC(), as the values in rpc/core are used,
-	// for instance, to set up Local clients (rpc/client) which work without
-	// a network connection.
+	// Build the per-node RPC Environment. This is done separately from
+	// startRPC(), as rpcEnv is also used to back Local clients
+	// (rpc/client) which work without a network connection.
 	n.configureRPC()
-	if n.config.RPC.Unsafe {
-		rpccore.AddUnsafeRoutes()
+	if err := n.rpcEnv.Start(); err != nil {
+		return err
 	}
-	rpccore.Start()
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -679,10 +678,12 @@ func (n *Node) OnStop() {
 		n.Logger.Error("Error closing private validator", "err", err)
 	}
 
-	// Stop the package-level rpc/core txDispatcher before the event switch so
-	// its listenRoutine exits via its own Quit channel instead of racing
-	// evsw.Quit().
-	rpccore.Stop()
+	// Stop the RPC environment (tears down the txDispatcher) before the
+	// event switch so its listenRoutine exits via its own Quit channel
+	// instead of racing evsw.Quit().
+	if n.rpcEnv != nil {
+		_ = n.rpcEnv.Stop()
+	}
 
 	// Stop the non-reactor services
 	n.evsw.Stop()
@@ -719,22 +720,32 @@ func (n *Node) Ready() <-chan struct{} {
 	return n.firstBlockSignal
 }
 
-// configureRPC sets all variables in rpccore so they will serve
-// rpc calls from this node
+// configureRPC builds the per-node RPC Environment used by this node's
+// RPC handlers and by Local clients that don't need a network connection.
 func (n *Node) configureRPC() {
-	rpccore.SetStateDB(n.stateDB)
-	rpccore.SetBlockStore(n.blockStore)
-	rpccore.SetConsensusState(n.consensusState)
-	rpccore.SetMempool(n.mempool)
-	rpccore.SetP2PPeers(n.sw)
-	rpccore.SetP2PTransport(n)
-	rpccore.SetPubKey(n.privValidator.PubKey())
-	rpccore.SetGenesisDoc(n.genesisDoc)
-	rpccore.SetProxyAppQuery(n.proxyApp.Query())
-	rpccore.SetGetFastSync(n.consensusReactor.FastSync)
-	rpccore.SetLogger(n.Logger.With("module", "rpc"))
-	rpccore.SetEventSwitch(n.evsw)
-	rpccore.SetConfig(*n.config.RPC)
+	n.rpcEnv = &rpccore.Environment{
+		ProxyAppQuery: n.proxyApp.Query(),
+		StateDB:       n.stateDB,
+		BlockStore:    n.blockStore,
+		Consensus:     n.consensusState,
+		P2PPeers:      n.sw,
+		P2PTransport:  n,
+		PubKey:        n.privValidator.PubKey(),
+		GenDoc:        n.genesisDoc,
+		EventSwitch:   n.evsw,
+		Mempool:       n.mempool,
+		GetFastSync:   n.consensusReactor.FastSync,
+		Logger:        n.Logger.With("module", "rpc"),
+		Config:        *n.config.RPC,
+	}
+}
+
+// RPCEnvironment returns the per-node RPC Environment. It is populated by
+// configureRPC during OnStart and is nil before the node has started.
+// rpc/client.NewLocal needs this to dispatch handler calls without going
+// over the network.
+func (n *Node) RPCEnvironment() *rpccore.Environment {
+	return n.rpcEnv
 }
 
 func (n *Node) startRPC() (listeners []net.Listener, err error) {
@@ -761,6 +772,8 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
 	}
 
+	routes := n.rpcEnv.Routes(n.config.RPC.Unsafe)
+
 	// we may expose the rpc over both a unix and tcp socket
 	var rebuildAddresses bool
 	listeners = make([]net.Listener, 0, len(listenAddrs))
@@ -768,7 +781,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
-		wm := rpcserver.NewWebsocketManager(rpccore.Routes,
+		wm := rpcserver.NewWebsocketManager(routes,
 			rpcserver.OnDisconnect(func(remoteAddr string) {
 				// any cleanup...
 				// (we used to unsubscribe from all event subscriptions)
@@ -777,7 +790,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		)
 		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
-		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, rpcLogger)
+		rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
 		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
 			rebuildAddresses = true
 		}

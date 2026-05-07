@@ -104,10 +104,11 @@ func (fr *Frame) SetIsRevive() {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	Args   []TypedValue // arguments
-	Source *DeferStmt   // source
-	Parent *Block
+	Func          *FuncValue   // function value
+	IsBoundMethod bool         // if true, args[0] is receiver
+	Args          []TypedValue // arguments
+	Source        *DeferStmt   // source
+	Parent        *Block
 }
 
 type StacktraceCall struct {

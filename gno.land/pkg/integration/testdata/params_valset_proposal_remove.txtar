@@ -26,13 +26,13 @@ gnoland start
 
 # === PROPOSAL 0: ADD VALIDATOR ===
 
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # Post-add: valset:current contains both genesis + new validator.
@@ -42,13 +42,13 @@ stdout '","gpub1'
 
 # === PROPOSAL 1: REMOVE THE SAME VALIDATOR ===
 
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/remove_proposal.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/remove_proposal.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -chainid=tendermint_test member
 stdout OK!
 
 # Post-remove: the e2e-test-validator pubkey must be GONE from
@@ -66,7 +66,7 @@ stdout 'false'
 
 # Liveness check past H+2 — chain made progress through both the
 # add and the remove validator-set transitions.
-gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
 stdout OK!
 
 -- run/add_proposal.gno --

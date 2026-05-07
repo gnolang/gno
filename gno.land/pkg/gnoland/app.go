@@ -136,17 +136,16 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		) {
 			// Add last gas price in the context
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
-			// Override auth params.
+			// Override auth params. acck.GetParams internally bypasses
+			// the gas meter (see tm2/pkg/sdk/auth/params.go) so this
+			// read costs nothing.
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
-			// Apply VM gas config so all store operations (including
-			// ante handler account reads/writes) use the governed
-			// depth parameters.
-			// NOTE: GetParams reads use nil GasContext internally
-			// (params keeper passes nil to store.Get), so no gas is
-			// charged for these reads. The underlying store values
-			// are also amortized in the block-level cache — only
-			// the first tx in a block hits the IAVL tree, and
-			// subsequent txs get free cache hits.
+			// Apply VM gas config so all store operations (account
+			// reads/writes in ante, message handlers, etc.) use the
+			// governed depth parameters. vmk.GetParams DOES meter (vm
+			// params are user-tunable consensus state and we want a
+			// real gas signal on changes), so this read uses the ctx's
+			// current (default) gasCfg until it's replaced below.
 			gasCfg := store.DefaultGasConfig()
 			vmk.GetParams(ctx).ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)

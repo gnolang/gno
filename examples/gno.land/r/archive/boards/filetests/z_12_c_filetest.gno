@@ -11,7 +11,9 @@ import (
 
 func main() {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetHeight(0)
 	uinit.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetHeight(123)
 	bid1 := boards.CreateBoard(cross, "test_board1")
 	boards.CreateThread(cross, bid1, "First Post (title)", "Body of the first post. (body)")
 	bid2 := boards.CreateBoard(cross, "test_board2")
