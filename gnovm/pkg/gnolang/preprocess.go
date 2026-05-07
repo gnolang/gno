@@ -3569,15 +3569,14 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	}
 	fle.heapCapturesIdx[name] = uint16(len(fle.HeapCaptures) - 1)
 
-	// find index after define
-	for i, n := range fle.GetBlockNames() {
-		if n == "~"+name {
-			idx = uint16(i)
-			return
-		}
+	// find index after define (O(1) via StaticBlock.nameIndex once
+	// past threshold; linear scan only on small blocks).
+	var found bool
+	idx, found = fle.GetLocalIndex("~" + name)
+	if !found {
+		panic("should not happen, idx not found")
 	}
-
-	panic("should not happen, idx not found")
+	return
 }
 
 // finds the first FuncLitExpr in the stack after (excluding) stop.  returns
