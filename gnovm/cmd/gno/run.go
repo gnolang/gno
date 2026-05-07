@@ -293,7 +293,7 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
-			case gno.UnhandledPanicError:
+			case *gno.Exception:
 				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
 					expr, r.Error(), m.ExceptionStacktrace())
 			default:

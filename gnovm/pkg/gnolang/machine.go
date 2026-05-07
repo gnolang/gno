@@ -41,6 +41,11 @@ type Machine struct {
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
+	// goStackCaptured gates Exception.GoStack capture to once per panic
+	// chain — m.Exception alone is unreliable because PushFrameCall clears
+	// it before each defer runs (machine.go ~2132), so under N-panicking
+	// defers we'd otherwise pay captureGoStack N times. Reset by Recover().
+	goStackCaptured bool
 
 	Debugger Debugger
 
@@ -1534,7 +1539,10 @@ func (m *Machine) Run(st Stage) {
 		if caught.Stacktrace.IsZero() {
 			caught.Stacktrace = m.Stacktrace()
 		}
-		m.pushPanic(caught.Value)
+		if caught.Abort {
+			panic(caught)
+		}
+		m.pushPanicException(caught)
 	}
 }
 
@@ -1546,6 +1554,9 @@ func (m *Machine) runOnce() (caught *Exception) {
 		if r := recover(); r != nil {
 			if ex, ok := r.(*Exception); ok {
 				caught = ex
+				if ex.GoStack == "" {
+					m.attachGoStack(ex)
+				}
 			} else {
 				panic(r)
 			}
@@ -2658,6 +2669,77 @@ func (m *Machine) PanicString(ex string) {
 	m.Panic(typedString(ex))
 }
 
+// captureGoStack returns the VM-internal call chain up to (*Machine).Run,
+// formatted as "funcName\n\tfile:line" frames separated by '\n'. Stops at
+// Run so callers can splice in debug.Stack's harness chain.
+func captureGoStack() string {
+	var pcs [32]uintptr
+	n := runtime.Callers(2, pcs[:])
+	if n == 0 {
+		return ""
+	}
+	frames := runtime.CallersFrames(pcs[:n])
+	var sb strings.Builder
+	for {
+		f, more := frames.Next()
+		if !goStackIgnore(f.Function) {
+			sb.WriteString(f.Function)
+			sb.WriteString("\n\t")
+			sb.WriteString(TrimOriginFile(f.File))
+			sb.WriteByte(':')
+			sb.WriteString(strconv.Itoa(f.Line))
+			sb.WriteByte('\n')
+			if strings.HasSuffix(f.Function, ".(*Machine).Run") {
+				break
+			}
+		}
+		if !more {
+			break
+		}
+	}
+	return sb.String()
+}
+
+// goStackIgnore drops Go's panic plumbing and our own panic machinery so
+// the first kept frame is the VM raise site rather than a recover helper.
+func goStackIgnore(name string) bool {
+	if strings.HasPrefix(name, "runtime.") {
+		return true
+	}
+	switch {
+	case strings.HasSuffix(name, ".runOnce.func1"),
+		strings.HasSuffix(name, ".captureGoStack"),
+		strings.HasSuffix(name, ".attachGoStack"),
+		strings.HasSuffix(name, ".pushPanic"),
+		strings.HasSuffix(name, ".pushPanicException"),
+		strings.HasSuffix(name, ".(*Machine).Panic"),
+		strings.HasSuffix(name, ".(*Machine).PanicString"):
+		return true
+	}
+	return false
+}
+
+// TrimOriginFile strips the absolute prefix from a Go source path so stack
+// output is stable across build hosts and doesn't leak filesystem layout
+// (developer home directories, CI worker paths, etc.). Matches project
+// modules and Go stdlib by their canonical segment; falls back to basename.
+func TrimOriginFile(file string) string {
+	for _, marker := range projectFileMarkers {
+		if i := strings.Index(file, marker); i >= 0 {
+			return file[i+1:]
+		}
+	}
+	if i := strings.LastIndexByte(file, '/'); i >= 0 {
+		return file[i+1:]
+	}
+	return file
+}
+
+var projectFileMarkers = []string{
+	"/gnovm/", // VM-internal frames + filetest harness
+	"/src/",   // Go stdlib (".../go/src/runtime/panic.go" -> "src/runtime/panic.go")
+}
+
 // This function does go-panic.
 // To stop execution immediately stdlib native code MUST use this rather than
 // pushPanic().
@@ -2665,12 +2747,11 @@ func (m *Machine) PanicString(ex string) {
 // Keep this code in sync with those calls.
 // Note that m.Run() will fill in the stacktrace if it isn't present.
 func (m *Machine) Panic(etv TypedValue) {
-	// Construct a new exception.
 	ex := &Exception{
 		Value:      etv,
 		Stacktrace: m.Stacktrace(),
 	}
-	// Panic immediately.
+	m.attachGoStack(ex)
 	panic(ex)
 }
 
@@ -2679,11 +2760,30 @@ func (m *Machine) Panic(etv TypedValue) {
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
-	// Construct a new exception.
 	ex := &Exception{
 		Value:      etv,
 		Stacktrace: m.Stacktrace(),
 	}
+	m.attachGoStack(ex)
+	m.pushPanicException(ex)
+}
+
+// attachGoStack stamps the VM-internal Go call chain on ex on the first
+// fresh raise of a panic chain. Subsequent raises (defer-cycle re-raises,
+// 500K-defer attack scenarios) skip the walk so the cost stays O(1) per
+// chain. Reset by Recover() when a Gno-level recover() ends the chain.
+func (m *Machine) attachGoStack(ex *Exception) {
+	if m.goStackCaptured {
+		return
+	}
+	ex.GoStack = captureGoStack()
+	m.goStackCaptured = true
+}
+
+// pushPanicException is pushPanic's internal entry that takes an existing
+// *Exception (caught by runOnce) instead of building a fresh one — so its
+// GoStack/Abort metadata survives the cooperative re-entry.
+func (m *Machine) pushPanicException(ex *Exception) {
 	// Pop after capturing stacktrace.
 	fr := m.PopUntilLastCallFrame()
 	// Link ex.Previous.
@@ -2735,6 +2835,7 @@ func (m *Machine) Recover() *Exception {
 	// call) to an older value when popping a frame with .LastException set
 	// from doOpReturnCallDefers() > m.PushFrameCall(isDefer=true).
 	m.Exception = nil
+	m.goStackCaptured = false
 	return ex
 }
 

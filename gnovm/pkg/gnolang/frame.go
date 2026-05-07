@@ -254,12 +254,28 @@ func toConstExpTrace(cte *ConstExpr) string {
 //----------------------------------------
 // Exception
 
-// Exception represents a panic that originates from a gno program.
+// Exception represents a panic that originates from a gno program. It
+// predates the error interface; satisfying it (via Error()) is for
+// recoverers' convenience, so the type keeps its established name even
+// though the errname linter prefers a "...Error" suffix.
+//
+//nolint:errname
 type Exception struct {
 	Value      TypedValue
 	Stacktrace Stacktrace
 	Previous   *Exception
 	Next       *Exception
+
+	// Abort is set by markAbort when defers are exhausted without recover;
+	// Run() panics the *Exception directly instead of re-pushing it.
+	Abort bool
+	// Descriptor caches the joined chain message so external recoverers
+	// (no *Machine in hand) can read it via Error().
+	Descriptor string
+	// GoStack is the VM-internal Go call chain at raise time, formatted
+	// one frame per "funcName\n\tfile:line" pair. Stops at (*Machine).Run
+	// so callers can splice in debug.Stack's harness chain without dupe.
+	GoStack string
 }
 
 func (e *Exception) StringWithStacktrace(m *Machine) string {
@@ -269,6 +285,13 @@ func (e *Exception) StringWithStacktrace(m *Machine) string {
 func (e *Exception) Sprint(m *Machine) string {
 	res := e.Value.Sprint(m)
 	return res
+}
+
+func (e *Exception) Error() string {
+	if e.Abort && e.Descriptor != "" {
+		return e.Descriptor
+	}
+	return e.Value.String()
 }
 
 func (e *Exception) NumExceptions() int {
@@ -295,13 +318,4 @@ func (e *Exception) WithPrevious(e2 *Exception) *Exception {
 	e.Previous = e2
 	e2.Next = e
 	return e
-}
-
-// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
-type UnhandledPanicError struct {
-	Descriptor string // Description of the unhandled panic.
-}
-
-func (e UnhandledPanicError) Error() string {
-	return e.Descriptor
 }

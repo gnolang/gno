@@ -105,9 +105,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				if dir.Name == DirectiveError {
 					returnErr = multierr.Append(
 						returnErr,
-						fmt.Errorf("%s diff:\n%s\nstacktrace:\n%s\nstack:\n%v",
+						fmt.Errorf("%s diff:\n%s\ngno stack:\n%s%s",
 							dir.Name, unifiedDiff(content, actual),
-							result.GnoStacktrace, string(result.GoPanicStack)),
+							result.GnoStacktrace, goOriginOrStack(result)),
 					)
 				} else {
 					returnErr = multierr.Append(
@@ -130,8 +130,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					Content: "",
 				})
 			} else {
-				return "", m.GasMeter.GasConsumed(), fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:\n%s\nstack:\n%v",
-					result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
+				return "", m.GasMeter.GasConsumed(), fmt.Errorf("unexpected panic: %s%s\ngno stack:\n%s%s",
+					result.Error, optionalOutput(result.Output),
+					result.GnoStacktrace, goOriginOrStack(result))
 			}
 		}
 	} else if result.Output != "" {
@@ -322,8 +323,79 @@ type runResult struct {
 	TypeCheckError string
 	// Set if there was a panic within gno code.
 	GnoStacktrace string
-	// Set if this was recovered from a panic.
+	// Set if this was recovered from a panic. Dual-use: harness chain when
+	// GoVMStack is set (everything after Run), raw dump otherwise.
 	GoPanicStack []byte
+	// GoVMStack is the VM-internal Go chain from *Exception.GoStack.
+	GoVMStack string
+}
+
+// optionalOutput renders the "output: ..." section only when stdout was
+// non-empty — most panic tests have no output, and an empty label is just
+// vertical noise.
+func optionalOutput(out string) string {
+	if out == "" {
+		return ""
+	}
+	return "\noutput:\n" + out
+}
+
+// goOriginOrStack composes the Go-side info shown after a failure. With a
+// captured VM chain, splice it onto the post-Run portion of debug.Stack
+// for one continuous trace; otherwise dump the raw stack as a fallback.
+func goOriginOrStack(r runResult) string {
+	if r.GoVMStack != "" {
+		return "\ngo stack:\n" + r.GoVMStack + harnessAfterRun(r.GoPanicStack)
+	}
+	if len(r.GoPanicStack) > 0 {
+		return "\nstack:\n" + string(r.GoPanicStack)
+	}
+	return ""
+}
+
+// harnessAfterRun slices debug.Stack output past the (*Machine).Run frame
+// and trims absolute paths to project-relative form, so the spliced
+// result is appendable after a VM chain ending at Run without duplicate
+// frames and without leaking local filesystem layout.
+func harnessAfterRun(stack []byte) string {
+	if len(stack) == 0 {
+		return ""
+	}
+	const runMarker = "(*Machine).Run("
+	s := string(stack)
+	i := strings.Index(s, runMarker)
+	if i < 0 {
+		return trimStackPaths(s)
+	}
+	j := strings.Index(s[i:], "\n")
+	if j < 0 {
+		return trimStackPaths(s)
+	}
+	k := strings.Index(s[i+j+1:], "\n")
+	if k < 0 {
+		return trimStackPaths(s)
+	}
+	return trimStackPaths(s[i+j+k+2:])
+}
+
+// trimStackPaths rewrites each "\t/abs/path/file.go:LINE +0xOFF" line in a
+// debug.Stack dump so the path becomes project-relative. Leaves the
+// function lines and "goroutine ..." header untouched.
+func trimStackPaths(stack string) string {
+	lines := strings.Split(stack, "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(line, "\t/") {
+			continue
+		}
+		rest := line[1:] // drop the leading tab
+		// "/abs/path/file.go:LINE +0xOFFSET" — split off file from suffix.
+		sep := strings.IndexByte(rest, ':')
+		if sep < 0 {
+			continue
+		}
+		lines[i] = "\t" + gno.TrimOriginFile(rest[:sep]) + rest[sep:]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content []byte, opslog io.Writer, tcheck bool) (rr runResult) {
@@ -371,9 +443,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				rr.Error = v.Sprint(m)
 			case *gno.PreprocessError:
 				rr.Error = v.Unwrap().Error()
-			case gno.UnhandledPanicError:
+			case *gno.Exception:
 				rr.Error = v.Error()
 				rr.GnoStacktrace = m.ExceptionStacktrace()
+				rr.GoVMStack = v.GoStack
 			default:
 				rr.Error = fmt.Sprint(v)
 				rr.GnoStacktrace = m.Stacktrace().String()

@@ -35,14 +35,14 @@ func TestBoundedString_Bytes(t *testing.T) {
 	assert.Equal(t, maxBoundedBytes+3, len(got))
 }
 
-func TestBoundedString_UnhandledPanicError_Short(t *testing.T) {
-	up := gno.UnhandledPanicError{Descriptor: "panic message"}
-	assert.Equal(t, "panic message", boundedString(up, 0))
+func TestBoundedString_AbortException_Short(t *testing.T) {
+	ex := &gno.Exception{Abort: true, Descriptor: "panic message"}
+	assert.Equal(t, "panic message", boundedString(ex, 0))
 }
 
-func TestBoundedString_UnhandledPanicError_Truncated(t *testing.T) {
-	up := gno.UnhandledPanicError{Descriptor: strings.Repeat("a", maxBoundedBytes*2)}
-	got := boundedString(up, 0)
+func TestBoundedString_AbortException_Truncated(t *testing.T) {
+	ex := &gno.Exception{Abort: true, Descriptor: strings.Repeat("a", maxBoundedBytes*2)}
+	got := boundedString(ex, 0)
 	assert.Equal(t, maxBoundedBytes+3, len(got))
 }
 
@@ -80,13 +80,13 @@ func TestBoundedString_CmnError_HugeFmtUnaffected(t *testing.T) {
 }
 
 func TestBoundedString_CmnError_Wrapped(t *testing.T) {
-	// Wrap an unhandled-panic-like error.
-	inner := gno.UnhandledPanicError{Descriptor: "inner"}
+	// Wrap an abort'd Exception (the post-UnhandledPanicError shape).
+	inner := &gno.Exception{Abort: true, Descriptor: "inner"}
 	err := cmnerrors.Wrap(inner, "outer")
 	got := boundedString(err, 0)
-	// cmnError.Data() returns the wrapped error (UnhandledPanicError);
+	// cmnError.Data() returns the wrapped error (*gno.Exception);
 	// FmtError assertion fails; unwrap returns the wrapped error;
-	// recurse → matches gno.UnhandledPanicError → returns Descriptor.
+	// recurse → matches *gno.Exception abort arm → returns Descriptor.
 	assert.Equal(t, "inner", got)
 }
 

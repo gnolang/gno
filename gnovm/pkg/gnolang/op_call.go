@@ -386,7 +386,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				cfr := m.PopUntilLastReviveFrame()
 				if cfr == nil {
 					// or abort the transaction.
-					panic(m.makeUnhandledPanicError())
+					panic(m.markAbort())
 				}
 				m.PopFrameAndReturn()
 				// assign exception as return of revive().
@@ -567,14 +567,14 @@ func (m *Machine) doOpDefer() {
 	m.PopValue() // pop func
 }
 
-// Build exception string just as go, separated by \n\t.
-// TODO: deprecate UnhandledPanicError and just use the Exception.
-// (use a field to mark transaction abort)
-func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
+// markAbort flips m.Exception into a terminal state (Abort=true,
+// Descriptor populated) and returns it for the caller to go-panic with.
+// Run() detects Abort and surfaces the *Exception directly.
+func (m *Machine) markAbort() *Exception {
+	m.Exception.Abort = true
 	if m.BoundedPanicRender {
-		return UnhandledPanicError{
-			Descriptor: BoundedSprintException(m.Exception, m, BoundedRenderBytes),
-		}
+		m.Exception.Descriptor = BoundedSprintException(m.Exception, m, BoundedRenderBytes)
+		return m.Exception
 	}
 	numExceptions := m.Exception.NumExceptions()
 	exs := make([]string, numExceptions)
@@ -583,9 +583,8 @@ func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
 		exs[numExceptions-1-i] = last.Sprint(m)
 		last = last.Previous
 	}
-	return UnhandledPanicError{
-		Descriptor: strings.Join(exs, "\n\t"),
-	}
+	m.Exception.Descriptor = strings.Join(exs, "\n\t")
+	return m.Exception
 }
 
 func (m *Machine) doOpPanic2() {
@@ -597,7 +596,7 @@ func (m *Machine) doOpPanic2() {
 		// If we can't find a call frame, we're in a corrupted state.
 		// This can happen during init functions with realm calls.
 		// Return the original exception as an unhandled panic.
-		panic(m.makeUnhandledPanicError())
+		panic(m.markAbort())
 	}
 	m.PushOp(OpReturnCallDefers)
 }

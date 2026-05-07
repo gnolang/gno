@@ -50,22 +50,19 @@ func boundedString(v any, depth int) string {
 
 	// Gno-specific bounded types
 	case *gno.Exception:
-		// Bounded by BoundedSprintException + the BoundedPanicRender
-		// flag on Machines that built this exception. m=nil here
-		// because boundedString may be called from non-VM contexts;
-		// composites render structurally (no user .Error() dispatch).
+		// Abort'd exceptions have Descriptor pre-rendered (bounded when
+		// the Machine had BoundedPanicRender=true at markAbort time);
+		// prefer it over re-rendering e.Value. For non-abort cases
+		// (e.g. middle-of-handling), fall back to BoundedSprintException
+		// with m=nil since boundedString may run in non-VM contexts.
+		if x.Abort && x.Descriptor != "" {
+			return truncate(x.Descriptor)
+		}
 		return gno.BoundedSprintException(x, nil, maxBoundedBytes)
 	case *gno.PreprocessError:
 		// Bounded by the earlier PreprocessError.Stack() fix in
 		// gnovm/pkg/gnolang/debug.go.
 		return truncate(x.Error())
-	case gno.UnhandledPanicError:
-		// Value type — must precede the generic `error` arm.
-		// Descriptor is bounded at construction when the constructing
-		// Machine had BoundedPanicRender=true (op_call.go flag-true
-		// branch). Validators set the flag on every m.
-		return truncate(x.Descriptor)
-
 	// tm2-specific bounded types
 	case stypes.OutOfGasError:
 		// Short message, source-bounded.

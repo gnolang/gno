@@ -946,9 +946,10 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 			*e = oog
 			return
 		}
-		var up gno.UnhandledPanicError
-		if goerrors.As(err, &up) {
-			desc := boundedString(up, 0)
+		var ex *gno.Exception
+		if goerrors.As(err, &ex) && ex.Abort {
+			// Common unhandled panic error, skip machine state.
+			desc := boundedString(ex, 0)
 			trace := gno.BoundedExceptionStacktrace(m,
 				gno.MaxStacktraceFrames*gno.BoundedRenderBytes)
 			*e = errors.Wrapf(
