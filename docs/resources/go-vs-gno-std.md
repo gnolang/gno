@@ -134,8 +134,6 @@ Gno extends Go's testing package with blockchain-specific functions:
 ```go
 import "testing"
 
-import "testing"
-
 func TestExample(t *testing.T) {
     caller := address("g1...")
     testing.SetOriginCaller(caller)
