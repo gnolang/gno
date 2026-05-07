@@ -1539,10 +1539,114 @@ func (dt *DeclaredType) Seal() {
 // named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
 // types). Caps the worst-case FindEmbeddedFieldType trail length so that K
 // repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
-// for adversarial source-level embed chains. 16 is well above any
-// observed legitimate Gno code (deepest in stdlib + examples + tests is
-// 3) and well below the regime where embed-walk cost compounds.
-const MaxEmbedDepth = 16
+// for adversarial source-level embed chains. 8 is well above any observed
+// legitimate Gno code (deepest in stdlib + examples + tests is 3); the cap
+// can be raised in a future release without invalidating existing programs.
+const MaxEmbedDepth = 8
+
+// MaxTypeDepth bounds composite type-expression nesting depth. Each
+// composite-type wrapper (Pointer, Slice, Array, Chan, Map, Func, Struct,
+// Interface) counts 1; DeclaredType is a LEAF for depth purposes (not
+// transparent) — referencing a named type by name doesn't expose the
+// named type's internal structure to the depth walker, mirroring how
+// source-level type-expression nesting is read. Catches DeepSliceType,
+// DeepArrayType, DeepFuncType, DeepAnonStruct, DeepPointerChain (all
+// expressed as raw type-wrapper chains in source). Forward-compatible:
+// the cap can be raised later without invalidating existing programs.
+const MaxTypeDepth = 8
+
+// typeDepth returns the maximum nesting depth of composite type wrappers
+// reachable from t. visited prevents infinite recursion on self-pointer
+// cycles like 'type Node struct{ *Node }'. Early-exits past MaxTypeDepth
+// so per-call cost is bounded at O(MaxTypeDepth).
+func typeDepth(t Type, visited map[Type]struct{}) int {
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[t]; ok {
+		return 0
+	}
+	visited[t] = struct{}{}
+	switch ct := t.(type) {
+	case *PointerType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *SliceType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *ArrayType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *ChanType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *MapType:
+		k := typeDepth(ct.Key, visited)
+		v := typeDepth(ct.Value, visited)
+		if k > v {
+			return 1 + k
+		}
+		return 1 + v
+	case *FuncType:
+		max := 0
+		for i := range ct.Params {
+			if d := typeDepth(ct.Params[i].Type, visited); d > max {
+				max = d
+				if max > MaxTypeDepth {
+					return 1 + max
+				}
+			}
+		}
+		for i := range ct.Results {
+			if d := typeDepth(ct.Results[i].Type, visited); d > max {
+				max = d
+				if max > MaxTypeDepth {
+					return 1 + max
+				}
+			}
+		}
+		return 1 + max
+	case *StructType:
+		max := 0
+		for i := range ct.Fields {
+			if d := typeDepth(ct.Fields[i].Type, visited); d > max {
+				max = d
+				if max > MaxTypeDepth {
+					return 1 + max
+				}
+			}
+		}
+		return 1 + max
+	case *InterfaceType:
+		max := 0
+		for i := range ct.Methods {
+			if d := typeDepth(ct.Methods[i].Type, visited); d > max {
+				max = d
+				if max > MaxTypeDepth {
+					return 1 + max
+				}
+			}
+		}
+		return 1 + max
+	case *DeclaredType:
+		// Leaf for depth purposes: a name reference to a named type
+		// doesn't expose the named type's internal nesting to the
+		// expression-level depth walker. Stops the walker from being
+		// inflated by stdlib interfaces (e.g. io.Writer, error) used in
+		// otherwise-shallow source.
+		return 0
+	default:
+		return 0
+	}
+}
+
+// validateTypeDepth panics if t's nesting depth exceeds MaxTypeDepth.
+// Called at type-construction points in preprocess.go (evalStaticType,
+// evalStaticTypeMachine, evalStaticTypeOfRawMachine) before the result
+// is cached. Per-call O(MaxTypeDepth) thanks to typeDepth's early-exit.
+func validateTypeDepth(t Type, displayName string) {
+	if d := typeDepth(t, nil); d > MaxTypeDepth {
+		panic(fmt.Sprintf(
+			"type %s nesting depth %d exceeds max %d",
+			displayName, d, MaxTypeDepth))
+	}
+}
 
 // embedDepth returns the maximum depth of embedded-field / embedded-
 // interface chains reachable from t. visited keys on the Type interface
