@@ -810,7 +810,7 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
-		false,
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -832,7 +832,9 @@ var nativeFuncs = [...]NativeFunc{
 			tv2.DeepFill(m.Store)
 			gno.Gno2GoValue(tv2, rp2)
 
-			r0 := libs_crypto_ed25519.X_verify(p0, p1, p2)
+			r0 := libs_crypto_ed25519.X_verify(
+				m,
+				p0, p1, p2)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -850,7 +852,7 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("[32]byte")},
 		},
-		false,
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -862,7 +864,9 @@ var nativeFuncs = [...]NativeFunc{
 			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
-			r0 := libs_crypto_sha256.X_sum256(p0)
+			r0 := libs_crypto_sha256.X_sum256(
+				m,
+				p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,

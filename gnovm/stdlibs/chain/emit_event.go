@@ -8,12 +8,26 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd count")
 
+// GasCostEmitPerByte is the gas cost per byte of event attribute data.
+// Calibrated via BenchmarkAttrKeysAndValues: <1 ns/byte on Apple M5 (dominated by
+// slice allocation already captured by alloc gas). Value of 1 is a conservative minimum.
+const GasCostEmitPerByte int64 = 1
+
 func X_emit(m *gno.Machine, typ string, attrs []string) {
+	if m.GasMeter != nil {
+		totalBytes := int64(len(typ))
+		for _, a := range attrs {
+			totalBytes += int64(len(a))
+		}
+		m.GasMeter.ConsumeGas(overflow.Mulp(totalBytes, GasCostEmitPerByte), "emit")
+	}
+
 	eventAttrs, err := attrKeysAndValues(attrs)
 	if err != nil {
 		m.PanicString(err.Error())
