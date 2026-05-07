@@ -2,11 +2,13 @@ package gnoweb
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"go/token"
+	"io"
 	"log/slog"
 	"net/http"
 	"path"
@@ -753,9 +755,20 @@ func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *compon
 
 	// Check if we have initial code from query (e.g. shared snippet).
 	// Code can be given as a base64 encoded string or plaintext.
+	// When the "z" query flag is present the base64 payload is also deflate-compressed.
 	initialCode := gnourl.Query.Get("code")
-	if decoded, err := base64.StdEncoding.DecodeString(initialCode); err == nil {
-		initialCode = string(decoded)
+	decoded, err := base64.StdEncoding.DecodeString(initialCode)
+	if err == nil {
+		if gnourl.Query.Has("z") {
+			r := flate.NewReader(bytes.NewReader(decoded))
+			if plain, err := io.ReadAll(r); err == nil {
+				initialCode = string(plain)
+			}
+
+			r.Close()
+		} else {
+			initialCode = string(decoded)
+		}
 	}
 
 	// Use default code when no code is provided

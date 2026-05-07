@@ -8,6 +8,10 @@ interface PlaygroundFile {
 const GNOMOD_FILE = "gnomod.toml";
 const DEFAULT_GNO_CONTENT = "package main\n";
 
+// Max length for shared source code.
+// It stays under the 8192-byte default limit of common web servers (nginx, Apache).
+const MAX_SHARE_URL_LENGTH = 8_000;
+
 export class PlaygroundController extends BaseController {
 	private declare files: PlaygroundFile[];
 	private declare activeFile: number;
@@ -180,7 +184,7 @@ export class PlaygroundController extends BaseController {
 		);
 	}
 
-	public shareCode(): void {
+	public async shareCode(): Promise<void> {
 		this.files[this.activeFile].content = this.codeEl.value;
 		const code =
 			this.files.length === 1
@@ -189,20 +193,35 @@ export class PlaygroundController extends BaseController {
 						.map((f) => `// --- ${f.name} ---\n${f.content}`)
 						.join("\n\n");
 
-		// Encode as base64; TextEncoder produces UTF-8 bytes, which are mapped to a
-		// Latin-1 binary string so btoa() can handle non-ASCII chars, then the
-		// resulting base64 is percent-encoded to be safe in a URL query parameter.
+		// Compress code before sharing it
 		const bytes = new TextEncoder().encode(code);
-		const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
-		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}`;
+		const cs = new CompressionStream("deflate-raw");
+		const writer = cs.writable.getWriter();
+		writer.write(bytes);
+		writer.close();
+
+		// Use Response to drain the stream into an ArrayBuffer for compatibility with
+		// browsers older than ~2 years. ReadableStream.bytes() would a simpler alternative
+		// but it's only available for (Chrome 124+, Firefox 128+, Safari 18+).
+		const compressed = await new Response(cs.readable).arrayBuffer();
+		const binary = Array.from(new Uint8Array(compressed), (b) =>
+			String.fromCharCode(b),
+		).join("");
+
+		// Share compressed code
+		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`;
+		if (url.length > MAX_SHARE_URL_LENGTH) {
+			this._setOutput(
+				`Error: code is too large to share via URL.\n\nTry reducing the code or splitting into a deployed package.`,
+				true,
+			);
+			return;
+		}
+
 		navigator.clipboard
 			.writeText(url)
-			.then(() => {
-				this._setOutput("Share URL copied to clipboard!");
-			})
-			.catch(() => {
-				this._setOutput(`Share URL:\n${url}`);
-			});
+			.then(() => this._setOutput("Share URL copied to clipboard!"))
+			.catch(() => this._setOutput(`Share URL:\n${url}`));
 	}
 
 	public clearOutput(): void {
