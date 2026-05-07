@@ -2344,6 +2344,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (dontcare)
 						// at.Vrd = false
 						at.Len = idx
+						// Mutating Len invalidates the cached typeid.
+						at.typeid = ""
 						// update node
 						cx := constInt(n, int64(idx))
 						unconst(n.Type).(*ArrayTypeExpr).Len = cx
@@ -3905,6 +3907,23 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	} else if ctx, ok := x.(*constTypeExpr); ok {
 		return ctx.Type // no need to set attribute.
 	}
+	// Fast path: build compositional types directly from the AST,
+	// reusing ATTR_TYPE_VALUE on inner subexpressions. Avoids spinning up
+	// a Machine per call, which would re-run all inner doOp* even when
+	// inner subexpression types are already cached. Without this, a chain
+	// like [][]…[]int costs O(N²) doOp invocations (one full sub-walk per
+	// TRANS_LEAVE level).
+	if t, ok := staticTypeFromAST(store, last, x); ok {
+		x.SetAttribute(ATTR_TYPE_VALUE, t)
+		return t
+	}
+	return evalStaticTypeMachine(store, last, x)
+}
+
+// evalStaticTypeMachine is the original Machine-backed implementation of
+// evalStaticType, retained for AST shapes the fast path doesn't cover
+// (NameExpr, SelectorExpr, etc.). Sets ATTR_TYPE_VALUE before returning.
+func evalStaticTypeMachine(store Store, last BlockNode, x Expr) Type {
 	pn := packageOf(last)
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
@@ -3930,6 +3949,96 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	t := tv.GetType()
 	x.SetAttribute(ATTR_TYPE_VALUE, t)
 	return t
+}
+
+// staticTypeFromAST constructs a Type directly from an AST type expression,
+// mirroring doOp{Slice,Array,Pointer,Map,Chan,Func,Struct,Interface}Type in
+// op_types.go field-for-field. Inner type expressions are resolved via
+// evalStaticType, which hits ATTR_TYPE_VALUE on cache hits — making the
+// fast path O(1) per node when called bottom-up via TRANS_LEAVE.
+//
+// Returns (nil, false) for AST shapes not handled here (NameExpr,
+// SelectorExpr, *ConstExpr, etc.); the caller must fall back to the
+// Machine path.
+func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
+	switch x := x.(type) {
+	case *SliceTypeExpr:
+		return &SliceType{
+			Elt: evalStaticType(store, last, x.Elt),
+			Vrd: x.Vrd,
+		}, true
+	case *ArrayTypeExpr:
+		if x.Len == nil { // [...]T variadic; Len is patched at preprocess.go:2346
+			return &ArrayType{
+				Elt: evalStaticType(store, last, x.Elt),
+				Vrd: true,
+			}, true
+		}
+		// evalConst requires the length to already be a *ConstExpr;
+		// fall back to Machine if it hasn't been folded yet.
+		if _, ok := x.Len.(*ConstExpr); !ok {
+			return nil, false
+		}
+		return &ArrayType{
+			Elt: evalStaticType(store, last, x.Elt),
+			Len: int(evalConst(store, last, x.Len).GetInt()),
+		}, true
+	case *StarExpr:
+		// *T as a type expression. Mirrors doOpStar's TypeType case
+		// (op_expressions.go:191): wraps inner type in PointerType.
+		return &PointerType{Elt: evalStaticType(store, last, x.X)}, true
+	case *MapTypeExpr:
+		return &MapType{
+			Key:   evalStaticType(store, last, x.Key),
+			Value: evalStaticType(store, last, x.Value),
+		}, true
+	case *ChanTypeExpr:
+		return &ChanType{
+			Dir: x.Dir,
+			Elt: evalStaticType(store, last, x.Value),
+		}, true
+	case *FuncTypeExpr:
+		// doOpFuncType does NOT call fillEmbeddedName on params/results.
+		return &FuncType{
+			Params:  buildFieldTypesAST(store, last, x.Params, false),
+			Results: buildFieldTypesAST(store, last, x.Results, false),
+		}, true
+	case *StructTypeExpr:
+		return &StructType{
+			PkgPath: packageOf(last).PkgPath,
+			Fields:  buildFieldTypesAST(store, last, x.Fields, true),
+		}, true
+	case *InterfaceTypeExpr:
+		return &InterfaceType{
+			PkgPath: packageOf(last).PkgPath,
+			Methods: buildFieldTypesAST(store, last, x.Methods, true),
+			Generic: x.Generic,
+		}, true
+	}
+	return nil, false
+}
+
+// buildFieldTypesAST constructs a []FieldType directly from FieldTypeExprs,
+// mirroring doOpFieldType + doOp{Struct,Interface,Func}Type aggregation.
+// embed=true mirrors doOpStructType/doOpInterfaceType which call
+// fillEmbeddedName per field; embed=false mirrors doOpFuncType which does not.
+func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed bool) []FieldType {
+	fts := make([]FieldType, len(fxs))
+	for i := range fxs {
+		fx := &fxs[i]
+		ft := FieldType{
+			Name: fx.Name,
+			Type: evalStaticType(store, last, fx.Type),
+		}
+		if fx.Tag != nil {
+			ft.Tag = Tag(evalConst(store, last, fx.Tag).GetString())
+		}
+		if embed {
+			fillEmbeddedName(&ft)
+		}
+		fts[i] = ft
+	}
+	return fts
 }
 
 // If it is known that the type was already evaluated,
