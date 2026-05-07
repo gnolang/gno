@@ -181,134 +181,111 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 	initStaticBlocks2(store, ctx, nn)
 }
 
-// Replace ForStmt and RangeStmt declared names with <name>+.loop. This is to
-// disambiguate such names from the same name declared within the body of the
+// initStaticBlocks1 renames ForStmt-init declared names with a ".loopvar"
+// suffix so they don't collide with same-named decls inside the body of the
 // same block.
+//
+// Algorithm: a single TranscribeB walk maintains a stack of "active loopvar"
+// frames (map[Name]bool). The top frame is the set of names currently in
+// scope as renameable. Frames are pushed at block-introducing nodes and
+// popped at TRANS_LEAVE, so in-place mutations (deleting a shadowed name
+// from the top frame on encountering an inner DEFINE/var/type decl) are
+// scoped to the enclosing block. A NameExpr is renamed (Name += ".loopvar")
+// iff its name is in the top frame and its position is not a declaration
+// site (composite-literal key, var-name, range key/value, or assign-LHS in
+// a DEFINE).
+//
+// O(N) total, replacing the previous O(N + Σ K_i × M_i) per-loopvar walk.
 func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
-	// helper to replace all instances of 'n' with <n>.loopvar
-	// where appropriate (skipping once shadowed).
-	replaceAllLoopvar := func(ctx BlockNode, bn BlockNode, loopvar Name) {
-		_ = TranscribeB(ctx, bn, func(
-			ns []Node,
-			stack []BlockNode,
-			last BlockNode,
-			ftype TransField,
-			index int,
-			n Node,
-			stage TransStage,
-		) (Node, TransCtrl) {
-			defer doRecover(stack, n)
-			if debug {
-				debug.Printf("replaceAllLoopvar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
-			}
-
-			switch stage {
-			case TRANS_ENTER:
-				if last == bn && (ftype == TRANS_FOR_INIT || ftype == TRANS_RANGE_X ||
-					ftype == TRANS_RANGE_KEY ||
-					ftype == TRANS_RANGE_VALUE) {
-					return n, TRANS_SKIP
-				}
-				switch n := n.(type) {
-				case *FuncLitExpr:
-					for i := range n.Type.Params {
-						px := &n.Type.Params[i].NameExpr
-						if px.Name == loopvar {
-							return n, TRANS_SKIP
-						}
-					}
-					for i := range n.Type.Results {
-						rx := &n.Type.Results[i].NameExpr
-						if rx.Name == loopvar {
-							return n, TRANS_SKIP
-						}
-					}
-				}
-			// ----------------------------------------
-			case TRANS_LEAVE:
-				switch n := n.(type) {
-				case *NameExpr:
-					switch ftype {
-					case TRANS_COMPOSITE_KEY:
-						return n, TRANS_CONTINUE
-					case TRANS_ASSIGN_LHS:
-						as := ns[len(ns)-1].(*AssignStmt)
-						if as.Op == DEFINE {
-							if n.Name == loopvar {
-								// remember to skip body stmts after assign.
-								as.SetAttribute(ATTR_LOOPVAR_SKIP, true)
-								return n, TRANS_CONTINUE
-							}
-						} else {
-							if n.Name == loopvar && !as.HasAttribute(ATTR_LOOPVAR_SKIP) {
-								n.Name += ".loopvar"
-							}
-						}
-					case TRANS_VAR_NAME:
-						if n.Name == loopvar {
-							// remember to skip body stmts after value decl.
-							vd := ns[len(ns)-1].(*ValueDecl)
-							vd.SetAttribute(ATTR_LOOPVAR_SKIP, true)
-							return n, TRANS_CONTINUE
-						}
-					case TRANS_RANGE_KEY,
-						TRANS_RANGE_VALUE:
-						if n.Name == loopvar {
-							return n, TRANS_SKIP
-						}
-					default:
-						// All other name exprs transcribed
-						// should be replaced.
-						// NOTE: TypeDecl and SwitchStmt
-						// are handled later.
-						if n.Name == loopvar {
-							n.Name += ".loopvar"
-						}
-					}
-				case *AssignStmt, *ValueDecl:
-					if n.HasAttribute(ATTR_LOOPVAR_SKIP) {
-						n.DelAttribute(ATTR_LOOPVAR_SKIP)
-						return n, TRANS_SKIP
-					}
-				case *TypeDecl:
-					nx := &n.NameExpr
-					if nx.Name == loopvar {
-						return n, TRANS_SKIP
-					}
-				case *SwitchStmt:
-					if n.VarName == loopvar {
-						return n, TRANS_SKIP
-					}
-				}
-			}
-			return n, TRANS_CONTINUE
-		})
+	// Fast path for the common case (no for-loop with multi-name DEFINE
+	// init in scope): if the parent frame is empty and `modify` doesn't
+	// add anything, skip the push entirely. `didPush` records whether each
+	// scope actually pushed a frame so pop can match.
+	var stack []map[Name]bool
+	var didPush []bool
+	top := func() map[Name]bool {
+		if len(stack) == 0 {
+			return nil
+		}
+		return stack[len(stack)-1]
+	}
+	pushClone := func(modify func(map[Name]bool)) {
+		parent := top()
+		// Fast path: no parent state and no contribution -> skip alloc.
+		// We must NOT skip when parent is non-empty even if modify trims
+		// the result to empty: the empty frame still shadows parent.
+		if modify == nil && len(parent) == 0 {
+			didPush = append(didPush, false)
+			return
+		}
+		f := map[Name]bool{}
+		for k, v := range parent {
+			f[k] = v
+		}
+		if modify != nil {
+			modify(f)
+		}
+		stack = append(stack, f)
+		didPush = append(didPush, true)
+	}
+	pop := func() {
+		if didPush[len(didPush)-1] {
+			stack = stack[:len(stack)-1]
+		}
+		didPush = didPush[:len(didPush)-1]
 	}
 
-	// iterate over all nodes recursively.
 	_ = TranscribeB(ctx, nn, func(
 		ns []Node,
-		stack []BlockNode,
+		bstack []BlockNode,
 		last BlockNode,
 		ftype TransField,
 		index int,
 		n Node,
 		stage TransStage,
 	) (Node, TransCtrl) {
-		defer doRecover(stack, n)
+		defer doRecover(bstack, n)
 		if debug {
 			debug.Printf("initStaticBlocks1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
-		// ----------------------------------------
 		case TRANS_ENTER:
+			// FuncLit/FuncDecl push at ENTER (not BLOCK) so param/result/recv
+			// masking takes effect before the FuncTypeExpr children are walked.
+			switch n := n.(type) {
+			case *FuncLitExpr:
+				pushClone(func(f map[Name]bool) {
+					for i := range n.Type.Params {
+						delete(f, n.Type.Params[i].NameExpr.Name)
+					}
+					for i := range n.Type.Results {
+						delete(f, n.Type.Results[i].NameExpr.Name)
+					}
+				})
+			case *FuncDecl:
+				pushClone(func(f map[Name]bool) {
+					if n.IsMethod {
+						delete(f, n.Recv.NameExpr.Name)
+					}
+					for i := range n.Type.Params {
+						delete(f, n.Type.Params[i].NameExpr.Name)
+					}
+					for i := range n.Type.Results {
+						delete(f, n.Type.Results[i].NameExpr.Name)
+					}
+				})
+			}
+
+		case TRANS_BLOCK:
+			// Other block-introducing nodes push here. Pairs naturally with
+			// TranscribeB's BLOCK→LEAVE flow.
 			switch n := n.(type) {
 			case *ForStmt:
-				switch fsinit := n.Init.(type) {
-				case *AssignStmt:
-					if fsinit.Op != DEFINE {
-						return n, TRANS_CONTINUE
+				pushClone(func(f map[Name]bool) {
+					fsinit, ok := n.Init.(*AssignStmt)
+					if !ok || fsinit.Op != DEFINE {
+						return
 					}
 					for _, lx := range fsinit.Lhs {
 						nx := lx.(*NameExpr)
@@ -317,18 +294,76 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 							continue
 						}
 						if strings.HasSuffix(string(ln), ".loopvar") {
-							// for idempotency (already converted)
 							continue
 						}
-						// replace all ln w/ <ln>.loopvar
 						nx.Name += ".loopvar"
-						replaceAllLoopvar(last, n, ln)
+						f[ln] = true
+					}
+				})
+			case *RangeStmt:
+				pushClone(func(f map[Name]bool) {
+					if n.Op != DEFINE {
+						return
+					}
+					if kx, ok := n.Key.(*NameExpr); ok {
+						delete(f, kx.Name)
+					}
+					if vx, ok := n.Value.(*NameExpr); ok {
+						delete(f, vx.Name)
+					}
+				})
+			case *SwitchStmt:
+				pushClone(func(f map[Name]bool) {
+					if n.IsTypeSwitch && n.VarName != "" {
+						delete(f, n.VarName)
+					}
+				})
+			case *BlockStmt, *IfStmt, *IfCaseStmt,
+				*SwitchClauseStmt, *SelectCaseStmt:
+				pushClone(nil)
+			}
+
+		case TRANS_LEAVE:
+			switch n := n.(type) {
+			case *ForStmt, *FuncLitExpr, *FuncDecl, *RangeStmt,
+				*BlockStmt, *IfStmt, *IfCaseStmt, *SwitchClauseStmt,
+				*SwitchStmt, *SelectCaseStmt:
+				pop()
+			case *AssignStmt:
+				// An inner DEFINE shadows matching loopvar names from this
+				// point onward in the enclosing block (until pop).
+				if n.Op == DEFINE {
+					f := top()
+					for _, lx := range n.Lhs {
+						if nx, ok := lx.(*NameExpr); ok {
+							delete(f, nx.Name)
+						}
 					}
 				}
-			case *RangeStmt:
-				if n.Op != DEFINE {
+			case *ValueDecl:
+				f := top()
+				for i := range n.NameExprs {
+					delete(f, n.NameExprs[i].Name)
+				}
+			case *TypeDecl:
+				delete(top(), n.NameExpr.Name)
+			case *NameExpr:
+				f := top()
+				if f == nil || !f[n.Name] {
 					return n, TRANS_CONTINUE
 				}
+				switch ftype {
+				case TRANS_COMPOSITE_KEY,
+					TRANS_VAR_NAME,
+					TRANS_RANGE_KEY,
+					TRANS_RANGE_VALUE:
+					return n, TRANS_CONTINUE
+				case TRANS_ASSIGN_LHS:
+					if as, ok := ns[len(ns)-1].(*AssignStmt); ok && as.Op == DEFINE {
+						return n, TRANS_CONTINUE
+					}
+				}
+				n.Name += ".loopvar"
 			}
 		}
 		return n, TRANS_CONTINUE
