@@ -126,6 +126,7 @@ func (m *Machine) doOpStructType() {
 		PkgPath: m.Package.PkgPath,
 		Fields:  fields,
 	}
+	validateEmbedDepth(st, "<anonymous struct>")
 	m.PushValue(TypedValue{
 		T: gTypeType,
 		V: toTypeValue(st),
@@ -149,6 +150,7 @@ func (m *Machine) doOpInterfaceType() {
 		Methods: methods,
 		Generic: x.Generic,
 	}
+	validateEmbedDepth(it, "<anonymous interface>")
 	m.PushValue(TypedValue{
 		T: gTypeType,
 		V: toTypeValue(it),

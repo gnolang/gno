@@ -1530,7 +1530,106 @@ func (dt *DeclaredType) Kind() Kind {
 
 func (dt *DeclaredType) Seal() {
 	dt.checkSeal()
+	validateEmbedDepth(dt, string(dt.Name))
 	dt.sealed = true
+}
+
+// MaxEmbedDepth bounds embed-chain depth for declared types, struct fields,
+// and embedded interfaces. The check fires at type construction (Seal for
+// named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
+// types). Caps the worst-case FindEmbeddedFieldType trail length so that K
+// repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
+// for adversarial source-level embed chains. 16 is well above any
+// observed legitimate Gno code (deepest in stdlib + examples + tests is
+// 3) and well below the regime where embed-walk cost compounds.
+const MaxEmbedDepth = 16
+
+// embedDepth returns the maximum depth of embedded-field / embedded-
+// interface chains reachable from t. visited keys on the Type interface
+// (pointer identity for composite types) and prevents infinite recursion
+// on self-pointer cycles like `type Node struct{ *Node }`. Early-exits
+// once accumulated depth exceeds MaxEmbedDepth so the per-call cost is
+// bounded at O(MaxEmbedDepth).
+//
+// Counted contributions:
+//   - StructType.Fields[i] with Embedded=true: 1 + depth(field-type)
+//   - InterfaceType.Methods[i] whose Type is itself an interface: 1 + depth
+//   - DeclaredType, PointerType: transparent passthrough (0 own contribution)
+//
+// Non-composite or non-embedding types return 0.
+func embedDepth(t Type, visited map[Type]struct{}) int {
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[t]; ok {
+		return 0
+	}
+	visited[t] = struct{}{}
+	switch ct := t.(type) {
+	case *DeclaredType:
+		return embedDepth(ct.Base, visited)
+	case *PointerType:
+		return embedDepth(ct.Elt, visited)
+	case *StructType:
+		max := 0
+		for i := range ct.Fields {
+			f := &ct.Fields[i]
+			if !f.Embedded {
+				continue
+			}
+			if d := 1 + embedDepth(f.Type, visited); d > max {
+				max = d
+				if max > MaxEmbedDepth {
+					return max
+				}
+			}
+		}
+		return max
+	case *InterfaceType:
+		max := 0
+		for i := range ct.Methods {
+			mt := ct.Methods[i].Type
+			if !isInterfaceMethodEmbed(mt) {
+				continue
+			}
+			if d := 1 + embedDepth(mt, visited); d > max {
+				max = d
+				if max > MaxEmbedDepth {
+					return max
+				}
+			}
+		}
+		return max
+	default:
+		return 0
+	}
+}
+
+// isInterfaceMethodEmbed reports whether an InterfaceType.Methods entry's
+// Type represents an embedded interface (vs. a regular method whose
+// signature is a *FuncType). declareWith collapses Base via baseOf, so
+// Base of a *DeclaredType is never another *DeclaredType.
+func isInterfaceMethodEmbed(t Type) bool {
+	switch ct := t.(type) {
+	case *InterfaceType:
+		return true
+	case *DeclaredType:
+		_, ok := ct.Base.(*InterfaceType)
+		return ok
+	}
+	return false
+}
+
+// validateEmbedDepth panics if t's embed depth exceeds MaxEmbedDepth.
+// Called at type-finalization points (Seal for named types; immediately
+// after construction for inline struct/interface types). Per-call cost is
+// O(MaxEmbedDepth) thanks to embedDepth's early-exit.
+func validateEmbedDepth(t Type, displayName string) {
+	if d := embedDepth(t, nil); d > MaxEmbedDepth {
+		panic(fmt.Sprintf(
+			"type %s embed depth %d exceeds max %d",
+			displayName, d, MaxEmbedDepth))
+	}
 }
 
 // NOTE: dt.sealed is only for recursive types support:

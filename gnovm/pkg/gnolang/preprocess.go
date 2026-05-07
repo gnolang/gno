@@ -4004,16 +4004,20 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			Results: buildFieldTypesAST(store, last, x.Results, false),
 		}, true
 	case *StructTypeExpr:
-		return &StructType{
+		st := &StructType{
 			PkgPath: packageOf(last).PkgPath,
 			Fields:  buildFieldTypesAST(store, last, x.Fields, true),
-		}, true
+		}
+		validateEmbedDepth(st, "<anonymous struct>")
+		return st, true
 	case *InterfaceTypeExpr:
-		return &InterfaceType{
+		it := &InterfaceType{
 			PkgPath: packageOf(last).PkgPath,
 			Methods: buildFieldTypesAST(store, last, x.Methods, true),
 			Generic: x.Generic,
-		}, true
+		}
+		validateEmbedDepth(it, "<anonymous interface>")
+		return it, true
 	}
 	return nil, false
 }
