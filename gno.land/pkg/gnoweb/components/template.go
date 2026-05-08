@@ -53,7 +53,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	// truncOID surfaces a long ObjectID/Hash as `head…tail` (preserving
 	// the `:N` suffix when present) so chips and sidebar rows stay
 	// scannable without losing the full value (kept in `title`/copy).
-	funcs["truncOID"] = truncOID
+	funcs["truncOID"] = TruncOID
 	// headingForKind picks the appropriate column-header label for a
 	// children grid based on the parent node's Kind. Keeps the binding
 	// label consistent between nested levels (struct→Field, map→Key,
@@ -68,57 +68,53 @@ func registerCommonFuncs(funcs template.FuncMap) {
 			return "Field"
 		}
 	}
-	// kindGlyph picks a small Unicode glyph for a node's Kind+Type.
-	// Used as a leading visual hint next to the field name so users
-	// recognise the shape at a glance — `T` strings, `#` numbers,
-	// `⊞` structs, `≡` maps, etc. Pure CSS-renderable, no SVG asset.
-	funcs["kindGlyph"] = func(kind, t string) string {
+	// kindIconID picks the SVG sprite ID (without the `ico-` prefix)
+	// for a node's Kind+Type. Used as a leading visual hint next to
+	// the field name so users recognise the shape at a glance —
+	// rendered as `<svg><use href="#ico-kind-..."/></svg>` so styling,
+	// theming, and accessibility align with the rest of gnoweb's
+	// icon system. Symbols are defined in `ui/icons.html`.
+	funcs["kindIconID"] = func(kind, t string) string {
 		switch kind {
 		case "primitive":
 			switch {
 			case strings.Contains(t, "string"):
-				return "T"
+				return "kind-string"
 			case strings.Contains(t, "bool"):
-				return "◐"
+				return "kind-bool"
 			default:
-				return "#"
+				return "kind-number"
 			}
 		case "struct":
-			return "⊞"
+			return "kind-struct"
 		case "map":
-			return "≡"
+			return "kind-map"
 		case "slice", "array":
-			return "[ ]"
+			return "kind-slice"
 		case "pointer":
-			return "→"
+			return "kind-pointer"
 		case "func":
-			return "ƒ"
+			return "kind-func"
 		case "closure":
-			return "λ"
+			return "kind-closure"
 		case "ref":
-			return "◇"
+			return "kind-ref"
 		case "nil":
-			return "∅"
+			return "kind-nil"
 		case "package":
-			return "⌥"
+			return "kind-package"
 		case "type":
-			return "T:"
+			return "kind-type"
 		case "interface":
-			return "?"
+			return "kind-interface"
 		default:
-			return "·"
+			return "kind-unknown"
 		}
 	}
-	// oidShort returns the trailing `:N` of an ObjectID when it shares
-	// its 40-char hashlet with `ref`. Otherwise the full id. Used to
-	// avoid rendering near-identical Owner/OID pairs in the audit chips.
-	funcs["oidShort"] = func(id, ref string) string {
-		i, j := strings.IndexByte(id, ':'), strings.IndexByte(ref, ':')
-		if i > 0 && j > 0 && id[:i] == ref[:j] {
-			return id[i:]
-		}
-		return id
-	}
+	// oidShort: trailing `:N` when id and ref share the same 40-char
+	// hashlet, full id otherwise. Avoids rendering near-identical
+	// Owner/OID pairs in the audit chips.
+	funcs["oidShort"] = ShortenOID
 	// dict creates a map from key-value pairs for passing multiple values to templates
 	funcs["dict"] = func(kv ...any) (map[string]any, error) {
 		if len(kv)%2 != 0 {

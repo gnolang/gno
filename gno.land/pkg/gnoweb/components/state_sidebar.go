@@ -14,10 +14,10 @@ import (
 // id / URL-fragment. Used to derive anchors from declaration names.
 var reAnchorSafe = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
-// shortenOID returns id's trailing `:N` when its 40-char hashlet matches
-// ref's, otherwise the full id. Mirrors the `oidShort` template func and
-// is reused server-side for sidebar/meta rows.
-func shortenOID(id, ref string) string {
+// ShortenOID returns id's trailing `:N` when its 40-char hashlet
+// matches ref's, otherwise the full id. Used by both the sidebar
+// builder and the `oidShort` template func — single source of truth.
+func ShortenOID(id, ref string) string {
 	i, j := strings.IndexByte(id, ':'), strings.IndexByte(ref, ':')
 	if i > 0 && j > 0 && id[:i] == ref[:j] {
 		return id[i:]
@@ -42,22 +42,14 @@ func truncMid(s string, head, tail int) string {
 	return s[:head] + "…" + s[len(s)-tail:]
 }
 
-// truncOID truncates an ObjectID's hashlet while preserving the `:N`
-// suffix (the part that distinguishes objects in the same realm). Plain
-// non-OID strings get a bare middle truncation.
-func truncOID(id string, head, tail int) string {
+// TruncOID truncates an ObjectID's hashlet to `head…tail` while
+// preserving the `:N` suffix (the part that distinguishes objects in
+// the same realm). Plain non-OID strings get a bare middle truncation.
+func TruncOID(id string, head, tail int) string {
 	if i := strings.IndexByte(id, ':'); i > 0 {
 		return truncMid(id[:i], head, tail) + id[i:]
 	}
 	return truncMid(id, head, tail)
-}
-
-// TruncOIDForDisplay is the exported wrapper used by the handler when
-// formatting page titles — keeps long ObjectIDs readable on one line.
-// 8/6 split balances scanning the realm hashlet vs preserving enough
-// hex to disambiguate the object.
-func TruncOIDForDisplay(id string) string {
-	return truncOID(id, 8, 6)
 }
 
 // BuildPackageSidebar assembles the aside content for a top-level state
@@ -71,7 +63,7 @@ func BuildPackageSidebar(pkgPath string, nodes []StateNode) *StateSidebar {
 	if !strings.HasPrefix(pkgPath, "/r/") {
 		heading = "Package declarations"
 	}
-	kindLabel := pkgKindLabel(pkgPath) // "Realm" or "Package"
+	kindLabel := PkgKindLabel(pkgPath)
 	return &StateSidebar{
 		Heading: heading,
 		TOC:     buildTOC(nodes),
@@ -87,9 +79,9 @@ func BuildPackageSidebar(pkgPath string, nodes []StateNode) *StateSidebar {
 // OID, Type), Lineage (Owner) and Storage (Size, Refs, Mod, Hash) so
 // users can scan the audit info quickly. Long IDs/hashes are mono +
 // truncated; short numeric values render inline. */
-func BuildObjectSidebar(pkgPath, oid, typeID string, info StateObjectInfoView, nodes []StateNode) *StateSidebar {
+func BuildObjectSidebar(pkgPath, oid, typeID string, height int64, info StateObjectInfoView, nodes []StateNode) *StateSidebar {
 	meta := []StateMetaEntry{
-		{Section: "Identity", Label: "Realm", Value: pkgPath, Href: realmStateHref(pkgPath)},
+		{Section: "Identity", Label: "Realm", Value: pkgPath, Href: RealmStateHref(pkgPath)},
 		{Label: "Object ID", Value: oid, Mono: true},
 	}
 	if typeID != "" {
@@ -97,12 +89,13 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, info StateObjectInfoView, n
 	}
 	if info.OwnerID != "" {
 		// Owner navigation: clicking the owner takes you to its own state
-		// page — instant ownership-tree drill-up. When the owner shares the
-		// queried object's hashlet (same realm), only show the trailing
-		// `:N` so the row doesn't repeat ~99% of the OID just above.
+		// page at the SAME height so time-travel holds across the hop.
+		// When the owner shares the queried object's hashlet (same realm),
+		// only show the trailing `:N` so the row doesn't repeat ~99% of
+		// the OID just above.
 		meta = append(meta, StateMetaEntry{
-			Section: "Lineage", Label: "Owner", Value: shortenOID(info.OwnerID, oid),
-			Href: stateObjectHref(pkgPath, info.OwnerID, ""),
+			Section: "Lineage", Label: "Owner", Value: ShortenOID(info.OwnerID, oid),
+			Href: stateObjectHref(pkgPath, info.OwnerID, "", height),
 			Mono: true,
 		})
 	}
@@ -174,14 +167,20 @@ func stateAnchorOf(name string) string {
 	return "state-" + strings.ToLower(clean)
 }
 
-// realmStateHref returns the URL of the realm's top-level state page —
-// the destination of the "back to realm" link in the object sidebar.
-func realmStateHref(pkgPath string) template.URL {
+// RealmStateHref returns the URL of a package's top-level state page
+// (`/r/foo$state`). Single source for any caller that needs a "back to
+// realm" link — sidebar Identity row, object-page breadcrumb — so the
+// `$state` query syntax lives in one place.
+func RealmStateHref(pkgPath string) template.URL {
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: url.Values{"state": {""}}}
 	return template.URL(u.EncodeWebURL())
 }
 
-func pkgKindLabel(pkgPath string) string {
+// PkgKindLabel returns the human-readable label for a package path:
+// "Realm" for paths under `/r/`, "Package" otherwise. Used by both
+// the sidebar Identity row and the state-page title — single source
+// so a future "Library" or "App" classification lives in one place.
+func PkgKindLabel(pkgPath string) string {
 	if strings.HasPrefix(pkgPath, "/r/") {
 		return "Realm"
 	}

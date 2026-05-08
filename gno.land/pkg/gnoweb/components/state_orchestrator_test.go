@@ -61,7 +61,7 @@ func TestEnrich_Basic(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 3, EndLine: 5},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.NotEmpty(t, nodes[0].SourceHTML, "SourceHTML must be populated")
 	assert.Contains(t, string(nodes[0].SourceHTML), "func Foo()",
@@ -88,7 +88,7 @@ func TestEnrich_FuncKindGetsSourceHTML(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 3, EndLine: 3},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.NotEmpty(t, nodes[0].SourceHTML,
 		"regular funcs must get inline source rendered, like closures")
@@ -111,7 +111,7 @@ func TestEnrich_NoSource(t *testing.T) {
 		{Name: "Users", Type: "map[string]User", Kind: "ref", ObjectID: "ff:8", Expandable: true},
 	}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	for i, n := range nodes {
 		assert.Empty(t, n.SourceHTML, "node %d had no Source — SourceHTML must stay empty", i)
@@ -137,7 +137,7 @@ func TestEnrich_Recurses(t *testing.T) {
 		}},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Empty(t, nodes[0].SourceHTML, "parent struct has no Source — left alone")
 	assert.NotEmpty(t, nodes[0].Children[0].SourceHTML, "nested closure gets its source")
@@ -159,7 +159,7 @@ func TestEnrich_FileCache(t *testing.T) {
 		{Name: "c", Kind: "closure", Source: &SourceLocation{File: "foo.gno", StartLine: 3, EndLine: 3}},
 	}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Equal(t, int32(1), atomic.LoadInt32(&fetcher.calls),
 		"three nodes pointing to the same file should produce one fetch")
@@ -182,7 +182,7 @@ func TestEnrich_FetchError(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 1, EndLine: 5},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Empty(t, nodes[0].SourceHTML, "fetch error → SourceHTML stays empty (graceful)")
 }
@@ -200,7 +200,7 @@ func TestEnrich_RenderError(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 1, EndLine: 1},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Empty(t, nodes[0].SourceHTML, "render error → SourceHTML stays empty (graceful)")
 }
@@ -230,7 +230,7 @@ func TestEnrich_FetchesFilesInParallel(t *testing.T) {
 	}
 
 	start := time.Now()
-	Enrich(nodes, "/r/demo/foo", fetcher, hl)
+	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
 	elapsed := time.Since(start)
 
 	peak := atomic.LoadInt32(&fetcher.peak)
@@ -596,7 +596,7 @@ func TestEnrich_BuildsHrefViaGnoURL(t *testing.T) {
 		}},
 	}
 
-	Enrich(nodes, "/r/demo/foo", nil, nil)
+	Enrich(nodes, "/r/demo/foo", 0, nil, nil)
 
 	assert.NotEmpty(t, nodes[0].Href, "ref nodes must get an Href")
 	assert.Empty(t, nodes[1].Href, "leaf without ObjectID has no Href")

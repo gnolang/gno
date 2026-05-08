@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1085,4 +1087,45 @@ func buildDeepStructFixture(d int) string {
 
 func base64Encode(b []byte) string {
 	return base64.StdEncoding.EncodeToString(b)
+}
+
+// TestWalkerDepthBound pins the safety cap on recursion. A genuinely
+// deep value tree never appears in production realms, but adversarial
+// (or buggy) inputs must not blow the renderer's stack — the walker
+// yields a "(too deep)" sentinel leaf at maxDecodeDepth instead.
+//
+// Tests the cap directly via the package-internal entry point. Empty
+// TypedValue is fine: depth-check fires BEFORE tv.T == nil branch.
+func TestWalkerDepthBound(t *testing.T) {
+	t.Parallel()
+
+	// Sanity: a regular int round-trip walks at depth 0 normally.
+	const intFixture = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
+	nodes, err := DecodePkgJSON([]byte(intFixture))
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+	assert.Equal(t, "1", nodes[0].Value, "shallow walk produces real value")
+
+	// At-cap: walker short-circuits to sentinel regardless of input.
+	got := decodeTypedValueAt(maxDecodeDepth, "deep", capturedIntTV(t))
+	assert.Equal(t, "(too deep)", got.Type, "at-cap walk yields sentinel")
+	assert.Equal(t, "truncated", got.Kind)
+	assert.Empty(t, got.Children, "sentinel has no children")
+
+	// One slot below cap: still walks normally — bound is exclusive at depth-=cap.
+	below := decodeTypedValueAt(maxDecodeDepth-1, "below", capturedIntTV(t))
+	assert.NotEqual(t, "truncated", below.Kind, "depth < cap walks normally")
+	assert.Equal(t, "1", below.Value, "depth < cap still decodes value")
+}
+
+// capturedIntTV returns a TypedValue for `int(1)` produced by Amino
+// JSON unmarshalling — the same shape the walker sees in production.
+// Avoids depending on internal gno construction APIs in the test.
+func capturedIntTV(t *testing.T) gno.TypedValue {
+	t.Helper()
+	const wrapper = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
+	var resp pkgResponse
+	require.NoError(t, amino.UnmarshalJSON([]byte(wrapper), &resp))
+	require.Len(t, resp.Values, 1)
+	return resp.Values[0]
 }

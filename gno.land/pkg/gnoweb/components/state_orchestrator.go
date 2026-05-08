@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -81,11 +82,11 @@ type StateTypeFetcher interface {
 //
 // Pass nil for fetcher/highlighter to skip source enrichment (links still
 // build); the orchestrator never assumes both deps are present.
-func Enrich(nodes []StateNode, pkgPath string, fetcher FileFetcher, highlighter SnippetHighlighter) {
+func Enrich(nodes []StateNode, pkgPath string, height int64, fetcher FileFetcher, highlighter SnippetHighlighter) {
 	// Pass 1 — local CPU work: build hrefs and collect the unique set of
 	// files referenced anywhere in the tree.
 	files := make(map[string]struct{})
-	walkLinksAndCollect(nodes, pkgPath, files)
+	walkLinksAndCollect(nodes, pkgPath, height, files)
 
 	// Pass 2 — concurrent I/O: prefetch all referenced files. Skipped if
 	// no fetcher provided (link-only enrichment, used by template tests).
@@ -105,17 +106,22 @@ func Enrich(nodes []StateNode, pkgPath string, fetcher FileFetcher, highlighter 
 // Source.File whose body the renderer will need for inline snippets —
 // any node carrying a Source (funcs, closures). Pure CPU pass; the
 // fetcher dedupes by filename, so N funcs in one file = 1 fetch.
-func walkLinksAndCollect(nodes []StateNode, pkgPath string, files map[string]struct{}) {
+// `height` is propagated into every Href so navigating from a time-
+// travelled page lands on the same historical block.
+func walkLinksAndCollect(nodes []StateNode, pkgPath string, height int64, files map[string]struct{}) {
 	for i := range nodes {
 		n := &nodes[i]
 		if n.ObjectID != "" {
-			n.Href = stateObjectHref(pkgPath, n.ObjectID, n.TypeID)
+			n.Href = stateObjectHref(pkgPath, n.ObjectID, n.TypeID, height)
+		}
+		if n.OwnerID != "" {
+			n.OwnerHref = stateObjectHref(pkgPath, n.OwnerID, "", height)
 		}
 		if n.Source != nil && n.Source.File != "" {
 			files[n.Source.File] = struct{}{}
 		}
 		if len(n.Children) > 0 {
-			walkLinksAndCollect(n.Children, pkgPath, files)
+			walkLinksAndCollect(n.Children, pkgPath, height, files)
 		}
 	}
 }
@@ -234,8 +240,9 @@ func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
 // fetchPreviewsConcurrent fetches the (object, type) pair for each unique
 // candidate in parallel, then decodes children with the resolved type so
 // struct fields surface with their declared names. Each fetch is silent on
-// error — graceful degradation. All I/O happens in two parallel pools
-// (objects + types) so total wall-clock stays at ~one RTT.
+// error — graceful degradation. Object and type fetches use SEPARATE
+// bounded pools so type fetches never starve behind objects when the
+// object pool saturates.
 func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
 	// Dedupe by OID so the same object isn't fetched twice.
 	byOID := make(map[string][]*StateNode)
@@ -258,15 +265,16 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 	typeCache := make(map[string][]byte, len(uniqueTypeIDs))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, maxConcurrentObjectFetches)
+	semObj := make(chan struct{}, maxConcurrentObjectFetches)
+	semType := make(chan struct{}, maxConcurrentObjectFetches)
 
 	// Pool 1: stored objects.
 	for oid := range byOID {
 		wg.Add(1)
-		sem <- struct{}{}
+		semObj <- struct{}{}
 		go func(oid string) {
 			defer wg.Done()
-			defer func() { <-sem }()
+			defer func() { <-semObj }()
 			raw, err := objFetcher.FetchObject(oid)
 			if err != nil {
 				return
@@ -277,13 +285,15 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 		}(oid)
 	}
 
-	// Pool 2: named types — runs alongside Pool 1, no extra wall-clock.
+	// Pool 2: named types — independent semaphore so types never wait
+	// for object slots. Both pools run in parallel; total wall-clock
+	// is max(slowest object, slowest type) instead of their sum.
 	for tid := range uniqueTypeIDs {
 		wg.Add(1)
-		sem <- struct{}{}
+		semType <- struct{}{}
 		go func(tid string) {
 			defer wg.Done()
-			defer func() { <-sem }()
+			defer func() { <-semType }()
 			raw, err := typeFetcher.FetchType(tid)
 			if err != nil {
 				return
@@ -335,22 +345,23 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 			if n.LastObjectSize == "" {
 				n.LastObjectSize = decoded.Info.LastObjectSize
 			}
-			if !n.IsEscaped {
-				n.IsEscaped = decoded.Info.IsEscaped
-			}
-			n.Preview = buildStructPreview(decoded.Nodes)
+			n.Preview = buildChildrenPreview(decoded.Nodes)
 		}
 	}
 }
 
 // stateObjectHref builds the URL for `<pkgPath>$state&oid=<encoded-oid>` —
 // optionally annotated with `&tid=<TypeID>` so the destination page can
-// resolve struct field names without an extra round-trip away from the
-// shared parser. Single source of truth for state-explorer hrefs.
-func stateObjectHref(pkgPath, oid, typeID string) template.URL {
+// resolve struct field names without an extra round-trip, and with
+// `&height=N` when the originating page is pinned to a historical
+// block (time-travel must hold across hops). Single source of truth.
+func stateObjectHref(pkgPath, oid, typeID string, height int64) template.URL {
 	wq := url.Values{"state": {""}, "oid": {oid}}
 	if typeID != "" {
 		wq.Set("tid", typeID)
+	}
+	if height > 0 {
+		wq.Set("height", strconv.FormatInt(height, 10))
 	}
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
 	return template.URL(u.EncodeWebURL())
@@ -390,6 +401,15 @@ func sliceLines(content []byte, startLine, endLine int) []byte {
 //
 // Caller is the handler: it fetches Client.Doc(pkgPath) in parallel
 // with qpkg_json so the page assembly stays at one RTT.
+//
+// Ordering: vals → funs → typs. Go forbids same-name top-level decls
+// across these groups in a single package, so collisions cannot happen
+// in practice; the order is fixed only so future repeats remain
+// deterministic. AttachDocs MUST run BEFORE Enrich — Enrich seals the
+// tree by following refs into children, and Doc only attaches to
+// top-level nodes by Name. Calling it after Enrich is harmless but
+// pointless work; calling it before guarantees docs render on first
+// paint without depending on lazy fetches.
 func AttachDocs(nodes []StateNode, vals []NamedDoc, funs []NamedDoc, typs []NamedDoc) {
 	if len(nodes) == 0 {
 		return

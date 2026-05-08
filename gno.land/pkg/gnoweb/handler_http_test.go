@@ -48,14 +48,14 @@ func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, erro
 	return nil, errors.New("stubClient: Realm not implemented")
 }
 
-func (s *stubClient) File(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+func (s *stubClient) File(ctx context.Context, path, filename string, _ int64) ([]byte, gnoweb.FileMeta, error) {
 	if s.fileFunc != nil {
 		return s.fileFunc(ctx, path, filename)
 	}
 	return nil, gnoweb.FileMeta{}, errors.New("stubClient: File not implemented")
 }
 
-func (s *stubClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+func (s *stubClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDocumentation, error) {
 	if s.docFunc != nil {
 		return s.docFunc(ctx, path)
 	}
@@ -76,15 +76,15 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 	return nil, errors.New("stubClient: ListPaths not implemented")
 }
 
-func (s *stubClient) StatePkg(_ context.Context, _ string) ([]byte, error) {
+func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {
 	return []byte(`[]`), nil
 }
 
-func (s *stubClient) StateObject(_ context.Context, _ string) ([]byte, error) {
+func (s *stubClient) StateObject(_ context.Context, _ string, _ int64) ([]byte, error) {
 	return []byte(`[]`), nil
 }
 
-func (s *stubClient) StateType(_ context.Context, _ string) ([]byte, error) {
+func (s *stubClient) StateType(_ context.Context, _ string, _ int64) ([]byte, error) {
 	return []byte(`{}`), nil
 }
 
@@ -1226,6 +1226,103 @@ func TestHTTPHandler_GetStateView_FuncSourceEnriched(t *testing.T) {
 		"srclink advertises file:line so users know what they're opening")
 }
 
+// TestHTTPHandler_GetStateView_HeightOutOfRange pins the friendly
+// failure mode for time-travel: when the chain rejects the height,
+// users see a focused 400 + the offending height — not a generic 500
+// "internal error" that hides the cause from anyone copy-pasting a
+// stale `?height=N` URL. PackageNotFound still wins (404 regardless
+// of height — the path is wrong independent of which block).
+func TestHTTPHandler_GetStateView_HeightOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	const realmPath = "/r/test/heighterr"
+
+	client := &stateStubClient{
+		stubClient: &stubClient{},
+		statePkgFunc: func(_ context.Context, _ string) ([]byte, error) {
+			return nil, gnoweb.ErrClientResponse
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
+		newTestHandlerConfig(t, client))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
+		realmPath+"$state&height=99999999", nil))
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code, "out-of-range height surfaces as 400, not 500")
+	body := rr.Body.String()
+	assert.Contains(t, body, "block height 99999999 is not available",
+		"error message tells the user which height failed")
+}
+
+// TestHTTPHandler_GetStateView_ViewModeCookie pins the server-side
+// rendering of the saved Pretty/Tree choice. The state-view JS controller
+// writes a `state_view_mode` cookie on every toggle; the handler reads
+// it and stamps `checked` on the matching radio so the page paints in
+// the saved view from first paint — no flicker, no inline JS.
+func TestHTTPHandler_GetStateView_ViewModeCookie(t *testing.T) {
+	t.Parallel()
+
+	const realmPath = "/r/test/viewcookie"
+	const statePkgJSON = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
+
+	cases := []struct {
+		name            string
+		cookie          *http.Cookie
+		wantPrettyAttr  string // checked attribute we expect on the pretty radio
+		wantTreeAttr    string // checked attribute we expect on the tree radio
+	}{
+		{
+			name:           "no cookie defaults to Pretty",
+			cookie:         nil,
+			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only" checked`,
+			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only">`,
+		},
+		{
+			name:           "tree cookie checks Tree",
+			cookie:         &http.Cookie{Name: "state_view_mode", Value: "tree"},
+			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only">`,
+			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only" checked`,
+		},
+		{
+			name:           "garbage cookie value falls through to Pretty",
+			cookie:         &http.Cookie{Name: "state_view_mode", Value: "<script>"},
+			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only" checked`,
+			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only">`,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &stateStubClient{
+				stubClient: &stubClient{},
+				statePkgFunc: func(_ context.Context, _ string) ([]byte, error) {
+					return []byte(statePkgJSON), nil
+				},
+			}
+			handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
+				newTestHandlerConfig(t, client))
+
+			req := httptest.NewRequest(http.MethodGet, realmPath+"$state", nil)
+			if tc.cookie != nil {
+				req.AddCookie(tc.cookie)
+			}
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, tc.wantPrettyAttr, "Pretty radio render mismatch")
+			assert.Contains(t, body, tc.wantTreeAttr, "Tree radio render mismatch")
+		})
+	}
+}
+
 // stateStubClient wraps stubClient but overrides state methods with custom functions.
 type stateStubClient struct {
 	*stubClient
@@ -1234,25 +1331,25 @@ type stateStubClient struct {
 	stateTypeFunc   func(context.Context, string) ([]byte, error)
 }
 
-func (s *stateStubClient) StatePkg(ctx context.Context, path string) ([]byte, error) {
+func (s *stateStubClient) StatePkg(ctx context.Context, path string, height int64) ([]byte, error) {
 	if s.statePkgFunc != nil {
 		return s.statePkgFunc(ctx, path)
 	}
-	return s.stubClient.StatePkg(ctx, path)
+	return s.stubClient.StatePkg(ctx, path, height)
 }
 
-func (s *stateStubClient) StateObject(ctx context.Context, oid string) ([]byte, error) {
+func (s *stateStubClient) StateObject(ctx context.Context, oid string, height int64) ([]byte, error) {
 	if s.stateObjectFunc != nil {
 		return s.stateObjectFunc(ctx, oid)
 	}
-	return s.stubClient.StateObject(ctx, oid)
+	return s.stubClient.StateObject(ctx, oid, height)
 }
 
-func (s *stateStubClient) StateType(ctx context.Context, tid string) ([]byte, error) {
+func (s *stateStubClient) StateType(ctx context.Context, tid string, height int64) ([]byte, error) {
 	if s.stateTypeFunc != nil {
 		return s.stateTypeFunc(ctx, tid)
 	}
-	return s.stubClient.StateType(ctx, tid)
+	return s.stubClient.StateType(ctx, tid, height)
 }
 
 // TestHTTPHandler_Post_OpenRedirectBlocked tests that protocol-relative URLs

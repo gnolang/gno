@@ -39,14 +39,26 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
         </dl>
       {{ end }}
       {{ if .Sidebar.TOC }}
-        <h3 class="b-state-toc-heading">On this page</h3>
+        {{ template "ui/expend_label" "On this page" }}
         <nav>
           <ul class="b-toc b-state-toc">
             {{ range .Sidebar.TOC }}
               <li>
-                <a href="#{{ .Anchor }}">
-                  <span class="kind-glyph" aria-hidden="true">{{ kindGlyph .Kind .Type }}</span>
+                {{/* Two anchors per entry: one targets the Pretty
+                     card (`#X-pretty`), one targets the Tree row
+                     (`#X-tree`). CSS hides the variant that
+                     belongs to the inactive view, so the visible
+                     link points to a real, painted target — no JS
+                     scroll bridge needed. */}}
+                <a class="c-with-icon toc-pretty" href="#{{ .Anchor }}-pretty">
+                  {{ template "state/kind-icon" . }}
                   <span class="label">{{ .Label }}</span>
+                  {{ if .Type }}<small class="type" data-kind="{{ .Kind }}">{{ .Type }}</small>{{ end }}
+                </a>
+                <a class="c-with-icon toc-tree" href="#{{ .Anchor }}-tree">
+                  {{ template "state/kind-icon" . }}
+                  <span class="label">{{ .Label }}</span>
+                  {{ if .Type }}<small class="type" data-kind="{{ .Kind }}">{{ .Type }}</small>{{ end }}
                 </a>
               </li>
             {{ end }}
@@ -58,31 +70,106 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 </aside>
 {{ end }}
 
-<header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
-  <h1 class="title b-content-h1">{{ .CountLabel }}</h1>
+<header class="b-content-header u-gap-0 u-mb-0">
+  {{/* Mirrors action page H1: `<name> <pill>kind</pill>`. */}}
+  <h1 class="title b-content-h1">
+    <span>{{ .CountLabel }}</span>
+    <span class="b-tag">state</span>
+  </h1>
+  {{/* Mirrors the source-page header: a `.header-info` with two
+       children that spread to the page edges via the existing
+       `justify-content: space-between` rule (no custom layout). */}}
   <div class="header-info">
-    {{ if .Crumbs }}
-      <nav aria-label="State path">
-        {{ range $i, $c := .Crumbs }}
-          {{ if $i }} <span>/</span> {{ end }}
-          {{ if $c.Href }}<a href="{{ $c.Href }}">{{ $c.Label }}</a>{{ else }}<span>{{ $c.Label }}</span>{{ end }}
-        {{ end }}
-      </nav>
-    {{ end }}
-    {{ if .Nodes }}
-      {{/* CSS-only view toggle: radios drive sibling visibility via :has().
-           No JS, no URL state — toggling reverts on page reload by design.
-           - Pretty: card layout per declaration (the curated UI)
-           - Raw: flat tree, name:type=value rows (legacy lazy-tree shape) */}}
-      <fieldset class="b-state-view-toggle" aria-label="State view mode">
-        <input type="radio" name="state-view-mode" id="state-view-pretty" class="u-sr-only" checked>
-        <label for="state-view-pretty">Pretty</label>
-        <input type="radio" name="state-view-mode" id="state-view-raw" class="u-sr-only">
-        <label for="state-view-raw">Raw</label>
-      </fieldset>
-    {{ end }}
+    <span>
+      {{ if .Crumbs }}
+        <nav aria-label="State path">
+          {{ range $i, $c := .Crumbs }}
+            {{ if $i }} <span>/</span> {{ end }}
+            {{ if $c.Href }}<a href="{{ $c.Href }}">{{ $c.Label }}</a>{{ else }}<span>{{ $c.Label }}</span>{{ end }}
+          {{ end }}
+        </nav>
+      {{ end }}
+    </span>
+
+    <div class="b-btns">
+      {{/* Time-travel disclosure — pin the page to a historical block
+           via `?height=N`. The form action is the current path stripped
+           of any existing height param (LatestHref). Pure HTML — no JS. */}}
+      <details class="b-state-history">
+        <summary>
+          <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-down"></use></svg>
+          {{ if .Height }}<span class="badge">@ #{{ .Height }}</span>
+          {{ else }}<span>Time-travel</span>{{ end }}
+        </summary>
+        <form method="GET" action="{{ .LatestHref }}" class="form">
+          <label for="state-height-input">Block height</label>
+          <input type="number" id="state-height-input" name="height" min="1" placeholder="latest" {{ if .Height }}value="{{ .Height }}"{{ end }} autocomplete="off">
+          <button type="submit" class="b-btn b-btn--secondary">Go</button>
+          {{ if .Height }}<a class="clear" href="{{ .LatestHref }}">↺ Latest</a>{{ end }}
+        </form>
+      </details>
+
+      {{ if .Nodes }}
+        {{/* CSS-only view toggle: server stamps `checked` from the
+             cookie so saved view paints first — no JS flicker. */}}
+        <fieldset class="b-state-view-toggle" data-controller="state-view" aria-label="State view mode">
+          <input type="radio" name="state-view-mode" id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only"{{ if ne .ViewMode "tree" }} checked{{ end }}>
+          <label for="state-view-pretty">Pretty</label>
+          <input type="radio" name="state-view-mode" id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only"{{ if eq .ViewMode "tree" }} checked{{ end }}>
+          <label for="state-view-tree">Tree</label>
+        </fieldset>
+      {{ end }}
+    </div>
   </div>
 </header>
+
+{{ if .Nodes }}
+  {{/* Sub-header — mirrors `.b-packages > nav` (user page) byte
+       for byte: 4-column grid, tabs span 2 left, search spans 2
+       right. Sticky with bottom-border on md+. Pretty-only —
+       hidden in Tree mode. */}}
+  <nav class="b-state-subheader" aria-label="Filter declarations">
+    {{/* Markup mirrors user.html `.packages-tabs` byte-for-byte:
+         input first (sr-only), then raw text label, then the
+         count `.b-tag--secondary` pill. No extra wrappers. */}}
+    <div class="packages-tabs" role="radiogroup" aria-label="Filter by kind">
+      <label>
+        <input type="radio" name="kind-filter" id="kf-all" value="all" class="u-sr-only" checked>
+        All
+        <span class="b-tag--tertiary">
+          {{ .KindCounts.All }}
+        </span>
+      </label>
+      <label>
+        <input type="radio" name="kind-filter" id="kf-state" value="state" class="u-sr-only">
+        State
+        <span class="b-tag--tertiary">
+          {{ .KindCounts.State }}
+        </span>
+      </label>
+      <label>
+        <input type="radio" name="kind-filter" id="kf-code" value="code" class="u-sr-only">
+        Code
+        <span class="b-tag--tertiary">
+          {{ .KindCounts.Code }}
+        </span>
+      </label>
+      <label>
+        <input type="radio" name="kind-filter" id="kf-types" value="types" class="u-sr-only">
+        Types
+        <span class="b-tag--tertiary">
+          {{ .KindCounts.Types }}
+        </span>
+      </label>
+    </div>
+    <div class="state-search b-input">
+      <input type="search" placeholder="Search declarations"
+        data-controller="state-search" data-action="input->state-search#filter"
+        aria-label="Filter declarations by name">
+      <svg class="c-icon"><use href="#ico-search"></use></svg>
+    </div>
+  </nav>
+{{ end }}
 
 <article class="b-state-explorer">
   <div class="view-pretty">
@@ -90,8 +177,8 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
       <div class="c-stack">
         {{ $pkg := .PkgPath }}
         {{ $isObj := .IsObjectPage }}
-        {{ range $i, $n := .Nodes }}
-          {{ template "state/decl" (dict "Node" $n "PkgPath" $pkg "Index" $i "IsObjectPage" $isObj) }}
+        {{ range .Nodes }}
+          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "IsObjectPage" $isObj) }}
         {{ end }}
       </div>
     {{ else }}
@@ -108,14 +195,65 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   </div>
 
   {{ if .Nodes }}
-    <div class="view-raw">
-      <div class="tree">
-        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" false) }}
+    <div class="view-tree">
+      {{/* Tree zone toolbar — frameless icon-only actions floating
+           in the top-right corner, OUTSIDE the framed tree block.
+           Position: absolute relative to .view-tree, so the buttons
+           sit on the page's surface (not inside the tree frame).
+           Icon-only with title= for tooltip; the labels are sr-only
+           so screen readers still get the affordance text. */}}
+      <div class="tree-toolbar">
+        {{ if .RawJSON }}
+          <button type="button" class="tree-toolbar-btn"
+            data-controller="copy" data-action="click->copy#copy"
+            data-copy-remote-value="state-raw-json" title="Copy raw JSON" aria-label="Copy raw JSON">
+            <svg class="c-icon" aria-hidden="true">
+              <use href="#ico-copy" data-copy-target="icon"></use>
+              <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+            </svg>
+          </button>
+        {{ end }}
+        <button type="button" class="tree-toolbar-btn"
+          data-controller="state-tree-controls"
+          data-action="click->state-tree-controls#toggleAll"
+          aria-pressed="false" title="Expand or collapse every row" aria-label="Expand or collapse every row">
+          <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-down"></use></svg>
+          <span class="u-sr-only" data-state-tree-controls-target="label">Expand all</span>
+        </button>
       </div>
+      <div class="tree" data-controller="state-tree" data-state-tree-pkg-value="{{ .PkgPath }}">
+        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true) }}
+      </div>
+      {{ if .RawJSON }}
+        {{/* Hidden raw JSON payload — the chain-native qpkg_json /
+             qobject_json bytes that produced this view. Not visible
+             to the user; the copy controller reads its textContent. */}}
+        <pre data-copy-target="state-raw-json" hidden>{{ .RawJSON }}</pre>
+      {{ end }}
     </div>
   {{ end }}
 </article>
 {{ end }}
+
+{{/* state/copy-icon — toggles between the copy icon and the
+     post-copy check via the `copy` controller. Used wherever a copy-
+     to-clipboard button lives in the state explorer (card actions,
+     audit chips, value cells). Single source so the SVG markup
+     doesn't drift between places that all need to look identical. */}}
+{{ define "state/copy-icon" }}<svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>{{ end }}
+
+{{/* state/kind-icon — bare SVG sprite reference for a node's kind.
+     The `data-kind` lives on the SVG itself so the kind colour
+     map (`:where(...) [data-kind="X"]`) tints the icon directly,
+     whether it's wrapped (cards, see state/kind-glyph) or used
+     standalone in flex contexts (sidebar TOC, via .c-with-icon). */}}
+{{ define "state/kind-icon" }}<svg class="c-icon" data-kind="{{ .Kind }}" aria-hidden="true"><use href="#ico-{{ kindIconID .Kind .Type }}"></use></svg>{{ end }}
+
+{{/* state/kind-glyph — wraps the kind-icon in a `.kind-glyph` slot
+     for inline contexts (card h2, field row name) where vertical
+     alignment with text needs an inline-block carrier. Sidebar TOC
+     uses `.c-with-icon` directly, so it skips this wrapper. */}}
+{{ define "state/kind-glyph" }}<span class="kind-glyph" aria-hidden="true">{{ template "state/kind-icon" . }}</span>{{ end }}
 
 {{/* state/decl — renders a single top-level declaration as a card,
      mirroring the .b-action-function pattern. The card has three regions:
@@ -138,10 +276,10 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
   {{ $isObj := .IsObjectPage }}
-  <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}"{{ end }} data-kind="{{ $n.Kind }}">
+  <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}-pretty"{{ end }} data-kind="{{ $n.Kind }}" data-name="{{ $n.Name }}">
     <header>
-      <span class="title">
-        <h2><span class="kind-glyph" aria-hidden="true">{{ kindGlyph $n.Kind $n.Type }}</span>{{ $n.Name }}</h2>
+      <div class="title">
+        <h2>{{ template "state/kind-glyph" $n }}{{ $n.Name }}</h2>
         {{/* Type-subtitle below the name — gives the type the room
              to breathe in italic mono, instead of competing with
              the name on the same baseline. */}}
@@ -150,7 +288,17 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
           {{ with $n.Source }}<a class="srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         </span>
-      </span>
+        {{/* Doc comment folded into the heading group: the doc tells
+             the user WHAT this is, so it belongs with the name, not
+             as a separate region competing with audit-chips below.
+             `.title` is a `<div>` (not a `<span>`) precisely so this
+             `<p>` is valid HTML — putting block content inside an
+             inline element auto-closes the span and breaks the
+             header's flex layout (b-btns ends up out of place). */}}
+        {{ if $n.Doc }}
+          <p class="description">{{ $n.Doc }}</p>
+        {{ end }}
+      </div>
       <span class="b-btns" aria-label="Card actions">
         {{ if $n.Anchor }}
           <a class="b-btn b-btn--secondary c-with-icon" href="#{{ $n.Anchor }}" title="Permalink to this declaration">
@@ -160,7 +308,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
         {{ end }}
         {{ if $n.ObjectID }}
           <button class="b-btn b-btn--secondary c-with-icon" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Copy Object ID">
-            <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+            {{ template "state/copy-icon" }}
             <span>Copy</span>
           </button>
         {{ end }}
@@ -172,14 +320,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
         {{ end }}
       </span>
     </header>
-
-    {{/* Doc comment — Go-style documentation comment from source,
-         attached by the handler from the package's JSON doc index.
-         Rendered as a description paragraph beneath the header,
-         matching the action card's `.description` register. */}}
-    {{ if $n.Doc }}
-      <p class="description">{{ $n.Doc }}</p>
-    {{ end }}
 
 
     {{/* Audit-chips ribbon — terminal status-bar style. 6 facts in one
@@ -203,7 +343,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
             <dd class="value mono" data-tooltip="{{ $n.ObjectID }}">
               <span class="text">{{ truncOID $n.ObjectID 6 4 }}</span>
               <button type="button" class="copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" aria-label="Copy Object ID">
-                <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+                {{ template "state/copy-icon" }}
               </button>
             </dd>
           </div>
@@ -224,9 +364,9 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           <div class="stat">
             <dt class="title">Owner</dt>
             <dd class="value mono" data-tooltip="{{ $n.OwnerID }}">
-              <a class="text" href="{{ $pkg }}$state&oid={{ $n.OwnerID }}">{{ oidShort $n.OwnerID $n.ObjectID }}</a>
+              <a class="text" href="{{ $n.OwnerHref }}">{{ oidShort $n.OwnerID $n.ObjectID }}</a>
               <button type="button" class="copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.OwnerID }}" aria-label="Copy Owner ID">
-                <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+                {{ template "state/copy-icon" }}
               </button>
             </dd>
           </div>
@@ -243,7 +383,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
             <dd class="value mono" data-tooltip="{{ $n.Hash }}">
               <span class="text">{{ truncOID $n.Hash 6 4 }}</span>
               <button type="button" class="copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.Hash }}" aria-label="Copy Hash">
-                <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+                {{ template "state/copy-icon" }}
               </button>
             </dd>
           </div>
@@ -262,7 +402,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           <div class="b-code">
             <code class="value" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</code>
             <button type="button" class="value-copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.Value }}" title="Copy value" aria-label="Copy value">
-              <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+              {{ template "state/copy-icon" }}
             </button>
           </div>
         </section>
@@ -357,7 +497,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
            name/type/preview line up with sibling leaf rows. */}}
       <details{{ if lt $depth 2 }} open{{ end }} class="nested">
         <summary>
-          <span class="name"><span class="kind-glyph" aria-hidden="true">{{ kindGlyph $n.Kind $n.Type }}</span>{{ $n.Name }}</span>
+          <span class="name">{{ template "state/kind-glyph" $n }}{{ $n.Name }}</span>
           <span class="type" data-kind="{{ $n.Kind }}">
             {{ $n.Type }}
             {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
@@ -366,7 +506,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
             {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>
             {{ else }}<span class="preview muted">{{ len $n.Children }} field{{ if ne (len $n.Children) 1 }}s{{ end }}</span>{{ end }}
             {{ if $n.Href }}
-              <a class="open-link" href="{{ $n.Href }}" aria-label="Open {{ $n.Name }} dedicated page" onclick="event.stopPropagation()">
+              <a class="open-link" href="{{ $n.Href }}" aria-label="Open {{ $n.Name }} dedicated page">
                 Inspect <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow"></use></svg>
               </a>
             {{ end }}
@@ -386,7 +526,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
         </div>
       </details>
     {{ else }}
-      <span class="name"><span class="kind-glyph" aria-hidden="true">{{ kindGlyph $n.Kind $n.Type }}</span>{{ $n.Name }}</span>
+      <span class="name">{{ template "state/kind-glyph" $n }}{{ $n.Name }}</span>
       <span class="type" data-kind="{{ $n.Kind }}">
         {{ $n.Type }}
         {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
@@ -404,7 +544,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           <span class="value-cell">
             <code class="value field-value" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</code>
             <button type="button" class="value-copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.Value }}" title="Copy value" aria-label="Copy value">
-              <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+              {{ template "state/copy-icon" }}
             </button>
           </span>
         {{ else }}
@@ -423,8 +563,8 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
   {{ $top := .Toplevel }}
-  {{ range $i, $n := .Nodes }}
-    {{ template "state/node" (dict "Node" $n "PkgPath" $pkg "Depth" $depth "Toplevel" $top "Index" $i) }}
+  {{ range .Nodes }}
+    {{ template "state/node" (dict "Node" . "PkgPath" $pkg "Depth" $depth "Toplevel" $top) }}
   {{ end }}
 {{ end }}
 
@@ -441,7 +581,11 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
 
   {{ if and $n.ObjectID (not $n.Children) $n.Expandable }}
-    <a class="row" data-shape="ref" {{ if $id }}id="{{ $id }}"{{ end }} style="--depth: {{ $depth }};" href="{{ $n.Href }}">
+    {{/* Ref row: per-view id suffix so it gets its own anchor
+         distinct from the Pretty card. `data-kind` on top-level
+         rows lets the global kind-filter (`#kf-state` etc.) hide
+         them by category — same selector as Pretty cards. */}}
+    <a class="row" data-shape="ref"{{ if $top }} data-name="{{ $n.Name }}"{{ if $id }} id="{{ $id }}-tree"{{ end }}{{ end }} style="--depth: {{ $depth }};" href="{{ $n.Href }}">
       <span class="name">{{ $n.Name }}</span>
       <span class="sep">:</span>
       <span class="type" data-kind="{{ $n.Kind }}">{{ $n.Type }}</span>
@@ -451,7 +595,16 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
     </a>
 
   {{ else if $n.Expandable }}
-    <details{{ if $id }} id="{{ $id }}"{{ end }}{{ if lt $depth 2 }} open{{ end }}>
+    {{/* Tree view: only the top-level row opens by default. Anything
+         deeper stays collapsed so the user explicitly drills in —
+         clearer signal than walls of half-open nesting. */}}
+    {{/* Each view has its own id suffix (`-pretty` / `-tree`) so
+         we never have duplicate IDs in the DOM. The sidebar TOC
+         emits one anchor per suffix and CSS hides the inactive
+         variant — browser native scroll-to-anchor handles the
+         rest, no JS scroll bridge needed. `data-kind` on top-level
+         <details> lets the kind-filter hide them by category. */}}
+    <details{{ if $top }} data-name="{{ $n.Name }}"{{ if $id }} id="{{ $id }}-tree"{{ end }}{{ end }}{{ if $n.ObjectID }} data-tree-key="{{ $n.ObjectID }}"{{ end }}{{ if lt $depth 1 }} open{{ end }}>
       <summary class="row" data-shape="branch" style="--depth: {{ $depth }};">
         <span class="name">{{ $n.Name }}</span>
         <span class="sep">:</span>
@@ -477,7 +630,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
     </details>
 
   {{ else }}
-    <div class="row" data-shape="leaf" {{ if $id }}id="{{ $id }}"{{ end }} style="--depth: {{ $depth }};">
+    <div class="row" data-shape="leaf"{{ if $top }} data-name="{{ $n.Name }}"{{ if $id }} id="{{ $id }}-tree"{{ end }}{{ end }} style="--depth: {{ $depth }};">
       <span class="name">{{ $n.Name }}</span>
       <span class="sep">:</span>
       <span class="type" data-kind="{{ $n.Kind }}">{{ $n.Type }}</span>

@@ -59,8 +59,14 @@ func TestRenderState_LeafPrimitive(t *testing.T) {
 	assert.Contains(t, html, `data-kind="primitive"`)
 	assert.Contains(t, html, `class="value"`)
 	assert.Contains(t, html, ">42<")
-	assert.NotContains(t, html, "<details",
-		"a primitive isn't expandable")
+	// No <details> inside the explorer body for primitives. The page
+	// header has a `b-state-history` <details> for time-travel —
+	// that's unrelated.
+	bodyStart := strings.Index(html, `<article class="b-state-explorer">`)
+	if bodyStart >= 0 {
+		body := html[bodyStart:]
+		assert.NotContains(t, body, "<details", "a primitive isn't expandable")
+	}
 }
 
 // TestRenderState_RefAsLink verifies that a stored object reference is
@@ -77,7 +83,7 @@ func TestRenderState_RefAsLink(t *testing.T) {
 		Name: "Users", Type: "map[string]User", Kind: "ref",
 		ObjectID: oid, Expandable: true,
 	}}
-	Enrich(nodes, "/r/demo/foo", nil, nil) // nil deps: link build only
+	Enrich(nodes, "/r/demo/foo", 0, nil, nil) // nil deps: link build only
 
 	html := renderState(t, StateData{
 		PkgPath:    "/r/demo/foo",
@@ -91,8 +97,15 @@ func TestRenderState_RefAsLink(t *testing.T) {
 		"card header carries a labeled Open button to the dedicated page")
 	assert.Contains(t, html, "oid=ffffffffffffffffffffffffffffffffffffffff%3A42",
 		"href URL-encodes ':' so the parser doesn't truncate the OID")
-	// A bare stored ref with no inline children must not emit a <details>.
-	assert.NotContains(t, html, "<details")
+	// A bare stored ref with no inline children must not emit a <details>
+	// inside the explorer body. The page header carries an unrelated
+	// `<details class="b-state-history">` for time-travel — that's
+	// fine, it's not part of the state-decl rendering.
+	bodyStart := strings.Index(html, `<article class="b-state-explorer">`)
+	if bodyStart >= 0 {
+		body := html[bodyStart:]
+		assert.NotContains(t, body, "<details", "no <details> inside the explorer body for a bare ref")
+	}
 }
 
 // TestRenderState_BranchExpandable verifies that a top-level branch
@@ -299,11 +312,17 @@ func TestRenderState_Sidebar_TOCAndAnchors(t *testing.T) {
 	assert.Contains(t, html, `<aside class="b-sidebar sidebar"`,
 		"sidebar uses gnoweb's existing .b-sidebar block, not a state-specific class")
 	assert.Contains(t, html, "Top-level declarations", "sidebar heading")
-	// TOC entries link to anchors that match the row ids.
-	assert.Contains(t, html, `href="#state-counter"`)
-	assert.Contains(t, html, `id="state-counter"`)
-	assert.Contains(t, html, `href="#state-users"`)
-	assert.Contains(t, html, `id="state-users"`)
+	// TOC entries emit one anchor per view (Pretty + Tree); CSS hides
+	// the variant for the inactive view. Each variant points to a
+	// distinct id so we never have duplicate ids in the DOM.
+	assert.Contains(t, html, `href="#state-counter-pretty"`)
+	assert.Contains(t, html, `href="#state-counter-tree"`)
+	assert.Contains(t, html, `id="state-counter-pretty"`)
+	assert.Contains(t, html, `id="state-counter-tree"`)
+	assert.Contains(t, html, `href="#state-users-pretty"`)
+	assert.Contains(t, html, `href="#state-users-tree"`)
+	assert.Contains(t, html, `id="state-users-pretty"`)
+	assert.Contains(t, html, `id="state-users-tree"`)
 	// Meta surfaces the realm path.
 	assert.Contains(t, html, "Realm")
 	assert.Contains(t, html, "/r/demo/foo")
@@ -328,8 +347,10 @@ func TestRenderState_Sidebar_AnchorsOnlyOnTopLevel(t *testing.T) {
 		CountLabel: "Realm top-level declarations (1)", Sidebar: sidebar,
 	})
 
-	// The top-level row gets an id; the nested child must not.
-	assert.Contains(t, html, `id="state-outer"`)
+	// Top-level rows get per-view ids (`-pretty` + `-tree`); nested
+	// children must not be stamped with any anchor id.
+	assert.Contains(t, html, `id="state-outer-pretty"`)
+	assert.Contains(t, html, `id="state-outer-tree"`)
 	assert.NotContains(t, html, `id="state-inner"`,
 		"deep children must not be stamped with anchor ids")
 }
@@ -347,6 +368,7 @@ func TestRenderState_Sidebar_ObjectMetaLinksBack(t *testing.T) {
 		"/r/demo/foo",
 		"ffffffffffffffffffffffffffffffffffffffff:1",
 		"gno.land/r/demo/foo.User",
+		0, // height = 0 (latest)
 		StateObjectInfoView{},
 		nodes,
 	)
@@ -364,14 +386,15 @@ func TestRenderState_Sidebar_ObjectMetaLinksBack(t *testing.T) {
 	assert.Contains(t, html, `href="/r/demo/foo$state"`)
 }
 
-// TestRenderState_OpenDepthsByDefault locks the UX contract that the first
-// two depth levels of <details> are open at first paint — saves clicks
-// for the most common case. Deeper levels stay closed so the page doesn't
-// explode visually on a deeply-nested realm.
+// TestRenderState_OpenDepthsByDefault locks the per-view UX contract:
+//   - Pretty view opens depth 0 + 1 (cards expect their content open
+//     so the user immediately sees the structure).
+//   - Tree view opens depth 0 only (the flat tree should stay tight,
+//     letting the user pick what to drill into rather than presenting
+//     a half-expanded wall).
 //
-// Both `view-pretty` (cards) and `view-raw` (flat tree) render the same
-// node structure to the DOM and CSS toggles visibility — the count is
-// summed across both views.
+// Both views render to the same DOM; CSS toggles visibility, so the
+// count is summed across both.
 func TestRenderState_OpenDepthsByDefault(t *testing.T) {
 	t.Parallel()
 
@@ -395,20 +418,27 @@ func TestRenderState_OpenDepthsByDefault(t *testing.T) {
 		CountLabel: "Realm top-level declarations (1)",
 	})
 
+	// Scope to the explorer body — the page header has an unrelated
+	// `<details class="b-state-history">` for time-travel that we
+	// don't want to count here.
+	bodyStart := strings.Index(html, `<article class="b-state-explorer">`)
+	require.GreaterOrEqual(t, bodyStart, 0, "explorer article must be present")
+	body := html[bodyStart:]
+
 	// Robust counting via regex — `open` may appear after other attrs
 	// (e.g. `<details open class="nested">` for Pretty fields).
 	reOpen := regexp.MustCompile(`<details\s[^>]*\bopen\b[^>]*>|<details\s+open(?:\s|>)`)
 	reAny := regexp.MustCompile(`<details(?:\s|>)`)
-	openCount := len(reOpen.FindAllString(html, -1))
-	totalCount := len(reAny.FindAllString(html, -1))
+	openCount := len(reOpen.FindAllString(body, -1))
+	totalCount := len(reAny.FindAllString(body, -1))
 	closedCount := totalCount - openCount
 	// Pretty view (card content starts at depth 0): L1=open, L2=open,
-	//   L3=closed. (3 details, 2 open)
-	// Raw view (state/nodes from the root): Top=open, L1=open, L2=closed,
-	//   L3=closed. (4 details, 2 open)
-	// Both rendered → 4 open, 3 closed.
-	assert.Equal(t, 4, openCount, "depth-< 2 details open across both views")
-	assert.Equal(t, 3, closedCount, "depth ≥ 2 details closed across both views")
+	//   L3=closed. (3 details, 2 open — depth < 2)
+	// Tree view (state/nodes from the root): Top=open, L1=closed, L2=closed,
+	//   L3=closed. (4 details, 1 open — depth < 1)
+	// Both rendered → 3 open, 4 closed.
+	assert.Equal(t, 3, openCount, "Pretty=depth<2 + Tree=depth<1 details open across both views")
+	assert.Equal(t, 4, closedCount, "remaining details closed across both views")
 }
 
 // TestRenderState_StatsStrip locks the audit metadata rendering as a
@@ -430,7 +460,7 @@ func TestRenderState_StatsStrip(t *testing.T) {
 		LastObjectSize: "412",
 		ModTime:        "14237",
 	}}
-	Enrich(nodes, "/r/demo/foo", nil, nil)
+	Enrich(nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -450,9 +480,10 @@ func TestRenderState_StatsStrip(t *testing.T) {
 	assert.Contains(t, html, ">8f3e<", "hash value present")
 	assert.Contains(t, html, ">Modified</dt>", "Modified stat title present")
 	assert.Contains(t, html, ">#14237<", "ModTime prefixed with # (block height)")
-	// Owner stat links into the owner's own state page.
+	// Owner stat links into the owner's own state page (URL-encoded
+	// via weburl.GnoURL; `:` becomes `%3A`, keys sorted alphabetically).
 	assert.Contains(t, html,
-		`href="/r/demo/foo$state&oid=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1"`,
+		`href="/r/demo/foo$oid=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa%3A1&amp;state"`,
 		"Owner stat is a link to the owner's state page")
 }
 
@@ -507,7 +538,7 @@ func TestRenderState_FooterCTA(t *testing.T) {
 		Name: "config", Type: "*Config", Kind: "ref",
 		ObjectID: oid, Expandable: true,
 	}}
-	Enrich(nodes, "/r/demo/foo", nil, nil)
+	Enrich(nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -540,7 +571,7 @@ func TestRenderState_CTA_PlusNMore(t *testing.T) {
 			{Name: "2", Type: "string", Kind: "primitive", Value: "third"},
 		},
 	}}
-	Enrich(nodes, "/r/demo/foo", nil, nil)
+	Enrich(nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -569,7 +600,7 @@ func TestRenderState_CTA_NoMore(t *testing.T) {
 			{Name: "1", Type: "int", Kind: "primitive", Value: "2"},
 		},
 	}}
-	Enrich(nodes, "/r/demo/foo", nil, nil)
+	Enrich(nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -635,7 +666,7 @@ func TestRenderState_PreviewWalker(t *testing.T) {
 		{Name: "ok", Type: "bool", Kind: "primitive", Value: "true"},
 		{Name: "extra", Type: "string", Kind: "primitive", Value: `"hidden"`},
 	}
-	preview := buildStructPreview(children)
+	preview := buildChildrenPreview(children)
 	assert.Contains(t, preview, `name: "alice"`)
 	assert.Contains(t, preview, `age: 30`)
 	assert.Contains(t, preview, `ok: true`)
@@ -644,12 +675,13 @@ func TestRenderState_PreviewWalker(t *testing.T) {
 	assert.Contains(t, preview, "…", "ellipsis marks truncation")
 }
 
-// TestRenderState_NoBTagAnywhere pins the editorial-restraint design
-// choice: no .b-tag pill chrome on the type label, anywhere. The type
-// reads as italic mono text inline with the declaration name (and the
-// row name in Raw view) — chips were generic AI-tabling. Regression
-// guard against re-introducing the pill class.
-func TestRenderState_NoBTagAnywhere(t *testing.T) {
+// TestRenderState_NoBTagOnTypes pins the editorial-restraint design
+// choice: no .b-tag pill chrome on the type label inside the
+// explorer article. The type reads as italic mono text inline.
+// Filter tabs in the sub-header use `.b-tag--secondary` for kind
+// counts (mirrors user-page filters); we scope the assertion to
+// the article content only.
+func TestRenderState_NoBTagOnTypes(t *testing.T) {
 	t.Parallel()
 
 	html := renderState(t, StateData{
@@ -663,15 +695,20 @@ func TestRenderState_NoBTagAnywhere(t *testing.T) {
 		CountLabel: "Realm top-level declarations (1)",
 	})
 
-	assert.NotContains(t, html, `b-tag`,
+	// Scope to the explorer article — kind-filter pills live in the
+	// sub-header which is allowed to use `b-tag--secondary`.
+	articleStart := strings.Index(html, `<article class="b-state-explorer">`)
+	require.GreaterOrEqual(t, articleStart, 0, "explorer article must be present")
+	article := html[articleStart:]
+	assert.NotContains(t, article, `b-tag`,
 		"the editorial-restraint design strips .b-tag pill chrome from types")
 }
 
-// TestRenderState_NoJSDataController_OnNonRefRows ensures the template does
-// not emit any data-controller other than the existing copy controller for
-// ObjectID. This locks in the "zero new JS" promise — if a future edit adds
-// a Stimulus controller we don't have, this test catches it.
-func TestRenderState_NoNewControllers(t *testing.T) {
+// TestRenderState_NoUnexpectedControllers locks the JS surface to the
+// short list of allowed controllers. Adding a controller is fine but
+// must be intentional — adding one without updating this list catches
+// it in code review.
+func TestRenderState_NoUnexpectedControllers(t *testing.T) {
 	t.Parallel()
 
 	html := renderState(t, StateData{
@@ -684,11 +721,24 @@ func TestRenderState_NoNewControllers(t *testing.T) {
 		CountLabel: "Realm top-level declarations (2)",
 	})
 
-	// Only "copy" (existing controller) is allowed for ObjectID copy-to-clipboard.
+	allowed := map[string]bool{
+		`data-controller="copy"`:                 true, // OID/value/hash click-to-copy
+		`data-controller="state-view"`:           true, // Pretty/Tree cookie+localStorage persistence
+		`data-controller="state-search"`:         true, // in-page filter by decl name
+		`data-controller="state-tree"`:           true, // persist tree expand/collapse per OID + sidebar TOC scroll bridge
+		`data-controller="state-tree-controls"`: true, // expand-all / collapse-all toolbar
+	}
 	for _, line := range strings.Split(html, "\n") {
-		if strings.Contains(line, "data-controller=") {
-			assert.Contains(t, line, `data-controller="copy"`,
-				"only the existing copy controller is allowed in state explorer markup")
+		if !strings.Contains(line, "data-controller=") {
+			continue
 		}
+		ok := false
+		for needle := range allowed {
+			if strings.Contains(line, needle) {
+				ok = true
+				break
+			}
+		}
+		assert.True(t, ok, "unexpected data-controller in line: %q", strings.TrimSpace(line))
 	}
 }

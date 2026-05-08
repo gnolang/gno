@@ -58,7 +58,7 @@ func (m *MockClient) Realm(ctx context.Context, path, args string) ([]byte, erro
 }
 
 // File fetches the source file from a given package path and filename, returning its content and metadata.
-func (m *MockClient) File(ctx context.Context, pkgPath, fileName string) ([]byte, FileMeta, error) {
+func (m *MockClient) File(ctx context.Context, pkgPath, fileName string, _ int64) ([]byte, FileMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, FileMeta{}, fmt.Errorf("context error: %w", err)
 	}
@@ -126,7 +126,7 @@ func (m *MockClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 }
 
 // Doc retrieves the JSON documentation for a specified package path.
-func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDocumentation, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context error: %w", err)
 	}
@@ -139,7 +139,7 @@ func (m *MockClient) Doc(ctx context.Context, path string) (*doc.JSONDocumentati
 }
 
 // StatePkg returns mock package state data for testing.
-func (m *MockClient) StatePkg(_ context.Context, path string) ([]byte, error) {
+func (m *MockClient) StatePkg(_ context.Context, path string, _ int64) ([]byte, error) {
 	_, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPackageNotFound
@@ -149,13 +149,13 @@ func (m *MockClient) StatePkg(_ context.Context, path string) ([]byte, error) {
 }
 
 // StateObject returns mock object state data for testing.
-func (m *MockClient) StateObject(_ context.Context, _ string) ([]byte, error) {
+func (m *MockClient) StateObject(_ context.Context, _ string, _ int64) ([]byte, error) {
 	// Empty StructValue — minimal valid shape for amino.UnmarshalJSON.
 	return []byte(`{"objectid":"","value":{"@type":"/gno.StructValue","Fields":[]}}`), nil
 }
 
 // StateType returns mock type data for testing.
-func (m *MockClient) StateType(_ context.Context, _ string) ([]byte, error) {
+func (m *MockClient) StateType(_ context.Context, _ string, _ int64) ([]byte, error) {
 	return []byte(`{"typeid":"","type":{"@type":"/gno.PrimitiveType","value":"32"}}`), nil
 }
 

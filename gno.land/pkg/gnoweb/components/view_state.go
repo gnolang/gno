@@ -33,18 +33,71 @@ type StateData struct {
 	// minimal views; the template skips rendering the aside when nil.
 	Sidebar *StateSidebar
 
-	// RawJSON, when set, enables the "JSON" view — a chroma-highlighted
-	// pretty-printed dump of the underlying chain response. Lets devs flip
-	// from the polished tree to the raw payload without leaving the page.
-	// The toggle is CSS-only (no JS), driven by sibling radio inputs.
-	RawJSON template.HTML
-
 	// IsObjectPage is true when the page renders a single queried object
 	// (`?state&oid=…`) rather than a realm root. The template uses it to
 	// surface richer detail on the queried target — e.g. always render
 	// the inline source body for a func, even though we hide it on the
 	// realm root to keep the listing compact.
 	IsObjectPage bool
+
+	// Height is the block height the page is pinned to (`?height=N`),
+	// or 0 for "latest". When non-zero, the header surfaces a chip
+	// indicating time-travel mode and a link to revert to the latest.
+	Height int64
+
+	// LatestHref is the URL of the current page WITHOUT the height
+	// parameter — i.e. "go back to live latest". Preserves OID/TID/
+	// other query so an object-page Latest stays on that object.
+	LatestHref template.URL
+
+	// ViewMode is "tree" or "" (== pretty default), driven by the
+	// `state_view_mode` cookie written by the state-view JS controller.
+	// The template uses this to set the right radio's `checked`
+	// attribute server-side, so the page paints in the saved view from
+	// first paint — no JS-driven flicker.
+	ViewMode string
+
+	// RawJSON is the chain-native JSON response (qpkg_json or
+	// qobject_json) that produced this view. Embedded as a hidden
+	// element so the "Copy JSON" toolbar button can hand it to the
+	// clipboard without an extra round-trip. Empty when the handler
+	// chooses not to expose it (e.g., error paths).
+	RawJSON string
+
+	// KindCounts is the per-bucket count of top-level Nodes,
+	// surfaced in the kind-filter tabs (`All / State / Code / Types`)
+	// — same `b-tag--secondary` register as the user page's filter
+	// counts. Computed by ComputeKindCounts.
+	KindCounts KindCounts
+}
+
+// KindCounts holds the count of declarations falling into each
+// kind bucket exposed by the state-explorer filter tabs. Buckets
+// are usage-driven (not literal Kind names) so the filter UI can
+// say "show me State" without enumerating every container kind.
+type KindCounts struct {
+	All   int // every top-level declaration
+	State int // stored data: struct, map, slice, array, pointer, ref
+	Code  int // executable: func, closure
+	Types int // type definitions: type, interface
+}
+
+// ComputeKindCounts walks the top-level Nodes and counts each
+// bucket. Reused between Pretty and Tree views; called once per
+// page render in the handler.
+func ComputeKindCounts(nodes []StateNode) KindCounts {
+	c := KindCounts{All: len(nodes)}
+	for _, n := range nodes {
+		switch n.Kind {
+		case "struct", "map", "slice", "array", "pointer", "ref":
+			c.State++
+		case "func", "closure":
+			c.Code++
+		case "type", "interface":
+			c.Types++
+		}
+	}
+	return c
 }
 
 // StateSidebar groups the data shown in the aside next to the state tree.

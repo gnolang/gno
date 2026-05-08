@@ -72,6 +72,12 @@ type StateNode struct {
 	// with the rest of gnoweb. Typed template.URL so html/template trusts it.
 	Href template.URL
 
+	// OwnerHref is the navigation URL for OwnerID's own state page —
+	// pre-built by the orchestrator so the audit-chip "Owner" link
+	// preserves the page's height (time-travel) without the template
+	// having to know about the URL syntax. Empty when OwnerID is.
+	OwnerHref template.URL
+
 	// Anchor, when non-empty, is the HTML id stamped on this node's
 	// top-level row so the sidebar TOC can link to it via #fragment.
 	// Set by Build{Package,Object}Sidebar — never by the walker.
@@ -98,10 +104,6 @@ type StateNode struct {
 
 	// LastObjectSize is the storage size in bytes (decimal string).
 	LastObjectSize string
-
-	// IsEscaped marks objects that were referenced from multiple owners,
-	// requiring separate persistence (gnolang-specific concept).
-	IsEscaped bool
 
 	// Doc is the Go-style documentation comment attached to the
 	// declaration in source. Populated post-walk by the handler from
@@ -253,7 +255,26 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 
 // ---- Core walker ----
 
+// maxDecodeDepth caps recursion in the value walker. Adversarial or
+// pathological values (deeply nested closures, cycles the cycle-marker
+// missed, etc.) cannot drag the renderer into a stack overflow — at the
+// cap the walker yields a sentinel "(too deep)" leaf. Generous enough
+// that real Gno values never hit it.
+const maxDecodeDepth = 256
+
+// tooDeepNode is the sentinel emitted when a subtree exceeds maxDecodeDepth.
+func tooDeepNode(name string) StateNode {
+	return StateNode{Name: name, Type: "(too deep)", Kind: "truncated", Value: "…"}
+}
+
 func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
+	return decodeTypedValueAt(0, name, tv)
+}
+
+func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
+	if depth >= maxDecodeDepth {
+		return tooDeepNode(name)
+	}
 	if tv.T == nil {
 		return StateNode{Name: name, Type: "<nil>", Kind: "nil", Value: "nil"}
 	}
@@ -293,9 +314,10 @@ func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
 		}
 	}
 
-	// HeapItemValue: transparent unwrap.
+	// HeapItemValue: transparent unwrap (does not consume a depth slot —
+	// it's a pass-through wrapper, not a structural level).
 	if hiv, ok := tv.V.(*gno.HeapItemValue); ok {
-		return decodeTypedValue(name, hiv.Value)
+		return decodeTypedValueAt(depth, name, hiv.Value)
 	}
 
 	// TypeValue: type definition shown as a value.
@@ -310,32 +332,32 @@ func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
 
 	// Struct (inline).
 	if sv, ok := tv.V.(*gno.StructValue); ok {
-		return decodeStruct(name, tName, typeID, bt, sv)
+		return decodeStruct(depth, name, tName, typeID, bt, sv)
 	}
 
 	// Array (inline).
 	if av, ok := tv.V.(*gno.ArrayValue); ok {
-		return decodeArray(name, tName, av)
+		return decodeArray(depth, name, tName, av)
 	}
 
 	// Slice (inline or ref-based).
 	if sv, ok := tv.V.(*gno.SliceValue); ok {
-		return decodeSlice(name, tName, sv)
+		return decodeSlice(depth, name, tName, sv)
 	}
 
 	// Map (inline).
 	if mv, ok := tv.V.(*gno.MapValue); ok {
-		return decodeMap(name, tName, mv)
+		return decodeMap(depth, name, tName, mv)
 	}
 
 	// Pointer (inline or to ref).
 	if pv, ok := tv.V.(gno.PointerValue); ok {
-		return decodePointer(name, tName, typeID, pv)
+		return decodePointer(depth, name, tName, typeID, pv)
 	}
 
 	// Func / Closure inline.
 	if fv, ok := tv.V.(*gno.FuncValue); ok {
-		return decodeFuncInline(name, fv)
+		return decodeFuncInline(depth, name, fv)
 	}
 
 	// Zero value (type but no value).
@@ -442,9 +464,9 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		if name == "" {
 			name = "(function)"
 		}
-		return []StateNode{decodeFuncInline(name, cv)}
+		return []StateNode{decodeFuncInline(0, name, cv)}
 	case *gno.BoundMethodValue:
-		return []StateNode{decodeFuncInline("(method)", cv.Func)}
+		return []StateNode{decodeFuncInline(0, "(method)", cv.Func)}
 	case gno.PointerValue:
 		// If it points at an inline TypedValue, surface that. If it points
 		// at a stored ref, expose the navigation handle.
@@ -502,7 +524,7 @@ func decodePrimitive(name, tName string, pt gno.PrimitiveType, tv gno.TypedValue
 	return StateNode{Name: name, Type: tName, Kind: "primitive", Value: primitiveDisplay(pt, tv)}
 }
 
-func decodeStruct(name, tName, typeID string, bt gno.Type, sv *gno.StructValue) StateNode {
+func decodeStruct(depth int, name, tName, typeID string, bt gno.Type, sv *gno.StructValue) StateNode {
 	fieldNames := structFieldNames(bt)
 	children := make([]StateNode, len(sv.Fields))
 	for i, ftv := range sv.Fields {
@@ -512,7 +534,7 @@ func decodeStruct(name, tName, typeID string, bt gno.Type, sv *gno.StructValue) 
 		} else {
 			fname = strconv.Itoa(i)
 		}
-		children[i] = decodeTypedValue(fname, ftv)
+		children[i] = decodeTypedValueAt(depth+1, fname, ftv)
 	}
 	length := len(sv.Fields)
 	node := StateNode{
@@ -520,13 +542,13 @@ func decodeStruct(name, tName, typeID string, bt gno.Type, sv *gno.StructValue) 
 		Expandable: length > 0, Children: children,
 		TypeID:  typeID,
 		Length:  intPtr(length),
-		Preview: buildStructPreview(children),
+		Preview: buildChildrenPreview(children),
 	}
 	applyObjectInfo(&node, sv.ObjectInfo)
 	return node
 }
 
-func decodeArray(name, tName string, av *gno.ArrayValue) StateNode {
+func decodeArray(depth int, name, tName string, av *gno.ArrayValue) StateNode {
 	if av.Data != nil {
 		n := len(av.Data)
 		node := StateNode{
@@ -539,7 +561,7 @@ func decodeArray(name, tName string, av *gno.ArrayValue) StateNode {
 	}
 	children := make([]StateNode, len(av.List))
 	for i, etv := range av.List {
-		children[i] = decodeTypedValue(strconv.Itoa(i), etv)
+		children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), etv)
 	}
 	node := StateNode{
 		Name: name, Type: tName, Kind: "array",
@@ -550,7 +572,7 @@ func decodeArray(name, tName string, av *gno.ArrayValue) StateNode {
 	return node
 }
 
-func decodeSlice(name, tName string, sv *gno.SliceValue) StateNode {
+func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 	length := sv.Length
 	// Base is a RefValue → slice points at a stored array.
 	if rv, ok := sv.Base.(gno.RefValue); ok {
@@ -579,7 +601,7 @@ func decodeSlice(name, tName string, sv *gno.SliceValue) StateNode {
 		visible := av.List[offset:end]
 		children := make([]StateNode, len(visible))
 		for i, etv := range visible {
-			children[i] = decodeTypedValue(strconv.Itoa(i), etv)
+			children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), etv)
 		}
 		return StateNode{
 			Name: name, Type: tName, Kind: "slice",
@@ -593,25 +615,25 @@ func decodeSlice(name, tName string, sv *gno.SliceValue) StateNode {
 	}
 }
 
-func decodeMap(name, tName string, mv *gno.MapValue) StateNode {
+func decodeMap(depth int, name, tName string, mv *gno.MapValue) StateNode {
 	var children []StateNode
 	if mv.List != nil {
 		for cur := mv.List.Head; cur != nil; cur = cur.Next {
 			keyStr := previewTypedValue(cur.Key)
-			children = append(children, decodeTypedValue(keyStr, cur.Value))
+			children = append(children, decodeTypedValueAt(depth+1, keyStr, cur.Value))
 		}
 	}
 	node := StateNode{
 		Name: name, Type: tName, Kind: "map",
 		Expandable: len(children) > 0, Children: children,
 		Length:  intPtr(len(children)),
-		Preview: buildMapPreview(children),
+		Preview: buildChildrenPreview(children),
 	}
 	applyObjectInfo(&node, mv.ObjectInfo)
 	return node
 }
 
-func decodePointer(name, tName, typeID string, pv gno.PointerValue) StateNode {
+func decodePointer(depth int, name, tName, typeID string, pv gno.PointerValue) StateNode {
 	if rv, ok := pv.Base.(gno.RefValue); ok {
 		return StateNode{
 			Name: name, Type: tName, Kind: "pointer",
@@ -622,7 +644,7 @@ func decodePointer(name, tName, typeID string, pv gno.PointerValue) StateNode {
 		}
 	}
 	if pv.TV != nil {
-		child := decodeTypedValue("*", *pv.TV)
+		child := decodeTypedValueAt(depth+1, "*", *pv.TV)
 		return StateNode{
 			Name: name, Type: tName, Kind: "pointer",
 			Expandable: true, Children: []StateNode{child},
@@ -631,7 +653,7 @@ func decodePointer(name, tName, typeID string, pv gno.PointerValue) StateNode {
 	return StateNode{Name: name, Type: tName, Kind: "pointer", Value: "nil"}
 }
 
-func decodeFuncInline(name string, fv *gno.FuncValue) StateNode {
+func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 	sig := "func()"
 	if fv.Type != nil {
 		sig = funcSignature(fv.Type)
@@ -647,7 +669,7 @@ func decodeFuncInline(name string, fv *gno.FuncValue) StateNode {
 	if hasCaps {
 		children := make([]StateNode, len(fv.Captures))
 		for i, capture := range fv.Captures {
-			children[i] = decodeTypedValue("value", capture)
+			children[i] = decodeTypedValueAt(depth+1, "value", capture)
 		}
 		return StateNode{
 			Name: name, Type: sig, Kind: kind,
@@ -956,33 +978,12 @@ func quoteString(s string) string {
 // readable; further fields collapse to "…".
 const inlinePreviewMaxFields = 3
 
-// buildStructPreview turns a struct's decoded children into a short
-// one-liner like `{name: "alice", age: 30, …}` for rendering next to
-// the type when the row is collapsed. Returns "" when there's nothing
-// useful to show — the template branches on emptiness.
-func buildStructPreview(children []StateNode) string {
-	if len(children) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, inlinePreviewMaxFields)
-	limit := len(children)
-	if limit > inlinePreviewMaxFields {
-		limit = inlinePreviewMaxFields
-	}
-	for i := 0; i < limit; i++ {
-		parts = append(parts, children[i].Name+": "+previewChildValue(children[i]))
-	}
-	if len(children) > inlinePreviewMaxFields {
-		parts = append(parts, "…")
-	}
-	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-// buildMapPreview is the map flavour of buildStructPreview — uses the
-// child Name (already the formatted key from previewTypedValue) and a
-// compact view of the value type so a `map[string]*Board` reads as
-// `{"general": Board, "off-topic": Board, …}`.
-func buildMapPreview(children []StateNode) string {
+// buildChildrenPreview turns decoded children into a short one-liner
+// like `{name: "alice", age: 30, …}` for rendering next to the type
+// when the row is collapsed. Works uniformly for struct fields and map
+// entries (the walker pre-formats each key as the child Name). Returns
+// "" when there's nothing to show — the template branches on emptiness.
+func buildChildrenPreview(children []StateNode) string {
 	if len(children) == 0 {
 		return ""
 	}
@@ -1061,7 +1062,6 @@ func applyObjectInfo(n *StateNode, info gno.ObjectInfo) {
 	if info.LastObjectSize != 0 {
 		n.LastObjectSize = strconv.FormatInt(info.LastObjectSize, 10)
 	}
-	n.IsEscaped = info.IsEscaped
 }
 
 // objectInfoOf extracts the ObjectInfo of an outer Value into a flat view

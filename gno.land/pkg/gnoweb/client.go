@@ -34,9 +34,12 @@ type ClientAdapter interface {
 	// return the data.
 	Realm(ctx context.Context, path, args string) ([]byte, error) // raw Render() bytes
 
-	// File fetche the source file from a given
-	// package path and filename.
-	File(ctx context.Context, path, filename string) ([]byte, FileMeta, error)
+	// File fetches the source file from a given package path and
+	// filename. `height = 0` queries the latest block; positive values
+	// pin the query to that historical height — required for the
+	// state explorer's time-travel mode to render source consistent
+	// with the value snapshot.
+	File(ctx context.Context, path, filename string, height int64) ([]byte, FileMeta, error)
 
 	// ListFiles lists all source files available in a specified
 	// package path.
@@ -46,20 +49,22 @@ type ClientAdapter interface {
 	ListPaths(ctx context.Context, prefix string, limit int) ([]string, error)
 
 	// Doc retrieves the JSON doc suitable for printing from a
-	// specified package path.
-	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
+	// specified package path. `height = 0` queries the latest block;
+	// any positive value pins the query to that historical height.
+	Doc(ctx context.Context, path string, height int64) (*doc.JSONDocumentation, error)
 
-	// StatePkg retrieves the root state tree for a package.
-	// Returns raw JSON bytes of the package block variables.
-	StatePkg(ctx context.Context, path string) ([]byte, error)
+	// StatePkg retrieves the root state tree for a package. `height
+	// = 0` queries the latest block; any positive value pins the
+	// query to that historical height (time-travel).
+	StatePkg(ctx context.Context, path string, height int64) ([]byte, error)
 
-	// StateObject retrieves the children of an object by ObjectID.
-	// Returns raw JSON bytes of the object's fields/elements.
-	StateObject(ctx context.Context, oid string) ([]byte, error)
+	// StateObject retrieves the children of an object by ObjectID at
+	// the given block height (0 for latest).
+	StateObject(ctx context.Context, oid string, height int64) ([]byte, error)
 
-	// StateType retrieves a type definition by TypeID.
-	// Returns raw JSON bytes of the type (for resolving struct field names).
-	StateType(ctx context.Context, typeId string) ([]byte, error)
+	// StateType retrieves a type definition by TypeID at the given
+	// block height (0 for latest).
+	StateType(ctx context.Context, typeId string, height int64) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -89,13 +94,13 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 	path = strings.Trim(path, "/")
 	data := fmt.Sprintf("%s/%s:%s", c.domain, path, args)
 
-	return c.query(ctx, qpath, []byte(data))
+	return c.query(ctx, qpath, []byte(data), 0)
 }
 
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
 // Chroma for syntax highlighting or Raw style source.
-func (c *rpcClient) File(ctx context.Context, path, fileName string) (out []byte, meta FileMeta, err error) {
+func (c *rpcClient) File(ctx context.Context, path, fileName string, height int64) (out []byte, meta FileMeta, err error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
@@ -106,7 +111,7 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string) (out []byte
 	// XXX: Consider moving this into gnoclient
 	fullPath := gopath.Join(c.domain, strings.Trim(path, "/"), fileName)
 
-	source, err := c.query(ctx, qpath, []byte(fullPath))
+	source, err := c.query(ctx, qpath, []byte(fullPath), height)
 	if err != nil {
 		// XXX: this is a bit ugly, we should make the keeper return an
 		// assertable error.
@@ -134,7 +139,7 @@ func (c *rpcClient) ListFiles(ctx context.Context, path string) ([]string, error
 	// XXX: Consider moving this into gnoclient
 	pkgPath := strings.Trim(path, "/")
 	fullPath := fmt.Sprintf("%s/%s", c.domain, pkgPath)
-	res, err := c.query(ctx, qpath, []byte(fullPath))
+	res, err := c.query(ctx, qpath, []byte(fullPath), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +154,7 @@ func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]
 	const qpath = "vm/qpaths"
 
 	// XXX: Consider moving this into gnoclient
-	res, err := c.query(ctx, qpath, []byte(prefix))
+	res, err := c.query(ctx, qpath, []byte(prefix), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -164,12 +169,12 @@ func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]
 }
 
 // Doc retrieves the JSON doc suitable for printing from a
-// specified package path.
-func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumentation, error) {
+// specified package path. `height = 0` queries the latest block.
+func (c *rpcClient) Doc(ctx context.Context, pkgPath string, height int64) (*doc.JSONDocumentation, error) {
 	const qpath = "vm/qdoc"
 
 	args := fmt.Sprintf("%s/%s", c.domain, strings.Trim(pkgPath, "/"))
-	res, err := c.query(ctx, qpath, []byte(args))
+	res, err := c.query(ctx, qpath, []byte(args), height)
 	if err != nil {
 		return nil, fmt.Errorf("unable to query qdoc for %s: %w", pkgPath, err)
 	}
@@ -184,35 +189,44 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string) (*doc.JSONDocumenta
 }
 
 // StatePkg retrieves root state tree for a package via vm/qpkg_json.
-func (c *rpcClient) StatePkg(ctx context.Context, path string) ([]byte, error) {
+// `height = 0` queries the latest block; positive value pins to that
+// historical height (time-travel).
+func (c *rpcClient) StatePkg(ctx context.Context, path string, height int64) ([]byte, error) {
 	const qpath = "vm/qpkg_json"
 
 	path = strings.Trim(path, "/")
 	data := fmt.Sprintf("%s/%s", c.domain, path)
-	return c.query(ctx, qpath, []byte(data))
+	return c.query(ctx, qpath, []byte(data), height)
 }
 
-// StateObject retrieves an object by ObjectID via vm/qobject_json.
-func (c *rpcClient) StateObject(ctx context.Context, oid string) ([]byte, error) {
+// StateObject retrieves an object by ObjectID via vm/qobject_json
+// at the given block height (0 for latest).
+func (c *rpcClient) StateObject(ctx context.Context, oid string, height int64) ([]byte, error) {
 	const qpath = "vm/qobject_json"
 
-	return c.query(ctx, qpath, []byte(oid))
+	return c.query(ctx, qpath, []byte(oid), height)
 }
 
-// StateType retrieves a type definition by TypeID via vm/qtype_json.
-func (c *rpcClient) StateType(ctx context.Context, typeId string) ([]byte, error) {
+// StateType retrieves a type definition by TypeID via vm/qtype_json
+// at the given block height (0 for latest).
+func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) ([]byte, error) {
 	const qpath = "vm/qtype_json"
 
-	return c.query(ctx, qpath, []byte(typeId))
+	return c.query(ctx, qpath, []byte(typeId), height)
 }
 
 // query sends a query to the RPC client and returns the response
-// data.
-func (c *rpcClient) query(ctx context.Context, qpath string, data []byte) ([]byte, error) {
-	c.logger.Info("querying node", "path", qpath, "data", string(data))
+// data. `height = 0` uses the latest block; any positive value pins
+// the query to that historical height via ABCIQueryWithOptions.
+func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
+	c.logger.Info("querying node", "path", qpath, "data", string(data), "height", height)
 
 	start := time.Now()
-	qres, err := c.client.ABCIQuery(ctx, qpath, data)
+	opts := client.DefaultABCIQueryOptions
+	if height > 0 {
+		opts.Height = height
+	}
+	qres, err := c.client.ABCIQueryWithOptions(ctx, qpath, data, opts)
 	took := time.Since(start)
 	if err != nil {
 		// Unexpected error from the RPC client itself

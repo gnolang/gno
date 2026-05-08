@@ -3,7 +3,6 @@ package gnoweb
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
@@ -232,6 +231,15 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	ctx := r.Context()
 
+	// Stash the state-explorer view preference (cookie set by the
+	// state-view JS controller) on the context so the state handler
+	// can render the right radio `checked` server-side from first
+	// paint — no JS-driven flicker. Only "tree" is propagated; any
+	// other / missing value falls through to the Pretty default.
+	if c, err := r.Cookie(stateViewModeCookie); err == nil && c.Value == "tree" {
+		ctx = context.WithValue(ctx, stateViewModeKey{}, "tree")
+	}
+
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
 	// If the alias target exists and is a gnoweb path, replace the URL path with it.
@@ -458,7 +466,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 }
 
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
@@ -515,7 +523,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 
 // renderReadme renders the README.md file and returns the component and the raw content
 func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
-	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName)
+	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName, 0)
 	if err != nil {
 		h.Logger.Warn("fetch README.md", "path", pkgPath, "error", err)
 		return nil, nil
@@ -588,7 +596,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 	default:
 		// Fetch raw source file
-		file, meta, err := h.Client.File(ctx, pkgPath, fileName)
+		file, meta, err := h.Client.File(ctx, pkgPath, fileName, 0)
 		if err != nil {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
 			return GetClientErrorStatusPage(gnourl, err)
@@ -696,6 +704,10 @@ func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (
 
 // getStatePackageView renders the top-level state of a package or realm.
 func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	// Time-travel: `?height=N` pins the view to a historical block.
+	// Invalid or missing → 0 = latest.
+	height := gnourl.Height()
+
 	// Fetch state JSON + doc index concurrently — they're both
 	// per-package lookups and we want one RTT total. Doc errors are
 	// non-fatal: the page renders without comments rather than aborting.
@@ -708,11 +720,11 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		raw, stateErr = h.Client.StatePkg(ctx, gnourl.Path)
+		raw, stateErr = h.Client.StatePkg(ctx, gnourl.Path, height)
 	}()
 	go func() {
 		defer wg.Done()
-		d, derr := h.Client.Doc(ctx, gnourl.Path)
+		d, derr := h.Client.Doc(ctx, gnourl.Path, height)
 		if derr == nil {
 			jdoc = d
 		} else {
@@ -721,8 +733,8 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 	}()
 	wg.Wait()
 	if stateErr != nil {
-		h.Logger.Error("unable to fetch state", "error", stateErr, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, stateErr)
+		h.Logger.Error("unable to fetch state", "error", stateErr, "path", gnourl.EncodeURL(), "height", height)
+		return stateErrorPage(gnourl, stateErr, height)
 	}
 
 	nodes, err := components.DecodePkgJSON(raw)
@@ -756,14 +768,17 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 		components.AttachDocs(nodes, vals, funs, typs)
 	}
 
-	kind := "Package"
-	if strings.HasPrefix(gnourl.Path, "/r/") {
-		kind = "Realm"
+	// Title is just the realm/package name; the template appends a
+	// `<span class="b-tag">state</span>` pill (mirrors the action
+	// page's `<h1>name<span class="b-tag">package</span></h1>` shape).
+	name := path.Base(gnourl.Path)
+	if name == "/" || name == "." || name == "" {
+		name = gnourl.Path
 	}
-	label := fmt.Sprintf("%s top-level declarations (%d)", kind, len(nodes))
+	label := name
 
-	return http.StatusOK, h.renderStateView(ctx, gnourl.Path, raw, nodes, label, nil,
-		components.BuildPackageSidebar(gnourl.Path, nodes), false)
+	return http.StatusOK, h.renderStateView(ctx, gnourl, nodes, label, nil,
+		components.BuildPackageSidebar(gnourl.Path, nodes), false, height, raw)
 }
 
 // getStateObjectView renders the contents of a single stored object,
@@ -777,6 +792,7 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 // max(qobject, qtype) instead of their sum.
 func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.GnoURL, oid string) (int, *components.View) {
 	tid := gnourl.WebQuery.Get("tid")
+	height := gnourl.Height()
 
 	var (
 		raw, typeRaw []byte
@@ -786,13 +802,13 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		raw, objErr = h.Client.StateObject(ctx, oid)
+		raw, objErr = h.Client.StateObject(ctx, oid, height)
 	}()
 	if tid != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tr, err := h.Client.StateType(ctx, tid)
+			tr, err := h.Client.StateType(ctx, tid, height)
 			if err == nil {
 				typeRaw = tr
 			} else {
@@ -806,8 +822,8 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 	wg.Wait()
 
 	if objErr != nil {
-		h.Logger.Error("unable to fetch state object", "error", objErr, "path", gnourl.EncodeURL(), "oid", oid)
-		return GetClientErrorStatusPage(gnourl, objErr)
+		h.Logger.Error("unable to fetch state object", "error", objErr, "path", gnourl.EncodeURL(), "oid", oid, "height", height)
+		return stateErrorPage(gnourl, objErr, height)
 	}
 
 	decoded, err := components.DecodeObjectFull(raw, typeRaw)
@@ -817,7 +833,7 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 	}
 
 	crumbs := []components.StateCrumb{
-		{Label: gnourl.Path, Href: template.URL(gnourl.Path + "$state")},
+		{Label: gnourl.Path, Href: components.RealmStateHref(gnourl.Path)},
 		{Label: "Object"},
 	}
 	// Page title — keep the OID readable on one line by truncating
@@ -828,58 +844,23 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 	if len(decoded.Nodes) == 1 {
 		fields = "field"
 	}
-	label := fmt.Sprintf("Object %s (%d %s)", components.TruncOIDForDisplay(oid), len(decoded.Nodes), fields)
+	label := fmt.Sprintf("Object %s (%d %s)", components.TruncOID(oid, 8, 6), len(decoded.Nodes), fields)
 
-	return http.StatusOK, h.renderStateView(ctx, gnourl.Path, raw, decoded.Nodes, label, crumbs,
-		components.BuildObjectSidebar(gnourl.Path, oid, tid, decoded.Info, decoded.Nodes), true)
+	return http.StatusOK, h.renderStateView(ctx, gnourl, decoded.Nodes, label, crumbs,
+		components.BuildObjectSidebar(gnourl.Path, oid, tid, height, decoded.Info, decoded.Nodes), true, height, raw)
 }
 
-// renderStateRawJSON renders the chain response as a collapsible JSON tree
-// using native <details>/<summary>. Each object/array becomes a folder you
-// can expand or collapse with no JS — the toggle is built into the browser.
-//
-// Falls back to chroma-highlighted flat <pre> if JSON parsing fails (rare:
-// would mean a malformed chain response). Final fallback is plain
-// HTML-escaped <pre> so the page never breaks.
-func (h *HTTPHandler) renderStateRawJSON(raw []byte) template.HTML {
-	if len(raw) == 0 {
-		return ""
-	}
-	if tree := components.RenderJSONTree(raw); tree != "" {
-		return tree
-	}
-
-	// Couldn't parse JSON — try chroma on the pretty-printed (or raw) text.
-	var pretty bytes.Buffer
-	if err := json.Indent(&pretty, raw, "", "  "); err != nil {
-		pretty.Reset()
-		pretty.Write(raw)
-	}
-	var out bytes.Buffer
-	if err := h.Renderer.RenderSource(&out, "state.json", pretty.Bytes()); err == nil {
-		return template.HTML(out.String())
-	}
-	// Last resort: escape into a plain <pre>.
-	return template.HTML("<pre>" + template.HTMLEscapeString(pretty.String()) + "</pre>")
-}
-
-// renderStateView is the shared tail of both state views: inline preview +
-// source enrichment + StateView packaging. Keeps the two entry points DRY
-// and enforces a single point where every state page goes through:
-//   1. EnrichInlinePreviews — fetch stored refs in parallel and embed
-//      their fields as Children (heap → ref → struct chain over rounds).
-//   2. Enrich — set Hrefs on every ObjectID node and chroma-render
-//      func/closure source snippets.
-//   3. renderStateRawJSON — chroma-highlight the underlying chain payload
-//      for the "JSON view" toggle.
-// Order matters: preview adds nodes that Enrich then walks for hrefs/sources.
-func (h *HTTPHandler) renderStateView(ctx context.Context, pkgPath string, raw []byte, nodes []components.StateNode, label string, crumbs []components.StateCrumb, sidebar *components.StateSidebar, isObjectPage bool) *components.View {
+// renderStateView is the shared tail of both state views: inline-preview
+// enrichment + source-snippet enrichment + StateView packaging. Order
+// matters: preview adds nodes that Enrich then walks for hrefs/sources.
+func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL, nodes []components.StateNode, label string, crumbs []components.StateCrumb, sidebar *components.StateSidebar, isObjectPage bool, height int64, rawJSON []byte) *components.View {
+	pkgPath := gnourl.Path
 	components.EnrichInlinePreviews(nodes,
-		&clientStateObjectFetcher{ctx: ctx, client: h.Client},
-		&clientStateTypeFetcher{ctx: ctx, client: h.Client},
+		&clientStateObjectFetcher{ctx: ctx, client: h.Client, height: height},
+		&clientStateTypeFetcher{ctx: ctx, client: h.Client, height: height},
 	)
-	components.Enrich(nodes, pkgPath,
-		&clientFileFetcher{ctx: ctx, client: h.Client},
+	components.Enrich(nodes, pkgPath, height,
+		&clientFileFetcher{ctx: ctx, client: h.Client, height: height},
 		&rendererSnippetHighlighter{renderer: h.Renderer},
 	)
 	return components.StateView(components.StateData{
@@ -888,8 +869,12 @@ func (h *HTTPHandler) renderStateView(ctx context.Context, pkgPath string, raw [
 		CountLabel:   label,
 		Crumbs:       crumbs,
 		Sidebar:      sidebar,
-		RawJSON:      h.renderStateRawJSON(raw),
 		IsObjectPage: isObjectPage,
+		Height:       height,
+		LatestHref:   template.URL(gnourl.WithoutHeight().EncodeWebURL()),
+		ViewMode:     stateViewModeFromContext(ctx),
+		RawJSON:      string(rawJSON),
+		KindCounts:   components.ComputeKindCounts(nodes),
 	})
 }
 
@@ -898,10 +883,11 @@ func (h *HTTPHandler) renderStateView(ctx context.Context, pkgPath string, raw [
 type clientFileFetcher struct {
 	ctx    context.Context
 	client ClientAdapter
+	height int64
 }
 
 func (f *clientFileFetcher) Fetch(pkgPath, fileName string) ([]byte, error) {
-	src, _, err := f.client.File(f.ctx, pkgPath, fileName)
+	src, _, err := f.client.File(f.ctx, pkgPath, fileName, f.height)
 	return src, err
 }
 
@@ -921,14 +907,17 @@ func (h *rendererSnippetHighlighter) Render(fileName string, source []byte) (tem
 }
 
 // clientStateObjectFetcher adapts ClientAdapter to the StateObjectFetcher
-// interface needed by components.EnrichInlinePreviews.
+// interface needed by components.EnrichInlinePreviews. Carries the
+// page's height so inline-preview fetches stay consistent with the
+// initial qpkg/qobject query (matters for `?height=N` time-travel).
 type clientStateObjectFetcher struct {
 	ctx    context.Context
 	client ClientAdapter
+	height int64
 }
 
 func (f *clientStateObjectFetcher) FetchObject(oid string) ([]byte, error) {
-	return f.client.StateObject(f.ctx, oid)
+	return f.client.StateObject(f.ctx, oid, f.height)
 }
 
 // clientStateTypeFetcher adapts ClientAdapter to the StateTypeFetcher
@@ -937,11 +926,13 @@ func (f *clientStateObjectFetcher) FetchObject(oid string) ([]byte, error) {
 type clientStateTypeFetcher struct {
 	ctx    context.Context
 	client ClientAdapter
+	height int64
 }
 
 func (f *clientStateTypeFetcher) FetchType(tid string) ([]byte, error) {
-	return f.client.StateType(f.ctx, tid)
+	return f.client.StateType(f.ctx, tid, f.height)
 }
+
 
 
 // ServeSourceDownload handles downloading a source file as plain text.
@@ -961,7 +952,7 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	}
 
 	// Get source file
-	source, _, err := h.Client.File(ctx, pkgPath, fileName)
+	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		status, _ := GetClientErrorStatusPage(gnourl, err)
@@ -974,6 +965,43 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
 	w.Write(source) // write raw file
+}
+
+// stateViewModeCookie is the cookie name the state-view JS controller
+// writes whenever the user toggles Pretty/Raw. The handler reads it on
+// each state-page request so the server-rendered radio `checked` matches
+// the user's saved preference — no first-paint flicker, no inline JS.
+const stateViewModeCookie = "state_view_mode"
+
+// stateViewModeKey is the context key used to thread the cookie value
+// down to the state handlers without widening their signatures.
+type stateViewModeKey struct{}
+
+// stateViewModeFromContext returns the saved Pretty/Raw preference, or
+// "" when none is set (template treats empty as Pretty default).
+func stateViewModeFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(stateViewModeKey{}).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// stateErrorPage maps a state-query failure to a friendly status page,
+// preferring 400 + "block height N is not available" when the failing
+// query specified a non-zero height. The chain rejects out-of-range
+// heights with a generic RPC error that GetClientErrorStatusPage would
+// surface as a confusing 500 — this telegraphs to the user that the
+// height (which they control via the URL) is the cause. PackageNotFound
+// stays a 404 even at height>0 (path is wrong regardless of height).
+func stateErrorPage(gnourl *weburl.GnoURL, err error, height int64) (int, *components.View) {
+	if errors.Is(err, ErrClientPackageNotFound) {
+		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
+	}
+	if height > 0 {
+		return http.StatusBadRequest, components.StatusErrorComponent(
+			fmt.Sprintf("block height %d is not available", height))
+	}
+	return GetClientErrorStatusPage(gnourl, err)
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {

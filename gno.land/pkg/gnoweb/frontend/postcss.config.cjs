@@ -44,6 +44,8 @@ module.exports = (ctx) => {
 						"dev-mode",
 						"u-sr-only",
 						"data-theme",
+						"b-tag",
+						"b-tag--secondary",
 					],
 					deep: [/c-realm-view\b/, /c-readme-view\b/, /b-state-/],
 				},

@@ -1351,11 +1351,21 @@ main.dev-mode .b-toc a {
    (100, 14px) so it reads as a calm contextual paragraph rather than
    a competing headline next to small chips/values. */
 .b-action-function > .description,
-.b-state-decl > .description {
+.b-state-decl > .description,
+.b-state-decl .title > .description {
 	margin: 0 0 var(--g-space-4) 0;
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-100);
 	line-height: 1.5;
+}
+
+/* When folded inside `.title` (the new state-decl shape) the doc
+   comment hugs the heading group — drop the bottom margin so the
+   audit-chips ribbon below sits on the heading rhythm, not on the
+   doc paragraph rhythm. */
+.b-state-decl .title > .description {
+	margin-block-end: var(--g-space-2);
+	margin-block-start: var(--g-space-2);
 }
 
 .b-code {
@@ -1420,51 +1430,9 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	.packages-tabs {
-		display: flex;
-		grid-column: span 4 / span 4;
-		gap: var(--g-space-4);
-		font-weight: var(--g-font-semibold);
-		color: var(--s-color-text-tertiary);
-		font-size: var(--g-font-size-200);
-		width: auto;
-		border-block-end: var(--s-border);
-		padding-block-end: var(--g-space-2);
-
-		@media (--md) {
-			grid-column: span 2 / span 2;
-			font-size: var(--g-font-size-100);
-			width: 100%;
-			border-block-end: none;
-			padding-block-end: 0;
-		}
-
-		@media (--xl) {
-			gap: var(--g-space-6);
-			width: 100%;
-			margin-inline-start: 0;
-		}
-
-		label {
-			position: relative;
-			display: flex;
-			gap: var(--g-space-1);
-			align-items: center;
-			cursor: pointer;
-
-			&:hover {
-				color: var(--s-color-text-tertiary-hover);
-			}
-
-			.b-tag--secondary {
-				display: none;
-
-				@media (--xl) {
-					display: inline;
-				}
-			}
-		}
-	}
+	/* `.packages-tabs` block lives at top level (below `.b-packages`)
+	   so the same chrome can be reused by other pages (state explorer
+	   sub-header). */
 
 	.packages-filters {
 		grid-column: span 2 / span 2;
@@ -1656,21 +1624,8 @@ main.dev-mode .b-toc a {
 		display: flex;
 	}
 
-	label:has(input:checked) {
-		color: var(--s-color-text-tertiary);
-
-		&::after {
-			content: "";
-			position: absolute;
-			bottom: calc(var(--g-space-1) * -2);
-			left: 0;
-			width: 100%;
-			height: var(--g-space-1);
-			background-color: var(--s-color-bg-brand-default);
-			border-top-left-radius: var(--s-rounded-sm);
-			border-top-right-radius: var(--s-rounded-sm);
-		}
-	}
+	/* Active-label underline now scoped to `.packages-tabs label:has(input:checked)`
+	   at top level (lifted to be reusable). See PACKAGES-TABS COMPONENT block. */
 
 	/* realms not found */
 	&:has(input[value="realms"]:checked) {
@@ -1802,6 +1757,78 @@ main.dev-mode .b-toc a {
 	}
 }
 
+/* ===== PACKAGES-TABS COMPONENT (lifted out of .b-packages) =====
+ * Filter-tabs row: bold labels, active underline, count pill that
+ * shows at xl+. Originally defined inside `.b-packages` but lifted
+ * to top level so the state-explorer sub-header can reuse the same
+ * chrome via `class="packages-tabs"`. No code duplication —
+ * single source of truth.
+ */
+.packages-tabs {
+	display: flex;
+	grid-column: span 4 / span 4;
+	gap: var(--g-space-4);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-200);
+	width: auto;
+	border-block-end: var(--s-border);
+	padding-block-end: var(--g-space-2);
+
+	@media (--md) {
+		grid-column: span 2 / span 2;
+		font-size: var(--g-font-size-100);
+		width: 100%;
+		border-block-end: none;
+		padding-block-end: 0;
+	}
+
+	@media (--xl) {
+		gap: var(--g-space-6);
+		width: 100%;
+		margin-inline-start: 0;
+	}
+
+	label {
+		position: relative;
+		display: flex;
+		gap: var(--g-space-1);
+		align-items: center;
+		cursor: pointer;
+
+		&:hover {
+			color: var(--s-color-text-tertiary-hover);
+		}
+
+		:is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
+			display: none;
+
+			@media (--xl) {
+				display: inline;
+			}
+		}
+	}
+
+	/* Active-label underline — lifted from `.b-packages` to be a
+	   property of the `.packages-tabs` component (not the wrapping
+	   container) so it carries to any page using the class. */
+	label:has(input:checked) {
+		color: var(--s-color-text-tertiary);
+
+		&::after {
+			content: "";
+			position: absolute;
+			bottom: calc(var(--g-space-1) * -2);
+			left: 0;
+			width: 100%;
+			height: var(--g-space-1);
+			background-color: var(--s-color-bg-brand-default);
+			border-top-left-radius: var(--s-rounded-sm);
+			border-top-right-radius: var(--s-rounded-sm);
+		}
+	}
+}
+
 /* ===== ICON COMPONENT ===== */
 .b-icon-action {
 	flex-shrink: 0;
@@ -1873,7 +1900,8 @@ main.dev-mode .b-toc a {
 
 /* ===== TAG COMPONENT ===== */
 .b-tag,
-.b-tag--secondary {
+.b-tag--secondary,
+.b-tag--tertiary {
 	display: flex;
 	align-items: center;
 	gap: var(--g-space-2);
@@ -1888,6 +1916,16 @@ main.dev-mode .b-toc a {
 .b-tag--secondary {
 	border-color: transparent;
 	background-color: var(--s-color-bg-surface-primary);
+	color: var(--s-color-text-primary);
+}
+
+/* Tertiary variant — bg-surface-secondary (one notch lighter than
+   secondary's surface-primary). Useful inside a sub-header that
+   itself sits on `bg-surface-primary` so the pill stays readable
+   without competing with the wrapper. */
+.b-tag--tertiary {
+	border-color: transparent;
+	background-color: var(--s-color-bg-surface-secondary);
 	color: var(--s-color-text-primary);
 }
 
@@ -2510,34 +2548,151 @@ main.dev-mode .b-toc a {
 /* ===== STATE VIEW TOGGLE =====
  * Two-way switch (Pretty / JSON) at the top of the state page. Radios are
  * visually hidden but accessible; CSS uses :has() on the explorer block to
- * flip view-pretty / view-raw visibility — no JS, no URL state. The toggle
+ * flip view-pretty / view-tree visibility — no JS, no URL state. The toggle
  * resets on page reload by design (per-page choice, not session-wide).
  */
+/* Time-travel disclosure — small button that opens a form to pin
+   the page to a historical block height (`?height=N`). When already
+   pinned, the summary shows a "@ #N" badge so users know they're not
+   looking at the live state. Pure CSS via native <details>. */
+.b-state-history {
+	position: relative;
+	display: inline-block;
+
+	& > summary {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-2);
+		padding: var(--g-space-1-5) var(--g-space-3);
+		border: var(--s-border);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-surface-secondary);
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-100);
+		cursor: pointer;
+		list-style: none;
+		user-select: none;
+		transition: background-color var(--g-transition-duration) var(--g-transition-timing),
+		            color var(--g-transition-duration) var(--g-transition-timing),
+		            border-color var(--g-transition-duration) var(--g-transition-timing);
+
+		&::-webkit-details-marker { display: none; }
+
+		.c-icon {
+			width: 1em;
+			height: 1em;
+			color: currentColor;
+			transition: transform var(--g-transition-duration) var(--g-transition-timing);
+		}
+
+		.badge {
+			color: var(--s-color-text-link);
+			font-family: var(--g-font-family-mono);
+			font-weight: var(--g-font-semibold);
+		}
+
+		/* Hover register identical to action-page `.b-input`:
+		   border tightens to tertiary, surface lifts to primary. */
+		&:hover {
+			background-color: var(--s-color-bg-surface-primary);
+			border-color: var(--s-color-border-tertiary);
+			color: var(--s-color-text-primary);
+		}
+	}
+
+	&[open] > summary .c-icon {
+		transform: rotate(180deg);
+	}
+
+	.form {
+		position: absolute;
+		top: calc(100% + var(--g-space-1));
+		right: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-2);
+		padding: var(--g-space-2) var(--g-space-3);
+		background-color: var(--s-color-bg-base);
+		border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+		border-radius: var(--s-rounded-sm);
+		box-shadow: 0 4px 12px -2px color-mix(in srgb, currentColor 12%, transparent);
+		z-index: var(--g-z-2, 20);
+		font-size: var(--g-font-size-90);
+
+		label {
+			color: var(--s-color-text-tertiary);
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			font-size: var(--g-font-size-50);
+			font-weight: var(--g-font-semibold);
+		}
+
+		input[type="number"] {
+			width: 8rem;
+			padding: var(--g-space-1) var(--g-space-2);
+			border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+			border-radius: var(--s-rounded-sm);
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-100);
+			background-color: var(--s-color-bg-base);
+			color: var(--s-color-text-primary);
+
+			&:focus {
+				outline: 2px solid var(--s-color-text-link);
+				outline-offset: 1px;
+			}
+		}
+
+		.clear {
+			color: var(--s-color-text-tertiary);
+			text-decoration: none;
+			font-size: var(--g-font-size-80);
+
+			&:hover {
+				color: var(--s-color-text-link);
+				text-decoration: underline;
+			}
+		}
+	}
+}
+
+/* Segmented control: matches the time-travel button's chrome and
+   height (border, small radius, font-100, padding 1-5/3). Active
+   option lifts to bg-base (white surface) while inactive options
+   stay on the secondary tint — same "lift out of the strip"
+   pattern as standard segmented controls. No brand colour: this
+   is a passive view-mode switch, not a primary action. */
 .b-state-view-toggle {
 	display: inline-flex;
-	align-items: center;
-	border: 1px solid var(--s-color-border-primary);
-	border-radius: var(--s-rounded);
+	align-items: stretch;
+	border-radius: var(--s-rounded-sm);
+	border: var(--s-border);
 	overflow: hidden;
 	margin: 0;
 	padding: 0;
+	background-color: var(--s-color-bg-surface-secondary);
 
 	label {
-		padding: var(--g-space-1) var(--g-space-3);
+		padding: var(--g-space-1-5) var(--g-space-3);
 		cursor: pointer;
 		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-90);
+		font-size: var(--g-font-size-100);
 		user-select: none;
-		transition: background-color var(--g-transition-duration) var(--g-transition-timing);
+		transition: background-color var(--g-transition-duration) var(--g-transition-timing),
+		            color var(--g-transition-duration) var(--g-transition-timing);
 
 		&:hover {
-			background-color: var(--s-color-bg-hover);
+			background-color: var(--s-color-bg-surface-primary);
 		}
 	}
 
 	input:checked + label {
-		background-color: var(--s-color-bg-brand-default);
-		color: var(--s-color-text-base);
+		/* Match the page's dev-mode bg so the active label looks
+		   "lifted out of the strip" without painting a different
+		   surface than the page beneath. */
+		background-color: var(--s-color-bg-base-dev);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
 	}
 }
 
@@ -2545,24 +2700,22 @@ main.dev-mode .b-toc a {
    default; visible when the toggle radio is selected. The actual row /
    tree styling lives in `.b-state-explorer { .row { ... } }` below — the
    raw view just toggles visibility of the same tree primitives.   */
-.b-state-explorer .view-raw {
+.b-state-explorer .view-tree {
 	display: none;
 }
 
-body:has(#state-view-raw:checked) .b-state-explorer .view-pretty {
+body:has(#state-view-tree:checked) .b-state-explorer .view-pretty {
 	display: none;
 }
-body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
+body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	display: block;
 }
 
 /* ===== STATE DECLARATION CARD =====
  * Card-per-top-level-decl, modelled on .b-action-function (same surface,
- * radius, padding). Three regions:
- *   header  — name (h2) + type pill (.b-tag) + per-card actions (icons)
- *   content — primitives, source snippet for closures, children tree
- *   .b-state-stats (optional) — audit chips strip
- *   .cta (optional)            — banner pushing into the dedicated page
+ * radius, padding). Regions: header (name h2 + inline type + actions),
+ * audit-chips strip, content (primitive value / closure source / fields
+ * grid), footer CTA.
  */
 .b-state-decl {
 	/* Mirrors `.b-action-function` (the help/action page card pattern):
@@ -2573,43 +2726,61 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 	--card-shadow-tone: color-mix(in srgb, currentColor 10%, transparent);
 
 	position: relative;
+	display: flex;
+	flex-direction: column;
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 	padding: var(--g-space-4);
 	margin-block-end: var(--g-space-3);
 
-	/* Kind-glyph: small Unicode marker rendered next to a name (card
-	   h2 + field rows). Fixed-width slot so names align across rows
-	   regardless of glyph width. Tertiary color; brightens to its
-	   data-kind hue inside elements that carry data-kind. */
+	/* Kind-glyph: SVG sprite-backed marker rendered next to a name
+	   (card h2 + field rows + sidebar TOC entries). The wrapper IS
+	   the icon slot — fixed 1em square — and carries the baseline
+	   nudge itself; the inner SVG fills it as a block. This avoids
+	   the inline-flex/x-height vertical-align quirks that misalign
+	   SVG-vs-text across contexts (h2, body, sidebar TOC). */
 	.kind-glyph {
 		display: inline-block;
-		width: 1.2em;
+		width: 1em;
+		height: 1em;
 		margin-inline-end: 0.4em;
-		text-align: center;
 		color: var(--s-color-text-tertiary);
-		font-family: var(--g-font-family-mono);
-		font-style: normal;
-		font-weight: var(--g-font-regular);
-		user-select: none;
+		/* `middle` centres the icon on the text x-axis (halfway
+		   between baseline and ascender). Matches what a reader
+		   expects when scanning "[icon] Name" — the symbol sits
+		   in the middle of the lowercase letters, not on the
+		   baseline like a punctuation mark. */
+		vertical-align: middle;
+
+		.c-icon {
+			display: block;
+			width: 100%;
+			height: 100%;
+		}
 	}
 
 	/* Header — mirrors `.b-action-function > header`: flex justify-between,
-	   align-items flex-start, font-size-100 default, margin-block-end 4. */
+	   align-items flex-start, font-size-100 default, margin-block-end 4.
+	   `nowrap` is critical: a long description inside .title would
+	   otherwise force-grow the title and push .b-btns onto a new line.
+	   With nowrap + min-width:0 on .title, the title shrinks (its
+	   description wraps INTERNALLY) while b-btns stays anchored
+	   top-right at its content width. */
 	& > header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		gap: var(--g-space-2) var(--g-space-4);
 		margin-block-end: var(--g-space-4);
 		font-size: var(--g-font-size-100);
 	}
 
-	/* Title block — mirrors `.b-action-function .title` exactly: flex
-	   row, baseline-aligned, gap rhythm `1/4` so name h2 + signature
-	   sit on the same line, like `Foo (args int) string` on the
-	   action card. */
+	/* Title block — mirrors `.b-action-function .title` exactly:
+	   flex row, baseline-aligned, gap rhythm `1/4`. The header's
+	   `justify-content: space-between` pins b-btns to the right
+	   edge — same mechanism as the action card, no flex-grow
+	   needed (action cards work without it). */
 	.title {
 		display: flex;
 		gap: var(--g-space-1) var(--g-space-4);
@@ -2638,6 +2809,14 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 			min-width: 0;
 		}
 
+		/* Description folded inside .title is a paragraph block —
+		   force flex-basis 100% so it always wraps to its own row
+		   beneath the h2 / subtitle, never trying to share the
+		   baseline with the inline pieces. */
+		& > .description {
+			flex: 0 0 100%;
+		}
+
 		/* Type — inline code style, identical typography to action card
 		   `.signature code`: small mono secondary text. Kind-driven
 		   color is the only visual signal; no pill chrome, no border.
@@ -2650,25 +2829,6 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 			@media (--lg) {
 				font-size: var(--g-font-size-50);
 			}
-
-			&[data-kind="struct"]    { color: var(--s-color-text-tip); }
-			&[data-kind="map"]       { color: var(--s-color-text-caution); }
-			&[data-kind="array"],
-			&[data-kind="slice"]     { color: var(--s-color-text-success); }
-			&[data-kind="pointer"]   { color: var(--s-color-text-warning); }
-			&[data-kind="func"]      { color: var(--s-color-text-tip); }
-			&[data-kind="closure"]   { color: var(--s-color-text-info); }
-			&[data-kind="ref"]       { color: var(--s-color-text-tip); }
-		}
-
-		/* If the template still emits .b-tag (legacy), strip the chrome
-		   so the inline italic type reads cleanly. */
-		.type.b-tag {
-			display: inline;
-			background-color: transparent;
-			border: none;
-			padding: 0;
-			border-radius: 0;
 		}
 
 		.meta {
@@ -2839,15 +2999,6 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 				overflow: hidden;
 				text-overflow: ellipsis;
 				white-space: nowrap;
-
-				&[data-kind="struct"]    { color: var(--s-color-text-tip); }
-				&[data-kind="map"]       { color: var(--s-color-text-caution); }
-				&[data-kind="array"],
-				&[data-kind="slice"]     { color: var(--s-color-text-success); }
-				&[data-kind="pointer"]   { color: var(--s-color-text-warning); }
-				&[data-kind="func"]      { color: var(--s-color-text-tip); }
-				&[data-kind="closure"]   { color: var(--s-color-text-info); }
-				&[data-kind="ref"]       { color: var(--s-color-text-tip); }
 
 				.meta {
 					margin-inline-start: var(--g-space-1);
@@ -3124,33 +3275,37 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		}
 	}
 
-	/* Footer CTA — proper pill button. Filled link surface, white text,
-	   bold label, arrow that glides on hover. Sits at the bottom of
-	   the card as the primary navigation affordance. Contained-width
-	   inline-flex so it doesn't span the whole card. */
+	/* Footer CTA — secondary "ghost" pill, right-aligned. Reduced
+	   visual weight: transparent bg + link-coloured text/border so
+	   the primary affordance (clicking the card title or the row's
+	   own anchor) wins focus. The CTA is the "escape hatch" to the
+	   dedicated page, not the main path — its visual weight reflects
+	   that. Auto-margin-left pushes it to the right edge of the
+	   card body. */
 	.cta {
+		align-self: end;
 		display: inline-flex;
 		align-items: center;
 		gap: var(--g-space-2);
 		margin-block-start: var(--g-space-3);
-		padding: var(--g-space-2) var(--g-space-4);
-		background-color: var(--s-color-text-link);
-		border: 1px solid var(--s-color-text-link);
+		margin-inline-start: auto;
+		padding: var(--g-space-1) var(--g-space-3);
+		background-color: transparent;
+		border: 1px solid var(--s-color-border-primary);
 		border-radius: var(--s-rounded-sm);
-		color: var(--s-color-bg-base);
+		color: var(--s-color-text-link);
 		text-decoration: none;
-		font-size: var(--g-font-size-90);
-		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		font-weight: var(--g-font-medium);
 		transition: background-color var(--g-transition-duration) var(--g-transition-timing),
-		            border-color var(--g-transition-duration) var(--g-transition-timing),
-		            transform var(--g-transition-duration) var(--g-transition-timing);
+		            border-color var(--g-transition-duration) var(--g-transition-timing);
 
 		.more {
 			padding: 0 var(--g-space-2);
 			background-color: color-mix(in srgb, currentColor 18%, transparent);
 			border-radius: var(--s-rounded-sm);
 			font-family: var(--g-font-family-mono);
-			font-size: var(--g-font-size-80);
+			font-size: 0.9em;
 			font-weight: var(--g-font-semibold);
 		}
 
@@ -3160,18 +3315,18 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		}
 
 		.c-icon {
-			width: 1em;
-			height: 1em;
+			width: 0.9em;
+			height: 0.9em;
 			color: currentColor;
 			transition: transform var(--g-transition-duration) var(--g-transition-timing);
 		}
 
 		&:hover {
-			background-color: var(--s-color-text-link-hover);
-			border-color: var(--s-color-text-link-hover);
+			background-color: color-mix(in srgb, var(--s-color-text-link) 8%, transparent);
+			border-color: var(--s-color-text-link);
 
 			.c-icon {
-				transform: translateX(3px);
+				transform: translateX(2px);
 			}
 		}
 
@@ -3189,7 +3344,7 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
    (font-size-50 uppercase small label) but a compact horizontal flow
    instead of a column grid that wastes width. */
 .b-state-stats {
-	margin: 0 0 var(--g-space-5) 0;
+	margin: 0;
 	padding: 0;
 	display: flex;
 	flex-wrap: wrap;
@@ -3201,6 +3356,7 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		align-items: baseline;
 		gap: var(--g-space-2);
 	}
+
 
 	dt.title {
 		margin: 0;
@@ -3570,47 +3726,242 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 	}
 }
 
-/* TOC heading — small uppercase label that opens the navigation list. */
-.b-state-toc-heading {
-	color: var(--s-color-text-tertiary);
-	font-weight: var(--g-font-bold);
-	font-size: var(--g-font-size-50);
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	margin: 0 0 var(--g-space-2);
-	padding-block-end: var(--g-space-1);
-	border-block-end: 1px solid color-mix(in srgb, currentColor 8%, transparent);
-}
-
 /* TOC entries on state pages — restructured so the kind-glyph sits
    INLINE BESIDE the label (not above) and matches the visual weight
    of the SVG icons used elsewhere (`.c-icon` is 1.15em). The default
    `.b-toc a > span` rule (display: -webkit-box for line-clamp ellipsis)
    stacked spans into separate boxes; we override with inline-flex on
    the link so the glyph and label flow horizontally. */
-.b-state-toc {
-	a {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.4em;
+/* ===== STATE EXPLORER — TREE TOOLBAR =====
+ * Tree-only toolbar: small frameless icon buttons floating in the
+ * top-right corner of the .view-tree zone, OUTSIDE the framed tree
+ * block. Anchor: `.view-tree { position: relative }` + the toolbar
+ * is `position: absolute`. Lives INSIDE .view-tree so it inherits
+ * the view's hide-in-Pretty CSS — no separate `:has(:checked)`.
+ *
+ * The toggle icon rotates when aria-pressed is true ("collapse all"
+ * state), signalling current state without a visible label.
+ */
+.b-state-explorer .view-tree {
+	position: relative;
+}
+.tree-toolbar {
+	position: absolute;
+	top: var(--g-space-2);
+	right: var(--g-space-2);
+	display: flex;
+	gap: var(--g-space-1);
+	z-index: var(--g-z-1);
+}
+.tree-toolbar-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.6em;
+	height: 1.6em;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-tertiary);
+	cursor: pointer;
+	font-size: var(--g-font-size-100);
+	transition: background-color var(--g-transition-duration) var(--g-transition-timing),
+	            color var(--g-transition-duration) var(--g-transition-timing);
+}
+.tree-toolbar-btn:hover {
+	background-color: var(--s-color-bg-hover);
+	color: var(--s-color-text-primary);
+}
+.tree-toolbar-btn:focus-visible {
+	outline: 2px solid var(--s-color-text-link);
+	outline-offset: 1px;
+}
+.tree-toolbar-btn .c-icon {
+	width: 0.95em;
+	height: 0.95em;
+	transition: transform var(--g-transition-duration) var(--g-transition-timing);
+}
+.tree-toolbar-btn[aria-pressed="true"] .c-icon {
+	transform: rotate(180deg);
+}
+
+/* Search is Pretty-only: filter targets data-name on top-level
+   cards, which Tree view doesn't expose meaningfully. */
+body:has(#state-view-tree:checked) .b-state-search {
+	display: none;
+}
+
+/* ===== STATE EXPLORER — SUB-HEADER =====
+ * Iso `.b-packages > nav` (user page): 4-column grid, tabs and
+ * search each span 2 at md+, span 4 stacked on mobile. Sticky
+ * with bottom-border at md+, identical chrome to user page.
+ * Pretty-only — hidden in Tree mode. */
+.b-state-subheader {
+	/* Page-level <section> is `display: grid` at lg+ with sidebar
+	   pinned to the right (cols 8-10) spanning rows 1-2. We force
+	   subheader onto row 2 cols 1-7 (same width as header above)
+	   AND extend sidebar to span 3 rows (rule below) so the
+	   sidebar visually aligns with header + subheader + article.
+	   Without explicit grid-row, dense auto-flow picks unexpected
+	   slots when the article (`grid-column: 1 / -1`) competes for
+	   space. */
+	grid-column: 1 / -1;
+	align-self: start;
+
+	@media (--lg) {
+		grid-column: span 7 / span 7;
+		grid-row: 2;
+	}
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--g-space-3);
+	margin-block-end: var(--g-space-6);
+	position: sticky;
+	/* Clear the global `.b-header` sticky bar so the subheader
+	   stops UNDER it, not behind. The header has padding-block
+	   `g-space-2` + content ~`g-space-10` = ~`g-space-14` tall.
+	   Using 14 lands the subheader flush below the header.
+	   Background matches `main.dev-mode` bg so the sticky panel
+	   doesn't paint a different surface than the page. */
+	top: var(--g-space-14);
+	z-index: var(--g-z-1);
+	background-color: var(--s-color-bg-base-dev);
+	/* Top breathing space so content doesn't kiss the global
+	   header when the bar sticks at scroll. */
+	padding-block-start: var(--g-space-3);
+
+	@media (--md) {
+		padding-block-end: var(--g-space-2);
+		border-block-end: var(--s-border);
+	}
+}
+body:has(#state-view-tree:checked) .b-state-subheader {
+	display: none;
+}
+
+/* When the subheader is hidden (Tree mode), the article loses the
+   breathing space the subheader's padding/margin gave it. Add an
+   equivalent margin-top so the spacing under the page header
+   stays consistent across views. */
+body:has(#state-view-tree:checked) .b-state-explorer {
+	margin-block-start: var(--g-space-6);
+}
+
+/* Sidebar + article placement when the state subheader is present.
+   Sidebar normally spans 2 rows (header + content); with a
+   subheader inserted between them the right column needs to
+   span 3 rows to stay aligned. Article is forced to row 3 so
+   auto-flow doesn't put it before the subheader. */
+@media (min-width: calc(820 / 16 * 1rem)) {
+	body:has(.b-state-subheader) .b-sidebar {
+		grid-row: span 3 / span 3;
+	}
+	.b-state-explorer {
+		grid-row: 3;
+	}
+}
+
+/* Tabs reuse `.packages-tabs` directly (lifted to top-level CSS so
+   the same chrome works in any context). The user-page convention
+   hides the count pill below xl; the state explorer keeps it
+   visible at every viewport — declarations are dense enough that
+   the count is always informative. */
+.b-state-subheader .packages-tabs label :is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
+	display: inline-flex;
+}
+
+/* Search — chrome from `.packages-search`. The `.b-input` parent
+   class provides border/radius/svg-positioning; we just place
+   the wrapper in the grid. Capped + right-aligned so it doesn't
+   spread to half the page on wide viewports. */
+.b-state-subheader .state-search {
+	position: relative;
+	grid-column: span 4 / span 4;
+	display: flex;
+	font-size: var(--g-font-size-100);
+	justify-self: end;
+	width: 100%;
+	/* Approximate combined width of `time-travel + pretty/tree`
+	   in `.b-btns` above (~22em). Pure-CSS exact match across
+	   grid contexts isn't trivial; this lands close enough that
+	   left/right edges align visually. */
+	max-width: var(--g-space-80);
+
+	@media (--md) {
+		grid-column: span 2 / span 2;
+	}
+}
+
+/* Hide rules — kind filter only applies in Pretty (Tree shows
+   the whole shape; subheader is hidden anyway). */
+body:has(#kf-state:checked) .b-state-decl:not([data-kind="struct"]):not([data-kind="map"]):not([data-kind="slice"]):not([data-kind="array"]):not([data-kind="pointer"]):not([data-kind="ref"]) {
+	display: none;
+}
+body:has(#kf-code:checked) .b-state-decl:not([data-kind="func"]):not([data-kind="closure"]) {
+	display: none;
+}
+body:has(#kf-types:checked) .b-state-decl:not([data-kind="type"]):not([data-kind="interface"]) {
+	display: none;
+}
+
+/* ===== STATE EXPLORER — IN-PAGE SEARCH =====
+ * Compact filter input that lives next to the Pretty/Tree toggle.
+ * The icon-leading layout matches the global searchbar pattern so
+ * the affordance reads as "search" without a label. The controller
+ * stamps `[hidden]` on non-matching items — that's why this rule
+ * is dead simple. */
+.b-state-search {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-1);
+	padding: var(--g-space-1) var(--g-space-2);
+	background-color: var(--s-color-bg-base);
+	border: 1px solid var(--s-color-border-primary);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-90);
+
+	&:focus-within {
+		border-color: var(--s-color-text-link);
 	}
 
-	.kind-glyph {
-		display: inline-block;
+	.c-icon {
 		flex-shrink: 0;
-		width: 1.15em;
-		text-align: center;
-		color: var(--s-color-text-tertiary);
-		font-family: var(--g-font-family-mono);
-		font-size: 1em;
-		font-style: normal;
-		font-weight: var(--g-font-semibold);
-		line-height: 1;
-		user-select: none;
+		width: 0.95em;
+		height: 0.95em;
 	}
 
-	a:hover .kind-glyph {
-		color: var(--s-color-text-link-hover);
+	input {
+		min-width: 0;
+		flex: 1 1 auto;
+		padding: 0;
+		background: transparent;
+		border: none;
+		outline: none;
+		color: var(--s-color-text-primary);
+		font: inherit;
+	}
+}
+
+.b-state-toc {
+	/* Anchors use the shared `.c-with-icon` composition (same as the
+	   Source TOC and other gnoweb sidebars). All flex layout +
+	   spacing comes from there. */
+
+	/* Type label after the name — quiet metadata so the user can
+	   scan "what is this?" without clicking the link. Italic, mono,
+	   small; coloured by data-kind via the global color map. */
+	small.type[data-kind] {
+		margin-inline-start: var(--g-space-2);
+		font-family: var(--g-font-family-mono);
+		font-style: italic;
+		font-size: 0.85em;
+		opacity: 0.75;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
 	}
 
 	/* Label keeps the line-clamp ellipsis behavior (overridden from
@@ -3625,6 +3976,26 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 	}
 }
 
+/* Two anchors per TOC entry (one per view). Hide the inactive
+   variant so the visible link points to a real, painted scroll
+   target. Pure CSS — no JS bridge. Flat selectors because the
+   nesting transform doesn't survive postcss's compatibility
+   output for these. */
+.b-state-toc .toc-tree { display: none; }
+body:has(#state-view-tree:checked) .b-state-toc .toc-pretty { display: none; }
+body:has(#state-view-tree:checked) .b-state-toc .toc-tree { display: inline-flex; }
+
+
+/* Scroll-margin so anchor jumps don't land flush against the
+   viewport top — leaves room for sticky chrome and breathing
+   space. Same magnitude (`g-space-24`) used by chroma line
+   anchors elsewhere on gnoweb. Applies to every id inside the
+   explorer, covering both Pretty cards (`-pretty`) and Tree
+   rows (`-tree`). */
+.b-state-explorer [id] {
+	scroll-margin-top: var(--g-space-24);
+}
+
 /* ===== STATE EXPLORER =====
  * Server-rendered, navigation-driven. Pure HTML/CSS — no JS toggle, no AJAX.
  *
@@ -3637,7 +4008,7 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
  */
 .b-state-explorer {
 	margin-block-start: var(--g-space-4);
-	padding-block-start: var(--g-space-4);
+	padding-block-start: 0;
 	padding-bottom: var(--g-space-24);
 	grid-column: 1 / -1;
 	font-family: var(--g-font-family-mono);
@@ -3650,7 +4021,7 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		   3 for .b-sidebar. */
 		grid-column: span 7 / span 7;
 		margin-block-start: 0;
-		padding-block-start: var(--g-space-6);
+		padding-block-start: 0;
 	}
 
 	/* ---- Header ---- */
@@ -3701,8 +4072,19 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 	   declaration rows so the realm root reads as a clean ledger rather
 	   than an undifferentiated wall. Nested rows stay tight to keep
 	   the tree compact (depth-0 only). */
-	.view-raw > .tree > * + * {
+	.view-tree > .tree > * + * {
 		margin-block-start: var(--g-space-1);
+	}
+
+	/* Frame the Raw tree so the listing reads as a delimited block —
+	   same register as `.b-source-code` on the Source page. The card
+	   shells in the Pretty view already provide their own delimitation
+	   (one frame per decl), so the wrap is Raw-only. */
+	.view-tree > .tree {
+		background-color: var(--s-color-bg-surface-primary);
+		border: 1px solid var(--s-color-border-primary);
+		border-radius: var(--s-rounded);
+		padding: var(--g-space-3) var(--g-space-4);
 	}
 
 	/* ---- Row (single base layout, shape-specific tweaks via data-shape) ---- */
@@ -3737,7 +4119,10 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 	}
 
 	/* Branch: <summary> wears .row + data-shape="branch" — only adds the
-	   disclosure marker and cursor; layout comes from .row directly. */
+	   disclosure marker and cursor; layout comes from .row directly.
+	   The arrow is the primary affordance in the Tree view (Tree closes
+	   most levels by default, so users need an obvious "click here to
+	   open" signal): full-strength colour, larger glyph, hover lift. */
 	.row[data-shape="branch"] {
 		cursor: pointer;
 		list-style: none;
@@ -3749,15 +4134,22 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		&::before {
 			content: "\25B6"; /* ▶ */
 			display: inline-block;
-			width: 0.9em;
-			color: var(--s-color-text-tertiary);
-			font-size: 0.65em;
-			transition: transform var(--g-transition-duration) var(--g-transition-timing);
+			width: 1em;
+			margin-inline-end: 0.15em;
+			color: var(--s-color-text-secondary);
+			font-size: 0.85em;
+			transition: transform var(--g-transition-duration) var(--g-transition-timing),
+			            color var(--g-transition-duration) var(--g-transition-timing);
+		}
+
+		&:hover::before {
+			color: var(--s-color-text-primary);
 		}
 	}
 
 	details[open] > .row[data-shape="branch"]::before {
 		transform: rotate(90deg);
+		color: var(--s-color-text-primary);
 	}
 
 	/* ---- Inline parts of a row ---- */
@@ -3775,36 +4167,19 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		font-size: 0.85em;
 	}
 
-	/* Type — italic, colour by kind. When stacked with .b-tag (template
-	   adds the class) we keep inline-flex layout so the pill stays on
-	   the same baseline as the row's siblings. */
+	/* Type — italic; kind-driven colours come from the shared rule
+	   `(.b-state-decl, .b-state-explorer) [data-kind]` at the tail of
+	   the file. */
 	.type {
 		font-style: italic;
 		color: var(--s-color-text-secondary);
-
-		&[data-kind="struct"]    { color: var(--s-color-text-tip); }
-		&[data-kind="map"]       { color: var(--s-color-text-caution); }
-		&[data-kind="array"],
-		&[data-kind="slice"]     { color: var(--s-color-text-success); }
-		&[data-kind="pointer"]   { color: var(--s-color-text-warning); }
-		&[data-kind="func"]      { color: var(--s-color-text-tip); }
-		&[data-kind="closure"]   { color: var(--s-color-text-info); }
-		&[data-kind="ref"]       { color: var(--s-color-text-tip); }
-		&[data-kind="package"]   { color: var(--s-color-text-info); }
-		&[data-kind="type"]      { color: var(--s-color-text-tertiary); }
-		&[data-kind="nil"],
-		&[data-kind="primitive"] { color: var(--s-color-text-secondary); }
-	}
-
-	.type.b-tag {
-		display: inline-flex;
 	}
 
 	/* One-line preview shown next to the type when a struct/map/ref is
 	   collapsed — turns "config : Config" into
 	   "config : Config {name: \"default\", maxPosts: 100, …}". Set by the
 	   walker (Preview field). The raw tree view hides previews entirely
-	   (clean JSON-tree shape, see .view-raw rule below); the pretty view
+	   (clean JSON-tree shape, see .view-tree rule below); the pretty view
 	   keeps them inside cards' children rows. */
 	.preview {
 		color: var(--s-color-text-secondary);
@@ -3820,7 +4195,7 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 	/* Raw view: stay efficient and standard tree-like — no inline
 	   previews, no pill chrome. The same template renders both views;
 	   styling differentiates. */
-	.view-raw .preview {
+	.view-tree .preview {
 		display: none;
 	}
 
@@ -3857,9 +4232,12 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 
 	/* ---- Inline source block (closures, function bodies) ----
 	   Properly framed: solid bg, hairline border, generous padding.
-	   The frame works in both Pretty cards (where the surrounding
-	   surface is secondary) and the Raw tree (no surrounding surface).
-	   Tab-size 4 for consistency with chroma's gno output. */
+	   The frame works in Pretty cards (where the surrounding surface
+	   is secondary). In Raw view the tree itself is now framed —
+	   nested code drops its frame to a flat bg-base panel so the
+	   user reads ONE wrapper, not two competing ones (see override
+	   under `.view-tree .source .code` below). Tab-size 4 for
+	   consistency with chroma's gno output. */
 	.source {
 		position: relative;
 		margin: var(--g-space-2) 0;
@@ -3880,6 +4258,13 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 				margin: 0;
 				font-family: var(--g-font-family-mono);
 			}
+
+			/* Chroma's outer wrapper carries its own bg in some themes;
+			   strip it so our `.code` panel surface controls the look
+			   (otherwise we get a grey-on-white artifact in Raw view). */
+			.chroma-chroma {
+				background-color: transparent;
+			}
 		}
 
 		& > .srclink {
@@ -3897,6 +4282,16 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 				background-color: var(--s-color-bg-surface-tertiary);
 			}
 		}
+	}
+
+	/* Raw view: tree wrapper already provides delimitation, so inner
+	   code panels switch to a flat bg-base register (white in light
+	   mode) — same flat surface as `.b-source-code` on the Source page.
+	   Scoped explicitly because CSS nesting can't push `.view-tree`
+	   between `.b-state-explorer` and `.source` from inside `.source`. */
+	.view-tree .source .code {
+		background-color: var(--s-color-bg-base);
+		border: none;
 	}
 
 	/* Source link — used inline (in summary) and absolute (in source block) */
@@ -3960,3 +4355,4 @@ body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
 		}
 	}
 }
+
