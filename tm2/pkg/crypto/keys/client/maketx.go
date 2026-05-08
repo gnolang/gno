@@ -25,7 +25,8 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
-	// For session account. The flag for this is registered by derived Cfg structs which need it.
+	// Master, when set, signs the tx as a session account on behalf of this master key
+	// (name or bech32). The chain enforces which msg types a session may sign.
 	Master string
 }
 
@@ -111,6 +112,13 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"dev",
 		"chainid to sign for (only useful with --broadcast)",
+	)
+
+	fs.StringVar(
+		&c.Master,
+		"master",
+		"",
+		"session account master's key name or bech32 address (optional)",
 	)
 }
 

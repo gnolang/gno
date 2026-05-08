@@ -54,12 +54,6 @@ func (c *MakeRunCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"max storage deposit",
 	)
-	fs.StringVar(
-		&c.RootCfg.Master,
-		"master",
-		"",
-		"session account master's key name or bech32 address (optional)",
-	)
 }
 
 func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {

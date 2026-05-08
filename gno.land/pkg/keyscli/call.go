@@ -75,13 +75,6 @@ func (c *MakeCallCfg) RegisterFlags(fs *flag.FlagSet) {
 		"args",
 		"arguments to contract",
 	)
-
-	fs.StringVar(
-		&c.RootCfg.Master,
-		"master",
-		"",
-		"session account master's key name or bech32 address (optional)",
-	)
 }
 
 func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {

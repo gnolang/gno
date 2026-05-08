@@ -51,13 +51,6 @@ func (c *MakeSendCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"destination address",
 	)
-
-	fs.StringVar(
-		&c.RootCfg.Master,
-		"master",
-		"",
-		"session account master's key name or bech32 address (optional)",
-	)
 }
 
 func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
