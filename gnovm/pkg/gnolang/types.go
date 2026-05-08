@@ -1598,46 +1598,46 @@ func typeDepth(t Type, visited map[Type]struct{}) int {
 		}
 		return 1 + v
 	case *FuncType:
-		max := 0
+		maxDepth := 0
 		for i := range ct.Params {
-			if d := typeDepth(ct.Params[i].Type, visited); d > max {
-				max = d
-				if max > MaxTypeDepth {
-					return 1 + max
+			if d := typeDepth(ct.Params[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
 				}
 			}
 		}
 		for i := range ct.Results {
-			if d := typeDepth(ct.Results[i].Type, visited); d > max {
-				max = d
-				if max > MaxTypeDepth {
-					return 1 + max
+			if d := typeDepth(ct.Results[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
 				}
 			}
 		}
-		return 1 + max
+		return 1 + maxDepth
 	case *StructType:
-		max := 0
+		maxDepth := 0
 		for i := range ct.Fields {
-			if d := typeDepth(ct.Fields[i].Type, visited); d > max {
-				max = d
-				if max > MaxTypeDepth {
-					return 1 + max
+			if d := typeDepth(ct.Fields[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
 				}
 			}
 		}
-		return 1 + max
+		return 1 + maxDepth
 	case *InterfaceType:
-		max := 0
+		maxDepth := 0
 		for i := range ct.Methods {
-			if d := typeDepth(ct.Methods[i].Type, visited); d > max {
-				max = d
-				if max > MaxTypeDepth {
-					return 1 + max
+			if d := typeDepth(ct.Methods[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
 				}
 			}
 		}
-		return 1 + max
+		return 1 + maxDepth
 	case *DeclaredType:
 		// Leaf for depth purposes: a name reference to a named type
 		// doesn't expose the named type's internal nesting to the
@@ -1853,35 +1853,35 @@ func embedDepth(t Type, visited map[Type]struct{}) int {
 	case *PointerType:
 		return embedDepth(ct.Elt, visited)
 	case *StructType:
-		max := 0
+		maxDepth := 0
 		for i := range ct.Fields {
 			f := &ct.Fields[i]
 			if !f.Embedded {
 				continue
 			}
-			if d := 1 + embedDepth(f.Type, visited); d > max {
-				max = d
-				if max > MaxEmbedDepth {
-					return max
+			if d := 1 + embedDepth(f.Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxEmbedDepth {
+					return maxDepth
 				}
 			}
 		}
-		return max
+		return maxDepth
 	case *InterfaceType:
-		max := 0
+		maxDepth := 0
 		for i := range ct.Methods {
 			mt := ct.Methods[i].Type
 			if !isInterfaceMethodEmbed(mt) {
 				continue
 			}
-			if d := 1 + embedDepth(mt, visited); d > max {
-				max = d
-				if max > MaxEmbedDepth {
-					return max
+			if d := 1 + embedDepth(mt, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxEmbedDepth {
+					return maxDepth
 				}
 			}
 		}
-		return max
+		return maxDepth
 	default:
 		return 0
 	}
