@@ -720,6 +720,27 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		})
 	defer m2.Release()
 	defer doRecover(m2, &err)
+	// Per-tx preprocess allocator: separate counter from m2.Alloc (the
+	// init-phase allocator with GC). collect=nil so Allocate hard-panics
+	// on maxBytes overflow rather than attempting a GC retry — GC walks
+	// blocks/frames/package but not m.Values (the operand stack), and
+	// would undercount in-flight preprocess values like a chained-+
+	// running prefix. Closes the unbounded const-fold allocation surface
+	// where preprocess sub-Machines (NewMachine(pkg, store) at
+	// preprocess.go:3947, 4112, 4175, 4258) would otherwise run with
+	// nil Alloc and skip both maxBytes tracking and per-allocation gas.
+	//
+	// The defer keeps preprocessAlloc installed for the entire handler.
+	// During init phase the outer Machine (m2) uses its own m.Alloc with
+	// GC for runtime ops; preprocessAlloc only takes effect for sub-
+	// Machines spawned via NewMachine(pkg, store) inside Preprocess. If
+	// init code re-triggers Preprocess (e.g., RunStatement on synthesized
+	// init.0 calls), those sub-Machines also use preprocessAlloc — that's
+	// intended so any Preprocess work during the handler is metered.
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	params := vm.GetParams(ctx)
 	m2.RunMemPackage(memPkg, true)
 
@@ -1023,6 +1044,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	alloc := gnostore.GetAllocator()
+	// Per-tx preprocess allocator (see AddPackage for full rationale).
+	// Covers both the closure-local Machine that calls RunMemPackage and
+	// any subsequent Machine that re-Preprocesses; defer outlives both.
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.

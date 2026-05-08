@@ -223,6 +223,17 @@ func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
 }
 
+// GetGasMeter returns the gas meter wired to this allocator (or nil).
+// Used by NewMachineWithOptions when a sub-Machine inherits the
+// preprocess allocator from the store and needs the same gas meter for
+// CPU-gas charging via m.incrCPU.
+func (alloc *Allocator) GetGasMeter() store.GasMeter {
+	if alloc == nil {
+		return nil
+	}
+	return alloc.gasMeter
+}
+
 func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
 	alloc.gasMeter = gasMeter
 }
