@@ -1105,101 +1105,125 @@ func TestHTTPHandler_GetStateView_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
-// TestHTTPHandler_ServeStateJSON tests the state JSON API endpoints.
-func TestHTTPHandler_ServeStateJSON(t *testing.T) {
+// TestHTTPHandler_GetStateObjectView covers the per-object state page,
+// reachable via /r/foo$state&oid=<ObjectID>. The page must:
+//   - Render HTML (no JSON), 200
+//   - Show the object's fields as state rows
+//   - Include a breadcrumb back to the realm-level state page
+//
+// This locks in the post-Phase-4 contract: stored object refs in the
+// top-level page are <a> links to a server-rendered detail page (no AJAX).
+func TestHTTPHandler_GetStateObjectView(t *testing.T) {
 	t.Parallel()
 
-	stateJSON := `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"}}]}`
-	objectJSON := `{"objectid":"abc:1","value":{"@type":"/gno.StructValue","Fields":[]}}`
-	typeJSON := `{"typeid":"gno.land/r/test.Foo","type":{"@type":"/gno.StructType","PkgPath":"gno.land/r/test","Fields":[]}}`
+	const realmPath = "/r/test/pkg"
 
-	client := &stubClient{
-		realmFunc: func(ctx context.Context, path, args string) ([]byte, error) {
-			return []byte("realm"), nil
-		},
-	}
-
-	// Override state methods with real data
-	statePkgFunc := func(_ context.Context, path string) ([]byte, error) {
-		if path == "/r/test/pkg" {
-			return []byte(stateJSON), nil
+	objectJSON := `{
+		"objectid": "ffffffffffffffffffffffffffffffffffffffff:1",
+		"value": {
+			"@type": "/gno.StructValue",
+			"Fields": [
+				{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "BwAAAAAAAAA="},
+				{"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "alice"}}
+			]
 		}
-		return nil, gnoweb.ErrClientPackageNotFound
-	}
-	stateObjectFunc := func(_ context.Context, oid string) ([]byte, error) {
-		if oid == "abc:1" {
-			return []byte(objectJSON), nil
-		}
-		return nil, fmt.Errorf("not found")
-	}
-	stateTypeFunc := func(_ context.Context, tid string) ([]byte, error) {
-		if tid == "gno.land/r/test.Foo" {
-			return []byte(typeJSON), nil
-		}
-		return nil, fmt.Errorf("not found")
-	}
+	}`
 
-	// We can't set these on stubClient since the methods are defined on the type,
-	// so use a wrapper that implements the interface.
-	wrapper := &stateStubClient{
-		stubClient:      client,
-		statePkgFunc:    statePkgFunc,
-		stateObjectFunc: stateObjectFunc,
-		stateTypeFunc:   stateTypeFunc,
-	}
-
-	config := newTestHandlerConfig(t, wrapper)
-
-	cases := []struct {
-		Path        string
-		Status      int
-		ContentType string
-		Contain     string
-	}{
-		// Package state JSON
-		{
-			Path:        "/r/test/pkg$state&json",
-			Status:      http.StatusOK,
-			ContentType: "application/json",
-			Contain:     `"names"`,
-		},
-		// Object state JSON (colon in OID must be URL-encoded)
-		{
-			Path:        "/r/test/pkg$state&oid=abc%3A1&json",
-			Status:      http.StatusOK,
-			ContentType: "application/json",
-			Contain:     `"objectid"`,
-		},
-		// Type JSON
-		{
-			Path:        "/r/test/pkg$state&tid=gno.land/r/test.Foo&json",
-			Status:      http.StatusOK,
-			ContentType: "application/json",
-			Contain:     `"typeid"`,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
-			t.Parallel()
-
-			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-			handler, err := gnoweb.NewHTTPHandler(logger, config)
-			require.NoError(t, err)
-
-			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
-			require.NoError(t, err)
-
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, tc.Status, rr.Code)
-			if tc.ContentType != "" {
-				assert.Equal(t, tc.ContentType, rr.Header().Get("Content-Type"))
+	client := &stateStubClient{
+		stubClient: &stubClient{},
+		stateObjectFunc: func(_ context.Context, oid string) ([]byte, error) {
+			if oid == "ffffffffffffffffffffffffffffffffffffffff:1" {
+				return []byte(objectJSON), nil
 			}
-			assert.Contains(t, rr.Body.String(), tc.Contain)
-		})
+			return nil, fmt.Errorf("not found")
+		},
 	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
+		newTestHandlerConfig(t, client))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
+		realmPath+"$state&oid=ffffffffffffffffffffffffffffffffffffffff%3A1", nil))
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "text/html; charset=utf-8", rr.Header().Get("Content-Type"),
+		"object page must serve HTML, not JSON (post-Phase-4 contract)")
+
+	body := rr.Body.String()
+	// The two struct fields decoded by DecodeObjectJSON.
+	assert.Contains(t, body, ">7<", "field 0 (int=7) renders as a leaf row")
+	assert.Contains(t, body, "alice", "field 1 (string=alice) renders as a leaf row")
+	// Breadcrumb back to the realm state page.
+	assert.Contains(t, body, `href="`+realmPath+`$state"`, "breadcrumb links back to realm root")
+	assert.Contains(t, body, "Object", "breadcrumb labels current location as Object")
+}
+
+// TestHTTPHandler_GetStateView_FuncSourceEnriched verifies the full
+// wiring: walker decodes a func node with Source → orchestrator fetches
+// the file and renders the snippet → template embeds the highlighted
+// body and the header srclink in the card.
+func TestHTTPHandler_GetStateView_FuncSourceEnriched(t *testing.T) {
+	t.Parallel()
+
+	const (
+		realmPath = "/r/test/srcfn"
+		fileName  = "foo.gno"
+		fileBody  = "package foo\n\nfunc Foo() int {\n\treturn 42\n}\n"
+	)
+
+	statePkgJSON := `{
+		"names": ["Foo"],
+		"values": [
+			{"T": {"@type": "/gno.FuncType", "Params": [], "Results": [{"Name": ".res.0", "Type": {"@type": "/gno.PrimitiveType", "value": "32"}, "Embedded": false, "Tag": ""}]},
+			 "V": {"@type": "/gno.FuncValue",
+				"Type": {"@type": "/gno.FuncType", "Params": [], "Results": [{"Name": ".res.0", "Type": {"@type": "/gno.PrimitiveType", "value": "32"}, "Embedded": false, "Tag": ""}]},
+				"Name": "Foo",
+				"Source": {"@type": "/gno.RefNode",
+					"Location": {"PkgPath": "` + realmPath + `", "File": "` + fileName + `",
+						"Span": {"Pos": {"Line": "3", "Column": "1"}, "End": {"Line": "5", "Column": "1"}, "Num": "0"}}}}}
+		]
+	}`
+
+	client := &stateStubClient{
+		stubClient: &stubClient{
+			fileFunc: func(_ context.Context, path, name string) ([]byte, gnoweb.FileMeta, error) {
+				if path == realmPath && name == fileName {
+					return []byte(fileBody), gnoweb.FileMeta{}, nil
+				}
+				return nil, gnoweb.FileMeta{}, errors.New("file not found")
+			},
+		},
+		statePkgFunc: func(_ context.Context, path string) ([]byte, error) {
+			if path == realmPath {
+				return []byte(statePkgJSON), nil
+			}
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
+		newTestHandlerConfig(t, client))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, realmPath+"$state", nil))
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+
+	// The state explorer page must show the function name from the walker.
+	assert.Contains(t, body, ">Foo<", "function name appears as a row")
+	// Pretty card: header-only for non-closure funcs (mockup parity).
+	// The body is rendered in the Raw view's <details> kids — present in
+	// the same DOM but CSS-hidden until the user flips the toggle.
+	assert.Contains(t, body, "return",
+		"Raw-view <details> body still carries the snippet for expand")
+	// The card header carries a `srclink` for one-click navigation
+	// to the Source tab — that's the func's primary affordance in Pretty.
+	assert.Contains(t, body, `class="srclink"`,
+		"card header surfaces a Source-tab link for the func")
+	assert.Contains(t, body, fileName+":3",
+		"srclink advertises file:line so users know what they're opening")
 }
 
 // stateStubClient wraps stubClient but overrides state methods with custom functions.

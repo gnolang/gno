@@ -1287,10 +1287,10 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	.description {
-		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-200);
-	}
+	/* `.description` styling lives at the block-tail (shared with
+	   .b-state-decl). Keeps the action card lean and lets every card
+	   that needs a doc/lead paragraph reuse the same register. */
+
 
 	.params {
 		display: flex;
@@ -1342,6 +1342,20 @@ main.dev-mode .b-toc a {
 			margin-block-start: var(--g-space-4);
 		}
 	}
+}
+
+/* Shared description register — used by both `.b-action-function` and
+   `.b-state-decl` to render the doc/lead paragraph beneath the header.
+   Lifted out of any specific block so any future card type can opt in
+   simply by emitting `<p class="description">…</p>`. Body-text size
+   (100, 14px) so it reads as a calm contextual paragraph rather than
+   a competing headline next to small chips/values. */
+.b-action-function > .description,
+.b-state-decl > .description {
+	margin: 0 0 var(--g-space-4) 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+	line-height: 1.5;
 }
 
 .b-code {
@@ -2483,225 +2497,1466 @@ main.dev-mode .b-toc a {
 	}
 }
 
-/* ===== STATE EXPLORER ===== */
+/* ===== STATE PAGE TITLE OVERRIDE =====
+ * State pages have long, structured page titles (e.g. "Object
+ * ff61a2…b998:11 (3 fields)") — center-alignment from the global
+ * `.b-content-h1` rule looks awkward when these wrap. Scope an override
+ * to headers that precede the state explorer article. */
+.b-content-header:has(+ .b-state-explorer) .b-content-h1 {
+	text-align: start;
+	word-break: break-word;
+}
+
+/* ===== STATE VIEW TOGGLE =====
+ * Two-way switch (Pretty / JSON) at the top of the state page. Radios are
+ * visually hidden but accessible; CSS uses :has() on the explorer block to
+ * flip view-pretty / view-raw visibility — no JS, no URL state. The toggle
+ * resets on page reload by design (per-page choice, not session-wide).
+ */
+.b-state-view-toggle {
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid var(--s-color-border-primary);
+	border-radius: var(--s-rounded);
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+
+	label {
+		padding: var(--g-space-1) var(--g-space-3);
+		cursor: pointer;
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-90);
+		user-select: none;
+		transition: background-color var(--g-transition-duration) var(--g-transition-timing);
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+		}
+	}
+
+	input:checked + label {
+		background-color: var(--s-color-bg-brand-default);
+		color: var(--s-color-text-base);
+	}
+}
+
+/* Raw view: flat name:type=value tree (legacy Jae shape). Hidden by
+   default; visible when the toggle radio is selected. The actual row /
+   tree styling lives in `.b-state-explorer { .row { ... } }` below — the
+   raw view just toggles visibility of the same tree primitives.   */
+.b-state-explorer .view-raw {
+	display: none;
+}
+
+body:has(#state-view-raw:checked) .b-state-explorer .view-pretty {
+	display: none;
+}
+body:has(#state-view-raw:checked) .b-state-explorer .view-raw {
+	display: block;
+}
+
+/* ===== STATE DECLARATION CARD =====
+ * Card-per-top-level-decl, modelled on .b-action-function (same surface,
+ * radius, padding). Three regions:
+ *   header  — name (h2) + type pill (.b-tag) + per-card actions (icons)
+ *   content — primitives, source snippet for closures, children tree
+ *   .b-state-stats (optional) — audit chips strip
+ *   .cta (optional)            — banner pushing into the dedicated page
+ */
+.b-state-decl {
+	/* Mirrors `.b-action-function` (the help/action page card pattern):
+	   surface-secondary panel with comfortable padding. The data tray
+	   inside (.content with fields/source) gets a `.b-code`-style
+	   bg-base treatment so it reads as a clearly-framed "data block",
+	   the same way action commands sit inside a `.b-code` frame. */
+	--card-shadow-tone: color-mix(in srgb, currentColor 10%, transparent);
+
+	position: relative;
+	background-color: var(--s-color-bg-surface-secondary);
+	border-radius: var(--s-rounded);
+	padding: var(--g-space-4);
+	margin-block-end: var(--g-space-3);
+
+	/* Kind-glyph: small Unicode marker rendered next to a name (card
+	   h2 + field rows). Fixed-width slot so names align across rows
+	   regardless of glyph width. Tertiary color; brightens to its
+	   data-kind hue inside elements that carry data-kind. */
+	.kind-glyph {
+		display: inline-block;
+		width: 1.2em;
+		margin-inline-end: 0.4em;
+		text-align: center;
+		color: var(--s-color-text-tertiary);
+		font-family: var(--g-font-family-mono);
+		font-style: normal;
+		font-weight: var(--g-font-regular);
+		user-select: none;
+	}
+
+	/* Header — mirrors `.b-action-function > header`: flex justify-between,
+	   align-items flex-start, font-size-100 default, margin-block-end 4. */
+	& > header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		flex-wrap: wrap;
+		gap: var(--g-space-2) var(--g-space-4);
+		margin-block-end: var(--g-space-4);
+		font-size: var(--g-font-size-100);
+	}
+
+	/* Title block — mirrors `.b-action-function .title` exactly: flex
+	   row, baseline-aligned, gap rhythm `1/4` so name h2 + signature
+	   sit on the same line, like `Foo (args int) string` on the
+	   action card. */
+	.title {
+		display: flex;
+		gap: var(--g-space-1) var(--g-space-4);
+		align-items: baseline;
+		flex-wrap: wrap;
+		min-width: 0;
+
+		h2 {
+			margin: 0;
+			font-size: var(--g-font-size-300);
+			font-weight: var(--g-font-semibold);
+			color: var(--s-color-text-primary);
+			line-height: var(--g-line-height-tight);
+
+			.kind-glyph {
+				font-size: 1.05em;
+				color: var(--s-color-text-secondary);
+			}
+		}
+
+		.subtitle {
+			display: inline-flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: var(--g-space-1) var(--g-space-3);
+			min-width: 0;
+		}
+
+		/* Type — inline code style, identical typography to action card
+		   `.signature code`: small mono secondary text. Kind-driven
+		   color is the only visual signal; no pill chrome, no border.
+		   At lg+ shrinks to font-size-50 like action signatures. */
+		.type {
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-100);
+			color: var(--s-color-text-secondary);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-50);
+			}
+
+			&[data-kind="struct"]    { color: var(--s-color-text-tip); }
+			&[data-kind="map"]       { color: var(--s-color-text-caution); }
+			&[data-kind="array"],
+			&[data-kind="slice"]     { color: var(--s-color-text-success); }
+			&[data-kind="pointer"]   { color: var(--s-color-text-warning); }
+			&[data-kind="func"]      { color: var(--s-color-text-tip); }
+			&[data-kind="closure"]   { color: var(--s-color-text-info); }
+			&[data-kind="ref"]       { color: var(--s-color-text-tip); }
+		}
+
+		/* If the template still emits .b-tag (legacy), strip the chrome
+		   so the inline italic type reads cleanly. */
+		.type.b-tag {
+			display: inline;
+			background-color: transparent;
+			border: none;
+			padding: 0;
+			border-radius: 0;
+		}
+
+		.meta {
+			color: var(--s-color-text-tertiary);
+			font-size: var(--g-font-size-100);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-50);
+			}
+		}
+
+		.srclink {
+			color: var(--s-color-text-tertiary);
+			font-size: var(--g-font-size-100);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-50);
+			}
+
+			&:hover {
+				color: var(--s-color-text-link);
+				text-decoration: underline;
+			}
+		}
+	}
+
+	/* Per-card actions cluster — uses the shared `.b-btns` + `.b-btn`
+	   pattern from the help/action page so the buttons read identically
+	   to "Link / Execute" on the action card. No state-specific
+	   override; `.b-btn` defaults rule. */
+	.b-btns {
+		flex-shrink: 0;
+	}
+
+	/* Content body — value, source, children tree. */
+	/* Content body — the data payload zone. The fields-grid (when
+	   present) gets the bg-base treatment for clear delimitation,
+	   matching `.b-code` on the action page. Source blocks render
+	   their OWN frame (.source .code) so wrapping them in another
+	   bg-base would just create an empty white gutter — those stay
+	   on the outer surface. */
+	.content {
+		min-width: 0;
+		max-width: 100%;
+
+		&:has(.fields-frame) {
+			background-color: var(--s-color-bg-base);
+			border-radius: var(--s-rounded-sm);
+			padding: var(--g-space-2) var(--g-space-4);
+			/* Match action card rhythm: `.params` has `margin-block:
+			   var(--g-space-6) ...` so the header→data-zone gap is
+			   g-space-10 (header end-margin 4 + params start-margin
+			   6). State explorer follows the same beat. */
+			margin-block-start: var(--g-space-6);
+		}
+
+		.value {
+			margin: 0;
+		}
+
+		.preview {
+			margin: 0;
+			color: var(--s-color-text-secondary);
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-90);
+			font-style: italic;
+		}
+
+		.captures-label {
+			margin-block: var(--g-space-2) var(--g-space-1);
+			color: var(--s-color-text-info);
+			font-size: var(--g-font-size-90);
+			font-style: italic;
+		}
+	}
+
+	/* Pretty children — ledger-style listing inside the card. No outer
+	   frame, no row backgrounds at rest. Hairline rules between rows
+	   provide rhythm; hover gives a whisper of accent. The Inspect
+	   affordance is naked text-link with arrow glyph — chrome-free,
+	   confident. */
+
+	/* Column-header row. Uppercase tertiary, monospace, with a
+	   stronger separator below to mark the data zone. Same grid as
+	   .field rows so labels line up perfectly. */
+	.fields-head {
+		display: grid;
+		grid-template-columns: minmax(0, 14rem) minmax(0, 14rem) minmax(0, 1fr);
+		gap: var(--g-space-2) var(--g-space-4);
+		padding: var(--g-space-2) 0;
+		border-block-end: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+		font-family: var(--g-font-sans, inherit);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--s-color-text-tertiary);
+
+		.col {
+			min-width: 0;
+		}
+	}
+
+	.fields {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+
+		.field {
+			--field-grid: minmax(0, 14rem) minmax(0, 14rem) minmax(0, 1fr);
+
+			display: grid;
+			/* minmax(0, ...) lets columns shrink below their min-content
+			   when the card is narrow — the grid never pushes past its
+			   container, contents truncate via ellipsis instead. */
+			grid-template-columns: var(--field-grid);
+			gap: var(--g-space-2) var(--g-space-4);
+			align-items: baseline;
+			padding: var(--g-space-3) 0;
+			border-block-end: 1px solid color-mix(in srgb, currentColor 6%, transparent);
+			transition: background-color var(--g-transition-duration) var(--g-transition-timing);
+			min-width: 0;
+
+			/* Branch row: drop the grid on the LI itself. The <details>
+			   wrapper takes full width; the SUMMARY replicates the
+			   3-col grid so its header lines up with sibling leaf rows;
+			   the nested-body sits naturally below at full width. */
+			&[data-shape="branch"] {
+				display: block;
+				padding: 0;
+			}
+
+			&:last-child {
+				border-block-end: none;
+			}
+
+			&:hover {
+				background-color: color-mix(in srgb, currentColor 3%, transparent);
+
+				/* Reveal the Inspect arrow more boldly on row-hover so
+				   the user sees the affordance before they target the
+				   button itself. */
+				.inspect .action {
+					color: var(--s-color-text-link-hover);
+				}
+			}
+
+			.name {
+				font-family: var(--g-font-family-mono);
+				font-weight: var(--g-font-semibold);
+				font-size: var(--g-font-size-100);
+				color: var(--s-color-text-primary);
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.type {
+				font-family: var(--g-font-family-mono);
+				font-style: italic;
+				font-size: var(--g-font-size-90);
+				color: var(--s-color-text-secondary);
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+
+				&[data-kind="struct"]    { color: var(--s-color-text-tip); }
+				&[data-kind="map"]       { color: var(--s-color-text-caution); }
+				&[data-kind="array"],
+				&[data-kind="slice"]     { color: var(--s-color-text-success); }
+				&[data-kind="pointer"]   { color: var(--s-color-text-warning); }
+				&[data-kind="func"]      { color: var(--s-color-text-tip); }
+				&[data-kind="closure"]   { color: var(--s-color-text-info); }
+				&[data-kind="ref"]       { color: var(--s-color-text-tip); }
+
+				.meta {
+					margin-inline-start: var(--g-space-1);
+					color: var(--s-color-text-tertiary);
+					font-style: normal;
+					font-size: 0.85em;
+				}
+			}
+
+			/* Value cell — wraps the value + copy button. Reveals
+			   the copy on row hover, lifts on direct hover. */
+			.value-cell {
+				display: inline-flex;
+				align-items: baseline;
+				gap: var(--g-space-2);
+				min-width: 0;
+				justify-self: start;
+			}
+
+			.value-copy {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: var(--g-space-5);
+				height: var(--g-space-5);
+				padding: 0;
+				background: transparent;
+				border: none;
+				border-radius: var(--s-rounded-sm);
+				color: var(--s-color-text-tertiary);
+				cursor: pointer;
+				opacity: 0;
+				transition: opacity var(--g-transition-duration) var(--g-transition-timing),
+				            background-color var(--g-transition-duration) var(--g-transition-timing),
+				            color var(--g-transition-duration) var(--g-transition-timing);
+
+				.c-icon {
+					width: 0.85em;
+					height: 0.85em;
+				}
+
+				&:hover {
+					background-color: var(--s-color-bg-hover);
+					color: var(--s-color-text-primary);
+					opacity: 1;
+				}
+
+				&:focus-visible {
+					opacity: 1;
+					outline: 1px solid var(--s-color-text-link);
+					outline-offset: 1px;
+				}
+			}
+
+			&:hover .value-copy {
+				opacity: 0.5;
+			}
+
+			/* In-row primitive value — naked colored text, no box.
+			   The card-level value badge stays prominent for the
+			   single-payload case; nested fields stay calm. */
+			.field-value {
+				justify-self: start;
+				background-color: transparent;
+				border: none;
+				padding: 0;
+				font-size: var(--g-font-size-100);
+				font-weight: var(--g-font-regular);
+				color: var(--s-color-text-primary);
+				font-family: var(--g-font-family-mono);
+				min-width: 0;
+				text-align: start;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.value-empty {
+				color: var(--s-color-text-tertiary);
+				font-family: var(--g-font-family-mono);
+			}
+
+			/* Inspect — naked text-link with arrow. The link colour and
+			   the arrow are the entire affordance; on row-hover the link
+			   strengthens, on direct hover the arrow glides. No frame,
+			   no shadow — confidence comes from typography. */
+			.inspect {
+				display: inline-flex;
+				align-items: baseline;
+				gap: var(--g-space-3);
+				min-width: 0;
+				color: var(--s-color-text-secondary);
+				text-decoration: none;
+				transition: color var(--g-transition-duration) var(--g-transition-timing);
+
+				.preview {
+					flex: 1 1 0;
+					min-width: 0;
+					font-family: var(--g-font-family-mono);
+					font-size: var(--g-font-size-90);
+					font-style: italic;
+					color: var(--s-color-text-secondary);
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+
+				.action {
+					display: inline-flex;
+					align-items: baseline;
+					gap: var(--g-space-1);
+					color: var(--s-color-text-link);
+					font-weight: var(--g-font-semibold);
+					font-size: var(--g-font-size-90);
+					white-space: nowrap;
+					flex-shrink: 0;
+					transition: color var(--g-transition-duration) var(--g-transition-timing);
+
+					.c-icon {
+						width: 1em;
+						height: 1em;
+						color: currentColor;
+						transition: transform var(--g-transition-duration) var(--g-transition-timing);
+					}
+				}
+
+				&:hover .action {
+					color: var(--s-color-text-link-hover);
+
+					.c-icon {
+						transform: translateX(3px);
+					}
+				}
+			}
+
+			/* Nested branch (struct in struct) — disclosure with naked
+			   summary. The summary replicates the parent .field grid
+			   so name | type | head line up with sibling leaf rows;
+			   nested-body sits below at full width. Visual binding to
+			   the parent comes from the left rail on the body + the
+			   scope label — no bg-tint on the details, which would
+			   create a visible box-within-box on the white inner tray. */
+			.nested {
+				min-width: 0;
+				width: 100%;
+
+				summary {
+					display: grid;
+					grid-template-columns: var(--field-grid);
+					gap: var(--g-space-2) var(--g-space-4);
+					align-items: baseline;
+					padding: var(--g-space-3) 0;
+					border-block-end: 1px solid color-mix(in srgb, currentColor 6%, transparent);
+					cursor: pointer;
+					list-style: none;
+					min-width: 0;
+					color: var(--s-color-text-secondary);
+
+					&::-webkit-details-marker {
+						display: none;
+					}
+
+					/* The third column packs preview + open-link +
+					   disclose. flex-row, baseline-aligned, with the
+					   open-link pushed to the end so the disclose stays
+					   anchored on the right edge. */
+					.head {
+						display: inline-flex;
+						align-items: baseline;
+						gap: var(--g-space-2);
+						min-width: 0;
+					}
+
+					.preview {
+						flex: 1 1 0;
+						font-family: var(--g-font-family-mono);
+						font-size: var(--g-font-size-90);
+						font-style: italic;
+						min-width: 0;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+
+						&.muted {
+							color: var(--s-color-text-tertiary);
+						}
+					}
+
+					.disclose {
+						color: var(--s-color-text-tertiary);
+						font-size: 0.7em;
+						transition: transform var(--g-transition-duration) var(--g-transition-timing);
+					}
+
+					/* "Inspect →" link sitting in the summary of a
+					   nested branch that's BOTH a stored ref (Href
+					   present) and already has Children loaded — gives
+					   users a way to open the dedicated audit page
+					   without collapsing the inline values. */
+					.open-link {
+						display: inline-flex;
+						align-items: baseline;
+						gap: var(--g-space-1);
+						flex-shrink: 0;
+						color: var(--s-color-text-link);
+						font-weight: var(--g-font-semibold);
+						font-size: var(--g-font-size-80);
+						text-decoration: none;
+						transition: color var(--g-transition-duration) var(--g-transition-timing);
+
+						.c-icon {
+							width: 0.9em;
+							height: 0.9em;
+							transition: transform var(--g-transition-duration) var(--g-transition-timing);
+						}
+
+						&:hover {
+							color: var(--s-color-text-link-hover);
+
+							.c-icon {
+								transform: translateX(2px);
+							}
+						}
+					}
+
+					&:hover {
+						color: var(--s-color-text-primary);
+
+						.disclose {
+							color: var(--s-color-text-primary);
+						}
+					}
+				}
+
+				&[open] > summary .disclose {
+					transform: rotate(90deg);
+				}
+
+				.nested-body {
+					margin-block-start: 0;
+					padding: 0 var(--g-space-3) var(--g-space-2);
+					border-inline-start: 2px solid color-mix(in srgb, currentColor 14%, transparent);
+					margin-inline-start: var(--g-space-3);
+
+					/* Scope label — clarifies the relationship between
+					   the parent disclosure summary above and the values
+					   listed below. "Fields of <name>" / "Keys of …" /
+					   "Indexes of …" depending on parent kind. */
+					.scope {
+						padding: var(--g-space-2) 0 var(--g-space-1);
+						font-family: var(--g-font-sans, inherit);
+						font-size: var(--g-font-size-50);
+						font-weight: var(--g-font-semibold);
+						text-transform: uppercase;
+						letter-spacing: 0.06em;
+						color: var(--s-color-text-tertiary);
+
+						.kw {
+							margin-inline-end: var(--g-space-1);
+						}
+
+						code {
+							font-family: var(--g-font-family-mono);
+							color: var(--s-color-text-secondary);
+							background-color: transparent;
+							font-weight: var(--g-font-semibold);
+							text-transform: none;
+							letter-spacing: 0;
+							font-size: var(--g-font-size-80);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/* Footer CTA — proper pill button. Filled link surface, white text,
+	   bold label, arrow that glides on hover. Sits at the bottom of
+	   the card as the primary navigation affordance. Contained-width
+	   inline-flex so it doesn't span the whole card. */
+	.cta {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-2);
+		margin-block-start: var(--g-space-3);
+		padding: var(--g-space-2) var(--g-space-4);
+		background-color: var(--s-color-text-link);
+		border: 1px solid var(--s-color-text-link);
+		border-radius: var(--s-rounded-sm);
+		color: var(--s-color-bg-base);
+		text-decoration: none;
+		font-size: var(--g-font-size-90);
+		font-weight: var(--g-font-semibold);
+		transition: background-color var(--g-transition-duration) var(--g-transition-timing),
+		            border-color var(--g-transition-duration) var(--g-transition-timing),
+		            transform var(--g-transition-duration) var(--g-transition-timing);
+
+		.more {
+			padding: 0 var(--g-space-2);
+			background-color: color-mix(in srgb, currentColor 18%, transparent);
+			border-radius: var(--s-rounded-sm);
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-80);
+			font-weight: var(--g-font-semibold);
+		}
+
+		.label {
+			color: inherit;
+			text-transform: capitalize;
+		}
+
+		.c-icon {
+			width: 1em;
+			height: 1em;
+			color: currentColor;
+			transition: transform var(--g-transition-duration) var(--g-transition-timing);
+		}
+
+		&:hover {
+			background-color: var(--s-color-text-link-hover);
+			border-color: var(--s-color-text-link-hover);
+
+			.c-icon {
+				transform: translateX(3px);
+			}
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: 2px;
+		}
+	}
+}
+
+/* Audit stats — inline horizontal strip of labeled facts under the
+   card header. Each stat is `<dt class="title">LABEL</dt> <dd
+   class="value">data</dd>`, label SIDE-BY-SIDE with value, all stats
+   wrapping on one (or two) lines. Same action-card typography
+   (font-size-50 uppercase small label) but a compact horizontal flow
+   instead of a column grid that wastes width. */
+.b-state-stats {
+	margin: 0 0 var(--g-space-5) 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-3) var(--g-space-6);
+
+	.stat {
+		min-width: 0;
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--g-space-2);
+	}
+
+	dt.title {
+		margin: 0;
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-50);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		font-family: var(--g-font-sans, inherit);
+		flex-shrink: 0;
+	}
+
+	dd.value {
+		position: relative;
+		margin: 0;
+		color: var(--s-color-text-primary);
+		font-size: var(--g-font-size-100);
+		min-width: 0;
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--g-space-1);
+		white-space: nowrap;
+
+		&.mono {
+			font-family: var(--g-font-family-mono);
+			font-size: var(--g-font-size-90);
+			color: var(--s-color-text-secondary);
+		}
+
+		.text {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		a.text {
+			color: var(--s-color-text-link);
+			text-decoration: none;
+
+			&:hover {
+				text-decoration: underline;
+			}
+		}
+	}
+
+	/* CSS-only tooltip — same visual language as the `.realm-view
+	   .tooltip` component (bg-base, s-border-secondary, padding 2/1)
+	   so the design stays cohesive across the site. Mounted on
+	   `dd.value` (which has no overflow:hidden, unlike `.text`) so
+	   the pseudo isn't clipped. */
+	dd.value[data-tooltip]:hover::after,
+	dd.value[data-tooltip]:focus-within::after {
+		content: attr(data-tooltip);
+		position: absolute;
+		z-index: var(--g-z-max);
+		top: calc(100% + var(--g-space-1));
+		left: 0;
+		padding: var(--g-space-1) var(--g-space-2);
+		background-color: var(--s-color-bg-base);
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded);
+		color: var(--s-color-text-secondary);
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-100);
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+	/* Copy button — icon-only, surfaces on hover of the stat block.
+	   On focus or hover stays visible at full opacity so keyboard
+	   users can find it. */
+	button.copy {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		padding: var(--g-space-px);
+		background: transparent;
+		border: none;
+		border-radius: var(--s-rounded-sm);
+		color: var(--s-color-text-tertiary);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity var(--g-transition-duration) var(--g-transition-timing),
+		            background-color var(--g-transition-duration) var(--g-transition-timing),
+		            color var(--g-transition-duration) var(--g-transition-timing);
+
+		.c-icon {
+			width: 0.85em;
+			height: 0.85em;
+		}
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+			color: var(--s-color-text-primary);
+			opacity: 1;
+		}
+
+		&:focus-visible {
+			opacity: 1;
+			outline: 1px solid var(--s-color-text-link);
+			outline-offset: 1px;
+		}
+	}
+
+	.stat:hover button.copy {
+		opacity: 0.55;
+	}
+}
+
+/* ===== STATE VALUE PRESENTATION =====
+ * Refines how leaf values render based on their primitive type — turns a
+ * raw "42" / "true" / "alice" into something a dev scans quickly. Applied
+ * inside the card content (`.b-state-decl .value`) and inline rows in the
+ * tree (`.b-state-explorer .val`).
+ */
+.b-state-decl .value,
+.b-state-explorer .val {
+	font-family: var(--g-font-family-mono);
+
+	/* Booleans → semantic badge. The walker emits literal "true"/"false"
+	   as text content, so we drive colour via the data-value attribute
+	   set by the template (and fall back to neutral when absent). */
+	&[data-type="bool"],
+	&[data-type="untyped bool"] {
+		display: inline-block;
+		padding: 0 var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		font-weight: var(--g-font-semibold);
+		font-family: var(--g-font-sans, inherit);
+		font-size: var(--g-font-size-80);
+		line-height: 1.6;
+		background-color: var(--s-color-bg-surface-tertiary);
+		color: var(--s-color-text-secondary);
+	}
+
+	/* String content (already quoted by the walker). Info-tone surface
+	   to set them apart from numbers without competing visually. */
+	&[data-type="string"],
+	&[data-type="untyped string"] {
+		color: var(--s-color-text-info);
+	}
+
+	/* Numbers — bold + primary so the eye lands on them first. */
+	&[data-type="int"],
+	&[data-type="int8"],
+	&[data-type="int16"],
+	&[data-type="int32"],
+	&[data-type="int64"],
+	&[data-type="uint"],
+	&[data-type="uint8"],
+	&[data-type="uint16"],
+	&[data-type="uint32"],
+	&[data-type="uint64"],
+	&[data-type="float32"],
+	&[data-type="float64"] {
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+	}
+}
+
+/* Bool true / false — semantic accent driven by the `data-value`
+   attribute the template stamps on the badge. Bold green for true,
+   muted warning for false. Falls back to the neutral surface above
+   when the attribute is absent. */
+.b-state-decl .value[data-type="bool"][data-value="true"],
+.b-state-explorer .val[data-type="bool"][data-value="true"] {
+	background-color: var(--s-color-bg-success-subtle, var(--s-color-bg-surface-tertiary));
+	color: var(--s-color-text-success);
+}
+
+.b-state-decl .value[data-type="bool"][data-value="false"],
+.b-state-explorer .val[data-type="bool"][data-value="false"] {
+	background-color: var(--s-color-bg-warning-subtle, var(--s-color-bg-surface-tertiary));
+	color: var(--s-color-text-warning);
+}
+
+/* Primitive value section — mirrors the action card's `.params` /
+   `.b-code` register exactly. Section header is `.title` font-size-50
+   uppercase (same as PARAMS/COMMAND), value sits in a bg-base framed
+   block with the standard `font-size-100` mono register. */
+.b-state-decl .value-section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+
+	.title {
+		margin: 0;
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-50);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		font-family: var(--g-font-sans, inherit);
+	}
+
+	.b-code {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--g-space-3);
+		padding: var(--g-space-2) var(--g-space-3);
+		background-color: var(--s-color-bg-base);
+		border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+		border-radius: var(--s-rounded-sm);
+	}
+
+	.value {
+		display: inline;
+		min-width: 0;
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-regular);
+		overflow-wrap: anywhere;
+	}
+
+	.value[data-type="string"],
+	.value[data-type="untyped string"] {
+		color: var(--s-color-text-info);
+	}
+
+	/* Copy button — mirrors `.fields .value-copy`: hidden at rest,
+	   surfaces on section hover. Same affordance pattern as the
+	   field-grid value cells. */
+	.value-copy {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: var(--g-space-6);
+		height: var(--g-space-6);
+		padding: 0;
+		background: transparent;
+		border: none;
+		border-radius: var(--s-rounded-sm);
+		color: var(--s-color-text-tertiary);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity var(--g-transition-duration) var(--g-transition-timing),
+		            background-color var(--g-transition-duration) var(--g-transition-timing),
+		            color var(--g-transition-duration) var(--g-transition-timing);
+
+		.c-icon {
+			width: 0.9em;
+			height: 0.9em;
+		}
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+			color: var(--s-color-text-primary);
+			opacity: 1;
+		}
+
+		&:focus-visible {
+			opacity: 1;
+			outline: 1px solid var(--s-color-text-link);
+			outline-offset: 1px;
+		}
+	}
+
+	&:hover .value-copy {
+		opacity: 0.55;
+	}
+}
+
+/* ===== STATE EXPLORER SIDEBAR PIECES =====
+ * The aside reuses the shared .b-sidebar (layout/aside.html) for position
+ * and mobile expand. The TOC list reuses .b-toc so it inherits the same
+ * link styling as the source view's table of contents.
+ *
+ * Meta layout: grouped into sections with small uppercase headings.
+ * Each row is either block-stacked (long values like OIDs/hashes) or
+ * inline (short numerics like Refs/Size). Mono values get truncated
+ * head…tail with the full value reachable via title + click-to-copy.
+ */
+.b-state-meta {
+	margin: 0 0 var(--g-space-6) 0;
+	font-size: var(--g-font-size-90);
+	display: flex;
+	flex-direction: column;
+
+	/* Section heading — stronger uppercase label that opens a new
+	   logical group ("Identity", "Storage", etc.). Spaced ABOVE the
+	   first row in the section to set rhythm. */
+	dt.section {
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-bold);
+		font-size: var(--g-font-size-50);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		margin-block: var(--g-space-4) var(--g-space-2);
+		padding-block-end: var(--g-space-1);
+		border-block-end: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+
+		&:first-child {
+			margin-block-start: 0;
+		}
+	}
+
+	.row {
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-px);
+		padding-block: var(--g-space-1);
+		min-width: 0;
+
+		/* Inline rows — short numerics (Refs, Size, Mod) read as
+		   horizontal label:value pairs to save vertical space. */
+		&.inline {
+			flex-direction: row;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: var(--g-space-3);
+		}
+	}
+
+	dt.label {
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	dd.value {
+		margin: 0;
+		color: var(--s-color-text-primary);
+		line-height: 1.4;
+		min-width: 0;
+		text-align: end;
+		flex-shrink: 0;
+
+		.row:not(.inline) & {
+			text-align: start;
+		}
+	}
+
+	.row.mono dd.value {
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-90);
+		color: var(--s-color-text-secondary);
+		text-align: start;
+	}
+
+	dd.value a {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
+
+	dd.value [data-controller="copy"] {
+		cursor: pointer;
+		border-radius: var(--s-rounded-sm);
+		padding: 0 var(--g-space-1);
+		margin-inline-start: calc(-1 * var(--g-space-1));
+		transition: background-color var(--g-transition-duration) var(--g-transition-timing);
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+			color: var(--s-color-text-primary);
+		}
+	}
+}
+
+/* TOC heading — small uppercase label that opens the navigation list. */
+.b-state-toc-heading {
+	color: var(--s-color-text-tertiary);
+	font-weight: var(--g-font-bold);
+	font-size: var(--g-font-size-50);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	margin: 0 0 var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+}
+
+/* TOC entries on state pages — restructured so the kind-glyph sits
+   INLINE BESIDE the label (not above) and matches the visual weight
+   of the SVG icons used elsewhere (`.c-icon` is 1.15em). The default
+   `.b-toc a > span` rule (display: -webkit-box for line-clamp ellipsis)
+   stacked spans into separate boxes; we override with inline-flex on
+   the link so the glyph and label flow horizontally. */
+.b-state-toc {
+	a {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.4em;
+	}
+
+	.kind-glyph {
+		display: inline-block;
+		flex-shrink: 0;
+		width: 1.15em;
+		text-align: center;
+		color: var(--s-color-text-tertiary);
+		font-family: var(--g-font-family-mono);
+		font-size: 1em;
+		font-style: normal;
+		font-weight: var(--g-font-semibold);
+		line-height: 1;
+		user-select: none;
+	}
+
+	a:hover .kind-glyph {
+		color: var(--s-color-text-link-hover);
+	}
+
+	/* Label keeps the line-clamp ellipsis behavior (overridden from
+	   the parent .b-toc a > span rule by being more specific). */
+	.label {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
+	}
+}
+
+/* ===== STATE EXPLORER =====
+ * Server-rendered, navigation-driven. Pure HTML/CSS — no JS toggle, no AJAX.
+ *
+ * Cube CSS pattern (matches .b-breadcrumb): one block class, everything else
+ * scoped via the cascade with bare class names. Shape variants (ref / branch
+ * / leaf) and type-kind colour cues live on `data-*` attributes.
+ *
+ * Indentation is driven by an inline `--depth` CSS variable so the template
+ * stays presentation-free.
+ */
 .b-state-explorer {
 	margin-block-start: var(--g-space-4);
 	padding-block-start: var(--g-space-4);
 	padding-bottom: var(--g-space-24);
 	grid-column: 1 / -1;
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-90);
+	line-height: 1.4;
 
 	@media (--lg) {
+		/* Match md-renderer's grid placement (cf 04-elements.css): main
+		   content lives in 7 of the 10 grid columns, leaving the right
+		   3 for .b-sidebar. */
+		grid-column: span 7 / span 7;
 		margin-block-start: 0;
 		padding-block-start: var(--g-space-6);
 	}
-}
 
-.b-state-explorer__header {
-	margin-block-end: var(--g-space-4);
-}
+	/* ---- Header ---- */
+	& > header {
+		margin-block-end: var(--g-space-4);
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--g-space-2) var(--g-space-4);
+		align-items: baseline;
+	}
 
-.b-state-explorer__path {
-	font-size: var(--g-font-size-90);
-	color: var(--s-color-text-tertiary);
-	margin-block-end: var(--g-spacing-050);
+	.path {
+		font-size: var(--g-font-size-90);
+		color: var(--s-color-text-tertiary);
 
-	&:empty {
+		a {
+			color: var(--s-color-text-link);
+
+			&:hover {
+				color: var(--s-color-text-link-hover);
+			}
+		}
+
+		.sep {
+			color: var(--s-color-text-tertiary);
+			padding-inline: 0.18rem;
+		}
+	}
+
+	.count {
+		color: var(--s-color-text-secondary);
+		white-space: nowrap;
+	}
+
+	.empty {
+		color: var(--s-color-text-secondary);
+		font-style: italic;
+	}
+
+	/* ---- Tree containers ---- */
+	.tree,
+	.kids {
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Top-level breath in the Raw view: tiny vertical gap between
+	   declaration rows so the realm root reads as a clean ledger rather
+	   than an undifferentiated wall. Nested rows stay tight to keep
+	   the tree compact (depth-0 only). */
+	.view-raw > .tree > * + * {
+		margin-block-start: var(--g-space-1);
+	}
+
+	/* ---- Row (single base layout, shape-specific tweaks via data-shape) ---- */
+	.row {
+		display: flex;
+		align-items: baseline;
+		flex-wrap: nowrap;
+		gap: 0 0.4em;
+		padding: 0.2rem 0;
+		padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
+		border-radius: var(--s-rounded-sm);
+
+		&:hover {
+			background-color: var(--s-color-bg-hover);
+		}
+	}
+
+	/* Stored ref: <a> linking to a per-object page */
+	.row[data-shape="ref"] {
+		text-decoration: none;
+		color: inherit;
+
+		.arrow {
+			color: var(--s-color-text-tertiary);
+			margin-inline-start: auto;
+			padding-inline-start: var(--g-space-2);
+		}
+
+		&:hover .arrow {
+			color: var(--s-color-text-link);
+		}
+	}
+
+	/* Branch: <summary> wears .row + data-shape="branch" — only adds the
+	   disclosure marker and cursor; layout comes from .row directly. */
+	.row[data-shape="branch"] {
+		cursor: pointer;
+		list-style: none;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		&::before {
+			content: "\25B6"; /* ▶ */
+			display: inline-block;
+			width: 0.9em;
+			color: var(--s-color-text-tertiary);
+			font-size: 0.65em;
+			transition: transform var(--g-transition-duration) var(--g-transition-timing);
+		}
+	}
+
+	details[open] > .row[data-shape="branch"]::before {
+		transform: rotate(90deg);
+	}
+
+	/* ---- Inline parts of a row ---- */
+	.name {
+		font-weight: var(--g-font-semibold);
+		color: var(--s-color-text-primary);
+	}
+
+	.sep {
+		color: var(--s-color-text-tertiary);
+	}
+
+	.meta {
+		color: var(--s-color-text-secondary);
+		font-size: 0.85em;
+	}
+
+	/* Type — italic, colour by kind. When stacked with .b-tag (template
+	   adds the class) we keep inline-flex layout so the pill stays on
+	   the same baseline as the row's siblings. */
+	.type {
+		font-style: italic;
+		color: var(--s-color-text-secondary);
+
+		&[data-kind="struct"]    { color: var(--s-color-text-tip); }
+		&[data-kind="map"]       { color: var(--s-color-text-caution); }
+		&[data-kind="array"],
+		&[data-kind="slice"]     { color: var(--s-color-text-success); }
+		&[data-kind="pointer"]   { color: var(--s-color-text-warning); }
+		&[data-kind="func"]      { color: var(--s-color-text-tip); }
+		&[data-kind="closure"]   { color: var(--s-color-text-info); }
+		&[data-kind="ref"]       { color: var(--s-color-text-tip); }
+		&[data-kind="package"]   { color: var(--s-color-text-info); }
+		&[data-kind="type"]      { color: var(--s-color-text-tertiary); }
+		&[data-kind="nil"],
+		&[data-kind="primitive"] { color: var(--s-color-text-secondary); }
+	}
+
+	.type.b-tag {
+		display: inline-flex;
+	}
+
+	/* One-line preview shown next to the type when a struct/map/ref is
+	   collapsed — turns "config : Config" into
+	   "config : Config {name: \"default\", maxPosts: 100, …}". Set by the
+	   walker (Preview field). The raw tree view hides previews entirely
+	   (clean JSON-tree shape, see .view-raw rule below); the pretty view
+	   keeps them inside cards' children rows. */
+	.preview {
+		color: var(--s-color-text-secondary);
+		font-style: italic;
+		font-size: 0.9em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		min-width: 0;
+		flex: 0 1 auto;
+	}
+
+	/* Raw view: stay efficient and standard tree-like — no inline
+	   previews, no pill chrome. The same template renders both views;
+	   styling differentiates. */
+	.view-raw .preview {
 		display: none;
 	}
-}
 
-.b-state-explorer__path-link {
-	color: var(--s-color-text-link);
+	/* Value — colour by kind */
+	.val {
+		word-break: break-all;
 
-	&:hover {
-		color: var(--s-color-text-link-hover);
+		&[data-kind="primitive"] { color: var(--s-color-text-info); }
+		&[data-kind="nil"]       { color: var(--s-color-text-secondary); font-style: italic; }
+		&[data-kind="func"],
+		&[data-kind="closure"]   { color: var(--s-color-text-tip); }
+		&[data-kind="package"]   { color: var(--s-color-text-link); text-decoration: underline dotted; }
+		&[data-kind="type"]      { color: var(--s-color-text-tertiary); font-style: italic; }
 	}
-}
 
-.b-state-explorer__count {
-	font-size: var(--g-font-size-90);
-	color: var(--s-color-text-secondary);
-	white-space: nowrap;
-}
+	/* ObjectID — revealed on row hover, copies through the existing copy controller */
+	.oid {
+		font-size: 0.75em;
+		color: var(--s-color-text-tertiary);
+		opacity: 0;
+		cursor: pointer;
+		transition: opacity var(--g-transition-duration) var(--g-transition-timing);
 
-.b-state-tree {
-	font-family: var(--g-font-family-mono);
-	font-size: var(--g-font-size-90);
-	line-height: 1;
-}
-
-/* Row = line + children */
-.b-state-row__line {
-	display: flex;
-	align-items: baseline;
-	flex-wrap: nowrap;
-	gap: 0 0.4em;
-	padding: 0.2rem 0;
-	border-radius: 3px;
-}
-
-.b-state-row__line:hover {
-	background-color: var(--s-color-bg-alt);
-}
-
-/* Toggle arrow */
-.b-state-toggle {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 1em;
-	flex-shrink: 0;
-	font-size: 0.65em;
-	color: var(--s-color-text-secondary);
-	user-select: none;
-	cursor: pointer;
-}
-
-.b-state-toggle:hover {
-	color: var(--s-color-text-primary);
-}
-
-.b-state-toggle:empty {
-	cursor: default;
-}
-
-.b-state-toggle--loading {
-	animation: state-pulse 0.8s ease-in-out infinite;
-}
-
-@keyframes state-pulse {
-	0%, 100% { opacity: 0.3; }
-	50% { opacity: 1; }
-}
-
-/* Name */
-.b-state-name {
-	font-weight: 600;
-	color: var(--s-color-text-primary);
-}
-
-/* Separator */
-.b-state-sep {
-	color: var(--s-color-text-secondary);
-	opacity: 0.5;
-}
-
-/* Type — colored by kind */
-.b-state-type {
-	font-style: italic;
-}
-
-.b-state-kind--struct    { color: var(--s-color-text-tip); }
-.b-state-kind--map       { color: var(--s-color-text-caution); }
-.b-state-kind--array     { color: var(--s-color-text-success); }
-.b-state-kind--slice     { color: var(--s-color-text-success); }
-.b-state-kind--pointer   { color: var(--s-color-text-warning); }
-.b-state-kind--func      { color: var(--s-color-text-tip); }
-.b-state-kind--closure   { color: var(--s-color-text-info); }
-.b-state-kind--nil       { color: var(--s-color-text-secondary); }
-.b-state-kind--primitive { color: var(--s-color-text-secondary); }
-
-/* Metadata (length, etc) */
-.b-state-meta {
-	color: var(--s-color-text-secondary);
-	font-size: 0.85em;
-}
-
-/* Values — colored by kind */
-.b-state-val {
-	word-break: break-all;
-}
-
-.b-state-val--primitive { color: var(--s-color-text-info); }
-.b-state-val--nil       { color: var(--s-color-text-secondary); font-style: italic; }
-.b-state-val--func      { color: var(--s-color-text-tip); }
-.b-state-val--closure   { color: var(--s-color-text-info); }
-
-/* ObjectID — subtle, appears on hover */
-.b-state-oid {
-	font-size: 0.75em;
-	color: var(--s-color-text-secondary);
-	opacity: 0;
-	cursor: pointer;
-	transition: opacity 0.15s;
-}
-
-.b-state-row__line:hover .b-state-oid {
-	opacity: 0.5;
-}
-
-.b-state-oid:hover {
-	opacity: 1 !important;
-	text-decoration: underline;
-}
-
-/* Source code block (contains Chroma-highlighted HTML) */
-.b-state-source {
-	position: relative;
-	margin: 0.25rem 0;
-	border-radius: var(--s-rounded);
-	font-size: var(--g-font-size-90);
-	line-height: 1.5;
-	overflow-x: auto;
-	tab-size: 4;
-}
-
-.b-state-source__link {
-	position: absolute;
-	top: var(--g-space-2);
-	right: var(--g-space-2);
-	font-size: var(--g-font-size-80);
-	color: var(--s-color-text-tertiary);
-	text-decoration: none;
-	padding: var(--g-space-1) var(--g-space-2);
-	border-radius: var(--s-rounded);
-	background-color: var(--s-color-bg-surface-secondary);
-	z-index: 1;
-
-	&:hover {
-		color: var(--s-color-text-link);
-		background-color: var(--s-color-bg-surface-tertiary);
+		&:hover {
+			color: var(--s-color-text-link);
+			opacity: 1;
+			text-decoration: underline;
+		}
 	}
-}
 
-.b-state-source pre {
-	margin: 0;
-	padding: var(--g-space-4) var(--g-space-1);
-	overflow-x: auto;
-	background-color: var(--s-color-bg-base);
-	border-radius: var(--s-rounded);
-}
+	.row:hover .oid {
+		opacity: 0.5;
+	}
 
-.b-state-source code {
-	font-family: var(--g-font-family-mono);
-}
+	/* ---- Inline source block (closures, function bodies) ----
+	   Properly framed: solid bg, hairline border, generous padding.
+	   The frame works in both Pretty cards (where the surrounding
+	   surface is secondary) and the Raw tree (no surrounding surface).
+	   Tab-size 4 for consistency with chroma's gno output. */
+	.source {
+		position: relative;
+		margin: var(--g-space-2) 0;
+		padding-inline-start: calc((var(--depth, 0) + 1) * 1.25rem);
+		font-size: var(--g-font-size-90);
+		line-height: 1.5;
+		tab-size: 4;
 
-/* Source link */
-.b-state-srclink {
-	color: var(--s-color-text-secondary);
-	font-size: var(--g-font-size-80);
-	text-decoration: none;
-	display: inline-block;
-	margin-top: 0.125rem;
-}
+		.code {
+			margin: 0;
+			padding: var(--g-space-3) var(--g-space-4);
+			overflow-x: auto;
+			background-color: var(--s-color-bg-surface-primary);
+			border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+			border-radius: var(--s-rounded-sm);
 
-.b-state-srclink:hover {
-	color: var(--s-color-text-link);
-	text-decoration: underline;
-}
+			pre {
+				margin: 0;
+				font-family: var(--g-font-family-mono);
+			}
+		}
 
-/* Closure captures label */
-.b-state-captures-label {
-	color: var(--s-color-text-info);
-	font-size: 0.85em;
-	font-style: italic;
-	margin-top: var(--g-space-2);
-	margin-bottom: var(--g-space-1);
-}
+		& > .srclink {
+			position: absolute;
+			top: var(--g-space-2);
+			right: var(--g-space-3);
+			padding: var(--g-space-1) var(--g-space-2);
+			background-color: var(--s-color-bg-surface-secondary);
+			border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+			border-radius: var(--s-rounded-sm);
+			font-size: var(--g-font-size-80);
+			z-index: var(--g-z-1);
 
-/* Error */
-.b-state-err {
-	color: var(--s-color-text-caution);
-	font-style: italic;
-	padding-left: 1.5rem;
+			&:hover {
+				background-color: var(--s-color-bg-surface-tertiary);
+			}
+		}
+	}
+
+	/* Source link — used inline (in summary) and absolute (in source block) */
+	.srclink {
+		color: var(--s-color-text-tertiary);
+		font-size: var(--g-font-size-80);
+
+		&:hover {
+			color: var(--s-color-text-link);
+			text-decoration: underline;
+		}
+	}
+
+	/* Navigation link — sits in branch summaries to open the dedicated page
+	   for a stored ref (when the inline preview only shows one level). */
+	.navlink {
+		color: var(--s-color-text-tertiary);
+		text-decoration: none;
+
+		&:hover {
+			color: var(--s-color-text-link);
+		}
+	}
+
+	/* ---- Closure captures label ---- */
+	.captures-label {
+		color: var(--s-color-text-info);
+		font-size: 0.85em;
+		font-style: italic;
+		padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
+		margin-block: var(--g-space-2) var(--g-space-1);
+	}
+
+	/* Highlight the targeted row when an anchor is followed. */
+	.row:target,
+	details:target > summary.row {
+		background-color: var(--s-color-bg-selected);
+	}
+
+	/* ---- Pagination ---- */
+	.pagenav {
+		display: flex;
+		gap: var(--g-space-4);
+		align-items: center;
+		justify-content: center;
+		margin-block-start: var(--g-space-4);
+		padding-block-start: var(--g-space-2);
+
+		a {
+			color: var(--s-color-text-link);
+
+			&:hover {
+				color: var(--s-color-text-link-hover);
+				text-decoration: underline;
+			}
+		}
+
+		span {
+			color: var(--s-color-text-secondary);
+			font-size: var(--g-font-size-90);
+		}
+	}
 }

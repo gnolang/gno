@@ -144,17 +144,19 @@ func (m *MockClient) StatePkg(_ context.Context, path string) ([]byte, error) {
 	if !exists {
 		return nil, ErrClientPackageNotFound
 	}
-	return []byte(`[]`), nil
+	// Empty package shape matching what the keeper produces via amino.MarshalJSON.
+	return []byte(`{"names":[],"values":[]}`), nil
 }
 
 // StateObject returns mock object state data for testing.
 func (m *MockClient) StateObject(_ context.Context, _ string) ([]byte, error) {
-	return []byte(`[]`), nil
+	// Empty StructValue — minimal valid shape for amino.UnmarshalJSON.
+	return []byte(`{"objectid":"","value":{"@type":"/gno.StructValue","Fields":[]}}`), nil
 }
 
 // StateType returns mock type data for testing.
 func (m *MockClient) StateType(_ context.Context, _ string) ([]byte, error) {
-	return []byte(`{}`), nil
+	return []byte(`{"typeid":"","type":{"@type":"/gno.PrimitiveType","value":"32"}}`), nil
 }
 
 // Helper: check if package has a Render(string) string function.

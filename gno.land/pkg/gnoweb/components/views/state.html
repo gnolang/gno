@@ -1,12 +1,489 @@
+{{/* ===================================================================================
+LAYOUT - State explorer (server-rendered, no JS).
+
+Shape mirrors view_source.html: a `b-content-header` for the page title +
+inline metadata, a `b-sidebar` aside on the right reusing the same pattern
+as the source ToC, and the recursive tree as the main article body.
+
+Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
+  - One block class: `.b-state-explorer`.
+  - Children use plain class names; the cascade scopes them.
+  - Variants live on data-* attributes — no BEM modifiers.
+=================================================================================== */}}
+
 {{ define "renderState" }}
-<article class="b-state-explorer"
-  data-controller="state-explorer"
-  data-state-explorer-pkg-path-value="{{ .PkgPath }}">
-  <header class="b-state-explorer__header">
-    <div class="b-state-explorer__path" data-state-explorer-target="path-info"></div>
-    <span class="b-state-explorer__count" data-state-explorer-target="count"></span>
-  </header>
-  <div data-state-explorer-target="tree" class="b-state-tree"></div>
-  <script type="application/json" data-state-explorer-target="initial-data">{{ .NodesJSON }}</script>
+{{ if .Sidebar }}
+<aside class="b-sidebar sidebar" aria-label="State navigation">
+  <div>
+    <div id="sidebar-summary" class="inner u-no-scrollbar">
+      {{ template "ui/expend_label" .Sidebar.Heading }}
+      {{ if .Sidebar.Meta }}
+        <dl class="b-state-meta">
+          {{ range .Sidebar.Meta }}
+            {{ if .Section }}<dt class="section">{{ .Section }}</dt>{{ end }}
+            <div class="row{{ if .Inline }} inline{{ end }}{{ if .Mono }} mono{{ end }}">
+              <dt class="label">{{ .Label }}</dt>
+              <dd class="value">
+                {{ if .Mono }}
+                  {{/* Long blockchain identifiers — truncate head…tail
+                       in the chip, full value via title and click-to-copy. */}}
+                  {{ if .Href }}<a href="{{ .Href }}" title="{{ .Value }}">{{ truncOID .Value 8 6 }}</a>
+                  {{ else }}<span data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ .Value }}" title="{{ .Value }} — click to copy">{{ truncOID .Value 8 6 }}</span>
+                  {{ end }}
+                {{ else }}
+                  {{ if .Href }}<a href="{{ .Href }}">{{ .Value }}</a>{{ else }}{{ .Value }}{{ end }}
+                {{ end }}
+              </dd>
+            </div>
+          {{ end }}
+        </dl>
+      {{ end }}
+      {{ if .Sidebar.TOC }}
+        <h3 class="b-state-toc-heading">On this page</h3>
+        <nav>
+          <ul class="b-toc b-state-toc">
+            {{ range .Sidebar.TOC }}
+              <li>
+                <a href="#{{ .Anchor }}">
+                  <span class="kind-glyph" aria-hidden="true">{{ kindGlyph .Kind .Type }}</span>
+                  <span class="label">{{ .Label }}</span>
+                </a>
+              </li>
+            {{ end }}
+          </ul>
+        </nav>
+      {{ end }}
+    </div>
+  </div>
+</aside>
+{{ end }}
+
+<header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+  <h1 class="title b-content-h1">{{ .CountLabel }}</h1>
+  <div class="header-info">
+    {{ if .Crumbs }}
+      <nav aria-label="State path">
+        {{ range $i, $c := .Crumbs }}
+          {{ if $i }} <span>/</span> {{ end }}
+          {{ if $c.Href }}<a href="{{ $c.Href }}">{{ $c.Label }}</a>{{ else }}<span>{{ $c.Label }}</span>{{ end }}
+        {{ end }}
+      </nav>
+    {{ end }}
+    {{ if .Nodes }}
+      {{/* CSS-only view toggle: radios drive sibling visibility via :has().
+           No JS, no URL state — toggling reverts on page reload by design.
+           - Pretty: card layout per declaration (the curated UI)
+           - Raw: flat tree, name:type=value rows (legacy lazy-tree shape) */}}
+      <fieldset class="b-state-view-toggle" aria-label="State view mode">
+        <input type="radio" name="state-view-mode" id="state-view-pretty" class="u-sr-only" checked>
+        <label for="state-view-pretty">Pretty</label>
+        <input type="radio" name="state-view-mode" id="state-view-raw" class="u-sr-only">
+        <label for="state-view-raw">Raw</label>
+      </fieldset>
+    {{ end }}
+  </div>
+</header>
+
+<article class="b-state-explorer">
+  <div class="view-pretty">
+    {{ if .Nodes }}
+      <div class="c-stack">
+        {{ $pkg := .PkgPath }}
+        {{ $isObj := .IsObjectPage }}
+        {{ range $i, $n := .Nodes }}
+          {{ template "state/decl" (dict "Node" $n "PkgPath" $pkg "Index" $i "IsObjectPage" $isObj) }}
+        {{ end }}
+      </div>
+    {{ else }}
+      <p class="empty">This package has no exposed state.</p>
+    {{ end }}
+
+    {{ if .PageNav }}
+      <nav class="pagenav" aria-label="Pagination">
+        {{ if .PageNav.PrevHref }}<a href="{{ .PageNav.PrevHref }}" rel="prev">← previous</a>{{ end }}
+        <span>{{ .PageNav.Label }}</span>
+        {{ if .PageNav.NextHref }}<a href="{{ .PageNav.NextHref }}" rel="next">next →</a>{{ end }}
+      </nav>
+    {{ end }}
+  </div>
+
+  {{ if .Nodes }}
+    <div class="view-raw">
+      <div class="tree">
+        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" false) }}
+      </div>
+    </div>
+  {{ end }}
 </article>
+{{ end }}
+
+{{/* state/decl — renders a single top-level declaration as a card,
+     mirroring the .b-action-function pattern. The card has three regions:
+
+       header  → name (h2) + type pill (.b-tag) + length + per-card actions
+                 (permalink + copy OID, both reusing the existing copy
+                  controller) + nav arrow to the dedicated page.
+
+       content → dispatches per shape:
+                   primitive  → bare value
+                   closure    → inline source snippet + "Captured" tree
+                   func       → just metadata (source link lives in header)
+                   branch     → children tree (state/nodes recursion)
+                   stored ref → preview line + footer-CTA only
+
+       footer  → contextual CTA banner for stored refs only ("Inspect →"
+                 + chips for OID, size, refs). Pushes users to the
+                 dedicated page where full audit metadata lives. */}}
+{{ define "state/decl" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $isObj := .IsObjectPage }}
+  <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}"{{ end }} data-kind="{{ $n.Kind }}">
+    <header>
+      <span class="title">
+        <h2><span class="kind-glyph" aria-hidden="true">{{ kindGlyph $n.Kind $n.Type }}</span>{{ $n.Name }}</h2>
+        {{/* Type-subtitle below the name — gives the type the room
+             to breathe in italic mono, instead of competing with
+             the name on the same baseline. */}}
+        <span class="subtitle">
+          <span class="type" data-kind="{{ $n.Kind }}">{{ $n.Type }}</span>
+          {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+          {{ with $n.Source }}<a class="srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+        </span>
+      </span>
+      <span class="b-btns" aria-label="Card actions">
+        {{ if $n.Anchor }}
+          <a class="b-btn b-btn--secondary c-with-icon" href="#{{ $n.Anchor }}" title="Permalink to this declaration">
+            <svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg>
+            <span>Link</span>
+          </a>
+        {{ end }}
+        {{ if $n.ObjectID }}
+          <button class="b-btn b-btn--secondary c-with-icon" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Copy Object ID">
+            <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+            <span>Copy</span>
+          </button>
+        {{ end }}
+        {{ if $n.Href }}
+          <a class="b-btn b-btn--secondary c-with-icon" href="{{ $n.Href }}" title="Open dedicated page">
+            <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow"></use></svg>
+            <span>Open</span>
+          </a>
+        {{ end }}
+      </span>
+    </header>
+
+    {{/* Doc comment — Go-style documentation comment from source,
+         attached by the handler from the package's JSON doc index.
+         Rendered as a description paragraph beneath the header,
+         matching the action card's `.description` register. */}}
+    {{ if $n.Doc }}
+      <p class="description">{{ $n.Doc }}</p>
+    {{ end }}
+
+
+    {{/* Audit-chips ribbon — terminal status-bar style. 6 facts in one
+         scanline: identity, weight, footprint, ownership, history, hash.
+         Sits between header and body so the eye gets identity → audit →
+         content in one vertical pass. */}}
+    {{/* Audit chips — surface OID/Hash/Refs/Owner/Mod/Size for any
+         node that carries blockchain metadata. Primitives and type
+         declarations don't have these fields populated by the walker,
+         so the strip auto-skips them; stored objects (struct values,
+         slices, maps, *T pointers, refs) get the full ribbon. */}}
+    {{ if or $n.ObjectID $n.OwnerID $n.Hash $n.RefCount $n.LastObjectSize }}
+      {{/* Audit stats — same label-on-top typography as the action
+           card's PARAMS/COMMAND sections (h3 title font-size-50 +
+           value below). Each stat is its own block so users can read
+           it as a structured ledger, not a packed inline ribbon. */}}
+      <dl class="b-state-stats" aria-label="Audit metadata">
+        {{ if $n.ObjectID }}
+          <div class="stat">
+            <dt class="title">OID</dt>
+            <dd class="value mono" data-tooltip="{{ $n.ObjectID }}">
+              <span class="text">{{ truncOID $n.ObjectID 6 4 }}</span>
+              <button type="button" class="copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" aria-label="Copy Object ID">
+                <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+              </button>
+            </dd>
+          </div>
+        {{ end }}
+        {{ if $n.LastObjectSize }}
+          <div class="stat">
+            <dt class="title">Size</dt>
+            <dd class="value">{{ $n.LastObjectSize }} B</dd>
+          </div>
+        {{ end }}
+        {{ if $n.RefCount }}
+          <div class="stat">
+            <dt class="title">Refs</dt>
+            <dd class="value">{{ $n.RefCount }}</dd>
+          </div>
+        {{ end }}
+        {{ if $n.OwnerID }}
+          <div class="stat">
+            <dt class="title">Owner</dt>
+            <dd class="value mono" data-tooltip="{{ $n.OwnerID }}">
+              <a class="text" href="{{ $pkg }}$state&oid={{ $n.OwnerID }}">{{ oidShort $n.OwnerID $n.ObjectID }}</a>
+              <button type="button" class="copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.OwnerID }}" aria-label="Copy Owner ID">
+                <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+              </button>
+            </dd>
+          </div>
+        {{ end }}
+        {{ if $n.ModTime }}
+          <div class="stat">
+            <dt class="title">Modified</dt>
+            <dd class="value">#{{ $n.ModTime }}</dd>
+          </div>
+        {{ end }}
+        {{ if $n.Hash }}
+          <div class="stat">
+            <dt class="title">Hash</dt>
+            <dd class="value mono" data-tooltip="{{ $n.Hash }}">
+              <span class="text">{{ truncOID $n.Hash 6 4 }}</span>
+              <button type="button" class="copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.Hash }}" aria-label="Copy Hash">
+                <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+              </button>
+            </dd>
+          </div>
+        {{ end }}
+      </dl>
+    {{ end }}
+
+    <div class="content">
+      {{ if $n.Value }}
+        {{/* Primitive value section — action-card register: small
+             "VALUE" label above a framed code-block + copy button.
+             Same affordance as the field-grid value cells so the
+             pattern is consistent across the explorer. */}}
+        <section class="value-section">
+          <h3 class="title">Value</h3>
+          <div class="b-code">
+            <code class="value" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</code>
+            <button type="button" class="value-copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.Value }}" title="Copy value" aria-label="Copy value">
+              <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+            </button>
+          </div>
+        </section>
+      {{ end }}
+      {{/* Inline source body: closures always (the body is meaningful
+           alongside their captures); regular funcs only on the dedicated
+           object page (where the user has explicitly navigated to see
+           the function — hiding the body would defeat the navigation). */}}
+      {{ if and $n.SourceHTML (or (eq $n.Kind "closure") $isObj) }}
+        <div class="source"><div class="code">{{ $n.SourceHTML }}</div></div>
+      {{ end }}
+      {{ if and (eq $n.Kind "closure") $n.Children }}
+        <div class="captures-label">Captured variables:</div>
+      {{ end }}
+      {{ if $n.Children }}
+        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" 0 "Heading" (headingForKind $n.Kind)) }}
+      {{ else if and $n.Href $n.Preview }}
+        <p class="preview">{{ $n.Preview }}</p>
+      {{ end }}
+    </div>
+
+    {{ if $n.Href }}
+      {{/* Footer-CTA: compact one-line escape hatch. Surfaces +N more
+           when the inline sample is truncated, then pushes to the
+           dedicated page. */}}
+      <a class="cta" href="{{ $n.Href }}">
+        {{ if $n.Length }}
+          {{ $total := derefInt $n.Length }}
+          {{ $shown := len $n.Children }}
+          {{ if gt $total $shown }}
+            <span class="more">+{{ sub $total $shown }} more</span>
+          {{ end }}
+        {{ end }}
+        <span class="label">Inspect {{ if $n.Kind }}{{ $n.Kind }}{{ else }}object{{ end }}</span>
+        <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow"></use></svg>
+      </a>
+    {{ end }}
+  </article>
+{{ end }}
+
+{{/* state/decl-children — Pretty-mode rendering for the children of a
+     top-level declaration. A grid layout (name | type | value/inspect)
+     that reads like a structured property table — distinct from the
+     Raw view's flat tree. Each row hovers as an interactive surface;
+     refs become framed Inspect buttons rather than naked arrows.
+
+     The optional `Heading` field — when non-empty — emits a header
+     row labelling the three columns. Only top-level calls (from
+     `state/decl`) pass it; nested recursion omits it to avoid header
+     repetition deep in the tree.
+
+     Depth threads through nested branches so the first level of nested
+     <details> stays open by default (matches the same UX rule as Raw). */}}
+{{ define "state/decl-children" }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  <div class="fields-frame">
+    {{ if .Heading }}
+      <header class="fields-head" aria-hidden="true">
+        <span class="col">{{ .Heading }}</span>
+        <span class="col">Type</span>
+        <span class="col">Value</span>
+      </header>
+    {{ end }}
+    <ul class="fields" role="list">
+      {{ range .Nodes }}
+        {{ template "state/decl-field" (dict "Node" . "PkgPath" $pkg "Depth" $depth) }}
+      {{ end }}
+    </ul>
+  </div>
+{{ end }}
+
+{{/* state/decl-field — single property row inside a card. Shape
+     priority: Children > Href > leaf. When a stored ref already has
+     its Children loaded (via EnrichInlinePreviews), we render the
+     values directly — same treatment closures get for their captures.
+     The Href is still surfaced as a small "Inspect →" link in the
+     header so users can navigate to the dedicated page for full audit. */}}
+{{ define "state/decl-field" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  {{ $shape := "leaf" }}
+  {{ if $n.Children }}{{ $shape = "branch" }}
+  {{ else if $n.Href }}{{ $shape = "ref" }}{{ end }}
+
+  <li class="field" data-shape="{{ $shape }}" data-kind="{{ $n.Kind }}">
+    {{ if eq $shape "branch" }}
+      {{/* Branch row: <details> wraps both summary AND nested-body so
+           the body is naturally full-width below the header. The
+           summary itself replicates the 3-col header grid via CSS so
+           name/type/preview line up with sibling leaf rows. */}}
+      <details{{ if lt $depth 2 }} open{{ end }} class="nested">
+        <summary>
+          <span class="name"><span class="kind-glyph" aria-hidden="true">{{ kindGlyph $n.Kind $n.Type }}</span>{{ $n.Name }}</span>
+          <span class="type" data-kind="{{ $n.Kind }}">
+            {{ $n.Type }}
+            {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+          </span>
+          <span class="head">
+            {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>
+            {{ else }}<span class="preview muted">{{ len $n.Children }} field{{ if ne (len $n.Children) 1 }}s{{ end }}</span>{{ end }}
+            {{ if $n.Href }}
+              <a class="open-link" href="{{ $n.Href }}" aria-label="Open {{ $n.Name }} dedicated page" onclick="event.stopPropagation()">
+                Inspect <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow"></use></svg>
+              </a>
+            {{ end }}
+            <span class="disclose" aria-hidden="true">▸</span>
+          </span>
+        </summary>
+        <div class="nested-body">
+          {{/* Scope label — explicit text indicating what the listing
+               below contains. Resolves the "what's the link?" question
+               without re-displaying full FIELD/TYPE/VALUE column headers
+               at every nesting depth. */}}
+          <div class="scope" aria-hidden="true">
+            <span class="kw">{{ headingForKind $n.Kind }}s of</span>
+            <code>{{ $n.Name }}</code>
+          </div>
+          {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1)) }}
+        </div>
+      </details>
+    {{ else }}
+      <span class="name"><span class="kind-glyph" aria-hidden="true">{{ kindGlyph $n.Kind $n.Type }}</span>{{ $n.Name }}</span>
+      <span class="type" data-kind="{{ $n.Kind }}">
+        {{ $n.Type }}
+        {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+      </span>
+      {{ if eq $shape "ref" }}
+        <a class="inspect" href="{{ $n.Href }}" aria-label="Inspect {{ $n.Name }}">
+          {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
+          <span class="action">
+            <span class="cta-label">Inspect</span>
+            <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow"></use></svg>
+          </span>
+        </a>
+      {{ else }}
+        {{ if $n.Value }}
+          <span class="value-cell">
+            <code class="value field-value" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</code>
+            <button type="button" class="value-copy" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.Value }}" title="Copy value" aria-label="Copy value">
+              <svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>
+            </button>
+          </span>
+        {{ else }}
+          <span class="value-empty" aria-hidden="true">—</span>
+        {{ end }}
+      {{ end }}
+    {{ end }}
+  </li>
+{{ end }}
+
+{{/* state/nodes — renders a list of StateNodes at a given depth. The
+     `Toplevel` flag is true only on the root call so the matching anchor
+     ids are stamped on first-level rows (the ones the sidebar TOC links
+     to); deeper recursive calls pass false. */}}
+{{ define "state/nodes" }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  {{ $top := .Toplevel }}
+  {{ range $i, $n := .Nodes }}
+    {{ template "state/node" (dict "Node" $n "PkgPath" $pkg "Depth" $depth "Toplevel" $top "Index" $i) }}
+  {{ end }}
+{{ end }}
+
+{{/* state/node — renders a single StateNode. Three exclusive shapes are
+     advertised via data-shape:
+       data-shape="ref"     → stored object reference, navigable as a link
+       data-shape="branch"  → expandable inline, contains decoded children
+       data-shape="leaf"    → flat row with a value */}}
+{{ define "state/node" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $depth := .Depth }}
+  {{ $top := .Toplevel }}
+  {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
+
+  {{ if and $n.ObjectID (not $n.Children) $n.Expandable }}
+    <a class="row" data-shape="ref" {{ if $id }}id="{{ $id }}"{{ end }} style="--depth: {{ $depth }};" href="{{ $n.Href }}">
+      <span class="name">{{ $n.Name }}</span>
+      <span class="sep">:</span>
+      <span class="type" data-kind="{{ $n.Kind }}">{{ $n.Type }}</span>
+      {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+      {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
+      <span class="arrow" aria-hidden="true">→</span>
+    </a>
+
+  {{ else if $n.Expandable }}
+    <details{{ if $id }} id="{{ $id }}"{{ end }}{{ if lt $depth 2 }} open{{ end }}>
+      <summary class="row" data-shape="branch" style="--depth: {{ $depth }};">
+        <span class="name">{{ $n.Name }}</span>
+        <span class="sep">:</span>
+        <span class="type" data-kind="{{ $n.Kind }}">{{ $n.Type }}</span>
+        {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
+        {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
+        {{ with $n.Source }}<a class="srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+        {{ if $n.Href }}<a class="navlink" href="{{ $n.Href }}" title="Open dedicated page">→</a>{{ end }}
+        {{ if $n.ObjectID }}<span class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</span>{{ end }}
+      </summary>
+      <div class="kids">
+        {{ if $n.SourceHTML }}
+          <div class="source">
+            <a class="srclink" href="{{ $pkg }}$source&file={{ $n.Source.File }}#L{{ $n.Source.StartLine }}" title="View full source">{{ $n.Source.File }}:{{ $n.Source.StartLine }}-{{ $n.Source.EndLine }}</a>
+            <div class="code">{{ $n.SourceHTML }}</div>
+          </div>
+        {{ end }}
+        {{ if and (eq $n.Kind "closure") $n.Children }}
+          <div class="captures-label" style="--depth: {{ add $depth 1 }};">Captured variables:</div>
+        {{ end }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "Toplevel" false) }}
+      </div>
+    </details>
+
+  {{ else }}
+    <div class="row" data-shape="leaf" {{ if $id }}id="{{ $id }}"{{ end }} style="--depth: {{ $depth }};">
+      <span class="name">{{ $n.Name }}</span>
+      <span class="sep">:</span>
+      <span class="type" data-kind="{{ $n.Kind }}">{{ $n.Type }}</span>
+      {{ if $n.Value }}<span class="sep">=</span><span class="val" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</span>{{ end }}
+      {{ with $n.Source }}<a class="srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+      {{ if $n.ObjectID }}<span class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</span>{{ end }}
+    </div>
+  {{ end }}
 {{ end }}

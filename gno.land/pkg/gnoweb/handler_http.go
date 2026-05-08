@@ -3,16 +3,18 @@ package gnoweb
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"path"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -149,12 +151,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
-		return
-	}
-
-	// Handle state JSON API request outside of component rendering flow.
-	if gnourl.WebQuery.Has("state") && gnourl.WebQuery.Has("json") {
-		h.ServeStateJSON(r.Context(), gnourl, w)
 		return
 	}
 
@@ -686,77 +682,267 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	)
 }
 
-// GetStateView returns the state explorer view for a package.
+// GetStateView dispatches state-explorer URLs:
+//   - /r/foo$state           → top-level package state (getStatePackageView)
+//   - /r/foo$state&oid=ID    → a single stored object's contents (getStateObjectView)
+//
+// Both paths share the same view template; only the data layer differs.
 func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	raw, err := h.Client.StatePkg(ctx, gnourl.Path)
-	if err != nil {
-		h.Logger.Error("unable to fetch state", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+	if oid := gnourl.WebQuery.Get("oid"); oid != "" {
+		return h.getStateObjectView(ctx, gnourl, oid)
+	}
+	return h.getStatePackageView(ctx, gnourl)
+}
+
+// getStatePackageView renders the top-level state of a package or realm.
+func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+	// Fetch state JSON + doc index concurrently — they're both
+	// per-package lookups and we want one RTT total. Doc errors are
+	// non-fatal: the page renders without comments rather than aborting.
+	var (
+		raw     []byte
+		stateErr error
+		jdoc    *doc.JSONDocumentation
+		wg      sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		raw, stateErr = h.Client.StatePkg(ctx, gnourl.Path)
+	}()
+	go func() {
+		defer wg.Done()
+		d, derr := h.Client.Doc(ctx, gnourl.Path)
+		if derr == nil {
+			jdoc = d
+		} else {
+			h.Logger.Warn("unable to fetch package docs", "error", derr, "path", gnourl.EncodeURL())
+		}
+	}()
+	wg.Wait()
+	if stateErr != nil {
+		h.Logger.Error("unable to fetch state", "error", stateErr, "path", gnourl.EncodeURL())
+		return GetClientErrorStatusPage(gnourl, stateErr)
 	}
 
-	return http.StatusOK, components.StateView(components.StateData{
-		PkgPath:   gnourl.Path,
-		NodesJSON: string(raw),
+	nodes, err := components.DecodePkgJSON(raw)
+	if err != nil {
+		h.Logger.Error("unable to decode state JSON", "error", err, "path", gnourl.EncodeURL())
+		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state")
+	}
+
+	// Project the doc index onto the nodes by name so each card can
+	// surface its declaration's source comment.
+	if jdoc != nil {
+		var vals, funs, typs []components.NamedDoc
+		for _, vd := range jdoc.Values {
+			for _, v := range vd.Values {
+				// Per-entry doc wins over group doc when both are set —
+				// `var (A, B int) // …` puts the comment on the group,
+				// per-line comments stay on the entry.
+				doc := v.Doc
+				if doc == "" {
+					doc = vd.Doc
+				}
+				vals = append(vals, components.NamedDoc{Name: v.Name, Doc: doc})
+			}
+		}
+		for _, fn := range jdoc.Funcs {
+			funs = append(funs, components.NamedDoc{Name: fn.Name, Doc: fn.Doc})
+		}
+		for _, t := range jdoc.Types {
+			typs = append(typs, components.NamedDoc{Name: t.Name, Doc: t.Doc})
+		}
+		components.AttachDocs(nodes, vals, funs, typs)
+	}
+
+	kind := "Package"
+	if strings.HasPrefix(gnourl.Path, "/r/") {
+		kind = "Realm"
+	}
+	label := fmt.Sprintf("%s top-level declarations (%d)", kind, len(nodes))
+
+	return http.StatusOK, h.renderStateView(ctx, gnourl.Path, raw, nodes, label, nil,
+		components.BuildPackageSidebar(gnourl.Path, nodes), false)
+}
+
+// getStateObjectView renders the contents of a single stored object,
+// reachable via /r/foo$state&oid=<ObjectID>[&tid=<TypeID>]. The page is
+// bookmarkable and shareable — that's the whole point of moving away from
+// in-place AJAX expansion.
+//
+// When `tid` is set, qtype_json is fetched in parallel with qobject_json so
+// the decoder can label struct fields with their declared names instead of
+// positional indices. Both calls run concurrently — the page render takes
+// max(qobject, qtype) instead of their sum.
+func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.GnoURL, oid string) (int, *components.View) {
+	tid := gnourl.WebQuery.Get("tid")
+
+	var (
+		raw, typeRaw []byte
+		objErr       error
+		wg           sync.WaitGroup
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		raw, objErr = h.Client.StateObject(ctx, oid)
+	}()
+	if tid != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tr, err := h.Client.StateType(ctx, tid)
+			if err == nil {
+				typeRaw = tr
+			} else {
+				// Type fetch failure is recoverable — the page renders
+				// with positional field indices instead of names.
+				h.Logger.Warn("unable to fetch type for state object",
+					"error", err, "path", gnourl.EncodeURL(), "tid", tid)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if objErr != nil {
+		h.Logger.Error("unable to fetch state object", "error", objErr, "path", gnourl.EncodeURL(), "oid", oid)
+		return GetClientErrorStatusPage(gnourl, objErr)
+	}
+
+	decoded, err := components.DecodeObjectFull(raw, typeRaw)
+	if err != nil {
+		h.Logger.Error("unable to decode state object JSON", "error", err, "path", gnourl.EncodeURL(), "oid", oid)
+		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state object")
+	}
+
+	crumbs := []components.StateCrumb{
+		{Label: gnourl.Path, Href: template.URL(gnourl.Path + "$state")},
+		{Label: "Object"},
+	}
+	// Page title — keep the OID readable on one line by truncating
+	// the 40-char hashlet head…tail (the `:N` suffix stays). The full
+	// OID remains visible & copy-able from the sidebar's "Object ID"
+	// row, so no information is hidden.
+	fields := "fields"
+	if len(decoded.Nodes) == 1 {
+		fields = "field"
+	}
+	label := fmt.Sprintf("Object %s (%d %s)", components.TruncOIDForDisplay(oid), len(decoded.Nodes), fields)
+
+	return http.StatusOK, h.renderStateView(ctx, gnourl.Path, raw, decoded.Nodes, label, crumbs,
+		components.BuildObjectSidebar(gnourl.Path, oid, tid, decoded.Info, decoded.Nodes), true)
+}
+
+// renderStateRawJSON renders the chain response as a collapsible JSON tree
+// using native <details>/<summary>. Each object/array becomes a folder you
+// can expand or collapse with no JS — the toggle is built into the browser.
+//
+// Falls back to chroma-highlighted flat <pre> if JSON parsing fails (rare:
+// would mean a malformed chain response). Final fallback is plain
+// HTML-escaped <pre> so the page never breaks.
+func (h *HTTPHandler) renderStateRawJSON(raw []byte) template.HTML {
+	if len(raw) == 0 {
+		return ""
+	}
+	if tree := components.RenderJSONTree(raw); tree != "" {
+		return tree
+	}
+
+	// Couldn't parse JSON — try chroma on the pretty-printed (or raw) text.
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, raw, "", "  "); err != nil {
+		pretty.Reset()
+		pretty.Write(raw)
+	}
+	var out bytes.Buffer
+	if err := h.Renderer.RenderSource(&out, "state.json", pretty.Bytes()); err == nil {
+		return template.HTML(out.String())
+	}
+	// Last resort: escape into a plain <pre>.
+	return template.HTML("<pre>" + template.HTMLEscapeString(pretty.String()) + "</pre>")
+}
+
+// renderStateView is the shared tail of both state views: inline preview +
+// source enrichment + StateView packaging. Keeps the two entry points DRY
+// and enforces a single point where every state page goes through:
+//   1. EnrichInlinePreviews — fetch stored refs in parallel and embed
+//      their fields as Children (heap → ref → struct chain over rounds).
+//   2. Enrich — set Hrefs on every ObjectID node and chroma-render
+//      func/closure source snippets.
+//   3. renderStateRawJSON — chroma-highlight the underlying chain payload
+//      for the "JSON view" toggle.
+// Order matters: preview adds nodes that Enrich then walks for hrefs/sources.
+func (h *HTTPHandler) renderStateView(ctx context.Context, pkgPath string, raw []byte, nodes []components.StateNode, label string, crumbs []components.StateCrumb, sidebar *components.StateSidebar, isObjectPage bool) *components.View {
+	components.EnrichInlinePreviews(nodes,
+		&clientStateObjectFetcher{ctx: ctx, client: h.Client},
+		&clientStateTypeFetcher{ctx: ctx, client: h.Client},
+	)
+	components.Enrich(nodes, pkgPath,
+		&clientFileFetcher{ctx: ctx, client: h.Client},
+		&rendererSnippetHighlighter{renderer: h.Renderer},
+	)
+	return components.StateView(components.StateData{
+		PkgPath:      pkgPath,
+		Nodes:        nodes,
+		CountLabel:   label,
+		Crumbs:       crumbs,
+		Sidebar:      sidebar,
+		RawJSON:      h.renderStateRawJSON(raw),
+		IsObjectPage: isObjectPage,
 	})
 }
 
-// ServeStateJSON serves state tree data as JSON for dynamic tree expansion.
-func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
-	// Source file request — return syntax-highlighted HTML for a line range.
-	if fileName := gnourl.WebQuery.Get("file"); fileName != "" {
-		source, _, err := h.Client.File(ctx, gnourl.Path, fileName)
-		if err != nil {
-			h.Logger.Warn("unable to fetch source file", "file", fileName, "error", err)
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-
-		// Extract line range if provided.
-		startLine, _ := strconv.Atoi(gnourl.WebQuery.Get("start"))
-		endLine, _ := strconv.Atoi(gnourl.WebQuery.Get("end"))
-		if startLine > 0 && endLine >= startLine {
-			lines := strings.Split(string(source), "\n")
-			if startLine <= len(lines) {
-				end := endLine
-				if end > len(lines) {
-					end = len(lines)
-				}
-				source = []byte(strings.Join(lines[startLine-1:end], "\n"))
-			}
-		}
-
-		// Render with syntax highlighting.
-		var buf bytes.Buffer
-		if err := h.Renderer.RenderSource(&buf, fileName, source); err != nil {
-			h.Logger.Warn("unable to render source file", "file", fileName, "error", err)
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.Write(source)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(buf.Bytes())
-		return
-	}
-
-	var raw []byte
-	var err error
-
-	if oid := gnourl.WebQuery.Get("oid"); oid != "" {
-		raw, err = h.Client.StateObject(ctx, oid)
-	} else if tid := gnourl.WebQuery.Get("tid"); tid != "" {
-		raw, err = h.Client.StateType(ctx, tid)
-	} else {
-		raw, err = h.Client.StatePkg(ctx, gnourl.Path)
-	}
-
-	if err != nil {
-		h.Logger.Warn("unable to fetch state data", "error", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(raw)
+// clientFileFetcher adapts the gnoweb ClientAdapter to the FileFetcher
+// interface needed by components.Enrich.
+type clientFileFetcher struct {
+	ctx    context.Context
+	client ClientAdapter
 }
+
+func (f *clientFileFetcher) Fetch(pkgPath, fileName string) ([]byte, error) {
+	src, _, err := f.client.File(f.ctx, pkgPath, fileName)
+	return src, err
+}
+
+// rendererSnippetHighlighter adapts the HTMLRenderer to the
+// SnippetHighlighter interface — wraps the chroma-backed RenderSource into a
+// template.HTML producer.
+type rendererSnippetHighlighter struct {
+	renderer Renderer
+}
+
+func (h *rendererSnippetHighlighter) Render(fileName string, source []byte) (template.HTML, error) {
+	var buf bytes.Buffer
+	if err := h.renderer.RenderSource(&buf, fileName, source); err != nil {
+		return "", err
+	}
+	return template.HTML(buf.String()), nil
+}
+
+// clientStateObjectFetcher adapts ClientAdapter to the StateObjectFetcher
+// interface needed by components.EnrichInlinePreviews.
+type clientStateObjectFetcher struct {
+	ctx    context.Context
+	client ClientAdapter
+}
+
+func (f *clientStateObjectFetcher) FetchObject(oid string) ([]byte, error) {
+	return f.client.StateObject(f.ctx, oid)
+}
+
+// clientStateTypeFetcher adapts ClientAdapter to the StateTypeFetcher
+// interface — used by EnrichInlinePreviews to label struct fields with
+// their declared names instead of positional indices.
+type clientStateTypeFetcher struct {
+	ctx    context.Context
+	client ClientAdapter
+}
+
+func (f *clientStateTypeFetcher) FetchType(tid string) ([]byte, error) {
+	return f.client.StateType(f.ctx, tid)
+}
+
 
 // ServeSourceDownload handles downloading a source file as plain text.
 func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
