@@ -12,8 +12,16 @@ import (
 // Reports ns/op(pure) (whole pass) and ns/<CodeName> per
 // PreprocessOp (calibration data for preprocessGasCosts). Run with:
 //
+//	make -C gnovm calibrate.preprocess          # on Xeon 8168 (reference)
+//	make -C gnovm calibrate.preprocess SCALE=1.5 # on Apple M1 Pro
+//
+// Or directly:
+//
 //	go test -run=NONE -bench=BenchmarkPreprocess_Corpus -benchtime=1000x \
-//	    ./gnovm/pkg/gnolang/
+//	    -count=3 ./gnovm/pkg/gnolang/ \
+//	    > gnovm/cmd/calibrate/preprocess_bench_local.txt
+//	cd gnovm/cmd/calibrate && \
+//	    python3 gen_preprocess_table.py preprocess_bench_local.txt
 //
 // Per-code numbers include the time.Now() overhead from
 // StartPreprocess+StopPreprocess (~94 ns/visit on M1 Pro), so sub-

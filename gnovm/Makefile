@@ -84,6 +84,23 @@ calibrate.alloc:
 		./$(CALIBRATE_DIR)/ | tee .tmp/alloc_bench.txt
 	python3 $(CALIBRATE_DIR)/gen_alloc_table.py .tmp/alloc_bench.txt
 
+# Run preprocess benchmark and regenerate the per-code gas cost table.
+# Pass SCALE=<f> to scale measured ns to Xeon-equivalent (e.g. SCALE=1.5
+# for Apple M1 Pro). Default is 1.0 (assumes you're on the reference host).
+.PHONY: calibrate.preprocess
+calibrate.preprocess: SCALE ?= 1.0
+calibrate.preprocess:
+	@echo "=== Running preprocess corpus benchmark ==="
+	go test -run=NONE -bench=BenchmarkPreprocess_Corpus -benchtime=1000x -count=3 \
+		./pkg/gnolang/ | tee $(CALIBRATE_DIR)/preprocess_bench_local.txt
+	@echo "=== Generating preprocess gas table ==="
+	cd $(CALIBRATE_DIR) && python3 gen_preprocess_table.py \
+		preprocess_bench_local.txt --scale $(SCALE)
+	@echo ""
+	@echo "Calibration complete. Review $(CALIBRATE_DIR)/preprocess_gas_formulas.md"
+	@echo "and copy values from $(CALIBRATE_DIR)/preprocess_gas_table.go.txt into"
+	@echo "preprocessGasCosts in pkg/gnolang/preprocess.go."
+
 # Full gas calibration: run op benchmarks, allocation benchmarks, and analysis.
 .PHONY: calibrate.gas
 calibrate.gas:
@@ -93,14 +110,19 @@ calibrate.gas:
 	@echo "=== Running allocation benchmarks ==="
 	go test -bench=BenchmarkAlloc -benchmem -count=5 -timeout=10m \
 		./$(CALIBRATE_DIR)/ | tee $(CALIBRATE_DIR)/alloc_bench_local.txt
+	@echo "=== Running preprocess corpus benchmark ==="
+	go test -run=NONE -bench=BenchmarkPreprocess_Corpus -benchtime=1000x -count=3 \
+		./pkg/gnolang/ | tee $(CALIBRATE_DIR)/preprocess_bench_local.txt
 	@echo "=== Generating analysis ==="
 	python3 $(CALIBRATE_DIR)/gen_analysis.py $(CALIBRATE_DIR)/op_bench_local.txt $(MACHINE_GO)
 	python3 $(CALIBRATE_DIR)/gen_alloc_table.py $(CALIBRATE_DIR)/alloc_bench_local.txt
+	cd $(CALIBRATE_DIR) && python3 gen_preprocess_table.py preprocess_bench_local.txt
 	@echo "=== Generating plots ==="
 	python3 $(CALIBRATE_DIR)/plot_fits.py $(CALIBRATE_DIR)/op_bench_local.txt $(CALIBRATE_DIR)/op_gas_fits_local.png
 	@echo ""
 	@echo "Calibration complete. Review the analysis output above."
-	@echo "Update constants in pkg/gnolang/machine.go and pkg/gnolang/alloc.go as needed."
+	@echo "Update constants in pkg/gnolang/machine.go, pkg/gnolang/alloc.go, and"
+	@echo "preprocessGasCosts in pkg/gnolang/preprocess.go as needed."
 	@echo "Then run: go test ./pkg/gnolang/ -run TestFiles -test.short --update-golden-tests"
 
 ########################################
