@@ -53,6 +53,9 @@ func execSessionRevoke(cfg *SessionRevokeCfg, args []string, io commands.IO) err
 		return flag.ErrHelp
 	}
 
+	if err := rejectSessionMasterFlag(cfg.RootCfg.RootCfg); err != nil {
+		return err
+	}
 	if cfg.RootCfg.RootCfg.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}

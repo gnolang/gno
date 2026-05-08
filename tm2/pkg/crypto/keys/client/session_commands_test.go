@@ -244,6 +244,52 @@ func TestSession_Create(t *testing.T) {
 				`"allow_paths":["gno.land/r/foo"]`,
 			},
 		},
+		{
+			name: "multiple allow-paths accumulate",
+			mutate: func(a []string) []string {
+				return append(a, "--allow-paths", "gno.land/r/a", "--allow-paths", "gno.land/r/b")
+			},
+			wantStdout: []string{`"allow_paths":["gno.land/r/a","gno.land/r/b"]`},
+		},
+		{
+			name: "empty allow-paths entry rejected",
+			mutate: func(a []string) []string {
+				return append(a, "--allow-paths", "")
+			},
+			wantErrText: "--allow-paths entries must be non-empty",
+		},
+		{
+			name: "allow-paths trailing slash rejected",
+			mutate: func(a []string) []string {
+				return append(a, "--allow-paths", "gno.land/r/foo/")
+			},
+			wantErrText: "trailing slash",
+		},
+		{
+			name: "explicit spend-period 0 with spend-limit (lifetime cap)",
+			mutate: func(a []string) []string {
+				return append(a, "--spend-limit", "1000ugnot", "--spend-period", "0")
+			},
+			// SpendPeriod has json:",omitempty" so 0 is omitted; SpendLimit appears.
+			wantStdout: []string{`"spend_limit":"1000ugnot"`},
+		},
+		{
+			name:        "expires-at 0 rejected",
+			mutate:      setFlag("--expires-at", "0"),
+			wantErrText: "must be a positive duration",
+		},
+		{
+			name:        "expires-at bare integer rejected (missing unit)",
+			mutate:      setFlag("--expires-at", "24"),
+			wantErrText: "must be a future unix timestamp",
+		},
+		{
+			name: "--master rejected on session create",
+			mutate: func(a []string) []string {
+				return append(a, "--master", env.masterName)
+			},
+			wantErrText: "--master cannot be used with session create/revoke/revokeall",
+		},
 	})
 }
 
@@ -287,6 +333,13 @@ func TestSession_Revoke(t *testing.T) {
 			mutate:      setFlag("--pubkey", "not-a-pubkey"),
 			wantErrText: "unable to parse public key from bech32",
 		},
+		{
+			name: "--master rejected on session revoke",
+			mutate: func(a []string) []string {
+				return append(a, "--master", env.masterName)
+			},
+			wantErrText: "--master cannot be used with session create/revoke/revokeall",
+		},
 	})
 }
 
@@ -323,6 +376,13 @@ func TestSession_RevokeAll(t *testing.T) {
 			name:        "missing gas-fee",
 			mutate:      dropFlag("--gas-fee"),
 			wantErrText: "gas-fee not specified",
+		},
+		{
+			name: "--master rejected on session revokeall",
+			mutate: func(a []string) []string {
+				return append(a, "--master", env.masterName)
+			},
+			wantErrText: "--master cannot be used with session create/revoke/revokeall",
 		},
 	})
 }

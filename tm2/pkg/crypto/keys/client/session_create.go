@@ -93,6 +93,9 @@ func execSessionCreate(cfg *SessionCreateCfg, args []string, io commands.IO) err
 		return flag.ErrHelp
 	}
 
+	if err := rejectSessionMasterFlag(cfg.RootCfg.RootCfg); err != nil {
+		return err
+	}
 	if cfg.RootCfg.RootCfg.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
@@ -104,6 +107,14 @@ func execSessionCreate(cfg *SessionCreateCfg, args []string, io commands.IO) err
 	}
 	if cfg.SpendPeriod < 0 {
 		return errors.New("spend-period must be non-negative")
+	}
+	for _, p := range cfg.AllowPaths {
+		if p == "" {
+			return errors.New("--allow-paths entries must be non-empty")
+		}
+		if strings.HasSuffix(p, "/") {
+			return fmt.Errorf("--allow-paths entry %q has trailing slash", p)
+		}
 	}
 
 	expiresAt, err := parseExpiresAt(cfg.ExpiresAt, time.Now())
