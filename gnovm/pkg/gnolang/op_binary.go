@@ -8,6 +8,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // ----------------------------------------
@@ -82,21 +83,12 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-	// Per-N CPU gas for parameterized equality.
-	if lv.T != nil {
-		switch lv.T.Kind() {
-		case ArrayKind:
-			at := baseOf(lv.T).(*ArrayType)
-			m.incrCPU(OpCPUSlopeEqlArray * int64(at.Len))
-		case StructKind:
-			st := baseOf(lv.T).(*StructType)
-			m.incrCPU(OpCPUSlopeEqlStruct * int64(len(st.Fields)))
-		case BigintKind:
-			m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
-		}
+	// Per-N CPU gas for BigInt equality.
+	if lv.T != nil && lv.T.Kind() == BigintKind {
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
 	// set result in lv.
-	res := isEql(m.Store, lv, rv)
+	res := isEql(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -113,7 +105,7 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m.Store, lv, rv)
+	res := !isEql(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -132,7 +124,7 @@ func (m *Machine) doOpLss() {
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
-	res := isLss(lv, rv)
+	res := isLss(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -149,7 +141,7 @@ func (m *Machine) doOpLeq() {
 	}
 
 	// set the result in lv.
-	res := isLeq(lv, rv)
+	res := isLeq(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -166,7 +158,7 @@ func (m *Machine) doOpGtr() {
 	}
 
 	// set the result in lv.
-	res := isGtr(lv, rv)
+	res := isGtr(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -183,7 +175,7 @@ func (m *Machine) doOpGeq() {
 	}
 
 	// set the result in lv.
-	res := isGeq(lv, rv)
+	res := isGeq(m, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -429,7 +421,7 @@ func (m *Machine) doOpBandn() {
 // logic functions
 
 // TODO: can be much faster.
-func isEql(store Store, lv, rv *TypedValue) bool {
+func isEql(m *Machine, lv, rv *TypedValue) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -446,7 +438,15 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
 	case StringKind:
-		return (lv.GetString() == rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		if len(ls) != len(rs) {
+			return false
+		}
+		// Charge gas proportional to string length, since Go's == on
+		// strings is O(N).
+		m.incrCPU(overflow.Mulp(int64(len(ls)), OpCPUSlopeBytesCmp))
+		return ls == rs
 	case IntKind:
 		return (lv.GetInt() == rv.GetInt())
 	case Int8Kind:
@@ -494,13 +494,15 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 		// Fast path for byte arrays (Data representation).
 		if la.Data != nil {
+			m.incrCPU(overflow.Mulp(int64(len(la.Data)), OpCPUSlopeBytesCmp))
 			return bytes.Equal(la.Data, ra.Data)
 		}
 		et := at.Elt
 		for i := range la.GetLength() {
-			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
-			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
-			if !isEql(store, &li, &ri) {
+			m.incrCPU(OpCPUEql)
+			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
+			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
+			if !isEql(m, &li, &ri) {
 				return false
 			}
 		}
@@ -519,9 +521,10 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			}
 		}
 		for i := range ls.Fields {
-			lf := ls.GetPointerToInt(store, i).Deref()
-			rf := rs.GetPointerToInt(store, i).Deref()
-			if !isEql(store, &lf, &rf) {
+			m.incrCPU(OpCPUEql)
+			lf := ls.GetPointerToInt(m.Store, i).Deref()
+			rf := rs.GetPointerToInt(m.Store, i).Deref()
+			if !isEql(m, &lf, &rf) {
 				return false
 			}
 		}
@@ -571,10 +574,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 }
 
 // TODO: can be much faster.
-func isLss(lv, rv *TypedValue) bool {
+func isLss(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() < rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls < rs
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
 	case Int8Kind:
@@ -615,10 +621,13 @@ func isLss(lv, rv *TypedValue) bool {
 	}
 }
 
-func isLeq(lv, rv *TypedValue) bool {
+func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() <= rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls <= rs
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
 	case Int8Kind:
@@ -659,10 +668,13 @@ func isLeq(lv, rv *TypedValue) bool {
 	}
 }
 
-func isGtr(lv, rv *TypedValue) bool {
+func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() > rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls > rs
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
 	case Int8Kind:
@@ -703,10 +715,13 @@ func isGtr(lv, rv *TypedValue) bool {
 	}
 }
 
-func isGeq(lv, rv *TypedValue) bool {
+func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.GetString() >= rv.GetString())
+		ls := lv.GetString()
+		rs := rv.GetString()
+		m.incrCPU(overflow.Mulp(int64(min(len(ls), len(rs))), OpCPUSlopeBytesCmp))
+		return ls >= rs
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
 	case Int8Kind:

@@ -226,7 +226,11 @@ func UverseNode() *PackageNode {
 		makeUverseNode()
 		uverseInit = uverseInitialized
 	case uverseInitializing:
-		return &PackageNode{}
+		// Return an empty stub; set location so debug code
+		// can identify it as the uverse package.
+		pn := &PackageNode{}
+		pn.SetLocation(PackageNodeLocation(uversePkgPath))
+		return pn
 	}
 
 	return uverseNode

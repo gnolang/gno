@@ -30,17 +30,17 @@ stdout 'g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp'
 gnoland start
 
 # user1 registers nym-balloon123 successfully.
-gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-balloon123' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-balloon123' -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
 stdout OK!
 
 # user2 attempts a canonical-confusable variant (l→i applied to the
 # stem). Must reject with ErrCanonicalCollision from r/sys/users — the
 # unified canonical store doing its job.
-! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-baiioon123' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user2
+! gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-baiioon123' -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user2
 stderr 'name collides with a confusable variant of an existing name'
 
 # Same alpha stem with different digit suffix is a DIFFERENT canonical
 # string (decision #2: store keyed by full canonical name). user2 can
 # register nym-balloon999 — does not collide with user1's nym-balloon123.
-gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-balloon999' -gas-fee 5000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test user2
+gnokey maketx call -pkgpath gno.land/r/sys/namereg/v1 -func Register -args 'nym-balloon999' -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user2
 stdout OK!

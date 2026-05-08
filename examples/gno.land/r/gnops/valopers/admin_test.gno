@@ -33,27 +33,7 @@ func TestUpdateInstructions(t *testing.T) {
 	uassert.Equal(t, newInstructions, instructions)
 }
 
-func TestUpdateMinFee(t *testing.T) {
-	auth = authz.NewWithAuthority(
-		authz.NewContractAuthority(
-			"gno.land/r/gov/dao",
-			func(title string, action authz.PrivilegedAction) error {
-				return action()
-			},
-		),
-	)
-
-	newMinFee := int64(100)
-
-	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
-		updateMinFee(newMinFee)
-	})
-
-	testing.SetOriginCaller(chain.PackageAddress("gno.land/r/gov/dao"))
-
-	uassert.NotPanics(t, func() {
-		updateMinFee(newMinFee)
-	})
-
-	uassert.Equal(t, newMinFee, minFee.Amount)
-}
+// TestUpdateMinFee was removed: register_fee now lives in sysparams
+// (node:valoper:register_fee), governed via the generic
+// NewSysParamUint64PropRequest factory. See proposal.gno for the
+// replacement flow.

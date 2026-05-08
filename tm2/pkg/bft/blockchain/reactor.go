@@ -78,7 +78,10 @@ func NewBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn SwitchToConsensusFn,
 ) *BlockchainReactor {
-	if state.LastBlockHeight != store.Height() {
+	// Allow the case where InitialHeight > 1: after InitChain, the Handshaker sets
+	// state.LastBlockHeight = InitialHeight - 1, but the block store is still empty
+	// (Height() == 0). A non-empty store must always match state.
+	if store.Height() != 0 && state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
 			store.Height()))
 	}
@@ -88,8 +91,17 @@ func NewBlockchainReactor(
 	const capacity = 1000                      // must be bigger than peers count
 	errorsCh := make(chan peerError, capacity) // so we don't block in #Receive#pool.AddBlock
 
+	// When the store is empty (fresh chain) and InitialHeight > 1, the
+	// Handshaker has set state.LastBlockHeight = InitialHeight - 1 but the
+	// store is still at height 0. Use the state height so the pool starts
+	// syncing at InitialHeight, not at 1.
+	startHeight := store.Height() + 1
+	if store.Height() == 0 && state.LastBlockHeight > 0 {
+		startHeight = state.LastBlockHeight + 1
+	}
+
 	pool := NewBlockPool(
-		store.Height()+1,
+		startHeight,
 		requestsCh,
 		errorsCh,
 	)
@@ -270,10 +282,12 @@ FOR_LOOP:
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
 
-				bcR.switchToConsensusFn(state, blocksSynced)
-				// else {
-				// should only happen during testing
-				// }
+				// switchToConsensusFn may be nil under test harnesses that
+				// construct a reactor in isolation; production wiring always
+				// supplies it.
+				if bcR.switchToConsensusFn != nil {
+					bcR.switchToConsensusFn(state, blocksSynced)
+				}
 
 				break FOR_LOOP
 			}

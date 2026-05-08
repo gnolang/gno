@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// reply is too long, maximum allowed is 1000 characters
+// reply is too long, maximum allowed is 10000 characters
