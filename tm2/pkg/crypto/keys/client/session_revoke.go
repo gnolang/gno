@@ -29,7 +29,7 @@ func NewSessionRevokeCmd(rootCfg *SessionCfg, io commands.IO) *commands.Command 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "revoke",
-			ShortUsage: "session revoke [flags]",
+			ShortUsage: "session revoke [flags] <master-key-name or address>",
 			ShortHelp:  "revoke a session account",
 		},
 		cfg,

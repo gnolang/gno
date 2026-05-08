@@ -25,7 +25,7 @@ func NewSessionRevokeAllCmd(rootCfg *SessionCfg, io commands.IO) *commands.Comma
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "revokeall",
-			ShortUsage: "session revokeall [flags]",
+			ShortUsage: "session revokeall [flags] <master-key-name or address>",
 			ShortHelp:  "revoke all session accounts",
 		},
 		cfg,

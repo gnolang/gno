@@ -32,7 +32,7 @@ func NewSessionCreateCmd(rootCfg *SessionCfg, io commands.IO) *commands.Command 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "create",
-			ShortUsage: "session create [flags]",
+			ShortUsage: "session create [flags] <master-key-name or address>",
 			ShortHelp:  "create a session account",
 		},
 		cfg,
