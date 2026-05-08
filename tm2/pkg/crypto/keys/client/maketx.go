@@ -122,16 +122,12 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-// GetCaller gets the caller Address from nameOrBech32, or from c.Master if provided.
-// If c.Master is already bech32, ignore the keybase and just return its Address.
+// GetCaller returns the address that should appear as msg.Caller. When c.Master
+// is set (session-signed tx), the caller is master; otherwise it's the signer
+// resolved from nameOrBech32.
 func (c *MakeTxCfg) GetCaller(nameOrBech32 string) (crypto.Address, error) {
 	if c.Master != "" {
-		if caller, err := crypto.AddressFromBech32(c.Master); err == nil {
-			// Master is already bech32.
-			return caller, nil
-		}
-		// Master is not already bech32, so look up the name in the keybase.
-		nameOrBech32 = c.Master
+		return c.GetMaster()
 	}
 
 	kb, err := keys.NewKeyBaseFromDir(c.RootCfg.Home)
@@ -139,6 +135,27 @@ func (c *MakeTxCfg) GetCaller(nameOrBech32 string) (crypto.Address, error) {
 		return crypto.Address{}, err
 	}
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	return info.GetAddress(), nil
+}
+
+// GetMaster resolves c.Master (bech32 or keybase name) to an Address. Returns
+// an error if c.Master is empty.
+func (c *MakeTxCfg) GetMaster() (crypto.Address, error) {
+	if c.Master == "" {
+		return crypto.Address{}, errors.New("master not set")
+	}
+	if addr, err := crypto.AddressFromBech32(c.Master); err == nil {
+		// Master is already bech32; skip the keybase.
+		return addr, nil
+	}
+	kb, err := keys.NewKeyBaseFromDir(c.RootCfg.Home)
+	if err != nil {
+		return crypto.Address{}, err
+	}
+	info, err := kb.GetByNameOrAddress(c.Master)
 	if err != nil {
 		return crypto.Address{}, err
 	}
@@ -189,16 +206,12 @@ func SignAndBroadcastHandler(
 		accountNumber = qret.BaseAccount.AccountNumber
 		sequence = qret.BaseAccount.Sequence
 	} else {
-		masterBech32 := cfg.Master
-		if _, err := crypto.AddressFromBech32(masterBech32); err != nil {
-			// Master is not bech32, so look up the name in the keybase.
-			masterInfo, err := kb.GetByNameOrAddress(cfg.Master)
-			if err != nil {
-				return nil, err
-			}
-			masterBech32 = crypto.AddressToBech32(masterInfo.GetAddress())
+		masterAddr, err := cfg.GetMaster()
+		if err != nil {
+			return nil, err
 		}
-		qopts.Path = fmt.Sprintf("auth/accounts/%s/session/%s", masterBech32, accountAddr)
+		sessionAddr := accountAddr
+		qopts.Path = fmt.Sprintf("auth/accounts/%s/session/%s", crypto.AddressToBech32(masterAddr), sessionAddr)
 		qres, err := QueryHandler(qopts)
 		if err != nil {
 			return nil, errors.Wrap(err, "query session account")
