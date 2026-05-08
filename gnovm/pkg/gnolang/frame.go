@@ -115,6 +115,13 @@ type StacktraceCall struct {
 	CallExpr *CallExpr
 	IsDefer  bool
 	FuncLoc  Location // func loc in which CallExpr is declared
+	// FuncName is a pre-rendered display name including receiver
+	// type prefix for methods (e.g. "Counter.Inc",
+	// "(*pkg.Counter).Inc"); empty for anonymous functions. Used
+	// only by the bounded stacktrace renderer
+	// (BoundedStacktrace) — Stacktrace.String() retains the
+	// existing toExprTrace-based output.
+	FuncName string
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall

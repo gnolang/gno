@@ -3944,7 +3944,11 @@ func evalStaticTypeMachine(store Store, last BlockNode, x Expr) Type {
 		store = store.BeginTransaction(nil, nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
-	m := NewMachine(pn.PkgPath, store)
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath:            pn.PkgPath,
+		Store:              store,
+		BoundedPanicRender: true,
+	})
 	tv := m.EvalStatic(last, x)
 	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
@@ -4109,7 +4113,11 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 			store = store.BeginTransaction(nil, nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
-		m := NewMachine(pn.PkgPath, store)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath:            pn.PkgPath,
+			Store:              store,
+			BoundedPanicRender: true,
+		})
 		t = m.EvalStaticTypeOf(last, x)
 		m.Release()
 		validateTypeDepth(t, x)
@@ -4172,7 +4180,11 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	pv := pn.NewPackage(nilAllocator) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
-	m := NewMachine(pn.PkgPath, store)
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath:            pn.PkgPath,
+		Store:              store,
+		BoundedPanicRender: true,
+	})
 	defer m.Release()
 	func() {
 		// cannot be resolved statically
@@ -4255,7 +4267,11 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 
 	if cx == nil {
 		// is constant?  From the machine?
-		m := NewMachine(".dontcare", store)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath:            ".dontcare",
+			Store:              store,
+			BoundedPanicRender: true,
+		})
 		cv := m.EvalStatic(last, x)
 		m.Release()
 		cx = &ConstExpr{

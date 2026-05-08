@@ -571,6 +571,11 @@ func (m *Machine) doOpDefer() {
 // TODO: deprecate UnhandledPanicError and just use the Exception.
 // (use a field to mark transaction abort)
 func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
+	if m.BoundedPanicRender {
+		return UnhandledPanicError{
+			Descriptor: BoundedSprintException(m.Exception, m, BoundedRenderBytes),
+		}
+	}
 	numExceptions := m.Exception.NumExceptions()
 	exs := make([]string, numExceptions)
 	last := m.Exception

@@ -2853,7 +2853,11 @@ func applySpecifics(lookup map[Name]Type, tmpl Type) (Type, bool) {
 				for n, t := range lookup {
 					bs.Define(n, asValue(t))
 				}
-				m := NewMachine("", nil)
+				m := NewMachineWithOptions(MachineOptions{
+					PkgPath:            "",
+					Store:              nil,
+					BoundedPanicRender: true,
+				})
 				// Parse generic to expr.
 				gx := m.MustParseExpr(string(generic))
 				gx = Preprocess(nil, bs, gx).(Expr)

@@ -49,6 +49,10 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+	// BoundedPanicRender gates makeUnhandledPanicError to use the
+	// bounded printer (see bounded_strings.go). True on validator-
+	// side Machines; false for filetests, REPL, etc.
+	BoundedPanicRender bool
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -82,6 +86,14 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
+	// the bounded printer (see bounded_strings.go) so adversarial
+	// panic values (huge strings, deeply-nested composites, etc.)
+	// produce output capped at BoundedRenderBytes rather than
+	// allocating proportional to source size. Set true on every
+	// validator-side Machine; default false preserves the existing
+	// verbose render for filetests, REPL, and other trusted contexts.
+	BoundedPanicRender bool
 }
 
 const (
@@ -177,6 +189,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.BoundedPanicRender = opts.BoundedPanicRender
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -482,6 +495,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 				CallExpr: fr.Source.(*CallExpr),
 				IsDefer:  fr.IsDefer,
 				FuncLoc:  fr.Func.GetSource(m.Store).GetLocation(),
+				FuncName: stacktraceFuncName(fr),
 			})
 		}
 	}

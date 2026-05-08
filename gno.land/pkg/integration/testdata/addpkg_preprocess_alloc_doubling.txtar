@@ -1,0 +1,70 @@
+# Adversarial preprocess-time allocation: doubling-concat constants
+# fold to 2^N bytes from O(N) source bytes. The gnolang-level test
+# `TestPreprocessAlloc_DoublingConcatBlowsUpFromTinySource` exercises
+# the 500 MB byte-cap (alloc.go panic). At the integration level we
+# can't reproduce that path within the RPC WriteTimeout (~11s), since
+# allocating ~256 MB of Go heap before the cap fires takes longer.
+#
+# Instead, this txtar verifies the same protection via the per-tx
+# allocator's *gas meter*: doubling-concat through ~16 levels demands
+# ~64 KB of allocated string bytes, which charges enough preprocess
+# alloc-gas to hit a tight gas-wanted budget. The OOG panic surfaces
+# cleanly through the keeper's doRecover, the gnoland process stays
+# up, and a benign followup tx still succeeds — proving the per-tx
+# preAlloc is correctly torn down by the keeper's defer.
+
+gnoland start
+
+# Tight gas budget — doubling-concat through a16 charges enough
+# alloc-gas to OOG. Source is ~430 bytes; without the per-tx
+# preprocess allocator's gas meter, this would silently allocate
+# ~64 KB of string heap in preprocess-time const folding.
+! gnokey maketx addpkg -pkgdir $WORK/doubling -pkgpath gno.land/r/doubling -gas-fee 100000ugnot -gas-wanted 100_000 -chainid=tendermint_test test1
+stderr 'out of gas'
+
+# Node is alive — query against a fresh sequence works.
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "0"'
+stdout '"coins": "10000000000000ugnot"'
+
+# Benign tx still works. If the per-tx preAlloc had leaked from the
+# failed tx (e.g., kept on the store across the defer), this would
+# either fail with stale-state errors or charge the prior tx's gas.
+gnokey maketx addpkg -pkgdir $WORK/healthy -pkgpath gno.land/r/healthy -gas-fee 100000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stdout 'OK'
+
+-- doubling/gnomod.toml --
+module = "gno.land/r/doubling"
+gno = "0.9"
+
+-- doubling/doubling.gno --
+package doubling
+
+const a0 = "abcdefgh"
+const a1 = a0 + a0
+const a2 = a1 + a1
+const a3 = a2 + a2
+const a4 = a3 + a3
+const a5 = a4 + a4
+const a6 = a5 + a5
+const a7 = a6 + a6
+const a8 = a7 + a7
+const a9 = a8 + a8
+const a10 = a9 + a9
+const a11 = a10 + a10
+const a12 = a11 + a11
+const a13 = a12 + a12
+const a14 = a13 + a13
+const a15 = a14 + a14
+const a16 = a15 + a15
+
+func Echo() string { return a0 }
+
+-- healthy/gnomod.toml --
+module = "gno.land/r/healthy"
+gno = "0.9"
+
+-- healthy/healthy.gno --
+package healthy
+
+func Echo() string { return "ok" }
