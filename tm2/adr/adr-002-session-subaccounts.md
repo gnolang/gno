@@ -170,8 +170,13 @@ MsgRevokeAllSessions{Creator}
 - Invalid `SpendLimit` coins (negative amounts, malformed)
 
 `handleMsgCreateSession` additionally checks:
-- `ExpiresAt` in the past or beyond `MaxSessionDuration` (30 days)
-- `SpendPeriod` beyond `MaxSessionDuration`
+- `ExpiresAt` in the past or beyond `MaxSessionDuration` (~4 years).
+  `ExpiresAt = 0` ("no expiry") is exempt — the cap exists to catch bad
+  input (typos, milliseconds-vs-seconds confusion), not to enforce a hard
+  lifetime ceiling. SpendLimit is the authoritative bound on damage from
+  long-lived sessions.
+- `SpendPeriod` beyond `MaxSpendPeriod` (30 days). Independent of
+  `MaxSessionDuration`: a session can outlive any single spend window.
 - Session key address collides with existing regular account
 - Duplicate session key
 - Session count exceeds `MaxSessionsPerAccount` (16)
@@ -275,10 +280,10 @@ isSession)` using a local `pathRestricted` interface to read
   is authoritative across every outflow (bank-keeper hook + storage
   deposit hook), this is safe even when the session can call
   arbitrary attacker-deployed realms.
-- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8), and
-  `MaxSessionDuration` (30 days) are compile-time constants in
-  `tm2/pkg/std/account.go`, not tunable params. Changing them
-  requires a coordinated upgrade of all nodes.
+- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8),
+  `MaxSessionDuration` (~4 years), and `MaxSpendPeriod` (30 days) are
+  compile-time constants in `tm2/pkg/std/account.go`, not tunable params.
+  Changing them requires a coordinated upgrade of all nodes.
 
 ## References
 

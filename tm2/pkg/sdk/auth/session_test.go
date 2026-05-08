@@ -1047,16 +1047,16 @@ func TestSessionSpendPeriodValidation(t *testing.T) {
 	ctx := env.ctx
 	h := NewHandler(env.acck, env.gk)
 
-	t.Run("SpendPeriod exceeds MaxSessionDuration rejected by handler", func(t *testing.T) {
+	t.Run("SpendPeriod exceeds MaxSpendPeriod rejected by handler", func(t *testing.T) {
 		_, spub, _ := tu.KeyTestPubAddr()
 		msg := MsgCreateSession{
 			Creator:     masterAddr,
 			SessionKey:  spub,
 			ExpiresAt:   ctx.BlockTime().Unix() + 3600,
-			SpendPeriod: std.MaxSessionDuration + 1,
+			SpendPeriod: std.MaxSpendPeriod + 1,
 		}
 		res := h.Process(ctx, msg)
-		assert.False(t, res.IsOK(), "should reject spend_period > MaxSessionDuration")
+		assert.False(t, res.IsOK(), "should reject spend_period > MaxSpendPeriod")
 		assert.Contains(t, res.Log, "spend_period exceeds maximum")
 	})
 

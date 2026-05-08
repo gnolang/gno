@@ -190,10 +190,10 @@ tm2 unaware of AllowPaths as a concept.
   is authoritative across all outflows (see "Spend limit enforcement"
   above), this is safe even when the session can call arbitrary
   attacker-deployed realms.
-- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8), and
-  `MaxSessionDuration` (30 days) are compile-time constants in
-  `tm2/pkg/std/account.go`, not tunable params. Changing them
-  requires a coordinated upgrade of all nodes.
+- `MaxSessionsPerAccount` (16), `MaxAllowPathsPerSession` (8),
+  `MaxSessionDuration` (~4 years), and `MaxSpendPeriod` (30 days) are
+  compile-time constants in `tm2/pkg/std/account.go`, not tunable params.
+  Changing them requires a coordinated upgrade of all nodes.
 
 ## References
 

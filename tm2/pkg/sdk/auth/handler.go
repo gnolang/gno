@@ -79,10 +79,10 @@ func (ah authHandler) handleMsgCreateSession(ctx sdk.Context, msg MsgCreateSessi
 			"too many sessions: count=%d, max=%d", count, std.MaxSessionsPerAccount)))
 	}
 	// Check SpendPeriod max.
-	if msg.SpendPeriod > std.MaxSessionDuration {
+	if msg.SpendPeriod > std.MaxSpendPeriod {
 		return abciResult(std.ErrUnauthorized(fmt.Sprintf(
 			"spend_period exceeds maximum: got=%d, max=%d",
-			msg.SpendPeriod, std.MaxSessionDuration)))
+			msg.SpendPeriod, std.MaxSpendPeriod)))
 	}
 	// Check AllowPaths count.
 	if len(msg.AllowPaths) > std.MaxAllowPathsPerSession {
