@@ -1,4 +1,4 @@
-package keyscli
+package client
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -102,7 +101,7 @@ func execSessionRevoke(cfg *SessionRevokeCfg, args []string, io commands.IO) err
 	}
 
 	if cfg.RootCfg.RootCfg.Broadcast {
-		err := client.ExecSignAndBroadcast(cfg.RootCfg.RootCfg, args, tx, io)
+		err := ExecSignAndBroadcast(cfg.RootCfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}

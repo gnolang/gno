@@ -1,19 +1,17 @@
-package keyscli
+package client
 
 import (
 	"context"
 	"flag"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
 
-// Note: If session accounts need to be used independent of gno.land, this may need to be moved to tm2/pkg/crypto/keys/client.
 type SessionCfg struct {
-	RootCfg *client.MakeTxCfg
+	RootCfg *MakeTxCfg
 }
 
-func NewSessionCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
+func NewSessionCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
 	cfg := &SessionCfg{
 		RootCfg: rootCfg,
 	}

@@ -63,6 +63,7 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		NewMakeSendCmd(cfg, io),
+		NewSessionCmd(cfg, io),
 	)
 
 	return cmd
