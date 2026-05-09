@@ -245,6 +245,51 @@ func (msg MockMsgSend) SpendForSigner(signer crypto.Address) std.Coins {
 	return msg.Amount
 }
 
+// MockMsgMultiSend mimics bank.MsgMultiSend for testing session allowlist
+// behavior. Each input contributes a signer (matching the real msg's
+// GetSigners semantics).
+type MockMsgMultiSend struct {
+	Inputs  []MockBankInput
+	Outputs []MockBankOutput
+}
+
+type MockBankInput struct {
+	Address crypto.Address
+	Coins   std.Coins
+}
+
+type MockBankOutput struct {
+	Address crypto.Address
+	Coins   std.Coins
+}
+
+var _ std.Msg = MockMsgMultiSend{}
+
+func (msg MockMsgMultiSend) Route() string        { return "bank" }
+func (msg MockMsgMultiSend) Type() string         { return "multisend" }
+func (msg MockMsgMultiSend) ValidateBasic() error { return nil }
+func (msg MockMsgMultiSend) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+func (msg MockMsgMultiSend) GetSigners() []crypto.Address {
+	addrs := make([]crypto.Address, len(msg.Inputs))
+	for i, in := range msg.Inputs {
+		addrs[i] = in.Address
+	}
+	return addrs
+}
+
+// SpendForSigner sums the coins of all inputs whose Address matches signer.
+func (msg MockMsgMultiSend) SpendForSigner(signer crypto.Address) std.Coins {
+	var total std.Coins
+	for _, in := range msg.Inputs {
+		if in.Address == signer {
+			total = total.Add(in.Coins)
+		}
+	}
+	return total
+}
+
 // NewSessionTestTx creates a tx signed by a session key with SessionAddr set.
 func NewSessionTestTx(
 	t *testing.T,

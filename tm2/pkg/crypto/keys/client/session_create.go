@@ -70,7 +70,7 @@ func (c *SessionCreateCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.AllowPaths,
 		"allow-paths",
-		"realm path prefixes (optional; omitted = unrestricted)",
+		"per-msg restrictions (REQUIRED, repeatable). Use '*' for unrestricted, or list specific entries: vm/exec:gno.land/r/foo, vm/run, bank/send, bank/multisend",
 	)
 
 	fs.StringVar(
@@ -108,12 +108,12 @@ func execSessionCreate(cfg *SessionCreateCfg, args []string, io commands.IO) err
 	if cfg.SpendPeriod < 0 {
 		return errors.New("spend-period must be non-negative")
 	}
-	for _, p := range cfg.AllowPaths {
-		if p == "" {
-			return errors.New("--allow-paths entries must be non-empty")
-		}
-		if strings.HasSuffix(p, "/") {
-			return fmt.Errorf("--allow-paths entry %q has trailing slash", p)
+	if len(cfg.AllowPaths) == 0 {
+		return errors.New("--allow-paths is required (use '*' for unrestricted, or list entries like vm/exec:gno.land/r/foo, bank/send)")
+	}
+	for i, p := range cfg.AllowPaths {
+		if err := validateAllowPathsEntryShape(p); err != nil {
+			return fmt.Errorf("--allow-paths[%d] %q: %w", i, p, err)
 		}
 	}
 
@@ -261,4 +261,37 @@ func parseDurationSeconds(s string) (int64, bool) {
 		return math.MinInt64, true
 	}
 	return int64(secs), true
+}
+
+// validateAllowPathsEntryShape is a CLI-side shape check for one
+// --allow-paths entry. It enforces only the structural grammar
+// ("*" or <route>/<type>[:<path>]); the chain enforces which
+// route_types are real (e.g. "vm/foo" passes here but is rejected
+// at create-time).
+//
+// Catches common typos at the CLI: bare "bank" (missing /), trailing
+// slash, empty path after ':', extra slashes in the route_type, and
+// "*" with a path suffix.
+func validateAllowPathsEntryShape(s string) error {
+	if s == "" {
+		return errors.New("entry is empty")
+	}
+	if s == "*" {
+		return nil
+	}
+	if strings.HasSuffix(s, "/") {
+		return errors.New("entry must not end with /")
+	}
+	routeType, path, hasPath := strings.Cut(s, ":")
+	if routeType == "*" {
+		return errors.New("wildcard '*' must not have a path suffix")
+	}
+	parts := strings.Split(routeType, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return errors.New("expected '*' or <route>/<type>[:<path>] (e.g. vm/exec:gno.land/r/foo, bank/send)")
+	}
+	if hasPath && path == "" {
+		return errors.New("path after ':' must be non-empty")
+	}
+	return nil
 }

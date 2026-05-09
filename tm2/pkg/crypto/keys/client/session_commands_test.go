@@ -52,8 +52,7 @@ func setupSessionTestEnv(t *testing.T) sessionTestEnv {
 // Note: ParseAndRun must be called before reading out.String(), because Go
 // evaluates a multi-return statement left-to-right and the buffer is empty
 // until ParseAndRun finishes.
-func runSessionCmd(t *testing.T, kbHome string, args ...string) (string, error) {
-	t.Helper()
+func runSessionCmd(kbHome string, args ...string) (string, error) {
 	io := commands.NewTestIO()
 	out := &bytes.Buffer{}
 	io.SetOut(commands.WriteNopCloser(out))
@@ -71,27 +70,33 @@ func runSessionCmd(t *testing.T, kbHome string, args ...string) (string, error) 
 	return out.String(), err
 }
 
-// sessionTest is a single table entry. mutate may be nil for the unmodified
-// happy-path case.
+// sessionTest is a single table entry. baseArgs builds the minimal valid
+// invocation against the env's master/session keys; mutate (optional) modifies
+// the args; wantStdout (optional) lists substrings expected in stdout. The
+// function-of-env signatures let each subtest run in parallel against its own
+// fresh keybase.
 type sessionTest struct {
 	name        string
+	baseArgs    func(env sessionTestEnv) []string
 	mutate      func([]string) []string
 	wantErr     error
 	wantErrText string
-	wantStdout  []string
+	wantStdout  func(env sessionTestEnv) []string
 }
 
-// runSessionTests drives the tests against env.kbHome. Subtests run sequentially
-// to avoid leveldb lock contention on the shared keybase.
-func runSessionTests(t *testing.T, env sessionTestEnv, baseArgs func() []string, tests []sessionTest) {
+// runSessionTests drives each test in parallel against its own fresh keybase
+// (to avoid leveldb lock contention while keeping outer t.Parallel valid).
+func runSessionTests(t *testing.T, tests []sessionTest) {
 	t.Helper()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := baseArgs()
+			t.Parallel()
+			env := setupSessionTestEnv(t)
+			args := tc.baseArgs(env)
 			if tc.mutate != nil {
 				args = tc.mutate(args)
 			}
-			out, err := runSessionCmd(t, env.kbHome, args...)
+			out, err := runSessionCmd(env.kbHome, args...)
 			switch {
 			case tc.wantErr != nil:
 				assert.ErrorIs(t, err, tc.wantErr)
@@ -100,8 +105,10 @@ func runSessionTests(t *testing.T, env sessionTestEnv, baseArgs func() []string,
 			default:
 				require.NoError(t, err)
 			}
-			for _, want := range tc.wantStdout {
-				assert.Contains(t, out, want)
+			if tc.wantStdout != nil {
+				for _, want := range tc.wantStdout(env) {
+					assert.Contains(t, out, want)
+				}
 			}
 		})
 	}
@@ -154,53 +161,103 @@ func TestSession_HelpExec(t *testing.T) {
 
 	// `maketx session` with no subcommand should print help and return
 	// flag.ErrHelp (matches every other parent-only dispatching command).
-	_, err := runSessionCmd(t, env.kbHome, "maketx", "session")
+	_, err := runSessionCmd(env.kbHome, "maketx", "session")
 	assert.ErrorIs(t, err, flag.ErrHelp)
+}
+
+// createBaseArgs / revokeBaseArgs / revokeAllBaseArgs build the minimal valid
+// invocation for each session subcommand. Used by sessionTest entries; each
+// subtest gets a fresh env so these are evaluated per-subtest (parallel-safe).
+func createBaseArgs(env sessionTestEnv) []string {
+	return []string{
+		"maketx", "session", "create",
+		"--gas-wanted", "100000",
+		"--gas-fee", "1ugnot",
+		"--pubkey", env.sessionPubkey,
+		"--expires-at", "24h",
+		"--allow-paths", "*",
+		"--broadcast=false",
+		env.masterName,
+	}
+}
+
+func revokeBaseArgs(env sessionTestEnv) []string {
+	return []string{
+		"maketx", "session", "revoke",
+		"--gas-wanted", "100000",
+		"--gas-fee", "1ugnot",
+		"--pubkey", env.sessionPubkey,
+		"--broadcast=false",
+		env.masterName,
+	}
+}
+
+func revokeAllBaseArgs(env sessionTestEnv) []string {
+	return []string{
+		"maketx", "session", "revokeall",
+		"--gas-wanted", "100000",
+		"--gas-fee", "1ugnot",
+		"--broadcast=false",
+		env.masterName,
+	}
+}
+
+// addMasterFlag mutates args to append "--master <some-name>". The actual name
+// doesn't matter — the CLI rejects --master on session-lifecycle commands
+// before resolving the name.
+func addMasterFlag(a []string) []string {
+	return append(a, "--master", "anymaster")
 }
 
 func TestSession_Create(t *testing.T) {
 	t.Parallel()
-	env := setupSessionTestEnv(t)
-
-	baseArgs := func() []string {
-		return []string{
-			"maketx", "session", "create",
-			"--gas-wanted", "100000",
-			"--gas-fee", "1ugnot",
-			"--pubkey", env.sessionPubkey,
-			"--expires-at", "24h",
-			"--broadcast=false",
-			env.masterName,
-		}
-	}
-
-	runSessionTests(t, env, baseArgs, []sessionTest{
+	runSessionTests(t, []sessionTest{
 		{
-			name:       "happy path prints unsigned tx JSON",
-			wantStdout: []string{`"@type":"/auth.m_create_session"`, env.masterAddr, `"expires_at":`},
+			name:     "happy path with wildcard allow-paths",
+			baseArgs: createBaseArgs,
+			wantStdout: func(env sessionTestEnv) []string {
+				return []string{`"@type":"/auth.m_create_session"`, env.masterAddr, `"expires_at":`, `"allow_paths":["*"]`}
+			},
 		},
 		{
-			name:    "no positional arg returns help",
-			mutate:  dropPositional,
-			wantErr: flag.ErrHelp,
+			name:        "missing --allow-paths rejected",
+			baseArgs:    createBaseArgs,
+			mutate:      dropFlag("--allow-paths"),
+			wantErrText: "--allow-paths is required",
+		},
+		{
+			name:        "wildcard with path rejected",
+			baseArgs:    createBaseArgs,
+			mutate:      setFlag("--allow-paths", "*:gno.land/r/foo"),
+			wantErrText: "wildcard '*' must not have a path suffix",
+		},
+		{
+			name:     "no positional arg returns help",
+			baseArgs: createBaseArgs,
+			mutate:   dropPositional,
+			wantErr:  flag.ErrHelp,
 		},
 		{
 			name:        "missing gas-wanted",
+			baseArgs:    createBaseArgs,
 			mutate:      dropFlag("--gas-wanted"),
 			wantErrText: "gas-wanted not specified",
 		},
 		{
 			name:        "missing gas-fee",
+			baseArgs:    createBaseArgs,
 			mutate:      dropFlag("--gas-fee"),
 			wantErrText: "gas-fee not specified",
 		},
 		{
 			name:        "missing pubkey",
+			baseArgs:    createBaseArgs,
 			mutate:      dropFlag("--pubkey"),
 			wantErrText: "pubkey must be specified",
 		},
 		{
-			name: "negative spend-period",
+			name:     "negative spend-period",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
 				return append(a, "--spend-period", "-1")
 			},
@@ -208,26 +265,31 @@ func TestSession_Create(t *testing.T) {
 		},
 		{
 			name:        "expires-at required",
+			baseArgs:    createBaseArgs,
 			mutate:      dropFlag("--expires-at"),
 			wantErrText: "--expires-at is required",
 		},
 		{
 			name:        "expires-at exceeds cap",
+			baseArgs:    createBaseArgs,
 			mutate:      setFlag("--expires-at", "1461d"),
 			wantErrText: "exceeds chain max",
 		},
 		{
 			name:       "expires-at none accepted",
+			baseArgs:   createBaseArgs,
 			mutate:     setFlag("--expires-at", "none"),
-			wantStdout: []string{`"@type":"/auth.m_create_session"`},
+			wantStdout: func(_ sessionTestEnv) []string { return []string{`"@type":"/auth.m_create_session"`} },
 		},
 		{
 			name:        "invalid pubkey bech32",
+			baseArgs:    createBaseArgs,
 			mutate:      setFlag("--pubkey", "not-a-pubkey"),
 			wantErrText: "unable to parse public key from bech32",
 		},
 		{
-			name: "non-existent master key",
+			name:     "non-existent master key",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
 				a[len(a)-1] = "nonexistent"
 				return a
@@ -235,59 +297,92 @@ func TestSession_Create(t *testing.T) {
 			wantErrText: "Key nonexistent not found",
 		},
 		{
-			name: "spend-limit and allow-paths flow into JSON",
+			name:     "spend-limit and allow-paths flow into JSON",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
-				return append(a, "--spend-limit", "1000ugnot", "--allow-paths", "gno.land/r/foo")
+				a = setFlag("--allow-paths", "vm/exec:gno.land/r/foo")(a)
+				return append(a, "--spend-limit", "1000ugnot")
 			},
-			wantStdout: []string{
-				`"spend_limit":"1000ugnot"`,
-				`"allow_paths":["gno.land/r/foo"]`,
+			wantStdout: func(_ sessionTestEnv) []string {
+				return []string{`"spend_limit":"1000ugnot"`, `"allow_paths":["vm/exec:gno.land/r/foo"]`}
 			},
 		},
 		{
-			name: "multiple allow-paths accumulate",
+			name:     "multiple allow-paths accumulate",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
-				return append(a, "--allow-paths", "gno.land/r/a", "--allow-paths", "gno.land/r/b")
+				a = setFlag("--allow-paths", "vm/exec:gno.land/r/a")(a)
+				return append(a, "--allow-paths", "bank/send")
 			},
-			wantStdout: []string{`"allow_paths":["gno.land/r/a","gno.land/r/b"]`},
+			wantStdout: func(_ sessionTestEnv) []string {
+				return []string{`"allow_paths":["vm/exec:gno.land/r/a","bank/send"]`}
+			},
 		},
 		{
-			name: "empty allow-paths entry rejected",
+			name:     "empty allow-paths entry rejected",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
 				return append(a, "--allow-paths", "")
 			},
-			wantErrText: "--allow-paths entries must be non-empty",
+			wantErrText: "entry is empty",
 		},
 		{
-			name: "allow-paths trailing slash rejected",
+			name:     "allow-paths trailing slash rejected",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
-				return append(a, "--allow-paths", "gno.land/r/foo/")
+				return append(a, "--allow-paths", "vm/exec:gno.land/r/foo/")
 			},
-			wantErrText: "trailing slash",
+			wantErrText: "must not end with /",
 		},
 		{
-			name: "explicit spend-period 0 with spend-limit (lifetime cap)",
+			name:     "bare 'bank' rejected (missing /)",
+			baseArgs: createBaseArgs,
+			mutate: func(a []string) []string {
+				return append(a, "--allow-paths", "bank")
+			},
+			wantErrText: "<route>/<type>",
+		},
+		{
+			name:     "empty path after colon rejected",
+			baseArgs: createBaseArgs,
+			mutate: func(a []string) []string {
+				return append(a, "--allow-paths", "vm/exec:")
+			},
+			wantErrText: "path after ':' must be non-empty",
+		},
+		{
+			name:     "extra slash in route_type rejected",
+			baseArgs: createBaseArgs,
+			mutate: func(a []string) []string {
+				return append(a, "--allow-paths", "vm/exec/extra")
+			},
+			wantErrText: "<route>/<type>",
+		},
+		{
+			name:     "explicit spend-period 0 with spend-limit (lifetime cap)",
+			baseArgs: createBaseArgs,
 			mutate: func(a []string) []string {
 				return append(a, "--spend-limit", "1000ugnot", "--spend-period", "0")
 			},
 			// SpendPeriod has json:",omitempty" so 0 is omitted; SpendLimit appears.
-			wantStdout: []string{`"spend_limit":"1000ugnot"`},
+			wantStdout: func(_ sessionTestEnv) []string { return []string{`"spend_limit":"1000ugnot"`} },
 		},
 		{
 			name:        "expires-at 0 rejected",
+			baseArgs:    createBaseArgs,
 			mutate:      setFlag("--expires-at", "0"),
 			wantErrText: "must be a positive duration",
 		},
 		{
 			name:        "expires-at bare integer rejected (missing unit)",
+			baseArgs:    createBaseArgs,
 			mutate:      setFlag("--expires-at", "24"),
 			wantErrText: "must be a future unix timestamp",
 		},
 		{
-			name: "--master rejected on session create",
-			mutate: func(a []string) []string {
-				return append(a, "--master", env.masterName)
-			},
+			name:        "--master rejected on session create",
+			baseArgs:    createBaseArgs,
+			mutate:      addMasterFlag,
 			wantErrText: "--master cannot be used with session create/revoke/revokeall",
 		},
 	})
@@ -295,49 +390,42 @@ func TestSession_Create(t *testing.T) {
 
 func TestSession_Revoke(t *testing.T) {
 	t.Parallel()
-	env := setupSessionTestEnv(t)
-
-	baseArgs := func() []string {
-		return []string{
-			"maketx", "session", "revoke",
-			"--gas-wanted", "100000",
-			"--gas-fee", "1ugnot",
-			"--pubkey", env.sessionPubkey,
-			"--broadcast=false",
-			env.masterName,
-		}
-	}
-
-	runSessionTests(t, env, baseArgs, []sessionTest{
+	runSessionTests(t, []sessionTest{
 		{
-			name:       "happy path prints unsigned tx JSON",
-			wantStdout: []string{`"@type":"/auth.m_revoke_session"`, env.masterAddr},
+			name:     "happy path prints unsigned tx JSON",
+			baseArgs: revokeBaseArgs,
+			wantStdout: func(env sessionTestEnv) []string {
+				return []string{`"@type":"/auth.m_revoke_session"`, env.masterAddr}
+			},
 		},
 		{
-			name:    "no positional arg returns help",
-			mutate:  dropPositional,
-			wantErr: flag.ErrHelp,
+			name:     "no positional arg returns help",
+			baseArgs: revokeBaseArgs,
+			mutate:   dropPositional,
+			wantErr:  flag.ErrHelp,
 		},
 		{
 			name:        "missing gas-wanted",
+			baseArgs:    revokeBaseArgs,
 			mutate:      dropFlag("--gas-wanted"),
 			wantErrText: "gas-wanted not specified",
 		},
 		{
 			name:        "missing pubkey",
+			baseArgs:    revokeBaseArgs,
 			mutate:      dropFlag("--pubkey"),
 			wantErrText: "pubkey must be specified",
 		},
 		{
 			name:        "invalid pubkey bech32",
+			baseArgs:    revokeBaseArgs,
 			mutate:      setFlag("--pubkey", "not-a-pubkey"),
 			wantErrText: "unable to parse public key from bech32",
 		},
 		{
-			name: "--master rejected on session revoke",
-			mutate: func(a []string) []string {
-				return append(a, "--master", env.masterName)
-			},
+			name:        "--master rejected on session revoke",
+			baseArgs:    revokeBaseArgs,
+			mutate:      addMasterFlag,
 			wantErrText: "--master cannot be used with session create/revoke/revokeall",
 		},
 	})
@@ -345,43 +433,36 @@ func TestSession_Revoke(t *testing.T) {
 
 func TestSession_RevokeAll(t *testing.T) {
 	t.Parallel()
-	env := setupSessionTestEnv(t)
-
-	baseArgs := func() []string {
-		return []string{
-			"maketx", "session", "revokeall",
-			"--gas-wanted", "100000",
-			"--gas-fee", "1ugnot",
-			"--broadcast=false",
-			env.masterName,
-		}
-	}
-
-	runSessionTests(t, env, baseArgs, []sessionTest{
+	runSessionTests(t, []sessionTest{
 		{
-			name:       "happy path prints unsigned tx JSON",
-			wantStdout: []string{`"@type":"/auth.m_revoke_all_sessions"`, env.masterAddr},
+			name:     "happy path prints unsigned tx JSON",
+			baseArgs: revokeAllBaseArgs,
+			wantStdout: func(env sessionTestEnv) []string {
+				return []string{`"@type":"/auth.m_revoke_all_sessions"`, env.masterAddr}
+			},
 		},
 		{
-			name:    "no positional arg returns help",
-			mutate:  dropPositional,
-			wantErr: flag.ErrHelp,
+			name:     "no positional arg returns help",
+			baseArgs: revokeAllBaseArgs,
+			mutate:   dropPositional,
+			wantErr:  flag.ErrHelp,
 		},
 		{
 			name:        "missing gas-wanted",
+			baseArgs:    revokeAllBaseArgs,
 			mutate:      dropFlag("--gas-wanted"),
 			wantErrText: "gas-wanted not specified",
 		},
 		{
 			name:        "missing gas-fee",
+			baseArgs:    revokeAllBaseArgs,
 			mutate:      dropFlag("--gas-fee"),
 			wantErrText: "gas-fee not specified",
 		},
 		{
-			name: "--master rejected on session revokeall",
-			mutate: func(a []string) []string {
-				return append(a, "--master", env.masterName)
-			},
+			name:        "--master rejected on session revokeall",
+			baseArgs:    revokeAllBaseArgs,
+			mutate:      addMasterFlag,
 			wantErrText: "--master cannot be used with session create/revoke/revokeall",
 		},
 	})
