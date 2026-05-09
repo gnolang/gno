@@ -147,12 +147,16 @@ const (via the `debug` build tag):
   (`PreprocessEnter` / `Block` / `Block2` / `Leave`).
 - `consumePreprocessGas`: on a code with zero calibrated cost —
   **debug: panic** with an actionable message naming the uncalibrated
-  code; **non-debug: charge `preprocessDefaultGasCost`** (2000 ns).
+  code; **non-debug: charge `preprocessDefaultGasCost`**.
 
-The default cost is chosen on the high side of the observed cost
-distribution so hitting the fallback is never cheaper than hitting a
-properly-calibrated code — a calibration gap cannot be exploited as an
-under-charge DoS vector.
+The fallback is **derived at package init from the table itself**:
+`preprocessDefaultGasCost = max(preprocessGasCosts) × 1.2`. This makes
+the safety invariant self-maintaining — re-calibrating the table
+automatically lifts the fallback if a code now exceeds it, so a
+calibration gap can never become cheaper than the heaviest real visit
+and therefore can never be exploited as an under-charge DoS vector.
+A unit test (`TestPreprocessDefaultGasCostInvariant`) guards the
+property against future hand-coded constants.
 
 In the happy path (all codes calibrated), neither panic fires and neither
 fallback is taken, so the behavior is identical in debug and non-debug

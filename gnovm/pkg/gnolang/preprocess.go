@@ -35,9 +35,30 @@ func SetPreprocessTiming(on bool) { preprocessTiming = on }
 
 // preprocessDefaultGasCost is charged in non-debug builds for any
 // preprocess op without a calibrated cost (debug panics instead).
-// Set on the high side so a calibration gap is never cheaper than a
-// properly-calibrated code — closes an under-charge DoS surface.
-const preprocessDefaultGasCost store.Gas = 2000
+//
+// INVARIANT: this MUST be >= max(preprocessGasCosts) so a calibration
+// gap is never cheaper than the heaviest calibrated visit — closes an
+// under-charge DoS surface. The value is computed at package init from
+// the table itself (plus a small headroom), so the invariant is
+// self-maintaining: re-calibrating the table automatically lifts the
+// fallback if any code now exceeds it.
+var preprocessDefaultGasCost store.Gas
+
+// preprocessDefaultGasHeadroomBps is the multiplier applied on top of
+// the table maximum when deriving preprocessDefaultGasCost. 12000 bps
+// (1.2×) gives ~20% margin so jitter on the heaviest code can't cause
+// the fallback to drift below it after a re-calibration.
+const preprocessDefaultGasHeadroomBps store.Gas = 12000
+
+func init() {
+	var maxCost store.Gas
+	for _, c := range preprocessGasCosts {
+		if c > maxCost {
+			maxCost = c
+		}
+	}
+	preprocessDefaultGasCost = maxCost * preprocessDefaultGasHeadroomBps / 10000
+}
 
 // preprocessGasCosts maps each PreprocessOp to its gas cost in
 // nanoseconds (same convention as upstream's CPU gas constants;
