@@ -1,30 +1,26 @@
 #!/usr/bin/env python3
 """
-Generate preprocess gas table for GnoVM Preprocess pass from Go benchmarks.
+Generate preprocess gas table from per-op Go benchmarks.
 
-Mirrors gen_native_table.py (native function gas) and gen_alloc_table.py
-(allocation gas). Reads `go test -bench=BenchmarkPreprocess_Corpus` output,
-medians per-code timings across `-count=N` runs, and prints:
+Mirrors gen_native_table.py / gen_analysis.py. Reads
+`go test -bench=BenchmarkPreprocess -count=N` output, where each
+benchmark is parameterized by visit count via b.Run("N=…"), and
+extracts per-construct cost as the slope of ns/op(pure) over N.
 
-  - preprocess_gas_formulas.md  — markdown table of medians per code
-  - preprocess_gas_table.go.txt — Go-pasteable preprocessGasCosts entries
+Convention: 1 gas = 1 ns on reference hardware. Each preprocess code
+is charged `slope` per visit. The slope captures the cost of the
+target construct including any tightly-coupled sibling visits in
+the source builder — over-attribution direction is DoS-safe.
 
-Convention: 1 gas = 1 ns on reference hardware. Each preprocess code is
-charged "flat" per visit (one constant, no parameters) — bigger source
-just produces more visits, not bigger per-visit work.
-
-Hardware normalization: if you calibrated on a non-reference host, scale
-each value by the median Xeon/host ratio measured across the flat
-reference benchmarks (BenchmarkOpAdd_Int, OpSub_Int, OpEql_Int,
-OpMul_Int, OpLand) — see op_bench_analysis.txt for the Xeon side.
+Hardware normalization: pass --scale=<f> to multiply each ns by f
+when calibrating on a non-reference host (e.g. SCALE=1.5 for Apple
+M1 Pro → Xeon 8168).
 
 Usage:
     cd gnovm/cmd/calibrate
-    go test -run=NONE -bench=BenchmarkPreprocess_Corpus \
-        -benchtime=1000x -count=3 ../../pkg/gnolang/ \
-        > preprocess_bench_output.txt
+    go test -run=NONE -bench=BenchmarkPreprocess -benchtime=200x \
+        -count=3 ../../pkg/gnolang/ > preprocess_bench_output.txt
     python3 gen_preprocess_table.py preprocess_bench_output.txt
-    # Optional: scale for non-Xeon host
     python3 gen_preprocess_table.py preprocess_bench_output.txt --scale 1.5
 """
 import argparse
@@ -34,83 +30,164 @@ from collections import defaultdict
 from statistics import median
 
 
-# Matches one per-code metric: e.g. "       456.7 ns/PreprocessLeaveStructTypeExpr"
-METRIC_RE = re.compile(r'(\d+(?:\.\d+)?)\s+ns/(Preprocess\w+)')
+# Matches one bench line:
+#   BenchmarkPreprocessLeaveStructTypeExpr/N=8-10  200  1234.56 ns/op  ...  789.01 ns/op(pure)
+# We capture the bench name, the N value, and ns/op(pure).
+LINE_RE = re.compile(
+    r'^(BenchmarkPreprocess(\w+))/N=(\d+)-\d+\s+\d+\s+'
+    r'.*?(\d+(?:\.\d+)?)\s+ns/op\(pure\)'
+)
+# For benches that don't use b.Run sub-tests (flat / N=1-only):
+#   BenchmarkPreprocessLeaveFileNode-10  200  ...  789.01 ns/op(pure)
+FLAT_LINE_RE = re.compile(
+    r'^(BenchmarkPreprocess(\w+))-\d+\s+\d+\s+'
+    r'.*?(\d+(?:\.\d+)?)\s+ns/op\(pure\)'
+)
 
 
 def parse_bench(path):
-    """Return {code_name: [ns_per_visit, ...]} across all benchmark runs."""
-    samples = defaultdict(list)
+    """Return {code_name: {N: [ns_pure, ...]}} across all -count runs."""
+    samples = defaultdict(lambda: defaultdict(list))
     with open(path) as f:
         for line in f:
-            if not line.lstrip().startswith('BenchmarkPreprocess'):
-                continue
-            for m in METRIC_RE.finditer(line):
-                ns = float(m.group(1))
+            m = LINE_RE.match(line)
+            if m:
                 code = m.group(2)
-                samples[code].append(ns)
+                n = int(m.group(3))
+                ns = float(m.group(4))
+                samples[code][n].append(ns)
+                continue
+            m = FLAT_LINE_RE.match(line)
+            if m:
+                code = m.group(2)
+                ns = float(m.group(3))
+                # Flat bench → record as N=1.
+                samples[code][1].append(ns)
     return samples
 
 
-# Codes referenced in preprocessGasCosts that are NOT exercised by the
-# corpus benchmark (no real-world stdlib loaded in benchMachine). Each
-# is approximated from a structurally similar measured code.
-APPROXIMATIONS = {
-    'PreprocessEnterImportDecl': ('PreprocessBlockFileNode', 'one-shot file-level work'),
-    'PreprocessLeaveImportDecl': ('PreprocessBlockFileNode', 'one-shot file-level work'),
-    'PreprocessLeaveConstExpr':  ('PreprocessLeaveBasicLitExpr', 'leaf-valued expression'),
-}
+def least_squares(points):
+    """Fit y = a + b*x. Returns (a, b, r2). Same math as gen_analysis.py."""
+    n = len(points)
+    if n < 2:
+        return (points[0][1] if points else 0.0, 0.0, 1.0)
+    sx = sum(x for x, y in points)
+    sy = sum(y for x, y in points)
+    sxx = sum(x * x for x, y in points)
+    sxy = sum(x * y for x, y in points)
+    denom = n * sxx - sx * sx
+    if abs(denom) < 1e-10:
+        return (sy / n, 0.0, 1.0)
+    b = (n * sxy - sx * sy) / denom
+    a = (sy - b * sx) / n
+    y_mean = sy / n
+    ss_tot = sum((y - y_mean) ** 2 for x, y in points)
+    ss_res = sum((y - (a + b * x)) ** 2 for x, y in points)
+    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 1.0
+    return (a, b, r2)
 
 
-def emit_table(medians, scale, out_go, out_md):
-    """Write Go snippet + Markdown formula doc."""
-    # Stable order: alphabetical by code name (matches existing source style).
-    codes = sorted(medians.keys())
+def fit_code(per_n):
+    """Given {N: [ns, ...]}, return (slope_ns, r2, n_points).
 
-    with open(out_go, 'w') as g, open(out_md, 'w') as md:
+    Median across -count runs at each N, then least-squares fit.
+    For a flat bench (only N=1), the "slope" is the ns/op value itself.
+    """
+    points = []
+    for n, samples in sorted(per_n.items()):
+        med = median(samples)
+        points.append((n, med))
+    if len(points) == 1:
+        # Flat: treat the single value as the cost.
+        return (points[0][1], 1.0, 1)
+    _, slope, r2 = least_squares(points)
+    return (slope, r2, len(points))
+
+
+# All dispatcher codes (PreprocessEnter / Block / Block2 / Leave) are now
+# measured directly via BenchmarkPreprocess{Enter,Block,Block2,Leave}.
+# No donor approximations are needed.
+APPROXIMATIONS = {}
+
+
+def emit(samples, scale, out_go, out_md):
+    fits = {}
+    for code, per_n in samples.items():
+        slope, r2, n_pts = fit_code(per_n)
+        fits[code] = (slope * scale, r2, n_pts)
+
+    codes = sorted(fits.keys())
+
+    with open(out_go, 'w') as g:
         g.write(
-            "// Code generated by gen_preprocess_table.py from preprocess_bench_*.txt.\n"
+            "// Code generated by gen_preprocess_table.py from "
+            "preprocess_bench_*.txt.\n"
             "// 1 gas = 1 ns on reference hardware (Intel Xeon Platinum 8168).\n"
-            "// All preprocess codes use a flat per-visit cost; see\n"
-            "// preprocess_gas_formulas.md for derivation.\n"
+            "// Each preprocess code's cost is the slope of ns/op(pure) over\n"
+            "// visit count N from BenchmarkPreprocess<Code> (per-construct\n"
+            "// cost; see preprocess_gas_formulas.md for derivation).\n"
             "var preprocessGasCosts = [256]store.Gas{\n"
         )
+        for code in codes:
+            slope, _, _ = fits[code]
+            gas = max(1, int(round(slope)))
+            g.write(f"\tbm.Preprocess{code+':':38s} {gas},\n")
+        # Approximations.
+        if APPROXIMATIONS:
+            g.write("\n")
+            for code, (donor, why) in APPROXIMATIONS.items():
+                if donor not in fits:
+                    continue
+                slope, _, _ = fits[donor]
+                gas = max(1, int(round(slope)))
+                g.write(
+                    f"\tbm.Preprocess{code+':':38s} {gas},"
+                    f" // ≈ bm.Preprocess{donor} ({why})\n"
+                )
+        g.write("}\n")
 
+    with open(out_md, 'w') as md:
         md.write(
             "# Preprocess Gas Formulas\n\n"
-            "Generated by `gen_preprocess_table.py`. 1 gas = 1 ns on reference hardware.\n"
-            "Every preprocess code is charged \"flat\" per visit — bigger source produces\n"
-            "more visits, not bigger per-visit work.\n\n"
+            "Generated by `gen_preprocess_table.py`. 1 gas = 1 ns on reference\n"
+            "hardware. Each preprocess code's cost is the slope of\n"
+            "`ns/op(pure)` over the per-construct visit count `N` reported by\n"
+            "`BenchmarkPreprocess<Code>/N=…`. The slope is the per-construct\n"
+            "cost: it captures the target visit plus any tightly-coupled\n"
+            "sibling visits the source builder produces (e.g. a struct type\n"
+            "alias also fires `FieldTypeExpr` and `NameExpr` visits). This\n"
+            "over-attribution direction is DoS-safe — production gas is\n"
+            "slightly higher than the physical per-visit cost.\n\n"
             f"Scale factor applied: ×{scale} (host → Xeon-equivalent).\n\n"
-            "| Code | Shape | Gas (ns) | Source |\n"
-            "|---|---|---:|---|\n"
+            "| Code | Slope (gas/N) | R² | N points | Source |\n"
+            "|---|---:|---:|---:|---|\n"
         )
-
         for code in codes:
-            vals = medians[code]
-            ns = median(vals) * scale
-            gas = max(1, int(round(ns)))
-            g.write(f"\tbm.{code+':':37s} {gas},\n")
-            md.write(f"| `{code}` | flat | {gas} | measured (n={len(vals)}) |\n")
-
-        # Approximated entries.
-        for code, (donor, why) in APPROXIMATIONS.items():
-            if donor not in medians:
-                continue
-            ns = median(medians[donor]) * scale
-            gas = max(1, int(round(ns)))
-            g.write(f"\tbm.{code+':':37s} {gas}, // ≈ bm.{donor} ({why})\n")
-            md.write(f"| `{code}` | flat | {gas} | ≈ `{donor}` ({why}) |\n")
-
-        g.write("}\n")
+            slope, r2, n_pts = fits[code]
+            gas = max(1, int(round(slope)))
+            md.write(
+                f"| `Preprocess{code}` | {gas} | {r2:.3f} | {n_pts} |"
+                " measured |\n"
+            )
+        if APPROXIMATIONS:
+            for code, (donor, why) in APPROXIMATIONS.items():
+                if donor not in fits:
+                    continue
+                slope, _, _ = fits[donor]
+                gas = max(1, int(round(slope)))
+                md.write(
+                    f"| `Preprocess{code}` | {gas} | — | — |"
+                    f" ≈ `Preprocess{donor}` ({why}) |\n"
+                )
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('bench_file')
     ap.add_argument('--scale', type=float, default=1.0,
-                    help='Multiply each ns value by this factor before rounding '
-                         '(e.g. 1.5 for Apple M1 → Xeon 8168). Default 1.0.')
+                    help='Multiply each ns value by this factor before '
+                         'rounding (e.g. 1.5 for Apple M1 → Xeon 8168). '
+                         'Default 1.0.')
     ap.add_argument('--out-go', default='preprocess_gas_table.go.txt')
     ap.add_argument('--out-md', default='preprocess_gas_formulas.md')
     args = ap.parse_args()
@@ -118,15 +195,19 @@ def main():
     samples = parse_bench(args.bench_file)
     if not samples:
         sys.stderr.write(
-            f"No 'ns/Preprocess*' metrics found in {args.bench_file}.\n"
-            "Run: go test -run=NONE -bench=BenchmarkPreprocess_Corpus "
-            "-benchtime=1000x -count=3 ./gnovm/pkg/gnolang/ > <file>\n"
+            f"No 'BenchmarkPreprocess<Code>' lines found in "
+            f"{args.bench_file}.\n"
+            "Run: go test -run=NONE -bench=BenchmarkPreprocess "
+            "-benchtime=200x -count=3 ./gnovm/pkg/gnolang/ > <file>\n"
         )
         sys.exit(1)
 
-    emit_table(samples, args.scale, args.out_go, args.out_md)
-    print(f"Wrote {args.out_go} ({len(samples)} measured codes, "
-          f"{len(APPROXIMATIONS)} approximated).")
+    emit(samples, args.scale, args.out_go, args.out_md)
+    n_meas = len(samples)
+    n_approx = sum(1 for _, (donor, _) in APPROXIMATIONS.items()
+                   if donor in samples)
+    print(f"Wrote {args.out_go} ({n_meas} measured codes, "
+          f"{n_approx} approximated).")
     print(f"Wrote {args.out_md}.")
 
 
