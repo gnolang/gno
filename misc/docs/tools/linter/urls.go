@@ -44,7 +44,11 @@ func extractUrls(fileContent []byte) []string {
 				// placeholder for examples
 				!strings.Contains(url, "example.land") &&
 				// deployment-specific hosts whose uptime is not a CI concern
-				!strings.Contains(url, "staging.gno.land") {
+				!strings.Contains(url, "staging.gno.land") &&
+				// archive.org subdomains rate-limit and intermittently 502
+				// from CI runners; the canonical Aaron Swartz Manifesto URL
+				// lives there and its reachability is not a CI concern.
+				!strings.Contains(url, "archive.org") {
 				urls = append(urls, url)
 			}
 		}

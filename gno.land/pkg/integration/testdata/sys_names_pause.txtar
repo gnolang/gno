@@ -1,0 +1,126 @@
+# End-to-end test of r/sys/names emergency-pause flow.
+#
+# Verifies:
+#   1. Pre-pause: PA-namespace deploys succeed (verifier !enabled returns true).
+#   2. T1 GovDAO member proposes pause; vote passes; execute succeeds.
+#   3. After execution, IsPaused reports true.
+#   4. Idempotency: re-proposing pause panics at proposal-creation.
+#   5. T1 member proposes unpause; vote passes; execute succeeds.
+#   6. After unpause, IsPaused reports false.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/sys/names
+loadpkg gno.land/r/sys/users
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# Initialize GovDAO members so we can drive proposals. test1 becomes a
+# T1 member, eligible to vote on pause proposals (which are T1-tier).
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# Propose pause via GovDAO (T1 tier).
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_pause.gno
+stdout OK!
+
+# Vote YES + execute.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test test1
+stdout OK!
+# Lock in PreviousRealm semantics for the same-package non-crossing call
+# inside setPaused: cb (declared in r/sys/names) crosses in from r/gov/dao,
+# then calls setPaused (non-crossing). Inside setPaused the realm-context
+# must be unchanged, so PreviousRealm().PkgPath() == "gno.land/r/gov/dao".
+# Regression guard: if non-crossing same-package calls ever start shifting
+# the realm-context, by= would flip to "gno.land/r/sys/names" and this
+# assertion would fail.
+stdout '\{"type":"NamespaceEnforcementPaused","attrs":\[\{"key":"by","value":"gno\.land/r/gov/dao"\}\],"pkg_path":"gno\.land/r/sys/names"\}'
+
+# Verify the pause took effect: IsPaused returns true.
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test test1 $WORK/run/verify_paused.gno
+stdout OK!
+
+# Idempotency: trying to propose pause again must panic at proposal
+# creation time (the realm's paused state already matches v=true).
+! gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_pause.gno
+stderr 'paused state already matches'
+
+# Now propose unpause. Vote + execute.
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unpause.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 1 -chainid=tendermint_test test1
+stdout OK!
+# Same regression guard as above, mirrored for the unpause event.
+stdout '\{"type":"NamespaceEnforcementUnpaused","attrs":\[\{"key":"by","value":"gno\.land/r/gov/dao"\}\],"pkg_path":"gno\.land/r/sys/names"\}'
+
+# Verify unpause took effect.
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test test1 $WORK/run/verify_unpaused.gno
+stdout OK!
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/v3/init"
+
+func main() {
+	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/propose_pause.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/names"
+)
+
+func main() {
+	r := names.ProposeSetPaused(true)
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/propose_unpause.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/names"
+)
+
+func main() {
+	r := names.ProposeSetPaused(false)
+	dao.MustCreateProposal(cross, r)
+}
+
+-- run/verify_paused.gno --
+package main
+
+import "gno.land/r/sys/names"
+
+func main() {
+	if !names.IsPaused() {
+		panic("expected IsPaused() to be true after pause executed")
+	}
+}
+
+-- run/verify_unpaused.gno --
+package main
+
+import "gno.land/r/sys/names"
+
+func main() {
+	if names.IsPaused() {
+		panic("expected IsPaused() to be false after unpause executed")
+	}
+}

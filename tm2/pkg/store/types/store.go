@@ -130,6 +130,14 @@ type CommitStore interface {
 	Store
 }
 
+// InitialVersionSetter is implemented by CommitStores whose committed
+// version can be initialized to a non-zero value. Used by InitChain to
+// align multistore version with chain height when InitialHeight > 1.
+// Stores that don't merkleize (e.g. dbadapter) need not implement this.
+type InitialVersionSetter interface {
+	SetInitialVersion(version int64)
+}
+
 // Used by MultiStores to mount a new store.
 type CommitStoreConstructor func(db dbm.DB, opts StoreOptions) CommitStore
 

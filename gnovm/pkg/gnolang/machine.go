@@ -1403,14 +1403,14 @@ const (
 	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
-	OpCPUSlopeEqlArray        = 141 // per element (fit: 141.2)
-	OpCPUSlopeEqlStruct       = 136 // per field (fit: 136.0)
 	OpCPUSlopeStructType      = 30  // per field (fit: 30.1)
 	OpCPUSlopeInterfaceType   = 27  // per method (fit: 26.6)
 	OpCPUSlopeFuncType        = 22  // per param+result (fit: 22.3)
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
+	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
 	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
 	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
@@ -1539,7 +1539,9 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUCall)
 			m.doOpCall()
 		case OpCallNativeBody:
-			m.incrCPU(OpCPUCallNativeBody)
+			// Per-native gas is charged inside doOpCallNativeBody via
+			// chargeNativeGas (uses the calibrated table or, for natives
+			// not in the table, falls back to OpCPUCallNativeBody flat).
 			m.doOpCallNativeBody()
 		case OpReturn:
 			m.incrCPU(OpCPUReturn)
@@ -1562,7 +1564,7 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.incrCPU(OpCPUPanic2)
 			m.doOpPanic2()
 		case OpCallDeferNativeBody:
-			m.incrCPU(OpCPUCallDeferNativeBody)
+			// Per-native gas charged inside doOpCallDeferNativeBody.
 			m.doOpCallDeferNativeBody()
 		case OpGo:
 			panic("goroutines are not yet supported")
@@ -2455,6 +2457,12 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
+// "tainted" here is loose: most failures are not the sticky N_Readonly
+// bit but the contextual ownership check (tvoid.PkgID != m.Realm.ID) —
+// i.e., the target is owned by a realm different from the one currently
+// executing. Either way, going through a method or crossing function
+// re-enters via PushFrameCall, whose implicit borrow-realm switch (or
+// hard cross-call) lines m.Realm up with the target's owner.
 func readonlyAccessPanic(x Expr) string {
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
