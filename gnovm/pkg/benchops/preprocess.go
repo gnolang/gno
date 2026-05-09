@@ -1,5 +1,7 @@
 package benchops
 
+import "time"
+
 // PreprocessOp represents a preprocess operation for benchmarking.
 // One code is emitted per TransStage (TRANS_ENTER/BLOCK/BLOCK2/LEAVE)
 // visit of each relevant node type. Used to derive preprocess gas
@@ -164,4 +166,83 @@ func PreprocessCodeString(code PreprocessOp) string {
 		return invalidPreprocessCode
 	}
 	return preprocessCodeNames[code]
+}
+
+// ---- Preprocess timing ----
+//
+// Independent from the VM op timeline. The stack supports recursive
+// Preprocess calls (sub-tree re-preprocess during constant folding,
+// etc.).
+
+var (
+	preprocessCounts   [256]int64
+	preprocessAccumDur [256]time.Duration
+	preprocessStack    []preprocessFrame
+)
+
+// preprocessFrame is one stack entry: the current code and its
+// resume time.
+type preprocessFrame struct {
+	code  PreprocessOp
+	start time.Time
+}
+
+// StartPreprocess begins timing a preprocess op, pausing any outer
+// op currently being timed.
+func StartPreprocess(code PreprocessOp) {
+	if code == PreprocessOpInvalid {
+		panic("the PreprocessOp is invalid")
+	}
+	now := time.Now()
+	// Pause outer preprocess measurement, if any.
+	if n := len(preprocessStack); n > 0 {
+		outer := &preprocessStack[n-1]
+		if outer.start != measure.timeZero {
+			preprocessAccumDur[outer.code] += now.Sub(outer.start)
+			outer.start = measure.timeZero
+		}
+	}
+	preprocessStack = append(preprocessStack, preprocessFrame{
+		code:  code,
+		start: now,
+	})
+	preprocessCounts[code]++
+}
+
+// StopPreprocess finalizes the current preprocess op. Any outer
+// paused preprocess op is resumed.
+func StopPreprocess() {
+	now := time.Now()
+	n := len(preprocessStack)
+	if n == 0 {
+		return
+	}
+	f := preprocessStack[n-1]
+	preprocessStack = preprocessStack[:n-1]
+	if f.start != measure.timeZero {
+		preprocessAccumDur[f.code] += now.Sub(f.start)
+	}
+	// Resume outer frame.
+	if n2 := len(preprocessStack); n2 > 0 {
+		preprocessStack[n2-1].start = now
+	}
+}
+
+// PreprocessAccumDur returns the accumulated duration for a
+// preprocess code.
+func PreprocessAccumDur(code PreprocessOp) time.Duration {
+	return preprocessAccumDur[code]
+}
+
+// PreprocessCount returns the invocation count for a preprocess code.
+func PreprocessCount(code PreprocessOp) int64 {
+	return preprocessCounts[code]
+}
+
+// ResetPreprocess clears all preprocess timing state. Typically
+// called from a benchmark's setup before b.ResetTimer().
+func ResetPreprocess() {
+	preprocessCounts = [256]int64{}
+	preprocessAccumDur = [256]time.Duration{}
+	preprocessStack = nil
 }
