@@ -27,6 +27,7 @@ type (
 	GasContext             = types.GasContext
 	DepthEstimator         = types.DepthEstimator
 	Checkpointable         = types.Checkpointable
+	InitialVersionSetter   = types.InitialVersionSetter
 )
 
 var (

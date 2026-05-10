@@ -2,6 +2,8 @@ package testing
 
 func setSysParamStrings(module, submodule, name string, value []string)
 func setSysParamBool(module, submodule, name string, value bool)
+func setSysParamUint64(module, submodule, name string, value uint64)
+func setSysParamInt64(module, submodule, name string, value int64)
 
 // SetSysParamStrings seeds a []string-typed param in the test
 // store, bypassing the realm-caller gate that production
@@ -18,4 +20,16 @@ func SetSysParamStrings(module, submodule, name string, value []string) {
 // SetSysParamStrings.
 func SetSysParamBool(module, submodule, name string, value bool) {
 	setSysParamBool(module, submodule, name, value)
+}
+
+// SetSysParamUint64 seeds a uint64-typed param in the test store.
+// See SetSysParamStrings.
+func SetSysParamUint64(module, submodule, name string, value uint64) {
+	setSysParamUint64(module, submodule, name, value)
+}
+
+// SetSysParamInt64 seeds an int64-typed param in the test store.
+// See SetSysParamStrings.
+func SetSysParamInt64(module, submodule, name string, value int64) {
+	setSysParamInt64(module, submodule, name, value)
 }

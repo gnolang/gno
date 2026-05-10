@@ -152,6 +152,18 @@ type GnoGenesisState struct {
 	Auth     auth.GenesisState `json:"auth"`
 	Bank     bank.GenesisState `json:"bank"`
 	VM       vm.GenesisState   `json:"vm"`
+	// Chain upgrade fields
+	PastChainIDs  []string `json:"past_chain_ids,omitempty"` // Allowlist of chain IDs valid for historical tx signature verification
+	InitialHeight int64    `json:"initial_height,omitempty"` // Block height to start from after genesis replay
+	// GasReplayMode controls how historical txs (metadata.BlockHeight > 0) are
+	// metered during replay. Valid values:
+	//   "" or "strict" — use the new VM's gas meter (default; may fail txs
+	//       that worked on the source chain if gas requirements changed)
+	//   "source"       — bypass the new gas meter for historical txs; they
+	//       execute with unlimited gas and the response records
+	//       metadata.GasUsed from the source chain. This preserves the
+	//       historical outcome even if the VM's gas metering changed.
+	GasReplayMode string `json:"gas_replay_mode,omitempty"`
 }
 
 type TxWithMetadata struct {
@@ -160,7 +172,22 @@ type TxWithMetadata struct {
 }
 
 type GnoTxMetadata struct {
-	Timestamp int64 `json:"timestamp"`
+	Timestamp   int64               `json:"timestamp"`
+	BlockHeight int64               `json:"block_height,omitempty"` // Original block height for historical tx replay
+	ChainID     string              `json:"chain_id,omitempty"`     // Originating chain ID, populated by tx-archive export
+	Failed      bool                `json:"failed,omitempty"`       // True if tx had non-zero return code on source chain
+	SignerInfo  []SignerAccountInfo `json:"signer_info,omitempty"`  // Per-signer account metadata for signature verification
+	GasUsed     int64               `json:"gas_used,omitempty"`     // Gas consumed on source chain (used when GasReplayMode="source")
+	GasWanted   int64               `json:"gas_wanted,omitempty"`   // Gas requested on source chain (informational / report)
+}
+
+// SignerAccountInfo records a signer's account number and sequence at the time
+// a historical tx was executed on the source chain. Used during hardfork replay
+// to force-set account state so signatures verify correctly.
+type SignerAccountInfo struct {
+	Address    crypto.Address `json:"address"`
+	AccountNum uint64         `json:"account_num"` // Stable, never changes once assigned
+	Sequence   uint64         `json:"sequence"`    // Pre-tx sequence (value used in GetSignBytes)
 }
 
 // ReadGenesisTxs reads the genesis txs from the given file path

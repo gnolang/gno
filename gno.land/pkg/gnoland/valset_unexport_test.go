@@ -15,12 +15,17 @@ import (
 //
 // This is the C1 regression test: it locks the realm's public surface
 // to a known allow-list. Any change (new export, renamed export,
-// re-exposed `NewValsetChangeExecutor`, etc.) fails this test and
-// forces a deliberate update — better than a reject-list which would
-// silently miss `NewValsetChangeExecutor2`/`MakeValsetExecutor`/etc.
+// re-introducing a top-level executor like the legacy
+// `NewValsetChangeExecutor`) fails this test and forces a deliberate
+// update — better than a reject-list which would silently miss
+// `NewValsetChangeExecutor2`/`MakeValsetExecutor`/etc.
 //
-// The unexported `newValsetChangeExecutor` is checked separately:
-// it MUST be present (catches "deleted instead of renamed" regression).
+// The operator-keyed builder + executor live in proposal.gno
+// (NewValidatorProposalRequest + newValoperChangeExecutor); the
+// signing-keyed legacy NewProposalRequest was removed (every valid
+// signing-keyed input is also a valid operator-keyed input under
+// always-on valoper enforcement). Tests against proposal.gno cover
+// the executor's lifecycle.
 func TestValsetExportedSurface(t *testing.T) {
 	t.Parallel()
 
@@ -39,18 +44,13 @@ func TestValsetExportedSurface(t *testing.T) {
 	}
 
 	allowedExports := map[string]bool{
-		"NewProposalRequest": true,
-		"IsValidator":        true,
-		"GetValidator":       true,
-		"GetValidators":      true,
-		"Render":             true,
+		"IsValidator":   true,
+		"GetValidator":  true,
+		"GetValidators": true,
+		"Render":        true,
 	}
 
-	requiredUnexported := map[string]bool{
-		"newValsetChangeExecutor": true,
-	}
-
-	var gotExported, gotUnexported []string
+	var gotExported []string
 	for _, decl := range f.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Recv != nil { // skip methods
@@ -59,8 +59,6 @@ func TestValsetExportedSurface(t *testing.T) {
 		name := fn.Name.Name
 		if ast.IsExported(name) {
 			gotExported = append(gotExported, name)
-		} else if requiredUnexported[name] {
-			gotUnexported = append(gotUnexported, name)
 		}
 	}
 	sort.Strings(gotExported)
@@ -82,21 +80,6 @@ func TestValsetExportedSurface(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("expected exported function %q missing from validators.gno", name)
-		}
-	}
-
-	// Required-unexported check.
-	for name := range requiredUnexported {
-		found := false
-		for _, g := range gotUnexported {
-			if g == name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("required unexported function %q missing from validators.gno "+
-				"(C1 regression: was it deleted instead of renamed from NewValsetChangeExecutor?)", name)
 		}
 	}
 }

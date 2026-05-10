@@ -9,21 +9,24 @@ gnoland start
 # Add user as a member for govdao
 gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
-# add a valoper with a bad address
+# add a valoper with a bad operator address (not the caller's). The
+# post-genesis squat guard rejects: OriginCaller (test1) != addr.
 ! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args 1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
-stderr 'panic: invalid address'
+stderr 'caller must equal operator address'
 
-# add a valoper with a bad pubkey
+# add a valoper with a bad pubkey. The operator address (test1's own)
+# passes the squat guard; chain.PubKeyAddress then errors on the
+# corrupted pubkey.
 ! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40zzz -chainid=tendermint_test test1
 stderr 'panic: invalid checksum'
 
-# add a valoper. The Address arg below is the canonical (pubkey-
-# derived) consensus address — chain.PubKeyAddress(<the pubkey>) ==
-# g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5. v3.NewProposalRequest
-# rejects mismatches between Validator.Address and
-# PubKeyAddress(Validator.PubKey) so the description and consensus
-# can never disagree about which validator is being added.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 2500001ugnot -gas-wanted 25_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
+# add a valoper. The address arg is the test1 user's address (=
+# operator) and matches OriginCaller, so the squat guard passes.
+# The pubkey is the consensus signing key; chain.PubKeyAddress(pubKey)
+# derives g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 (= operator addr
+# in this test by coincidence). v3's executor resolves operator ->
+# signing-key via valoperCache at proposal-execute time.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 4000001ugnot -gas-wanted 40_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in the Render
@@ -35,7 +38,7 @@ stdout '\* \[berty\]'
 stderr 'panic: valoper does not exist'
 
 # make a proposal
-gnokey maketx run  -gas-fee 4400001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test test1 $WORK/run/new_proposal_good.gno
+gnokey maketx run  -gas-fee 6000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/new_proposal_good.gno
 stdout OK!
 
 # see the valoper in gov/dao Render
@@ -43,7 +46,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'Add valoper berty'
 
 # make a proposal for updating instructions
-gnokey maketx run  -gas-fee 3500001ugnot -gas-wanted 35_000_000 -chainid=tendermint_test test1 $WORK/run/new_instructions_proposal.gno
+gnokey maketx run  -gas-fee 6000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/new_instructions_proposal.gno
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
@@ -54,9 +57,12 @@ stdout 'new instructions'
 gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 36_000_000 -chainid=tendermint_test test1 $WORK/run/new_minfee_proposal.gno
 stdout OK!
 
-# see the instructions in gov/dao proposition Render
+# see the instructions in gov/dao proposition Render. minFee
+# governance now flows through the generic sys/params factory; the
+# proposal description is the standard one keyed on
+# node:valoper:register_fee.
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
-stdout 'Update the minimum register fee to: 1000000 ugnot'
+stdout 'node:valoper:register_fee'
 
 -- run/load_user.gno --
 package main

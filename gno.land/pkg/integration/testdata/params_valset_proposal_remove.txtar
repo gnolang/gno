@@ -17,6 +17,7 @@ stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 
@@ -26,7 +27,7 @@ gnoland start
 
 # === PROPOSAL 0: ADD VALIDATOR ===
 
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
@@ -73,22 +74,22 @@ stdout OK!
 package main
 
 import (
-	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	v3 "gno.land/r/sys/validators/v3"
 )
 
 func main() {
 	const (
-		addAddr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
-		addPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+		memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+		addPubKey  = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	)
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{Address: address(addAddr), PubKey: addPubKey, VotingPower: 1},
-		}
-	}
-	pr := v3.NewProposalRequest(changesFn, "Add e2e-test-validator", "")
+	valopers.Register(cross, "remove-test-validator", "remove flow regression", "cloud", address(memberAddr), addPubKey)
+
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 1}},
+		"Add e2e-test-validator", "",
+	)
 	dao.MustCreateProposal(cross, pr)
 }
 
@@ -96,24 +97,20 @@ func main() {
 package main
 
 import (
-	pVals "gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 	v3 "gno.land/r/sys/validators/v3"
 )
 
 func main() {
-	// Same pubkey/address as the add proposal. VotingPower=0 signals
-	// removal to v3's NewValsetChangeExecutor callback (validators.gno
-	// line ~102).
-	const (
-		removeAddr = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
+	// Same operator as the add proposal. Power=0 signals removal;
+	// v3's executor resolves operator -> signing addr via cache and
+	// drops that entry from the effective set.
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 0}},
+		"Remove e2e-test-validator", "",
 	)
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{Address: address(removeAddr), VotingPower: 0},
-		}
-	}
-	pr := v3.NewProposalRequest(changesFn, "Remove e2e-test-validator", "")
 	dao.MustCreateProposal(cross, pr)
 }
 
