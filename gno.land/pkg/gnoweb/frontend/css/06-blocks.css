@@ -751,8 +751,8 @@
 	text-decoration: none;
 	font-weight: var(--g-font-medium);
 	transition:
-		background-color var(--g-transition-duration) var(--g-transition-timing),
-		border-color var(--g-transition-duration) var(--g-transition-timing);
+		background-color var(--g-transition-fast),
+		border-color var(--g-transition-fast);
 
 	&:hover {
 		background-color: color-mix(
@@ -785,7 +785,7 @@
 .b-link--muted {
 	color: var(--s-color-text-tertiary);
 	text-decoration: none;
-	transition: color var(--g-transition-duration) var(--g-transition-timing);
+	transition: color var(--g-transition-fast);
 
 	&:hover {
 		color: var(--s-color-text-link);
@@ -2626,25 +2626,24 @@ main.dev-mode .b-toc a {
 	}
 }
 
-/* State page H1 — long structured titles ("Object ff61a2…b998:11")
-   look awkward centred via the global rule, especially when they
-   wrap on narrow viewports. Scoped via `body:has(.b-state-page)`
-   so the rule fires regardless of sibling order (sub-header may
-   or may not be present between header and explorer). */
+/* `display: contents` removes the element from layout while leaving
+   its children in place — used here as a scope for the controller. */
+.b-state-page {
+	display: contents;
+}
+
 body:has(.b-state-page) .b-content-h1 {
 	text-align: start;
 	word-break: break-word;
 }
 
-/* Back-arrow icon link inside the state page h1 — replaces the
-   separate breadcrumb. Tertiary at rest, link on hover. */
 .b-content-h1 .back-link {
 	display: inline-flex;
 	align-items: center;
 	color: var(--s-color-text-tertiary);
 	text-decoration: none;
 	margin-inline-end: var(--g-space-2);
-	transition: color var(--g-transition-duration) var(--g-transition-timing);
+	transition: color var(--g-transition-fast);
 
 	.c-icon {
 		width: 0.7em;
@@ -2656,18 +2655,11 @@ body:has(.b-state-page) .b-content-h1 {
 	}
 }
 
-/* `align-self: start` on state-page grid items so the sidebar's
-   row-spanning height doesn't inflate the rows it contributes to —
-   without this, `.b-content-header`'s `justify-content: space-between`
-   would push H1 and `.header-info` apart vertically. */
 body:has(.b-state-page)
 :is(.b-content-header, .b-page-subheader, .b-sidebar, .b-state-explorer) {
 	align-self: start;
 }
 
-/* State header — stacks crumbs + `.b-btns` on mobile. Gap matches
-   `.b-inline-form` row register; default `.header-info { gap-12 }`
-   is sized for row layout. Scoped to spare source page headers. */
 .b-content-header .header-info:has(.b-state-history) {
 	flex-direction: column;
 	align-items: flex-start;
@@ -2680,16 +2672,10 @@ body:has(.b-state-page)
 	}
 }
 
-/* Time-travel disclosure — pins the page to a historical block height
-   via `?height=N`. Pure CSS via native <details>. */
 .b-state-history {
 	position: relative;
 	display: inline-block;
 
-	/* Trigger composes `.b-btn b-btn--secondary b-btn--input c-with-icon`;
-	   padding from shared "header form-control" register, footprint /
-	   layout from `.b-btn--input` so the disclosure renders iso the
-	   action-page select sitting beside it. */
 	& > summary {
 		list-style: none;
 		user-select: none;
@@ -2699,8 +2685,7 @@ body:has(.b-state-page)
 		}
 
 		.c-icon {
-			transition: transform var(--g-transition-duration)
-				var(--g-transition-timing);
+			transition: transform var(--g-transition-fast);
 		}
 
 		.badge {
@@ -2730,8 +2715,6 @@ body:has(.b-state-page)
 		z-index: var(--g-z-2, 20);
 		font-size: var(--g-font-size-90);
 
-		/* `<label>` + `<input>` wrap in `.b-input` — chrome from
-		   there, only the width cap is form-specific. */
 		.b-input {
 			min-width: 0;
 
@@ -2740,17 +2723,12 @@ body:has(.b-state-page)
 			}
 		}
 
-		/* Composes `.b-link--muted`; only the size delta lives here. */
 		.clear {
 			font-size: var(--g-font-size-80);
 		}
 	}
 }
 
-/* Segmented Pretty/Tree toggle. Pill padding from the shared header
-   form-control register. Active label lifts to `bg-base-dev` to match
-   the dev-mode page bg — "lifted out of the strip" effect without
-   painting a different surface. */
 .b-state-view-toggle {
 	display: inline-flex;
 	align-items: stretch;
@@ -2771,8 +2749,8 @@ body:has(.b-state-page)
 		font-size: var(--g-font-size-100);
 		user-select: none;
 		transition:
-			background-color var(--g-transition-duration) var(--g-transition-timing),
-			color var(--g-transition-duration) var(--g-transition-timing);
+			background-color var(--g-transition-fast),
+			color var(--g-transition-fast);
 
 		&:hover {
 			background-color: var(--s-color-bg-surface-primary);
@@ -2786,8 +2764,6 @@ body:has(.b-state-page)
 	}
 }
 
-/* Raw view hidden by default; revealed by the toggle. `position:
-   relative` anchors the absolute `.tree-toolbar` floating top-right. */
 .b-state-explorer .view-tree {
 	display: none;
 	position: relative;
@@ -2800,9 +2776,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	display: block;
 }
 
-/* Tiny tertiary label register — shared across state explorer's
-   inner labels (fields-head columns, value-section title, audit-
-   stats title, nested-body scope). One edit ripples to all four. */
 .b-state-decl :is(.fields-head, .value-section > .title, .scope),
 .b-state-stats dt.title {
 	font-family: var(--g-font-sans, inherit);
@@ -2813,9 +2786,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	color: var(--s-color-text-tertiary);
 }
 
-/* Hover-reveal icon copy button — shared chrome across audit chips,
-   field value cells, and value-section. Each site sets its own
-   size + parent-hover reveal opacity. */
 .b-state-decl .fields .field .value-copy,
 .b-state-decl .value-section .value-copy,
 .b-state-stats button.copy {
@@ -2831,9 +2801,9 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	cursor: pointer;
 	opacity: 0;
 	transition:
-		opacity var(--g-transition-duration) var(--g-transition-timing),
-		background-color var(--g-transition-duration) var(--g-transition-timing),
-		color var(--g-transition-duration) var(--g-transition-timing);
+		opacity var(--g-transition-fast),
+		background-color var(--g-transition-fast),
+		color var(--g-transition-fast);
 
 	.c-icon {
 		width: 0.85em;
@@ -2853,22 +2823,11 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* ===== STATE DECLARATION CARD =====
- * Card-per-top-level-decl, modelled on .b-action-function (same surface,
- * radius, padding). Regions: header (name h2 + inline type + actions),
- * audit-chips strip, content (primitive value / closure source / fields
- * grid), footer CTA.
- */
+/* ===== STATE DECLARATION CARD ===== */
 .b-state-decl {
-	/* Outer chrome + header/title/h2 from the shared card-pattern
-	   rule near `.b-action-function`. State-decl-only: column flow
-	   to stack header → audit chips → content → footer CTA.
-	   `min-width: 0` lets the card shrink under flex pressure.
-	   `content-visibility: auto` lets the browser skip layout + paint
-	   for off-screen cards (huge perf win on realms with hundreds
-	   of decls). `contain-intrinsic-size: auto N` provides a stable
-	   placeholder height so the scrollbar stays accurate before
-	   each card is measured. */
+	/* `content-visibility: auto` skips layout + paint for off-screen
+	   children; `contain-intrinsic-size` reserves a placeholder height
+	   so the scrollbar stays accurate before the element is measured. */
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -2878,9 +2837,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 }
 
 .b-state-decl {
-	/* SVG marker slot beside a name. `vertical-align: middle` centres
-	   the icon on the x-axis instead of the baseline so it reads as
-	   "in" the text, not next to it. */
 	.kind-glyph {
 		display: inline-block;
 		width: 1em;
@@ -2896,9 +2852,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		}
 	}
 
-	/* `flex-wrap: nowrap` + `.title { min-width: 0 }`: long
-	   description inside .title would otherwise force-grow the title
-	   and push `.b-btns` onto a new line. */
 	& > header {
 		flex-wrap: nowrap;
 		gap: var(--g-space-2) var(--g-space-4);
@@ -2924,16 +2877,10 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 			min-width: 0;
 		}
 
-		/* `.description` paragraph block: force full-row so it wraps
-		   below h2/subtitle instead of fighting baseline alignment. */
 		& > .description {
 			flex: 0 0 100%;
 		}
 
-		/* Type — inline code style, identical typography to action card
-		   `.signature code`: small mono secondary text. Kind-driven
-		   color is the only visual signal; no pill chrome, no border.
-		   At lg+ shrinks to font-size-50 like action signatures. */
 		.type {
 			font-family: var(--g-font-family-mono);
 			font-size: var(--g-font-size-100);
@@ -2953,8 +2900,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 			}
 		}
 
-		/* Composes `.b-link--muted`; only the responsive size shrink
-		   to match action card's `.signature` is local. */
 		.srclink {
 			font-size: var(--g-font-size-100);
 
@@ -2968,12 +2913,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		flex-shrink: 0;
 	}
 
-	/* Data payload zone. Fields-grid gets a `.b-code`-like bg-base
-	   frame (matches action card delimitation). Source blocks render
-	   their own frame, so they stay on the outer surface.
-	   `overflow-x: auto` keeps the fields grid scrollable within the
-	   content zone on narrow screens — the card stays clean, only
-	   its data zone scrolls. */
 	.content {
 		min-width: 0;
 		max-width: 100%;
@@ -2983,8 +2922,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 			background-color: var(--s-color-bg-base);
 			border-radius: var(--s-rounded-sm);
 			padding: var(--g-space-2) var(--g-space-4);
-			/* Match action card rhythm: header→data-zone gap totals
-			   g-space-10 (header end-margin 4 + this 6). */
 			margin-block-start: var(--g-space-6);
 		}
 
@@ -3008,16 +2945,12 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		}
 	}
 
-	/* Pretty children — ledger-style listing. Typography of `.fields-
-	   head` comes from the shared tiny-label register; same grid as
-	   `.field` rows so labels line up. */
 	.fields-head {
 		display: grid;
 		grid-template-columns: minmax(0, 14rem) minmax(0, 14rem) minmax(0, 1fr);
 		gap: var(--g-space-2) var(--g-space-4);
 		padding: var(--g-space-2) 0;
-		border-block-end: 1px solid
-			color-mix(in srgb, currentColor 14%, transparent);
+		border-block-end: var(--s-divider-strong);
 
 		.col {
 			min-width: 0;
@@ -3033,8 +2966,8 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		min-width: 0;
 
 		.field {
-			/* `minmax(0, ...)` lets columns shrink past min-content; rows
-			   never overflow, contents truncate via ellipsis instead. */
+			/* `minmax(0, ...)` lets grid columns shrink past min-content,
+			   so long values truncate via ellipsis instead of overflowing. */
 			--field-grid: minmax(0, 14rem) minmax(0, 14rem) minmax(0, 1fr);
 
 			display: grid;
@@ -3042,15 +2975,10 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 			gap: var(--g-space-2) var(--g-space-4);
 			align-items: baseline;
 			padding: var(--g-space-3) 0;
-			border-block-end: 1px solid
-				color-mix(in srgb, currentColor 6%, transparent);
-			transition: background-color var(--g-transition-duration)
-				var(--g-transition-timing);
+			border-block-end: var(--s-divider-weak);
+			transition: background-color var(--g-transition-fast);
 			min-width: 0;
 
-			/* Branch: drop the grid on the LI; <details> takes full
-			   width and SUMMARY replicates the 3-col grid so it lines
-			   up with sibling leaf rows. */
 			&[data-shape="branch"] {
 				display: block;
 				padding: 0;
@@ -3097,8 +3025,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 				}
 			}
 
-			/* Value cell — wraps the value + copy button. Reveals
-			   the copy on row hover, lifts on direct hover. */
 			.value-cell {
 				display: inline-flex;
 				align-items: baseline;
@@ -3107,10 +3033,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 				justify-self: start;
 			}
 
-			/* Chrome shared with `.b-state-stats button.copy` and
-			   `.b-state-decl .value-section .value-copy` — see the
-			   `.b-state-copy-btn` register at the tail. Only the
-			   size + parent-hover reveal live here. */
 			.value-copy {
 				width: var(--g-space-5);
 				height: var(--g-space-5);
@@ -3148,8 +3070,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 				min-width: 0;
 				color: var(--s-color-text-secondary);
 				text-decoration: none;
-				transition: color var(--g-transition-duration)
-					var(--g-transition-timing);
+				transition: color var(--g-transition-fast);
 
 				.preview {
 					flex: 1 1 0;
@@ -3169,8 +3090,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 					font-size: var(--g-font-size-90);
 					white-space: nowrap;
 					flex-shrink: 0;
-					transition: color var(--g-transition-duration)
-						var(--g-transition-timing);
+					transition: color var(--g-transition-fast);
 				}
 
 				&:hover .action {
@@ -3179,10 +3099,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 				}
 			}
 
-			/* Nested branch — summary replicates the parent .field grid
-			   so name | type | head align with sibling leaf rows.
-			   Visual binding to parent: left rail on body + scope label
-			   (no bg-tint, would create box-within-box). */
 			.nested {
 				min-width: 0;
 				width: 100%;
@@ -3193,8 +3109,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 					gap: var(--g-space-2) var(--g-space-4);
 					align-items: baseline;
 					padding: var(--g-space-3) 0;
-					border-block-end: 1px solid
-						color-mix(in srgb, currentColor 6%, transparent);
+					border-block-end: var(--s-divider-weak);
 					cursor: pointer;
 					list-style: none;
 					min-width: 0;
@@ -3231,21 +3146,16 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 						font-size: 0.95em;
 						padding-inline: var(--g-space-2);
 						padding-block: var(--g-space-1);
-						transition: transform var(--g-transition-duration)
-							var(--g-transition-timing);
+						transition: transform var(--g-transition-fast);
 					}
 
-					/* "Inspect" surfaced when a nested branch is also
-					   a stored ref (Href + inline children) — gives a
-					   path to the dedicated page without collapsing. */
 					.open-link {
 						flex-shrink: 0;
 						color: var(--s-color-text-link);
 						font-weight: var(--g-font-semibold);
 						font-size: var(--g-font-size-80);
 						text-decoration: none;
-						transition: color var(--g-transition-duration)
-							var(--g-transition-timing);
+						transition: color var(--g-transition-fast);
 
 						&:hover {
 							color: var(--s-color-text-link-hover);
@@ -3273,8 +3183,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 						color-mix(in srgb, currentColor 14%, transparent);
 					margin-inline-start: var(--g-space-3);
 
-					/* "Fields of <name>" / "Keys of …" — labels the
-					   nested values. Typography from shared register. */
 					.scope {
 						padding: var(--g-space-2) 0 var(--g-space-1);
 
@@ -3297,8 +3205,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		}
 	}
 
-	/* Footer CTA — composes `b-btn b-btn--ghost` in the template.
-	   Only in-card layout + inner pieces live here. */
 	.cta {
 		align-self: end;
 		gap: var(--g-space-2);
@@ -3322,9 +3228,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Audit chips — horizontal strip of labelled facts (OID, Owner,
-   Hash, Size, Refs, Mod). Wraps over 1-2 rows; chip = inline label +
-   value pair. Label typography from shared tiny-label register. */
 .b-state-stats {
 	margin: 0;
 	padding: 0;
@@ -3378,11 +3281,8 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		}
 	}
 
-	/* CSS-only tooltip — same visual language as the `.realm-view
-	   .tooltip` component (bg-base, s-border-secondary, padding 2/1)
-	   so the design stays cohesive across the site. Mounted on
-	   `dd.value` (which has no overflow:hidden, unlike `.text`) so
-	   the pseudo isn't clipped. */
+	/* Tooltip mounted on `dd.value` (no `overflow:hidden`, unlike
+	   `.text`) so the absolutely-positioned pseudo isn't clipped. */
 	dd.value[data-tooltip]:hover::after,
 	dd.value[data-tooltip]:focus-within::after {
 		content: attr(data-tooltip);
@@ -3401,8 +3301,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		pointer-events: none;
 	}
 
-	/* Chrome from shared copy-btn register; only this site's padding
-	   override + parent-hover reveal live here. */
 	button.copy {
 		padding: var(--g-space-px);
 	}
@@ -3412,9 +3310,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Leaf value presentation — typed colours so devs scan "42"/"true"/
-   "alice" by shape. Applies to card values (`.b-state-decl .value`)
-   and tree rows (`.b-state-explorer .val`). */
 .b-state-decl .value,
 .b-state-explorer .val {
 	font-family: var(--g-font-family-mono);
@@ -3454,7 +3349,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Bool true/false — semantic green/warning accent via data-value. */
 .b-state-decl .value[data-type="bool"][data-value="true"],
 .b-state-explorer .val[data-type="bool"][data-value="true"] {
 	background-color: var(
@@ -3473,10 +3367,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	color: var(--s-color-text-warning);
 }
 
-/* Primitive value section — mirrors the action card's `.params` /
-   `.b-code` register exactly. Section header is `.title` font-size-50
-   uppercase (same as PARAMS/COMMAND), value sits in a bg-base framed
-   block with the standard `font-size-100` mono register. */
 .b-state-decl .value-section {
 	display: flex;
 	flex-direction: column;
@@ -3493,7 +3383,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		gap: var(--g-space-3);
 		padding: var(--g-space-2) var(--g-space-3);
 		background-color: var(--s-color-bg-base);
-		border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+		border: var(--s-divider);
 		border-radius: var(--s-rounded-sm);
 	}
 
@@ -3512,8 +3402,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		color: var(--s-color-text-info);
 	}
 
-	/* Chrome from shared copy-btn register; this section's slightly
-	   larger icon emphasises the prominent payload. */
 	.value-copy {
 		width: var(--g-space-6);
 		height: var(--g-space-6);
@@ -3529,35 +3417,19 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Sidebar audit-meta dl. Aside, TOC list reuse the shared `.b-sidebar`
-   + `.b-toc`. Rows: block-stacked (long OIDs/hashes) or `.inline`
-   (short numerics). Mono values truncate head…tail with full value
-   in title + click-to-copy. */
+/* ===== SIDEBAR AUDIT-META ===== */
 .b-state-meta {
 	margin: 0 0 var(--g-space-6) 0;
 	font-size: var(--g-font-size-90);
 	display: flex;
 	flex-direction: column;
 
-	/* Section heading — dominates the row labels below it.
-	   Sentence-case primary text instead of small-caps tertiary
-	   so the hierarchy reads correctly (section > label > value). */
 	dt.section {
-		color: var(--s-color-text-primary);
-		font-weight: var(--g-font-semibold);
-		font-size: var(--g-font-size-100);
-		margin-block: var(--g-space-4) var(--g-space-2);
-		padding-block-end: var(--g-space-1);
-		border-block-end: 1px solid color-mix(in srgb, currentColor 8%, transparent);
-
 		&:first-child {
 			margin-block-start: 0;
 		}
 	}
 
-	/* All rows are inline (label left, value right). Mono values
-	   (OID, Hash, Owner, Path) use `truncOID` head…tail truncation
-	   in the template so they fit on one line. */
 	.row {
 		display: flex;
 		flex-direction: row;
@@ -3583,8 +3455,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		line-height: 1.4;
 		min-width: 0;
 		text-align: end;
-		/* Allow long non-mono values (Realm path, Type ID) to wrap
-		   onto multiple lines rather than overflow the sidebar. */
 		overflow-wrap: anywhere;
 	}
 
@@ -3594,10 +3464,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		color: var(--s-color-text-secondary);
 	}
 
-	/* Block variant — value drops to its own row beneath the label,
-	   taking full sidebar width. For long human-readable values
-	   (realm paths) that don't fit comfortably right-aligned next
-	   to the label. */
 	.row.block {
 		flex-direction: column;
 		align-items: stretch;
@@ -3622,8 +3488,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		border-radius: var(--s-rounded-sm);
 		padding: 0 var(--g-space-1);
 		margin-inline-start: calc(-1 * var(--g-space-1));
-		transition: background-color var(--g-transition-duration)
-			var(--g-transition-timing);
+		transition: background-color var(--g-transition-fast);
 
 		&:hover {
 			background-color: var(--s-color-bg-hover);
@@ -3632,13 +3497,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Tree toolbar — `.b-inline-btn c-with-icon` buttons absolutely
-   positioned in the top-right of `.view-tree`. Inside `.view-tree`
-   so it inherits the hide-in-Pretty CSS — no extra `:has(:checked)`. */
 .b-state-explorer .view-tree {
-	/* Same register as `.b-content-header .header-info` so the toolbar
-	   buttons (Copy / Expand all) read at the same scale + colour as
-	   source page header actions (Copy / Download). */
 	.tree-toolbar {
 		position: absolute;
 		top: var(--g-space-3);
@@ -3650,11 +3509,8 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		font-size: var(--g-font-size-100);
 	}
 
-	/* Toggle-all chevron rotates 180° when expanded — same icon
-	   visually flips from "unfold" to "fold". */
 	.b-inline-btn[aria-pressed] .c-icon {
-		transition: transform var(--g-transition-duration)
-			var(--g-transition-timing);
+		transition: transform var(--g-transition-fast);
 	}
 
 	.b-inline-btn[aria-pressed="true"] .c-icon {
@@ -3662,11 +3518,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Generic page subheader — 4-col grid for filter-tabs + search,
-   laid out under `.b-content-header`. Iso `.b-packages > nav`.
-   Compose `<nav class="b-page-subheader">` on any page that needs
-   it. At lg+ the subheader takes row 2 cols 1-7 alongside the
-   sidebar (which extends to span 3 rows via the rule below). */
 .b-page-subheader {
 	grid-column: 1 / -1;
 	align-self: start;
@@ -3676,10 +3527,6 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	margin-block-end: var(--g-space-6);
 
 	@media (--md) {
-		/* Sticky at tablet+ so filter tabs + search stay reachable
-		   when scrolling. Background matches `bg-base-dev` so the
-		   pinned strip doesn't paint a different surface. Top
-		   clears the global header (~g-space-14). */
 		position: sticky;
 		top: var(--g-space-14);
 		z-index: var(--g-z-1);
@@ -3695,25 +3542,15 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-/* Hide the subheader when the state explorer flips to Tree mode
-   (state-specific behavior, but the selector is keyed on the
-   state-view radio's id — only fires on state pages). */
 body:has(#state-view-tree:checked) .b-page-subheader {
 	display: none;
 }
 
-/* When a page-subheader is present AND visible (Pretty mode) at lg+,
-   sidebar spans 3 rows (header + subheader + article) to stay
-   aligned, article forced to row 3. In Tree mode the subheader
-   is `display: none` — sidebar reverts to 2 rows and article to
-   row 2 so we don't paint an empty row 2 between header and tree. */
-/* State pages: sidebar starts at row 1 and spans more rows than
-   the layout will ever produce, so its height stays OUT of the row
-   track sizing (auto rows would otherwise distribute sidebar height
-   across spanned rows, inflating header/subheader cells when
-   content is short). `1 / -1` doesn't work here because there's no
-   explicit `grid-template-rows`; `span 99` is the practical guard. */
-@media (min-width: calc(820 / 16 * 1rem)) {
+/* Sidebar spans more rows than the layout produces so its height
+   stays out of auto-row track sizing (otherwise it would inflate
+   spanned cells when content is short). `1 / -1` doesn't work
+   without explicit `grid-template-rows`. */
+@media (--lg) {
 	body:has(.b-state-page) .b-sidebar {
 		grid-row: 1 / span 99;
 	}
@@ -3723,16 +3560,12 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 	}
 }
 
-/* Counts always visible in the page-subheader — denser context than
-   user.html packages-tabs (which hides counts below xl). */
 .b-page-subheader .packages-tabs
 	label
 	:is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
 	display: inline-flex;
 }
 
-/* Search input: full row 2 on mobile, half-row right-aligned at md+.
-   `.b-input` provides the chrome; this just handles grid placement. */
 .b-page-subheader .state-search {
 	grid-column: span 4 / span 4;
 	width: 100%;
@@ -3744,29 +3577,24 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 	}
 }
 
-/* Kind-filter hide rules (Pretty only — Tree shows the whole shape).
-   Taxonomy lives server-side in `kindGroup` (template.go); CSS just
-   matches one flat attribute, no stacked :not() chains. */
+/* Kind-filter: taxonomy lives server-side in `kindGroup` so CSS
+   matches one flat attribute, not stacked :not() chains. */
 body:has(#kf-state:checked) .b-state-decl:not([data-kind-group="state"]),
 body:has(#kf-code:checked) .b-state-decl:not([data-kind-group="code"]),
 body:has(#kf-types:checked) .b-state-decl:not([data-kind-group="types"]) {
 	display: none;
 }
 
-/* TOC section heading ("Top-level declarations" / "Fields") —
-   same register as `.b-state-meta dt.section` so the sidebar reads
-   as one consistent hierarchy: section heading → entries. */
+.b-state-meta dt.section,
 .b-state-meta-heading {
 	color: var(--s-color-text-primary);
 	font-weight: var(--g-font-semibold);
 	font-size: var(--g-font-size-100);
 	margin-block: var(--g-space-4) var(--g-space-2);
 	padding-block-end: var(--g-space-1);
-	border-block-end: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+	border-block-end: var(--s-divider);
 }
 
-/* Sidebar TOC — anchors compose `.c-with-icon` (layout from there).
-   Adds the type label after the name + line-clamp on the label. */
 .b-state-toc {
 	small.type[data-kind] {
 		margin-inline-start: var(--g-space-2);
@@ -3790,10 +3618,7 @@ body:has(#kf-types:checked) .b-state-decl:not([data-kind-group="types"]) {
 	}
 }
 
-/* Per-view TOC anchors: each entry emits one for Pretty, one for
-   Tree, with `-pretty` / `-tree` id suffixes. CSS hides the inactive
-   one so the visible link always points to a painted target.
-   Flat selectors — postcss's compat output mangles nested ones. */
+/* Flat selectors here — postcss's compat output mangles nested ones. */
 .b-state-toc .toc-tree {
 	display: none;
 }
@@ -3804,20 +3629,12 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 	display: inline-flex;
 }
 
-/* Scroll-margin so anchor jumps don't land flush against the
-   viewport top — leaves room for sticky chrome and breathing
-   space. Same magnitude (`g-space-24`) used by chroma line
-   anchors elsewhere on gnoweb. Applies to every id inside the
-   explorer, covering both Pretty cards (`-pretty`) and Tree
-   rows (`-tree`). */
+/* `scroll-margin-top` keeps anchor jumps clear of sticky chrome. */
 .b-state-explorer [id] {
 	scroll-margin-top: var(--g-space-24);
 }
 
-/* State explorer article — server-rendered tree of decls/objects.
-   Shape variants (ref/branch/leaf) and type-kind colour cues live
-   on `data-*` attrs. Row indentation comes from an inline `--depth`
-   CSS variable set by the template. */
+/* ===== STATE EXPLORER ===== */
 .b-state-explorer {
 	margin-block-start: var(--g-space-4);
 	padding-block-start: 0;
@@ -3826,13 +3643,9 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 	font-family: var(--g-font-family-mono);
 	font-size: var(--g-font-size-90);
 	line-height: 1.4;
-	/* Self-align to top of grid track so the article doesn't get
-	   stretched/centred by the page section's grid when content is
-	   short (e.g. one search result, or all filtered out). */
 	align-self: start;
 
 	@media (--lg) {
-		/* Match md-renderer (04-elements.css): main = 7/10 grid cols. */
 		grid-column: span 7 / span 7;
 		margin-block-start: 0;
 		padding-block-start: 0;
@@ -3843,9 +3656,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		font-style: italic;
 	}
 
-	/* "No matches" message when search hides every Pretty card.
-	   Iso the `.b-packages .range:empty::before` pattern but adapted
-	   to our hidden-attribute filter (DOM stays, items get `[hidden]`). */
 	.view-pretty > .c-stack:not(:has(> .b-state-decl:not(.u-hidden)))::before {
 		content: "No declarations match your search.";
 		display: block;
@@ -3862,16 +3672,10 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		flex-direction: column;
 	}
 
-	/* Tiny gap between top-level decls so the root reads as a ledger
-	   not a wall. Nested rows stay tight (depth-0 only). */
 	.view-tree > .tree > * + * {
 		margin-block-start: var(--g-space-1);
 	}
 
-	/* Raw tree gets a `.b-source-code`-like frame (Pretty cards have
-	   their own per-decl delimitation, so it's Raw-only). `overflow-x:
-	   auto` keeps long nowrap rows scrolling horizontally inside the
-	   frame instead of breaking out the right edge on narrow screens. */
 	.view-tree > .tree {
 		background-color: var(--s-color-bg-surface-primary);
 		border: 1px solid var(--s-color-border-primary);
@@ -3880,7 +3684,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		overflow-x: auto;
 	}
 
-	/* Row — single base layout, shape tweaks via `data-shape`. */
 	.row {
 		display: flex;
 		align-items: baseline;
@@ -3895,7 +3698,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		}
 	}
 
-	/* Stored ref: <a> linking to a per-object page */
 	.row[data-shape="ref"] {
 		text-decoration: none;
 		color: inherit;
@@ -3911,8 +3713,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		}
 	}
 
-	/* Branch: `<summary class="row" data-shape="branch">` — adds only
-	   the disclosure marker + cursor; layout from `.row`. */
 	.row[data-shape="branch"] {
 		cursor: pointer;
 		list-style: none;
@@ -3929,8 +3729,8 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 			color: var(--s-color-text-secondary);
 			font-size: 0.85em;
 			transition:
-				transform var(--g-transition-duration) var(--g-transition-timing),
-				color var(--g-transition-duration) var(--g-transition-timing);
+				transform var(--g-transition-fast),
+				color var(--g-transition-fast);
 		}
 
 		&:hover::before {
@@ -3962,8 +3762,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		color: var(--s-color-text-secondary);
 	}
 
-	/* One-line collapsed preview ("Config { name: \"x\", … }") set
-	   by the walker. Hidden in Raw view (clean tree shape). */
 	.preview {
 		color: var(--s-color-text-secondary);
 		font-style: italic;
@@ -3979,7 +3777,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		display: none;
 	}
 
-	/* Value colour-by-kind. */
 	.val {
 		word-break: break-all;
 
@@ -4004,13 +3801,12 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		}
 	}
 
-	/* OID — revealed on row hover, click-to-copy via copy controller. */
 	.oid {
 		font-size: 0.75em;
 		color: var(--s-color-text-tertiary);
 		opacity: 0;
 		cursor: pointer;
-		transition: opacity var(--g-transition-duration) var(--g-transition-timing);
+		transition: opacity var(--g-transition-fast);
 
 		&:hover {
 			color: var(--s-color-text-link);
@@ -4023,14 +3819,6 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		opacity: 0.5;
 	}
 
-	/* ---- Inline source block (closures, function bodies) ----
-	   Properly framed: solid bg, hairline border, generous padding.
-	   The frame works in Pretty cards (where the surrounding surface
-	   is secondary). In Raw view the tree itself is now framed —
-	   nested code drops its frame to a flat bg-base panel so the
-	   user reads ONE wrapper, not two competing ones (see override
-	   under `.view-tree .source .code` below). Tab-size 4 for
-	   consistency with chroma's gno output. */
 	.source {
 		position: relative;
 		margin: var(--g-space-2) 0;
@@ -4044,7 +3832,7 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 			padding: var(--g-space-3) var(--g-space-4);
 			overflow-x: auto;
 			background-color: var(--s-color-bg-surface-primary);
-			border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+			border: var(--s-divider);
 			border-radius: var(--s-rounded-sm);
 
 			pre {
@@ -4052,16 +3840,11 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 				font-family: var(--g-font-family-mono);
 			}
 
-			/* Chroma sets its own bg in some themes — strip it so
-			   our panel surface controls the look. */
 			.chroma-chroma {
 				background-color: transparent;
 			}
 		}
 
-		/* Floating "view full source" link — `.b-inline-btn c-with-icon`
-		   in the template; chrome from there. Only the absolute
-		   position is local. */
 		& > .srclink {
 			position: absolute;
 			top: var(--g-space-2);
@@ -4071,22 +3854,15 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		}
 	}
 
-	/* Raw tree already framed → inner code panels stay flat bg-base
-	   (no double-frame). */
 	.view-tree .source .code {
 		background-color: var(--s-color-bg-base);
 		border: none;
 	}
 
-	/* Composes `.b-link--muted`; only the size delta is local.
-	   The absolute `.source > .srclink` variant (chip with bg/border)
-	   is a different register and does NOT compose the modifier. */
 	.srclink {
 		font-size: var(--g-font-size-80);
 	}
 
-	/* Navlink in branch summaries — opens the dedicated page when
-	   inline preview only shows one level. */
 	.navlink {
 		color: var(--s-color-text-tertiary);
 		text-decoration: none;

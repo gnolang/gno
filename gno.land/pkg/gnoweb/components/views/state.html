@@ -1,32 +1,11 @@
-{{/* ===================================================================================
-LAYOUT - State explorer (server-rendered, no JS).
-
-Shape mirrors view_source.html: a `b-content-header` for the page title +
-inline metadata, a `b-sidebar` aside on the right reusing the same pattern
-as the source ToC, and the recursive tree as the main article body.
-
-Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
-  - One block class: `.b-state-explorer`.
-  - Children use plain class names; the cascade scopes them.
-  - Variants live on data-* attributes — no BEM modifiers.
-=================================================================================== */}}
+{{/* State explorer view — server-rendered, no JS required. */}}
 
 {{ define "renderState" }}
-{{/* `display: contents` wrapper — invisible to layout, but gives
-     the unique `state` controller ONE element scope so all
-     `data-action="...->state#..."` attributes across sidebar,
-     header, subheader, and article resolve via setupActions.
-     Iso with `controller-list` for user.html: 1 file = 1 feature. */}}
-<div class="b-state-page" data-controller="state" data-state-pkg-value="{{ .PkgPath }}" style="display: contents">
+<div class="b-state-page" data-controller="state" data-state-pkg-value="{{ .PkgPath }}">
 {{ if .Sidebar }}
 <aside class="b-sidebar sidebar" aria-label="State navigation">
   <div>
     <div id="sidebar-summary" class="inner u-no-scrollbar">
-      {{/* Single disclosure (iso aside.html / source page pattern):
-           one `b-expend-btn` trigger + one `<nav>` sibling containing
-           BOTH meta and TOC. The disclosure label stays generic
-           ("On this page") so the section headings INSIDE the nav
-           carry the hierarchy (Realm / Stats / TOC heading). */}}
       {{ template "ui/expend_label" "On this page" }}
       <nav>
         {{ if .Sidebar.Meta }}
@@ -37,8 +16,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
                 <dt class="label">{{ .Label }}</dt>
                 <dd class="value">
                   {{ if .Mono }}
-                    {{/* Long blockchain identifiers — truncate head…tail
-                         in the chip, full value via title and click-to-copy. */}}
                     {{ if .Href }}<a href="{{ .Href }}" title="{{ .Value }}">{{ truncOID .Value 8 6 }}</a>
                     {{ else }}<span data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ .Value }}" title="{{ .Value }} — click to copy">{{ truncOID .Value 8 6 }}</span>
                     {{ end }}
@@ -55,15 +32,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           <ul class="b-toc b-state-toc">
             {{ range .Sidebar.TOC }}
               <li data-name="{{ .Label }}">
-                {{/* Two anchors per entry: one targets the Pretty
-                     card (`#X-pretty`), one targets the Tree row
-                     (`#X-tree`). CSS hides the variant that
-                     belongs to the inactive view, so the visible
-                     link points to a real, painted target — no JS
-                     scroll bridge needed. The `data-name` on the
-                     `<li>` mirrors the card's data-name so the
-                     `controller-search` primitive filters both
-                     panels with one query. */}}
                 <a class="c-with-icon toc-pretty" href="#{{ .Anchor }}-pretty">
                   {{ template "state/kind-icon" . }}
                   <span class="label">{{ .Label }}</span>
@@ -85,10 +53,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 {{ end }}
 
 <header class="b-content-header">
-  {{/* Title — `<name> <pill>kind</pill>`. When a back-crumb is
-       present (object pages), prepend a back-arrow icon link to
-       the realm; keeps the navigation in the title, no separate
-       breadcrumb row. */}}
   <h1 class="title b-content-h1">
     {{ if .Crumbs }}{{ with index .Crumbs 0 }}{{ if .Href }}
       <a class="back-link" href="{{ .Href }}" aria-label="Back to {{ .Label }}" title="Back to {{ .Label }}">
@@ -100,12 +64,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   </h1>
   <div class="header-info">
     <div class="b-btns">
-      {{/* Time-travel disclosure — pin the page to a historical block
-           via `?height=N`. The form action is the current path stripped
-           of any existing height param (LatestHref). Pure HTML — no JS.
-           The trigger composes the standard `b-btn b-btn--secondary`
-           chrome so it reads identically to other secondary actions
-           across the site; the form input wraps in `b-input`. */}}
       <details class="b-state-history">
         <summary class="b-btn b-btn--secondary b-btn--input c-with-icon">
           {{ if .Height }}<span class="badge">@ #{{ .Height }}</span>
@@ -123,8 +81,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
       </details>
 
       {{ if .Nodes }}
-        {{/* CSS-only view toggle: server stamps `checked` from the
-             cookie so saved view paints first — no JS flicker. */}}
         <fieldset class="b-state-view-toggle" aria-label="State view mode">
           <input type="radio" name="state-view-mode" id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only"{{ if ne .ViewMode "tree" }} checked{{ end }}>
           <label for="state-view-pretty">Pretty</label>
@@ -137,14 +93,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 </header>
 
 {{ if .Nodes }}
-  {{/* Sub-header — mirrors `.b-packages > nav` (user page) byte
-       for byte: 4-column grid, tabs span 2 left, search spans 2
-       right. Sticky with bottom-border on md+. Pretty-only —
-       hidden in Tree mode. */}}
   <nav class="b-page-subheader" aria-label="Filter declarations">
-    {{/* Markup mirrors user.html `.packages-tabs` byte-for-byte:
-         input first (sr-only), then raw text label, then the
-         count `.b-tag--secondary` pill. No extra wrappers. */}}
     <div class="packages-tabs" role="radiogroup" aria-label="Filter by kind">
       <label>
         <input type="radio" name="kind-filter" id="kf-all" value="all" class="u-sr-only" checked>
@@ -176,10 +125,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
       </label>
     </div>
     <div class="state-search b-input">
-      {{/* Agnostic `controller-search` primitive: filters items
-           matched by a CSS selector via substring on a chosen
-           attribute. Reusable across features — same controller
-           a future page can mount with a different selector. */}}
       <input type="search" placeholder="Search declarations"
         data-controller="search"
         data-search-items-value=".b-state-decl[data-name], .b-state-toc li[data-name]"
@@ -215,12 +160,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 
   {{ if .Nodes }}
     <div class="view-tree">
-      {{/* Tree zone toolbar — frameless icon-only actions floating
-           in the top-right corner, OUTSIDE the framed tree block.
-           Position: absolute relative to .view-tree, so the buttons
-           sit on the page's surface (not inside the tree frame).
-           Icon-only with title= for tooltip; the labels are sr-only
-           so screen readers still get the affordance text. */}}
       <div class="tree-toolbar">
         {{ if .RawJSON }}
           <button type="button" class="b-inline-btn c-with-icon"
@@ -244,9 +183,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
         {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true) }}
       </div>
       {{ if .RawJSON }}
-        {{/* Hidden raw JSON payload — the chain-native qpkg_json /
-             qobject_json bytes that produced this view. Not visible
-             to the user; the copy controller reads its textContent. */}}
         <pre data-copy-target="state-raw-json" hidden>{{ .RawJSON }}</pre>
       {{ end }}
     </div>
@@ -255,40 +191,14 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 </div>
 {{ end }}
 
-{{/* state/copy-icon — toggles between the copy icon and the
-     post-copy check via the `copy` controller. Used wherever a copy-
-     to-clipboard button lives in the state explorer (card actions,
-     audit chips, value cells). Single source so the SVG markup
-     doesn't drift between places that all need to look identical. */}}
+{{/* ===== PARTIALS ===== */}}
+
 {{ define "state/copy-icon" }}<svg class="c-icon" aria-hidden="true"><use href="#ico-copy" data-copy-target="icon"></use><use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use></svg>{{ end }}
 
-{{/* state/kind-icon — SVG sprite for a node's kind. Inherits color
-     from the parent (no per-kind tinting in CSS today). */}}
 {{ define "state/kind-icon" }}<svg class="c-icon" aria-hidden="true"><use href="#ico-{{ kindIconID .Kind .Type }}"></use></svg>{{ end }}
 
-{{/* state/kind-glyph — wraps the kind-icon in a `.kind-glyph` slot
-     for inline contexts (card h2, field row name) where vertical
-     alignment with text needs an inline-block carrier. Sidebar TOC
-     uses `.c-with-icon` directly, so it skips this wrapper. */}}
 {{ define "state/kind-glyph" }}<span class="kind-glyph" aria-hidden="true">{{ template "state/kind-icon" . }}</span>{{ end }}
 
-{{/* state/decl — renders a single top-level declaration as a card,
-     mirroring the .b-action-function pattern. The card has three regions:
-
-       header  → name (h2) + type pill (.b-tag) + length + per-card actions
-                 (permalink + copy OID, both reusing the existing copy
-                  controller) + nav arrow to the dedicated page.
-
-       content → dispatches per shape:
-                   primitive  → bare value
-                   closure    → inline source snippet + "Captured" tree
-                   func       → just metadata (source link lives in header)
-                   branch     → children tree (state/nodes recursion)
-                   stored ref → preview line + footer-CTA only
-
-       footer  → contextual CTA banner for stored refs only ("Inspect →"
-                 + chips for OID, size, refs). Pushes users to the
-                 dedicated page where full audit metadata lives. */}}
 {{ define "state/decl" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
@@ -297,21 +207,13 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
     <header>
       <div class="title">
         <h2>{{ template "state/kind-glyph" $n }}{{ $n.Name }}</h2>
-        {{/* Type-subtitle below the name — gives the type the room
-             to breathe in italic mono, instead of competing with
-             the name on the same baseline. */}}
         <span class="subtitle">
           <span class="type">{{ $n.Type }}</span>
           {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
           {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         </span>
-        {{/* Doc comment folded into the heading group: the doc tells
-             the user WHAT this is, so it belongs with the name, not
-             as a separate region competing with audit-chips below.
-             `.title` is a `<div>` (not a `<span>`) precisely so this
-             `<p>` is valid HTML — putting block content inside an
-             inline element auto-closes the span and breaks the
-             header's flex layout (b-btns ends up out of place). */}}
+        {{/* `.title` is a `<div>` (not `<span>`) so this block-level
+             `<p>` is valid HTML inside the inline subtitle context. */}}
         {{ if $n.Doc }}
           <p class="description">{{ $n.Doc }}</p>
         {{ end }}
@@ -339,20 +241,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
     </header>
 
 
-    {{/* Audit-chips ribbon — terminal status-bar style. 6 facts in one
-         scanline: identity, weight, footprint, ownership, history, hash.
-         Sits between header and body so the eye gets identity → audit →
-         content in one vertical pass. */}}
-    {{/* Audit chips — surface OID/Hash/Refs/Owner/Mod/Size for any
-         node that carries blockchain metadata. Primitives and type
-         declarations don't have these fields populated by the walker,
-         so the strip auto-skips them; stored objects (struct values,
-         slices, maps, *T pointers, refs) get the full ribbon. */}}
     {{ if or $n.ObjectID $n.OwnerID $n.Hash $n.RefCount $n.LastObjectSize }}
-      {{/* Audit stats — same label-on-top typography as the action
-           card's PARAMS/COMMAND sections (h3 title font-size-50 +
-           value below). Each stat is its own block so users can read
-           it as a structured ledger, not a packed inline ribbon. */}}
       <dl class="b-state-stats" aria-label="Audit metadata">
         {{ if $n.ObjectID }}
           <div class="stat">
@@ -410,10 +299,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 
     <div class="content">
       {{ if $n.Value }}
-        {{/* Primitive value section — action-card register: small
-             "VALUE" label above a framed code-block + copy button.
-             Same affordance as the field-grid value cells so the
-             pattern is consistent across the explorer. */}}
         <section class="value-section">
           <h3 class="title">Value</h3>
           <div class="b-code">
@@ -424,10 +309,8 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           </div>
         </section>
       {{ end }}
-      {{/* Inline source body: closures always (the body is meaningful
-           alongside their captures); regular funcs only on the dedicated
-           object page (where the user has explicitly navigated to see
-           the function — hiding the body would defeat the navigation). */}}
+      {{/* Inline source body: closures always; regular funcs only on
+           the dedicated object page. */}}
       {{ if and $n.SourceHTML (or (eq $n.Kind "closure") $isObj) }}
         <div class="source"><div class="code">{{ $n.SourceHTML }}</div></div>
       {{ end }}
@@ -442,12 +325,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
     </div>
 
     {{ if $n.Href }}
-      {{/* Footer-CTA: compact one-line escape hatch. Surfaces +N more
-           when the inline sample is truncated, then pushes to the
-           dedicated page. Composes `b-btn b-btn--ghost` so the visual
-           register is iso with any "navigation CTA" the rest of the
-           site emits — the `.cta` class only carries layout (push
-           right, top-margin) and the inner pieces. */}}
       <a class="b-btn b-btn--ghost cta" href="{{ $n.Href }}">
         {{ if $n.Length }}
           {{ $total := derefInt $n.Length }}
@@ -462,19 +339,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   </article>
 {{ end }}
 
-{{/* state/decl-children — Pretty-mode rendering for the children of a
-     top-level declaration. A grid layout (name | type | value/inspect)
-     that reads like a structured property table — distinct from the
-     Raw view's flat tree. Each row hovers as an interactive surface;
-     refs become framed Inspect buttons rather than naked arrows.
-
-     The optional `Heading` field — when non-empty — emits a header
-     row labelling the three columns. Only top-level calls (from
-     `state/decl`) pass it; nested recursion omits it to avoid header
-     repetition deep in the tree.
-
-     Depth threads through nested branches so the first level of nested
-     <details> stays open by default (matches the same UX rule as Raw). */}}
 {{ define "state/decl-children" }}
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
@@ -494,12 +358,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   </div>
 {{ end }}
 
-{{/* state/decl-field — single property row inside a card. Shape
-     priority: Children > Href > leaf. When a stored ref already has
-     its Children loaded (via EnrichInlinePreviews), we render the
-     values directly — same treatment closures get for their captures.
-     The Href is still surfaced as a small "Inspect →" link in the
-     header so users can navigate to the dedicated page for full audit. */}}
 {{ define "state/decl-field" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
@@ -510,10 +368,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
 
   <li class="field" data-shape="{{ $shape }}">
     {{ if eq $shape "branch" }}
-      {{/* Branch row: <details> wraps both summary AND nested-body so
-           the body is naturally full-width below the header. The
-           summary itself replicates the 3-col header grid via CSS so
-           name/type/preview line up with sibling leaf rows. */}}
       <details{{ if lt $depth 2 }} open{{ end }} class="nested">
         <summary>
           <span class="name">{{ template "state/kind-glyph" $n }}{{ $n.Name }}</span>
@@ -531,10 +385,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
           </span>
         </summary>
         <div class="nested-body">
-          {{/* Scope label — explicit text indicating what the listing
-               below contains. Resolves the "what's the link?" question
-               without re-displaying full FIELD/TYPE/VALUE column headers
-               at every nesting depth. */}}
           <div class="scope" aria-hidden="true">
             <span class="kw">{{ headingForKind $n.Kind }}s of</span>
             <code>{{ $n.Name }}</code>
@@ -569,10 +419,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   </li>
 {{ end }}
 
-{{/* state/nodes — renders a list of StateNodes at a given depth. The
-     `Toplevel` flag is true only on the root call so the matching anchor
-     ids are stamped on first-level rows (the ones the sidebar TOC links
-     to); deeper recursive calls pass false. */}}
 {{ define "state/nodes" }}
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
@@ -582,11 +428,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   {{ end }}
 {{ end }}
 
-{{/* state/node — renders a single StateNode. Three exclusive shapes are
-     advertised via data-shape:
-       data-shape="ref"     → stored object reference, navigable as a link
-       data-shape="branch"  → expandable inline, contains decoded children
-       data-shape="leaf"    → flat row with a value */}}
+{{/* data-shape: "ref" | "branch" | "leaf" — mutually exclusive. */}}
 {{ define "state/node" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
@@ -595,10 +437,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
 
   {{ if and $n.ObjectID (not $n.Children) $n.Expandable }}
-    {{/* Ref row: per-view id suffix so it gets its own anchor
-         distinct from the Pretty card. `data-kind` on top-level
-         rows lets the global kind-filter (`#kf-state` etc.) hide
-         them by category — same selector as Pretty cards. */}}
     <a class="row" data-shape="ref"{{ if $top }} data-name="{{ $n.Name }}"{{ if $id }} id="{{ $id }}-tree"{{ end }}{{ end }} style="--depth: {{ $depth }};" href="{{ $n.Href }}">
       <span class="name">{{ $n.Name }}</span>
       <span class="sep">:</span>
@@ -609,15 +447,6 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
     </a>
 
   {{ else if $n.Expandable }}
-    {{/* Tree view: only the top-level row opens by default. Anything
-         deeper stays collapsed so the user explicitly drills in —
-         clearer signal than walls of half-open nesting. */}}
-    {{/* Each view has its own id suffix (`-pretty` / `-tree`) so
-         we never have duplicate IDs in the DOM. The sidebar TOC
-         emits one anchor per suffix and CSS hides the inactive
-         variant — browser native scroll-to-anchor handles the
-         rest, no JS scroll bridge needed. `data-kind` on top-level
-         <details> lets the kind-filter hide them by category. */}}
     <details{{ if $top }} data-name="{{ $n.Name }}"{{ if $id }} id="{{ $id }}-tree"{{ end }}{{ end }}{{ if $n.ObjectID }} data-tree-key="{{ $n.ObjectID }}"{{ end }}{{ if lt $depth 1 }} open{{ end }}>
       <summary class="row" data-shape="branch" style="--depth: {{ $depth }};">
         <span class="name">{{ $n.Name }}</span>

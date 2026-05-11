@@ -145,6 +145,10 @@
 	--s-border: var(--g-space-px, 1px) solid var(--s-color-border-primary); /* Small border width */
 	--s-border-secondary: var(--g-space-px, 1px) solid
 		var(--s-color-border-secondary); /* Small border width */
+	--s-divider-weak: 1px solid color-mix(in srgb, currentColor 6%, transparent);
+	--s-divider: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+	--s-divider-strong: 1px solid
+		color-mix(in srgb, currentColor 14%, transparent);
 }
 
 /* ===== DARK THEME ===== */
