@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/blog"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
@@ -18,10 +18,10 @@ func clearState(t *testing.T) {
 		Title:  "Gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
-	adminAddr = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	adminAddr = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 	inPause = false
-	moderatorList = avl.NewTree()
-	commenterList = avl.NewTree()
+	moderatorList = bptree.NewBPTree32()
+	commenterList = bptree.NewBPTree32()
 }
 
 func TestBlog_AdminControls(t *testing.T) {

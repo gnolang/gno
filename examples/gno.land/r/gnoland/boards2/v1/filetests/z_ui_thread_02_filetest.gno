@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner        address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	srcBoardName         = "test-board"
 	dstBoardName         = "test-board-2"
 )
@@ -46,7 +46,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board](/r/gnoland/boards2/v1:test-board)
 // ## Foo
 //
-// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
 // Body
 //
 // ↳ [Flag](/r/gnoland/boards2/v1:test-board/1/flag) • [Repost](/r/gnoland/boards2/v1:test-board/1/repost) [1] • [Comment](/r/gnoland/boards2/v1:test-board/1/reply) • [Edit](/r/gnoland/boards2/v1:test-board/1/edit) • [Delete](/r/gnoland/boards2/v1$help&func=DeleteThread&boardID=1&threadID=1)
@@ -56,10 +56,10 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
 // > [!INFO]- Thread Repost
 // > Original thread is [Foo](/r/gnoland/boards2/v1:test-board/1)
-// > Created by [g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq) on 2009-02-13 11:31pm UTC
+// > Created by [g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh) on 2009-02-13 11:31pm UTC
 //
 // Body2
 //

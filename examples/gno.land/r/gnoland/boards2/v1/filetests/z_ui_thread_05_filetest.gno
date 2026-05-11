@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner     address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner     address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	boardName         = "BoardName"
 )
 

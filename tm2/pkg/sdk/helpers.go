@@ -4,24 +4,32 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
 
 func (app *BaseApp) Check(tx Tx) (result Result) {
+	txBytes, err := amino.Marshal(tx)
+	if err != nil {
+		return ABCIResultFromError(std.ErrTxDecode(err.Error()))
+	}
 	ctx := app.getContextForTx(RunTxModeCheck, nil)
-
-	return app.runTx(ctx, tx)
+	return app.runTx(ctx, txBytes)
 }
 
-func (app *BaseApp) Simulate(txBytes []byte, tx Tx) (result Result) {
+func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
 	ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
-
-	return app.runTx(ctx, tx)
+	return app.runTx(ctx, txBytes)
 }
 
 func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
+	txBytes, err := amino.Marshal(tx)
+	if err != nil {
+		return ABCIResultFromError(std.ErrTxDecode(err.Error()))
+	}
 	ctx := app.getContextForTx(RunTxModeDeliver, nil)
 
 	for _, ctxFn := range ctxFns {
@@ -32,7 +40,7 @@ func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
 		ctx = ctxFn(ctx)
 	}
 
-	return app.runTx(ctx, tx)
+	return app.runTx(ctx, txBytes)
 }
 
 // ContextFn is the custom execution context builder.

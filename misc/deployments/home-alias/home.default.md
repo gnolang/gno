@@ -14,13 +14,13 @@ the foundations of a fairer and freer world, join us today.
 
 ---
 
-## [Boards](/r/gnoland/boards2/v1:OpenDiscussions) - On-chain forum for the Gno.land community
+## [Boards](/r/gnoland/boards2/v1) - On-chain forum for the Gno.land community
 
 **Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
 
 Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
 
-**[Open Boards](/r/gnoland/boards2/v1:OpenDiscussions)**
+**[Open Boards](/r/gnoland/boards2/v1)**
 
 ---
 
@@ -42,7 +42,6 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Gno by Example](/r/docs/home)
 - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
@@ -52,41 +51,10 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 11](https://test11.testnets.gno.land/)
+- [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
+- [Staging](https://staging.gno.land/)
+- [Testnet 12](https://test12.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
-- [Boards](/r/gnoland/boards2/v1:OpenDiscussions): community forum
-
-</gno-columns>
-
-<gno-columns>
-
-## [Latest Blogposts](/r/gnoland/blog)
-
-- [The More You Gno 17](/r/gnoland/blog:p/monthly-dev-17)
-- [The More You Gno 16](/r/gnoland/blog:p/monthly-dev-16)
-- [Student Contributor Program: Cohort 4 Wrap-up](/r/gnoland/blog:p/scp-cohort-4)
-- [Gnomes at EthCC '25](/r/gnoland/blog:p/ethcc2025)
-
-|||
-
-## [Latest Events](/r/devrels/events)
-
-- [Gno Seoul - KBW Edition](https://luma.com/5b4h90tb)
-- [GopherCon UK 2025](https://www.gophercon.co.uk/)
-- [Web3 Kamp 2025](https://www.web3kamp.org/)
-- [EthCC 8](https://ethcc.io/)
-- [Welcome to Gno.land @ c-base Berlin](https://lu.ma/3yf84hab)
-
-|||
-
-## [Hall of Realms](/r/leon/hor)
-
-- [r/agherasie/forms](/r/agherasie/forms)
-- [r/gfanton/gnomaze](/r/gfanton/gnomaze)
-- [r/jjoptimist/home](/r/jjoptimist/home)
-- [r/leon/derive](/r/leon/derive)
-- [r/leon/home](/r/leon/home)
 
 </gno-columns>
 

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"math"
 	"testing"
 	"time"
 
@@ -37,6 +36,31 @@ func TestProposalSignable(t *testing.T) {
 	expected, err := amino.MarshalSized(CanonicalizeProposal(chainID, testProposal))
 	require.NoError(t, err)
 	require.Equal(t, expected, signBytes, "Got unexpected sign bytes for Proposal")
+}
+
+// TestProposalSignBytesTestVectors locks down the exact on-wire sign-bytes
+// for a known CanonicalProposal. A wire-format regression in the fixed64
+// Height/Round/POLRound fields or the field ordering would invalidate every
+// historical proposal signature — catching that here is cheaper than
+// discovering it via cross-validator signature failure. Mirrors the coverage
+// TestVoteSignBytesTestVectors provides for Vote.
+func TestProposalSignBytesTestVectors(t *testing.T) {
+	t.Parallel()
+
+	// Height=1, Round=1, POLRound=-1 (a real "no prior precommit" proposal).
+	// Zero Timestamp (Go zero time.Time) — the default sign-bytes pattern.
+	prop := &Proposal{Type: ProposalType, Height: 1, Round: 1, POLRound: -1}
+
+	want := []byte{
+		0x2a,       // length = 42
+		0x08, 0x20, // Type = ProposalType (0x20)
+		0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Height = 1 (fixed64 LE)
+		0x19, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Round = 1 (fixed64 LE)
+		0x21, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // POLRound = -1 (fixed64 LE)
+		0x32, 0x0b, // Timestamp field + length
+		0x08, 0x80, 0x92, 0xb8, 0xc3, 0x98, 0xfe, 0xff, 0xff, 0xff, 0x01,
+	}
+	require.Equal(t, want, prop.SignBytes(""))
 }
 
 func TestProposalString(t *testing.T) {
@@ -132,7 +156,7 @@ func TestProposalValidateBasic(t *testing.T) {
 			p.Signature = make([]byte, MaxSignatureSize+1)
 		}, true},
 	}
-	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
+	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), 10, tmhash.Sum([]byte("partshash")))
 
 	for _, tc := range testCases {
 		tc := tc

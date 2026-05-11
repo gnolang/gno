@@ -1,8 +1,6 @@
 package valopers
 
 import (
-	"chain"
-
 	"gno.land/p/moul/authz"
 )
 
@@ -22,16 +20,6 @@ func updateInstructions(newInstructions string) {
 	}
 }
 
-func updateMinFee(newMinFee int64) {
-	err := auth.DoByCurrent("update-min-fee", func() error {
-		minFee = chain.NewCoin("ugnot", newMinFee)
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
 func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	cb := func(cur realm) error {
 		updateInstructions(newInstructions)
@@ -41,11 +29,8 @@ func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	return cb
 }
 
-func NewMinFeeProposalCallback(newMinFee int64) func(realm) error {
-	cb := func(cur realm) error {
-		updateMinFee(newMinFee)
-		return nil
-	}
-
-	return cb
-}
+// The min-fee callback was removed: the fee now lives in sysparams
+// under node:valoper:register_fee, and
+// proposal.ProposeNewMinFeeProposalRequest delegates to
+// sys/params.NewSysParamUint64PropRequest. Removing avoids the
+// forward-compat hazard of a no-op shim with no caller-auth gating.

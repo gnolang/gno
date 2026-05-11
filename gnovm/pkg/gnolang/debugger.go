@@ -602,7 +602,7 @@ func debugLineInfo(m *Machine) {
 
 func isMemPackage(st Store, pkgPath string) bool {
 	ds, ok := st.(*defaultStore)
-	return ok && ds.iavlStore.Has([]byte(backendPackagePathKey(pkgPath)))
+	return ok && ds.iavlStore.Has(ds.gctx, []byte(backendPackagePathKey(pkgPath)))
 }
 
 func fileContent(st Store, pkgPath, name string) (string, error) {
@@ -728,7 +728,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		return x.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &index).Deref(), nil
+		return x.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	owner        address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	owner        address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 	srcBoardName         = "test-board"
 	dstBoardName         = "test-board-2"
 )
@@ -41,7 +41,7 @@ func main() {
 // # [Boards](/r/gnoland/boards2/v1) › [test\-board\-2](/r/gnoland/boards2/v1:test-board-2)
 // ## Bar
 //
-// **[g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq](/u/g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq)** `owner` · 2009-02-13 11:31pm UTC
+// **[g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh](/u/g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh)** `owner` · 2009-02-13 11:31pm UTC
 // Body2
 //
 // > ⚠ Source post has been deleted

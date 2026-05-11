@@ -18,8 +18,13 @@ const (
 	// MaxThreadTitleLength defines the maximum length allowed for thread titles.
 	MaxThreadTitleLength = 100
 
+	// MaxThreadBodyLength defines the maximum length allowed for thread bodies.
+	// 40,000 mirrors Reddit's self-post body cap.
+	MaxThreadBodyLength = 40000
+
 	// MaxReplyLength defines the maximum length allowed for replies.
-	MaxReplyLength = 1000
+	// 10,000 mirrors Reddit's comment cap.
+	MaxReplyLength = 10000
 )
 
 var (
@@ -36,8 +41,29 @@ func SetHelp(_ realm, content string) {
 	content = strings.TrimSpace(content)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{content}
-	gPerms.WithPermission(caller, PermissionRealmHelp, args, crossingFn(func() {
-		gHelp = content
+	gPerms.WithPermission(caller, PermissionRealmHelpChange, args, crossingFn(func() {
+		Help = content
+	}))
+}
+
+// SetRequiredAccountAmount sets the required account amount to interact as a non member with open boards.
+// Amount must be given as ugnot.
+// The amount requirement is not applied to members that were invited to an open board.
+func SetRequiredAccountAmount(_ realm, amount int64) {
+	if amount < 0 {
+		panic("invalid amount")
+	}
+
+	caller := runtime.PreviousRealm().Address()
+	args := boards.Args{amount}
+	gPerms.WithPermission(caller, PermissionAccountRequiredAmountChange, args, crossingFn(func() {
+		RequiredAccountAmount = amount
+
+		chain.Emit(
+			"RequiredAccountAmountChanged",
+			"caller", caller.String(),
+			"amount", strconv.FormatInt(amount, 10),
+		)
 	}))
 }
 
@@ -60,7 +86,7 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 			gPerms = p
 
 			chain.Emit(
-				"RealmPermissionsUpdated",
+				"RealmPermissionsChanged",
 				"caller", caller.String(),
 			)
 			return
@@ -71,21 +97,21 @@ func SetPermissions(_ realm, boardID boards.ID, p boards.Permissions) {
 		board.Permissions = p
 
 		chain.Emit(
-			"BoardPermissionsUpdated",
+			"BoardPermissionsChanged",
 			"caller", caller.String(),
 			"boardID", board.ID.String(),
 		)
 	}))
 }
 
-// SetRealmNotice sets a notice to be displayed globally by the realm.
+// SetRealmNotice sets a notice to be displayed globally within the realm.
 // An empty message removes the realm notice.
 func SetRealmNotice(_ realm, message string) {
 	message = strings.TrimSpace(message)
 	caller := runtime.PreviousRealm().Address()
 	args := boards.Args{message}
 	gPerms.WithPermission(caller, PermissionRealmNotice, args, crossingFn(func() {
-		gNotice = message
+		Notice = message
 
 		chain.Emit(
 			"RealmNoticeChanged",
@@ -102,6 +128,11 @@ func GetBoardIDFromName(_ realm, name string) (_ boards.ID, found bool) {
 		return 0, false
 	}
 	return board.ID, true
+}
+
+// BoardCount returns the total number of boards.
+func BoardCount() int {
+	return gBoards.Size()
 }
 
 // CreateBoard creates a new board.
@@ -125,7 +156,7 @@ func CreateBoard(_ realm, name string, listed, open bool) boards.ID {
 
 		board.Name = name
 		board.Creator = caller
-		board.Meta = &Meta{
+		board.Meta = &BoardMeta{
 			HiddenThreads: boards.NewPostStorage(),
 		}
 
@@ -176,6 +207,7 @@ func RenameBoard(_ realm, name, newName string) {
 
 		board.Aliases = append(board.Aliases, board.Name)
 		board.Name = newName
+		board.UpdatedAt = time.Now()
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoards.Add(board)
@@ -196,6 +228,7 @@ func CreateThread(_ realm, boardID boards.ID, title, body string) boards.ID {
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
+	assertThreadBodyIsValid(body)
 
 	caller := runtime.PreviousRealm().Address()
 	assertUserIsNotBanned(boardID, caller)
@@ -209,7 +242,9 @@ func CreateThread(_ realm, boardID boards.ID, title, body string) boards.ID {
 		assertRealmIsNotLocked()
 		assertUserIsNotBanned(board.ID, caller)
 
-		thread.Replies = NewReplyStorage()
+		thread.Meta = &ThreadMeta{
+			AllReplies: boards.NewPostStorage(),
+		}
 
 		if err := board.Threads.Add(thread); err != nil {
 			panic(err)
@@ -265,13 +300,11 @@ func CreateReply(_ realm, boardID, threadID, replyID boards.ID, body string) boa
 			panic(err)
 		}
 
-		// When parent is not a thread also add reply to the thread.
-		// The thread contains all replies and sub-replies, while each
-		// reply only contains direct sub-replies.
-		if parent.ID != thread.ID {
-			if err := thread.Replies.Add(reply); err != nil {
-				panic(err)
-			}
+		// Always add reply to the thread so it contains all comments and replies.
+		// Comment and reply only contains direct replies.
+		meta := thread.Meta.(*ThreadMeta)
+		if err := meta.AllReplies.Add(reply); err != nil {
+			panic(err)
 		}
 
 		chain.Emit(
@@ -291,6 +324,7 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
+	assertThreadBodyIsValid(body)
 
 	caller := runtime.PreviousRealm().Address()
 	assertUserIsNotBanned(destinationBoardID, caller)
@@ -309,6 +343,9 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 		repost.Title = title
 		repost.Body = strings.TrimSpace(body)
+		repost.Meta = &ThreadMeta{
+			AllReplies: boards.NewPostStorage(),
+		}
 
 		if err := dst.Threads.Add(repost); err != nil {
 			panic(err)
@@ -395,21 +432,22 @@ func DeleteReply(_ realm, boardID, threadID, replyID boards.ID) {
 	}
 
 	deleteReply := func() {
-		// Soft delete reply by changing its body when it contains
-		// sub-replies, otherwise hard delete it.
+		// Soft delete comment/reply by changing its body when
+		// it contains replies, otherwise hard delete it.
 		if reply.Replies.Size() > 0 {
-			reply.Body = "*This reply has been deleted*"
+			reply.Body = "⚠ This comment has been deleted"
 			reply.UpdatedAt = time.Now()
 		} else {
 			// Remove reply from the thread
-			reply, removed := thread.Replies.Remove(replyID)
+			meta := thread.Meta.(*ThreadMeta)
+			reply, removed := meta.AllReplies.Remove(replyID)
 			if !removed {
 				panic("reply not found")
 			}
 
 			// Remove reply from reply's parent
 			if reply.ParentID != thread.ID {
-				parent, found := thread.Replies.Get(reply.ParentID)
+				parent, found := meta.AllReplies.Get(reply.ParentID)
 				if found {
 					parent.Replies.Remove(replyID)
 				}
@@ -448,6 +486,7 @@ func EditThread(_ realm, boardID, threadID boards.ID, title, body string) {
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
+	assertThreadBodyIsValid(body)
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
@@ -623,22 +662,6 @@ func ChangeMemberRole(_ realm, boardID boards.ID, member address, role boards.Ro
 	}))
 }
 
-// IterateRealmMembers iterates boards realm members.
-// The iteration is done only for realm members, board members are not iterated.
-func IterateRealmMembers(offset int, fn boards.UsersIterFn) (halted bool) {
-	count := gPerms.UsersCount() - offset
-	return gPerms.IterateUsers(offset, count, fn)
-}
-
-// GetBoard returns a single board.
-func GetBoard(boardID boards.ID) *boards.Board {
-	board := mustGetBoard(boardID)
-	if !board.Permissions.HasRole(runtime.OriginCaller(), RoleOwner) {
-		panic("forbidden")
-	}
-	return board
-}
-
 // Wraps a function to cross back to Boards2 realm.
 func crossingFn(fn func()) func() {
 	return func() {
@@ -655,12 +678,6 @@ func assertMemberAddressIsValid(member address) {
 func assertUserAddressIsValid(user address) {
 	if !user.IsValid() {
 		panic("invalid user address: " + user.String())
-	}
-}
-
-func assertHasPermission(perms boards.Permissions, user address, p boards.Permission) {
-	if !perms.HasPermission(user, p) {
-		panic("unauthorized")
 	}
 }
 
@@ -743,7 +760,7 @@ func assertThreadExists(b *boards.Board, threadID boards.ID) {
 }
 
 func assertReplyExists(thread *boards.Post, replyID boards.ID) {
-	if _, found := thread.Replies.Get(replyID); !found {
+	if _, found := getReply(thread, replyID); !found {
 		panic("reply not found: " + replyID.String())
 	}
 }
@@ -760,6 +777,13 @@ func assertReplyIsVisible(thread *boards.Post) {
 	}
 }
 
+func assertThreadBodyIsValid(body string) {
+	if len(body) > MaxThreadBodyLength {
+		n := strconv.Itoa(MaxThreadBodyLength)
+		panic("thread body is too long, maximum allowed is " + n + " characters")
+	}
+}
+
 func assertReplyBodyIsValid(body string) {
 	assertBodyIsNotEmpty(body)
 
@@ -770,6 +794,10 @@ func assertReplyBodyIsValid(body string) {
 
 	if reDeniedReplyLinePrefixes.MatchString(body) {
 		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
+	}
+
+	if strings.Contains(body, "gno-form") {
+		panic("Gno-Flavored Markdown forms are not allowed in replies")
 	}
 }
 

@@ -61,8 +61,8 @@ func Render(path string) string {
 	}
 
 	// Render common realm header before resolving render path
-	if gNotice != "" {
-		b.WriteString(infoAlert("Notice", gNotice))
+	if Notice != "" {
+		b.WriteString(infoAlert("Notice", Notice))
 	}
 
 	// Render view for current path
@@ -73,12 +73,12 @@ func Render(path string) string {
 
 func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 	res.Write(md.H1("Boards Help"))
-	if gHelp != "" {
-		res.Write(gHelp)
+	if Help != "" {
+		res.Write(Help)
 		return
 	}
 
-	link := gRealmLink.Call("SetHelp", "content", "")
+	link := RealmLink.Call("SetHelp", "content", "")
 	res.Write(md.H3("Help content has not been uploaded"))
 	res.Write("Do you want to " + md.Link("upload boards help", link) + "?")
 }
@@ -224,12 +224,12 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 	perms.IterateUsers(p.Offset(), p.PageSize(), func(u boards.User) bool {
 		actions := []string{
-			md.Link("remove", gRealmLink.Call(
+			md.Link("remove", RealmLink.Call(
 				"RemoveMember",
 				"boardID", boardID.String(),
 				"member", u.Address.String(),
 			)),
-			md.Link("change role", gRealmLink.Call(
+			md.Link("change role", RealmLink.Call(
 				"ChangeMemberRole",
 				"boardID", boardID.String(),
 				"member", u.Address.String(),
@@ -280,12 +280,12 @@ func renderInvites(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(md.H3("These users have requested to be invited to the board"))
 	requests.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(addr string, v any) bool {
 		actions := []string{
-			md.Link("accept", gRealmLink.Call(
+			md.Link("accept", RealmLink.Call(
 				"AcceptInvite",
 				"boardID", board.ID.String(),
 				"user", addr,
 			)),
-			md.Link("revoke", gRealmLink.Call(
+			md.Link("revoke", RealmLink.Call(
 				"RevokeInvite",
 				"boardID", board.ID.String(),
 				"user", addr,
@@ -338,7 +338,7 @@ func renderBannedUsers(res *mux.ResponseWriter, req *mux.Request) {
 		table.Append([]string{
 			userLink(address(addr)),
 			v.(time.Time).Format(dateFormat),
-			md.Link("unban", gRealmLink.Call(
+			md.Link("unban", RealmLink.Call(
 				"Unban",
 				"boardID", board.ID.String(),
 				"user", addr,

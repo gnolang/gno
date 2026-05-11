@@ -9,7 +9,7 @@ import (
 
 var (
 	dummyURI         = "ipfs://xyz"
-	admin    address = "g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530"
+	admin    address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 	foo              = grc1155.NewBasicGRC1155Token(dummyURI)
 )
 

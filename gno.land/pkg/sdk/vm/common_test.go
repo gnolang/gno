@@ -53,13 +53,15 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id", Height: 42}, log.NewNoopLogger())
 
 	prmk := pm.NewParamsKeeper(iavlCapKey)
-	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
+	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount, std.ProtoBaseSessionAccount)
 	bankk := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bankk, prmk)
 
 	prmk.Register(authm.ModuleName, acck)
 	prmk.Register(bankm.ModuleName, bankk)
 	prmk.Register(ModuleName, vmk)
+	acck.SetParams(ctx, authm.DefaultParams())
+	bankk.SetParams(ctx, bankm.DefaultParams())
 	vmk.SetParams(ctx, DefaultParams())
 
 	mcw := ms.MultiCacheWrap()
@@ -73,6 +75,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	}
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 	mcw.MultiWrite()
+	vmk.PopulateStdlibCache()
 	vmh := NewHandler(vmk)
 
 	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}

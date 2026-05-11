@@ -1,13 +1,12 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 func init() {
 	// Set an initial message so it can be cleared
@@ -20,12 +19,8 @@ func main() {
 
 	boards2.SetRealmNotice(cross, "")
 
-	// Render content must contain the message
-	content := boards2.Render("")
-	println(strings.HasPrefix(content, "> This is a test realm message\n\n"))
-	println(strings.HasPrefix(content, "# Boards"))
+	println(boards2.Notice == "")
 }
 
 // Output:
-// false
 // true

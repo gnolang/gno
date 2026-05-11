@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	var admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	var admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 	testing.SetOriginCaller(admin)
 	home.AdminSetOverride(cross, "Hello World!")
 	println("---")

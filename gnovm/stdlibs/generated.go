@@ -14,7 +14,6 @@ import (
 	libs_crypto_ed25519 "github.com/gnolang/gno/gnovm/stdlibs/crypto/ed25519"
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
-	libs_runtime "github.com/gnolang/gno/gnovm/stdlibs/runtime"
 	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
@@ -95,6 +94,42 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"chain",
+		"pubKeyAddress",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			r0, r1 := libs_chain.X_pubKeyAddress(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},
@@ -727,6 +762,44 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"chain/runtime",
+		"getSessionInfo",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1, r2, r3 := libs_chain_runtime.X_getSessionInfo(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+		},
+	},
+	{
 		"crypto/ed25519",
 		"verify",
 		[]gno.FieldTypeExpr{
@@ -910,38 +983,6 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_math.Float64frombits(p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"runtime",
-		"GC",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			libs_runtime.GC(
-				m,
-			)
-		},
-	},
-	{
-		"runtime",
-		"MemStats",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := libs_runtime.MemStats(
-				m,
-			)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -1251,6 +1292,306 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"sys/params",
+		"getSysParamString",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0, r1 := libs_sys_params.X_getSysParamString(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"sys/params",
+		"getSysParamBool",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0, r1 := libs_sys_params.X_getSysParamBool(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"sys/params",
+		"getSysParamInt64",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0, r1 := libs_sys_params.X_getSysParamInt64(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"sys/params",
+		"getSysParamUint64",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("uint64")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0, r1 := libs_sys_params.X_getSysParamUint64(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"sys/params",
+		"getSysParamBytes",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0, r1 := libs_sys_params.X_getSysParamBytes(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"sys/params",
+		"getSysParamStrings",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0, r1 := libs_sys_params.X_getSysParamStrings(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
 		"time",
 		"now",
 		[]gno.FieldTypeExpr{},
@@ -1360,7 +1701,6 @@ var initOrder = [...]string{
 	"net/url",
 	"regexp/syntax",
 	"regexp",
-	"runtime",
 	"sys/params",
 	"time",
 	"unicode/utf16",

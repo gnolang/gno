@@ -10,7 +10,7 @@ with the essential operations.
 To build and install from source, you'll need:
 
 - Git
-- Go 1.22+
+- Go 1.24+
 - Make
 
 ```bash
@@ -126,11 +126,30 @@ mkdir p/ && cd p
 touch hello_world.gno
 ```
 
+Next, initialize a `gnomod.toml` file for the package. This file defines
+package metadata, and the `pkgpath` it contains must match the `-pkgpath`
+flag you will use when deploying:
+
+```bash
+gno mod init gno.land/p/<your_namespace>/hello_world
+```
+
+This will generate a `gnomod.toml` with the following content:
+
+```toml
+gno = "0.9"
+module = "gno.land/p/<your_namespace>/hello_world"
+```
+
+For more details on `gnomod.toml` and its fields, see
+[Configuring Gno Projects](../resources/configuring-gno-projects.md#gnomodtoml).
+
 Now, we should have the following folder structure:
 
 ```bash
 └── example/
 │   └── p/
+│       ├── gnomod.toml
 │       └── hello_world.gno
 ```
 
@@ -150,13 +169,13 @@ correct flags for the `addpkg` subcommand.
 The `addpkg` subcommand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your code is located
-- `-broadcast` - enables broadcasting the transaction to the chain
+- `-broadcast` - enables broadcasting the transaction to the chain (default: true)
 - `-send` - Amount of GNOT to send to the realm with the transaction (optional)
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
-- `-chain-id` - id of the chain that we are sending the transaction to
+- `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
@@ -174,9 +193,8 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443"
+-remote "https://rpc.staging.gno.land:443"
 ```
 
 Once we have added a desired [namespace](../resources/users-and-teams.md) to upload the package to, we can specify a key
@@ -188,9 +206,8 @@ gnokey maketx addpkg \
 -pkgdir "." \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443"
+-remote "https://rpc.staging.gno.land:443"
 mykey
 ```
 
@@ -251,9 +268,8 @@ gnokey maketx call \
 -send "1000ugnot" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -264,7 +280,7 @@ In this command, we have specified three main things:
 - The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
 
 Apart from this, we have also specified the Staging chain ID, `staging`,
-as well as the Staging remote address, `https://rpc.gno.land:443`.
+as well as the Staging remote address, `https://rpc.staging.gno.land:443`.
 
 After running the command, we can expect an output similar to the following:
 
@@ -291,9 +307,8 @@ gnokey maketx call \
 -args "<your_address>" \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -301,7 +316,7 @@ If everything was successful, we should get something similar to the following
 output:
 
 ```
-(1000 uint64)
+(1000 int64)
 
 OK!
 GAS WANTED: 2000000
@@ -318,6 +333,34 @@ In this case, we used `maketx call` to call a read-only function, which simply
 checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
 check out the `vm/qeval` query section.
+
+### Calling a variadic function
+Variadic functions are supported in Gno. To call a variadic function, pass one -args flag per variadic element.
+For example, given a function with the signature:
+
+```go
+func Add(cur realm, nums ...int) int
+```
+You can call it with any number of arguments:
+
+```bash
+# Two variadic args
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  -args 10 \
+  -args 20 \
+  ... # gas, broadcast, etc.
+
+# Zero variadic args (omit -args entirely)
+gnokey maketx call \
+  -pkgpath gno.land/r/demo/math \
+  -func Add \
+  ... # gas, broadcast, etc.
+```
+
+Note: Slice expansion (...) is not supported — pass each element as
+a separate -args flag.
 
 ## `Send`
 
@@ -340,9 +383,8 @@ gnokey maketx send \
 -send 100ugnot \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey
 ```
 
@@ -356,7 +398,7 @@ in the [Querying a network](#querying-a-gnoland-network) section.
 ## `Run`
 
 With the `Run` message, you can write a snippet of Gno code and run it against
-code on the chain. For this example, we will use the [Counter realm](https://gno.land/r/demo/counter),
+code on the chain. For this example, we will use the [Counter realm](https://staging.gno.land/r/demo/counter),
 which maintains a simple counter that can be incremented.
 It contains a simple `Increment()` function, which we will call with `Run`.
 
@@ -391,7 +433,7 @@ package main
 import "gno.land/r/demo/counter"
 
 func main() {
-	println(counter.Increment())
+	println(counter.Increment(cross))
 }
 ```
 
@@ -401,9 +443,8 @@ Now we will be able to provide this to the `maketx run` subcommand:
 gnokey maketx run \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
--broadcast \
 -chainid staging \
--remote "https://rpc.gno.land:443" \
+-remote "https://rpc.staging.gno.land:443" \
 mykey ./script.gno
 ```
 
@@ -561,7 +602,7 @@ First, we need to fetch data for the account we are using to sign the transactio
 using the [auth/accounts](#authaccounts) query:
 
 ```bash
-gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
+gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:443"
 ```
 
 We need to extract the account number and sequence from the output:
@@ -587,7 +628,7 @@ of the transaction, preventing replay attacks.
 ### 2. Creating an unsigned transaction locally
 
 To create the transaction you want, you can use the [`call` API](#call),
-without the `-broadcast` flag, while redirecting the output to a local file:
+with `-broadcast=false`, while redirecting the output to a local file:
 
 ```bash
 gnokey maketx call \
@@ -595,6 +636,7 @@ gnokey maketx call \
 -func "Increment" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
+-broadcast=false \
 mykey > counter.tx
 ```
 
@@ -633,7 +675,7 @@ To broadcast the signed transaction to the chain, we can use the `gnokey broadca
 subcommand, giving it the path to the signed transaction:
 
 ```bash
-gnokey broadcast -remote "https://rpc.gno.land:443" counter.tx
+gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
 ```
 
 In this case, we do not need to specify a key pair, as the transaction has already
@@ -642,12 +684,19 @@ been signed in a previous step and `gnokey` is only sending it to the RPC endpoi
 ## Verifying a transaction's signature
 
 To verify a transaction's signature is correct, you can use the `gnokey verify`
-subcommand. We can provide the path to the transaction document using the `-docpath`
-flag, provide the key we signed the transaction with, and the signature itself.
-Make sure the signature is in the `hex` format.
+subcommand. Provide the path to the transaction document using the `-tx-path`
+flag, and optionally the path to a separate signature file using the `-sig-path`
+flag. If `-sig-path` is omitted, the first signature embedded in the transaction
+itself is verified.
 
 ```bash
-gnokey verify -docpath counter.tx mykey <signature>
+gnokey verify -tx-path counter.tx mykey
+```
+
+To verify against a separate signature file:
+
+```bash
+gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
 ## Using a k-of-n multisig
@@ -997,7 +1046,7 @@ cd gnokey-airgap-bundle
 sha256sum -c gnokey.sha256
 
 # You can run the command locally now
-./gnokey --h
+./gnokey -h
 ```
 
 ### Practical warning: CGO usually implies dynamic deps
@@ -1040,10 +1089,10 @@ We can obtain information about a specific address using this subquery. To call 
 we can run the following command:
 
 ```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
 ```
 
-With this, we are asking the Staging network to deliver information about the
+With this, we are asking the network to deliver information about the
 specified address. If everything went correctly, we should get output similar to the following:
 
 ```bash
@@ -1098,7 +1147,7 @@ The data field will contain the coins the address owns.
 ### `auth/gasprice`
 
 The `auth/gasprice` query allows you to fetch the minimum gas price currently
-required for transactions. This is useful for ensuring your `--gas-fee` meets
+required for transactions. This is useful for ensuring your `-gas-fee` meets
 the network's requirements when submitting transactions. To call it, we can run the following command:
 
 ```bash
@@ -1153,7 +1202,7 @@ data: [
           "Params": [
             {
             "Name": "amount",
-            "Type": "uint64",
+            "Type": "int64",
             "Value": ""
             }
           ],
@@ -1197,23 +1246,21 @@ height: 0
 data: package wugnot
 
 import (
-        "std"
+        "chain"
+        "chain/banker"
+        "chain/runtime"
         "strings"
 
         "gno.land/p/demo/tokens/grc20"
         "gno.land/p/nt/ufmt/v0"
-        pusers "gno.land/p/demo/users"
-        "gno.land/r/demo/users"
+        "gno.land/r/demo/defi/grc20reg"
 )
 
-var (
-        banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-        Token                = banker.Token()
-)
+var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
 
 const (
-        ugnotMinDeposit  uint64 = 1000
-        wugnotMinDeposit uint64 = 1
+        ugnotMinDeposit  int64 = 1000
+        wugnotMinDeposit int64 = 1
 )
 ...
 ```
@@ -1248,12 +1295,12 @@ data: {
     {
       "type": "",
       "name": "GetByAddr",
-      "signature": "func GetByAddr(address std.Address) Valoper",
+      "signature": "func GetByAddr(address address) Valoper",
       "doc": "GetByAddr fetches the valoper using the address, if present\n",
       "params": [
         {
           "Name": "address",
-          "Type": "std.Address"
+          "Type": "address"
         }
       ],
       "results": [
@@ -1282,7 +1329,7 @@ data: {
   "types": [
     {
       "name": "Valoper",
-      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      std.Address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
+      "signature": "type Valoper struct {\n\tName        string // the display name of the valoper\n\tMoniker     string // the moniker of the valoper\n\tDescription string // the description of the valoper\n\n\tAddress      address // The bech32 gno address of the validator\n\tPubKey       string      // the bech32 public key of the validator\n\tP2PAddresses []string    // the publicly reachable P2P addresses of the validator\n\tActive       bool        // flag indicating if the valoper is active\n}",
       "doc": "Valoper represents a validator operator profile\n"
     }
   ]
@@ -1309,11 +1356,11 @@ Currently, `vm/qeval` only supports primitive types in expressions.
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
-realm, which is also displayed by default on the [realm's page](https://gno.land/r/gnoland/wugnot):
+realm, which is also displayed by default on the [realm's page](https://staging.gno.land/r/gnoland/wugnot):
 
 ```bash
 height: 0
@@ -1418,13 +1465,15 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  --pkgpath "gno.land/r/demo/boards" \
-  --func "CreateBoard" \
-  --args "MyBoard" "Board description" \
-  --gas-fee 1000000ugnot \
-  --gas-wanted 2000000 \
-  --remote https://rpc.gno.land:443 \
-  --chainid staging \
+  -pkgpath "gno.land/r/gnoland/boards2/v1" \
+  -func "CreateBoard" \
+  -args "MyBoard" \
+  -args "true" \
+  -args "true" \
+  -gas-fee 1000000ugnot \
+  -gas-wanted 2000000 \
+  -remote https://rpc.staging.gno.land:443 \
+  -chainid staging \
   YOUR_KEY_NAME
 ```
 

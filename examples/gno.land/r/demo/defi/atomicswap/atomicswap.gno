@@ -74,8 +74,17 @@ func NewGRC20Swap(cur realm, recipient address, hashlock string, tokenRegistryKe
 
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
 // It allows specifying a custom timelock duration.
-// It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
+//
+// Only direct user-call (maketx call) is accepted: banker.OriginSend()
+// describes a real receipt at this realm only when the caller is a pure
+// EOA. Intermediate code realms or `maketx run` ephemeral realms can
+// attach -send to the tx but spend the envelope elsewhere, leaving
+// OriginSend() describing a phantom payment that would let the swap
+// drain the realm's pre-existing balance on Claim.
 func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock time.Time) (int, *Swap) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	sender := runtime.PreviousRealm().Address()
 	sent := banker.OriginSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")

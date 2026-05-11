@@ -41,9 +41,9 @@ func TestBlockGetShallowSize_WithRefNodeSource(t *testing.T) {
 	normalSize := normalBlock.GetShallowSize()
 	refNodeSize := refNodeBlock.GetShallowSize()
 
-	expectedRefNodeSize := normalSize + allocRefValue
+	expectedRefNodeSize := normalSize + allocRefNode
 	if refNodeSize != expectedRefNodeSize {
-		t.Errorf("Block with RefNode source: GetShallowSize() = %d, want %d (normal %d + allocRefValue %d)",
-			refNodeSize, expectedRefNodeSize, normalSize, allocRefValue)
+		t.Errorf("Block with RefNode source: GetShallowSize() = %d, want %d (normal %d + allocRefNode %d)",
+			refNodeSize, expectedRefNodeSize, normalSize, allocRefNode)
 	}
 }
