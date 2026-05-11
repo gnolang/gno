@@ -5,6 +5,8 @@ import (
 
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
+	govimpl "gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
 	susers "gno.land/r/sys/users"
 )
 
@@ -47,12 +49,13 @@ func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 	}
 
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
+	filter := govimpl.FilterByTier{Tier: memberstore.T1}
 
 	if newPausedValue {
-		return dao.NewProposalRequest("User Registry V1: Pause", "", e)
+		return dao.NewProposalRequestWithFilter("User Registry V1: Pause", "", e, filter)
 	}
 
-	return dao.NewProposalRequest("User Registry V1: Unpause", "", e)
+	return dao.NewProposalRequestWithFilter("User Registry V1: Unpause", "", e, filter)
 }
 
 // ProposeNewName allows GovDAO to propose a new name for an existing user.
