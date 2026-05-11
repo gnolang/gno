@@ -50,11 +50,11 @@ func ComputeKindCounts(nodes []StateNode) KindCounts {
 	c := KindCounts{All: len(nodes)}
 	for _, n := range nodes {
 		switch n.Kind {
-		case "struct", "map", "slice", "array", "pointer", "ref":
+		case KindStruct, KindMap, KindSlice, KindArray, KindPointer, KindRef:
 			c.State++
-		case "func", "closure":
+		case KindFunc, KindClosure:
 			c.Code++
-		case "type", "interface":
+		case KindType, KindInterface:
 			c.Types++
 		}
 	}
