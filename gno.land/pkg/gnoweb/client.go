@@ -18,6 +18,7 @@ import (
 var (
 	ErrClientPackageNotFound   = errors.New("package not found")
 	ErrClientFileNotFound      = errors.New("file not found")
+	ErrClientObjectNotFound    = errors.New("object not found")
 	ErrClientRenderNotDeclared = errors.New("render function not declared")
 	ErrClientBadRequest        = errors.New("bad request")
 	ErrClientTimeout           = errors.New("RPC node request timeout")
@@ -273,6 +274,13 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 			"error", qres.Response.Error,
 		)
 		return nil, ErrClientFileNotFound
+	case errors.Is(qerr, vm.ObjectNotFoundError{}):
+		c.logger.Warn("object not found",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, ErrClientObjectNotFound
 	case errors.Is(qerr, vm.NoRenderDeclError{}):
 		c.logger.Warn("render function not declared",
 			"path", qpath,

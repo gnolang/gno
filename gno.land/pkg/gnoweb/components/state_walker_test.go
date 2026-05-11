@@ -3,6 +3,7 @@ package components
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -1131,4 +1132,77 @@ func capturedIntTV(t *testing.T) gno.TypedValue {
 	require.NoError(t, amino.UnmarshalJSON([]byte(wrapper), &resp))
 	require.Len(t, resp.Values, 1)
 	return resp.Values[0]
+}
+
+// TestClampSliceWindow exhaustively covers the chain-supplied edge cases the
+// slice/array windows guard against: negative or out-of-range Offset/Length
+// and offset+length overflow. The pre-clamp code would panic on
+// av.List[offset:end] when offset > len.
+func TestClampSliceWindow(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name                            string
+		offset, length, listLen         int
+		wantOffset, wantEnd             int
+	}{
+		{"happy_path", 1, 2, 5, 1, 3},
+		{"length_zero", 0, 0, 5, 0, 0},
+		{"empty_list", 0, 3, 0, 0, 0},
+		{"negative_offset", -1, 2, 5, 0, 2},
+		{"negative_length", 0, -1, 5, 0, 0},
+		{"offset_past_end", 10, 2, 5, 5, 5},
+		{"length_past_end", 2, 100, 5, 2, 5},
+		{"overflow_offset_plus_length", 2, math.MaxInt - 1, 5, 2, 5},
+		{"both_negative", -10, -10, 5, 0, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			offset, end := clampSliceWindow(tc.offset, tc.length, tc.listLen)
+			assert.Equal(t, tc.wantOffset, offset, "offset")
+			assert.Equal(t, tc.wantEnd, end, "end")
+			assert.LessOrEqual(t, offset, end, "offset must never exceed end")
+			assert.LessOrEqual(t, end, tc.listLen, "end must never exceed listLen")
+		})
+	}
+}
+
+// TestDecodeStruct_FieldCap asserts the same maxChildrenPerNode bound already
+// applied to maps/slices/arrays also applies to struct fields, so a realm
+// with a pathologically large struct cannot expand into an unbounded DOM.
+func TestDecodeStruct_FieldCap(t *testing.T) {
+	t.Parallel()
+
+	const overCap = maxChildrenPerNode + 5
+
+	var fields strings.Builder
+	for i := 0; i < overCap; i++ {
+		if i > 0 {
+			fields.WriteString(",")
+		}
+		fmt.Fprintf(&fields,
+			`{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}`)
+	}
+
+	fixture := fmt.Sprintf(`{
+		"names": ["s"],
+		"values": [
+			{"T":{"@type":"/gno.StructType","Fields":[]},
+			 "V":{"@type":"/gno.StructValue","Fields":[%s]}}
+		]
+	}`, fields.String())
+
+	nodes, err := DecodePkgJSON([]byte(fixture))
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+
+	s := nodes[0]
+	assert.Equal(t, "struct", s.Kind)
+	assert.LessOrEqual(t, len(s.Children), maxChildrenPerNode+1,
+		"struct children must be bounded (+1 for the truncated sentinel)")
+	last := s.Children[len(s.Children)-1]
+	assert.Equal(t, KindTruncated, last.Kind,
+		"truncated sentinel must terminate the over-cap children list")
 }

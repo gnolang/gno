@@ -2,112 +2,158 @@
 
 ## Status
 
-Accepted
+Accepted (revised — see `Revision history` at the bottom).
 
 ## Context
 
-Gno realms persist their entire state on-chain as an object graph (structs,
-maps, slices, pointers, closures, etc.) encoded in Amino JSON. While
-developers can inspect state via CLI queries (`vm/qpkg_json`, `vm/qobject_json`,
-`vm/qtype_json`), there was no visual tool for browsing this state tree.
+Gno realms persist their state on-chain as an object graph (structs, maps,
+slices, pointers, closures, etc.) encoded in Amino JSON. CLI queries
+(`vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`) return the raw form, but
+the encoding is verbose and only navigable by hand: positional struct fields,
+`RefValue` references, `HeapItemValue` wrappers, base-64 primitives.
 
-Understanding realm state is critical for debugging, auditing, and building
-confidence in on-chain logic. The raw Amino JSON is verbose and requires
-knowledge of encoding details (base64 primitives, `RefValue` references,
-`HeapItemValue` wrappers, positional struct fields without names).
+The State Explorer surfaces this graph as a browsable view inside gnoweb so
+developers and auditors can inspect realm state without reaching for CLI tools
+or writing one-off decoders.
 
 ## Decision
 
-Add a **State Explorer** tab to gnoweb that renders the persisted state of any
-realm or package as an interactive, expandable tree.
+Add a **State** tab to gnoweb that renders the persisted state of any realm or
+package as an interactive, expandable tree. The page is **server-rendered** so
+URLs are shareable, time-travel is bookmarkable, the view screenshots and
+prints correctly, and browsers without JS still produce a working page.
 
 ### Architecture
 
 The system has three layers:
 
-1. **VM query endpoints** (`vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`)
-   return raw Amino JSON for package variables, individual objects by ObjectID,
-   and type definitions by TypeID respectively.
+1. **VM query endpoints** — `vm/qpkg_json`, `vm/qobject_json`, `vm/qtype_json`
+   return Amino JSON for package-level declarations, individual persisted
+   objects by ObjectID, and type definitions by TypeID. The previous
+   `vm/qeval_json` is reused for read-only expression evaluation. These are
+   the **source of truth** for the decoded shape.
 
-2. **[`@gnojs/amino`](../../misc/gnojs/README.md)** (TypeScript library in
-   `misc/gnojs/`) decodes Amino JSON into a UI-friendly `StateNode` tree. Each node has a name, type, kind,
-   optional value, and optional children. The decoder handles:
-   - Primitive values (base64 `N` field, `StringValue`)
-   - Structs with positional fields (names resolved via `qtype_json`)
-   - Collections (arrays, slices, maps) with inline or lazy-loaded children
-   - Pointers and `RefValue` references for lazy object graph traversal
-   - `HeapItemValue` transparent unwrapping
-   - `ExportRefValue` cycle detection
-   - Functions with source location extraction
-   - Closures with captured variable decoding (via `Captures` field)
-   - Type values and package references
+2. **Go decoder + orchestrator** (`gno.land/pkg/gnoweb/components/`) walks the
+   Amino JSON into a UI-friendly `StateNode` tree and enriches it with
+   `Href`s, syntax-highlighted source snippets, and inline previews of
+   top-level references. Fan-out to the chain is bounded by per-pool
+   semaphores so a single page render cannot flood the RPC layer.
 
-3. **gnoweb controller** (`controller-state-explorer.ts`) renders `StateNode`
-   trees as interactive HTML with:
-   - Expandable/collapsible rows with toggle arrows
-   - Color-coded types by kind (struct, map, func, closure, primitive, etc.)
-   - Lazy-loading of persisted objects via `fetch()` to the state JSON API
-   - Struct field name resolution via `qtype_json` round-trips
-   - Inline syntax-highlighted source code for function declarations
-   - Closure capture display with "Captured variables:" label
-   - ObjectID display on hover with click-to-copy
-   - Source file links for navigating to function definitions
+3. **Server-rendered HTML** (Go templates in
+   `gno.land/pkg/gnoweb/components/views/state.html`) emits the full page in
+   one response. JavaScript is purely additive: a minimal controller
+   persists open/closed `<details>` state per realm and toggles a
+   `Pretty / Tree` view preference via cookie + localStorage. No client-side
+   decoding, no lazy fetches.
 
-### gnoweb Integration
+### JSON API surface
 
-- **State tab**: Added as a top-level navigation tab (Content, State, Source,
-  Actions) for realm and package views.
-- **State JSON API**: `$state&json` serves raw JSON; `$state&oid=...&json`
-  serves individual objects; `$state&tid=...&json` serves type definitions;
-  `$state&file=...&start=N&end=N&json` serves syntax-highlighted source
-  snippets for function bodies.
-- **State HTML view**: `$state` renders the full page with the state explorer
-  component, which bootstraps from server-rendered initial data.
+The CLI-style endpoints from the original design are preserved at the gnoweb
+boundary so external tools (block explorers, IDE plugins, SDKs) keep working:
 
-### Closure Support
+- `$state&json` — package-level state for the current path
+- `$state&oid=…&json` — a single persisted object by ObjectID
+- `$state&tid=…&json` — a type definition by TypeID
+- proper HTTP statuses (`400` on invalid `oid`/`tid` length, `404` on missing
+  package/object, `500` on internal error) and a stable
+  `{"error":"…"}` envelope on failure
+- `Cache-Control: max-age=1` for latest, `max-age=86400, immutable` for
+  pinned `?height=N`
 
-Closures are detected by the presence of a non-empty `Captures` array in
-`FuncValue` (the `IsClosure` boolean field is unreliable in persisted state).
-Captures are `TypedValue` entries with `heapItemType` types pointing to
-`RefValue` heap items. The decoder assigns kind `"closure"` (rendered in blue)
-to distinguish from regular functions (purple). When expanded, closures show
-both the syntax-highlighted source code and the captured variables as child
-nodes.
+The previous `$state&file=…&json` snippet endpoint is removed — source code is
+now embedded server-side via chroma. Raw file bytes remain available via the
+existing `$source&file=…` route.
+
+`@gnojs/amino` is retained as a standalone TypeScript library in `misc/gnojs/`
+for external consumers that want to decode Amino JSON in the browser. gnoweb
+itself no longer depends on it — the Go decoder is the single source of truth.
+
+### Time-travel
+
+Appending `?height=N` to any `$state` URL pins the view to a historical block.
+A `↺ Latest` link rolls back to live. The pinned height propagates into every
+object/type/file fetch in the page, so the entire view is consistent with the
+block the user pinned. Object and type links carry the height across hops.
+
+### Closures
+
+Closures are detected by a non-empty `Captures` slice on `FuncValue` (the
+`IsClosure` flag is unreliable for persisted values). They render with the
+function body **and** the captured-variable list in a single card.
 
 ### OID Navigation
 
-The searchbar detects ObjectID patterns (hex/colon format) and redirects to
-`$state&oid=...` on the current realm, enabling direct navigation to any
-persisted object.
+The searchbar detects ObjectID patterns (hex `:` int) and redirects to
+`<currentRealm>$state&oid=…`. Time-travel preserved if a `?height=N` is in
+scope.
+
+### Resource bounds
+
+The decoder protects against pathological state shapes (intentional or
+otherwise):
+
+- `maxDecodeDepth = 256` — recursion stop
+- `maxChildrenPerNode = 500` — bound DOM size per collection / struct /
+  block; excess is collapsed into a single truncated sentinel
+- `maxStateIDLength = 256` — bounds attacker-controlled `oid` / `tid`
+  parameters before any RPC
+- per-pool semaphore caps (`maxConcurrentFileFetches = 8`,
+  `maxConcurrentObjectFetches = 8`) — back-pressure on the chain
+- total caps on inline previews (`maxInlinePreviewFetches = 30 ×
+  maxInlinePreviewRounds = 2`) — bound total RPCs per render
+- `context.WithTimeout` on the request context — propagated to every RPC
 
 ## Consequences
 
 ### Positive
 
-- Visual debugging of on-chain state without CLI tools
-- Lazy-loading enables browsing arbitrarily large object graphs
-- Struct field names resolved from type definitions improve readability
-- Closure captures made visible for understanding captured variable state
-- Consistent with gnoweb's existing tab navigation pattern
+- URLs are shareable: drop a link in chat, in an audit report, in a Linear
+  ticket; the recipient sees the exact same view
+- Pages screenshot and print correctly; crawlers see the full tree
+- Works without JavaScript (degraded UX, full data)
+- Time-travel makes audit narratives reproducible across blocks
+- Single Go decoder eliminates TS-vs-Go drift on the decoded shape
 
 ### Negative
 
-- Each object expansion requires a network round-trip to the node
-- Struct field name resolution adds an additional round-trip per unique type
-- PurgeCSS requires safelist entries for dynamically-constructed CSS classes
-  (e.g., `b-state-kind--${kind}`)
+- First-paint cost is server-side: a cold page does one `qpkg_json` plus N
+  preview fetches before any HTML lands; the planned nginx + ETag layer
+  (see Roadmap) amortizes this on repeat / cached flows
+- Tree state (open/closed nodes) lives client-side; cleared if cookies /
+  localStorage are wiped
+- PurgeCSS requires a safelist entry for state-explorer kind classes
 
 ### Files
 
-- `gno.land/pkg/gnoweb/handler_http.go` — `GetStateView`, `ServeStateJSON`
-- `gno.land/pkg/gnoweb/components/views/state.html` — state view template
-- `gno.land/pkg/gnoweb/components/layout_header.go` — State tab in navigation
-- `gno.land/pkg/gnoweb/frontend/js/controller-state-explorer.ts` — tree controller
-- `gno.land/pkg/gnoweb/frontend/css/06-blocks.css` — state explorer styles
+- `gno.land/pkg/gnoweb/handler_http.go` — `GetStateView`, `ServeStateJSON`,
+  status mapping
+- `gno.land/pkg/gnoweb/components/state_walker.go` — Amino JSON → `StateNode`
+- `gno.land/pkg/gnoweb/components/state_orchestrator.go` — bounded fan-out
+- `gno.land/pkg/gnoweb/components/state_sidebar.go` — TOC + Identity /
+  Lineage / Storage panels
+- `gno.land/pkg/gnoweb/components/view_state.go` — page-level glue
+- `gno.land/pkg/gnoweb/components/views/state.html` — server-rendered template
+- `gno.land/pkg/gnoweb/weburl/url.go` — `?height=N` parsing
+- `gno.land/pkg/gnoweb/frontend/js/controller-state.ts` — minimal toggle /
+  view-mode controller
 - `gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts` — OID detection
-- `gno.land/pkg/gnoweb/frontend/postcss.config.cjs` — PurgeCSS safelist
-- `misc/gnojs/src/decode.ts` — Amino JSON decoder
-- `misc/gnojs/src/types.ts` — Amino type definitions
-- `misc/gnojs/src/type-utils.ts` — type name/kind/signature utilities
-- `gno.land/pkg/sdk/vm/keeper.go` — `QueryPkgJSON`, `QueryObjectJSON`, `QueryTypeJSON`
-- `gno.land/pkg/sdk/vm/handler.go` — `qpkg_json`, `qobject_json`, `qtype_json` routes
+- `gno.land/pkg/gnoweb/frontend/css/06-blocks.css` — state explorer styles
+  (Cube CSS)
+- `gno.land/pkg/gnoweb/frontend/postcss.config.cjs` — PurgeCSS safelist for
+  state-explorer classes
+- `gno.land/pkg/sdk/vm/keeper.go` — `QueryEvalJSON`, `QueryPkg`,
+  `QueryObjectJSON`, `QueryObjectBinary`, `QueryType`
+- `gno.land/pkg/sdk/vm/handler.go` — `qeval_json`, `qpkg_json`,
+  `qobject_json`, `qobject_binary`, `qtype_json` routes
+- `gnovm/pkg/gnolang/values_export.go` — `ExportValues`, `ExportObject`,
+  cycle-breaking via `ExportRefValue`
+- `misc/gnojs/` — standalone TypeScript library (external consumers only)
+
+## Revision history
+
+- Initial: client-side TS rendering on top of `@gnojs/amino`, lazy fetches
+  via `controller-state-explorer.ts`.
+- Revised in this PR: pivoted to server-side rendering. `@gnojs/amino` is
+  retained as a standalone library for external consumers; the Go decoder
+  is the single source of truth for gnoweb. Added `?height=N` time-travel,
+  bounded fan-out, JSON API surface stabilisation, doc-comment inlining.

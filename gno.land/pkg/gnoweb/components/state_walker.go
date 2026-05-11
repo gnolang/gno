@@ -64,8 +64,9 @@ type StateNode struct {
 	ModTime        string
 	RefCount       string
 	LastObjectSize string
-	// Doc is the Markdown-formatted documentation comment attached
-	// post-walk from the package's JSON doc index, matched by Name.
+	// Doc is the plain-text source comment attached post-walk from the
+	// package's JSON doc index, matched by Name. Rendered text-escaped
+	// by the template — no Markdown processing.
 	Doc string
 }
 
@@ -183,13 +184,21 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 	if sv, ok := v.(*gno.StructValue); ok {
 		bt := baseType(t)
 		if st, ok := bt.(*gno.StructType); ok {
-			children := make([]StateNode, len(sv.Fields))
-			for i, ftv := range sv.Fields {
+			total := len(sv.Fields)
+			shown := total
+			if shown > maxChildrenPerNode {
+				shown = maxChildrenPerNode
+			}
+			children := make([]StateNode, shown, shown+1)
+			for i := 0; i < shown; i++ {
 				name := strconv.Itoa(i)
 				if i < len(st.Fields) && st.Fields[i].Name != "" {
 					name = string(st.Fields[i].Name)
 				}
-				children[i] = decodeTypedValue(name, ftv)
+				children[i] = decodeTypedValue(name, sv.Fields[i])
+			}
+			if total > shown {
+				children = append(children, truncatedChildrenNode(total-shown))
 			}
 			return children
 		}
@@ -221,6 +230,26 @@ func truncatedChildrenNode(remaining int) StateNode {
 		Name: "…", Kind: KindTruncated,
 		Value: fmt.Sprintf("(%d more entries omitted)", remaining),
 	}
+}
+
+// clampSliceWindow returns a safe [offset:end] window into a backing list of
+// the given length, guarding against chain-supplied negative or out-of-range
+// Offset/Length and against offset+length overflow.
+func clampSliceWindow(offset, length, listLen int) (int, int) {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > listLen {
+		offset = listLen
+	}
+	if length < 0 {
+		length = 0
+	}
+	end := offset + length
+	if end < offset || end > listLen { // overflow or past end
+		end = listLen
+	}
+	return offset, end
 }
 
 func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
@@ -337,9 +366,17 @@ func decodeValueChildren(v gno.Value) []StateNode {
 	// ---- Collection-shaped: render fields/elements as direct children ----
 
 	case *gno.StructValue:
-		nodes := make([]StateNode, len(cv.Fields))
-		for i, ftv := range cv.Fields {
-			nodes[i] = decodeTypedValue(strconv.Itoa(i), ftv)
+		total := len(cv.Fields)
+		shown := total
+		if shown > maxChildrenPerNode {
+			shown = maxChildrenPerNode
+		}
+		nodes := make([]StateNode, shown, shown+1)
+		for i := 0; i < shown; i++ {
+			nodes[i] = decodeTypedValue(strconv.Itoa(i), cv.Fields[i])
+		}
+		if total > shown {
+			nodes = append(nodes, truncatedChildrenNode(total-shown))
 		}
 		return nodes
 	case *gno.ArrayValue:
@@ -368,14 +405,7 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		// the visible window as elements. If the array is itself a stored
 		// ref, expose a single ref node so the user can navigate.
 		if av, ok := cv.Base.(*gno.ArrayValue); ok && av.Data == nil {
-			offset, length := cv.Offset, cv.Length
-			if offset < 0 {
-				offset = 0
-			}
-			end := offset + length
-			if end > len(av.List) {
-				end = len(av.List)
-			}
+			offset, end := clampSliceWindow(cv.Offset, cv.Length, len(av.List))
 			window := av.List[offset:end]
 			total := len(window)
 			shown := total
@@ -427,9 +457,17 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		}
 		return []StateNode{inner}
 	case *gno.Block:
-		nodes := make([]StateNode, len(cv.Values))
-		for i, tv := range cv.Values {
-			nodes[i] = decodeTypedValue(strconv.Itoa(i), tv)
+		total := len(cv.Values)
+		shown := total
+		if shown > maxChildrenPerNode {
+			shown = maxChildrenPerNode
+		}
+		nodes := make([]StateNode, shown, shown+1)
+		for i := 0; i < shown; i++ {
+			nodes[i] = decodeTypedValue(strconv.Itoa(i), cv.Values[i])
+		}
+		if total > shown {
+			nodes = append(nodes, truncatedChildrenNode(total-shown))
 		}
 		return nodes
 
@@ -494,22 +532,29 @@ func decodePrimitive(name, tName string, pt gno.PrimitiveType, tv gno.TypedValue
 
 func decodeStruct(depth int, name, tName, typeID string, bt gno.Type, sv *gno.StructValue) StateNode {
 	fieldNames := structFieldNames(bt)
-	children := make([]StateNode, len(sv.Fields))
-	for i, ftv := range sv.Fields {
+	total := len(sv.Fields)
+	shown := total
+	if shown > maxChildrenPerNode {
+		shown = maxChildrenPerNode
+	}
+	children := make([]StateNode, shown, shown+1)
+	for i := 0; i < shown; i++ {
 		var fname string
 		if i < len(fieldNames) && fieldNames[i] != "" {
 			fname = fieldNames[i]
 		} else {
 			fname = strconv.Itoa(i)
 		}
-		children[i] = decodeTypedValueAt(depth+1, fname, ftv)
+		children[i] = decodeTypedValueAt(depth+1, fname, sv.Fields[i])
 	}
-	length := len(sv.Fields)
+	if total > shown {
+		children = append(children, truncatedChildrenNode(total-shown))
+	}
 	node := StateNode{
 		Name: name, Type: tName, Kind: KindStruct,
-		Expandable: length > 0, Children: children,
+		Expandable: total > 0, Children: children,
 		TypeID:  typeID,
-		Length:  intPtr(length),
+		Length:  intPtr(total),
 		Preview: buildChildrenPreview(children),
 	}
 	applyObjectInfo(&node, sv.ObjectInfo)
@@ -564,14 +609,7 @@ func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 				Length: intPtr(length),
 			}
 		}
-		offset := sv.Offset
-		end := offset + length
-		if end > len(av.List) {
-			end = len(av.List)
-		}
-		if offset < 0 {
-			offset = 0
-		}
+		offset, end := clampSliceWindow(sv.Offset, length, len(av.List))
 		window := av.List[offset:end]
 		total := len(window)
 		shown := total

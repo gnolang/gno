@@ -256,7 +256,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 // prepareIndexBodyView prepares the data and main view for the index page.
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	ctx := r.Context()
-	viewMode := readWhitelistedCookie(r, stateViewModeCookie, "tree")
+	viewMode := readWhitelistedCookie(r, stateViewModeCookie, "tree", "pretty")
 
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
@@ -1093,7 +1093,9 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 // height (which they control via the URL) is the cause. PackageNotFound
 // stays a 404 even at height>0 (path is wrong regardless of height).
 func stateErrorPage(gnourl *weburl.GnoURL, err error, height int64) (int, *components.View) {
-	if errors.Is(err, ErrClientPackageNotFound) {
+	// Not-found verdicts are authoritative regardless of height — a wrong
+	// path/OID stays wrong whether we pin the height or not.
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
 		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
 	}
 	if height > 0 {
@@ -1111,10 +1113,11 @@ func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.Vie
 	switch {
 	case errors.Is(err, ErrClientTimeout):
 		return http.StatusRequestTimeout, components.StatusErrorComponent(err.Error())
-	case errors.Is(err, ErrClientPackageNotFound):
+	case errors.Is(err, ErrClientPackageNotFound),
+		errors.Is(err, ErrClientObjectNotFound):
 		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
 	case errors.Is(err, ErrClientBadRequest):
-		return http.StatusInternalServerError, components.StatusErrorComponent("bad request")
+		return http.StatusBadRequest, components.StatusErrorComponent("bad request")
 	case errors.Is(err, ErrClientResponse):
 		fallthrough // XXX: for now fallback as internal error
 	default:

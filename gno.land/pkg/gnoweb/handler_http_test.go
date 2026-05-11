@@ -653,9 +653,18 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 			wantMsg:  gnoweb.ErrClientPackageNotFound.Error(),
 		},
 		{
+			// Missing OID must surface as 404, not 500: the page is gone,
+			// not the server. Mirrors PackageNotFound's classification.
+			name:     "object not found",
+			err:      gnoweb.ErrClientObjectNotFound,
+			wantCode: http.StatusNotFound,
+			wantView: true,
+			wantMsg:  gnoweb.ErrClientObjectNotFound.Error(),
+		},
+		{
 			name:     "bad request",
 			err:      gnoweb.ErrClientBadRequest,
-			wantCode: http.StatusInternalServerError,
+			wantCode: http.StatusBadRequest,
 			wantView: true,
 			wantMsg:  "bad request",
 		},
