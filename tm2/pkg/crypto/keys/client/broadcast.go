@@ -171,11 +171,15 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 }
 
 // buildSimulationTxBytes returns tx bytes to use for simulation, overriding
-// GasWanted to consensus maxGas. If consensus maxGas is undefined, it falls
-// back to the maximum int64 value. It also returns whether tx bytes were
+// GasWanted to consensus maxGas. If maxGas is -1 (chain has no gas limit) it
+// falls back to MaxInt64. If maxGas is 0 (unknown, e.g. fetch failed) the
+// original bytes are returned unchanged. It also returns whether tx bytes were
 // rewritten.
 func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, bool, error) {
-	if maxGas <= 0 {
+	switch {
+	case maxGas == 0:
+		return txBytes, false, nil
+	case maxGas == -1:
 		maxGas = simulationMaxGasFallback
 	}
 	if tx.Fee.GasWanted >= maxGas {

@@ -91,6 +91,17 @@ func TestBuildSimulationTxBytesUsesFallbackWhenConsensusMaxGasUndefined(t *testi
 	require.Equal(t, simulationMaxGasFallback, simTx.Fee.GasWanted)
 }
 
+func TestBuildSimulationTxBytesKeepsOriginalWhenMaxGasUnknown(t *testing.T) {
+	tx := std.Tx{Fee: std.Fee{GasWanted: 10}}
+	bz, err := amino.Marshal(&tx)
+	require.NoError(t, err)
+
+	simBz, rewritten, err := buildSimulationTxBytes(&tx, bz, 0)
+	require.NoError(t, err)
+	require.False(t, rewritten)
+	require.Equal(t, bz, simBz)
+}
+
 func TestBuildSimulationTxBytesKeepsHigherOriginalGasWanted(t *testing.T) {
 	tx := std.Tx{Fee: std.Fee{GasWanted: 100}}
 	bz, err := amino.Marshal(&tx)
