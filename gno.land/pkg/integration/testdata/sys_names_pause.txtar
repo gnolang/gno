@@ -21,7 +21,7 @@ gnoland start
 
 # Initialize GovDAO members so we can drive proposals. test1 becomes a
 # T1 member, eligible to vote on pause proposals (which are T1-tier).
-gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
 stdout OK!
 
 # Propose pause via GovDAO (T1 tier).
@@ -29,7 +29,7 @@ gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermi
 stdout OK!
 
 # Vote YES + execute.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test test1

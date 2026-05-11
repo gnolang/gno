@@ -11,7 +11,7 @@ gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/caller -gas-f
 stdout OK!
 
 # Call SaveStructToPublicRealm — stores a struct cross-realm.
-gnokey maketx call -pkgpath gno.land/r/test/caller -func SaveStructToPublicRealm -gas-fee 330001ugnot -gas-wanted 3_300_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/caller -func SaveStructToPublicRealm -gas-fee 330001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test test1
 stdout OK!
 
 -- publicrealm/gnomod.toml --

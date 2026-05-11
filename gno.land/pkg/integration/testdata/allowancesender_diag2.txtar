@@ -12,25 +12,25 @@ stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 gnoland start
 
 # Variant D: defer al.Close() with NO cross call at all. Should succeed.
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseNoCross -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseNoCross -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 3100000 -chainid=tendermint_test user1
 stdout OK!
 
 # Variant E: defer al.Close() + cross call WITHOUT persistence.
 # Callee receives but discards. Does the cross call alone (without
 # persistence) trigger taint on the deferred receiver?
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossNoPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossNoPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test user1
 
 # Variant F: defer + cross + persist. With the VM fix (Defer.IsBoundMethod
 # threading the receiver through PushFrameCall so the implicit borrow-
 # realm switch fires for deferred method calls), this now SUCCEEDS.
 # Pre-fix behavior was a "cannot directly modify readonly tainted" panic.
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4100000 -chainid=tendermint_test user1
 stdout OK!
 
 # Variant G: defer + cross + persist + INLINE al.Close() before defer fires.
 # Diagnostic question: does the inline close succeed AND does the
 # deferred close still panic?
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersistAlsoInline -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersistAlsoInline -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4600000 -chainid=tendermint_test user1
 
 -- diag2callee/gnomod.toml --
 module = "gno.land/r/test/diag2callee"

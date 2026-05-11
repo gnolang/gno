@@ -21,12 +21,12 @@ gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 0'
 
 ## run crossing_mutation
-gnokey maketx run runner $WORK/run/crossing_mutation.gno -gas-fee 340001ugnot -gas-wanted 3_400_000 -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/crossing_mutation.gno -gas-fee 340001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 0, value = 1'
 
 ## run borrowed_object_mutation
-gnokey maketx run runner $WORK/run/borrowed_object_mutation.gno -gas-fee 380001ugnot -gas-wanted 3_800_000 -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/borrowed_object_mutation.gno -gas-fee 380001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 1, value = 1'
 
@@ -34,7 +34,7 @@ stdout 'Object\.value = 1, value = 1'
 gnokey maketx run runner $WORK/run/object_mutation_rooted_at_caller.gno -gas-fee 330001ugnot -gas-wanted 3_300_000 -chainid=tendermint_test
 
 ## run call_mutate_object
-gnokey maketx run runner $WORK/run/call_mutate_object.gno -gas-fee 340001ugnot -gas-wanted 3_400_000 -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/call_mutate_object.gno -gas-fee 340001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 2, value = 1'
 
@@ -45,12 +45,12 @@ gnokey maketx run runner $WORK/run/inspect_realms_crossing.gno -gas-fee 330001ug
 gnokey maketx run runner $WORK/run/inspect_realms_non_crossing.gno -gas-fee 330001ugnot -gas-wanted 3_300_000 -chainid=tendermint_test
 
 ## run mutate_object_with_borrow_crossing
-gnokey maketx run runner $WORK/run/mutate_object_with_borrow_crossing.gno -gas-fee 340001ugnot -gas-wanted 3_400_000 -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/mutate_object_with_borrow_crossing.gno -gas-fee 340001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 3, value = 1'
 
 ## run mutate_crossing_object
-gnokey maketx run runner $WORK/run/mutate_crossing_object.gno -gas-fee 340001ugnot -gas-wanted 3_400_000 -chainid=tendermint_test
+gnokey maketx run runner $WORK/run/mutate_crossing_object.gno -gas-fee 340001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
 stdout 'Object\.value = 4, value = 1'
 

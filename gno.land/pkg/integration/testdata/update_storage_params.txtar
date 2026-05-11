@@ -15,12 +15,12 @@ gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 
 stdout OK!
 
 ## Propose to update default deposit.
-gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
 
 stdout OK!
 
 ## Vote "update default deposit"
-gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 22_000_000 -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
@@ -29,7 +29,7 @@ gnokey query params/vm:p:default_deposit
 stdout '600000000ugnot'
 
 ## Execute "update default deposit" proposal
-gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 26_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 27_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 

@@ -23,10 +23,10 @@ stdout OK!
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeAsAValueOfTreeToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist reference of object from the private realm gno.land/r/foobar/privaterealm'
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveIntToPublicRealm -gas-fee 460001ugnot -gas-wanted 4_600_000 -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveIntToPublicRealm -gas-fee 460001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStringToPublicRealm -gas-fee 460001ugnot -gas-wanted 4_600_000 -chainid=tendermint_test $test1_user_addr
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveStringToPublicRealm -gas-fee 460001ugnot -gas-wanted 5_000_000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveSliceToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
