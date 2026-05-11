@@ -5,14 +5,9 @@ import { BaseController, debounce } from "./controller.js";
 //   data-search-items-value="<CSS selector>"   (required)
 //   data-search-attribute-value="<attr>"       (default: data-name)
 //   data-action="input->search#filter"
-// After each pass, dispatches a bubbling `search:filter` CustomEvent
-// with `{ query, matchCount, totalCount }` for downstream integrations
-// (e.g. a counter badge that reflects the filtered total).
+// Emits a bubbling `search:filter` CustomEvent with
+// `{ query, matchCount, totalCount }` after each pass.
 export class SearchController extends BaseController {
-	// `declare` (no init): field exists at runtime but no initializer
-	// emitted. Critical — BaseController's constructor calls init()
-	// (→ connect()) BEFORE derived class-field initialisers run, so
-	// any `= default` here would clobber connect-time assignments.
 	private declare items: HTMLElement[];
 	private declare attribute: string;
 
@@ -22,9 +17,7 @@ export class SearchController extends BaseController {
 
 		const itemsSelector = this.getValue("items");
 		if (!itemsSelector) {
-			console.warn(
-				"SearchController: missing required data-search-items-value",
-			);
+			this.warn("missing required data-search-items-value");
 			return;
 		}
 		const customAttr = this.getValue("attribute");
@@ -35,15 +28,10 @@ export class SearchController extends BaseController {
 				document.querySelectorAll<HTMLElement>(itemsSelector),
 			);
 		} catch (err) {
-			console.warn(
-				`SearchController: invalid data-search-items-value "${itemsSelector}":`,
-				err,
-			);
+			this.warn(`invalid data-search-items-value "${itemsSelector}":`, err);
 		}
 	}
 
-	// Method (not class field) so it lives on the prototype and
-	// BaseController's setupActions can bind it.
 	public filter(event: Event): void {
 		const input = event.target as HTMLInputElement;
 		this.applyFilter(input.value);
@@ -55,12 +43,8 @@ export class SearchController extends BaseController {
 		for (const el of this.items) {
 			const v = (el.getAttribute(this.attribute) || "").toLowerCase();
 			const match = q === "" || v.includes(q);
-			// Use the `u-hidden` utility (`display: none`) rather than
-			// the HTML `hidden` attribute — `[hidden]` defaults to
-			// `display: none` from the user-agent stylesheet, but any
-			// authored `display: <whatever>` rule on the same element
-			// (e.g. `.b-state-decl { display: flex }`) overrides it.
-			// Class-based hide is more robust against cascade collisions.
+			// `u-hidden` over the HTML `hidden` attr: authored `display:*`
+			// rules outrank the user-agent `[hidden] { display: none }`.
 			el.classList.toggle("u-hidden", !match);
 			if (match) matchCount++;
 		}

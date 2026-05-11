@@ -1,4 +1,4 @@
-import { BaseController } from "./controller.js";
+import { BaseController, setPrefCookie } from "./controller.js";
 
 // localStorage = authoritative client pref; cookie = SSR helper so
 // the server stamps the right radio `checked` from first paint.
@@ -16,9 +16,6 @@ const VIEW_VALID_MODES = new Set(["pretty", "tree"]);
 // header + subheader + article so setupActions reaches every
 // `data-action="...->state#..."` across the page.
 export class StateController extends BaseController {
-	// `declare` (no runtime init): BaseController's constructor calls
-	// init()→connect() BEFORE derived field initialisers, so any
-	// `= default` here would clobber connect-time assignments.
 	private declare treeStorageKey: string;
 	private declare openSet: Set<string>;
 	private declare viewTree: HTMLElement | null;
@@ -143,8 +140,7 @@ export class StateController extends BaseController {
 		try {
 			localStorage.setItem(VIEW_STORAGE_KEY, mode);
 		} catch {}
-		const secure = location.protocol === "https:" ? ";Secure" : "";
-		document.cookie = `${VIEW_COOKIE_KEY}=${mode};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax${secure}`;
+		setPrefCookie(VIEW_COOKIE_KEY, mode, COOKIE_MAX_AGE);
 	}
 
 	// Safety net: if the SSR cookie was stripped (privacy ext, proxy)

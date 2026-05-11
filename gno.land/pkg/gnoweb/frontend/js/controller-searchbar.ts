@@ -17,26 +17,24 @@ export class SearchbarController extends BaseController {
 
 		const inputElement = this.getDOMElement("input");
 		if (!(inputElement instanceof HTMLInputElement)) {
-			console.error("SearchbarController: input target missing or wrong type.");
+			this.warn("input target missing or wrong type");
 			return;
 		}
 		let url = inputElement.value.trim();
-
 		if (!url) {
-			console.error("SearchbarController: Please enter a URL to search.");
+			this.warn("empty URL");
 			return;
 		}
 
-		// Detect object IDs and redirect to state view
+		// OID-shaped input redirects to the state view for that object.
 		if (OID_PATTERN.test(url) && !url.startsWith("/")) {
-			const realmPath = this._currentRealmPath();
+			const realmPath = this.currentRealmPath();
 			if (realmPath) {
 				window.location.href = `${realmPath}$state&oid=${encodeURIComponent(url)}`;
 				return;
 			}
 		}
 
-		// Check if the URL has a proper scheme
 		if (!/^https?:\/\//i.test(url)) {
 			const baseUrl = window.location.origin;
 			url = `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
@@ -45,16 +43,12 @@ export class SearchbarController extends BaseController {
 		try {
 			window.location.href = new URL(url).href;
 		} catch (_error) {
-			console.error(
-				"SearchBarController: Invalid URL. Please enter a valid URL starting with http:// or https://.",
-			);
+			this.warn(`invalid URL: ${url}`);
 		}
 	}
 
-	private _currentRealmPath(): string | null {
-		const path = window.location.pathname;
-		// Match realm paths like /r/demo/tamagotchi
-		const match = path.match(/^(\/r\/[^$]+)/);
+	private currentRealmPath(): string | null {
+		const match = window.location.pathname.match(/^(\/r\/[^$]+)/);
 		return match ? match[1] : null;
 	}
 }
