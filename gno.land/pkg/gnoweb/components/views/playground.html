@@ -44,9 +44,27 @@ LAYOUT - Playground view
   <!-- Editor Area -->
   <div class="b-playground-editor-area">
     <!-- File tabs -->
-    <div class="b-playground-tabs" data-playground-target="tabs">
-      <button class="b-playground-tab b-playground-tab--active">main.gno</button>
-      <button class="b-playground-tab-add" title="Add file">+</button>
+    <div class="b-playground-tabs-wrap" data-playground-target="tabs-wrap">
+      <div class="b-playground-tabs" data-playground-target="tabs">
+        <button class="b-playground-tab b-playground-tab--active">main.gno</button>
+      </div>
+      <div class="b-playground-tabs-actions">
+        <button type="button" class="b-playground-tabs-nav b-playground-tabs-nav--prev"
+          data-playground-target="prev-button"
+          data-action="click->playground#scrollTabsPrev"
+          title="Scroll tabs left" aria-label="Scroll tabs left" hidden>
+          <svg class="c-icon"><use href="#ico-arrow"></use></svg>
+        </button>
+        <button type="button" class="b-playground-tabs-nav b-playground-tabs-nav--next"
+          data-playground-target="next-button"
+          data-action="click->playground#scrollTabsNext"
+          title="Scroll tabs right" aria-label="Scroll tabs right" hidden>
+          <svg class="c-icon"><use href="#ico-arrow"></use></svg>
+        </button>
+        <button type="button" class="b-playground-tab-add"
+          data-action="click->playground#addFile"
+          title="Add file" aria-label="Add file">+</button>
+      </div>
     </div>
 
     <!-- Code editor -->
