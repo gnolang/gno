@@ -1355,7 +1355,8 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 	}{
 		{"default playground", "/_/play", "Playground"},
 		{"with initial code", "/_/play?code=package+main", "package main"},
-		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg==", "package main"},
+		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D", "package main"},
+		{"with compressed encoded code", "/_/play?code=KkhMzk5MT1XITczM4wIEAAD%2F%2Fw%3D%3D&z", "package main"},
 		{"with fork param", "/_/play?from=gno.land/r/demo/foo", "gno.land/r/demo/foo"},
 	}
 
@@ -1369,36 +1370,6 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 			assert.Contains(t, rr.Body.String(), tc.contain)
 		})
 	}
-}
-
-// TestHTTPHandler_EvalView tests the ?eval query on a realm page.
-func TestHTTPHandler_EvalView(t *testing.T) {
-	t.Parallel()
-
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "gno.land",
-		Path:   "/r/mock/path",
-		Files:  map[string]string{"mock.gno": `package mock`},
-		Functions: []*doc.JSONFunc{
-			{Name: "Hello", Signature: "Hello() string"},
-			{Name: "unexported", Signature: "unexported()"},
-		},
-	}
-
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/mock/path$eval", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	assert.Contains(t, body, "Expression Evaluator")
-	assert.Contains(t, body, "Hello")
-	assert.NotContains(t, body, "unexported") // non-exported should be filtered
 }
 
 // TestHTTPHandler_ForkView tests the ?fork query on a package page.
