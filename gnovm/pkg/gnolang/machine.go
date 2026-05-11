@@ -1455,8 +1455,13 @@ const (
 	OpCPUSlopeBigIntShr = 51 // fit: 0.0498 ns/bit * 1024 = 51.0 (abs of negative fit)
 
 	// BigDec per-digit slopes: gas = digits * slope / 100.
-	OpCPUSlopeBigDecAdd  = 375 // fit: 3.7522 ns/digit * 100 = 375.2
-	OpCPUSlopeBigDecSub  = 20  // fit: 0.2031 ns/digit * 100 = 20.3
+	OpCPUSlopeBigDecAdd = 375 // fit: 3.7522 ns/digit * 100 = 375.2
+	OpCPUSlopeBigDecSub = 20  // fit: 0.2031 ns/digit * 100 = 20.3
+	// TODO: OpCPUSlopeBigDecEql/Cmp are placeholders reusing the Sub fit;
+	// apd.Decimal.Cmp() walks digits similarly but lacks dedicated benchmarks.
+	// Mirror BigInt's Eql/Lss split until calibrated separately.
+	OpCPUSlopeBigDecEql  = 20  // placeholder, ≈ Sub fit (used by ==, !=)
+	OpCPUSlopeBigDecCmp  = 20  // placeholder, ≈ Sub fit (used by <, <=, >, >=)
 	OpCPUSlopeBigDecUneg = 13  // fit: 0.1279 ns/digit * 100 = 12.8
 	OpCPUSlopeBigDecInc  = 372 // fit: 3.7230 ns/digit * 100 = 372.3
 	OpCPUSlopeBigDecDec  = 371 // fit: 3.7058 ns/digit * 100 = 370.6
