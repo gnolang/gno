@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
@@ -167,6 +168,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
+		return
+	}
+
+	// Raw Amino JSON passthrough — stable API surface inherited from
+	// ADR-003 (`?state&json` and oid/tid variants). Bypasses the SSR
+	// rendering flow entirely.
+	if gnourl.WebQuery.Has("state") && gnourl.WebQuery.Has("json") {
+		h.ServeStateJSON(r.Context(), gnourl, w)
 		return
 	}
 
@@ -713,6 +722,69 @@ func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL, v
 		return h.getStateObjectView(ctx, gnourl, oid, viewMode)
 	}
 	return h.getStatePackageView(ctx, gnourl, viewMode)
+}
+
+// ServeStateJSON exposes the chain's raw Amino JSON as a stable API surface
+// for external tooling (block explorers, IDE plugins, JS SDKs) that decode
+// state in the browser — the use case @gnojs/amino was carved out for.
+// Triggered by `?state&json`, `?state&oid=…&json`, or `?state&tid=…&json`.
+//
+// Bytes flow through unmodified: no decoder, no walker, no fan-out, so none
+// of the per-render bounds apply. The only validation is maxStateIDLength on
+// attacker-controlled oid/tid to keep request→response amplification bounded.
+func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	height := gnourl.Height()
+
+	var (
+		raw []byte
+		err error
+	)
+	switch {
+	case gnourl.WebQuery.Has("oid"):
+		oid := gnourl.WebQuery.Get("oid")
+		if len(oid) > maxStateIDLength {
+			writeStateJSONError(w, http.StatusBadRequest, "invalid object id")
+			return
+		}
+		raw, err = h.Client.StateObject(ctx, oid, height)
+	case gnourl.WebQuery.Has("tid"):
+		tid := gnourl.WebQuery.Get("tid")
+		if len(tid) > maxStateIDLength {
+			writeStateJSONError(w, http.StatusBadRequest, "invalid type id")
+			return
+		}
+		raw, err = h.Client.StateType(ctx, tid, height)
+	default:
+		raw, err = h.Client.StatePkg(ctx, gnourl.Path, height)
+	}
+
+	if err != nil {
+		h.Logger.Error("unable to fetch state json", "error", err, "path", gnourl.EncodeURL(), "height", height)
+		status, _ := stateErrorPage(gnourl, err, height)
+		writeStateJSONError(w, status, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	// Pinned `?height=N` is immutable once the block is finalized;
+	// "latest" gets a 1s freshness window matching the ~3s block time.
+	// Sets the terrain for the planned nginx/ETag layer.
+	if height > 0 {
+		w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=1")
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(raw)
+}
+
+// writeStateJSONError writes a minimal `{"error":"…"}` envelope so consumers
+// can reliably parse failures without sniffing for HTML.
+func writeStateJSONError(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	body, _ := json.Marshal(map[string]string{"error": msg})
+	w.Write(body)
 }
 
 // getStatePackageView renders the top-level state of a package or realm.

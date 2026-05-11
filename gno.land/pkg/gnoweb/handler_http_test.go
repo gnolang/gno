@@ -302,6 +302,113 @@ func TestHTTPHandler_GetSourceDownload(t *testing.T) {
 	}
 }
 
+// TestHTTPHandler_ServeStateJSON covers the raw Amino JSON passthrough surface
+// (`?state&json`, oid, tid). Behavior intent: content flows unchanged from the
+// chain client, only oid/tid input length is validated, and pinned heights
+// get an immutable cache header.
+func TestHTTPHandler_ServeStateJSON(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/state",
+		Files: map[string]string{
+			"render.gno": `package state`,
+		},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	tooLong := strings.Repeat("a", 257) // maxStateIDLength = 256
+
+	cases := []struct {
+		Name         string
+		Path         string
+		Status       int
+		ContentType  string
+		BodyContains string
+		CacheControl string
+	}{
+		{
+			Name:         "package json",
+			Path:         "/r/mock/state$state&json",
+			Status:       http.StatusOK,
+			ContentType:  "application/json; charset=utf-8",
+			BodyContains: `"names"`, // mock returns `{"names":[...],"values":[...]}`
+			CacheControl: "public, max-age=1",
+		},
+		{
+			Name:         "object json",
+			Path:         "/r/mock/state$state&oid=abc%3A1&json",
+			Status:       http.StatusOK,
+			ContentType:  "application/json; charset=utf-8",
+			BodyContains: `"objectid"`,
+			CacheControl: "public, max-age=1",
+		},
+		{
+			Name:         "type json",
+			Path:         "/r/mock/state$state&tid=foo&json",
+			Status:       http.StatusOK,
+			ContentType:  "application/json; charset=utf-8",
+			BodyContains: `"typeid"`,
+			CacheControl: "public, max-age=1",
+		},
+		{
+			Name:         "pinned height is immutable",
+			Path:         "/r/mock/state$state&json&height=42",
+			Status:       http.StatusOK,
+			ContentType:  "application/json; charset=utf-8",
+			CacheControl: "public, max-age=86400, immutable",
+		},
+		{
+			Name:         "oid too long is 400",
+			Path:         "/r/mock/state$state&oid=" + tooLong + "&json",
+			Status:       http.StatusBadRequest,
+			ContentType:  "application/json; charset=utf-8",
+			BodyContains: `"error":"invalid object id"`,
+		},
+		{
+			Name:         "tid too long is 400",
+			Path:         "/r/mock/state$state&tid=" + tooLong + "&json",
+			Status:       http.StatusBadRequest,
+			ContentType:  "application/json; charset=utf-8",
+			BodyContains: `"error":"invalid type id"`,
+		},
+		{
+			Name:         "missing realm is 404",
+			Path:         "/r/missing$state&json",
+			Status:       http.StatusNotFound,
+			ContentType:  "application/json; charset=utf-8",
+			BodyContains: `"error"`,
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.Status, rr.Code, "status")
+			assert.Equal(t, tc.ContentType, rr.Header().Get("Content-Type"), "content-type")
+			if tc.CacheControl != "" {
+				assert.Equal(t, tc.CacheControl, rr.Header().Get("Cache-Control"), "cache-control")
+			}
+			if tc.BodyContains != "" {
+				assert.Contains(t, rr.Body.String(), tc.BodyContains, "body")
+			}
+		})
+	}
+}
+
 func TestHTTPHandler_DirectoryViewExplorerMode(t *testing.T) {
 	mockPackage := &gnoweb.MockPackage{
 		Domain: "example.com",
