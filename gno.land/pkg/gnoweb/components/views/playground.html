@@ -51,7 +51,8 @@ LAYOUT - Playground view
 
     <!-- Code editor -->
     <div class="b-playground-editor" data-playground-target="editor">
-      <textarea data-playground-target="code" class="b-playground-code" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">{{ .InitialCode }}</textarea>
+      <div data-playground-target="code" class="b-playground-code"></div>
+      <textarea data-playground-target="initial-code" hidden>{{ .InitialCode }}</textarea>
     </div>
   </div>
 
