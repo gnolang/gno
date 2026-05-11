@@ -58,16 +58,15 @@ func (t *BPTree) Has(key string) bool {
 	return found
 }
 
-// Get retrieves the value associated with the given key, or nil if the key
-// does not exist. Use Has to distinguish a stored nil value from a missing key.
+// Get retrieves the value associated with the given key.
+// It returns the value if the key exists, or nil if it doesn't.
+// This allows for a simpler usage pattern with type assertions:
 //
-// Typical usage:
-//
-//	v := tree.Get("key")
-//	if v == nil {
-//	    return // key missing
+//	if value, ok := tree.Get("key").(MyType); ok {
+//	    // use value
 //	}
-//	user := v.(*User)
+//
+// Use Has to distinguish a stored nil value from a missing key.
 func (t *BPTree) Get(key string) any {
 	if t.root == nil {
 		return nil
