@@ -2,11 +2,13 @@ package gnoweb
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"go/token"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -315,11 +317,6 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
-	}
-
-	// Handle Eval page (expression evaluator)
-	if gnourl.WebQuery.Has("eval") {
-		return h.GetEvalView(ctx, gnourl)
 	}
 
 	// Handle Fork page (fork source to playground)
@@ -763,9 +760,20 @@ func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *compon
 
 	// Check if we have initial code from query (e.g. shared snippet).
 	// Code can be given as a base64 encoded string or plaintext.
+	// When the "z" query flag is present the base64 payload is also deflate-compressed.
 	initialCode := gnourl.Query.Get("code")
-	if decoded, err := base64.StdEncoding.DecodeString(initialCode); err == nil {
-		initialCode = string(decoded)
+	decoded, err := base64.StdEncoding.DecodeString(initialCode)
+	if err == nil {
+		if gnourl.Query.Has("z") {
+			r := flate.NewReader(bytes.NewReader(decoded))
+			if plain, err := io.ReadAll(r); err == nil {
+				initialCode = string(plain)
+			}
+
+			r.Close()
+		} else {
+			initialCode = string(decoded)
+		}
 	}
 
 	// Use default code when no code is provided
@@ -778,24 +786,6 @@ func (h *HTTPHandler) GetPlaygroundView(gnourl *weburl.GnoURL, indexData *compon
 		Remote:      h.Static.RemoteHelp,
 		ChainId:     h.Static.ChainId,
 		Domain:      h.Static.Domain,
-	})
-}
-
-// GetEvalView renders the expression evaluator page for a package/realm.
-func (h *HTTPHandler) GetEvalView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	jdoc, err := h.Client.Doc(ctx, gnourl.Path)
-	if err != nil {
-		h.Logger.Error("unable to fetch qdoc for eval", "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
-	}
-
-	funcs := components.BuildEvalFuncs(jdoc)
-
-	return http.StatusOK, components.EvalView(components.EvalData{
-		Remote:    h.Static.RemoteHelp,
-		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
-		Domain:    h.Static.Domain,
-		Functions: funcs,
 	})
 }
 
