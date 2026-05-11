@@ -215,12 +215,3 @@ find .
 gno doc strings
 gno doc encoding/binary
 ```
-
-## Conclusion
-
-That's it 🎉
-
-Understanding the difference between Go standard libraries and Gno's blockchain libraries is key to writing correct Gno code.
-Use Go std packages for pure computation, and `chain/*` packages for all blockchain logic.           
-
-**Remember:** Gno runs in a deterministic environment.
