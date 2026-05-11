@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path"
 	"slices"
 	"sort"
@@ -637,6 +638,14 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKB)
 
+	var fileEdit string
+	if strings.HasSuffix(fileName, ".gno") {
+		editURL := *gnourl
+		editURL.WebQuery = url.Values{"fork": {""}}
+		editURL.Query = url.Values{"file": {fileName}}
+		fileEdit = editURL.EncodeWebURL()
+	}
+
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
 		Files:        files,
@@ -645,6 +654,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 		FileLines:    fileLines,
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
+		FileEdit:     fileEdit,
 		FileSource:   fileSource,
 	})
 }
@@ -813,6 +823,7 @@ func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Remote:      h.Static.RemoteHelp,
 		ChainId:     h.Static.ChainId,
 		Domain:      h.Static.Domain,
+		DefaultFile: gnourl.Query.Get("file"),
 	})
 }
 

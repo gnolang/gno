@@ -13,6 +13,8 @@ type PlaygroundData struct {
 	ChainId string
 	// Domain is the node domain
 	Domain string
+	// DefaultFile is the filename that should be focus on first load
+	DefaultFile string
 }
 
 func PlaygroundView(data PlaygroundData) *View {

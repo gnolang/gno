@@ -78,6 +78,7 @@ export class PlaygroundController extends BaseController {
 
 		this._parseInitialCode(initialCodeEl.value);
 		this._createEditor();
+		this._switchToDefaultFile();
 		this._setupTabsScroll();
 		this.renderTabs();
 
@@ -152,6 +153,13 @@ export class PlaygroundController extends BaseController {
 				this.files = [{ name: "main.gno", content: initialCode }];
 		} else {
 			this.files = [{ name: "main.gno", content: initialCode }];
+		}
+	}
+
+	private _switchToDefaultFile(): void {
+		const defaultFile = this.getValue("default-file");
+		if (defaultFile) {
+			this._switchToFile(defaultFile);
 		}
 	}
 
