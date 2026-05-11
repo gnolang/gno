@@ -1786,7 +1786,11 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 			return
 		}
 
-		cs.Logger.Error(
+		logFn := cs.Logger.Error
+		if cs.replayMode {
+			logFn = cs.Logger.Warn
+		}
+		logFn(
 			"Refusing to sign conflicting self vote",
 			"height", cs.Height,
 			"round", cs.Round,
