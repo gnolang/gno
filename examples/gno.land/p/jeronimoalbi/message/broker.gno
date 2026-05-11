@@ -60,7 +60,7 @@ func (b *Broker) Subscribe(topic Topic, cb Callback) (id int, _ error) {
 		return 0, ErrRequiredCallback
 	}
 
-	v := b.callbacks.Get(key)
+	v, _ := b.callbacks.Get(key)
 	callbacks, _ := v.(*ulist.List)
 	if callbacks == nil {
 		callbacks = ulist.New()
@@ -83,8 +83,8 @@ func (b *Broker) Unsubscribe(topic Topic, id int) (unsubscribed bool, _ error) {
 		return false, ErrRequiredSubscriptionID
 	}
 
-	v := b.callbacks.Get(key)
-	if v == nil {
+	v, found := b.callbacks.Get(key)
+	if !found {
 		return false, errors.New("message topic not found: " + key)
 	}
 
@@ -111,15 +111,15 @@ func (b Broker) Publish(topic Topic, data any) error {
 	}
 
 	// Trigger callbacks subscribed to current topic
-	v := b.callbacks.Get(key)
-	if v != nil {
+	v, found := b.callbacks.Get(key)
+	if found {
 		callbacks := v.(*ulist.List)
 		callbacks.Iterator(0, callbacks.Size(), iterCb)
 	}
 
 	// Trigger callbacks subscribed to all topics
-	v = b.callbacks.Get(string(TopicAll))
-	if v != nil {
+	v, found = b.callbacks.Get(string(TopicAll))
+	if found {
 		callbacks := v.(*ulist.List)
 		callbacks.Iterator(0, callbacks.Size(), iterCb)
 	}

@@ -49,7 +49,8 @@ func (m *Microblog) GetPages() []*Page {
 
 func (m *Microblog) NewPost(text string) error {
 	author := runtime.OriginCaller()
-	if !m.Pages.Has(author.String()) {
+	_, found := m.Pages.Get(author.String())
+	if !found {
 		// make a new page for the new author
 		m.Pages.Set(author.String(), &Page{
 			Author:    author,
@@ -65,8 +66,8 @@ func (m *Microblog) NewPost(text string) error {
 }
 
 func (m *Microblog) GetPage(author string) (*Page, error) {
-	silo := m.Pages.Get(author)
-	if silo == nil {
+	silo, found := m.Pages.Get(author)
+	if !found {
 		return nil, ErrNotFound
 	}
 	return silo.(*Page), nil

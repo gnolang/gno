@@ -72,6 +72,7 @@ func (m *Machine) doOpSliceType() {
 
 func (m *Machine) doOpFuncType() {
 	x := m.PopExpr().(*FuncTypeExpr)
+	m.incrCPU(OpCPUSlopeFuncType * int64(len(x.Params)+len(x.Results)))
 	// Allocate space for data.
 	params := make([]FieldType, len(x.Params))
 	results := make([]FieldType, len(x.Results))
@@ -109,6 +110,7 @@ func (m *Machine) doOpMapType() {
 
 func (m *Machine) doOpStructType() {
 	x := m.PopExpr().(*StructTypeExpr)
+	m.incrCPU(OpCPUSlopeStructType * int64(len(x.Fields)))
 	// pop fields
 	ftvs := m.PopValues(len(x.Fields))
 	// allocate (minimum) space for fields
@@ -132,6 +134,7 @@ func (m *Machine) doOpStructType() {
 
 func (m *Machine) doOpInterfaceType() {
 	x := m.PopExpr().(*InterfaceTypeExpr)
+	m.incrCPU(OpCPUSlopeInterfaceType * int64(len(x.Methods)))
 	// allocate space
 	methods := make([]FieldType, len(x.Methods))
 	// pop methods
@@ -186,6 +189,10 @@ func (m *Machine) doOpStaticTypeOf() {
 			m.PushValue(asValue(UntypedBoolType))
 		}
 	case *CallExpr:
+		// ATTR_TYPEOF_VALUE must already be set on every CallExpr
+		// during preprocessing: for type conversions (TRANS_LEAVE
+		// *CallExpr conversion paths), for generic/specialized
+		// calls, and for plain function calls via the general case.
 		t := getTypeOf(x)
 		m.PushValue(asValue(t))
 	case *IndexExpr:
@@ -399,12 +406,12 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic("unexpected star expression")
 		}
 	case *RefExpr:
-		start := len(m.Values)
-		m.PushOp(OpHalt)
-		m.PushExpr(x.X)
-		m.PushOp(OpStaticTypeOf)
-		m.Run(StageRun)
-		xt := m.ReapValues(start)[0].GetType()
+		// The static type of &x is *typeof(x).
+		// ATTR_REF_ELEM_TYPE is set during preprocessing.
+		xt, ok := x.GetAttribute(ATTR_REF_ELEM_TYPE).(Type)
+		if !ok {
+			panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
+		}
 		m.PushValue(asValue(&PointerType{Elt: xt}))
 	case *TypeAssertExpr:
 		if x.HasOK {

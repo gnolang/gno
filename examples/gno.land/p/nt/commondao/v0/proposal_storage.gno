@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -28,11 +28,11 @@ type ProposalStorage interface {
 
 // NewProposalStorage creates a new proposal storage.
 func NewProposalStorage() ProposalStorage {
-	return &proposalStorage{avl.NewTree()}
+	return &proposalStorage{bptree.NewBPTree32()}
 }
 
 type proposalStorage struct {
-	storage *avl.Tree // string(proposal ID) -> *Proposal
+	storage *bptree.BPTree // string(proposal ID) -> *Proposal
 }
 
 // Has checks if a proposal exists.
@@ -42,7 +42,7 @@ func (s proposalStorage) Has(id uint64) bool {
 
 // Get returns a proposal or nil when proposal doesn't exist.
 func (s proposalStorage) Get(id uint64) *Proposal {
-	if v := s.storage.Get(makeProposalKey(id)); v != nil {
+	if v, found := s.storage.Get(makeProposalKey(id)); found {
 		return v.(*Proposal)
 	}
 	return nil

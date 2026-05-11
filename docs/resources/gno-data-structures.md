@@ -43,15 +43,10 @@ var users avl.Tree
 // Set
 users.Set("alice", User{Score: 100})
 
-// Get (returns nil if key not found)
-value := users.Get("alice")
-if value != nil {
+// Get
+value, exists := users.Get("alice")
+if exists {
     user := value.(User) // Type cast required
-}
-
-// Has (check if a key exists without retrieving the value)
-if users.Has("alice") {
-    // key exists
 }
 
 // Iterate in sorted order

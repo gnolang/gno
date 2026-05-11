@@ -31,8 +31,8 @@ func (e *Evaluation) AddContribution(pr *PullRequest, contributor address) (int,
 }
 
 func (e *Evaluation) UpdateContribution(id int, status string) bool {
-	c := e.contributions.Get(ufmt.Sprintf("%d", id))
-	if c != nil {
+	c, exists := e.contributions.Get(ufmt.Sprintf("%d", id))
+	if exists {
 		contribtution := c.(*Contribution)
 		return contribtution.UpdateStatus(status)
 	}

@@ -3,7 +3,7 @@ package boards
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 type (
@@ -34,18 +34,18 @@ type (
 // NewPostStorage creates a new storage for posts.
 // The new storage uses an AVL tree to store posts.
 func NewPostStorage() PostStorage {
-	return &postStorage{avl.NewTree()}
+	return &postStorage{bptree.NewBPTree32()}
 }
 
 type postStorage struct {
-	posts *avl.Tree // string(Post.ID) -> *Post
+	posts *bptree.BPTree // string(Post.ID) -> *Post
 }
 
 // Get retruns a post that matches an ID.
 func (s postStorage) Get(id ID) (*Post, bool) {
 	k := makePostKey(id)
-	v := s.posts.Get(k)
-	if v == nil {
+	v, found := s.posts.Get(k)
+	if !found {
 		return nil, false
 	}
 	return v.(*Post), true

@@ -280,8 +280,8 @@ func (led PrivateLedger) hasAddr(addr address) bool {
 
 // balanceOf returns the balance of the specified address.
 func (led PrivateLedger) balanceOf(addr address) int64 {
-	balance := led.balances.Get(addr.String())
-	if balance == nil {
+	balance, found := led.balances.Get(addr.String())
+	if !found {
 		return 0
 	}
 	return balance.(int64)
@@ -289,8 +289,8 @@ func (led PrivateLedger) balanceOf(addr address) int64 {
 
 // allowance returns the allowance of the specified owner and spender.
 func (led PrivateLedger) allowance(owner, spender address) int64 {
-	allowance := led.allowances.Get(allowanceKey(owner, spender))
-	if allowance == nil {
+	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
+	if !found {
 		return 0
 	}
 	return allowance.(int64)

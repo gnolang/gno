@@ -85,6 +85,15 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 	return msg.Send
 }
 
+// SpendForSigner implements std.SpendEstimator. Returns Send when
+// signer is the creator, zero otherwise.
+func (msg MsgAddPackage) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Creator {
+		return nil
+	}
+	return msg.Send
+}
+
 //----------------------------------------
 // MsgCall
 
@@ -152,8 +161,20 @@ func (msg MsgCall) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
 
+// GetPkgPath returns the target package path.
+func (msg MsgCall) GetPkgPath() string { return msg.PkgPath }
+
 // Implements ReceiveMsg.
 func (msg MsgCall) GetReceived() std.Coins {
+	return msg.Send
+}
+
+// SpendForSigner implements std.SpendEstimator. Returns Send when
+// signer is the caller, zero otherwise.
+func (msg MsgCall) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
 	return msg.Send
 }
 
@@ -235,5 +256,14 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgRun) GetReceived() std.Coins {
+	return msg.Send
+}
+
+// SpendForSigner implements std.SpendEstimator. Returns Send when
+// signer is the caller, zero otherwise.
+func (msg MsgRun) SpendForSigner(signer crypto.Address) std.Coins {
+	if signer != msg.Caller {
+		return nil
+	}
 	return msg.Send
 }

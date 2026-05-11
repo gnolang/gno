@@ -42,8 +42,8 @@ func NewMembersStore(initialRoles []RoleInfo, initialMembers []Member) *MembersS
 }
 
 func (m *MembersStore) HasRole(member string, role string) bool {
-	rolesRaw := m.Members.Get(member)
-	if rolesRaw == nil {
+	rolesRaw, ok := m.Members.Get(member)
+	if !ok {
 		return false
 	}
 	roles, ok := rolesRaw.(*avl.Tree)
@@ -58,8 +58,8 @@ func (m *MembersStore) IsMember(member string) bool {
 }
 
 func (m *MembersStore) RoleInfo(role string) RoleInfo {
-	roleDataRaw := m.Roles.Get(role)
-	if roleDataRaw == nil {
+	roleDataRaw, ok := m.Roles.Get(role)
+	if !ok {
 		panic("role does not exist")
 	}
 	roleData, ok := roleDataRaw.(*Role)
@@ -97,8 +97,8 @@ func (m *MembersStore) GetRoles() []string {
 }
 
 func (m *MembersStore) GetMemberRoles(member string) []string {
-	rolesRaw := m.Members.Get(member)
-	if rolesRaw == nil {
+	rolesRaw, ok := m.Members.Get(member)
+	if !ok {
 		return []string{}
 	}
 	roles, ok := rolesRaw.(*avl.Tree)
@@ -116,8 +116,8 @@ func (m *MembersStore) GetMemberRoles(member string) []string {
 }
 
 func (m *MembersStore) CountMemberRoles(member string) int {
-	rolesRaw := m.Members.Get(member)
-	if rolesRaw == nil {
+	rolesRaw, ok := m.Members.Get(member)
+	if !ok {
 		return 0
 	}
 	roles, ok := rolesRaw.(*avl.Tree)
@@ -128,8 +128,8 @@ func (m *MembersStore) CountMemberRoles(member string) int {
 }
 
 func (m *MembersStore) GetMembersWithRole(role string) []string {
-	roleDataRaw := m.Roles.Get(role)
-	if roleDataRaw == nil {
+	roleDataRaw, ok := m.Roles.Get(role)
+	if !ok {
 		return []string{}
 	}
 	roleData, ok := roleDataRaw.(*Role)
@@ -186,8 +186,8 @@ func (m *MembersStore) RemoveMember(member string) {
 		panic("member does not exist")
 	}
 
-	memberRolesRaw := m.Members.Get(member)
-	if memberRolesRaw == nil {
+	memberRolesRaw, ok := m.Members.Get(member)
+	if !ok {
 		panic("should not happen")
 	}
 	memberRoles, ok := memberRolesRaw.(*avl.Tree)
@@ -196,8 +196,8 @@ func (m *MembersStore) RemoveMember(member string) {
 	}
 
 	memberRoles.Iterate("", "", func(key string, value interface{}) bool {
-		roleRaw := m.Roles.Get(key)
-		if roleRaw == nil {
+		roleRaw, ok := m.Roles.Get(key)
+		if !ok {
 			return false
 		}
 		role, ok := roleRaw.(*Role)
@@ -229,8 +229,8 @@ func (m *MembersStore) AddRole(role RoleInfo) {
 }
 
 func (m *MembersStore) RemoveRole(role string) {
-	roleDataRaw := m.Roles.Get(role)
-	if roleDataRaw == nil {
+	roleDataRaw, ok := m.Roles.Get(role)
+	if !ok {
 		panic("role does not exist")
 	}
 	roleData, ok := roleDataRaw.(*Role)
@@ -239,8 +239,8 @@ func (m *MembersStore) RemoveRole(role string) {
 	}
 
 	roleData.Members.Iterate("", "", func(key string, value interface{}) bool {
-		memberRaw := m.Members.Get(key)
-		if memberRaw == nil {
+		memberRaw, ok := m.Members.Get(key)
+		if !ok {
 			return false
 		}
 		member, ok := memberRaw.(*avl.Tree)
@@ -264,8 +264,8 @@ func (m *MembersStore) AddRoleToMember(member string, role string) {
 		panic("member already has the role")
 	}
 
-	memberRolesRaw := m.Members.Get(member)
-	if memberRolesRaw == nil {
+	memberRolesRaw, ok := m.Members.Get(member)
+	if !ok {
 		panic("should not happen")
 	}
 	memberRoles, ok := memberRolesRaw.(*avl.Tree)
@@ -273,8 +273,8 @@ func (m *MembersStore) AddRoleToMember(member string, role string) {
 		panic("a value of memberstore.members is not an avl.Tree, should not happen")
 	}
 
-	roleDataRaw := m.Roles.Get(role)
-	if roleDataRaw == nil {
+	roleDataRaw, ok := m.Roles.Get(role)
+	if !ok {
 		panic("should not happen")
 	}
 	roleData, ok := roleDataRaw.(*Role)
@@ -297,8 +297,8 @@ func (m *MembersStore) RemoveRoleFromMember(member string, role string) {
 		panic("member does not have the role")
 	}
 
-	memberRolesRaw := m.Members.Get(member)
-	if memberRolesRaw == nil {
+	memberRolesRaw, ok := m.Members.Get(member)
+	if !ok {
 		panic("should not happen")
 	}
 	memberRoles, ok := memberRolesRaw.(*avl.Tree)
@@ -306,8 +306,8 @@ func (m *MembersStore) RemoveRoleFromMember(member string, role string) {
 		panic("a value of memberstore.members is not an avl.Tree, should not happen")
 	}
 
-	roleDataRaw := m.Roles.Get(role)
-	if roleDataRaw == nil {
+	roleDataRaw, ok := m.Roles.Get(role)
+	if !ok {
 		panic("should not happen")
 	}
 	roleData, ok := roleDataRaw.(*Role)

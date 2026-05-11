@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/gnorkle/feeds/static"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/message"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 const (
@@ -21,8 +21,8 @@ var (
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
-	handleToAddressMap = avl.NewTree()
-	addressToHandleMap = avl.NewTree()
+	handleToAddressMap = bptree.NewBPTree32()
+	addressToHandleMap = bptree.NewBPTree32()
 )
 
 func init() {
@@ -117,7 +117,7 @@ func SetOwner(_ realm, owner address) {
 
 // GetHandleByAddress returns the github handle associated with the given gno address.
 func GetHandleByAddress(cur realm, address_XXX string) string {
-	if value := addressToHandleMap.Get(address_XXX); value != nil {
+	if value, ok := addressToHandleMap.Get(address_XXX); ok {
 		return value.(string)
 	}
 
@@ -126,7 +126,7 @@ func GetHandleByAddress(cur realm, address_XXX string) string {
 
 // GetAddressByHandle returns the gno address associated with the given github handle.
 func GetAddressByHandle(cur realm, handle string) string {
-	if value := handleToAddressMap.Get(handle); value != nil {
+	if value, ok := handleToAddressMap.Get(handle); ok {
 		return value.(string)
 	}
 

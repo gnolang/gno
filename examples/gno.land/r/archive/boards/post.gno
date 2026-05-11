@@ -83,8 +83,8 @@ func (post *Post) Update(title string, body string) {
 
 func (thread *Post) GetReply(pid PostID) *Post {
 	pidkey := postIDKey(pid)
-	replyI := thread.repliesAll.Get(pidkey)
-	if replyI == nil {
+	replyI, ok := thread.repliesAll.Get(pidkey)
+	if !ok {
 		return nil
 	} else {
 		return replyI.(*Post)

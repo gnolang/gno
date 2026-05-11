@@ -220,8 +220,8 @@ func LobbyGameFound(cur realm) string {
 	refreshLobby(tcLobby5p0)
 	refreshLobby(tcLobby10p5)
 
-	val := lobbyPlayer2Game.Get(runtime.PreviousRealm().Address().String())
-	if val == nil {
+	val, ok := lobbyPlayer2Game.Get(runtime.PreviousRealm().Address().String())
+	if !ok {
 		return "null"
 	}
 	return val.(*Game).json()

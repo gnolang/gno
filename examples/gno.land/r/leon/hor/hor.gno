@@ -113,8 +113,8 @@ func Register(cur realm, title, description string) {
 }
 
 func Upvote(cur realm, pkgpath string) {
-	rawItem := exhibition.items.Get(pkgpath)
-	if rawItem == nil {
+	rawItem, ok := exhibition.items.Get(pkgpath)
+	if !ok {
 		panic(ErrNoSuchItem)
 	}
 
@@ -135,8 +135,8 @@ func Upvote(cur realm, pkgpath string) {
 }
 
 func Downvote(cur realm, pkgpath string) {
-	rawItem := exhibition.items.Get(pkgpath)
-	if rawItem == nil {
+	rawItem, ok := exhibition.items.Get(pkgpath)
+	if !ok {
 		panic(ErrNoSuchItem)
 	}
 
@@ -170,8 +170,8 @@ func Delete(cur realm, pkgpath string) {
 		panic(ownable.ErrUnauthorized)
 	}
 
-	i := exhibition.items.Get(pkgpath)
-	if i == nil {
+	i, ok := exhibition.items.Get(pkgpath)
+	if !ok {
 		panic(ErrNoSuchItem)
 	}
 

@@ -212,7 +212,7 @@ func (p *Post) LikePost(addr string) error {
 	if p.DisableLikes {
 		return ErrLikesDisabled
 	}
-	if p.likes.Has(addr) {
+	if _, exists := p.likes.Get(addr); exists {
 		return ErrAlreadyLiked
 	}
 	p.likes.Set(addr, true)
@@ -223,7 +223,7 @@ func (p *Post) UnlikePost(addr string) error {
 	if p.DisableLikes {
 		return ErrLikesDisabled
 	}
-	if !p.likes.Has(addr) {
+	if _, exists := p.likes.Get(addr); !exists {
 		return ErrNotLiked
 	}
 	if _, removed := p.likes.Remove(addr); !removed {
@@ -237,8 +237,8 @@ func (p *Post) SetPreviewFooter(footer string) {
 }
 
 func (p Post) GetCommentByID(id string) (*Comment, error) {
-	comment := p.Comments.Get(id)
-	if comment != nil {
+	comment, found := p.Comments.Get(id)
+	if found {
 		return comment.(*Comment), nil
 	}
 

@@ -2,7 +2,7 @@ package permissions
 
 import (
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/commondao/v0/exts/storage"
 )
@@ -25,7 +25,7 @@ type Permissions struct {
 	superRole      boards.Role
 	dao            *commondao.CommonDAO
 	public         boards.PermissionSet
-	validators     *avl.Tree // string(boards.Permission) -> ValidatorFunc
+	validators     *bptree.BPTree // string(boards.Permission) -> ValidatorFunc
 	singleUserRole bool
 }
 
@@ -33,7 +33,7 @@ type Permissions struct {
 func New(options ...Option) *Permissions {
 	s := storage.NewMemberStorage()
 	ps := &Permissions{
-		validators: avl.NewTree(),
+		validators: bptree.NewBPTree32(),
 		dao:        commondao.New(commondao.WithMemberStorage(s)),
 	}
 
@@ -243,8 +243,8 @@ func (ps *Permissions) WithPermission(user address, p boards.Permission, args bo
 	}
 
 	// Execute custom validation before calling the callback
-	v := ps.validators.Get(p.String())
-	if v != nil {
+	v, found := ps.validators.Get(p.String())
+	if found {
 		err := v.(ValidatorFunc)(ps, args)
 		if err != nil {
 			panic(err)

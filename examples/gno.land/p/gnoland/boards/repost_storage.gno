@@ -3,7 +3,7 @@ package boards
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -35,17 +35,17 @@ type (
 // NewRepostStorage creates a new storage for reposts.
 // The new storage uses an AVL tree to store reposts.
 func NewRepostStorage() RepostStorage {
-	return &repostStorage{avl.NewTree()}
+	return &repostStorage{bptree.NewBPTree32()}
 }
 
 type repostStorage struct {
-	reposts *avl.Tree // string(Board.ID) -> Post.ID
+	reposts *bptree.BPTree // string(Board.ID) -> Post.ID
 }
 
 // Get returns the repost ID for a board.
 func (s repostStorage) Get(boardID ID) (ID, bool) {
-	v := s.reposts.Get(boardID.Key())
-	if v == nil {
+	v, found := s.reposts.Get(boardID.Key())
+	if !found {
 		return 0, false
 	}
 	return v.(ID), true

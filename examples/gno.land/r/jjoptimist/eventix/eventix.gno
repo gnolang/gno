@@ -71,6 +71,9 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 }
 
 func BuyTicket(_ realm, eventId uint64) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	event, exists := getEvent(eventId)
 	if !exists {
 		panic("Event does not exist")
@@ -135,8 +138,8 @@ func Render(path string) string {
 }
 
 func getEvent(eventId uint64) (Event, bool) {
-	value := events.Get(strconv.Itoa(int(eventId)))
-	if value == nil {
+	value, exists := events.Get(strconv.Itoa(int(eventId)))
+	if !exists {
 		return Event{}, false
 	}
 	return value.(Event), true

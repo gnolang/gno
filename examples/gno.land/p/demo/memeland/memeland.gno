@@ -67,7 +67,7 @@ func (m *Memeland) Upvote(id string) string {
 
 	caller := runtime.CurrentRealm().Address().String()
 
-	if post.UpvoteTracker.Has(caller) {
+	if _, exists := post.UpvoteTracker.Get(caller); exists {
 		panic("user has already upvoted this post")
 	}
 

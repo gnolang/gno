@@ -8,7 +8,7 @@ import (
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -38,8 +38,8 @@ func (t *Treasury) RenderLanding(path string) string {
 // RenderBanker renders the details of a specific banker.
 func (t *Treasury) RenderBanker(bankerID string, path string) string {
 	// Get the banker associated to this ID.
-	br := t.bankers.Get(bankerID)
-	if br == nil {
+	br, ok := t.bankers.Get(bankerID)
+	if !ok {
 		return md.Paragraph("Banker not found: " + bankerID)
 	}
 	banker := br.(*bankerRecord).banker
@@ -114,8 +114,8 @@ func (t *Treasury) RenderBanker(bankerID string, path string) string {
 // RenderBankerHistory renders the payment history of a specific banker.
 func (t *Treasury) RenderBankerHistory(bankerID string, path string) string {
 	// Get the banker record corresponding to this ID if it exists.
-	br := t.bankers.Get(bankerID)
-	if br == nil {
+	br, ok := t.bankers.Get(bankerID)
+	if !ok {
 		return md.Paragraph("Banker not found: " + bankerID)
 	}
 	history := br.(*bankerRecord).history

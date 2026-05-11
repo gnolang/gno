@@ -142,8 +142,8 @@ func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (st
 }
 
 func (i *Instance) getFeed(id string) (Feed, error) {
-	untypedFeed := i.feeds.Get(id)
-	if untypedFeed == nil {
+	untypedFeed, ok := i.feeds.Get(id)
+	if !ok {
 		return nil, errors.New("invalid ingest id: " + id)
 	}
 
@@ -156,8 +156,8 @@ func (i *Instance) getFeed(id string) (Feed, error) {
 }
 
 func (i *Instance) getFeedWithWhitelist(id string) (FeedWithWhitelist, error) {
-	untypedFeedWithWhitelist := i.feeds.Get(id)
-	if untypedFeedWithWhitelist == nil {
+	untypedFeedWithWhitelist, ok := i.feeds.Get(id)
+	if !ok {
 		return FeedWithWhitelist{}, errors.New("invalid ingest id: " + id)
 	}
 

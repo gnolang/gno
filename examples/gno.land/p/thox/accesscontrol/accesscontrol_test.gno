@@ -31,7 +31,7 @@ func TestCreateRole(t *testing.T) {
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
-	uassert.NotNil(t, role, "role should not be nil")
+	uassert.True(t, role != nil, "role should not be nil")
 	uassert.Equal(t, role.Name, roleName)
 
 	_, err = roles.CreateRole(roleName)
@@ -53,8 +53,8 @@ func TestGrantRole(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.True(t, role.HasAccount(user1), "user1 should have the TestRole")
 
-	rolesList := roles.UserToRoles.Get(user1.String())
-	uassert.NotNil(t, rolesList, "user1 should be in UserToRoles")
+	rolesList, found := roles.UserToRoles.Get(user1.String())
+	uassert.True(t, found, "user1 should be in UserToRoles")
 	uassert.True(t, containsRole(rolesList.([]*Role), role), "UserToRoles should contain TestRole for user1")
 }
 
@@ -90,8 +90,8 @@ func TestRevokeRole(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.False(t, role.HasAccount(user1), "user1 should no longer have the TestRole")
 
-	rolesList := roles.UserToRoles.Get(user1.String())
-	if rolesList != nil {
+	rolesList, found := roles.UserToRoles.Get(user1.String())
+	if found {
 		uassert.False(t, containsRole(rolesList.([]*Role), role), "UserToRoles should not contain TestRole for user1 after revocation")
 	}
 }
@@ -196,7 +196,7 @@ func TestDeleteRole(t *testing.T) {
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
-	uassert.NotNil(t, role, "role should not be nil")
+	uassert.True(t, role != nil, "role should not be nil")
 
 	roles.Roles = []*Role{} // Clear roles for testing purpose
 	_, err = roles.FindRole(roleName)
@@ -224,8 +224,8 @@ func TestUserToRolesWithMultipleRoles(t *testing.T) {
 	uassert.NoError(t, err)
 
 	// Check if user1 has both roles
-	rolesList := roles.UserToRoles.Get(user1.String())
-	uassert.NotNil(t, rolesList, "user1 should be in UserToRoles")
+	rolesList, found := roles.UserToRoles.Get(user1.String())
+	uassert.True(t, found, "user1 should be in UserToRoles")
 	role1, _ := roles.FindRole(roleName1)
 	role2, _ := roles.FindRole(roleName2)
 	uassert.True(t, containsRole(rolesList.([]*Role), role1), "UserToRoles should contain Role1 for user1")

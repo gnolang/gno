@@ -16,7 +16,9 @@ func main() {
 
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
+	testing.SetHeight(0)
 	uinit.RegisterUser(cross, "alice_123", aliceAddr)
+	testing.SetHeight(123)
 
 	bid := boards.CreateBoard(cross, "testboard")
 	boards.CreateThread(cross, bid, "testthread", "testbody")

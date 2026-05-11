@@ -19,7 +19,7 @@ func Register(_ realm, pkgpath string, rndr func(string) string) {
 }
 
 func Render(path string) string {
-	if raw := store.Get(path); raw != nil {
+	if raw, ok := store.Get(path); ok {
 		return raw.(func(string) string)("")
 	}
 

@@ -159,3 +159,54 @@ func TestTreeReverseIterateByOffset(t *testing.T) {
 		t.Errorf("Expected keys %v, got %v", expectedKeys, keys)
 	}
 }
+
+func TestTreeReverseIterateByOffsetVaried(t *testing.T) {
+	tree := NewTree()
+	tree.Set("a", 1)
+	tree.Set("b", 2)
+	tree.Set("c", 3)
+	tree.Set("d", 4)
+	tree.Set("e", 5)
+
+	// All keys in reverse: e d c b a
+	cases := []struct {
+		offset int
+		limit  int
+		want   []string
+	}{
+		{0, 5, []string{"e", "d", "c", "b", "a"}},
+		{0, 1, []string{"e"}},
+		{0, 3, []string{"e", "d", "c"}},
+		{1, 2, []string{"d", "c"}},
+		{2, 2, []string{"c", "b"}},
+		{3, 5, []string{"b", "a"}},
+		{4, 1, []string{"a"}},
+		{4, 10, []string{"a"}},
+		{5, 1, nil},
+		{0, 0, nil},
+		{10, 1, nil},
+	}
+
+	for _, tc := range cases {
+		var got []string
+		tree.ReverseIterateByOffset(tc.offset, tc.limit, func(key string, value any) bool {
+			got = append(got, key)
+			return false
+		})
+		if !slicesEqual(got, tc.want) {
+			t.Errorf("ReverseIterateByOffset(%d, %d): got %v, want %v",
+				tc.offset, tc.limit, got, tc.want)
+		}
+	}
+
+	// Early termination: stop after 2 items from offset 1.
+	var got []string
+	tree.ReverseIterateByOffset(1, 5, func(key string, value any) bool {
+		got = append(got, key)
+		return len(got) >= 2
+	})
+	want := []string{"d", "c"}
+	if !slicesEqual(got, want) {
+		t.Errorf("ReverseIterateByOffset early stop: got %v, want %v", got, want)
+	}
+}

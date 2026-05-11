@@ -71,8 +71,8 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, _ *mux.Request) {
 func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	slug := req.GetVar("slug")
 
-	post := b.Posts.Get(slug)
-	if post == nil {
+	post, found := b.Posts.Get(slug)
+	if !found {
 		res.Write("404")
 		return
 	}
@@ -143,7 +143,7 @@ func (b Blog) Render(path string) string {
 }
 
 func (b *Blog) NewPost(publisher address, slug, title, body, pubDate string, authors, tags []string) error {
-	if b.Posts.Has(slug) {
+	if _, found := b.Posts.Get(slug); found {
 		return ErrPostSlugExists
 	}
 
@@ -194,11 +194,11 @@ func (b *Blog) prepareAndSetPost(post *Post, edit bool) error {
 
 	if !edit {
 		// Cannot have two posts with same title key
-		if b.PostsAlphabetical.Has(trimmedTitleKey) {
+		if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
 			return ErrPostTitleExists
 		}
 		// Cannot have two posts with *exact* same timestamp
-		if b.PostsPublished.Has(pubDateKey) {
+		if _, found := b.PostsPublished.Get(pubDateKey); found {
 			return ErrPostPubDateExists
 		}
 	}
@@ -212,8 +212,8 @@ func (b *Blog) prepareAndSetPost(post *Post, edit bool) error {
 }
 
 func (b *Blog) RemovePost(slug string) {
-	p := b.Posts.Get(slug)
-	if p == nil {
+	p, exists := b.Posts.Get(slug)
+	if !exists {
 		panic("post with specified slug doesn't exist")
 	}
 
@@ -228,8 +228,8 @@ func (b *Blog) RemovePost(slug string) {
 }
 
 func (b *Blog) GetPost(slug string) *Post {
-	post := b.Posts.Get(slug)
-	if post == nil {
+	post, found := b.Posts.Get(slug)
+	if !found {
 		return nil
 	}
 	return post.(*Post)

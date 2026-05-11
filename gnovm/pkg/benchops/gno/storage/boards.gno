@@ -26,11 +26,11 @@ func (b *TreeBoard) AddPost(title, content string) {
 }
 
 func (b *TreeBoard) GetPost(id int) (Post, bool) {
-	p := b.posts.Get(strconv.Itoa(id))
-	if p != nil {
-		return p.(Post), true
+	p, ok := b.posts.Get(strconv.Itoa(id))
+	if ok {
+		return p.(Post), ok
 	} else {
-		return Post{}, false
+		return Post{}, ok
 	}
 }
 func (b *TreeBoard) Size() int {

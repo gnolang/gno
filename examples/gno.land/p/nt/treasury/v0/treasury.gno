@@ -3,8 +3,8 @@ package treasury
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -22,7 +22,7 @@ func New(bankers []Banker) (*Treasury, error) {
 	}
 
 	// Create a new Treasury instance.
-	treasury := &Treasury{bankers: avl.NewTree()}
+	treasury := &Treasury{bankers: bptree.NewBPTree32()}
 
 	// Register the bankers.
 	for _, banker := range bankers {
@@ -45,8 +45,8 @@ func New(bankers []Banker) (*Treasury, error) {
 // Send sends a payment using the corresponding banker.
 func (t *Treasury) Send(p Payment) error {
 	// Get the banker record corresponding to this Payment.
-	br := t.bankers.Get(p.BankerID())
-	if br == nil {
+	br, ok := t.bankers.Get(p.BankerID())
+	if !ok {
 		return ufmt.Errorf("%v: %s", ErrBankerNotFound, p.BankerID())
 	}
 	record := br.(*bankerRecord)
@@ -70,8 +70,8 @@ func (t *Treasury) History(
 	pageSize int,
 ) ([]Payment, error) {
 	// Get the banker record corresponding to this ID.
-	br := t.bankers.Get(bankerID)
-	if br == nil {
+	br, ok := t.bankers.Get(bankerID)
+	if !ok {
 		return nil, ufmt.Errorf("%v: %s", ErrBankerNotFound, bankerID)
 	}
 	history := br.(*bankerRecord).history
@@ -92,8 +92,8 @@ func (t *Treasury) History(
 // Balances returns the balances of the banker with the given ID.
 func (t *Treasury) Balances(bankerID string) ([]Balance, error) {
 	// Get the banker record corresponding to this ID.
-	br := t.bankers.Get(bankerID)
-	if br == nil {
+	br, ok := t.bankers.Get(bankerID)
+	if !ok {
 		return nil, ufmt.Errorf("%v: %s", ErrBankerNotFound, bankerID)
 	}
 
@@ -104,8 +104,8 @@ func (t *Treasury) Balances(bankerID string) ([]Balance, error) {
 // Address returns the address of the banker with the given ID.
 func (t *Treasury) Address(bankerID string) (string, error) {
 	// Get the banker record corresponding to this ID.
-	br := t.bankers.Get(bankerID)
-	if br == nil {
+	br, ok := t.bankers.Get(bankerID)
+	if !ok {
 		return "", ufmt.Errorf("%v: %s", ErrBankerNotFound, bankerID)
 	}
 

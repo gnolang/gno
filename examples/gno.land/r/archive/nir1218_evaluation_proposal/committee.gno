@@ -49,8 +49,8 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 		return false
 	}
 
-	value := c.categories.Get(name)
-	if value == nil {
+	value, exists := c.categories.Get(name)
+	if !exists {
 		return false
 	}
 	category := value.(*Category)
@@ -66,8 +66,8 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 	// TODO Add quorum factor for a category approval
 	// Current assumption is all members voted YES so category is approved
 
-	result := category.tallyResult.results.Get(VoteYes)
-	if result == nil {
+	result, exists := category.tallyResult.results.Get(VoteYes)
+	if !exists {
 		return false
 	}
 
@@ -99,8 +99,8 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 		return false
 	}
 
-	value := c.evaluation.contributions.Get(ufmt.Sprintf("%d", id))
-	if value == nil {
+	value, exists := c.evaluation.contributions.Get(ufmt.Sprintf("%d", id))
+	if !exists {
 		return false
 	}
 	contribution := value.(*Contribution)
@@ -117,8 +117,8 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 	// TODO Add quorum factor for a contribution approval
 	// Current assumption is all members voted YES so contribution is approved
 
-	result := contribution.tallyResult.results.Get(VoteYes)
-	if result == nil {
+	result, exists := contribution.tallyResult.results.Get(VoteYes)
+	if !exists {
 		return false
 	}
 

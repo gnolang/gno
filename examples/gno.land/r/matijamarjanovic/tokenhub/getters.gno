@@ -48,8 +48,8 @@ func MustGetToken(key string) *grc20.Token {
 
 // GetNFT returns an NFT instance for a given key
 func GetNFT(key string) grc721.IGRC721 {
-	nftGetter := registeredNFTs.Get(key)
-	if nftGetter == nil {
+	nftGetter, ok := registeredNFTs.Get(key)
+	if !ok {
 		return nil
 	}
 	return (nftGetter.(grc721.NFTGetter))()
@@ -66,8 +66,8 @@ func MustGetNFT(key string) grc721.IGRC721 {
 
 // GetMultiToken returns a multi-token instance for a given key
 func GetMultiToken(key string) grc1155.IGRC1155 {
-	info := registeredMTs.Get(key)
-	if info == nil {
+	info, ok := registeredMTs.Get(key)
+	if !ok {
 		return nil
 	}
 	mt := info.(GRC1155TokenInfo).Collection

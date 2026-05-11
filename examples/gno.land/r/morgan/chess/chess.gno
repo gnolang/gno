@@ -139,8 +139,8 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 }
 
 func getUserGames(user address) []*Game {
-	val := user2Games.Get(user.String())
-	if val == nil {
+	val, exist := user2Games.Get(user.String())
+	if !exist {
 		return nil
 	}
 	return val.([]*Game)
@@ -195,8 +195,8 @@ func newGame(caller, opponent address, seconds, increment int) *Game {
 
 func addToUser2Games(addr address, game *Game) {
 	var games []*Game
-	v := user2Games.Get(string(addr))
-	if v != nil {
+	v, ok := user2Games.Get(string(addr))
+	if ok {
 		games = v.([]*Game)
 	}
 	// game must be at top, because it is the latest ID
@@ -233,8 +233,8 @@ func GetGame(id string) string {
 }
 
 func getGame(id string, wantOpen bool) *Game {
-	graw := gameStore.Get(id)
-	if graw == nil {
+	graw, ok := gameStore.Get(id)
+	if !ok {
 		panic("game not found")
 	}
 	g := graw.(*Game)
@@ -530,7 +530,15 @@ func checkErr(err error) {
 	}
 }
 
-// Replacement for OriginCall using std.PreviousRealm().
+// assertOriginCall is a user-call guard — it accepts EOA maketx-call AND
+// maketx-run ephemeral realms. Despite the name, this is NOT equivalent to
+// runtime.AssertOriginCall() (which is strictly direct MsgCall only).
+//
+// WARNING: do not reuse this helper from any function that reads
+// banker.OriginSend() to verify payment. IsUser() lets a maketx-run script
+// consume the origin-send envelope before calling us, bypassing the check.
+// For payment paths, use IsUserCall() (EOA only) — see
+// docs/resources/effective-gno.md#verifying-inbound-coin-payments.
 func assertOriginCall() {
 	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-origin call")

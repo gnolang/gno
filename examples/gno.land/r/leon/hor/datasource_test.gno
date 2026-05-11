@@ -12,8 +12,12 @@ import (
 )
 
 func init() {
-	// Pre-register "demo" user for render tests
+	// Pre-register "demo" user for render tests. uinit.RegisterUser is
+	// genesis-only (height==0) since the security fix; tests run at
+	// DefaultHeight=123, so we temporarily reset and restore.
+	testing.SetHeight(0)
 	uinit.RegisterUser(cross, "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
+	testing.SetHeight(123)
 }
 
 var (
@@ -153,8 +157,8 @@ func TestItemRecord(t *testing.T) {
 	uassert.Equal(t, pkgpath, r.String())
 
 	fields, _ := r.Fields()
-	details := fields.Get("details")
-	urequire.True(t, details != nil, "details field")
+	details, found := fields.Get("details")
+	urequire.True(t, found, "details field")
 	uassert.Equal(t, "Votes: ⏶ 2 - ⏷ 1", details)
 
 	content, _ := r.Content()

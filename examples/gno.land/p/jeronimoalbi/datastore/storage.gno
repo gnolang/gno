@@ -214,7 +214,7 @@ func (s Storage) getIndexRecordsKeys(indexName, indexKey string) ([]string, erro
 	}
 
 	var keys []string
-	if v := idx.Get(indexKey); v != nil {
+	if v, found := idx.Get(indexKey); found {
 		keys = castIfaceToRecordKeys(v)
 		if keys == nil {
 			return nil, errors.New("unexpected storage index key format")

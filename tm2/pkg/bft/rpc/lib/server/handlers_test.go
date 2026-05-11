@@ -217,6 +217,88 @@ func TestRPCNotificationInBatch(t *testing.T) {
 	}
 }
 
+func TestRPCBatchPartialUnmarshal(t *testing.T) {
+	t.Parallel()
+
+	mux := testMux()
+	tests := []struct {
+		name        string
+		payload     string
+		expectCount int
+	}{
+		{
+			// One valid request + one with null id (fails UnmarshalJSON).
+			// Valid request should succeed; malformed one should get an error response.
+			name: "null_id_does_not_drop_batch",
+			payload: `[
+				{"jsonrpc":"2.0","method":"c","id":"1","params":["a","10"]},
+				{"jsonrpc":"2.0","method":"c","id":null,"params":["a","10"]}
+			]`,
+			expectCount: 2,
+		},
+		{
+			// One valid request + one with missing id field.
+			name: "missing_id_does_not_drop_batch",
+			payload: `[
+				{"jsonrpc":"2.0","method":"c","id":"1","params":["a","10"]},
+				{"jsonrpc":"2.0","method":"c","params":["a","10"]}
+			]`,
+			expectCount: 2,
+		},
+		{
+			// One valid request + one with object id (fails parseID).
+			name: "object_id_does_not_drop_batch",
+			payload: `[
+				{"jsonrpc":"2.0","method":"c","id":"1","params":["a","10"]},
+				{"jsonrpc":"2.0","method":"c","id":{},"params":["a","10"]}
+			]`,
+			expectCount: 2,
+		},
+		{
+			// Three valid requests + one malformed in the middle.
+			name: "malformed_element_preserves_others",
+			payload: `[
+				{"jsonrpc":"2.0","method":"c","id":"1","params":["a","10"]},
+				{"jsonrpc":"2.0","method":"c","id":null,"params":["a","10"]},
+				{"jsonrpc":"2.0","method":"c","id":"2","params":["a","10"]},
+				{"jsonrpc":"2.0","method":"c","id":"3","params":["a","10"]}
+			]`,
+			expectCount: 4,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req, _ := http.NewRequest("POST", "http://localhost/", strings.NewReader(tt.payload))
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			res := rec.Result()
+
+			assert.True(t, statusOK(res.StatusCode), "should always return 2XX")
+			blob, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			require.NotEmpty(t, blob, "response body should not be empty — batch must not be silently dropped")
+
+			var responses types.RPCResponses
+			require.NoError(t, json.Unmarshal(blob, &responses), "response should be a JSON array, got: %s", blob)
+			require.Len(t, responses, tt.expectCount, "unexpected number of responses\nblob: %s", blob)
+
+			// Verify we get at least one success and at least one error
+			var hasSuccess, hasError bool
+			for _, resp := range responses {
+				if resp.Error != nil {
+					hasError = true
+				} else {
+					hasSuccess = true
+				}
+			}
+			assert.True(t, hasSuccess, "expected at least one successful response")
+			assert.True(t, hasError, "expected at least one error response for malformed request")
+		})
+	}
+}
+
 func TestUnknownRPCPath(t *testing.T) {
 	t.Parallel()
 

@@ -26,4 +26,4 @@ func main() {
 }
 
 // Output:
-// nil pointer dereference
+// runtime error: nil pointer dereference

@@ -78,8 +78,8 @@ var (
 
 func GetPlayer(player string) string {
 	addr := parsePlayer(player)
-	v := playerStore.Get(addr.String())
-	if v == nil {
+	v, ok := playerStore.Get(addr.String())
+	if !ok {
 		panic("player not found")
 	}
 	b, err := v.(*Player).MarshalJSON()
@@ -153,8 +153,8 @@ func (g *Game) saveResult() {
 }
 
 func getPlayer(addr address) *Player {
-	praw := playerStore.Get(addr.String())
-	if praw != nil {
+	praw, ok := playerStore.Get(addr.String())
+	if ok {
 		return praw.(*Player)
 	}
 	p := new(Player)
@@ -245,7 +245,7 @@ func Leaderboard(category string) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 	for idx, entry := range leaderboard[cat] {
-		p := playerStore.Get(entry.addr.String())
+		p, _ := playerStore.Get(entry.addr.String())
 		d, err := p.(*Player).MarshalJSON()
 		checkErr(err)
 		buf.Write(d)
@@ -279,8 +279,8 @@ func ListGames(filters string) string {
 	// iterate over user2games array if we have one;
 	// if we don't, iterate over games.
 	if ft.u2gAddr != "" {
-		v := user2Games.Get(ft.u2gAddr.String())
-		if v == nil {
+		v, ok := user2Games.Get(ft.u2gAddr.String())
+		if !ok {
 			return "[]"
 		}
 		games := v.([]*Game)

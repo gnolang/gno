@@ -41,12 +41,13 @@ func TestTreeGet(t *testing.T) {
 	tree := NewTree()
 	tree.Set("key1", "value1")
 
-	value := tree.Get("key1")
-	if value == nil || value != "value1" {
+	value, exists := tree.Get("key1")
+	if !exists || value != "value1" {
 		t.Error("Expected Get to return value1 and true")
 	}
 
-	if tree.Has("key2") {
+	_, exists = tree.Get("key2")
+	if exists {
 		t.Error("Expected Get to return false for non-existent key")
 	}
 }
@@ -179,7 +180,7 @@ func TestCopyOnWrite(t *testing.T) {
 	clone.Set("D", 4)
 
 	// Verify original is unchanged
-	if val := original.Get("B"); val != 2 {
+	if val, _ := original.Get("B"); val != 2 {
 		t.Errorf("Original tree was modified: expected B=2, got B=%v", val)
 	}
 	if original.Has("D") {
@@ -187,10 +188,10 @@ func TestCopyOnWrite(t *testing.T) {
 	}
 
 	// Verify clone has new values
-	if val := clone.Get("B"); val != 20 {
+	if val, _ := clone.Get("B"); val != 20 {
 		t.Errorf("Clone not updated: expected B=20, got B=%v", val)
 	}
-	if val := clone.Get("D"); val != 4 {
+	if val, _ := clone.Get("D"); val != 4 {
 		t.Errorf("Clone not updated: expected D=4, got D=%v", val)
 	}
 }
@@ -235,21 +236,21 @@ func TestCopyOnWriteEdgeCases(t *testing.T) {
 		clone3.Set("C", 30)
 
 		// Check original remains unchanged
-		if val := original.Get("A"); val != 1 {
+		if val, _ := original.Get("A"); val != 1 {
 			t.Errorf("Original modified: expected A=1, got A=%v", val)
 		}
-		if val := original.Get("B"); val != 2 {
+		if val, _ := original.Get("B"); val != 2 {
 			t.Errorf("Original modified: expected B=2, got B=%v", val)
 		}
 
 		// Verify each clone has correct values
-		if val := clone1.Get("A"); val != 10 {
+		if val, _ := clone1.Get("A"); val != 10 {
 			t.Errorf("Clone1 incorrect: expected A=10, got A=%v", val)
 		}
-		if val := clone2.Get("B"); val != 20 {
+		if val, _ := clone2.Get("B"); val != 20 {
 			t.Errorf("Clone2 incorrect: expected B=20, got B=%v", val)
 		}
-		if val := clone3.Get("C"); val != 30 {
+		if val, _ := clone3.Get("C"); val != 30 {
 			t.Errorf("Clone3 incorrect: expected C=30, got C=%v", val)
 		}
 	})
@@ -273,7 +274,7 @@ func TestCopyOnWriteEdgeCases(t *testing.T) {
 		}
 
 		// Verify clone state
-		if val := clone.Get("B"); val != 20 {
+		if val, _ := clone.Get("B"); val != 20 {
 			t.Errorf("Clone incorrect: expected B=20, got B=%v", val)
 		}
 	})
@@ -291,10 +292,10 @@ func TestCopyOnWriteEdgeCases(t *testing.T) {
 		clone2.Set("B", 30)
 
 		// Each clone should have its own value
-		if val := clone1.Get("B"); val != 20 {
+		if val, _ := clone1.Get("B"); val != 20 {
 			t.Errorf("Clone1 incorrect: expected B=20, got B=%v", val)
 		}
-		if val := clone2.Get("B"); val != 30 {
+		if val, _ := clone2.Get("B"); val != 30 {
 			t.Errorf("Clone2 incorrect: expected B=30, got B=%v", val)
 		}
 	})
@@ -313,12 +314,12 @@ func TestCopyOnWriteEdgeCases(t *testing.T) {
 		clone.Set("H", "modified")
 
 		// Check original remains unchanged
-		if val := original.Get("H"); val != "H" {
+		if val, _ := original.Get("H"); val != "H" {
 			t.Errorf("Original modified: expected H='H', got H=%v", val)
 		}
 
 		// Verify clone modification
-		if val := clone.Get("H"); val != "modified" {
+		if val, _ := clone.Get("H"); val != "modified" {
 			t.Errorf("Clone incorrect: expected H='modified', got H=%v", val)
 		}
 	})
@@ -368,8 +369,8 @@ func TestCopyOnWriteEdgeCases(t *testing.T) {
 
 		// Both original and clone should see the modification
 		// because we're not deep copying values
-		origVal := original.Get("key")
-		cloneVal := clone.Get("key")
+		origVal, _ := original.Get("key")
+		cloneVal, _ := clone.Get("key")
 
 		if origVal.(*MutableValue).Data != "modified" {
 			t.Error("Original value not modified as expected")

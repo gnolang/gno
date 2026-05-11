@@ -25,7 +25,7 @@ func New() *LociStore {
 	}
 }
 
-// Set stores a byte slice in the AVL tree using the `std.PreviousRealm().Address()`
+// Set stores a byte slice in the AVL tree using the `runtime.PreviousRealm().Address()`
 // string as the key.
 func (s *LociStore) Set(value []byte) {
 	key := string(runtime.PreviousRealm().Address())
@@ -36,8 +36,8 @@ func (s *LociStore) Set(value []byte) {
 // The return values are the byte slice value and a boolean indicating
 // whether the value exists.
 func (s *LociStore) Get(addr address) []byte {
-	value := s.internal.Get(string(addr))
-	if value == nil {
+	value, exists := s.internal.Get(string(addr))
+	if !exists {
 		return nil
 	}
 	return value.([]byte)

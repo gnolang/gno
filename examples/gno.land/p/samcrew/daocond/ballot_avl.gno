@@ -19,8 +19,8 @@ func (b *BallotAVL) Vote(voter string, vote Vote) {
 
 // Implements Ballot interface
 func (b *BallotAVL) Get(voter string) Vote {
-	vote := b.tree.Get(voter)
-	if vote == nil {
+	vote, ok := b.tree.Get(voter)
+	if !ok {
 		return VoteAbstain
 	}
 	return vote.(Vote)

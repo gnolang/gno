@@ -10,8 +10,8 @@ import (
 // Public facing functions
 
 func GetGroupIDFromName(name string) (GroupID, bool) {
-	groupI := gGroupsByName.Get(name)
-	if groupI == nil {
+	groupI, exists := gGroupsByName.Get(name)
+	if !exists {
 		return 0, false
 	}
 	return groupI.(*Group).id, true

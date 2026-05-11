@@ -1,0 +1,148 @@
+# Test: cross-realm assign+recover cannot corrupt state or steal funds.
+#
+# A vault realm has an exported SetOwner (non-crossing) that was meant
+# to be unexported. An attacker deploys a realm that:
+#   1. Calls SetOwner(myAddr) + recover — blocked by the pre-mutation
+#      readonly check so ownership never changes in memory.
+#   2. Calls Withdraw(cross) — fails with "unauthorized" because
+#      the owner is still the original DAO address.
+#
+# Without the fix, step 1 would land in memory before DidUpdate panics.
+# After recover(), the attacker owns the vault in memory and Withdraw
+# succeeds — but the ownership change reverts after the tx, leaving
+# cross-realm state inconsistent.
+
+adduser attacker
+
+## start a new node
+gnoland start
+
+## deploy vault realm
+gnokey maketx addpkg -pkgdir $WORK/vault -pkgpath gno.land/r/test/vault -gas-fee 390001ugnot -gas-wanted 3_900_000 -chainid=tendermint_test test1
+
+## verify initial owner is the DAO address
+gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
+stdout 'owner: g1dao0000000000000000000000000000000000'
+
+## deploy attack realm
+gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 420001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test attacker
+
+## TEST 1: assign+recover then Withdraw — must fail with "unauthorized"
+## The attacker does SetOwner(myAddr) + recover, then Withdraw(cross).
+## With the fix, SetOwner is blocked before the write, so Withdraw sees
+## the original owner and rejects the caller.
+! gnokey maketx call -pkgpath gno.land/r/test/attack -func Attack -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
+stderr 'unauthorized'
+
+## verify owner is unchanged after the attack attempt
+gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
+stdout 'owner: g1dao0000000000000000000000000000000000'
+
+## TEST 2: assign without recover — the readonly panic aborts the tx
+! gnokey maketx call -pkgpath gno.land/r/test/attack -func AttackNoRecover -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
+stderr 'readonly tainted object'
+
+## verify owner is still unchanged
+gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
+stdout 'owner: g1dao0000000000000000000000000000000000'
+
+## TEST 3: the crossing setter correctly rejects non-owners (positive control)
+! gnokey maketx call -pkgpath gno.land/r/test/vault -func TransferOwnership -args ${attacker_user_addr} -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
+stderr 'unauthorized'
+
+## owner unchanged
+gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
+stdout 'owner: g1dao0000000000000000000000000000000000'
+
+-- vault/gnomod.toml --
+module = "gno.land/r/test/vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package vault
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
+
+var owner address
+
+func init() {
+	// Set initial owner to a DAO address via internal helper.
+	SetOwner(address("g1dao0000000000000000000000000000000000"))
+}
+
+// SetOwner is an internal helper that was exported by mistake
+// (should be setOwner). Without the pre-mutation readonly check,
+// a cross-realm caller could call SetOwner + recover to silently
+// hijack ownership in memory, then call Withdraw to steal funds.
+func SetOwner(o address) {
+	owner = o
+}
+
+func GetOwner(cur realm) address {
+	return owner
+}
+
+// TransferOwnership is the legitimate crossing setter.
+func TransferOwnership(cur realm, newOwner address) {
+	caller := runtime.PreviousRealm().Address()
+	if caller != owner {
+		panic("unauthorized")
+	}
+	owner = newOwner
+}
+
+func Withdraw(cur realm, amount int64) {
+	caller := runtime.PreviousRealm().Address()
+	if caller != owner {
+		panic("unauthorized")
+	}
+	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	pkgAddr := runtime.CurrentRealm().Address()
+	b.SendCoins(pkgAddr, caller, chain.Coins{{"ugnot", amount}})
+}
+
+func Render(_ string) string {
+	return "owner: " + string(owner)
+}
+
+-- attack/gnomod.toml --
+module = "gno.land/r/test/attack"
+gno = "0.9"
+
+-- attack/attack.gno --
+package attack
+
+import (
+	"chain/runtime"
+
+	"gno.land/r/test/vault"
+)
+
+// Attack attempts to hijack ownership via assign+recover, then withdraw.
+func Attack(cur realm) {
+	myAddr := runtime.CurrentRealm().Address()
+
+	// Step 1: try to hijack ownership. The readonly check blocks the
+	// assignment before it lands in memory. recover() catches the panic.
+	func() {
+		defer func() { _ = recover() }()
+		vault.SetOwner(myAddr)
+	}()
+
+	// Step 2: try to withdraw. Since owner is unchanged, this fails
+	// with "unauthorized".
+	vault.Withdraw(cross, 1000000)
+}
+
+// AttackNoRecover is the negative control: without recover, the
+// readonly panic aborts the entire transaction.
+func AttackNoRecover(cur realm) {
+	myAddr := runtime.CurrentRealm().Address()
+	vault.SetOwner(myAddr)
+	// Never reached.
+	vault.Withdraw(cross, 1000000)
+}

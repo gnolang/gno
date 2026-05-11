@@ -40,8 +40,8 @@ func (c *Category) Tally() {
 	// TODO error handling
 	c.votes.Iterate("", "", func(address_XXX string, vote any) bool {
 		v := vote.(Vote)
-		value := c.tallyResult.results.Get(v.option)
-		if value == nil {
+		value, exists := c.tallyResult.results.Get(v.option)
+		if !exists {
 			return false
 		}
 		count := value.(int)

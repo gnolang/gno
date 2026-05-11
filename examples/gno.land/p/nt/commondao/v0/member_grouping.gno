@@ -3,7 +3,7 @@ package commondao
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 type (
@@ -48,7 +48,7 @@ func NewMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
 }
 
 type memberGrouping struct {
-	groups        avl.Tree // string(name) -> MemberGroup
+	groups        bptree.BPTree // string(name) -> MemberGroup
 	createStorage func(group string) MemberStorage
 }
 
@@ -79,8 +79,8 @@ func (g *memberGrouping) Add(name string) (MemberGroup, error) {
 
 // Get returns a member group.
 func (g memberGrouping) Get(name string) (_ MemberGroup, found bool) {
-	v := g.groups.Get(name)
-	if v == nil {
+	v, found := g.groups.Get(name)
+	if !found {
 		return nil, false
 	}
 	return v.(MemberGroup), true
