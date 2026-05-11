@@ -21,7 +21,8 @@ const (
 )
 
 func init() {
-	testing.SetOriginCaller(g1user)
+	// OriginCaller must equal the operator address (post-genesis squat guard).
+	testing.SetOriginCaller(validAddress)
 
 	// Register a validator and add the proposal
 	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)

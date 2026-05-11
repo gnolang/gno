@@ -12,17 +12,21 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build-staging:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # to push images to ghcr.io
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -30,7 +34,7 @@ jobs:
 
       - name: Docker metadata portalloopd
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}/portalloopd
           tags: |
@@ -38,7 +42,7 @@ jobs:
             type=semver,pattern=v{{version}}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           target: portalloopd
           tags: ${{ steps.meta.outputs.tags }}
@@ -50,7 +54,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: "Setup The staging docker compose"
         # Pull the current Docker image of Gnoland to allow the loop application
@@ -80,11 +86,11 @@ jobs:
 
       - name: "Wait for new docker image"
         run: |
-          ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+          ip_addr=$(grep -o "http://.*:26657" misc/loop/traefik/gno.yml)
           while
-            new_ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+            new_ip_addr=$(grep -o "http://.*:26657" misc/loop/traefik/gno.yml)
             echo "${ip_addr} -> ${new_ip_addr}"
-            [[ "${ip_addr}" == ${new_ip_addr} ]]
+            [[ "${ip_addr}" == "${new_ip_addr}" ]]
           do
             sleep 5
           done

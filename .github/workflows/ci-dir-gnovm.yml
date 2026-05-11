@@ -12,7 +12,11 @@ on:
       # We trigger the testing workflow for changes to the main go.mod,
       # since this can affect test results
       - go.mod
+      - .github/workflows/ci-dir-gnovm.yml
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   main:

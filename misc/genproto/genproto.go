@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -29,9 +30,28 @@ import (
 )
 
 func main() {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "============================================================")
+	fmt.Fprintln(os.Stderr, "  WARNING: misc/genproto (genproto1 / pbbindings) is DEPRECATED")
+	fmt.Fprintln(os.Stderr, "  for the gno.land project.")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  Use misc/genproto2 instead. genproto1's pbbindings are")
+	fmt.Fprintln(os.Stderr, "  not guaranteed to match the reflect codec byte-for-byte;")
+	fmt.Fprintln(os.Stderr, "  genproto2 is the source-of-truth generator with a tested")
+	fmt.Fprintln(os.Stderr, "  parity contract against the reflect codec.")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  The underlying library `tm2/pkg/amino/genproto` is kept")
+	fmt.Fprintln(os.Stderr, "  in-tree for future projects that need protobuf3-compatible")
+	fmt.Fprintln(os.Stderr, "  generated code (genproto2 emits its own native wire format,")
+	fmt.Fprintln(os.Stderr, "  not standard protobuf3). If you revive genproto1, follow")
+	fmt.Fprintln(os.Stderr, "  the procedure in tm2/pkg/amino/genproto/HARDENING.md to")
+	fmt.Fprintln(os.Stderr, "  bring it to wire-parity with the reflect codec first.")
+	fmt.Fprintln(os.Stderr, "============================================================")
+	fmt.Fprintln(os.Stderr, "")
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			LongHelp: "Generates proto bindings for Amino packages",
+			LongHelp: "Generates proto bindings for Amino packages.\n\nDEPRECATED for the gno.land project: use misc/genproto2 instead. genproto1's pbbindings are not guaranteed to match the reflect codec byte-for-byte; genproto2 is the source-of-truth generator with a tested parity contract.\n\nThe underlying library tm2/pkg/amino/genproto is kept in-tree for future projects that need protobuf3-compatible generated code (genproto2 emits its own native wire format). If you revive genproto1, see tm2/pkg/amino/genproto/HARDENING.md for the parity-hardening procedure.",
 		},
 		commands.NewEmptyConfig(),
 		execGen,

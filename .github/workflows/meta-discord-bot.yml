@@ -7,6 +7,8 @@ on:
     paths:
       - 'examples/**'
 
+permissions: {}
+
 jobs:
   discord-notify:
     if: github.event.pull_request.merged == true
@@ -15,7 +17,7 @@ jobs:
     steps:
       - name: Setup notification
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_HOOK }} # zizmor: ignore[secrets-outside-env]
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
