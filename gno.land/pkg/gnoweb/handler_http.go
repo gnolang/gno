@@ -802,7 +802,7 @@ func (h *HTTPHandler) GetForkView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Collect all .gno files
 	var allCode strings.Builder
 	for _, fileName := range files {
-		if !strings.HasSuffix(fileName, ".gno") {
+		if !strings.HasSuffix(fileName, ".gno") && fileName != "gnomod.toml" {
 			continue
 		}
 		file, _, err := h.Client.File(ctx, pkgPath, fileName)
