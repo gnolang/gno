@@ -121,6 +121,8 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
+	// NewHTTPClient applies a 60s request timeout to every call, so
+	// context.Background() (no deadline) is safe to use here.
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
 		return nil, err
