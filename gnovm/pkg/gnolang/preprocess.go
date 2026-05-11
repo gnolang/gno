@@ -2199,8 +2199,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if t.Elem().Kind() != ArrayKind {
 						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
-				case SliceKind, ArrayKind, StringKind:
+				case SliceKind, StringKind:
 					// good.
+				case ArrayKind:
+					if !isAddressable(store, last, n.X) {
+						panic(fmt.Sprintf(
+							"invalid operation: %s (slice of unaddressable value)",
+							n.X.String()))
+					}
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
 				}
@@ -2375,6 +2381,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf(
 						"cannot take address of multi-value call (results: %s)",
 						tt.String()))
+				}
+				if !isAddressable(store, last, n.X) {
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s (value of type %s)",
+						n.X.String(), xt.String()))
 				}
 				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
 			// TRANS_LEAVE -----------------------
@@ -4549,6 +4560,28 @@ func anyValue(t Type) TypedValue {
 func isConst(x Expr) bool {
 	_, ok := x.(*ConstExpr)
 	return ok
+}
+
+func isAddressable(store Store, last BlockNode, x Expr) bool {
+	switch cx := x.(type) {
+	case *NameExpr, *StarExpr, *CompositeLitExpr:
+		return true
+	case *IndexExpr:
+		switch evalStaticTypeOf(store, last, cx.X).Kind() {
+		case MapKind:
+			return false
+		case SliceKind:
+			return true
+		}
+		return isAddressable(store, last, cx.X)
+	case *SelectorExpr:
+		if evalStaticTypeOf(store, last, cx.X).Kind() == PointerKind {
+			return true
+		}
+		return isAddressable(store, last, cx.X)
+	default:
+		return false
+	}
 }
 
 func isConstType(x Expr) bool {
