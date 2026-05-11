@@ -38,11 +38,16 @@ var preRegisteredUsers = []struct {
 }
 
 func init() {
-	// add pre-registered users via the bypass path (genesis posture).
-	// Errors are intentionally discarded; the seed is curated and any
-	// duplicate-address / already-deleted entries (re-init across test
-	// realm reuse) just no-op.
+	// Add pre-registered users via the bypass path (genesis posture).
+	// Names are curated but the undelying validation implementation could
+	// potentially fail if changed and the list of curated names is not updated
+	// accordingly, so registration errors are checked to make sure all
+	// pre-registered names are effectibly registered, otherwise there's a chance
+	// that an error could be silently ignored.
 	for _, res := range preRegisteredUsers {
-		susers.RegisterUserIgnoreCanonical(cross, res.Name, res.Address)
+		err := susers.RegisterUserIgnoreCanonical(cross, res.Name, res.Address)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
