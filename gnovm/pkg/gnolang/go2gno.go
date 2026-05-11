@@ -274,11 +274,28 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Value: gon.Value,
 		}
 	case *ast.BinaryExpr:
-		return &BinaryExpr{
+		// Default setSpan calls gon.Pos(); stdlib defines
+		// (*ast.BinaryExpr).Pos() = X.Pos() (recurses leftward).
+		// For a chain `1 + 1 + ... + 1` of depth N this is O(N²).
+		// When X is also a BinaryExpr, build Span from the already-
+		// translated children's Spans (each O(1) GetSpan) instead.
+		// Non-chain shapes fall through to the default path so
+		// ParenExpr/Ident column semantics are preserved.
+		// See gnovm/adr/pr5648_spanfromgo_quadratic.md.
+		bx := &BinaryExpr{
 			Left:  toExpr(fs, gon.X),
 			Op:    toWord(gon.Op),
 			Right: toExpr(fs, gon.Y),
 		}
+		if _, chained := gon.X.(*ast.BinaryExpr); chained && fs != nil &&
+			bx.Left != nil && bx.Right != nil {
+			lspan := bx.Left.GetSpan()
+			rspan := bx.Right.GetSpan()
+			if !lspan.IsZero() && !rspan.IsZero() {
+				bx.SetSpan(Span{Pos: lspan.Pos, End: rspan.End})
+			}
+		}
+		return bx
 	case *ast.CallExpr:
 		return &CallExpr{
 			Func: toExpr(fs, gon.Fun),
