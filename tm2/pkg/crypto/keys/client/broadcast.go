@@ -176,10 +176,10 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 // original bytes are returned unchanged. It also returns whether tx bytes were
 // rewritten.
 func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, bool, error) {
-	switch {
-	case maxGas == 0:
+	switch maxGas {
+	case 0:
 		return txBytes, false, nil
-	case maxGas == -1:
+	case -1:
 		maxGas = simulationMaxGasFallback
 	}
 	if tx.Fee.GasWanted >= maxGas {
