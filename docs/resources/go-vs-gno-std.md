@@ -49,7 +49,7 @@ Gno includes many familiar Go standard libraries, but not all of them. Only dete
 - **`errors`** for error handling
 - **`fmt`** for formatted I/O
 
-### Example:
+### Example where Gno is the same as Go:
 ```go
 package example
 
