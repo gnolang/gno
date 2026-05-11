@@ -88,7 +88,7 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.OutputDocument,
 		"output-document",
 		"",
-		"the signature json document to save. If empty, updates the tx-path file",
+		"the signature json document to save. If empty, updates the tx (file) being signed",
 	)
 }
 
