@@ -1355,7 +1355,8 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 	}{
 		{"default playground", "/_/play", "Playground"},
 		{"with initial code", "/_/play?code=package+main", "package main"},
-		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg==", "package main"},
+		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D", "package main"},
+		{"with compressed encoded code", "/_/play?code=KkhMzk5MT1XITczM4wIEAAD%2F%2Fw%3D%3D&z", "package main"},
 		{"with fork param", "/_/play?from=gno.land/r/demo/foo", "gno.land/r/demo/foo"},
 	}
 
