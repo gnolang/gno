@@ -46,7 +46,13 @@ func init() {
 	// that an error could be silently ignored.
 	for _, res := range preRegisteredUsers {
 		err := susers.RegisterUserIgnoreCanonical(cross, res.Name, res.Address)
-		if err != nil {
+		if err == nil {
+			continue
+		}
+
+		// Only allow ErrNotWhitelisted on deploy for unit tests to work.
+		// Error is triggered in tests because of block height != 0.
+		if _, ok := err.(susers.ErrNotWhitelisted); !ok {
 			panic(err)
 		}
 	}
