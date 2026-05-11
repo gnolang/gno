@@ -17,17 +17,17 @@ stdout 'false bool'
 
 # Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/mysuperpkg -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Gui should be able to addpkg on random name
 # gui addpkg -> gno.land/r/randomname/mysuperpkg
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test gui
 stdout 'OK!'
 
 # Enable `sys/names`
 # admin call -> sys/names.Enable
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 2_600_000 -chainid tendermint_test admin
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 5_300_000 -chainid tendermint_test admin
 stdout 'OK!'
 
 # Check that `sys/names` has been enabled
@@ -43,7 +43,7 @@ stderr 'is not authorized to deploy packages to namespace'
 
 # Try to add a pkg on own address as namespace (PA namespace)
 # gui addpkg -> gno.land/r/<addr_gui>/one
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/one -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test gui
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$gui_user_addr/one -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test gui
 stdout 'OK!'
 
 ## Test non-PA namespace
