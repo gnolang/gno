@@ -3744,19 +3744,12 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 	}
 }
 
-/* Kind-filter hide rules (Pretty only — Tree shows the whole shape). */
-body:has(#kf-state:checked)
-.b-state-decl:not([data-kind="struct"]):not([data-kind="map"]):not(
-	[data-kind="slice"]
-):not([data-kind="array"]):not([data-kind="pointer"]):not([data-kind="ref"]) {
-	display: none;
-}
-body:has(#kf-code:checked)
-	.b-state-decl:not([data-kind="func"]):not([data-kind="closure"]) {
-	display: none;
-}
-body:has(#kf-types:checked)
-	.b-state-decl:not([data-kind="type"]):not([data-kind="interface"]) {
+/* Kind-filter hide rules (Pretty only — Tree shows the whole shape).
+   Taxonomy lives server-side in `kindGroup` (template.go); CSS just
+   matches one flat attribute, no stacked :not() chains. */
+body:has(#kf-state:checked) .b-state-decl:not([data-kind-group="state"]),
+body:has(#kf-code:checked) .b-state-decl:not([data-kind-group="code"]),
+body:has(#kf-types:checked) .b-state-decl:not([data-kind-group="types"]) {
 	display: none;
 }
 

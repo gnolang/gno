@@ -17,6 +17,11 @@ import (
 // matters only as a back-pressure safeguard against pathological inputs.
 const maxConcurrentFileFetches = 8
 
+// maxFilesPerRender caps the total number of distinct files the orchestrator
+// will fetch for one page render. Bounds outbound RPC traffic when a hostile
+// realm distributes funcs/closures across many source files.
+const maxFilesPerRender = 50
+
 // maxInlinePreviewFetches caps how many stored objects EnrichInlinePreviews
 // will fetch in TOTAL across rounds on a single page render. The Pretty
 // view's promise is "see actual content, not a navigation menu" — so the
@@ -117,7 +122,7 @@ func walkLinksAndCollect(nodes []StateNode, pkgPath string, height int64, files 
 		if n.OwnerID != "" {
 			n.OwnerHref = stateObjectHref(pkgPath, n.OwnerID, "", height)
 		}
-		if n.Source != nil && n.Source.File != "" {
+		if n.Source != nil && n.Source.File != "" && len(files) < maxFilesPerRender {
 			files[n.Source.File] = struct{}{}
 		}
 		if len(n.Children) > 0 {

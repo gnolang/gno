@@ -22,6 +22,7 @@ export class StateController extends BaseController {
 	private declare treeStorageKey: string;
 	private declare openSet: Set<string>;
 	private declare viewTree: HTMLElement | null;
+	private bulkInProgress = false;
 
 	protected connect(): void {
 		this.viewTree = this.element.querySelector<HTMLElement>(".view-tree");
@@ -51,15 +52,29 @@ export class StateController extends BaseController {
 		const expand = btn.getAttribute("aria-pressed") !== "true";
 		const details =
 			this.viewTree.querySelectorAll<HTMLDetailsElement>("details");
+		// Gate onToggle reconciliation so we write localStorage once
+		// instead of N times during the burst.
+		this.bulkInProgress = true;
 		for (const d of details) {
 			if (d.open !== expand) d.open = expand;
 		}
+		this.bulkInProgress = false;
+		if (expand) {
+			for (const d of details) {
+				const key = d.getAttribute("data-tree-key");
+				if (key) this.openSet.add(key);
+			}
+		} else {
+			this.openSet.clear();
+		}
+		this.persistOpen();
 		btn.setAttribute("aria-pressed", String(expand));
 		const label = this.getTarget("toggle-label");
 		if (label) label.textContent = expand ? "Collapse all" : "Expand all";
 	}
 
 	private onToggle = (event: Event): void => {
+		if (this.bulkInProgress) return;
 		const target = event.target as HTMLElement;
 		if (!(target instanceof HTMLDetailsElement)) return;
 		const key = target.getAttribute("data-tree-key");

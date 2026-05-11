@@ -926,9 +926,10 @@ func TestDecodeEmptyPackage(t *testing.T) {
 
 // ---- Stress / large-render tests ----------------------------------------
 
-// TestDecodeLargeMap_1k checks that decoding a 1000-entry map produces a
-// well-formed StateNode tree without panicking and without truncating
-// children. Catches regressions where pagination or limits would mask bugs.
+// TestDecodeLargeMap_1k checks that decoding a 1000-entry map respects
+// maxChildrenPerNode: the total count is preserved on Length, the first
+// `cap` entries decode normally, and the surplus collapses into one
+// truncated sentinel. Guards the DoS bound against accidental removal.
 func TestDecodeLargeMap_1k(t *testing.T) {
 	t.Parallel()
 
@@ -942,13 +943,15 @@ func TestDecodeLargeMap_1k(t *testing.T) {
 	m := nodes[0]
 	assert.Equal(t, "map", m.Kind)
 	require.NotNil(t, m.Length)
-	assert.Equal(t, n, *m.Length, "every key must round-trip")
-	require.Len(t, m.Children, n, "no children dropped at decode time")
+	assert.Equal(t, n, *m.Length, "Length reports the full count")
+	require.Len(t, m.Children, maxChildrenPerNode+1, "cap + truncated sentinel")
 
-	// Spot-check a few entries.
+	// Spot-check the first real entries.
 	assert.Equal(t, `"k0"`, m.Children[0].Name)
 	assert.Equal(t, "0", m.Children[0].Value)
-	assert.Equal(t, fmt.Sprintf(`"k%d"`, n-1), m.Children[n-1].Name)
+	// Last entry is the truncated sentinel, not a real key.
+	last := m.Children[len(m.Children)-1]
+	assert.Equal(t, "truncated", last.Kind)
 }
 
 // TestDecodeDeepStruct exercises 50-deep nesting — a worst-case stack depth

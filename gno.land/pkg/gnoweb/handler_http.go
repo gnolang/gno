@@ -24,6 +24,11 @@ import (
 
 const ReadmeFileName = "README.md"
 
+// maxStateIDLength bounds attacker-controlled oid/tid query params to
+// prevent request→response amplification: without it a small GET can
+// flood the upstream RPC payload and inflate the rendered HTML.
+const maxStateIDLength = 256
+
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
 	Domain     string
@@ -707,6 +712,9 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 // Both paths share the same view template; only the data layer differs.
 func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	if oid := gnourl.WebQuery.Get("oid"); oid != "" {
+		if len(oid) > maxStateIDLength {
+			return http.StatusBadRequest, components.StatusErrorComponent("invalid object id")
+		}
 		return h.getStateObjectView(ctx, gnourl, oid)
 	}
 	return h.getStatePackageView(ctx, gnourl)
@@ -802,6 +810,9 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 // max(qobject, qtype) instead of their sum.
 func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.GnoURL, oid string) (int, *components.View) {
 	tid := gnourl.WebQuery.Get("tid")
+	if len(tid) > maxStateIDLength {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid type id")
+	}
 	height := gnourl.Height()
 
 	var (

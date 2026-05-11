@@ -293,7 +293,7 @@ Cube CSS conventions (matches .b-breadcrumb / .b-pkg-* patterns):
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
   {{ $isObj := .IsObjectPage }}
-  <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}-pretty"{{ end }} data-kind="{{ $n.Kind }}" data-name="{{ $n.Name }}">
+  <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}-pretty"{{ end }} data-kind="{{ $n.Kind }}" data-kind-group="{{ kindGroup $n.Kind }}" data-name="{{ $n.Name }}">
     <header>
       <div class="title">
         <h2>{{ template "state/kind-glyph" $n }}{{ $n.Name }}</h2>

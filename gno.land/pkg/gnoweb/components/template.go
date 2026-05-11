@@ -111,6 +111,21 @@ func registerCommonFuncs(funcs template.FuncMap) {
 			return "kind-unknown"
 		}
 	}
+	// kindGroup buckets a Kind into the kind-filter taxonomy
+	// ("state" | "code" | "types") so the CSS can hide cards via a
+	// single flat selector instead of stacked :not() chains.
+	funcs["kindGroup"] = func(kind string) string {
+		switch kind {
+		case "struct", "map", "slice", "array", "pointer", "ref":
+			return "state"
+		case "func", "closure":
+			return "code"
+		case "type", "interface":
+			return "types"
+		default:
+			return "other"
+		}
+	}
 	// oidShort: trailing `:N` when id and ref share the same 40-char
 	// hashlet, full id otherwise. Avoids rendering near-identical
 	// Owner/OID pairs in the audit chips.

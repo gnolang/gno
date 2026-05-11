@@ -262,9 +262,22 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 // that real Gno values never hit it.
 const maxDecodeDepth = 256
 
+// maxChildrenPerNode caps how many entries a single collection emits.
+// Bounds memory and DOM size against a hostile realm declaring giant
+// arrays/slices/maps; the surplus is summarised as one truncated node.
+const maxChildrenPerNode = 500
+
 // tooDeepNode is the sentinel emitted when a subtree exceeds maxDecodeDepth.
 func tooDeepNode(name string) StateNode {
 	return StateNode{Name: name, Type: "(too deep)", Kind: "truncated", Value: "…"}
+}
+
+// truncatedChildrenNode summarises entries dropped past maxChildrenPerNode.
+func truncatedChildrenNode(remaining int) StateNode {
+	return StateNode{
+		Name: "…", Kind: "truncated",
+		Value: fmt.Sprintf("(%d more entries omitted)", remaining),
+	}
 }
 
 func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
@@ -396,9 +409,17 @@ func decodeValueChildren(v gno.Value) []StateNode {
 				Value: fmt.Sprintf("[%d]byte{...}", n),
 			}}
 		}
-		nodes := make([]StateNode, len(cv.List))
-		for i, etv := range cv.List {
-			nodes[i] = decodeTypedValue(strconv.Itoa(i), etv)
+		total := len(cv.List)
+		shown := total
+		if shown > maxChildrenPerNode {
+			shown = maxChildrenPerNode
+		}
+		nodes := make([]StateNode, shown, shown+1)
+		for i := 0; i < shown; i++ {
+			nodes[i] = decodeTypedValue(strconv.Itoa(i), cv.List[i])
+		}
+		if total > shown {
+			nodes = append(nodes, truncatedChildrenNode(total-shown))
 		}
 		return nodes
 	case *gno.SliceValue:
@@ -414,9 +435,18 @@ func decodeValueChildren(v gno.Value) []StateNode {
 			if end > len(av.List) {
 				end = len(av.List)
 			}
-			nodes := make([]StateNode, end-offset)
-			for i, etv := range av.List[offset:end] {
-				nodes[i] = decodeTypedValue(strconv.Itoa(i), etv)
+			window := av.List[offset:end]
+			total := len(window)
+			shown := total
+			if shown > maxChildrenPerNode {
+				shown = maxChildrenPerNode
+			}
+			nodes := make([]StateNode, shown, shown+1)
+			for i := 0; i < shown; i++ {
+				nodes[i] = decodeTypedValue(strconv.Itoa(i), window[i])
+			}
+			if total > shown {
+				nodes = append(nodes, truncatedChildrenNode(total-shown))
 			}
 			return nodes
 		}
@@ -429,12 +459,22 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		}
 		return nil
 	case *gno.MapValue:
-		var nodes []StateNode
+		var (
+			nodes []StateNode
+			total int
+		)
 		if cv.List != nil {
 			for cur := cv.List.Head; cur != nil; cur = cur.Next {
+				total++
+				if len(nodes) >= maxChildrenPerNode {
+					continue
+				}
 				keyStr := previewTypedValue(cur.Key)
 				nodes = append(nodes, decodeTypedValue(keyStr, cur.Value))
 			}
+		}
+		if total > len(nodes) {
+			nodes = append(nodes, truncatedChildrenNode(total-len(nodes)))
 		}
 		return nodes
 	case *gno.HeapItemValue:
@@ -559,14 +599,22 @@ func decodeArray(depth int, name, tName string, av *gno.ArrayValue) StateNode {
 		applyObjectInfo(&node, av.ObjectInfo)
 		return node
 	}
-	children := make([]StateNode, len(av.List))
-	for i, etv := range av.List {
-		children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), etv)
+	total := len(av.List)
+	visible := total
+	if visible > maxChildrenPerNode {
+		visible = maxChildrenPerNode
+	}
+	children := make([]StateNode, visible, visible+1)
+	for i := 0; i < visible; i++ {
+		children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), av.List[i])
+	}
+	if total > visible {
+		children = append(children, truncatedChildrenNode(total-visible))
 	}
 	node := StateNode{
 		Name: name, Type: tName, Kind: "array",
 		Expandable: len(children) > 0, Children: children,
-		Length: intPtr(len(av.List)),
+		Length: intPtr(total),
 	}
 	applyObjectInfo(&node, av.ObjectInfo)
 	return node
@@ -598,10 +646,18 @@ func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 		if offset < 0 {
 			offset = 0
 		}
-		visible := av.List[offset:end]
-		children := make([]StateNode, len(visible))
-		for i, etv := range visible {
-			children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), etv)
+		window := av.List[offset:end]
+		total := len(window)
+		shown := total
+		if shown > maxChildrenPerNode {
+			shown = maxChildrenPerNode
+		}
+		children := make([]StateNode, shown, shown+1)
+		for i := 0; i < shown; i++ {
+			children[i] = decodeTypedValueAt(depth+1, strconv.Itoa(i), window[i])
+		}
+		if total > shown {
+			children = append(children, truncatedChildrenNode(total-shown))
 		}
 		return StateNode{
 			Name: name, Type: tName, Kind: "slice",
@@ -616,17 +672,27 @@ func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 }
 
 func decodeMap(depth int, name, tName string, mv *gno.MapValue) StateNode {
-	var children []StateNode
+	var (
+		children []StateNode
+		total    int
+	)
 	if mv.List != nil {
 		for cur := mv.List.Head; cur != nil; cur = cur.Next {
+			total++
+			if len(children) >= maxChildrenPerNode {
+				continue
+			}
 			keyStr := previewTypedValue(cur.Key)
 			children = append(children, decodeTypedValueAt(depth+1, keyStr, cur.Value))
 		}
 	}
+	if total > len(children) {
+		children = append(children, truncatedChildrenNode(total-len(children)))
+	}
 	node := StateNode{
 		Name: name, Type: tName, Kind: "map",
 		Expandable: len(children) > 0, Children: children,
-		Length:  intPtr(len(children)),
+		Length:  intPtr(total),
 		Preview: buildChildrenPreview(children),
 	}
 	applyObjectInfo(&node, mv.ObjectInfo)
