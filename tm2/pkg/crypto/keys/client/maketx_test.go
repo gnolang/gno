@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -122,6 +123,30 @@ func TestAppendSuggestedGasWantedAppendsExistingInfo(t *testing.T) {
 
 	appendSuggestedGasWanted(bres)
 	require.Equal(t, "estimated gas usage: 100, suggested gas-wanted (gas used + 5%): 105", bres.DeliverTx.Info)
+}
+
+func TestResolveMaxGasWarnsOnError(t *testing.T) {
+	ch := make(chan consensusMaxGasResult, 1)
+	ch <- consensusMaxGasResult{err: errors.New("connection refused")}
+
+	errBuf := &bytes.Buffer{}
+	io := commands.NewTestIO()
+	io.SetErr(commands.WriteNopCloser(errBuf))
+
+	maxGas := resolveMaxGas(ch, io)
+
+	require.Equal(t, int64(0), maxGas)
+	require.Contains(t, errBuf.String(), "warning")
+	require.Contains(t, errBuf.String(), "connection refused")
+}
+
+func TestResolveMaxGasReturnsValueOnSuccess(t *testing.T) {
+	ch := make(chan consensusMaxGasResult, 1)
+	ch <- consensusMaxGasResult{maxGas: 1_000_000}
+
+	maxGas := resolveMaxGas(ch, commands.NewTestIO())
+
+	require.Equal(t, int64(1_000_000), maxGas)
 }
 
 func TestOutOfGasLogTxGasWanted(t *testing.T) {

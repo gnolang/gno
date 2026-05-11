@@ -118,6 +118,7 @@ func SignAndBroadcastHandler(
 	nameOrBech32 string,
 	tx std.Tx,
 	pass string,
+	io commands.IO,
 ) (*types.ResultBroadcastTxCommit, error) {
 	baseopts := cfg.RootCfg
 	txopts := cfg
@@ -185,13 +186,7 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to add signature: %w", err)
 	}
 
-	var maxGas int64
-	if maxGasCh != nil {
-		res := <-maxGasCh
-		if res.err == nil {
-			maxGas = res.maxGas
-		}
-	}
+	maxGas := resolveMaxGas(maxGasCh, io)
 
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
@@ -233,7 +228,7 @@ func ExecSignAndBroadcast(
 		return err
 	}
 
-	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
+	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass, io)
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")
 	}
@@ -278,6 +273,18 @@ func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxC
 type consensusMaxGasResult struct {
 	maxGas int64
 	err    error
+}
+
+func resolveMaxGas(ch chan consensusMaxGasResult, io commands.IO) int64 {
+	if ch == nil {
+		return 0
+	}
+	res := <-ch
+	if res.err != nil {
+		io.ErrPrintfln("warning: could not fetch consensus max gas, simulated gas limit will be unbounded: %v", res.err)
+		return 0
+	}
+	return res.maxGas
 }
 
 func fetchConsensusMaxGas(remote string) (int64, error) {
