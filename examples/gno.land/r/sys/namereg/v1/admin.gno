@@ -1,6 +1,8 @@
 package namereg
 
 import (
+	"strconv"
+
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	susers "gno.land/r/sys/users"
@@ -34,6 +36,11 @@ func setRegisterPrice(cur realm, newPrice int64) {
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
 func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
+	if paused == newPausedValue {
+		panic("paused value is already " + strconv.FormatBool(newPausedValue))
+	}
+
+
 	cb := func(cur realm) error {
 		setPaused(cur, newPausedValue)
 		return nil
