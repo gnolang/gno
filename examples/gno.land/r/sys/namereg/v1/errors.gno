@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	ErrNonUserCall     = errors.New("r/gnoland/users: non-user call")
-	ErrPaused          = errors.New("r/gnoland/users: paused")
-	ErrInvalidUsername = errors.New("r/gnoland/users: invalid username")
+	ErrNonUserCall     = errors.New("r/sys/namereg: non-user call")
+	ErrPaused          = errors.New("r/sys/namereg: paused")
+	ErrInvalidUsername = errors.New("r/sys/namereg: invalid username")
 
 	// ErrInvalidPayment is the sentinel for "OriginSend amount didn't
 	// match registerPrice." It deliberately omits the price from its
@@ -17,7 +17,7 @@ var (
 	// below, so users see the CURRENT price even after governance has
 	// changed it. Tests that match against this error use it as a
 	// substring check via uassert.AbortsWithMessage. (audit finding #13)
-	ErrInvalidPayment = errors.New("r/gnoland/users: invalid payment amount")
+	ErrInvalidPayment = errors.New("r/sys/namereg: invalid payment amount")
 )
 
 // errInvalidPayment returns the panic value for an OriginSend mismatch.
