@@ -2546,9 +2546,9 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 				// Ensure we always panic, without expecting the caller to do it.
 				m.Panic(typedString(readonlyAccessPanic(lx)))
 			}
-			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {
-			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:

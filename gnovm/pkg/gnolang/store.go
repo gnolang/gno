@@ -47,7 +47,6 @@ type Store interface {
 	GetPackageGetter() PackageGetter
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
-	ConsumeGas(gas int64, descriptor string)
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
@@ -1023,10 +1022,6 @@ func (ds *defaultStore) consumeGas(gas int64, descriptor string) {
 	if ds.gasMeter != nil {
 		ds.gasMeter.ConsumeGas(gas, descriptor)
 	}
-}
-
-func (ds *defaultStore) ConsumeGas(gas int64, descriptor string) {
-	ds.consumeGas(gas, descriptor)
 }
 
 // PopulateStdlibCache scans the baseStore for all stdlib object keys

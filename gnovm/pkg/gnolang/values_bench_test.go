@@ -22,7 +22,7 @@ func BenchmarkComputeMapKey_String(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = tv.ComputeMapKey(st, false)
+		_, _ = tv.ComputeMapKey(nil, st, false)
 	}
 	b.StopTimer()
 
@@ -35,7 +35,7 @@ func BenchmarkComputeMapKey_Int(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = tv.ComputeMapKey(st, false)
+		_, _ = tv.ComputeMapKey(nil, st, false)
 	}
 	b.StopTimer()
 
@@ -58,7 +58,7 @@ func BenchmarkComputeMapKey_Bytes(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, _ = tv.ComputeMapKey(st, false)
+				_, _ = tv.ComputeMapKey(nil, st, false)
 			}
 			b.StopTimer()
 
@@ -89,7 +89,7 @@ func BenchmarkComputeMapKey_IntArray(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, _ = tv.ComputeMapKey(st, false)
+				_, _ = tv.ComputeMapKey(nil, st, false)
 			}
 			b.StopTimer()
 

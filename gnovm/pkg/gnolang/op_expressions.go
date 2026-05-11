@@ -19,7 +19,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
-			vv, exists := mv.GetValueForKey(m.Store, iv)
+			vv, exists := mv.GetValueForKey(m, m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
 			} else {
@@ -28,7 +28,7 @@ func (m *Machine) doOpIndex1() {
 		}
 	default:
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
-		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
+		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
@@ -48,7 +48,7 @@ func (m *Machine) doOpIndex2() {
 			*iv = untypedBool(false)             // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
-			vv, exists := mv.GetValueForKey(m.Store, iv)
+			vv, exists := mv.GetValueForKey(m, m.Store, iv)
 			if exists {
 				*xv = vv                // reuse as result
 				*iv = untypedBool(true) // reuse as result
@@ -585,7 +585,7 @@ func (m *Machine) doOpMapLit() {
 		for i := range ne {
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
+			ptr := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}
