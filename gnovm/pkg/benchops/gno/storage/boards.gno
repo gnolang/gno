@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"gno.land/p/nt/avl/v0"
 	"strconv"
+
+	"gno.land/p/nt/avl/v0"
 )
 
 var boards avl.Tree
