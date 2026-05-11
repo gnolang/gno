@@ -6,7 +6,7 @@ interface HistoryEntry {
 	isError: boolean;
 }
 
-export class EvalController extends BaseController {
+export class ActionEvalController extends BaseController {
 	private declare history: HistoryEntry[];
 	private declare inputEl: HTMLInputElement;
 	private declare resultEl: HTMLElement;
@@ -23,7 +23,27 @@ export class EvalController extends BaseController {
 		if (!this.inputEl || !this.resultEl) return;
 
 		this._setupKeyboardShortcuts();
+		this._listenForEvents();
 		this.inputEl.focus();
+	}
+
+	private _listenForEvents(): void {
+		this.on("eval:expression", (e: Event) => {
+			this.clearResult();
+
+			const { expression, autoEval } = (e as CustomEvent).detail;
+			this.inputEl.value = expression;
+			this.inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+			if (autoEval) {
+				this._doEval(expression);
+			} else {
+				this.inputEl.focus();
+				const start = expression.indexOf("(") + 1;
+				const end = expression.lastIndexOf(")");
+				this.inputEl.setSelectionRange(start, end);
+			}
+		});
 	}
 
 	private _setupKeyboardShortcuts(): void {
@@ -87,14 +107,13 @@ export class EvalController extends BaseController {
 		this.history.push({ expression, result, isError });
 		if (!this.historyListEl) return;
 
-		// Reveal the history section on first entry
 		if (this.historySection) this.historySection.removeAttribute("hidden");
 
 		const entry = document.createElement("div");
-		entry.className = "b-eval-history-entry";
+		entry.className = "b-action-eval-history-entry";
 
 		const exprDiv = document.createElement("div");
-		exprDiv.className = "b-eval-history-expr";
+		exprDiv.className = "b-action-eval-history-expr";
 
 		const codeEl = document.createElement("code");
 		codeEl.className = "u-font-mono";
@@ -102,7 +121,7 @@ export class EvalController extends BaseController {
 		exprDiv.appendChild(codeEl);
 
 		const rerunBtn = document.createElement("button");
-		rerunBtn.className = "b-eval-history-rerun";
+		rerunBtn.className = "b-action-eval-history-rerun";
 		rerunBtn.textContent = "↩";
 		rerunBtn.title = "Re-run";
 		rerunBtn.addEventListener("click", () => {
@@ -112,7 +131,7 @@ export class EvalController extends BaseController {
 		exprDiv.appendChild(rerunBtn);
 
 		const resultPre = document.createElement("pre");
-		resultPre.className = `b-eval-history-result${isError ? " u-color-danger" : ""}`;
+		resultPre.className = `b-action-eval-history-result${isError ? " u-color-danger" : ""}`;
 		resultPre.textContent =
 			result.length > 200 ? `${result.substring(0, 200)}...` : result;
 
@@ -130,33 +149,5 @@ export class EvalController extends BaseController {
 	public clearResult(): void {
 		this.resultEl.textContent = "// Enter an expression above";
 		this.resultEl.classList.remove("u-color-danger");
-	}
-
-	public quickCall(event: Event & { params?: Record<string, unknown> }): void {
-		const funcName = (event.params?.funcName as string) || "";
-		const funcSig = (event.params?.funcSig as string) || "";
-		if (!funcName) return;
-
-		const paramMatch = funcSig.match(/\(([^)]*)\)/);
-		const params = paramMatch ? paramMatch[1] : "";
-		if (params) {
-			this.inputEl.value = `${funcName}(${params
-				.split(",")
-				.map((p: string) => {
-					const parts = p.trim().split(/\s+/);
-					const type = parts[parts.length - 1];
-					return type === "string" ? '""' : "0";
-				})
-				.join(", ")})`;
-
-			this.inputEl.focus();
-			this.inputEl.setSelectionRange(
-				funcName.length + 1,
-				this.inputEl.value.length - 1,
-			);
-		} else {
-			this.inputEl.value = `${funcName}()`;
-			this._doEval(`${funcName}()`);
-		}
 	}
 }
