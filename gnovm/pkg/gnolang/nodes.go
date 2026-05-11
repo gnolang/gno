@@ -1723,6 +1723,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.NameSources = make([]NameSource, 0, 16)
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
+	sb.nameIndex = nil // drop any stale map; lazy-rebuild past threshold.
 	sb.Parent = parent
 }
 
