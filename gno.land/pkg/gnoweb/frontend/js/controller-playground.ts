@@ -1,230 +1,342 @@
-import { BaseController } from "./controller.js";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  indentOnInput,
+  indentUnit,
+  StreamLanguage,
+  syntaxHighlighting,
+} from '@codemirror/language';
+import { go } from '@codemirror/legacy-modes/mode/go';
+import { toml } from '@codemirror/legacy-modes/mode/toml';
+import { Compartment, EditorState } from '@codemirror/state';
+import { oneDark } from '@codemirror/theme-one-dark';
+import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import { BaseController } from './controller.js';
 
 interface PlaygroundFile {
-	name: string;
-	content: string;
+  name: string;
+  content: string;
 }
 
-const GNOMOD_FILE = "gnomod.toml";
-const DEFAULT_GNO_CONTENT = "package main\n";
+const GNOMOD_FILE = 'gnomod.toml';
+const DEFAULT_GNO_CONTENT = 'package main\n';
 
 // Max length for shared source code.
 // It stays under the 8192-byte default limit of common web servers (nginx, Apache).
 const MAX_SHARE_URL_LENGTH = 8_000;
 
+const goLang = StreamLanguage.define(go);
+const tomlLang = StreamLanguage.define(toml);
+
+function languageFromFilename(name: string): StreamLanguage<unknown> {
+  return name.endsWith('.toml') ? tomlLang : goLang;
+}
+
 export class PlaygroundController extends BaseController {
-	private declare files: PlaygroundFile[];
-	private declare activeFile: number;
-	private declare codeEl: HTMLTextAreaElement;
-	private declare outputEl: HTMLElement;
-	private declare tabsEl: HTMLElement;
+  declare private files: PlaygroundFile[];
+  declare private activeFile: number;
+  declare private mountEl: HTMLElement;
+  declare private outputEl: HTMLElement;
+  declare private tabsEl: HTMLElement;
+  declare private tabsWrapEl: HTMLElement;
+  declare private prevBtnEl: HTMLButtonElement;
+  declare private nextBtnEl: HTMLButtonElement;
+  declare private view: EditorView;
+  declare private langCompartment: Compartment;
+  declare private themeCompartment: Compartment;
 
-	protected connect(): void {
-		this.files = [];
-		this.activeFile = 0;
-		this.codeEl = this.getTarget("code") as HTMLTextAreaElement;
-		this.outputEl = this.getTarget("output") as HTMLElement;
-		this.tabsEl = this.getTarget("tabs") as HTMLElement;
-		if (!this.codeEl || !this.outputEl || !this.tabsEl) return;
+  protected connect(): void {
+    const initialCodeEl = this.getTarget('initial-code') as HTMLTextAreaElement;
 
-		this._parseInitialCode();
-		this._setupKeyboardShortcuts();
-		this.renderTabs();
-	}
+    this.files = [];
+    this.activeFile = 0;
+    this.mountEl = this.getTarget('code') as HTMLElement;
+    this.outputEl = this.getTarget('output') as HTMLElement;
+    this.tabsEl = this.getTarget('tabs') as HTMLElement;
+    this.tabsWrapEl = this.getTarget('tabs-wrap') as HTMLElement;
+    this.prevBtnEl = this.getTarget('prev-button') as HTMLButtonElement;
+    this.nextBtnEl = this.getTarget('next-button') as HTMLButtonElement;
+    if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialCodeEl) return;
 
-	private _parseInitialCode(): void {
-		const initialCode = this.codeEl.value;
-		if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
-			const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
-			for (let i = 1; i < parts.length; i += 2) {
-				const name = parts[i].trim();
-				const content = (parts[i + 1] || "").trim();
-				if (name) this.files.push({ name, content });
-			}
+    this.mountEl.addEventListener('focusin', () => this._scrollActiveTabIntoView());
 
-			if (this.files.length === 0)
-				this.files = [{ name: "main.gno", content: initialCode }];
+    this._parseInitialCode(initialCodeEl.value);
+    this._createEditor();
+    this._setupTabsScroll();
+    this.renderTabs();
 
-			this.codeEl.value = this.files[0].content;
-		} else {
-			this.files = [{ name: "main.gno", content: initialCode }];
-		}
-	}
+    this.on('theme:changed', () => {
+      this.view.dispatch({
+        effects: this.themeCompartment.reconfigure(this._getCodeEditorTheme()),
+      });
+    });
+  }
 
-	private _setupKeyboardShortcuts(): void {
-		this.codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
-			if (e.ctrlKey && e.key === "Enter") {
-				e.preventDefault();
+  private _setupTabsScroll(): void {
+    if (!this.tabsWrapEl || !this.prevBtnEl || !this.nextBtnEl) return;
 
-				this.runCode();
-				return;
-			}
+    this.tabsEl.addEventListener('scroll', () => this._updateNavButtons(), {
+      passive: true,
+    });
 
-			if (e.key === "Tab" && !e.shiftKey) {
-				e.preventDefault();
+    const observer = new ResizeObserver(() => this._updateNavButtons());
+    observer.observe(this.tabsWrapEl);
+    observer.observe(this.tabsEl);
+  }
 
-				const start = this.codeEl.selectionStart;
-				const end = this.codeEl.selectionEnd;
-				this.codeEl.value = `${this.codeEl.value.substring(0, start)}\t${this.codeEl.value.substring(end)}`;
-				this.codeEl.selectionStart = this.codeEl.selectionEnd = start + 1;
-			}
-		});
-	}
+  private _updateNavButtons(): void {
+    if (!this.tabsWrapEl || !this.prevBtnEl || !this.nextBtnEl) return;
 
-	private _setOutput(text: string, isError: boolean = false): void {
-		this.outputEl.textContent = text;
-		this.outputEl.classList.toggle("u-color-danger", isError);
-	}
+    const overflows = this.tabsEl.scrollWidth > this.tabsWrapEl.clientWidth + 1;
+    this.prevBtnEl.hidden = !overflows;
+    this.nextBtnEl.hidden = !overflows;
+    if (!overflows) return;
 
-	private _switchToFile(fileName: string): boolean {
-		this.files[this.activeFile].content = this.codeEl.value;
-		const idx = this.files.findIndex((f) => f.name === fileName);
-		if (idx >= 0) {
-			this.activeFile = idx;
-			this.codeEl.value = this.files[idx].content;
-			this.renderTabs();
-		}
-		return idx >= 0;
-	}
+    const { scrollLeft, scrollWidth, clientWidth } = this.tabsEl;
+    this.prevBtnEl.disabled = scrollLeft <= 0;
+    this.nextBtnEl.disabled = scrollLeft + clientWidth >= scrollWidth - 1;
+  }
 
-	private renderTabs(): void {
-		while (this.tabsEl.firstChild)
-			this.tabsEl.removeChild(this.tabsEl.firstChild);
+  private _scrollByPage(direction: 1 | -1): void {
+    // Calculate the scroll distance, keeping 70% of the tab bar visible,
+    // keeping ~30% overlap, so user keeps visual context across clicks.
+    // The 80px floor guarantees a meaningful jump when the tab bar is
+    // very narrow, where 70% could be tiny.
+    const amount = Math.max(this.tabsEl.clientWidth * 0.7, 80);
+    this.tabsEl.scrollBy({ left: direction * amount, behavior: 'smooth' });
+  }
 
-		this.files.forEach((f, i) => {
-			const btn = document.createElement("button");
-			btn.className = `b-playground-tab${i === this.activeFile ? " b-playground-tab--active" : ""}`;
-			btn.textContent = f.name;
-			btn.addEventListener("click", () => this._switchToFile(f.name));
-			this.tabsEl.appendChild(btn);
-		});
+  private _scrollActiveTabIntoView(): void {
+    const active = this.tabsEl.querySelector('.b-playground-tab--active') as HTMLElement | null;
+    if (!active) return;
 
-		const addBtn = document.createElement("button");
-		addBtn.className = "b-playground-tab-add";
-		addBtn.textContent = "+";
-		addBtn.title = "Add file";
-		addBtn.addEventListener("click", () => this.addFile());
-		this.tabsEl.appendChild(addBtn);
-	}
+    active.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }
 
-	public switchTab(event: Event & { params?: Record<string, unknown> }): void {
-		const fileName = event.params?.file as string;
-		if (fileName) this._switchToFile(fileName);
-	}
+  public scrollTabsPrev(): void {
+    this._scrollByPage(-1);
+  }
 
-	public addFile(): void {
-		const name = prompt("File name (e.g. helper.gno):");
-		if (name == null) return;
+  public scrollTabsNext(): void {
+    this._scrollByPage(1);
+  }
 
-		if (this._switchToFile(name)) return;
+  private _parseInitialCode(initialCode: string): void {
+    if (initialCode.includes('// --- ') && initialCode.includes(' ---')) {
+      const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
+      for (let i = 1; i < parts.length; i += 2) {
+        const name = parts[i].trim();
+        const content = (parts[i + 1] || '').trim();
+        if (name) this.files.push({ name, content });
+      }
 
-		const isGnomod = name === GNOMOD_FILE;
-		if (!name.endsWith(".gno") && !isGnomod) return;
+      if (this.files.length === 0) this.files = [{ name: 'main.gno', content: initialCode }];
+    } else {
+      this.files = [{ name: 'main.gno', content: initialCode }];
+    }
+  }
 
-		const domain = this.getValue("domain") || "gno.land";
-		let content = DEFAULT_GNO_CONTENT;
-		if (isGnomod) {
-			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
-		}
+  private _createEditor(): void {
+    this.langCompartment = new Compartment();
+    this.themeCompartment = new Compartment();
 
-		this.files[this.activeFile].content = this.codeEl.value;
-		this.files.push({ name, content });
-		this.activeFile = this.files.length - 1;
-		this.codeEl.value = this.files[this.activeFile].content;
-		this.renderTabs();
-	}
+    const runOnEnter = keymap.of([
+      {
+        key: 'Mod-Enter',
+        preventDefault: true,
+        run: () => {
+          this.runCode();
+          return true;
+        },
+      },
+    ]);
 
-	public async runCode(): Promise<void> {
-		this.files[this.activeFile].content = this.codeEl.value;
-		this._setOutput("Running...");
+    this.view = new EditorView({
+      parent: this.mountEl,
+      state: EditorState.create({
+        doc: this.files[0].content,
+        extensions: [
+          lineNumbers(),
+          highlightActiveLine(),
+          highlightActiveLineGutter(),
+          drawSelection(),
+          history(),
+          indentOnInput(),
+          indentUnit.of('\t'),
+          bracketMatching(),
+          this.langCompartment.of(languageFromFilename(this.files[0].name)),
+          this.themeCompartment.of(this._getCodeEditorTheme()),
+          runOnEnter,
+          keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
+        ],
+      }),
+    });
+  }
 
-		const code = this.codeEl.value;
-		const pkgMatch = code.match(/^package\s+(\w+)/m);
-		const pkgName = pkgMatch ? pkgMatch[1] : "main";
-		const domain = this.getValue("domain") || "gno.land";
+  private _isDarkMode(): boolean {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+  }
 
-		if (code.includes("func Render(")) {
-			try {
-				const resp = await fetch("/_/api/eval", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						pkg_path: `${domain}/r/playground_preview`,
-						expression: 'Render("")',
-					}),
-				});
-				const result = await resp.json();
-				if (result.error) {
-					this._setOutput(`Error: ${result.error}`, true);
-				} else {
-					this._setOutput(result.result);
-				}
-			} catch {
-				this._setOutput(
-					`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,
-				);
-			}
-		} else {
-			this._setOutput(
-				`Package: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${this.files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`,
-			);
-		}
-	}
+  private _getCodeEditorTheme() {
+    return this._isDarkMode() ? oneDark : syntaxHighlighting(defaultHighlightStyle, { fallback: true });
+  }
 
-	public runTests(): void {
-		this._setOutput(
-			"Testing requires a running gno node.\n\nTo test locally:\n  gno test .",
-		);
-	}
+  private _getCode(): string {
+    return this.view.state.doc.toString();
+  }
 
-	public formatCode(): void {
-		this._setOutput(
-			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " +
-				this.files[this.activeFile].name,
-		);
-	}
+  private _setCode(text: string): void {
+    this.view.dispatch({
+      changes: { from: 0, to: this.view.state.doc.length, insert: text },
+    });
+  }
 
-	public async shareCode(): Promise<void> {
-		this.files[this.activeFile].content = this.codeEl.value;
-		const code =
-			this.files.length === 1
-				? this.files[0].content
-				: this.files
-						.map((f) => `// --- ${f.name} ---\n${f.content}`)
-						.join("\n\n");
+  private _setLanguage(name: string): void {
+    this.view.dispatch({
+      effects: this.langCompartment.reconfigure(languageFromFilename(name)),
+    });
+  }
 
-		// Compress code before sharing it
-		const bytes = new TextEncoder().encode(code);
-		const cs = new CompressionStream("deflate-raw");
-		const writer = cs.writable.getWriter();
-		writer.write(bytes);
-		writer.close();
+  private _setOutput(text: string, isError: boolean = false): void {
+    this.outputEl.textContent = text;
+    this.outputEl.classList.toggle('u-color-danger', isError);
+  }
 
-		// Use Response to drain the stream into an ArrayBuffer for compatibility with
-		// browsers older than ~2 years. ReadableStream.bytes() would a simpler alternative
-		// but it's only available for (Chrome 124+, Firefox 128+, Safari 18+).
-		const compressed = await new Response(cs.readable).arrayBuffer();
-		const binary = Array.from(new Uint8Array(compressed), (b) =>
-			String.fromCharCode(b),
-		).join("");
+  private _switchToFile(fileName: string): boolean {
+    this.files[this.activeFile].content = this._getCode();
+    const idx = this.files.findIndex((f) => f.name === fileName);
+    if (idx >= 0) {
+      this.activeFile = idx;
+      this._setCode(this.files[idx].content);
+      this._setLanguage(this.files[idx].name);
+      this.renderTabs();
+    }
+    return idx >= 0;
+  }
 
-		// Share compressed code
-		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`;
-		if (url.length > MAX_SHARE_URL_LENGTH) {
-			this._setOutput(
-				`Error: code is too large to share via URL.\n\nTry reducing the code or splitting into a deployed package.`,
-				true,
-			);
-			return;
-		}
+  private renderTabs(): void {
+    while (this.tabsEl.firstChild) this.tabsEl.removeChild(this.tabsEl.firstChild);
 
-		navigator.clipboard
-			.writeText(url)
-			.then(() => this._setOutput("Share URL copied to clipboard!"))
-			.catch(() => this._setOutput(`Share URL:\n${url}`));
-	}
+    this.files.forEach((f, i) => {
+      const btn = document.createElement('button');
+      btn.className = `b-playground-tab${i === this.activeFile ? ' b-playground-tab--active' : ''}`;
+      btn.textContent = f.name;
+      btn.addEventListener('click', () => this._switchToFile(f.name));
+      this.tabsEl.appendChild(btn);
+    });
 
-	public clearOutput(): void {
-		this._setOutput("// Run code to see output here");
-	}
+    this._updateNavButtons();
+    this._scrollActiveTabIntoView();
+  }
+
+  public switchTab(event: Event & { params?: Record<string, unknown> }): void {
+    const fileName = event.params?.file as string;
+    if (fileName) this._switchToFile(fileName);
+  }
+
+  public addFile(): void {
+    const name = prompt('File name (e.g. main.gno or gnomod.toml):');
+    if (name == null) return;
+
+    if (this._switchToFile(name)) return;
+
+    const isGnomod = name === GNOMOD_FILE;
+    if (!name.endsWith('.gno') && !isGnomod) return;
+
+    const domain = this.getValue('domain') || 'gno.land';
+    let content = DEFAULT_GNO_CONTENT;
+    if (isGnomod) {
+      content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
+    }
+
+    this.files[this.activeFile].content = this._getCode();
+    this.files.push({ name, content });
+    this.activeFile = this.files.length - 1;
+    this._setCode(this.files[this.activeFile].content);
+    this._setLanguage(this.files[this.activeFile].name);
+    this.renderTabs();
+  }
+
+  public async runCode(): Promise<void> {
+    this.files[this.activeFile].content = this._getCode();
+    this._setOutput('Running...');
+
+    const code = this._getCode();
+    const pkgMatch = code.match(/^package\s+(\w+)/m);
+    const pkgName = pkgMatch ? pkgMatch[1] : 'main';
+    const domain = this.getValue('domain') || 'gno.land';
+
+    if (code.includes('func Render(')) {
+      try {
+        const resp = await fetch('/_/api/eval', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pkg_path: `${domain}/r/playground_preview`,
+            expression: 'Render("")',
+          }),
+        });
+        const result = await resp.json();
+        if (result.error) {
+          this._setOutput(`Error: ${result.error}`, true);
+        } else {
+          this._setOutput(result.result);
+        }
+      } catch {
+        this._setOutput(
+          `Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(', ')}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,
+        );
+      }
+    } else {
+      this._setOutput(
+        `Package: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(', ')}\n\nTo run locally:\n  gno run ${this.files.map((f) => f.name).join(' ')}\n\nTo test:\n  gno test .`,
+      );
+    }
+  }
+
+  public runTests(): void {
+    this._setOutput('Testing requires a running gno node.\n\nTo test locally:\n  gno test .');
+  }
+
+  public formatCode(): void {
+    this._setOutput(
+      `Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w ${this.files[this.activeFile].name}`,
+    );
+  }
+
+  public async shareCode(): Promise<void> {
+    this.files[this.activeFile].content = this._getCode();
+
+    const code = this.files.length === 1 ? this.files[0].content : this.files.map((f) => `// --- ${f.name} ---\n${f.content}`).join('\n\n');
+
+    // Compress code before sharing it
+    const bytes = new TextEncoder().encode(code);
+    const cs = new CompressionStream('deflate-raw');
+    const writer = cs.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+
+    // Use Response to drain the stream into an ArrayBuffer for compatibility with
+    // browsers older than ~2 years. ReadableStream.bytes() would a simpler alternative
+    // but it's only available for (Chrome 124+, Firefox 128+, Safari 18+).
+    const compressed = await new Response(cs.readable).arrayBuffer();
+    const binary = Array.from(new Uint8Array(compressed), (b) => String.fromCharCode(b)).join('');
+
+    // Share compressed code
+    const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`;
+    if (url.length > MAX_SHARE_URL_LENGTH) {
+      this._setOutput(`Error: code is too large to share via URL.\n\nTry reducing the code or splitting into a deployed package.`, true);
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(url)
+      .then(() => this._setOutput('Share URL copied to clipboard!'))
+      .catch(() => this._setOutput(`Share URL:\n${url}`));
+  }
+
+  public clearOutput(): void {
+    this._setOutput('// Run code to see output here');
+  }
 }
