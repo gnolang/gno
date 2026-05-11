@@ -266,22 +266,18 @@ func (s *rpcSource) queryAccountAtHeight(
 		return nil
 	}
 
-	// Response data is amino JSON (the auth query handler returns JSON).
-	// Try wrapped form first {"BaseAccount": {...}}, then direct.
-	var wrapper struct {
-		BaseAccount std.BaseAccount `json:"BaseAccount"`
-	}
-	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err == nil {
-		return &wrapper.BaseAccount
-	}
-
-	var acc std.BaseAccount
+	// Decode as gnoland.GnoAccount; the auth handler returns the concrete
+	// account type the gno.land app installs.
+	var acc gnoland.GnoAccount
 	if err := amino.UnmarshalJSON(res.Response.Data, &acc); err != nil {
 		io.Printf("\n  WARNING: could not decode account %s at height %d: %v\n",
 			addr, height, err)
 		return nil
 	}
-	return &acc
+	if acc.Address.IsZero() {
+		return nil
+	}
+	return &acc.BaseAccount
 }
 
 // bruteForceSignerSequence tries sequences in [lo, hi] to find which makes
