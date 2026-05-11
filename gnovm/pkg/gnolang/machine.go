@@ -123,8 +123,33 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		output = io.Discard
 	}
 	alloc := opts.Alloc
+	// isPreprocessing is true when this Machine inherits the per-tx
+	// preprocess allocator from the store (i.e., it's a sub-Machine
+	// spun up by Preprocess via NewMachine(pkg, store)). When true, the
+	// post-claim SetGCFn / SetGasMeter setup below is skipped: the
+	// preprocess allocator is pre-configured by the keeper with
+	// gasMeter set and collect=nil (hard-cap, no GC retry).
+	isPreprocessing := false
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
+		// Sub-Machines via NewMachine(pkg, store) pass no Alloc opt.
+		// Pick up the per-tx preprocess allocator from the store if
+		// installed by the keeper (AddPackage / Run handlers).
+		if opts.Store != nil {
+			if pa := opts.Store.GetPreprocessAllocator(); pa != nil {
+				alloc = pa
+				isPreprocessing = true
+				// Inherit the preprocess allocator's gas meter as the
+				// sub-Machine's gas meter so CPU gas (m.incrCPU) and
+				// alloc gas (alloc.Allocate's gasMeter charge) both
+				// bill against the same tx gas budget.
+				if vmGasMeter == nil {
+					vmGasMeter = pa.GetGasMeter()
+				}
+			}
+		}
+		if alloc == nil {
+			alloc = NewAllocator(opts.MaxAllocBytes) // nil if MaxAllocBytes is zero
+		}
 	}
 	store := opts.Store
 	if store == nil {
@@ -136,7 +161,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
-	if mm.Alloc != nil {
+	if mm.Alloc != nil && !isPreprocessing {
+		// Skip GC fn and gas-meter installation when the alloc is the
+		// per-tx preprocess allocator inherited from the store: it's
+		// pre-configured with gasMeter set and collect=nil intentionally
+		// (hard-cap, no GC retry — see store.go preprocessAlloc).
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
