@@ -11,11 +11,11 @@ gnokey maketx addpkg -pkgdir $WORK/request -pkgpath gno.land/r/test/request -gas
 stdout OK!
 
 # Create proposal that fails on execution
-gnokey maketx run -gas-fee 2400001ugnot -gas-wanted 24_000_000 -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
+gnokey maketx run -gas-fee 2400001ugnot -gas-wanted 26_000_000 -chainid=tendermint_test test1 $WORK/run/create_proposal.gno
 stdout OK!
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 20000000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 2000000ugnot -gas-wanted 21000000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Try to execute proposal, it should fail because execution returns an error
