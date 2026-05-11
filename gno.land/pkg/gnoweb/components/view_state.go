@@ -147,6 +147,10 @@ type StateMetaEntry struct {
 	// by side) instead of stacked. Useful for short values like
 	// counts/sizes where a column-stack wastes vertical space.
 	Inline bool
+	// Block renders the value on its own row beneath the label,
+	// taking the full sidebar width. Use for long human-readable
+	// values like realm paths that need room to breathe.
+	Block bool
 }
 
 // StateCrumb is a single breadcrumb segment. Href is empty for the active

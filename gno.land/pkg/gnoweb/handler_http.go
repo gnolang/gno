@@ -118,6 +118,15 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
+	// Read theme preference from cookie for server-side rendering.
+	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.
+	var theme string
+	if c, err := r.Cookie("theme"); err == nil {
+		if c.Value == "light" || c.Value == "dark" {
+			theme = c.Value
+		}
+	}
+
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
 			AssetsPath: h.Static.AssetsPath,
@@ -131,6 +140,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			AssetsPath: h.Static.AssetsPath,
 			BuildTime:  h.Static.BuildTime,
 		},
+		Theme: theme,
 	}
 
 	// Parse the URL
@@ -832,19 +842,23 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state object")
 	}
 
+	// Single back-link — renders as a back-arrow icon inside the
+	// h1 title (template). The realm context is still surfaced in
+	// the sidebar's "Realm" row, so the label is just the realm
+	// short name used for aria-label / hover title.
+	realmName := path.Base(gnourl.Path)
+	if realmName == "" || realmName == "." || realmName == "/" {
+		realmName = gnourl.Path
+	}
 	crumbs := []components.StateCrumb{
-		{Label: gnourl.Path, Href: components.RealmStateHref(gnourl.Path)},
-		{Label: "Object"},
+		{Label: realmName, Href: components.RealmStateHref(gnourl.Path)},
 	}
 	// Page title — keep the OID readable on one line by truncating
 	// the 40-char hashlet head…tail (the `:N` suffix stays). The full
 	// OID remains visible & copy-able from the sidebar's "Object ID"
-	// row, so no information is hidden.
-	fields := "fields"
-	if len(decoded.Nodes) == 1 {
-		fields = "field"
-	}
-	label := fmt.Sprintf("Object %s (%d %s)", components.TruncOID(oid, 8, 6), len(decoded.Nodes), fields)
+	// row. The field count moves to the sidebar's `Heading` so the
+	// title stays short and wraps cleanly on narrow viewports.
+	label := fmt.Sprintf("Object %s", components.TruncOID(oid, 8, 6))
 
 	return http.StatusOK, h.renderStateView(ctx, gnourl, decoded.Nodes, label, crumbs,
 		components.BuildObjectSidebar(gnourl.Path, oid, tid, height, decoded.Info, decoded.Nodes), true, height, raw)

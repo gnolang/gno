@@ -68,7 +68,7 @@ func BuildPackageSidebar(pkgPath string, nodes []StateNode) *StateSidebar {
 		Heading: heading,
 		TOC:     buildTOC(nodes),
 		Meta: []StateMetaEntry{
-			{Section: kindLabel, Label: "Path", Value: pkgPath, Mono: true},
+			{Section: kindLabel, Label: "Path", Value: pkgPath},
 			{Section: "Stats", Label: "Declarations", Value: fmt.Sprintf("%d", len(nodes)), Inline: true},
 		},
 	}
@@ -121,8 +121,12 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, height int64, info StateObj
 		meta = append(meta, StateMetaEntry{Section: "Status", Label: "Escaped", Value: "yes", Inline: true})
 	}
 
+	fields := "fields"
+	if len(nodes) == 1 {
+		fields = "field"
+	}
 	return &StateSidebar{
-		Heading: "Fields",
+		Heading: fmt.Sprintf("%d %s", len(nodes), fields),
 		TOC:     buildTOC(nodes),
 		Meta:    meta,
 	}

@@ -545,8 +545,8 @@ func TestRenderState_FooterCTA(t *testing.T) {
 		CountLabel: "Realm top-level declarations (1)",
 	})
 
-	assert.Contains(t, html, `class="cta"`,
-		"stored refs emit a compact footer CTA")
+	assert.Contains(t, html, `b-btn b-btn--ghost cta`,
+		"stored refs emit a compact footer CTA composed via b-btn--ghost")
 	assert.Contains(t, html, "Inspect ref",
 		"CTA label includes the kind so the verb reads naturally")
 }
@@ -623,7 +623,7 @@ func TestRenderState_NoFooterCTAForPrimitive(t *testing.T) {
 		CountLabel: "Realm top-level declarations (1)",
 	})
 
-	assert.NotContains(t, html, `class="cta"`,
+	assert.NotContains(t, html, ` cta"`,
 		"primitive cards must not emit a CTA banner — nowhere to navigate")
 }
 
@@ -722,11 +722,9 @@ func TestRenderState_NoUnexpectedControllers(t *testing.T) {
 	})
 
 	allowed := map[string]bool{
-		`data-controller="copy"`:                 true, // OID/value/hash click-to-copy
-		`data-controller="state-view"`:           true, // Pretty/Tree cookie+localStorage persistence
-		`data-controller="state-search"`:         true, // in-page filter by decl name
-		`data-controller="state-tree"`:           true, // persist tree expand/collapse per OID + sidebar TOC scroll bridge
-		`data-controller="state-tree-controls"`: true, // expand-all / collapse-all toolbar
+		`data-controller="copy"`:   true, // OID/value/hash click-to-copy (shared primitive)
+		`data-controller="search"`: true, // agnostic substring filter (shared primitive)
+		`data-controller="state"`:  true, // tree persistence + toggle-all + view persistence (state-specific)
 	}
 	for _, line := range strings.Split(html, "\n") {
 		if !strings.Contains(line, "data-controller=") {

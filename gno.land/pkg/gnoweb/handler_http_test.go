@@ -1220,7 +1220,7 @@ func TestHTTPHandler_GetStateView_FuncSourceEnriched(t *testing.T) {
 		"Raw-view <details> body still carries the snippet for expand")
 	// The card header carries a `srclink` for one-click navigation
 	// to the Source tab — that's the func's primary affordance in Pretty.
-	assert.Contains(t, body, `class="srclink"`,
+	assert.Contains(t, body, ` srclink"`,
 		"card header surfaces a Source-tab link for the func")
 	assert.Contains(t, body, fileName+":3",
 		"srclink advertises file:line so users know what they're opening")
@@ -1277,20 +1277,20 @@ func TestHTTPHandler_GetStateView_ViewModeCookie(t *testing.T) {
 		{
 			name:           "no cookie defaults to Pretty",
 			cookie:         nil,
-			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only" checked`,
-			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only">`,
+			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only" checked`,
+			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only">`,
 		},
 		{
 			name:           "tree cookie checks Tree",
 			cookie:         &http.Cookie{Name: "state_view_mode", Value: "tree"},
-			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only">`,
-			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only" checked`,
+			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only">`,
+			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only" checked`,
 		},
 		{
 			name:           "garbage cookie value falls through to Pretty",
 			cookie:         &http.Cookie{Name: "state_view_mode", Value: "<script>"},
-			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only" checked`,
-			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-view-target="radio" data-action="change->state-view#updateMode" class="u-sr-only">`,
+			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only" checked`,
+			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only">`,
 		},
 	}
 

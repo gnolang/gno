@@ -67,7 +67,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 	stateLink := HeaderLink{
 		Label:    "State",
 		URL:      stateURL.EncodeWebURL(),
-		Icon:     "ico-grid",
+		Icon:     "ico-state",
 		IsActive: isActive(u.WebQuery, "State"),
 	}
 

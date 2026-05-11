@@ -6,7 +6,9 @@ declare const process: { env: { NODE_ENV: string } };
 	// TODO: Make CONTROLLER_PATH build-safe (BASE_URL, CDN, hashing, etc.)
 	const CONTROLLER_PATH = "/public/js/controller-";
 	// Extract version from our own script src (?v=...) for cache busting dynamic imports.
-	const selfScript = document.querySelector('script[src*="index.js"]') as HTMLScriptElement | null;
+	const selfScript = document.querySelector(
+		'script[src*="index.js"]',
+	) as HTMLScriptElement | null;
 	const versionSuffix = selfScript?.src.match(/(\?v=[^&]*)/)?.[1] || "";
 	const modulePromises = new Map<string, Promise<Record<string, unknown>>>();
 
