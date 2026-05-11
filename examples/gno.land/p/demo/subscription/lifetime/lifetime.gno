@@ -39,7 +39,7 @@ func (ls *LifetimeSubscription) Subscribe(al *allowancesender.AllowanceSender, s
 	if !subscriber.IsValid() {
 		return ErrInvalidSubscriber
 	}
-	if _, exists := ls.subs.Get(subscriber.String()); exists {
+	if ls.subs.Has(subscriber.String()) {
 		return ErrAlreadySub
 	}
 	al.Send(ls.payeeAddr, chain.NewCoins(chain.NewCoin("ugnot", ls.amount)))
@@ -49,7 +49,7 @@ func (ls *LifetimeSubscription) Subscribe(al *allowancesender.AllowanceSender, s
 
 // HasValidSubscription verifies whether subscriber holds a lifetime subscription.
 func (ls *LifetimeSubscription) HasValidSubscription(subscriber address) error {
-	if _, exists := ls.subs.Get(subscriber.String()); !exists {
+	if !ls.subs.Has(subscriber.String()) {
 		return ErrNoSub
 	}
 	return nil

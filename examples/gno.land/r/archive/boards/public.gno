@@ -11,8 +11,8 @@ import (
 // Public facing functions
 
 func GetBoardIDFromName(name string) (BoardID, bool) {
-	boardI, exists := gBoardsByName.Get(name)
-	if !exists {
+	boardI := gBoardsByName.Get(name)
+	if boardI == nil {
 		return 0, false
 	}
 	return boardI.(*Board).id, true

@@ -119,7 +119,7 @@ func SetBoolField(cur realm, field string, value bool) bool {
 
 func GetStringField(addr address, field, def string) string {
 	key := addr.String() + ":" + field
-	if value, ok := fields.Get(key); ok {
+	if value := fields.Get(key); value != nil {
 		return value.(string)
 	}
 
@@ -128,7 +128,7 @@ func GetStringField(addr address, field, def string) string {
 
 func GetBoolField(addr address, field string, def bool) bool {
 	key := addr.String() + ":" + field
-	if value, ok := fields.Get(key); ok {
+	if value := fields.Get(key); value != nil {
 		return value.(bool)
 	}
 
@@ -137,7 +137,7 @@ func GetBoolField(addr address, field string, def bool) bool {
 
 func GetIntField(addr address, field string, def int) int {
 	key := addr.String() + ":" + field
-	if value, ok := fields.Get(key); ok {
+	if value := fields.Get(key); value != nil {
 		return value.(int)
 	}
 
