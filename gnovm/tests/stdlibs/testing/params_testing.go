@@ -27,6 +27,14 @@ func X_setSysParamBool(m *gno.Machine, module, submodule, name string, val bool)
 	stdlibs.GetContext(m).Params.SetBool(prmkey(module, submodule, name), val)
 }
 
+func X_setSysParamUint64(m *gno.Machine, module, submodule, name string, val uint64) {
+	stdlibs.GetContext(m).Params.SetUint64(prmkey(module, submodule, name), val)
+}
+
+func X_setSysParamInt64(m *gno.Machine, module, submodule, name string, val int64) {
+	stdlibs.GetContext(m).Params.SetInt64(prmkey(module, submodule, name), val)
+}
+
 // prmkey duplicates the unexported helper in
 // gnovm/stdlibs/sys/params/params.go — keep in sync. Could be
 // lifted to a shared internal package if a third site ever needs it.

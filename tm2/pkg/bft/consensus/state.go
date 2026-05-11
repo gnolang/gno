@@ -489,7 +489,16 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
 func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
-	if state.LastBlockHeight == 0 {
+	// Defensive guard: a state with LastBlockHeight strictly less than
+	// InitialHeight-1 indicates a plumbing bug (handshaker should have set
+	// LastBlockHeight = InitialHeight-1 on a fresh hardfork chain).
+	if state.LastBlockHeight < state.InitialHeight-1 {
+		panic(fmt.Sprintf("reconstructLastCommit: state.LastBlockHeight %d < state.InitialHeight-1 %d", state.LastBlockHeight, state.InitialHeight-1))
+	}
+	// Pre-genesis: no real block has been committed yet. Covers both standard
+	// chain (LastBlockHeight==0, InitialHeight==1) and hardfork chain
+	// (LastBlockHeight==InitialHeight-1) before the first block is produced.
+	if state.LastBlockHeight < state.InitialHeight {
 		return
 	}
 	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
@@ -849,9 +858,13 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 }
 
 // needProofBlock returns true on the first height (so the genesis app hash is signed right away)
-// and where the last block (height-1) caused the app hash to change
+// and where the last block (height-1) caused the app hash to change.
 func (cs *ConsensusState) needProofBlock(height int64) bool {
-	if height == 1 {
+	if height < cs.state.InitialHeight {
+		panic(fmt.Sprintf("needProofBlock: height %d < cs.state.InitialHeight %d", height, cs.state.InitialHeight))
+	}
+	// Genesis block of this chain: standard InitialHeight==1, hardfork InitialHeight>1.
+	if height == cs.state.InitialHeight {
 		return true
 	}
 
@@ -988,8 +1001,10 @@ func (cs *ConsensusState) isProposalComplete() bool {
 func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
 	var commit *types.Commit
 	switch {
-	case cs.Height == 1:
-		// We're creating a proposal for the first block.
+	case cs.Height < cs.state.InitialHeight:
+		panic(fmt.Sprintf("createProposalBlock: cs.Height %d < cs.state.InitialHeight %d", cs.Height, cs.state.InitialHeight))
+	case cs.Height == cs.state.InitialHeight:
+		// We're creating a proposal for the genesis block of this chain.
 		// The commit is empty, but not nil.
 		commit = types.NewCommit(types.BlockID{}, nil)
 	case cs.LastCommit.HasTwoThirdsMajority():

@@ -390,6 +390,67 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	}
 }
 
+// TestNewBlockchainReactor_InitialHeight verifies that NewBlockchainReactor does
+// not panic when InitialHeight > 1 causes state.LastBlockHeight > 0 on a fresh
+// chain where the block store is still empty (Height() == 0).
+func TestNewBlockchainReactor_InitialHeight(t *testing.T) {
+	t.Parallel()
+
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_initial_height_test")
+	defer os.RemoveAll(config.RootDir)
+
+	genDoc, _ := randGenesisDoc(1, false, 30)
+	state, err := sm.MakeGenesisState(genDoc)
+	assert.NoError(t, err)
+
+	// Simulate the Handshaker setting LastBlockHeight = InitialHeight - 1
+	// after InitChain with InitialHeight = 100.
+	state.LastBlockHeight = 99
+
+	db := memdb.NewMemDB()
+	sm.SaveState(db, state)
+	blockExec := sm.NewBlockExecutor(db, log.NewNoopLogger(), nil, mock.Mempool{})
+
+	// Empty block store: Height() == 0, no blocks committed yet.
+	blockStore := store.NewBlockStore(memdb.NewMemDB())
+
+	// Must not panic even though state.LastBlockHeight (99) != store.Height() (0).
+	assert.NotPanics(t, func() {
+		_ = NewBlockchainReactor(state.Copy(), blockExec, blockStore, false, nil)
+	})
+}
+
+// TestBlockPoolStartsAtInitialHeight verifies that when InitialHeight > 1,
+// the BlockPool starts syncing at InitialHeight (not height 1).
+// This test demonstrates a bug: the pool uses store.Height()+1 = 1 instead
+// of state.LastBlockHeight+1 = InitialHeight.
+func TestBlockPoolStartsAtInitialHeight(t *testing.T) {
+	t.Parallel()
+
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_pool_height_test")
+	defer os.RemoveAll(config.RootDir)
+
+	genDoc, _ := randGenesisDoc(1, false, 30)
+	state, err := sm.MakeGenesisState(genDoc)
+	assert.NoError(t, err)
+
+	// Simulate Handshaker with InitialHeight = 100.
+	initialHeight := int64(100)
+	state.LastBlockHeight = initialHeight - 1 // 99
+
+	db := memdb.NewMemDB()
+	sm.SaveState(db, state)
+	blockExec := sm.NewBlockExecutor(db, log.NewNoopLogger(), nil, mock.Mempool{})
+	blockStore := store.NewBlockStore(memdb.NewMemDB())
+
+	bcR := NewBlockchainReactor(state.Copy(), blockExec, blockStore, true, nil)
+
+	// The pool should start at initialHeight (100), not at 1.
+	poolHeight, _, _ := bcR.pool.GetStatus()
+	assert.Equal(t, initialHeight, poolHeight,
+		"BlockPool should start at InitialHeight (%d), got %d", initialHeight, poolHeight)
+}
+
 // ----------------------------------------------
 // utility funcs
 

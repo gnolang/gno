@@ -647,8 +647,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if stage != TRANS_ENTER {
 					return n, TRANS_CONTINUE
 				}
-				n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
-				n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+				if n.HasAttribute(ATTR_PREPROCESS_SKIPPED) {
+					n.DelAttribute(ATTR_PREPROCESS_SKIPPED)
+				}
+				if n.HasAttribute(ATTR_PREPROCESS_INCOMPLETE) {
+					n.DelAttribute(ATTR_PREPROCESS_INCOMPLETE)
+				}
 				return n, TRANS_CONTINUE
 			})
 	}()
