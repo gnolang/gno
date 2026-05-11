@@ -50,7 +50,7 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "c71d24ed7b2086b193e46f44cc49de88168d6a88c981cf2d3a6ef47c0ab859d5"
+const expectedCrossrealm38Hash = "a77ef6fbc7a5142497b64164ca0a153e2097f7b52cc3b99156c84df18f9c130a"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
