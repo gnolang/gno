@@ -2553,11 +2553,9 @@ main.dev-mode .b-toc a {
 .b-playground-editor-area {
 	display: flex;
 	flex-direction: column;
-	flex: 1;
 	border: 1px solid var(--s-color-border-default);
 	border-radius: var(--g-radius-2);
 	overflow: hidden;
-	min-height: 40vh;
 	margin-bottom: var(--g-space-8);
 }
 
@@ -2692,25 +2690,43 @@ main.dev-mode .b-toc a {
 }
 
 .b-playground-editor {
-	flex: 1;
 	display: flex;
+	height: 60vh;
+	min-height: 300px;
+	resize: vertical;
+	overflow: hidden;
 }
 
 .b-playground-code {
 	flex: 1;
-	width: 100%;
+	display: flex;
 	min-height: 300px;
-	padding: var(--g-space-2);
-	border: none;
-	border-radius: var(--s-rounded);
-	background-color: var(--s-color-bg-base);
-	color: var(--s-color-text-secondary);
-	font-family: var(--g-font-mono);
-	font-size: var(--g-font-size-75);
-	line-height: 1.6;
-	resize: none;
-	tab-size: 4;
-	outline: none;
+
+	& .cm-editor {
+		flex: 1;
+		width: 100%;
+		border-radius: var(--s-rounded);
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-secondary);
+		outline: none;
+		padding: var(--g-space-1) 0;
+	}
+
+	& .cm-editor.cm-focused {
+		outline: none;
+	}
+
+	& .cm-scroller {
+		font-family: var(--g-font-mono);
+		font-size: var(--g-font-size-75);
+		line-height: 1.6;
+	}
+
+	& .cm-gutters {
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-muted);
+		border: none;
+	}
 }
 
 .b-playground-output {

@@ -1,3 +1,29 @@
+import {
+	defaultKeymap,
+	history,
+	historyKeymap,
+	indentWithTab,
+} from "@codemirror/commands";
+import {
+	bracketMatching,
+	defaultHighlightStyle,
+	indentOnInput,
+	indentUnit,
+	StreamLanguage,
+	syntaxHighlighting,
+} from "@codemirror/language";
+import { go } from "@codemirror/legacy-modes/mode/go";
+import { toml } from "@codemirror/legacy-modes/mode/toml";
+import { Compartment, EditorState } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
+import {
+	drawSelection,
+	EditorView,
+	highlightActiveLine,
+	highlightActiveLineGutter,
+	keymap,
+	lineNumbers,
+} from "@codemirror/view";
 import { BaseController } from "./controller.js";
 
 interface PlaygroundFile {
@@ -8,35 +34,54 @@ interface PlaygroundFile {
 const GNOMOD_FILE = "gnomod.toml";
 const DEFAULT_GNO_CONTENT = "package main\n";
 
+const goLang = StreamLanguage.define(go);
+const tomlLang = StreamLanguage.define(toml);
+
+function languageFromFilename(name: string): StreamLanguage<unknown> {
+	return name.endsWith(".toml") ? tomlLang : goLang;
+}
+
 export class PlaygroundController extends BaseController {
 	private declare files: PlaygroundFile[];
 	private declare activeFile: number;
-	private declare codeEl: HTMLTextAreaElement;
+	private declare mountEl: HTMLElement;
 	private declare outputEl: HTMLElement;
 	private declare tabsEl: HTMLElement;
 	private declare tabsWrapEl: HTMLElement;
 	private declare prevBtnEl: HTMLButtonElement;
 	private declare nextBtnEl: HTMLButtonElement;
+	private declare view: EditorView;
+	private declare langCompartment: Compartment;
+	private declare themeCompartment: Compartment;
 
 	protected connect(): void {
+		const initialCodeEl = this.getTarget("initial-code") as HTMLTextAreaElement;
+
 		this.files = [];
 		this.activeFile = 0;
-		this.codeEl = this.getTarget("code") as HTMLTextAreaElement;
+		this.mountEl = this.getTarget("code") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
 		this.tabsEl = this.getTarget("tabs") as HTMLElement;
 		this.tabsWrapEl = this.getTarget("tabs-wrap") as HTMLElement;
 		this.prevBtnEl = this.getTarget("prev-button") as HTMLButtonElement;
 		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
-		if (!this.codeEl || !this.outputEl || !this.tabsEl) return;
+		if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialCodeEl)
+			return;
 
-		this.codeEl.addEventListener("focus", () =>
+		this.mountEl.addEventListener("focusin", () =>
 			this._scrollActiveTabIntoView(),
 		);
 
-		this._parseInitialCode();
-		this._setupKeyboardShortcuts();
+		this._parseInitialCode(initialCodeEl.value);
+		this._createEditor();
 		this._setupTabsScroll();
 		this.renderTabs();
+
+		this.on("theme:changed", () => {
+			this.view.dispatch({
+				effects: this.themeCompartment.reconfigure(this._getCodeEditorTheme()),
+			});
+		});
 	}
 
 	private _setupTabsScroll(): void {
@@ -90,8 +135,7 @@ export class PlaygroundController extends BaseController {
 		this._scrollByPage(1);
 	}
 
-	private _parseInitialCode(): void {
-		const initialCode = this.codeEl.value;
+	private _parseInitialCode(initialCode: string): void {
 		if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
 			const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
 			for (let i = 1; i < parts.length; i += 2) {
@@ -102,30 +146,71 @@ export class PlaygroundController extends BaseController {
 
 			if (this.files.length === 0)
 				this.files = [{ name: "main.gno", content: initialCode }];
-
-			this.codeEl.value = this.files[0].content;
 		} else {
 			this.files = [{ name: "main.gno", content: initialCode }];
 		}
 	}
 
-	private _setupKeyboardShortcuts(): void {
-		this.codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
-			if (e.ctrlKey && e.key === "Enter") {
-				e.preventDefault();
+	private _createEditor(): void {
+		this.langCompartment = new Compartment();
+		this.themeCompartment = new Compartment();
 
-				this.runCode();
-				return;
-			}
+		const runOnEnter = keymap.of([
+			{
+				key: "Mod-Enter",
+				preventDefault: true,
+				run: () => {
+					this.runCode();
+					return true;
+				},
+			},
+		]);
 
-			if (e.key === "Tab" && !e.shiftKey) {
-				e.preventDefault();
+		this.view = new EditorView({
+			parent: this.mountEl,
+			state: EditorState.create({
+				doc: this.files[0].content,
+				extensions: [
+					lineNumbers(),
+					highlightActiveLine(),
+					highlightActiveLineGutter(),
+					drawSelection(),
+					history(),
+					indentOnInput(),
+					indentUnit.of("\t"),
+					bracketMatching(),
+					this.langCompartment.of(languageFromFilename(this.files[0].name)),
+					this.themeCompartment.of(this._getCodeEditorTheme()),
+					runOnEnter,
+					keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
+				],
+			}),
+		});
+	}
 
-				const start = this.codeEl.selectionStart;
-				const end = this.codeEl.selectionEnd;
-				this.codeEl.value = `${this.codeEl.value.substring(0, start)}\t${this.codeEl.value.substring(end)}`;
-				this.codeEl.selectionStart = this.codeEl.selectionEnd = start + 1;
-			}
+	private _isDarkMode(): boolean {
+		return document.documentElement.getAttribute("data-theme") === "dark";
+	}
+
+	private _getCodeEditorTheme() {
+		return this._isDarkMode()
+			? oneDark
+			: syntaxHighlighting(defaultHighlightStyle, { fallback: true });
+	}
+
+	private _getCode(): string {
+		return this.view.state.doc.toString();
+	}
+
+	private _setCode(text: string): void {
+		this.view.dispatch({
+			changes: { from: 0, to: this.view.state.doc.length, insert: text },
+		});
+	}
+
+	private _setLanguage(name: string): void {
+		this.view.dispatch({
+			effects: this.langCompartment.reconfigure(languageFromFilename(name)),
 		});
 	}
 
@@ -135,11 +220,12 @@ export class PlaygroundController extends BaseController {
 	}
 
 	private _switchToFile(fileName: string): boolean {
-		this.files[this.activeFile].content = this.codeEl.value;
+		this.files[this.activeFile].content = this._getCode();
 		const idx = this.files.findIndex((f) => f.name === fileName);
 		if (idx >= 0) {
 			this.activeFile = idx;
-			this.codeEl.value = this.files[idx].content;
+			this._setCode(this.files[idx].content);
+			this._setLanguage(this.files[idx].name);
 			this.renderTabs();
 		}
 		return idx >= 0;
@@ -167,7 +253,7 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public addFile(): void {
-		const name = prompt("File name (e.g. helper.gno):");
+		const name = prompt("File name (e.g. main.gno or gnomod.toml):");
 		if (name == null) return;
 
 		if (this._switchToFile(name)) return;
@@ -181,18 +267,19 @@ export class PlaygroundController extends BaseController {
 			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
 		}
 
-		this.files[this.activeFile].content = this.codeEl.value;
+		this.files[this.activeFile].content = this._getCode();
 		this.files.push({ name, content });
 		this.activeFile = this.files.length - 1;
-		this.codeEl.value = this.files[this.activeFile].content;
+		this._setCode(this.files[this.activeFile].content);
+		this._setLanguage(this.files[this.activeFile].name);
 		this.renderTabs();
 	}
 
 	public async runCode(): Promise<void> {
-		this.files[this.activeFile].content = this.codeEl.value;
+		this.files[this.activeFile].content = this._getCode();
 		this._setOutput("Running...");
 
-		const code = this.codeEl.value;
+		const code = this._getCode();
 		const pkgMatch = code.match(/^package\s+(\w+)/m);
 		const pkgName = pkgMatch ? pkgMatch[1] : "main";
 		const domain = this.getValue("domain") || "gno.land";
@@ -233,13 +320,12 @@ export class PlaygroundController extends BaseController {
 
 	public formatCode(): void {
 		this._setOutput(
-			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w " +
-				this.files[this.activeFile].name,
+			`Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w ${this.files[this.activeFile].name}`,
 		);
 	}
 
 	public shareCode(): void {
-		this.files[this.activeFile].content = this.codeEl.value;
+		this.files[this.activeFile].content = this._getCode();
 		const code =
 			this.files.length === 1
 				? this.files[0].content
