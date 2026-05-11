@@ -30,7 +30,7 @@ To test locally:
   gno test .`)}formatCode(){this._setOutput(`Formatting requires server-side gno fmt (coming soon).
 
 To format locally:
-  gno fmt -w `+this.files[this.activeFile].name)}shareCode(){this.files[this.activeFile].content=this._getCode();let t=this.files.length===1?this.files[0].content:this.files.map(r=>`// --- ${r.name} ---
+  gno fmt -w ${this.files[this.activeFile].name}`)}shareCode(){this.files[this.activeFile].content=this._getCode();let t=this.files.length===1?this.files[0].content:this.files.map(r=>`// --- ${r.name} ---
 ${r.content}`).join(`
 
 `),e=new TextEncoder().encode(t),i=Array.from(e,r=>String.fromCharCode(r)).join(""),s=`${window.location.origin}/_/play?code=${encodeURIComponent(btoa(i))}`;navigator.clipboard.writeText(s).then(()=>{this._setOutput("Share URL copied to clipboard!")}).catch(()=>{this._setOutput(`Share URL:
