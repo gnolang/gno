@@ -131,14 +131,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		r = r.WithContext(ctx)
 	}
 
-	// Read theme preference from cookie for server-side rendering.
-	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.
-	var theme string
-	if c, err := r.Cookie("theme"); err == nil {
-		if c.Value == "light" || c.Value == "dark" {
-			theme = c.Value
-		}
-	}
+	// Theme cookie is embedded in the HTML before CSS loads to prevent FOUC.
+	theme := readWhitelistedCookie(r, "theme", "light", "dark")
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
@@ -253,15 +247,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 // prepareIndexBodyView prepares the data and main view for the index page.
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	ctx := r.Context()
-
-	// Stash the state-explorer view preference (cookie set by the
-	// state-view JS controller) on the context so the state handler
-	// can render the right radio `checked` server-side from first
-	// paint — no JS-driven flicker. Only "tree" is propagated; any
-	// other / missing value falls through to the Pretty default.
-	if c, err := r.Cookie(stateViewModeCookie); err == nil && c.Value == "tree" {
-		ctx = context.WithValue(ctx, stateViewModeKey{}, "tree")
-	}
+	viewMode := readWhitelistedCookie(r, stateViewModeCookie, "tree")
 
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
 
@@ -289,7 +275,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData)
+		return h.GetPackageView(ctx, gnourl, indexData, viewMode)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -318,7 +304,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, viewMode string) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -326,7 +312,7 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 
 	// Handle State explorer page
 	if gnourl.WebQuery.Has("state") {
-		return h.GetStateView(ctx, gnourl)
+		return h.GetStateView(ctx, gnourl, viewMode)
 	}
 
 	// Handle Source page
@@ -717,19 +703,20 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 //   - /r/foo$state           → top-level package state (getStatePackageView)
 //   - /r/foo$state&oid=ID    → a single stored object's contents (getStateObjectView)
 //
-// Both paths share the same view template; only the data layer differs.
-func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+// `viewMode` is the saved Pretty/Tree preference (from cookie) so the
+// server stamps the right radio `checked` on first paint.
+func (h *HTTPHandler) GetStateView(ctx context.Context, gnourl *weburl.GnoURL, viewMode string) (int, *components.View) {
 	if oid := gnourl.WebQuery.Get("oid"); oid != "" {
 		if len(oid) > maxStateIDLength {
 			return http.StatusBadRequest, components.StatusErrorComponent("invalid object id")
 		}
-		return h.getStateObjectView(ctx, gnourl, oid)
+		return h.getStateObjectView(ctx, gnourl, oid, viewMode)
 	}
-	return h.getStatePackageView(ctx, gnourl)
+	return h.getStatePackageView(ctx, gnourl, viewMode)
 }
 
 // getStatePackageView renders the top-level state of a package or realm.
-func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.GnoURL, viewMode string) (int, *components.View) {
 	// Time-travel: `?height=N` pins the view to a historical block.
 	// Invalid or missing → 0 = latest.
 	height := gnourl.Height()
@@ -803,8 +790,14 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 	}
 	label := name
 
-	return http.StatusOK, h.renderStateView(ctx, gnourl, nodes, label, nil,
-		components.BuildPackageSidebar(gnourl.Path, nodes), false, height, raw)
+	return http.StatusOK, h.renderStateView(ctx, gnourl, renderStateInput{
+		Nodes:    nodes,
+		Label:    label,
+		Sidebar:  components.BuildPackageSidebar(gnourl.Path, nodes),
+		Height:   height,
+		RawJSON:  raw,
+		ViewMode: viewMode,
+	})
 }
 
 // getStateObjectView renders the contents of a single stored object,
@@ -816,7 +809,7 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 // the decoder can label struct fields with their declared names instead of
 // positional indices. Both calls run concurrently — the page render takes
 // max(qobject, qtype) instead of their sum.
-func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.GnoURL, oid string) (int, *components.View) {
+func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.GnoURL, oid, viewMode string) (int, *components.View) {
 	tid := gnourl.WebQuery.Get("tid")
 	if len(tid) > maxStateIDLength {
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid type id")
@@ -879,54 +872,80 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 	// title stays short and wraps cleanly on narrow viewports.
 	label := fmt.Sprintf("Object %s", components.TruncOID(oid, 8, 6))
 
-	return http.StatusOK, h.renderStateView(ctx, gnourl, decoded.Nodes, label, crumbs,
-		components.BuildObjectSidebar(gnourl.Path, oid, tid, height, decoded.Info, decoded.Nodes), true, height, raw)
-}
-
-// renderStateView is the shared tail of both state views: inline-preview
-// enrichment + source-snippet enrichment + StateView packaging. Order
-// matters: preview adds nodes that Enrich then walks for hrefs/sources.
-func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL, nodes []components.StateNode, label string, crumbs []components.StateCrumb, sidebar *components.StateSidebar, isObjectPage bool, height int64, rawJSON []byte) *components.View {
-	pkgPath := gnourl.Path
-	components.EnrichInlinePreviews(nodes,
-		&clientStateObjectFetcher{ctx: ctx, client: h.Client, height: height},
-		&clientStateTypeFetcher{ctx: ctx, client: h.Client, height: height},
-	)
-	components.Enrich(nodes, pkgPath, height,
-		&clientFileFetcher{ctx: ctx, client: h.Client, height: height},
-		&rendererSnippetHighlighter{renderer: h.Renderer},
-	)
-	return components.StateView(components.StateData{
-		PkgPath:      pkgPath,
-		Nodes:        nodes,
-		CountLabel:   label,
+	return http.StatusOK, h.renderStateView(ctx, gnourl, renderStateInput{
+		Nodes:        decoded.Nodes,
+		Label:        label,
 		Crumbs:       crumbs,
-		Sidebar:      sidebar,
-		IsObjectPage: isObjectPage,
+		Sidebar:      components.BuildObjectSidebar(gnourl.Path, oid, tid, height, decoded.Info, decoded.Nodes),
+		IsObjectPage: true,
 		Height:       height,
-		LatestHref:   template.URL(gnourl.WithoutHeight().EncodeWebURL()),
-		ViewMode:     stateViewModeFromContext(ctx),
-		RawJSON:      string(rawJSON),
-		KindCounts:   components.ComputeKindCounts(nodes),
+		RawJSON:      raw,
+		ViewMode:     viewMode,
 	})
 }
 
-// clientFileFetcher adapts the gnoweb ClientAdapter to the FileFetcher
-// interface needed by components.Enrich.
-type clientFileFetcher struct {
+// renderStateInput collects everything renderStateView packages into a
+// StateData. Carried as a struct because the call sites diverge only
+// on a few fields (object vs package view).
+type renderStateInput struct {
+	Nodes        []components.StateNode
+	Label        string
+	Crumbs       []components.StateCrumb
+	Sidebar      *components.StateSidebar
+	IsObjectPage bool
+	Height       int64
+	RawJSON      []byte
+	ViewMode     string
+}
+
+// renderStateView runs inline-preview + source-snippet enrichment, then
+// packages the StateData. Order matters: preview adds nodes that Enrich
+// then walks for hrefs/sources.
+func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL, in renderStateInput) *components.View {
+	pkgPath := gnourl.Path
+	adapter := &stateAdapter{ctx: ctx, client: h.Client, height: in.Height}
+	components.EnrichInlinePreviews(in.Nodes, adapter, adapter)
+	components.Enrich(in.Nodes, pkgPath, in.Height, adapter,
+		&rendererSnippetHighlighter{renderer: h.Renderer})
+	return components.StateView(components.StateData{
+		PkgPath:      pkgPath,
+		Nodes:        in.Nodes,
+		CountLabel:   in.Label,
+		Crumbs:       in.Crumbs,
+		Sidebar:      in.Sidebar,
+		IsObjectPage: in.IsObjectPage,
+		Height:       in.Height,
+		LatestHref:   template.URL(gnourl.WithoutHeight().EncodeWebURL()),
+		ViewMode:     in.ViewMode,
+		RawJSON:      string(in.RawJSON),
+		KindCounts:   components.ComputeKindCounts(in.Nodes),
+	})
+}
+
+// stateAdapter satisfies the three fetcher interfaces consumed by the
+// orchestrator (FileFetcher, StateObjectFetcher, StateTypeFetcher) with
+// one shared (ctx, client, height) carrier.
+type stateAdapter struct {
 	ctx    context.Context
 	client ClientAdapter
 	height int64
 }
 
-func (f *clientFileFetcher) Fetch(pkgPath, fileName string) ([]byte, error) {
-	src, _, err := f.client.File(f.ctx, pkgPath, fileName, f.height)
+func (a *stateAdapter) Fetch(pkgPath, fileName string) ([]byte, error) {
+	src, _, err := a.client.File(a.ctx, pkgPath, fileName, a.height)
 	return src, err
 }
 
-// rendererSnippetHighlighter adapts the HTMLRenderer to the
-// SnippetHighlighter interface — wraps the chroma-backed RenderSource into a
-// template.HTML producer.
+func (a *stateAdapter) FetchObject(oid string) ([]byte, error) {
+	return a.client.StateObject(a.ctx, oid, a.height)
+}
+
+func (a *stateAdapter) FetchType(tid string) ([]byte, error) {
+	return a.client.StateType(a.ctx, tid, a.height)
+}
+
+// rendererSnippetHighlighter adapts HTMLRenderer to SnippetHighlighter —
+// wraps chroma-backed RenderSource into a template.HTML producer.
 type rendererSnippetHighlighter struct {
 	renderer Renderer
 }
@@ -937,33 +956,6 @@ func (h *rendererSnippetHighlighter) Render(fileName string, source []byte) (tem
 		return "", err
 	}
 	return template.HTML(buf.String()), nil
-}
-
-// clientStateObjectFetcher adapts ClientAdapter to the StateObjectFetcher
-// interface needed by components.EnrichInlinePreviews. Carries the
-// page's height so inline-preview fetches stay consistent with the
-// initial qpkg/qobject query (matters for `?height=N` time-travel).
-type clientStateObjectFetcher struct {
-	ctx    context.Context
-	client ClientAdapter
-	height int64
-}
-
-func (f *clientStateObjectFetcher) FetchObject(oid string) ([]byte, error) {
-	return f.client.StateObject(f.ctx, oid, f.height)
-}
-
-// clientStateTypeFetcher adapts ClientAdapter to the StateTypeFetcher
-// interface — used by EnrichInlinePreviews to label struct fields with
-// their declared names instead of positional indices.
-type clientStateTypeFetcher struct {
-	ctx    context.Context
-	client ClientAdapter
-	height int64
-}
-
-func (f *clientStateTypeFetcher) FetchType(tid string) ([]byte, error) {
-	return f.client.StateType(f.ctx, tid, f.height)
 }
 
 
@@ -1000,21 +992,23 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Write(source) // write raw file
 }
 
-// stateViewModeCookie is the cookie name the state-view JS controller
-// writes whenever the user toggles Pretty/Raw. The handler reads it on
-// each state-page request so the server-rendered radio `checked` matches
-// the user's saved preference — no first-paint flicker, no inline JS.
+// stateViewModeCookie holds the saved Pretty/Tree preference the JS
+// controller writes on toggle; read server-side so the right radio is
+// `checked` on first paint (no flicker).
 const stateViewModeCookie = "state_view_mode"
 
-// stateViewModeKey is the context key used to thread the cookie value
-// down to the state handlers without widening their signatures.
-type stateViewModeKey struct{}
-
-// stateViewModeFromContext returns the saved Pretty/Raw preference, or
-// "" when none is set (template treats empty as Pretty default).
-func stateViewModeFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(stateViewModeKey{}).(string); ok {
-		return v
+// readWhitelistedCookie returns the cookie's value when it matches one
+// of `allowed`; otherwise the empty string. Defends downstream code
+// against arbitrary cookie payloads.
+func readWhitelistedCookie(r *http.Request, name string, allowed ...string) string {
+	c, err := r.Cookie(name)
+	if err != nil {
+		return ""
+	}
+	for _, a := range allowed {
+		if c.Value == a {
+			return c.Value
+		}
 	}
 	return ""
 }

@@ -12,102 +12,60 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
-// StateNode is a UI-friendly decoded representation of a gno value, suitable
-// for rendering as HTML. The walker (DecodePkgJSON, DecodeObjectJSON) consumes
-// the raw Amino JSON returned by vm/qpkg_json or vm/qobject_json and produces
-// a tree of StateNodes.
-//
-// Mirrors the StateNode contract from misc/gnojs (decode.ts), but built on
-// native gnolang Go types via amino.UnmarshalJSON — no mirror types, no
-// duplicated decoding logic.
+// Kind constants enumerate the shapes the walker emits. Kept as untyped
+// strings so html/template's `eq` comparator works against `.Kind`.
+const (
+	KindPrimitive = "primitive"
+	KindStruct    = "struct"
+	KindArray     = "array"
+	KindSlice     = "slice"
+	KindMap       = "map"
+	KindPointer   = "pointer"
+	KindRef       = "ref"
+	KindFunc      = "func"
+	KindClosure   = "closure"
+	KindType      = "type"
+	KindInterface = "interface"
+	KindPackage   = "package"
+	KindNil       = "nil"
+	KindCycle     = "cycle"
+	KindTruncated = "truncated"
+)
+
+// StateNode is the UI-friendly decoded representation of a gno value.
+// Built by the walker from raw Amino JSON; enriched post-walk with Href,
+// SourceHTML, Doc, and Anchor by the orchestrator and sidebar builders.
 type StateNode struct {
-	// Name is the display label (variable name, struct field name, map key, slice index).
-	Name string
-
-	// Type is the human-readable type display (e.g. "int", "map[string]User").
-	Type string
-
-	// Kind is a simplified category used for styling/branching.
-	Kind string
-
-	// Value is the displayed leaf value (e.g. "42", "\"hello\"", "<cycle :1>").
-	Value string
-
-	// Expandable means the node has children that can be shown.
+	Name       string
+	Type       string
+	Kind       string
+	Value      string
 	Expandable bool
-
-	// Children are inline children already decoded.
-	Children []StateNode
-
-	// ObjectID is set when this node is a stored object reference (RefValue).
-	ObjectID string
-
-	// TypeID is set when type information for this node may be useful.
-	TypeID string
-
-	// Length is the count of elements for collections.
-	Length *int
-
-	// Preview is a short one-line summary built from the first few
-	// children — e.g. `{name: "alice", age: 30, …}` for a struct or
-	// `{"general": Board, "dev": Board, …}` for a map. Renders next to
-	// the type in collapsed/ref rows so users see what's behind the
-	// arrow without expanding. Set by the walker for nodes with
-	// decoded children, and re-computed by EnrichInlinePreviews after
-	// stored refs are fetched lazily.
+	Children   []StateNode
+	ObjectID   string
+	TypeID     string
+	Length     *int
+	// Preview is a one-line summary of Children, rendered in
+	// collapsed/ref rows. Re-computed after lazy ref fetches.
 	Preview string
-
-	// Source is the source-code location for functions and closures.
-	Source *SourceLocation
-
-	// SourceHTML, when set, is the chroma-highlighted source snippet for the
-	// referenced span. The walker leaves this empty (it doesn't read files);
-	// the orchestrator that wires the renderer fills it in. Typed as
-	// template.HTML so html/template treats it as already-safe markup.
+	Source  *SourceLocation
+	// SourceHTML carries chroma-highlighted code; template.HTML so
+	// html/template trusts it as already-safe markup.
 	SourceHTML template.HTML
-
-	// Href, when non-empty, is the navigation URL pointing to this node's
-	// own state-explorer page (only set when ObjectID is set, by the
-	// orchestrator). Built via weburl.GnoURL so encoding stays consistent
-	// with the rest of gnoweb. Typed template.URL so html/template trusts it.
-	Href template.URL
-
-	// OwnerHref is the navigation URL for OwnerID's own state page —
-	// pre-built by the orchestrator so the audit-chip "Owner" link
-	// preserves the page's height (time-travel) without the template
-	// having to know about the URL syntax. Empty when OwnerID is.
+	// Href / OwnerHref are typed template.URL so html/template trusts them.
+	Href      template.URL
 	OwnerHref template.URL
-
-	// Anchor, when non-empty, is the HTML id stamped on this node's
-	// top-level row so the sidebar TOC can link to it via #fragment.
-	// Set by Build{Package,Object}Sidebar — never by the walker.
+	// Anchor is the row id stamped by Build{Package,Object}Sidebar for #
+	// fragment linking from the TOC.
 	Anchor string
-
-	// ---- ObjectInfo metadata (already in qobject_json/qpkg_json) ----
-	// Captured by the walker for any node carrying an ObjectInfo: useful
-	// for blockchain audit (Owner, Hash) and storage analysis (RefCount,
-	// LastObjectSize) — without an extra fetch.
-
-	// Hash is the content hash of the stored object (hex). Empty when
-	// not applicable.
-	Hash string
-
-	// OwnerID is the ObjectID of the parent that owns this one in the
-	// gnolang ownership tree — i.e. who can mutate it.
-	OwnerID string
-
-	// ModTime is the chain height at which this object was last modified.
-	ModTime string
-
-	// RefCount is the persistence-ref count for this object.
-	RefCount string
-
-	// LastObjectSize is the storage size in bytes (decimal string).
+	// ObjectInfo metadata captured by the walker from qobject_json/qpkg_json.
+	Hash           string
+	OwnerID        string
+	ModTime        string
+	RefCount       string
 	LastObjectSize string
-
-	// Doc is the Go-style documentation comment attached to the
-	// declaration in source. Populated post-walk by the handler from
-	// the package's JSON doc index, matched by Name. Markdown-formatted.
+	// Doc is the Markdown-formatted documentation comment attached
+	// post-walk from the package's JSON doc index, matched by Name.
 	Doc string
 }
 
@@ -161,11 +119,9 @@ func DecodePkgJSON(raw []byte) ([]StateNode, error) {
 	return nodes, nil
 }
 
-// DecodeObjectJSON decodes a vm/qobject_json response into the children
-// StateNodes of the contained object. Without a type context, struct fields
-// fall back to positional indices because Amino strips the named-type
-// definition during ExportValues (DeclaredType → RefType, no Fields).
-// Use DecodeObjectJSONWithType to recover field names.
+// DecodeObjectJSON decodes a vm/qobject_json response into the contained
+// object's children. Struct fields fall back to positional indices without
+// a type context — use DecodeObjectJSONWithType for field names.
 func DecodeObjectJSON(raw []byte) ([]StateNode, error) {
 	var resp objectResponse
 	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
@@ -174,16 +130,9 @@ func DecodeObjectJSON(raw []byte) ([]StateNode, error) {
 	return decodeValueChildren(resp.Value), nil
 }
 
-// DecodeObjectJSONWithType decodes a vm/qobject_json response together with
-// a vm/qtype_json response so struct field names appear instead of "0", "1",
-// "2" placeholders. The type response is what `qtype_json(<TypeID>)` returns
-// for the object's named type — pass nil/empty rawType to fall back to plain
-// DecodeObjectJSON behaviour.
-//
-// Field-name resolution applies to the queried object's TOP-LEVEL struct
-// fields. Nested structs whose Type is itself a RefType keep positional
-// indices; users see them resolved when they navigate into their own
-// per-object pages (each carrying its own &tid=).
+// DecodeObjectJSONWithType decodes a vm/qobject_json response together
+// with a vm/qtype_json response so struct field names replace positional
+// indices. Nil/empty rawType falls back to plain DecodeObjectJSON.
 func DecodeObjectJSONWithType(rawObject, rawType []byte) ([]StateNode, error) {
 	var resp objectResponse
 	if err := amino.UnmarshalJSON(rawObject, &resp); err != nil {
@@ -207,12 +156,9 @@ func DecodeObjectJSONWithType(rawObject, rawType []byte) ([]StateNode, error) {
 	return decodeValueChildrenTyped(resp.Value, typeResp.Type, typeResp.TypeID), nil
 }
 
-// decodeValueChildrenTyped is like decodeValueChildren but uses an outer
-// gno.Type to resolve struct field names. The type comes from a separate
-// qtype_json round-trip — Amino strips named-type field info from the
-// value tree at export. The originalTid is propagated so that nested ref
-// nodes (heap → ref pattern) carry it forward to round 2 of inline
-// preview, which would otherwise fall back to positional indices.
+// decodeValueChildrenTyped is decodeValueChildren plus an outer Type
+// used to resolve struct field names; originalTid is forwarded into
+// nested ref nodes so subsequent fetch rounds still resolve names.
 func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []StateNode {
 	// HeapItemValue: the type describes the inner TypedValue. Synthesize
 	// {T: t, V: hiv.Value.V, N: hiv.Value.N} so decodeStruct sees the
@@ -255,27 +201,24 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 
 // ---- Core walker ----
 
-// maxDecodeDepth caps recursion in the value walker. Adversarial or
-// pathological values (deeply nested closures, cycles the cycle-marker
-// missed, etc.) cannot drag the renderer into a stack overflow — at the
-// cap the walker yields a sentinel "(too deep)" leaf. Generous enough
-// that real Gno values never hit it.
-const maxDecodeDepth = 256
-
-// maxChildrenPerNode caps how many entries a single collection emits.
-// Bounds memory and DOM size against a hostile realm declaring giant
-// arrays/slices/maps; the surplus is summarised as one truncated node.
-const maxChildrenPerNode = 500
+// Walker bounds — defenses against pathological / hostile values.
+// maxDecodeDepth stops stack-overflow recursion; maxChildrenPerNode
+// bounds DOM size for giant collections (surplus collapses to one
+// truncated sentinel).
+const (
+	maxDecodeDepth     = 256
+	maxChildrenPerNode = 500
+)
 
 // tooDeepNode is the sentinel emitted when a subtree exceeds maxDecodeDepth.
 func tooDeepNode(name string) StateNode {
-	return StateNode{Name: name, Type: "(too deep)", Kind: "truncated", Value: "…"}
+	return StateNode{Name: name, Type: "(too deep)", Kind: KindTruncated, Value: "…"}
 }
 
 // truncatedChildrenNode summarises entries dropped past maxChildrenPerNode.
 func truncatedChildrenNode(remaining int) StateNode {
 	return StateNode{
-		Name: "…", Kind: "truncated",
+		Name: "…", Kind: KindTruncated,
 		Value: fmt.Sprintf("(%d more entries omitted)", remaining),
 	}
 }
@@ -289,7 +232,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 		return tooDeepNode(name)
 	}
 	if tv.T == nil {
-		return StateNode{Name: name, Type: "<nil>", Kind: "nil", Value: "nil"}
+		return StateNode{Name: name, Type: "<nil>", Kind: KindNil, Value: "nil"}
 	}
 
 	tName := typeName(tv.T)
@@ -301,7 +244,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 	if _, isFunc := bt.(*gno.FuncType); isFunc {
 		if rv, ok := tv.V.(gno.RefValue); ok {
 			return StateNode{
-				Name: name, Type: funcSignature(tv.T), Kind: "func",
+				Name: name, Type: funcSignature(tv.T), Kind: KindFunc,
 				Expandable: true, ObjectID: rv.ObjectID.String(),
 			}
 		}
@@ -310,7 +253,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 	// RefValue: persisted object reference.
 	if rv, ok := tv.V.(gno.RefValue); ok {
 		if rv.PkgPath != "" {
-			return StateNode{Name: name, Type: tName, Kind: "package", Value: rv.PkgPath}
+			return StateNode{Name: name, Type: tName, Kind: KindPackage, Value: rv.PkgPath}
 		}
 		return StateNode{
 			Name: name, Type: tName, Kind: kind,
@@ -335,7 +278,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 
 	// TypeValue: type definition shown as a value.
 	if tv2, ok := tv.V.(gno.TypeValue); ok {
-		return StateNode{Name: name, Type: "type", Kind: "type", Value: typeName(tv2.Type)}
+		return StateNode{Name: name, Type: "type", Kind: KindType, Value: typeName(tv2.Type)}
 	}
 
 	// Primitives.
@@ -382,12 +325,10 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 	return StateNode{Name: name, Type: tName, Kind: kind, Value: fmt.Sprintf("<%T>", tv.V)}
 }
 
-// decodeValueChildren turns a queried Object's Value (from vm/qobject_json)
-// into the children to display on its dedicated page. For collection-shaped
-// values we return one StateNode per field/element. For scalar-shaped values
-// (a stored function, a pointer, a type value) we return a single StateNode
-// representing the object itself — otherwise the page would render empty
-// for any non-collection object.
+// decodeValueChildren turns a queried Object's Value into the children
+// to display. Collection-shaped values yield one StateNode per element;
+// scalar shapes yield a single representative node so the page is never
+// empty.
 func decodeValueChildren(v gno.Value) []StateNode {
 	switch cv := v.(type) {
 	case nil:
@@ -405,7 +346,7 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		if cv.Data != nil {
 			n := len(cv.Data)
 			return []StateNode{{
-				Name: "data", Type: "[]byte", Kind: "primitive",
+				Name: "data", Type: "[]byte", Kind: KindPrimitive,
 				Value: fmt.Sprintf("[%d]byte{...}", n),
 			}}
 		}
@@ -453,7 +394,7 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		if rv, ok := cv.Base.(gno.RefValue); ok {
 			n := cv.Length
 			return []StateNode{{
-				Name: "(slice)", Type: "[]…", Kind: "slice",
+				Name: "(slice)", Type: "[]…", Kind: KindSlice,
 				Expandable: n > 0, ObjectID: rv.ObjectID.String(), Length: intPtr(n),
 			}}
 		}
@@ -478,11 +419,8 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		}
 		return nodes
 	case *gno.HeapItemValue:
-		// HeapItemValue is an internal wrapper for heap-allocated values
-		// (the typical case for objects). When the inner value is itself
-		// a collection (struct/array/map/slice), surface its children
-		// directly so the page doesn't show a redundant "value :" row.
-		// For scalars/funcs the inner becomes a single labelled row.
+		// Unwrap: when the inner is a collection, return its children
+		// directly (no redundant "value :" row); scalars stay labelled.
 		inner := decodeTypedValue("value", cv.Value)
 		if len(inner.Children) > 0 {
 			return inner.Children
@@ -498,8 +436,6 @@ func decodeValueChildren(v gno.Value) []StateNode {
 	// ---- Scalar-shaped: wrap into a single representative node ----
 
 	case *gno.FuncValue:
-		// Top-level FuncValue (e.g. a stored package function): show the
-		// function as one expandable node so the source bloc renders.
 		name := string(cv.Name)
 		if name == "" {
 			name = "(function)"
@@ -508,39 +444,34 @@ func decodeValueChildren(v gno.Value) []StateNode {
 	case *gno.BoundMethodValue:
 		return []StateNode{decodeFuncInline(0, "(method)", cv.Func)}
 	case gno.PointerValue:
-		// If it points at an inline TypedValue, surface that. If it points
-		// at a stored ref, expose the navigation handle.
 		if cv.TV != nil {
 			return []StateNode{decodeTypedValue("*", *cv.TV)}
 		}
 		if rv, ok := cv.Base.(gno.RefValue); ok {
 			return []StateNode{{
-				Name: "*", Type: "(stored)", Kind: "pointer",
+				Name: "*", Type: "(stored)", Kind: KindPointer,
 				Expandable: true, ObjectID: rv.ObjectID.String(),
 			}}
 		}
-		return []StateNode{{Name: "*", Type: "*", Kind: "pointer", Value: "nil"}}
+		return []StateNode{{Name: "*", Type: "*", Kind: KindPointer, Value: "nil"}}
 	case gno.TypeValue:
 		return []StateNode{{
-			Name: "(type)", Type: "type", Kind: "type",
+			Name: "(type)", Type: "type", Kind: KindType,
 			Value: typeName(cv.Type),
 		}}
 	case gno.RefValue:
-		// The queried object resolved to a ref (rare at top level, but
-		// possible). Surface it as a navigable handle so the user can drill
-		// further rather than seeing an empty page.
 		return []StateNode{{
-			Name: "(ref)", Type: "(stored)", Kind: "ref",
+			Name: "(ref)", Type: "(stored)", Kind: KindRef,
 			Expandable: true, ObjectID: cv.ObjectID.String(),
 		}}
 	case gno.ExportRefValue:
 		return []StateNode{{
-			Name: "(cycle)", Type: "(cycle)", Kind: "cycle",
+			Name: "(cycle)", Type: "(cycle)", Kind: KindCycle,
 			Value: fmt.Sprintf("<cycle %s>", cv.ObjectID),
 		}}
 	case gno.StringValue:
 		return []StateNode{{
-			Name: "(string)", Type: "string", Kind: "primitive",
+			Name: "(string)", Type: "string", Kind: KindPrimitive,
 			Value: quoteString(string(cv)),
 		}}
 	}
@@ -550,18 +481,15 @@ func decodeValueChildren(v gno.Value) []StateNode {
 // ---- Per-kind decoders ----
 
 func decodePrimitive(name, tName string, pt gno.PrimitiveType, tv gno.TypedValue) StateNode {
-	// Strings live in V (StringValue), all other primitives in N.
+	// Strings live in V (StringValue); all other primitives in N.
 	if pt == gno.StringType || pt == gno.UntypedStringType {
 		s := tv.GetString()
-		return StateNode{Name: name, Type: tName, Kind: "primitive", Value: quoteString(s)}
+		return StateNode{Name: name, Type: tName, Kind: KindPrimitive, Value: quoteString(s)}
 	}
-
-	// If V is missing and N is zero, render the zero value for the primitive.
 	if tv.V == nil && tv.N == [8]byte{} {
-		return StateNode{Name: name, Type: tName, Kind: "primitive", Value: zeroValueFor(pt)}
+		return StateNode{Name: name, Type: tName, Kind: KindPrimitive, Value: zeroValueFor(pt)}
 	}
-
-	return StateNode{Name: name, Type: tName, Kind: "primitive", Value: primitiveDisplay(pt, tv)}
+	return StateNode{Name: name, Type: tName, Kind: KindPrimitive, Value: primitiveDisplay(pt, tv)}
 }
 
 func decodeStruct(depth int, name, tName, typeID string, bt gno.Type, sv *gno.StructValue) StateNode {
@@ -578,7 +506,7 @@ func decodeStruct(depth int, name, tName, typeID string, bt gno.Type, sv *gno.St
 	}
 	length := len(sv.Fields)
 	node := StateNode{
-		Name: name, Type: tName, Kind: "struct",
+		Name: name, Type: tName, Kind: KindStruct,
 		Expandable: length > 0, Children: children,
 		TypeID:  typeID,
 		Length:  intPtr(length),
@@ -592,7 +520,7 @@ func decodeArray(depth int, name, tName string, av *gno.ArrayValue) StateNode {
 	if av.Data != nil {
 		n := len(av.Data)
 		node := StateNode{
-			Name: name, Type: tName, Kind: "array",
+			Name: name, Type: tName, Kind: KindArray,
 			Value:  fmt.Sprintf("[%d]byte{...}", n),
 			Length: intPtr(n),
 		}
@@ -612,7 +540,7 @@ func decodeArray(depth int, name, tName string, av *gno.ArrayValue) StateNode {
 		children = append(children, truncatedChildrenNode(total-visible))
 	}
 	node := StateNode{
-		Name: name, Type: tName, Kind: "array",
+		Name: name, Type: tName, Kind: KindArray,
 		Expandable: len(children) > 0, Children: children,
 		Length: intPtr(total),
 	}
@@ -622,18 +550,16 @@ func decodeArray(depth int, name, tName string, av *gno.ArrayValue) StateNode {
 
 func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 	length := sv.Length
-	// Base is a RefValue → slice points at a stored array.
 	if rv, ok := sv.Base.(gno.RefValue); ok {
 		return StateNode{
-			Name: name, Type: tName, Kind: "slice",
+			Name: name, Type: tName, Kind: KindSlice,
 			Expandable: length > 0, ObjectID: rv.ObjectID.String(), Length: intPtr(length),
 		}
 	}
-	// Base is an inline ArrayValue.
 	if av, ok := sv.Base.(*gno.ArrayValue); ok {
 		if av.Data != nil {
 			return StateNode{
-				Name: name, Type: tName, Kind: "slice",
+				Name: name, Type: tName, Kind: KindSlice,
 				Value:  fmt.Sprintf("[]byte (len=%d)", length),
 				Length: intPtr(length),
 			}
@@ -660,13 +586,13 @@ func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 			children = append(children, truncatedChildrenNode(total-shown))
 		}
 		return StateNode{
-			Name: name, Type: tName, Kind: "slice",
+			Name: name, Type: tName, Kind: KindSlice,
 			Expandable: len(children) > 0, Children: children,
 			Length: intPtr(length),
 		}
 	}
 	return StateNode{
-		Name: name, Type: tName, Kind: "slice",
+		Name: name, Type: tName, Kind: KindSlice,
 		Expandable: length > 0, Length: intPtr(length),
 	}
 }
@@ -690,7 +616,7 @@ func decodeMap(depth int, name, tName string, mv *gno.MapValue) StateNode {
 		children = append(children, truncatedChildrenNode(total-len(children)))
 	}
 	node := StateNode{
-		Name: name, Type: tName, Kind: "map",
+		Name: name, Type: tName, Kind: KindMap,
 		Expandable: len(children) > 0, Children: children,
 		Length:  intPtr(total),
 		Preview: buildChildrenPreview(children),
@@ -702,21 +628,20 @@ func decodeMap(depth int, name, tName string, mv *gno.MapValue) StateNode {
 func decodePointer(depth int, name, tName, typeID string, pv gno.PointerValue) StateNode {
 	if rv, ok := pv.Base.(gno.RefValue); ok {
 		return StateNode{
-			Name: name, Type: tName, Kind: "pointer",
+			Name: name, Type: tName, Kind: KindPointer,
 			Expandable: true, ObjectID: rv.ObjectID.String(),
-			// Carry the pointee's TypeID so inline preview / dedicated page
-			// can fetch qtype_json and resolve struct field names.
+			// Carry pointee TypeID so qtype_json can resolve struct field names.
 			TypeID: typeID,
 		}
 	}
 	if pv.TV != nil {
 		child := decodeTypedValueAt(depth+1, "*", *pv.TV)
 		return StateNode{
-			Name: name, Type: tName, Kind: "pointer",
+			Name: name, Type: tName, Kind: KindPointer,
 			Expandable: true, Children: []StateNode{child},
 		}
 	}
-	return StateNode{Name: name, Type: tName, Kind: "pointer", Value: "nil"}
+	return StateNode{Name: name, Type: tName, Kind: KindPointer, Value: "nil"}
 }
 
 func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
@@ -728,9 +653,9 @@ func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 	}
 	src := extractFuncSource(fv)
 	hasCaps := len(fv.Captures) > 0
-	kind := "func"
+	kind := KindFunc
 	if hasCaps {
-		kind = "closure"
+		kind = KindClosure
 	}
 	if hasCaps {
 		children := make([]StateNode, len(fv.Captures))
@@ -742,16 +667,14 @@ func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 			Expandable: true, Source: src, Children: children,
 		}
 	}
-	// Regular funcs: expandable when we have a Source range so the raw
-	// tree view can disclose the body inline (matches the initial Jae
-	// PR). Without Source they stay flat — nothing to disclose.
+	// Expandable only when Source is available to disclose the body.
 	return StateNode{
 		Name: name, Type: sig, Kind: kind,
 		Expandable: src != nil, Source: src,
 	}
 }
 
-// ---- Type helpers (mirror type-utils.ts) ----
+// ---- Type helpers ----
 
 func typeName(t gno.Type) string {
 	if t == nil {
@@ -798,33 +721,33 @@ func typeName(t gno.Type) string {
 
 func typeKind(t gno.Type) string {
 	if t == nil {
-		return "nil"
+		return KindNil
 	}
 	switch tt := t.(type) {
 	case gno.PrimitiveType:
-		return "primitive"
+		return KindPrimitive
 	case *gno.PointerType:
-		return "pointer"
+		return KindPointer
 	case *gno.ArrayType:
-		return "array"
+		return KindArray
 	case *gno.SliceType:
-		return "slice"
+		return KindSlice
 	case *gno.StructType:
-		return "struct"
+		return KindStruct
 	case *gno.MapType:
-		return "map"
+		return KindMap
 	case *gno.FuncType:
-		return "func"
+		return KindFunc
 	case *gno.InterfaceType:
-		return "interface"
+		return KindInterface
 	case gno.RefType:
-		return "ref"
+		return KindRef
 	case *gno.DeclaredType:
 		return typeKind(tt.Base)
 	case *gno.TypeType:
-		return "type"
+		return KindType
 	case *gno.PackageType:
-		return "package"
+		return KindPackage
 	case *gno.ChanType:
 		return "chan"
 	}
@@ -839,8 +762,7 @@ func baseType(t gno.Type) gno.Type {
 	return t
 }
 
-// structFieldNames returns the field names for a StructType (or DeclaredType
-// wrapping one). Returns nil if the type isn't a struct.
+// structFieldNames returns field names for a StructType (unwrapping DeclaredType).
 func structFieldNames(t gno.Type) []string {
 	switch tt := t.(type) {
 	case *gno.StructType:
@@ -855,10 +777,8 @@ func structFieldNames(t gno.Type) []string {
 	return nil
 }
 
-// getTypeID returns a TypeID suitable for `qtype_json` lookup. Drills
-// through PointerType so `*foo.Bar` resolves to the inner Bar's TypeID —
-// critical for inline preview to show field names on stored structs
-// reached via a pointer (the typical realm pattern).
+// getTypeID returns a TypeID for qtype_json lookup, drilling through
+// PointerType so `*foo.Bar` resolves to Bar's TypeID.
 func getTypeID(t gno.Type) string {
 	if t == nil {
 		return ""
@@ -874,8 +794,8 @@ func getTypeID(t gno.Type) string {
 	return ""
 }
 
-// funcSignature builds a human-readable signature, hiding the implicit `cur realm`
-// crossing parameter when present (matches TS heuristic).
+// funcSignature builds a human-readable signature, hiding the implicit
+// `cur realm` crossing parameter.
 func funcSignature(t gno.Type) string {
 	ft, ok := t.(*gno.FuncType)
 	if !ok {
@@ -883,7 +803,7 @@ func funcSignature(t gno.Type) string {
 	}
 	params := make([]string, 0, len(ft.Params))
 	for _, p := range ft.Params {
-		// Hide implicit crossing param: name starts with "cur" and type is RefType.
+		// Hide implicit crossing param: cur-prefixed RefType.
 		name := string(p.Name)
 		if strings.HasPrefix(name, "cur") {
 			if _, isRef := p.Type.(gno.RefType); isRef {
@@ -1039,16 +959,10 @@ func quoteString(s string) string {
 	return strconv.Quote(s)
 }
 
-// inlinePreviewMaxFields caps the number of children surfaced in the
-// one-line preview of a collapsed struct or map. Three keeps the row
-// readable; further fields collapse to "…".
 const inlinePreviewMaxFields = 3
 
-// buildChildrenPreview turns decoded children into a short one-liner
-// like `{name: "alice", age: 30, …}` for rendering next to the type
-// when the row is collapsed. Works uniformly for struct fields and map
-// entries (the walker pre-formats each key as the child Name). Returns
-// "" when there's nothing to show — the template branches on emptiness.
+// buildChildrenPreview formats children as `{name: "alice", age: 30, …}`
+// for the collapsed row preview. Returns "" when empty.
 func buildChildrenPreview(children []StateNode) string {
 	if len(children) == 0 {
 		return ""
@@ -1067,9 +981,8 @@ func buildChildrenPreview(children []StateNode) string {
 	return "{" + strings.Join(parts, ", ") + "}"
 }
 
-// previewChildValue picks the most compact representation of a child
-// node for inline previews: the leaf value when present, the type
-// (with length when known) otherwise. Truncates long strings.
+// previewChildValue returns a compact string for the inline preview:
+// leaf value if present, else type (with length when known).
 func previewChildValue(c StateNode) string {
 	if c.Value != "" {
 		v := c.Value
@@ -1104,11 +1017,8 @@ func previewTypedValue(tv gno.TypedValue) string {
 	return typeName(tv.T)
 }
 
-// applyObjectInfo copies the audit-relevant fields out of a gnolang
-// ObjectInfo into the StateNode. Skips zero values so the template can
-// branch on emptiness. Called by every decoder that handles a value type
-// carrying ObjectInfo (StructValue, ArrayValue, MapValue, FuncValue,
-// HeapItemValue, Block).
+// applyObjectInfo copies audit-relevant ObjectInfo fields onto the node,
+// skipping zero values so the template can branch on emptiness.
 func applyObjectInfo(n *StateNode, info gno.ObjectInfo) {
 	if info.ID != (gno.ObjectID{}) {
 		n.ObjectID = info.ID.String()
@@ -1130,9 +1040,7 @@ func applyObjectInfo(n *StateNode, info gno.ObjectInfo) {
 	}
 }
 
-// objectInfoOf extracts the ObjectInfo of an outer Value into a flat view
-// shape suitable for sidebar display. Used by DecodeObjectFull to expose
-// the queried object's metadata without re-parsing the JSON.
+// objectInfoOf extracts ObjectInfo from a Value into the sidebar view shape.
 func objectInfoOf(v gno.Value) StateObjectInfoView {
 	var info gno.ObjectInfo
 	switch cv := v.(type) {
@@ -1170,10 +1078,8 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 	return view
 }
 
-// DecodeObjectFull parses a vm/qobject_json (and optional vm/qtype_json)
-// response and returns BOTH the children to render and the queried
-// object's metadata. Single parse pass — handlers don't have to re-parse
-// the JSON to surface ObjectInfo in the sidebar.
+// DecodeObjectFull parses qobject_json (and optional qtype_json) into
+// children to render plus the queried object's ObjectInfo in one pass.
 func DecodeObjectFull(rawObject, rawType []byte) (*DecodedObject, error) {
 	var resp objectResponse
 	if err := amino.UnmarshalJSON(rawObject, &resp); err != nil {

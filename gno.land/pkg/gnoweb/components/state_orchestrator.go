@@ -10,108 +10,57 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
-// maxConcurrentFileFetches caps how many source files Enrich asks the
-// FileFetcher (chain RPC in production) for in parallel. Realistic realms
-// declare functions across 1-5 files, so 8 is plenty headroom; the bound
-// matters only as a back-pressure safeguard against pathological inputs.
-const maxConcurrentFileFetches = 8
+// Bounds for per-render fan-out. The concurrency caps act as back-pressure
+// on the chain RPC; the total caps protect against realms that try to
+// amplify a single GET into a flood of fetches.
+const (
+	maxConcurrentFileFetches   = 8
+	maxFilesPerRender          = 50
+	maxConcurrentObjectFetches = 8
+	maxInlinePreviewFetches    = 30
+	maxInlinePreviewRounds     = 2 // covers Gno's heap→ref→struct indirection
+)
 
-// maxFilesPerRender caps the total number of distinct files the orchestrator
-// will fetch for one page render. Bounds outbound RPC traffic when a hostile
-// realm distributes funcs/closures across many source files.
-const maxFilesPerRender = 50
-
-// maxInlinePreviewFetches caps how many stored objects EnrichInlinePreviews
-// will fetch in TOTAL across rounds on a single page render. The Pretty
-// view's promise is "see actual content, not a navigation menu" — so the
-// budget is sized to cover a realm's whole top-level surface (typically
-// 5–15 decls × ~2 rounds for `*T` chains) plus a margin for nested refs,
-// while staying bounded enough to avoid fan-out storms on huge realms.
-const maxInlinePreviewFetches = 30
-
-// maxInlinePreviewRounds caps the number of fetch rounds. Gno's heap→ref→
-// struct indirection (typical for `*T` declarations) requires 2 rounds to
-// reach the actual struct from a top-level pointer. More rounds get
-// diminishing returns vs cost.
-const maxInlinePreviewRounds = 2
-
-// maxConcurrentObjectFetches bounds the in-flight StateObject calls during
-// inline-preview enrichment. Same back-pressure rationale as
-// maxConcurrentFileFetches.
-const maxConcurrentObjectFetches = 8
-
-// FileFetcher loads the full bytes of a source file living under a package.
-// The state explorer uses it to fetch source files lazily for func/closure
-// nodes — only files actually referenced by the rendered tree are read.
 type FileFetcher interface {
 	Fetch(pkgPath, fileName string) ([]byte, error)
 }
 
-// SnippetHighlighter renders a chunk of source code as syntax-highlighted
-// HTML (typed as template.HTML so the template trusts it as already-safe
-// markup). Implementations typically wrap chroma.
+// SnippetHighlighter returns template.HTML so the result is treated as
+// already-safe markup by html/template.
 type SnippetHighlighter interface {
 	Render(fileName string, source []byte) (template.HTML, error)
 }
 
-// StateObjectFetcher fetches a stored object's raw Amino JSON by ObjectID.
-// Used by EnrichInlinePreviews to fetch top-level refs so users see one
-// level of children inline without an extra click.
 type StateObjectFetcher interface {
 	FetchObject(oid string) ([]byte, error)
 }
 
-// StateTypeFetcher fetches a stored named type's raw Amino JSON by TypeID.
-// Used by EnrichInlinePreviews together with StateObjectFetcher so the
-// inline preview can label struct fields with their declared names — Amino
-// strips named-type definitions during ExportValues, so we recover them
-// via this companion fetch.
+// StateTypeFetcher recovers named-type definitions that ExportValues
+// strips, so inline previews can label struct fields by declared name.
 type StateTypeFetcher interface {
 	FetchType(tid string) ([]byte, error)
 }
 
-// Enrich walks the StateNode tree and decorates each node with anything the
-// walker can't compute on its own:
-//
-//   - Href       — pre-built navigation URL for stored object refs, encoded
-//                  via weburl.GnoURL so the URL parser round-trips correctly.
-//   - SourceHTML — chroma-highlighted source snippet for func/closure nodes.
-//
-// Source files are fetched in parallel (bounded at maxConcurrentFileFetches)
-// so a realm with functions across N files takes ~one RTT to the chain RPC,
-// not N. Each unique file is fetched at most once per Enrich call.
-//
-// Failure modes (file not found, render error) leave SourceHTML empty
-// rather than aborting — the rest of the page must still render.
-//
-// Pass nil for fetcher/highlighter to skip source enrichment (links still
-// build); the orchestrator never assumes both deps are present.
+// Enrich decorates a StateNode tree with Href and SourceHTML, walking
+// the tree first to collect referenced files, then fetching them in
+// parallel, then highlighting. Failures degrade gracefully — SourceHTML
+// is left empty. Passing nil fetcher or highlighter skips source.
 func Enrich(nodes []StateNode, pkgPath string, height int64, fetcher FileFetcher, highlighter SnippetHighlighter) {
-	// Pass 1 — local CPU work: build hrefs and collect the unique set of
-	// files referenced anywhere in the tree.
 	files := make(map[string]struct{})
 	walkLinksAndCollect(nodes, pkgPath, height, files)
 
-	// Pass 2 — concurrent I/O: prefetch all referenced files. Skipped if
-	// no fetcher provided (link-only enrichment, used by template tests).
 	var cache map[string][]byte
 	if fetcher != nil && len(files) > 0 {
 		cache = fetchFilesConcurrent(pkgPath, files, fetcher)
 	}
 
-	// Pass 3 — local CPU work again: chroma-highlight every snippet from
-	// the prefetched cache.
 	if highlighter != nil && len(cache) > 0 {
 		walkRenderSnippets(nodes, highlighter, cache)
 	}
 }
 
-// walkLinksAndCollect populates Hrefs in place and collects every
-// Source.File whose body the renderer will need for inline snippets —
-// any node carrying a Source (funcs, closures). Pure CPU pass; the
-// fetcher dedupes by filename, so N funcs in one file = 1 fetch.
-// `height` is propagated into every Href so navigating from a time-
-// travelled page lands on the same historical block.
+// walkLinksAndCollect populates Hrefs in place and collects the unique
+// set of source files referenced by the tree.
 func walkLinksAndCollect(nodes []StateNode, pkgPath string, height int64, files map[string]struct{}) {
 	for i := range nodes {
 		n := &nodes[i]
@@ -130,10 +79,8 @@ func walkLinksAndCollect(nodes []StateNode, pkgPath string, height int64, files 
 	}
 }
 
-// fetchFilesConcurrent fetches every file in `files` in parallel through the
-// fetcher, bounded at maxConcurrentFileFetches. Errors are silently dropped
-// (the file is simply absent from the returned cache, leaving the
-// corresponding SourceHTML empty in pass 3).
+// fetchFilesConcurrent fetches each file via the bounded semaphore;
+// errors leave the file absent from the cache.
 func fetchFilesConcurrent(pkgPath string, files map[string]struct{}, fetcher FileFetcher) map[string][]byte {
 	cache := make(map[string][]byte, len(files))
 	var mu sync.Mutex
@@ -158,10 +105,8 @@ func fetchFilesConcurrent(pkgPath string, files map[string]struct{}, fetcher Fil
 	return cache
 }
 
-// walkRenderSnippets renders the cached file slices into SourceHTML for
-// every node that carries a Source range (funcs and closures). The card
-// then shows the body inline — same behavior as the initial Jae PR.
-// CPU-only; safe to run sequentially after the concurrent fetch phase.
+// walkRenderSnippets fills SourceHTML on every node with a Source range
+// using the prefetched file cache.
 func walkRenderSnippets(nodes []StateNode, highlighter SnippetHighlighter, cache map[string][]byte) {
 	for i := range nodes {
 		n := &nodes[i]
@@ -180,32 +125,16 @@ func walkRenderSnippets(nodes []StateNode, highlighter SnippetHighlighter, cache
 }
 
 // EnrichInlinePreviews fetches up to maxInlinePreviewFetches stored objects
-// referenced by ref-shaped nodes and embeds their decoded fields as Children
-// so users get a one-level preview without a navigation click. Refs beyond
-// the budget keep their plain ref shape (graceful degradation).
-//
-// When typeFetcher is non-nil, the named-type definitions are also fetched
-// in parallel and used to resolve struct field names — so users see
-// `name : string = "alice"` instead of `0 : string = "alice"`. Type fetches
-// are deduplicated by TypeID so a realm with N refs to the same type pays
-// for one type lookup.
-//
-// Top-level refs are prioritised over deeply-nested ones: a realm's main
-// declarations are visible first; only if budget remains do nested refs get
-// previewed. Same OID requested by multiple nodes triggers a single fetch.
-//
-// Failure modes (fetch error, decode error) leave the node's Children empty
-// — the user sees the original navigation link, never an error.
+// referenced by ref-shaped nodes and embeds their decoded fields as Children.
+// `typeFetcher` (if non-nil) resolves struct field names via the named-type
+// definitions Amino strips during ExportValues. Failures degrade silently.
 func EnrichInlinePreviews(nodes []StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
 	if objFetcher == nil {
 		return
 	}
 
-	// Multiple rounds: gno's typical `*T` storage chains heap-item → inner
-	// ref → struct, so the first fetch reveals an inner ref that itself
-	// needs fetching to expose fields. Each round picks up newly-revealed
-	// refs without children and fetches them. maxInlinePreviewFetches caps
-	// the cumulative cost across all rounds.
+	// Multiple rounds: a `*T` storage chains heap-item → inner ref → struct,
+	// so the first fetch reveals refs that themselves need fetching.
 	fetchedTotal := 0
 	for round := 0; round < maxInlinePreviewRounds; round++ {
 		var candidates []*StateNode
@@ -222,17 +151,15 @@ func EnrichInlinePreviews(nodes []StateNode, objFetcher StateObjectFetcher, type
 	}
 }
 
-// collectPreviewCandidates walks the tree breadth-first, gathering nodes
-// that are stored refs (ObjectID set, Expandable) without inline children.
+// collectPreviewCandidates gathers stored refs (ObjectID + Expandable,
+// no inline children) breadth-first so top-level refs get priority.
 func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
-	// Process this level first (top-level priority).
 	for i := range nodes {
 		n := &nodes[i]
 		if n.ObjectID != "" && n.Expandable && len(n.Children) == 0 {
 			*out = append(*out, n)
 		}
 	}
-	// Then recurse into children.
 	for i := range nodes {
 		n := &nodes[i]
 		if len(n.Children) > 0 {
@@ -241,21 +168,14 @@ func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
 	}
 }
 
-// fetchPreviewsConcurrent fetches the (object, type) pair for each unique
-// candidate in parallel, then decodes children with the resolved type so
-// struct fields surface with their declared names. Each fetch is silent on
-// error — graceful degradation. Object and type fetches use SEPARATE
-// bounded pools so type fetches never starve behind objects when the
-// object pool saturates.
+// fetchPreviewsConcurrent fetches objects and types via two independent
+// pools so type fetches never starve behind objects.
 func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
-	// Dedupe by OID so the same object isn't fetched twice.
 	byOID := make(map[string][]*StateNode)
 	for _, n := range candidates {
 		byOID[n.ObjectID] = append(byOID[n.ObjectID], n)
 	}
 
-	// Collect unique TypeIDs so each named type is fetched once even if
-	// referenced by many objects (e.g. a map of N Users → 1 User type fetch).
 	uniqueTypeIDs := make(map[string]struct{})
 	if typeFetcher != nil {
 		for _, n := range candidates {
@@ -272,7 +192,6 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 	semObj := make(chan struct{}, maxConcurrentObjectFetches)
 	semType := make(chan struct{}, maxConcurrentObjectFetches)
 
-	// Pool 1: stored objects.
 	for oid := range byOID {
 		wg.Add(1)
 		go func(oid string) {
@@ -289,9 +208,6 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 		}(oid)
 	}
 
-	// Pool 2: named types — independent semaphore so types never wait
-	// for object slots. Both pools run in parallel; total wall-clock
-	// is max(slowest object, slowest type) instead of their sum.
 	for tid := range uniqueTypeIDs {
 		wg.Add(1)
 		go func(tid string) {
@@ -309,11 +225,6 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 	}
 	wg.Wait()
 
-	// Apply: for each candidate, decode object children with its type
-	// (when both are present), or fall back to positional indices.
-	// After populating Children, re-compute Preview so the collapsed
-	// row picks up the freshly-fetched fields — without it, lazily-
-	// loaded refs would stay generic until the user expands.
 	for oid, refs := range byOID {
 		raw, ok := objCache[oid]
 		if !ok {
@@ -329,11 +240,8 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 				continue
 			}
 			n.Children = decoded.Nodes
-			// Propagate the fetched object's ObjectInfo to the outer ref
-			// node so the card header surfaces Hash/Owner/RefCount even
-			// when the outer was just a pointer with no ObjectInfo of
-			// its own. Only fill empties — don't clobber values already
-			// set by a previous round.
+			// Fill the outer ref's ObjectInfo from the fetched payload
+			// only when empty — preserves values from earlier rounds.
 			if n.Hash == "" {
 				n.Hash = decoded.Info.Hash
 			}
@@ -354,11 +262,8 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 	}
 }
 
-// stateObjectHref builds the URL for `<pkgPath>$state&oid=<encoded-oid>` —
-// optionally annotated with `&tid=<TypeID>` so the destination page can
-// resolve struct field names without an extra round-trip, and with
-// `&height=N` when the originating page is pinned to a historical
-// block (time-travel must hold across hops). Single source of truth.
+// stateObjectHref builds a `<pkgPath>$state&oid=...` URL, propagating
+// optional tid + height so time-travel and type resolution survive hops.
 func stateObjectHref(pkgPath, oid, typeID string, height int64) template.URL {
 	wq := url.Values{"state": {""}, "oid": {oid}}
 	if typeID != "" {
@@ -415,22 +320,9 @@ func sliceLines(content []byte, startLine, endLine int) []byte {
 	return content[start:end]
 }
 
-// AttachDocs projects doc-index entries onto top-level StateNodes by
-// Name. Each match populates the node's Doc (markdown comment).
-// Names that don't match are silently dropped — the doc index may
-// include items handled elsewhere.
-//
-// Caller is the handler: it fetches Client.Doc(pkgPath) in parallel
-// with qpkg_json so the page assembly stays at one RTT.
-//
-// Ordering: vals → funs → typs. Go forbids same-name top-level decls
-// across these groups in a single package, so collisions cannot happen
-// in practice; the order is fixed only so future repeats remain
-// deterministic. AttachDocs MUST run BEFORE Enrich — Enrich seals the
-// tree by following refs into children, and Doc only attaches to
-// top-level nodes by Name. Calling it after Enrich is harmless but
-// pointless work; calling it before guarantees docs render on first
-// paint without depending on lazy fetches.
+// AttachDocs projects doc-index entries onto top-level StateNodes by Name.
+// Must run before Enrich — only top-level nodes carry Names matchable to
+// the doc index.
 func AttachDocs(nodes []StateNode, vals []NamedDoc, funs []NamedDoc, typs []NamedDoc) {
 	if len(nodes) == 0 {
 		return

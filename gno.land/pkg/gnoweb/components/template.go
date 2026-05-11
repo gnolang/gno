@@ -60,9 +60,9 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	// slice/array→Index, default→Field).
 	funcs["headingForKind"] = func(kind string) string {
 		switch kind {
-		case "map":
+		case KindMap:
 			return "Key"
-		case "slice", "array":
+		case KindSlice, KindArray:
 			return "Index"
 		default:
 			return "Field"
@@ -76,7 +76,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	// icon system. Symbols are defined in `ui/icons.html`.
 	funcs["kindIconID"] = func(kind, t string) string {
 		switch kind {
-		case "primitive":
+		case KindPrimitive:
 			switch {
 			case strings.Contains(t, "string"):
 				return "kind-string"
@@ -85,27 +85,27 @@ func registerCommonFuncs(funcs template.FuncMap) {
 			default:
 				return "kind-number"
 			}
-		case "struct":
+		case KindStruct:
 			return "kind-struct"
-		case "map":
+		case KindMap:
 			return "kind-map"
-		case "slice", "array":
+		case KindSlice, KindArray:
 			return "kind-slice"
-		case "pointer":
+		case KindPointer:
 			return "kind-pointer"
-		case "func":
+		case KindFunc:
 			return "kind-func"
-		case "closure":
+		case KindClosure:
 			return "kind-closure"
-		case "ref":
+		case KindRef:
 			return "kind-ref"
-		case "nil":
+		case KindNil:
 			return "kind-nil"
-		case "package":
+		case KindPackage:
 			return "kind-package"
-		case "type":
+		case KindType:
 			return "kind-type"
-		case "interface":
+		case KindInterface:
 			return "kind-interface"
 		default:
 			return "kind-unknown"
@@ -116,11 +116,11 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	// single flat selector instead of stacked :not() chains.
 	funcs["kindGroup"] = func(kind string) string {
 		switch kind {
-		case "struct", "map", "slice", "array", "pointer", "ref":
+		case KindStruct, KindMap, KindSlice, KindArray, KindPointer, KindRef:
 			return "state"
-		case "func", "closure":
+		case KindFunc, KindClosure:
 			return "code"
-		case "type", "interface":
+		case KindType, KindInterface:
 			return "types"
 		default:
 			return "other"
