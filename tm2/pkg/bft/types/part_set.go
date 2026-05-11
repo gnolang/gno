@@ -209,6 +209,17 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 		return false, nil
 	}
 
+	// Verify proof metadata matches what we expect.
+	// Proof.Verify uses Proof.Index internally, so a Byzantine peer could send
+	// a Part with part.Index != part.Proof.Index and pass the merkle check
+	// while storing bytes at the wrong position.
+	if part.Proof.Index != part.Index {
+		return false, ErrPartSetInvalidProof
+	}
+	if part.Proof.Total != ps.total {
+		return false, ErrPartSetInvalidProof
+	}
+
 	// Check hash proof
 	if part.Proof.Verify(ps.Hash(), part.Bytes) != nil {
 		return false, ErrPartSetInvalidProof

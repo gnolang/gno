@@ -24,6 +24,22 @@ func PreviousRealm() Realm {
 	return Realm{address(addr), path}
 }
 
+// GetSessionInfo returns session metadata if the current transaction was
+// signed by a session key. Returns isSession=false for master-key transactions.
+//
+// When isSession is true:
+//   - pubKeyAddr is the session key's address (for per-session tracking)
+//   - expiresAt is the unix timestamp when the session expires (0 = no expiry)
+//   - allowPaths is the list of realm path prefixes this session can call;
+//     nil or empty means unrestricted (any realm). Realms that want to enforce
+//     session-specific limits should check isSession and apply their own
+//     authorization logic.
+func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string, isSession bool) {
+	addr, exp, paths, ok := getSessionInfo()
+	return address(addr), exp, paths, ok
+}
+
 // Variations which don't use named types.
 func originCaller() string
 func getRealm(height int) (address string, pkgPath string)
+func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)

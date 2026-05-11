@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm" // amino types
+	_ "github.com/gnolang/gno/gnovm/stdlibs/chain" // amino types
 
 	"github.com/gnolang/gno/contribs/tx-archive/backup/client"
 	"github.com/gnolang/gno/contribs/tx-archive/backup/writer"

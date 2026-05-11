@@ -14,6 +14,15 @@ var realmAddr = runtime.CurrentRealm().Address()
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
 func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
+	// Reject non-EOA callers: banker.OriginSend() and the realm-balance
+	// check below describe coins that actually landed at this realm only
+	// when the caller is a pure EOA. A `maketx run` ephemeral realm or
+	// intermediate code realm could otherwise consume the envelope and
+	// have this function disperse pre-existing realm balance to
+	// attacker-chosen addresses.
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	coinSent := banker.OriginSend()
 	caller := runtime.PreviousRealm().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)

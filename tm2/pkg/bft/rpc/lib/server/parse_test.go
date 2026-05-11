@@ -271,8 +271,8 @@ func TestParseURI_JSON(t *testing.T) {
 	}{
 		// Valid JSON encoded values
 		{`{"key": "value"}`, Data{Key: "value"}, false},
-		{`{"id": 123}`, Data{}, false},         // Invalid field "id" (not in struct)
-		{`{"list": [1, 2, 3]}`, Data{}, false}, // Invalid field "list" (not in struct)
+		{`{"id": 123}`, Data{}, true},         // Invalid field "id" (not in struct)
+		{`{"list": [1, 2, 3]}`, Data{}, true}, // Invalid field "list" (not in struct)
 		// Invalid JSON encoded values
 		{`"string_data"`, Data{}, true},                // Invalid JSON format (not an object)
 		{`12345`, Data{}, true},                        // Invalid JSON format (not an object)

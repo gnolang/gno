@@ -19,10 +19,15 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-// Renderer defines the interface for rendering realms and source files.
+// Renderer defines the interface for rendering realms, source files, and
+// doc-context markdown (function/type/package documentation).
 type Renderer interface {
 	RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.Toc, error)
 	RenderSource(w io.Writer, name string, src []byte) error
+	// RenderDocumentation renders doc-context markdown (from vm/qdoc) to HTML.
+	// Fenced and indented code blocks are wrapped in collapsible <details>
+	// with Chroma highlighting. HTML escaping is delegated to Goldmark.
+	RenderDocumentation(w io.Writer, src []byte) error
 }
 
 // RealmRenderContext holds context information for rendering realms
@@ -38,8 +43,9 @@ type HTMLRenderer struct {
 	cfg    *RenderConfig
 	client ClientAdapter
 
-	gm goldmark.Markdown
-	ch *chromahtml.Formatter
+	gm              goldmark.Markdown // realm context
+	documentationGM goldmark.Markdown // doc context
+	ch              *chromahtml.Formatter
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter) *HTMLRenderer {
@@ -48,12 +54,26 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
 		),
 	))
+
+	// Doc-context renderer. parser.WithAttribute consumes the Pandoc-style
+	// `{#id}` heading suffixes emitted by gnovm/pkg/doc; ExtCodeExpand wraps
+	// fenced code blocks in collapsible <details>.
+	docFormatter := chromahtml.New(cfg.ChromaOptions...)
+	docOpts := []goldmark.Option{
+		goldmark.WithExtensions(
+			markdown.NewHighlighting(markdown.WithFormatOptions(cfg.ChromaOptions...)),
+			md.ExtCodeExpand(docFormatter, cfg.ChromaStyle),
+		),
+		goldmark.WithParserOptions(parser.WithAttribute()),
+	}
+
 	return &HTMLRenderer{
-		logger: logger,
-		cfg:    &cfg,
-		client: client,
-		gm:     goldmark.New(gmOpts...),
-		ch:     chromahtml.New(cfg.ChromaOptions...),
+		logger:          logger,
+		cfg:             &cfg,
+		client:          client,
+		gm:              goldmark.New(gmOpts...),
+		documentationGM: goldmark.New(docOpts...),
+		ch:              chromahtml.New(cfg.ChromaOptions...),
 	}
 }
 
@@ -112,6 +132,18 @@ func (r *HTMLRenderer) RenderSource(w io.Writer, name string, src []byte) error 
 		return fmt.Errorf("unable to format source file %q: %w", name, err)
 	}
 
+	return nil
+}
+
+// RenderDocumentation writes the HTML representation of doc-context markdown
+// to w. HTML escaping is delegated to Goldmark.
+func (r *HTMLRenderer) RenderDocumentation(w io.Writer, src []byte) error {
+	if len(src) == 0 {
+		return nil
+	}
+	if err := r.documentationGM.Convert(src, w); err != nil {
+		return fmt.Errorf("render documentation: %w", err)
+	}
 	return nil
 }
 
