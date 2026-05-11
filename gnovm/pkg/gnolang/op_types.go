@@ -183,7 +183,9 @@ func (m *Machine) staticTypeOfX(x Expr) Type {
 	m.PushExpr(x)
 	m.PushOp(OpStaticTypeOf)
 	m.Run(StageRun)
-	return m.ReapValues(start)[0].GetType()
+	t := m.ReapValues(start)[0].GetType()
+	x.SetAttribute(ATTR_TYPEOF_VALUE, t)
+	return t
 }
 
 // Evaluate the type of a typed (i.e. not untyped) value.
