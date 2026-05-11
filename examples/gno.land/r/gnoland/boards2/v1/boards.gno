@@ -65,8 +65,8 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 
 // getInviteRequests returns invite requests for a board.
 func getInviteRequests(boardID boards.ID) (_ *bptree.BPTree, found bool) {
-	v, exists := gInviteRequests.Get(boardID.Key())
-	if !exists {
+	v := gInviteRequests.Get(boardID.Key())
+	if v == nil {
 		return nil, false
 	}
 	return v.(*bptree.BPTree), true
@@ -74,8 +74,8 @@ func getInviteRequests(boardID boards.ID) (_ *bptree.BPTree, found bool) {
 
 // getBannedUsers returns banned users within a board.
 func getBannedUsers(boardID boards.ID) (_ *bptree.BPTree, found bool) {
-	v, exists := gBannedUsers.Get(boardID.Key())
-	if !exists {
+	v := gBannedUsers.Get(boardID.Key())
+	if v == nil {
 		return nil, false
 	}
 	return v.(*bptree.BPTree), true

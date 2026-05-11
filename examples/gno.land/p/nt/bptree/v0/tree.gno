@@ -3,7 +3,7 @@ package bptree
 type ITree interface {
 	Size() int
 	Has(key string) bool
-	Get(key string) (value any, exists bool)
+	Get(key string) any
 	GetByIndex(index int) (key string, value any)
 	Iterate(start, end string, cb IterCbFn) bool
 	ReverseIterate(start, end string, cb IterCbFn) bool
@@ -58,10 +58,19 @@ func (t *BPTree) Has(key string) bool {
 	return found
 }
 
-// Get retrieves the value associated with the given key.
-func (t *BPTree) Get(key string) (value any, exists bool) {
+// Get retrieves the value associated with the given key, or nil if the key
+// does not exist. Use Has to distinguish a stored nil value from a missing key.
+//
+// Typical usage:
+//
+//	v := tree.Get("key")
+//	if v == nil {
+//	    return // key missing
+//	}
+//	user := v.(*User)
+func (t *BPTree) Get(key string) any {
 	if t.root == nil {
-		return nil, false
+		return nil
 	}
 	n := t.root
 	for !n.isLeaf() {
@@ -72,9 +81,9 @@ func (t *BPTree) Get(key string) (value any, exists bool) {
 	leaf := n.(*leafNode)
 	pos, found := leaf.find(key)
 	if !found {
-		return nil, false
+		return nil
 	}
-	return *leaf.values[pos], true
+	return *leaf.values[pos]
 }
 
 // GetByIndex returns the key-value pair at the given 0-based index.

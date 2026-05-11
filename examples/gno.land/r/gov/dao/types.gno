@@ -131,8 +131,8 @@ func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
 }
 
 func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
-	pv, ok := ps.Get(pid.String())
-	if !ok {
+	pv := ps.Get(pid.String())
+	if pv == nil {
 		return nil
 	}
 

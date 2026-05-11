@@ -32,8 +32,8 @@ func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 	}
 
 	pids := id.String()
-	psv, ok := pss.Get(pids)
-	if !ok {
+	psv := pss.Get(pids)
+	if psv == nil {
 		return nil
 	}
 
