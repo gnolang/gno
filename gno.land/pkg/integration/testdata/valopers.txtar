@@ -7,7 +7,7 @@ adduser regular1
 gnoland start
 
 # Add user as a member for govdao
-gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
+gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 # add a valoper with a bad operator address (not the caller's). The
 # post-genesis squat guard rejects: OriginCaller (test1) != addr.
@@ -54,7 +54,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'new instructions'
 
 # make a proposal for updating minimum fee
-gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 36_000_000 -chainid=tendermint_test test1 $WORK/run/new_minfee_proposal.gno
+gnokey maketx run  -gas-fee 3600001ugnot -gas-wanted 38_000_000 -chainid=tendermint_test test1 $WORK/run/new_minfee_proposal.gno
 stdout OK!
 
 # see the instructions in gov/dao proposition Render. minFee
