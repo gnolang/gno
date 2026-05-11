@@ -132,6 +132,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Meta:          staticMeta,
 		Renderer:      renderer,
 		Aliases:       cfg.Aliases,
+		Timeout:       cfg.NodeRequestTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)

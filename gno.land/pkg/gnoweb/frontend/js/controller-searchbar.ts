@@ -15,11 +15,15 @@ export class SearchbarController extends BaseController {
 	public searchUrl(e: Event): void {
 		e.preventDefault();
 
-		const inputElement = this.getDOMElement("input") as HTMLInputElement;
-		let url = inputElement?.value.trim();
+		const inputElement = this.getDOMElement("input");
+		if (!(inputElement instanceof HTMLInputElement)) {
+			console.error("SearchbarController: input target missing or wrong type.");
+			return;
+		}
+		let url = inputElement.value.trim();
 
 		if (!url) {
-			console.error("SearchBarController: Please enter a URL to search.");
+			console.error("SearchbarController: Please enter a URL to search.");
 			return;
 		}
 

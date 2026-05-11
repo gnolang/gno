@@ -32,7 +32,8 @@ export class StateController extends BaseController {
 		this.openSet = this.loadOpen();
 		if (this.viewTree) {
 			this.applyOpen();
-			// `toggle` doesn't bubble per spec — capture phase required.
+			// Capture phase: cheap defense for older engines where `toggle`
+			// historically didn't bubble (modern browsers do bubble it).
 			this.viewTree.addEventListener(
 				"toggle",
 				this.onToggle as EventListener,
@@ -43,12 +44,23 @@ export class StateController extends BaseController {
 		this.restoreViewMode();
 	}
 
+	protected disconnect(): void {
+		if (this.viewTree) {
+			this.viewTree.removeEventListener(
+				"toggle",
+				this.onToggle as EventListener,
+				true,
+			);
+		}
+	}
+
 	// Bulk expand/collapse. The cascading `toggle` events flow through
 	// `onToggle` below so localStorage stays in sync — one source of
 	// persistence truth, two surfaces (manual click + bulk).
 	public toggleAll(event: Event): void {
 		if (!this.viewTree) return;
-		const btn = event.currentTarget as HTMLElement;
+		const btn = event.currentTarget;
+		if (!(btn instanceof HTMLElement)) return;
 		const expand = btn.getAttribute("aria-pressed") !== "true";
 		const details =
 			this.viewTree.querySelectorAll<HTMLDetailsElement>("details");
@@ -124,8 +136,8 @@ export class StateController extends BaseController {
 	// Writes both stores: localStorage (client truth) + cookie (SSR
 	// hint so the server stamps the right radio on next nav).
 	public updateView(event: Event): void {
-		const target = event.target as HTMLInputElement;
-		if (!target.checked) return;
+		const target = event.target;
+		if (!(target instanceof HTMLInputElement) || !target.checked) return;
 		const mode = target.value;
 		if (!VIEW_VALID_MODES.has(mode)) return;
 		try {
@@ -145,9 +157,13 @@ export class StateController extends BaseController {
 			return;
 		}
 		if (!saved || !VIEW_VALID_MODES.has(saved)) return;
-		const radios = this.getTargets("view-radio") as HTMLInputElement[];
+		const radios = this.getTargets("view-radio");
 		for (const radio of radios) {
-			if (radio.value === saved && !radio.checked) {
+			if (
+				radio instanceof HTMLInputElement &&
+				radio.value === saved &&
+				!radio.checked
+			) {
 				radio.checked = true;
 				return;
 			}

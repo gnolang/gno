@@ -82,6 +82,7 @@ type HTTPHandler struct {
 	Client   ClientAdapter
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
+	Timeout  time.Duration
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -95,6 +96,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Static:   cfg.Meta,
 		Renderer: cfg.Renderer,
 		Aliases:  cfg.Aliases,
+		Timeout:  cfg.Timeout,
 		Logger:   logger,
 	}, nil
 }
@@ -122,6 +124,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"url", r.URL.String(),
 			"elapsed", time.Since(start).String())
 	}()
+
+	if h.Timeout > 0 {
+		ctx, cancel := context.WithTimeout(r.Context(), h.Timeout)
+		defer cancel()
+		r = r.WithContext(ctx)
+	}
 
 	// Read theme preference from cookie for server-side rendering.
 	// Prevents FOUC by embedding data-theme in the HTML before CSS loads.

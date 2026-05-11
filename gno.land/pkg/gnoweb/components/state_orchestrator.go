@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -142,9 +141,9 @@ func fetchFilesConcurrent(pkgPath string, files map[string]struct{}, fetcher Fil
 	sem := make(chan struct{}, maxConcurrentFileFetches)
 	for file := range files {
 		wg.Add(1)
-		sem <- struct{}{}
 		go func(name string) {
 			defer wg.Done()
+			sem <- struct{}{}
 			defer func() { <-sem }()
 			content, err := fetcher.Fetch(pkgPath, name)
 			if err != nil {
@@ -276,9 +275,9 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 	// Pool 1: stored objects.
 	for oid := range byOID {
 		wg.Add(1)
-		semObj <- struct{}{}
 		go func(oid string) {
 			defer wg.Done()
+			semObj <- struct{}{}
 			defer func() { <-semObj }()
 			raw, err := objFetcher.FetchObject(oid)
 			if err != nil {
@@ -295,9 +294,9 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 	// is max(slowest object, slowest type) instead of their sum.
 	for tid := range uniqueTypeIDs {
 		wg.Add(1)
-		semType <- struct{}{}
 		go func(tid string) {
 			defer wg.Done()
+			semType <- struct{}{}
 			defer func() { <-semType }()
 			raw, err := typeFetcher.FetchType(tid)
 			if err != nil {
@@ -372,31 +371,48 @@ func stateObjectHref(pkgPath, oid, typeID string, height int64) template.URL {
 	return template.URL(u.EncodeWebURL())
 }
 
-// sliceLines extracts a 1-based inclusive line range from content.
-//   - startLine <= 0 returns the entire content (treat as "no slicing").
-//   - endLine > number of lines is clamped to the last line.
-//   - endLine < startLine is treated as startLine..end (defensive).
-//   - startLine past end-of-file returns nothing (no panic).
+// sliceLines extracts a 1-based inclusive line range from content via a
+// single-pass byte scan — avoids allocating the full file as a string +
+// []string just to keep ~5 lines. Returns a sub-slice of content (no copy).
+//   - startLine <= 0 returns the entire content.
+//   - endLine clamped to the last line.
+//   - startLine past end-of-file returns nil.
 func sliceLines(content []byte, startLine, endLine int) []byte {
 	if startLine <= 0 {
 		return content
 	}
-	lines := strings.Split(string(content), "\n")
-	if startLine > len(lines) {
+	// Scan to the first byte of startLine.
+	line, start := 1, 0
+	for line < startLine && start < len(content) {
+		nl := bytes.IndexByte(content[start:], '\n')
+		if nl < 0 {
+			return nil
+		}
+		start += nl + 1
+		line++
+	}
+	if line < startLine {
 		return nil
 	}
-	end := endLine
-	if end > len(lines) || end < startLine {
-		end = len(lines)
+	// Defensive: endLine < startLine → fall through to EOF.
+	if endLine < startLine {
+		return content[start:]
 	}
-	var buf bytes.Buffer
-	for i := startLine - 1; i < end; i++ {
-		if i > startLine-1 {
-			buf.WriteByte('\n')
+	// Walk forward to the byte just before endLine's terminating newline
+	// (or EOF if endLine is the last line).
+	end := start
+	for line <= endLine && end < len(content) {
+		nl := bytes.IndexByte(content[end:], '\n')
+		if nl < 0 {
+			return content[start:]
 		}
-		buf.WriteString(lines[i])
+		if line == endLine {
+			return content[start : end+nl]
+		}
+		end += nl + 1
+		line++
 	}
-	return buf.Bytes()
+	return content[start:end]
 }
 
 // AttachDocs projects doc-index entries onto top-level StateNodes by
