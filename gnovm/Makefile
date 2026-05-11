@@ -108,6 +108,16 @@ calibrate.gas:
 .PHONY: test
 test: _test.filetest _test.cmd _test.pkg _test.stdlibs
 
+# Run tests with the debug build tag (enables debug checks).
+.PHONY: test.debug
+test.debug:
+	go test -tags debug ./pkg/... $(GOTEST_FLAGS)
+
+# Run tests with the debugAssert build tag (enables runtime invariant checks).
+.PHONY: test.debugAssert
+test.debugAssert:
+	go test -tags debugAssert ./pkg/... $(GOTEST_FLAGS)
+
 .PHONY: _test.cmd
 _test.cmd:
 	go test ./cmd/... $(GOTEST_FLAGS)

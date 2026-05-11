@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gnolang/contribs/gnogenesis/internal/balances"
+	"github.com/gnolang/contribs/gnogenesis/internal/fork"
 	"github.com/gnolang/contribs/gnogenesis/internal/generate"
 	"github.com/gnolang/contribs/gnogenesis/internal/params"
 	"github.com/gnolang/contribs/gnogenesis/internal/txs"
@@ -28,6 +29,7 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 		balances.NewBalancesCmd(io),
 		txs.NewTxsCmd(io),
 		params.NewParamsCmd(io),
+		fork.NewForkCmd(io),
 	)
 
 	return cmd

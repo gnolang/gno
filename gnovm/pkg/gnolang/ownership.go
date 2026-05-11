@@ -253,15 +253,7 @@ func (oi *ObjectInfo) SetOwner(po Object) {
 }
 
 func (oi *ObjectInfo) GetOwnerID() ObjectID {
-	if oi.owner == nil {
-		// The only way to get oi.OwnerID set is with oi.owner
-		// (except for serialization purposes),
-		// and the only way to reach an object with an owner is
-		// from the owner, so oi.OwnerID.IsZero() here.
-		return ObjectID{}
-	} else {
-		return oi.owner.GetObjectID()
-	}
+	return oi.OwnerID
 }
 
 func (oi *ObjectInfo) GetIsOwned() bool {

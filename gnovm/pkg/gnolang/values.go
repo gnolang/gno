@@ -837,18 +837,14 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	}
 }
 
-// Retrieves the block from store if necessary, and if so fills all the values
-// of the block.
+// Retrieves the block from store if necessary.
+// Block values are filled lazily via GetPointerToInt/fillValueTV.
 func (pv *PackageValue) GetBlock(store Store) *Block {
 	bv := pv.Block
 	switch bv := bv.(type) {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
-		for i := range bb.Values {
-			tv := &bb.Values[i]
-			fillValueTV(store, tv)
-		}
 		return bb
 	case *Block:
 		return bv
@@ -2591,7 +2587,6 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
 	ObjectID ObjectID  `json:",omitempty"` // If non-zero, PkgPath is empty
-	Escaped  bool      `json:",omitempty"` // XXX NOT USED DELETEME
 	PkgPath  string    `json:",omitempty"` // If set, ObjectID is non-zero
 	Hash     ValueHash `json:",omitempty"` // Set iff not escaped
 }
@@ -2729,7 +2724,18 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
-			tv.V = store.GetObject(cv.ObjectID)
+			obj := store.GetObject(cv.ObjectID)
+			if debugAssert {
+				// Verify hash chain: parent's claimed child hash
+				// must match child's actual stored hash.
+				// Escaped objects carry zero RefValue hash (resolved via IAVL).
+				if childHash := obj.GetHash(); !cv.Hash.IsZero() && cv.Hash != childHash {
+					panic(fmt.Sprintf(
+						"hash chain broken at %s: parent claims child hash %X, but child has %X",
+						cv.ObjectID, cv.Hash.Bytes(), childHash.Bytes()))
+				}
+			}
+			tv.V = obj
 		}
 	case PointerValue:
 		// As a special case, cv.Base is filled
@@ -2742,6 +2748,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		switch cbv := cv.Base.(type) {
 		case *HeapItemValue:
 			fillValueTV(store, &cbv.Value)
+			cv.TV = &cbv.Value
 		case RefValue:
 			base := store.GetObject(cbv.ObjectID).(Value)
 			cv.Base = base
@@ -2761,6 +2768,15 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				vpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
+				/* Structs and blocks don't need explicit
+				filling here because GetPointerToInt already
+				does it — it calls fillValueTV on the specific
+				element before returning the pointer.
+				HeapItemValue is the odd one out because it
+				wraps a single value (no index), so there's no
+				GetPointerToInt call — it just takes &cbv.Value
+				directly, skipping the fill step. */
+				fillValueTV(store, &cbv.Value)
 				cv.TV = &cbv.Value
 			default:
 				panic("should not happen")

@@ -901,31 +901,6 @@ def main():
             p('\tOpCPUSlope%-20s = %4d // %.4f ns/digit * 100 = %.1f' % (
                 go_name, round(slope_per_100), b, slope_per_100))
 
-    # --- VM op quadratic slopes (O(N^2) handlers) ---
-    p()
-    p('\t// VM op quadratic slopes: gas = N^2 * slope / 10.')
-    VM_QUAD_FAMILIES = [
-        ('EnterCrossing (depth)', 'EnterCrossingQuad', [
-            ('BenchmarkOpEnterCrossing_1', 1), ('BenchmarkOpEnterCrossing_10', 10),
-            ('BenchmarkOpEnterCrossing_100', 100), ('BenchmarkOpEnterCrossing_1000', 1000)]),
-    ]
-    for display_name, go_name, benchmarks in VM_QUAD_FAMILIES:
-        points = []
-        for bench_name, n_val in benchmarks:
-            s = get_stats(data, bench_name)
-            if s is None: continue
-            ns_pure, alloc_gas = s
-            _, cpu_g = gas(ns_pure, alloc_gas)
-            points.append((n_val, cpu_g))
-        if len(points) < 2:
-            continue
-        # Quadratic fit: ns = a + b * Q where Q = N^2 / 10
-        q_points = [(x*x/10, y) for x, y in points]
-        a_q, b_q, r2_q = least_squares(q_points)
-        slope_val = max(1, round(b_q))
-        p('\tOpCPUSlope%-20s = %4d // quadratic fit: slope=%.2f, intercept=%.0f (R\u00b2=%.4f)' % (
-            go_name, slope_val, b_q, a_q, r2_q))
-
     p(')')
 
     report = '\n'.join(out)

@@ -1,15 +1,3 @@
-// Opcode microbenchmarks for GnoVM gas calibration.
-//
-// These benchmarks measure individual opcode costs and report custom metrics
-// (alloc-gas/op, ns/op(pure)) via the pkg/benchops instrumentation framework.
-//
-// The output is consumed by gnovm/cmd/calibrate's analysis scripts:
-//
-//	go test -run=^$ -bench='BenchmarkOp' -benchtime=2s -count=3 -timeout=60m \
-//	    ./pkg/gnolang/ 2>&1 | tee gnovm/cmd/calibrate/op_bench.txt
-//	cd gnovm/cmd/calibrate && python3 gen_analysis.py op_bench.txt
-//
-// See gnovm/cmd/calibrate/README.md for the full calibration workflow.
 package gnolang
 
 import (
@@ -32,8 +20,8 @@ import (
 // isolate timing to just the doOpXxx() call, and checks the result.
 
 const (
-	bmSetup  = bm.CPUOp(0x01) // dummy op code for setup phases
-	bmTarget = bm.CPUOp(0x02) // op code for the measured operation
+	bmSetup  = byte(0x01) // dummy op code for setup phases
+	bmTarget = byte(0x02) // op code for the measured operation
 )
 
 // benchAllocMeter tracks allocation gas across the benchmark.
@@ -132,47 +120,6 @@ func BenchmarkOpAdd_String_10(b *testing.B)    { benchOpAdd_String(b, 10) }
 func BenchmarkOpAdd_String_100(b *testing.B)   { benchOpAdd_String(b, 100) }
 func BenchmarkOpAdd_String_1000(b *testing.B)  { benchOpAdd_String(b, 1000) }
 func BenchmarkOpAdd_String_10000(b *testing.B) { benchOpAdd_String(b, 10000) }
-
-// Asymmetric sizes to probe whether flat OpCPUAddString undercharges large
-// concatenations. ns/op(pure) should scale with len(A)+len(B) (underlying
-// Go string concat copies both halves). Plotted against sum(len(A), len(B))
-// in plot_fits.py as family "Add (string, asym)".
-func benchOpAdd_StringAsym(b *testing.B, lenA, lenB int) {
-	b.Helper()
-	m := benchMachine()
-	defer m.Release()
-	expr := &BinaryExpr{}
-	s1 := strings.Repeat("a", lenA)
-	s2 := strings.Repeat("b", lenB)
-	sv1 := m.Alloc.NewString(s1)
-	sv2 := m.Alloc.NewString(s2)
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(TypedValue{T: StringType, V: sv1})
-		m.PushValue(TypedValue{T: StringType, V: sv2})
-		m.PushExpr(expr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpAdd()
-		bm.SwitchOpCode(bmSetup)
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
-
-func BenchmarkOpAdd_String_1KB_1MB(b *testing.B) {
-	benchOpAdd_StringAsym(b, 1024, 1024*1024)
-}
-func BenchmarkOpAdd_String_1MB_10MB(b *testing.B) {
-	benchOpAdd_StringAsym(b, 1024*1024, 10*1024*1024)
-}
-func BenchmarkOpAdd_String_10MB_100MB(b *testing.B) {
-	benchOpAdd_StringAsym(b, 10*1024*1024, 100*1024*1024)
-}
-func BenchmarkOpAdd_String_100MB_10MB(b *testing.B) {
-	benchOpAdd_StringAsym(b, 100*1024*1024, 10*1024*1024)
-}
 
 func BenchmarkOpAdd_Float64(b *testing.B) {
 	m := benchMachine()
@@ -4230,62 +4177,6 @@ func BenchmarkOpCall_0Params_100Captures(b *testing.B)  { benchOpCall(b, 0, 100)
 func BenchmarkOpCall_0Params_1000Captures(b *testing.B) { benchOpCall(b, 0, 1000) }
 func BenchmarkOpCall_10Params_10Captures(b *testing.B)  { benchOpCall(b, 10, 10) }
 
-// --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
-// Scales with call stack depth until the first crossing ancestor. The handler's
-// inner loop calls PeekCallFrame(i) for i=1..depth, each O(i), so total work is
-// O(depth^2) (see op_call.go PERF note). The benchmark constructs `depth` call
-// frames with only the deepest marked WithCross=true, forcing the loop to walk
-// the full depth.
-//
-// PERF/TODO: if the handler is rewritten to be O(depth) (walk m.Frames once
-// with a cursor), this benchmark stays valid but the expected shape becomes
-// linear. Update QUADRATIC_VMOP in plot_fits.py and the quadratic fit in
-// gen_analysis.py to linear at the same time.
-
-func benchOpEnterCrossing(b *testing.B, depth int) {
-	b.Helper()
-	m := benchMachine()
-	defer m.Release()
-
-	// Make m.Package a realm and set a non-nil m.Realm so
-	// fri.LastRealm == m.Realm holds for intermediate frames.
-	m.Package = &PackageValue{PkgPath: "gno.land/r/bench"}
-	m.Realm = &Realm{Path: "gno.land/r/bench"}
-
-	// Dummy *FuncValue so Frame.IsCall() returns true.
-	fv := &FuncValue{PkgPath: "gno.land/r/bench"}
-
-	// Build `depth` call frames. The first pushed frame is the DEEPEST
-	// (PeekCallFrame walks from the end of m.Frames backward, so the
-	// first slot is last found). Only the deepest has WithCross=true —
-	// this is what terminates the loop at iteration N.
-	m.Frames = m.Frames[:0]
-	for i := 0; i < depth; i++ {
-		fr := Frame{Func: fv, LastRealm: m.Realm}
-		if i == 0 {
-			fr.WithCross = true
-		}
-		m.Frames = append(m.Frames, fr)
-	}
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		// doOpEnterCrossing calls fr1.SetDidCrossing, which panics if
-		// DidCrossing is already true. Reset before each iteration.
-		m.Frames[len(m.Frames)-1].DidCrossing = false
-		bm.SwitchOpCode(bmTarget)
-		m.doOpEnterCrossing()
-		bm.SwitchOpCode(bmSetup)
-	}
-	reportBenchops(b)
-}
-
-func BenchmarkOpEnterCrossing_1(b *testing.B)    { benchOpEnterCrossing(b, 1) }
-func BenchmarkOpEnterCrossing_10(b *testing.B)   { benchOpEnterCrossing(b, 10) }
-func BenchmarkOpEnterCrossing_100(b *testing.B)  { benchOpEnterCrossing(b, 100) }
-func BenchmarkOpEnterCrossing_1000(b *testing.B) { benchOpEnterCrossing(b, 1000) }
-
 // --- doOpReturn: unwind stack + realm check ---
 
 func BenchmarkOpReturn(b *testing.B) {
@@ -5731,6 +5622,9 @@ func benchOpUnrefCopyInt(b *testing.B, n int) {
 func BenchmarkOpUnrefCopy_Int_1k(b *testing.B)   { benchOpUnrefCopyInt(b, 1024) }
 func BenchmarkOpUnrefCopy_Int_10k(b *testing.B)  { benchOpUnrefCopyInt(b, 10*1024) }
 func BenchmarkOpUnrefCopy_Int_100k(b *testing.B) { benchOpUnrefCopyInt(b, 100*1024) }
+
+// BenchmarkOpChanType removed: channels are no longer supported in Gno
+// (upstream banned them; doOpChanType was deleted).
 
 // ---------------------------------------------------------------------------
 // Helper: encode int64/uint64 into [8]byte (little-endian, matching unsafe cast)

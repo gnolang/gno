@@ -25,16 +25,40 @@ func init() {
 func (goo ProofOp) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
 	if len(goo.Data) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Data)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Data)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if len(goo.Key) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Key)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Key)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.Type != "" {
-		offset = amino.PrependString(buf, offset, string(goo.Type))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.Type))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -54,6 +78,7 @@ func (goo ProofOp) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *ProofOp) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = ProofOp{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -61,7 +86,7 @@ func (goo *ProofOp) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -141,6 +166,7 @@ func (goo Proof) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *Proof) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = Proof{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -148,7 +174,7 @@ func (goo *Proof) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -204,20 +230,48 @@ func (goo SimpleProof) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 	var err error
 	for i := len(goo.Aunts) - 1; i >= 0; i-- {
 		elem := goo.Aunts[i]
-		offset = amino.PrependByteSlice(buf, offset, elem)
+		if len(elem) != 0 {
+			offset = amino.PrependByteSlice(buf, offset, elem)
+		} else {
+			offset = amino.PrependByte(buf, offset, 0x00)
+		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3ByteLength)
 	}
 	if len(goo.LeafHash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.LeafHash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.LeafHash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.Index != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Index))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Index))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	if goo.Total != 0 {
-		offset = amino.PrependVarint(buf, offset, int64(goo.Total))
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Total))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -241,6 +295,7 @@ func (goo SimpleProof) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SimpleProof) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SimpleProof{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -248,7 +303,7 @@ func (goo *SimpleProof) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum
@@ -377,8 +432,16 @@ func (goo SimpleProofNode) MarshalBinary2(cdc *amino.Codec, buf []byte, offset i
 		}
 	}
 	if len(goo.Hash) != 0 {
-		offset = amino.PrependByteSlice(buf, offset, goo.Hash)
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		{
+			before := offset
+			offset = amino.PrependByteSlice(buf, offset, goo.Hash)
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
 	}
 	return offset, err
 }
@@ -419,6 +482,7 @@ func (goo SimpleProofNode) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SimpleProofNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SimpleProofNode{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
@@ -426,7 +490,7 @@ func (goo *SimpleProofNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		if err != nil {
 			return err
 		}
-		if fnum < lastFieldNum {
+		if fnum <= lastFieldNum {
 			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
 		}
 		lastFieldNum = fnum

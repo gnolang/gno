@@ -19,7 +19,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	vm.Package,
 ).WithTypes(
 	&GnoAccount{}, "Account",
+	&GnoSessionAccount{}, "SessionAccount",
 	GnoGenesisState{}, "GenesisState",
 	TxWithMetadata{}, "TxWithMetadata",
 	GnoTxMetadata{}, "GnoTxMetadata",
+	SignerAccountInfo{}, "SignerAccountInfo",
 ))

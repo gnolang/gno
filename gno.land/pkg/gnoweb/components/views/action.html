@@ -52,7 +52,7 @@ UI - Help Function component
   <h2 class="b-content-h2" id="overview">
     Overview
   </h2>
-  <p>{{ . }}</p>
+  <div class="c-doc-view description">{{ render . }}</div>
 </div>
 {{ end }}
 
@@ -98,8 +98,8 @@ UI - Help Function component
       </span>
     </header>
 
-    {{ with .Doc }}
-    <p class="description">{{ . }}</p>
+    {{ with .DocComponent }}
+    <div class="c-doc-view description">{{ render . }}</div>
     {{ end }}
     <form class="params" id="form-{{ .Name }}" method="GET" action="{{ buildHelpURL $data . }}"
       data-action-function-target="function-execute">

@@ -1,0 +1,130 @@
+# Regression test for F1: the generic factories in r/sys/params
+# (NewSysParam*PropRequest) must refuse module="node",
+# submodule="valset" tuples, even from a GovDAO supermajority.
+#
+# Pre-fix attack: a member submits a generic-factory proposal targeting
+# node:valset:proposed. Because the factory writes via prms.SetSysParam*
+# directly (not via SetValsetProposal in valset.gno), the realm-side
+# assertValsetCaller gate is bypassed. WillSetParam validates entry
+# format but doesn't check the writer realm. Result: GovDAO can
+# override v3's authority over the validator set.
+#
+# Post-fix: assertNotValsetKey in each of the 9 factories panics at
+# proposal-creation time with a clear message. This test exercises
+# 4 representative shapes (Strings, Bytes, Bool, plus a positive
+# control with a non-valset key to confirm the gate doesn't
+# over-reject legitimate writes).
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Capture pre-state: valset:current must be unchanged after every
+# rejected attempt.
+gnokey query params/node:valset:current
+stdout 'gpub1'
+
+# 1) Strings factory targeting node:valset:proposed — must panic.
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_strings.gno
+stderr 'node:valset:\* is reserved for r/sys/validators/v3'
+
+# 2) Bytes factory targeting node:valset:proposed — must panic.
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bytes.gno
+stderr 'node:valset:\* is reserved for r/sys/validators/v3'
+
+# 3) Bool factory targeting node:valset:dirty — must panic.
+! gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/bypass_bool.gno
+stderr 'node:valset:\* is reserved for r/sys/validators/v3'
+
+# 4) Positive control: a legitimate non-valset write through the same
+# factory family must still succeed. (Construction; we don't execute
+# the proposal — just prove proposal-creation doesn't panic.)
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/legit_nonvalset.gno
+stdout OK!
+
+# Post-state: valset:current and valset:dirty unchanged. The
+# bypass attempts panicked at proposal-creation, never reached the
+# chain — but the EndBlocker invariant still has to hold.
+gnokey query params/node:valset:current
+stdout 'gpub1'
+! stdout 'gpub1pgggg'
+# dirty was never set (no proposal ever reached the chain), so query
+# returns empty data — equivalent to "false" for bool params.
+gnokey query params/node:valset:dirty
+! stdout 'true'
+
+-- run/bypass_strings.gno --
+package main
+
+import sysparams "gno.land/r/sys/params"
+
+func main() {
+	// Forge a fake-but-format-valid pubkey so WillSetParam wouldn't
+	// reject on entry parse if F1 ever silently regresses. F1 must
+	// panic before we get that far.
+	const fakePubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	_ = sysparams.NewSysParamStringsPropRequest("node", "valset", "proposed", []string{fakePubKey + ":1000000"})
+}
+
+-- run/bypass_bytes.gno --
+package main
+
+import sysparams "gno.land/r/sys/params"
+
+func main() {
+	_ = sysparams.NewSysParamBytesPropRequest("node", "valset", "proposed", []byte("garbage"))
+}
+
+-- run/bypass_bool.gno --
+package main
+
+import sysparams "gno.land/r/sys/params"
+
+func main() {
+	_ = sysparams.NewSysParamBoolPropRequest("node", "valset", "dirty", true)
+}
+
+-- run/legit_nonvalset.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	sysparams "gno.land/r/sys/params"
+)
+
+func main() {
+	// vm:p:chain_domain is a normal governance-managed key. F1 must
+	// not over-reject it.
+	pr := sysparams.NewSysParamStringPropRequest("vm", "p", "chain_domain", "test.land")
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

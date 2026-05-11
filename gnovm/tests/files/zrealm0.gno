@@ -13,6 +13,8 @@ func main(cur realm) {
 // undefined
 // 1
 
+
+
 // The below tests that the realm's block (of 1 variable) changed.  The first
 // element image in the package (block) is for the "main" function, which
 // appears first because function declarations are defined in a file before
@@ -20,14 +22,14 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](31)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:3](31)=
 //     @@ -2,9 +2,15 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "LastObjectSize": "190",
 //     -        "ModTime": "0",
 //     +        "ModTime": "5",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "OwnerID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
 //     -    "Value": {}
@@ -39,3 +41,22 @@ func main(cur realm) {
 //     +        }
 //     +    }
 //      }
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "537",
+//     -        "ModTime": "0",
+//     +        "ModTime": "5",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -34,7 +34,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "77f76390147dcb12d9de104eb549c3a959934c1c",
+//     +                "Hash": "e776a39de481083cf660af87f3827b16cd2d28ac",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },

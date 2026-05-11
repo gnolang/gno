@@ -20,10 +20,13 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-type (
-	debugging      bool
-	debuggingRealm bool
-)
+// Build tags for zero-cost debug toggles:
+//   -tags debug       → enables debug logging (debug.Printf/Println + pprof server)
+//   -tags debugAssert → enables runtime invariant checks that panic on violation
+// debugAssert sites currently exist in realm.go and store.go; remaining
+// if debug { panic } sites across other files are candidates for migration.
+
+type debugging bool
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
@@ -67,28 +70,6 @@ func (debugging) Printf(format string, args ...any) {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			fmt.Printf(prefix+format, args...)
-		}
-	}
-}
-
-func (debuggingRealm) Println(args ...interface{}) {
-	if debugRealm {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
-			fmt.Println(append([]interface{}{prefix}, args...)...)
-		}
-	}
-}
-
-func (debuggingRealm) Printf(format string, args ...interface{}) {
-	if debugRealm {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
 			fmt.Printf(prefix+format, args...)
 		}
 	}
