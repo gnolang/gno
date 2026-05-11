@@ -146,15 +146,17 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 			}
 		}
 		if res != nil {
+			hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
+			if cfg.DryRun && !hasError {
+				err = estimateGasFee(cli, res)
+				return res, err
+			}
 			appendSuggestedGasWanted(res)
-		}
-		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
-		if hasError {
-			return res, err
-		}
-		if cfg.DryRun { // we estmate the gas fee in dry run
-			err = estimateGasFee(cli, res)
-			return res, err
+			if hasError {
+				return res, err
+			}
+		} else if err != nil {
+			return nil, err
 		}
 	}
 
@@ -188,13 +190,16 @@ func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, b
 	return simBz, true, nil
 }
 
-func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
-	gasUsed := bres.DeliverTx.GasUsed
+func suggestedGasWanted(gasUsed int64) int64 {
 	margin := gasUsed / 20
 	if gasUsed%20 != 0 {
 		margin++
 	}
-	suggested := overflow.Addp(gasUsed, margin)
+	return overflow.Addp(gasUsed, margin)
+}
+
+func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
+	suggested := suggestedGasWanted(bres.DeliverTx.GasUsed)
 	msg := fmt.Sprintf("suggested gas-wanted (gas used + 5%%): %d", suggested)
 	if bres.DeliverTx.Info == "" {
 		bres.DeliverTx.Info = msg
@@ -204,6 +209,9 @@ func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
 }
 
 func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit) error {
+	gasUsed := bres.DeliverTx.GasUsed
+	suggested := suggestedGasWanted(gasUsed)
+
 	gp := std.GasPrice{}
 	qres, err := cli.ABCIQuery(context.Background(), "auth/gasprice", []byte{})
 	if err != nil {
@@ -214,16 +222,17 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 		return errors.Wrap(err, "unmarshaling query gas price result")
 	}
 
+	var s string
 	if gp.Gas == 0 {
-		return nil
+		s = fmt.Sprintf("estimated gas usage: %d (suggested, with 5%% margin: %d)\n", gasUsed, suggested)
+	} else {
+		fee := gasUsed/gp.Gas + 1
+		fee = overflow.Mulp(fee, gp.Price.Amount)
+		// 5% fee buffer to cover the sudden change of gas price
+		feeBuffer := overflow.Mulp(fee, 5) / 100
+		fee = overflow.Addp(fee, feeBuffer)
+		s = fmt.Sprintf("estimated gas usage: %d (suggested, with 5%% margin: %d), gas fee: %d%s, current gas price: %s\n", gasUsed, suggested, fee, gp.Price.Denom, gp.String())
 	}
-
-	fee := bres.DeliverTx.GasUsed/gp.Gas + 1
-	fee = overflow.Mulp(fee, gp.Price.Amount)
-	// 5% fee buffer to cover the suden change of gas price
-	feeBuffer := overflow.Mulp(fee, 5) / 100
-	fee = overflow.Addp(fee, feeBuffer)
-	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
 	if bres.DeliverTx.Info == "" {
 		bres.DeliverTx.Info = s
 	} else {
