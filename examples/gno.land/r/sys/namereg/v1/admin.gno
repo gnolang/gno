@@ -17,7 +17,7 @@ func setPaused(cur realm, newPausedValue bool) {
 
 func updateUsername(cur realm, userData *susers.UserData, newName string) error {
 	// UpdateName must be called from this realm.
-	return userData.UpdateName(newName)
+	return userData.UpdateNameIgnoreCanonical(newName)
 }
 
 func deleteUserdata(cur realm, userData *susers.UserData) error {
@@ -63,6 +63,13 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
+	}
+
+	// Check that name is not registered to someone else and if so panic
+	// to avoid creating a proposal that will panic on execution because
+	// username is already taken.
+	if data, _ := susers.ResolveName(newName); data != nil {
+		panic(susers.ErrNameTaken)
 	}
 
 	cb := func(cur realm) error {
