@@ -40,6 +40,17 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			Name:  "simple with hyphen",
+			Input: "https://gno.land/r/hyphen-simple/test",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/hyphen-simple/test",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+			},
+		},
+
+		{
 			Name:  "complex file path",
 			Input: "https://gno.land/r/simple/test///...gno",
 			Expected: &GnoURL{
@@ -301,7 +312,9 @@ func TestIsValidPath(t *testing.T) {
 		{Path: "/r/valid/path_with/underscores", Valid: true},
 		{Path: "/r/", Valid: true},
 		{Path: "/r/with space", Valid: false},
-		{Path: "/r/hyphen-invalid", Valid: false},
+		{Path: "/hyphen-valid", Valid: true},
+		{Path: "/r/hyphen-valid", Valid: true},
+		{Path: "/u/hyphen-valid", Valid: true},
 	}
 
 	for _, tc := range testCases {
@@ -328,8 +341,8 @@ func TestNamespace(t *testing.T) {
 		{Path: "/r/a_b/c", Expected: "a_b"},
 		{Path: "/invalidpath", Expected: ""},
 		{Path: "/r/", Expected: ""},
-		{Path: "/r/a-b/c", Expected: ""},
-		{Path: "/r/valid-ns", Expected: ""},
+		{Path: "/r/a-b/c", Expected: "a-b"},
+		{Path: "/r/valid-ns", Expected: "valid-ns"},
 	}
 
 	for _, tc := range testCases {

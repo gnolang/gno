@@ -244,16 +244,16 @@ func (gnoURL GnoURL) IsDir() bool {
 }
 
 // rePkgPath matches and validates a path.
-var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
+var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/-]*$`)
 
 // reUserPath matches and validates a user path.
-var reUserPath = regexp.MustCompile(`^/u/[a-zA-Z0-9_]+$`)
+var reUserPath = regexp.MustCompile(`^/u/[a-zA-Z0-9_-]+$`)
 
 func (gnoURL GnoURL) IsValidPath() bool {
 	return rePkgPath.MatchString(gnoURL.Path) || reUserPath.MatchString(gnoURL.Path)
 }
 
-var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)
+var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/-]*$`)
 
 // Extract the package name from the path (e.g., "/r/test/foo" -> "test")
 func (gnoURL GnoURL) Namespace() string {
