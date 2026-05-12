@@ -26,7 +26,7 @@
           "builders/connect-clients-and-apps",
           "builders/stress-testing-with-supernova",
           "builders/become-a-gnome",
-          "builders/cheatsheet"
+          "cheatsheet"
         ]
       },
       {

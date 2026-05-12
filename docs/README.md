@@ -37,7 +37,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [Connecting clients](builders/connect-clients-and-apps.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
 - [Stress testing with Supernova](builders/stress-testing-with-supernova.md) - Learn how to stress test your Gno network using `supernova` to measure performance.
 - [Become a Gnome](builders/become-a-gnome.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
-- [Cheatsheet](builders/cheatsheet.md) - Essential Gno commands: install, create, test, query, call, deploy.
+- [Cheatsheet](cheatsheet.md) - Essential Gno commands: install, create, test, query, call, deploy.
 
 ## Resources
 
