@@ -52,7 +52,7 @@ func init() {
 
 	// Coin info
 	router.HandleFunc("supply/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		// banker := std.NewBanker(std.BankerTypeReadonly)
+		// banker := banker.NewBanker(banker.BankerTypeReadonly)
 		// res.Write(renderAddressBalance(banker, denom, denom))
 		res.Write("The total supply feature is coming soon.")
 	})

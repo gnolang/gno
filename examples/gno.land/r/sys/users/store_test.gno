@@ -216,6 +216,12 @@ func TestDelete(t *testing.T) {
 	})
 }
 
+func TestRegisterNotWhitelisted(t *testing.T) {
+	t.Run("register_not_whitelisted", func(t *testing.T) {
+		uassert.ErrorContains(t, RegisterUser(cross, alice, aliceAddr), "does not exist in whitelist")
+	})
+}
+
 // cleanStore should not be needed, as vm store should be reset after each test.
 // Reference: https://github.com/gnolang/gno/issues/1982
 func cleanStore(t *testing.T) {

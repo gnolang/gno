@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -72,7 +73,8 @@ func NewPathInterceptor(logger *slog.Logger, target net.Addr) (*PathInterceptor,
 	}
 
 	proxy.server = &http.Server{
-		Handler: proxy,
+		Handler:           proxy,
+		ReadHeaderTimeout: 60 * time.Second,
 	}
 
 	go proxy.server.Serve(proxyListener)
@@ -166,12 +168,16 @@ func (proxy *PathInterceptor) handleWebSocket(w http.ResponseWriter, r *http.Req
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		io.Copy(targetConn, clientConn)
+		if _, err := io.Copy(targetConn, clientConn); err != nil {
+			proxy.logger.Debug("websocket client to target copy error", "error", err)
+		}
 		targetConn.Close()
 	}()
 	go func() {
 		defer wg.Done()
-		io.Copy(clientConn, targetConn)
+		if _, err := io.Copy(clientConn, targetConn); err != nil {
+			proxy.logger.Debug("websocket target to client copy error", "error", err)
+		}
 		clientConn.Close()
 	}()
 	wg.Wait()
@@ -309,12 +315,14 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	switch path {
 	case ".app/simulate":
 		return handleTx(data, upaths)
-	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
+	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval", "vm/qeval_json":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
 	case "vm/qpkg_json":
 		upaths.addPath(string(data))
-	case "vm/qobject", "vm/qobject_json", "vm/qtype_json": // operate on already-loaded state
+	case "vm/qobject", "vm/qobject_json", "vm/qobject_binary", "vm/qtype_json":
+		// Object/type queries take an ObjectID or type ref, not a package path.
+		// If the object exists in the store, its package is already loaded.
 	default:
 		return fmt.Errorf("unhandled: %q", path)
 	}

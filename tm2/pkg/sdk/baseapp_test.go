@@ -593,6 +593,32 @@ func TestCheckTx(t *testing.T) {
 	require.Nil(t, storedBytes)
 }
 
+// TestCheckTxMalformedTypeURL verifies that CheckTx returns a decode error
+// (and does not panic) when given a transaction whose amino type_url contains
+// no slash — the bug that previously caused a consensus-halting panic.
+func TestCheckTxMalformedTypeURL(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Build a valid tx and corrupt its type_url to have no slash.
+	tx := newTxCounter(0, 0)
+	validBz, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	typeURL := amino.GetTypeURL(msgCounter{})
+	idx := bytes.Index(validBz, []byte(typeURL))
+	require.True(t, idx >= 0, "type_url not found in encoded tx")
+
+	mutated := make([]byte, len(validBz))
+	copy(mutated, validBz)
+	mutated[idx] = '}' // strip leading '/' so type_url has no slash
+
+	res := app.CheckTx(abci.RequestCheckTx{Tx: mutated})
+	require.False(t, res.IsOK(), "expected a decode error, got OK")
+}
+
 // Test that successive DeliverTx can see each others' effects
 // on the store, both within and across blocks.
 func TestDeliverTx(t *testing.T) {
@@ -656,7 +682,7 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 	txBytes, err := amino.Marshal(tx)
 	require.Nil(t, err)
 
-	simulateRes := app.Simulate(txBytes, tx)
+	simulateRes := app.Simulate(txBytes)
 	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
 	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
 
@@ -767,12 +793,12 @@ func TestSimulateTx(t *testing.T) {
 		require.Nil(t, err)
 
 		// simulate a message, check gas reported
-		result := app.Simulate(txBytes, tx)
+		result := app.Simulate(txBytes)
 		require.True(t, result.IsOK(), result.Log)
 		require.Equal(t, gasConsumed, result.GasUsed)
 
 		// simulate again, same result
-		result = app.Simulate(txBytes, tx)
+		result = app.Simulate(txBytes)
 		require.True(t, result.IsOK(), result.Log)
 		require.Equal(t, gasConsumed, result.GasUsed)
 
@@ -1246,4 +1272,82 @@ func TestGetMaximumBlockGas(t *testing.T) {
 
 	app.setConsensusParams(&abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: -5000000}})
 	require.Panics(t, func() { app.getMaximumBlockGas() })
+}
+
+func TestHaltHeight(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		haltHeight  uint64
+		blockHeight int64
+		shouldPanic bool
+	}{
+		{
+			name:        "no halt configured",
+			haltHeight:  0,
+			blockHeight: 10,
+			shouldPanic: false,
+		},
+		{
+			name:        "block before halt height",
+			haltHeight:  5,
+			blockHeight: 4,
+			shouldPanic: false,
+		},
+		{
+			name:        "block at halt height processes normally",
+			haltHeight:  5,
+			blockHeight: 5,
+			shouldPanic: false,
+		},
+		{
+			name:        "block after halt height panics",
+			haltHeight:  5,
+			blockHeight: 6,
+			shouldPanic: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := setupBaseApp(t)
+			app.SetHaltHeight(tt.haltHeight)
+
+			// Process blocks up to the target height.
+			for h := int64(1); h < tt.blockHeight; h++ {
+				header := &bft.Header{ChainID: "test-chain", Height: h}
+				app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				app.Commit()
+			}
+
+			// Process the target block.
+			header := &bft.Header{ChainID: "test-chain", Height: tt.blockHeight}
+			if tt.shouldPanic {
+				require.Panics(t, func() {
+					app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				})
+			} else {
+				require.NotPanics(t, func() {
+					app.BeginBlock(abci.RequestBeginBlock{Header: header})
+				})
+				app.Commit()
+			}
+		})
+	}
+}
+
+func TestSetHaltHeight(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	require.Equal(t, uint64(0), app.haltHeight)
+
+	app.SetHaltHeight(100)
+	require.Equal(t, uint64(100), app.haltHeight)
+
+	app.SetHaltHeight(0)
+	require.Equal(t, uint64(0), app.haltHeight)
 }

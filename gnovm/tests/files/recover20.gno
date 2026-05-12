@@ -8,9 +8,9 @@ func main() {
 }
 
 // Error:
-// nil pointer dereference
+// runtime error: nil pointer dereference
 
 // Stacktrace:
-// panic: nil pointer dereference
+// panic: runtime error: nil pointer dereference
 // main<VPBlock(1,0)>()
 //     main/recover20.gno:5

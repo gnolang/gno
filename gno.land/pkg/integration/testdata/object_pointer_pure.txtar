@@ -4,7 +4,7 @@ loadpkg gno.land/r/testing/realm_caller $WORK/realm_caller
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/testing/realm_caller -func Set -args 42 -gas-fee 1000000ugnot -gas-wanted 14000000 -chainid=tendermint_test test1
 stdout 'OK'
 
 gnokey query vm/qeval --data "gno.land/r/testing/realm_caller.Get()"

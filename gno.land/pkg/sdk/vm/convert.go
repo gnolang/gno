@@ -3,7 +3,6 @@ package vm
 import (
 	"encoding/base64"
 	"encoding/json"
-	goerrors "errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"github.com/cockroachdb/apd/v3"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 func assertNoPlusPrefix(s string) {
@@ -275,18 +273,19 @@ func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
 		return "", false
 	}
 
-	// Call .Error() in a panic-safe context. If .Error() panics due to
-	// out-of-gas, re-panic so the caller's gas handling works correctly
-	// (tx: doRecover repanics for BaseApp; query: doRecoverQuery returns error).
-	// For other panics (buggy .Error()), gracefully degrade: no @error field.
+	// Call .Error() in a panic-safe context. ANY panic — out-of-gas, buggy
+	// .Error() method, typed-nil receiver nil-deref — gracefully degrades:
+	// no @error field, but the already-computed Results JSON is preserved.
+	//
+	// Rationale for catching OOG here (rather than re-panicking): the main
+	// expression evaluation has already succeeded by the time tryGetError
+	// runs, and its results have already been Amino-marshaled into
+	// jsonResults.Results. Re-panicking OOG here would discard that
+	// successful payload and return an empty body with an OOG error, which
+	// is strictly worse for the caller. Instead we treat the @error field
+	// as best-effort and surface whatever results we already have.
 	defer func() {
 		if r := recover(); r != nil {
-			if err, isErr := r.(error); isErr {
-				var oog stypes.OutOfGasError
-				if goerrors.As(err, &oog) {
-					panic(oog)
-				}
-			}
 			errStr = ""
 			ok = false
 		}

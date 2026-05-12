@@ -239,7 +239,10 @@ func Render(_ string) string { return foo.Render("bar") }`,
 		require.NoError(t, err)
 		require.NoError(t, res.Response.Error)
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret struct {
+			BaseAccount std.BaseAccount
+			Attributes  uint64 `json:"attributes"` // GnoAccount extension
+		}
 		err = amino.UnmarshalJSON(res.Response.Data, &qret)
 		require.NoError(t, err)
 		assert.Equal(t, qret.BaseAccount.Address, creator)

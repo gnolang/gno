@@ -213,14 +213,14 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			parts:             validPartSet,
 			seenCommit:        seenCommit1,
 			corruptCommitInDB: true, // Corrupt the DB's commit entry
-			wantPanic:         "unmarshal to types.Commit failed",
+			wantPanic:         "Error reading block commit",
 		},
 
 		{
 			block:            newBlock(header1, commitAtH10),
 			parts:            validPartSet,
 			seenCommit:       seenCommit1,
-			wantPanic:        "unmarshal to types.BlockMeta failed",
+			wantPanic:        "Error reading block meta",
 			corruptBlockInDB: true, // Corrupt the DB's block entry
 		},
 
@@ -239,7 +239,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 			seenCommit: seenCommit1,
 
 			corruptSeenCommitInDB: true,
-			wantPanic:             "unmarshal to types.Commit failed",
+			wantPanic:             "Error reading block seen commit",
 		},
 
 		{
@@ -352,7 +352,7 @@ func TestLoadBlockPart(t *testing.T) {
 	db.Set(calcBlockPartKey(height, index), []byte("Tendermint"))
 	res, _, panicErr = doFn(loadPart)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")
-	require.Contains(t, panicErr.Error(), "unmarshal to types.Part failed")
+	require.Contains(t, panicErr.Error(), "unknown field number")
 
 	// 3. A good block serialized and saved to the DB should be retrievable
 	db.Set(calcBlockPartKey(height, index), amino.MustMarshal(part1))
@@ -383,7 +383,7 @@ func TestLoadBlockMeta(t *testing.T) {
 	db.Set(calcBlockMetaKey(height), []byte("Tendermint-Meta"))
 	res, _, panicErr = doFn(loadMeta)
 	require.NotNil(t, panicErr, "expecting a non-nil panic")
-	require.Contains(t, panicErr.Error(), "unmarshal to types.BlockMeta")
+	require.Contains(t, panicErr.Error(), "unknown field number")
 
 	// 3. A good blockMeta serialized and saved to the DB should be retrievable
 	meta := &types.BlockMeta{}
@@ -419,6 +419,29 @@ func TestBlockFetchAtHeight(t *testing.T) {
 	require.Nil(t, blockAtHeightPlus1, "expecting an unsuccessful load of Height()+1")
 	blockAtHeightPlus2 := bs.LoadBlock(bs.Height() + 2)
 	require.Nil(t, blockAtHeightPlus2, "expecting an unsuccessful load of Height()+2")
+}
+
+func TestLoadBlockWithMissingPart(t *testing.T) {
+	t.Parallel()
+
+	state, bs, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	block := makeBlock(bs.Height()+1, state, new(types.Commit))
+	partSet := block.MakePartSet(2)
+	seenCommit := makeTestCommit(10, tmtime.Now())
+	bs.SaveBlock(block, partSet, seenCommit)
+
+	// Delete a block part from the DB to simulate a missing part
+	height := block.Header.Height
+	require.True(t, partSet.Total() > 1, "need multiple parts for this test")
+
+	// Delete the second part key
+	bs.db.Delete(calcBlockPartKey(height, 1))
+
+	// LoadBlock should return nil when a part is missing
+	loaded := bs.LoadBlock(height)
+	require.Nil(t, loaded, "LoadBlock should return nil when a block part is missing")
 }
 
 func doFn(fn func() (any, error)) (res any, err error, panicErr error) {

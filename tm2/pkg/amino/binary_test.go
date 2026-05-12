@@ -97,9 +97,9 @@ func TestNewFieldBackwardsCompatibility(t *testing.T) {
 
 	var v1 V1
 	err = cdc.Unmarshal(bz, &v1)
-	assert.Nil(t, err, "unexpected error %v", err)
-	assert.Equal(t, v1, V1{"hi", "cosmos"},
-		"backwards compatibility failed: didn't yield expected result ...")
+	// Strict mode: unknown fields from V2 (Time, Int) are rejected.
+	assert.NotNil(t, err, "expected error on unknown fields from V2")
+	assert.Contains(t, err.Error(), "unknown field number")
 
 	v3 := V3{String: "tender", Int: 2014, Some: SomeStruct{Sth: 84}}
 	bz2, err := cdc.Marshal(v3)

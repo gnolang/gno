@@ -12,34 +12,34 @@ stdout '"sequence": "1"'
 # attempt adding the "test" package.
 # the package has a syntax error; simulation should catch this ahead of time and prevent the tx.
 # -simulate test
-! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate test test1
+! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test -simulate test test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "1"'
 # -simulate only
-! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
+! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test -simulate only test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "1"'
 # -simulate skip
-! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate skip test1
+! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -chainid=tendermint_test -simulate skip test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "2"'
 
 # attempt calling hello.SetName correctly.
 # -simulate test and skip should do it successfully, -simulate only should not.
 # -simulate test
-gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args John -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate test test1
+gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args John -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate test test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "3"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, John!'
 # -simulate only
-gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate only test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "3"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, John!'
 # -simulate skip
-gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args George -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate skip test1
+gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args George -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate skip test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "4"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
@@ -49,26 +49,26 @@ stdout 'Hello, George!'
 # all calls should fail, however -test skip should increase the account sequence.
 # none should change the name (ie. panic rollbacks).
 # -simulate test
-! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate test test1
+! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate test test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "4"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 # -simulate only
-! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate only test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "4"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 # -simulate skip
-! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate skip test1
+! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate skip test1
 gnokey query auth/accounts/$test1_user_addr
 stdout '"sequence": "5"'
 gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 
 # simulate should panic if gas-wanted is beyond the max block gas.
-! gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 100_000_000_000_000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+! gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 100_000_000_000_000 -gas-fee 1000000ugnot -chainid tendermint_test -simulate only test1
 stderr 'invalid gas wanted'
 
 -- test/test.gno --

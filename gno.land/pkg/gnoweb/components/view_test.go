@@ -304,7 +304,7 @@ func TestDirectoryView(t *testing.T) {
 	assert.True(t, ok, "expected DirData type in component data")
 
 	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
-	assert.Equal(t, len(files), len(dirData.Files), "expected %d files, got %d", len(files), len(dirData.Files))
+	assert.Equal(t, len(files), len(dirData.FilesLinks), "expected %d files, got %d", len(files), len(dirData.FilesLinks))
 	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
 	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
 
@@ -342,52 +342,6 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.linkType.LinkPrefix(tc.pkgPath)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestGetFullLinks(t *testing.T) {
-	cases := []struct {
-		name     string
-		files    []string
-		linkType DirLinkType
-		pkgPath  string
-		expected FilesLinks
-	}{
-		{
-			name:     "Source link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
-				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "File link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeFile,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "file1.gno", Name: "file1.gno"},
-				{Link: "file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "Empty files list",
-			files:    []string{},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{},
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			result := GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

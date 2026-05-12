@@ -6,9 +6,19 @@ import (
 	"strconv"
 )
 
-// ExportRefValue represents a cycle-breaking reference in exported values.
-// Unlike RefValue (which uses ObjectID for persisted objects), ExportRefValue
-// uses a simple ":N" string ID for ephemeral cycle references.
+// ExportRefValue represents a back-reference to an ephemeral Object already
+// emitted earlier in the export stream. Unlike RefValue (which uses an
+// ObjectID for persisted objects), ExportRefValue uses a synthetic ":N" ID,
+// where N is an incrementing counter assigned in the encoder's DFS traversal
+// order. The first time an ephemeral Object is visited it is expanded inline
+// and assigned N = (count of previously-seen ephemeral Objects) + 1; any
+// subsequent visit to the same Object emits ExportRefValue{":N"} instead of
+// re-expanding it.
+//
+// Consumers that need to resolve ":N" back to its inline occurrence must walk
+// the exported tree in the same DFS order the encoder uses (source-order
+// fields, slice/array indices, MapList insertion order, Block values), count
+// each inline ephemeral Object as they encounter it, and look up the Nth one.
 // Registered with Amino as "/gno.ExportRefValue".
 type ExportRefValue struct {
 	ObjectID string `json:"ObjectID"` // ":1", ":2", etc.
@@ -222,6 +232,15 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
+		// cv.Func is typed *FuncValue, not Value, so it can't carry a
+		// RefValue/ExportRefValue back-reference. This mirrors realm.go's
+		// copyValueWithRefs pattern. Safe because a BoundMethodValue holds
+		// a unique, freshly-constructed FuncValue instance that is not
+		// shared with any other traversal path (BoundMethodValue is
+		// created at bind time, not deduplicated). If that invariant ever
+		// changes, this branch would re-expand a shared FuncValue inline
+		// instead of emitting an ExportRefValue — the exported output
+		// would still be correct, just potentially larger.
 		fnc := exportCopyValue(cv.Func, seen).(*FuncValue)
 		rtv := exportValue(cv.Receiver, seen)
 		return &BoundMethodValue{
@@ -241,7 +260,13 @@ func exportCopyValue(val Value, seen map[Object]int) Value {
 			List:       list,
 		}
 	case TypeValue:
-		return toTypeValue(exportCopyTypeWithRefs(cv.Type, seen))
+		// Export the type as a reference, not inline. Consumers that
+		// need the full definition (e.g. struct field names, method set)
+		// resolve the TypeID via the vm/qtype_json query endpoint.
+		// Keeping this symmetric with field-position types (which also
+		// go through exportRefOrCopyType at Layer 1) gives a uniform
+		// wire shape and smaller JSON payloads.
+		return toTypeValue(exportRefOrCopyType(cv.Type, seen))
 	case *PackageValue:
 		return RefValue{PkgPath: cv.PkgPath}
 	case *Block:
@@ -329,6 +354,18 @@ func exportCopyTypeWithRefs(typ Type, seen map[Object]int) Type {
 	case *TypeType:
 		return &TypeType{}
 	case *DeclaredType:
+		// Likely dead code. Every path that could hand a *DeclaredType
+		// to this function now routes through exportRefOrCopyType at
+		// Layer 1 instead, which collapses DeclaredTypes to RefType{ID}
+		// before reaching this switch: field/element types via
+		// exportCopyFieldsWithRefs, TypeValue positions in
+		// exportCopyValue, and tv.T in exportValue. *FuncValue.Type and
+		// method mtv.T are *FuncType, never DeclaredType.
+		// DeclaredType.Base is invariantly non-DeclaredType per the
+		// types.go:1441 doc comment (enforced by declareWith/baseOf).
+		// Kept as defensive code; if a future caller hands in a
+		// DeclaredType directly, the inlined form here + exportCopyMethods
+		// below both still produce correct output.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -375,6 +412,15 @@ func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int) []FieldTy
 	return fieldsCpy
 }
 
+// exportCopyMethods is reached only from the *DeclaredType branch of
+// exportCopyTypeWithRefs, which is itself likely dead code post-fix
+// (see comment there). Kept as defensive code. One caveat if it does
+// ever fire: V is expanded via exportCopyValue rather than
+// exportToRefOrCopy, so if the same *FuncValue is reachable elsewhere
+// in the exported tree (e.g. via a BoundMethodValue holding it), it
+// gets re-expanded inline rather than deduplicated. Acceptable because
+// the inlined copies are byte-identical; a consumer sees duplication
+// but not inconsistency.
 func exportCopyMethods(methods []TypedValue, seen map[Object]int) []TypedValue {
 	res := make([]TypedValue, len(methods))
 	for i, mtv := range methods {

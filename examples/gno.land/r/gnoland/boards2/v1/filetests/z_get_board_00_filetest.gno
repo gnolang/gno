@@ -8,7 +8,7 @@ import (
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
 
-const owner address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 var bid boards.ID
 
@@ -18,11 +18,11 @@ func init() {
 }
 
 func main() {
-	testing.SetRealm(testing.NewUserRealm(owner))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 
-	// Calling as an owner should succeed
-	board := boards2.GetBoard(bid)
-	if board == nil {
+	// Calling as a Boards2 sub realm should succeed
+	board, found := boards2.GetBoard(bid)
+	if !found {
 		return
 	}
 

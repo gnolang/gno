@@ -3,7 +3,7 @@
 # start a new node
 gnoland start
 
-! gnokey maketx addpkg -pkgdir $WORK/invalid -pkgpath gno.land/r/invalid -gas-fee 1000000ugnot -gas-wanted 60000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/invalid -pkgpath gno.land/r/invalid -gas-fee 1000000ugnot -gas-wanted 60000 -chainid=tendermint_test test1
 
 stdout 'TX HASH:'
 stdout 'INFO:.*vm.version=develop'

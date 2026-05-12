@@ -3,7 +3,9 @@ package amino_test
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"testing"
 	"time"
@@ -17,6 +19,52 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
 )
+
+// fuzzPerSubtest is the time each property-fuzz subtest should loop when
+// AMINO_FUZZ_BUDGET is set. Computed as:
+//
+//	FUZZ_BUDGET × GOMAXPROCS / total_subtests
+//
+// With t.Parallel(), up to GOMAXPROCS subtests run concurrently. Each runs
+// for fuzzPerSubtest, then returns — freeing its slot for the next batch.
+// Total wallclock ≈ FUZZ_BUDGET, and every type gets equal coverage.
+//
+// When AMINO_FUZZ_BUDGET is unset (normal `go test`), this is 0 and the
+// helpers fall back to a fast fixed iteration count (10k).
+var fuzzPerSubtest = func() time.Duration {
+	s := os.Getenv("AMINO_FUZZ_BUDGET")
+	if s == "" {
+		return 0
+	}
+	total, err := time.ParseDuration(s)
+	if err != nil {
+		return 0
+	}
+	if total <= 0 {
+		// AMINO_FUZZ_BUDGET=0 means "run forever" (Ctrl-C to stop).
+		// Use a 1h rotation period so all subtests cycle through.
+		total = 1 * time.Hour
+	}
+	procs := runtime.GOMAXPROCS(0)
+	// Total property-fuzz subtests across all three test functions:
+	//   StructTypes×2 (binary+json) + AminoTagTypes×2 + DefTypes×2 + DeepCopy(Struct+AminoTag+Def)
+	numSubtests := (len(tests.StructTypes)+len(tests.AminoTagTypes)+len(tests.DefTypes))*2 +
+		len(tests.StructTypes) + len(tests.AminoTagTypes) + len(tests.DefTypes)
+	if numSubtests == 0 {
+		return total
+	}
+	return total * time.Duration(procs) / time.Duration(numSubtests)
+}()
+
+// shouldContinue returns true while the fuzz loop should keep iterating.
+// In budgeted mode, each call gets its own deadline (now+fuzzPerSubtest);
+// otherwise caps at iters.
+func shouldContinue(i int, iters int, deadline time.Time) bool {
+	if !deadline.IsZero() {
+		return time.Now().Before(deadline)
+	}
+	return i < iters
+}
 
 // -------------------------------------
 // Non-interface Google fuzz tests
@@ -35,6 +83,33 @@ func TestCodecStruct(t *testing.T) {
 		t.Run(name+":json", func(t *testing.T) {
 			t.Parallel()
 			_testCodec(t, rt, "json")
+		})
+	}
+}
+
+// TestCodecAminoTags tests types with amino-specific encoding tags
+// (write_empty, nil_elements) that have no proto3 equivalent.
+// Same checks as TestCodecStruct but skips proto.Marshal byte comparison.
+//
+// FuzzNilElements has a pre-existing amino roundtrip bug where nil struct
+// pointers in slices decode as zero-value structs. For that type we run
+// byte-stability and cross-encoder/decoder checks instead of strict
+// struct equality, which still catch new regressions.
+func TestCodecAminoTags(t *testing.T) {
+	t.Parallel()
+
+	for _, ptr := range tests.AminoTagTypes {
+		t.Logf("case %v", reflect.TypeOf(ptr))
+		rt := getTypeFromPointer(ptr)
+		name := rt.Name()
+		lossyDecode := name == "FuzzNilElements"
+		t.Run(name+":binary", func(t *testing.T) {
+			t.Parallel()
+			_testCodecAminoTags(t, rt, "binary", lossyDecode)
+		})
+		t.Run(name+":json", func(t *testing.T) {
+			t.Parallel()
+			_testCodecAminoTags(t, rt, "json", lossyDecode)
 		})
 	}
 }
@@ -60,7 +135,9 @@ func TestCodecDef(t *testing.T) {
 func TestDeepCopyStruct(t *testing.T) {
 	t.Parallel()
 
-	for _, ptr := range tests.StructTypes {
+	all := append([]any{}, tests.StructTypes...)
+	all = append(all, tests.AminoTagTypes...)
+	for _, ptr := range all {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
 		name := rt.Name()
@@ -91,6 +168,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 	err := error(nil)
 	bz := []byte{}
 	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
 	f := fuzz.New()
 	rv := reflect.New(rt)
 	rv2 := reflect.New(rt)
@@ -108,7 +186,11 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
-	for range 10_000 {
+	var deadline time.Time
+	if fuzzPerSubtest > 0 {
+		deadline = time.Now().Add(fuzzPerSubtest)
+	}
+	for i := 0; shouldContinue(i, 10_000, deadline); i++ {
 		f.Fuzz(ptr)
 
 		// Reset, which makes debugging decoding easier.
@@ -183,6 +265,32 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 				"end to end through bytes and pbo failed.\nbz(go): %X\nstart(goo): %v\nend(goo): %v\nmid(pbo): %v\n",
 				bz, spw(ptr), spw(ptr3), spw(pbo))
 		}
+
+		if codecType == "binary" {
+			// Check genproto2 (go -> bz2 vs go -> bz)
+			pbm2, ok := rv.Interface().(amino.PBMessager2)
+			if !ok {
+				continue
+			}
+			bz2, err := cdc.MarshalBinary2(pbm2)
+			require.NoError(t, err,
+				"MarshalBinary2 failed for %v: %v\n", spw(ptr), err)
+			require.Equal(t, bz, bz2,
+				"genproto2 bytes mismatch.\nbz(amino): %X\nbz(genproto2): %X\nstart(goo): %v\n",
+				bz, bz2, spw(ptr))
+
+			// Unmarshal with genproto2 and re-marshal to check roundtrip.
+			rv5 := reflect.New(rt)
+			ptr5 := rv5.Interface()
+			err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz, 0)
+			require.NoError(t, err,
+				"UnmarshalBinary2 failed: %v\nbz: %X\n", err, bz)
+			bz2rt, err := cdc.MarshalBinary2(ptr5.(amino.PBMessager2))
+			require.NoError(t, err)
+			require.Equal(t, bz, bz2rt,
+				"genproto2 roundtrip bytes mismatch.\nbz(amino): %X\nbz(roundtrip): %X\nstart(goo): %v\nend(goo): %v\n",
+				bz, bz2rt, spw(ptr), spw(ptr5))
+		}
 	}
 }
 
@@ -205,7 +313,11 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		}
 	}()
 
-	for range 10_000 {
+	var deadline time.Time
+	if fuzzPerSubtest > 0 {
+		deadline = time.Now().Add(fuzzPerSubtest)
+	}
+	for i := 0; shouldContinue(i, 10_000, deadline); i++ {
 		f.Fuzz(ptr)
 
 		ptr2 := amino.DeepCopy(ptr)
@@ -213,6 +325,136 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		require.Equal(t, ptr, ptr2,
 			"end to end failed.\nstart: %v\nend: %v\nbytes: %X\nstring(bytes): %s\n",
 			spw(ptr), spw(ptr2))
+	}
+}
+
+// _testCodecAminoTags mirrors _testCodec but skips the proto.Marshal byte
+// comparison, which is invalid for types with amino-specific tags like
+// write_empty (forces zero-value emission) or nil_elements (allows nil
+// entries in repeated fields) — neither has a proto3 equivalent.
+//
+// If lossyDecode is true, the decoder may produce a struct that does not
+// reflect.DeepEqual to the original (e.g. nil pointer → zero-value struct).
+// In that case we use byte-stability + cross-encoder/decoder equivalence
+// instead of strict struct equality.
+func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyDecode bool) {
+	t.Helper()
+
+	err := error(nil)
+	bz := []byte{}
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	f := fuzz.New()
+	rv := reflect.New(rt)
+	rv2 := reflect.New(rt)
+	ptr := rv.Interface()
+	ptr2 := rv2.Interface()
+	rnd := rand.New(rand.NewSource(10))
+	f.RandSource(rnd)
+	f.Funcs(fuzzFuncs...)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("panic'd:\nreason: %v\n%s\nerr: %v\nbz: %X\nrv: %#v\nrv2: %#v\nptr: %v\nptr2: %v\n",
+				r, debug.Stack(), err, bz, rv, rv2, spw(ptr), spw(ptr2),
+			)
+		}
+	}()
+
+	marshal := func(p any) ([]byte, error) {
+		if codecType == "json" {
+			return cdc.JSONMarshal(p)
+		}
+		return cdc.Marshal(p)
+	}
+	unmarshal := func(b []byte, p any) error {
+		if codecType == "json" {
+			return cdc.JSONUnmarshal(b, p)
+		}
+		return cdc.Unmarshal(b, p)
+	}
+
+	var deadline time.Time
+	if fuzzPerSubtest > 0 {
+		deadline = time.Now().Add(fuzzPerSubtest)
+	}
+	for i := 0; shouldContinue(i, 10_000, deadline); i++ {
+		f.Fuzz(ptr)
+
+		rv2 = reflect.New(rt)
+		ptr2 = rv2.Interface()
+
+		bz, err = marshal(ptr)
+		require.Nil(t, err, "failed to marshal %v: %v\n", spw(ptr), err)
+
+		err = unmarshal(bz, ptr2)
+		require.NoError(t, err, "failed to unmarshal %X: %v\n", bz, err)
+
+		if lossyDecode {
+			// Byte stability: re-encode the (possibly lossy) decoded value
+			// and require the bytes to match. Catches any new divergence.
+			bzStable, err := marshal(ptr2)
+			require.NoError(t, err, "re-marshal failed: %v\n", err)
+			require.Equal(t, bz, bzStable,
+				"amino byte-stability failed.\nbz:       %X\nbzStable: %X\nstart: %v\nmid: %v\n",
+				bz, bzStable, spw(ptr), spw(ptr2))
+		} else {
+			require.Equal(t, ptr, ptr2,
+				"amino roundtrip failed.\nstart: %v\nend: %v\nbytes: %X\n",
+				spw(ptr), spw(ptr2), bz)
+		}
+
+		if codecType != "binary" {
+			continue
+		}
+
+		// ToPBMessage + FromPBMessage. In strict mode we also check struct
+		// equality; in lossy mode ToPBMessage/FromPBMessage may share the
+		// same lossy decode path, so we only verify it doesn't error.
+		pbm, ok := rv.Interface().(amino.PBMessager)
+		if !ok {
+			continue
+		}
+		pbo, err := pbm.ToPBMessage(cdc)
+		require.NoError(t, err)
+		rv3 := reflect.New(rt)
+		ptr3 := rv3.Interface()
+		err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
+		require.NoError(t, err)
+		if !lossyDecode {
+			require.Equal(t, ptr, ptr3,
+				"ToPBMessage/FromPBMessage roundtrip failed.\nstart: %v\nend: %v\nmid(pbo): %v\n",
+				spw(ptr), spw(ptr3), spw(pbo))
+		}
+
+		// genproto2 byte equality (cross-encoder) + roundtrip.
+		pbm2, ok := rv.Interface().(amino.PBMessager2)
+		if !ok {
+			continue
+		}
+		bz2, err := cdc.MarshalBinary2(pbm2)
+		require.NoError(t, err, "MarshalBinary2 failed: %v\n", err)
+		require.Equal(t, bz, bz2,
+			"genproto2 bytes mismatch.\nbz(amino): %X\nbz(genproto2): %X\nstart: %v\n",
+			bz, bz2, spw(ptr))
+
+		rv5 := reflect.New(rt)
+		ptr5 := rv5.Interface()
+		err = ptr5.(amino.PBMessager2).UnmarshalBinary2(cdc, bz, 0)
+		require.NoError(t, err, "UnmarshalBinary2 failed: %v\nbz: %X\n", err, bz)
+		bz2rt, err := cdc.MarshalBinary2(ptr5.(amino.PBMessager2))
+		require.NoError(t, err)
+		require.Equal(t, bz, bz2rt,
+			"genproto2 roundtrip bytes mismatch.\nbz(amino): %X\nbz(roundtrip): %X\n",
+			bz, bz2rt)
+
+		if lossyDecode {
+			// Cross-decoder: amino-decoded and genproto2-decoded should
+			// produce the same Go value, even if both share the same bug.
+			require.Equal(t, ptr2, ptr5,
+				"cross-decoder struct mismatch.\namino: %v\ngenproto2: %v\nbytes: %X\n",
+				spw(ptr2), spw(ptr5), bz)
+		}
 	}
 }
 
@@ -654,6 +896,104 @@ var fuzzFuncs = []any{
 			for i := range n {
 				(*esz)[i] = &tests.EmptyStruct{}
 			}
+		}
+	},
+	func(sl *[]*tests.FuzzFieldInfo, c fuzz.Continue) {
+		n := c.Intn(4)
+		switch n {
+		case 0:
+			*sl = nil
+		default:
+			// Include nil elements to exercise amino:"nil_elements".
+			*sl = make([]*tests.FuzzFieldInfo, n)
+			for i := range n {
+				if c.Intn(3) == 0 {
+					(*sl)[i] = nil // nil element
+				} else {
+					var fi tests.FuzzFieldInfo
+					c.Fuzz(&fi)
+					(*sl)[i] = &fi
+				}
+			}
+		}
+	},
+	func(sl *[]*tests.GnoVMPos, c fuzz.Continue) {
+		n := c.Intn(4)
+		switch n {
+		case 0:
+			*sl = nil
+		default:
+			// Include nil elements to exercise amino:"nil_elements".
+			*sl = make([]*tests.GnoVMPos, n)
+			for i := range n {
+				if c.Intn(3) == 0 {
+					(*sl)[i] = nil // nil element
+				} else {
+					var p tests.GnoVMPos
+					c.Fuzz(&p)
+					(*sl)[i] = &p
+				}
+			}
+		}
+	},
+	func(f *float64, c fuzz.Continue) {
+		// Exercise amino:"unsafe" float encoding.
+		// Avoid NaN/Inf which don't roundtrip via proto encoding.
+		switch c.Intn(4) {
+		case 0:
+			*f = 0
+		case 1:
+			*f = float64(c.Int63n(1000)) / 100.0
+		case 2:
+			*f = -float64(c.Int63n(1000)) / 100.0
+		case 3:
+			*f = float64(c.Int63())
+		}
+	},
+	func(f *float32, c fuzz.Continue) {
+		switch c.Intn(4) {
+		case 0:
+			*f = 0
+		case 1:
+			*f = float32(c.Intn(1000)) / 100.0
+		case 2:
+			*f = -float32(c.Intn(1000)) / 100.0
+		case 3:
+			*f = float32(c.Int31())
+		}
+	},
+	func(iface *tests.Interface1, c fuzz.Continue) {
+		// Randomly pick a concrete type for the interface.
+		switch c.Intn(4) {
+		case 0:
+			*iface = nil
+			return
+		case 1:
+			*iface = tests.Concrete1{}
+		case 2:
+			*iface = tests.Concrete2{}
+		case 3:
+			n := c.Intn(20)
+			if n == 0 {
+				*iface = tests.ConcreteWrappedBytes{Value: nil}
+			} else {
+				bz := make([]byte, n)
+				for i := range bz {
+					bz[i] = byte(c.Intn(256))
+				}
+				*iface = tests.ConcreteWrappedBytes{Value: bz}
+			}
+		}
+	},
+	func(sl *[]tests.Interface1, c fuzz.Continue) {
+		n := c.Intn(4)
+		if n == 0 {
+			*sl = nil
+			return
+		}
+		*sl = make([]tests.Interface1, n)
+		for i := range n {
+			c.Fuzz(&(*sl)[i])
 		}
 	},
 }

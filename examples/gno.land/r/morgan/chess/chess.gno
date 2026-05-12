@@ -530,7 +530,7 @@ func checkErr(err error) {
 	}
 }
 
-// Replacement for OriginCall using std.PreviousRealm().
+// Replacement for OriginCall using runtime.PreviousRealm().
 func assertOriginCall() {
 	if !runtime.PreviousRealm().IsUser() {
 		panic("invalid non-origin call")

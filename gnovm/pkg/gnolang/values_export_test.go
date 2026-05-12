@@ -596,3 +596,178 @@ func TestExportObjectToValue_Nil(t *testing.T) {
 	exported := ExportObject(nil)
 	require.Nil(t, exported)
 }
+
+// TestExportValuesTypeValueDeclaredTypeIsRef exercises the TypeValue case
+// in exportCopyValue where the inner cv.Type is a *DeclaredType. Before
+// commit 48b11a2, the TypeValue branch called exportCopyTypeWithRefs,
+// which inlined the full DeclaredType (Base, Methods, PkgPath, Name).
+// After the switch to exportRefOrCopyType, it collapses to a compact
+// RefType{ID: "pkg.Name"} — matching how field-position types are
+// already handled.
+//
+// This test asserts the post-change shape: the exported JSON must
+// reference the declared type by its TypeID, not inline its definition.
+func TestExportValuesTypeValueDeclaredTypeIsRef(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	// Declare a struct type in the package, then reference the TYPE
+	// itself (not an instance) via a package-level TypeValue binding.
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type MyT struct {
+	X int
+	Y string
+}
+// Value is a type-as-value: its TypedValue has T=*TypeType and
+// V=TypeValue{Type: *DeclaredType}. This exercises the TypeValue
+// branch of exportCopyValue.
+var Value = MyT{}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	// Evaluate the TYPE expression "testdata.MyT" (not ".Value"), which
+	// yields a TypedValue{T: *TypeType, V: TypeValue{Type: MyT_decl}}.
+	tps := m.Eval(Sel(Nx("testdata"), "MyT"))
+	require.Len(t, tps, 1)
+	require.Equal(t, TypeKind, tps[0].T.Kind(),
+		"expected a TypeValue, got T.Kind()=%v", tps[0].T.Kind())
+
+	bz := exportAndMarshal(t, tps)
+	out := string(bz)
+	t.Logf("TypeValue-of-DeclaredType export: %s", out)
+
+	// POST-CHANGE expectation: the inner Type is a RefType referencing
+	// MyT's TypeID, NOT an inlined DeclaredType.
+	require.Contains(t, out, `"@type":"/gno.RefType"`,
+		"TypeValue-held DeclaredType must be emitted as RefType")
+	require.Contains(t, out, `"ID":"testdata.MyT"`,
+		"RefType must carry the declared type's TypeID")
+
+	// Must NOT inline the DeclaredType's definition. Before the change,
+	// the output contained the full *DeclaredType shape — Base, Methods,
+	// PkgPath, and Name as separate JSON fields.
+	require.NotContains(t, out, `"@type":"/gno.DeclaredType"`,
+		"TypeValue-held DeclaredType must NOT be inlined")
+	require.NotContains(t, out, `"@type":"/gno.StructType"`,
+		"the struct Base must NOT appear inline under the TypeValue")
+}
+
+// TestExportValuesTypeValueAnonymousStructIsInline documents that
+// anonymous composite types at a TypeValue position still serialize
+// inline — they have no TypeID to reference via qtype_json. Only
+// *DeclaredType collapses; structural types retain their full shape.
+//
+// This is not a change introduced by commit 48b11a2 — anonymous types
+// have always been inlined, because exportRefOrCopyType only
+// short-circuits *DeclaredType. The test pins the invariant so future
+// refactors don't accidentally break the "alias-to-anonymous expands
+// inline" semantics that clients rely on (no qtype_json available).
+func TestExportValuesTypeValueAnonymousStructIsInline(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	// `type T = struct{...}` is an alias to an anonymous struct; no
+	// DeclaredType is created.
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type T = struct {
+	X int
+	Y string
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "T"))
+	require.Len(t, tps, 1)
+	require.Equal(t, TypeKind, tps[0].T.Kind())
+
+	bz := exportAndMarshal(t, tps)
+	out := string(bz)
+	t.Logf("anonymous-struct TypeValue: %s", out)
+
+	require.Contains(t, out, `"@type":"/gno.StructType"`,
+		"anonymous struct must be inlined — no TypeID to reference")
+	require.Contains(t, out, `"Name":"X"`,
+		"field names must appear in the inline form")
+	// The outer TypeValue must not collapse to a RefType — only
+	// *DeclaredType has a TypeID.
+	require.NotContains(t, out, `"@type":"/gno.RefType"`,
+		"anonymous types must NOT appear as RefType")
+}
+
+// TestExportValuesAnonymousStructNestedDeclaredIsRef shows the hybrid
+// rule: an anonymous struct's shell stays inline, but any DeclaredType
+// referenced from inside its fields still collapses to RefType at
+// Layer 1 (via exportCopyFieldsWithRefs -> exportRefOrCopyType).
+func TestExportValuesAnonymousStructNestedDeclaredIsRef(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type A struct { X int }
+type B = struct {
+	Field A
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "B"))
+	require.Len(t, tps, 1)
+	require.Equal(t, TypeKind, tps[0].T.Kind())
+
+	bz := exportAndMarshal(t, tps)
+	out := string(bz)
+	t.Logf("anonymous-struct-nesting-declared: %s", out)
+
+	// The B shell is an inline StructType (anonymous, no TypeID).
+	require.Contains(t, out, `"@type":"/gno.StructType"`,
+		"anonymous struct shell must be inlined")
+	// Inner Field's Type references A by its TypeID — A is a
+	// DeclaredType, so Layer 1 collapses it even inside an
+	// anonymous parent.
+	require.Contains(t, out, `"@type":"/gno.RefType"`,
+		"nested DeclaredType must still collapse to RefType")
+	require.Contains(t, out, `"ID":"testdata.A"`,
+		"nested RefType must carry A's TypeID")
+	// A's inline StructType body must NOT appear — it's only reached
+	// via RefType lookup.
+	require.NotContains(t, out, `"Name":"X"`,
+		"A's field names must not be inlined under B")
+}
+
+// TestExportValuesTypeValueUverseAliasIsRef mirrors the test above for
+// uverse aliases (e.g. `type MyErr = error`). This is exactly the B1
+// divergence the review caught — under the old export path, aliasing
+// a uverse type and returning it via qeval_json inlined the full
+// uverse.error interface (~500 bytes of Methods/Base). After the fix,
+// it collapses to a ~30-byte RefType reference.
+func TestExportValuesTypeValueUverseAliasIsRef(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type MyErr = error
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Sel(Nx("testdata"), "MyErr"))
+	require.Len(t, tps, 1)
+	require.Equal(t, TypeKind, tps[0].T.Kind())
+
+	bz := exportAndMarshal(t, tps)
+	out := string(bz)
+	t.Logf("uverse-alias TypeValue export: %s", out)
+
+	// The alias resolves to gErrorType, whose TypeID is ".uverse.error".
+	require.Contains(t, out, `"ID":".uverse.error"`,
+		"uverse alias must collapse to RefType{ID: .uverse.error}")
+
+	// And must NOT inline the error interface definition.
+	require.NotContains(t, out, `"@type":"/gno.InterfaceType"`,
+		"uverse error's InterfaceType must NOT be inlined")
+	require.NotContains(t, out, `"Name":"Error"`,
+		"error's method set must NOT be inlined under the TypeValue")
+}

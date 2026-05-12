@@ -35,6 +35,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		return vals.Has(key)
 	}
 	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
+	funcs["hasPrefix"] = strings.HasPrefix
 	// add returns the sum of two integers — used by recursive templates that
 	// track depth (e.g. the state explorer tree).
 	funcs["add"] = func(a, b int) int { return a + b }

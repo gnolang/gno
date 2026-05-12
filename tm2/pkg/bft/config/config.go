@@ -324,6 +324,10 @@ type BaseConfig struct {
 
 	// TCP or UNIX socket address for the profiling server to listen on
 	ProfListenAddress string `toml:"prof_laddr" comment:"TCP or UNIX socket address for the profiling server to listen on"`
+
+	// If non-zero, the node will halt after committing this block height.
+	// Useful for coordinated chain upgrades.
+	HaltHeight int64 `toml:"halt_height" comment:"If non-zero, the node will halt after committing this block height.\n Useful for coordinated chain upgrades."`
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node

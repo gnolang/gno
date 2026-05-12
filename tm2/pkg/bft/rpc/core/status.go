@@ -9,6 +9,7 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
+	"github.com/gnolang/gno/tm2/pkg/version"
 )
 
 // Get Tendermint status including node info, pubkey, latest block
@@ -105,6 +106,9 @@ func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, e
 	)
 	if latestHeight != 0 {
 		latestBlockMeta = blockStore.LoadBlockMeta(latestHeight)
+		if latestBlockMeta == nil {
+			return nil, fmt.Errorf("block meta not found for height %d", latestHeight)
+		}
 		latestBlockHash = latestBlockMeta.BlockID.Hash
 		latestAppHash = latestBlockMeta.Header.AppHash
 		latestBlockTimeNano = latestBlockMeta.Header.Time.UnixNano()
@@ -131,6 +135,7 @@ func Status(ctx *rpctypes.Context, heightGtePtr *int64) (*ctypes.ResultStatus, e
 			PubKey:      pubKey,
 			VotingPower: votingPower,
 		},
+		BuildVersion: version.Version,
 	}
 
 	return result, nil

@@ -48,7 +48,7 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 	// for logging
 	switch m := msg.Msg.(type) {
 	case newRoundStepInfo:
-		cs.Logger.Info("Replay: New Step", "height", m.Height, "round", m.Round, "step", m.Step)
+		cs.Logger.Debug("Replay: New Step", "height", m.Height, "round", m.Round, "step", m.Step)
 		// these are playback checks
 		ticker := time.After(time.Second * 2)
 		if newStepSub != nil {
@@ -73,19 +73,19 @@ func (cs *ConsensusState) readReplayMessage(msg *walm.TimedWALMessage, meta *wal
 		switch msg := m.Msg.(type) {
 		case *ProposalMessage:
 			p := msg.Proposal
-			cs.Logger.Info("Replay: Proposal", "height", p.Height, "round", p.Round, "header",
+			cs.Logger.Debug("Replay: Proposal", "height", p.Height, "round", p.Round, "header",
 				p.BlockID.PartsHeader, "pol", p.POLRound, "peer", peerID)
 		case *BlockPartMessage:
-			cs.Logger.Info("Replay: BlockPart", "height", msg.Height, "round", msg.Round, "peer", peerID)
+			cs.Logger.Debug("Replay: BlockPart", "height", msg.Height, "round", msg.Round, "peer", peerID)
 		case *VoteMessage:
 			v := msg.Vote
-			cs.Logger.Info("Replay: Vote", "height", v.Height, "round", v.Round, "type", v.Type,
+			cs.Logger.Debug("Replay: Vote", "height", v.Height, "round", v.Round, "type", v.Type,
 				"blockID", v.BlockID, "peer", peerID)
 		}
 
 		cs.handleMsg(m)
 	case timeoutInfo:
-		cs.Logger.Info("Replay: Timeout", "height", m.Height, "round", m.Round, "step", m.Step, "dur", m.Duration)
+		cs.Logger.Debug("Replay: Timeout", "height", m.Height, "round", m.Round, "step", m.Step, "dur", m.Duration)
 		cs.handleTimeout(m, cs.RoundState)
 	default:
 		return fmt.Errorf("replay: Unknown TimedWALMessage type: %v", reflect.TypeOf(msg.Msg))
@@ -134,6 +134,7 @@ func (cs *ConsensusState) catchupReplay(csHeight int64) error {
 	defer gr.Close() //nolint: errcheck
 
 	cs.Logger.Info("Catchup by replaying consensus messages", "height", csHeight)
+	start := time.Now()
 
 	dec := walm.NewWALReader(gr, maxMsgSize)
 
@@ -156,7 +157,7 @@ LOOP:
 			return err
 		}
 	}
-	cs.Logger.Info("Replay: Done")
+	cs.Logger.Info("Replay: Done", "elapsed", time.Since(start))
 	return nil
 }
 
@@ -421,6 +422,9 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 	for i := appBlockHeight + 1; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
 		block := h.store.LoadBlock(i)
+		if block == nil {
+			return nil, fmt.Errorf("block not found for height %d", i)
+		}
 		// Extra check to ensure the app was not changed in a way it shouldn't have.
 		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, block)
@@ -450,7 +454,13 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, app
 // ApplyBlock on the proxyApp with the last block.
 func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp appconn.Consensus) (sm.State, error) {
 	block := h.store.LoadBlock(height)
+	if block == nil {
+		return sm.State{}, fmt.Errorf("block not found for height %d", height)
+	}
 	meta := h.store.LoadBlockMeta(height)
+	if meta == nil {
+		return sm.State{}, fmt.Errorf("block meta not found for height %d", height)
+	}
 
 	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, mock.Mempool{})
 	blockExec.SetEventSwitch(h.evsw)

@@ -25,7 +25,7 @@ var DefaultAliases = map[string]AliasTarget{
 	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
 	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
 	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
-	"/events":     {"/r/gnoland/events", GnowebPath},
+	"/events":     {"/r/devrels/events", GnowebPath},
 	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
 	"/docs":       {"/u/docs", GnowebPath},
 }
@@ -52,6 +52,8 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+	// Banner, if set, displays a site-wide banner above the header.
+	Banner components.BannerData
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -112,6 +114,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		ChainId:    cfg.ChainID,
 		Analytics:  cfg.Analytics,
 		BuildTime:  buildTime,
+		Banner:     cfg.Banner,
 	}
 
 	// Configure Markdown renderer

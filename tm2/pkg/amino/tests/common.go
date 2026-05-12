@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/amino/tests/crosspkg"
 )
 
 // ----------------------------------------
@@ -353,6 +355,93 @@ func (re *ReprElem7) UnmarshalAmino(u uint8) error {
 }
 
 // ----------------------------------------
+// SimpleAddress: [20]byte with string repr (mimics crypto.Address).
+// Exercises AminoMarshaler elements inside slices/arrays/pointer-slices.
+
+type SimpleAddress [20]byte
+
+func (a SimpleAddress) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%x", a[:]), nil
+}
+
+func (a *SimpleAddress) UnmarshalAmino(repr string) error {
+	if len(repr) != 40 {
+		return fmt.Errorf("invalid SimpleAddress length: %d", len(repr))
+	}
+	for i := 0; i < 20; i++ {
+		var b byte
+		if _, err := fmt.Sscanf(repr[i*2:i*2+2], "%02x", &b); err != nil {
+			return err
+		}
+		a[i] = b
+	}
+	return nil
+}
+
+// HostRepr: AminoMarshaler with []byte repr. Exercises primitiveValueSizeExpr
+// ByteSlice path in the list-element size calculation.
+
+type HostRepr struct {
+	IP string
+}
+
+func (hr HostRepr) MarshalAmino() ([]byte, error) {
+	return []byte(hr.IP), nil
+}
+
+func (hr *HostRepr) UnmarshalAmino(repr []byte) error {
+	hr.IP = string(repr)
+	return nil
+}
+
+// CounterRepr: AminoMarshaler with uint8 repr. Exercises the packed list
+// branch for AminoMarshaler elements. Non-lossy: underlying type is also uint8.
+
+type CounterRepr uint8
+
+func (c CounterRepr) MarshalAmino() (uint8, error) {
+	return uint8(c), nil
+}
+
+func (c *CounterRepr) UnmarshalAmino(repr uint8) error {
+	*c = CounterRepr(repr)
+	return nil
+}
+
+// ContainerWithAminoLists: various list shapes of AminoMarshaler elements.
+
+type ContainerWithAminoLists struct {
+	Addrs    []SimpleAddress  // slice, string repr
+	TopAddrs [3]SimpleAddress // array, string repr
+}
+
+// CrossPkgPointerSlice: []*AminoMarshaler where the element type lives in
+// a different package and has a packed (non-ByteLength) repr. Without the
+// gen_marshal.go:442 fix, generated code emits `new(SmallCount)` (bare name)
+// which fails to compile in the tests package.
+
+type CrossPkgPointerSlice struct {
+	Counts []*crosspkg.SmallCount
+}
+
+// CrossPkgBoxedRepr: a same-package AminoMarshaler whose repr is a struct
+// in a different package. Without the gen_unmarshal.go:72 fix, generated
+// code declares `var repr Inner` (bare name) which fails to compile.
+
+type CrossPkgBoxedRepr struct {
+	Val int64
+}
+
+func (c CrossPkgBoxedRepr) MarshalAmino() (crosspkg.Inner, error) {
+	return crosspkg.Inner{N: c.Val}, nil
+}
+
+func (c *CrossPkgBoxedRepr) UnmarshalAmino(r crosspkg.Inner) error {
+	c.Val = r.N
+	return nil
+}
+
+// ----------------------------------------
 
 type ComplexSt struct {
 	PrField PrimitivesStruct
@@ -428,6 +517,34 @@ var StructTypes = []any{
 	(*AminoMarshalerInt5)(nil),
 	(*AminoMarshalerStruct6)(nil),
 	(*AminoMarshalerStruct7)(nil),
+	// GnoVM-inspired condensed types (no genproto pbbindings,
+	// but tested by genproto2 via PBMessager2).
+	(*FuzzStructInfo)(nil),
+	(*FuzzBlock)(nil),
+	(*FuzzDeepNest)(nil),
+	(*FuzzPtrNest)(nil),
+	(*FuzzUnsafeFloat)(nil),
+	(*FuzzFixedInt)(nil),
+	(*FuzzContainsAminoMarshaler)(nil),
+	// AminoMarshaler list element types (slice/array of AminoMarshaler with
+	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
+	(*ContainerWithAminoLists)(nil),
+	// Cross-package AminoMarshaler: verifies generated code uses qualified
+	// type names (e.g. `var repr crosspkg.Inner`). CrossPkgPointerSlice is
+	// excluded from property fuzz because random nil elements in a
+	// pointer-slice without nil_elements tag yield lossy null-vs-zero JSON
+	// roundtrips; it is covered by an explicit TestCrossPkgPointerSliceRoundtrip.
+	(*CrossPkgBoxedRepr)(nil),
+	// Interface-heavy benchmark type.
+	(*InterfaceHeavy)(nil),
+}
+
+// AminoTagTypes are struct types that use amino-specific encoding tags
+// (write_empty, nil_elements) with no proto3 equivalent. These need a
+// tailored test that skips the proto.Marshal byte comparison.
+var AminoTagTypes = []any{
+	(*FuzzWriteEmpty)(nil),
+	(*FuzzNilElements)(nil),
 }
 
 // ----------------------------------------
@@ -488,6 +605,14 @@ type Concrete1 struct{}
 
 func (Concrete1) AssertInterface1() {}
 func (Concrete1) AssertInterface2() {}
+
+// ConcreteRecursive implements Interface1 and has an Interface1 field,
+// allowing unbounded nesting for depth-limit testing.
+type ConcreteRecursive struct {
+	Inner Interface1
+}
+
+func (ConcreteRecursive) AssertInterface1() {}
 
 type Concrete2 struct{}
 

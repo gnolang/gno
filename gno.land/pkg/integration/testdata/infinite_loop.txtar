@@ -6,27 +6,27 @@
 gnoland start
 
 # addpkg + -simulate skip
-! gnokey maketx addpkg -pkgdir $WORK/r1 -pkgpath gno.land/r/demo/r1 -simulate skip -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/r1 -pkgpath gno.land/r/demo/r1 -simulate skip -gas-fee 10000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 ! stdout OK!
 stderr 'out of gas.* location: CPUCycles'
 
 # addpkg + -simulate only
-! gnokey maketx addpkg -pkgdir $WORK/r1 -pkgpath gno.land/r/demo/r1 -simulate only -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx addpkg -pkgdir $WORK/r1 -pkgpath gno.land/r/demo/r1 -simulate only -gas-fee 10000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 ! stdout OK!
 stderr 'out of gas.* location: CPUCycles'
 
 # run + -simulate skip
-! gnokey maketx run -simulate skip -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run.gno
+! gnokey maketx run -simulate skip -gas-fee 10000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/run.gno
 ! stdout OK!
 stderr 'out of gas.* location: CPUCycles'
 
 # run + -simulate only
-! gnokey maketx run -simulate only -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run.gno
+! gnokey maketx run -simulate only -gas-fee 10000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/run.gno
 ! stdout OK!
 stderr 'out of gas.* location: CPUCycles'
 
 # maketx addpkg on r2 (successful)
-gnokey maketx addpkg -pkgdir $WORK/r2 -pkgpath gno.land/r/demo/r2 -gas-fee 10000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/r2 -pkgpath gno.land/r/demo/r2 -gas-fee 10000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 stdout OK!
 
 # qeval on the render function

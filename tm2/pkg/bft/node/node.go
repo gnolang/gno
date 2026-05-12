@@ -105,6 +105,7 @@ func DefaultNewNode(
 	genesisFile string,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	options ...Option,
 ) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
@@ -139,11 +140,20 @@ func DefaultNewNode(
 		DefaultDBProvider,
 		evsw,
 		logger,
+		options...,
 	)
 }
 
 // Option sets a parameter for the node.
 type Option func(*Node)
+
+// WithEarlyStart starts RPC and P2P before genesis time,
+// deferring only consensus until the genesis timestamp is reached.
+func WithEarlyStart() Option {
+	return func(n *Node) {
+		n.earlyStart = true
+	}
+}
 
 // ------------------------------------------------------------------------------
 
@@ -179,6 +189,8 @@ type Node struct {
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
+
+	earlyStart bool // start RPC+P2P before genesis time, defer only consensus
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -570,11 +582,17 @@ func NewNode(config *cfg.Config,
 
 // OnStart starts the Node. It implements service.Service.
 func (n *Node) OnStart() error {
-	now := tmtime.Now()
 	genTime := n.genesisDoc.GenesisTime
-	if genTime.After(now) {
-		n.Logger.Info("Genesis time is in the future. Sleeping until then...", "genTime", genTime)
-		time.Sleep(genTime.Sub(now))
+
+	if !n.earlyStart {
+		// Default: block everything until genesis time.
+		now := tmtime.Now()
+		if genTime.After(now) {
+			n.Logger.Info("Genesis time is in the future. Sleeping until then...", "genTime", genTime)
+			time.Sleep(genTime.Sub(now))
+		}
+	} else if genTime.After(tmtime.Now()) {
+		n.Logger.Info("Genesis time is in the future. Starting RPC+P2P early (-x-early-start)", "genTime", genTime)
 	}
 
 	// Set up the GLOBAL variables in rpc/core which refer to this node.
@@ -637,6 +655,15 @@ func (n *Node) OnStart() error {
 
 	// Dial the persistent peers
 	n.sw.DialPeers(peerAddrs...)
+
+	// If early start, wait for genesis time now (RPC+P2P already running).
+	if n.earlyStart {
+		now := tmtime.Now()
+		if genTime.After(now) {
+			n.Logger.Info("RPC+P2P running. Waiting for genesis time to start consensus...", "genTime", genTime, "sleep", genTime.Sub(now))
+			time.Sleep(genTime.Sub(now))
+		}
+	}
 
 	return nil
 }

@@ -3,7 +3,6 @@ package vm
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -176,8 +175,10 @@ var Value error = &panicError{}`
 		require.Contains(t, rep, `"results"`)
 	})
 
-	t.Run("out_of_gas_error_method", func(t *testing.T) {
-		// Use a machine with a very tight gas limit so .Error() exhausts it.
+	t.Run("out_of_gas_error_method_graceful_degrade", func(t *testing.T) {
+		// When .Error() runs out of gas, tryGetError must graceful-degrade
+		// (no @error) rather than re-panicking — re-panicking would discard
+		// the successful Results JSON that was already computed.
 		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 			PkgPath:  "testdata",
 			GasMeter: stypes.NewGasMeter(100_000),
@@ -206,23 +207,15 @@ var Value error = &gasError{}`
 		tv := tps[0]
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 
-		// stringifyJSONResults should re-panic with OutOfGasError
-		require.Panics(t, func() {
-			stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
+		// Must NOT panic. Results must be present. @error must be absent.
+		var rep string
+		require.NotPanics(t, func() {
+			rep = stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
 		})
-
-		// Verify it's specifically an OOG panic
-		func() {
-			defer func() {
-				r := recover()
-				require.NotNil(t, r)
-				err, ok := r.(error)
-				require.True(t, ok, "panic should be an error")
-				var oog stypes.OutOfGasError
-				require.True(t, errors.As(err, &oog), "panic should be OutOfGasError, got: %v", err)
-			}()
-			stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
-		}()
+		require.Contains(t, rep, `"results":`,
+			"results payload must be preserved even when .Error() OOGs")
+		require.NotContains(t, rep, `"@error"`,
+			"@error must be omitted on OOG in .Error() — graceful degrade")
 	})
 }
 
@@ -1316,5 +1309,74 @@ var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3, Next: ni
 		// No cycles, so no RefValue for cycle breaking — all expanded inline
 		require.Contains(t, rep, `/gno.StructValue`)
 		require.NotContains(t, rep, `/gno.ExportRefValue`)
+	})
+
+	t.Run("ephemeral_5node_cycle_dfs_ids", func(t *testing.T) {
+		// Contract: ADR-002 §"Ephemeral Reference Resolution" — the encoder
+		// performs a DFS and assigns each new ephemeral Object a monotonic
+		// counter id; subsequent visits emit ExportRefValue{":N"}.
+		// For a 5-node cycle n1 -> n2 -> n3 -> n4 -> n5 -> n1, the back-edge
+		// from n5.Next must reference the FIRST-visited node (lowest id).
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		code := `package testdata
+type Node struct {
+	Value int
+	Next  *Node
+}
+var Value *Node
+func init() {
+	n1 := &Node{Value: 1}
+	n2 := &Node{Value: 2}
+	n3 := &Node{Value: 3}
+	n4 := &Node{Value: 4}
+	n5 := &Node{Value: 5}
+	n1.Next = n2
+	n2.Next = n3
+	n3.Next = n4
+	n4.Next = n5
+	n5.Next = n1
+	Value = n1
+}`
+
+		nn := m.MustParseFile("testdata.gno", code)
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tvs, 1)
+
+		rep := stringifyJSONResults(m, tvs, nil)
+		t.Logf("5-cycle output: %s", rep)
+
+		// Exactly one ExportRefValue: the back-edge from n5 to n1.
+		require.Equal(t, 1, strings.Count(rep, `"@type":"/gno.ExportRefValue"`),
+			"5-node cycle must emit exactly one ExportRefValue (the back-edge); got:\n%s", rep)
+
+		// All five distinct Value integers must appear inline (base64 of
+		// their little-endian int64 form).
+		// int64(1) LE => 01 00 00 00 00 00 00 00 => base64 "AQAAAAAAAAA="
+		// int64(2) => "AgAAAAAAAAA=", 3 => "AwAAAAAAAAA=",
+		// 4 => "BAAAAAAAAAA=", 5 => "BQAAAAAAAAA="
+		for _, want := range []string{
+			`"N":"AQAAAAAAAAA="`,
+			`"N":"AgAAAAAAAAA="`,
+			`"N":"AwAAAAAAAAA="`,
+			`"N":"BAAAAAAAAAA="`,
+			`"N":"BQAAAAAAAAA="`,
+		} {
+			require.Contains(t, rep, want,
+				"each of n1..n5 must appear inline with its Value; missing %s", want)
+		}
+
+		// The back-ref must point to the lowest-id node (the DFS root's
+		// associated Object — which is the first ephemeral Object the
+		// encoder encountered). Assert the ExportRefValue references ":1".
+		// (We don't pin the exact highest id because intermediate
+		// HeapItemValue wrappers also consume counter slots; the relevant
+		// contract is that the back-reference targets the first-assigned id.)
+		require.Contains(t, rep, `"ObjectID":":1"`,
+			"back-reference must target the first-visited ephemeral Object (:1); got:\n%s", rep)
 	})
 }

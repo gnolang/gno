@@ -51,14 +51,8 @@ func (u UserData) RenderLink(linkText string) string {
 	return ufmt.Sprintf("[%s](/u/%s)", linkText, u.username)
 }
 
-// RegisterUser adds a new user to the system.
-func RegisterUser(cur realm, name string, address_XXX address) error {
-	// At genesis (height 0), allow any caller to register users.
-	// After genesis, only whitelisted controllers can register.
-	if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
-		return NewErrNotWhitelisted()
-	}
-
+// registerUser adds a new user to the system without checking controllers
+func registerUser(cur realm, name string, address_XXX address) error {
 	// Validate name
 	if err := validateName(name); err != nil {
 		return err
@@ -103,17 +97,23 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 	return nil
 }
 
-// UpdateName adds a name that is associated with a specific address
-// All previous names are preserved and resolvable.
-// The new name is the default value returned for address lookups.
-func (u *UserData) UpdateName(newName string) error {
-	if u == nil { // either doesnt exists or was deleted
-		return ErrUserNotExistOrDeleted
+// RegisterUser adds a new user to the system.
+func RegisterUser(cur realm, name string, address_XXX address) error {
+	// At genesis (height 0), allow any caller to register users.
+	// After genesis, only whitelisted controllers can register.
+	if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
+		return NewErrNotWhitelisted()
 	}
 
-	// Validate caller
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
-		return NewErrNotWhitelisted()
+	return registerUser(cur, name, address_XXX)
+}
+
+// updateName adds a name that is associated with a specific address without checking controllers
+// All previous names are preserved and resolvable.
+// The new name is the default value returned for address lookups.
+func (u *UserData) updateName(newName string) error {
+	if u == nil { // either doesn't exist or was deleted
+		return ErrUserNotExistOrDeleted
 	}
 
 	// Validate name
@@ -136,6 +136,34 @@ func (u *UserData) UpdateName(newName string) error {
 	return nil
 }
 
+// UpdateName adds a name that is associated with a specific address
+// All previous names are preserved and resolvable.
+// The new name is the default value returned for address lookups.
+func (u *UserData) UpdateName(newName string) error {
+	if u == nil {
+		return ErrUserNotExistOrDeleted
+	}
+
+	// Validate caller
+	if !controllers.Has(runtime.CurrentRealm().Address()) {
+		return NewErrNotWhitelisted()
+	}
+
+	return u.updateName(newName)
+}
+
+// delete marks a user and all their aliases as deleted without checking controllers.
+func (u *UserData) delete() error {
+	if u == nil {
+		return ErrUserNotExistOrDeleted
+	}
+
+	u.deleted = true
+
+	chain.Emit(DeleteUserEvent, "address", u.addr.String())
+	return nil
+}
+
 // Delete marks a user and all their aliases as deleted.
 func (u *UserData) Delete() error {
 	if u == nil {
@@ -147,10 +175,7 @@ func (u *UserData) Delete() error {
 		return NewErrNotWhitelisted()
 	}
 
-	u.deleted = true
-
-	chain.Emit(DeleteUserEvent, "address", u.addr.String())
-	return nil
+	return u.delete()
 }
 
 // Validate validates username and address passed in

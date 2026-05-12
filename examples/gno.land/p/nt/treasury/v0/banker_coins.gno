@@ -77,10 +77,10 @@ func NewCoinsBankerWithOwner(owner address, banker_ banker.Banker) (*CoinsBanker
 		return nil, ErrNoOwnerProvided
 	}
 
-	// NOTE: Should we add methods to std.Banker to check both its type and the
+	// NOTE: Should we add methods to banker.Banker to check both its type and the
 	// associated Realm for this kind of case?
 	// For example:
-	// if banker.Type() != std.BankerTypeRealmSend { panic("banker must be of type std.BankerTypeRealmSend") }
+	// if banker.Type() != banker.BankerTypeRealmSend { panic("banker must be of type banker.BankerTypeRealmSend") }
 	// if banker.Realm().Address() != owner { panic("banker must be owned by the given owner address") }
 	if banker_ == nil {
 		return nil, ErrNoStdBankerProvided

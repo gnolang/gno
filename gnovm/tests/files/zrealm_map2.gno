@@ -30,6 +30,6 @@ func main(cur realm) {
 }
 
 // Output:
-// caught panic: cannot directly modify readonly tainted object (w/o method): rm<~VPBlock(1,0)>[(const ("attacker" string))]
+// caught panic: cannot directly modify readonly tainted object (use a method or crossing function): rm<~VPBlock(1,0)>[(const ("attacker" string))]
 // len(m) = 1
 // attacker key exists: false

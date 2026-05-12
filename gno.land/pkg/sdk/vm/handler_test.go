@@ -103,7 +103,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^:0:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
-		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
+		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^runtime error: slice index out of bounds: 6 \(len=5\)$`},
 		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedErrorMatch: `out of gas in location: CPUCycles`},
 	}
 
@@ -595,10 +595,35 @@ func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
 	assert.Contains(t, res.Error.Error(), "unknown request")
 }
 
+// TestVmHandlerQuery_EvalJSON_MalformedInput documents the inherited panic
+// behavior of parseQueryEvalData: both qeval and qeval_json panic when the
+// request data lacks a `<pkgpath>.<expression>` shape. In production, the
+// ABCI layer's outer recover turns this into an error response at the RPC
+// boundary (see ADR-002 §"Malformed Query Input"). At this unit-test level
+// no outer recover is installed, so the panic surfaces directly.
+func TestVmHandlerQuery_EvalJSON_MalformedInput(t *testing.T) {
+	env := setupTestEnv()
+	vmHandler := env.vmh
+
+	req := abci.RequestQuery{
+		Path: "vm/qeval_json",
+		Data: []byte(`gno.land/r/hello`), // no dot after the slash
+	}
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "qeval_json must panic on malformed input (inherited qeval behavior)")
+		assert.Contains(t, fmt.Sprintf("%v", r), "expected <pkgpath>.<expression> syntax",
+			"panic message should match parseQueryEvalData's const; got: %v", r)
+	}()
+	_ = vmHandler.Query(env.ctx, req)
+}
+
+
 func TestVmHandlerQuery_Doc(t *testing.T) {
 	expected := &doc.JSONDocumentation{
 		PackagePath: "gno.land/r/hello",
-		PackageLine: "package hello // import \"hello\"",
+		PackageLine: "package hello // import \"gno.land/r/hello\"",
 		PackageDoc:  "hello is a package for testing\n",
 		Values: []*doc.JSONValueDecl{
 			{

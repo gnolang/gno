@@ -88,6 +88,9 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 	blockMetas := []*types.BlockMeta{}
 	for height := maxHeight; height >= minHeight; height-- {
 		blockMeta := blockStore.LoadBlockMeta(height)
+		if blockMeta == nil {
+			return nil, fmt.Errorf("block meta not found for height %d", height)
+		}
 		blockMetas = append(blockMetas, blockMeta)
 	}
 
@@ -247,7 +250,13 @@ func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error)
 	}
 
 	blockMeta := blockStore.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, fmt.Errorf("block meta not found for height %d", height)
+	}
 	block := blockStore.LoadBlock(height)
+	if block == nil {
+		return nil, fmt.Errorf("block not found for height %d", height)
+	}
 	return &ctypes.ResultBlock{BlockMeta: blockMeta, Block: block}, nil
 }
 
@@ -339,17 +348,27 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 		return nil, err
 	}
 
-	header := blockStore.LoadBlockMeta(height).Header
+	blockMeta := blockStore.LoadBlockMeta(height)
+	if blockMeta == nil {
+		return nil, fmt.Errorf("block meta not found for height %d", height)
+	}
+	header := blockMeta.Header
 
 	// If the next block has not been committed yet,
 	// use a non-canonical commit
 	if height == storeHeight {
 		commit := blockStore.LoadSeenCommit(height)
+		if commit == nil {
+			return nil, fmt.Errorf("seen commit not found for height %d", height)
+		}
 		return ctypes.NewResultCommit(&header, commit, false), nil
 	}
 
 	// Return the canonical commit (comes from the block at height+1)
 	commit := blockStore.LoadBlockCommit(height)
+	if commit == nil {
+		return nil, fmt.Errorf("block commit not found for height %d", height)
+	}
 	return ctypes.NewResultCommit(&header, commit, true), nil
 }
 

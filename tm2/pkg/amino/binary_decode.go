@@ -9,6 +9,11 @@ import (
 
 const bdOptionByte = 0x01
 
+// maxAnyDepth is the maximum nesting depth for interface/Any decoding.
+// Each interface field traversal increments depth; exceeding this limit
+// returns an error instead of risking stack overflow from malicious input.
+const maxAnyDepth = 64
+
 // ----------------------------------------
 // cdc.decodeReflectBinary
 
@@ -26,7 +31,7 @@ const bdOptionByte = 0x01
 //
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
-	rv reflect.Value, fopts FieldOptions, bare bool, options uint64,
+	rv reflect.Value, fopts FieldOptions, bare bool, options uint64, anyDepth int,
 ) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
@@ -64,7 +69,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 		if err != nil {
 			return
 		}
-		_n, err = cdc.decodeReflectBinary(bz, rinfo, rrv, fopts, bare, options)
+		_n, err = cdc.decodeReflectBinary(bz, rinfo, rrv, fopts, bare, options, anyDepth)
 		if slide(&bz, &n, _n) && err != nil {
 			return
 		}
@@ -83,7 +88,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	// Complex
 
 	case reflect.Interface:
-		_n, err = cdc.decodeReflectBinaryInterface(bz, info, rv, fopts, bare)
+		_n, err = cdc.decodeReflectBinaryInterface(bz, info, rv, fopts, bare, anyDepth+1)
 		n += _n
 		return
 
@@ -93,7 +98,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 			_n, err = cdc.decodeReflectBinaryByteArray(bz, info, rv, fopts)
 			n += _n
 		} else {
-			_n, err = cdc.decodeReflectBinaryArray(bz, info, rv, fopts, bare)
+			_n, err = cdc.decodeReflectBinaryArray(bz, info, rv, fopts, bare, anyDepth)
 			n += _n
 		}
 		return
@@ -104,13 +109,13 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 			_n, err = cdc.decodeReflectBinaryByteSlice(bz, info, rv, fopts)
 			n += _n
 		} else {
-			_n, err = cdc.decodeReflectBinarySlice(bz, info, rv, fopts, bare)
+			_n, err = cdc.decodeReflectBinarySlice(bz, info, rv, fopts, bare, anyDepth)
 			n += _n
 		}
 		return
 
 	case reflect.Struct:
-		_n, err = cdc.decodeReflectBinaryStruct(bz, info, rv, fopts, bare)
+		_n, err = cdc.decodeReflectBinaryStruct(bz, info, rv, fopts, bare, anyDepth)
 		n += _n
 		return
 
@@ -304,8 +309,11 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 // CONTRACT: rv.CanAddr() is true.
 // CONTRACT: rv.Kind() == reflect.Interface.
 func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool,
+	fopts FieldOptions, bare bool, anyDepth int,
 ) (n int, err error) {
+	if anyDepth > maxAnyDepth {
+		return 0, fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
+	}
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
@@ -388,7 +396,7 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 	}
 
 	// Decode typeURL and value to rv.
-	_n, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, fopts)
+	_n, err = cdc.decodeReflectBinaryAny(typeURL, value, rv, fopts, anyDepth)
 	if slide(&value, &n, _n) && err != nil {
 		return
 	}
@@ -399,7 +407,7 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 // Returns the number of bytes read from value.
 // CONTRACT: rv.CanAddr() is true.
 // CONTRACT: rv.Kind() == reflect.Interface.
-func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflect.Value, fopts FieldOptions) (n int, err error) {
+func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflect.Value, fopts FieldOptions, anyDepth int) (n int, err error) {
 	// Invalid typeURL value is invalid.
 	if !IsASCIIText(typeURL) {
 		err = fmt.Errorf("invalid type_url string bytes %X", typeURL)
@@ -472,7 +480,7 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// Decode into the concrete type.
 	// Here is where we consume the value bytes, which are necessarily length
 	// prefixed, due to the type of field 2, so bareValue is false.
-	_n, err := cdc.decodeReflectBinary(value, cinfo, crv, fopts, bareValue, 0)
+	_n, err := cdc.decodeReflectBinary(value, cinfo, crv, fopts, bareValue, 0, anyDepth)
 	if slide(&value, &n, _n) && err != nil {
 		// Verify that the decoded concrete type is assignable to the target interface.
 		// This prevents panics when a registered type doesn't implement the target interface.
@@ -546,7 +554,7 @@ func (cdc *Codec) decodeReflectBinaryByteArray(bz []byte, info *TypeInfo, rv ref
 // CONTRACT: rv.CanAddr() is true.
 // NOTE: Keep the code structure similar to decodeReflectBinarySlice.
 func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool,
+	fopts FieldOptions, bare bool, anyDepth int,
 ) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
@@ -587,7 +595,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 		for i := range length {
 			erv := rv.Index(i)
 			var _n int
-			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
+			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions, anyDepth)
 			if slide(&bz, &n, _n) && err != nil {
 				err = fmt.Errorf("error reading array contents: %w", err)
 				return
@@ -652,7 +660,8 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				n += UvarintSize(uint64(len(ibz)))
 				// Read field key of implicit struct.
 				var fnum uint32
-				fnum, _, _n, err = decodeFieldNumberAndTyp3(ibz)
+				var ityp Typ3
+				fnum, ityp, _n, err = decodeFieldNumberAndTyp3(ibz)
 				if slide(&ibz, &n, _n) && err != nil {
 					return
 				}
@@ -660,10 +669,14 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 					err = fmt.Errorf("unexpected field number %v of implicit list struct", fnum)
 					return
 				}
+				if ityp != Typ3ByteLength {
+					err = fmt.Errorf("unexpected typ3 %v of implicit list struct field 1 (want ByteLength)", ityp)
+					return
+				}
 				// Read field value of implicit struct.
 				efopts := fopts
 				efopts.BinFieldNum = 0 // dontcare
-				_n, err = cdc.decodeReflectBinary(ibz, einfo, erv, efopts, false, 0)
+				_n, err = cdc.decodeReflectBinary(ibz, einfo, erv, efopts, false, 0, anyDepth)
 				if slide(&ibz, &n, _n) && err != nil {
 					err = fmt.Errorf("error reading array contents: %w", err)
 					return
@@ -677,7 +690,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				// General case
 				efopts := fopts
 				efopts.BinFieldNum = 1
-				_n, err = cdc.decodeReflectBinary(bz, einfo, erv, efopts, false, 0)
+				_n, err = cdc.decodeReflectBinary(bz, einfo, erv, efopts, false, 0, anyDepth)
 				if slide(&bz, &n, _n) && err != nil {
 					err = fmt.Errorf("error reading array contents: %w", err)
 					return
@@ -747,7 +760,7 @@ func (cdc *Codec) decodeReflectBinaryByteSlice(bz []byte, info *TypeInfo, rv ref
 // CONTRACT: rv.CanAddr() is true.
 // NOTE: Keep the code structure similar to decodeReflectBinaryArray.
 func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect.Value,
-	fopts FieldOptions, bare bool,
+	fopts FieldOptions, bare bool, anyDepth int,
 ) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
@@ -791,7 +804,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 		// Read elems in packed form.
 		for len(bz) != 0 {
 			erv, _n := reflect.New(ert).Elem(), int(0)
-			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions)
+			_n, err = cdc.decodeReflectBinary(bz, einfo, erv, fopts, false, newoptions, anyDepth)
 			if slide(&bz, &n, _n) && err != nil {
 				err = fmt.Errorf("error reading array contents: %w", err)
 				return
@@ -856,7 +869,8 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				n += UvarintSize(uint64(len(ibz)))
 				// Read field key of implicit struct.
 				var fnum uint32
-				fnum, _, _n, err = decodeFieldNumberAndTyp3(ibz)
+				var ityp Typ3
+				fnum, ityp, _n, err = decodeFieldNumberAndTyp3(ibz)
 				if slide(&ibz, &n, _n) && err != nil {
 					return
 				}
@@ -864,10 +878,14 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 					err = fmt.Errorf("unexpected field number %v of implicit list struct", fnum)
 					return
 				}
+				if ityp != Typ3ByteLength {
+					err = fmt.Errorf("unexpected typ3 %v of implicit list struct field 1 (want ByteLength)", ityp)
+					return
+				}
 				// Read field value of implicit struct.
 				efopts := fopts
 				efopts.BinFieldNum = 0 // dontcare
-				_n, err = cdc.decodeReflectBinary(ibz, einfo, erv, efopts, false, 0)
+				_n, err = cdc.decodeReflectBinary(ibz, einfo, erv, efopts, false, 0, anyDepth)
 				if slide(&ibz, &n, _n) && err != nil {
 					err = fmt.Errorf("error reading slice contents: %w", err)
 					return
@@ -881,7 +899,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				// General case
 				efopts := fopts
 				efopts.BinFieldNum = 1
-				_n, err = cdc.decodeReflectBinary(bz, einfo, erv, efopts, false, 0)
+				_n, err = cdc.decodeReflectBinary(bz, einfo, erv, efopts, false, 0, anyDepth)
 				if slide(&bz, &n, _n) && err != nil {
 					err = fmt.Errorf("error reading slice contents: %w", err)
 					return
@@ -896,7 +914,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 
 // CONTRACT: rv.CanAddr() is true.
 func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflect.Value,
-	_ FieldOptions, bare bool,
+	_ FieldOptions, bare bool, anyDepth int,
 ) (n int, err error) {
 	if !rv.CanAddr() {
 		panic("rv not addressable")
@@ -944,7 +962,7 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 			}
 			// This is a list that was encoded unpacked, e.g.
 			// with repeated field entries for each list item.
-			_n, err = cdc.decodeReflectBinary(bz, finfo, frv, field.FieldOptions, true, 0)
+			_n, err = cdc.decodeReflectBinary(bz, finfo, frv, field.FieldOptions, true, 0, anyDepth)
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
@@ -986,34 +1004,24 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				return
 			}
 			// Decode field into frv.
-			_n, err = cdc.decodeReflectBinary(bz, finfo, frv, field.FieldOptions, false, 0)
+			_n, err = cdc.decodeReflectBinary(bz, finfo, frv, field.FieldOptions, false, 0, anyDepth)
 			if slide(&bz, &n, _n) && err != nil {
 				return
 			}
 		}
 	}
 
-	// Consume any remaining fields.
-	var (
-		fnum uint32
-		typ3 Typ3
-	)
-	for len(bz) > 0 {
-		fnum, typ3, _n, err = decodeFieldNumberAndTyp3(bz)
-		if slide(&bz, &n, _n) && err != nil {
+	// Reject unknown trailing fields. All registered fields should have been
+	// consumed above. Unknown fields indicate a version mismatch or corruption.
+	if len(bz) > 0 {
+		var fnum uint32
+		fnum, _, _n, err = decodeFieldNumberAndTyp3(bz)
+		if err != nil {
 			return
 		}
-		if fnum <= lastFieldNum {
-			err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
-				fnum, lastFieldNum, bz)
-			return
-		}
-		lastFieldNum = fnum
-
-		_n, err = consumeAny(typ3, bz)
-		if slide(&bz, &n, _n) && err != nil {
-			return
-		}
+		_ = _n
+		err = fmt.Errorf("unknown field number %d for %v", fnum, info.Type)
+		return
 	}
 	return n, err
 }
@@ -1058,8 +1066,12 @@ func decodeFieldNumberAndTyp3(bz []byte) (num uint32, typ Typ3, n int, err error
 	// Decode first typ3 byte.
 	typ = Typ3(value64 & 0x07)
 
-	// Decode num.
+	// Decode num. Field 0 is reserved by proto3 and must never appear.
 	num64 := value64 >> 3
+	if num64 == 0 {
+		err = fmt.Errorf("invalid field num 0 (reserved)")
+		return
+	}
 	if num64 > (1<<29 - 1) {
 		err = fmt.Errorf("invalid field num %v", num64)
 		return

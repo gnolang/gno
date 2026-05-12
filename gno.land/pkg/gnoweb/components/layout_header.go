@@ -26,6 +26,7 @@ type HeaderData struct {
 	ChainId    string
 	Remote     string
 	Mode       ViewMode
+	Static     bool
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
@@ -36,7 +37,7 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 	}
 }
 
-func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
+func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
 	contentURL, sourceURL, helpURL, stateURL := u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -71,12 +72,14 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 		IsActive: isActive(u.WebQuery, "State"),
 	}
 
-	switch mode {
-	case ViewModeExplorer:
-		return []HeaderLink{}
-	case ViewModeUser:
+	switch {
+	case static:
 		return []HeaderLink{contentLink}
-	case ViewModePackage:
+	case mode == ViewModeExplorer:
+		return []HeaderLink{}
+	case mode == ViewModeUser:
+		return []HeaderLink{contentLink}
+	case mode == ViewModePackage:
 		return []HeaderLink{contentLink, sourceLink}
 	default:
 		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink}
@@ -85,7 +88,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode) []HeaderLink {
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode)
+	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	data.Links.General = nil
 
 	if mode.ShouldShowGeneralLinks() {
