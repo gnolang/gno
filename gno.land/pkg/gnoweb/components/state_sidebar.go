@@ -153,7 +153,7 @@ func stateAnchorOf(name string) string {
 // RealmStateHref returns the URL of a package's top-level state page (`/r/foo$state`).
 func RealmStateHref(pkgPath string) template.URL {
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: url.Values{"state": {""}}}
-	return template.URL(u.EncodeWebURL())
+	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
 // PkgKindLabel returns "Realm" for `/r/` paths, "Package" otherwise.

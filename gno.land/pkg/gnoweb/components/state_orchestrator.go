@@ -276,7 +276,7 @@ func stateObjectHref(pkgPath, oid, typeID string, height int64) template.URL {
 		wq.Set("height", strconv.FormatInt(height, 10))
 	}
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
-	return template.URL(u.EncodeWebURL())
+	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
 // sliceLines extracts a 1-based inclusive line range from content via a

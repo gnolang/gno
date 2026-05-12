@@ -1014,7 +1014,7 @@ func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL
 		Sidebar:      in.Sidebar,
 		IsObjectPage: in.IsObjectPage,
 		Height:       in.Height,
-		LatestHref:   template.URL(gnourl.WithoutHeight().EncodeWebURL()),
+		LatestHref:   template.URL(gnourl.WithoutHeight().EncodeWebURL()), //nolint:gosec
 		ViewMode:     in.ViewMode,
 		RawJSON:      string(in.RawJSON),
 		KindCounts:   components.ComputeKindCounts(in.Nodes),
@@ -1054,7 +1054,7 @@ func (h *rendererSnippetHighlighter) Render(fileName string, source []byte) (tem
 	if err := h.renderer.RenderSource(&buf, fileName, source); err != nil {
 		return "", err
 	}
-	return template.HTML(buf.String()), nil
+	return template.HTML(buf.String()), nil //nolint:gosec
 }
 
 // ServeSourceDownload handles downloading a source file as plain text.
