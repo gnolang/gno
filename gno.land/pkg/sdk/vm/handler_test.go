@@ -619,7 +619,6 @@ func TestVmHandlerQuery_EvalJSON_MalformedInput(t *testing.T) {
 	_ = vmHandler.Query(env.ctx, req)
 }
 
-
 func TestVmHandlerQuery_Doc(t *testing.T) {
 	expected := &doc.JSONDocumentation{
 		PackagePath: "gno.land/r/hello",
