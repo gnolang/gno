@@ -8,7 +8,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -29,6 +31,8 @@ type BaseTxCfg struct {
 	AccountNumber  uint64 // Account number
 	SequenceNumber uint64 // Sequence number
 	Memo           string // Memo
+	// Master, when set, signs the tx as a session account on behalf of this master key.
+	Master crypto.Address
 }
 
 // Call executes one or more MsgCall calls on the blockchain
@@ -45,7 +49,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcas
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
 }
 
 // NewCallTx makes an unsigned transaction from one or more MsgCall.
@@ -95,7 +99,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastT
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
 }
 
 // NewRunTx makes an unsigned transaction from one or more MsgRun.
@@ -145,7 +149,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadc
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
 }
 
 // NewSendTx makes an unsigned transaction from one or more MsgSend.
@@ -195,7 +199,7 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.Re
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
 }
 
 // NewAddPackageTx makes an unsigned transaction from one or more MsgAddPackage.
@@ -231,9 +235,159 @@ func NewAddPackageTx(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*std.Tx, error) {
 	}, nil
 }
 
+// CreateSession executes one or more MsgCreateSession calls on the blockchain
+func (c *Client) CreateSession(cfg BaseTxCfg, msgs ...auth.MsgCreateSession) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	tx, err := NewCreateSessionTx(cfg, msgs...)
+	if err != nil {
+		return nil, err
+	}
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, crypto.Address{})
+}
+
+// NewCreateSessionTx makes an unsigned transaction from one or more MsgCreateSession.
+// The Creator and SessionKey fields must be set.
+func NewCreateSessionTx(cfg BaseTxCfg, msgs ...auth.MsgCreateSession) (*std.Tx, error) {
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgCreateSession fields
+		if err := msg.ValidateBasic(); err != nil {
+			return nil, err
+		}
+
+		vmMsgs = append(vmMsgs, std.Msg(msg))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	return &std.Tx{
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}, nil
+}
+
+// RevokeSession executes one or more MsgRevokeSession calls on the blockchain
+func (c *Client) RevokeSession(cfg BaseTxCfg, msgs ...auth.MsgRevokeSession) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	tx, err := NewRevokeSessionTx(cfg, msgs...)
+	if err != nil {
+		return nil, err
+	}
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, crypto.Address{})
+}
+
+// NewRevokeSessionTx makes an unsigned transaction from one or more MsgRevokeSession.
+// The Creator and SessionKey fields must be set.
+func NewRevokeSessionTx(cfg BaseTxCfg, msgs ...auth.MsgRevokeSession) (*std.Tx, error) {
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgRevokeSession fields
+		if err := msg.ValidateBasic(); err != nil {
+			return nil, err
+		}
+
+		vmMsgs = append(vmMsgs, std.Msg(msg))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	return &std.Tx{
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}, nil
+}
+
+// RevokeAllSessions executes one or more MsgRevokeAllSessions calls on the blockchain
+func (c *Client) RevokeAllSessions(cfg BaseTxCfg, msgs ...auth.MsgRevokeAllSessions) (*ctypes.ResultBroadcastTxCommit, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	tx, err := NewRevokeAllSessionsTx(cfg, msgs...)
+	if err != nil {
+		return nil, err
+	}
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, crypto.Address{})
+}
+
+// NewRevokeAllSessionsTx makes an unsigned transaction from one or more MsgRevokeAllSessions.
+// The Creator field must be set.
+func NewRevokeAllSessionsTx(cfg BaseTxCfg, msgs ...auth.MsgRevokeAllSessions) (*std.Tx, error) {
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgRevokeAllSessions fields
+		if err := msg.ValidateBasic(); err != nil {
+			return nil, err
+		}
+
+		vmMsgs = append(vmMsgs, std.Msg(msg))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	return &std.Tx{
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}, nil
+}
+
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result
-func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
-	signedTx, err := c.SignTx(tx, accountNumber, sequenceNumber)
+func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64, master crypto.Address) (*ctypes.ResultBroadcastTxCommit, error) {
+	signedTx, err := c.SignTx(tx, accountNumber, sequenceNumber, master)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +396,7 @@ func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumb
 
 // SignTx signs a transaction and returns a signed tx ready for broadcasting.
 // If accountNumber or sequenceNumber is 0 then query the blockchain for the value.
-func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.Tx, error) {
+func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64, master crypto.Address) (*std.Tx, error) {
 	if err := c.validateSigner(); err != nil {
 		return nil, err
 	}
@@ -252,9 +406,18 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 	}
 
 	if sequenceNumber == 0 || accountNumber == 0 {
-		account, _, err := c.QueryAccount(caller.GetAddress())
-		if err != nil {
-			return nil, errors.Wrap(err, "query account")
+		var account *std.BaseAccount
+		if master.IsZero() {
+			account, _, err = c.QueryAccount(caller.GetAddress())
+			if err != nil {
+				return nil, errors.Wrap(err, "query account")
+			}
+		} else {
+			// Query the session info
+			account, _, err = c.QuerySessionAccount(master, caller.GetAddress())
+			if err != nil {
+				return nil, errors.Wrap(err, "query session account")
+			}
 		}
 		accountNumber = account.AccountNumber
 		sequenceNumber = account.Sequence
@@ -264,10 +427,19 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 		UnsignedTX:     tx,
 		SequenceNumber: sequenceNumber,
 		AccountNumber:  accountNumber,
+		Master:         master,
 	}
 	signedTx, err := c.Signer.Sign(signCfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "sign")
+	}
+	if !master.IsZero() {
+		// Need to set SessionAddr
+		for i := range signedTx.Signatures {
+			if signedTx.Signatures[i].PubKey.Address() == caller.GetAddress() {
+				signedTx.Signatures[i].SessionAddr = caller.GetAddress()
+			}
+		}
 	}
 	return signedTx, nil
 }

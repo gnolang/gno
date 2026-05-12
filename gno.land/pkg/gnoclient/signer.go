@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -69,10 +70,12 @@ func (s SignerFromKeybase) Info() (keys.Info, error) {
 
 // SignCfg provides the signing configuration, containing:
 // unsigned transaction data, account number, and account sequence.
+// If Master is not zero, use it to match with tx.GetSigners().
 type SignCfg struct {
 	UnsignedTX     std.Tx
 	SequenceNumber uint64
 	AccountNumber  uint64
+	Master         crypto.Address
 }
 
 // Sign implements the Signer interface for SignerFromKeybase.
@@ -111,8 +114,14 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	addr := pub.Address()
+	var addr crypto.Address
+	if cfg.Master.IsZero() {
+		addr = pub.Address()
+	} else {
+		addr = cfg.Master
+	}
 	found := false
+	// tx.GetSigners() returns the "Caller" master key, not the signer key in the SignerFromKeybase. singleSigner is a temporarily hack.
 	for i := range tx.Signatures {
 		if signers[i] == addr {
 			found = true

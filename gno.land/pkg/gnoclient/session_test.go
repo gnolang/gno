@@ -1,0 +1,276 @@
+package gnoclient
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+const (
+	TestSessionAccount_Name = "user1"
+	TestSessionAccount_Seed = "mention vintage immense fix clerk state magnet embrace meadow buzz captain bar mystery decade mammal rib chunk upset finish athlete maple undo space palace"
+)
+
+func TestCallSessionSingle_Integration(t *testing.T) {
+	// Set up packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/r/tests/vm/deep/very/deep")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
+	// Init in-memory node and RPCClient
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Make the session account
+	signer := newInMemorySessionSigner(t, "tendermint_test")
+	signerInfo, err := signer.Info()
+	require.NoError(t, err)
+	masterInfo := createSession(t, rpcClient, signerInfo.GetPubKey())
+
+	// Set up Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Msg configs
+	baseCfg := BaseTxCfg{
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      50000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+		Master:         masterInfo.GetAddress(),
+	}
+	msg := vm.MsgCall{
+		Caller:  masterInfo.GetAddress(),
+		PkgPath: "gno.land/r/tests/vm/deep/very/deep",
+		Func:    "RenderCrossing",
+		Args:    []string{"test argument"},
+		Send:    nil,
+	}
+
+	// Execute call
+	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
+
+	expected := "(\"hi test argument\" string)\n\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
+}
+
+func TestSendSessionSingle_Integration(t *testing.T) {
+	// Set up in-memory node and RPCClient
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Make the session account
+	signer := newInMemorySessionSigner(t, "tendermint_test")
+	signerInfo, err := signer.Info()
+	require.NoError(t, err)
+	masterInfo := createSession(t, rpcClient, signerInfo.GetPubKey())
+
+	// Set up Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Msg configs
+	baseCfg := BaseTxCfg{
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      50000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+		Master:         masterInfo.GetAddress(),
+	}
+
+	// Make Send config for a new address on the blockchain
+	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
+	amount := 10
+	msg := bank.MsgSend{
+		FromAddress: masterInfo.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}},
+	}
+
+	// Execute send
+	res, err := client.Send(baseCfg, msg)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err := client.QueryAccount(toAddress)
+	require.NoError(t, err)
+
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}}
+	got := account.GetCoins()
+	assert.Equal(t, expected, got)
+
+	res, err = sendSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{Denom: ugnot.Denom, Amount: int64(2 * amount)}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
+}
+
+func TestRunSessionSingle_Integration(t *testing.T) {
+	// Set up packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/p/nt/ufmt/v0", "gno.land/r/tests/vm")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
+	// Init in-memory node and RPCClient
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Make the session account
+	signer := newInMemorySessionSigner(t, "tendermint_test")
+	signerInfo, err := signer.Info()
+	require.NoError(t, err)
+	masterInfo := createSession(t, rpcClient, signerInfo.GetPubKey())
+
+	// Set up Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      50000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+		Master:         masterInfo.GetAddress(),
+	}
+
+	fileBody := `package main
+import (
+	"gno.land/p/nt/ufmt/v0"
+	tests "gno.land/r/tests/vm"
+)
+func main(cur realm) {
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
+	for i := 0; i < 10; i++ {
+		tests.IncCounter(cross(cur))
+	}
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
+}`
+
+	// Make Msg configs
+	msg := vm.MsgRun{
+		Caller: masterInfo.GetAddress(),
+		Package: &std.MemPackage{
+			Name: "main",
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody,
+				},
+			},
+		},
+		Send: nil,
+	}
+
+	// Execute run
+	res, err := client.Run(baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+
+	res, err = runSigningSeparately(t, client, baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
+}
+
+func newInMemorySessionSigner(t *testing.T, chainid string) *SignerFromKeybase {
+	t.Helper()
+
+	mnemonic := TestSessionAccount_Seed
+	name := TestSessionAccount_Name
+
+	kb := keys.NewInMemory()
+	_, err := kb.CreateAccount(name, mnemonic, "", "", uint32(0), uint32(0))
+	require.NoError(t, err)
+
+	return &SignerFromKeybase{
+		Keybase:  kb,      // Stores keys in memory or on disk
+		Account:  name,    // Account name or bech32 format
+		Password: "",      // Password for encryption
+		ChainID:  chainid, // Chain ID for transaction signing
+	}
+}
+
+// createSession uses the default key from newInMemorySigner to create a session for sessionKey.
+// Return the default (master) key info.
+func createSession(t *testing.T, rpcClient rpcclient.Client, sessionKey crypto.PubKey) keys.Info {
+	t.Helper()
+
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+	client := Client{
+		Signer:    masterSigner,
+		RPCClient: rpcClient,
+	}
+
+	baseCfg := BaseTxCfg{
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      50000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+	msg := auth.MsgCreateSession{
+		Creator:    masterInfo.GetAddress(),
+		SessionKey: sessionKey,
+		SpendLimit: std.Coins{std.NewCoin("ugnot", 5000000)},
+		AllowPaths: []string{"*"},
+	}
+	_, err = client.CreateSession(baseCfg, msg)
+	require.NoError(t, err)
+
+	return masterInfo
+}
