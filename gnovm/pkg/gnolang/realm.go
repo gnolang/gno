@@ -225,7 +225,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		old := bm.StartStore(bm.RealmDidUpdate)
 		defer func() { bm.StopStore(bm.RealmDidUpdate, old, 0) }()
 	}
-	if debugRealm {
+	if debugAssert {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
@@ -297,7 +297,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 // mark*
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	if debugRealm {
+	if debugAssert {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
 			if pv.GetOwner() != nil {
@@ -328,7 +328,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
-	if debugRealm {
+	if debugAssert {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
 		}
@@ -348,7 +348,7 @@ func (rlm *Realm) MarkDirty(oo Object) {
 }
 
 func (rlm *Realm) MarkNewDeleted(oo Object) {
-	if debugRealm {
+	if debugAssert {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new deleted")
 		}
@@ -368,7 +368,7 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
-	if debugRealm {
+	if debugAssert {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new escaped")
 		}
@@ -400,7 +400,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
 	}
 
-	if debugRealm {
+	if debugAssert {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner
 		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
@@ -429,7 +429,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
-	if debugRealm {
+	if debugAssert {
 		ensureUniq(rlm.created, rlm.updated)
 		ensureUniq(rlm.escaped)
 	}
@@ -461,13 +461,13 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated[start:] {
-		if debugRealm {
+		if debugAssert {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
 			}
 		}
 		if oo.GetRefCount() == 0 {
-			if debugRealm {
+			if debugAssert {
 				// The refCount for a new real object could be zero,
 				// and the object may not yet be marked as deleted.
 				if !oo.GetIsNewDeleted() && !oo.GetIsNewReal() {
@@ -491,7 +491,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	if debugRealm {
+	if debugAssert {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
 		}
@@ -515,7 +515,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
 		if _, ok := child.(*PackageValue); ok {
-			if debugRealm {
+			if debugAssert {
 				if child.GetRefCount() < 1 {
 					panic("cannot increase reference count of package descendant that is unreferenced")
 				}
@@ -575,7 +575,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
-		if debugRealm {
+		if debugAssert {
 			if oo.GetObjectID().IsZero() {
 				panic("new deleted mark should have an object ID")
 			}
@@ -592,7 +592,7 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
-	if debugRealm {
+	if debugAssert {
 		if oo.GetObjectID().IsZero() {
 			panic("cannot decrement references of deleted descendants of object with no object ID")
 		}
@@ -653,7 +653,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 	// for _, eo := range rlm.newEscaped[start:] {
 	for i := 0; i < len(rlm.newEscaped[start:]); i++ { // may expand.
 		eo := rlm.newEscaped[i]
-		if debugRealm {
+		if debugAssert {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
 			}
@@ -674,7 +674,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 			escaped = append(escaped, eo)
 
 			// add to escaped, and mark dirty previous owner.
-			po := eo.GetOwner()
+			po := getOwner(store, eo)
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
@@ -712,7 +712,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	markAncestors := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
-				if debugRealm {
+				if debugAssert {
 					if pv.GetRefCount() < 1 {
 						panic("expected package value to have refcount 1 or greater")
 					}
@@ -721,13 +721,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			}
 			rc := oo.GetRefCount()
-			if debugRealm {
+			if debugAssert {
 				if rc == 0 {
 					panic("ancestor should have a non-zero reference count to be marked as dirty")
 				}
 			}
 			if rc > 1 {
-				if debugRealm {
+				if debugAssert {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("ancestor should cannot be escaped or new escaped to be marked as dirty")
 					}
@@ -740,7 +740,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			} // else, rc == 1
 
-			po := oo.GetOwner()
+			po := getOwner(store, oo)
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -823,7 +823,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 // ensure that the object and children does not have any private dependencies.
 // use a visited map to mark visited types when asserting there are no private dependencies.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}) {
-	if debugRealm {
+	if debugAssert {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
 		}
@@ -860,7 +860,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
-		if debugRealm {
+		if debugAssert {
 			if oo.GetIsDirty() {
 				panic("cannot save dirty new real object")
 			}
@@ -869,7 +869,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 		oo.SetIsNewReal(false)
 	} else {
 		// update existing object.
-		if debugRealm {
+		if debugAssert {
 			if !oo.GetIsDirty() {
 				panic("cannot save non-dirty existing object")
 			}
@@ -933,7 +933,7 @@ func (rlm *Realm) removeDeletedObjects(store Store) {
 
 func (rlm *Realm) clearMarks() {
 	// sanity check
-	if debugRealm {
+	if debugAssert {
 		for _, oo := range rlm.newDeleted {
 			if oo.GetIsNewDeleted() {
 				panic("cannot clear marks if new deleted exist")
@@ -1803,7 +1803,7 @@ func toRefValue(val Value) RefValue {
 				// Hash: nil,
 			}
 		} else if oo.GetIsEscaped() {
-			if debugRealm {
+			if debugAssert {
 				if !oo.GetOwnerID().IsZero() {
 					panic("escaped object should not have an owner ID")
 				}
@@ -1813,7 +1813,7 @@ func toRefValue(val Value) RefValue {
 				// Hash: nil,
 			}
 		} else {
-			if debugRealm {
+			if debugAssert {
 				if oo.GetRefCount() > 1 {
 					panic("non-escaped object should not have refcount > 1")
 				}
@@ -1876,6 +1876,33 @@ func prettyJSON(jstr []byte) []byte {
 		return nil
 	}
 	return js
+}
+
+// getOwner returns oo's owner, resolving it via the store when necessary.
+//
+// Owner must be resolved via the store, not just oo.GetOwner().
+// ObjectInfo.owner is an unexported in-memory cache (see ownership.go)
+// and is *not* persisted — so an object freshly loaded from the store
+// has owner == nil while OwnerID is still set. This lazy-load rehydrates
+// it and caches via SetOwner.
+//
+// Use GetObjectSafe (not GetObject) because OwnerID can additionally be
+// stale: the owner may have been deleted in the same finalization (e.g.,
+// a slice backing array replaced by append). GetObjectSafe returns nil
+// in that case, letting the ancestor walk stop gracefully instead of
+// panicking.
+func getOwner(store Store, oo Object) Object {
+	po := oo.GetOwner()
+	poid := oo.GetOwnerID()
+	if po == nil {
+		if !poid.IsZero() {
+			po = store.GetObjectSafe(poid)
+			if po != nil {
+				oo.SetOwner(po)
+			}
+		}
+	}
+	return po
 }
 
 // XXX this would be a lot faster if the PkgID itself included a private bit;
