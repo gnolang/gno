@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -3102,4 +3103,36 @@ func TestQueryTypeNotFound(t *testing.T) {
 
 	_, err := env.vmk.QueryType(env.ctx, "gno.land/r/nonexistent.FakeType")
 	assert.Error(t, err)
+}
+
+// TestMarshalTypeJSON_ProducesValidJSONForControlCharNames — regression
+// guard: Go's `%q` quoting emits Go-only escapes like \v that are invalid
+// JSON. Jae's original PR fixed this for QueryObjectJSON by switching to
+// json.Marshal (see keeper.go ~line 1454); the QueryType/marshalTypeJSON
+// path must obey the same invariant.
+func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
+	st := &gnolang.StructType{
+		Fields: []gnolang.FieldType{
+			{Name: gnolang.Name("foo\v"), Type: gnolang.IntType},
+		},
+	}
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, st, 0)
+	var v any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &v),
+		"output must be valid JSON; got %q", buf.String())
+}
+
+// TestQueryType_EnvelopeValidJSON — same invariant at the envelope level:
+// a TypeID with a non-JSON-safe byte must still produce a valid JSON
+// response. Constructing such a TypeID is awkward via real chain state,
+// so we exercise marshalTypeJSON + envelope construction directly.
+func TestQueryType_EnvelopeValidJSON(t *testing.T) {
+	tidStr := "gno.land/r/x.T"
+	var buf bytes.Buffer
+	marshalTypeJSON(&buf, gnolang.IntType, 0)
+	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())
+	var v any
+	require.NoError(t, json.Unmarshal([]byte(envelope), &v),
+		"envelope must be valid JSON; got %q", envelope)
 }

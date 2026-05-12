@@ -1523,20 +1523,28 @@ func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err e
 	// Export values (replace persisted objects with RefValues, etc.)
 	exported := gno.ExportValues(varValues)
 
-	// Serialize values with Amino JSON.
 	valuesJSON, err := amino.MarshalJSON(exported)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal values: %w", err)
 	}
-
-	// Serialize names.
 	namesJSON, err := amino.MarshalJSON(varNames)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal names: %w", err)
 	}
+	return buildPkgJSONEnvelope(namesJSON, valuesJSON), nil
+}
 
-	result := fmt.Sprintf(`{"names":%s,"values":%s}`, string(namesJSON), string(valuesJSON))
-	return result, nil
+// buildPkgJSONEnvelope assembles {"names":…,"values":…} from already-serialized
+// JSON fragments. Trusts its inputs — both are produced by amino.MarshalJSON.
+func buildPkgJSONEnvelope(namesJSON, valuesJSON []byte) string {
+	var buf bytes.Buffer
+	buf.Grow(len(namesJSON) + len(valuesJSON) + 20)
+	buf.WriteString(`{"names":`)
+	buf.Write(namesJSON)
+	buf.WriteString(`,"values":`)
+	buf.Write(valuesJSON)
+	buf.WriteByte('}')
+	return buf.String()
 }
 
 // QueryType retrieves a type by TypeID and returns its Amino JSON representation.
@@ -1557,9 +1565,29 @@ func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err e
 	// stack overflow from circular type references (e.g. time.Time).
 	var buf bytes.Buffer
 	marshalTypeJSON(&buf, tt, 0)
+	return buildTypeJSONEnvelope(tidStr, buf.Bytes()), nil
+}
 
-	result := fmt.Sprintf(`{"typeid":%q,"type":%s}`, tidStr, buf.String())
-	return result, nil
+// buildTypeJSONEnvelope assembles {"typeid":…,"type":…} with the TypeID
+// passed through json.Marshal so any control character is JSON-escaped
+// (matches the invariant Jae's original PR fixed for QueryObjectJSON).
+func buildTypeJSONEnvelope(tidStr string, typeJSON []byte) string {
+	tidJSON, _ := json.Marshal(tidStr)
+	var buf bytes.Buffer
+	buf.Grow(len(tidJSON) + len(typeJSON) + 20)
+	buf.WriteString(`{"typeid":`)
+	buf.Write(tidJSON)
+	buf.WriteString(`,"type":`)
+	buf.Write(typeJSON)
+	buf.WriteByte('}')
+	return buf.String()
+}
+
+// writeJSONString writes s as a JSON string literal into buf using
+// encoding/json's escaping rules — never Go's `%q`.
+func writeJSONString(buf *bytes.Buffer, s string) {
+	b, _ := json.Marshal(s)
+	buf.Write(b)
 }
 
 const maxTypeDepth = 8
@@ -1592,7 +1620,9 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 			if i > 0 {
 				buf.WriteByte(',')
 			}
-			fmt.Fprintf(buf, `{"Name":%q,"Type":`, string(f.Name))
+			buf.WriteString(`{"Name":`)
+			writeJSONString(buf, string(f.Name))
+			buf.WriteString(`,"Type":`)
 			marshalTypeJSON(buf, f.Type, depth+1)
 			buf.WriteByte('}')
 		}
@@ -1608,8 +1638,11 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 	case *gno.InterfaceType:
 		buf.WriteString(`{"@type":"/gno.InterfaceType"}`)
 	case *gno.DeclaredType:
-		fmt.Fprintf(buf, `{"@type":"/gno.DeclaredType","PkgPath":%q,"Name":%q,"Base":`,
-			ct.PkgPath, string(ct.Name))
+		buf.WriteString(`{"@type":"/gno.DeclaredType","PkgPath":`)
+		writeJSONString(buf, ct.PkgPath)
+		buf.WriteString(`,"Name":`)
+		writeJSONString(buf, string(ct.Name))
+		buf.WriteString(`,"Base":`)
 		marshalTypeJSON(buf, ct.Base, depth+1)
 		buf.WriteByte('}')
 	case *gno.PackageType:
@@ -1620,7 +1653,9 @@ func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int) {
 		buf.WriteByte('}')
 	default:
 		// RefType or unknown — emit type ID if available
-		fmt.Fprintf(buf, `{"@type":"/gno.RefType","ID":%q}`, t.TypeID())
+		buf.WriteString(`{"@type":"/gno.RefType","ID":`)
+		writeJSONString(buf, string(t.TypeID()))
+		buf.WriteByte('}')
 	}
 }
 
