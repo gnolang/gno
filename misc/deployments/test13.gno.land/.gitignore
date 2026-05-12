@@ -1,0 +1,8 @@
+# Phase 1 output
+/out/
+/genesis-work/
+/airdrop_balances.txt.gz
+/packages.gen.txt
+
+# Phase 2 cached input (operator-provided gnoland1 historical-tx archive)
+/txs.jsonl
