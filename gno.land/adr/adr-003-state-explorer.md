@@ -149,6 +149,15 @@ otherwise):
   cycle-breaking via `ExportRefValue`
 - `misc/gnojs/` — standalone TypeScript library (external consumers only)
 
+## Roadmap
+
+Tracked here so follow-up work is not lost across rewrites:
+
+- **Known-type leaf views**: types that implement well-known interfaces
+  (e.g. `avl.Tree`, `avl.Node`) deserve an alternative render that
+  surfaces only leaf values instead of the full internal structure.
+  Originally scoped as a follow-up in #5283 by @jaekwon.
+
 ## Revision history
 
 - Initial: client-side TS rendering on top of `@gnojs/amino`, lazy fetches
