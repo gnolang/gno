@@ -3,6 +3,7 @@ package namereg
 import (
 	"chain"
 	"strconv"
+	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
@@ -99,8 +100,8 @@ func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest
 
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
-	// Use the user address in the title because username could change
-	// before the proposal is executed, which could be misleading when voting.
+	// Use user's address in the title because username could change before
+	// the proposal is executed, which could be misleading when voting.
 	title := ufmt.Sprintf(
 		"User Registry V1: Rename name for [%s](/r/sys/namereg/v1:%s) to `%s`",
 		userData.Addr(),
@@ -126,11 +127,21 @@ func ProposeDeleteUser(cur realm, addr address, reason string) dao.ProposalReque
 
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
-	return dao.NewProposalRequest(
-		ufmt.Sprintf("User Registry V1: Delete user `%s`", userData.Name()),
-		reason,
-		e,
+	desc := "After deletion, address `%s` WILL NOT be able to register a new name."
+	reason = strings.TrimSpace(reason)
+	if reason != "" {
+		desc += "\n\n" + reason
+	}
+
+	// Use user's address in the title because username could change before
+	// the proposal is executed, which could be misleading when voting.
+	title := ufmt.Sprintf(
+		"User Registry V1: Delete user for [%s](/r/sys/namereg/v1:%s)",
+		userData.Addr(),
+		userData.Addr(),
 	)
+
+	return dao.NewProposalRequest(title, desc, e)
 }
 
 // ProposeNewRegisterPrice allows GovDAO to update the price of registration.
