@@ -90,7 +90,7 @@ func fetchFilesConcurrent(pkgPath string, files map[string]struct{}, fetcher Fil
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()
-			defer recover() // fetcher panics must not crash the process
+			defer func() { _ = recover() }() // fetcher panics must not crash the process
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			content, err := fetcher.Fetch(pkgPath, name)
@@ -197,7 +197,7 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 		wg.Add(1)
 		go func(oid string) {
 			defer wg.Done()
-			defer recover() // fetcher panics must not crash the process
+			defer func() { _ = recover() }() // fetcher panics must not crash the process
 			semObj <- struct{}{}
 			defer func() { <-semObj }()
 			raw, err := objFetcher.FetchObject(oid)
@@ -214,7 +214,7 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 		wg.Add(1)
 		go func(tid string) {
 			defer wg.Done()
-			defer recover() // fetcher panics must not crash the process
+			defer func() { _ = recover() }() // fetcher panics must not crash the process
 			semType <- struct{}{}
 			defer func() { <-semType }()
 			raw, err := typeFetcher.FetchType(tid)

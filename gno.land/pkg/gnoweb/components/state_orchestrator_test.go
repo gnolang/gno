@@ -638,3 +638,76 @@ func TestSliceLines(t *testing.T) {
 		})
 	}
 }
+
+// panicFetcher panics on Fetch; it exists so we can prove the orchestrator
+// recovers per-goroutine and does not crash the process.
+type panicFetcher struct{}
+
+func (panicFetcher) Fetch(pkgPath, fileName string) ([]byte, error) {
+	panic("boom from file fetcher")
+}
+
+type panicObjectFetcher struct{}
+
+func (panicObjectFetcher) FetchObject(oid string) ([]byte, error) {
+	panic("boom from object fetcher")
+}
+
+type panicTypeFetcher struct{}
+
+func (panicTypeFetcher) FetchType(tid string) ([]byte, error) {
+	panic("boom from type fetcher")
+}
+
+// TestEnrich_RecoversFromFetcherPanic — fetcher panics must not propagate
+// past the orchestrator's per-goroutine recover.
+func TestEnrich_RecoversFromFetcherPanic(t *testing.T) {
+	t.Parallel()
+
+	nodes := []StateNode{{
+		Name: "Foo", Kind: "closure",
+		Source: &SourceLocation{File: "foo.gno", StartLine: 1, EndLine: 1},
+	}}
+
+	require.NotPanics(t, func() {
+		Enrich(nodes, "/r/demo/foo", 0, panicFetcher{}, &fakeHighlighter{})
+	}, "panic in FileFetcher.Fetch must be contained in the orchestrator goroutine")
+
+	assert.Empty(t, nodes[0].SourceHTML, "panicked fetch → SourceHTML empty (graceful)")
+}
+
+// TestEnrichInlinePreviews_RecoversFromObjectFetcherPanic — same invariant
+// for the object-fetch pool inside fetchPreviewsConcurrent.
+func TestEnrichInlinePreviews_RecoversFromObjectFetcherPanic(t *testing.T) {
+	t.Parallel()
+
+	nodes := []StateNode{{
+		Name: "R", Kind: "ref", Expandable: true,
+		ObjectID: "ffffffffffffffffffffffffffffffffffffffff:1",
+	}}
+
+	require.NotPanics(t, func() {
+		EnrichInlinePreviews(nodes, panicObjectFetcher{}, nil)
+	}, "panic in StateObjectFetcher.FetchObject must be contained")
+
+	assert.Empty(t, nodes[0].Children, "panicked object fetch → no children attached")
+}
+
+// TestEnrichInlinePreviews_RecoversFromTypeFetcherPanic — same invariant
+// for the type-fetch pool.
+func TestEnrichInlinePreviews_RecoversFromTypeFetcherPanic(t *testing.T) {
+	t.Parallel()
+
+	const oid = "ffffffffffffffffffffffffffffffffffffffff:1"
+	nodes := []StateNode{{
+		Name: "R", Kind: "ref", Expandable: true,
+		ObjectID: oid, TypeID: "gno.land/r/x.T",
+	}}
+	objFetcher := &fakeObjectFetcher{
+		bodies: map[string][]byte{oid: fakeStructResponse(oid, 1, 2)},
+	}
+
+	require.NotPanics(t, func() {
+		EnrichInlinePreviews(nodes, objFetcher, panicTypeFetcher{})
+	}, "panic in StateTypeFetcher.FetchType must be contained")
+}
