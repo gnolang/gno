@@ -69,6 +69,8 @@ type Store interface {
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
+	GetPreprocessAllocator() *Allocator
+	SetPreprocessAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -139,6 +141,19 @@ type defaultStore struct {
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
 	alloc        *Allocator // for accounting for cached items
+
+	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
+	// installed by the keeper (AddPackage / Run) before RunMemPackage.
+	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
+	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
+	// nil → Allocate hard-panics on maxBytes overflow rather than
+	// attempting a GC retry (which would undercount because GC doesn't
+	// visit m.Values, the operand stack). gasMeter is shared with the
+	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// Inherited via BeginTransaction so nested forked stores see it.
+	// Cleared by the keeper's defer at handler exit; not serialized.
+	preprocessAlloc *Allocator
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -220,6 +235,12 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
 		alloc:        ds.alloc.Fork().Reset(),
 
+		// Inherit the per-tx preprocess allocator so sub-Machines spun
+		// up via NewMachine(pkg, store) inside preprocess (which fork
+		// the store via BeginTransaction first) see the same hard-cap
+		// allocator the keeper installed.
+		preprocessAlloc: ds.preprocessAlloc,
+
 		// stdlib byte cache (shared reference)
 		stdlibKeyBytes: ds.stdlibKeyBytes,
 
@@ -282,6 +303,14 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 
 func (ds *defaultStore) SetAllocator(alloc *Allocator) {
 	ds.alloc = alloc
+}
+
+func (ds *defaultStore) GetPreprocessAllocator() *Allocator {
+	return ds.preprocessAlloc
+}
+
+func (ds *defaultStore) SetPreprocessAllocator(alloc *Allocator) {
+	ds.preprocessAlloc = alloc
 }
 
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
@@ -386,7 +415,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	}
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
-	if debug {
+	if debugAssert {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
@@ -483,13 +512,21 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		// intercepting between shallow-size and RefValue-size accounting.
 		ds.alloc.Allocate(ss + rs)
 
-		if debug {
+		if debugAssert {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		if debugAssert {
+			// Verify stored hash matches actual content hash.
+			if computed := HashBytes(bz); computed != NewHashlet(hash) {
+				panic(fmt.Sprintf(
+					"stored hash mismatch for %s: stored %X, computed %X",
+					oid, hash, computed.Bytes()))
+			}
+		}
 
 		if pv, ok := oo.(*PackageValue); ok {
 			ds.SetStagingPackage(pv)
@@ -706,7 +743,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				// len(bz) is not the proper cost of tt, but is good enough
 				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
 			}
-			if debug {
+			if debugAssert {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -798,7 +835,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
 			size = len(bz)
-			if debug {
+			if debugAssert {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))

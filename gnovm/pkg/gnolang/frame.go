@@ -104,16 +104,24 @@ func (fr *Frame) SetIsRevive() {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	Args   []TypedValue // arguments
-	Source *DeferStmt   // source
-	Parent *Block
+	Func          *FuncValue   // function value
+	IsBoundMethod bool         // if true, args[0] is receiver
+	Args          []TypedValue // arguments
+	Source        *DeferStmt   // source
+	Parent        *Block
 }
 
 type StacktraceCall struct {
 	CallExpr *CallExpr
 	IsDefer  bool
 	FuncLoc  Location // func loc in which CallExpr is declared
+	// FuncName is a pre-rendered display name including receiver
+	// type prefix for methods (e.g. "Counter.Inc",
+	// "(*pkg.Counter).Inc"); empty for anonymous functions. Used
+	// only by the bounded stacktrace renderer
+	// (BoundedStacktrace) — Stacktrace.String() retains the
+	// existing toExprTrace-based output.
+	FuncName string
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall

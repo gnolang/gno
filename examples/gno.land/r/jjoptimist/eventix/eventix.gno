@@ -71,6 +71,9 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 }
 
 func BuyTicket(_ realm, eventId uint64) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	event, exists := getEvent(eventId)
 	if !exists {
 		panic("Event does not exist")
