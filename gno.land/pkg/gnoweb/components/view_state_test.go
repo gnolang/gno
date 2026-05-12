@@ -741,3 +741,29 @@ func TestRenderState_NoUnexpectedControllers(t *testing.T) {
 		assert.True(t, ok, "unexpected data-controller in line: %q", strings.TrimSpace(line))
 	}
 }
+
+// TestRenderState_SourceLinkCarriesHeight — a pinned page (height>0) must
+// propagate `&height=N` into every `$source` link it emits, so jumping to
+// the source tab keeps time-travel context (ADR-003).
+func TestRenderState_SourceLinkCarriesHeight(t *testing.T) {
+	t.Parallel()
+
+	html := renderState(t, StateData{
+		PkgPath: "/r/demo/foo",
+		Height:  42,
+		Nodes: []StateNode{{
+			Name: "Counter", Type: "*Counter", Kind: "struct", Expandable: true,
+			Source: &SourceLocation{File: "foo.gno", StartLine: 7, EndLine: 10},
+		}},
+		CountLabel: "Realm top-level declarations (1)",
+	})
+
+	// EncodeValues sorts query keys alphabetically; height must be present
+	// regardless of the chosen ordering.
+	assert.Contains(t, html, "height=42",
+		"source link must carry the pinned height (alphabetical: ...&height=42&source)")
+	assert.Contains(t, html, "file=foo.gno",
+		"source link must carry the file parameter")
+	assert.Contains(t, html, "#L7",
+		"source link must anchor to the StartLine")
+}

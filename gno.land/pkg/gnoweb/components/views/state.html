@@ -141,8 +141,9 @@
       <div class="c-stack">
         {{ $pkg := .PkgPath }}
         {{ $isObj := .IsObjectPage }}
+        {{ $h := .Height }}
         {{ range .Nodes }}
-          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "IsObjectPage" $isObj) }}
+          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "IsObjectPage" $isObj "Height" $h) }}
         {{ end }}
       </div>
     {{ else }}
@@ -180,7 +181,7 @@
         </button>
       </div>
       <div class="tree">
-        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true) }}
+        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height) }}
       </div>
       {{ if .RawJSON }}
         <pre data-copy-target="state-raw-json" hidden>{{ .RawJSON }}</pre>
@@ -203,6 +204,7 @@
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
   {{ $isObj := .IsObjectPage }}
+  {{ $h := .Height }}
   <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}-pretty"{{ end }} data-kind="{{ $n.Kind }}" data-kind-group="{{ kindGroup $n.Kind }}" data-name="{{ $n.Name }}">
     <header>
       <div class="title">
@@ -210,7 +212,7 @@
         <span class="subtitle">
           <span class="type">{{ $n.Type }}</span>
           {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
-          {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+          {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine $h }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         </span>
         {{/* `.title` is a `<div>` (not `<span>`) so this block-level
              `<p>` is valid HTML inside the inline subtitle context. */}}
@@ -423,8 +425,9 @@
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
   {{ $top := .Toplevel }}
+  {{ $h := .Height }}
   {{ range .Nodes }}
-    {{ template "state/node" (dict "Node" . "PkgPath" $pkg "Depth" $depth "Toplevel" $top) }}
+    {{ template "state/node" (dict "Node" . "PkgPath" $pkg "Depth" $depth "Toplevel" $top "Height" $h) }}
   {{ end }}
 {{ end }}
 
@@ -434,6 +437,7 @@
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
   {{ $top := .Toplevel }}
+  {{ $h := .Height }}
   {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
 
   {{ if and $n.ObjectID (not $n.Children) $n.Expandable }}
@@ -454,14 +458,14 @@
         <span class="type">{{ $n.Type }}</span>
         {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
         {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
-        {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+        {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine $h }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         {{ if $n.Href }}<a class="navlink" href="{{ $n.Href }}" title="Open dedicated page">→</a>{{ end }}
         {{ if $n.ObjectID }}<span class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</span>{{ end }}
       </summary>
       <div class="kids">
         {{ if $n.SourceHTML }}
           <div class="source">
-            <a class="b-inline-btn c-with-icon srclink" href="{{ $pkg }}$source&file={{ $n.Source.File }}#L{{ $n.Source.StartLine }}" title="View full source">
+            <a class="b-inline-btn c-with-icon srclink" href="{{ sourceHref $pkg $n.Source.File $n.Source.StartLine $h }}" title="View full source">
               <svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg>
               <span>{{ $n.Source.File }}:{{ $n.Source.StartLine }}-{{ $n.Source.EndLine }}</span>
             </a>
@@ -471,7 +475,7 @@
         {{ if and (eq $n.Kind "closure") $n.Children }}
           <div class="captures-label" style="--depth: {{ add $depth 1 }};">Captured variables:</div>
         {{ end }}
-        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "Toplevel" false) }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "Toplevel" false "Height" $h) }}
       </div>
     </details>
 
@@ -481,7 +485,7 @@
       <span class="sep">:</span>
       <span class="type">{{ $n.Type }}</span>
       {{ if $n.Value }}<span class="sep">=</span><span class="val" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</span>{{ end }}
-      {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ $pkg }}$source&file={{ .File }}#L{{ .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+      {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine $h }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
       {{ if $n.ObjectID }}<span class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</span>{{ end }}
     </div>
   {{ end }}

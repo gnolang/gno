@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
@@ -131,6 +134,21 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	// hashlet, full id otherwise. Avoids rendering near-identical
 	// Owner/OID pairs in the audit chips.
 	funcs["oidShort"] = ShortenOID
+	// sourceHref builds `<pkgPath>$source&file=<file>#L<line>` while
+	// carrying `?height=N` if the current view is pinned, so jumping from
+	// a state-explorer card to the source tab keeps time-travel context.
+	funcs["sourceHref"] = func(pkgPath, file string, line int, height int64) template.URL {
+		wq := url.Values{"source": {""}, "file": {file}}
+		if height > 0 {
+			wq.Set("height", strconv.FormatInt(height, 10))
+		}
+		u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
+		href := u.EncodeWebURL()
+		if line > 0 {
+			href += "#L" + strconv.Itoa(line)
+		}
+		return template.URL(href) //nolint:gosec
+	}
 	// dict creates a map from key-value pairs for passing multiple values to templates
 	funcs["dict"] = func(kv ...any) (map[string]any, error) {
 		if len(kv)%2 != 0 {
