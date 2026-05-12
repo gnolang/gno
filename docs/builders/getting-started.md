@@ -101,9 +101,9 @@ func TestIncrement(t *testing.T) {
 }
 ```
 
-- [Testing guide](../resources/gno-testing.md) — cross-realm testing patterns
-- [Effective Gno](../resources/effective-gno.md) — best practices
-- [`examples/gno.land/r/demo/counter`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter) — full example on GitHub
+For deeper test patterns see the [Testing guide](../resources/gno-testing.md); a
+fuller version of this counter lives at
+[`examples/gno.land/r/demo/counter`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter).
 
 ### Format and test
 
