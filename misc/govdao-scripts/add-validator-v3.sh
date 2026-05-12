@@ -15,9 +15,9 @@
 # Environment: see README.md.
 set -eo pipefail
 
-GNOKEY_NAME="${GNOKEY_NAME:-aeddi}"
-CHAIN_ID="${CHAIN_ID:-test-13}"
-REMOTE="${REMOTE:-127.0.0.1:26657}"
+GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
+CHAIN_ID="${CHAIN_ID:?CHAIN_ID is required}"
+REMOTE="${REMOTE:?REMOTE is required}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
