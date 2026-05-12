@@ -315,6 +315,25 @@ type InitChainerConfig struct {
 	// called several times.
 	CacheStdlibLoad bool
 
+	// StrictReplay refuses to boot the chain if any non-skipped genesis tx
+	// fails replay. Hardfork operators should enable this so a corrupted
+	// genesis aborts InitChain loudly instead of producing a chain whose
+	// AppHash silently diverges from the source.
+	//
+	// Skipped txs (those carrying metadata.Failed = true, which were
+	// intentionally non-applied on the source chain) do not count as
+	// failures.
+	StrictReplay bool
+
+	// SkipValoperCoverageAssertion turns off the hardfork-mode
+	// AssertGenesisValopersConsistent auto-call. Useful for paths that
+	// boot a chain with PastChainIDs set but a synthetic req.Validators
+	// that won't match any seeded valoper profile — e.g. gnogenesis
+	// fork test replaces genDoc.Validators with a fresh MockPV whose
+	// signing addr is never registered, so the assertion would fire
+	// spuriously. Production hardfork boots leave this false.
+	SkipValoperCoverageAssertion bool
+
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
 	baseApp *sdk.BaseApp
@@ -351,7 +370,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
-	txResponses, err := cfg.loadAppState(ctx, req.AppState)
+	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
@@ -363,11 +382,60 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	ctx.Logger().Debug("InitChainer: genesis transactions loaded",
 		"elapsed", time.Since(start))
 
+	// Hardfork-mode invariant: every signing addr in valset:current must
+	// have a corresponding valoper profile in r/sys/validators/v3's
+	// valoperCache. valoper-seed migration .jsonls produce these profiles;
+	// the chain refuses to boot if any genesis validator is uncovered.
+	//
+	// Gated on (a) the hardfork signal (non-empty GnoGenesisState.PastChainIDs)
+	// and (b) non-empty req.Validators. Fresh chains and dev/lazy-init/txtar
+	// setups have empty PastChainIDs and trivially skip; hardfork tests
+	// that set PastChainIDs without seeding validators also skip — there's
+	// nothing to cover and the realm may not be loaded.
+	//
+	// Failure here is unconditionally fatal — independent of StrictReplay
+	// — because a hardfork that boots with uncovered genesis validators
+	// has lost the operator-keyed management plane for those validators.
+	if cfg.shouldRunValoperCoverageAssertion(req) {
+		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
+			return abci.ResponseInitChain{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError(fmt.Errorf("genesis valoper coverage assertion failed: %w", err).Error()),
+				},
+				TxResponses: txResponses,
+			}
+		}
+	}
+
 	// Done!
 	return abci.ResponseInitChain{
 		Validators:  req.Validators,
 		TxResponses: txResponses,
 	}
+}
+
+// shouldRunValoperCoverageAssertion combines the cfg override with the
+// request-level gate. See SkipValoperCoverageAssertion for why the
+// override exists.
+func (cfg InitChainerConfig) shouldRunValoperCoverageAssertion(req abci.RequestInitChain) bool {
+	return !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req)
+}
+
+// shouldAssertValoperCoverage gates the hardfork-mode v3 invariant
+// check. Requires (1) non-empty PastChainIDs (authoritative hardfork
+// signal — InitialHeight alone isn't, since dev/testnets use
+// InitialHeight > 1 for non-hardfork scenarios) and (2) non-empty
+// req.Validators (otherwise the check is trivial and would needlessly
+// require v3 to be loaded).
+func shouldAssertValoperCoverage(req abci.RequestInitChain) bool {
+	if len(req.Validators) == 0 {
+		return false
+	}
+	state, ok := req.AppState.(GnoGenesisState)
+	if !ok {
+		return false
+	}
+	return len(state.PastChainIDs) > 0
 }
 
 func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
@@ -394,10 +462,42 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	cfg.vmk.PopulateStdlibCacheFrom(ms)
 }
 
-func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
 	state, ok := appState.(GnoGenesisState)
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
+	}
+
+	// If GnoGenesisState.InitialHeight is set, it must match the authoritative
+	// GenesisDoc.InitialHeight (which comes in via req.InitialHeight). These
+	// fields are duplicated so tooling can read the app-level one; if they
+	// diverge, the genesis file is malformed.
+	if state.InitialHeight != 0 && state.InitialHeight != reqInitialHeight {
+		return nil, fmt.Errorf(
+			"InitialHeight mismatch: GnoGenesisState.InitialHeight=%d, GenesisDoc.InitialHeight=%d",
+			state.InitialHeight, reqInitialHeight,
+		)
+	}
+
+	if err := validateGasReplayMode(state.GasReplayMode); err != nil {
+		return nil, err
+	}
+
+	// Preflight: every (account-number, address) pair claimed by SignerInfo
+	// must be unique, and must not collide with a balance-init account at a
+	// different address. NewAccountWithUncheckedNumber does NOT verify this
+	// at write-time; a duplicate accNum used with a different address would
+	// silently zero the original account's balance. Failing here surfaces a
+	// malformed genesis loudly before any state is mutated.
+	if err := validateSignerInfo(state); err != nil {
+		return nil, err
+	}
+
+	if len(state.PastChainIDs) > 0 {
+		ctx.Logger().Info("Chain upgrade genesis replay",
+			"past_chain_ids", state.PastChainIDs,
+			"initial_height", reqInitialHeight,
+		)
 	}
 
 	cfg.bankk.InitGenesis(ctx, state.Bank)
@@ -436,9 +536,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+	report := newReplayReport(state.GasReplayMode)
 
 	// Run genesis txs
-	for _, tx := range state.Txs {
+	for txIdx, tx := range state.Txs {
 		var (
 			stdTx    = tx.Tx
 			metadata = tx.Metadata
@@ -448,16 +549,99 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 		// Check if there is metadata associated with the tx
 		if metadata != nil {
-			// Create a custom context modifier
 			ctxFn = func(ctx sdk.Context) sdk.Context {
-				// Create a copy of the header, in
-				// which only the timestamp information is modified
 				header := ctx.BlockHeader().(*bft.Header).Copy()
-				header.Time = time.Unix(metadata.Timestamp, 0)
+				if metadata.Timestamp != 0 {
+					header.Time = time.Unix(metadata.Timestamp, 0)
+				}
+				if metadata.BlockHeight > 0 {
+					header.Height = metadata.BlockHeight
+				}
 
-				// Save the modified header
-				return ctx.WithBlockHeader(header)
+				ctx = ctx.WithBlockHeader(header)
+
+				// For historical txs (BlockHeight > 0), override the chain ID
+				// for signature verification using the per-tx ChainID, provided
+				// it is in the genesis allowlist. This allows replaying txs from
+				// multiple past chains during a hard fork.
+				if metadata.BlockHeight > 0 && metadata.ChainID != "" && isPastChainID(state.PastChainIDs, metadata.ChainID) {
+					ctx = ctx.WithChainID(metadata.ChainID)
+				}
+
+				// GasReplayMode="source": bypass the new VM's gas meter for
+				// historical txs so outcomes match the source chain even when
+				// gas metering changed.
+				if state.GasReplayMode == "source" && metadata.BlockHeight > 0 {
+					ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
+				}
+
+				return ctx
 			}
+		}
+
+		// Genesis-mode txs (no metadata) were signed with the original chain
+		// ID. During a hardfork (PastChainIDs is set), verify their
+		// signatures against the original chain ID. Migration txs
+		// (metadata != nil with BlockHeight == 0) carry their own per-tx
+		// settings via metadata and are handled in the first branch above;
+		// excluding them here prevents the previous overwrite bug where
+		// this assignment stomped the metadata-driven Timestamp override.
+		//
+		// Compose with any prior ctxFn so future broadening of the
+		// predicate cannot silently regress.
+		if metadata == nil && len(state.PastChainIDs) > 0 {
+			originalChainID := state.PastChainIDs[0]
+			prev := ctxFn
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				if prev != nil {
+					ctx = prev(ctx)
+				}
+				return ctx.WithChainID(originalChainID)
+			}
+		}
+
+		// For historical txs with signer metadata, force-set account state
+		// so signature verification succeeds even if prior txs diverged.
+		// Uses pre-tx sequence — the value the signature was signed with.
+		//
+		// Invariant: SignerInfo is only populated by the export tool for historical
+		// txs (BlockHeight > 0). Genesis-mode txs (BlockHeight == 0) must never
+		// carry SignerInfo — if they did, the force-set would corrupt fresh account
+		// state. The BlockHeight > 0 guard enforces this.
+		if metadata != nil && metadata.BlockHeight > 0 && len(metadata.SignerInfo) > 0 {
+			for _, si := range metadata.SignerInfo {
+				acc := cfg.acck.GetAccount(ctx, si.Address)
+				if acc == nil {
+					// Account doesn't exist yet, create with specific account
+					// number, bypassing the auto-increment counter. Uniqueness
+					// of (Address, AccountNum) is enforced by the
+					// validateSignerInfo preflight above; the keeper does not
+					// re-check.
+					acc = cfg.acck.NewAccountWithUncheckedNumber(ctx, si.Address, si.AccountNum)
+				} else {
+					acc.SetAccountNumber(si.AccountNum)
+				}
+				acc.SetSequence(si.Sequence)
+				cfg.acck.SetAccount(ctx, acc)
+			}
+		}
+
+		// Failed txs: pre-tx sequence already set above. Skip execution —
+		// re-executing failed txs could cause double spends or unexpected
+		// behavior if the VM fix makes them succeed. The next tx's force-set
+		// will handle the correct sequence state.
+		// Response carries an explicit error so downstream consumers
+		// (indexers, explorers) don't mistake a skipped failed tx for a
+		// successful one.
+		if metadata != nil && metadata.Failed {
+			txResponses = append(txResponses, abci.ResponseDeliverTx{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError("replay skipped: tx failed on source chain"),
+					Log:   "genesis replay: skipped failed tx from source chain",
+				},
+			})
+			report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
+			continue
 		}
 
 		res := cfg.baseApp.Deliver(stdTx, ctxFn)
@@ -475,10 +659,82 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			GasWanted:    res.GasWanted,
 			GasUsed:      res.GasUsed,
 		})
+		report.recordDeliverResult(txIdx, metadata, res)
 
 		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
+
+	if reqInitialHeight > 1 {
+		ctx.Logger().Info("Genesis replay complete, chain will start from initial height",
+			"initial_height", reqInitialHeight,
+		)
+	}
+
+	report.emit(ctx.Logger())
+
+	// StrictReplay: refuse to boot if any non-skipped tx failed. Default off
+	// for backwards compatibility with test setups; hardfork operators must
+	// opt in. Otherwise the chain would happily boot in an inconsistent
+	// state (AppHash diverged from source for any failing tx in
+	// GasReplayMode="strict"), with the operator only noticing via the
+	// per-failure Warn lines emitted by report.emit above.
+	if cfg.StrictReplay {
+		if n := report.FailedCount(); n > 0 {
+			return txResponses, fmt.Errorf(
+				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
+					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
+				n,
+			)
+		}
+	}
+
 	return txResponses, nil
+}
+
+// validatorsV3PkgPath is the realm whose AssertGenesisValopersConsistent
+// invariant gates hardfork-mode boot.
+const (
+	validatorsV3PkgPath       = "gno.land/r/sys/validators/v3"
+	assertGenesisValopersFunc = "AssertGenesisValopersConsistent"
+	missingV3PkgPanicSubstr   = "unexpected node with location " + validatorsV3PkgPath
+)
+
+// assertGenesisValopersConsistent invokes the v3 assertion via the VM
+// keeper directly (no tx pipeline, no AnteHandler, no fee accounting).
+//
+// Caller is the first genesis validator's address; the call sends zero
+// coins so no account need exist for it.
+//
+// If v3 isn't deployed, the underlying gnostore lookup panics outside
+// vmk.Call's recover. The defer below catches that case and skips with
+// a warning — production hardforks always deploy v3, and if they
+// don't, the valoper-seed Register migration txs panic loudly anyway.
+func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci.RequestInitChain) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg := fmt.Sprint(r)
+			if strings.Contains(msg, missingV3PkgPanicSubstr) {
+				ctx.Logger().Warn(
+					"valoper coverage assertion skipped: v3 not deployed in genesis",
+					"detail", msg,
+				)
+				err = nil
+				return
+			}
+			err = fmt.Errorf("%s", msg)
+		}
+	}()
+	msg := vm.MsgCall{
+		Caller:  req.Validators[0].Address,
+		PkgPath: validatorsV3PkgPath,
+		Func:    assertGenesisValopersFunc,
+	}
+	vmCtx := vmk.MakeGnoTransactionStore(ctx)
+	if _, e := vmk.Call(vmCtx, msg); e != nil {
+		return e
+	}
+	vmk.CommitGnoTransactionStore(vmCtx)
+	return nil
 }
 
 // endBlockerApp is the app abstraction required by any EndBlocker
@@ -491,6 +747,53 @@ type endBlockerApp interface {
 
 	// SetHaltHeight sets the block height at which the node will halt.
 	SetHaltHeight(uint64)
+}
+
+// isPastChainID reports whether chainID is present in the pastChainIDs allowlist.
+func isPastChainID(pastChainIDs []string, chainID string) bool {
+	return slices.Contains(pastChainIDs, chainID)
+}
+
+// validateSignerInfo scans every SignerInfo entry across all txs and
+// rejects the genesis if two different addresses claim the same account
+// number, OR if a SignerInfo claims an account number already reserved by a
+// balance-init account at a different address. NewAccountWithUncheckedNumber
+// (the keeper primitive replay uses) does not perform this check at
+// write-time, so the invariant is enforced here, before any state mutates.
+//
+// genesis-mode txs (BlockHeight == 0) carry no SignerInfo by invariant of
+// the export tool, but we still skip them defensively.
+func validateSignerInfo(state GnoGenesisState) error {
+	// Map: account number -> address that reserves it.
+	numToAddr := map[uint64]crypto.Address{}
+
+	// Treat balance-init accounts as reserving accNum=N, where N is assigned
+	// by the auto-increment counter in the order they appear in
+	// state.Balances. After all balances are processed, the counter is
+	// len(state.Balances). Any SignerInfo with accNum < len(state.Balances)
+	// must therefore reference one of those addresses (or it would collide
+	// with a different balance-init address).
+	for i, bal := range state.Balances {
+		numToAddr[uint64(i)] = bal.Address
+	}
+
+	for txIdx, tx := range state.Txs {
+		if tx.Metadata == nil {
+			continue
+		}
+		for siIdx, si := range tx.Metadata.SignerInfo {
+			existing, seen := numToAddr[si.AccountNum]
+			if seen && existing != si.Address {
+				return fmt.Errorf(
+					"genesis SignerInfo collision at txs[%d].SignerInfo[%d]: "+
+						"account number %d already assigned to %s, cannot reassign to %s",
+					txIdx, siIdx, si.AccountNum, existing, si.Address,
+				)
+			}
+			numToAddr[si.AccountNum] = si.Address
+		}
+	}
+	return nil
 }
 
 // EndBlocker defines the logic executed after every block.

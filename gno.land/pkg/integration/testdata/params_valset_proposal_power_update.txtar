@@ -20,6 +20,7 @@ stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 
@@ -29,13 +30,13 @@ gnoland start
 
 # === PROPOSAL 0: ADD VALIDATOR AT POWER 1 ===
 
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 69_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 24_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # Post-add: pubkey at power 1.
@@ -63,29 +64,29 @@ stdout 'false'
 
 # Liveness check past H+2 — chain made progress through the
 # power-update transition.
-gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
 stdout OK!
 
 -- run/add_proposal.gno --
 package main
 
 import (
-	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	v3 "gno.land/r/sys/validators/v3"
 )
 
 func main() {
 	const (
-		addAddr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
-		addPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+		memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+		addPubKey  = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	)
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{Address: address(addAddr), PubKey: addPubKey, VotingPower: 1},
-		}
-	}
-	pr := v3.NewProposalRequest(changesFn, "Add validator at power 1", "")
+	valopers.Register(cross, "power-test-validator", "power-update flow regression", "cloud", address(memberAddr), addPubKey)
+
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 1}},
+		"Add validator at power 1", "",
+	)
 	dao.MustCreateProposal(cross, pr)
 }
 
@@ -93,29 +94,21 @@ func main() {
 package main
 
 import (
-	pVals "gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
 	v3 "gno.land/r/sys/validators/v3"
 )
 
 func main() {
-	// v3's callback rejects re-add of an existing validator (the
-	// rewrite preserves the original PoA semantics: an "add" delta
-	// with an already-present address panics). To express a power
-	// change, use the remove-then-add pattern in one proposal:
-	// emit power=0 first to drop the existing entry from the local
-	// map, then power=N to re-insert at the new power.
-	const (
-		addr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
-		pubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	// Power changes are a single-entry upsert: {op, newPower}.
+	// The executor's Power>0 path overwrites the existing entry
+	// in the effective set (Tendermint's natural ValidatorUpdate
+	// semantics), so no remove ceremony is needed.
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 3}},
+		"Update validator power 1->3", "",
 	)
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{Address: address(addr), VotingPower: 0},                       // remove
-			{Address: address(addr), PubKey: pubKey, VotingPower: 3},       // re-add at power 3
-		}
-	}
-	pr := v3.NewProposalRequest(changesFn, "Update validator power 1->3", "")
 	dao.MustCreateProposal(cross, pr)
 }
 

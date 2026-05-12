@@ -29,7 +29,7 @@ patchpkg "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" $test1_user_addr
 gnoland start
 
 # Initialize GovDAO members so test1 can drive proposals.
-gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 34_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
 stdout OK!
 
 # Sanity: r/sys/names disabled at start.
@@ -37,18 +37,18 @@ gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
 stdout 'false bool'
 
 # (1) Pre-Enable bypass: deploy under an arbitrary (non-PA) namespace succeeds.
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/preenable/hello -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/preenable/hello -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test test1
 stdout OK!
 
 # Enable namespace enforcement.
-gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 2_600_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/sys/names -func Enable -gas-fee 260001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey query vm/qeval --data "gno.land/r/sys/names.IsEnabled()"
 stdout 'true bool'
 
 # (2a) Post-Enable: deploy under test1's PA namespace succeeds.
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/hello -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test test1
 stdout OK!
 
 # (2b) Post-Enable: deploy under non-PA namespace fails (no registered name).
@@ -59,7 +59,7 @@ stderr 'is not authorized to deploy packages to namespace'
 gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_pause.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test test1
@@ -81,7 +81,7 @@ stderr 'is not authorized to deploy packages to namespace'
 # (4) MsgCall against the package deployed pre-pause MUST keep working.
 # The package doc claims pause is scoped to MsgAddPackage; existing
 # realms continue to receive MsgCall traffic normally. This locks that in.
-gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -func Hello -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/hello -func Hello -gas-fee 1000000ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
 stdout OK!
 stdout 'hi from hello'
 
@@ -99,7 +99,7 @@ gnokey query vm/qeval --data "gno.land/r/sys/names.IsPaused()"
 stdout 'false bool'
 
 # (5) After unpause: addpkg under PA succeeds again.
-gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/after_unpause -gas-fee 410001ugnot -gas-wanted 4_100_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pkg -pkgpath gno.land/r/$test1_user_addr/after_unpause -gas-fee 410001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test test1
 stdout OK!
 
 -- run/init_govdao.gno --
