@@ -49,6 +49,10 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+	// BoundedPanicRender gates makeUnhandledPanicError to use the
+	// bounded printer (see bounded_strings.go). True on validator-
+	// side Machines; false for filetests, REPL, etc.
+	BoundedPanicRender bool
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -82,6 +86,14 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
+	// the bounded printer (see bounded_strings.go) so adversarial
+	// panic values (huge strings, deeply-nested composites, etc.)
+	// produce output capped at BoundedRenderBytes rather than
+	// allocating proportional to source size. Set true on every
+	// validator-side Machine; default false preserves the existing
+	// verbose render for filetests, REPL, and other trusted contexts.
+	BoundedPanicRender bool
 }
 
 const (
@@ -123,8 +135,33 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		output = io.Discard
 	}
 	alloc := opts.Alloc
+	// isPreprocessing is true when this Machine inherits the per-tx
+	// preprocess allocator from the store (i.e., it's a sub-Machine
+	// spun up by Preprocess via NewMachine(pkg, store)). When true, the
+	// post-claim SetGCFn / SetGasMeter setup below is skipped: the
+	// preprocess allocator is pre-configured by the keeper with
+	// gasMeter set and collect=nil (hard-cap, no GC retry).
+	isPreprocessing := false
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
+		// Sub-Machines via NewMachine(pkg, store) pass no Alloc opt.
+		// Pick up the per-tx preprocess allocator from the store if
+		// installed by the keeper (AddPackage / Run handlers).
+		if opts.Store != nil {
+			if pa := opts.Store.GetPreprocessAllocator(); pa != nil {
+				alloc = pa
+				isPreprocessing = true
+				// Inherit the preprocess allocator's gas meter as the
+				// sub-Machine's gas meter so CPU gas (m.incrCPU) and
+				// alloc gas (alloc.Allocate's gasMeter charge) both
+				// bill against the same tx gas budget.
+				if vmGasMeter == nil {
+					vmGasMeter = pa.GetGasMeter()
+				}
+			}
+		}
+		if alloc == nil {
+			alloc = NewAllocator(opts.MaxAllocBytes) // nil if MaxAllocBytes is zero
+		}
 	}
 	store := opts.Store
 	if store == nil {
@@ -136,7 +173,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
-	if mm.Alloc != nil {
+	if mm.Alloc != nil && !isPreprocessing {
+		// Skip GC fn and gas-meter installation when the alloc is the
+		// per-tx preprocess allocator inherited from the store: it's
+		// pre-configured with gasMeter set and collect=nil intentionally
+		// (hard-cap, no GC retry — see store.go preprocessAlloc).
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
@@ -148,6 +189,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.BoundedPanicRender = opts.BoundedPanicRender
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -453,6 +495,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 				CallExpr: fr.Source.(*CallExpr),
 				IsDefer:  fr.IsDefer,
 				FuncLoc:  fr.Func.GetSource(m.Store).GetLocation(),
+				FuncName: stacktraceFuncName(fr),
 			})
 		}
 	}
