@@ -72,7 +72,7 @@ func main() {
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
-// ### [Prop #0 - User Registry V1: Delete user \`nym\-alice123\`](/r/gov/dao:0)
+// ### [Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
@@ -83,8 +83,10 @@ func main() {
 //
 //
 // --
-// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
+// ## Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// After deletion, address `%s` WILL NOT be able to register a new name.
 //
 // delete user test
 //
@@ -109,8 +111,10 @@ func main() {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
+// ## Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// After deletion, address `%s` WILL NOT be able to register a new name.
 //
 // delete user test
 //
@@ -135,8 +139,10 @@ func main() {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Delete user \`nym\-alice123\`
+// ## Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+// After deletion, address `%s` WILL NOT be able to register a new name.
 //
 // delete user test
 //
