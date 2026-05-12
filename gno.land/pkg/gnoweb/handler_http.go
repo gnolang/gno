@@ -203,6 +203,11 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// maxPostFormBytes caps r.Body for the redirect form. The form carries
+// short fields (path, height, file); 64 KiB leaves plenty of headroom
+// while preventing a 32 MiB Go default from being weaponised.
+const maxPostFormBytes = 64 * 1024
+
 // Post processes a POST HTTP request.
 func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -212,7 +217,7 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	// Parse the form data
+	r.Body = http.MaxBytesReader(w, r.Body, maxPostFormBytes)
 	if err := r.ParseForm(); err != nil {
 		h.Logger.Error("failed to parse form", "error", err)
 		http.Error(w, "bad request", http.StatusBadRequest)

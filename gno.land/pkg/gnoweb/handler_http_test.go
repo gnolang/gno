@@ -1896,3 +1896,32 @@ func TestHTTPHandler_ThemeCookie(t *testing.T) {
 		})
 	}
 }
+
+// TestHTTPHandler_Post_BodyTooLarge asserts the POST handler caps r.Body
+// via http.MaxBytesReader so a 100 MiB payload returns 400 instead of
+// being buffered into memory.
+func TestHTTPHandler_Post_BodyTooLarge(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/test",
+		Files:  map[string]string{"render.gno": `package main`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	// 1 MiB form value — far above the 64 KiB cap, far below Go's 32 MiB default.
+	big := strings.Repeat("a", 1<<20)
+	body := "field=" + big
+	req := httptest.NewRequest(http.MethodPost, "/r/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code,
+		"oversized POST body must be rejected, not silently accepted")
+}
