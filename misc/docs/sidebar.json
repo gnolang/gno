@@ -1,8 +1,6 @@
 {
   "tutorialSidebar": [
     "README",
-    "builders/getting-started",
-    "builders/quick-start",
     [
       {
         "type": "category",
