@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+
+	"github.com/cockroachdb/apd/v3"
 )
 
 // Bounded printers — single source of truth for size-bounded
@@ -523,9 +525,19 @@ func boundedSprintBigInt(w *boundedBuf, bi interface {
 	writeBoundedString(w, bi.String(), rem)
 }
 
-// boundedSprintBigDec renders a *apd.Decimal. Coeff bit-length
-// dominates the decimal string size; pre-check before allocating.
-func boundedSprintBigDec(w *boundedBuf, bd interface{ String() string }) {
+// boundedSprintBigDec renders a *apd.Decimal. Pre-checks the
+// coefficient's bit-length before allocating the full decimal
+// string — bd.String() is O(coeff size) and would otherwise let
+// an attacker who grew the coefficient via runtime arithmetic
+// (e.g. apd's unlimited-precision Add at op_binary.go) burn
+// unmetered CPU/memory on this rendering path.
+//
+// fmtE/fmtF output length is dominated by the coefficient's
+// decimal-digit count (≈ BitLen / 3.32). The Exponent adds ≤ ~12
+// bytes (sign + int32 digits + "E"); the fmtF zero-pad path is
+// itself capped by apd's adjExponentLimit rule, so no Exponent
+// term is needed in the gate.
+func boundedSprintBigDec(w *boundedBuf, bd *apd.Decimal) {
 	rem := w.Remaining()
 	if rem <= 0 {
 		return
@@ -534,16 +546,21 @@ func boundedSprintBigDec(w *boundedBuf, bd interface{ String() string }) {
 		w.WriteString("<nil>")
 		return
 	}
-	// apd.Decimal doesn't expose a cheap pre-check, so we accept a
-	// transient allocation proportional to the decimal output, then
-	// truncate. Output size is bounded at the writer level.
-	s := bd.String()
-	if len(s) > rem*4 {
-		// extreme — emit marker rather than a giant truncate
-		fmt.Fprintf(w, "<bigdec, digits=%d>", len(s))
+	// Zero coefficient — render directly. apd's fmtF zero-pad path
+	// allocates up to ~|Exponent| bytes (capped at ~2000 by apd's
+	// adjExponentLimit) for negative-Exponent zero values; we
+	// sidestep it since "0" carries the same numeric information.
+	if bd.Coeff.BitLen() == 0 {
+		w.WriteString("0")
 		return
 	}
-	writeBoundedString(w, s, rem)
+	// 1 decimal digit ≈ 3.32 bits. Use ×3 conservatively
+	// (matches boundedSprintBigInt).
+	if bd.Coeff.BitLen() > rem*3 {
+		fmt.Fprintf(w, "<bigdec, bits=%d>", bd.Coeff.BitLen())
+		return
+	}
+	writeBoundedString(w, bd.String(), rem)
 }
 
 // ----------------------------------------

@@ -66,6 +66,7 @@ func TestBoundedSprintTV_BigInt_Huge(t *testing.T) {
 	out := BoundedSprintTV(tv, nil, 1024)
 	// Should hit the BitLen pre-check: BitLen() ≈ 1M > 1024*3.
 	assert.Contains(t, out, "<bigint, bits=")
+	assert.LessOrEqual(t, len(out), 1024+3)
 }
 
 func TestBoundedSprintTV_BigDec_Small(t *testing.T) {
@@ -73,6 +74,25 @@ func TestBoundedSprintTV_BigDec_Small(t *testing.T) {
 	tv := TypedValue{T: UntypedBigdecType, V: BigdecValue{V: bd}}
 	out := BoundedSprintTV(tv, nil, 100)
 	assert.Contains(t, out, "1.23")
+}
+
+func TestBoundedSprintTV_BigDec_Huge(t *testing.T) {
+	// Coefficient = 1 << (1<<20) ≈ 300K decimal digits. Models the
+	// runtime case where apd's unlimited-precision Add lets a user
+	// grow the coefficient over many gas-metered steps before
+	// triggering a panic that carries the value through bounded
+	// rendering.
+	bd := new(apd.Decimal)
+	bd.Coeff.Lsh(apd.NewBigInt(1), 1<<20)
+	bd.Exponent = 0
+	tv := TypedValue{T: UntypedBigdecType, V: BigdecValue{V: bd}}
+	out := BoundedSprintTV(tv, nil, 1024)
+	// Should hit the BitLen pre-check: BitLen() ≈ 1M > 1024*3.
+	// Crucially, this must NOT allocate the full decimal string.
+	assert.Contains(t, out, "<bigdec, bits=")
+	// Sanity: rendered output stays under cap (modulo a 3-byte
+	// "..." truncation suffix).
+	assert.LessOrEqual(t, len(out), 1024+3)
 }
 
 func TestBoundedSprintTV_Int(t *testing.T) {
