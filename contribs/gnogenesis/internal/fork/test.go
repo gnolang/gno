@@ -262,6 +262,33 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
+			// Catch the silent-InitChainer-failure case: if state.Txs has
+			// entries but the result handler was never invoked, InitChain
+			// returned a ResponseInitChain.Error early (e.g. validateSignerInfo
+			// rejected the genesis). Without this guard, the test prints
+			// "PASS" while the chain has effectively zero genesis state —
+			// the empty appHash is the only on-the-wire signal and it's
+			// easy to miss. Fail loudly instead.
+			//
+			// Per-tx metadata.Failed entries are skipped (no handler call),
+			// so the expected counter is len(state.Txs) - skipped. The
+			// guard fires only when the counter is ZERO and at least one
+			// tx was expected to deliver — covers the loadAppState-error
+			// case without false-positives for genesises where every tx
+			// is metadata.Failed (a degenerate but legal input).
+			if processed == 0 && len(appState.Txs) > 0 {
+				expected := countDeliverableTxs(appState.Txs)
+				if expected > 0 {
+					return fmt.Errorf(
+						"FAIL: genesis replay delivered 0 of %d expected txs — "+
+							"InitChainer likely returned a ResponseInitChain.Error before the tx loop; "+
+							"re-run a real `gnoland start` against the same genesis with --log-level debug "+
+							"to surface the underlying error (typically validateSignerInfo or InitialHeight mismatch)",
+						expected,
+					)
+				}
+			}
+
 			if failures > 0 {
 				io.Println()
 				if cfg.skipFailingTxs {
@@ -303,4 +330,21 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 				cfg.timeout, processed, len(appState.Txs))
 		}
 	}
+}
+
+// countDeliverableTxs returns the number of txs whose result handler
+// would fire during loadAppState — i.e. everything except entries
+// flagged metadata.Failed=true (skipped in app.go:636-645). A genesis
+// with len(state.Txs)>0 but countDeliverableTxs==0 is degenerate but
+// legal — the zero-processed guard short-circuits in that case to
+// avoid a false-positive failure.
+func countDeliverableTxs(txs []gnoland.TxWithMetadata) int {
+	n := 0
+	for _, tx := range txs {
+		if tx.Metadata != nil && tx.Metadata.Failed {
+			continue
+		}
+		n++
+	}
+	return n
 }
