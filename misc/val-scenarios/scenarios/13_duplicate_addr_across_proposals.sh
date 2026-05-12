@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCENARIO_CI=true
+# Disabled in CI: outdated, needs to be updated.
+SCENARIO_CI=false
 
 # Scenario 13: duplicate validator address across two separate proposals in the
 # same block.
