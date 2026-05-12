@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 // ErrVoteExists indicates that a user already voted.
@@ -39,8 +39,8 @@ type (
 
 // ReadonlyVotingRecord defines an read only voting record.
 type ReadonlyVotingRecord struct {
-	votes avl.Tree // string(address) -> Vote
-	count avl.Tree // string(choice) -> int
+	votes bptree.BPTree // string(address) -> Vote
+	count bptree.BPTree // string(choice) -> int
 }
 
 // Size returns the total number of votes that record contains.

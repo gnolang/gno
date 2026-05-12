@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// recover: index out of range [10] with length 5
+// recover: runtime error: index out of range [10] with length 5

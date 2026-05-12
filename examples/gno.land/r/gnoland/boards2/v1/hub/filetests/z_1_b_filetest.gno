@@ -45,7 +45,8 @@ func main() {
 	}
 
 	println(thread.ID)
-	println(thread.OriginalBoardID) // Only reposts have an original board ID
+	println(thread.OriginalBoardID)  // Only reposts have an original board ID
+	println(thread.OriginalThreadID) // Only reposts have an original thread ID
 	println(thread.BoardID)
 	println(thread.Title)
 	println(thread.Body)
@@ -61,6 +62,7 @@ func main() {
 
 // Output:
 // 1
+// 0
 // 0
 // 1
 // Foo

@@ -18,7 +18,12 @@ var (
 func init() {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
 	srcBoardID := boards2.CreateBoard(cross, "origin123", false, false)
-	srcThreadID := boards2.CreateThread(cross, srcBoardID, "Title", "Body")
+
+	// Create two threads where the second is the one to repost
+	boards2.CreateThread(cross, srcBoardID, "Title1", "Body1")
+	srcThreadID := boards2.CreateThread(cross, srcBoardID, "Title2", "Body2") // ID = 2
+
+	// Create repost
 	boardID = boards2.CreateBoard(cross, "test123", false, false)
 	threadID = boards2.CreateRepost(cross, srcBoardID, srcThreadID, boardID, "Title", "Body")
 
@@ -44,13 +49,14 @@ func main() {
 
 	println(thread.ID)
 	println(thread.OriginalBoardID)
+	println(thread.OriginalThreadID)
 	println(thread.BoardID)
 	println(thread.Title)
 	println(thread.Body)
 	println(thread.Hidden)
 	println(thread.Readonly)
 	println(thread.CommentCount)
-	println(thread.RepostCount) // Reposts can't be reposted
+	println(thread.RepostCount) // Reposts can't be reposted, so count must be 0
 	println(thread.FlagCount)
 	println(thread.Creator)
 	println(thread.CreatedAt)
@@ -60,6 +66,7 @@ func main() {
 // Output:
 // 1
 // 1
+// 2
 // 2
 // Foo
 // Bar

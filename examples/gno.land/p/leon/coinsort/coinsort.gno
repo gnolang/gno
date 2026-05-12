@@ -9,7 +9,7 @@
 //	coinsort.SortByBalance(coins)
 //
 //	// Custom order – largest balance first
-//	coinsort.SortBy(coins, func(a, b std.Coin) bool {
+//	coinsort.SortBy(coins, func(a, b chain.Coin) bool {
 //	    return a.Amount > b.Amount // descending
 //	})
 //

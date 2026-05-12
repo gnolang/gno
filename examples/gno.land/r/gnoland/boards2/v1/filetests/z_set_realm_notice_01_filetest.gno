@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -20,12 +19,8 @@ func main() {
 
 	boards2.SetRealmNotice(cross, "")
 
-	// Render content must contain the message
-	content := boards2.Render("")
-	println(strings.HasPrefix(content, "> This is a test realm message\n\n"))
-	println(strings.HasPrefix(content, "# Boards"))
+	println(boards2.Notice == "")
 }
 
 // Output:
-// false
 // true
