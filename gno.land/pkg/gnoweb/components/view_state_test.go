@@ -562,7 +562,7 @@ func TestRenderState_CTA_PlusNMore(t *testing.T) {
 	totalLen := 12
 	nodes := []StateNode{{
 		Name: "Catalog", Type: "*avl.Tree", Kind: "ref",
-		ObjectID: "ffffffffffffffffffffffffffffffffffffffff:7",
+		ObjectID:   "ffffffffffffffffffffffffffffffffffffffff:7",
 		Expandable: true,
 		Length:     &totalLen,
 		Children: []StateNode{
@@ -592,7 +592,7 @@ func TestRenderState_CTA_NoMore(t *testing.T) {
 	totalLen := 2
 	nodes := []StateNode{{
 		Name: "Pair", Type: "[2]int", Kind: "ref",
-		ObjectID: "ffffffffffffffffffffffffffffffffffffffff:1",
+		ObjectID:   "ffffffffffffffffffffffffffffffffffffffff:1",
 		Expandable: true,
 		Length:     &totalLen,
 		Children: []StateNode{

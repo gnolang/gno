@@ -93,5 +93,4 @@ export class ThemeController extends BaseController {
 			el?.classList.toggle("u-hidden", this.preference !== pref);
 		}
 	}
-
 }

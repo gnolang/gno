@@ -618,9 +618,9 @@ func TestSliceLines(t *testing.T) {
 
 	src := []byte("a\nb\nc\nd\ne\n")
 	cases := []struct {
-		name             string
-		start, end       int
-		want             string
+		name       string
+		start, end int
+		want       string
 	}{
 		{"normal range", 2, 4, "b\nc\nd"},
 		{"single line", 3, 3, "c"},

@@ -2682,7 +2682,6 @@ main.dev-mode .b-toc a {
 	}
 }
 
-<<<<<<< HEAD
 /* `display: contents` removes the element from layout while leaving
    its children in place — used here as a scope for the controller. */
 .b-state-page {
@@ -2713,7 +2712,7 @@ body:has(.b-state-page) .b-content-h1 {
 }
 
 body:has(.b-state-page)
-:is(.b-content-header, .b-page-subheader, .b-sidebar, .b-state-explorer) {
+	:is(.b-content-header, .b-page-subheader, .b-sidebar, .b-state-explorer) {
 	align-self: start;
 }
 
@@ -3617,7 +3616,8 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 	}
 }
 
-.b-page-subheader .packages-tabs
+.b-page-subheader
+	.packages-tabs
 	label
 	:is(.b-tag, .b-tag--secondary, .b-tag--tertiary) {
 	display: inline-flex;

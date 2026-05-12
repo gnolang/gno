@@ -1142,9 +1142,9 @@ func TestClampSliceWindow(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name                            string
-		offset, length, listLen         int
-		wantOffset, wantEnd             int
+		name                    string
+		offset, length, listLen int
+		wantOffset, wantEnd     int
 	}{
 		{"happy_path", 1, 2, 5, 1, 3},
 		{"length_zero", 0, 0, 5, 0, 0},

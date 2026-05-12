@@ -824,10 +824,10 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 	// per-package lookups and we want one RTT total. Doc errors are
 	// non-fatal: the page renders without comments rather than aborting.
 	var (
-		raw     []byte
+		raw      []byte
 		stateErr error
-		jdoc    *doc.JSONDocumentation
-		wg      sync.WaitGroup
+		jdoc     *doc.JSONDocumentation
+		wg       sync.WaitGroup
 	)
 	wg.Add(2)
 	go func() {
@@ -1056,8 +1056,6 @@ func (h *rendererSnippetHighlighter) Render(fileName string, source []byte) (tem
 	}
 	return template.HTML(buf.String()), nil
 }
-
-
 
 // ServeSourceDownload handles downloading a source file as plain text.
 func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {

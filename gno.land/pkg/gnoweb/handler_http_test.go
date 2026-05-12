@@ -1414,10 +1414,10 @@ func TestHTTPHandler_GetStateView_ViewModeCookie(t *testing.T) {
 	const statePkgJSON = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
 
 	cases := []struct {
-		name            string
-		cookie          *http.Cookie
-		wantPrettyAttr  string // checked attribute we expect on the pretty radio
-		wantTreeAttr    string // checked attribute we expect on the tree radio
+		name           string
+		cookie         *http.Cookie
+		wantPrettyAttr string // checked attribute we expect on the pretty radio
+		wantTreeAttr   string // checked attribute we expect on the tree radio
 	}{
 		{
 			name:           "no cookie defaults to Pretty",

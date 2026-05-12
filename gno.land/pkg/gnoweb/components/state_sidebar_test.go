@@ -35,10 +35,10 @@ func TestTruncMid(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		input            string
-		head, tail       int
-		expected         string
+		name       string
+		input      string
+		head, tail int
+		expected   string
 	}{
 		{"long string truncated head…tail", "ff61a23bc5d8c018b6c8f29498b1b89435bbeb998", 6, 4, "ff61a2…b998"},
 		{"already short string untouched", "abc", 6, 4, "abc"},
@@ -60,10 +60,10 @@ func TestTruncOID(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		input            string
-		head, tail       int
-		expected         string
+		name       string
+		input      string
+		head, tail int
+		expected   string
 	}{
 		{
 			"OID hashlet truncated, :N preserved",
