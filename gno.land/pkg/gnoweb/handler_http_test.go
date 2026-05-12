@@ -1899,11 +1899,10 @@ func TestHTTPHandler_ThemeCookie(t *testing.T) {
 
 // TestHTTPHandler_UserView_ListPathsLimitBounded — a single GET /u/<name>
 // must not amplify into thousands of bech32-decode + url-parse iterations.
-// Asserts the limit passed to ListPaths is at most maxUserContributions.
+// Asserts the limit passed to ListPaths equals the documented cap.
 func TestHTTPHandler_UserView_ListPathsLimitBounded(t *testing.T) {
 	t.Parallel()
 
-	const cap = 200 // mirrors maxUserContributions
 	var observedLimit int
 	stub := &stubClient{
 		listPathsFunc: func(_ context.Context, _ string, limit int) ([]string, error) {
@@ -1920,10 +1919,8 @@ func TestHTTPHandler_UserView_ListPathsLimitBounded(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	assert.LessOrEqual(t, observedLimit, cap,
-		"ListPaths limit must be bounded — got %d (cap %d)", observedLimit, cap)
-	assert.Greater(t, observedLimit, 0,
-		"sanity: ListPaths must still be called")
+	assert.Equal(t, gnoweb.MaxUserContributions, observedLimit,
+		"ListPaths limit must equal the documented cap (drift would mask DoS regressions)")
 }
 
 // TestHTTPHandler_Post_BodyTooLarge asserts the POST handler caps r.Body

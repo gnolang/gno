@@ -3123,12 +3123,11 @@ func TestMarshalTypeJSON_ProducesValidJSONForControlCharNames(t *testing.T) {
 		"output must be valid JSON; got %q", buf.String())
 }
 
-// TestQueryType_EnvelopeValidJSON — same invariant at the envelope level:
-// a TypeID with a non-JSON-safe byte must still produce a valid JSON
-// response. Constructing such a TypeID is awkward via real chain state,
-// so we exercise marshalTypeJSON + envelope construction directly.
+// TestQueryType_EnvelopeValidJSON — TypeID with a control byte must
+// still produce valid JSON at the envelope level. %q would emit `\v`
+// (Go-only escape, invalid in JSON); json.Marshal emits ``.
 func TestQueryType_EnvelopeValidJSON(t *testing.T) {
-	tidStr := "gno.land/r/x.T"
+	tidStr := "gno.land/r/x\v.T" // control byte: %q would emit \v (invalid JSON)
 	var buf bytes.Buffer
 	marshalTypeJSON(&buf, gnolang.IntType, 0)
 	envelope := buildTypeJSONEnvelope(tidStr, buf.Bytes())

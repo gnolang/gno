@@ -808,8 +808,9 @@ func TestEnrichInlinePreviews_PeakConcurrencyBoundedByPool(t *testing.T) {
 	peak := atomic.LoadInt32(&pf.peak)
 	assert.LessOrEqual(t, int(peak), maxConcurrentObjectFetches,
 		"obj+type fetches share one pool — peak in-flight must not exceed the documented cap")
-	assert.Greater(t, int(peak), 1,
-		"sanity: fetches should still run concurrently (peak > 1)")
+	// Intentionally no `peak > 1` floor: GOMAXPROCS=1 CI runners can
+	// observe a serialized peak even though the goroutines were eligible
+	// to run in parallel. The upper-bound assertion is the load-bearing one.
 }
 
 // TestEnrich_AbortsOnCanceledContext — a pre-canceled ctx must short-circuit
