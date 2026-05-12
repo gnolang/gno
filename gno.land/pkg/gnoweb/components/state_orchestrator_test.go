@@ -719,6 +719,65 @@ func (b *blockingFetcher) FetchType(ctx context.Context, _ string) ([]byte, erro
 	return nil, ctx.Err()
 }
 
+// peakFetcher records the maximum number of overlapping fetch calls
+// across both FetchObject and FetchType — used to assert the shared
+// preview-pool cap.
+type peakFetcher struct {
+	delay   time.Duration
+	body    []byte
+	current int32
+	peak    int32
+}
+
+func (p *peakFetcher) trackAndDelay() {
+	cur := atomic.AddInt32(&p.current, 1)
+	defer atomic.AddInt32(&p.current, -1)
+	for {
+		old := atomic.LoadInt32(&p.peak)
+		if cur <= old || atomic.CompareAndSwapInt32(&p.peak, old, cur) {
+			break
+		}
+	}
+	time.Sleep(p.delay)
+}
+
+func (p *peakFetcher) FetchObject(_ context.Context, _ string) ([]byte, error) {
+	p.trackAndDelay()
+	return p.body, nil
+}
+
+func (p *peakFetcher) FetchType(_ context.Context, _ string) ([]byte, error) {
+	p.trackAndDelay()
+	return p.body, nil
+}
+
+// TestEnrichInlinePreviews_PeakConcurrencyBoundedByPool — the documented
+// maxConcurrentObjectFetches cap is the TOTAL of obj+type fetches in flight,
+// not per-pool. Spawn 2 * cap of each kind and assert the shared semaphore
+// keeps the peak ≤ cap.
+func TestEnrichInlinePreviews_PeakConcurrencyBoundedByPool(t *testing.T) {
+	t.Parallel()
+
+	const each = maxConcurrentObjectFetches * 2
+	nodes := make([]StateNode, each)
+	for i := range nodes {
+		nodes[i] = StateNode{
+			Name: fmt.Sprintf("R%d", i), Kind: "ref", Expandable: true,
+			ObjectID: fmt.Sprintf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:%d", i+1),
+			TypeID:   fmt.Sprintf("gno.land/r/x.T%d", i),
+		}
+	}
+	pf := &peakFetcher{delay: 25 * time.Millisecond, body: []byte(`{}`)}
+
+	EnrichInlinePreviews(context.Background(), nodes, pf, pf)
+
+	peak := atomic.LoadInt32(&pf.peak)
+	assert.LessOrEqual(t, int(peak), maxConcurrentObjectFetches,
+		"obj+type fetches share one pool — peak in-flight must not exceed the documented cap")
+	assert.Greater(t, int(peak), 1,
+		"sanity: fetches should still run concurrently (peak > 1)")
+}
+
 // TestEnrich_AbortsOnCanceledContext — a pre-canceled ctx must short-circuit
 // the file-fetch path so we don't drive RPC calls past the deadline.
 func TestEnrich_AbortsOnCanceledContext(t *testing.T) {

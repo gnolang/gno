@@ -179,9 +179,10 @@ func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
 	}
 }
 
-// fetchPreviewsConcurrent fetches objects and types via two independent
-// pools so type fetches never starve behind objects. ctx cancellation
-// aborts before semaphore acquire so a deadline expiry stops back-pressure.
+// fetchPreviewsConcurrent fetches objects and types under one shared
+// concurrency cap so the total in-flight RPC per render matches the
+// documented maxConcurrentObjectFetches. ctx cancellation aborts before
+// semaphore acquire.
 func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
 	byOID := make(map[string][]*StateNode)
 	for _, n := range candidates {
@@ -201,8 +202,7 @@ func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFe
 	typeCache := make(map[string][]byte, len(uniqueTypeIDs))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	semObj := make(chan struct{}, maxConcurrentObjectFetches)
-	semType := make(chan struct{}, maxConcurrentObjectFetches)
+	sem := make(chan struct{}, maxConcurrentObjectFetches)
 
 	for oid := range byOID {
 		wg.Add(1)
@@ -210,11 +210,11 @@ func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFe
 			defer wg.Done()
 			defer func() { _ = recover() }() // fetcher panics must not crash the process
 			select {
-			case semObj <- struct{}{}:
+			case sem <- struct{}{}:
 			case <-ctx.Done():
 				return
 			}
-			defer func() { <-semObj }()
+			defer func() { <-sem }()
 			raw, err := objFetcher.FetchObject(ctx, oid)
 			if err != nil {
 				return
@@ -231,11 +231,11 @@ func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFe
 			defer wg.Done()
 			defer func() { _ = recover() }() // fetcher panics must not crash the process
 			select {
-			case semType <- struct{}{}:
+			case sem <- struct{}{}:
 			case <-ctx.Done():
 				return
 			}
-			defer func() { <-semType }()
+			defer func() { <-sem }()
 			raw, err := typeFetcher.FetchType(ctx, tid)
 			if err != nil {
 				return
