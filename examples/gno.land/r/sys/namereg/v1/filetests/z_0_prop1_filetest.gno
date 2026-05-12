@@ -69,7 +69,7 @@ func main(cur realm) {
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
-// ### [Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`](/r/gov/dao:0)
+// ### [Prop #0 - User Registry V1: Rename name for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\) to \`alice\_new123\`](/r/gov/dao:0)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // Status: ACTIVE
@@ -80,7 +80,7 @@ func main(cur realm) {
 //
 //
 // --
-// ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// ## Prop #0 - User Registry V1: Rename name for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\) to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
@@ -106,7 +106,7 @@ func main(cur realm) {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// ## Prop #0 - User Registry V1: Rename name for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\) to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
@@ -132,7 +132,7 @@ func main(cur realm) {
 // WARNING: Please double check transaction data before voting.
 // --
 // --
-// ## Prop #0 - User Registry V1: Rename user \`nym\-alice123\` to \`alice\_new123\`
+// ## Prop #0 - User Registry V1: Rename name for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\) to \`alice\_new123\`
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 //
