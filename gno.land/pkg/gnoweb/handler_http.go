@@ -1002,9 +1002,9 @@ type renderStateInput struct {
 // then walks for hrefs/sources.
 func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL, in renderStateInput) *components.View {
 	pkgPath := gnourl.Path
-	adapter := &stateAdapter{ctx: ctx, client: h.Client, height: in.Height}
-	components.EnrichInlinePreviews(in.Nodes, adapter, adapter)
-	components.Enrich(in.Nodes, pkgPath, in.Height, adapter,
+	adapter := &stateAdapter{client: h.Client, height: in.Height}
+	components.EnrichInlinePreviews(ctx, in.Nodes, adapter, adapter)
+	components.Enrich(ctx, in.Nodes, pkgPath, in.Height, adapter,
 		&rendererSnippetHighlighter{renderer: h.Renderer})
 	return components.StateView(components.StateData{
 		PkgPath:      pkgPath,
@@ -1022,25 +1022,25 @@ func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL
 }
 
 // stateAdapter satisfies the three fetcher interfaces consumed by the
-// orchestrator (FileFetcher, StateObjectFetcher, StateTypeFetcher) with
-// one shared (ctx, client, height) carrier.
+// orchestrator (FileFetcher, StateObjectFetcher, StateTypeFetcher). The
+// orchestrator threads a ctx through every call so a deadline can abort
+// in-flight RPCs.
 type stateAdapter struct {
-	ctx    context.Context
 	client ClientAdapter
 	height int64
 }
 
-func (a *stateAdapter) Fetch(pkgPath, fileName string) ([]byte, error) {
-	src, _, err := a.client.File(a.ctx, pkgPath, fileName, a.height)
+func (a *stateAdapter) Fetch(ctx context.Context, pkgPath, fileName string) ([]byte, error) {
+	src, _, err := a.client.File(ctx, pkgPath, fileName, a.height)
 	return src, err
 }
 
-func (a *stateAdapter) FetchObject(oid string) ([]byte, error) {
-	return a.client.StateObject(a.ctx, oid, a.height)
+func (a *stateAdapter) FetchObject(ctx context.Context, oid string) ([]byte, error) {
+	return a.client.StateObject(ctx, oid, a.height)
 }
 
-func (a *stateAdapter) FetchType(tid string) ([]byte, error) {
-	return a.client.StateType(a.ctx, tid, a.height)
+func (a *stateAdapter) FetchType(ctx context.Context, tid string) ([]byte, error) {
+	return a.client.StateType(ctx, tid, a.height)
 }
 
 // rendererSnippetHighlighter adapts HTMLRenderer to SnippetHighlighter —

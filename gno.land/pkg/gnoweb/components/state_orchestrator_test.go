@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -21,7 +22,7 @@ type fakeFetcher struct {
 	calls int32
 }
 
-func (f *fakeFetcher) Fetch(pkgPath, fileName string) ([]byte, error) {
+func (f *fakeFetcher) Fetch(_ context.Context, pkgPath, fileName string) ([]byte, error) {
 	atomic.AddInt32(&f.calls, 1)
 	if f.err != nil {
 		return nil, f.err
@@ -61,7 +62,7 @@ func TestEnrich_Basic(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 3, EndLine: 5},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.NotEmpty(t, nodes[0].SourceHTML, "SourceHTML must be populated")
 	assert.Contains(t, string(nodes[0].SourceHTML), "func Foo()",
@@ -88,7 +89,7 @@ func TestEnrich_FuncKindGetsSourceHTML(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 3, EndLine: 3},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.NotEmpty(t, nodes[0].SourceHTML,
 		"regular funcs must get inline source rendered, like closures")
@@ -111,7 +112,7 @@ func TestEnrich_NoSource(t *testing.T) {
 		{Name: "Users", Type: "map[string]User", Kind: "ref", ObjectID: "ff:8", Expandable: true},
 	}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	for i, n := range nodes {
 		assert.Empty(t, n.SourceHTML, "node %d had no Source — SourceHTML must stay empty", i)
@@ -137,7 +138,7 @@ func TestEnrich_Recurses(t *testing.T) {
 		}},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Empty(t, nodes[0].SourceHTML, "parent struct has no Source — left alone")
 	assert.NotEmpty(t, nodes[0].Children[0].SourceHTML, "nested closure gets its source")
@@ -159,7 +160,7 @@ func TestEnrich_FileCache(t *testing.T) {
 		{Name: "c", Kind: "closure", Source: &SourceLocation{File: "foo.gno", StartLine: 3, EndLine: 3}},
 	}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Equal(t, int32(1), atomic.LoadInt32(&fetcher.calls),
 		"three nodes pointing to the same file should produce one fetch")
@@ -182,7 +183,7 @@ func TestEnrich_FetchError(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 1, EndLine: 5},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Empty(t, nodes[0].SourceHTML, "fetch error → SourceHTML stays empty (graceful)")
 }
@@ -200,7 +201,7 @@ func TestEnrich_RenderError(t *testing.T) {
 		Source: &SourceLocation{File: "foo.gno", StartLine: 1, EndLine: 1},
 	}}
 
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 
 	assert.Empty(t, nodes[0].SourceHTML, "render error → SourceHTML stays empty (graceful)")
 }
@@ -230,7 +231,7 @@ func TestEnrich_FetchesFilesInParallel(t *testing.T) {
 	}
 
 	start := time.Now()
-	Enrich(nodes, "/r/demo/foo", 0, fetcher, hl)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, fetcher, hl)
 	elapsed := time.Since(start)
 
 	peak := atomic.LoadInt32(&fetcher.peak)
@@ -249,7 +250,7 @@ type concurrentFetcher struct {
 	peak    int32
 }
 
-func (c *concurrentFetcher) Fetch(_, _ string) ([]byte, error) {
+func (c *concurrentFetcher) Fetch(_ context.Context, _, _ string) ([]byte, error) {
 	cur := atomic.AddInt32(&c.current, 1)
 	defer atomic.AddInt32(&c.current, -1)
 	for {
@@ -269,7 +270,7 @@ type fakeObjectFetcher struct {
 	err    error
 }
 
-func (f *fakeObjectFetcher) FetchObject(oid string) ([]byte, error) {
+func (f *fakeObjectFetcher) FetchObject(_ context.Context, oid string) ([]byte, error) {
 	atomic.AddInt32(&f.calls, 1)
 	if f.err != nil {
 		return nil, f.err
@@ -322,7 +323,7 @@ func TestEnrichInlinePreviews_AttachesChildren(t *testing.T) {
 		ObjectID: oid, Expandable: true,
 	}}
 
-	EnrichInlinePreviews(nodes, fetcher, nil)
+	EnrichInlinePreviews(context.Background(), nodes, fetcher, nil)
 
 	require.Len(t, nodes[0].Children, 2, "ref must be enriched with the object's fields")
 	assert.Equal(t, "7", nodes[0].Children[0].Value)
@@ -348,7 +349,7 @@ func TestEnrichInlinePreviews_RespectsBudget(t *testing.T) {
 	}
 	fetcher := &fakeObjectFetcher{bodies: bodies}
 
-	EnrichInlinePreviews(nodes, fetcher, nil)
+	EnrichInlinePreviews(context.Background(), nodes, fetcher, nil)
 
 	enriched, leftAsLink := 0, 0
 	for _, n := range nodes {
@@ -380,7 +381,7 @@ func TestEnrichInlinePreviews_DedupesByOID(t *testing.T) {
 		{Name: "B", Kind: "ref", ObjectID: oid, Expandable: true},
 	}
 
-	EnrichInlinePreviews(nodes, fetcher, nil)
+	EnrichInlinePreviews(context.Background(), nodes, fetcher, nil)
 
 	assert.Equal(t, int32(1), atomic.LoadInt32(&fetcher.calls),
 		"two refs to the same OID → one fetch")
@@ -400,7 +401,7 @@ func TestEnrichInlinePreviews_FetchError(t *testing.T) {
 		ObjectID: "ffffffffffffffffffffffffffffffffffffffff:1", Expandable: true,
 	}}
 
-	EnrichInlinePreviews(nodes, fetcher, nil)
+	EnrichInlinePreviews(context.Background(), nodes, fetcher, nil)
 
 	assert.Empty(t, nodes[0].Children, "fetch error → no inline children, ref stays clickable")
 }
@@ -433,7 +434,7 @@ func TestEnrichInlinePreviews_TopLevelPriority(t *testing.T) {
 		},
 	})
 
-	EnrichInlinePreviews(nodes, &fakeObjectFetcher{bodies: bodies}, nil)
+	EnrichInlinePreviews(context.Background(), nodes, &fakeObjectFetcher{bodies: bodies}, nil)
 
 	for i := 0; i < maxInlinePreviewFetches; i++ {
 		assert.NotEmpty(t, nodes[i].Children,
@@ -450,7 +451,7 @@ type fakeTypeFetcher struct {
 	calls  int32
 }
 
-func (f *fakeTypeFetcher) FetchType(tid string) ([]byte, error) {
+func (f *fakeTypeFetcher) FetchType(_ context.Context, tid string) ([]byte, error) {
 	atomic.AddInt32(&f.calls, 1)
 	if b, ok := f.bodies[tid]; ok {
 		return b, nil
@@ -498,7 +499,7 @@ func TestEnrichInlinePreviews_ResolvesFieldNamesViaType(t *testing.T) {
 		ObjectID: oid, TypeID: tid, Expandable: true,
 	}}
 
-	EnrichInlinePreviews(nodes, objFetcher, typeFetcher)
+	EnrichInlinePreviews(context.Background(), nodes, objFetcher, typeFetcher)
 
 	require.Len(t, nodes[0].Children, 2, "preview unwraps the heap item to expose the struct fields")
 	assert.Equal(t, "Name", nodes[0].Children[0].Name,
@@ -564,7 +565,7 @@ func TestEnrichInlinePreviews_FollowsHeapToRef(t *testing.T) {
 		ObjectID: outerOID, TypeID: tid, Expandable: true,
 	}}
 
-	EnrichInlinePreviews(nodes, objFetcher, typeFetcher)
+	EnrichInlinePreviews(context.Background(), nodes, objFetcher, typeFetcher)
 
 	// Round 1 fetches :11 → reveals one ref-only child pointing at :12.
 	// Round 2 picks up that ref and fetches :12 → struct fields surface.
@@ -596,7 +597,7 @@ func TestEnrich_BuildsHrefViaGnoURL(t *testing.T) {
 		}},
 	}
 
-	Enrich(nodes, "/r/demo/foo", 0, nil, nil)
+	Enrich(context.Background(), nodes, "/r/demo/foo", 0, nil, nil)
 
 	assert.NotEmpty(t, nodes[0].Href, "ref nodes must get an Href")
 	assert.Empty(t, nodes[1].Href, "leaf without ObjectID has no Href")
@@ -643,19 +644,19 @@ func TestSliceLines(t *testing.T) {
 // recovers per-goroutine and does not crash the process.
 type panicFetcher struct{}
 
-func (panicFetcher) Fetch(pkgPath, fileName string) ([]byte, error) {
+func (panicFetcher) Fetch(_ context.Context, pkgPath, fileName string) ([]byte, error) {
 	panic("boom from file fetcher")
 }
 
 type panicObjectFetcher struct{}
 
-func (panicObjectFetcher) FetchObject(oid string) ([]byte, error) {
+func (panicObjectFetcher) FetchObject(_ context.Context, oid string) ([]byte, error) {
 	panic("boom from object fetcher")
 }
 
 type panicTypeFetcher struct{}
 
-func (panicTypeFetcher) FetchType(tid string) ([]byte, error) {
+func (panicTypeFetcher) FetchType(_ context.Context, tid string) ([]byte, error) {
 	panic("boom from type fetcher")
 }
 
@@ -670,7 +671,7 @@ func TestEnrich_RecoversFromFetcherPanic(t *testing.T) {
 	}}
 
 	require.NotPanics(t, func() {
-		Enrich(nodes, "/r/demo/foo", 0, panicFetcher{}, &fakeHighlighter{})
+		Enrich(context.Background(), nodes, "/r/demo/foo", 0, panicFetcher{}, &fakeHighlighter{})
 	}, "panic in FileFetcher.Fetch must be contained in the orchestrator goroutine")
 
 	assert.Empty(t, nodes[0].SourceHTML, "panicked fetch → SourceHTML empty (graceful)")
@@ -687,10 +688,85 @@ func TestEnrichInlinePreviews_RecoversFromObjectFetcherPanic(t *testing.T) {
 	}}
 
 	require.NotPanics(t, func() {
-		EnrichInlinePreviews(nodes, panicObjectFetcher{}, nil)
+		EnrichInlinePreviews(context.Background(), nodes, panicObjectFetcher{}, nil)
 	}, "panic in StateObjectFetcher.FetchObject must be contained")
 
 	assert.Empty(t, nodes[0].Children, "panicked object fetch → no children attached")
+}
+
+// blockingFetcher blocks Fetch* until ctx is canceled, then returns ctx.Err.
+// Lets a test pass a pre-canceled ctx and assert the orchestrator never
+// commits a successful fetch.
+type blockingFetcher struct {
+	calls int32
+}
+
+func (b *blockingFetcher) Fetch(ctx context.Context, _, _ string) ([]byte, error) {
+	atomic.AddInt32(&b.calls, 1)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (b *blockingFetcher) FetchObject(ctx context.Context, _ string) ([]byte, error) {
+	atomic.AddInt32(&b.calls, 1)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (b *blockingFetcher) FetchType(ctx context.Context, _ string) ([]byte, error) {
+	atomic.AddInt32(&b.calls, 1)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// TestEnrich_AbortsOnCanceledContext — a pre-canceled ctx must short-circuit
+// the file-fetch path so we don't drive RPC calls past the deadline.
+func TestEnrich_AbortsOnCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	const N = 32 // > maxConcurrentFileFetches so the sem-bound branch matters
+	nodes := make([]StateNode, N)
+	for i := range nodes {
+		nodes[i] = StateNode{
+			Name: "f", Kind: "closure",
+			Source: &SourceLocation{File: fmt.Sprintf("f%d.gno", i), StartLine: 1, EndLine: 1},
+		}
+	}
+	bf := &blockingFetcher{}
+
+	Enrich(ctx, nodes, "/r/demo/foo", 0, bf, &fakeHighlighter{})
+
+	for i := range nodes {
+		assert.Empty(t, nodes[i].SourceHTML, "no fetch may complete under canceled ctx (node %d)", i)
+	}
+}
+
+// TestEnrichInlinePreviews_AbortsOnCanceledContext — same invariant for the
+// object/type pools.
+func TestEnrichInlinePreviews_AbortsOnCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	const N = 32
+	nodes := make([]StateNode, N)
+	for i := range nodes {
+		nodes[i] = StateNode{
+			Name: fmt.Sprintf("R%d", i), Kind: "ref", Expandable: true,
+			ObjectID: fmt.Sprintf("ffffffffffffffffffffffffffffffffffffffff:%d", i+1),
+		}
+	}
+	bf := &blockingFetcher{}
+
+	EnrichInlinePreviews(ctx, nodes, bf, bf)
+
+	for i := range nodes {
+		assert.Empty(t, nodes[i].Children, "no preview may attach under canceled ctx (node %d)", i)
+	}
 }
 
 // TestEnrichInlinePreviews_RecoversFromTypeFetcherPanic — same invariant
@@ -708,6 +784,6 @@ func TestEnrichInlinePreviews_RecoversFromTypeFetcherPanic(t *testing.T) {
 	}
 
 	require.NotPanics(t, func() {
-		EnrichInlinePreviews(nodes, objFetcher, panicTypeFetcher{})
+		EnrichInlinePreviews(context.Background(), nodes, objFetcher, panicTypeFetcher{})
 	}, "panic in StateTypeFetcher.FetchType must be contained")
 }

@@ -2,6 +2,7 @@ package components
 
 import (
 	"bytes"
+	"context"
 	"html/template"
 	"net/url"
 	"strconv"
@@ -22,7 +23,7 @@ const (
 )
 
 type FileFetcher interface {
-	Fetch(pkgPath, fileName string) ([]byte, error)
+	Fetch(ctx context.Context, pkgPath, fileName string) ([]byte, error)
 }
 
 // SnippetHighlighter returns template.HTML so the result is treated as
@@ -32,29 +33,30 @@ type SnippetHighlighter interface {
 }
 
 type StateObjectFetcher interface {
-	FetchObject(oid string) ([]byte, error)
+	FetchObject(ctx context.Context, oid string) ([]byte, error)
 }
 
 // StateTypeFetcher recovers named-type definitions that ExportValues
 // strips, so inline previews can label struct fields by declared name.
 type StateTypeFetcher interface {
-	FetchType(tid string) ([]byte, error)
+	FetchType(ctx context.Context, tid string) ([]byte, error)
 }
 
 // Enrich decorates a StateNode tree with Href and SourceHTML, walking
 // the tree first to collect referenced files, then fetching them in
 // parallel, then highlighting. Failures degrade gracefully — SourceHTML
 // is left empty. Passing nil fetcher or highlighter skips source.
-func Enrich(nodes []StateNode, pkgPath string, height int64, fetcher FileFetcher, highlighter SnippetHighlighter) {
+// A canceled ctx aborts in-flight fetches and skips highlighting.
+func Enrich(ctx context.Context, nodes []StateNode, pkgPath string, height int64, fetcher FileFetcher, highlighter SnippetHighlighter) {
 	files := make(map[string]struct{})
 	walkLinksAndCollect(nodes, pkgPath, height, files)
 
 	var cache map[string][]byte
 	if fetcher != nil && len(files) > 0 {
-		cache = fetchFilesConcurrent(pkgPath, files, fetcher)
+		cache = fetchFilesConcurrent(ctx, pkgPath, files, fetcher)
 	}
 
-	if highlighter != nil && len(cache) > 0 {
+	if highlighter != nil && len(cache) > 0 && ctx.Err() == nil {
 		walkRenderSnippets(nodes, highlighter, cache)
 	}
 }
@@ -80,8 +82,8 @@ func walkLinksAndCollect(nodes []StateNode, pkgPath string, height int64, files 
 }
 
 // fetchFilesConcurrent fetches each file via the bounded semaphore;
-// errors leave the file absent from the cache.
-func fetchFilesConcurrent(pkgPath string, files map[string]struct{}, fetcher FileFetcher) map[string][]byte {
+// errors and ctx cancellation leave the file absent from the cache.
+func fetchFilesConcurrent(ctx context.Context, pkgPath string, files map[string]struct{}, fetcher FileFetcher) map[string][]byte {
 	cache := make(map[string][]byte, len(files))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -91,9 +93,13 @@ func fetchFilesConcurrent(pkgPath string, files map[string]struct{}, fetcher Fil
 		go func(name string) {
 			defer wg.Done()
 			defer func() { _ = recover() }() // fetcher panics must not crash the process
-			sem <- struct{}{}
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
 			defer func() { <-sem }()
-			content, err := fetcher.Fetch(pkgPath, name)
+			content, err := fetcher.Fetch(ctx, pkgPath, name)
 			if err != nil {
 				return
 			}
@@ -129,7 +135,8 @@ func walkRenderSnippets(nodes []StateNode, highlighter SnippetHighlighter, cache
 // referenced by ref-shaped nodes and embeds their decoded fields as Children.
 // `typeFetcher` (if non-nil) resolves struct field names via the named-type
 // definitions Amino strips during ExportValues. Failures degrade silently.
-func EnrichInlinePreviews(nodes []StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
+// A canceled ctx aborts before the next round and during semaphore acquire.
+func EnrichInlinePreviews(ctx context.Context, nodes []StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
 	if objFetcher == nil {
 		return
 	}
@@ -138,6 +145,9 @@ func EnrichInlinePreviews(nodes []StateNode, objFetcher StateObjectFetcher, type
 	// so the first fetch reveals refs that themselves need fetching.
 	fetchedTotal := 0
 	for round := 0; round < maxInlinePreviewRounds; round++ {
+		if ctx.Err() != nil {
+			return
+		}
 		var candidates []*StateNode
 		collectPreviewCandidates(nodes, &candidates)
 		remaining := maxInlinePreviewFetches - fetchedTotal
@@ -147,7 +157,7 @@ func EnrichInlinePreviews(nodes []StateNode, objFetcher StateObjectFetcher, type
 		if len(candidates) > remaining {
 			candidates = candidates[:remaining]
 		}
-		fetchPreviewsConcurrent(candidates, objFetcher, typeFetcher)
+		fetchPreviewsConcurrent(ctx, candidates, objFetcher, typeFetcher)
 		fetchedTotal += len(candidates)
 	}
 }
@@ -170,8 +180,9 @@ func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
 }
 
 // fetchPreviewsConcurrent fetches objects and types via two independent
-// pools so type fetches never starve behind objects.
-func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
+// pools so type fetches never starve behind objects. ctx cancellation
+// aborts before semaphore acquire so a deadline expiry stops back-pressure.
+func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
 	byOID := make(map[string][]*StateNode)
 	for _, n := range candidates {
 		byOID[n.ObjectID] = append(byOID[n.ObjectID], n)
@@ -198,9 +209,13 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 		go func(oid string) {
 			defer wg.Done()
 			defer func() { _ = recover() }() // fetcher panics must not crash the process
-			semObj <- struct{}{}
+			select {
+			case semObj <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
 			defer func() { <-semObj }()
-			raw, err := objFetcher.FetchObject(oid)
+			raw, err := objFetcher.FetchObject(ctx, oid)
 			if err != nil {
 				return
 			}
@@ -215,9 +230,13 @@ func fetchPreviewsConcurrent(candidates []*StateNode, objFetcher StateObjectFetc
 		go func(tid string) {
 			defer wg.Done()
 			defer func() { _ = recover() }() // fetcher panics must not crash the process
-			semType <- struct{}{}
+			select {
+			case semType <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
 			defer func() { <-semType }()
-			raw, err := typeFetcher.FetchType(tid)
+			raw, err := typeFetcher.FetchType(ctx, tid)
 			if err != nil {
 				return
 			}
