@@ -389,11 +389,17 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	})
 }
 
+// maxUserContributions caps how many contributions /u/<user> renders.
+// Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
+// an unbounded cap turns a single GET into a 10k-iteration amplifier.
+// TODO: paginate via ?page= when a contributor exceeds this cap.
+const maxUserContributions = 200
+
 // buildContributions returns the sorted list of contributions (packages and realms) for a user.
 func (h *HTTPHandler) buildContributions(ctx context.Context, username string) ([]components.UserContribution, int, error) {
 	prefix := "@" + username
 
-	paths, err := h.Client.ListPaths(ctx, prefix, 10000)
+	paths, err := h.Client.ListPaths(ctx, prefix, maxUserContributions)
 	if err != nil {
 		h.Logger.Error("unable to query contributions", "user", username, "error", err)
 		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
