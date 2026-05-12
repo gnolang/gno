@@ -8,14 +8,14 @@ package authorizable
 import (
 	"chain/runtime"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 type Authorizable struct {
-	*ownable.Ownable           // owner in ownable is superuser
-	authorized       *avl.Tree // chain.Addr > struct{}{}
+	*ownable.Ownable                // owner in ownable is superuser
+	authorized       *bptree.BPTree // chain.Addr > struct{}{}
 }
 
 // New creates an Authorizable from an existing *ownable.Ownable.
@@ -37,7 +37,7 @@ type Authorizable struct {
 func New(o *ownable.Ownable) *Authorizable {
 	a := &Authorizable{
 		Ownable:    o,
-		authorized: avl.NewTree(),
+		authorized: bptree.NewBPTree32(),
 	}
 
 	// Add owner to auth list

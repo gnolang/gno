@@ -9,15 +9,6 @@ execute functions in your code using the repo.
 
 Visit the playground at [play.gno.land](https://play.gno.land)!
 
-### [Gno Studio Connect](https://gno.studio/connect)
-
-Gno Studio Connect provides seamless access to realms, making it simple to
-explore, interact, and engage with gno.land's smart contracts through function
-calls. Connect focuses on function calls, enabling users to interact with any
-realm's exposed function(s) on gno.land.
-
-See your realm interactions in [Gno Studio Connect](https://gno.studio/connect)
-
 ### [Gnoscan](https://gnoscan.io)
 
 Developed by the Onbloc team, Gnoscan is gno.land's blockchain explorer. Anyone
@@ -35,9 +26,9 @@ an emphasis on UX, Adena is built to handle millions of realms and tokens with a
 high-quality interface, support for NFTs and custom tokens, and seamless
 integration. Install Adena via the [official website](https://www.adena.app/)
 
-### Gnoswap
+### GnoSwap
 
-Gnoswap is currently under development and led by the Onbloc team. Gnoswap will
+GnoSwap is currently under development and led by the Onbloc team. GnoSwap will
 be the first DEX on gno.land and is an automated market maker (AMM) protocol
 written in Gno that allows for permissionless token exchanges on the platform.
 

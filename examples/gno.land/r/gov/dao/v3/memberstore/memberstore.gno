@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/svg"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
@@ -27,7 +27,7 @@ const (
 func init() {
 	members = NewMembersByTier()
 
-	tiers = TiersByName{avl.NewTree()}
+	tiers = TiersByName{bptree.NewBPTree32()}
 	tiers.Set(T1, Tier{
 		InvitationPoints: 3,
 		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
@@ -115,7 +115,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 	sb.WriteString(md.Link("> Go to Members list <", "/r/gov/dao/v3/memberstore:members") + "\n")
 
 	members.Iterate("", "", func(tn string, ti interface{}) bool {
-		tree, ok := ti.(*avl.Tree)
+		tree, ok := ti.(*bptree.BPTree)
 		if !ok {
 			return false
 		}

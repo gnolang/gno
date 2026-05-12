@@ -36,7 +36,7 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[46279d1e03ecb38b84822f9caf584bd16913470d:19](0)=
+// u[06279d1e03ecb38b84822f9caf584bd16913470d:19](0)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "Fields": [
@@ -47,7 +47,7 @@ func main(cur realm) {
 //                      "@type": "/gno.PrimitiveType",
 //                      "value": "32"
 //     @@ -12,7 +12,7 @@
-//              "ID": "46279d1e03ecb38b84822f9caf584bd16913470d:19",
+//              "ID": "06279d1e03ecb38b84822f9caf584bd16913470d:19",
 //              "IsEscaped": true,
 //              "LastObjectSize": "222",
 //     -        "ModTime": "7",

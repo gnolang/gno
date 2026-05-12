@@ -128,6 +128,10 @@ func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 	return true, nil
 }
 
+func (dd *dummyDao) ExecuteProposal(pid ProposalID, e Executor) error {
+	return nil
+}
+
 func (dd *dummyDao) Render(pkgpath string, path string) string {
 	return "Render: " + pkgpath + "/" + path
 }

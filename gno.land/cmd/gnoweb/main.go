@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap"
@@ -77,7 +78,11 @@ func main() {
 			Name:       "gnoweb",
 			ShortUsage: "gnoweb [flags] [path ...]",
 			ShortHelp:  "runs gno.land web interface",
-			LongHelp:   `gnoweb web interface`,
+			LongHelp: `gnoweb web interface
+
+Environment variables:
+  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.
+  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -234,6 +239,19 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+
+	// Parse banner from env
+	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
+		bannerURL := os.Getenv("GNOWEB_BANNER_URL")
+		banner, err := components.NewBannerData(text, bannerURL)
+		if err != nil {
+			logger.Warn("invalid banner markdown, banner disabled", "error", err)
+		} else {
+			appcfg.Banner = banner
+		}
+	} else if os.Getenv("GNOWEB_BANNER_URL") != "" {
+		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
+	}
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}

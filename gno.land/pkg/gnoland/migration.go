@@ -250,13 +250,17 @@ func runMigrationReplay(
 	// correctly.
 	// ------------------------------------------------------------------
 
+	// Load TM state once; ExecCommitBlock needs validator info from State to
+	// populate BeginBlock.LastCommitInfo correctly.
+	tmState := sm.LoadState(stateDB)
+
 	for h := int64(1); h <= haltHeight; h++ {
 		block := blockStore.LoadBlock(h)
 		if block == nil {
 			return fmt.Errorf("block %d not found in block store", h)
 		}
 
-		if _, err := sm.ExecCommitBlock(proxyApp.Consensus(), block, logger, stateDB); err != nil {
+		if _, err := sm.ExecCommitBlock(proxyApp.Consensus(), block, tmState, logger, stateDB); err != nil {
 			return fmt.Errorf("replaying block %d: %w", h, err)
 		}
 

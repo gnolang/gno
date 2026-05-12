@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// unauthorized
+// unauthorized, user g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5 doesn't have the required permission

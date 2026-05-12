@@ -165,7 +165,6 @@ gnokey maketx call \
 -args "42" \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
--broadcast \
 {MYKEY}
 ```
 

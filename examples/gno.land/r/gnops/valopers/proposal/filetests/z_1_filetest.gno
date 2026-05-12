@@ -27,8 +27,12 @@ func init() {
 	testing.SetOriginCaller(g1user)
 	daoinit.InitWithUsers(g1user)
 
-	// Register a validator and add the proposal
+	// Register a validator: OriginCaller must equal operator addr (squat guard).
+	testing.SetOriginCaller(validAddress)
 	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
+
+	// Switch back to g1user for the GovDAO submission.
+	testing.SetOriginCaller(g1user)
 
 	if err := revive(func() {
 		pr := proposal.NewValidatorProposalRequest(cross, validAddress)
@@ -50,7 +54,7 @@ func main() {
 // ## Members
 // [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
 // ## Proposals
-// ### [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao:0)
+// ### [Prop #0 - Add valoper test\-1 to the valset](/r/gov/dao:0)
 // Author: g1vuch2um9wf047h6lta047h6lta047h6l2ewm6w
 //
 // Status: ACTIVE
