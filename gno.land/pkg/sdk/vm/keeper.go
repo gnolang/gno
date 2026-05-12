@@ -157,9 +157,10 @@ func (vm *VMKeeper) Initialize(
 
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
-				PkgPath: "",
-				Output:  vm.Output,
-				Store:   vm.gnoStore,
+				PkgPath:            "",
+				Output:             vm.Output,
+				Store:              vm.gnoStore,
+				BoundedPanicRender: true,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
@@ -306,9 +307,10 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		// XXX: gno.land, vm.domain, other?
-		PkgPath:     pkgPath,
-		Store:       store,
-		SkipPackage: true,
+		PkgPath:            pkgPath,
+		Store:              store,
+		SkipPackage:        true,
+		BoundedPanicRender: true,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
@@ -420,6 +422,17 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // callRealmBool creates a Machine, imports pkgPath, calls funcName with args,
 // and expects a single bool return value.
+//
+// Read-only contract: the called function MUST NOT mutate chain/params
+// state. The ctx passed here is NOT seeded with a paramsAccum (that
+// happens later in AddPackage/Call/Run, after this callout), so any
+// chain/params.SetX from inside the realm would silently no-op the
+// storage-deposit accounting while still persisting the on-disk write —
+// leaving meta and reality divergent. In practice this constraint is
+// only relevant to the sys realms invoked from here (sys/cla,
+// sys/names) which are governance-controlled and structurally
+// read-only checks. If a non-sys realm is ever invoked through this
+// path, wrap Params in a read-only adapter that panics on Set/Update.
 func (vm *VMKeeper) callRealmBool(
 	ctx sdk.Context,
 	creator crypto.Address,
@@ -442,14 +455,19 @@ func (vm *VMKeeper) callRealmBool(
 		SessionAccount:  getSessionAccount(ctx, creator),
 	}
 
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	store.SetPreprocessAllocator(preAlloc)
+	defer store.SetPreprocessAllocator(nil)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    store,
-			Context:  msgCtx,
-			Alloc:    store.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             vm.Output,
+			Store:              store,
+			Context:            msgCtx,
+			Alloc:              store.GetAllocator(),
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m.Release()
 	defer doRecover(m, &err)
@@ -680,6 +698,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return err
 	}
 
+	// Seed per-message accumulator for chain/params byte tracking. Must
+	// happen BEFORE NewSDKParams captures ctx into its struct field.
+	ctx = ContextWithParamsAccum(ctx)
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -697,15 +718,37 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    gnostore,
-			Alloc:    gnostore.GetAllocator(),
-			Context:  msgCtx,
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             vm.Output,
+			Store:              gnostore,
+			Alloc:              gnostore.GetAllocator(),
+			Context:            msgCtx,
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m2.Release()
 	defer doRecover(m2, &err)
+	// Per-tx preprocess allocator: separate counter from m2.Alloc (the
+	// init-phase allocator with GC). collect=nil so Allocate hard-panics
+	// on maxBytes overflow rather than attempting a GC retry — GC walks
+	// blocks/frames/package but not m.Values (the operand stack), and
+	// would undercount in-flight preprocess values like a chained-+
+	// running prefix. Closes the unbounded const-fold allocation surface
+	// where preprocess sub-Machines (NewMachine(pkg, store) at
+	// preprocess.go:3947, 4112, 4175, 4258) would otherwise run with
+	// nil Alloc and skip both maxBytes tracking and per-allocation gas.
+	//
+	// The defer keeps preprocessAlloc installed for the entire handler.
+	// During init phase the outer Machine (m2) uses its own m.Alloc with
+	// GC for runtime ops; preprocessAlloc only takes effect for sub-
+	// Machines spawned via NewMachine(pkg, store) inside Preprocess. If
+	// init code re-triggers Preprocess (e.g., RunStatement on synthesized
+	// init.0 calls), those sub-Machines also use preprocessAlloc — that's
+	// intended so any Preprocess work during the handler is metered.
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	params := vm.GetParams(ctx)
 	m2.RunMemPackage(memPkg, true)
 
@@ -771,6 +814,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	caller := msg.Caller
 	send := msg.Send
 	chainDomain := vm.getChainDomainParam(ctx)
+	// Seed per-message accumulator before NewSDKParams captures ctx.
+	ctx = ContextWithParamsAccum(ctx)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
 		ChainDomain:     chainDomain,
@@ -784,15 +829,20 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		EventLogger:     ctx.EventLogger(),
 		SessionAccount:  getSessionAccount(ctx, caller),
 	}
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    gnostore,
-			Context:  msgCtx,
-			Alloc:    gnostore.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             vm.Output,
+			Store:              gnostore,
+			Context:            msgCtx,
+			Alloc:              gnostore.GetAllocator(),
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	xn := m.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
@@ -898,19 +948,24 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		}
 		var up gno.UnhandledPanicError
 		if goerrors.As(err, &up) {
-			// Common unhandled panic error, skip machine state.
+			desc := boundedString(up, 0)
+			trace := gno.BoundedExceptionStacktrace(m,
+				gno.MaxStacktraceFrames*gno.BoundedRenderBytes)
 			*e = errors.Wrapf(
-				errors.New(up.Descriptor),
+				errors.New(desc),
 				"VM panic: %s\nStacktrace:\n%s\n",
-				up.Descriptor, m.ExceptionStacktrace(),
+				desc, trace,
 			)
 			return
 		}
 	}
+	panicStr := boundedString(r, 0)
+	trace := gno.BoundedStacktrace(m.Stacktrace(),
+		gno.MaxStacktraceFrames*gno.BoundedRenderBytes)
 	*e = errors.Wrapf(
-		fmt.Errorf("%v", r),
-		"VM panic: %v\nStacktrace:\n%s\n",
-		r, m.Stacktrace().String(),
+		fmt.Errorf("%s", panicStr),
+		"VM panic: %s\nStacktrace:\n%s\n",
+		panicStr, trace,
 	)
 }
 
@@ -979,6 +1034,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", err
 	}
 
+	// Seed per-message accumulator before NewSDKParams captures ctx.
+	ctx = ContextWithParamsAccum(ctx)
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -1005,6 +1062,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	memPkg.SetFile("gnomod.toml", gm.WriteString())
 
 	alloc := gnostore.GetAllocator()
+	// Per-tx preprocess allocator (see AddPackage for full rationale).
+	// Covers both the closure-local Machine that calls RunMemPackage and
+	// any subsequent Machine that re-Preprocesses; defer outlives both.
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	// Run as self-executing closure to have own function for doRecover / m.Release defers.
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
@@ -1013,12 +1077,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		}
 		m := gno.NewMachineWithOptions(
 			gno.MachineOptions{
-				PkgPath:  "",
-				Output:   output,
-				Store:    gnostore,
-				Alloc:    alloc,
-				Context:  msgCtx,
-				GasMeter: ctx.GasMeter(),
+				PkgPath:            "",
+				Output:             output,
+				Store:              gnostore,
+				Alloc:              alloc,
+				Context:            msgCtx,
+				GasMeter:           ctx.GasMeter(),
+				BoundedPanicRender: true,
 			})
 		defer m.Release()
 		defer doRecover(m, &err)
@@ -1033,12 +1098,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   output,
-			Store:    gnostore,
-			Alloc:    alloc,
-			Context:  msgCtx,
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             output,
+			Store:              gnostore,
+			Alloc:              alloc,
+			Context:            msgCtx,
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m2.Release()
 	m2.SetActivePackage(pv)
@@ -1249,6 +1315,10 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	preAlloc := gno.NewAllocator(maxAllocQuery)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
@@ -1277,12 +1347,13 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  pkgPath,
-			Output:   vm.Output,
-			Store:    gnostore,
-			Context:  msgCtx,
-			Alloc:    alloc,
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            pkgPath,
+			Output:             vm.Output,
+			Store:              gnostore,
+			Context:            msgCtx,
+			Alloc:              alloc,
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
@@ -1429,7 +1500,18 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 // transfer errors.
 
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
+	if ctx.IsCheckTx() {
+		// Defense-in-depth: baseapp already skips handler.Process in
+		// CheckTx, but keep the guard so any future caller invoking
+		// this directly during a non-deliver phase doesn't lock funds.
+		return nil
+	}
 	realmDiffs := gnostore.RealmStorageDiffs()
+	// Merge per-realm chain/params byte deltas accumulated on ctx.
+	// See gno.land/pkg/sdk/vm/params_deposit.go.
+	for path, diff := range ParamsRealmDiffs(ctx) {
+		realmDiffs[path] += diff
+	}
 	depositAmt := deposit.AmountOf(ugnot.Denom)
 	if depositAmt == 0 {
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
@@ -1450,6 +1532,15 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			continue
 		}
 		rlm := gnostore.GetPackageRealm(rlmPath)
+		if rlm == nil {
+			// Should not happen: any executing realm is preprocessed
+			// and materialized before it can call chain/params. Defend
+			// against the rlm.Path nil-deref in lockStorageDeposit.
+			allErrs = goerrors.Join(allErrs, fmt.Errorf(
+				"params storage diff for unknown realm %q (size=%d) — deposit skipped",
+				rlmPath, diff))
+			continue
+		}
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
@@ -1466,6 +1557,10 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					rlmPath, err))
 				continue
 			}
+			// Commit the per-realm meta-key only after the deposit is
+			// held — keeps bank state and params meta consistent on
+			// partial failure.
+			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			depositAmt -= requiredDeposit
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
@@ -1502,6 +1597,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			if err != nil {
 				return err
 			}
+			// Commit the per-realm meta-key only after the refund
+			// transfers — symmetry with the lock branch above.
+			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			d := std.Coin{Denom: ugnot.Denom, Amount: depositUnlocked}
 			evt := chain.StorageUnlockEvent{
 				// For unlock, BytesDelta is negative
