@@ -7,12 +7,15 @@ import (
 	"strings"
 )
 
-// Realm functions can call banker.NewBanker(options) to get
-// a banker instance. Banker objects cannot be persisted,
-// but can be passed onto other functions to be transacted
-// on. A banker instance can be passed onto other realm
-// functions; this allows other realms to spend coins on
-// behalf of the first realm.
+// Realm functions can call banker.NewBanker(options) to get a banker
+// instance. A banker instance can be passed onto other realm functions
+// (this allows other realms to spend coins on behalf of the first
+// realm) and can be stored in package-level vars across transactions —
+// the underlying struct (BankerType + scoped pkgAddr) persists like any
+// other Gno value, and the methods continue to dispatch through the
+// runtime against live bank state on each call. See
+// gno.land/pkg/integration/testdata/banker_persistence.txtar for the
+// full cross-realm capability-persistence behavior.
 //
 // Banker panics on errors instead of returning errors.
 // This also helps simplify the interface and prevent
@@ -98,6 +101,24 @@ func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
 type banker struct {
 	bt      BankerType
 	pkgAddr address
+}
+
+// IsCanonical reports whether b is the canonical bank-keeper-backed
+// Banker produced by NewBanker. The concrete `banker` type is unexported,
+// so only this package can construct values that satisfy this assertion;
+// hand-rolled Banker implementations (no-op fakes, mocks, decorators)
+// return false. Use this in cap-token wrappers (e.g. AllowanceSender) to
+// reject untrusted Banker substitutions at construction time, before
+// any state mutation depends on the banker actually moving coins.
+//
+// Forward-compat: if this package ever introduces additional canonical
+// Banker implementations alongside `banker`, this function MUST be
+// updated to recognize them. New bank-keeper-backed types must be added
+// to the type-switch explicitly — the current single-type assertion is
+// a deliberate allowlist, not an inadvertent restriction.
+func IsCanonical(b Banker) bool {
+	_, ok := b.(banker)
+	return ok
 }
 
 func (b banker) GetCoins(addr address) (dst chain.Coins) {

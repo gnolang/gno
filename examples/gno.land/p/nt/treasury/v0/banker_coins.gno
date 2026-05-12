@@ -9,7 +9,7 @@ import (
 	"gno.land/p/aeddi/panictoerr"
 )
 
-var ErrNoStdBankerProvided = errors.New("no std banker provided")
+var ErrNonCanonicalBanker = errors.New("inner banker is not the canonical chain/banker.Banker")
 
 // CoinsBanker is a Banker that sends banker.Coins.
 type CoinsBanker struct {
@@ -72,18 +72,21 @@ func NewCoinsBanker(banker_ banker.Banker) (*CoinsBanker, error) {
 }
 
 // NewCoinsBankerWithOwner creates a new CoinsBanker with the given address.
+//
+// banker_ must be the canonical Banker produced by banker.NewBanker;
+// hand-rolled Banker implementations (no-op fakes, decorators) are
+// rejected via banker.IsCanonical. Without this check, a callee
+// receiving a *CoinsBanker constructed from a fake banker would not
+// be able to tell that Send is a no-op (no real coins move). The
+// pkgAddr-vs-owner mismatch is still surfaced lazily by the inner
+// banker's own SendCoins check.
 func NewCoinsBankerWithOwner(owner address, banker_ banker.Banker) (*CoinsBanker, error) {
 	if owner == "" {
 		return nil, ErrNoOwnerProvided
 	}
 
-	// NOTE: Should we add methods to banker.Banker to check both its type and the
-	// associated Realm for this kind of case?
-	// For example:
-	// if banker.Type() != banker.BankerTypeRealmSend { panic("banker must be of type banker.BankerTypeRealmSend") }
-	// if banker.Realm().Address() != owner { panic("banker must be owned by the given owner address") }
-	if banker_ == nil {
-		return nil, ErrNoStdBankerProvided
+	if !banker.IsCanonical(banker_) {
+		return nil, ErrNonCanonicalBanker
 	}
 
 	return &CoinsBanker{

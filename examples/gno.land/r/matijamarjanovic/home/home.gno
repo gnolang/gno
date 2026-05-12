@@ -61,6 +61,9 @@ func UpdateAboutMe(cur realm, col1 string) {
 }
 
 func VoteModern(cur realm) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
@@ -68,6 +71,9 @@ func VoteModern(cur realm) {
 }
 
 func VoteClassic(cur realm) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
@@ -75,6 +81,9 @@ func VoteClassic(cur realm) {
 }
 
 func VoteMinimal(cur realm) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
