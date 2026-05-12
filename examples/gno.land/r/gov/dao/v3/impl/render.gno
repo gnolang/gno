@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/moul/helplink"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -23,7 +23,7 @@ type render struct {
 
 func NewRender(d *GovDAO) *render {
 	ren := &render{
-		pssPager: pager.NewPager(d.pss.Tree, 5, true),
+		pssPager: pager.NewPager(d.pss.BPTree, 5, true),
 	}
 
 	r := mux.NewRouter()

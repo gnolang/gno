@@ -779,6 +779,87 @@ security.
 
 Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
 
+#### Verifying inbound Coin payments
+
+A realm that wants to charge for a function typically attaches a payment check
+like this:
+
+```go
+func BuyThing(_ realm, ...) {
+    if !runtime.PreviousRealm().IsUser() {   // BAD
+        panic("must be called by a user")
+    }
+    if banker.OriginSend().AmountOf("ugnot") != price {
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
+This is **subtly unsafe**. `banker.OriginSend()` returns the coins attached to
+the *original transaction*, not the coins actually received by this realm. If
+anything runs between the tx origin and this realm's function, those coins may
+have been consumed by the intermediary. Two attacker shapes bypass the check:
+
+1. **Intermediate code realm.** User calls `r/attacker/wrapper.DoIt()` with
+   `-send 1000000ugnot`. The wrapper keeps the coins (via its own banker) and
+   then calls `BuyThing(cross, ...)` on your realm. Your realm sees
+   `OriginSend() = 1000000ugnot`, the `IsUser()` check passes because... actually
+   it doesn't — `IsUser()` rejects pure code realms. Which leads to:
+
+2. **User-run ephemeral realm (`maketx run`).** The attacker writes a short
+   script and broadcasts it via `gnokey maketx run -send 1000000ugnot ...`.
+   That script runs in an ephemeral code realm at path
+   `gno.land/e/{attacker}/run`. Inside main, the script consumes the origin-send
+   envelope (via its own `BankerTypeOriginSend`) or simply does whatever it
+   wants with the coins, then calls `BuyThing(cross, ...)`. Your realm sees
+   `OriginSend() = 1000000ugnot` in the envelope and `IsUser() = true` because
+   **`IsUser()` accepts both `IsUserCall()` (pure EOA) AND `IsUserRun()` (user-run
+   ephemeral realm)**. The check passes but no coins reached your realm.
+
+The fix is to use `IsUserCall()` instead of `IsUser()`:
+
+```go
+func BuyThing(_ realm, ...) {
+    if !runtime.PreviousRealm().IsUserCall() {  // GOOD
+        panic("must be called directly by an EOA (maketx call)")
+    }
+    if banker.OriginSend().AmountOf("ugnot") != price {
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
+`IsUserCall()` returns true only when `PreviousRealm().PkgPath() == ""`, i.e.
+the caller is a pure EOA. In that case the `-send` coins are guaranteed to
+have landed at this realm's address, so `OriginSend()` and receipt agree.
+
+Why the pairing matters: removing either check alone reopens the bypass.
+`OriginSend()` without the EOA guard is lying about receipt. The EOA guard
+without the amount check lets users pay nothing. Keep them together, commented
+as a pair, and ideally cover the bypass with a regression test using
+`testing.NewCodeRealm()` to simulate an intermediate attacker realm.
+
+Alternatives considered:
+
+- **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
+  intermediaries, no MsgRun". Correct, but stricter than most realms want:
+  rejects `testing.NewUserRealm`-based unit tests in some configurations and
+  blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
+  (e.g. governance-only functions).
+
+- **`banker.NewBanker(banker.BankerTypeOriginSend)`** — creating this banker
+  requires `PreviousRealm().PkgPath() == ""`, so it implicitly asserts EOA. But
+  it's a side-effectful assertion; if you don't need the banker itself,
+  `IsUserCall()` is clearer.
+
+- **Pulling coins from the caller** — **not possible** in current gno. Every
+  `banker.SendCoins(from, to, amt)` requires `from == pkgAddr` (your own realm's
+  address); there is no ERC-20-style `transferFrom`. Payment flow is push-only
+  via `-send`. The `OriginSend` amount check + `IsUserCall` guard is the only
+  pattern available.
+
 #### GRC20 tokens
 
 GRC20 tokens, on the other hand, are like Ethereum's ERC20 or CosmWasm's CW20.

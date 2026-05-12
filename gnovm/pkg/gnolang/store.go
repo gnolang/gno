@@ -69,6 +69,8 @@ type Store interface {
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
+	GetPreprocessAllocator() *Allocator
+	SetPreprocessAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -139,6 +141,19 @@ type defaultStore struct {
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
 	alloc        *Allocator // for accounting for cached items
+
+	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
+	// installed by the keeper (AddPackage / Run) before RunMemPackage.
+	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
+	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
+	// nil → Allocate hard-panics on maxBytes overflow rather than
+	// attempting a GC retry (which would undercount because GC doesn't
+	// visit m.Values, the operand stack). gasMeter is shared with the
+	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// Inherited via BeginTransaction so nested forked stores see it.
+	// Cleared by the keeper's defer at handler exit; not serialized.
+	preprocessAlloc *Allocator
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -220,6 +235,12 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
 		alloc:        ds.alloc.Fork().Reset(),
 
+		// Inherit the per-tx preprocess allocator so sub-Machines spun
+		// up via NewMachine(pkg, store) inside preprocess (which fork
+		// the store via BeginTransaction first) see the same hard-cap
+		// allocator the keeper installed.
+		preprocessAlloc: ds.preprocessAlloc,
+
 		// stdlib byte cache (shared reference)
 		stdlibKeyBytes: ds.stdlibKeyBytes,
 
@@ -282,6 +303,14 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 
 func (ds *defaultStore) SetAllocator(alloc *Allocator) {
 	ds.alloc = alloc
+}
+
+func (ds *defaultStore) GetPreprocessAllocator() *Allocator {
+	return ds.preprocessAlloc
+}
+
+func (ds *defaultStore) SetPreprocessAllocator(alloc *Allocator) {
+	ds.preprocessAlloc = alloc
 }
 
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
@@ -386,7 +415,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	}
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
-	if debug {
+	if debugAssert {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
@@ -474,18 +503,30 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
 
-		ds.alloc.Allocate(oo.GetShallowSize())
-		// Alloc values other than shallow value,
-		// RefValue, e.g. keep sync with copyValueWithRefs().
-		AllocExpanded(ds.alloc, oo)
+		// See copyValueWithRefs — child Objects become RefValue slots
+		// in the serialized amino bytes, and internalRefSize accounts
+		// for those slots.
+		ss := oo.GetShallowSize()
+		rs := internalRefSize(oo)
+		// Allocate atomically: one Allocate call prevents GC from
+		// intercepting between shallow-size and RefValue-size accounting.
+		ds.alloc.Allocate(ss + rs)
 
-		if debug {
+		if debugAssert {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		if debugAssert {
+			// Verify stored hash matches actual content hash.
+			if computed := HashBytes(bz); computed != NewHashlet(hash) {
+				panic(fmt.Sprintf(
+					"stored hash mismatch for %s: stored %X, computed %X",
+					oid, hash, computed.Bytes()))
+			}
+		}
 
 		if pv, ok := oo.(*PackageValue); ok {
 			ds.SetStagingPackage(pv)
@@ -508,100 +549,6 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
-}
-
-func AllocExpanded(alloc *Allocator, val Value) {
-	var size int64
-	defer func() {
-		alloc.Allocate(size)
-	}()
-
-	switch v := val.(type) {
-	case *PackageValue:
-		if _, ok := v.Block.(RefValue); ok {
-			size += allocRefValue // .Block ref
-		}
-
-		// include RefValue size
-		for _, fb := range v.FBlocks {
-			if _, ok := fb.(RefValue); !ok {
-				continue
-			}
-			size += allocRefValue
-		}
-	case *Block:
-		for _, v := range v.Values {
-			if _, ok := v.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *ArrayValue:
-		if v.Data == nil {
-			for _, tv := range v.List {
-				if _, ok := tv.V.(RefValue); ok {
-					size += allocRefValue
-				}
-			}
-		}
-	case *StructValue:
-		for _, tv := range v.Fields {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *MapValue:
-		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			if _, ok := cur.Key.V.(RefValue); ok {
-				size += allocRefValue
-			}
-
-			if _, ok := cur.Value.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-	case *BoundMethodValue:
-		if _, ok := v.Receiver.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *HeapItemValue:
-		if _, ok := v.Value.V.(RefValue); ok {
-			size += allocRefValue
-		}
-	case RefValue:
-		// do nothing
-	case *PointerValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *SliceValue:
-		if _, ok := v.Base.(RefValue); ok {
-			size += allocRefValue
-		}
-	case *FuncValue:
-		for _, tv := range v.Captures {
-			if _, ok := tv.V.(RefValue); ok {
-				size += allocRefValue
-			}
-		}
-
-		if _, ok := v.Parent.(RefValue); ok {
-			size += allocRefValue
-		}
-	case StringValue:
-		// do nothing
-	case BigintValue:
-		// do nothing
-	case BigdecValue:
-		// do nothing
-	case DataByteValue:
-		// do nothing
-	case TypeValue:
-		// do nothing
-	}
 }
 
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
@@ -796,7 +743,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				// len(bz) is not the proper cost of tt, but is good enough
 				ds.aminoCache.Set(cacheSum[:], copyTypeWithRefs(tt), int64(len(bz)))
 			}
-			if debug {
+			if debugAssert {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -888,7 +835,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
 			size = len(bz)
-			if debug {
+			if debugAssert {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))

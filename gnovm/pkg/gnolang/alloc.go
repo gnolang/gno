@@ -223,6 +223,17 @@ func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
 }
 
+// GetGasMeter returns the gas meter wired to this allocator (or nil).
+// Used by NewMachineWithOptions when a sub-Machine inherits the
+// preprocess allocator from the store and needs the same gas meter for
+// CPU-gas charging via m.incrCPU.
+func (alloc *Allocator) GetGasMeter() store.GasMeter {
+	if alloc == nil {
+		return nil
+	}
+	return alloc.gasMeter
+}
+
 func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
 	alloc.gasMeter = gasMeter
 }
@@ -645,4 +656,101 @@ func (dbv DataByteValue) GetShallowSize() int64 {
 // as the type should  pre-exist.
 func (tv TypeValue) GetShallowSize() int64 {
 	return 0
+}
+
+// internalRefSize computes the allocation size for RefValue slots stored
+// within an object's amino-serialized form. During copyValueWithRefs, child
+// Objects are replaced with RefValue{ObjectID, Hash} placeholders. These
+// RefValue slots are not counted by GetShallowSize (which only counts the
+// object's own structure), so we must account for them here to keep the
+// allocator consistent with the store's memory usage.
+func internalRefSize(val Value) int64 {
+	var size int64
+	switch v := val.(type) {
+	case *PackageValue:
+		if _, ok := v.Block.(RefValue); ok {
+			size += allocRefValue // .Block ref
+		}
+		// include RefValue size
+		for _, fb := range v.FBlocks {
+			if _, ok := fb.(RefValue); !ok {
+				continue
+			}
+			size += allocRefValue
+		}
+	case *Block:
+		for _, v := range v.Values {
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, tv := range v.List {
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
+			}
+		}
+	case *StructValue:
+		for _, tv := range v.Fields {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+	case *BoundMethodValue:
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *HeapItemValue:
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
+	case RefValue:
+		// do nothing
+	case *PointerValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *SliceValue:
+		if _, ok := v.Base.(RefValue); ok {
+			size += allocRefValue
+		}
+	case *FuncValue:
+		for _, tv := range v.Captures {
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
+		}
+		if _, ok := v.Parent.(RefValue); ok {
+			size += allocRefValue
+		}
+	case StringValue:
+		// do nothing
+	case BigintValue:
+		// do nothing
+	case BigdecValue:
+		// do nothing
+	case DataByteValue:
+		// do nothing
+	case TypeValue:
+		// do nothing
+	default:
+		panic(fmt.Sprintf(
+			"unexpected type %T",
+			val))
+	}
+	return size
 }

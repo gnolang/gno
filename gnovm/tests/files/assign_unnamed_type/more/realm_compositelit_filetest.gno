@@ -119,3 +119,22 @@ func main() {
 //              }
 //          }
 //      }
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "760",
+//     -        "ModTime": "0",
+//     +        "ModTime": "8",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -58,7 +58,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "3326977e12901e07ac6a4a9030fcc5aa56507aa2",
+//     +                "Hash": "0c2509991cbf0ee55fbd631471e7036a3a1770e9",
+//                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                  }
+//              },
