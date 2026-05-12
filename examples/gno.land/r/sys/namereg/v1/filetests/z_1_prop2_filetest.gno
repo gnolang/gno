@@ -86,7 +86,7 @@ func main() {
 // ## Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// After deletion, address `%s` WILL NOT be able to register a new name.
+// After deletion, address `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh` WILL NOT be able to register a new name.
 //
 // delete user test
 //
@@ -114,7 +114,7 @@ func main() {
 // ## Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// After deletion, address `%s` WILL NOT be able to register a new name.
+// After deletion, address `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh` WILL NOT be able to register a new name.
 //
 // delete user test
 //
@@ -142,7 +142,7 @@ func main() {
 // ## Prop #0 - User Registry V1: Delete user for \[g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\]\(/r/sys/namereg/v1:g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh\)
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// After deletion, address `%s` WILL NOT be able to register a new name.
+// After deletion, address `g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh` WILL NOT be able to register a new name.
 //
 // delete user test
 //
