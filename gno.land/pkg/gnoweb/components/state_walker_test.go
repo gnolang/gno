@@ -1206,3 +1206,20 @@ func TestDecodeStruct_FieldCap(t *testing.T) {
 	assert.Equal(t, KindTruncated, last.Kind,
 		"truncated sentinel must terminate the over-cap children list")
 }
+
+// TestDecodeTypedValue_HeapItemChainRespectsDepth — a chain of nested
+// HeapItemValues must consume a depth slot per unwrap, otherwise a hostile
+// value could recurse beyond maxDecodeDepth and exhaust the Go stack.
+func TestDecodeTypedValue_HeapItemChainRespectsDepth(t *testing.T) {
+	t.Parallel()
+
+	inner := gno.TypedValue{T: gno.IntType}
+	for i := 0; i < maxDecodeDepth+50; i++ {
+		hiv := &gno.HeapItemValue{Value: inner}
+		inner = gno.TypedValue{T: gno.IntType, V: hiv}
+	}
+
+	node := decodeTypedValue("root", inner)
+	assert.Equal(t, KindTruncated, node.Kind,
+		"chain must hit the depth limit (sentinel), not silently unwind past it")
+}

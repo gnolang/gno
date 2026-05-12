@@ -299,10 +299,10 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 		}
 	}
 
-	// HeapItemValue: transparent unwrap (does not consume a depth slot —
-	// it's a pass-through wrapper, not a structural level).
+	// HeapItemValue: transparent unwrap. Consumes a depth slot so a
+	// pathological chain of nested wrappers cannot recurse past the bound.
 	if hiv, ok := tv.V.(*gno.HeapItemValue); ok {
-		return decodeTypedValueAt(depth, name, hiv.Value)
+		return decodeTypedValueAt(depth+1, name, hiv.Value)
 	}
 
 	// TypeValue: type definition shown as a value.
