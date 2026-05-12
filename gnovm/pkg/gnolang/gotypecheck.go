@@ -42,9 +42,6 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 type realm interface {
     Address() address
     PkgPath() string
-    Coins() gnocoins
-    SentCoins() gnocoins
-    Send(coins gnocoins, to address) error
     Previous() realm
     Origin() realm
     String() string
@@ -55,19 +52,6 @@ type address string
 func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
-
-type gnocoins []gnocoin
-func (cz gnocoins) String() string { return "" } // shim
-
-type Gnocoins = gnocoins
-
-type gnocoin struct {
-    Denom string
-    Amount int64
-}
-func (c gnocoin) String() string { return "" } // shim
-
-type Gnocoin = gnocoin
 `)
 	default:
 		panic("unrecognized gnobuiltins pkgpath")
@@ -88,8 +72,6 @@ var cross realm // shim
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
-type gnocoins = gno0p9.Gnocoins
-type gnocoin = gno0p9.Gnocoin
 `
 	case GnoVerMissing: // 0.0
 		gnoBuiltins = `package %s
