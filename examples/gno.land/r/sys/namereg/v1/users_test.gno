@@ -251,6 +251,26 @@ func TestRegister_InvalidPayment(cur realm, t *testing.T) {
 	})
 }
 
+func TestRegister_MultipleCoins(t *testing.T) {
+	oldPrice := registerPrice
+	defer func() { registerPrice = oldPrice }()
+	registerPrice = 42
+
+	addr := testutils.TestAddress("payment-payer")
+	coins := chain.NewCoins(
+		chain.NewCoin("ugnot", registerPrice),
+		chain.NewCoin("ufoo", registerPrice), // invalid: only ugnot should be allowed
+	)
+
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(coins)
+
+	uassert.AbortsContains(t, ErrInvalidPayment.Error(), func() {
+		Register(cross, "nym-yankee345")
+	})
+}
+
 // Audit finding #11: the OriginSend() payment check is only trustworthy
 // when the direct caller is a pure EOA (IsUserCall). Any intermediate
 // code realm can attach -send to the tx, keep the coins, and call

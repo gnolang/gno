@@ -65,6 +65,11 @@ func Register(cur realm, username string) {
 		panic(errInvalidPayment())
 	}
 
+	// Make sure no other coins are sent apart from ugnot
+	if registerPrice > 0 && len(banker.OriginSend()) != 1 {
+		panic(errInvalidPayment())
+	}
+
 	// Format + prefix + reserved-name check. ValidateNymFormat returns
 	// one of ErrInvalidFormat, ErrReservedPrefix, ErrBlacklisted.
 	if err := ValidateNymFormat(username); err != nil {
