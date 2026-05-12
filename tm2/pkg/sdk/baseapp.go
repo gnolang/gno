@@ -204,6 +204,7 @@ func (app *BaseApp) initFromMainStore() error {
 		}
 		app.setCheckState(lastHeader)
 	}
+
 	// Done.
 	app.Seal()
 
@@ -302,7 +303,6 @@ func (app *BaseApp) getMaximumBlockGas() int64 {
 func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
 	lastCommitID := app.cms.LastCommitID()
 
-	// return res
 	res.Data = []byte(app.Name())
 	res.LastBlockHeight = lastCommitID.Version
 	res.LastBlockAppHash = lastCommitID.Hash
@@ -324,6 +324,16 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 		app.storeConsensusParams(req.ConsensusParams)
 	}
 
+	// Align multistore version with chain height for hardfork chains.
+	// After this, the next Commit() lands at version=req.InitialHeight, so
+	// app.LastBlockHeight() (cms.LastCommitID().Version) tracks real chain
+	// height with no offset bookkeeping.
+	if req.InitialHeight > 1 {
+		if setter, ok := app.cms.(store.InitialVersionSetter); ok {
+			setter.SetInitialVersion(req.InitialHeight)
+		}
+	}
+
 	initHeader := &bft.Header{ChainID: req.ChainID, Time: req.Time}
 
 	// initialize the deliver state and check state with a correct header
@@ -340,6 +350,15 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 
 	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
+
+	// If the initChainer returned an error response, return it as-is and
+	// skip the post-init bookkeeping below. The validators-count sanity
+	// check would otherwise panic with a misleading "count mismatch" when
+	// res.Validators is empty (the natural shape of an error response),
+	// masking the real cause from the operator.
+	if res.ResponseBase.Error != nil {
+		return
+	}
 
 	// sanity check
 	if len(req.Validators) > 0 {
@@ -503,25 +522,21 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	return
 }
 
-func (app *BaseApp) validateHeight(req abci.RequestBeginBlock) error {
-	if req.Header.GetHeight() < 1 {
-		return fmt.Errorf("invalid height: %d", req.Header.GetHeight())
-	}
-
-	prevHeight := app.LastBlockHeight()
-	if req.Header.GetHeight() != prevHeight+1 {
-		return fmt.Errorf("invalid height: %d; expected: %d", req.Header.GetHeight(), prevHeight+1)
-	}
-
-	return nil
-}
-
 // BeginBlock implements the ABCI application interface.
+//
+// Block-height contiguity is the consensus engine's responsibility, not
+// BaseApp's. tm2/pkg/bft/state/validation.go (ValidateBlock) and the
+// BlockStore's SaveBlock contiguity check together guarantee that any
+// header reaching this method is height = lastBlockHeight + 1. BaseApp
+// intentionally does NOT re-check that invariant: duplicating it here
+// would mask consensus bugs as SDK panics, and after the InitialHeight
+// refactor (multistore version == chain height) every site that used to
+// translate offsets is gone, so a stateless check would either be wrong
+// or trivially redundant. Embedders driving BaseApp without a real
+// consensus engine (fuzzers, custom test harnesses) must enforce the
+// invariant themselves; see TestBeginBlock_NoStatelessContiguityGuard
+// in baseapp_test.go for the pinned behavior.
 func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeginBlock) {
-	if err := app.validateHeight(req); err != nil {
-		panic(err)
-	}
-
 	// Check if we should halt before processing this block.
 	// We halt at the beginning of the block *after* haltHeight,
 	// so the block at haltHeight is fully committed.
@@ -776,7 +791,10 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 				}
 				return
 			default:
-				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
+				// Defense in depth: clip in case `r` carries
+				// adversarial content from a code path that bypassed
+				// keeper-level bounding.
+				log := clipLog(fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack())))
 				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted

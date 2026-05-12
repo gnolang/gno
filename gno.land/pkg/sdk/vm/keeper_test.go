@@ -1350,7 +1350,7 @@ func Echo(cur realm, msg string){
 
 	// Run Echo function.
 	msg2 := NewMsgCall(addr, std.Coins{}, pkgPathTest, "Echo", []string{"hello world"})
-	msg2.MaxDeposit = std.MustParseCoins(ugnot.ValueString(8000))
+	msg2.MaxDeposit = std.MustParseCoins(ugnot.ValueString(9000))
 	_, err = env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
 
