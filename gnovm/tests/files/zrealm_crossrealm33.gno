@@ -13,4 +13,4 @@ func main(cur realm) {
 // Output:
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot directly modify readonly tainted object (use a method or crossing function): n<~VPBlock(3,10)>

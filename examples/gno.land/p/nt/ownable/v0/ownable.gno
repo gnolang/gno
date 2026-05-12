@@ -36,7 +36,7 @@ func NewWithOrigin() *Ownable {
 	origin := runtime.OriginCaller()
 	previous := runtime.PreviousRealm()
 	if origin != previous.Address() {
-		panic("NewWithOrigin() should be called from init() where std.PreviousRealm() is origin")
+		panic("NewWithOrigin() should be called from init() where runtime.PreviousRealm() is origin")
 	}
 	return &Ownable{
 		owner:    origin,

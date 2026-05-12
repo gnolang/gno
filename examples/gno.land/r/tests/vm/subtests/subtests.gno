@@ -1,6 +1,9 @@
 package subtests
 
-import "chain/runtime"
+import (
+	"chain/banker"
+	"chain/runtime"
+)
 
 func GetCurrentRealm(cur realm) runtime.Realm {
 	return runtime.CurrentRealm()
@@ -20,4 +23,8 @@ func CallAssertOriginCall(cur realm) {
 
 func CallIsOriginCall(cur realm) bool {
 	return runtime.PreviousRealm().IsUser()
+}
+
+func BankerOriginSend(cur realm) string {
+	return banker.OriginSend().String()
 }

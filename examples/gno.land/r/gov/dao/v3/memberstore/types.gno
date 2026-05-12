@@ -3,7 +3,7 @@ package memberstore
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 type ErrMemberAlreadyExists struct {
@@ -28,11 +28,11 @@ func (m *Member) RemoveInvitationPoint() {
 
 // MembersByTier contains all `Member`s indexed by their Address.
 type MembersByTier struct {
-	*avl.Tree // tier name -> address -> member
+	*bptree.BPTree // tier name -> address -> member
 }
 
 func NewMembersByTier() MembersByTier {
-	return MembersByTier{Tree: avl.NewTree()}
+	return MembersByTier{BPTree: bptree.NewBPTree32()}
 }
 
 func (mbt MembersByTier) DeleteAll() {
@@ -47,7 +47,7 @@ func (mbt MembersByTier) SetTier(tier string) error {
 		return errors.New("tier already exist: " + tier)
 	}
 
-	mbt.Set(tier, avl.NewTree())
+	mbt.Set(tier, bptree.NewBPTree32())
 
 	return nil
 }
@@ -59,7 +59,7 @@ func (mbt MembersByTier) GetTierSize(tn string) int {
 		return 0
 	}
 
-	tree, ok := tv.(*avl.Tree)
+	tree, ok := tv.(*bptree.BPTree)
 	if !ok {
 		return 0
 	}
@@ -79,7 +79,7 @@ func (mbt MembersByTier) SetMember(tier string, addr address, member *Member) er
 	}
 
 	ms, _ := mbt.Get(tier)
-	mst := ms.(*avl.Tree)
+	mst := ms.(*bptree.BPTree)
 
 	mst.Set(string(addr), member)
 
@@ -89,9 +89,9 @@ func (mbt MembersByTier) SetMember(tier string, addr address, member *Member) er
 // GetMember iterate over all tiers to try to find a member by its address. The tier ID is also returned if the Member is found.
 func (mbt MembersByTier) GetMember(addr address) (m *Member, t string) {
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mst, ok := msv.(*avl.Tree)
+		mst, ok := msv.(*bptree.BPTree)
 		if !ok {
-			panic("MembersByTier values can only be avl.Tree")
+			panic("MembersByTier values can only be bptree.BPTree")
 		}
 
 		mv, ok := mst.Get(string(addr))
@@ -116,9 +116,9 @@ func (mbt MembersByTier) GetMember(addr address) (m *Member, t string) {
 // RemoveMember removes a member from any tier
 func (mbt MembersByTier) RemoveMember(addr address) (t string) {
 	mbt.Iterate("", "", func(tn string, msv interface{}) bool {
-		mst, ok := msv.(*avl.Tree)
+		mst, ok := msv.(*bptree.BPTree)
 		if !ok {
-			panic("MembersByTier values can only be avl.Tree")
+			panic("MembersByTier values can only be bptree.BPTree")
 		}
 
 		_, removed := mst.Remove(string(addr))
@@ -168,7 +168,7 @@ type Tier struct {
 
 // TiersByName contains all tier objects indexed by its name.
 type TiersByName struct {
-	*avl.Tree // *avl.Tree[string]Tier
+	*bptree.BPTree // *bptree.BPTree[string]Tier
 }
 
 // GetTier obtains a Tier struct by its name. It returns false if the Tier is not found.

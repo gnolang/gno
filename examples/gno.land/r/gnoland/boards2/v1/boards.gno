@@ -8,7 +8,7 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 var (
@@ -30,9 +30,9 @@ var (
 
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
-	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gListedBoardsByID bptree.BPTree // string(id) -> *boards.Board
+	gInviteRequests   bptree.BPTree // string(board id) -> *bptree.BPTree(address -> time.Time)
+	gBannedUsers      bptree.BPTree // string(board id) -> *bptree.BPTree(address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
@@ -64,21 +64,21 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 }
 
 // getInviteRequests returns invite requests for a board.
-func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
+func getInviteRequests(boardID boards.ID) (_ *bptree.BPTree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {
 		return nil, false
 	}
-	return v.(*avl.Tree), true
+	return v.(*bptree.BPTree), true
 }
 
 // getBannedUsers returns banned users within a board.
-func getBannedUsers(boardID boards.ID) (_ *avl.Tree, found bool) {
+func getBannedUsers(boardID boards.ID) (_ *bptree.BPTree, found bool) {
 	v, exists := gBannedUsers.Get(boardID.Key())
 	if !exists {
 		return nil, false
 	}
-	return v.(*avl.Tree), true
+	return v.(*bptree.BPTree), true
 }
 
 // mustGetBoardByName returns a board or panics when it's not found.

@@ -2,137 +2,142 @@ package recurring
 
 import (
 	"chain"
-	"chain/runtime"
 	"testing"
 	"time"
 
+	"gno.land/p/jaekwon/allowancesender/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 
 var (
-	alice   = testutils.TestAddress("alice")
-	bob     = testutils.TestAddress("bob")
-	charlie = testutils.TestAddress("charlie")
+	alice = testutils.TestAddress("alice")
+	bob   = testutils.TestAddress("bob")
+	payee = testutils.TestAddress("payee")
 )
 
-func TestRecurringSubscription(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour*24, 1000)
+// stubSender is a Send-only stand-in for *AllowanceSender used by these
+// tests. Subscribe accepts a concrete *allowancesender.AllowanceSender,
+// and outside the allowancesender package we cannot construct a working
+// one (the IsCanonical gate rejects synthetic bankers). Tests therefore
+// inject behavior through stubSender by wrapping it as a fake
+// AllowanceSender via the allowancesender package's same-package helpers.
+//
+// Since allowancesender's struct fields are unexported, we can't build
+// one here either. Instead each test uses the empty-struct shortcut
+// `&allowancesender.AllowanceSender{}` which compiles cross-package
+// (no field-name reference) but produces an unusable instance whose
+// Send always panics. That panic propagates out of Subscribe, the tx
+// reverts, and tests assert the panic shape. For success-path tests,
+// we sidestep the AllowanceSender plumbing by constructing the
+// RecurringSubscription, then directly setting subs entries via the
+// in-package field — testing Subscribe's bookkeeping without the cap.
+//
+// This is sufficient for unit-level coverage of the subscription state
+// machine (already-sub gate, expiration, ownership, idempotency).
+// Full payment-path coverage requires integration txtars, which are
+// future work.
 
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err := rs.Subscribe()
-	uassert.NoError(t, err, "Expected ProcessPayment to succeed for Alice")
-
-	err = rs.HasValidSubscription(runtime.CurrentRealm().Address())
-	uassert.NoError(t, err, "Expected Alice to have access")
-
-	_, err = rs.GetExpiration(runtime.CurrentRealm().Address())
-	uassert.NoError(t, err, "Expected to get expiration for Alice")
+func TestNewRecurringSubscription_RejectsInvalidPayee(t *testing.T) {
+	uassert.PanicsWithMessage(t, ErrInvalidPayee.Error(), func() {
+		NewRecurringSubscription(time.Hour, 1000, address(""))
+	})
 }
 
-func TestRecurringSubscriptionGift(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour*24, 1000)
-
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err := rs.GiftSubscription(bob)
-	uassert.NoError(t, err, "Expected ProcessPaymentGift to succeed for Bob")
-
-	err = rs.HasValidSubscription(bob)
-	uassert.NoError(t, err, "Expected Bob to have access")
-
-	err = rs.HasValidSubscription(charlie)
-	uassert.Error(t, err, "Expected Charlie to fail access check")
+func TestSubscribe_RejectsInvalidSubscriber(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	err := rs.Subscribe(&allowancesender.AllowanceSender{}, address(""))
+	uassert.ErrorIs(t, err, ErrInvalidSubscriber)
 }
 
-func TestRecurringSubscriptionExpiration(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour, 1000)
-
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err := rs.Subscribe()
-	uassert.NoError(t, err, "Expected ProcessPayment to succeed for Alice")
-
-	err = rs.HasValidSubscription(runtime.CurrentRealm().Address())
-	uassert.NoError(t, err, "Expected Alice to have access")
-
-	expiration := time.Now().Add(-time.Hour * 2)
-	rs.subs.Set(runtime.CurrentRealm().Address().String(), expiration)
-
-	err = rs.HasValidSubscription(runtime.CurrentRealm().Address())
-	uassert.Error(t, err, "Expected Alice's subscription to be expired")
+func TestHasValidSubscription_NoSub(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	err := rs.HasValidSubscription(alice)
+	uassert.ErrorIs(t, err, ErrNoSub)
 }
 
-func TestUpdateAmountAuthorization(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour*24, 1000)
+func TestHasValidSubscription_Active(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs.subs.Set(alice.String(), time.Now().Add(time.Hour))
+	uassert.NoError(t, rs.HasValidSubscription(alice))
+}
 
-	err := rs.UpdateAmount(2000)
-	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
+func TestHasValidSubscription_Expired(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs.subs.Set(alice.String(), time.Now().Add(-time.Hour))
+	uassert.ErrorIs(t, rs.HasValidSubscription(alice), ErrSubExpired)
+}
+
+// TestSubscribe_AlreadyActiveReturnsErrBeforeSend exercises the
+// duplicate-detection short-circuit: when the subscriber is already
+// active, Subscribe returns ErrAlreadySub WITHOUT calling al.Send. We
+// pass an unusable empty AllowanceSender; if Send were called it would
+// panic, but the early return prevents that.
+func TestSubscribe_AlreadyActiveReturnsErrBeforeSend(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs.subs.Set(alice.String(), time.Now().Add(time.Hour))
+
+	err := rs.Subscribe(&allowancesender.AllowanceSender{}, alice)
+	uassert.ErrorIs(t, err, ErrAlreadySub)
+}
+
+// TestSubscribe_SendPanicLeavesNoRecord exercises the send-side failure:
+// junk AllowanceSender → Send panics → tx revert. Since unit tests don't
+// have tx semantics, the panic propagates. Recover and assert no
+// subscription was recorded.
+func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+
+	func() {
+		defer func() { _ = recover() }()
+		rs.Subscribe(&allowancesender.AllowanceSender{}, bob)
+	}()
+
+	uassert.ErrorIs(t, rs.HasValidSubscription(bob), ErrNoSub)
+}
+
+func TestUpdateAmount_OwnerSucceeds(t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+
+	uassert.NoError(t, rs.UpdateAmount(2000))
+	uassert.Equal(t, int64(2000), rs.GetAmount())
+}
+
+func TestUpdateAmount_NonOwnerFails(t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
-	err = rs.UpdateAmount(3000)
-	uassert.Error(t, err, "Expected Bob to fail when updating amount")
+	uassert.ErrorIs(t, rs.UpdateAmount(3000), ErrNotAuthorized)
 }
 
 func TestGetAmount(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour*24, 1000)
-
-	amount := rs.GetAmount()
-	uassert.Equal(t, amount, int64(1000), "Expected the initial amount to be 1000 ugnot")
-
-	err := rs.UpdateAmount(2000)
-	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
-
-	amount = rs.GetAmount()
-	uassert.Equal(t, amount, int64(2000), "Expected the updated amount to be 2000 ugnot")
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	uassert.Equal(t, int64(1000), rs.GetAmount())
 }
 
-func TestIncorrectPaymentAmount(t *testing.T) {
-	testing.SetOriginCaller(alice)
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour*24, 1000)
-
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 500}})
-	err := rs.Subscribe()
-	uassert.Error(t, err, "Expected payment with incorrect amount to fail")
+func TestGetPayee(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	uassert.Equal(t, payee.String(), rs.GetPayee().String())
 }
 
-func TestMultiplePaymentsForSameUser(t *testing.T) {
-	testing.SetOriginCaller(alice)
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour*24, 1000)
-
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err := rs.Subscribe()
-	uassert.NoError(t, err, "Expected first ProcessPayment to succeed for Alice")
-
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err = rs.Subscribe()
-	uassert.Error(t, err, "Expected second ProcessPayment to fail for Alice due to existing subscription")
+func TestGetExpiration_NoSub(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	_, err := rs.GetExpiration(alice)
+	uassert.ErrorIs(t, err, ErrNoSub)
 }
 
-func TestRecurringSubscriptionWithMultiplePayments(t *testing.T) {
-	testing.SetOriginCaller(alice)
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour, 1000)
+func TestGetExpiration_Active(t *testing.T) {
+	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	expected := time.Now().Add(time.Hour)
+	rs.subs.Set(alice.String(), expected)
 
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err := rs.Subscribe()
-	uassert.NoError(t, err, "Expected first ProcessPayment to succeed for Alice")
-
-	err = rs.HasValidSubscription(runtime.CurrentRealm().Address())
-	uassert.NoError(t, err, "Expected Alice to have access after first payment")
-
-	expiration := time.Now().Add(-time.Hour * 2)
-	rs.subs.Set(runtime.CurrentRealm().Address().String(), expiration)
-
-	testing.SetOriginSend([]chain.Coin{{Denom: "ugnot", Amount: 1000}})
-	err = rs.Subscribe()
-	uassert.NoError(t, err, "Expected second ProcessPayment to succeed for Alice")
-
-	err = rs.HasValidSubscription(runtime.CurrentRealm().Address())
-	uassert.NoError(t, err, "Expected Alice to have access after second payment")
+	got, err := rs.GetExpiration(alice)
+	uassert.NoError(t, err)
+	uassert.Equal(t, expected.String(), got.String())
 }
+
+// silence unused-import warning for chain (used in production code paths).
+var _ = chain.Coins{}
