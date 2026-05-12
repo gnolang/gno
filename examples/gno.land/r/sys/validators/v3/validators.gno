@@ -23,6 +23,10 @@ import (
 // signing-keyed NewProposalRequest was removed: every valid
 // signing-keyed input is also a valid operator-keyed input under
 // always-on valoper enforcement.
+//
+// Allow-listed realms can bypass GovDAO and call AddValidator /
+// RemoveValidator directly; the whitelist is managed via
+// NewPropAllowedRealmUpdateRequest. See allowed.gno.
 
 // IsValidator returns true if addr is part of the effective validator
 // set (proposed if a v3 proposal is awaiting EndBlocker, else
