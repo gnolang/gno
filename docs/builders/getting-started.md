@@ -105,10 +105,11 @@ For deeper test patterns see the [Testing guide](../resources/gno-testing.md); a
 fuller version of this counter lives at
 [`examples/gno.land/r/demo/counter`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter).
 
-### Format and test
+### Format, lint, and test
 
 ```sh
 gno fmt ./...     # rewrite .gno files in canonical style
+gno lint ./...    # static checks for common mistakes
 gno test ./...    # run _test.gno files
 ```
 
