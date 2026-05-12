@@ -372,6 +372,12 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// so log a warning when that happens.
 	txResponses, err := cfg.loadAppState(ctx, req.AppState, req.InitialHeight)
 	if err != nil {
+		// Surface loadAppState errors on the logger before returning. The
+		// error is also propagated via ResponseInitChain.Error, but
+		// tendermint's handshake does not surface that field — operators
+		// otherwise see "Completed ABCI Handshake" with an empty appHash
+		// and no indication that genesis replay never happened.
+		ctx.Logger().Error("InitChainer: loadAppState failed", "error", err)
 		return abci.ResponseInitChain{
 			ResponseBase: abci.ResponseBase{
 				Error: abci.StringError(err.Error()),
