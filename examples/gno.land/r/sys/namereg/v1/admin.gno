@@ -1,6 +1,7 @@
 package namereg
 
 import (
+	"chain"
 	"strconv"
 
 	"gno.land/p/nt/ufmt/v0"
@@ -17,6 +18,11 @@ var paused = false // XXX: replace with p/moul/authz
 
 func setPaused(cur realm, newPausedValue bool) {
 	paused = newPausedValue
+	if paused {
+		chain.Emit("UsernameRegistrationPaused")
+	} else {
+		chain.Emit("UsernameRegistrationUnpaused")
+	}
 }
 
 func updateUsername(cur realm, userData *susers.UserData, newName string) error {
@@ -31,6 +37,10 @@ func deleteUserdata(cur realm, userData *susers.UserData) error {
 
 func setRegisterPrice(cur realm, newPrice int64) {
 	registerPrice = newPrice
+	chain.Emit(
+		"UsernameRegistrationPriceChanged",
+		"price", strconv.FormatInt(newPrice, 10),
+	)
 }
 
 //----------------------------------------
