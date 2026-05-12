@@ -118,7 +118,7 @@ func Incr(cur realm) {
 		// Build transaction with multiple messages
 		var tx std.Tx
 		send := std.MustParseCoins(ugnot.ValueString(1_000_000))
-		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Fee = std.Fee{GasWanted: 5e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
 			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
 			vm.NewMsgCall(creator, send, targetPath, "Incr", nil),
@@ -176,7 +176,7 @@ func Render(_ string) string { return foo.Render("bar") }`,
 
 		// Build transaction
 		var tx std.Tx
-		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Fee = std.Fee{GasWanted: 5e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
 		tx.Msgs = []std.Msg{
 			vm.NewMsgAddPackage(creator, barPath, files),
 		}

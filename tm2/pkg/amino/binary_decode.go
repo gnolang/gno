@@ -178,7 +178,11 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	case reflect.Int:
 		var num int64
-		num, _n, err = DecodeVarint(bz)
+		if fopts.BinFixed64 {
+			num, _n, err = DecodeInt64(bz)
+		} else {
+			num, _n, err = DecodeVarint(bz)
+		}
 		if slide(&bz, &n, _n) && err != nil {
 			return
 		}
@@ -247,7 +251,11 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	case reflect.Uint:
 		var num uint64
-		num, _n, err = DecodeUvarint(bz)
+		if fopts.BinFixed64 {
+			num, _n, err = DecodeUint64(bz)
+		} else {
+			num, _n, err = DecodeUvarint(bz)
+		}
 		if slide(&bz, &n, _n) && err != nil {
 			return
 		}
@@ -643,7 +651,16 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
 				slide(&bz, &n, 1)
-				erv.Set(defaultValue(erv.Type()))
+				// When NilElements is set the user has opted into "0x00 means
+				// nil" for any pointer — not just struct pointers. Use a true
+				// zero value so *T elements come back as nil, matching the
+				// genproto2 decoder. Without the tag, keep defaultValue's
+				// legacy non-nil-with-zero behavior for non-struct pointers.
+				if fopts.NilElements {
+					erv.Set(reflect.Zero(erv.Type()))
+				} else {
+					erv.Set(defaultValue(erv.Type()))
+				}
 				continue
 			}
 			// Special case: nested lists.
@@ -851,7 +868,13 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			if (len(bz) > 0 && bz[0] == 0x00) &&
 				(!isErtStructPointer || fopts.NilElements) {
 				slide(&bz, &n, 1)
-				erv.Set(defaultValue(erv.Type()))
+				// See matching array-path comment: NilElements semantically
+				// means "0x00 decodes to nil" for any pointer element.
+				if fopts.NilElements {
+					erv.Set(reflect.Zero(erv.Type()))
+				} else {
+					erv.Set(defaultValue(erv.Type()))
+				}
 				srv = reflect.Append(srv, erv)
 				continue
 			}

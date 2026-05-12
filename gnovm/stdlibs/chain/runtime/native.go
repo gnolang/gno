@@ -3,6 +3,7 @@ package runtime
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func AssertOriginCall(m *gno.Machine) {
@@ -44,6 +45,26 @@ func X_originCaller(m *gno.Machine) string {
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	return execctx.GetRealm(m, height)
+}
+
+// pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
+// If the session account type doesn't implement this, allowPaths will be nil
+// (meaning "unrestricted"), which is the correct semantic — the session has
+// no path restrictions configured at the protocol level.
+type pathRestricted interface{ GetAllowPaths() []string }
+
+func X_getSessionInfo(m *gno.Machine) (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool) {
+	ctx := execctx.GetContext(m)
+	if ctx.SessionAccount == nil {
+		return "", 0, nil, false
+	}
+	da := ctx.SessionAccount
+	addr := da.(std.Account).GetAddress()
+	var paths []string
+	if pr, ok := da.(pathRestricted); ok {
+		paths = pr.GetAllowPaths()
+	}
+	return addr.String(), da.GetExpiresAt(), paths, true
 }
 
 func typedString(s string) gno.TypedValue {

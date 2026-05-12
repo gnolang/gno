@@ -141,7 +141,8 @@ func TestSubDAOPropDefinitionExecute(t *testing.T) {
 
 	// Expect SubDAO to be created
 	urequire.Equal(t, 1, parentDAO.Children().Len(), "expected SubDAO to be created")
-	subDAO := parentDAO.Children().Get(0).(*commondao.CommonDAO)
+	subDAOAny, _ := parentDAO.Children().Get(0)
+	subDAO := subDAOAny.(*commondao.CommonDAO)
 
 	// Make sure SubDAO is indexed properly
 	subDAO = getDAO(subDAO.ID())

@@ -30,6 +30,11 @@ func (erv ExportRefValue) String() string {
 }
 func (erv ExportRefValue) VisitAssociated(_ Visitor) (stop bool) { return false }
 
+// GetShallowSize returns the size of an ExportRefValue for alloc-gas
+// accounting. Uses the same size as RefValue since they're structurally
+// equivalent (one ObjectID string).
+func (erv ExportRefValue) GetShallowSize() int64 { return allocRefValue }
+
 // ExportValues exports multiple TypedValues for JSON serialization.
 // It walks the value tree and:
 //   - Replaces persisted (real) objects with RefValue{ObjectID: ...}
@@ -92,7 +97,6 @@ func exportObjectToValue(obj Object, seen map[Object]int) Value {
 		if obj.GetIsReal() {
 			return RefValue{
 				ObjectID: obj.GetObjectID(),
-				Escaped:  true,
 			}
 		}
 		return ExportRefValue{
@@ -132,7 +136,6 @@ func exportToRefOrCopy(val Value, seen map[Object]int) Value {
 	if oo.GetIsReal() {
 		return RefValue{
 			ObjectID: oo.GetObjectID(),
-			Escaped:  oo.GetIsEscaped() || oo.GetIsNewEscaped(),
 			Hash:     oo.GetHash(),
 		}
 	}

@@ -2682,6 +2682,7 @@ main.dev-mode .b-toc a {
 	}
 }
 
+<<<<<<< HEAD
 /* `display: contents` removes the element from layout while leaving
    its children in place — used here as a scope for the controller. */
 .b-state-page {
@@ -3962,5 +3963,38 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 			color: var(--s-color-text-secondary);
 			font-size: var(--g-font-size-90);
 		}
+	}
+}
+
+/* ==========================================================================
+   DOC EXAMPLE — collapsible code block in doc-context markdown rendering
+   ========================================================================== */
+.doc-example {
+	margin-block: var(--g-space-3);
+	border: var(--s-border);
+	border-radius: var(--s-rounded-sm);
+	background: var(--s-color-bg-surface-primary);
+	overflow: hidden;
+
+	& > summary {
+		cursor: pointer;
+		padding: var(--g-space-2) var(--g-space-3);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+		font-weight: var(--g-font-semibold);
+		user-select: none;
+	}
+
+	& > summary:hover {
+		background: var(--s-color-bg-surface-secondary);
+	}
+
+	& > pre {
+		margin-block: 0;
+		border-block-start: var(--s-border-secondary);
+		border-radius: 0;
+		padding: var(--g-space-3);
+		font-size: var(--g-font-size-100);
+		overflow-x: auto;
 	}
 }

@@ -13,12 +13,13 @@ var (
 	ErrAlreadyWhitelisted    = errors.New(prefix + "already whitelisted")
 	ErrWhitelistRemoveFailed = errors.New(prefix + "failed to remove address from whitelist")
 
-	ErrNameTaken      = errors.New(prefix + "name/Alias already taken")
-	ErrInvalidAddress = errors.New(prefix + "invalid address")
+	ErrNameTaken          = errors.New(prefix + "name/Alias already taken")
+	ErrCanonicalCollision = errors.New(prefix + "name collides with a confusable variant of an existing name")
+	ErrInvalidAddress     = errors.New(prefix + "invalid address")
 
 	ErrEmptyUsername   = errors.New(prefix + "empty username provided")
 	ErrNameLikeAddress = errors.New(prefix + "username resembles a gno.land address")
-	ErrInvalidUsername = errors.New(prefix + "username must match ^[a-zA-Z0-9_]{1,64}$")
+	ErrInvalidUsername = errors.New(prefix + "username must match ^[a-z][a-z0-9]*([_-][a-z0-9]+)*$ (max 64 chars)")
 
 	ErrAlreadyHasName = errors.New(prefix + "username for this address already registered - try creating an Alias")
 	ErrDeletedUser    = errors.New(prefix + "cannot register a new username after deleting")

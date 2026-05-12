@@ -68,7 +68,7 @@ Produced through 3 successive audit passes with per-op verification against sour
 | doOpAddAssign | Operand type; string length; realm tracking | String concat or BigDec; realm object | addAssign allocates; DidUpdate with nil,nil,nil → just MarkDirty(po) |
 | doOpSubAssign | Operand type; BigInt/BigDec size; realm tracking | BigDec with precision; realm object | apd.Sub; DidUpdate → MarkDirty |
 | doOpMulAssign | Operand type; BigInt/BigDec size; realm tracking | BigDec (WithPrecision(1024).Mul); realm object | Higher precision setup; DidUpdate → MarkDirty |
-| doOpQuoAssign | Operand type; zero-check; realm tracking | BigDec (WithPrecision(1024).Quo); realm object | Division + zero-check + precision; DidUpdate → MarkDirty |
+| doOpQuoAssign | Operand type; BigInt/BigDec size; zero-check; realm tracking | BigInt/BigDec large operands; realm object | Division O(n²) + zero-check + precision; DidUpdate → MarkDirty |
 | doOpRemAssign | Operand type; zero-check; realm tracking | BigInt; realm object | big.Int.Rem O(n^2); DidUpdate → MarkDirty |
 | doOpBandAssign | Operand type; BigInt size; realm tracking | BigInt; realm object | big.Int.And allocates; DidUpdate → MarkDirty |
 | doOpBorAssign | Operand type; BigInt size; realm tracking | BigInt; realm object | big.Int.Or allocates; DidUpdate → MarkDirty |

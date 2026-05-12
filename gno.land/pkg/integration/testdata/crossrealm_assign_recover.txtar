@@ -18,14 +18,14 @@ adduser attacker
 gnoland start
 
 ## deploy vault realm
-gnokey maketx addpkg -pkgdir $WORK/vault -pkgpath gno.land/r/test/vault -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/vault -pkgpath gno.land/r/test/vault -gas-fee 390001ugnot -gas-wanted 3_900_000 -chainid=tendermint_test test1
 
 ## verify initial owner is the DAO address
 gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
 stdout 'owner: g1dao0000000000000000000000000000000000'
 
 ## deploy attack realm
-gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test attacker
+gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 420001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test attacker
 
 ## TEST 1: assign+recover then Withdraw — must fail with "unauthorized"
 ## The attacker does SetOwner(myAddr) + recover, then Withdraw(cross).
