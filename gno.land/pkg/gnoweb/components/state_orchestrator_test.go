@@ -719,6 +719,40 @@ func (b *blockingFetcher) FetchType(ctx context.Context, _ string) ([]byte, erro
 	return nil, ctx.Err()
 }
 
+// TestEnrichInlinePreviews_DedupesOIDAcrossRounds — a self-referencing
+// object whose decoded body re-exposes its own OID as a ref must not
+// cause a second fetch in round 2.
+func TestEnrichInlinePreviews_DedupesOIDAcrossRounds(t *testing.T) {
+	t.Parallel()
+
+	// :selfRef points to a stored object whose decoded body contains a
+	// Pointer-style ref back to itself. The orchestrator must not fetch
+	// :selfRef twice.
+	const oid = "ffffffffffffffffffffffffffffffffffffffff:1"
+	// Build an object whose value is a struct containing a single field
+	// whose typed value is a RefValue pointing back at the same OID.
+	selfRefBody := []byte(fmt.Sprintf(`{
+		"objectid": %q,
+		"value": {
+			"@type": "/gno.StructValue",
+			"Fields": [
+				{"T":{"@type":"/gno.PointerType","Elt":{"@type":"/gno.StructType","Fields":[]}},
+				 "V":{"@type":"/gno.RefValue","ObjectID":%q,"Hash":"","PkgPath":""}}
+			]
+		}
+	}`, oid, oid))
+	fetcher := &fakeObjectFetcher{bodies: map[string][]byte{oid: selfRefBody}}
+
+	nodes := []StateNode{{
+		Name: "root", Kind: "ref", Expandable: true, ObjectID: oid,
+	}}
+
+	EnrichInlinePreviews(context.Background(), nodes, fetcher, nil)
+
+	assert.Equal(t, int32(1), atomic.LoadInt32(&fetcher.calls),
+		"cycle must not trigger a second fetch of the same OID in round 2")
+}
+
 // peakFetcher records the maximum number of overlapping fetch calls
 // across both FetchObject and FetchType — used to assert the shared
 // preview-pool cap.

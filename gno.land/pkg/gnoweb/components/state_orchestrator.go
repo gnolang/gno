@@ -141,8 +141,9 @@ func EnrichInlinePreviews(ctx context.Context, nodes []StateNode, objFetcher Sta
 		return
 	}
 
-	// Multiple rounds: a `*T` storage chains heap-item → inner ref → struct,
-	// so the first fetch reveals refs that themselves need fetching.
+	// Cross-round dedupe: an OID resolved in round 1 must not be re-fetched
+	// in round 2 even if a cycle re-exposes it as a bare ref.
+	fetched := make(map[string]struct{})
 	fetchedTotal := 0
 	for round := 0; round < maxInlinePreviewRounds; round++ {
 		if ctx.Err() != nil {
@@ -150,6 +151,15 @@ func EnrichInlinePreviews(ctx context.Context, nodes []StateNode, objFetcher Sta
 		}
 		var candidates []*StateNode
 		collectPreviewCandidates(nodes, &candidates)
+		// Drop candidates whose OID was already resolved.
+		filtered := candidates[:0]
+		for _, n := range candidates {
+			if _, seen := fetched[n.ObjectID]; seen {
+				continue
+			}
+			filtered = append(filtered, n)
+		}
+		candidates = filtered
 		remaining := maxInlinePreviewFetches - fetchedTotal
 		if remaining <= 0 || len(candidates) == 0 {
 			return
@@ -157,7 +167,7 @@ func EnrichInlinePreviews(ctx context.Context, nodes []StateNode, objFetcher Sta
 		if len(candidates) > remaining {
 			candidates = candidates[:remaining]
 		}
-		fetchPreviewsConcurrent(ctx, candidates, objFetcher, typeFetcher)
+		fetchPreviewsConcurrent(ctx, candidates, objFetcher, typeFetcher, fetched)
 		fetchedTotal += len(candidates)
 	}
 }
@@ -182,8 +192,9 @@ func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
 // fetchPreviewsConcurrent fetches objects and types under one shared
 // concurrency cap so the total in-flight RPC per render matches the
 // documented maxConcurrentObjectFetches. ctx cancellation aborts before
-// semaphore acquire.
-func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
+// semaphore acquire. fetched is updated with every OID that produced a
+// usable response so the caller can dedupe across rounds.
+func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher, fetched map[string]struct{}) {
 	byOID := make(map[string][]*StateNode)
 	for _, n := range candidates {
 		byOID[n.ObjectID] = append(byOID[n.ObjectID], n)
@@ -252,6 +263,7 @@ func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFe
 		if !ok {
 			continue
 		}
+		fetched[oid] = struct{}{}
 		for _, n := range refs {
 			var typeRaw []byte
 			if n.TypeID != "" {
