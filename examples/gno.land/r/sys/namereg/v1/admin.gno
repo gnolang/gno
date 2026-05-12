@@ -19,9 +19,9 @@ var paused = false // XXX: replace with p/moul/authz
 func setPaused(cur realm, newPausedValue bool) {
 	paused = newPausedValue
 	if paused {
-		chain.Emit("UsernameRegistrationPaused")
+		chain.Emit("NameRegistrationPaused")
 	} else {
-		chain.Emit("UsernameRegistrationUnpaused")
+		chain.Emit("NameRegistrationUnpaused")
 	}
 }
 
@@ -38,7 +38,7 @@ func deleteUserdata(cur realm, userData *susers.UserData) error {
 func setRegisterPrice(cur realm, newPrice int64) {
 	registerPrice = newPrice
 	chain.Emit(
-		"UsernameRegistrationPriceChanged",
+		"NameRegistrationPriceChanged",
 		"price", strconv.FormatInt(newPrice, 10),
 	)
 }
@@ -98,11 +98,16 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest(
-		ufmt.Sprintf("User Registry V1: Rename user `%s` to `%s`", userData.Name(), newName),
-		"",
-		e,
+	// Use the user address in the title because username could change
+	// before the proposal is executed, which could be misleading when voting.
+	title := ufmt.Sprintf(
+		"User Registry V1: Rename name for [%s](/r/sys/namereg/v1:%s) to `%s`",
+		userData.Addr(),
+		userData.Addr(),
+		newName,
 	)
+
+	return dao.NewProposalRequest(title, "", e)
 }
 
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
