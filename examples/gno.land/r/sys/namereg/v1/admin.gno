@@ -127,7 +127,10 @@ func ProposeDeleteUser(cur realm, addr address, reason string) dao.ProposalReque
 
 	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
-	desc := "After deletion, address `%s` WILL NOT be able to register a new name."
+	desc := ufmt.Sprintf(
+		"After deletion, address `%s` WILL NOT be able to register a new name.",
+		userData.Addr(),
+	)
 	reason = strings.TrimSpace(reason)
 	if reason != "" {
 		desc += "\n\n" + reason
