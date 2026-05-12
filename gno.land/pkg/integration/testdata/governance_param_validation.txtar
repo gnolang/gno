@@ -19,10 +19,10 @@ gnokey maketx call -pkgpath gno.land/r/test/hello -func SayHello -gas-fee 180001
 stdout 'hello world'
 
 ## Propose setting StoragePrice to an invalid value
-gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test test1 $WORK/run/propose_invalid.gno
 stdout OK!
 
-gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 22_000_000 -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
+gnokey maketx run -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1 $WORK/run/vote_yes.gno
 stdout OK!
 
 ## Executing the proposal should fail because the value is invalid

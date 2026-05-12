@@ -62,7 +62,7 @@ stderr 'insufficient coins error'
 
 
 ## Origin banker send within user's allowed amount
-gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 240001ugnot -gas-wanted 2_400_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo -func OriginSend  -args $test1_user_addr -args 1 -send 1ugnot -gas-fee 240001ugnot -gas-wanted 2_500_000 -chainid=tendermint_test test1
 stdout 'OK'
 
 ## Origin banker send more than user's allowed amount

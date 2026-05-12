@@ -455,6 +455,10 @@ func (vm *VMKeeper) callRealmBool(
 		SessionAccount:  getSessionAccount(ctx, creator),
 	}
 
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	store.SetPreprocessAllocator(preAlloc)
+	defer store.SetPreprocessAllocator(nil)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:            "",
@@ -825,6 +829,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		EventLogger:     ctx.EventLogger(),
 		SessionAccount:  getSessionAccount(ctx, caller),
 	}
+	preAlloc := gno.NewAllocator(maxAllocTx)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -1307,6 +1315,10 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	preAlloc := gno.NewAllocator(maxAllocQuery)
+	preAlloc.SetGasMeter(ctx.GasMeter())
+	gnostore.SetPreprocessAllocator(preAlloc)
+	defer gnostore.SetPreprocessAllocator(nil)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
