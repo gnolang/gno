@@ -262,31 +262,34 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 			io.Printf("  Txs processed:     %d / %d\n", processed, len(appState.Txs))
 			io.Printf("  Failures:          %d\n", failures)
 
-			// Catch the silent-InitChainer-failure case: if state.Txs has
-			// entries but the result handler was never invoked, InitChain
-			// returned a ResponseInitChain.Error early (e.g. validateSignerInfo
-			// rejected the genesis). Without this guard, the test prints
-			// "PASS" while the chain has effectively zero genesis state —
-			// the empty appHash is the only on-the-wire signal and it's
+			// Catch any incomplete InitChainer run: if the result handler
+			// fired fewer times than there were deliverable txs, the chain
+			// boot is silently broken. Two known reasons to land here:
+			//   - InitChainer returned a ResponseInitChain.Error before
+			//     the tx loop (e.g. validateSignerInfo rejected the
+			//     genesis) — processed stays at 0.
+			//   - InitChainer entered the loop but exited mid-flight
+			//     (StrictReplay path, future early-return regressions) —
+			//     processed lands between 0 and expected.
+			// Without this guard the test prints "PASS" while the chain
+			// has effectively zero / partial genesis state; the empty or
+			// truncated appHash is the only on-the-wire signal and is
 			// easy to miss. Fail loudly instead.
 			//
-			// Per-tx metadata.Failed entries are skipped (no handler call),
-			// so the expected counter is len(state.Txs) - skipped. The
-			// guard fires only when the counter is ZERO and at least one
-			// tx was expected to deliver — covers the loadAppState-error
-			// case without false-positives for genesises where every tx
-			// is metadata.Failed (a degenerate but legal input).
-			if processed == 0 && len(appState.Txs) > 0 {
-				expected := countDeliverableTxs(appState.Txs)
-				if expected > 0 {
-					return fmt.Errorf(
-						"FAIL: genesis replay delivered 0 of %d expected txs — "+
-							"InitChainer likely returned a ResponseInitChain.Error before the tx loop; "+
-							"re-run a real `gnoland start` against the same genesis with --log-level debug "+
-							"to surface the underlying error (typically validateSignerInfo or InitialHeight mismatch)",
-						expected,
-					)
-				}
+			// Per-tx metadata.Failed entries are skipped by the InitChain
+			// loop (no handler call), so the deliverable count excludes
+			// them — degenerate genesises where every tx is
+			// metadata.Failed (expected=0) trivially pass the check.
+			expected := int64(countDeliverableTxs(appState.Txs))
+			if processed < expected {
+				return fmt.Errorf(
+					"FAIL: genesis replay delivered %d of %d expected txs — "+
+						"InitChainer either returned a ResponseInitChain.Error before the tx loop "+
+						"or exited the loop early; re-run a real `gnoland start` against the same "+
+						"genesis with --log-level debug to surface the underlying error (typically "+
+						"validateSignerInfo or InitialHeight mismatch)",
+					processed, expected,
+				)
 			}
 
 			if failures > 0 {
