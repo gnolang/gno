@@ -9,16 +9,16 @@
 #   ./add-validator-from-valopers.sh <address>
 #
 # Environment:
-#   GNOKEY_NAME   - gnokey key name (default: moul)
-#   CHAIN_ID      - chain ID (default: gnoland1)
-#   REMOTE        - RPC endpoint (default: https://rpc.betanet.testnets.gno.land:443)
+#   GNOKEY_NAME   - gnokey key name (required)
+#   CHAIN_ID      - chain ID (required)
+#   REMOTE        - RPC endpoint (required)
 #   GAS_WANTED    - gas limit (default: 10000000)
 #   GAS_FEE       - gas fee (default: 1000000ugnot)
 set -eo pipefail
 
-GNOKEY_NAME="${GNOKEY_NAME:-moul}"
-CHAIN_ID="${CHAIN_ID:-gnoland1}"
-REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
+GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
+CHAIN_ID="${CHAIN_ID:?CHAIN_ID is required}"
+REMOTE="${REMOTE:?REMOTE is required}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
