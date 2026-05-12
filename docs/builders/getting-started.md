@@ -51,7 +51,8 @@ gno mod init gno.land/r/myname/myrealm
 
 This writes a `gnomod.toml` in the current directory, declaring the
 package's on-chain path. Use `gno.land/r/…` for realms (stateful) or
-`gno.land/p/…` for packages (stateless).
+`gno.land/p/…` for packages (stateless — note that pure packages cannot
+import realms; see [import rules](../resources/gno-packages.md#import-rules)).
 
 ### Write Gno code
 
@@ -100,7 +101,6 @@ func TestIncrement(t *testing.T) {
 }
 ```
 
-- [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — complete Counter walkthrough
 - [Testing guide](../resources/gno-testing.md) — cross-realm testing patterns
 - [Effective Gno](../resources/effective-gno.md) — best practices
 - [`examples/gno.land/r/demo/counter`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter) — full example on GitHub
