@@ -2,9 +2,9 @@
 
 > [Getting started](./getting-started.md) — full walkthrough
 
-**Local development:**
+## Run locally
 
-```bash
+```sh
 # 1. Install the toolchain (gno, gnokey, gnodev)
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 
@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh 
 mkdir counter && cd counter
 gno mod init gno.land/r/myname/counter
 
-# 3. Fetch example code
+# 3. Fetch example code (or paste counter.gno below by hand)
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/examples/gno.land/r/demo/counter/counter.gno -o counter.gno
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/examples/gno.land/r/demo/counter/counter_test.gno -o counter_test.gno
 
@@ -21,24 +21,55 @@ gnodev .
 # → open http://localhost:8888
 ```
 
-**Deploy to staging:**
+`counter.gno`:
 
-```bash
+```gno
+package counter
+
+import "strconv"
+
+var count int
+
+func Increment(_ realm, n int) int {
+	count += n
+	return count
+}
+
+func Render(path string) string {
+	return "Count: " + strconv.Itoa(count)
+}
+```
+
+## Deploy to staging
+
+```sh
 # 5. Create a key, then fund it at https://faucet.gno.land
+#    (faucet is rate-limited per address; one request is enough)
 gnokey add dev
 gnokey list   # copy the g1... address
 
-# 6. Deploy your package
-# (first deploy may require signing the CLA — see Getting started)
+# 6. Confirm the faucet landed
+gnokey query bank/balances/<your-g1-addr> \
+  -remote https://rpc.staging.gno.land:443
+
+# 7. Deploy
+#    First deploy may fail with "has not signed the required CLA" —
+#    sign once via r/sys/cla, see Getting started, then retry.
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast \
+  -gas-fee 1000000ugnot -gas-wanted 20000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 dev
 
-# 7. Call a realm function
+# 8. Call a realm function
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" -args "5" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast \
+  -gas-fee 1000000ugnot -gas-wanted 2000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 dev
 ```
+
+Live at <https://staging.gno.land/r/<your-g1-addr>/counter>.
+
+## Next
+
+[r/docs](https://gno.land/r/docs) — on-chain tour of Gno.land.
