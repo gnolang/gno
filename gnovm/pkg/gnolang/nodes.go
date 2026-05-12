@@ -141,7 +141,6 @@ const (
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"  // if name expr refers to package.
 	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"      // gno fix this version.
-	ATTR_LOOPVAR_SKIP          GnoAttribute = "ATTR_LOOPVAR_SKIP"  // temp only
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE" // static element type of &x, set on the RefExpr node during preprocessing.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
@@ -570,6 +569,13 @@ type FuncLitExpr struct {
 	Type         FuncTypeExpr // function type
 	Body                      // function body
 	HeapCaptures NameExprs    // filled in findLoopUses1
+
+	// heapCapturesIdx maps capture name → its position in HeapCaptures
+	// for O(1) lookup in addHeapCapture. addHeapCapture is preprocess-
+	// only and accumulates idx alongside HeapCaptures from empty;
+	// no lazy rebuild needed. Closes the K-fold scan that drove DEGEN3
+	// DeepClosureCapture / DEGEN1 #3 WideClosureCapture. Not serialized.
+	heapCapturesIdx map[Name]uint16
 }
 
 func (*FuncLitExpr) GetName() Name {
@@ -1603,7 +1609,7 @@ type StaticBlock struct {
 	Block
 	Location
 	Types             []Type
-	NumNames          uint16
+	NumNames          uint16 // == len(Names); nameIndex is its O(1) co-invariant
 	Names             []Name
 	NameSources       []NameSource
 	HeapItems         []bool
@@ -1614,7 +1620,24 @@ type StaticBlock struct {
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
+
+	// nameIndex maps Name → its position in Names for O(1) lookup once
+	// NumNames exceeds nameIndexThreshold. Maintained by Define2 on append;
+	// built (or rebuilt after amino deserialization) lazily on the first
+	// GetLocalIndex past threshold. Not serialized.
+	//
+	// CONTRACT: any code mutating Names directly (instead of via Define2)
+	// must nil out nameIndex, or the index goes stale. The only direct
+	// writers in production are amino UnmarshalBinary2 (which zeros the
+	// whole struct) and a small set of test fixtures; none of them call
+	// GetLocalIndex on the directly-populated block.
+	nameIndex map[Name]uint16
 }
+
+// nameIndexThreshold gates the map build: below this, linear scan over
+// Names is faster and saves a per-block map allocation. Above this, the
+// map's O(1) lookup dominates.
+const nameIndexThreshold = 32
 
 // NameSource holds origin information about a name.
 type NameSource struct {
@@ -1700,6 +1723,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.NameSources = make([]NameSource, 0, 16)
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
+	sb.nameIndex = nil // drop any stale map; lazy-rebuild past threshold.
 	sb.Parent = parent
 }
 
@@ -1905,41 +1929,68 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
+	// Lazy-build when nameIndex is missing on a wide block (e.g. first
+	// read on an amino-deserialized block). Idempotent; treats the build
+	// as cache initialization, not a logical state change. Builders rely
+	// on the existing single-threaded preprocess invariant.
+	if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
+		sb.buildNameIndex()
+	}
+	if sb.nameIndex != nil {
+		i, ok := sb.nameIndex[n]
+		if debug {
+			sb.debugLogGetLocalIndex(n, int(i), ok)
+		}
+		return i, ok
+	}
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {
-				var nt string
-				if sb.Source != nil {
-					nt = reflect.TypeOf(sb.Source).String()
-				} else {
-					// sb.Source is nil only for the empty PackageNode{}
-					// stub returned by UverseNode() during re-entrant
-					// uverse initialization.
-					if sb.Location.PkgPath != uversePkgPath {
-						panic("nil Source outside uverse")
-					}
-					nt = "<uverse>"
-				}
-				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
-					sb, nt, n, i, name)
+				sb.debugLogGetLocalIndex(n, i, true)
 			}
 			return uint16(i), true
 		}
 	}
 	if debug {
-		if sb.Source == nil {
-			if sb.Location.PkgPath != uversePkgPath {
-				panic("nil Source outside uverse")
-			}
-			debug.Printf("StaticBlock(%p <uverse>).GetLocalIndex(%s) = undefined\n",
-				sb, n)
-		} else {
-			nt := reflect.TypeOf(sb.Source).String()
-			debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
-				sb, nt, n)
-		}
+		sb.debugLogGetLocalIndex(n, 0, false)
 	}
 	return 0, false
+}
+
+// buildNameIndex populates nameIndex from Names. Uses first-wins semantics
+// on duplicates to match the linear-scan path's "first match" contract.
+// (Names should be unique through Define2; the first-wins guard exists for
+// directly-constructed test fixtures and corrupted-on-disk blocks.)
+func (sb *StaticBlock) buildNameIndex() {
+	sb.nameIndex = make(map[Name]uint16, len(sb.Names))
+	for i, name := range sb.Names {
+		if _, ok := sb.nameIndex[name]; !ok {
+			sb.nameIndex[name] = uint16(i)
+		}
+	}
+}
+
+// debugLogGetLocalIndex emits the existing debug trace shared by both the
+// linear-scan and map-lookup branches of GetLocalIndex.
+func (sb *StaticBlock) debugLogGetLocalIndex(n Name, i int, found bool) {
+	var nt string
+	if sb.Source != nil {
+		nt = reflect.TypeOf(sb.Source).String()
+	} else {
+		// sb.Source is nil only for the empty PackageNode{} stub
+		// returned by UverseNode() during re-entrant uverse init.
+		if sb.Location.PkgPath != uversePkgPath {
+			panic("nil Source outside uverse")
+		}
+		nt = "<uverse>"
+	}
+	if found {
+		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+			sb, nt, n, i, sb.Names[i])
+	} else {
+		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+			sb, nt, n)
+	}
 }
 
 // Implemented BlockNode.
@@ -2331,11 +2382,22 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)
 		sb.NameSources = append(sb.NameSources, nsrc)
+		// Maintain nameIndex consistent with Names: build at threshold-cross,
+		// otherwise insert incrementally if the map already exists.
+		if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
+			sb.buildNameIndex()
+		} else if sb.nameIndex != nil {
+			sb.nameIndex[n] = sb.NumNames - 1
+		}
 	}
 }
 
 // Implements BlockNode
 func (sb *StaticBlock) SetStaticBlock(osb StaticBlock) {
+	// nameIndex is per-instance derived state. Reset on assign so the
+	// destination rebuilds lazily from its own Names instead of aliasing
+	// the source's map (which could otherwise be mutated through both refs).
+	osb.nameIndex = nil
 	*sb = osb
 }
 
