@@ -10,7 +10,7 @@ experience.
 New here? Start with **[Getting started](builders/getting-started.md)** — the
 shortest path from zero to a working local chain and your first on-chain
 query. Already comfortable with Go and just want the commands? See
-**[Quick Start](builders/quick-start.md)**.
+**[Quick Start](builders/quickstart.md)**.
 
 ## Use Gno.land
 

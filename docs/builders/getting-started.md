@@ -9,7 +9,7 @@ libraries, and the GnoVM interprets everything. See
 [What is Gno.land?](./what-is-gnolang.md) for the full picture.
 
 This page walks you from zero to a working local chain and your first
-on-chain transaction. Just want the commands? See [Quick Start](./quick-start.md).
+on-chain transaction. Just want the commands? See [Quick Start](./quickstart.md).
 
 :::tip
 Try the **[Playground](https://play.gno.land)** to write Gno in your browser.
