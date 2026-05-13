@@ -77,6 +77,50 @@ func X_setContext(
 			Addr:    crypto.Bech32Address(currRealmAddr),
 			PkgPath: currRealmPkgPath,
 		}
+		// Also mutate the captured `cur` value for this frame so that
+		// reads through the uverse `realm` handle reflect the override,
+		// matching what runtime.{Current,Previous}Realm() returns after
+		// the X_getRealm walk:
+		//
+		//   - addr/pkgPath: overwrite with override values (CurrentRealm
+		//     parity).
+		//   - prev: depends on the override shape.
+		//       * UserRealm override (pkgPath==""): set prev to a true
+		//         nil — there's no "previous" beyond an EOA caller,
+		//         matching runtime.PreviousRealm()'s walk panic.
+		//       * CodeRealm override (pkgPath!=""): set prev to a fresh
+		//         realm carrying the pre-override addr/pkgPath. That's
+		//         the realm X_getRealm surfaces as "previous" of the
+		//         override frame.
+		fr := &m.Frames[frameIdx]
+		if pv, ok := fr.Cur.V.(gno.PointerValue); ok && pv.TV != nil {
+			if sv, ok := pv.TV.V.(*gno.StructValue); ok && len(sv.Fields) >= 3 {
+				sv.Fields[0].V = gno.StringValue(currRealmAddr)
+				sv.Fields[1].V = gno.StringValue(currRealmPkgPath)
+				if currRealmPkgPath == "" {
+					// UserRealm override — no previous.
+					sv.Fields[2] = gno.TypedValue{}
+				} else {
+					// CodeRealm override — prev is the frame's
+					// underlying package realm (what X_getRealm
+					// surfaces as PreviousRealm of an override
+					// frame: m.Frames[0].LastPackage.PkgPath in
+					// the filetest case, or the frame's func
+					// PkgPath more generally). Use the frame's
+					// function package as the stable identity —
+					// it doesn't shift across successive overrides.
+					pkgPath := ""
+					if fr.Func != nil {
+						pkgPath = fr.Func.PkgPath
+					}
+					addr := ""
+					if pkgPath != "" {
+						addr = string(gno.DerivePkgBech32Addr(pkgPath))
+					}
+					sv.Fields[2] = gno.BuildOverridePrevField(addr, pkgPath)
+				}
+			}
+		}
 	}
 
 	ctx.OriginSend = banker.CompactCoins(origSendDenoms, origSendAmounts)

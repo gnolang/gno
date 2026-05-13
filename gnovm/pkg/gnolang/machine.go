@@ -519,6 +519,12 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 			return
 		}
 
+		if len(m.Stmts) == 0 {
+			// Finalize-time panics (e.g., persistence checks in saveObject)
+			// run with an empty stmt stack — there's no current statement
+			// to attribute a line to. Leave LastLine zero.
+			return
+		}
 		ls := m.PeekStmt(1)
 		if bs, ok := ls.(*bodyStmt); ok {
 			stacktrace.LastLine = bs.LastStmt().GetLine()

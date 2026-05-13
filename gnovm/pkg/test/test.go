@@ -532,7 +532,7 @@ func (opts *TestOptions) runTestFiles(
 			runTestX = gno.Nx("runTest_cur")
 			runTest = m.Eval(runTestX)[0]
 			runTestF = "F_cur"
-			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
+			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(nil, mpkg.Path, gno.OriginRealmTV()))
 			m.SetActivePackage(pv)
 		} else {
 			// The normal way to test if `cur` isn't needed such as

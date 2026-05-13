@@ -27,19 +27,8 @@ func (m *Machine) doOpPrecall() {
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
-		// If a cross-call of a crossing function,
-		// replace the first nil arg with a new realm.
 		if cx.IsWithCross() {
-			if !isCrossing { // sanity
-				panic("non-crossing function in cross call")
-			}
-			niltv := m.PeekValue(cx.NumArgs)
-			if !niltv.IsUndefined() { // sanity
-				panic(fmt.Sprintf(
-					"expected nil for realm argument in cross call but got %v", niltv))
-			}
-			crlm := NewConcreteRealm(fv.PkgPath)
-			niltv.Assign(m.Alloc, crlm, false)
+			m.installCrossingCur(cx, isCrossing, fv.PkgPath)
 		}
 	case *BoundMethodValue:
 		m.incrCPU(OpCPUPrecallBoundMethod)
@@ -50,19 +39,8 @@ func (m *Machine) doOpPrecall() {
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
-		// If a cross-call of a crossing function,
-		// replace the first nil arg with a new realm.
 		if cx.IsWithCross() {
-			if !isCrossing { // sanity
-				panic("non-crossing function in cross call")
-			}
-			niltv := m.PeekValue(cx.NumArgs)
-			if !niltv.IsUndefined() { // sanity
-				panic(fmt.Sprintf(
-					"expected nil for realm argument in cross call but got %v", niltv))
-			}
-			crlm := NewConcreteRealm(fv.Func.PkgPath)
-			niltv.Assign(m.Alloc, crlm, false)
+			m.installCrossingCur(cx, isCrossing, fv.Func.PkgPath)
 		}
 	case TypeValue:
 		m.incrCPU(OpCPUPrecallTypeConv)
@@ -89,6 +67,76 @@ func (m *Machine) doOpPrecall() {
 			"unexpected function value type %s %v",
 			reflect.TypeOf(v).String(), v))
 	}
+}
+
+// installCrossingCur replaces the placeholder cross-arg with a freshly
+// captured cur realm and records it on the just-pushed frame.
+func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath string) {
+	if !isCrossing {
+		panic("non-crossing function in cross call")
+	}
+	niltv := m.PeekValue(cx.NumArgs)
+	if !niltv.IsUndefined() {
+		panic(fmt.Sprintf("expected nil for realm argument in cross call but got %v", niltv))
+	}
+	crlm := NewConcreteRealm(m.Alloc, pkgPath, m.callingCurOrOrigin())
+	niltv.Assign(m.Alloc, crlm, false)
+	m.LastFrame().Cur = crlm
+}
+
+// curUsesPreprocessOrigin reports whether tv is a captured realm whose
+// prev field is the preprocess-time placeholder origin (addr=""). The
+// placeholder is baked into the `.cur` ConstExpr by preprocess.go for
+// main(cur realm) / init(cur realm); at runtime we detect it so the
+// doOpCall fix can swap in the per-tx origin carrying the real
+// OriginCaller addr. Fully structural — survives AST persistence,
+// because the already-swapped per-tx origin always has a non-empty
+// addr and is naturally suppressed.
+func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
+	sv := derefRealmStruct(tv)
+	if sv == nil || len(sv.Fields) < 3 {
+		return false
+	}
+	prev, ok := sv.Fields[2].V.(PointerValue)
+	if !ok {
+		return false
+	}
+	hiv, _ := prev.Base.(*HeapItemValue)
+	if !isOriginRealmHIV(hiv) {
+		return false
+	}
+	prevSV := hiv.Value.V.(*StructValue)
+	return prevSV.Fields[0].GetString() == ""
+}
+
+// callingCurOrOrigin returns the captured cur TypedValue of the most recent
+// crossing call frame on the stack, or the per-tx origin realm when none
+// exists. The origin realm mirrors runtime.PreviousRealm() at the chain
+// root (addr=OriginCaller, pkgPath="").
+//
+// Skips:
+//   - non-call frames (loops, blocks).
+//   - non-crossing call frames (no WithCross or DidCrossing).
+//   - frames whose Cur has not been set yet (the just-pushed frame at the
+//     top during doOpPrecall — its Cur is assigned right after we return).
+//
+// The walk is intentionally simpler than execctx.GetRealm: we only need
+// the immediate captured prev, not a height-based ancestor selection.
+func (m *Machine) callingCurOrOrigin() TypedValue {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if !fr.IsCall() {
+			continue
+		}
+		if !(fr.WithCross || fr.DidCrossing) {
+			continue
+		}
+		if fr.Cur.T == nil {
+			continue
+		}
+		return fr.Cur
+	}
+	return buildOriginRealm(m)
 }
 
 var gReturnStmt = &ReturnStmt{}
@@ -228,6 +276,25 @@ func (m *Machine) doOpCall() {
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
+	}
+	// Inherit fr.Cur from the block for crossing functions entered without
+	// a cross-call (doOpPrecall sets fr.Cur only for cross-call entries).
+	// Bound-method receivers occupy block[0], so cur is at block[1] for
+	// methods and block[0] otherwise. If the inherited cur's prev is the
+	// preprocess-time placeholder (built without OriginCaller knowledge),
+	// rebuild with the per-tx origin so cur.Previous() carries the EOA
+	// addr that runtime.PreviousRealm() surfaces.
+	curIdx := 0
+	if !fr.Receiver.IsUndefined() {
+		curIdx = 1
+	}
+	if ft.IsCrossing() && fr.Cur.T == nil && len(b.Values) > curIdx {
+		fr.Cur = b.Values[curIdx]
+		if m.curUsesPreprocessOrigin(&fr.Cur) {
+			fresh := NewConcreteRealm(m.Alloc, fv.PkgPath, buildOriginRealm(m))
+			fr.Cur = fresh
+			b.Values[curIdx] = fresh
+		}
 	}
 }
 

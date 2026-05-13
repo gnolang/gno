@@ -137,13 +137,6 @@ var gRealmType = &DeclaredType{
 	sealed: true,
 }
 
-func init() {
-	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
-	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Origin")
-	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
-	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
-}
-
 var gConcreteRealmType = &DeclaredType{
 	PkgPath: uversePkgPath,
 	Name:    ".grealm",
@@ -152,27 +145,171 @@ var gConcreteRealmType = &DeclaredType{
 		Fields: []FieldType{
 			{Name: "addr", Type: gAddressType},
 			{Name: "pkgPath", Type: StringType},
-			{Name: "prev", Type: gRealmType},
+			// prev is *.grealm (PointerKind) so equality is identity
+			// and the chain terminates cleanly at a nil PointerValue.
+			// Type pointer-patched in init() below once
+			// gConcreteRealmPtrType is visible.
+			{Name: "prev", Type: nil},
 		},
 	},
 	sealed: true,
 	// methods defined in makeUverseNode()
 }
 
-// NOTE: the value is set as a constExpr for the `.cur` in the preprocessor,
-// and likewise for MsgCall cross-call of crossing functions, so the value
-// should be deterministic, not dynamic, and only depend on the realm.
-func NewConcreteRealm(pkgPath string) TypedValue {
-	return TypedValue{
-		T: gConcreteRealmType,
-		V: &StructValue{
-			Fields: []TypedValue{
-				{T: gAddressType, V: nil}, // XXX
-				{T: StringType, V: StringValue(pkgPath)},
-				{T: gConcreteRealmType, V: nil}, // XXX
-			},
-		},
+// Singleton pointer type for *.grealm. Allocated once so TypeID memoization
+// is stable across the realm machinery.
+var gConcreteRealmPtrType = &PointerType{Elt: gConcreteRealmType}
+
+// newRealmHIVPointer builds a *.grealm captured-realm TypedValue from
+// (addr, pkgPath, prevField). All callers that produce a realm value go
+// through this helper to keep the HIV+PointerValue construction in one
+// place. Pass alloc=nil to skip allocator charging (used for the global
+// placeholder origin built at package init).
+func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue) TypedValue {
+	sv := &StructValue{Fields: []TypedValue{
+		{T: gAddressType, V: StringValue(addr)},
+		{T: StringType, V: StringValue(pkgPath)},
+		prevField,
+	}}
+	var hiv *HeapItemValue
+	if alloc == nil {
+		hiv = &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
+	} else {
+		hiv = alloc.NewHeapItem(TypedValue{T: gConcreteRealmType, V: sv})
 	}
+	return TypedValue{
+		T: gConcreteRealmPtrType,
+		V: PointerValue{TV: &hiv.Value, Base: hiv, Index: 0},
+	}
+}
+
+// gOriginRealmHIV / gOriginRealmTV is the preprocess-time placeholder
+// origin realm. It stands in for the per-tx EOA realm value during
+// preprocess (when ctx.OriginCaller is not yet known) and is replaced
+// at runtime entry by buildOriginRealm, which builds a real per-tx
+// origin realm with addr=OriginCaller, pkgPath="", prev=truly-nil.
+//
+// Non-nil pointer (with empty fields) rather than a typed-nil: matches
+// runtime.PreviousRealm()'s shape for EOA callers (a zero Realm struct,
+// not a nil). Structural shape (Value.T == gConcreteRealmType AND prev
+// field has V == nil) is the persistent marker — see isOriginRealmHIV.
+var (
+	gOriginRealmHIV *HeapItemValue
+	gOriginRealmTV  TypedValue
+)
+
+// isOriginRealmHIV reports whether hiv is an origin / EOA-shaped realm
+// value (prev field truly nil). The shape persists across AST serialize/
+// load — both the preprocess placeholder and the per-tx origin satisfy
+// the predicate. All realm values are forbidden from persistence (see
+// errPersistRealm / refusePersistRealmHIV); origin realms are exempted
+// from the panic only because they're the shared chain-root marker that
+// captured curs transitively reference, not a user-stashable value.
+func isOriginRealmHIV(hiv *HeapItemValue) bool {
+	if hiv == nil || hiv.Value.T != gConcreteRealmType {
+		return false
+	}
+	sv, ok := hiv.Value.V.(*StructValue)
+	if !ok || len(sv.Fields) < 3 {
+		return false
+	}
+	return sv.Fields[2].V == nil
+}
+
+// errPersistRealm is the shared panic message for realm-value persistence
+// refusals — kept as a const so the source of the string is single, and
+// filetests can match it verbatim.
+const errPersistRealm = "cannot persist realm value: realm values are ephemeral and tied to a call frame"
+
+// refusePersistRealmHIV panics with errPersistRealm if hiv is a
+// non-origin realm value. Used at every save/attach hook to keep the
+// guard logic in one place.
+func refusePersistRealmHIV(hiv *HeapItemValue) {
+	if hiv == nil || isOriginRealmHIV(hiv) {
+		return
+	}
+	if t := hiv.Value.T; t == gConcreteRealmType || t == gConcreteRealmPtrType {
+		panic(errPersistRealm)
+	}
+}
+
+// OriginCallerExtractor is set by the execctx package's init() so this
+// package can read ctx.OriginCaller without importing execctx (which would
+// be a cycle). Returns "" when no caller can be extracted.
+var OriginCallerExtractor func(ctx any) string
+
+// BuildOverridePrevField constructs a prev-field TypedValue for a captured
+// realm whose addr/pkgPath have been overridden by testing.SetRealm with
+// a CodeRealm. The prev carries the underlying-frame realm so that
+// `cur.Previous()` after the override surfaces what X_getRealm surfaces
+// as PreviousRealm of the override frame. Exposed for X_setContext.
+func BuildOverridePrevField(addr, pkgPath string) TypedValue {
+	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
+}
+
+// buildOriginRealm constructs a per-call origin realm matching
+// runtime.PreviousRealm() at the chain root: addr=OriginCaller,
+// pkgPath="", prev=truly-nil. Fresh per call because OriginCaller can
+// change between init() and main() within the same Machine (the test
+// framework sets it after RunMemPackage but before RunMainMaybeCrossing),
+// so a cached origin built at init time would be stale when main runs.
+func buildOriginRealm(m *Machine) TypedValue {
+	var addr string
+	if OriginCallerExtractor != nil && m.Context != nil {
+		addr = OriginCallerExtractor(m.Context)
+	}
+	return newRealmHIVPointer(nil, addr, "", TypedValue{})
+}
+
+// NOTE: this init() must run before makeUverseNode() (called from the init
+// at the bottom of this file) so type-id memoization sees the patched
+// prev-field type.
+func init() {
+	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
+	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Origin")
+	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
+	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
+
+	// Patch the prev field's type (forward reference; see field 2 above).
+	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
+
+	// Build the global placeholder origin realm now that types are wired.
+	gOriginRealmTV = newRealmHIVPointer(nil, "", "", TypedValue{})
+	gOriginRealmHIV = gOriginRealmTV.V.(PointerValue).Base.(*HeapItemValue)
+}
+
+// OriginRealmTV returns the typed-nil *.grealm used as the prev seed for
+// realm captures at the top of the cross-call chain. Exposed for callers
+// outside this package (e.g., pkg/test/test.go).
+func OriginRealmTV() TypedValue { return gOriginRealmTV }
+
+// NewConcreteRealm builds a captured realm value as a pointer-typed
+// TypedValue. Equality (PointerKind ==) is pointer-identity: two captured
+// curs compare equal iff they reference the same *HeapItemValue — i.e.,
+// the same cross-call snapshot. This is what makes a stashed cur
+// unforgeable. Persistence of these values is forbidden.
+func NewConcreteRealm(alloc *Allocator, pkgPath string, prev TypedValue) TypedValue {
+	prevField := gOriginRealmTV
+	if pv, ok := prev.V.(PointerValue); ok && pv.TV != nil {
+		prevField = TypedValue{T: gConcreteRealmPtrType, V: pv}
+	}
+	return newRealmHIVPointer(alloc, string(DerivePkgBech32Addr(pkgPath)), pkgPath, prevField)
+}
+
+// derefRealmStruct unwraps a realm TypedValue (pointer-typed *.grealm, or
+// value-receiver form) to its underlying *StructValue. Returns nil when
+// the TypedValue's shape doesn't match (no PointerValue/StructValue), so
+// callers that don't know the shape can bail safely.
+func derefRealmStruct(tv *TypedValue) *StructValue {
+	if pv, ok := tv.V.(PointerValue); ok {
+		if pv.TV == nil {
+			return nil
+		}
+		sv, _ := pv.TV.V.(*StructValue)
+		return sv
+	}
+	sv, _ := tv.V.(*StructValue)
+	return sv
 }
 
 // ----------------------------------------
@@ -1020,7 +1157,10 @@ func makeUverseNode() {
 			"", "address",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			addr := sv.Fields[0].GetString()
+			m.PushValue(TypedValue{T: gAddressType, V: StringValue(addr)})
 		},
 	)
 	defNativeMethod(".grealm", "PkgPath",
@@ -1029,7 +1169,10 @@ func makeUverseNode() {
 			"", "string",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			path := sv.Fields[1].GetString()
+			m.PushValue(typedString(path))
 		},
 	)
 	defNativeMethod(".grealm", "Origin",
@@ -1038,7 +1181,27 @@ func makeUverseNode() {
 			"", "realm",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			// Walk the prev chain until the next prev points at an
+			// origin / EOA realm (or has no further pointer): the
+			// current node is the chain root (the realm at the bottom
+			// of the captured cross-call stack, e.g. the first realm
+			// entered from the EOA).
+			arg0 := m.LastBlock().GetParams1(nil)
+			cur := arg0.TV
+			for {
+				sv := derefRealmStruct(cur)
+				prev := sv.Fields[2]
+				pv, ok := prev.V.(PointerValue)
+				if !ok || pv.TV == nil {
+					m.PushValue(*cur)
+					return
+				}
+				if hiv, ok := pv.Base.(*HeapItemValue); ok && isOriginRealmHIV(hiv) {
+					m.PushValue(*cur)
+					return
+				}
+				cur = &prev
+			}
 		},
 	)
 	defNativeMethod(".grealm", "Previous",
@@ -1047,7 +1210,21 @@ func makeUverseNode() {
 			"", "realm",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			// Return the prev field verbatim when it carries a realm
+			// value (non-nil prev). At the chain root or after a
+			// testing.SetRealm UserRealm override, the prev field is a
+			// truly-nil TypedValue — in that case panic to match
+			// runtime.PreviousRealm()'s walk-end behavior, so user code
+			// has a consistent boundary signal across both APIs and
+			// can use defer-recover if it needs to detect the EOA root.
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			prev := sv.Fields[2]
+			if prev.T == nil { // truly-nil — no previous beyond this.
+				m.PanicString("frame not found: cannot seek beyond origin caller override")
+				return
+			}
+			m.PushValue(prev)
 		},
 	)
 	defNativeMethod(".grealm", "String",
@@ -1056,7 +1233,11 @@ func makeUverseNode() {
 			"", "string",
 		),
 		func(m *Machine) {
-			panic("not yet implemented")
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			addr := sv.Fields[0].GetString()
+			path := sv.Fields[1].GetString()
+			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
 		},
 	)
 	defNative("crossing",

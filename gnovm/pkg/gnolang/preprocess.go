@@ -1969,7 +1969,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									panic(fmt.Sprintf("unexpected context for .cur; wanted last.(*PackageNode), got last.(%T)", last))
 								}
 								// evaluation was skipped TRANS_LEAVE *NameExpr.
-								crlm := NewConcreteRealm(ctxpn.PkgPath)
+								// PackageNode top — no cross ancestor.
+								crlm := NewConcreteRealm(nilAllocator, ctxpn.PkgPath, gOriginRealmTV)
 								n.Args[0] = toConstExpr(nx, crlm)
 							case Name("cur"): // non-crossing call of a crossing function.
 								// Try to check that called function is local.

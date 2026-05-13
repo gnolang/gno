@@ -840,6 +840,14 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 		}
 	}
 
+	// Refuse to persist a realm value reached via this save walk. The
+	// check runs BEFORE recursing into children, so the realm's inner
+	// StructValue (a separate Object) doesn't reach amino-serialization
+	// before this HIV-level guard fires.
+	if hiv, ok := oo.(*HeapItemValue); ok {
+		refusePersistRealmHIV(hiv)
+	}
+
 	// assert object have no private dependencies.
 	//
 	// XXX JAE: Can't this whole routine be changed so that it only applies
@@ -1144,6 +1152,15 @@ func getChildObjects(val Value, more []Value) []Value {
 	case PointerValue:
 		if cv.Base == nil {
 			panic("should not happen")
+		}
+		if hiv, ok := cv.Base.(*HeapItemValue); ok && isOriginRealmHIV(hiv) {
+			// Origin realm — shared chain-root marker. Skip so the
+			// persistence walk (incRefCreatedDescendants in particular,
+			// which fires before our refusePersistRealmHIV panic at
+			// save time) doesn't mutate the global origin's ObjectInfo
+			// (SetOwner / IncRefCount / MarkNewReal) — that mutation
+			// would survive the tx panic and corrupt subsequent txs.
+			return more
 		}
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more

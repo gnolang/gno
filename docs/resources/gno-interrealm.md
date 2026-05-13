@@ -504,6 +504,57 @@ in realm-context or realm-storage-context. A non-crossing-call of a
 crossing-function or crossing-method (`fn(nil, ...)`) never creates a realm
 boundary.
 
+## Captured Realm Values (`cur realm`)
+
+A crossing-function's first parameter `cur realm` is a captured realm value:
+a typed handle on the realm-context at the moment of the crossing call.
+`realm` is a uverse interface with the following methods:
+
+  - `Address() address` — bech32 address derived from the realm's pkgpath
+    (or the EOA address at the chain root).
+  - `PkgPath() string` — the realm's pkgpath, or `""` at the chain root.
+  - `Previous() realm` — the captured realm that was current before this
+    one. At the chain root this returns a non-nil origin realm whose
+    `PkgPath() == ""` and whose own `Previous() == nil`.
+  - `Origin() realm` — the realm at the bottom of the captured cross-call
+    chain (walks `Previous()` until just before the chain root).
+  - `String() string` — debug-friendly representation.
+
+Parity with `runtime.{Current,Previous}Realm()` at every comparable
+position:
+
+  - `cur.Address()` and `cur.PkgPath()` agree with `runtime.CurrentRealm()`.
+  - `cur.Previous().Address()` and `cur.Previous().PkgPath()` agree with
+    `runtime.PreviousRealm()`.
+
+The two APIs differ only in shape: `runtime.CurrentRealm()` and
+`runtime.PreviousRealm()` return a `runtime.Realm` **struct** (defined in
+`chain/runtime`), while `cur realm` is the uverse **interface**. They are
+**distinct types** — not assignable to each other — that happen to surface
+the same addr+pkgpath pair. The struct form is the legacy ergonomic API;
+the interface form is the chain-aware handle that crossing-functions
+receive directly.
+
+### Realm values are never persisted
+
+Captured realm values are ephemeral and tied to a call frame's chain. They
+must not survive past the transaction:
+
+  - Storing a `realm`-typed value (whether `cur` itself or any `Previous()`
+    result) into a top-level realm var, a struct field, a map value, a
+    slice/array element, or a closure capture causes the realm to refuse
+    the operation at the point of attachment or at transaction finalize
+    with: `cannot persist realm value: realm values are ephemeral and
+    tied to a call frame`.
+  - A `realm`-typed *parameter* or *return type* in a function signature is
+    a static type reference and is allowed — this rule applies to the
+    *value*, not the *type*. A function `func F(r realm) realm { ... }`
+    is persistable; assigning its result into a persistent slot is not.
+
+Code that needs to remember a caller realm across transactions should
+store its `Address()` or `PkgPath()` (plain strings) — not the realm value
+itself.
+
 ## Realm-Transaction Finalization
 
 Realm-transaction finalization occurs when returning from a realm
