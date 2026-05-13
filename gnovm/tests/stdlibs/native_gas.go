@@ -48,7 +48,9 @@ var testNativeFns = [][2]string{
 	{"testing", "recoverWithStacktrace"},
 	{"testing", "setContext"},
 	{"testing", "setSysParamBool"},
+	{"testing", "setSysParamInt64"},
 	{"testing", "setSysParamStrings"},
+	{"testing", "setSysParamUint64"},
 	{"testing", "testIssueCoins"},
 	{"testing", "unixNano"},
 

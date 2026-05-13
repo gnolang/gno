@@ -1,0 +1,161 @@
+name: ci / val-scenarios
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/ci-val-scenarios.yml
+      - misc/val-scenarios/**
+      - contribs/gnogenesis/**
+      - examples/**
+      - Dockerfile
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - go.mod
+      - go.sum
+  pull_request:
+    paths:
+      - .github/workflows/ci-val-scenarios.yml
+      - misc/val-scenarios/**
+      - contribs/gnogenesis/**
+      - examples/**
+      - Dockerfile
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - go.mod
+      - go.sum
+  workflow_dispatch:
+
+concurrency:
+  group: val-scenarios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  list-scenarios:
+    name: list scenarios
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Build scenario matrix
+        id: list
+        run: |
+          matrix=$(grep -l '^SCENARIO_CI=true$' misc/val-scenarios/scenarios/*.sh | sort | xargs -n1 basename | \
+            jq -R '{"script": ., "name": ("scenario-" + (.[:-3] | gsub("_"; "-"))), "dir": ("scenario-" + split("_")[0])}' | \
+            jq -sc '.')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build-images:
+    name: build docker images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # for GHA cache (docker buildx cache-to/from=type=gha)
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build core scenario image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          target: all
+          tags: gno-val-scenario-core:local
+          load: true
+          cache-from: type=gha,scope=val-scenarios-core
+          cache-to: type=gha,mode=max,scope=val-scenarios-core
+
+      - name: Build gnogenesis image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          target: gnocontribs
+          tags: gnogenesis:local
+          load: true
+          cache-from: type=gha,scope=val-scenarios-gnogenesis
+          cache-to: type=gha,mode=max,scope=val-scenarios-gnogenesis
+
+      - name: Build valsignerd image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: misc/val-scenarios/Dockerfile
+          target: valsignerd
+          tags: valsignerd:local
+          load: true
+          cache-from: type=gha,scope=val-scenarios-valsignerd
+          cache-to: type=gha,mode=max,scope=val-scenarios-valsignerd
+
+      - name: Save images
+        run: docker save gno-val-scenario-core:local gnogenesis:local valsignerd:local | gzip > /tmp/val-scenario-images.tar.gz
+
+      - name: Upload images artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: val-scenario-images
+          path: /tmp/val-scenario-images.tar.gz
+          retention-days: 1
+
+  run-scenarios:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-images, list-scenarios]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.list-scenarios.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+
+      - name: Download images artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: val-scenario-images
+          path: /tmp
+
+      - name: Load Docker images
+        run: docker load < /tmp/val-scenario-images.tar.gz
+
+      - name: Run ${{ matrix.name }}
+        env:
+          SCENARIO_SCRIPT: ${{ matrix.script }}
+          IMAGE_NAME: gno-val-scenario-core:local
+          GNOKEY_IMAGE: gno-val-scenario-core:local
+          GNOGENESIS_IMAGE: gnogenesis:local
+          VALSIGNER_IMAGE: valsignerd:local
+          GNO_ROOT: ${{ github.workspace }}
+          WORK_ROOT: /tmp/gno-val-tests
+        run: bash misc/val-scenarios/scenarios/"$SCENARIO_SCRIPT"
+
+      - name: Upload scenario logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: logs-${{ matrix.name }}
+          path: |
+            /tmp/gno-val-tests/${{ matrix.dir }}/logs/
+            /tmp/gno-val-tests/${{ matrix.dir }}/genesis.json
+          if-no-files-found: ignore
+          retention-days: 1

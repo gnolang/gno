@@ -269,6 +269,88 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	}
 }
 
+func TestShouldAssertValoperCoverage(t *testing.T) {
+	t.Parallel()
+
+	dummyVals := generateValidatorUpdates(t, 1)
+
+	cases := []struct {
+		name string
+		req  abci.RequestInitChain
+		want bool
+	}{
+		{
+			name: "fresh chain, no validators",
+			req:  abci.RequestInitChain{AppState: GnoGenesisState{}},
+			want: false,
+		},
+		{
+			name: "fresh chain, validators present",
+			req:  abci.RequestInitChain{Validators: dummyVals, AppState: GnoGenesisState{}},
+			want: false,
+		},
+		{
+			name: "hardfork PastChainIDs but no validators",
+			req:  abci.RequestInitChain{AppState: GnoGenesisState{PastChainIDs: []string{"old"}}},
+			want: false,
+		},
+		{
+			name: "hardfork PastChainIDs + validators",
+			req:  abci.RequestInitChain{Validators: dummyVals, AppState: GnoGenesisState{PastChainIDs: []string{"old"}}},
+			want: true,
+		},
+		{
+			name: "non-genesis InitialHeight alone (NOT a hardfork signal)",
+			req:  abci.RequestInitChain{Validators: dummyVals, InitialHeight: 100, AppState: GnoGenesisState{}},
+			want: false,
+		},
+		{
+			name: "AppState wrong type (defensive)",
+			req:  abci.RequestInitChain{Validators: dummyVals, AppState: nil},
+			want: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := shouldAssertValoperCoverage(tc.req)
+			assert.Equal(t, tc.want, got, "case %q", tc.name)
+		})
+	}
+}
+
+// TestInitChainer_SkipValoperCoverageAssertion guards the cfg-level
+// override against the hardfork auto-assertion. Without it, gnogenesis
+// fork test (synthetic MockPV with no valoper profile) trips the
+// assertion and aborts boot. Underlying request-level gating is
+// covered by TestShouldAssertValoperCoverage; this test only exercises
+// the flag composition.
+func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
+	t.Parallel()
+
+	hardforkReq := abci.RequestInitChain{
+		Validators: generateValidatorUpdates(t, 1),
+		AppState:   GnoGenesisState{PastChainIDs: []string{"old-chain"}},
+	}
+
+	cases := []struct {
+		name string
+		skip bool
+		want bool
+	}{
+		{name: "flag false: assertion runs", skip: false, want: true},
+		{name: "flag true: assertion skipped", skip: true, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := InitChainerConfig{SkipValoperCoverageAssertion: tc.skip}
+			got := cfg.shouldRunValoperCoverageAssertion(hardforkReq)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // generateValidatorUpdates generates dummy validator updates
 func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	t.Helper()
@@ -313,6 +395,18 @@ func createAndSignTx(
 ) std.Tx {
 	t.Helper()
 
+	return createAndSignTxWithAccSeq(t, msgs, chainID, key, 0, 0)
+}
+
+func createAndSignTxWithAccSeq(
+	t *testing.T,
+	msgs []std.Msg,
+	chainID string,
+	key crypto.PrivKey,
+	accNum, seq uint64,
+) std.Tx {
+	t.Helper()
+
 	tx := std.Tx{
 		Msgs: msgs,
 		Fee: std.Fee{
@@ -321,7 +415,7 @@ func createAndSignTx(
 		},
 	}
 
-	signBytes, err := tx.GetSignBytes(chainID, 0, 0)
+	signBytes, err := tx.GetSignBytes(chainID, accNum, seq)
 	require.NoError(t, err)
 
 	// Sign the tx
@@ -375,6 +469,24 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				VM:       vm.DefaultGenesisState(),
 			}
 		}
+
+		getZeroTimestampMetadataState = func(tx std.Tx, balances []Balance) GnoGenesisState {
+			return GnoGenesisState{
+				// Metadata present but Timestamp=0 — genesis block time should be preserved
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp: 0, // zero — must not override to Unix epoch
+						},
+					},
+				},
+				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
+			}
+		}
 	)
 
 	testTable := []struct {
@@ -394,6 +506,12 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			currentTimestamp,
 			laterTimestamp,
 			getMetadataState,
+		},
+		{
+			"metadata transaction with zero timestamp uses genesis block time",
+			currentTimestamp,
+			currentTimestamp, // zero Timestamp → falls back to genesis block time
+			getZeroTimestampMetadataState,
 		},
 	}
 
@@ -496,6 +614,104 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 			)
 		})
 	}
+}
+
+// TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs is a regression
+// test for the bug where, with PastChainIDs set, a tx whose metadata had
+// BlockHeight == 0 but a non-zero Timestamp (a migration tx) had its
+// ctxFn silently overwritten by the genesis-mode branch, dropping the
+// timestamp override. The fix tightens the genesis-mode predicate to
+// metadata == nil so migration txs keep their metadata-driven ctxFn.
+func TestInitChainer_MigrationTxKeepsTimestampWithPastChainIDs(t *testing.T) {
+	t.Parallel()
+
+	var (
+		genesisTime   = time.Now()
+		migrationTime = genesisTime.Add(7 * 24 * time.Hour) // 7 days later
+		chainID       = "test-chain"
+		pastChainIDs  = []string{chainID}
+		path          = "gno.land/r/demo/migration"
+		body          = `package migration
+
+import "time"
+
+var t time.Time = time.Now()
+
+func GetT(cur realm) int64 { return t.Unix() }
+`
+	)
+
+	key := getDummyKey(t)
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+
+	msg := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "migration",
+			Path: path,
+			Files: []*std.MemFile{
+				{Name: "file.gno", Body: body},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			},
+		},
+		MaxDeposit: nil,
+	}
+	tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    genesisTime,
+		ConsensusParams: &abci.ConsensusParams{
+			Block:     defaultBlockParams(),
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+		},
+		AppState: GnoGenesisState{
+			Txs: []TxWithMetadata{
+				{
+					Tx: tx,
+					// migration-tx shape: BlockHeight == 0 but Timestamp != 0
+					Metadata: &GnoTxMetadata{
+						Timestamp:   migrationTime.Unix(),
+						BlockHeight: 0,
+					},
+				},
+			},
+			Balances: []Balance{
+				{
+					Address: key.PubKey().Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				},
+			},
+			Auth:         auth.DefaultGenesisState(),
+			Bank:         bank.DefaultGenesisState(),
+			VM:           vm.DefaultGenesisState(),
+			PastChainIDs: pastChainIDs, // triggers the genesis-mode branch pre-fix
+		},
+	})
+
+	callMsg := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path,
+		Func:    "GetT",
+	}
+	tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+	marshalledTx, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+	require.True(t, resp.IsOK(), "expected OK, got: %s", resp.Log)
+
+	// Before the fix, the second ctxFn assignment in the loop stomped the
+	// metadata-driven Timestamp override and the realm initialized at
+	// genesisTime instead of migrationTime.
+	assert.Contains(
+		t,
+		string(resp.Data),
+		fmt.Sprintf("(%d int64)", migrationTime.Unix()),
+		"realm should have been initialized at metadata.Timestamp, not genesis time",
+	)
 }
 
 // endBlockerParamsMock is a ParamsKeeperI mock with optional per-method
@@ -1250,6 +1466,401 @@ func TestPruneStrategyNothing(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestChainUpgradeGenesisReplay(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fields serialize correctly", func(t *testing.T) {
+		t.Parallel()
+
+		state := GnoGenesisState{
+			Balances:      []Balance{},
+			Txs:           []TxWithMetadata{},
+			Auth:          auth.DefaultGenesisState(),
+			Bank:          bank.DefaultGenesisState(),
+			VM:            vm.DefaultGenesisState(),
+			PastChainIDs:  []string{"old-chain-1", "old-chain-2"},
+			InitialHeight: 100,
+		}
+
+		// Serialize and deserialize
+		data, err := amino.MarshalJSON(state)
+		require.NoError(t, err)
+
+		var decoded GnoGenesisState
+		require.NoError(t, amino.UnmarshalJSON(data, &decoded))
+
+		assert.Equal(t, []string{"old-chain-1", "old-chain-2"}, decoded.PastChainIDs)
+		assert.Equal(t, int64(100), decoded.InitialHeight)
+	})
+
+	t.Run("historical tx replays with correct block height", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/upgradetest"
+			body = `package upgradetest
+
+import "chain/runtime"
+
+var height int64 = runtime.ChainHeight()
+
+func GetHeight(cur realm) int64 { return height }
+`
+		)
+
+		// Create a fresh app instance
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		// Prepare the deploy transaction
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "upgradetest",
+				Path: path,
+				Files: []*std.MemFile{
+					{
+						Name: "file.gno",
+						Body: body,
+					},
+					{
+						Name: "gnomod.toml",
+						Body: gnolang.GenGnoModLatest(path),
+					},
+				},
+			},
+			MaxDeposit: nil,
+		}
+
+		// Sign with the old chain ID — metadata.BlockHeight > 0 and metadata.ChainID
+		// in PastChainIDs will cause the ctxFn to override the chain ID for sig verification.
+		// Account number=0 and sequence=0 because the account is created from balances
+		// but hasn't processed any transactions yet.
+		tx := createAndSignTx(t, []std.Msg{msg}, "old-chain", key)
+
+		// Run InitChain with PastChainIDs and InitialHeight set,
+		// and the deploy tx using metadata with BlockHeight=42 and ChainID="old-chain"
+		app.InitChain(abci.RequestInitChain{
+			ChainID:       chainID,
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain", // must be in PastChainIDs for override
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				PastChainIDs:  []string{"old-chain"},
+				InitialHeight: 100,
+			},
+		})
+
+		// Call GetHeight to verify the realm captured height=42
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "GetHeight",
+		}
+
+		callTx := createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{
+			Tx: marshalledTx,
+		})
+
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+
+		// The realm should have captured block height 42
+		assert.Contains(t, string(resp.Data), "(42 int64)")
+	})
+
+	t.Run("metadata block height in GnoTxMetadata serializes correctly", func(t *testing.T) {
+		t.Parallel()
+
+		txm := TxWithMetadata{
+			Tx: std.Tx{},
+			Metadata: &GnoTxMetadata{
+				Timestamp:   1234567890,
+				BlockHeight: 42,
+				ChainID:     "gnoland1",
+			},
+		}
+
+		data, err := amino.MarshalJSON(txm)
+		require.NoError(t, err)
+
+		var decoded TxWithMetadata
+		require.NoError(t, amino.UnmarshalJSON(data, &decoded))
+
+		require.NotNil(t, decoded.Metadata)
+		assert.Equal(t, int64(1234567890), decoded.Metadata.Timestamp)
+		assert.Equal(t, int64(42), decoded.Metadata.BlockHeight)
+		assert.Equal(t, "gnoland1", decoded.Metadata.ChainID)
+	})
+
+	t.Run("chain ID not overridden when BlockHeight is zero in metadata", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/chainidtest"
+			body = `package chainidtest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "chainidtest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// When metadata.BlockHeight == 0, the chain ID override must NOT happen.
+		// So the tx must be signed with the current chain ID (chainID), not any past chain ID.
+		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 0,           // zero — no chain ID override
+							ChainID:     "old-chain", // present but ignored since BlockHeight == 0
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"}, // set, but should NOT be used since BlockHeight == 0
+			},
+		})
+	})
+
+	t.Run("no chain ID override when metadata.ChainID not in PastChainIDs", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/nooverride"
+			body = `package nooverride
+
+var Deployed = true
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "nooverride",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// BlockHeight > 0 and metadata.ChainID is set, but the chain ID is NOT in
+		// PastChainIDs — no chain ID override should happen. The tx is signed with
+		// chainID so it verifies correctly without the override.
+		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10,
+							ChainID:     "unknown-chain", // not in PastChainIDs — no override
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+				// PastChainIDs intentionally empty — no chain ID override allowed
+			},
+		})
+	})
+
+	t.Run("txs from multiple past chains replay correctly", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path1 = "gno.land/r/demo/multichain1"
+			path2 = "gno.land/r/demo/multichain2"
+			body  = `package %s
+var Deployed = true
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		// Both txs come from the same account (accNum=0) but different past chains.
+		// tx1: seq=0, chain-a; tx2: seq=1, chain-b (sequence incremented by tx1).
+		msg1 := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "multichain1",
+				Path: path1,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: fmt.Sprintf(body, "multichain1")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path1)},
+				},
+			},
+		}
+		msg2 := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "multichain2",
+				Path: path2,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: fmt.Sprintf(body, "multichain2")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path2)},
+				},
+			},
+		}
+
+		tx1 := createAndSignTx(t, []std.Msg{msg1}, "chain-a", key) // accNum=0, seq=0
+
+		// tx2 must use seq=1 because tx1 already incremented the sequence.
+		tx2Raw := std.Tx{
+			Msgs: []std.Msg{msg2},
+			Fee:  std.Fee{GasFee: std.NewCoin("ugnot", 2_000_000), GasWanted: 10_000_000},
+		}
+		signBytes2, err := tx2Raw.GetSignBytes("chain-b", 0, 1) // accNum=0, seq=1
+		require.NoError(t, err)
+		sig2, err := key.Sign(signBytes2)
+		require.NoError(t, err)
+		tx2Raw.Signatures = []std.Signature{{PubKey: key.PubKey(), Signature: sig2}}
+
+		// Both chain IDs in the allowlist; each tx carries its own ChainID
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx1,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10,
+							ChainID:     "chain-a",
+						},
+					},
+					{
+						Tx: tx2Raw,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 20,
+							ChainID:     "chain-b",
+						},
+					},
+				},
+				Balances: []Balance{
+					{Address: key.PubKey().Address(), Amount: std.NewCoins(std.NewCoin("ugnot", 20_000_000))},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"chain-a", "chain-b"},
+			},
+		})
+	})
+}
+
 func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 	t.Parallel()
 
@@ -1439,6 +2050,285 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 	})
 }
 
+// TestInitChainer_InitialHeightMismatch verifies that loadAppState rejects
+// a genesis where GnoGenesisState.InitialHeight diverges from the
+// GenesisDoc.InitialHeight passed in via RequestInitChain.
+func TestInitChainer_InitialHeightMismatch(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mismatch is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID:       "test-chain",
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances:      []Balance{},
+				Txs:           []TxWithMetadata{},
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				InitialHeight: 200, // diverges from RequestInitChain.InitialHeight
+			},
+		})
+		require.NotNil(t, resp.Error, "InitChainer should reject InitialHeight mismatch")
+		assert.Contains(t, resp.Error.Error(), "InitialHeight mismatch")
+	})
+
+	t.Run("match is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID:       "test-chain",
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances:      []Balance{},
+				Txs:           []TxWithMetadata{},
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				InitialHeight: 100,
+			},
+		})
+		require.Nil(t, resp.Error, "matching InitialHeight should be accepted: %v", resp.Error)
+	})
+
+	t.Run("zero app-level InitialHeight is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		// GnoGenesisState.InitialHeight = 0 means "not set"; no check needed.
+		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID:       "test-chain",
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs:      []TxWithMetadata{},
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
+				// InitialHeight not set
+			},
+		})
+		require.Nil(t, resp.Error, "zero app-level InitialHeight should pass validation: %v", resp.Error)
+	})
+}
+
+// TestInitChainer_StrictReplay verifies that StrictReplay refuses to boot
+// when any non-skipped genesis tx fails replay, and that intentionally
+// skipped txs (metadata.Failed = true) are not counted as failures.
+func TestInitChainer_StrictReplay(t *testing.T) {
+	t.Parallel()
+
+	// A tx that fails to deliver because it has no msgs / no signatures
+	// (ante handler will reject it).
+	failingTx := std.Tx{
+		Msgs: []std.Msg{},
+		Fee:  std.Fee{GasFee: std.NewCoin("ugnot", 1), GasWanted: 100},
+	}
+
+	t.Run("StrictReplay false: failing tx does not abort boot", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = false
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.Nil(t, resp.Error, "StrictReplay false should boot despite failing tx: %v", resp.Error)
+	})
+
+	t.Run("StrictReplay true: failing tx aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = true
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.NotNil(t, resp.Error, "StrictReplay true should refuse to boot on failing tx")
+		assert.Contains(t, resp.Error.Error(), "strict replay")
+	})
+
+	t.Run("StrictReplay true: tx marked Failed in source is skipped, not counted", func(t *testing.T) {
+		t.Parallel()
+
+		opts := TestAppOptions(memdb.NewMemDB())
+		opts.SkipGenesisSigVerification = true
+		opts.GenesisTxResultHandler = NoopGenesisTxResultHandler
+		opts.StrictReplay = true
+
+		app, err := NewAppWithOptions(opts)
+		require.NoError(t, err)
+		resp := app.InitChain(abci.RequestInitChain{
+			ChainID: "test-chain",
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Balances: []Balance{},
+				Txs: []TxWithMetadata{
+					{Tx: failingTx, Metadata: &GnoTxMetadata{BlockHeight: 1, Failed: true}},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+		require.Nil(t, resp.Error, "intentionally-skipped failed tx should not trigger StrictReplay: %v", resp.Error)
+	})
+}
+
+// TestValidateSignerInfo verifies the preflight catches account-number
+// collisions before any state mutates. Without this check,
+// NewAccountWithUncheckedNumber would silently overwrite accounts.
+func TestValidateSignerInfo(t *testing.T) {
+	t.Parallel()
+
+	addrA := crypto.AddressFromPreimage([]byte("addr-a"))
+	addrB := crypto.AddressFromPreimage([]byte("addr-b"))
+
+	tests := []struct {
+		name      string
+		state     GnoGenesisState
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:    "empty state passes",
+			state:   GnoGenesisState{},
+			wantErr: false,
+		},
+		{
+			name: "no SignerInfo passes",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "same accNum same addr is fine (legitimate per-tx repeat)",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5, Sequence: 0}}}},
+					{Metadata: &GnoTxMetadata{BlockHeight: 2, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5, Sequence: 1}}}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "same accNum different addrs collides",
+			state: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 5}}}},
+					{Metadata: &GnoTxMetadata{BlockHeight: 2, SignerInfo: []SignerAccountInfo{{Address: addrB, AccountNum: 5}}}},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "SignerInfo collision",
+		},
+		{
+			name: "SignerInfo collides with balance-init account",
+			state: GnoGenesisState{
+				// state.Balances[0] reserves accNum=0 for addrA
+				Balances: []Balance{{Address: addrA, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}},
+				Txs: []TxWithMetadata{
+					// SignerInfo claims accNum=0 for addrB; collision
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrB, AccountNum: 0}}}},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "SignerInfo collision",
+		},
+		{
+			name: "SignerInfo matching balance-init address is fine",
+			state: GnoGenesisState{
+				Balances: []Balance{{Address: addrA, Amount: std.NewCoins(std.NewCoin("ugnot", 1))}},
+				Txs: []TxWithMetadata{
+					// SignerInfo claims accNum=0 for addrA, matches balance-init
+					{Metadata: &GnoTxMetadata{BlockHeight: 1, SignerInfo: []SignerAccountInfo{{Address: addrA, AccountNum: 0}}}},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateSignerInfo(tc.state)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errSubstr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestMeetsMinVersion(t *testing.T) {
 	t.Parallel()
 
@@ -1511,6 +2401,419 @@ func TestParseGnolandVersion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsPastChainID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		pastChainIDs []string
+		chainID      string
+		expected     bool
+	}{
+		{"empty allowlist", []string{}, "chain-a", false},
+		{"nil allowlist", nil, "chain-a", false},
+		{"single match", []string{"chain-a"}, "chain-a", true},
+		{"no match in list", []string{"chain-a", "chain-b"}, "chain-c", false},
+		{"match second element", []string{"chain-a", "chain-b"}, "chain-b", true},
+		{"empty chain ID", []string{"chain-a"}, "", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isPastChainID(tc.pastChainIDs, tc.chainID))
+		})
+	}
+}
+
+func TestSignerInfoForceSetAccountState(t *testing.T) {
+	t.Parallel()
+
+	t.Run("force-sets existing account sequence and number", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/signertest"
+			body = `package signertest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "signertest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// Sign with old chain, accNum=5, seq=10 — the SignerInfo will force-set
+		// the account to these values before signature verification.
+		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 5, 10)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain",
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 5,
+									Sequence:   10,
+								},
+							},
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"},
+			},
+		})
+
+		// If SignerInfo was correctly applied, the tx would have been
+		// delivered successfully (sig verification passed).
+		// Verify by calling the deployed realm.
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTxWithAccSeq(t, []std.Msg{callMsg}, chainID, key, 5, 11)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "true")
+	})
+
+	t.Run("creates new account via SignerInfo when account does not exist", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/newacctest"
+			body = `package newacctest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "newacctest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// Sign with accNum=7. Account won't exist from balances, so
+		// NewAccountWithUncheckedNumber must be called.
+		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 7, 0)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 10,
+							ChainID:     "old-chain",
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 7,
+									Sequence:   0,
+								},
+							},
+						},
+					},
+				},
+				// No balances — account doesn't exist before SignerInfo creates it.
+				// But the account needs funds for gas, so we must provide balances.
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"},
+			},
+		})
+
+		// Verify deployment succeeded
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTxWithAccSeq(t, []std.Msg{callMsg}, chainID, key, 7, 1)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "true")
+	})
+
+	t.Run("failed tx is skipped and does not execute", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/failedtest"
+			body = `package failedtest
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "failedtest",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// This tx is marked as Failed — it should be skipped entirely.
+		tx := createAndSignTxWithAccSeq(t, []std.Msg{msg}, "old-chain", key, 0, 0)
+
+		initResp := app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 5,
+							ChainID:     "old-chain",
+							Failed:      true,
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 0,
+									Sequence:   0,
+								},
+							},
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth:         auth.DefaultGenesisState(),
+				Bank:         bank.DefaultGenesisState(),
+				VM:           vm.DefaultGenesisState(),
+				PastChainIDs: []string{"old-chain"},
+			},
+		})
+
+		// The skipped failed tx should produce a non-success response so
+		// downstream consumers (indexers, explorers) don't mistake it for
+		// success.
+		require.Len(t, initResp.TxResponses, 1)
+		skippedResp := initResp.TxResponses[0]
+		require.NotNil(t, skippedResp.Error, "skipped failed tx response should carry an error marker")
+		assert.Contains(t, skippedResp.Error.Error(), "replay skipped")
+
+		// The package should NOT be deployed since the tx was marked as failed.
+		// Trying to call it should fail.
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTxWithAccSeq(t, []std.Msg{callMsg}, chainID, key, 0, 1)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		// Should fail because the package was never deployed
+		require.False(t, resp.IsOK(), "DeliverTx should have failed — failed tx should not deploy package")
+	})
+
+	t.Run("SignerInfo is ignored when BlockHeight is zero", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "test-chain"
+
+			path = "gno.land/r/demo/genesismode"
+			body = `package genesismode
+
+var Deployed = true
+
+func IsDeployed(cur realm) bool { return Deployed }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "genesismode",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+
+		// Sign with the current chain ID (genesis-mode tx).
+		// BlockHeight=0 means SignerInfo should be ignored entirely.
+		tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID: chainID,
+			Time:    time.Now(),
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+				Validator: &abci.ValidatorParams{
+					PubKeyTypeURLs: []string{},
+				},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{
+					{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 0, // genesis-mode — SignerInfo must be ignored
+							SignerInfo: []SignerAccountInfo{
+								{
+									Address:    key.PubKey().Address(),
+									AccountNum: 999, // would corrupt state if applied
+									Sequence:   999,
+								},
+							},
+						},
+					},
+				},
+				Balances: []Balance{
+					{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				},
+				Auth: auth.DefaultGenesisState(),
+				Bank: bank.DefaultGenesisState(),
+				VM:   vm.DefaultGenesisState(),
+			},
+		})
+
+		// If SignerInfo was correctly ignored, the deployment should succeed
+		// with the normal account state (accNum=0, seq=0).
+		callMsg := vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "IsDeployed",
+		}
+
+		callTx := createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "true")
+	})
 }
 
 // newTestParamsKeeper creates a minimal ParamsKeeper with an in-memory store
