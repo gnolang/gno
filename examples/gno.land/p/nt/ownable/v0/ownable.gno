@@ -8,16 +8,16 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // ownable OR being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object.
 //
-// All authority-checking methods take an explicit `caller address`
-// parameter. Callers extract the appropriate address from their `cur`
-// realm at the call site:
+// Authority-mutating methods (TransferOwnership, DropOwnership) take
+// (_ int, rlm realm). The caller threads its own cur; the method
+// asserts rlm.IsCurrent() and identifies the principal as
+// rlm.Previous().Address() — which must equal the current owner.
 //
-//	o.TransferOwnership(cur.Address(), newOwner)             // realm-as-owner
-//	o.TransferOwnership(cur.Previous().Address(), newOwner)  // caller-of-realm-as-owner
+//	o.TransferOwnership(0, cur, newOwner)
+//	o.DropOwnership(0, cur)
 //
-// This replaces the previous current-vs-previous auth mode flag baked
-// into the struct — the choice now lives at each call site, which makes
-// the authority surface explicit at every use rather than at construction.
+// Read methods (OwnedBy, AssertOwnedBy) keep the bare-address shape;
+// callers extract the address themselves (e.g. cur.Previous().Address()).
 type Ownable struct {
 	owner address
 }
@@ -49,9 +49,20 @@ func (o *Ownable) AssertOwnedBy(addr address) {
 	}
 }
 
-// TransferOwnership transfers ownership of the Ownable to newOwner.
-// caller must equal the current owner.
-func (o *Ownable) TransferOwnership(caller, newOwner address) error {
+// TransferOwnership transfers ownership of the Ownable to newOwner. rlm
+// must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// The principal is rlm.Previous().Address() — the realm that crossed
+// into the caller — which must equal the current owner.
+//
+// IsCurrent + rlm.Previous() makes the principal unforgeable: an
+// attacker calling TransferOwnership on a foreign Ownable cannot supply
+// an arbitrary caller address; rlm comes from a runtime-validated
+// crossing frame.
+func (o *Ownable) TransferOwnership(_ int, rlm realm, newOwner address) error {
+	if !rlm.IsCurrent() {
+		return ErrUnauthorized
+	}
+	caller := rlm.Previous().Address()
 	if !o.OwnedBy(caller) {
 		return ErrUnauthorized
 	}
@@ -69,8 +80,13 @@ func (o *Ownable) TransferOwnership(caller, newOwner address) error {
 }
 
 // DropOwnership removes the owner, disabling any owner-related actions.
-// caller must equal the current owner.
-func (o *Ownable) DropOwnership(caller address) error {
+// rlm must be the caller's own captured cur; rlm.Previous().Address()
+// must equal the current owner.
+func (o *Ownable) DropOwnership(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrUnauthorized
+	}
+	caller := rlm.Previous().Address()
 	if !o.OwnedBy(caller) {
 		return ErrUnauthorized
 	}

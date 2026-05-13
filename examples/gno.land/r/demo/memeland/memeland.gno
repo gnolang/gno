@@ -33,7 +33,7 @@ func GetOwner() address {
 }
 
 func TransferOwnership(cur realm, newOwner address) {
-	if err := m.TransferOwnership(cur.Previous().Address(), newOwner); err != nil {
+	if err := m.TransferOwnership(0, cur, newOwner); err != nil {
 		panic(err)
 	}
 }

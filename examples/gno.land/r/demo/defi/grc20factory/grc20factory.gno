@@ -125,12 +125,12 @@ func Burn(cur realm, symbol string, from address, amount int64) {
 // instance admin functionality
 func DropInstanceOwnership(cur realm, symbol string) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.DropOwnership(cur.Previous().Address()))
+	checkErr(inst.admin.DropOwnership(0, cur))
 }
 
 func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.TransferOwnership(cur.Previous().Address(), newOwner))
+	checkErr(inst.admin.TransferOwnership(0, cur, newOwner))
 }
 
 func ListTokens(pageNumber, pageSize int) []*grc20.Token {

@@ -22,14 +22,20 @@ func TestNewFromOwnable(t *testing.T) {
 func TestSetUnpaused(t *testing.T) {
 	result := NewFromOwnable(o)
 
-	result.Unpause(firstCaller)
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	func(cur realm) {
+		urequire.NoError(t, result.Unpause(0, cur))
+	}(cross)
 	uassert.False(t, result.IsPaused(), "Expected result to be unpaused")
 }
 
 func TestSetPaused(t *testing.T) {
 	result := NewFromOwnable(o)
 
-	result.Pause(firstCaller)
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	func(cur realm) {
+		urequire.NoError(t, result.Pause(0, cur))
+	}(cross)
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
@@ -37,7 +43,10 @@ func TestIsPaused(t *testing.T) {
 	result := NewFromOwnable(o)
 	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
 
-	result.Pause(firstCaller)
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	func(cur realm) {
+		urequire.NoError(t, result.Pause(0, cur))
+	}(cross)
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 

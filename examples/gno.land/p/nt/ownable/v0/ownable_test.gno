@@ -21,29 +21,41 @@ func TestNewWithAddress(t *testing.T) {
 func TestTransferOwnership(t *testing.T) {
 	o := NewWithAddress(alice)
 
-	err := o.TransferOwnership(alice, bob)
-	urequire.NoError(t, err)
+	testing.SetRealm(testing.NewUserRealm(alice))
+	func(cur realm) {
+		urequire.NoError(t, o.TransferOwnership(0, cur, bob))
+	}(cross)
 
 	uassert.Equal(t, o.Owner(), bob)
 }
 
 func TestTransferOwnershipUnauthorized(t *testing.T) {
 	o := NewWithAddress(alice)
-	uassert.ErrorContains(t, o.TransferOwnership(bob, bob), ErrUnauthorized.Error())
+
+	testing.SetRealm(testing.NewUserRealm(bob))
+	func(cur realm) {
+		uassert.ErrorContains(t, o.TransferOwnership(0, cur, bob), ErrUnauthorized.Error())
+	}(cross)
 }
 
 func TestDropOwnership(t *testing.T) {
 	o := NewWithAddress(alice)
 
-	err := o.DropOwnership(alice)
-	urequire.NoError(t, err, "DropOwnership failed")
+	testing.SetRealm(testing.NewUserRealm(alice))
+	func(cur realm) {
+		urequire.NoError(t, o.DropOwnership(0, cur), "DropOwnership failed")
+	}(cross)
 
 	uassert.Empty(t, o.Owner(), "owner should be empty")
 }
 
 func TestDropOwnershipUnauthorized(t *testing.T) {
 	o := NewWithAddress(alice)
-	uassert.ErrorContains(t, o.DropOwnership(bob), ErrUnauthorized.Error())
+
+	testing.SetRealm(testing.NewUserRealm(bob))
+	func(cur realm) {
+		uassert.ErrorContains(t, o.DropOwnership(0, cur), ErrUnauthorized.Error())
+	}(cross)
 }
 
 func TestOwnedBy(t *testing.T) {
@@ -65,11 +77,14 @@ func TestAssertOwnedBy(t *testing.T) {
 
 func TestErrInvalidAddress(t *testing.T) {
 	o := NewWithAddress(alice)
-	err := o.TransferOwnership(alice, "")
-	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
-	err = o.TransferOwnership(alice, "10000000001000000000100000000010000000001000000000")
-	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
+	testing.SetRealm(testing.NewUserRealm(alice))
+	func(cur realm) {
+		uassert.ErrorContains(t, o.TransferOwnership(0, cur, ""), ErrInvalidAddress.Error())
+		uassert.ErrorContains(t,
+			o.TransferOwnership(0, cur, "10000000001000000000100000000010000000001000000000"),
+			ErrInvalidAddress.Error())
+	}(cross)
 }
 
 func TestNilReceiver(t *testing.T) {

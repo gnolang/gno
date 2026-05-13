@@ -228,7 +228,7 @@ func AdminSetOverride(cur realm, content string) {
 }
 
 func AdminTransferOwnership(cur realm, newOwner address) {
-	if err := Admin.TransferOwnership(cur.Previous().Address(), newOwner); err != nil {
+	if err := Admin.TransferOwnership(0, cur, newOwner); err != nil {
 		panic(err)
 	}
 }

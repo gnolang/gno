@@ -220,7 +220,7 @@ func init(cur realm) {
 }
 
 func TransferOwnership(cur realm, newOwner address) {
-	if err := admin.TransferOwnership(cur.Previous().Address(), newOwner); err != nil {
+	if err := admin.TransferOwnership(0, cur, newOwner); err != nil {
 		panic(err)
 	}
 }
