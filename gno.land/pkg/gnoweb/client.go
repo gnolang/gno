@@ -43,8 +43,10 @@ type ClientAdapter interface {
 	File(ctx context.Context, path, filename string, height int64) ([]byte, FileMeta, error)
 
 	// ListFiles lists all source files available in a specified
-	// package path.
-	ListFiles(ctx context.Context, path string) ([]string, error)
+	// package path. `height = 0` queries the latest block; non-zero
+	// pins the listing to a historical block so time-travel views
+	// stay consistent between file names and contents.
+	ListFiles(ctx context.Context, path string, height int64) ([]string, error)
 
 	// QueryPath list any path given the specified prefix
 	ListPaths(ctx context.Context, prefix string, limit int) ([]string, error)
@@ -134,13 +136,13 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 
 // ListFiles lists all source files available in a specified
 // package path by querying the RPC client.
-func (c *rpcClient) ListFiles(ctx context.Context, path string) ([]string, error) {
+func (c *rpcClient) ListFiles(ctx context.Context, path string, height int64) ([]string, error) {
 	const qpath = "vm/qfile"
 
 	// XXX: Consider moving this into gnoclient
 	pkgPath := strings.Trim(path, "/")
 	fullPath := fmt.Sprintf("%s/%s", c.domain, pkgPath)
-	res, err := c.query(ctx, qpath, []byte(fullPath), 0)
+	res, err := c.query(ctx, qpath, []byte(fullPath), height)
 	if err != nil {
 		return nil, err
 	}

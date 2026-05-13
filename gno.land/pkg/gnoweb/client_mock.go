@@ -82,7 +82,7 @@ func (m *MockClient) File(ctx context.Context, pkgPath, fileName string, _ int64
 }
 
 // ListFiles lists all source files available in a specified package path.
-func (m *MockClient) ListFiles(ctx context.Context, path string) ([]string, error) {
+func (m *MockClient) ListFiles(ctx context.Context, path string, _ int64) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context error: %w", err)
 	}

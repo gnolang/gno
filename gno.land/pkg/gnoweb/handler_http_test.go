@@ -62,7 +62,7 @@ func (s *stubClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 	return nil, errors.New("stubClient: Doc not implemented")
 }
 
-func (s *stubClient) ListFiles(ctx context.Context, path string) ([]string, error) {
+func (s *stubClient) ListFiles(ctx context.Context, path string, _ int64) ([]string, error) {
 	if s.listFilesFunc != nil {
 		return s.listFilesFunc(ctx, path)
 	}
@@ -77,15 +77,15 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 }
 
 func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {
-	return []byte(`[]`), nil
+	return []byte(`{"names":[],"values":[]}`), nil
 }
 
 func (s *stubClient) StateObject(_ context.Context, _ string, _ int64) ([]byte, error) {
-	return []byte(`[]`), nil
+	return []byte(`{"objectid":"","value":{"@type":"/gno.StructValue","Fields":[]}}`), nil
 }
 
 func (s *stubClient) StateType(_ context.Context, _ string, _ int64) ([]byte, error) {
-	return []byte(`{}`), nil
+	return []byte(`{"typeid":"","type":{"@type":"/gno.PrimitiveType","value":"32"}}`), nil
 }
 
 type rawRenderer struct{}

@@ -600,11 +600,12 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 
 func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := gnourl.Path
+	height := gnourl.Height()
 
-	files, err := h.Client.ListFiles(ctx, pkgPath)
+	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
-		return GetClientErrorStatusPage(gnourl, err, 0)
+		return GetClientErrorStatusPage(gnourl, err, height)
 	}
 
 	if len(files) == 0 {
@@ -717,11 +718,12 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 // GetDirectoryView renders the directory view for a package, showing available files.
 func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-	files, err := h.Client.ListFiles(ctx, pkgPath)
+	height := gnourl.Height()
+	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
 		if !errors.Is(err, ErrClientPackageNotFound) {
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
-			return GetClientErrorStatusPage(gnourl, err, 0)
+			return GetClientErrorStatusPage(gnourl, err, height)
 		}
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
