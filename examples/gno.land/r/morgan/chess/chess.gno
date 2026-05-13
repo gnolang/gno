@@ -2,7 +2,6 @@
 package chess
 
 import (
-	"chain/runtime"
 	"errors"
 	"time"
 
@@ -126,7 +125,7 @@ func (g GameState) IsFinished() bool {
 // parallel games OR by introducing a "request" system, so that a game is not
 // immediately considered "open" when calling NewGame.
 func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	if seconds >= 0 && increment < 0 {
 		panic("negative increment invalid")
 	}
@@ -250,7 +249,7 @@ func getGame(id string, wantOpen bool) *Game {
 // must be specified.
 // Castling is specified by indicating the king's movement.
 func MakeMove(cur realm, gameID, from, to string, promote chess.Piece) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
 
 	// determine if this is a black move
@@ -385,21 +384,21 @@ func ClaimTimeout(cur realm, gameID string) string {
 }
 
 func Abort(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	err := abort(g)
+	err := abort(0, cur, g)
 	if err != nil {
 		panic(err.Error())
 	}
 	return g.json()
 }
 
-func abort(g *Game) error {
+func abort(_ int, rlm realm, g *Game) error {
 	if len(g.Position.Moves) >= 2 {
 		return errors.New("game can no longer be aborted; if you wish to quit, resign")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := rlm.Previous().Address()
 	if caller != g.White && caller != g.Black {
 		return errors.New("you are not involved in this game")
 	}
@@ -412,20 +411,20 @@ func abort(g *Game) error {
 }
 
 func Resign(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
-	err := resign(g)
+	err := resign(0, cur, g)
 	if err != nil {
 		panic(err.Error())
 	}
 	return g.json()
 }
 
-func resign(g *Game) error {
+func resign(_ int, rlm realm, g *Game) error {
 	if len(g.Position.Moves) < 2 {
-		return abort(g)
+		return abort(0, rlm, g)
 	}
-	caller := runtime.PreviousRealm().Address()
+	caller := rlm.Previous().Address()
 	switch caller {
 	case g.Black:
 		g.State = GameStateResigned
@@ -445,7 +444,7 @@ func resign(g *Game) error {
 // DrawOffer creates a draw offer in the current game, if one doesn't already
 // exist.
 func DrawOffer(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
 	caller := cur.Previous().Address()
 
@@ -462,7 +461,7 @@ func DrawOffer(cur realm, gameID string) string {
 
 // DrawRefuse refuse a draw offer in the given game.
 func DrawRefuse(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
 	caller := cur.Previous().Address()
 
@@ -485,7 +484,7 @@ func DrawRefuse(cur realm, gameID string) string {
 // - Insufficient material (§9.4)
 // Note: stalemate happens as a consequence of a Move, and thus is handled in that function.
 func Draw(cur realm, gameID string) string {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	g := getGame(gameID, true)
 
 	caller := cur.Previous().Address()
@@ -539,8 +538,8 @@ func checkErr(err error) {
 // consume the origin-send envelope before calling us, bypassing the check.
 // For payment paths, use IsUserCall() (EOA only) — see
 // docs/resources/effective-gno.md#verifying-inbound-coin-payments.
-func assertOriginCall() {
-	if !runtime.PreviousRealm().IsUser() {
+func assertOriginCall(_ int, rlm realm) {
+	if !rlm.Previous().IsUser() {
 		panic("invalid non-origin call")
 	}
 }
