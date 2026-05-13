@@ -515,9 +515,9 @@ a typed handle on the realm-context at the moment of the crossing call.
   - `PkgPath() string` — the realm's pkgpath, or `""` at the chain root.
   - `Previous() realm` — the captured realm that was current before this
     one. At the chain root this returns a non-nil origin realm whose
-    `PkgPath() == ""` and whose own `Previous() == nil`.
-  - `Origin() realm` — the realm at the bottom of the captured cross-call
-    chain (walks `Previous()` until just before the chain root).
+    `PkgPath() == ""`; calling `Previous()` past the origin panics with
+    the same "frame not found" message `runtime.PreviousRealm()` uses
+    for the same walk-end.
   - `String() string` — debug-friendly representation.
 
 Parity with `runtime.{Current,Previous}Realm()` at every comparable

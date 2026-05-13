@@ -22,6 +22,5 @@ func main(cur realm) {
 // B Previous().Previous().PkgPath: gno.land/r/curchaintest
 // B Previous()^3 PkgPath empty (EOA origin): true
 // B Previous()^4 panics past origin: true
-// B Origin().PkgPath: gno.land/r/curchaintest
 // B parity cur==Current: true
 // B parity prev==Previous: true

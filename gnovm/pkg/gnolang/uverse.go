@@ -115,15 +115,7 @@ var gRealmType = &DeclaredType{
 						Type: nil,
 					}},
 				},
-			}, { // gets filled in init() below.
-				Name: "Origin",
-				Type: &FuncType{
-					Params: nil,
-					Results: []FieldType{{
-						Type: nil,
-					}},
-				},
-			}, { // gets filled in init() below.
+			}, {
 				Name: "String",
 				Type: &FuncType{
 					Params: nil,
@@ -266,9 +258,7 @@ func buildOriginRealm(m *Machine) TypedValue {
 // prev-field type.
 func init() {
 	gRealmPrevious := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Previous")
-	gRealmOrigin := gRealmType.Base.(*InterfaceType).GetMethodFieldType("Origin")
 	gRealmPrevious.Type.(*FuncType).Results[0].Type = gRealmType
-	gRealmOrigin.Type.(*FuncType).Results[0].Type = gRealmType
 
 	// Patch the prev field's type (forward reference; see field 2 above).
 	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
@@ -1173,35 +1163,6 @@ func makeUverseNode() {
 			sv := derefRealmStruct(arg0.TV)
 			path := sv.Fields[1].GetString()
 			m.PushValue(typedString(path))
-		},
-	)
-	defNativeMethod(".grealm", "Origin",
-		nil, // params
-		Flds( // results
-			"", "realm",
-		),
-		func(m *Machine) {
-			// Walk the prev chain until the next prev points at an
-			// origin / EOA realm (or has no further pointer): the
-			// current node is the chain root (the realm at the bottom
-			// of the captured cross-call stack, e.g. the first realm
-			// entered from the EOA).
-			arg0 := m.LastBlock().GetParams1(nil)
-			cur := arg0.TV
-			for {
-				sv := derefRealmStruct(cur)
-				prev := sv.Fields[2]
-				pv, ok := prev.V.(PointerValue)
-				if !ok || pv.TV == nil {
-					m.PushValue(*cur)
-					return
-				}
-				if hiv, ok := pv.Base.(*HeapItemValue); ok && isOriginRealmHIV(hiv) {
-					m.PushValue(*cur)
-					return
-				}
-				cur = &prev
-			}
 		},
 	)
 	defNativeMethod(".grealm", "Previous",

@@ -7,10 +7,9 @@ package curchain_b
 import "chain/runtime"
 
 // B is a crossing function that prints the captured chain reached via
-// .Previous() walks, plus the chain root via .Origin(). It also asserts
-// that cur and runtime.CurrentRealm() / runtime.PreviousRealm() agree
-// at the cross-callee position (the chain-root case is covered separately
-// by zrealm_cur_parity).
+// .Previous() walks and asserts parity with runtime.CurrentRealm() /
+// runtime.PreviousRealm() at the cross-callee position. The chain-root
+// case is covered separately by zrealm_cur_parity.
 //
 // Chain layout for callsite main -> curchain_a.A -> curchain_b.B:
 //   cur                  = B
@@ -33,7 +32,6 @@ func B(cur realm) {
 		}()
 		_ = p3.Previous()
 	}()
-	println("B Origin().PkgPath:", cur.Origin().PkgPath())
 
 	// Parity at cross-callee position: cur agrees with
 	// runtime.CurrentRealm(), and cur.Previous() (the caller realm
