@@ -22,7 +22,7 @@ export class StateController extends BaseController {
 	private bulkInProgress = false;
 
 	protected connect(): void {
-		this.viewTree = this.element.querySelector<HTMLElement>(".view-tree");
+		this.viewTree = this.getTarget("view-tree");
 
 		const pkg = this.getValue("pkg") || "global";
 		this.treeStorageKey = `state_tree_open:${pkg}`;
@@ -141,6 +141,20 @@ export class StateController extends BaseController {
 			localStorage.setItem(VIEW_STORAGE_KEY, mode);
 		} catch {}
 		setPrefCookie(VIEW_COOKIE_KEY, mode, COOKIE_MAX_AGE);
+		this.syncTocAria(mode);
+	}
+
+	private syncTocAria(mode: string): void {
+		const activeKey = mode === "tree" ? "toc-tree" : "toc-pretty";
+		const inactiveKey = mode === "tree" ? "toc-pretty" : "toc-tree";
+		for (const a of this.getTargets(activeKey)) {
+			a.removeAttribute("aria-hidden");
+			a.removeAttribute("tabindex");
+		}
+		for (const a of this.getTargets(inactiveKey)) {
+			a.setAttribute("aria-hidden", "true");
+			a.setAttribute("tabindex", "-1");
+		}
 	}
 
 	// Safety net: if the SSR cookie was stripped (privacy ext, proxy)
@@ -161,6 +175,7 @@ export class StateController extends BaseController {
 				!radio.checked
 			) {
 				radio.checked = true;
+				this.syncTocAria(saved);
 				return;
 			}
 		}

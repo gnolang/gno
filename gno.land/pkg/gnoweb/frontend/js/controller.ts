@@ -3,6 +3,7 @@ import {
 	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
+	setPrefCookie,
 	toCamelCase,
 	toKebabCase,
 } from "./utils.js";
@@ -250,6 +251,7 @@ export {
 	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
+	setPrefCookie,
 	toCamelCase,
 	toKebabCase,
 };
