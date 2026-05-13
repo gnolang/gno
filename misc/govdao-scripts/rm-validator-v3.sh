@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-# Remove a validator via govDAO proposal.
+# Remove an operator from the test-13 active valset via govDAO proposal.
+#
+# Routes through r/sys/validators/v3's operator-keyed
+# NewValidatorProposalRequest (non-crossing) with Power=0. This is a
+# force-remove — unlike the higher-level facade in
+# r/gnops/valopers/proposal.NewValidatorProposalRequest, this does
+# not require the operator to have called UpdateKeepRunning(false)
+# first. The operator must still exist in r/gnops/valopers'
+# valoperCache (v3 enforces that at proposal-creation time).
 #
 # Usage:
-#   ./rm-validator.sh <address>
+#   ./rm-validator.sh <operator_address>
 #
 # Environment: see README.md.
 set -eo pipefail
@@ -14,10 +22,10 @@ GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $0 <address>"
+  echo "Usage: $0 <operator_address>"
   echo ""
   echo "Example:"
-  echo "  $0 g1abc...xyz"
+  echo "  $0 g1s2ht24e85qq3t66gc9sgdvk5kzc38yy68aaqvr"
   exit 1
 fi
 
@@ -30,23 +38,17 @@ cat >"$TMPDIR/rm_validator.gno" <<GOEOF
 package main
 
 import (
-	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao"
-	valr "gno.land/r/sys/validators/v2"
+	valv3 "gno.land/r/sys/validators/v3"
 )
 
 func main() {
-	r := valr.NewPropRequest(
-		func() []validators.Validator {
-			return []validators.Validator{
-				{
-					Address:     address("${ADDR}"),
-					VotingPower: 0,
-				},
-			}
+	r := valv3.NewValidatorProposalRequest(
+		[]valv3.ValoperChange{
+			{OperatorAddress: address("${ADDR}"), Power: 0},
 		},
 		"Remove validator ${ADDR}",
-		"Remove validator ${ADDR} from the validator set",
+		"Remove operator ${ADDR} from the active valset.",
 	)
 	pid := dao.MustCreateProposal(cross, r)
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
