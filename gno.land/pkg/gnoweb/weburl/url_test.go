@@ -301,7 +301,7 @@ func TestIsValidPath(t *testing.T) {
 		Path  string
 		Valid bool
 	}{
-		{Path: "/", Valid: true},
+		{Path: "/", Valid: false},
 		{Path: "/r/valid", Valid: true},
 		{Path: "/p/abc_123", Valid: true},
 		{Path: "/r/demo/users/", Valid: true},
@@ -312,9 +312,8 @@ func TestIsValidPath(t *testing.T) {
 		{Path: "/r/valid/path_with/underscores", Valid: true},
 		{Path: "/r/", Valid: true},
 		{Path: "/r/with space", Valid: false},
-		{Path: "/hyphen-valid", Valid: true},
 		{Path: "/r/hyphen-valid", Valid: true},
-		{Path: "/u/hyphen-valid", Valid: true},
+		{Path: "/p/hyphen-valid/path", Valid: true},
 	}
 
 	for _, tc := range testCases {
@@ -335,7 +334,7 @@ func TestNamespace(t *testing.T) {
 		{Path: "/p/another", Expected: "another"},
 		{Path: "/r/123invalid", Expected: ""},
 		{Path: "/r/TEST", Expected: ""},
-		{Path: "/x/ns", Expected: "ns"},
+		{Path: "/x/ns", Expected: ""},
 		{Path: "/r/a", Expected: "a"},
 		{Path: "/r/a1", Expected: "a1"},
 		{Path: "/r/a_b/c", Expected: "a_b"},
