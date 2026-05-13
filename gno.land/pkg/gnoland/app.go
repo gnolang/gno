@@ -958,10 +958,15 @@ func EndBlocker(
 	}
 }
 
-// checkSessionRestrictions enforces gno.land session key restrictions:
-// sessions can only send msg types in the allowlist below, and if
-// AllowPaths is set, the target path must match one of the allowed
-// prefixes (which blocks path-less msgs in that mode — see below).
+// checkSessionRestrictions enforces gno.land session key restrictions.
+// Two filters apply, in order:
+//
+//  1. sessionAlwaysDenied — auth/* and vm/add_package. Hard floor: never
+//     permitted, even with "*" entry.
+//  2. AllowPaths match — session's per-msg allow-list (validated at
+//     create-time by handleMsgCreateSession; the "*" entry matches any).
+//
+// SpendLimit is enforced separately at the bank keeper layer; see ADR-001.
 func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 	sa := ctx.Value(std.SessionAccountsContextKey{})
 	if sa == nil {
@@ -970,95 +975,95 @@ func checkSessionRestrictions(ctx sdk.Context, tx std.Tx) (sdk.Result, bool) {
 	sessions := sa.(map[crypto.Address]std.DelegatedAccount)
 	for _, msg := range tx.GetMsgs() {
 		for _, signer := range msg.GetSigners() {
-			_, ok := sessions[signer]
+			sess, ok := sessions[signer]
 			if !ok {
 				continue
 			}
-			// Allowlist of msg types a session key may send.
-			// Allowed:
-			//   - "exec" (MsgCall)       — coin moves via bank.SendCoins
-			//   - "run"  (MsgRun)        — coin moves via bank.SendCoins
-			//   - "send" (bank.MsgSend)  — coin moves via bank.SendCoins
-			//   - "multisend" (bank.MsgMultiSend) — coin moves via
-			//     bank.InputOutputCoins
-			//
-			// Session spend for all of these is enforced inside the tm2
-			// bank keeper: SendCoins calls auth.CheckAndDeductSessionSpend
-			// after its canSendCoins check, and InputOutputCoins does the
-			// same per input. Storage deposits (via lockStorageDeposit)
-			// also call CheckAndDeductSessionSpend before their
-			// SendCoinsUnrestricted transfer. So SpendLimit is
-			// authoritative across every tx-initiated outflow, including
-			// in-realm std.Send calls from gno code.
-			//
-			// Permanently blocked (design, not TODO):
-			//   - "add_package" — sessions must not claim realm paths
-			//     in master's namespace.
-			//   - "create_session" / "revoke_session" /
-			//     "revoke_all_sessions" — privilege escalation; a session
-			//     that can mint or revoke sessions is equivalent to the
-			//     master key.
-			//
-			// This check uses DelegatedAccount presence in the map, NOT
-			// a type assertion to *GnoSessionAccount, so it cannot be
-			// bypassed by a different session account type.
-			switch msg.Type() {
-			case "exec", "run", "send", "multisend":
-				// allowed
-			default:
-				return sdk.ABCIResultFromError(
-					std.ErrSessionNotAllowed(fmt.Sprintf(
-						"msg type %q not allowed for session key (allowed: exec, run, send, multisend)",
-						msg.Type()))), true
+			if sessionAlwaysDenied(msg) {
+				return sdk.ABCIResultFromError(std.ErrSessionNotAllowed(fmt.Sprintf(
+					"msg %s/%s cannot be signed by a session (privilege escalation)",
+					msg.Route(), msg.Type(),
+				))), true
 			}
-			// AllowPaths check — only applies to GnoSessionAccount.
-			// Other DelegatedAccount types have no path restrictions
-			// (but are still restricted to the allowlist above).
-			//
-			// Note: MsgRun, MsgSend, and MsgMultiSend do not implement
-			// pkgPather, so when AllowPaths is non-empty,
-			// pathAllowedForSession returns false and they are blocked.
-			// This is intentional: a session with AllowPaths set is
-			// realm-scoped; path-less msgs (arbitrary code execution,
-			// direct value transfers) would escape that scope.
-			type pathRestricted interface{ GetAllowPaths() []string }
-			if pr, ok := sessions[signer].(pathRestricted); ok {
-				if paths := pr.GetAllowPaths(); len(paths) > 0 && !pathAllowedForSession(paths, msg) {
-					type pkgPather interface{ GetPkgPath() string }
-					attemptedPath := ""
-					if pp, ok := msg.(pkgPather); ok {
-						attemptedPath = pp.GetPkgPath()
-					}
-					if attemptedPath == "" {
-						// Path-less msg (MsgRun / MsgSend / MsgMultiSend).
-						return sdk.ABCIResultFromError(
-							std.ErrSessionNotAllowed(fmt.Sprintf(
-								"msg type %q has no realm path but session has AllowPaths set (%v); path-less msgs are blocked for realm-scoped sessions",
-								msg.Type(), paths))), true
-					}
-					return sdk.ABCIResultFromError(
-						std.ErrSessionNotAllowed(fmt.Sprintf(
-							"path %q not in session AllowPaths %v", attemptedPath, paths))), true
-				}
+			entries, err := parseAllowPaths(sessionAllowPathsRaw(sess))
+			if err != nil {
+				// Handler validates at create-time; fail closed if seen at runtime.
+				return sdk.ABCIResultFromError(std.ErrSessionNotAllowed(
+					"invalid stored AllowPaths: " + err.Error())), true
+			}
+			if !anyEntryMatches(entries, msg) {
+				return sdk.ABCIResultFromError(std.ErrSessionNotAllowed(fmt.Sprintf(
+					"msg %s/%s%s not permitted by session AllowPaths %v",
+					msg.Route(), msg.Type(), pkgPathSuffix(msg),
+					sessionAllowPathsRaw(sess),
+				))), true
 			}
 		}
 	}
 	return sdk.Result{}, false
 }
 
-// pathAllowedForSession checks if a message's target path is allowed
-// by the session's AllowPaths.
-func pathAllowedForSession(allowPaths []string, msg std.Msg) bool {
+// sessionAlwaysDenied reports whether a msg can never be signed by a session,
+// regardless of AllowPaths. Auth is denied at the route level (forward-compat
+// against new auth msgs); vm/add_package at the type level.
+func sessionAlwaysDenied(msg std.Msg) bool {
+	if msg.Route() == "auth" {
+		return true
+	}
+	if msg.Route() == "vm" && msg.Type() == "add_package" {
+		return true
+	}
+	return false
+}
+
+// sessionAllowPathsRaw extracts the AllowPaths slice via a local interface
+// (concrete type is *GnoSessionAccount).
+func sessionAllowPathsRaw(sess std.DelegatedAccount) []string {
+	type pathRestricted interface{ GetAllowPaths() []string }
+	if pr, ok := sess.(pathRestricted); ok {
+		return pr.GetAllowPaths()
+	}
+	return nil
+}
+
+// anyEntryMatches reports whether any allow-list entry permits the msg.
+func anyEntryMatches(entries []allowPathsEntry, msg std.Msg) bool {
+	for _, e := range entries {
+		if entryMatchesMsg(e, msg) {
+			return true
+		}
+	}
+	return false
+}
+
+// entryMatchesMsg reports whether a single entry permits the msg. Path
+// matching uses the prefix rule (exact or sub-path guarded by "/") to
+// preserve the prefix-attack defense (see TestSessionAllowPathsPrefixAttack).
+func entryMatchesMsg(e allowPathsEntry, msg std.Msg) bool {
+	if e.Wildcard {
+		return true
+	}
+	if e.Route != msg.Route() || e.Type != msg.Type() {
+		return false
+	}
+	if e.Path == "" {
+		return true
+	}
 	type pkgPather interface{ GetPkgPath() string }
 	pp, ok := msg.(pkgPather)
 	if !ok {
 		return false
 	}
 	path := pp.GetPkgPath()
-	for _, prefix := range allowPaths {
-		if path == prefix || strings.HasPrefix(path, prefix+"/") {
-			return true
-		}
+	return path == e.Path || strings.HasPrefix(path, e.Path+"/")
+}
+
+// pkgPathSuffix renders " (path %q)" for path-bearing msgs and "" otherwise,
+// for use in error messages.
+func pkgPathSuffix(msg std.Msg) string {
+	type pkgPather interface{ GetPkgPath() string }
+	if pp, ok := msg.(pkgPather); ok {
+		return fmt.Sprintf(" (path %q)", pp.GetPkgPath())
 	}
-	return false
+	return ""
 }
