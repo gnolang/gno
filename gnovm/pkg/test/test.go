@@ -540,10 +540,16 @@ func (opts *TestOptions) runTestFiles(
 			// via `m.M(0, cur, ...)` see `cur.Previous()` panic at the
 			// chain boundary, matching production semantics where an EOA
 			// MsgCall path collapses to the origin at the p/ boundary.
+			//
+			// Both paths use NewOriginRealmTV to allocate a FRESH origin-
+			// shape struct rather than the singleton gOriginRealmTV —
+			// testing.SetRealm mutates fr.Cur's fields in place, so
+			// sharing the singleton would let one test's SetRealm corrupt
+			// every subsequent package's init cur.
 			if gno.IsRealmPath(mpkg.Path) {
-				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(nil, mpkg.Path, gno.OriginRealmTV()))
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(nil, mpkg.Path, gno.NewOriginRealmTV(nil)))
 			} else {
-				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.OriginRealmTV())
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewOriginRealmTV(nil))
 			}
 			m.SetActivePackage(pv)
 		} else {

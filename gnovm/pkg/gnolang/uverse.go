@@ -304,6 +304,18 @@ func init() {
 // outside this package (e.g., pkg/test/test.go).
 func OriginRealmTV() TypedValue { return gOriginRealmTV }
 
+// NewOriginRealmTV builds a FRESH origin-shape realm value (addr="",
+// pkgPath="", prev=truly-nil) backed by a brand-new *HeapItemValue. Use
+// this when the caller intends to write to the cur (e.g. test frames
+// that may receive testing.SetRealm overrides) — mutating the
+// gOriginRealmTV-backed struct in place would corrupt the global
+// placeholder for every subsequent caller. The shape still satisfies
+// isOriginRealmHIV (prev truly-nil), so persistence guards continue
+// to exempt it.
+func NewOriginRealmTV(alloc *Allocator) TypedValue {
+	return newRealmHIVPointer(alloc, "", "", TypedValue{})
+}
+
 // NewConcreteRealm builds a captured realm value as a pointer-typed
 // TypedValue. Equality (PointerKind ==) is pointer-identity: two captured
 // curs compare equal iff they reference the same *HeapItemValue — i.e.,
