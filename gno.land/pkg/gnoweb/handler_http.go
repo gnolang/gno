@@ -799,8 +799,12 @@ func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL,
 
 	if err != nil {
 		h.Logger.Error("unable to fetch state json", "error", err, "path", gnourl.EncodeURL(), "height", height)
-		status, _ := stateErrorPage(gnourl, err, height)
-		writeStateJSONError(w, status, err.Error())
+		status, msg := stateErrorStatus(err, height)
+		if msg == "" {
+			status, _ = GetClientErrorStatusPage(gnourl, err)
+			msg = err.Error()
+		}
+		writeStateJSONError(w, status, msg)
 		return
 	}
 
@@ -1130,16 +1134,24 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 // height (which they control via the URL) is the cause. PackageNotFound
 // stays a 404 even at height>0 (path is wrong regardless of height).
 func stateErrorPage(gnourl *weburl.GnoURL, err error, height int64) (int, *components.View) {
-	// Not-found verdicts are authoritative regardless of height — a wrong
-	// path/OID stays wrong whether we pin the height or not.
-	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
-		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
-	}
-	if height > 0 {
-		return http.StatusBadRequest, components.StatusErrorComponent(
-			fmt.Sprintf("block height %d is not available", height))
+	status, msg := stateErrorStatus(err, height)
+	if msg != "" {
+		return status, components.StatusErrorComponent(msg)
 	}
 	return GetClientErrorStatusPage(gnourl, err)
+}
+
+// stateErrorStatus is the shared classifier behind stateErrorPage and
+// the `?state&json` envelope writer. Empty msg means fall back to
+// GetClientErrorStatusPage (HTML) or the raw err.Error() (JSON).
+func stateErrorStatus(err error, height int64) (int, string) {
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
+		return http.StatusNotFound, err.Error()
+	}
+	if height > 0 {
+		return http.StatusBadRequest, fmt.Sprintf("block height %d is not available", height)
+	}
+	return 0, ""
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {

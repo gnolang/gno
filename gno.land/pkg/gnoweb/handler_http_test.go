@@ -1402,6 +1402,34 @@ func TestHTTPHandler_GetStateView_HeightOutOfRange(t *testing.T) {
 		"error message tells the user which height failed")
 }
 
+// TestHTTPHandler_ServeStateJSON_HeightOutOfRange — `?state&json` must
+// surface pinned-height failures as 400 + the same friendly message the
+// HTML page shows, not the generic upstream RPC error string.
+func TestHTTPHandler_ServeStateJSON_HeightOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	const realmPath = "/r/test/heighterrjson"
+
+	client := &stateStubClient{
+		stubClient: &stubClient{},
+		statePkgFunc: func(_ context.Context, _ string) ([]byte, error) {
+			return nil, gnoweb.ErrClientResponse
+		},
+	}
+
+	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
+		newTestHandlerConfig(t, client))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
+		realmPath+"$state&json&height=99999999", nil))
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code, "out-of-range height surfaces as 400, not 500")
+	assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"))
+	assert.Contains(t, rr.Body.String(), `"error":"block height 99999999 is not available"`,
+		"JSON envelope carries the same friendly message as the HTML page")
+}
+
 // TestHTTPHandler_GetStateView_ViewModeCookie pins the server-side
 // rendering of the saved Pretty/Tree choice. The state-view JS controller
 // writes a `state_view_mode` cookie on every toggle; the handler reads
