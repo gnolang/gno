@@ -85,26 +85,44 @@ func TestOwnedByCurrent(cur realm, t *testing.T) {
 	uassert.False(t, o.OwnedByCurrent(0, cur))
 }
 
+func TestOwnedByCurrentUnauthorized(cur realm, t *testing.T) {
+	// Mirrors the original: NewWithOrigin called from inside a code-realm
+	// scope where the EOA origin is alice, then OwnedByCurrent checked
+	// from outside that scope (alice still current). Final check: when
+	// bob becomes current, OwnedByCurrent returns false.
+	const testPkgPath = "gno.land/r/test/test"
+	aliceRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
+	crossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, aliceRealm)
+	o := NewWithOrigin(0, crossed)
+
+	uassert.True(t, o.OwnedByCurrent(0, aliceRealm))
+
+	bobRealm := testing.MakeRealm(bob, "", testing.OriginRealm())
+	uassert.False(t, o.OwnedByCurrent(0, bobRealm))
+}
+
 func TestOwnedByPrevious(cur realm, t *testing.T) {
-	// Assemble cur values explicitly: alice EOA crosses into r/test/test.
-	// Inside r/test/test, cur.Previous() points back at alice — exactly
-	// what an OwnedByPrevious check needs to authenticate alice as caller.
+	// Mirrors the original: owner is alice (via SetOriginCaller(alice));
+	// a code realm has crossed into us so cur.Previous() == alice; the
+	// OwnedByPrevious check should authenticate alice as caller.
+	const testPkgPath = "gno.land/r/test/test"
 	aliceRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
 	o := New(0, aliceRealm)
 
-	const testPkgPath = "gno.land/r/test/test"
 	crossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, aliceRealm)
 	uassert.True(t, o.OwnedByPrevious(0, crossed))
 }
 
 func TestOwnedByPreviousUnauthorized(cur realm, t *testing.T) {
-	// bob owns o; an unrelated user crosses into r/test/test, so
-	// cur.Previous() is that user — not bob. OwnedByPrevious returns false.
-	o := NewWithAddress(bob)
-
+	// Mirrors the original: owner is alice; then bob (unauthorized) is
+	// the current realm; a code realm has crossed into bob, so
+	// cur.Previous() == bob — not the owner. OwnedByPrevious returns false.
 	const testPkgPath = "gno.land/r/test/test"
-	unrelatedRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
-	crossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, unrelatedRealm)
+	aliceRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
+	o := New(0, aliceRealm)
+
+	bobRealm := testing.MakeRealm(bob, "", testing.OriginRealm())
+	crossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, bobRealm)
 	uassert.False(t, o.OwnedByPrevious(0, crossed))
 }
 
