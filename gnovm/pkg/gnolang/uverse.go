@@ -147,6 +147,12 @@ var gRealmType = &DeclaredType{
 					Results: []FieldType{{Type: BoolType}},
 				},
 			}, {
+				Name: "IsCurrent",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: BoolType}},
+				},
+			}, {
 				Name: "String",
 				Type: &FuncType{
 					Params: nil,
@@ -356,6 +362,19 @@ func derefRealmStruct(tv *TypedValue) *StructValue {
 	}
 	sv, _ := tv.V.(*StructValue)
 	return sv
+}
+
+// realmHIV extracts the underlying *HeapItemValue from a realm TypedValue.
+// Returns nil for the value-receiver path (bare *StructValue with no HIV
+// wrapper) — pointer-identity comparison is meaningful only in the
+// pointer-typed form produced by newRealmHIVPointer.
+func realmHIV(tv *TypedValue) *HeapItemValue {
+	pv, ok := tv.V.(PointerValue)
+	if !ok {
+		return nil
+	}
+	hiv, _ := pv.Base.(*HeapItemValue)
+	return hiv
 }
 
 // realmIsEphemeral reports whether pkgPath matches the ephemeral pattern
@@ -1322,6 +1341,54 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1(nil)
 			sv := derefRealmStruct(arg0.TV)
 			m.PushValue(typedBool(realmIsEphemeral(sv.Fields[1].GetString())))
+		},
+	)
+	// IsCurrent returns true iff the receiver is the captured cur of the
+	// topmost crossing frame on the live call stack — i.e., the receiver
+	// was minted by installCrossingCur for the currently-executing
+	// crossing-function invocation, not derived from a .Previous() walk
+	// nor obtained from a sibling/ancestor crossing frame.
+	//
+	// Comparison is pointer-identity on the underlying *HeapItemValue,
+	// not (addr, pkgPath) equality: two distinct cross-calls into the
+	// same realm (A→B→A re-entry, or A→B return → A again) mint distinct
+	// .grealm HIVs, so IsCurrent returns true for at most one frame's
+	// cur at any moment.
+	//
+	// Receivers reached only via the bare-struct value-receiver path (no
+	// HIV wrapper) always return false, since pointer-identity comparison
+	// has no anchor there. Returns false when no crossing frame is in
+	// scope (top of machine during package init's non-crossing entry,
+	// MsgRun main, etc.).
+	defNativeMethod(".grealm", "IsCurrent",
+		nil,
+		Flds("", "bool"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			recvHIV := realmHIV(arg0.TV)
+			if recvHIV == nil {
+				m.PushValue(typedBool(false))
+				return
+			}
+			for i := len(m.Frames) - 1; i >= 0; i-- {
+				fr := &m.Frames[i]
+				if !fr.IsCall() {
+					continue
+				}
+				if !(fr.WithCross || fr.DidCrossing) {
+					continue
+				}
+				if fr.Cur.T == nil {
+					continue
+				}
+				curHIV := realmHIV(&fr.Cur)
+				if curHIV == nil {
+					continue
+				}
+				m.PushValue(typedBool(curHIV == recvHIV))
+				return
+			}
+			m.PushValue(typedBool(false))
 		},
 	)
 	defNativeMethod(".grealm", "String",

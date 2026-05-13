@@ -48,6 +48,7 @@ type realm interface {
     IsUserCall() bool
     IsUserRun() bool
     IsEphemeral() bool
+    IsCurrent() bool
     String() string
 }
 type Realm = realm
