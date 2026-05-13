@@ -10,8 +10,18 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+// newTestToken constructs a Token with a fresh crossing-frame cur so
+// NewToken's IsCurrent check + rlm.PkgPath() derivation works in p/ test
+// scope. The closure's package path becomes the Token's origRealm.
+func newTestToken(name, symbol string, decimals int) (tok *Token, adm *PrivateLedger) {
+	func(cur realm) {
+		tok, adm = NewToken(0, cur, name, symbol, decimals)
+	}(cross)
+	return
+}
+
 func TestTestImpl(t *testing.T) {
-	bank, _ := NewToken("Dummy", "DUMMY", 4)
+	bank, _ := newTestToken("Dummy", "DUMMY", 4)
 	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
@@ -22,7 +32,7 @@ func TestToken(t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	bank, adm := NewToken("Dummy", "DUMMY", 6)
+	bank, adm := newTestToken("Dummy", "DUMMY", 6)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -82,7 +92,7 @@ func TestToken(t *testing.T) {
 func TestMintOverflow(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := NewToken("Dummy", "DUMMY", 6)
+	tok, adm := newTestToken("Dummy", "DUMMY", 6)
 
 	safeValue := int64(1 << 62)
 	urequire.NoError(t, adm.Mint(alice, safeValue))
@@ -101,7 +111,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 		recipient        = testutils.TestAddress("to")
 	)
 
-	token, admin := NewToken("Test", "TEST", 6)
+	token, admin := newTestToken("Test", "TEST", 6)
 
 	// owner has 100 tokens, spender has 50 allowance
 	initialBalance := int64(100)
@@ -136,7 +146,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 func TestMintUntilOverflow(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := NewToken("Dummy", "DUMMY", 6)
+	tok, adm := newTestToken("Dummy", "DUMMY", 6)
 
 	tests := []struct {
 		name           string

@@ -10,7 +10,7 @@ import (
 )
 
 func TestCallerTellerImpl(t *testing.T) {
-	tok, _ := NewToken("Dummy", "DUMMY", 4)
+	tok, _ := newTestToken("Dummy", "DUMMY", 4)
 	teller := tok.CallerTeller()
 	urequire.False(t, tok == nil)
 	var _ Teller = teller
@@ -30,7 +30,7 @@ func TestTeller(t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	token, ledger := NewToken("Dummy", "DUMMY", 6)
+	token, ledger := newTestToken("Dummy", "DUMMY", 6)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -92,7 +92,7 @@ func TestCallerTeller(t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
-	token, ledger := NewToken("Dummy", "DUMMY", 6)
+	token, ledger := newTestToken("Dummy", "DUMMY", 6)
 	teller := token.CallerTeller()
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {

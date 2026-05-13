@@ -110,6 +110,7 @@ var (
 	ErrMintOverflow          = errors.New("mint overflow")
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
+	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
 )
 
 const (

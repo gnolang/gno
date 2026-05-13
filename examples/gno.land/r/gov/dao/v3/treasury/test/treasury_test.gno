@@ -71,7 +71,7 @@ type keyedToken struct {
 	token *grc20.Token
 }
 
-func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []keyedToken {
+func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, toMint address) []keyedToken {
 	t.Helper()
 
 	var (
@@ -82,7 +82,7 @@ func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []ke
 	for _, name := range tokenNames {
 		// Create the token.
 		symbol := strings.ToUpper(name)
-		token, ledger := grc20.NewToken(name, symbol, 0)
+		token, ledger := grc20.NewToken(0, rlm, name, symbol, 0)
 
 		// Register the token.
 		grc20reg.Register(cross, token, symbol)
@@ -178,6 +178,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 
 	// Create 3 GRC20 tokens and register them.
 	keyedTokens := registerGRC20Tokens(
+		0, cur,
 		t,
 		[]string{"TestToken0", "TestToken1", "TestToken2"},
 		treasuryAddr,

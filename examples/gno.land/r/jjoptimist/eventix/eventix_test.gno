@@ -85,10 +85,16 @@ func TestBuyTicket(t *testing.T) {
 func TestBuyTicketWithGRC20(t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
 
-	// Create a test GRC20 token and set up addresses
-	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
+	// Token construction needs a realm-context cur (NewToken asserts
+	// IsCurrent + non-empty PkgPath); SetRealm-to-EOA happens after.
+	var token *grc20.Token
+	var ledger *grc20.PrivateLedger
+	func(cur realm) {
+		token, ledger = grc20.NewToken(0, cur, "Test Token", "TEST", 6)
+	}(cross)
+
+	testing.SetRealm(testing.NewUserRealm(alice))
 	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	adminAddr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
 

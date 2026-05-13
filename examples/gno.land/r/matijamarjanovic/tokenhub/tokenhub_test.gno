@@ -19,7 +19,7 @@ func TestTokenRegistration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	token, _ := grc20.NewToken("Test Token", "TEST", 6)
+	token, _ := grc20.NewToken(0, cur, "Test Token", "TEST", 6)
 	RegisterToken(cross, token, "test_token")
 
 	retrievedToken := GetToken("gno.land/r/matijamarjanovic/tokenhub.test_token")
@@ -70,7 +70,7 @@ func TestBalanceRetrieval(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
+	token, ledger := grc20.NewToken(0, cur, "Test Token", "TEST", 6)
 	RegisterToken(cross, token, "test_token")
 	ledger.Mint(runtime.CurrentRealm().Address(), 1000)
 
@@ -118,7 +118,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
+	grc20Token, _ := grc20.NewToken(0, cur, "Test Token", "TEST", 6)
 	RegisterToken(cross, grc20Token, "listing_token")
 
 	grc20List := GetAllTokens()
@@ -152,7 +152,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 func TestMustGetFunctions(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
-	token, _ := grc20.NewToken("Must Token", "MUST", 6)
+	token, _ := grc20.NewToken(0, cur, "Must Token", "MUST", 6)
 	RegisterToken(cross, token, "must_token")
 
 	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/tokenhub.must_token")

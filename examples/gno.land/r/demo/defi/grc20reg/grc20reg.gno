@@ -13,22 +13,12 @@ import (
 
 var registry = avl.NewTree() // rlmPath[.slug] -> *Token (slug is optional)
 
-// NewToken creates a GRC20 Token whose origRealm is bound to the realm
-// that crossed into this function. cur.Previous().PkgPath() is captured
-// at the crossing boundary, so origRealm is unforgeable by non-crossing
-// callers (post-cross(cur) migration). The token is NOT auto-registered;
-// callers must follow up with Register(cross, token, slug) if they want
-// it discoverable in this registry.
+// Construction lives in grc20.NewToken — it now takes (_ int, rlm realm)
+// and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
+// Use this package's Register to make a token discoverable:
 //
-// Returns the Token and its PrivateLedger. The PrivateLedger grants
-// Mint/Burn capability — keep it private.
-func NewToken(cur realm, name, symbol string, decimals int) (*grc20.Token, *grc20.PrivateLedger) {
-	callerPkgPath := cur.Previous().PkgPath()
-	if callerPkgPath == "" {
-		panic("grc20reg.NewToken: must be called by a realm via cross")
-	}
-	return grc20.NewTokenWithOrigRealm(callerPkgPath, name, symbol, decimals)
-}
+//	Token, ledger := grc20.NewToken(0, cur, name, symbol, decimals)
+//	grc20reg.Register(cross, Token, "")
 
 func Register(cur realm, token *grc20.Token, slug string) {
 	if slug != "" {

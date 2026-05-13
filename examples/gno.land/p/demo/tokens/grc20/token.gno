@@ -9,28 +9,29 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-// NewToken creates an anonymous Token (origRealm == "").
-// Token.ID() becomes "." + symbol; events emit that as the token field.
+// NewToken creates a Token whose origRealm is bound to the calling realm.
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
+// and rlm.PkgPath() — the calling realm itself — becomes the Token's
+// origRealm. Token.ID() returns origRealm + "." + symbol.
 //
-// For a Token whose origRealm is bound to a runtime-validated realm,
-// use gno.land/r/demo/defi/grc20reg.NewToken(cur, ...) instead — that
-// crossing constructor sets origRealm from cur.Previous().PkgPath().
-func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
-	return NewTokenWithOrigRealm("", name, symbol, decimals)
-}
-
-// NewTokenWithOrigRealm creates a Token whose origRealm field is set to
-// the supplied pkgPath. The pkgPath is NOT validated by this function —
-// callers can pass anything, so the resulting Token.ID() reflects the
-// caller's assertion only.
+// Because IsCurrent runtime-validates that rlm came from the live
+// crossing frame, origRealm is unforgeable: an external realm cannot
+// fabricate a Token claiming to belong to a different package.
 //
-// Trusted callers (e.g. r/demo/defi/grc20reg.NewToken) supply a
-// runtime-validated pkgpath obtained from cur.Previous() at a crossing
-// boundary. Direct callers SHOULD NOT use this to claim a realm that
-// they are not — registered Token identity lives in grc20reg, and a
-// Token whose origRealm doesn't match its registry binding is informational
-// only.
-func NewTokenWithOrigRealm(pkgPath, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+// Typical call from a realm's init(cur realm) or other crossing function:
+//
+//	Token, ledger := grc20.NewToken(0, cur, "Foo", "FOO", 4)
+//
+// If the Token should be discoverable, follow up with
+// grc20reg.Register(cross, Token, slug).
+func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *PrivateLedger) {
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
+	pkgPath := rlm.PkgPath()
+	if pkgPath == "" {
+		panic(ErrNotRealm)
+	}
 	if name == "" {
 		panic("name should not be empty")
 	}

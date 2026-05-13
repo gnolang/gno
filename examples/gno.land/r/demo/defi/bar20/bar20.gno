@@ -18,7 +18,7 @@ var (
 )
 
 func init(cur realm) {
-	Token, adm = grc20reg.NewToken(cross, "Bar", "BAR", 4)
+	Token, adm = grc20.NewToken(0, cur, "Bar", "BAR", 4)
 	UserTeller = Token.CallerTeller()
 	grc20reg.Register(cross, Token, "")
 }

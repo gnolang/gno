@@ -1256,7 +1256,14 @@ import (
         "gno.land/r/demo/defi/grc20reg"
 )
 
-var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
+var (
+        Token *grc20.Token
+        adm   *grc20.PrivateLedger
+)
+
+func init(cur realm) {
+        Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
+}
 
 const (
         ugnotMinDeposit  int64 = 1000

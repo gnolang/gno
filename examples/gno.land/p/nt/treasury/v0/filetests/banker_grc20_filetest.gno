@@ -12,10 +12,10 @@ import (
 
 const amount = int64(1000)
 
-func createToken(name string, toMint address) *grc20.Token {
+func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0)
+	token, ledger := grc20.NewToken(0, rlm, name, symbol, 0)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)
@@ -36,9 +36,9 @@ func main(cur realm) {
 
 	// Define a list of token and the associated lister.
 	tokens := []*grc20.Token{
-		createToken("TestToken0", ownerAddr),
-		createToken("TestToken1", ownerAddr),
-		createToken("TestToken2", ownerAddr),
+		createToken(0, cur, "TestToken0", ownerAddr),
+		createToken(0, cur, "TestToken1", ownerAddr),
+		createToken(0, cur, "TestToken2", ownerAddr),
 	}
 
 	grc20Lister := func() map[string]*grc20.Token {
