@@ -45,7 +45,7 @@ func Transfer(cur realm, to address, send int64) string {
 	gTotalTransfers++
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-	pkgaddr := runtime.CurrentRealm().Address()
+	pkgaddr := cur.Address()
 	banker_.SendCoins(pkgaddr, to, sendCoins)
 	return ""
 }
@@ -55,7 +55,7 @@ func GetPerTransferLimit() int64 {
 }
 
 func bankerAddr(cur realm) address {
-	return runtime.CurrentRealm().Address()
+	return cur.Address()
 }
 
 func Render(_ string) string {

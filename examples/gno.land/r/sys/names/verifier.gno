@@ -112,7 +112,7 @@ func resolveCurrentName(name string) (address, bool) {
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable(cur realm) {
-	if runtime.PreviousRealm().Address() != admin {
+	if cur.Previous().Address() != admin {
 		panic("caller is not admin")
 	}
 	enabled = true

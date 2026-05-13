@@ -526,7 +526,7 @@ func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
 	send := banker.OriginSend()
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -586,7 +586,7 @@ func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
 	send := banker.OriginSend()
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -642,7 +642,7 @@ func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -692,7 +692,7 @@ func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 1000000}}
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }`},
@@ -746,7 +746,7 @@ func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }`},
@@ -852,7 +852,7 @@ func Echo(cur realm, msg string) string {
 	addr := runtime.OriginCaller()
 	pkgAddr := runtime.CurrentRealm().Address()
 	send := banker.OriginSend()
-	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }

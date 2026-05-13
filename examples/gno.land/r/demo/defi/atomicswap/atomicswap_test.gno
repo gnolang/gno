@@ -136,7 +136,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestNewCustomGRC20Swap_Claim(t *testing.T) {
+func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup
@@ -216,7 +216,7 @@ func TestNewCustomGRC20Swap_Claim(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestNewCustomGRC20Swap_Refund(t *testing.T) {
+func TestNewCustomGRC20Swap_Refund(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup
@@ -286,7 +286,7 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestNewGRC20Swap_Claim(t *testing.T) {
+func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup
@@ -361,7 +361,7 @@ func TestNewGRC20Swap_Claim(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestNewGRC20Swap_Refund(t *testing.T) {
+func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup
@@ -430,7 +430,7 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 	uassert.Equal(t, expected, Render("1"))
 }
 
-func TestRender(t *testing.T) {
+func TestRender(cur realm, t *testing.T) {
 	defer resetTestState()
 
 	// Setup

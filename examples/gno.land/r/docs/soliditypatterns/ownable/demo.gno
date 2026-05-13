@@ -10,7 +10,7 @@ func InitOwner(cur realm) {
 	if len(owner) != 0 {
 		panic("owner already defined")
 	}
-	owner = runtime.PreviousRealm().Address()
+	owner = cur.Previous().Address()
 }
 
 func assertOnlyOwner() {

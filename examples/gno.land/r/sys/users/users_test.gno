@@ -10,7 +10,7 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestResolveName(t *testing.T) {
+func TestResolveName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
@@ -65,7 +65,7 @@ func TestResolveName(t *testing.T) {
 	})
 }
 
-func TestResolveAddress(t *testing.T) {
+func TestResolveAddress(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
@@ -115,7 +115,7 @@ func TestResolveAddress(t *testing.T) {
 	})
 }
 
-func TestROStores(t *testing.T) {
+func TestROStores(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
@@ -169,7 +169,7 @@ func TestROStores(t *testing.T) {
 	})
 }
 
-func TestResolveAny(t *testing.T) {
+func TestResolveAny(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("name", func(t *testing.T) {
@@ -203,7 +203,7 @@ func TestResolveAny(t *testing.T) {
 	})
 }
 
-func TestProposeErrors(t *testing.T) {
+func TestProposeErrors(cur realm, t *testing.T) {
 	t.Run("propose_register_user_errors", func(t *testing.T) {
 		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
 			ProposeRegisterUser("bad name", aliceAddr)
@@ -248,7 +248,7 @@ func TestProposeErrors(t *testing.T) {
 //   - toAdd already present is benign — remove still happens
 //   - toRemove already absent is benign — add still happens, no error
 //   - errors that aren't the idempotency cases still propagate
-func TestApplyControllerSwap(t *testing.T) {
+func TestApplyControllerSwap(cur realm, t *testing.T) {
 	// Use unique addresses per subtest to avoid having to drain the
 	// controllers set (addrset.Set has no clear/iterate-all method, and
 	// state persists across subtests in this package's tests).
@@ -315,7 +315,7 @@ func TestApplyControllerSwap(t *testing.T) {
 // Audit finding #20: the controller whitelist must be queryable from
 // outside the package so operators can monitor authority without
 // source-diving or replaying governance proposals.
-func TestControllerQueries(t *testing.T) {
+func TestControllerQueries(cur realm, t *testing.T) {
 	t.Run("IsController reflects whitelist state", func(t *testing.T) {
 		a := testutils.TestAddress("queryA1")
 		b := testutils.TestAddress("queryB1")
@@ -378,7 +378,7 @@ func TestControllerQueries(t *testing.T) {
 // with an existing registration. The warning surfaces the colliding
 // existing name to voters; the proposal still goes through if voted in
 // (decision #3, DAO grants always bypass).
-func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
+func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("warning_injected_on_collision", func(t *testing.T) {
@@ -411,7 +411,7 @@ func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
 // level by TestRegisterUserIgnoreCanonical and TestUpdateName_CanonicalCollision.
 
 // TODO Uncomment after gnoweb /u/ page.
-//func TestUserRenderLink(t *testing.T) {
+//func TestUserRenderLink(cur realm, t *testing.T) {
 //	testing.SetOriginCaller(whitelistedCallerAddr)
 //	cleanStore(t)
 //

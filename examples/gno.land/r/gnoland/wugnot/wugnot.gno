@@ -27,7 +27,7 @@ func Deposit(cur realm) {
 	// deposit on behalf of the caller and mint wugnot to itself
 	// instead of the actual sender.
 	runtime.AssertOriginCall()
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	sent := banker.OriginSend()
 	amount := sent.AmountOf("ugnot")
 
@@ -40,8 +40,8 @@ func Withdraw(cur realm, amount int64) {
 	runtime.AssertOriginCall()
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
-	caller := runtime.PreviousRealm().Address()
-	pkgaddr := runtime.CurrentRealm().Address()
+	caller := cur.Previous().Address()
+	pkgaddr := cur.Address()
 	callerBal := Token.BalanceOf(caller)
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 

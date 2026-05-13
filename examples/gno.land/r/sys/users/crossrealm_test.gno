@@ -21,7 +21,7 @@ import (
 //
 // This test verifies that a whitelisted controller can call UpdateName,
 // and a non-whitelisted realm cannot.
-func TestUpdateNameCallerIdentity(t *testing.T) {
+func TestUpdateNameCallerIdentity(cur realm, t *testing.T) {
 	controllerPath := initControllerPath
 	nonControllerPath := "gno.land/r/evil/attacker"
 
@@ -58,7 +58,7 @@ func TestUpdateNameCallerIdentity(t *testing.T) {
 }
 
 // TestDeleteCallerIdentity verifies the same CurrentRealm() behavior for Delete.
-func TestDeleteCallerIdentity(t *testing.T) {
+func TestDeleteCallerIdentity(cur realm, t *testing.T) {
 	controllerPath := initControllerPath
 	nonControllerPath := "gno.land/r/evil/attacker"
 

@@ -39,14 +39,14 @@ func GetResults(cur realm) []Bet {
 
 func GetRealmBalance(cur realm) int64 {
 	banker_ := banker.NewReadonlyBanker()
-	coins := banker_.GetCoins(runtime.CurrentRealm().Address())
+	coins := banker_.GetCoins(cur.Address())
 	balance := coins.AmountOf(denom)
 
 	return balance
 }
 
 func Withdrawal(cur realm, amount int64) {
-	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !config.IsAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -58,7 +58,7 @@ func Withdrawal(cur realm, amount int64) {
 		panic("insufficient balance")
 	}
 
-	banker_.SendCoins(runtime.CurrentRealm().Address(), runtime.OriginCaller(), chain.NewCoins(chain.NewCoin(denom, amount)))
+	banker_.SendCoins(cur.Address(), runtime.OriginCaller(), chain.NewCoins(chain.NewCoin(denom, amount)))
 }
 
 func flip(choice int) bool {
@@ -93,7 +93,7 @@ func sendPrize(cur realm, caller address, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	wonCoins := chain.NewCoins(chain.NewCoin(denom, amount))
 
-	banker_.SendCoins(runtime.CurrentRealm().Address(), caller, wonCoins)
+	banker_.SendCoins(cur.Address(), caller, wonCoins)
 }
 
 func betLogic(flipResult bool) {

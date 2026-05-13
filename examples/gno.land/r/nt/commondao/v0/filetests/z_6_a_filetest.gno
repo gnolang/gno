@@ -52,7 +52,7 @@ func init() {
 	proposal, _ = dao.Propose(user1, propDef{})
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user1))
 
 	commondao.Execute(cross, dao.ID(), proposal.ID())

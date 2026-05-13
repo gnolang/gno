@@ -82,10 +82,10 @@ func NewGRC20Swap(cur realm, recipient address, hashlock string, tokenRegistryKe
 // OriginSend() describing a phantom payment that would let the swap
 // drain the realm's pre-existing balance on Claim.
 func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock time.Time) (int, *Swap) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	sender := runtime.PreviousRealm().Address()
+	sender := cur.Previous().Address()
 	sent := banker.OriginSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 
@@ -107,8 +107,8 @@ func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock t
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
 func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
-	sender := runtime.PreviousRealm().Address()
-	curAddr := runtime.CurrentRealm().Address()
+	sender := cur.Previous().Address()
+	curAddr := cur.Address()
 
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")

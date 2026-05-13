@@ -19,7 +19,7 @@ var (
 	whitelistedCallerAddr = chain.PackageAddress(initControllerPath)
 )
 
-func TestRegister(t *testing.T) {
+func TestRegister(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("valid_registration", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestRegister(t *testing.T) {
 	})
 }
 
-func TestUpdateName(t *testing.T) {
+func TestUpdateName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("valid_direct_alias", func(t *testing.T) {
@@ -281,7 +281,7 @@ func TestUpdateName(t *testing.T) {
 	})
 }
 
-func TestDelete(t *testing.T) {
+func TestDelete(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("non_existent_user", func(t *testing.T) {
@@ -314,13 +314,13 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestRegisterNotWhitelisted(t *testing.T) {
+func TestRegisterNotWhitelisted(cur realm, t *testing.T) {
 	t.Run("register_not_whitelisted", func(t *testing.T) {
 		uassert.ErrorContains(t, RegisterUser(cross, alice, aliceAddr), "does not exist in whitelist")
 	})
 }
 
-func TestCanonicalize(t *testing.T) {
+func TestCanonicalize(cur realm, t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
@@ -358,7 +358,7 @@ func TestCanonicalize(t *testing.T) {
 	}
 }
 
-func TestCanonicalize_NonASCIIPassthrough(t *testing.T) {
+func TestCanonicalize_NonASCIIPassthrough(cur realm, t *testing.T) {
 	// ASCII-only contract: the function passes non-ASCII bytes through
 	// unchanged. Locks the documented contract — registration paths
 	// reject non-ASCII upstream via validateName, so this code path is
@@ -367,7 +367,7 @@ func TestCanonicalize_NonASCIIPassthrough(t *testing.T) {
 	uassert.Equal(t, "naïve", Canonicalize("naïve"))
 }
 
-func TestRegisterUser_CanonicalCollision(t *testing.T) {
+func TestRegisterUser_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("non_bypass_blocks", func(t *testing.T) {
@@ -413,7 +413,7 @@ func TestRegisterUser_CanonicalCollision(t *testing.T) {
 	})
 }
 
-func TestRegisterUserIgnoreCanonical(t *testing.T) {
+func TestRegisterUserIgnoreCanonical(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("bypass_succeeds_on_canonical_collision", func(t *testing.T) {
@@ -458,7 +458,7 @@ func TestRegisterUserIgnoreCanonical(t *testing.T) {
 	})
 }
 
-func TestUpdateName_CanonicalCollision(t *testing.T) {
+func TestUpdateName_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("self_collision_blocks_per_decision_15", func(t *testing.T) {
@@ -514,7 +514,7 @@ func TestUpdateName_CanonicalCollision(t *testing.T) {
 	})
 }
 
-func TestCanonicalEntry_Persists_After_Delete(t *testing.T) {
+func TestCanonicalEntry_Persists_After_Delete(cur realm, t *testing.T) {
 	// Decision #5: Delete does NOT remove the canonical entry. Mirrors
 	// the existing tombstone behavior (anti-revival policy).
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
@@ -537,7 +537,7 @@ func TestCanonicalEntry_Persists_After_Delete(t *testing.T) {
 	)
 }
 
-func TestCanonicalEntry_Persists_After_UpdateName(t *testing.T) {
+func TestCanonicalEntry_Persists_After_UpdateName(cur realm, t *testing.T) {
 	// Decision #4: UpdateName keeps the OLD canonical entry. Mirrors the
 	// existing nameStore alias retention (anti-rename-squat policy).
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))

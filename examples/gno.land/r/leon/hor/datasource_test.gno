@@ -27,7 +27,7 @@ var (
 	_ datasource.Iterator      = (*iterator)(nil)
 )
 
-func TestDatasourceRecords(t *testing.T) {
+func TestDatasourceRecords(cur realm, t *testing.T) {
 	cases := []struct {
 		name      string
 		items     []*Item
@@ -91,7 +91,7 @@ func TestDatasourceRecords(t *testing.T) {
 	}
 }
 
-func TestDatasourceRecord(t *testing.T) {
+func TestDatasourceRecord(cur realm, t *testing.T) {
 	cases := []struct {
 		name  string
 		items []*Item
@@ -136,7 +136,7 @@ func TestDatasourceRecord(t *testing.T) {
 	}
 }
 
-func TestItemRecord(t *testing.T) {
+func TestItemRecord(cur realm, t *testing.T) {
 	pkgpath := "gno.land/r/demo/test"
 	item := Item{
 		id:          1,

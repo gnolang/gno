@@ -3,7 +3,6 @@
 package foo20
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -18,7 +17,7 @@ var (
 	Ownable              = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
-func init() {
+func init(cur realm) {
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
 	grc20reg.Register(cross, Token, "")
 }
@@ -50,7 +49,7 @@ func TransferFrom(cur realm, from, to address, amount int64) {
 // Faucet is distributing foo20 tokens without restriction (unsafe).
 // For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet(cur realm) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	amount := int64(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }

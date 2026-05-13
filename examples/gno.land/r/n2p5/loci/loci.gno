@@ -2,7 +2,6 @@ package loci
 
 import (
 	"chain"
-	"chain/runtime"
 	"encoding/base64"
 
 	"gno.land/p/n2p5/loci"
@@ -18,13 +17,13 @@ func init() {
 // Set takes a base64 encoded string and stores it in the Loci store.
 // Keyed by the address of the caller. It also emits a "set" event with
 // the address of the caller.
-func Set(_ realm, value string) {
+func Set(cur realm, value string) {
 	b, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		panic(err)
 	}
 	store.Set(b)
-	chain.Emit("SetValue", "ForAddr", string(runtime.PreviousRealm().Address()))
+	chain.Emit("SetValue", "ForAddr", string(cur.Previous().Address()))
 }
 
 // Get retrieves the value stored at the provided address and

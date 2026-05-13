@@ -15,7 +15,7 @@ import (
 
 const testRealmPkgPath = "gno.land/r/matijamarjanovic/testrealm"
 
-func TestTokenRegistration(t *testing.T) {
+func TestTokenRegistration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -29,7 +29,7 @@ func TestTokenRegistration(t *testing.T) {
 	uassert.Equal(t, "TEST", retrievedToken.GetSymbol(), "Token symbol should match")
 }
 
-func TestNFTRegistration(t *testing.T) {
+func TestNFTRegistration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -49,7 +49,7 @@ func TestNFTRegistration(t *testing.T) {
 	uassert.Equal(t, "TNFT", metadata.Symbol(), "NFT symbol should match")
 }
 
-func TestGRC1155Registration(t *testing.T) {
+func TestGRC1155Registration(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -66,7 +66,7 @@ func TestGRC1155Registration(t *testing.T) {
 	uassert.True(t, err != nil, "Should not allow duplicate registration")
 }
 
-func TestBalanceRetrieval(t *testing.T) {
+func TestBalanceRetrieval(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -97,7 +97,7 @@ func TestBalanceRetrieval(t *testing.T) {
 		"Token:gno.land/r/matijamarjanovic/tokenhub.test_token:1000"), "Should show non-zero GRC20 balance")
 }
 
-func TestErrorCases(t *testing.T) {
+func TestErrorCases(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -114,7 +114,7 @@ func TestErrorCases(t *testing.T) {
 	uassert.True(t, err != nil, "Should not allow duplicate registrasdasdation")
 }
 
-func TestTokenListingFunctions(t *testing.T) {
+func TestTokenListingFunctions(cur realm, t *testing.T) {
 	resetState(t)
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
@@ -149,7 +149,7 @@ func TestTokenListingFunctions(t *testing.T) {
 		"GetAllTokens should list multi-tokens")
 }
 
-func TestMustGetFunctions(t *testing.T) {
+func TestMustGetFunctions(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)

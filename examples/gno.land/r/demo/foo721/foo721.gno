@@ -1,7 +1,6 @@
 package foo721
 
 import (
-	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/ufmt/v0"
@@ -83,8 +82,8 @@ func TransferFrom(_ realm, from, to address, tid grc721.TokenID) {
 
 // Admin
 
-func Mint(_ realm, to address, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Mint(cur realm, to address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
 	if err != nil {
@@ -92,8 +91,8 @@ func Mint(_ realm, to address, tid grc721.TokenID) {
 	}
 }
 
-func Burn(_ realm, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Burn(cur realm, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {

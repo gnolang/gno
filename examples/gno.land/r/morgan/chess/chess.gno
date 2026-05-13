@@ -132,7 +132,7 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 	}
 
 	opponent := parsePlayer(opponentRaw)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertUserNotInLobby(caller)
 
 	return newGame(caller, opponent, seconds, increment).json()
@@ -256,7 +256,7 @@ func MakeMove(cur realm, gameID, from, to string, promote chess.Piece) string {
 	// determine if this is a black move
 	isBlack := len(g.Position.Moves)%2 == 1
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if (isBlack && g.Black != caller) ||
 		(!isBlack && g.White != caller) {
 		// either not a player involved; or not the caller's turn.
@@ -447,7 +447,7 @@ func resign(g *Game) error {
 func DrawOffer(cur realm, gameID string) string {
 	assertOriginCall()
 	g := getGame(gameID, true)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -464,7 +464,7 @@ func DrawOffer(cur realm, gameID string) string {
 func DrawRefuse(cur realm, gameID string) string {
 	assertOriginCall()
 	g := getGame(gameID, true)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -488,7 +488,7 @@ func Draw(cur realm, gameID string) string {
 	assertOriginCall()
 	g := getGame(gameID, true)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if caller != g.Black && caller != g.White {
 		panic("you are not involved in this game")
 	}

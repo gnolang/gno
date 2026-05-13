@@ -1,7 +1,6 @@
 package foo20
 
 import (
-	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -27,7 +26,7 @@ type instance struct {
 }
 
 func New(cur realm, name, symbol string, decimals int, initialMint, faucet int64) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	NewWithAdmin(cur, name, symbol, decimals, initialMint, faucet, caller)
 }
 
@@ -80,21 +79,21 @@ func Allowance(symbol string, owner, spender address) int64 {
 
 func Transfer(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
 func Approve(cur realm, symbol string, spender address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
 func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.TransferFrom(from, to, amount))
 }
@@ -107,7 +106,7 @@ func Faucet(cur realm, symbol string) {
 	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 

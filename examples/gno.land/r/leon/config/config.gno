@@ -32,7 +32,7 @@ type Config struct {
 }
 
 func AddConfig(cur realm, name, lines string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -46,7 +46,7 @@ func AddConfig(cur realm, name, lines string) {
 }
 
 func EditConfig(cur realm, id string, name, lines string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -63,7 +63,7 @@ func EditConfig(cur realm, id string, name, lines string) {
 }
 
 func RemoveConfig(cur realm, id string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -73,7 +73,7 @@ func RemoveConfig(cur realm, id string) {
 }
 
 func UpdateBanner(cur realm, newBanner string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 

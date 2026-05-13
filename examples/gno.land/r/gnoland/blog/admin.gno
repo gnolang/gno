@@ -43,8 +43,8 @@ func AdminRemoveModerator(_ realm, addr address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func NewPostProposalRequest(_ realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
-	caller := runtime.PreviousRealm().Address()
+func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	caller := cur.Previous().Address()
 	e := dao.NewSimpleExecutor(
 		func(realm) error {
 			addPost(caller, slug, title, body, publicationDate, authors, tags)

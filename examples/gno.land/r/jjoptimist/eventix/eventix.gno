@@ -3,7 +3,6 @@ package eventix
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"strconv"
 	"time"
 
@@ -70,8 +69,8 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 	return newID
 }
 
-func BuyTicket(_ realm, eventId uint64) {
-	if !runtime.PreviousRealm().IsUserCall() {
+func BuyTicket(cur realm, eventId uint64) {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
 	event, exists := getEvent(eventId)
@@ -83,7 +82,7 @@ func BuyTicket(_ realm, eventId uint64) {
 		panic("Event is sold out")
 	}
 
-	buyer := runtime.PreviousRealm().Address()
+	buyer := cur.Previous().Address()
 
 	switch pt := event.paymentToken.(type) {
 	case string:
@@ -94,7 +93,7 @@ func BuyTicket(_ realm, eventId uint64) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(runtime.CurrentRealm().Address(), int64(event.price)); err != nil {
+		if err := pt.CallerTeller().Transfer(cur.Address(), int64(event.price)); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:

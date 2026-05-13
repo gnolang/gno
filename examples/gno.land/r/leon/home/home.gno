@@ -65,7 +65,7 @@ TODO import r/gh`,
 }
 
 func UpdatePFP(cur realm, url, caption string) {
-	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !config.IsAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -74,7 +74,7 @@ func UpdatePFP(cur realm, url, caption string) {
 }
 
 func UpdateAboutMe(cur realm, col1, col2 string) {
-	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !config.IsAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -89,7 +89,7 @@ func Donate(cur realm) string {
 	}
 
 	banker.NewBanker(banker.BankerTypeOriginSend, cur).SendCoins(
-		runtime.CurrentRealm().Address(),
+		cur.Address(),
 		config.OwnableMain.Owner(),
 		sent,
 	) // wish this was prettier :)

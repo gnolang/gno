@@ -1,7 +1,6 @@
 package config
 
 import (
-	"chain/runtime"
 	"errors"
 
 	"gno.land/p/moul/authz"
@@ -13,7 +12,7 @@ var Authorizer = authz.NewWithOrigin()
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
 func AddManager(cur realm, addr address) error {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot add manager directly")
@@ -27,7 +26,7 @@ func AddManager(cur realm, addr address) error {
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
 func RemoveManager(cur realm, addr address) error {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot remove manager directly")
@@ -40,7 +39,7 @@ func RemoveManager(cur realm, addr address) error {
 // TransferManagement transfers the authority to manage keys to a new authority.
 // The caller must be authorized by the current authority.
 func TransferManagement(cur realm, newAuthority authz.Authority) error {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if newAuthority == nil {
 		return errors.New("new authority cannot be nil")
 	}

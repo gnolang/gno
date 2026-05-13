@@ -3,7 +3,6 @@ package namereg
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 
 	"gno.land/p/moul/fifo"
 	susers "gno.land/r/sys/users"
@@ -38,7 +37,7 @@ var (
 // canonical-form lookup keyed by full canonical name).
 //
 // Only direct EOA (maketx call) invocations are supported.
-func Register(_ realm, username string) {
+func Register(cur realm, username string) {
 	// Anti-squatting payment check, two paired guards:
 	//
 	//   (a) PreviousRealm must be a pure EOA (IsUserCall: pkgPath == "").
@@ -54,7 +53,7 @@ func Register(_ realm, username string) {
 	//
 	// Both checks MUST run together. Removing (a) alone makes (b) meaningless
 	// because OriginSend() describes tx intent, not realm receipt.
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic(ErrNonUserCall)
 	}
 
@@ -76,7 +75,7 @@ func Register(_ realm, username string) {
 	// to r/sys/users. Returns susers.ErrCanonicalCollision if the
 	// canonical form clashes with an existing registration in any
 	// controller.
-	registrant := runtime.PreviousRealm().Address()
+	registrant := cur.Previous().Address()
 	if err := susers.RegisterUser(cross, username, registrant); err != nil {
 		panic(err)
 	}

@@ -20,11 +20,11 @@ func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
 	// intermediate code realm could otherwise consume the envelope and
 	// have this function disperse pre-existing realm balance to
 	// attacker-chosen addresses.
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
 	coinSent := banker.OriginSend()
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 
 	if len(addresses) != len(coins) {
@@ -81,7 +81,7 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
 func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
 		panic(ErrArgLenAndSentLenMismatch)

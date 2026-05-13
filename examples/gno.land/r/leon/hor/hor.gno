@@ -70,7 +70,7 @@ func Register(cur realm, title, description string) {
 		return
 	}
 
-	submission := runtime.PreviousRealm()
+	submission := cur.Previous()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -119,7 +119,7 @@ func Upvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote)
@@ -141,7 +141,7 @@ func Downvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote)

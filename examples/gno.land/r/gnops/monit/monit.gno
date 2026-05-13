@@ -7,7 +7,6 @@
 package monit
 
 import (
-	"chain/runtime"
 	"time"
 
 	"gno.land/p/nt/ownable/v0"
@@ -29,7 +28,7 @@ var (
 func Incr(cur realm) int {
 	counter++
 	lastUpdate = time.Now()
-	lastCaller = runtime.PreviousRealm().Address()
+	lastCaller = cur.Previous().Address()
 	wd.Alive()
 	return counter
 }
@@ -39,7 +38,7 @@ func Incr(cur realm) int {
 func Reset(cur realm) {
 	Ownable.AssertOwned()
 	counter = 0
-	lastCaller = runtime.PreviousRealm().Address()
+	lastCaller = cur.Previous().Address()
 	lastUpdate = time.Now()
 	wd = watchdog.Watchdog{Duration: watchdogDuration}
 }

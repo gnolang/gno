@@ -4,7 +4,6 @@
 package bar20
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -17,12 +16,12 @@ var (
 	UserTeller = Token.CallerTeller()
 )
 
-func init() {
+func init(cur realm) {
 	grc20reg.Register(cross, Token, "")
 }
 
 func Faucet(cur realm) string {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}

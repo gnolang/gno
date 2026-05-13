@@ -138,8 +138,8 @@ func renderProjects(projectsMap map[string]Project, title string) string {
 	return sb.String()
 }
 
-func UpdateLink(_ realm, name, newURL string) {
-	if !isAuthorized(runtime.PreviousRealm().Address()) {
+func UpdateLink(cur realm, name, newURL string) {
+	if !isAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -153,16 +153,16 @@ func UpdateLink(_ realm, name, newURL string) {
 	}
 }
 
-func UpdateAboutMe(_ realm, text string) {
-	if !isAuthorized(runtime.PreviousRealm().Address()) {
+func UpdateAboutMe(cur realm, text string) {
+	if !isAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
 	aboutMe = text
 }
 
-func AddGnoProject(_ realm, name, description, url, imageURL string) {
-	if !isAuthorized(runtime.PreviousRealm().Address()) {
+func AddGnoProject(cur realm, name, description, url, imageURL string) {
+	if !isAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -175,8 +175,8 @@ func AddGnoProject(_ realm, name, description, url, imageURL string) {
 	gnoProjects[name] = project
 }
 
-func DeleteGnoProject(_ realm, projectName string) {
-	if !isAuthorized(runtime.PreviousRealm().Address()) {
+func DeleteGnoProject(cur realm, projectName string) {
+	if !isAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -187,8 +187,8 @@ func DeleteGnoProject(_ realm, projectName string) {
 	delete(gnoProjects, projectName)
 }
 
-func AddOtherProject(_ realm, name, description, url, imageURL string) {
-	if !isAuthorized(runtime.PreviousRealm().Address()) {
+func AddOtherProject(cur realm, name, description, url, imageURL string) {
+	if !isAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	project := Project{
@@ -201,8 +201,8 @@ func AddOtherProject(_ realm, name, description, url, imageURL string) {
 	otherProjects[name] = project
 }
 
-func RemoveOtherProject(_ realm, projectName string) {
-	if !isAuthorized(runtime.PreviousRealm().Address()) {
+func RemoveOtherProject(cur realm, projectName string) {
+	if !isAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -217,8 +217,8 @@ func isAuthorized(addr address) bool {
 	return addr == config.Address() || addr == config.Backup()
 }
 
-func SponsorGnoProject(_ realm, projectName string) {
-	if !runtime.PreviousRealm().IsUserCall() {
+func SponsorGnoProject(cur realm, projectName string) {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
 	address_XXX := runtime.OriginCaller()
@@ -243,8 +243,8 @@ func SponsorGnoProject(_ realm, projectName string) {
 	gnoProjects[projectName] = project
 }
 
-func SponsorOtherProject(_ realm, projectName string) {
-	if !runtime.PreviousRealm().IsUserCall() {
+func SponsorOtherProject(cur realm, projectName string) {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
 	address_XXX := runtime.OriginCaller()
@@ -270,7 +270,7 @@ func SponsorOtherProject(_ realm, projectName string) {
 }
 
 func Withdraw(cur realm) string {
-	realmAddress := runtime.PreviousRealm().Address()
+	realmAddress := cur.Previous().Address()
 	if !isAuthorized(realmAddress) {
 		panic(config.ErrUnauthorized)
 	}

@@ -2,7 +2,6 @@ package boards2
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"time"
 
@@ -20,7 +19,7 @@ const (
 // Ban bans a user from a board for a period of time.
 // Only invited guest members and external users can be banned.
 // Banning board owners, admins and moderators is not allowed.
-func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
+func Ban(cur realm, boardID boards.ID, user address, hours uint, reason string) {
 	assertAddressIsValid(user)
 
 	if hours == 0 {
@@ -33,7 +32,7 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 	}
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	until := time.Now().Add(time.Minute * 60 * time.Duration(hours))
 	args := boards.Args{boardID, user, until, reason}
 	board.Permissions.WithPermission(caller, PermissionUserBan, args, crossingFn(func() {
@@ -63,11 +62,11 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 }
 
 // Unban unbans a user from a board.
-func Unban(_ realm, boardID boards.ID, user address, reason string) {
+func Unban(cur realm, boardID boards.ID, user address, reason string) {
 	assertAddressIsValid(user)
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	args := boards.Args{boardID, user, reason}
 	board.Permissions.WithPermission(caller, PermissionUserUnban, args, crossingFn(func() {
 		banned, found := getBannedUsers(boardID)

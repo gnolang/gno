@@ -98,14 +98,14 @@ func ToggleLikePostBySlug(_ realm, slug string) {
 	}
 }
 
-func AddCommentToPostBySlug(_ realm, slug, comment string) {
+func AddCommentToPostBySlug(cur realm, slug, comment string) {
 	var err error
 	post, err := myBlog.GetPostBySlug(slug)
 	if err != nil {
 		panic(err)
 	}
 
-	comm, err := blog.NewComment(runtime.PreviousRealm().Address().String(), comment)
+	comm, err := blog.NewComment(cur.Previous().Address().String(), comment)
 	if err != nil {
 		panic(err)
 	}

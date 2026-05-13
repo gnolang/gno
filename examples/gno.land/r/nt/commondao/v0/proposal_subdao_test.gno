@@ -11,7 +11,7 @@ import (
 
 var _ commondao.ProposalDefinition = (*subDAOPropDefinition)(nil)
 
-func TestSubDAOPropDefinitionTally(t *testing.T) {
+func TestSubDAOPropDefinitionTally(cur realm, t *testing.T) {
 	cases := []struct {
 		name    string
 		members []address
@@ -122,7 +122,7 @@ func TestSubDAOPropDefinitionTally(t *testing.T) {
 	}
 }
 
-func TestSubDAOPropDefinitionExecute(t *testing.T) {
+func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 	// Create a parent DAO
 	parentDAO := createDAO("Foo", "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", nil)
 	urequire.Equal(t, 0, parentDAO.Children().Len(), "expected no initial SubDAOs")
@@ -161,7 +161,7 @@ func TestSubDAOPropDefinitionExecute(t *testing.T) {
 	})
 }
 
-func TestDissolvePropDefinitionTally(t *testing.T) {
+func TestDissolvePropDefinitionTally(cur realm, t *testing.T) {
 	cases := []struct {
 		name    string
 		members []address
@@ -272,7 +272,7 @@ func TestDissolvePropDefinitionTally(t *testing.T) {
 	}
 }
 
-func TestDissolvePropDefinitionExecute(t *testing.T) {
+func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 	dao := commondao.New()
 	urequire.False(t, dao.IsDeleted(), "expected DAO not to be soft deleted by default")
 

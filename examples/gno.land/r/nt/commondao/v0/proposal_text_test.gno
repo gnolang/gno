@@ -12,7 +12,7 @@ import (
 
 var _ commondao.ProposalDefinition = (*TextPropDefinition)(nil)
 
-func TestTextPropDefinitionNew(t *testing.T) {
+func TestTextPropDefinitionNew(cur realm, t *testing.T) {
 	cases := []struct {
 		name         string
 		title, body  string
@@ -83,7 +83,7 @@ func TestTextPropDefinitionNew(t *testing.T) {
 	}
 }
 
-func TestTextPropDefinitionTally(t *testing.T) {
+func TestTextPropDefinitionTally(cur realm, t *testing.T) {
 	cases := []struct {
 		name    string
 		members []address

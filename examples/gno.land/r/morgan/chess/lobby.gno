@@ -74,7 +74,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 	}
 
 	// Ensure that user's previous games are finished (or timed out).
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	games := getUserGames(caller)
 	// XXX: temporary to avoid ever prohibiting a user from joining the lobby.
@@ -220,7 +220,7 @@ func LobbyGameFound(cur realm) string {
 	refreshLobby(tcLobby5p0)
 	refreshLobby(tcLobby10p5)
 
-	val, ok := lobbyPlayer2Game.Get(runtime.PreviousRealm().Address().String())
+	val, ok := lobbyPlayer2Game.Get(cur.Previous().Address().String())
 	if !ok {
 		return "null"
 	}
@@ -228,7 +228,7 @@ func LobbyGameFound(cur realm) string {
 }
 
 func LobbyQuit(cur realm) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	for tc, sublob := range lobby {
 		for i, pl := range sublob {
 			if pl.player.Address == caller {
