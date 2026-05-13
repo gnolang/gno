@@ -190,10 +190,11 @@ func (gnoURL GnoURL) WithoutHeight() GnoURL {
 }
 
 func parseHeight(s string) int64 {
-	// Cap input length to int64's max digit count (19 + sign-less) so
-	// strconv.ParseInt's ErrRange path catches overflows cleanly without
-	// the hand-rolled loop wrapping twice on huge inputs.
-	if s == "" || len(s) > 19 {
+	// Cap input length to int64's max digit count (19) so ParseInt's
+	// ErrRange catches overflows cleanly without the hand-rolled loop
+	// wrapping twice. Reject sign prefixes explicitly — only the bare
+	// digit form is valid for a block height.
+	if s == "" || len(s) > 19 || s[0] == '+' || s[0] == '-' {
 		return 0
 	}
 	h, err := strconv.ParseInt(s, 10, 64)

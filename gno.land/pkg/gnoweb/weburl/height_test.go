@@ -26,9 +26,17 @@ func TestGnoURL_Height(t *testing.T) {
 		{"missing", nil, nil, 0},
 		{"empty value", url.Values{"height": {""}}, nil, 0},
 		{"non-numeric", url.Values{"height": {"abc"}}, nil, 0},
+		{"trailing non-digit", url.Values{"height": {"12a"}}, nil, 0},
+		{"plus prefix rejected", url.Values{"height": {"+1"}}, nil, 0},
 		{"negative-looking", url.Values{"height": {"-1"}}, nil, 0},
 		{"zero", url.Values{"height": {"0"}}, nil, 0},
 		{"max int64-ish", url.Values{"height": {"9223372036854775807"}}, nil, 9223372036854775807},
+		// Overflow / length-cap regression: strconv.ParseInt catches the
+		// ErrRange and the 19-char input cap stops crazy-long digits from
+		// wrapping twice through the old hand-rolled loop.
+		{"19-char int64 overflow", url.Values{"height": {"9999999999999999999"}}, nil, 0},
+		{"20-char length cap", url.Values{"height": {"99999999999999999999"}}, nil, 0},
+		{"very long digits", url.Values{"height": {"111111111111111111111111111111111"}}, nil, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

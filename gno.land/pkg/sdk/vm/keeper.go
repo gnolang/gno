@@ -1526,9 +1526,11 @@ func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err e
 		// Unwrap heap items. Top-level mutable vars live in dedicated
 		// HeapItem cells; since #5415 the block stores them as RefValue
 		// (lazy fill) so we resolve via the store before unwrapping.
+		// GetObjectSafe: a stale ref must degrade to "render this var as
+		// a ref" rather than 500 the whole page.
 		if tv.T != nil && tv.T.Kind() == gno.HeapItemKind {
 			if rv, ok := tv.V.(gno.RefValue); ok {
-				if hiv, ok := gnostore.GetObject(rv.ObjectID).(*gno.HeapItemValue); ok {
+				if hiv, ok := gnostore.GetObjectSafe(rv.ObjectID).(*gno.HeapItemValue); ok {
 					tv = hiv.Value
 				}
 			}
