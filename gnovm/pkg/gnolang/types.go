@@ -743,6 +743,20 @@ type StructType struct {
 	Fields  []FieldType
 
 	typeid TypeID
+
+	// effectiveFields caches the field-side accessible-name count:
+	// direct fields + promoted fields through embedded structs (and
+	// through DeclaredType.Base when the base is a struct). Sentinel
+	// 0 means "not computed" (or "0 fields"); len(Fields)==0 short-
+	// circuits before consulting the cache. Set only when the walk
+	// fully resolves (no cycle break and no early-exit past cap).
+	// Not serialized.
+	effectiveFields uint16
+	// effectiveMethods caches the method-side count promoted into this
+	// struct via embedding: DeclaredType.Methods plus any embedded
+	// interface's effective method count. Mirrors effectiveFields'
+	// caching rules. Not serialized.
+	effectiveMethods uint16
 }
 
 func (st *StructType) Kind() Kind {
@@ -918,6 +932,11 @@ type InterfaceType struct {
 	Generic Name // for uverse "generics"
 
 	typeid TypeID
+
+	// effectiveMethods caches the total method count counting through
+	// embedded interfaces. Same sentinel/caching semantics as
+	// StructType.effectiveFields. Not serialized.
+	effectiveMethods uint16
 }
 
 // General empty interface.
@@ -1452,7 +1471,35 @@ type DeclaredType struct {
 
 	typeid TypeID
 	sealed bool // for ensuring correctness with recursive types.
+
+	// methodIndex maps method Name → its position in Methods for O(1)
+	// lookup once len(Methods) exceeds methodIndexThreshold. Holds both
+	// value- and pointer-receiver methods (they share the Methods slice).
+	// Built lazily; maintained by TryDefineMethod on append. Not serialized.
+	//
+	// CONTRACT: any code mutating Methods directly (instead of via
+	// TryDefineMethod) must nil out methodIndex, or the index goes stale.
+	// Known direct writers, all currently safe:
+	//   - amino UnmarshalBinary2 zeros the whole struct then re-populates
+	//     Methods; methodIndex is correctly nil and lazily rebuilt on
+	//     first lookupMethod.
+	//   - realm.fillType rewrites Methods[i].T/V in place but never
+	//     changes Name or len(Methods); invariant preserved.
+	//   - test fixtures construct DeclaredType directly with empty or
+	//     single-method slices; threshold is never crossed.
+	// There is currently no method-removal API; if one is added, it must
+	// either nil methodIndex or rewrite it.
+	//
+	// Single-threaded-preprocess invariant: lazy build via lookupMethod
+	// mutates *dt; not safe for concurrent first-lookup access.
+	methodIndex map[Name]uint16
 }
+
+// methodIndexThreshold gates the map build: most user types have ≤ a
+// handful of methods, so linear scan wins below this. Above it, the map's
+// O(1) lookup dominates the K-method × K-assignment workload that drives
+// DEGEN11 WideIfaceConvK.
+const methodIndexThreshold = 8
 
 // Returns an unsealed *DeclaredType.
 // Do not use for aliases.
@@ -1502,7 +1549,402 @@ func (dt *DeclaredType) Kind() Kind {
 
 func (dt *DeclaredType) Seal() {
 	dt.checkSeal()
+	validateEmbedDepth(dt, string(dt.Name))
 	dt.sealed = true
+}
+
+// MaxEmbedDepth bounds embed-chain depth for declared types, struct fields,
+// and embedded interfaces. The check fires at type construction (Seal for
+// named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
+// types). Caps the worst-case FindEmbeddedFieldType trail length so that K
+// repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
+// for adversarial source-level embed chains. 8 is well above any observed
+// legitimate Gno code (deepest in stdlib + examples + tests is 3); the cap
+// can be raised in a future release without invalidating existing programs.
+const MaxEmbedDepth = 8
+
+// MaxTypeDepth bounds composite type-expression nesting depth. Each
+// composite-type wrapper (Pointer, Slice, Array, Chan, Map, Func, Struct,
+// Interface) counts 1; DeclaredType is a LEAF for depth purposes (not
+// transparent) — referencing a named type by name doesn't expose the
+// named type's internal structure to the depth walker, mirroring how
+// source-level type-expression nesting is read. Catches DeepSliceType,
+// DeepArrayType, DeepFuncType, DeepAnonStruct, DeepPointerChain (all
+// expressed as raw type-wrapper chains in source). Forward-compatible:
+// the cap can be raised later without invalidating existing programs.
+const MaxTypeDepth = 8
+
+// typeDepth returns the maximum nesting depth of composite type wrappers
+// reachable from t. visited prevents infinite recursion on self-pointer
+// cycles like 'type Node struct{ *Node }'. Early-exits past MaxTypeDepth
+// so per-call cost is bounded at O(MaxTypeDepth).
+func typeDepth(t Type, visited map[Type]struct{}) int {
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[t]; ok {
+		return 0
+	}
+	visited[t] = struct{}{}
+	switch ct := t.(type) {
+	case *PointerType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *SliceType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *ArrayType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *ChanType:
+		return 1 + typeDepth(ct.Elt, visited)
+	case *MapType:
+		k := typeDepth(ct.Key, visited)
+		v := typeDepth(ct.Value, visited)
+		if k > v {
+			return 1 + k
+		}
+		return 1 + v
+	case *FuncType:
+		maxDepth := 0
+		for i := range ct.Params {
+			if d := typeDepth(ct.Params[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
+				}
+			}
+		}
+		for i := range ct.Results {
+			if d := typeDepth(ct.Results[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
+				}
+			}
+		}
+		return 1 + maxDepth
+	case *StructType:
+		maxDepth := 0
+		for i := range ct.Fields {
+			if d := typeDepth(ct.Fields[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
+				}
+			}
+		}
+		return 1 + maxDepth
+	case *InterfaceType:
+		maxDepth := 0
+		for i := range ct.Methods {
+			if d := typeDepth(ct.Methods[i].Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxTypeDepth {
+					return 1 + maxDepth
+				}
+			}
+		}
+		return 1 + maxDepth
+	case *DeclaredType:
+		// Leaf for depth purposes: a name reference to a named type
+		// doesn't expose the named type's internal nesting to the
+		// expression-level depth walker. Stops the walker from being
+		// inflated by stdlib interfaces (e.g. io.Writer, error) used in
+		// otherwise-shallow source.
+		return 0
+	default:
+		return 0
+	}
+}
+
+// validateTypeDepth panics if t's nesting depth exceeds MaxTypeDepth.
+// Called at type-construction points in preprocess.go (evalStaticType,
+// evalStaticTypeMachine, evalStaticTypeOfRawMachine) before the result
+// is cached. Per-call O(MaxTypeDepth) thanks to typeDepth's early-exit.
+//
+// The display name is taken from x lazily — only on panic — because
+// x.String() walks the entire AST subtree (O(expr-size)) and this
+// function is on the hot path of every static-type evaluation; eager
+// stringification produced an O(K^3) regression on cascading var-dep
+// shapes (K^2 calls × O(K) stringify each).
+func validateTypeDepth(t Type, x Expr) {
+	if d := typeDepth(t, nil); d > MaxTypeDepth {
+		var name string
+		if x != nil {
+			name = x.String()
+		}
+		panic(fmt.Sprintf(
+			"type %s nesting depth %d exceeds max %d",
+			name, d, MaxTypeDepth))
+	}
+}
+
+// MaxInterfaceMethods bounds the effective method count of an
+// InterfaceType (counting methods reached through any depth of
+// interface embedding). Caps the per-VerifyImplementedBy iteration;
+// combined with the methodIndex O(1) per-method lookup on concrete
+// types, K assignments × MaxInterfaceMethods = bytes-linear preprocess
+// work for interface-conversion patterns (DEGEN11 WideIfaceConvK).
+const MaxInterfaceMethods = 128
+
+// MaxStructFields bounds the field-side effective accessible-name count
+// of a StructType: direct fields + promoted struct fields (recursing
+// through DeclaredType.Base when the base is a struct, and through
+// PointerType). Methods promoted via embedded named types or embedded
+// interfaces are bounded separately by MaxInterfaceMethods. Caps
+// per-FindEmbeddedFieldType walk size for wide-embedding patterns
+// (DEGEN9 WideEmbed).
+const MaxStructFields = 128
+
+// embeddedInterface returns the underlying InterfaceType if t represents
+// an embedded interface (raw *InterfaceType or *DeclaredType wrapping
+// one); nil otherwise. Mirrors isInterfaceMethodEmbed but returns the
+// underlying type for cache lookup rather than just a bool.
+func embeddedInterface(t Type) *InterfaceType {
+	switch ct := t.(type) {
+	case *InterfaceType:
+		return ct
+	case *DeclaredType:
+		if it, ok := ct.Base.(*InterfaceType); ok {
+			return it
+		}
+	}
+	return nil
+}
+
+// structSurface holds the two cap-relevant counts contributed by an
+// embedded field's type: field-side names and promoted methods.
+type structSurface struct {
+	fields  int
+	methods int
+}
+
+// reachableSurface returns the (fields, methods) contribution of t when
+// it appears as an embedded field's type. Counts through DeclaredType
+// (its Methods → methods bucket; its Base → recurse), PointerType
+// (passthrough), structs (effective fields go to fields bucket,
+// effective promoted methods to methods bucket), and interfaces
+// (effective methods go to methods bucket). fullyResolved is false if
+// any sub-walk hit a cycle break.
+func reachableSurface(t Type, visited map[Type]struct{}) (structSurface, bool) {
+	switch ct := t.(type) {
+	case *DeclaredType:
+		sub, ok := reachableSurface(ct.Base, visited)
+		sub.methods += len(ct.Methods)
+		return sub, ok
+	case *PointerType:
+		return reachableSurface(ct.Elt, visited)
+	case *StructType:
+		return effectiveStructSurface(ct, visited)
+	case *InterfaceType:
+		n, ok := effectiveInterfaceMethods(ct, visited)
+		return structSurface{methods: n}, ok
+	}
+	return structSurface{}, true
+}
+
+// effectiveInterfaceMethods returns (count, fullyResolved) for it.
+// Memoized via it.effectiveMethods. Cycle-safe via visited map.
+// Cache write is gated on fullyResolved && n ≤ MaxInterfaceMethods.
+func effectiveInterfaceMethods(it *InterfaceType, visited map[Type]struct{}) (int, bool) {
+	if it.effectiveMethods > 0 {
+		return int(it.effectiveMethods), true
+	}
+	if len(it.Methods) == 0 {
+		return 0, true
+	}
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[it]; ok {
+		return 0, false // cycle break — value depends on caller's visited
+	}
+	visited[it] = struct{}{}
+
+	n := 0
+	fully := true
+	for i := range it.Methods {
+		if eit := embeddedInterface(it.Methods[i].Type); eit != nil {
+			sub, ok := effectiveInterfaceMethods(eit, visited)
+			n += sub
+			if !ok {
+				fully = false
+			}
+		} else {
+			n++ // regular method
+		}
+		if n > MaxInterfaceMethods {
+			return n, fully
+		}
+	}
+	if fully {
+		it.effectiveMethods = uint16(n)
+	}
+	return n, fully
+}
+
+// effectiveStructSurface returns (fields, methods, fullyResolved) for st.
+// Each direct field contributes 1 to the fields bucket. Embedded fields
+// additionally contribute reachableSurface of the field type: promoted
+// struct fields go to fields, embedded interface methods and embedded
+// DeclaredType.Methods go to methods. Same caching rules as
+// effectiveInterfaceMethods: cache only when fully && both ≤ cap.
+func effectiveStructSurface(st *StructType, visited map[Type]struct{}) (structSurface, bool) {
+	// effectiveMethods > 0 implies effectiveFields > 0 (methods only enter
+	// via embedding, and each embed contributes 1 to fields); the disjunct
+	// is defense-in-depth in case s.fields++ is ever pruned for embeds.
+	if st.effectiveFields > 0 || st.effectiveMethods > 0 {
+		return structSurface{
+			fields:  int(st.effectiveFields),
+			methods: int(st.effectiveMethods),
+		}, true
+	}
+	if len(st.Fields) == 0 {
+		return structSurface{}, true
+	}
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[st]; ok {
+		return structSurface{}, false
+	}
+	visited[st] = struct{}{}
+
+	var s structSurface
+	fully := true
+	for i := range st.Fields {
+		f := &st.Fields[i]
+		s.fields++ // the field name itself is accessible
+		if f.Embedded {
+			sub, ok := reachableSurface(f.Type, visited)
+			s.fields += sub.fields
+			s.methods += sub.methods
+			if !ok {
+				fully = false
+			}
+		}
+		if s.fields > MaxStructFields || s.methods > MaxInterfaceMethods {
+			return s, fully
+		}
+	}
+	if fully {
+		st.effectiveFields = uint16(s.fields)
+		st.effectiveMethods = uint16(s.methods)
+	}
+	return s, fully
+}
+
+// validateInterfaceMethods panics if it has more than
+// MaxInterfaceMethods effective methods. Called at construction.
+func validateInterfaceMethods(it *InterfaceType, displayName string) {
+	if n, _ := effectiveInterfaceMethods(it, nil); n > MaxInterfaceMethods {
+		panic(fmt.Sprintf(
+			"interface %s has %d effective methods, exceeds max %d",
+			displayName, n, MaxInterfaceMethods))
+	}
+}
+
+// validateStructFields panics if st has more than MaxStructFields
+// effective field-side names or more than MaxInterfaceMethods promoted
+// methods. Called at construction.
+func validateStructFields(st *StructType, displayName string) {
+	s, _ := effectiveStructSurface(st, nil)
+	if s.fields > MaxStructFields {
+		panic(fmt.Sprintf(
+			"struct %s has %d effective fields, exceeds max %d",
+			displayName, s.fields, MaxStructFields))
+	}
+	if s.methods > MaxInterfaceMethods {
+		panic(fmt.Sprintf(
+			"struct %s has %d promoted methods, exceeds max %d",
+			displayName, s.methods, MaxInterfaceMethods))
+	}
+}
+
+// embedDepth returns the maximum depth of embedded-field / embedded-
+// interface chains reachable from t. visited keys on the Type interface
+// (pointer identity for composite types) and prevents infinite recursion
+// on self-pointer cycles like `type Node struct{ *Node }`. Early-exits
+// once accumulated depth exceeds MaxEmbedDepth so the per-call cost is
+// bounded at O(MaxEmbedDepth).
+//
+// Counted contributions:
+//   - StructType.Fields[i] with Embedded=true: 1 + depth(field-type)
+//   - InterfaceType.Methods[i] whose Type is itself an interface: 1 + depth
+//   - DeclaredType, PointerType: transparent passthrough (0 own contribution)
+//
+// Non-composite or non-embedding types return 0.
+func embedDepth(t Type, visited map[Type]struct{}) int {
+	if visited == nil {
+		visited = map[Type]struct{}{}
+	}
+	if _, ok := visited[t]; ok {
+		return 0
+	}
+	visited[t] = struct{}{}
+	switch ct := t.(type) {
+	case *DeclaredType:
+		return embedDepth(ct.Base, visited)
+	case *PointerType:
+		return embedDepth(ct.Elt, visited)
+	case *StructType:
+		maxDepth := 0
+		for i := range ct.Fields {
+			f := &ct.Fields[i]
+			if !f.Embedded {
+				continue
+			}
+			if d := 1 + embedDepth(f.Type, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxEmbedDepth {
+					return maxDepth
+				}
+			}
+		}
+		return maxDepth
+	case *InterfaceType:
+		maxDepth := 0
+		for i := range ct.Methods {
+			mt := ct.Methods[i].Type
+			if !isInterfaceMethodEmbed(mt) {
+				continue
+			}
+			if d := 1 + embedDepth(mt, visited); d > maxDepth {
+				maxDepth = d
+				if maxDepth > MaxEmbedDepth {
+					return maxDepth
+				}
+			}
+		}
+		return maxDepth
+	default:
+		return 0
+	}
+}
+
+// isInterfaceMethodEmbed reports whether an InterfaceType.Methods entry's
+// Type represents an embedded interface (vs. a regular method whose
+// signature is a *FuncType). declareWith collapses Base via baseOf, so
+// Base of a *DeclaredType is never another *DeclaredType.
+func isInterfaceMethodEmbed(t Type) bool {
+	switch ct := t.(type) {
+	case *InterfaceType:
+		return true
+	case *DeclaredType:
+		_, ok := ct.Base.(*InterfaceType)
+		return ok
+	}
+	return false
+}
+
+// validateEmbedDepth panics if t's embed depth exceeds MaxEmbedDepth.
+// Called at type-finalization points (Seal for named types; immediately
+// after construction for inline struct/interface types). Per-call cost is
+// O(MaxEmbedDepth) thanks to embedDepth's early-exit.
+func validateEmbedDepth(t Type, displayName string) {
+	if d := embedDepth(t, nil); d > MaxEmbedDepth {
+		panic(fmt.Sprintf(
+			"type %s embed depth %d exceeds max %d",
+			displayName, d, MaxEmbedDepth))
+	}
 }
 
 // NOTE: dt.sealed is only for recursive types support:
@@ -1583,17 +2025,48 @@ func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
 	}
 }
 
+// lookupMethod returns the index of method n in dt.Methods, or (0, false)
+// if absent. Uses methodIndex for O(1) lookup once len(Methods) exceeds
+// methodIndexThreshold; builds the index lazily on first call past
+// threshold (e.g. after amino deserialization).
+func (dt *DeclaredType) lookupMethod(n Name) (uint16, bool) {
+	if dt.methodIndex == nil && len(dt.Methods) > methodIndexThreshold {
+		dt.buildMethodIndex()
+	}
+	if dt.methodIndex != nil {
+		i, ok := dt.methodIndex[n]
+		return i, ok
+	}
+	for i, tv := range dt.Methods {
+		if tv.V.(*FuncValue).Name == n {
+			return uint16(i), true
+		}
+	}
+	return 0, false
+}
+
+// buildMethodIndex populates methodIndex from Methods. Uses first-wins on
+// duplicates to match the linear-scan path's first-match contract;
+// TryDefineMethod prevents duplicate appends, but the guard preserves
+// invariants on directly-constructed test fixtures.
+func (dt *DeclaredType) buildMethodIndex() {
+	dt.methodIndex = make(map[Name]uint16, len(dt.Methods))
+	for i, tv := range dt.Methods {
+		name := tv.V.(*FuncValue).Name
+		if _, ok := dt.methodIndex[name]; !ok {
+			dt.methodIndex[name] = uint16(i)
+		}
+	}
+}
+
 // TryDefineMethod attempts to define the method fv on type dt.
 // It returns false if this does not succeeds, as a result of a re-declaration.
 func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 	name := fv.Name
 
-	// Handle redeclarations.
-	for i, tv := range dt.Methods {
-		ofv := tv.V.(*FuncValue)
-		if ofv.Name != name {
-			continue
-		}
+	// Handle redeclarations via O(1) name lookup.
+	if i, exists := dt.lookupMethod(name); exists {
+		ofv := dt.Methods[i].V.(*FuncValue)
 
 		// Do not allow redeclaring (override) a method.
 		// In the future we may allow this, just like we
@@ -1613,6 +2086,7 @@ func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 		}
 
 		// Special case: allow defining a native body.
+		// Name and index unchanged → methodIndex stays valid.
 		if fv.Type.TypeID() == ofv.Type.TypeID() &&
 			!ofv.IsNative() && fv.IsNative() {
 			dt.Methods[i] = TypedValue{
@@ -1631,25 +2105,26 @@ func (dt *DeclaredType) TryDefineMethod(fv *FuncValue) bool {
 		T: fv.Type,
 		V: fv,
 	})
+	// Maintain methodIndex consistent with Methods: build at threshold-cross,
+	// otherwise insert incrementally if the map already exists.
+	if dt.methodIndex == nil && len(dt.Methods) > methodIndexThreshold {
+		dt.buildMethodIndex()
+	} else if dt.methodIndex != nil {
+		dt.methodIndex[name] = uint16(len(dt.Methods) - 1)
+	}
 	return true
 }
 
 func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	// May be a method.
-	for i, tv := range dt.Methods {
-		fv := tv.V.(*FuncValue)
-		if fv.Name == n {
-			if i > 2<<16-1 {
-				panic("too many methods")
-			}
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			if fv.GetType(nil).HasPointerReceiver() {
-				return NewValuePathPtrMethod(uint16(i), n)
-			} else {
-				return NewValuePathValMethod(uint16(i), n)
-			}
+	if i, ok := dt.lookupMethod(n); ok {
+		fv := dt.Methods[i].V.(*FuncValue)
+		// NOTE: makes code simple but requires preprocessor's
+		// Store to pre-load method types.
+		if fv.GetType(nil).HasPointerReceiver() {
+			return NewValuePathPtrMethod(i, n)
 		}
+		return NewValuePathValMethod(i, n)
 	}
 	// Otherwise it is underlying.
 	path := dt.Base.(ValuePather).GetPathForName(n)
@@ -1658,14 +2133,8 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 }
 
 func (dt *DeclaredType) GetUnboundPathForName(n Name) ValuePath {
-	for i, tv := range dt.Methods {
-		fv := tv.V.(*FuncValue)
-		if fv.Name == n {
-			if i > 2<<16-1 {
-				panic("too many methods")
-			}
-			return NewValuePathField(0, uint16(i), n)
-		}
+	if i, ok := dt.lookupMethod(n); ok {
+		return NewValuePathField(0, i, n)
 	}
 	panic(fmt.Sprintf(
 		"unknown *DeclaredType method named %s",
@@ -1686,28 +2155,26 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	} else {
 		m[dt] = struct{}{}
 	}
-	// Search direct methods.
-	for i := range dt.Methods {
-		mv := &dt.Methods[i]
-		if fv := mv.GetFunc(); fv.Name == n {
-			// Ensure exposed or package match.
-			if !isUpper(string(n)) && dt.PkgPath != callerPath {
-				return nil, false, nil, nil, true
-			}
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			rt := fv.GetType(nil).Params[0].Type
-			var vp ValuePath
-			if _, ok := rt.(*PointerType); ok {
-				vp = NewValuePathPtrMethod(uint16(i), n)
-			} else {
-				vp = NewValuePathValMethod(uint16(i), n)
-			}
-			// NOTE: makes code simple but requires preprocessor's
-			// Store to pre-load method types.
-			bt := fv.GetType(nil).BoundType()
-			return []ValuePath{vp}, false, rt, bt, false
+	// Search direct methods via O(1) name lookup.
+	if i, ok := dt.lookupMethod(n); ok {
+		fv := dt.Methods[i].V.(*FuncValue)
+		// Ensure exposed or package match.
+		if !isUpper(string(n)) && dt.PkgPath != callerPath {
+			return nil, false, nil, nil, true
 		}
+		// NOTE: makes code simple but requires preprocessor's
+		// Store to pre-load method types.
+		rt := fv.GetType(nil).Params[0].Type
+		var vp ValuePath
+		if _, isPtr := rt.(*PointerType); isPtr {
+			vp = NewValuePathPtrMethod(i, n)
+		} else {
+			vp = NewValuePathValMethod(i, n)
+		}
+		// NOTE: makes code simple but requires preprocessor's
+		// Store to pre-load method types.
+		bt := fv.GetType(nil).BoundType()
+		return []ValuePath{vp}, false, rt, bt, false
 	}
 	// Otherwise, search base.
 	trail, hasPtr, rcvr, ft, accessError = findEmbeddedFieldType(callerPath, dt.Base, n, m)
