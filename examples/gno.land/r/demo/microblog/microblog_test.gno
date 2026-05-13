@@ -14,11 +14,9 @@ func TestMicroblog(t *testing.T) {
 		author2 address = testutils.TestAddress("author2")
 	)
 
-	testing.SetOriginCaller(author1)
-
 	urequire.Equal(t, "404", Render("/wrongpath"), "rendering not giving 404")
 	urequire.NotEqual(t, "404", Render(""), "rendering / should not give 404")
-	urequire.NoError(t, m.NewPost("goodbyte, web2"), "could not create post")
+	urequire.NoError(t, m.NewPost(author1, "goodbyte, web2"), "could not create post")
 
 	_, err := m.GetPage(author1.String())
 	urequire.NoError(t, err, "silo should exist")
@@ -26,11 +24,9 @@ func TestMicroblog(t *testing.T) {
 	_, err = m.GetPage("no such author")
 	urequire.Error(t, err, "silo should not exist")
 
-	testing.SetOriginCaller(author2)
-
-	urequire.NoError(t, m.NewPost("hello, web3"), "could not create post")
-	urequire.NoError(t, m.NewPost("hello again, web3"), "could not create post")
-	urequire.NoError(t, m.NewPost("hi again,\n web4?"), "could not create post")
+	urequire.NoError(t, m.NewPost(author2, "hello, web3"), "could not create post")
+	urequire.NoError(t, m.NewPost(author2, "hello again, web3"), "could not create post")
+	urequire.NoError(t, m.NewPost(author2, "hi again,\n web4?"), "could not create post")
 
 	println("--- MICROBLOG ---\n\n")
 

@@ -1,7 +1,6 @@
 package microblog
 
 import (
-	"chain/runtime"
 	"errors"
 	"sort"
 	"strings"
@@ -47,11 +46,9 @@ func (m *Microblog) GetPages() []*Page {
 	return pages
 }
 
-func (m *Microblog) NewPost(text string) error {
-	author := runtime.OriginCaller()
+func (m *Microblog) NewPost(author address, text string) error {
 	_, found := m.Pages.Get(author.String())
 	if !found {
-		// make a new page for the new author
 		m.Pages.Set(author.String(), &Page{
 			Author:    author,
 			CreatedAt: time.Now(),

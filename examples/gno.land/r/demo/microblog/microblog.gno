@@ -81,8 +81,8 @@ func PageToString(p *microblog.Page) string {
 
 // NewPost takes a single argument (post markdown) and
 // adds a post to the address of the caller.
-func NewPost(_ realm, text string) string {
-	if err := m.NewPost(text); err != nil {
+func NewPost(cur realm, text string) string {
+	if err := m.NewPost(cur.Previous().Address(), text); err != nil {
 		return "unable to add new post"
 	}
 	return "added new post"
