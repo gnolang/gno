@@ -1402,6 +1402,34 @@ func TestHTTPHandler_GetStateView_HeightOutOfRange(t *testing.T) {
 		"error message tells the user which height failed")
 }
 
+// TestHTTPHandler_ServeStateJSON_UnencodedColonOID — an unencoded `:` in
+// `oid=<hash>:<n>` must round-trip through the parser into the JSON
+// handler, not bail out via the HTML "invalid path" page.
+func TestHTTPHandler_ServeStateJSON_UnencodedColonOID(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/state",
+		Files:  map[string]string{"render.gno": `package state`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(io.Discard, nil)), config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/state$state&oid=abc:1&json", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"),
+		"JSON caller must not receive HTML when an unencoded colon appears in webargs")
+	assert.Equal(t, http.StatusOK, rr.Code, "valid OID with bare colon should reach the JSON handler")
+	assert.Contains(t, rr.Body.String(), `"objectid"`,
+		"mock returns the object envelope when the OID round-trips correctly")
+}
+
 // TestHTTPHandler_ServeStateJSON_HeightOutOfRange — `?state&json` must
 // surface pinned-height failures as 400 + the same friendly message the
 // HTML page shows, not the generic upstream RPC error string.

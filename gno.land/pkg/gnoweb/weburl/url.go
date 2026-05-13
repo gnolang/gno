@@ -279,14 +279,12 @@ func (gnoURL GnoURL) Username() string {
 }
 
 // ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
+// Grammar: `<path>[:<args>][$<webargs>]`. The `$` split runs first so a
+// literal `:` inside webargs (e.g. ObjectID `<hash>:<n>`) stays in the
+// webargs and doesn't corrupt the path-args split.
 func ParseFromURL(u *url.URL) (*GnoURL, error) {
-	var webargs string
-	path, args, found := strings.Cut(u.EscapedPath(), ":")
-	if found {
-		args, webargs, _ = strings.Cut(args, "$")
-	} else {
-		path, webargs, _ = strings.Cut(path, "$")
-	}
+	pathArgs, webargs, _ := strings.Cut(u.EscapedPath(), "$")
+	path, args, _ := strings.Cut(pathArgs, ":")
 
 	upath, err := url.PathUnescape(path)
 	if err != nil {
