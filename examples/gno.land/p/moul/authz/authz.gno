@@ -115,9 +115,16 @@ func (a *Authorizer) Authority() Authority {
 	return a.auth
 }
 
-// Transfer changes the auth authority after validation
-func (a *Authorizer) Transfer(caller address, newAuthority Authority) error {
-	// Ask auth authority to validate the transfer
+// Transfer changes the auth authority after validation. rlm must be the
+// caller's own captured cur (asserted via rlm.IsCurrent()); the
+// principal is rlm.Previous().Address(). Closes the address-parameter
+// forgery: an external realm cannot supply Owner() as `caller` to
+// bypass the underlying Authority's check.
+func (a *Authorizer) Transfer(_ int, rlm realm, newAuthority Authority) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
+	caller := rlm.Previous().Address()
 	return a.auth.Authorize(caller, "transfer_authority", func() error {
 		a.auth = newAuthority
 		return nil
@@ -190,16 +197,28 @@ func (a *MemberAuthority) String() string {
 	return ufmt.Sprintf("member_authority[%s]", addrsStr)
 }
 
-// AddMember adds a new member to the authority
-func (a *MemberAuthority) AddMember(caller address, addr address) error {
+// AddMember adds a new member to the authority. rlm must be the caller's
+// own captured cur; the principal is rlm.Previous().Address() and must
+// already be a member. The IsCurrent guard closes the forgery where an
+// external realm passes Owner() as caller to bypass members.Has(caller).
+func (a *MemberAuthority) AddMember(_ int, rlm realm, addr address) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
+	caller := rlm.Previous().Address()
 	return a.Authorize(caller, "add_member", func() error {
 		a.members.Add(addr)
 		return nil
 	})
 }
 
-// AddMembers adds a list of members to the authority
-func (a *MemberAuthority) AddMembers(caller address, addrs ...address) error {
+// AddMembers adds a list of members to the authority. Same rlm contract
+// as AddMember.
+func (a *MemberAuthority) AddMembers(_ int, rlm realm, addrs ...address) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
+	caller := rlm.Previous().Address()
 	return a.Authorize(caller, "add_members", func() error {
 		for _, addr := range addrs {
 			a.members.Add(addr)
@@ -208,8 +227,13 @@ func (a *MemberAuthority) AddMembers(caller address, addrs ...address) error {
 	})
 }
 
-// RemoveMember removes a member from the authority
-func (a *MemberAuthority) RemoveMember(caller address, addr address) error {
+// RemoveMember removes a member from the authority. Same rlm contract
+// as AddMember.
+func (a *MemberAuthority) RemoveMember(_ int, rlm realm, addr address) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
+	caller := rlm.Previous().Address()
 	return a.Authorize(caller, "remove_member", func() error {
 		a.members.Remove(addr)
 		return nil

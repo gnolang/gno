@@ -19,39 +19,31 @@ func init(cur realm) {
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
 func AddManager(cur realm, addr address) error {
-	caller := cur.Previous().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot add manager directly")
 	}
-	// Use the MemberAuthority's specific AddMember method,
-	// which internally performs the authorization check.
-	return memberAuth.AddMember(caller, addr)
+	return memberAuth.AddMember(0, cur, addr)
 }
 
 // RemoveManager removes an address from the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.
 // The caller must be authorized by the current authority.
 func RemoveManager(cur realm, addr address) error {
-	caller := cur.Previous().Address()
 	memberAuth, ok := Authorizer.Authority().(*authz.MemberAuthority)
 	if !ok {
 		return errors.New("current authority is not a MemberAuthority, cannot remove manager directly")
 	}
-	// Use the MemberAuthority's specific RemoveMember method,
-	// which internally performs the authorization check.
-	return memberAuth.RemoveMember(caller, addr)
+	return memberAuth.RemoveMember(0, cur, addr)
 }
 
 // TransferManagement transfers the authority to manage keys to a new authority.
 // The caller must be authorized by the current authority.
 func TransferManagement(cur realm, newAuthority authz.Authority) error {
-	caller := cur.Previous().Address()
 	if newAuthority == nil {
 		return errors.New("new authority cannot be nil")
 	}
-	// Use the Authorizer's Transfer method, which handles the authorization check.
-	return Authorizer.Transfer(caller, newAuthority)
+	return Authorizer.Transfer(0, cur, newAuthority)
 }
 
 // ListManagers returns a slice of all managed keys.

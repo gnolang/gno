@@ -88,23 +88,25 @@ func TestAuthorizerTransfer(cur realm, t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	newAuth := NewMemberAuthority(bob)
 
-	err := auth.Transfer(alice, newAuth)
+	var err error
+	func(cur realm) { err = auth.Transfer(0, cur, newAuth) }(cross)
 	uassert.True(t, err == nil, "expected no error")
 	uassert.True(t, auth.Authority() == newAuth, "expected new authority")
 
-	// Test unauthorized transfer
-	testing.SetRealm(testing.NewUserRealm(bob)) // doesn't matter that it's bob
+	// Test unauthorized transfer: principal is not a member of newAuth.
 	carol := testutils.TestAddress("carol")
+	testing.SetRealm(testing.NewUserRealm(carol))
 
-	err = auth.Transfer(carol, NewMemberAuthority(alice))
+	func(cur realm) { err = auth.Transfer(0, cur, NewMemberAuthority(alice)) }(cross)
 	uassert.True(t, err != nil, "expected error")
 
-	// Test transfer to contract authority
+	// Test transfer to contract authority — bob is the current authority.
+	testing.SetRealm(testing.NewUserRealm(bob))
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		return action()
 	})
 
-	err = auth.Transfer(bob, contractAuth)
+	func(cur realm) { err = auth.Transfer(0, cur, contractAuth) }(cross)
 	uassert.True(t, err == nil, "expected no error")
 	uassert.True(t, auth.Authority() == contractAuth, "expected contract authority")
 }
@@ -120,70 +122,61 @@ func TestAuthorizerTransferChain(cur realm, t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	memberAuth := NewMemberAuthority(bob)
 
-	err := auth.Transfer(alice, memberAuth)
+	var err error
+	func(cur realm) { err = auth.Transfer(0, cur, memberAuth) }(cross)
 	uassert.True(t, err == nil, "unexpected error in first transfer")
 
-	// Then transfer to a contract authority
+	// Then transfer to a contract authority — bob is now the authority.
+	testing.SetRealm(testing.NewUserRealm(bob))
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		return action()
 	})
-	err = auth.Transfer(bob, contractAuth)
+	func(cur realm) { err = auth.Transfer(0, cur, contractAuth) }(cross)
 	uassert.True(t, err == nil, "unexpected error in second transfer")
 
-	// Finally transfer to an auto-accept authority
+	// Finally transfer to an auto-accept authority — must come from the
+	// contract realm so ContractAuthority's wrappedAction CurrentRealm
+	// check passes. Use the test frame's cur directly (SetRealm mutates
+	// it in place); a crossing closure would push a new frame whose cur
+	// is the test package, breaking the runtime.CurrentRealm match.
 	autoAuth := NewAutoAcceptAuthority()
 	codeRealm := testing.NewCodeRealm("gno.land/r/test")
-	code := codeRealm.Address()
 	testing.SetRealm(codeRealm)
-	err = auth.Transfer(code, autoAuth)
+	err = auth.Transfer(0, cur, autoAuth)
 	uassert.True(t, err == nil, "unexpected error in final transfer")
 	uassert.True(t, auth.Authority() == autoAuth, "expected auto-accept authority")
 }
 
-func TestAuthorizerTransferVulnerability(cur realm, t *testing.T) {
+func TestAuthorizerTransferUnauthorizedRejected(cur realm, t *testing.T) {
+	// Regression for the address-parameter forgery: previously Transfer
+	// took a caller-supplied `caller address` that an attacker realm could
+	// set to the real owner. After the IsCurrent + rlm.Previous() fix, the
+	// principal is the captured cur's previous and cannot be forged.
 	admin := testutils.TestAddress("admin")
 	attacker := testutils.TestAddress("attacker")
 
-	// Setup: Authorizer controlled by 'admin'
 	testing.SetRealm(testing.NewUserRealm(admin))
-	auth := NewWithMembers(cur.Address()) // 'admin' is the initial authority
+	auth := NewWithMembers(cur.Address()) // admin is the initial authority
 
-	// Check initial state
 	initialAuth, ok := auth.Authority().(*MemberAuthority)
 	uassert.True(t, ok)
 	uassert.True(t, initialAuth.Has(admin))
 	uassert.False(t, initialAuth.Has(attacker))
 
-	// Simulate attacker's context
+	// Attacker context: cur.Previous() inside the closure will be attacker.
 	testing.SetRealm(testing.NewUserRealm(attacker))
-
-	// Vulnerability: Attacker calls Transfer, providing 'admin' as the 'caller'
-	// argument, even though the actual caller is 'attacker'.
 	attackerAuth := NewMemberAuthority(attacker)
-	err := auth.Transfer(admin, attackerAuth) // Vulnerability point
+	var err error
+	func(cur realm) { err = auth.Transfer(0, cur, attackerAuth) }(cross)
 
-	// Assertions:
-	// 1. Transfer should succeed if vulnerability exists (checks only provided 'caller').
-	//    NOTE: If this test FAILS, the vulnerability is likely fixed!
-	uassert.NoError(t, err, "transfer should succeed due to vulnerability")
+	uassert.True(t, err != nil, "attacker transfer must be rejected")
 
-	// 2. Authority should now be the attacker's.
+	// Authority unchanged: still the initial admin-only MemberAuthority.
 	finalAuth, ok := auth.Authority().(*MemberAuthority)
 	uassert.True(t, ok)
-	uassert.True(t, finalAuth == attackerAuth)
-
-	// 3. Attacker should be the sole member.
-	uassert.True(t, finalAuth.Has(attacker))
-	uassert.False(t, finalAuth.Has(admin))
-
-	// Verify attacker can now perform actions
-	actionExecuted := false
-	err = auth.Do(0, cur, "attacker_action", func() error {
-		actionExecuted = true
-		return nil
-	})
-	uassert.NoError(t, err)
-	uassert.True(t, actionExecuted)
+	uassert.True(t, finalAuth == initialAuth, "authority must not have changed")
+	uassert.True(t, finalAuth.Has(admin))
+	uassert.False(t, finalAuth.Has(attacker))
 }
 
 func TestAuthorizerWithDroppedAuthority(cur realm, t *testing.T) {
@@ -193,7 +186,8 @@ func TestAuthorizerWithDroppedAuthority(cur realm, t *testing.T) {
 	auth := NewWithMembers(cur.Address())
 
 	// Transfer to dropped authority
-	err := auth.Transfer(alice, NewDroppedAuthority())
+	var err error
+	func(cur realm) { err = auth.Transfer(0, cur, NewDroppedAuthority()) }(cross)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Try to execute action
@@ -203,7 +197,7 @@ func TestAuthorizerWithDroppedAuthority(cur realm, t *testing.T) {
 	uassert.True(t, err != nil, "expected error from dropped authority")
 
 	// Try to transfer again
-	err = auth.Transfer(alice, NewMemberAuthority(alice))
+	func(cur realm) { err = auth.Transfer(0, cur, NewMemberAuthority(alice)) }(cross)
 	uassert.True(t, err != nil, "expected error when transferring from dropped authority")
 }
 
@@ -402,13 +396,13 @@ func TestMemberAuthorityMultipleMembers(cur realm, t *testing.T) {
 
 func TestAuthorizerCurrentNeverNil(cur realm, t *testing.T) {
 	auth := NewWithMembers(cur.Address())
-	addr := cur.Address()
 
 	// Authority should never be nil after initialization
 	uassert.True(t, auth.Authority() != nil, "current authority should not be nil")
 
 	// Authority should not be nil after transfer
-	err := auth.Transfer(addr, NewAutoAcceptAuthority())
+	var err error
+	func(cur realm) { err = auth.Transfer(0, cur, NewAutoAcceptAuthority()) }(cross)
 	uassert.True(t, err == nil, "transfer should succeed")
 	uassert.True(t, auth.Authority() != nil, "current authority should not be nil after transfer")
 }
@@ -455,17 +449,17 @@ func TestAuthorizerString(cur realm, t *testing.T) {
 	str := auth.String()
 	uassert.Equal(t, str, "member_authority["+string(addr)+"]")
 
-	// Test string after transfer
+	// Test string after transfer — caller is the current member (cur).
 	autoAuth := NewAutoAcceptAuthority()
-	err := auth.Transfer(addr, autoAuth)
+	var err error
+	func(cur realm) { err = auth.Transfer(0, cur, autoAuth) }(cross)
 	uassert.True(t, err == nil, "transfer should succeed")
 	str = auth.String()
 	uassert.Equal(t, str, "auto_accept_authority")
 
-	// Test custom authority
+	// Test custom authority — auto-accept lets anyone transfer.
 	customAuth := &mockAuthority{}
-	bob := testutils.TestAddress("bob")
-	err = auth.Transfer(bob, customAuth)
+	func(cur realm) { err = auth.Transfer(0, cur, customAuth) }(cross)
 	uassert.True(t, err == nil, "transfer should succeed")
 	str = auth.String()
 	uassert.Equal(t, str, "custom_authority[mock]")

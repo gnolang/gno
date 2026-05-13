@@ -21,7 +21,7 @@ func Example_addingMembers(cur realm) {
 
 	// Add a new member to the authority
 	memberAuth := auth.Authority().(*MemberAuthority)
-	memberAuth.AddMember(cur.Address(), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	memberAuth.AddMember(0, cur, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 // Example_contractAuthority demonstrates using a contract-based authority
@@ -70,15 +70,14 @@ func Example_restrictedContractAuthority(cur realm) {
 // Example_switchingAuthority demonstrates switching from member to contract authority
 func Example_switchingAuthority(cur realm) {
 	// Start with member authority (the calling realm)
-	addr := cur.Address()
-	auth := NewWithMembers(addr)
+	auth := NewWithMembers(cur.Address())
 
 	// Create and switch to contract authority
 	daoAuthority := NewContractAuthority(
 		"gno.land/r/demo/dao",
 		mockDAOHandler,
 	)
-	auth.Transfer(addr, daoAuthority)
+	auth.Transfer(0, cur, daoAuthority)
 }
 
 // Mock handler for examples
