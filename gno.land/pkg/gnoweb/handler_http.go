@@ -1019,8 +1019,8 @@ type renderStateInput struct {
 func (h *HTTPHandler) renderStateView(ctx context.Context, gnourl *weburl.GnoURL, in renderStateInput) *components.View {
 	pkgPath := gnourl.Path
 	adapter := &stateAdapter{client: h.Client, height: in.Height}
-	components.EnrichInlinePreviews(ctx, in.Nodes, adapter, adapter)
-	components.Enrich(ctx, in.Nodes, pkgPath, in.Height, adapter,
+	components.EnrichInlinePreviews(ctx, h.Logger, in.Nodes, adapter, adapter)
+	components.Enrich(ctx, h.Logger, in.Nodes, pkgPath, in.Height, adapter,
 		&rendererSnippetHighlighter{renderer: h.Renderer})
 	return components.StateView(components.StateData{
 		PkgPath:      pkgPath,

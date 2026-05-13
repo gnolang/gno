@@ -84,7 +84,7 @@ func TestRenderState_RefAsLink(t *testing.T) {
 		Name: "Users", Type: "map[string]User", Kind: "ref",
 		ObjectID: oid, Expandable: true,
 	}}
-	Enrich(context.Background(), nodes, "/r/demo/foo", 0, nil, nil) // nil deps: link build only
+	Enrich(context.Background(), nil, nodes, "/r/demo/foo", 0, nil, nil) // nil deps: link build only
 
 	html := renderState(t, StateData{
 		PkgPath:    "/r/demo/foo",
@@ -461,7 +461,7 @@ func TestRenderState_StatsStrip(t *testing.T) {
 		LastObjectSize: "412",
 		ModTime:        "14237",
 	}}
-	Enrich(context.Background(), nodes, "/r/demo/foo", 0, nil, nil)
+	Enrich(context.Background(), nil, nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -539,7 +539,7 @@ func TestRenderState_FooterCTA(t *testing.T) {
 		Name: "config", Type: "*Config", Kind: "ref",
 		ObjectID: oid, Expandable: true,
 	}}
-	Enrich(context.Background(), nodes, "/r/demo/foo", 0, nil, nil)
+	Enrich(context.Background(), nil, nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -572,7 +572,7 @@ func TestRenderState_CTA_PlusNMore(t *testing.T) {
 			{Name: "2", Type: "string", Kind: "primitive", Value: "third"},
 		},
 	}}
-	Enrich(context.Background(), nodes, "/r/demo/foo", 0, nil, nil)
+	Enrich(context.Background(), nil, nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,
@@ -601,7 +601,7 @@ func TestRenderState_CTA_NoMore(t *testing.T) {
 			{Name: "1", Type: "int", Kind: "primitive", Value: "2"},
 		},
 	}}
-	Enrich(context.Background(), nodes, "/r/demo/foo", 0, nil, nil)
+	Enrich(context.Background(), nil, nodes, "/r/demo/foo", 0, nil, nil)
 
 	html := renderState(t, StateData{
 		PkgPath: "/r/demo/foo", Nodes: nodes,

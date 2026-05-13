@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"html/template"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"sync"
@@ -21,6 +22,16 @@ const (
 	maxInlinePreviewFetches    = 30
 	maxInlinePreviewRounds     = 2 // covers Gno's heap→ref→struct indirection
 )
+
+// recoverFetcher must be deferred in every fetcher goroutine so a panic
+// from one fetch never crashes the whole render. The shared log key set
+// also gives prod a single grep target.
+func recoverFetcher(logger *slog.Logger, kind string, fields ...any) {
+	if r := recover(); r != nil {
+		logger.Error("fetcher panic recovered",
+			append([]any{"kind", kind, "panic", r}, fields...)...)
+	}
+}
 
 type FileFetcher interface {
 	Fetch(ctx context.Context, pkgPath, fileName string) ([]byte, error)
@@ -47,13 +58,17 @@ type StateTypeFetcher interface {
 // parallel, then highlighting. Failures degrade gracefully — SourceHTML
 // is left empty. Passing nil fetcher or highlighter skips source.
 // A canceled ctx aborts in-flight fetches and skips highlighting.
-func Enrich(ctx context.Context, nodes []StateNode, pkgPath string, height int64, fetcher FileFetcher, highlighter SnippetHighlighter) {
+// nil logger falls back to slog.Default().
+func Enrich(ctx context.Context, logger *slog.Logger, nodes []StateNode, pkgPath string, height int64, fetcher FileFetcher, highlighter SnippetHighlighter) {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	files := make(map[string]struct{})
 	walkLinksAndCollect(nodes, pkgPath, height, files)
 
 	var cache map[string][]byte
 	if fetcher != nil && len(files) > 0 {
-		cache = fetchFilesConcurrent(ctx, pkgPath, files, fetcher)
+		cache = fetchFilesConcurrent(ctx, logger, pkgPath, files, fetcher)
 	}
 
 	if highlighter != nil && len(cache) > 0 && ctx.Err() == nil {
@@ -83,7 +98,7 @@ func walkLinksAndCollect(nodes []StateNode, pkgPath string, height int64, files 
 
 // fetchFilesConcurrent fetches each file via the bounded semaphore;
 // errors and ctx cancellation leave the file absent from the cache.
-func fetchFilesConcurrent(ctx context.Context, pkgPath string, files map[string]struct{}, fetcher FileFetcher) map[string][]byte {
+func fetchFilesConcurrent(ctx context.Context, logger *slog.Logger, pkgPath string, files map[string]struct{}, fetcher FileFetcher) map[string][]byte {
 	cache := make(map[string][]byte, len(files))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -92,7 +107,7 @@ func fetchFilesConcurrent(ctx context.Context, pkgPath string, files map[string]
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()
-			defer func() { _ = recover() }() // fetcher panics must not crash the process
+			defer recoverFetcher(logger, "file", "pkgPath", pkgPath, "file", name)
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
@@ -136,9 +151,13 @@ func walkRenderSnippets(nodes []StateNode, highlighter SnippetHighlighter, cache
 // `typeFetcher` (if non-nil) resolves struct field names via the named-type
 // definitions Amino strips during ExportValues. Failures degrade silently.
 // A canceled ctx aborts before the next round and during semaphore acquire.
-func EnrichInlinePreviews(ctx context.Context, nodes []StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
+// nil logger falls back to slog.Default().
+func EnrichInlinePreviews(ctx context.Context, logger *slog.Logger, nodes []StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher) {
 	if objFetcher == nil {
 		return
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 
 	// Cross-round dedupe: an OID resolved in round 1 must not be re-fetched
@@ -167,7 +186,7 @@ func EnrichInlinePreviews(ctx context.Context, nodes []StateNode, objFetcher Sta
 		if len(candidates) > remaining {
 			candidates = candidates[:remaining]
 		}
-		fetchPreviewsConcurrent(ctx, candidates, objFetcher, typeFetcher, fetched)
+		fetchPreviewsConcurrent(ctx, logger, candidates, objFetcher, typeFetcher, fetched)
 		fetchedTotal += len(candidates)
 	}
 }
@@ -194,7 +213,7 @@ func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
 // documented maxConcurrentObjectFetches. ctx cancellation aborts before
 // semaphore acquire. fetched is updated with every OID that produced a
 // usable response so the caller can dedupe across rounds.
-func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher, fetched map[string]struct{}) {
+func fetchPreviewsConcurrent(ctx context.Context, logger *slog.Logger, candidates []*StateNode, objFetcher StateObjectFetcher, typeFetcher StateTypeFetcher, fetched map[string]struct{}) {
 	byOID := make(map[string][]*StateNode)
 	for _, n := range candidates {
 		byOID[n.ObjectID] = append(byOID[n.ObjectID], n)
@@ -219,7 +238,7 @@ func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFe
 		wg.Add(1)
 		go func(oid string) {
 			defer wg.Done()
-			defer func() { _ = recover() }() // fetcher panics must not crash the process
+			defer recoverFetcher(logger, "object", "oid", oid)
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
@@ -240,7 +259,7 @@ func fetchPreviewsConcurrent(ctx context.Context, candidates []*StateNode, objFe
 		wg.Add(1)
 		go func(tid string) {
 			defer wg.Done()
-			defer func() { _ = recover() }() // fetcher panics must not crash the process
+			defer recoverFetcher(logger, "type", "tid", tid)
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
