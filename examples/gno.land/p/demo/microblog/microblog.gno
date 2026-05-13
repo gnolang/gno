@@ -46,7 +46,15 @@ func (m *Microblog) GetPages() []*Page {
 	return pages
 }
 
-func (m *Microblog) NewPost(author address, text string) error {
+// NewPost records a new post. rlm must be the caller's own captured
+// cur (asserted via rlm.IsCurrent()); the post's author is set to
+// rlm.Previous().Address() — an external realm cannot forge a post
+// under a different identity.
+func (m *Microblog) NewPost(_ int, rlm realm, text string) error {
+	if !rlm.IsCurrent() {
+		return errors.New("microblog: unauthorized")
+	}
+	author := rlm.Previous().Address()
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		m.Pages.Set(author.String(), &Page{

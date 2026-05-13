@@ -13,11 +13,11 @@ func init() {
 }
 
 func PostMeme(cur realm, data string, timestamp int64) string {
-	return m.PostMeme(cur.Previous().Address(), data, timestamp)
+	return m.PostMeme(0, cur, data, timestamp)
 }
 
 func Upvote(cur realm, id string) string {
-	return m.Upvote(cur.Previous().Address(), id)
+	return m.Upvote(0, cur, id)
 }
 
 func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sortBy string) string {
@@ -25,7 +25,7 @@ func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sor
 }
 
 func RemovePost(cur realm, id string) string {
-	return m.RemovePost(cur.Previous().Address(), id)
+	return m.RemovePost(0, cur, id)
 }
 
 func GetOwner() address {

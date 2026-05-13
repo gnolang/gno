@@ -37,10 +37,16 @@ func NewMemeland(owner address) *Memeland {
 	}
 }
 
-// PostMeme - Adds a new post authored by author.
-func (m *Memeland) PostMeme(author address, data string, timestamp int64) string {
+// PostMeme adds a new post. rlm must be the caller's own captured cur
+// (asserted via rlm.IsCurrent()); the post's Author is set to
+// rlm.Previous().Address(), so an external realm cannot forge a post
+// attributed to a different address.
+func (m *Memeland) PostMeme(_ int, rlm realm, data string, timestamp int64) string {
 	if data == "" || timestamp <= 0 {
 		panic("timestamp or data cannot be empty")
+	}
+	if !rlm.IsCurrent() {
+		panic(ownable.ErrUnauthorized)
 	}
 
 	id := m.MemeCounter.Next().String()
@@ -48,7 +54,7 @@ func (m *Memeland) PostMeme(author address, data string, timestamp int64) string
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
-		Author:        author,
+		Author:        rlm.Previous().Address(),
 		Timestamp:     time.Unix(timestamp, 0),
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -57,13 +63,19 @@ func (m *Memeland) PostMeme(author address, data string, timestamp int64) string
 	return id
 }
 
-func (m *Memeland) Upvote(voter address, id string) string {
+// Upvote records an upvote on a post. rlm must be the caller's own
+// captured cur; the voter is rlm.Previous().Address(). Closes the
+// vote-stuffing forgery: an external realm cannot upvote-as-victim.
+func (m *Memeland) Upvote(_ int, rlm realm, id string) string {
+	if !rlm.IsCurrent() {
+		panic(ownable.ErrUnauthorized)
+	}
 	post := m.getPost(id)
 	if post == nil {
 		panic("post with specified ID does not exist")
 	}
 
-	voterKey := voter.String()
+	voterKey := rlm.Previous().Address().String()
 	if _, exists := post.UpvoteTracker.Get(voterKey); exists {
 		panic("user has already upvoted this post")
 	}
@@ -150,14 +162,18 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	return PostsToJSONString(filteredPosts[startIndex:endIndex])
 }
 
-// RemovePost allows the owner to remove a post with a specific ID. caller
-// must equal the owner.
-func (m *Memeland) RemovePost(caller address, id string) string {
+// RemovePost allows the owner to remove a post with a specific ID. rlm
+// must be the caller's own captured cur; rlm.Previous().Address() must
+// equal the owner.
+func (m *Memeland) RemovePost(_ int, rlm realm, id string) string {
 	if id == "" {
 		panic("id cannot be empty")
 	}
 
-	if !m.OwnedBy(caller) {
+	if !rlm.IsCurrent() {
+		panic(ownable.ErrUnauthorized)
+	}
+	if !m.OwnedBy(rlm.Previous().Address()) {
 		panic(ownable.ErrUnauthorized)
 	}
 

@@ -8,6 +8,13 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+func postAs(actor address, text string) error {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var err error
+	func(cur realm) { err = m.NewPost(0, cur, text) }(cross)
+	return err
+}
+
 func TestMicroblog(t *testing.T) {
 	var (
 		author1 address = testutils.TestAddress("author1")
@@ -16,7 +23,7 @@ func TestMicroblog(t *testing.T) {
 
 	urequire.Equal(t, "404", Render("/wrongpath"), "rendering not giving 404")
 	urequire.NotEqual(t, "404", Render(""), "rendering / should not give 404")
-	urequire.NoError(t, m.NewPost(author1, "goodbyte, web2"), "could not create post")
+	urequire.NoError(t, postAs(author1, "goodbyte, web2"), "could not create post")
 
 	_, err := m.GetPage(author1.String())
 	urequire.NoError(t, err, "silo should exist")
@@ -24,9 +31,9 @@ func TestMicroblog(t *testing.T) {
 	_, err = m.GetPage("no such author")
 	urequire.Error(t, err, "silo should not exist")
 
-	urequire.NoError(t, m.NewPost(author2, "hello, web3"), "could not create post")
-	urequire.NoError(t, m.NewPost(author2, "hello again, web3"), "could not create post")
-	urequire.NoError(t, m.NewPost(author2, "hi again,\n web4?"), "could not create post")
+	urequire.NoError(t, postAs(author2, "hello, web3"), "could not create post")
+	urequire.NoError(t, postAs(author2, "hello again, web3"), "could not create post")
+	urequire.NoError(t, postAs(author2, "hi again,\n web4?"), "could not create post")
 
 	println("--- MICROBLOG ---\n\n")
 

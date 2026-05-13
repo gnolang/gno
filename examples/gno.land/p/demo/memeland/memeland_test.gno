@@ -10,10 +10,35 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
+// postMemeAs / upvoteAs / removePostAs are tiny helpers that thread the
+// migrated (_ int, rlm realm) API: each sets the test realm to the
+// actor's user realm and invokes the call inside a crossing closure so
+// cur.Previous().Address() resolves to actor.
+func postMemeAs(actor address, m *Memeland, data string, timestamp int64) string {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var id string
+	func(cur realm) { id = m.PostMeme(0, cur, data, timestamp) }(cross)
+	return id
+}
+
+func upvoteAs(actor address, m *Memeland, id string) string {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var result string
+	func(cur realm) { result = m.Upvote(0, cur, id) }(cross)
+	return result
+}
+
+func removePostAs(actor address, m *Memeland, id string) string {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var result string
+	func(cur realm) { result = m.RemovePost(0, cur, id) }(cross)
+	return result
+}
+
 func TestPostMeme(t *testing.T) {
 	admin := testutils.TestAddress("admin")
 	m := NewMemeland(admin)
-	id := m.PostMeme(admin, "Test meme data", time.Now().Unix())
+	id := postMemeAs(admin, m, "Test meme data", time.Now().Unix())
 	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
@@ -30,7 +55,7 @@ func TestGetPostsInRangePagination(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(admin, data, nextTime.Unix())
+		postMemeAs(admin, m, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -74,7 +99,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(admin, data, nextTime.Unix())
+		postMemeAs(admin, m, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -119,12 +144,12 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	memeData2 := "Meme #2"
 
 	// Create posts at specific times for testing
-	id1 := m.PostMeme(admin, memeData1, now.Unix())
-	id2 := m.PostMeme(admin, memeData2, now.Add(time.Minute).Unix())
+	id1 := postMemeAs(admin, m, memeData1, now.Unix())
+	id2 := postMemeAs(admin, m, memeData2, now.Add(time.Minute).Unix())
 
-	m.Upvote(admin, id1)
-	m.Upvote(admin, id2)
-	m.Upvote(alice, id1)
+	upvoteAs(admin, m, id1)
+	upvoteAs(admin, m, id2)
+	upvoteAs(alice, m, id1)
 
 	// Final upvote count:
 	// Meme #1 - 2 upvote
@@ -167,7 +192,7 @@ func TestBadSortBy(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(admin, data, nextTime.Unix())
+		postMemeAs(admin, m, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -222,14 +247,14 @@ func TestUpvote(t *testing.T) {
 
 	// Add a post to Memeland
 	now := time.Now().Unix()
-	postID := m.PostMeme(admin, "Test meme data", now)
+	postID := postMemeAs(admin, m, "Test meme data", now)
 
 	// Initial upvote count should be 0
 	post := m.getPost(postID)
 	uassert.Equal(t, 0, post.UpvoteTracker.Size())
 
 	// Upvote the post
-	upvoteResult := m.Upvote(admin, postID)
+	upvoteResult := upvoteAs(admin, m, postID)
 	uassert.Equal(t, "upvote successful", upvoteResult)
 
 	// Retrieve the post again and check the upvote count
@@ -246,10 +271,10 @@ func TestDelete(t *testing.T) {
 
 	// Bob adds post to Memeland
 	now := time.Now()
-	postID := m.PostMeme(bob, "Meme #1", now.Unix())
+	postID := postMemeAs(bob, m, "Meme #1", now.Unix())
 
 	// Alice removes Bob's post
-	id := m.RemovePost(alice, postID)
+	id := removePostAs(alice, m, postID)
 	uassert.Equal(t, postID, id, "post IDs not matching")
 	uassert.Equal(t, 0, len(m.Posts), "there should be 0 posts after removing")
 }
@@ -260,7 +285,7 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	// Add a post to Memeland
 	now := time.Now()
-	postID := m.PostMeme(alice, "Meme #1", now.Unix())
+	postID := postMemeAs(alice, m, "Meme #1", now.Unix())
 
 	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")
@@ -272,5 +297,5 @@ func TestDeleteByNonAdmin(t *testing.T) {
 	}()
 
 	// Should panic - caught by defer
-	m.RemovePost(bob, postID)
+	removePostAs(bob, m, postID)
 }
