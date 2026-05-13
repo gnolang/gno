@@ -4,34 +4,32 @@ This page covers how to install the Gno toolchain: `gnokey` (key & transaction C
 `gno` (language tooling), `gnodev` (local development node with hot reload),
 `gnobro` (package browser), and `gnoweb` (realm explorer). 
 
-For IDE / LSP support, see [Editor setup](./editor-setup.md).
-
 ## One-line installer
 
 Install precompiled `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb`
 (Linux/macOS, amd64/arm64) from [GitHub Releases](https://github.com/gnolang/gno/releases)
-into `$GOPATH/bin`:
+into `~/.gno/bin`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --dir "$(go env GOPATH)/bin"
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
 To pin a version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --version <tag> --dir "$(go env GOPATH)/bin"
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --version <tag>
 ```
 
 To also install the validator node (`gnoland`), pass `--full`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --full --dir "$(go env GOPATH)/bin"
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --full
 ```
 
 To uninstall:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.sh | sh -s -- --dir "$(go env GOPATH)/bin"
+curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/uninstall.sh | sh
 ```
 
 Scripts used by the one-line installer:
@@ -44,7 +42,7 @@ Scripts used by the one-line installer:
 | Variable | Equivalent flag | Description |
 |---|---|---|
 | `GNO_VERSION` | `--version` | Release tag to install (default: latest) |
-| `GNO_INSTALL_DIR` | `--dir` | Installation directory (recommended: `$(go env GOPATH)/bin`) |
+| `GNO_INSTALL_DIR` | `--dir` | Installation directory (default: `~/.gno/bin`) |
 | `GITHUB_TOKEN` | — | Authenticates GitHub API requests; raises the 60 requests/hour anonymous rate limit |
 
 ## Install from source
@@ -101,7 +99,7 @@ After installing, verify that the tools are available:
 
 ```sh
 # List installed binaries
-ls "$(go env GOPATH)/bin"
+ls ~/.gno/bin
 
 # Check binary versions
 gno version
@@ -111,9 +109,13 @@ gnodev version
 
 ## Troubleshooting
 
-**`command not found`** — `$GOPATH/bin` is not in your `PATH`. Add it:
+**`command not found`** — the install directory is not in your `PATH`. Add it:
 
 ```sh
+# One-line installer (default)
+export PATH="$PATH:$HOME/.gno/bin"
+
+# Install from source (make install)
 export PATH="$PATH:$(go env GOPATH)/bin"
 ```
 
@@ -130,7 +132,7 @@ Requires Go **1.24+**: check with `go version`, upgrade from [go.dev/dl](https:/
 capped at 60/hour. Set `GITHUB_TOKEN` to authenticate:
 
 ```sh
-GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh -s -- --dir "$(go env GOPATH)/bin"
+GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
 ## Next steps
