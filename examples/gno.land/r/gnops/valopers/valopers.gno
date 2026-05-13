@@ -89,14 +89,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().AddToAuthList(member); err != nil {
+	if err := v.Auth().AddToAuthList(cur.Previous().Address(), member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(cur.Previous().Address(), member); err != nil {
 		panic(err)
 	}
 }
@@ -181,7 +181,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		SigningAddress:     signingAddr,
 		LastRotationHeight: runtime.ChainHeight(),
 		KeepRunning:        true,
-		auth:               authorizable.New(ownable.NewWithAddressByPrevious(addr)),
+		auth:               authorizable.New(ownable.NewWithAddress(addr)),
 	}
 
 	if err := v.Validate(); err != nil {

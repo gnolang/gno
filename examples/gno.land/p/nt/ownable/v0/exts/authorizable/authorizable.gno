@@ -20,20 +20,10 @@ type Authorizable struct {
 
 // New creates an Authorizable from an existing *ownable.Ownable.
 // The owner is automatically added to the auth list.
-// The auth mode (current-realm vs previous-realm) is inherited from the
-// provided Ownable. Use the ownable constructors to choose the mode:
 //
-//	// Current-realm auth (caller is the realm making the call):
-//	authorizable.New(ownable.New())
+// Example construction:
 //
-//	// Previous-realm auth (caller is the user/realm one step back):
-//	authorizable.New(ownable.NewWithOrigin())
-//
-//	// Explicit address, current-realm auth:
 //	authorizable.New(ownable.NewWithAddress(addr))
-//
-//	// Explicit address, previous-realm auth:
-//	authorizable.New(ownable.NewWithAddressByPrevious(addr))
 func New(o *ownable.Ownable) *Authorizable {
 	a := &Authorizable{
 		Ownable:    o,
@@ -45,8 +35,10 @@ func New(o *ownable.Ownable) *Authorizable {
 	return a
 }
 
-func (a *Authorizable) AddToAuthList(addr address) error {
-	if !a.Owned() {
+// AddToAuthList adds addr to the auth list. caller must equal the
+// superuser (the underlying Ownable's owner).
+func (a *Authorizable) AddToAuthList(caller, addr address) error {
+	if !a.OwnedBy(caller) {
 		return ErrNotSuperuser
 	}
 	return a.addToAuthList(addr)
@@ -62,8 +54,10 @@ func (a *Authorizable) addToAuthList(addr address) error {
 	return nil
 }
 
-func (a *Authorizable) DeleteFromAuthList(addr address) error {
-	if !a.Owned() {
+// DeleteFromAuthList removes addr from the auth list. caller must equal
+// the superuser (the underlying Ownable's owner).
+func (a *Authorizable) DeleteFromAuthList(caller, addr address) error {
+	if !a.OwnedBy(caller) {
 		return ErrNotSuperuser
 	}
 	return a.deleteFromAuthList(addr)

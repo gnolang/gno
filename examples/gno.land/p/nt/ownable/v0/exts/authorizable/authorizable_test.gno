@@ -45,41 +45,33 @@ func TestNotOnAuthList(t *testing.T) {
 
 func TestAddToAuthList(t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
-	testing.SetRealm(testing.NewUserRealm(alice))
 
-	if err := a.AddToAuthList(bob); err != nil {
+	if err := a.AddToAuthList(alice, bob); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	testing.SetRealm(testing.NewUserRealm(bob))
-
-	if err := a.AddToAuthList(bob); err == nil {
+	if err := a.AddToAuthList(bob, bob); err == nil {
 		t.Fatalf("Expected AddToAuth to error while bob called it, but it didn't")
 	}
 }
 
 func TestDeleteFromList(t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
-	testing.SetRealm(testing.NewUserRealm(alice))
 
-	if err := a.AddToAuthList(bob); err != nil {
+	if err := a.AddToAuthList(alice, bob); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if err := a.AddToAuthList(charlie); err != nil {
+	if err := a.AddToAuthList(alice, charlie); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-
-	testing.SetRealm(testing.NewUserRealm(bob))
 
 	// Try an unauthorized deletion
-	if err := a.DeleteFromAuthList(alice); err == nil {
+	if err := a.DeleteFromAuthList(bob, alice); err == nil {
 		t.Fatalf("Expected DelFromAuth to error with %v", err)
 	}
 
-	testing.SetRealm(testing.NewUserRealm(alice))
-
-	if err := a.DeleteFromAuthList(charlie); err != nil {
+	if err := a.DeleteFromAuthList(alice, charlie); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 }

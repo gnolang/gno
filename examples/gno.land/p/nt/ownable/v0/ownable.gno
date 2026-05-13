@@ -1,95 +1,63 @@
 package ownable
 
-import (
-	"chain"
-	"chain/runtime"
-)
+import "chain"
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
-// Ownable is meant to be used as a top-level object to make your contract ownable OR
-// being embedded in a Gno object to manage per-object ownership.
+// Ownable is meant to be used as a top-level object to make your contract
+// ownable OR being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object.
 //
-// The auth mode (current-realm vs previous-realm) is decided at construction time:
-//   - New() and NewWithAddress() use current-realm auth.
-//   - NewWithOrigin() and NewWithAddressByPrevious() use previous-realm auth.
+// All authority-checking methods take an explicit `caller address`
+// parameter. Callers extract the appropriate address from their `cur`
+// realm at the call site:
 //
-// All ownership operations (TransferOwnership, DropOwnership, Owned, AssertOwned)
-// automatically use the configured auth mode.
+//	o.TransferOwnership(cur.Address(), newOwner)             // realm-as-owner
+//	o.TransferOwnership(cur.Previous().Address(), newOwner)  // caller-of-realm-as-owner
+//
+// This replaces the previous current-vs-previous auth mode flag baked
+// into the struct — the choice now lives at each call site, which makes
+// the authority surface explicit at every use rather than at construction.
 type Ownable struct {
-	owner    address
-	previous bool // if true, ownership is checked against the previous realm
+	owner address
 }
 
-// New creates an Ownable owned by the current realm, using current-realm auth.
-func New() *Ownable {
-	return &Ownable{
-		owner: runtime.CurrentRealm().Address(),
-	}
-}
-
-// NewWithOrigin creates an Ownable owned by the origin caller (the user who
-// initiated the transaction). Must be called from init() where
-// PreviousRealm() is the origin caller. Uses previous-realm auth.
-func NewWithOrigin() *Ownable {
-	origin := runtime.OriginCaller()
-	previous := runtime.PreviousRealm()
-	if origin != previous.Address() {
-		panic("NewWithOrigin() should be called from init() where runtime.PreviousRealm() is origin")
-	}
-	return &Ownable{
-		owner:    origin,
-		previous: true,
-	}
-}
-
-// NewWithAddress creates an Ownable with the given address as owner,
-// using current-realm auth.
+// NewWithAddress creates an Ownable with the given address as owner.
+// This is the only constructor — the previous New/NewWithOrigin/
+// NewWithAddressByPrevious sugar baked runtime walks and an auth-mode
+// flag into the struct; the realm using this package now picks the
+// owner address explicitly (e.g. cur.Previous().Address() after
+// verifying cur.Previous().IsUserCall() in init).
 func NewWithAddress(addr address) *Ownable {
 	return &Ownable{
 		owner: addr,
 	}
 }
 
-// NewWithAddressByPrevious creates an Ownable with the given address as owner,
-// using previous-realm auth.
-func NewWithAddressByPrevious(addr address) *Ownable {
-	return &Ownable{
-		owner:    addr,
-		previous: true,
-	}
-}
-
-// Owned returns true if the caller is the owner, according to the configured auth mode.
-func (o *Ownable) Owned() bool {
+// OwnedBy reports whether addr is the current owner.
+func (o *Ownable) OwnedBy(addr address) bool {
 	if o == nil {
 		return false
 	}
-	if o.previous {
-		return runtime.PreviousRealm().Address() == o.owner
-	}
-	return runtime.CurrentRealm().Address() == o.owner
+	return addr == o.owner
 }
 
-// AssertOwned panics if the caller is not the owner, according to the configured auth mode.
-func (o *Ownable) AssertOwned() {
-	if !o.Owned() {
+// AssertOwnedBy panics with ErrUnauthorized if addr is not the owner.
+func (o *Ownable) AssertOwnedBy(addr address) {
+	if !o.OwnedBy(addr) {
 		panic(ErrUnauthorized)
 	}
 }
 
-// TransferOwnership transfers ownership of the Ownable to a new address.
-// Uses the configured auth mode to verify the caller.
-func (o *Ownable) TransferOwnership(newOwner address) error {
-	if !o.Owned() {
+// TransferOwnership transfers ownership of the Ownable to newOwner.
+// caller must equal the current owner.
+func (o *Ownable) TransferOwnership(caller, newOwner address) error {
+	if !o.OwnedBy(caller) {
 		return ErrUnauthorized
 	}
-
 	if !newOwner.IsValid() {
 		return ErrInvalidAddress
 	}
-
 	prevOwner := o.owner
 	o.owner = newOwner
 	chain.Emit(
@@ -97,14 +65,13 @@ func (o *Ownable) TransferOwnership(newOwner address) error {
 		"from", prevOwner.String(),
 		"to", newOwner.String(),
 	)
-
 	return nil
 }
 
-// DropOwnership removes the owner, effectively disabling any owner-related actions.
-// Uses the configured auth mode to verify the caller.
-func (o *Ownable) DropOwnership() error {
-	if !o.Owned() {
+// DropOwnership removes the owner, disabling any owner-related actions.
+// caller must equal the current owner.
+func (o *Ownable) DropOwnership(caller address) error {
+	if !o.OwnedBy(caller) {
 		return ErrUnauthorized
 	}
 	prevOwner := o.owner
@@ -117,7 +84,7 @@ func (o *Ownable) DropOwnership() error {
 	return nil
 }
 
-// Owner returns the owner address from Ownable.
+// Owner returns the owner address.
 func (o *Ownable) Owner() address {
 	if o == nil {
 		return address("")

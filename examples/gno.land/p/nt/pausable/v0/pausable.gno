@@ -30,9 +30,10 @@ func (p Pausable) IsPaused() bool {
 	return p.paused
 }
 
-// Pause sets the state of Pausable to true, meaning all pausable functions are paused
-func (p *Pausable) Pause() error {
-	if !p.o.Owned() {
+// Pause sets the state of Pausable to true, meaning all pausable functions
+// are paused. caller must equal the underlying Ownable's owner.
+func (p *Pausable) Pause(caller address) error {
+	if !p.o.OwnedBy(caller) {
 		return ownable.ErrUnauthorized
 	}
 
@@ -42,9 +43,10 @@ func (p *Pausable) Pause() error {
 	return nil
 }
 
-// Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
-func (p *Pausable) Unpause() error {
-	if !p.o.Owned() {
+// Unpause sets the state of Pausable to false, meaning all pausable
+// functions are resumed. caller must equal the underlying Ownable's owner.
+func (p *Pausable) Unpause(caller address) error {
+	if !p.o.OwnedBy(caller) {
 		return ownable.ErrUnauthorized
 	}
 

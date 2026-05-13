@@ -153,13 +153,13 @@ func EntryPointWithCrossing() (withCros *ownable.Ownable) {
 func PrevRealmNoCrossing() *ownable.Ownable {
 	println("crossrealm PreviousRealm no crossing: " + runtime.PreviousRealm().PkgPath())
 	println("crossrealm PreviousRealm no crossing: " + runtime.PreviousRealm().Address())
-	return ownable.New()
+	return ownable.NewWithAddress(runtime.CurrentRealm().Address())
 }
 
 func PrevRealmCrossing(cur realm) *ownable.Ownable {
 	println("crossrealm PreviousRealm with crossing: " + runtime.PreviousRealm().PkgPath())
 	println("crossrealm PreviousRealm with crossing: " + runtime.PreviousRealm().Address())
-	return ownable.New()
+	return ownable.NewWithAddress(cur.Address())
 }
 
 func CurRealmNoCrossing() runtime.Realm {

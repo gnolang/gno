@@ -27,26 +27,22 @@ func initSetup(admin address) *Roles {
 func TestCreateRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	role, err := roles.CreateRole(roleName)
+	role, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
 	uassert.True(t, role != nil, "role should not be nil")
 	uassert.Equal(t, role.Name, roleName)
 
-	_, err = roles.CreateRole(roleName)
+	_, err = roles.CreateRole(admin, roleName)
 	uassert.Error(t, err, "should fail on duplicate role creation")
 }
 
 func TestGrantRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	_, err := roles.CreateRole(roleName)
+	_, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
 
-	err = roles.GrantRole(roleName, user1)
+	err = roles.GrantRole(admin, roleName, user1)
 	uassert.NoError(t, err)
 
 	role, err := roles.FindRole(roleName)
@@ -61,29 +57,23 @@ func TestGrantRole(t *testing.T) {
 func TestGrantRoleByNonOwner(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-	_, err := roles.CreateRole(roleName)
+	_, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
 
-	testing.SetOriginCaller(user2)
-	roles.Ownable.TransferOwnership(user2)
-	err = roles.GrantRole(roleName, user1)
+	// user2 is not the role admin (admin is); GrantRole should fail.
+	err = roles.GrantRole(user2, roleName, user1)
 	uassert.Error(t, err, "non-owner should not be able to grant roles")
-
-	roles.Ownable.TransferOwnership(admin)
 }
 
 func TestRevokeRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	_, err := roles.CreateRole(roleName)
+	_, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
-	err = roles.GrantRole(roleName, user1)
+	err = roles.GrantRole(admin, roleName, user1)
 	uassert.NoError(t, err)
 
-	err = roles.RevokeRole(roleName, user1)
+	err = roles.RevokeRole(admin, roleName, user1)
 	uassert.NoError(t, err)
 
 	role, err := roles.FindRole(roleName)
@@ -99,16 +89,13 @@ func TestRevokeRole(t *testing.T) {
 func TestRenounceRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	role, err := roles.CreateRole(roleName)
+	role, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
-	err = roles.GrantRole(roleName, user1)
+	err = roles.GrantRole(admin, roleName, user1)
 	uassert.NoError(t, err)
 
 	// Pas besoin de transférer la propriété pour renoncer à un rôle
-	testing.SetOriginCaller(user1)
-	err = roles.RenounceRole(roleName)
+	err = roles.RenounceRole(user1, roleName)
 	uassert.NoError(t, err)
 
 	role, err = roles.FindRole(roleName)
@@ -119,82 +106,64 @@ func TestRenounceRole(t *testing.T) {
 func TestSetRoleAdmin(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	role, err := roles.CreateRole(roleName)
+	role, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
 
-	err = role.SetRoleAdmin(newAdmin)
+	err = role.SetRoleAdmin(admin, newAdmin)
 	uassert.NoError(t, err, "admin change should succeed")
 
-	testing.SetOriginCaller(newAdmin)
 	uassert.Equal(t, role.Ownable.Owner(), newAdmin, "the new admin should be newAdmin")
-
-	testing.SetOriginCaller(admin)
 	uassert.NotEqual(t, role.Ownable.Owner(), admin, "the old admin should no longer be the owner")
 }
 
 func TestCreateRoleInvalidName(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	_, err := roles.CreateRole("")
+	_, err := roles.CreateRole(admin, "")
 	uassert.Error(t, err, "should fail on empty role name")
 
 	longRoleName := "thisisaverylongrolenamethatexceedsthenormallimitfortestingpurposes"
-	_, err = roles.CreateRole(longRoleName)
+	_, err = roles.CreateRole(admin, longRoleName)
 	uassert.Error(t, err, "should fail on very long role name")
 }
 
 func TestRevokeRoleByNonOwner(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	_, err := roles.CreateRole(roleName)
+	_, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
-	err = roles.GrantRole(roleName, user1)
+	err = roles.GrantRole(admin, roleName, user1)
 	uassert.NoError(t, err)
 
-	testing.SetOriginCaller(user2)
-	err = roles.RevokeRole(roleName, user1)
+	err = roles.RevokeRole(user2, roleName, user1)
 	uassert.Error(t, err, "non-owner should not be able to revoke roles")
 }
 
 func TestGrantRoleToNonExistentRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	err := roles.GrantRole("NonExistentRole", user1)
+	err := roles.GrantRole(admin, "NonExistentRole", user1)
 	uassert.Error(t, err, "should fail when granting non-existent role")
 }
 
 func TestRevokeRoleFromNonExistentRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	err := roles.RevokeRole("NonExistentRole", user1)
+	err := roles.RevokeRole(admin, "NonExistentRole", user1)
 	uassert.Error(t, err, "should fail when revoking non-existent role")
 }
 
 func TestRenounceNonExistentRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(user1)
-
-	err := roles.RenounceRole("NonExistentRole")
+	err := roles.RenounceRole(user1, "NonExistentRole")
 	uassert.Error(t, err, "should fail when renouncing non-existent role")
 }
 
 func TestDeleteRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
-	role, err := roles.CreateRole(roleName)
+	role, err := roles.CreateRole(admin, roleName)
 	uassert.NoError(t, err)
 	uassert.True(t, role != nil, "role should not be nil")
 
@@ -206,21 +175,19 @@ func TestDeleteRole(t *testing.T) {
 func TestUserToRolesWithMultipleRoles(t *testing.T) {
 	roles := initSetup(admin)
 
-	testing.SetOriginCaller(admin)
-
 	roleName1 := "Role1"
 	roleName2 := "Role2"
 
 	// Create two roles
-	_, err := roles.CreateRole(roleName1)
+	_, err := roles.CreateRole(admin, roleName1)
 	uassert.NoError(t, err)
-	_, err = roles.CreateRole(roleName2)
+	_, err = roles.CreateRole(admin, roleName2)
 	uassert.NoError(t, err)
 
 	// Grant both roles to user1
-	err = roles.GrantRole(roleName1, user1)
+	err = roles.GrantRole(admin, roleName1, user1)
 	uassert.NoError(t, err)
-	err = roles.GrantRole(roleName2, user1)
+	err = roles.GrantRole(admin, roleName2, user1)
 	uassert.NoError(t, err)
 
 	// Check if user1 has both roles

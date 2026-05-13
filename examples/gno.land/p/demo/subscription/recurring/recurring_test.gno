@@ -40,30 +40,30 @@ var (
 
 func TestNewRecurringSubscription_RejectsInvalidPayee(t *testing.T) {
 	uassert.PanicsWithMessage(t, ErrInvalidPayee.Error(), func() {
-		NewRecurringSubscription(time.Hour, 1000, address(""))
+		NewRecurringSubscription(alice, time.Hour, 1000, address(""))
 	})
 }
 
 func TestSubscribe_RejectsInvalidSubscriber(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	err := rs.Subscribe(&allowancesender.AllowanceSender{}, address(""))
 	uassert.ErrorIs(t, err, ErrInvalidSubscriber)
 }
 
 func TestHasValidSubscription_NoSub(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	err := rs.HasValidSubscription(alice)
 	uassert.ErrorIs(t, err, ErrNoSub)
 }
 
 func TestHasValidSubscription_Active(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	rs.subs.Set(alice.String(), time.Now().Add(time.Hour))
 	uassert.NoError(t, rs.HasValidSubscription(alice))
 }
 
 func TestHasValidSubscription_Expired(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	rs.subs.Set(alice.String(), time.Now().Add(-time.Hour))
 	uassert.ErrorIs(t, rs.HasValidSubscription(alice), ErrSubExpired)
 }
@@ -74,7 +74,7 @@ func TestHasValidSubscription_Expired(t *testing.T) {
 // pass an unusable empty AllowanceSender; if Send were called it would
 // panic, but the early return prevents that.
 func TestSubscribe_AlreadyActiveReturnsErrBeforeSend(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	rs.subs.Set(alice.String(), time.Now().Add(time.Hour))
 
 	err := rs.Subscribe(&allowancesender.AllowanceSender{}, alice)
@@ -86,7 +86,7 @@ func TestSubscribe_AlreadyActiveReturnsErrBeforeSend(t *testing.T) {
 // have tx semantics, the panic propagates. Recover and assert no
 // subscription was recorded.
 func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
 	func() {
 		defer func() { _ = recover() }()
@@ -97,40 +97,36 @@ func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
 }
 
 func TestUpdateAmount_OwnerSucceeds(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
-	uassert.NoError(t, rs.UpdateAmount(2000))
+	uassert.NoError(t, rs.UpdateAmount(alice, 2000))
 	uassert.Equal(t, int64(2000), rs.GetAmount())
 }
 
 func TestUpdateAmount_NonOwnerFails(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
-	testing.SetRealm(testing.NewUserRealm(bob))
-	uassert.ErrorIs(t, rs.UpdateAmount(3000), ErrNotAuthorized)
+	uassert.ErrorIs(t, rs.UpdateAmount(bob, 3000), ErrNotAuthorized)
 }
 
 func TestGetAmount(t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm(alice))
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	uassert.Equal(t, int64(1000), rs.GetAmount())
 }
 
 func TestGetPayee(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	uassert.Equal(t, payee.String(), rs.GetPayee().String())
 }
 
 func TestGetExpiration_NoSub(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	_, err := rs.GetExpiration(alice)
 	uassert.ErrorIs(t, err, ErrNoSub)
 }
 
 func TestGetExpiration_Active(t *testing.T) {
-	rs := NewRecurringSubscription(time.Hour, 1000, payee)
+	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	expected := time.Now().Add(time.Hour)
 	rs.subs.Set(alice.String(), expected)
 

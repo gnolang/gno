@@ -14,6 +14,7 @@
 //
 //	// In the consumer realm, at deployment:
 //	var recSub = recurring.NewRecurringSubscription(
+//	    ownerAddr,                          // address authorized to call UpdateAmount
 //	    time.Hour*24*30,                    // 30-day periods
 //	    100,                                // 100 ugnot per period
 //	    runtime.CurrentRealm().Address(),   // payee = this realm
@@ -38,6 +39,7 @@
 // Lifetime Subscription:
 //
 //	var lifeSub = lifetime.NewLifetimeSubscription(
+//	    ownerAddr,                          // address authorized to call UpdateAmount
 //	    500,                                // 500 ugnot one-time
 //	    runtime.CurrentRealm().Address(),
 //	)

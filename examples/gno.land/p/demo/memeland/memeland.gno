@@ -31,9 +31,9 @@ type Memeland struct {
 	MemeCounter seqid.ID
 }
 
-func NewMemeland() *Memeland {
+func NewMemeland(owner address) *Memeland {
 	return &Memeland{
-		Ownable: ownable.New(),
+		Ownable: ownable.NewWithAddress(owner),
 		Posts:   make([]*Post, 0),
 	}
 }
@@ -154,13 +154,14 @@ func (m *Memeland) GetPostsInRange(startTimestamp, endTimestamp int64, page, pag
 	return PostsToJSONString(filteredPosts[startIndex:endIndex])
 }
 
-// RemovePost allows the owner to remove a post with a specific ID
-func (m *Memeland) RemovePost(id string) string {
+// RemovePost allows the owner to remove a post with a specific ID. caller
+// must equal the owner.
+func (m *Memeland) RemovePost(caller address, id string) string {
 	if id == "" {
 		panic("id cannot be empty")
 	}
 
-	if !m.Owned() {
+	if !m.OwnedBy(caller) {
 		panic(ownable.ErrUnauthorized)
 	}
 

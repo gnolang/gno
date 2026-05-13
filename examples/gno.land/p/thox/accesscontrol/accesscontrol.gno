@@ -2,7 +2,6 @@ package accesscontrol
 
 import (
 	"chain"
-	"chain/runtime"
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ownable/v0"
@@ -50,13 +49,14 @@ func NewRole(name string, admin address) (*Role, error) {
 	}, nil
 }
 
-// CreateRole create a new role within the realm
-func (rs *Roles) CreateRole(name string) (*Role, error) {
+// CreateRole create a new role within the realm. caller must equal the
+// owner of the Roles container.
+func (rs *Roles) CreateRole(caller address, name string) (*Role, error) {
 	if err := validRoleName(name); err != nil {
 		return nil, ErrNameRole
 	}
 
-	if !rs.Ownable.Owned() {
+	if !rs.Ownable.OwnedBy(caller) {
 		return nil, ErrNotOwner
 	}
 
@@ -98,14 +98,15 @@ func (rs *Roles) FindRole(name string) (*Role, error) {
 	return nil, ErrRoleNotFound
 }
 
-// GrantRole grants a role to an account
-func (rs *Roles) GrantRole(name string, account address) error {
+// GrantRole grants a role to an account. caller must equal the role's
+// admin/owner.
+func (rs *Roles) GrantRole(caller address, name string, account address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.Owned() {
+	if !r.Ownable.OwnedBy(caller) {
 		return ErrNotOwner
 	}
 
@@ -123,20 +124,21 @@ func (rs *Roles) GrantRole(name string, account address) error {
 		RoleGrantedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", runtime.CurrentRealm().Address().String(),
+		"sender", caller.String(),
 	)
 
 	return nil
 }
 
-// RevokeRole revokes a role from an account
-func (rs *Roles) RevokeRole(name string, account address) error {
+// RevokeRole revokes a role from an account. caller must equal the role's
+// admin/owner.
+func (rs *Roles) RevokeRole(caller address, name string, account address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.Owned() {
+	if !r.Ownable.OwnedBy(caller) {
 		return ErrNotOwner
 	}
 
@@ -158,20 +160,19 @@ func (rs *Roles) RevokeRole(name string, account address) error {
 		RoleRevokedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", runtime.CurrentRealm().Address().String(),
+		"sender", caller.String(),
 	)
 
 	return nil
 }
 
-// RenounceRole allows an account to renounce a role it holds
-func (rs *Roles) RenounceRole(name string) error {
+// RenounceRole allows an account to renounce a role it holds. caller is
+// the account renouncing the role.
+func (rs *Roles) RenounceRole(caller address, name string) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
 	}
-
-	caller := runtime.OriginCaller()
 
 	if !r.HasAccount(caller) {
 		return ErrAccountNotRole
@@ -189,9 +190,10 @@ func (rs *Roles) RenounceRole(name string) error {
 	return nil
 }
 
-// SetRoleAdmin transfers the ownership of the role to a new administrator
-func (r *Role) SetRoleAdmin(admin address) error {
-	if err := r.Ownable.TransferOwnership(admin); err != nil {
+// SetRoleAdmin transfers the ownership of the role to a new administrator.
+// caller must equal the current admin/owner of the role.
+func (r *Role) SetRoleAdmin(caller, admin address) error {
+	if err := r.Ownable.TransferOwnership(caller, admin); err != nil {
 		return err
 	}
 

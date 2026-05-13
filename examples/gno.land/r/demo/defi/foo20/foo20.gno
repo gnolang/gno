@@ -14,7 +14,7 @@ import (
 var (
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
 	UserTeller           = Token.CallerTeller()
-	Ownable              = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	Ownable              = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func init(cur realm) {
@@ -55,12 +55,12 @@ func Faucet(cur realm) {
 }
 
 func Mint(cur realm, to address, amount int64) {
-	Ownable.AssertOwned()
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 	checkErr(privateLedger.Mint(to, amount))
 }
 
 func Burn(cur realm, from address, amount int64) {
-	Ownable.AssertOwned()
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 	checkErr(privateLedger.Burn(from, amount))
 }
 

@@ -29,7 +29,7 @@ type (
 )
 
 var (
-	Ownable   = ownable.NewWithAddressByPrevious(address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
+	Ownable   = ownable.NewWithAddress(address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
 	events    = make(eventsSlice, 0)                                                                  // sorted
 	idCounter seqid.ID
 )
@@ -43,8 +43,8 @@ const (
 
 // AddEvent adds auth new event
 // Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
-func AddEvent(_ realm, name, description, link, location, startTime, endTime string) (string, error) {
-	Ownable.AssertOwned()
+func AddEvent(cur realm, name, description, link, location, startTime, endTime string) (string, error) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 
 	if strings.TrimSpace(name) == "" {
 		return "", ErrEmptyName
@@ -82,8 +82,8 @@ func AddEvent(_ realm, name, description, link, location, startTime, endTime str
 }
 
 // DeleteEvent deletes an event with auth given ID
-func DeleteEvent(_ realm, id string) {
-	Ownable.AssertOwned()
+func DeleteEvent(cur realm, id string) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 
 	e, idx, err := GetEventByID(id)
 	if err != nil {
@@ -100,8 +100,8 @@ func DeleteEvent(_ realm, id string) {
 // EditEvent edits an event with auth given ID
 // It only updates values corresponding to non-empty arguments sent with the call
 // Note: if you need to update the start time or end time, you need to provide both every time
-func EditEvent(_ realm, id string, name, description, link, location, startTime, endTime string) {
-	Ownable.AssertOwned()
+func EditEvent(cur realm, id string, name, description, link, location, startTime, endTime string) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 
 	e, _, err := GetEventByID(id)
 	if err != nil {

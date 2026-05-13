@@ -9,8 +9,7 @@ import (
 var m *memeland.Memeland
 
 func init() {
-	m = memeland.NewMemeland()
-	m.TransferOwnership("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
+	m = memeland.NewMemeland("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 }
 
 func PostMeme(_ realm, data string, timestamp int64) string {
@@ -25,16 +24,16 @@ func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sor
 	return m.GetPostsInRange(startTimestamp, endTimestamp, page, pageSize, sortBy)
 }
 
-func RemovePost(_ realm, id string) string {
-	return m.RemovePost(id)
+func RemovePost(cur realm, id string) string {
+	return m.RemovePost(cur.Previous().Address(), id)
 }
 
 func GetOwner() address {
 	return m.Owner()
 }
 
-func TransferOwnership(_ realm, newOwner address) {
-	if err := m.TransferOwnership(newOwner); err != nil {
+func TransferOwnership(cur realm, newOwner address) {
+	if err := m.TransferOwnership(cur.Previous().Address(), newOwner); err != nil {
 		panic(err)
 	}
 }

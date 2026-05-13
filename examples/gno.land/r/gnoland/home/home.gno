@@ -13,7 +13,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	Admin    = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func Render(_ string) string {
@@ -223,12 +223,12 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwned()
+	Admin.AssertOwnedBy(cur.Previous().Address())
 	override = content
 }
 
 func AdminTransferOwnership(cur realm, newOwner address) {
-	if err := Admin.TransferOwnership(newOwner); err != nil {
+	if err := Admin.TransferOwnership(cur.Previous().Address(), newOwner); err != nil {
 		panic(err)
 	}
 }

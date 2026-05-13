@@ -44,7 +44,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 	inst := instance{
 		token:  token,
 		ledger: ledger,
-		admin:  ownable.NewWithAddressByPrevious(admin),
+		admin:  ownable.NewWithAddress(admin),
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
@@ -112,25 +112,25 @@ func Faucet(cur realm, symbol string) {
 
 func Mint(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertOwned()
+	inst.admin.AssertOwnedBy(cur.Previous().Address())
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
 func Burn(cur realm, symbol string, from address, amount int64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertOwned()
+	inst.admin.AssertOwnedBy(cur.Previous().Address())
 	checkErr(inst.ledger.Burn(from, amount))
 }
 
 // instance admin functionality
 func DropInstanceOwnership(cur realm, symbol string) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.DropOwnership())
+	checkErr(inst.admin.DropOwnership(cur.Previous().Address()))
 }
 
 func TransferInstanceOwnership(cur realm, symbol string, newOwner address) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.admin.TransferOwnership(newOwner))
+	checkErr(inst.admin.TransferOwnership(cur.Previous().Address(), newOwner))
 }
 
 func ListTokens(pageNumber, pageSize int) []*grc20.Token {
