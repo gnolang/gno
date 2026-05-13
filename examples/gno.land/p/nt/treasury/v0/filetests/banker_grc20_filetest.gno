@@ -23,13 +23,13 @@ func createToken(name string, toMint address) *grc20.Token {
 	return token
 }
 
-func main() {
+func main(cur realm) {
 	// Define addresses for the sender (owner) and destination.
 	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Try to create a GRC20Banker using a nil lister.
-	gbanker, err := treasury.NewGRC20Banker(nil)
+	gbanker, err := treasury.NewGRC20BankerWithOwner(ownerAddr, nil)
 	if err == nil {
 		panic("expected error when creating GRC20Banker with nil lister")
 	}
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// Create a GRC20Banker.
-	gbanker, err = treasury.NewGRC20Banker(grc20Lister)
+	gbanker, err = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
 	if err != nil {
 		panic("failed to create GRC20Banker: " + err.Error())
 	}
@@ -80,7 +80,7 @@ func main() {
 		100,
 		destAddr,
 	)
-	err = gbanker.Send(validPayment)
+	err = gbanker.Send(0, cur, validPayment)
 	println("Valid payment error:", err)
 	if err != nil {
 		panic("failed to send valid payment: " + err.Error())
@@ -95,7 +95,7 @@ func main() {
 		100,
 		destAddr,
 	)
-	err = gbanker.Send(unknownPayment)
+	err = gbanker.Send(0, cur, unknownPayment)
 	println("Unknown token payment error:", err)
 	if err == nil {
 		panic("expected error for unknown token, but got none")
@@ -107,7 +107,7 @@ func main() {
 		amount+1,
 		destAddr,
 	)
-	err = gbanker.Send(unsufficientPayment)
+	err = gbanker.Send(0, cur, unsufficientPayment)
 	println("Unsufficient funds payment error:", err)
 	if err == nil {
 		panic("expected error for insufficient funds, but got none")
@@ -115,7 +115,7 @@ func main() {
 
 	// Send a payment with an invalid type.
 	invalidPaymentType := treasury.NewCoinsPayment(chain.Coins{}, destAddr)
-	err = gbanker.Send(invalidPaymentType)
+	err = gbanker.Send(0, cur, invalidPaymentType)
 	println("Invalid payment type error:", err)
 	if err == nil {
 		panic("expected error for invalid payment type, but got none")

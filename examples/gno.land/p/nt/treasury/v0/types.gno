@@ -23,10 +23,10 @@ type bankerRecord struct {
 
 // Banker is an interface that allows for banking operations.
 type Banker interface {
-	ID() string          // Get the ID of the banker.
-	Send(Payment) error  // Send a payment to a recipient.
-	Balances() []Balance // Get the balances of the banker.
-	Address() string     // Get the address of the banker to receive payments.
+	ID() string                   // Get the ID of the banker.
+	Send(int, realm, Payment) error // Send a payment to a recipient.
+	Balances() []Balance          // Get the balances of the banker.
+	Address() string              // Get the address of the banker to receive payments.
 }
 
 // Payment is an interface that allows getting details about a payment.
@@ -46,4 +46,5 @@ var (
 	ErrCurrentRealmIsNotOwner = errors.New("current realm is not the owner of the banker")
 	ErrNoOwnerProvided        = errors.New("no owner provided")
 	ErrInvalidPaymentType     = errors.New("invalid payment type")
+	ErrSpoofedRealm           = errors.New("rlm does not match the current crossing frame")
 )

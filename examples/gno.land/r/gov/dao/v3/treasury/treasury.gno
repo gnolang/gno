@@ -2,7 +2,6 @@ package treasury
 
 import (
 	"chain/banker"
-	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
 	t "gno.land/p/nt/treasury/v0"
@@ -36,11 +35,11 @@ func init(cur realm) {
 	}
 
 	// Init the treasury bankers.
-	coinsBanker, err := t.NewCoinsBanker(banker.NewBanker(banker.BankerTypeRealmSend, cur))
+	coinsBanker, err := t.NewCoinsBankerWithOwner(cur.Address(), banker.NewBanker(banker.BankerTypeRealmSend, cur))
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}
-	grc20Banker, err := t.NewGRC20Banker(grc20Lister)
+	grc20Banker, err := t.NewGRC20BankerWithOwner(cur.Address(), grc20Lister)
 	if err != nil {
 		panic("failed to create GRC20Banker: " + err.Error())
 	}
@@ -57,8 +56,8 @@ func init(cur realm) {
 }
 
 // SetTokenKeys sets the GRC20 token registry keys that the treasury will use.
-func SetTokenKeys(_ realm, keys []string) {
-	caller := runtime.PreviousRealm().PkgPath()
+func SetTokenKeys(cur realm, keys []string) {
+	caller := cur.Previous().PkgPath()
 
 	// Check if the caller realm is allowed to set token keys.
 	if !dao.InAllowedDAOs(caller) {
@@ -69,16 +68,18 @@ func SetTokenKeys(_ realm, keys []string) {
 }
 
 // Send sends a payment using the treasury instance.
-func Send(_ realm, payment t.Payment) {
-	caller := runtime.PreviousRealm().PkgPath()
+func Send(cur realm, payment t.Payment) {
+	caller := cur.Previous().PkgPath()
 
 	// Check if the caller realm is allowed to send payments.
 	if !dao.InAllowedDAOs(caller) {
 		panic("this Realm is not allowed to send payment: " + caller)
 	}
 
-	// Send the payment using the treasury instance.
-	if err := treasury.Send(payment); err != nil {
+	// Send the payment using the treasury instance. cur is this realm's
+	// captured cur — passes IsCurrent inside Banker.Send and matches the
+	// banker's owner (this realm's address) registered at init.
+	if err := treasury.Send(0, cur, payment); err != nil {
 		panic(err)
 	}
 }

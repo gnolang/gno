@@ -93,7 +93,7 @@ func BuyTicket(cur realm, eventId uint64) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:
-		if err := pt.CallerTeller().Transfer(cur.Address(), int64(event.price)); err != nil {
+		if err := pt.CallerTeller().Transfer(0, cur, cur.Address(), int64(event.price)); err != nil {
 			panic("GRC20 transfer error: " + err.Error())
 		}
 	default:

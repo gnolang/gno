@@ -443,13 +443,16 @@ func TestRender(cur realm, t *testing.T) {
 	timelock := time.Now().Add(1 * time.Hour)
 
 	test20.PrivateLedger.Mint(alice, 100_000)
+	// SetRealm mutates the test's cur in place to look like alice's
+	// userRealm. cur's HIV pointer is unchanged so IsCurrent still passes;
+	// RealmTeller(0, cur) binds to alice via cur.Address().
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	userTeller := test20.Token.RealmTeller()
-	userTeller.Approve(rlm, 10_000)
+	userTeller := test20.Token.RealmTeller(0, cur)
+	userTeller.Approve(0, cur, rlm, 10_000)
 	_, bobSwap := NewCustomGRC20Swap(cross, bob, hashlockHex, timelock, test20.Token)
 
-	userTeller.Approve(rlm, 20_000)
+	userTeller.Approve(0, cur, rlm, 20_000)
 	_, _ = NewCustomGRC20Swap(cross, charly, hashlockHex, timelock, test20.Token)
 
 	testing.SetRealm(testing.NewUserRealm(bob))

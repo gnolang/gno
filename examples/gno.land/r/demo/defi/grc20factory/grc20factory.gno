@@ -81,21 +81,21 @@ func Transfer(cur realm, symbol string, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.Transfer(to, amount))
+	checkErr(teller.Transfer(0, cur, to, amount))
 }
 
 func Approve(cur realm, symbol string, spender address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.Approve(spender, amount))
+	checkErr(teller.Approve(0, cur, spender, amount))
 }
 
 func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
-	checkErr(teller.TransferFrom(from, to, amount))
+	checkErr(teller.TransferFrom(0, cur, from, to, amount))
 }
 
 // faucet.

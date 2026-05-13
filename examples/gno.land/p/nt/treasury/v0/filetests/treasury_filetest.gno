@@ -53,9 +53,9 @@ func main(cur realm) {
 	// Try to create a Treasury instance with a duplicate banker.
 	var (
 		banker_           = banker.NewBanker(banker.BankerTypeRealmSend, cur)
-		coinsBanker, _    = treasury.NewCoinsBanker(banker_)
-		grc20Banker, _    = treasury.NewGRC20Banker(grc20Lister)
-		grc20BankerDup, _ = treasury.NewGRC20Banker(grc20Lister)
+		coinsBanker, _    = treasury.NewCoinsBankerWithOwner(ownerAddr, banker_)
+		grc20Banker, _    = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
+		grc20BankerDup, _ = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
 	)
 
 	_, err = treasury.New([]treasury.Banker{coinsBanker, grc20Banker, grc20BankerDup})
@@ -99,7 +99,7 @@ func main(cur realm) {
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
-		err = t.Send(validCoinsPayment)
+		err = t.Send(0, cur, validCoinsPayment)
 		if err != nil {
 			panic("failed to send valid Coins payment: " + err.Error())
 		}
@@ -112,7 +112,7 @@ func main(cur realm) {
 		destAddr,
 	)
 	for i := 0; i < 3; i++ {
-		err = t.Send(validGRC20Payment)
+		err = t.Send(0, cur, validGRC20Payment)
 		if err != nil {
 			panic("failed to send valid GRC20 payment: " + err.Error())
 		}

@@ -17,7 +17,7 @@ func main(cur realm) {
 
 	// Create a CoinsBanker.
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-	cbanker, err := treasury.NewCoinsBanker(banker_)
+	cbanker, err := treasury.NewCoinsBankerWithOwner(ownerAddr, banker_)
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}
@@ -43,7 +43,7 @@ func main(cur realm) {
 		chain.NewCoins(chain.NewCoin("ugnot", 10)),
 		destAddr,
 	)
-	err = cbanker.Send(validPayment)
+	err = cbanker.Send(0, cur, validPayment)
 	println("Valid payment error:", err)
 	if err != nil {
 		panic("failed to send valid payment: " + err.Error())
@@ -53,7 +53,7 @@ func main(cur realm) {
 
 	// Send a payment with an invalid type.
 	invalidPaymentType := treasury.NewGRC20Payment("", 0, destAddr)
-	err = cbanker.Send(invalidPaymentType)
+	err = cbanker.Send(0, cur, invalidPaymentType)
 	println("Invalid payment type error:", err)
 	if err == nil {
 		panic("expected error for invalid payment type, but got none")

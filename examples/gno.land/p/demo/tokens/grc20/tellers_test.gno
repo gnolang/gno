@@ -16,6 +16,13 @@ func TestCallerTellerImpl(t *testing.T) {
 	var _ Teller = teller
 }
 
+// asAlice / asBob / asCarl are tiny crossing-function helpers that the
+// CallerTeller-based tests use to enter a fresh crossing frame whose
+// cur.Previous() is the supplied user. SetRealm(NewUserRealm(addr))
+// installs `addr` as the previous-of-the-cross before invoking the
+// closure with `cross` — inside the closure, cur is a live crossing
+// frame's Cur (passes IsCurrent) and cur.Previous().Address() == addr.
+
 func TestTeller(t *testing.T) {
 	var (
 		alice = testutils.TestAddress("alice")
@@ -114,21 +121,20 @@ func TestCallerTeller(t *testing.T) {
 	checkBalances(1000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
-	tellerThrough := func(action func()) {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/realm_exposing_the_teller"))
-		action()
-	}
-
+	// alice approves bob for 600 of her balance via the teller.
 	testing.SetRealm(testing.NewUserRealm(alice))
-	tellerThrough(func() { urequire.NoError(t, teller.Approve(bob, 600)) })
+	func(cur realm) { urequire.NoError(t, teller.Approve(0, cur, bob, 600)) }(cross)
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
+	// bob exceeds allowance.
 	testing.SetRealm(testing.NewUserRealm(bob))
-	tellerThrough(func() { urequire.Error(t, teller.TransferFrom(alice, carl, 700)) })
+	func(cur realm) { urequire.Error(t, teller.TransferFrom(0, cur, alice, carl, 700)) }(cross)
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
-	tellerThrough(func() { urequire.NoError(t, teller.TransferFrom(alice, carl, 400)) })
+
+	// bob transfers 400 within allowance.
+	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross)
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }

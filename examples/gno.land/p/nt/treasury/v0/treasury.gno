@@ -42,8 +42,9 @@ func New(bankers []Banker) (*Treasury, error) {
 	return treasury, nil
 }
 
-// Send sends a payment using the corresponding banker.
-func (t *Treasury) Send(p Payment) error {
+// Send sends a payment using the corresponding banker. rlm is threaded
+// to the banker's Send for IsCurrent + owner validation.
+func (t *Treasury) Send(_ int, rlm realm, p Payment) error {
 	// Get the banker record corresponding to this Payment.
 	br, ok := t.bankers.Get(p.BankerID())
 	if !ok {
@@ -52,7 +53,7 @@ func (t *Treasury) Send(p Payment) error {
 	record := br.(*bankerRecord)
 
 	// Send the payment using the corresponding banker.
-	if err := record.banker.Send(p); err != nil {
+	if err := record.banker.Send(0, rlm, p); err != nil {
 		return ufmt.Errorf("%v: %s", ErrSendPaymentFailed, err)
 	}
 
