@@ -12,12 +12,12 @@ func init() {
 	m = memeland.NewMemeland("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 }
 
-func PostMeme(_ realm, data string, timestamp int64) string {
-	return m.PostMeme(data, timestamp)
+func PostMeme(cur realm, data string, timestamp int64) string {
+	return m.PostMeme(cur.Previous().Address(), data, timestamp)
 }
 
-func Upvote(_ realm, id string) string {
-	return m.Upvote(id)
+func Upvote(cur realm, id string) string {
+	return m.Upvote(cur.Previous().Address(), id)
 }
 
 func GetPostsInRange(startTimestamp, endTimestamp int64, page, pageSize int, sortBy string) string {

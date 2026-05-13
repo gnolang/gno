@@ -11,13 +11,15 @@ import (
 )
 
 func TestPostMeme(t *testing.T) {
-	m := NewMemeland(testutils.TestAddress("admin"))
-	id := m.PostMeme("Test meme data", time.Now().Unix())
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
+	id := m.PostMeme(admin, "Test meme data", time.Now().Unix())
 	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
 func TestGetPostsInRangePagination(t *testing.T) {
-	m := NewMemeland(testutils.TestAddress("admin"))
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	numOfPosts := 5
@@ -28,7 +30,7 @@ func TestGetPostsInRangePagination(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(data, nextTime.Unix())
+		m.PostMeme(admin, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -60,7 +62,8 @@ func TestGetPostsInRangePagination(t *testing.T) {
 }
 
 func TestGetPostsInRangeByTimestamp(t *testing.T) {
-	m := NewMemeland(testutils.TestAddress("admin"))
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	numOfPosts := 5
@@ -71,7 +74,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(data, nextTime.Unix())
+		m.PostMeme(admin, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -107,23 +110,21 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 }
 
 func TestGetPostsInRangeByUpvote(t *testing.T) {
-	m := NewMemeland(testutils.TestAddress("admin"))
+	admin := testutils.TestAddress("admin")
+	alice := testutils.TestAddress("alice")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	memeData1 := "Meme #1"
 	memeData2 := "Meme #2"
 
 	// Create posts at specific times for testing
-	id1 := m.PostMeme(memeData1, now.Unix())
-	id2 := m.PostMeme(memeData2, now.Add(time.Minute).Unix())
+	id1 := m.PostMeme(admin, memeData1, now.Unix())
+	id2 := m.PostMeme(admin, memeData2, now.Add(time.Minute).Unix())
 
-	m.Upvote(id1)
-	m.Upvote(id2)
-
-	// Change caller so avoid double upvote panic
-	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
-	m.Upvote(id1)
+	m.Upvote(admin, id1)
+	m.Upvote(admin, id2)
+	m.Upvote(alice, id1)
 
 	// Final upvote count:
 	// Meme #1 - 2 upvote
@@ -154,7 +155,8 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 }
 
 func TestBadSortBy(t *testing.T) {
-	m := NewMemeland(testutils.TestAddress("admin"))
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	numOfPosts := 5
@@ -165,7 +167,7 @@ func TestBadSortBy(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(data, nextTime.Unix())
+		m.PostMeme(admin, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -215,18 +217,19 @@ func TestNoPosts(t *testing.T) {
 }
 
 func TestUpvote(t *testing.T) {
-	m := NewMemeland(testutils.TestAddress("admin"))
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 
 	// Add a post to Memeland
 	now := time.Now().Unix()
-	postID := m.PostMeme("Test meme data", now)
+	postID := m.PostMeme(admin, "Test meme data", now)
 
 	// Initial upvote count should be 0
 	post := m.getPost(postID)
 	uassert.Equal(t, 0, post.UpvoteTracker.Size())
 
 	// Upvote the post
-	upvoteResult := m.Upvote(postID)
+	upvoteResult := m.Upvote(admin, postID)
 	uassert.Equal(t, "upvote successful", upvoteResult)
 
 	// Retrieve the post again and check the upvote count
@@ -236,17 +239,14 @@ func TestUpvote(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
 
 	// Alice is admin
 	m := NewMemeland(alice)
 
-	// Set caller to Bob
-	bob := testutils.TestAddress("bob")
-	testing.SetRealm(testing.NewUserRealm(bob))
-
 	// Bob adds post to Memeland
 	now := time.Now()
-	postID := m.PostMeme("Meme #1", now.Unix())
+	postID := m.PostMeme(bob, "Meme #1", now.Unix())
 
 	// Alice removes Bob's post
 	id := m.RemovePost(alice, postID)
@@ -256,13 +256,11 @@ func TestDelete(t *testing.T) {
 
 func TestDeleteByNonAdmin(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
-
 	m := NewMemeland(alice)
 
 	// Add a post to Memeland
 	now := time.Now()
-	postID := m.PostMeme("Meme #1", now.Unix())
+	postID := m.PostMeme(alice, "Meme #1", now.Unix())
 
 	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")

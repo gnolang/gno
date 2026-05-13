@@ -1,7 +1,6 @@
 package memeland
 
 import (
-	"chain/runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,19 +37,18 @@ func NewMemeland(owner address) *Memeland {
 	}
 }
 
-// PostMeme - Adds a new post
-func (m *Memeland) PostMeme(data string, timestamp int64) string {
+// PostMeme - Adds a new post authored by author.
+func (m *Memeland) PostMeme(author address, data string, timestamp int64) string {
 	if data == "" || timestamp <= 0 {
 		panic("timestamp or data cannot be empty")
 	}
 
-	// Generate ID
 	id := m.MemeCounter.Next().String()
 
 	newPost := &Post{
 		ID:            id,
 		Data:          data,
-		Author:        runtime.CurrentRealm().Address(),
+		Author:        author,
 		Timestamp:     time.Unix(timestamp, 0),
 		UpvoteTracker: avl.NewTree(),
 	}
@@ -59,19 +57,17 @@ func (m *Memeland) PostMeme(data string, timestamp int64) string {
 	return id
 }
 
-func (m *Memeland) Upvote(id string) string {
+func (m *Memeland) Upvote(voter address, id string) string {
 	post := m.getPost(id)
 	if post == nil {
 		panic("post with specified ID does not exist")
 	}
 
-	caller := runtime.CurrentRealm().Address().String()
-
-	if _, exists := post.UpvoteTracker.Get(caller); exists {
+	voterKey := voter.String()
+	if _, exists := post.UpvoteTracker.Get(voterKey); exists {
 		panic("user has already upvoted this post")
 	}
-
-	post.UpvoteTracker.Set(caller, struct{}{})
+	post.UpvoteTracker.Set(voterKey, struct{}{})
 
 	return "upvote successful"
 }
