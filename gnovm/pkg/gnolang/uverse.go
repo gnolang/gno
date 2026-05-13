@@ -1365,11 +1365,25 @@ func makeUverseNode() {
 		Flds("", "bool"),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
+			// Method dispatch on .grealm (value receiver) goes through
+			// VPValMethod which struct-copies the receiver, dropping the
+			// outer HIV pointer. When that happens, recvHIV is nil and we
+			// fall back to (addr, pkgPath, prev.HIV) — the prev field's
+			// PointerValue.Base survives the struct copy because
+			// TypedValue.Copy is shallow for PointerValues. The parent HIV
+			// pointer is per-cross unique (installCrossingCur mints a
+			// fresh HIV every cross-call), so combined with addr/pkgPath
+			// it's as discriminative as the outer HIV for any cur the
+			// language allows to be passed around.
 			recvHIV := realmHIV(arg0.TV)
-			if recvHIV == nil {
+			recvSV := derefRealmStruct(arg0.TV)
+			if recvSV == nil || len(recvSV.Fields) < 3 {
 				m.PushValue(typedBool(false))
 				return
 			}
+			recvPrev := realmHIV(&recvSV.Fields[2])
+			recvPath := recvSV.Fields[1].GetString()
+			recvAddr := recvSV.Fields[0].GetString()
 			for i := len(m.Frames) - 1; i >= 0; i-- {
 				fr := &m.Frames[i]
 				if !fr.IsCall() {
@@ -1381,11 +1395,20 @@ func makeUverseNode() {
 				if fr.Cur.T == nil {
 					continue
 				}
-				curHIV := realmHIV(&fr.Cur)
-				if curHIV == nil {
+				if recvHIV != nil {
+					m.PushValue(typedBool(realmHIV(&fr.Cur) == recvHIV))
+					return
+				}
+				curSV := derefRealmStruct(&fr.Cur)
+				if curSV == nil || len(curSV.Fields) < 3 {
 					continue
 				}
-				m.PushValue(typedBool(curHIV == recvHIV))
+				// prev pointer first (cheapest + most discriminative),
+				// then pkgPath, then addr.
+				match := realmHIV(&curSV.Fields[2]) == recvPrev &&
+					curSV.Fields[1].GetString() == recvPath &&
+					curSV.Fields[0].GetString() == recvAddr
+				m.PushValue(typedBool(match))
 				return
 			}
 			m.PushValue(typedBool(false))
