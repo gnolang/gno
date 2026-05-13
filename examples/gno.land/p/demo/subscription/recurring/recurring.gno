@@ -88,9 +88,13 @@ func (rs *RecurringSubscription) GetExpiration(subscriber address) (time.Time, e
 }
 
 // UpdateAmount lets the subscription owner change the per-period amount.
-// caller must equal the owner.
-func (rs *RecurringSubscription) UpdateAmount(caller address, newAmount int64) error {
-	if !rs.OwnedBy(caller) {
+// rlm must be the caller's own captured cur; rlm.Previous().Address()
+// must equal the owner.
+func (rs *RecurringSubscription) UpdateAmount(_ int, rlm realm, newAmount int64) error {
+	if !rlm.IsCurrent() {
+		return ErrNotAuthorized
+	}
+	if !rs.OwnedBy(rlm.Previous().Address()) {
 		return ErrNotAuthorized
 	}
 	rs.amount = newAmount

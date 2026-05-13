@@ -99,14 +99,20 @@ func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
 func TestUpdateAmount_OwnerSucceeds(t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
-	uassert.NoError(t, rs.UpdateAmount(alice, 2000))
+	testing.SetRealm(testing.NewUserRealm(alice))
+	var err error
+	func(cur realm) { err = rs.UpdateAmount(0, cur, 2000) }(cross)
+	uassert.NoError(t, err)
 	uassert.Equal(t, int64(2000), rs.GetAmount())
 }
 
 func TestUpdateAmount_NonOwnerFails(t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
-	uassert.ErrorIs(t, rs.UpdateAmount(bob, 3000), ErrNotAuthorized)
+	testing.SetRealm(testing.NewUserRealm(bob))
+	var err error
+	func(cur realm) { err = rs.UpdateAmount(0, cur, 3000) }(cross)
+	uassert.ErrorIs(t, err, ErrNotAuthorized)
 }
 
 func TestGetAmount(t *testing.T) {

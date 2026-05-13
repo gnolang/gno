@@ -57,9 +57,13 @@ func (ls *LifetimeSubscription) HasValidSubscription(subscriber address) error {
 }
 
 // UpdateAmount lets the subscription owner change the one-time amount.
-// caller must equal the owner.
-func (ls *LifetimeSubscription) UpdateAmount(caller address, newAmount int64) error {
-	if !ls.OwnedBy(caller) {
+// rlm must be the caller's own captured cur; rlm.Previous().Address()
+// must equal the owner.
+func (ls *LifetimeSubscription) UpdateAmount(_ int, rlm realm, newAmount int64) error {
+	if !rlm.IsCurrent() {
+		return ErrNotAuthorized
+	}
+	if !ls.OwnedBy(rlm.Previous().Address()) {
 		return ErrNotAuthorized
 	}
 	ls.amount = newAmount
