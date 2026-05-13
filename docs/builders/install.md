@@ -137,7 +137,6 @@ GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/ma
 
 ## Next steps
 
-- [Editor setup](./editor-setup.md) — configure your editor with LSP support for `.gno` files
 - [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — learn how to write Gno packages
 - [Running a local dev node](./local-dev-with-gnodev.md) — spin up a local environment with `gnodev`
 - [Deploy packages](./deploy-packages.md) — publish to a network
