@@ -317,6 +317,19 @@ func NewConcreteRealm(alloc *Allocator, pkgPath string, prev TypedValue) TypedVa
 	return newRealmHIVPointer(alloc, string(DerivePkgBech32Addr(pkgPath)), pkgPath, prevField)
 }
 
+// MakeRealmValue builds a captured realm value with the given addr,
+// pkgPath, and prev. Unlike NewConcreteRealm, addr is taken verbatim
+// (not derived from pkgPath) so callers can construct UserRealm-shaped
+// values (pkgPath="") with arbitrary addresses. Used by the testing
+// stdlib to expose an explicit cur-value constructor — see X_makeRealm.
+func MakeRealmValue(alloc *Allocator, addr, pkgPath string, prev TypedValue) TypedValue {
+	prevField := gOriginRealmTV
+	if pv, ok := prev.V.(PointerValue); ok && pv.TV != nil {
+		prevField = TypedValue{T: gConcreteRealmPtrType, V: pv}
+	}
+	return newRealmHIVPointer(alloc, addr, pkgPath, prevField)
+}
+
 // derefRealmStruct unwraps a realm TypedValue (pointer-typed *.grealm, or
 // value-receiver form) to its underlying *StructValue. Returns nil when
 // the TypedValue's shape doesn't match (no PointerValue/StructValue), so

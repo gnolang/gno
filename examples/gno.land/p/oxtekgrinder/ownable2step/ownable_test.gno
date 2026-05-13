@@ -86,22 +86,26 @@ func TestOwnedByCurrent(cur realm, t *testing.T) {
 }
 
 func TestOwnedByPrevious(cur realm, t *testing.T) {
-	// Construct an Ownable2Step whose owner is the realm we expect
-	// cur.Previous() to surface when SetRealm overrides the test's cur
-	// to a CodeRealm — that's the test frame's own package address
-	// (set by X_setContext's CodeRealm-override branch).
-	pkgPath := "gno.land/p/oxtekgrinder/ownable2step"
-	o := NewWithAddress(chain.PackageAddress(pkgPath))
+	// Assemble cur values explicitly: alice EOA crosses into r/test/test.
+	// Inside r/test/test, cur.Previous() points back at alice — exactly
+	// what an OwnedByPrevious check needs to authenticate alice as caller.
+	aliceRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
+	o := New(0, aliceRealm)
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-	uassert.True(t, o.OwnedByPrevious(0, cur))
+	const testPkgPath = "gno.land/r/test/test"
+	crossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, aliceRealm)
+	uassert.True(t, o.OwnedByPrevious(0, crossed))
 }
 
 func TestOwnedByPreviousUnauthorized(cur realm, t *testing.T) {
+	// bob owns o; an unrelated user crosses into r/test/test, so
+	// cur.Previous() is that user — not bob. OwnedByPrevious returns false.
 	o := NewWithAddress(bob)
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-	uassert.False(t, o.OwnedByPrevious(0, cur))
+	const testPkgPath = "gno.land/r/test/test"
+	unrelatedRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
+	crossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, unrelatedRealm)
+	uassert.False(t, o.OwnedByPrevious(0, crossed))
 }
 
 func TestDropOwnership(cur realm, t *testing.T) {

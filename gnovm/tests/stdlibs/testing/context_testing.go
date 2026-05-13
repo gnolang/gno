@@ -138,6 +138,23 @@ func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) 
 	}
 }
 
+// X_makeRealm builds a uverse realm value with the given (addr, pkgPath,
+// prev) tuple. Tests use this to construct cur values explicitly when
+// the SetRealm/SetCodeRealm composition semantics don't match the
+// scenario being tested — e.g. to express "alice EOA crossed into
+// r/foo, cur.Previous() == alice realm" without relying on chained
+// SetRealm calls (which overwrite prev with the test pkg's own addr).
+func X_makeRealm(m *gno.Machine, addr, pkgPath string, prev gno.TypedValue) gno.TypedValue {
+	return gno.MakeRealmValue(m.Alloc, addr, pkgPath, prev)
+}
+
+// X_originRealm returns the EOA-origin realm value (addr=OriginCaller,
+// pkgPath="", prev=truly-nil). Useful as the seed prev when assembling
+// explicit cur chains in tests.
+func X_originRealm(m *gno.Machine) gno.TypedValue {
+	return gno.OriginRealmTV()
+}
+
 func X_newRealm(m *gno.Machine, addr, pkgPath string) gno.TypedValue {
 	return gno.TypedValue{
 		// testing imports chain/runtime, so this type is always available.

@@ -151,3 +151,26 @@ func NewCodeRealm(pkgPath string) runtime.Realm {
 
 func newRealm(addr, pkgPath string) runtime.Realm // injected
 func isRealm(pkgPath string) bool
+
+// MakeRealm constructs a uverse `realm` value with explicit addr/pkgPath/
+// prev. Use when SetRealm composition semantics don't match the scenario:
+//
+//	aliceRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
+//	o := New(0, aliceRealm)
+//	crossed := testing.MakeRealm(crypto.AddressFromPkgPath(p), p, aliceRealm)
+//	o.OwnedByPrevious(0, crossed) // observes Previous() == aliceRealm
+//
+// Unlike SetRealm, this does not mutate any frame's captured cur.
+func MakeRealm(addr address, pkgPath string, prev realm) realm {
+	return makeRealm(string(addr), pkgPath, prev)
+}
+
+// OriginRealm returns the EOA-origin realm shape (addr=OriginCaller,
+// pkgPath="", prev=truly-nil). Use as the seed prev when assembling
+// explicit cur chains in tests.
+func OriginRealm() realm {
+	return originRealm()
+}
+
+func makeRealm(addr, pkgPath string, prev realm) realm // injected
+func originRealm() realm                                // injected
