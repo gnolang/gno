@@ -8,12 +8,14 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // It allows the current owner to set a new owner; the new owner must
 // accept ownership before the transfer completes.
 //
-// All authority-checking methods take an explicit `caller address`
-// parameter. Callers extract the appropriate address from their `cur`
-// realm at the call site:
+// Authority-mutating methods (TransferOwnership, AcceptOwnership,
+// DropOwnership) take (_ int, rlm realm). The caller threads its own
+// cur; the method asserts rlm.IsCurrent() and identifies the principal
+// as rlm.Previous().Address() — unforgeable.
 //
-//	o.TransferOwnership(cur.Address(), newOwner)             // realm-as-owner
-//	o.TransferOwnership(cur.Previous().Address(), newOwner)  // caller-of-realm-as-owner
+//	o.TransferOwnership(0, cur, newOwner)
+//	o.AcceptOwnership(0, cur)
+//	o.DropOwnership(0, cur)
 //
 // XXX Implement using Ownable instead of replicating it.
 type Ownable2Step struct {
@@ -34,9 +36,13 @@ func NewWithAddress(addr address) *Ownable2Step {
 }
 
 // TransferOwnership initiates the transfer of ownership to newOwner by
-// setting the PendingOwner. caller must equal the current owner.
-func (o *Ownable2Step) TransferOwnership(caller, newOwner address) error {
-	if caller != o.owner {
+// setting the PendingOwner. rlm must be the caller's own captured cur;
+// rlm.Previous().Address() must equal the current owner.
+func (o *Ownable2Step) TransferOwnership(_ int, rlm realm, newOwner address) error {
+	if !rlm.IsCurrent() {
+		return ErrUnauthorized
+	}
+	if rlm.Previous().Address() != o.owner {
 		return ErrUnauthorized
 	}
 	if !newOwner.IsValid() {
@@ -46,13 +52,17 @@ func (o *Ownable2Step) TransferOwnership(caller, newOwner address) error {
 	return nil
 }
 
-// AcceptOwnership accepts the pending ownership transfer. caller must
-// equal the pending owner.
-func (o *Ownable2Step) AcceptOwnership(caller address) error {
+// AcceptOwnership accepts the pending ownership transfer. rlm must be
+// the caller's own captured cur; rlm.Previous().Address() must equal
+// the pending owner.
+func (o *Ownable2Step) AcceptOwnership(_ int, rlm realm) error {
 	if o.pendingOwner.String() == "" {
 		return ErrNoPendingOwner
 	}
-	if caller != o.pendingOwner {
+	if !rlm.IsCurrent() {
+		return ErrPendingUnauthorized
+	}
+	if rlm.Previous().Address() != o.pendingOwner {
 		return ErrPendingUnauthorized
 	}
 	o.owner = o.pendingOwner
@@ -61,9 +71,13 @@ func (o *Ownable2Step) AcceptOwnership(caller address) error {
 }
 
 // DropOwnership removes the owner, disabling any owner-related actions.
-// caller must equal the current owner.
-func (o *Ownable2Step) DropOwnership(caller address) error {
-	if caller != o.owner {
+// rlm must be the caller's own captured cur; rlm.Previous().Address()
+// must equal the current owner.
+func (o *Ownable2Step) DropOwnership(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrUnauthorized
+	}
+	if rlm.Previous().Address() != o.owner {
 		return ErrUnauthorized
 	}
 	prevOwner := o.owner
