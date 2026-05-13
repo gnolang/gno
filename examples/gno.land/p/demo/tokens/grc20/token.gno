@@ -2,7 +2,6 @@ package grc20
 
 import (
 	"chain"
-	"chain/runtime"
 	"math"
 	"math/overflow"
 	"strconv"
@@ -10,24 +9,40 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-// NewToken creates a new Token.
-// It returns a pointer to the Token and a pointer to the Ledger.
-// Expected usage: Token, admin := NewToken("Dummy", "DUMMY", 4)
+// NewToken creates an anonymous Token (origRealm == "").
+// Token.ID() becomes "." + symbol; events emit that as the token field.
+//
+// For a Token whose origRealm is bound to a runtime-validated realm,
+// use gno.land/r/demo/defi/grc20reg.NewToken(cur, ...) instead — that
+// crossing constructor sets origRealm from cur.Previous().PkgPath().
 func NewToken(name, symbol string, decimals int) (*Token, *PrivateLedger) {
+	return NewTokenWithOrigRealm("", name, symbol, decimals)
+}
+
+// NewTokenWithOrigRealm creates a Token whose origRealm field is set to
+// the supplied pkgPath. The pkgPath is NOT validated by this function —
+// callers can pass anything, so the resulting Token.ID() reflects the
+// caller's assertion only.
+//
+// Trusted callers (e.g. r/demo/defi/grc20reg.NewToken) supply a
+// runtime-validated pkgpath obtained from cur.Previous() at a crossing
+// boundary. Direct callers SHOULD NOT use this to claim a realm that
+// they are not — registered Token identity lives in grc20reg, and a
+// Token whose origRealm doesn't match its registry binding is informational
+// only.
+func NewTokenWithOrigRealm(pkgPath, name, symbol string, decimals int) (*Token, *PrivateLedger) {
 	if name == "" {
 		panic("name should not be empty")
 	}
 	if symbol == "" {
 		panic("symbol should not be empty")
 	}
-	// XXX additional checks (length, characters, limits, etc)
-
 	ledger := &PrivateLedger{}
 	token := &Token{
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
-		origRealm: runtime.CurrentRealm().PkgPath(),
+		origRealm: pkgPath,
 		ledger:    ledger,
 	}
 	ledger.token = token

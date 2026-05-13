@@ -12,11 +12,14 @@ import (
 )
 
 var (
-	Token, adm = grc20.NewToken("Bar", "BAR", 4)
-	UserTeller = Token.CallerTeller()
+	Token      *grc20.Token
+	adm        *grc20.PrivateLedger
+	UserTeller grc20.Teller
 )
 
 func init(cur realm) {
+	Token, adm = grc20reg.NewToken(cross, "Bar", "BAR", 4)
+	UserTeller = Token.CallerTeller()
 	grc20reg.Register(cross, Token, "")
 }
 
