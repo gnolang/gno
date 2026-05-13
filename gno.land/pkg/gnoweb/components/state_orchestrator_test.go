@@ -904,3 +904,39 @@ func TestEnrichInlinePreviews_RecoversFromTypeFetcherPanic(t *testing.T) {
 	assert.Contains(t, log, "boom from type fetcher", "recovered panic value must appear in the log")
 	assert.Contains(t, log, tid, "log must identify which TID fetch panicked")
 }
+
+// TestAttachDocs_MatchByName covers the doc projection by Name against
+// the union of vals + funs + typs entries. Pin the contract so a future
+// refactor of the priority order (or a typo in the loop) fails here.
+func TestAttachDocs_MatchByName(t *testing.T) {
+	t.Parallel()
+
+	nodes := []StateNode{
+		{Name: "Counter"},
+		{Name: "Render"},
+		{Name: "User"},
+		{Name: "Untouched"}, // no matching doc → Doc stays empty
+	}
+
+	AttachDocs(nodes,
+		[]NamedDoc{{Name: "Counter", Doc: "tracks pings"}},
+		[]NamedDoc{{Name: "Render", Doc: "renders the realm"}},
+		[]NamedDoc{{Name: "User", Doc: "owner struct"}},
+	)
+
+	assert.Equal(t, "tracks pings", nodes[0].Doc, "val doc attached by name")
+	assert.Equal(t, "renders the realm", nodes[1].Doc, "func doc attached by name")
+	assert.Equal(t, "owner struct", nodes[2].Doc, "type doc attached by name")
+	assert.Empty(t, nodes[3].Doc, "node with no matching doc stays empty")
+}
+
+// TestAttachDocs_EmptyDocsSkipped — empty Doc strings in the index must
+// not overwrite a matching node. (The handler dedup already skips them,
+// but the contract belongs on AttachDocs itself.)
+func TestAttachDocs_EmptyDocsSkipped(t *testing.T) {
+	t.Parallel()
+
+	nodes := []StateNode{{Name: "X", Doc: "preexisting"}}
+	AttachDocs(nodes, []NamedDoc{{Name: "X", Doc: ""}}, nil, nil)
+	assert.Equal(t, "preexisting", nodes[0].Doc, "empty doc entries must not clobber")
+}

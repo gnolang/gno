@@ -3,6 +3,7 @@ package components
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/url"
@@ -25,11 +26,13 @@ const (
 
 // recoverFetcher must be deferred in every fetcher goroutine so a panic
 // from one fetch never crashes the whole render. The shared log key set
-// also gives prod a single grep target.
+// also gives prod a single grep target. The recovered value is clipped
+// so a hostile chain returning an enormous panic payload cannot turn
+// the log line itself into an amplification vector.
 func recoverFetcher(logger *slog.Logger, kind string, fields ...any) {
 	if r := recover(); r != nil {
 		logger.Error("fetcher panic recovered",
-			append([]any{"kind", kind, "panic", r}, fields...)...)
+			append([]any{"kind", kind, "panic", fmt.Sprintf("%.512s", r)}, fields...)...)
 	}
 }
 

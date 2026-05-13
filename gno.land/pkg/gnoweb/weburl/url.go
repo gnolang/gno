@@ -7,6 +7,7 @@ import (
 	gopath "path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -189,18 +190,15 @@ func (gnoURL GnoURL) WithoutHeight() GnoURL {
 }
 
 func parseHeight(s string) int64 {
-	if s == "" {
+	// Cap input length to int64's max digit count (19 + sign-less) so
+	// strconv.ParseInt's ErrRange path catches overflows cleanly without
+	// the hand-rolled loop wrapping twice on huge inputs.
+	if s == "" || len(s) > 19 {
 		return 0
 	}
-	var h int64
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return 0
-		}
-		h = h*10 + int64(c-'0')
-		if h < 0 { // overflow
-			return 0
-		}
+	h, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || h < 0 {
+		return 0
 	}
 	return h
 }

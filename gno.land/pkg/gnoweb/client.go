@@ -241,7 +241,9 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 		)
 
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("%w: %s", ErrClientTimeout, err.Error())
+			// Don't leak transport URL / endpoint detail into the wrapped
+			// error — the typed sentinel + qpath via logger is enough.
+			return nil, ErrClientTimeout
 		}
 
 		return nil, fmt.Errorf("%w: %s", ErrClientBadRequest, err.Error())
@@ -278,6 +280,17 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 		return nil, ErrClientFileNotFound
 	case errors.Is(qerr, vm.ObjectNotFoundError{}):
 		c.logger.Warn("object not found",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, ErrClientObjectNotFound
+	case errors.Is(qerr, vm.InvalidExprError{}):
+		// vm/qtype_json returns InvalidExprError("type not found: …") when
+		// the TypeID is unknown. Map to the same not-found sentinel so the
+		// state explorer renders a 404 (the type page is gone) instead of
+		// the generic 500.
+		c.logger.Warn("type not found",
 			"path", qpath,
 			"data", string(data),
 			"error", qres.Response.Error,

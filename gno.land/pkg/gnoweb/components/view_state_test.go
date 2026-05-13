@@ -767,3 +767,32 @@ func TestRenderState_SourceLinkCarriesHeight(t *testing.T) {
 	assert.Contains(t, html, "#L7",
 		"source link must anchor to the StartLine")
 }
+
+// TestComputeKindCounts pins the filter-tab bucket mapping so a future
+// Kind rename / new Kind addition fails here loudly instead of silently
+// dropping nodes out of every filter bucket (and miscounting the chips).
+func TestComputeKindCounts(t *testing.T) {
+	t.Parallel()
+
+	nodes := []StateNode{
+		{Kind: KindPrimitive},
+		{Kind: KindStruct},
+		{Kind: KindMap},
+		{Kind: KindSlice},
+		{Kind: KindArray},
+		{Kind: KindPointer},
+		{Kind: KindRef},
+		{Kind: KindFunc},
+		{Kind: KindClosure},
+		{Kind: KindType},
+		{Kind: KindInterface},
+		{Kind: "unknown-bucket"}, // counted in All only
+	}
+
+	got := ComputeKindCounts(nodes)
+
+	assert.Equal(t, len(nodes), got.All, "All must equal len(nodes)")
+	assert.Equal(t, 6, got.State, "State bucket: struct/map/slice/array/pointer/ref")
+	assert.Equal(t, 2, got.Code, "Code bucket: func/closure")
+	assert.Equal(t, 2, got.Types, "Types bucket: type/interface")
+}
