@@ -532,7 +532,19 @@ func (opts *TestOptions) runTestFiles(
 			runTestX = gno.Nx("runTest_cur")
 			runTest = m.Eval(runTestX)[0]
 			runTestF = "F_cur"
-			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(nil, mpkg.Path, gno.OriginRealmTV()))
+			// For realm test packages, cur represents the realm itself
+			// (addr=derived, pkgPath=mpkg.Path, prev=EOA origin) so test
+			// bodies can call `cur.Previous().Address()` and see the EOA.
+			// For non-realm (p/) test packages, p/ has no realm identity;
+			// seed cur as the EOA origin realm directly so methods called
+			// via `m.M(0, cur, ...)` see `cur.Previous()` panic at the
+			// chain boundary, matching production semantics where an EOA
+			// MsgCall path collapses to the origin at the p/ boundary.
+			if gno.IsRealmPath(mpkg.Path) {
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(nil, mpkg.Path, gno.OriginRealmTV()))
+			} else {
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.OriginRealmTV())
+			}
 			m.SetActivePackage(pv)
 		} else {
 			// The normal way to test if `cur` isn't needed such as

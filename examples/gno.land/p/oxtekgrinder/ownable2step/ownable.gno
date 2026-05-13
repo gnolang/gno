@@ -1,9 +1,6 @@
 package ownable2step
 
-import (
-	"chain"
-	"chain/runtime"
-)
+import "chain"
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
@@ -15,21 +12,20 @@ type Ownable2Step struct {
 	pendingOwner address
 }
 
-func New() *Ownable2Step {
+func New(_ int, rlm realm) *Ownable2Step {
 	return &Ownable2Step{
-		owner:        runtime.CurrentRealm().Address(),
+		owner:        rlm.Address(),
 		pendingOwner: "",
 	}
 }
 
-func NewWithOrigin() *Ownable2Step {
-	origin := runtime.OriginCaller()
-	previous := runtime.PreviousRealm()
-	if origin != previous.Address() {
-		panic("NewWithOrigin() should be called from init() where runtime.PreviousRealm() is origin")
+func NewWithOrigin(_ int, rlm realm) *Ownable2Step {
+	prev := rlm.Previous()
+	if !prev.IsUserCall() {
+		panic("NewWithOrigin() should be called from init() where the previous realm is the EOA origin")
 	}
 	return &Ownable2Step{
-		owner: origin,
+		owner: prev.Address(),
 	}
 }
 
@@ -41,8 +37,8 @@ func NewWithAddress(addr address) *Ownable2Step {
 }
 
 // TransferOwnership initiate the transfer of the ownership to a new address by setting the PendingOwner
-func (o *Ownable2Step) TransferOwnership(newOwner address) error {
-	if !o.OwnedByCurrent() {
+func (o *Ownable2Step) TransferOwnership(_ int, rlm realm, newOwner address) error {
+	if !o.OwnedByCurrent(0, rlm) {
 		return ErrUnauthorized
 	}
 	if !newOwner.IsValid() {
@@ -54,11 +50,11 @@ func (o *Ownable2Step) TransferOwnership(newOwner address) error {
 }
 
 // AcceptOwnership accepts the pending ownership transfer
-func (o *Ownable2Step) AcceptOwnership() error {
+func (o *Ownable2Step) AcceptOwnership(_ int, rlm realm) error {
 	if o.pendingOwner.String() == "" {
 		return ErrNoPendingOwner
 	}
-	if runtime.CurrentRealm().Address() != o.pendingOwner {
+	if rlm.Address() != o.pendingOwner {
 		return ErrPendingUnauthorized
 	}
 
@@ -71,8 +67,8 @@ func (o *Ownable2Step) AcceptOwnership() error {
 // DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable2Step) DropOwnership() error {
-	if !o.OwnedByCurrent() {
+func (o *Ownable2Step) DropOwnership(_ int, rlm realm) error {
+	if !o.OwnedByCurrent(0, rlm) {
 		return ErrUnauthorized
 	}
 
@@ -100,25 +96,25 @@ func (o *Ownable2Step) PendingOwner() address {
 }
 
 // OwnedByCurrent checks if the caller of the function is the Realm's owner
-func (o *Ownable2Step) OwnedByCurrent() bool {
-	return runtime.CurrentRealm().Address() == o.owner
+func (o *Ownable2Step) OwnedByCurrent(_ int, rlm realm) bool {
+	return rlm.Address() == o.owner
 }
 
 // AssertOwnedByCurrent panics if the caller is not the owner
-func (o *Ownable2Step) AssertOwnedByCurrent() {
-	if runtime.CurrentRealm().Address() != o.owner {
+func (o *Ownable2Step) AssertOwnedByCurrent(_ int, rlm realm) {
+	if rlm.Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }
 
 // OwnedByPrevious checks if the caller of the function is the Realm's owner
-func (o *Ownable2Step) OwnedByPrevious() bool {
-	return runtime.PreviousRealm().Address() == o.owner
+func (o *Ownable2Step) OwnedByPrevious(_ int, rlm realm) bool {
+	return rlm.Previous().Address() == o.owner
 }
 
 // AssertOwnedByPrevious panics if the caller is not the owner
-func (o *Ownable2Step) AssertOwnedByPrevious() {
-	if runtime.PreviousRealm().Address() != o.owner {
+func (o *Ownable2Step) AssertOwnedByPrevious(_ int, rlm realm) {
+	if rlm.Previous().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }

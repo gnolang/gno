@@ -968,8 +968,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// n.SetAttribute(ATTR_PREPROCESS_INCOMPLETE, true)
 					return n, TRANS_SKIP
 				}
-				// a crossing function can only be declared in a realm.
-				if ft.IsCrossing() && !isRealm(ctx) {
+				// a crossing function can only be declared in a realm
+				// (or, as a carve-out, in any *_test.gno file so p/ tests
+				// can declare `TestXxx(cur realm, t *testing.T)` to drive
+				// migrated methods).
+				if ft.IsCrossing() && !crossingAllowed(ctx, n) {
 					panic(fmt.Sprintf("crossing function literal (realm first argument) declared in non-realm package: %v", n))
 				}
 				// push func body block.
@@ -1073,8 +1076,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				// the type and receiver are already set in predefineRecursively.
 				ft := getType(&n.Type).(*FuncType)
-				// a crossing function can only be declared in a realm.
-				if ft.IsCrossing() && !isRealm(ctx) {
+				// a crossing function can only be declared in a realm
+				// (or, as a carve-out, in any *_test.gno file so p/ tests
+				// can declare `TestXxx(cur realm, t *testing.T)` to drive
+				// migrated methods).
+				if ft.IsCrossing() && !crossingAllowed(ctx, n) {
 					panic(fmt.Sprintf("crossing function (realm first argument) declared in non-realm package: %v", n))
 				}
 				// push func body block.
@@ -4374,6 +4380,21 @@ func setPreprocessed(x Node) Node {
 func isRealm(ctx BlockNode) bool {
 	pn := packageOf(ctx)
 	return IsRealmPath(pn.PkgPath)
+}
+
+// crossingAllowed reports whether n (a FuncDecl or FuncLitExpr with a
+// realm-first-arg signature) is allowed to be a crossing function in ctx.
+// Crossing functions are allowed in realm packages OR in any *_test.gno
+// file (regardless of package). The test-file carve-out lets `p/` package
+// tests declare `func TestXxx(cur realm, t *testing.T)` and pass `cur`
+// into newly-migrated methods — production code in `p/` still can't
+// define crossing functions.
+func crossingAllowed(ctx BlockNode, n BlockNode) bool {
+	if isRealm(ctx) {
+		return true
+	}
+	file := n.GetLocation().File
+	return strings.HasSuffix(file, "_test.gno")
 }
 
 func packageOf(last BlockNode) *PackageNode {

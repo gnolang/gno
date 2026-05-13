@@ -141,6 +141,24 @@ func (m *Machine) callingCurOrOrigin() TypedValue {
 
 var gReturnStmt = &ReturnStmt{}
 
+// crossingFromTestFile reports whether fv is a crossing function declared
+// in a *_test.gno file. Used by doOpEnterCrossing to allow `p/` test files
+// to declare and call crossing functions (production p/ code still can't —
+// see crossingAllowed in preprocess.go).
+//
+// fv.FileName is populated for top-level FuncDecls but empty for function
+// literals (closures). For literals we walk to the Source AST node and
+// read its Location.File.
+func crossingFromTestFile(fv *FuncValue) bool {
+	if strings.HasSuffix(fv.FileName, "_test.gno") {
+		return true
+	}
+	if fv.Source == nil {
+		return false
+	}
+	return strings.HasSuffix(fv.Source.GetLocation().File, "_test.gno")
+}
+
 // This used to be the crossing() uverse function.
 // It should be run once upon calling every crossing function,
 // whether or not it was cross-called.
@@ -148,7 +166,14 @@ func (m *Machine) doOpEnterCrossing() {
 	// Sanity check.
 	fr1 := m.PeekCallFrame(1) // fr1.LastPackage called to create fr1.
 	if !m.Package.IsRealm() {
-		panic("expected crossing function in a realm package")
+		// Allow crossing functions declared in *_test.gno files so p/
+		// package tests can declare `TestXxx(cur realm, t *testing.T)`
+		// and drive migrated methods. Preprocess already enforces that
+		// production code in non-realm packages cannot declare crossing
+		// functions; this runtime carve-out is the matching gate.
+		if fr1 == nil || fr1.Func == nil || !crossingFromTestFile(fr1.Func) {
+			panic("expected crossing function in a realm package")
+		}
 	}
 
 	// Verify prior fr.WithCross or fr.DidCrossing.

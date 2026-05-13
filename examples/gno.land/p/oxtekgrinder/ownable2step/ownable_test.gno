@@ -1,6 +1,7 @@
 package ownable2step
 
 import (
+	"chain"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -13,10 +14,10 @@ var (
 	bob   = testutils.TestAddress("bob")
 )
 
-func TestNew(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestNew(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 	got := o.Owner()
 	pendingOwner := o.PendingOwner()
 
@@ -34,12 +35,12 @@ func TestNewWithAddress(t *testing.T) {
 	uassert.Equal(t, pendingOwner.String(), "")
 }
 
-func TestInitiateTransferOwnership(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestInitiateTransferOwnership(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 
-	err := o.TransferOwnership(bob)
+	err := o.TransferOwnership(0, cur, bob)
 	urequire.NoError(t, err)
 
 	owner := o.Owner()
@@ -49,12 +50,12 @@ func TestInitiateTransferOwnership(t *testing.T) {
 	uassert.Equal(t, pendingOwner, bob)
 }
 
-func TestTransferOwnership(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestTransferOwnership(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 
-	err := o.TransferOwnership(bob)
+	err := o.TransferOwnership(0, cur, bob)
 	urequire.NoError(t, err)
 
 	owner := o.Owner()
@@ -63,9 +64,9 @@ func TestTransferOwnership(t *testing.T) {
 	uassert.Equal(t, owner, alice)
 	uassert.Equal(t, pendingOwner, bob)
 
-	testing.SetOriginCaller(bob)
+	testing.SetRealm(testing.NewUserRealm(bob))
 
-	err = o.AcceptOwnership()
+	err = o.AcceptOwnership(0, cur)
 	urequire.NoError(t, err)
 
 	owner = o.Owner()
@@ -75,76 +76,56 @@ func TestTransferOwnership(t *testing.T) {
 	uassert.Equal(t, pendingOwner.String(), "")
 }
 
-func TestOwnedByCurrent(t *testing.T) {
-	testing.SetOriginCaller(alice)
-
-	o := New()
-	unauthorizedCaller := bob
-	testing.SetOriginCaller(unauthorizedCaller)
-	uassert.False(t, o.OwnedByCurrent())
-}
-
-func TestOwnedByCurrentUnauthorized(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestOwnedByCurrent(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	var o *Ownable2Step
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		o = NewWithOrigin()
-	}()
+	o := New(0, cur)
 
-	uassert.True(t, o.OwnedByCurrent())
-
-	unauthorizedCaller := bob
-	testing.SetRealm(testing.NewUserRealm(unauthorizedCaller))
-	uassert.False(t, o.OwnedByCurrent())
+	testing.SetRealm(testing.NewUserRealm(bob))
+	uassert.False(t, o.OwnedByCurrent(0, cur))
 }
 
-func TestOwnedByPrevious(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestOwnedByPrevious(cur realm, t *testing.T) {
+	// Construct an Ownable2Step whose owner is the realm we expect
+	// cur.Previous() to surface when SetRealm overrides the test's cur
+	// to a CodeRealm — that's the test frame's own package address
+	// (set by X_setContext's CodeRealm-override branch).
+	pkgPath := "gno.land/p/oxtekgrinder/ownable2step"
+	o := NewWithAddress(chain.PackageAddress(pkgPath))
 
-	o := New()
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.True(t, o.OwnedByPrevious())
-	}()
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
+	uassert.True(t, o.OwnedByPrevious(0, cur))
 }
 
-func TestOwnedByPreviousUnauthorized(t *testing.T) {
+func TestOwnedByPreviousUnauthorized(cur realm, t *testing.T) {
+	o := NewWithAddress(bob)
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
+	uassert.False(t, o.OwnedByPrevious(0, cur))
+}
+
+func TestDropOwnership(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
-	unauthorizedCaller := bob
-	testing.SetRealm(testing.NewUserRealm(unauthorizedCaller))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.False(t, o.OwnedByPrevious())
-	}()
-}
+	o := New(0, cur)
 
-func TestDropOwnership(t *testing.T) {
-	testing.SetOriginCaller(alice)
-
-	o := New()
-
-	err := o.DropOwnership()
+	err := o.DropOwnership(0, cur)
 	urequire.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
 	uassert.Empty(t, owner, "owner should be empty")
 }
 
-func TestDropOwnershipVulnerability(t *testing.T) {
-	testing.SetOriginCaller(alice)
-	o := New()
+func TestDropOwnershipVulnerability(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	o := New(0, cur)
 
 	// alice initiates ownership transfer to bob
-	err := o.TransferOwnership(bob)
+	err := o.TransferOwnership(0, cur, bob)
 	urequire.NoError(t, err)
 
 	// alice drops ownership while ownership transfer is pending
-	err = o.DropOwnership()
+	err = o.DropOwnership(0, cur)
 	urequire.NoError(t, err)
 
 	owner := o.Owner()
@@ -153,55 +134,55 @@ func TestDropOwnershipVulnerability(t *testing.T) {
 	uassert.Empty(t, pendingOwner.String(), "pending owner should be empty")
 
 	// verify bob can no longer claim ownership
-	testing.SetOriginCaller(bob)
-	err = o.AcceptOwnership()
+	testing.SetRealm(testing.NewUserRealm(bob))
+	err = o.AcceptOwnership(0, cur)
 	uassert.ErrorContains(t, err, ErrNoPendingOwner.Error())
 }
 
 // Errors
 
-func TestErrUnauthorized(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestErrUnauthorized(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 
-	testing.SetOriginCaller(bob)
+	testing.SetRealm(testing.NewUserRealm(bob))
 
-	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
-	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.TransferOwnership(0, cur, alice), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.DropOwnership(0, cur), ErrUnauthorized.Error())
 }
 
-func TestErrInvalidAddress(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestErrInvalidAddress(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 
-	err := o.TransferOwnership("")
+	err := o.TransferOwnership(0, cur, "")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
-	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
+	err = o.TransferOwnership(0, cur, "10000000001000000000100000000010000000001000000000")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
 
-func TestErrNoPendingOwner(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestErrNoPendingOwner(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 
-	err := o.AcceptOwnership()
+	err := o.AcceptOwnership(0, cur)
 	uassert.ErrorContains(t, err, ErrNoPendingOwner.Error())
 }
 
-func TestErrPendingUnauthorized(t *testing.T) {
-	testing.SetOriginCaller(alice)
+func TestErrPendingUnauthorized(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	o := New()
+	o := New(0, cur)
 
-	err := o.TransferOwnership(bob)
+	err := o.TransferOwnership(0, cur, bob)
 	urequire.NoError(t, err)
 
-	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice))
 
-	err = o.AcceptOwnership()
+	err = o.AcceptOwnership(0, cur)
 	uassert.ErrorContains(t, err, ErrPendingUnauthorized.Error())
 }
