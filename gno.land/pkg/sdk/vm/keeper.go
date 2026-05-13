@@ -1523,10 +1523,14 @@ func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err e
 		if name == "" || name == "_" {
 			continue
 		}
-		// Unwrap heap items.
+		// Unwrap heap items. Top-level mutable vars live in dedicated
+		// HeapItem cells; since #5415 the block stores them as RefValue
+		// (lazy fill) so we resolve via the store before unwrapping.
 		if tv.T != nil && tv.T.Kind() == gno.HeapItemKind {
-			if hiv, ok := tv.V.(*gno.HeapItemValue); ok {
-				tv = hiv.Value
+			if rv, ok := tv.V.(gno.RefValue); ok {
+				if hiv, ok := gnostore.GetObject(rv.ObjectID).(*gno.HeapItemValue); ok {
+					tv = hiv.Value
+				}
 			}
 		}
 		varNames = append(varNames, name)

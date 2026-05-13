@@ -3037,6 +3037,28 @@ func Render(path string) string { return "qpkg test" }
 	assert.Contains(t, parsed.Names, "myInt")
 	assert.Contains(t, parsed.Names, "myStr")
 	assert.Contains(t, parsed.Names, "myStruct")
+
+	// Heap-allocated top-level vars must come through the unwrap as their
+	// inner inline shape, not as the heap wrapper. Regression guard: PR
+	// #5415 switched block.Values to store HeapItem cells via RefValue,
+	// which silently broke our unwrap (it only handled *HeapItemValue
+	// direct). Pin the inline contract so any future store-layout shift
+	// fails here instead of silently rendering as Unknown.
+	for i, name := range parsed.Names {
+		v := string(parsed.Values[i])
+		switch name {
+		case "myInt":
+			assert.Contains(t, v, `"@type":"/gno.PrimitiveType"`,
+				"top-level int must serialize as inline PrimitiveType, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level int must not leak the heap wrapper, got %s", v)
+		case "myStr":
+			assert.Contains(t, v, `"@type":"/gno.StringValue"`,
+				"top-level string must serialize as inline StringValue, got %s", v)
+			assert.NotContains(t, v, `heapItemType`,
+				"top-level string must not leak the heap wrapper, got %s", v)
+		}
+	}
 }
 
 func TestQueryPkgNotFound(t *testing.T) {
