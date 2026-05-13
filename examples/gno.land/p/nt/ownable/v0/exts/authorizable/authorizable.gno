@@ -35,10 +35,14 @@ func New(o *ownable.Ownable) *Authorizable {
 	return a
 }
 
-// AddToAuthList adds addr to the auth list. caller must equal the
-// superuser (the underlying Ownable's owner).
-func (a *Authorizable) AddToAuthList(caller, addr address) error {
-	if !a.OwnedBy(caller) {
+// AddToAuthList adds addr to the auth list. rlm must be the caller's
+// own captured cur; rlm.Previous().Address() must equal the superuser
+// (the underlying Ownable's owner).
+func (a *Authorizable) AddToAuthList(_ int, rlm realm, addr address) error {
+	if !rlm.IsCurrent() {
+		return ErrNotSuperuser
+	}
+	if !a.OwnedBy(rlm.Previous().Address()) {
 		return ErrNotSuperuser
 	}
 	return a.addToAuthList(addr)
@@ -54,10 +58,14 @@ func (a *Authorizable) addToAuthList(addr address) error {
 	return nil
 }
 
-// DeleteFromAuthList removes addr from the auth list. caller must equal
-// the superuser (the underlying Ownable's owner).
-func (a *Authorizable) DeleteFromAuthList(caller, addr address) error {
-	if !a.OwnedBy(caller) {
+// DeleteFromAuthList removes addr from the auth list. rlm must be the
+// caller's own captured cur; rlm.Previous().Address() must equal the
+// superuser (the underlying Ownable's owner).
+func (a *Authorizable) DeleteFromAuthList(_ int, rlm realm, addr address) error {
+	if !rlm.IsCurrent() {
+		return ErrNotSuperuser
+	}
+	if !a.OwnedBy(rlm.Previous().Address()) {
 		return ErrNotSuperuser
 	}
 	return a.deleteFromAuthList(addr)
