@@ -258,7 +258,16 @@ type SessionAccountsContextKey struct{}
 const (
 	MaxSessionsPerAccount   = 16
 	MaxAllowPathsPerSession = 8
-	MaxSessionDuration      = 30 * 24 * 60 * 60 // 30 days in seconds
+	// MaxSessionDuration caps non-zero ExpiresAt: ExpiresAt must be in
+	// (blockTime, blockTime+MaxSessionDuration]. ExpiresAt = 0 means "no expiry"
+	// and is exempt from this cap (see handler.go). The cap exists to catch
+	// bad input (typos, milliseconds-vs-seconds confusion) rather than to
+	// enforce a hard lifetime ceiling.
+	MaxSessionDuration = 4 * 365 * 24 * 60 * 60 // ~4 years (1460 days) in seconds
+	// MaxSpendPeriod caps SpendPeriod, the rolling window for session spend
+	// limits. Independent of MaxSessionDuration: a session can outlive any
+	// single spend window.
+	MaxSpendPeriod = 30 * 24 * 60 * 60 // 30 days in seconds
 )
 
 // ProtoBaseSessionAccount - a prototype function for BaseSessionAccount
