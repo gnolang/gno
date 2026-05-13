@@ -418,6 +418,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	}
 	// log realm boundaries in opslog.
 	store.LogFinalizeRealm(rlm.Path)
+	startTime := rlm.Time
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store, 0)
@@ -426,6 +427,11 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
 	rlm.processNewEscapedMarks(store, 0)
+	// Persist rlm.Time if it advanced via any OID assignment path
+	// (newCreated OR newEscaped's "passed from caller" branch).
+	if rlm.Time > startTime {
+		store.SetPackageRealm(rlm)
+	}
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
@@ -482,10 +488,10 @@ func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 			rlm.incRefCreatedDescendants(store, oo)
 		}
 	}
-	// Save new realm time.
-	if len(rlm.newCreated) > 0 {
-		store.SetPackageRealm(rlm)
-	}
+	// NOTE: do NOT call SetPackageRealm here — Time may still advance in
+	// processNewEscapedMarks via incRefCreatedDescendants on the
+	// "passed from caller" branch. SetPackageRealm is called once at
+	// the end of FinalizeRealmTransaction, after all OID assignments.
 	return len(rlm.newCreated)
 }
 
