@@ -24,6 +24,9 @@ var (
 )
 
 func init(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("realm must be initialized by EOA")
+	}
 	Ownable = ownable.NewWithAddress(cur.Previous().Address())
 }
 

@@ -8,6 +8,9 @@ import (
 var owner *ownable.Ownable
 
 func init(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("realm must be initialized by EOA")
+	}
 	owner = ownable.NewWithAddress(cur.Previous().Address())
 }
 

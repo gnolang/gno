@@ -9,6 +9,9 @@ import (
 var Authorizer *authz.Authorizer
 
 func init(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("r/moul/config must be initialized by an EOA")
+	}
 	Authorizer = authz.NewWithMembers(cur.Previous().Address())
 }
 

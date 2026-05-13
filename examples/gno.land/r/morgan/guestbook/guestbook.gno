@@ -31,14 +31,7 @@ var (
 )
 
 func init(cur realm) {
-	// Seed the guestbook with a default end-of-list message authored by
-	// the deploying realm/EOA. Bypasses Sign's IsUser guard since init
-	// runs in a deploy context whose realm shape isn't a user call.
-	guestbook.Set(signatureID.Next().Binary(), Signature{
-		Message: "You reached the end of the guestbook!",
-		Author:  cur.Previous().Address(),
-		Time:    time.Now(),
-	})
+	Sign(cur, "You reached the end of the guestbook!")
 }
 
 const (
