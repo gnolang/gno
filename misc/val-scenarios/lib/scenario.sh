@@ -767,6 +767,10 @@ _resolve_control_port() {
 
 start_node() {
   local node="${1:?node required}"
+  # Remove any stopped container so Docker allocates a fresh ephemeral host
+  # port rather than reusing the previous binding, which can conflict when
+  # multiple nodes are restarted in sequence.
+  compose rm -f "$node" >/dev/null 2>&1 || true
   compose up -d "$node" >/dev/null
   _resolve_rpc_port "$node"
   wait_for_rpc "$node" 120
