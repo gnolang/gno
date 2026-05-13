@@ -1,9 +1,6 @@
 package registry
 
-import (
-	"chain/runtime"
-	"errors"
-)
+import "errors"
 
 var (
 	mainAddress   address
@@ -26,8 +23,8 @@ func BackupAddress() address {
 	return backupAddress
 }
 
-func SetMainAddress(_ realm, addr address) error {
-	assertAuthorized()
+func SetMainAddress(cur realm, addr address) error {
+	assertAuthorized(0, cur)
 
 	if !addr.IsValid() {
 		return ErrInvalidAddr
@@ -37,8 +34,8 @@ func SetMainAddress(_ realm, addr address) error {
 	return nil
 }
 
-func SetBackupAddress(_ realm, addr address) error {
-	assertAuthorized()
+func SetBackupAddress(cur realm, addr address) error {
+	assertAuthorized(0, cur)
 
 	if !addr.IsValid() {
 		return ErrInvalidAddr
@@ -49,8 +46,8 @@ func SetBackupAddress(_ realm, addr address) error {
 }
 
 // It will stay here for now, might be useful later
-func assertAuthorized() {
-	caller := runtime.PreviousRealm().Address()
+func assertAuthorized(_ int, rlm realm) {
+	caller := rlm.Previous().Address()
 	isAuthorized := caller == mainAddress || caller == backupAddress
 
 	if !isAuthorized {

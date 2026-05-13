@@ -27,7 +27,7 @@ var (
 )
 
 func Transfer(cur realm, to address, send int64) string {
-	if err := assertIsController(); err != nil {
+	if err := assertIsController(0, cur); err != nil {
 		return err.Error()
 	}
 
@@ -86,8 +86,8 @@ func Render(_ string) string {
 	return output
 }
 
-func assertIsController() error {
-	caller := runtime.PreviousRealm().Address()
+func assertIsController(_ int, rlm realm) error {
+	caller := rlm.Previous().Address()
 	ok := gControllers.Has(caller.String())
 	if !ok {
 		return errors.New(caller.String() + " is not on the controller list")

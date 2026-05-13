@@ -2,12 +2,11 @@ package faucet
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 )
 
 func AdminSetInPause(cur realm, inPause bool) string {
-	if err := assertIsAdmin(); err != nil {
+	if err := assertIsAdmin(0, cur); err != nil {
 		return err.Error()
 	}
 	gInPause = inPause
@@ -15,7 +14,7 @@ func AdminSetInPause(cur realm, inPause bool) string {
 }
 
 func AdminSetMessage(cur realm, message string) string {
-	if err := assertIsAdmin(); err != nil {
+	if err := assertIsAdmin(0, cur); err != nil {
 		return err.Error()
 	}
 	gMessage = message
@@ -23,7 +22,7 @@ func AdminSetMessage(cur realm, message string) string {
 }
 
 func AdminSetTransferLimit(cur realm, amount int64) string {
-	if err := assertIsAdmin(); err != nil {
+	if err := assertIsAdmin(0, cur); err != nil {
 		return err.Error()
 	}
 	gLimit = chain.NewCoin("ugnot", amount)
@@ -31,7 +30,7 @@ func AdminSetTransferLimit(cur realm, amount int64) string {
 }
 
 func AdminSetAdminAddr(cur realm, addr address) string {
-	if err := assertIsAdmin(); err != nil {
+	if err := assertIsAdmin(0, cur); err != nil {
 		return err.Error()
 	}
 	gAdminAddr = addr
@@ -39,7 +38,7 @@ func AdminSetAdminAddr(cur realm, addr address) string {
 }
 
 func AdminAddController(cur realm, addr address) string {
-	if err := assertIsAdmin(); err != nil {
+	if err := assertIsAdmin(0, cur); err != nil {
 		return err.Error()
 	}
 
@@ -59,7 +58,7 @@ func AdminAddController(cur realm, addr address) string {
 }
 
 func AdminRemoveController(cur realm, addr address) string {
-	if err := assertIsAdmin(); err != nil {
+	if err := assertIsAdmin(0, cur); err != nil {
 		return err.Error()
 	}
 
@@ -79,8 +78,8 @@ func AdminRemoveController(cur realm, addr address) string {
 	return ""
 }
 
-func assertIsAdmin() error {
-	caller := runtime.PreviousRealm().Address()
+func assertIsAdmin(_ int, rlm realm) error {
+	caller := rlm.Previous().Address()
 	if caller != gAdminAddr {
 		return errors.New("restricted for admin")
 	}

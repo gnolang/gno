@@ -15,7 +15,7 @@ func resetCache() {
 	valoperCache = bptree.NewBPTree32()
 }
 
-func TestNotifyValoperChanged_HappyPath(t *testing.T) {
+func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 	resetCache()
 
 	op := testutils.TestAddress("op-A")
@@ -45,7 +45,7 @@ func TestNotifyValoperChanged_HappyPath(t *testing.T) {
 	uassert.Equal(t, false, entry.KeepRunning)
 }
 
-func TestNotifyValoperChanged_RejectsNonValopersCaller(t *testing.T) {
+func TestNotifyValoperChanged_RejectsNonValopersCaller(cur realm, t *testing.T) {
 	resetCache()
 
 	op := testutils.TestAddress("op-A")
@@ -66,7 +66,7 @@ func TestNotifyValoperChanged_RejectsNonValopersCaller(t *testing.T) {
 	})
 }
 
-func TestRotateValoperSigningKey_AppliesRotation(t *testing.T) {
+func TestRotateValoperSigningKey_AppliesRotation(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 
@@ -88,7 +88,7 @@ func TestRotateValoperSigningKey_AppliesRotation(t *testing.T) {
 	uassert.Equal(t, uint64(10), effective[0].VotingPower)
 }
 
-func TestRotateValoperSigningKey_OperatorNotInValset_NoOp(t *testing.T) {
+func TestRotateValoperSigningKey_OperatorNotInValset_NoOp(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 
@@ -105,7 +105,7 @@ func TestRotateValoperSigningKey_OperatorNotInValset_NoOp(t *testing.T) {
 	uassert.Equal(t, 0, len(sysparams.GetValsetEffective()))
 }
 
-func TestRotateValoperSigningKey_RejectsNonValopersCaller(t *testing.T) {
+func TestRotateValoperSigningKey_RejectsNonValopersCaller(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	testing.SetSysParamStrings(module, submodule, currKey, []string{pubKeyA + ":10"})
@@ -132,7 +132,7 @@ func TestRotateValoperSigningKey_RejectsNonValopersCaller(t *testing.T) {
 	uassert.Equal(t, pubKeyA, effective[0].PubKey)
 }
 
-func TestAssertGenesisValopersConsistent_HappyPath(t *testing.T) {
+func TestAssertGenesisValopersConsistent_HappyPath(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	testing.SetHeight(0) // assertion is genesis-mode only
@@ -160,7 +160,7 @@ func TestAssertGenesisValopersConsistent_HappyPath(t *testing.T) {
 	})
 }
 
-func TestAssertGenesisValopersConsistent_PanicsOnMissingProfile(t *testing.T) {
+func TestAssertGenesisValopersConsistent_PanicsOnMissingProfile(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	testing.SetHeight(0)
@@ -186,7 +186,7 @@ func TestAssertGenesisValopersConsistent_PanicsOnMissingProfile(t *testing.T) {
 	})
 }
 
-func TestAssertGenesisValopersConsistent_EmptyValsetTrivial(t *testing.T) {
+func TestAssertGenesisValopersConsistent_EmptyValsetTrivial(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	testing.SetHeight(0)
@@ -197,7 +197,7 @@ func TestAssertGenesisValopersConsistent_EmptyValsetTrivial(t *testing.T) {
 	})
 }
 
-func TestAssertGenesisValopersConsistent_RejectsPostGenesis(t *testing.T) {
+func TestAssertGenesisValopersConsistent_RejectsPostGenesis(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	// Default test height is non-zero (123); the assertion must
@@ -207,7 +207,7 @@ func TestAssertGenesisValopersConsistent_RejectsPostGenesis(t *testing.T) {
 	})
 }
 
-func TestRotateValoperSigningKey_AccumulatesAcrossSameBlock(t *testing.T) {
+func TestRotateValoperSigningKey_AccumulatesAcrossSameBlock(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 

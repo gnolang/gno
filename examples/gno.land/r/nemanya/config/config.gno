@@ -1,9 +1,6 @@
 package config
 
-import (
-	"chain/runtime"
-	"errors"
-)
+import "errors"
 
 var (
 	main   address
@@ -25,12 +22,12 @@ func Backup() address {
 	return backup
 }
 
-func SetAddress(_ realm, a address) error {
+func SetAddress(cur realm, a address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}
 
-	if err := checkAuthorized(); err != nil {
+	if err := checkAuthorized(0, cur); err != nil {
 		return err
 	}
 
@@ -38,12 +35,12 @@ func SetAddress(_ realm, a address) error {
 	return nil
 }
 
-func SetBackup(_ realm, a address) error {
+func SetBackup(cur realm, a address) error {
 	if !a.IsValid() {
 		return ErrInvalidAddr
 	}
 
-	if err := checkAuthorized(); err != nil {
+	if err := checkAuthorized(0, cur); err != nil {
 		return err
 	}
 
@@ -51,8 +48,8 @@ func SetBackup(_ realm, a address) error {
 	return nil
 }
 
-func checkAuthorized() error {
-	caller := runtime.PreviousRealm().Address()
+func checkAuthorized(_ int, rlm realm) error {
+	caller := rlm.Previous().Address()
 	isAuthorized := caller == main || caller == backup
 
 	if !isAuthorized {

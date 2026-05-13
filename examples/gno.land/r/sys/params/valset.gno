@@ -2,7 +2,6 @@ package params
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 	"strconv"
 	"strings"
@@ -44,7 +43,7 @@ const (
 // The chain reads this on the next EndBlocker, diffs it against
 // valset:current, and propagates the changes to consensus.
 func SetValsetProposal(cur realm, entries []string) {
-	assertValsetCaller()
+	assertValsetCaller(0, cur)
 	prms.SetSysParamStrings(nodeModulePrefix, valsetSubmodule, valsetProposedKey, entries)
 	prms.SetSysParamBool(nodeModulePrefix, valsetSubmodule, valsetDirtyKey, true)
 }
@@ -122,8 +121,8 @@ func parseEntry(entry string) (validators.Validator, error) {
 	}, nil
 }
 
-func assertValsetCaller() {
-	if runtime.PreviousRealm().PkgPath() != valsetAuthorizedRealm {
+func assertValsetCaller(_ int, rlm realm) {
+	if rlm.Previous().PkgPath() != valsetAuthorizedRealm {
 		panic("unauthorized: only " + valsetAuthorizedRealm + " may write valset params")
 	}
 }

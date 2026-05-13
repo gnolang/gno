@@ -22,20 +22,20 @@ func init() {
 
 // Add appends a string to the preview Chonk.
 func Add(cur realm, chunk string) {
-	assertAdmin()
+	assertAdmin(0, cur)
 	preview.Add(chunk)
 }
 
 // Flush clears the preview Chonk.
 func Flush(cur realm) {
-	assertAdmin()
+	assertAdmin(0, cur)
 	preview.Flush()
 }
 
 // Promote promotes the preview Chonk to the active Chonk
 // and creates a new preview Chonk.
 func Promote(cur realm) {
-	assertAdmin()
+	assertAdmin(0, cur)
 	active = preview
 	preview = chonk.New()
 }
@@ -52,8 +52,8 @@ func Render(path string) string {
 }
 
 // assertAdmin panics if the caller is not an admin as defined in the config realm.
-func assertAdmin() {
-	caller := runtime.PreviousRealm().Address()
+func assertAdmin(_ int, rlm realm) {
+	caller := rlm.Previous().Address()
 	if !config.IsAdmin(caller) {
 		panic("forbidden: must be admin")
 	}

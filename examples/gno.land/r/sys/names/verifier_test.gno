@@ -170,15 +170,15 @@ func TestProposeSetPaused_idempotency(t *testing.T) {
 // TestSetPaused_internal verifies the private setPaused actuator
 // directly. Bypasses the proposal flow to confirm the toggle and the
 // event-emission path independently.
-func TestSetPaused_internal(t *testing.T) {
+func TestSetPaused_internal(cur realm, t *testing.T) {
 	saved := paused
 	defer func() { paused = saved }()
 
 	paused = false
-	setPaused(true)
+	setPaused(0, cur, true)
 	uassert.True(t, paused)
 
-	setPaused(false)
+	setPaused(0, cur, false)
 	uassert.False(t, paused)
 }
 

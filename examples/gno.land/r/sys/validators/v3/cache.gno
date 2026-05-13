@@ -38,8 +38,8 @@ type cacheEntry struct {
 // PreviousRealm() shifts exactly one frame to valopers. A user MsgCall
 // would see PreviousRealm() == UserRealm (pkgpath ""); a third realm
 // cross-call would see its own pkgpath. Either fails this check.
-func assertValopersCaller() {
-	caller := runtime.PreviousRealm().PkgPath()
+func assertValopersCaller(_ int, rlm realm) {
+	caller := rlm.Previous().PkgPath()
 	if caller != valopersRealmPath {
 		panic("caller realm must be " + valopersRealmPath + ", got " + caller)
 	}
@@ -53,7 +53,7 @@ func assertValopersCaller() {
 // as args. This eliminates the confused-deputy class where v3 → valopers
 // callbacks would make valopers see v3 as PreviousRealm.
 func NotifyValoperChanged(cur realm, op address, signingPubKey string, signingAddress address, keepRunning bool) {
-	assertValopersCaller()
+	assertValopersCaller(0, cur)
 	valoperCache.Set(op.String(), cacheEntry{
 		SigningPubKey:  signingPubKey,
 		SigningAddress: signingAddress,
@@ -77,7 +77,7 @@ func NotifyValoperChanged(cur realm, op address, signingPubKey string, signingAd
 //
 // Emits ValoperRotated event with op + old/new addresses + height.
 func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string) {
-	assertValopersCaller()
+	assertValopersCaller(0, cur)
 
 	oldAddr, err := chain.PubKeyAddress(oldPubKey)
 	if err != nil {

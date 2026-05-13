@@ -40,7 +40,6 @@ package atomicswap
 
 import (
 	"chain/banker"
-	"chain/runtime"
 	"strconv"
 	"time"
 
@@ -92,7 +91,7 @@ func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock t
 	// Create the swap
 	sendFn := func(cur realm, to address) {
 		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-		pkgAddr := runtime.CurrentRealm().Address()
+		pkgAddr := cur.Address()
 		banker_.SendCoins(pkgAddr, to, sent)
 	}
 	amountStr := sent.String()

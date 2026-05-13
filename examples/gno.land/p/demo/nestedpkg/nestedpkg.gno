@@ -2,73 +2,65 @@
 // It is useful for upgrade patterns relying on namespaces.
 package nestedpkg
 
-// To test this from a realm and have runtime.CurrentRealm/PreviousRealm work correctly,
-// this file is tested from gno.land/r/tests/vm/nestedpkg_test.gno
-// XXX: move test to ths directory once we support testing a package and
-// specifying values for both PreviousRealm and CurrentRealm.
-
-import (
-	"chain/runtime"
-	"strings"
-)
+import "strings"
 
 // IsCallerSubPath checks if the caller realm is located in a subfolder of the current realm.
-func IsCallerSubPath() bool {
+func IsCallerSubPath(_ int, rlm realm) bool {
 	var (
-		cur  = runtime.CurrentRealm().PkgPath() + "/"
-		prev = runtime.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	return strings.HasPrefix(prev, cur)
+	return strings.HasPrefix(prevPath, curPath)
 }
 
 // AssertCallerIsSubPath panics if IsCallerSubPath returns false.
-func AssertCallerIsSubPath() {
+func AssertCallerIsSubPath(_ int, rlm realm) {
 	var (
-		cur  = runtime.CurrentRealm().PkgPath() + "/"
-		prev = runtime.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	if !strings.HasPrefix(prev, cur) {
-		panic("call restricted to nested packages. current realm is " + cur + ", previous realm is " + prev)
+	if !strings.HasPrefix(prevPath, curPath) {
+		panic("call restricted to nested packages. current realm is " + curPath + ", previous realm is " + prevPath)
 	}
 }
 
 // IsCallerParentPath checks if the caller realm is located in a parent location of the current realm.
-func IsCallerParentPath() bool {
+func IsCallerParentPath(_ int, rlm realm) bool {
 	var (
-		cur  = runtime.CurrentRealm().PkgPath() + "/"
-		prev = runtime.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	return strings.HasPrefix(cur, prev)
+	return strings.HasPrefix(curPath, prevPath)
 }
 
 // AssertCallerIsParentPath panics if IsCallerParentPath returns false.
-func AssertCallerIsParentPath() {
+func AssertCallerIsParentPath(_ int, rlm realm) {
 	var (
-		cur  = runtime.CurrentRealm().PkgPath() + "/"
-		prev = runtime.PreviousRealm().PkgPath() + "/"
+		curPath  = rlm.PkgPath() + "/"
+		prevPath = rlm.Previous().PkgPath() + "/"
 	)
-	if !strings.HasPrefix(cur, prev) {
-		panic("call restricted to parent packages. current realm is " + cur + ", previous realm is " + prev)
+	if !strings.HasPrefix(curPath, prevPath) {
+		panic("call restricted to parent packages. current realm is " + curPath + ", previous realm is " + prevPath)
 	}
 }
 
 // IsSameNamespace checks if the caller realm and the current realm are in the same namespace.
-func IsSameNamespace() bool {
+func IsSameNamespace(_ int, rlm realm) bool {
 	var (
-		cur  = nsFromPath(runtime.CurrentRealm().PkgPath()) + "/"
-		prev = nsFromPath(runtime.PreviousRealm().PkgPath()) + "/"
+		curNs  = nsFromPath(rlm.PkgPath()) + "/"
+		prevNs = nsFromPath(rlm.Previous().PkgPath()) + "/"
 	)
-	return cur == prev
+	return curNs == prevNs
 }
 
 // AssertIsSameNamespace panics if IsSameNamespace returns false.
-func AssertIsSameNamespace() {
+func AssertIsSameNamespace(_ int, rlm realm) {
 	var (
-		cur  = nsFromPath(runtime.CurrentRealm().PkgPath()) + "/"
-		prev = nsFromPath(runtime.PreviousRealm().PkgPath()) + "/"
+		curNs  = nsFromPath(rlm.PkgPath()) + "/"
+		prevNs = nsFromPath(rlm.Previous().PkgPath()) + "/"
 	)
-	if cur != prev {
-		panic("call restricted to packages from the same namespace. current realm is " + cur + ", previous realm is " + prev)
+	if curNs != prevNs {
+		panic("call restricted to packages from the same namespace. current realm is " + curNs + ", previous realm is " + prevNs)
 	}
 }
 
