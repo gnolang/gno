@@ -126,15 +126,15 @@ profiles:
 > is: to what extent are we susceptible to such behavioural manipulation?" -
 > Joe Westby
 
-Trust in our institutions is at an all-time low. CIA director William Casey
-was accused of saying that "we’ll know our disinformation program is complete
-when everything the American public believes is false." by Barbara Honegger,
-assistant to the chief domestic policy advisor to President Reagan. 
-The [quote is contested](https://truthstreammedia.com/2015/01/13/cia-flashback-well-know-our-disinformation-program-is-complete-when-everything-the-american-public-believes-is-false/) but we know now about illegal mass mind control
-projects like MKUltra (by the CIA), and also that the Smith-Mundt Modernization
-Act of 2013 lifted the ban on domestic dissemination of propaganda in the US,
-reversing the original Smith-Mundt Act of 1948. Whether the quote is true or
-not, the substance is clearly true today.
+Trust in our institutions is at an all-time low. CIA director William Casey was
+accused of saying that "we’ll know our disinformation program is complete when
+everything the American public believes is false." by Barbara Honegger,
+assistant to the chief domestic policy advisor to President Reagan.  While the
+quote is contested we now know about illegal mass mind control projects like
+MKUltra (by the CIA), and also that the Smith-Mundt Modernization Act of 2013
+lifted the ban on domestic dissemination of propaganda in the US, reversing the
+original Smith-Mundt Act of 1948. Whether the quote is true or not, the
+substance is clearly true today.
 
 ### Health Sovereignty
 
