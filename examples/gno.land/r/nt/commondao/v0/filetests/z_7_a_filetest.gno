@@ -44,7 +44,7 @@ func main() {
 	println(dao.Parent().ID() == parentID)
 
 	// Check that SubDAO is added as a child to the parent DAO
-	if v := dao.Parent().Children().Get(0); v != nil {
+	if v, ok := dao.Parent().Children().Get(0); ok && v != nil {
 		if subDAO, ok := v.(*pcommondao.CommonDAO); ok {
 			println(subDAO.ID() == dao.ID())
 		}

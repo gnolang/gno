@@ -90,17 +90,26 @@ var Package = pkg.NewPackage(
 	FuzzFileInfo{},
 	FuzzPtrNest{},
 	FuzzDeepNest{},
-	// Amino tag fuzz types (write_empty, nil_elements).
-	// FuzzUnsafeFloat is excluded: pbbindings generator doesn't support float.
+	// Amino tag fuzz types (write_empty, nil_elements, unsafe).
+	FuzzUnsafeFloat{},
 	FuzzWriteEmpty{},
 	FuzzNilElements{},
 	FuzzFixedInt{},
 	FuzzContainsAminoMarshaler{},
+	// AminoMarshaler with empty-repr-on-zero; covers the "repr zero-check
+	// branch skips emission" gap that production AminoMarshalers never hit.
+	EmptyReprOnZero{},
+	FuzzNilEmptyRepr{},
 	// AminoMarshaler list element types.
 	SimpleAddress{},
 	HostRepr{},
 	CounterRepr(0),
 	ContainerWithAminoLists{},
+	StructWithStringRepr{},
+	StructPtrSliceWithStringRepr{},
+	ByteArraySliceStruct{},
+	FixedStringArrayStruct{},
+	StructUint8ReprSliceStruct{},
 	// Cross-package AminoMarshaler regression types.
 	CrossPkgPointerSlice{},
 	CrossPkgBoxedRepr{},

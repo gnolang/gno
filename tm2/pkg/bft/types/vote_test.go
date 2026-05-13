@@ -145,6 +145,46 @@ func TestVoteSignBytesTestVectors(t *testing.T) {
 				0xd, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64,
 			}, // chainID
 		},
+		// Edge value: math.MinInt64 height and -1 round. Locks down fixed64
+		// encoding for the most-negative int64 (0x80 high byte, seven zeros)
+		// and for -1 (all 0xff bytes) — a silent endianness or sign-extension
+		// regression in the fixed64 path would break every precommit signature.
+		5: {
+			"", &Vote{Type: PrecommitType, Height: math.MinInt64, Round: -1},
+			[]byte{
+				0x21,       // length
+				0x08, 0x02, // Type = PrecommitType
+				0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, // height = MinInt64 (LE)
+				0x19, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // round = -1 (LE)
+				0x2a, 0x0b, // timestamp field + length
+				0x08, 0x80, 0x92, 0xb8, 0xc3, 0x98, 0xfe, 0xff, 0xff, 0xff, 0x01,
+			},
+		},
+		// Edge value: math.MaxInt64 for both height and round.
+		6: {
+			"", &Vote{Type: PrecommitType, Height: math.MaxInt64, Round: math.MaxInt64},
+			[]byte{
+				0x21,       // length
+				0x08, 0x02, // Type = PrecommitType
+				0x11, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f, // height = MaxInt64 (LE)
+				0x19, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f, // round = MaxInt64 (LE)
+				0x2a, 0x0b, // timestamp
+				0x08, 0x80, 0x92, 0xb8, 0xc3, 0x98, 0xfe, 0xff, 0xff, 0xff, 0x01,
+			},
+		},
+		// Height = 0, Round = 0: amino omits zero-valued fields (no write_empty
+		// override on fixed64). If a future change forced fixed-width fields
+		// to always emit 8 bytes regardless of value, sign-bytes would diverge
+		// from every historical precommit signature — this case locks that in.
+		7: {
+			"", &Vote{Type: PrecommitType, Height: 0, Round: 0},
+			[]byte{
+				0x0f,       // length (much shorter — no Height/Round emitted)
+				0x08, 0x02, // Type = PrecommitType
+				0x2a, 0x0b, // timestamp
+				0x08, 0x80, 0x92, 0xb8, 0xc3, 0x98, 0xfe, 0xff, 0xff, 0xff, 0x01,
+			},
+		},
 	}
 	for i, tc := range tests {
 		got := tc.vote.SignBytes(tc.chainID)
