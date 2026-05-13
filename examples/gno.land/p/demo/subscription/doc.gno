@@ -26,7 +26,7 @@
 //	// time.Now() + 30 days.
 //	func Subscribe(_ realm, subscriber address) {
 //	    if !runtime.PreviousRealm().IsUserCall() { panic("EOA only") }
-//	    src := banker.NewBanker(banker.BankerTypeRealmSend)
+//	    src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 //	    al := allowancesender.New(src, runtime.CurrentRealm().Address(),
 //	        chain.NewCoins(chain.NewCoin("ugnot", recSub.GetAmount())))
 //	    defer al.Close()

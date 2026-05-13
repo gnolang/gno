@@ -100,7 +100,7 @@ func Withdraw(cur realm, amount int64) {
 	if caller != owner {
 		panic("unauthorized")
 	}
-	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	pkgAddr := runtime.CurrentRealm().Address()
 	b.SendCoins(pkgAddr, caller, chain.Coins{{"ugnot", amount}})
 }

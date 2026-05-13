@@ -110,7 +110,7 @@ import (
 
 // GrantAndStoreWithRecover wraps defer Close() in a recover.
 func GrantAndStoreWithRecover(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
@@ -133,7 +133,7 @@ func GrantAndStoreWithRecover(cur realm) {
 // no recover wrapper. Used to isolate whether the closure-wrap is what
 // changes behavior.
 func GrantAndStoreDirect(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))

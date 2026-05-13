@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/testutils/v0"
 )
 
-func TestPackage(t *testing.T) {
+func TestPackage(cur realm, t *testing.T) {
 	var (
 		adminaddr        = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		faucetaddr       = chain.PackageAddress("gno.land/r/gnoland/faucet")
@@ -104,7 +104,7 @@ func assertNoErr(t *testing.T, err string) {
 
 func assertBalance(t *testing.T, addr address, expectedBal int64) {
 	t.Helper()
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	coins := banker_.GetCoins(addr)
 	got := coins.AmountOf("ugnot")
 

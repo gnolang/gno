@@ -56,7 +56,7 @@ import (
 func Withdraw(cur realm, denom string, amt int64) string {
 	caller := runtime.OriginCaller()
 	coin := chain.Coins{{denom, amt}}
-	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	pkgaddr := runtime.PreviousRealm().Address()
 	banker_.SendCoins(pkgaddr, caller, coin)
 	return "Withdrawn!"

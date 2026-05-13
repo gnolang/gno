@@ -18,7 +18,7 @@ var (
 	}
 )
 
-func init() {
+func init(cur realm) {
 	// Define a token lister for the GRC20Banker.
 	// For now, GovDAO uses a static list of tokens.
 	grc20Lister := func() map[string]*grc20.Token {
@@ -36,7 +36,7 @@ func init() {
 	}
 
 	// Init the treasury bankers.
-	coinsBanker, err := t.NewCoinsBanker(banker.NewBanker(banker.BankerTypeRealmSend))
+	coinsBanker, err := t.NewCoinsBanker(banker.NewBanker(banker.BankerTypeRealmSend, cur))
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}

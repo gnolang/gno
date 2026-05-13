@@ -10,14 +10,14 @@ import (
 	"gno.land/r/archive/banktest"
 )
 
-func main() {
+func main(cur realm) {
 	banktestAddr := chain.PackageAddress("gno.land/r/archive/banktest")
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
 
 	// print main balance before.
 	testing.SetOriginCaller(mainaddr)
 
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	mainbal := banker_.GetCoins(mainaddr)
 	println("main before:", mainbal) // plus OriginSend equals 300.
 

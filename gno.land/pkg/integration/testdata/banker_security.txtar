@@ -104,7 +104,7 @@ import (
 // StealWithOriginSend attempts to steal coins from victim using OriginSend banker
 // This should FAIL because the banker checks that 'from' matches the realm's address
 func StealWithOriginSend(cur realm, victim, attacker address, amount int64) {
-	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	// Attack: try to send from victim's address instead of realm's address
 	b.SendCoins(victim, attacker, chain.Coins{{"ugnot", amount}})
 }
@@ -112,7 +112,7 @@ func StealWithOriginSend(cur realm, victim, attacker address, amount int64) {
 // StealWithRealmSend attempts to steal coins from victim using RealmSend banker
 // This should FAIL for the same reason
 func StealWithRealmSend(cur realm, victim, attacker address, amount int64) {
-	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	// Attack: try to send from victim's address instead of realm's address
 	b.SendCoins(victim, attacker, chain.Coins{{"ugnot", amount}})
 }
@@ -120,7 +120,7 @@ func StealWithRealmSend(cur realm, victim, attacker address, amount int64) {
 // LegitOriginSend is the legitimate use case - sends from realm's own address
 // but limited to what the caller sent with the transaction
 func LegitOriginSend(cur realm, to address, amount int64) {
-	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	// Correct: send from realm's own address (which holds coins sent by caller)
 	b.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amount}})
 }
@@ -141,7 +141,7 @@ import (
 // This should FAIL because OriginSend can only be created by the origin package
 func TrySteal(cur realm, from, to address, amount int64) {
 	// This will panic: "banker with type BankerTypeOriginSend can only be instantiated by the origin package"
-	b := banker.NewBanker(banker.BankerTypeOriginSend)
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	b.SendCoins(from, to, chain.Coins{{"ugnot", amount}})
 }
 

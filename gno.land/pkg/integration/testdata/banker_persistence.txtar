@@ -90,7 +90,7 @@ import (
 var saved banker.Banker
 
 func Save(cur realm) {
-	saved = banker.NewBanker(banker.BankerTypeRealmSend)
+	saved = banker.NewBanker(banker.BankerTypeRealmSend, cur)
 }
 
 // UseSelfAmount sends `amount` ugnot from this realm's address back
@@ -108,7 +108,7 @@ func UseSelfAmount(cur realm, amount int64) {
 // hands it to realm B. Any -send envelope on this call accrues to A's
 // address as additional funds B can later drain.
 func GiveBankerToB(cur realm) {
-	b := banker.NewBanker(banker.BankerTypeRealmSend)
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	bankerb.Receive(cross, b)
 }
 

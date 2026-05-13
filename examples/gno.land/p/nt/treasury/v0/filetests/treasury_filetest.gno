@@ -28,7 +28,7 @@ func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 	}
 }
 
-func main() {
+func main(cur realm) {
 	// Define addresses for the sender (owner) and destination.
 	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
@@ -52,7 +52,7 @@ func main() {
 
 	// Try to create a Treasury instance with a duplicate banker.
 	var (
-		banker_           = banker.NewBanker(banker.BankerTypeRealmSend)
+		banker_           = banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		coinsBanker, _    = treasury.NewCoinsBanker(banker_)
 		grc20Banker, _    = treasury.NewGRC20Banker(grc20Lister)
 		grc20BankerDup, _ = treasury.NewGRC20Banker(grc20Lister)

@@ -105,7 +105,7 @@ func GrantWithOuterRecover(cur realm) {
 		}
 	}()
 
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))

@@ -46,7 +46,7 @@ func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 	addActivity(act)
 	// return if any.
 	if returnAmount > 0 {
-		banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+		banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 		pkgaddr := runtime.CurrentRealm().Address()
 		// TODO: use std.Coins constructors, this isn't generally safe.
 		banker_.SendCoins(pkgaddr, caller, send)
@@ -62,7 +62,7 @@ func bankerAddr(cur realm) address {
 
 func Render(path string) string {
 	// get realm coins.
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	coins := banker_.GetCoins(bankerAddr(cross))
 
 	// render

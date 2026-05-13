@@ -82,13 +82,13 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 	abtMe[1] = col2
 }
 
-func Donate(_ realm) string {
+func Donate(cur realm) string {
 	sent := banker.OriginSend()
 	if len(sent) == 0 {
 		return ":c"
 	}
 
-	banker.NewBanker(banker.BankerTypeOriginSend).SendCoins(
+	banker.NewBanker(banker.BankerTypeOriginSend, cur).SendCoins(
 		runtime.CurrentRealm().Address(),
 		config.OwnableMain.Owner(),
 		sent,

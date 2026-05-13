@@ -269,13 +269,13 @@ func SponsorOtherProject(_ realm, projectName string) {
 	otherProjects[projectName] = project
 }
 
-func Withdraw(_ realm) string {
+func Withdraw(cur realm) string {
 	realmAddress := runtime.PreviousRealm().Address()
 	if !isAuthorized(realmAddress) {
 		panic(config.ErrUnauthorized)
 	}
 
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	coins := banker_.GetCoins(realmAddress)
 
 	if len(coins) == 0 {

@@ -92,7 +92,7 @@ func VoteMinimal(cur realm) {
 
 func CollectBalance(cur realm) {
 	if err := Auth.DoByPrevious("collect_balance", func() error {
-		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		ownerAddr := Address()
 		banker_.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker_.GetCoins(runtime.CurrentRealm().Address()))
 		return nil

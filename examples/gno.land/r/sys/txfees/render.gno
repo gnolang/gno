@@ -7,7 +7,7 @@ import (
 )
 
 func Render(path string) string {
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	realmAddr := runtime.CurrentRealm().Address()
 	balance := banker_.GetCoins(realmAddr).String()
 

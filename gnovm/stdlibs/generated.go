@@ -379,18 +379,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/banker",
-		"assertCallerIsRealm",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			libs_chain_banker.X_assertCallerIsRealm(
-				m,
-			)
-		},
-	},
-	{
-		"chain/banker",
 		"originSend",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{

@@ -10,7 +10,7 @@ import (
 	"gno.land/r/demo/disperse"
 )
 
-func main() {
+func main(cur realm) {
 	mainAddr := chain.PackageAddress("gno.land/r/demo/main")
 	disperseAddr := chain.PackageAddress("gno.land/r/demo/disperse")
 	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
@@ -23,7 +23,7 @@ func main() {
 	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 300}})
 	testing.SetRealm(testing.NewUserRealm(mainAddr))
 
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	println("main balance before send:", banker_.GetCoins(mainAddr))
 	println("disperse balance before send:", banker_.GetCoins(disperseAddr))
 

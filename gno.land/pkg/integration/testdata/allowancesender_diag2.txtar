@@ -70,8 +70,8 @@ import (
 	"gno.land/r/test/diag2callee"
 )
 
-func newAllowance() *allowancesender.AllowanceSender {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+func newAllowance(cur realm) *allowancesender.AllowanceSender {
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	return allowancesender.New(src,
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
@@ -79,20 +79,20 @@ func newAllowance() *allowancesender.AllowanceSender {
 
 // D: defer Close, no cross.
 func DeferCloseNoCross(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
 }
 
 // E: defer Close + cross call but callee does NOT persist.
 func DeferCloseCrossNoPersist(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
 	diag2callee.Receive(cross, al)
 }
 
 // F: defer Close + cross + callee persists. Original failing case.
 func DeferCloseCrossPersist(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
 	diag2callee.Store(cross, al)
 }
@@ -101,7 +101,7 @@ func DeferCloseCrossPersist(cur realm) {
 // Inline close happens BEFORE deferred fires. If inline succeeds and
 // deferred fails, the difference is purely in defer-mechanics.
 func DeferCloseCrossPersistAlsoInline(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
 	diag2callee.Store(cross, al)
 	al.Close() // inline; should succeed per earlier diagnostic

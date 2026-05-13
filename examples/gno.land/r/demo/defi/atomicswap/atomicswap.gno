@@ -91,7 +91,7 @@ func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock t
 
 	// Create the swap
 	sendFn := func(cur realm, to address) {
-		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		pkgAddr := runtime.CurrentRealm().Address()
 		banker_.SendCoins(pkgAddr, to, sent)
 	}

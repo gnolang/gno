@@ -11,7 +11,7 @@ import (
 	"gno.land/r/archive/banktest"
 )
 
-func main() {
+func main(cur realm) {
 	// set up main address and banktest addr.
 	banktestAddr := chain.PackageAddress("gno.land/r/archive/banktest")
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
@@ -19,7 +19,7 @@ func main() {
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	mainbal := banker_.GetCoins(mainaddr)
 	println("main before:", mainbal)
 

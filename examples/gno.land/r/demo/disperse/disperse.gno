@@ -25,7 +25,7 @@ func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
 	}
 	coinSent := banker.OriginSend()
 	caller := runtime.PreviousRealm().Address()
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)

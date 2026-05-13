@@ -44,7 +44,7 @@ func Transfer(cur realm, to address, send int64) string {
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	pkgaddr := runtime.CurrentRealm().Address()
 	banker_.SendCoins(pkgaddr, to, sendCoins)
 	return ""
@@ -59,7 +59,7 @@ func bankerAddr(cur realm) address {
 }
 
 func Render(_ string) string {
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	balance := banker_.GetCoins(bankerAddr(cross))
 
 	output := gMessage

@@ -10,13 +10,13 @@ import (
 	"gno.land/p/nt/treasury/v0"
 )
 
-func main() {
+func main(cur realm) {
 	// Define addresses for the sender (owner) and destination.
 	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Create a CoinsBanker.
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	cbanker, err := treasury.NewCoinsBanker(banker_)
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())

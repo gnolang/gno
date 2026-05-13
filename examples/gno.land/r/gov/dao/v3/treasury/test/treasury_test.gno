@@ -59,7 +59,7 @@ func ugnotBalance(t *testing.T, addr address) int64 {
 	t.Helper()
 
 	// Get the balance of ugnot coins for the given address.
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	coins := banker_.GetCoins(addr)
 
 	return coins.AmountOf("ugnot")
@@ -102,7 +102,7 @@ func registerGRC20Tokens(t *testing.T, tokenNames []string, toMint address) []ke
 	return keyedTokens
 }
 
-func TestAllowedDAOs(t *testing.T) {
+func TestAllowedDAOs(cur realm, t *testing.T) {
 	// Set the current Realm to the not allowed one.
 	testing.SetRealm(notAllowedRealm)
 
@@ -128,7 +128,7 @@ func TestAllowedDAOs(t *testing.T) {
 	)
 }
 
-func TestRegisteredBankers(t *testing.T) {
+func TestRegisteredBankers(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
@@ -163,7 +163,7 @@ func TestRegisteredBankers(t *testing.T) {
 	}
 }
 
-func TestSendGRC20Payment(t *testing.T) {
+func TestSendGRC20Payment(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
@@ -266,7 +266,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	uassert.Equal(t, len(history), 6)
 }
 
-func TestSendCoinPayment(t *testing.T) {
+func TestSendCoinPayment(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 

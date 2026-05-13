@@ -10,7 +10,7 @@ import (
 
 var coinflipAddr = chain.PackageAddress("gno.land/r/sacha/coinflip")
 
-func TestGetRealmBalance(t *testing.T) {
+func TestGetRealmBalance(cur realm, t *testing.T) {
 	value := GetRealmBalance(cross)
 
 	if value != 0 {
@@ -18,7 +18,7 @@ func TestGetRealmBalance(t *testing.T) {
 	}
 }
 
-func TestFlip(t *testing.T) {
+func TestFlip(cur realm, t *testing.T) {
 	value := flip(1)
 
 	if value != true {
@@ -32,8 +32,8 @@ func TestFlip(t *testing.T) {
 	}
 }
 
-func TestWithdrawal(t *testing.T) {
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+func TestWithdrawal(cur realm, t *testing.T) {
+	banker_ := banker.NewReadonlyBanker()
 	sachaAddr := address("g1jpg2hmsh8j4f60u4vkseqh5azeupns8vhrstfm")
 
 	testing.IssueCoins(coinflipAddr, chain.Coins{{"ugnot", 100000000}})
@@ -50,8 +50,8 @@ func TestWithdrawal(t *testing.T) {
 	}
 }
 
-func TestSendPrize(t *testing.T) {
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+func TestSendPrize(cur realm, t *testing.T) {
+	banker_ := banker.NewReadonlyBanker()
 	aliceAddr := testutils.TestAddress("alice")
 
 	testing.IssueCoins(coinflipAddr, chain.Coins{{"ugnot", 100000000}})
