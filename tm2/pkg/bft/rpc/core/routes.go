@@ -41,7 +41,7 @@ func (env *Environment) Routes(unsafe bool) map[string]*rpc.RPCFunc {
 		"abci_info":  rpc.NewRPCFunc(env.ABCIInfo, ""),
 
 		// blocks backup API
-		"backup": rpc.NewWSRPCFunc(BackupBlocks, "start,end"),
+		"backup": rpc.NewWSRPCFunc(env.BackupBlocks, "start,end"),
 	}
 
 	if unsafe {

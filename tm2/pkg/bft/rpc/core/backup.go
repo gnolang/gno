@@ -8,8 +8,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
-func BackupBlocks(ctx *rpctypes.Context, startHeight int64, endHeight int64) (*ctypes.ResultBackupBlock, error) {
-	logger.Info("On BackupBlocks", "start", startHeight, "end", endHeight)
+func (env *Environment) BackupBlocks(ctx *rpctypes.Context, startHeight int64, endHeight int64) (*ctypes.ResultBackupBlock, error) {
+	env.Logger.Info("On BackupBlocks", "start", startHeight, "end", endHeight)
 	_, span := traces.Tracer().Start(ctx.Context(), "BackupBlocks")
 	defer span.End()
 
@@ -24,7 +24,7 @@ func BackupBlocks(ctx *rpctypes.Context, startHeight int64, endHeight int64) (*c
 		return nil, fmt.Errorf("start height must be >= 1, got %d", startHeight)
 	}
 
-	blockStoreHeight := blockStore.Height()
+	blockStoreHeight := env.BlockStore.Height()
 	if blockStoreHeight < 1 {
 		return nil, fmt.Errorf("block store returned invalid max height (%d)", blockStoreHeight)
 	}
@@ -45,7 +45,7 @@ func BackupBlocks(ctx *rpctypes.Context, startHeight int64, endHeight int64) (*c
 		default:
 		}
 
-		block := blockStore.LoadBlock(height)
+		block := env.BlockStore.LoadBlock(height)
 		if block == nil {
 			return nil, fmt.Errorf("block store returned nil block for height %d", height)
 		}

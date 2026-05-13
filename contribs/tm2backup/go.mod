@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/tm2backup
 
-go 1.24.12
+go 1.25.9
 
 replace github.com/gnolang/gno => ../..
 

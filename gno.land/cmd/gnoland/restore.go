@@ -176,6 +176,7 @@ func createNode(ctx context.Context, c *startCfg, io commands.IO) (*node.Node, e
 		cfg.Application,
 		evsw,
 		logger,
+		cfg.BaseConfig.SkipUpgradeHeight,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create the Gnoland app, %w", err)

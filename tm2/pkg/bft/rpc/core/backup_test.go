@@ -19,7 +19,18 @@ func TestBackupBlocks_ClientDisconnect(t *testing.T) {
 	const totalBlocks = 5
 	const disconnectAfter = 2 // cancel context after writing this many blocks
 
-	SetLogger(log.NewNoopLogger())
+	env := &Environment{
+		Logger: log.NewNoopLogger(),
+		BlockStore: &mockBlockStore{
+			heightFn: func() int64 { return totalBlocks },
+			loadBlockFn: func(h int64) *types.Block {
+				if h == 8 {
+					return nil // simulate missing block meta at height 8
+				}
+				return &types.Block{Header: types.Header{Height: h}}
+			},
+		},
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -36,19 +47,12 @@ func TestBackupBlocks_ClientDisconnect(t *testing.T) {
 		getRemoteAddrFn: func() string { return "test-addr" },
 	}
 
-	SetBlockStore(&mockBlockStore{
-		heightFn: func() int64 { return totalBlocks },
-		loadBlockFn: func(h int64) *types.Block {
-			return &types.Block{Header: types.Header{Height: h}}
-		},
-	})
-
 	rpcCtx := &rpctypes.Context{
 		JSONReq: &rpctypes.RPCRequest{ID: rpctypes.JSONRPCStringID("test")},
 		WSConn:  conn,
 	}
 
-	result, err := BackupBlocks(rpcCtx, 1, totalBlocks)
+	result, err := env.BackupBlocks(rpcCtx, 1, totalBlocks)
 
 	// The function must return an error when the context is cancelled.
 	require.Error(t, err)
@@ -69,8 +73,6 @@ func TestBackupBlocks_FullRangeSuccess(t *testing.T) {
 
 	const totalBlocks = 5
 
-	SetLogger(log.NewNoopLogger())
-
 	writeCount := 0
 	conn := &callbackWSConn{
 		ctx: t.Context(),
@@ -81,19 +83,22 @@ func TestBackupBlocks_FullRangeSuccess(t *testing.T) {
 		getRemoteAddrFn: func() string { return "test-addr" },
 	}
 
-	SetBlockStore(&mockBlockStore{
-		heightFn: func() int64 { return totalBlocks },
-		loadBlockFn: func(h int64) *types.Block {
-			return &types.Block{Header: types.Header{Height: h}}
+	env := &Environment{
+		Logger: log.NewNoopLogger(),
+		BlockStore: &mockBlockStore{
+			heightFn: func() int64 { return totalBlocks },
+			loadBlockFn: func(h int64) *types.Block {
+				return &types.Block{Header: types.Header{Height: h}}
+			},
 		},
-	})
+	}
 
 	rpcCtx := &rpctypes.Context{
 		JSONReq: &rpctypes.RPCRequest{ID: rpctypes.JSONRPCStringID("test")},
 		WSConn:  conn,
 	}
 
-	result, err := BackupBlocks(rpcCtx, 1, totalBlocks)
+	result, err := env.BackupBlocks(rpcCtx, 1, totalBlocks)
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
