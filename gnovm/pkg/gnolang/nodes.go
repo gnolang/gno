@@ -1023,6 +1023,15 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (x *bodyStmt) LastStmt() Stmt {
+	if x.NextBodyIndex <= 0 {
+		// Loop hasn't entered its body yet; return Body[0] so mid-init
+		// stacktraces have a line to point at instead of crashing.
+		// Regression tests: range13.gno, for25.gno.
+		if len(x.Body) == 0 {
+			return nil
+		}
+		return x.Body[0]
+	}
 	return x.Body[x.NextBodyIndex-1]
 }
 
@@ -1037,7 +1046,7 @@ func (x *bodyStmt) String() string {
 	}
 	active := ""
 	if x.Active != nil {
-		if x.NextBodyIndex < 0 || x.NextBodyIndex == len(x.Body) {
+		if x.NextBodyIndex <= 0 || x.NextBodyIndex == len(x.Body) {
 			// none
 		} else if x.Body[x.NextBodyIndex-1] == x.Active {
 			active = "*"
