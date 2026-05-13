@@ -1,34 +1,31 @@
 package authz
 
-import (
-	"chain/runtime"
-)
-
 // Example_basic demonstrates initializing and using a basic member authority
-func Example_basic() {
-	// Initialize with contract deployer as authority
-	auth := NewWithOrigin()
+func Example_basic(cur realm) {
+	// Initialize from the EOA caller (e.g. in init(cur realm) of a realm
+	// being deployed): caller passes the EOA address; the realm itself
+	// is responsible for verifying the caller is an EOA when needed.
+	auth := NewWithMembers(cur.Previous().Address())
 
 	// Use the authority to perform a privileged action
-	auth.DoByCurrent("update_config", func() error {
+	auth.Do(0, cur, "update_config", func() error {
 		// config = newValue
 		return nil
 	})
 }
 
 // Example_addingMembers demonstrates how to add new members to a member authority
-func Example_addingMembers() {
-	// Initialize with contract deployer as authority
-	addr := runtime.CurrentRealm().Address()
-	auth := NewWithCurrent()
+func Example_addingMembers(cur realm) {
+	// Initialize with the calling realm as the initial authority
+	auth := NewWithMembers(cur.Address())
 
 	// Add a new member to the authority
 	memberAuth := auth.Authority().(*MemberAuthority)
-	memberAuth.AddMember(addr, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	memberAuth.AddMember(cur.Address(), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 // Example_contractAuthority demonstrates using a contract-based authority
-func Example_contractAuthority() {
+func Example_contractAuthority(cur realm) {
 	// Initialize with contract authority (e.g., DAO)
 	auth := NewWithAuthority(
 		NewContractAuthority(
@@ -38,14 +35,14 @@ func Example_contractAuthority() {
 	)
 
 	// Privileged actions will be handled by the contract
-	auth.DoByCurrent("update_params", func() error {
+	auth.Do(0, cur, "update_params", func() error {
 		// Executes after DAO approval
 		return nil
 	})
 }
 
 // Example_restrictedContractAuthority demonstrates a contract authority with member-only proposals
-func Example_restrictedContractAuthority() {
+func Example_restrictedContractAuthority(cur realm) {
 	// Initialize member authority for proposers
 	proposerAuth := NewMemberAuthority(
 		address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), // admin1
@@ -62,7 +59,7 @@ func Example_restrictedContractAuthority() {
 	)
 
 	// Only members can propose, and contract must approve
-	auth.DoByCurrent("update_params", func() error {
+	auth.Do(0, cur, "update_params", func() error {
 		// Executes after:
 		// 1. Proposer initiates
 		// 2. DAO approves
@@ -71,10 +68,10 @@ func Example_restrictedContractAuthority() {
 }
 
 // Example_switchingAuthority demonstrates switching from member to contract authority
-func Example_switchingAuthority() {
-	// Start with member authority (deployer)
-	addr := runtime.CurrentRealm().Address()
-	auth := NewWithCurrent()
+func Example_switchingAuthority(cur realm) {
+	// Start with member authority (the calling realm)
+	addr := cur.Address()
+	auth := NewWithMembers(addr)
 
 	// Create and switch to contract authority
 	daoAuthority := NewContractAuthority(

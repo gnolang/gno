@@ -260,7 +260,7 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	var contractActionExecuted bool
 	handlerExecuted = false         // Reset tracker
 	testing.SetRealm(contractRealm) // Call must originate from the contract now
-	err = Authorizer.DoByCurrent("some_contract_action", func() error {
+	err = Authorizer.Do(0, cur, "some_contract_action", func() error {
 		contractActionExecuted = true
 		// Imagine contract logic here
 		return nil
@@ -273,7 +273,7 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	var userActionExecuted bool
 	handlerExecuted = false // Reset tracker
 	testing.SetRealm(testing.NewUserRealm(nonManagerAddr))
-	err = Authorizer.DoByCurrent("some_user_action", func() error {
+	err = Authorizer.Do(0, cur, "some_user_action", func() error {
 		userActionExecuted = true
 		return nil
 	})

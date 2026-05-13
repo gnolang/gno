@@ -6,7 +6,14 @@ import (
 	"gno.land/p/moul/authz"
 )
 
-var Authorizer = authz.NewWithOrigin()
+var Authorizer *authz.Authorizer
+
+func init(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("r/moul/config must be initialized by an EOA")
+	}
+	Authorizer = authz.NewWithMembers(cur.Previous().Address())
+}
 
 // AddManager adds a new address to the list of authorized managers.
 // This only works if the current authority is a MemberAuthority.

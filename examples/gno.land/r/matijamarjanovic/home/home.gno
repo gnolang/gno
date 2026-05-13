@@ -42,7 +42,7 @@ func init() {
 }
 
 func UpdatePFP(cur realm, url, caption string) {
-	if err := Auth.DoByPrevious("update_pfp", func() error {
+	if err := Auth.Do(0, cur.Previous(), "update_pfp", func() error {
 		pfp = url
 		pfpCaption = caption
 		return nil
@@ -52,7 +52,7 @@ func UpdatePFP(cur realm, url, caption string) {
 }
 
 func UpdateAboutMe(cur realm, col1 string) {
-	if err := Auth.DoByPrevious("update_about_me", func() error {
+	if err := Auth.Do(0, cur.Previous(), "update_about_me", func() error {
 		abtMe = col1
 		return nil
 	}); err != nil {
@@ -91,7 +91,7 @@ func VoteMinimal(cur realm) {
 }
 
 func CollectBalance(cur realm) {
-	if err := Auth.DoByPrevious("collect_balance", func() error {
+	if err := Auth.Do(0, cur.Previous(), "collect_balance", func() error {
 		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		ownerAddr := Address()
 		banker_.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker_.GetCoins(runtime.CurrentRealm().Address()))

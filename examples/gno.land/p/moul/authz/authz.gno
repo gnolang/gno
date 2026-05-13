@@ -73,38 +73,33 @@ type PrivilegedAction func() error
 // privileged actions.
 type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 
-// NewWithCurrent creates a new Authorizer with the auth realm's address as authority
-func NewWithCurrent() *Authorizer {
-	return &Authorizer{
-		auth: NewMemberAuthority(runtime.CurrentRealm().Address()),
-	}
-}
-
-// NewWithPrevious creates a new Authorizer with the previous realm's address as authority
-func NewWithPrevious() *Authorizer {
-	return &Authorizer{
-		auth: NewMemberAuthority(runtime.PreviousRealm().Address()),
-	}
-}
-
-// NewWithCurrent creates a new Authorizer with the auth realm's address as authority
+// NewWithMembers creates a new Authorizer whose authority is a
+// MemberAuthority containing the given addresses. Callers express
+// authority intent at the call site:
+//
+//	// "auth realm is the authority"
+//	a := authz.NewWithMembers(cur.Address())
+//
+//	// "previous realm is the authority" (from a crossing function)
+//	a := authz.NewWithMembers(cur.Previous().Address())
+//
+//	// "EOA caller is the authority" (from init(cur realm))
+//	if !cur.Previous().IsUserCall() {
+//	    panic("realm must be initialized by EOA")
+//	}
+//	a := authz.NewWithMembers(cur.Previous().Address())
+//
+// This replaces the previous NewWithCurrent / NewWithPrevious /
+// NewWithOrigin sugar — those baked runtime.{Current,Previous,Origin}
+// reads into the constructor, which (a) prevented use from package-
+// level var initializers, (b) made the EOA-origin check inside
+// NewWithOrigin an indirect address comparison rather than the
+// straightforward IsUserCall predicate, and (c) coupled the
+// constructor to the runtime walks the rest of the migration is
+// moving away from.
 func NewWithMembers(addrs ...address) *Authorizer {
 	return &Authorizer{
 		auth: NewMemberAuthority(addrs...),
-	}
-}
-
-// NewWithOrigin creates a new Authorizer with the origin caller's address as
-// authority.
-// This is typically used in the init() function.
-func NewWithOrigin() *Authorizer {
-	origin := runtime.OriginCaller()
-	previous := runtime.PreviousRealm()
-	if origin != previous.Address() {
-		panic("NewWithOrigin() should be called from init() where runtime.PreviousRealm() is origin")
-	}
-	return &Authorizer{
-		auth: NewMemberAuthority(origin),
 	}
 }
 
@@ -129,18 +124,19 @@ func (a *Authorizer) Transfer(caller address, newAuthority Authority) error {
 	})
 }
 
-// DoByCurrent executes a privileged action by the auth realm.
-func (a *Authorizer) DoByCurrent(title string, action PrivilegedAction, args ...any) error {
-	current := runtime.CurrentRealm()
-	caller := current.Address()
-	return a.auth.Authorize(caller, title, action, args...)
-}
-
-// DoByPrevious executes a privileged action by the previous realm.
-func (a *Authorizer) DoByPrevious(title string, action PrivilegedAction, args ...any) error {
-	previous := runtime.PreviousRealm()
-	caller := previous.Address()
-	return a.auth.Authorize(caller, title, action, args...)
+// Do executes a privileged action authorized as `rlm`. The caller
+// chooses which realm authorizes by passing either their own `cur`
+// (was DoByCurrent) or `cur.Previous()` (was DoByPrevious):
+//
+//	auth.Do(0, cur, "update_config", func() error { ... })            // current realm authorizes
+//	auth.Do(0, cur.Previous(), "update_config", func() error { ... }) // calling realm authorizes
+//
+// The `_ int` first parameter is a deliberate sentinel that pushes
+// `rlm realm` past the first-arg position so Do stays a non-crossing
+// method — otherwise it would be a crossing method and rlm.Previous()
+// inside would resolve one realm deeper than the caller intended.
+func (a *Authorizer) Do(_ int, rlm realm, title string, action PrivilegedAction, args ...any) error {
+	return a.auth.Authorize(rlm.Address(), title, action, args...)
 }
 
 // String returns a string representation of the auth authority

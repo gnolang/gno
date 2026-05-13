@@ -8,7 +8,7 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestUpdateInstructions(t *testing.T) {
+func TestUpdateInstructions(cur realm, t *testing.T) {
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
 			"gno.land/r/gov/dao",
@@ -21,13 +21,13 @@ func TestUpdateInstructions(t *testing.T) {
 	newInstructions := "new instructions"
 
 	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
-		updateInstructions(newInstructions)
+		updateInstructions(0, cur, newInstructions)
 	})
 
 	testing.SetOriginCaller(chain.PackageAddress("gno.land/r/gov/dao"))
 
 	uassert.NotPanics(t, func() {
-		updateInstructions(newInstructions)
+		updateInstructions(0, cur, newInstructions)
 	})
 
 	uassert.Equal(t, newInstructions, instructions)
