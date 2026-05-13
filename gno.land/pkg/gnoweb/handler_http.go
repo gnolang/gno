@@ -311,7 +311,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusPage(gnourl, err, 0)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -365,7 +365,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusPage(gnourl, err, 0)
 	}
 
 	var content bytes.Buffer
@@ -376,7 +376,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusPage(gnourl, err, 0)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -470,7 +470,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	contribs, realmCount, err := h.buildContributions(ctx, username)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusPage(gnourl, err, 0)
 	}
 
 	// Compute package counts
@@ -502,7 +502,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusPage(gnourl, err, 0)
 	}
 
 	// renderDoc renders a markdown documentation string to a Component.
@@ -604,7 +604,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 	files, err := h.Client.ListFiles(ctx, pkgPath)
 	if err != nil {
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+		return GetClientErrorStatusPage(gnourl, err, 0)
 	}
 
 	if len(files) == 0 {
@@ -656,7 +656,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 		file, meta, err := h.Client.File(ctx, pkgPath, fileName, 0)
 		if err != nil {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
-			return GetClientErrorStatusPage(gnourl, err)
+			return GetClientErrorStatusPage(gnourl, err, 0)
 		}
 
 		var buff bytes.Buffer
@@ -696,7 +696,7 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	if len(paths) == 0 || paths[0] == "" {
-		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound)
+		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound, 0)
 	}
 
 	// Always use explorer mode for paths list
@@ -721,7 +721,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	if err != nil {
 		if !errors.Is(err, ErrClientPackageNotFound) {
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
-			return GetClientErrorStatusPage(gnourl, err)
+			return GetClientErrorStatusPage(gnourl, err, 0)
 		}
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
@@ -799,11 +799,7 @@ func (h *HTTPHandler) ServeStateJSON(ctx context.Context, gnourl *weburl.GnoURL,
 
 	if err != nil {
 		h.Logger.Error("unable to fetch state json", "error", err, "path", gnourl.EncodeURL(), "height", height)
-		status, msg := stateErrorStatus(err, height)
-		if msg == "" {
-			status, _ = GetClientErrorStatusPage(gnourl, err)
-			msg = err.Error()
-		}
+		status, msg := clientErrorMessage(err, height)
 		writeStateJSONError(w, status, msg)
 		return
 	}
@@ -862,7 +858,7 @@ func (h *HTTPHandler) getStatePackageView(ctx context.Context, gnourl *weburl.Gn
 	wg.Wait()
 	if stateErr != nil {
 		h.Logger.Error("unable to fetch state", "error", stateErr, "path", gnourl.EncodeURL(), "height", height)
-		return stateErrorPage(gnourl, stateErr, height)
+		return GetClientErrorStatusPage(gnourl, stateErr, height)
 	}
 
 	nodes, err := components.DecodePkgJSON(raw)
@@ -960,7 +956,7 @@ func (h *HTTPHandler) getStateObjectView(ctx context.Context, gnourl *weburl.Gno
 
 	if objErr != nil {
 		h.Logger.Error("unable to fetch state object", "error", objErr, "path", gnourl.EncodeURL(), "oid", oid, "height", height)
-		return stateErrorPage(gnourl, objErr, height)
+		return GetClientErrorStatusPage(gnourl, objErr, height)
 	}
 
 	decoded, err := components.DecodeObjectFull(raw, typeRaw)
@@ -1093,7 +1089,7 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		status, _ := GetClientErrorStatusPage(gnourl, err)
+		status, _ := GetClientErrorStatusPage(gnourl, err, 0)
 		http.Error(w, "not found", status)
 		return
 	}
@@ -1126,52 +1122,42 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 	return ""
 }
 
-// stateErrorPage maps a state-query failure to a friendly status page,
-// preferring 400 + "block height N is not available" when the failing
-// query specified a non-zero height. The chain rejects out-of-range
-// heights with a generic RPC error that GetClientErrorStatusPage would
-// surface as a confusing 500 — this telegraphs to the user that the
-// height (which they control via the URL) is the cause. PackageNotFound
-// stays a 404 even at height>0 (path is wrong regardless of height).
-func stateErrorPage(gnourl *weburl.GnoURL, err error, height int64) (int, *components.View) {
-	status, msg := stateErrorStatus(err, height)
-	if msg != "" {
-		return status, components.StatusErrorComponent(msg)
+// clientErrorMessage classifies a client error into (status, friendly msg).
+// height > 0 short-circuits non-NotFound errors to "block height N is not
+// available" — the chain rejects out-of-range heights with a generic RPC
+// error that would otherwise surface as a confusing 500, while the height
+// is the actual cause and the user controls it via the URL. NotFound wins
+// regardless of height (a wrong path is wrong at any block).
+func clientErrorMessage(err error, height int64) (int, string) {
+	if err == nil {
+		return http.StatusOK, ""
 	}
-	return GetClientErrorStatusPage(gnourl, err)
-}
-
-// stateErrorStatus is the shared classifier behind stateErrorPage and
-// the `?state&json` envelope writer. Empty msg means fall back to
-// GetClientErrorStatusPage (HTML) or the raw err.Error() (JSON).
-func stateErrorStatus(err error, height int64) (int, string) {
 	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
 		return http.StatusNotFound, err.Error()
 	}
 	if height > 0 {
 		return http.StatusBadRequest, fmt.Sprintf("block height %d is not available", height)
 	}
-	return 0, ""
-}
-
-func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {
-	if err == nil {
-		return http.StatusOK, nil
-	}
-
 	switch {
 	case errors.Is(err, ErrClientTimeout):
-		return http.StatusRequestTimeout, components.StatusErrorComponent(err.Error())
-	case errors.Is(err, ErrClientPackageNotFound),
-		errors.Is(err, ErrClientObjectNotFound):
-		return http.StatusNotFound, components.StatusErrorComponent(err.Error())
+		return http.StatusRequestTimeout, err.Error()
 	case errors.Is(err, ErrClientBadRequest):
-		return http.StatusBadRequest, components.StatusErrorComponent("bad request")
-	case errors.Is(err, ErrClientResponse):
-		fallthrough // XXX: for now fallback as internal error
+		return http.StatusBadRequest, "bad request"
 	default:
-		return http.StatusInternalServerError, components.StatusErrorComponent("internal error")
+		// ErrClientResponse + unknown errors. Hide internals.
+		return http.StatusInternalServerError, "internal error"
 	}
+}
+
+// GetClientErrorStatusPage wraps clientErrorMessage into a renderable View.
+// `height` is the optional ?height=N pin from the URL — pass 0 when the
+// caller does not propagate it to the chain query.
+func GetClientErrorStatusPage(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
+	status, msg := clientErrorMessage(err, height)
+	if msg == "" {
+		return status, nil
+	}
+	return status, components.StatusErrorComponent(msg)
 }
 
 func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {

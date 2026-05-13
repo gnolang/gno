@@ -664,6 +664,7 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 	cases := []struct {
 		name     string
 		err      error
+		height   int64
 		wantCode int
 		wantView bool
 		wantMsg  string
@@ -711,6 +712,26 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 			wantView: true,
 			wantMsg:  "internal error",
 		},
+		{
+			// height>0 short-circuits a generic chain error to the friendly
+			// out-of-range height message.
+			name:     "response error with pinned height",
+			err:      gnoweb.ErrClientResponse,
+			height:   42,
+			wantCode: http.StatusBadRequest,
+			wantView: true,
+			wantMsg:  "block height 42 is not available",
+		},
+		{
+			// NotFound wins even when a height is pinned — a wrong path
+			// stays wrong at any block.
+			name:     "not found beats height pin",
+			err:      gnoweb.ErrClientPackageNotFound,
+			height:   42,
+			wantCode: http.StatusNotFound,
+			wantView: true,
+			wantMsg:  gnoweb.ErrClientPackageNotFound.Error(),
+		},
 	}
 
 	for _, tc := range cases {
@@ -718,7 +739,7 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			code, view := gnoweb.GetClientErrorStatusPage(nil, tc.err)
+			code, view := gnoweb.GetClientErrorStatusPage(nil, tc.err, tc.height)
 			assert.Equal(t, tc.wantCode, code)
 
 			if !tc.wantView {
