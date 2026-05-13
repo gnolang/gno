@@ -89,14 +89,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().AddToAuthList(cur.Previous().Address(), member); err != nil {
+	if err := v.Auth().AddToAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().DeleteFromAuthList(cur.Previous().Address(), member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
