@@ -17,7 +17,7 @@ var (
 // AddBackupOwner adds a backup owner to the Owner Group.
 // A backup owner can claim ownership of the contract.
 func AddBackupOwner(cur realm, addr address) {
-	if err := adminGroup.AddBackupOwner(cur.Previous().Address(), addr); err != nil {
+	if err := adminGroup.AddBackupOwner(0, cur, addr); err != nil {
 		panic(err)
 	}
 }
@@ -25,7 +25,7 @@ func AddBackupOwner(cur realm, addr address) {
 // RemoveBackupOwner removes a backup owner from the Owner Group.
 // The primary owner cannot be removed.
 func RemoveBackupOwner(cur realm, addr address) {
-	if err := adminGroup.RemoveBackupOwner(cur.Previous().Address(), addr); err != nil {
+	if err := adminGroup.RemoveBackupOwner(0, cur, addr); err != nil {
 		panic(err)
 	}
 }
@@ -33,14 +33,14 @@ func RemoveBackupOwner(cur realm, addr address) {
 // ClaimOwnership allows an authorized user in the ownerGroup
 // to claim ownership of the contract.
 func ClaimOwnership(cur realm) {
-	if err := adminGroup.ClaimOwnership(cur.Previous().Address()); err != nil {
+	if err := adminGroup.ClaimOwnership(0, cur); err != nil {
 		panic(err)
 	}
 }
 
 // AddAdmin adds an admin to the Admin Group.
 func AddAdmin(cur realm, addr address) {
-	if err := adminGroup.AddMember(cur.Previous().Address(), addr); err != nil {
+	if err := adminGroup.AddMember(0, cur, addr); err != nil {
 		panic(err)
 	}
 }
@@ -48,7 +48,7 @@ func AddAdmin(cur realm, addr address) {
 // RemoveAdmin removes an admin from the Admin Group.
 // The primary owner cannot be removed.
 func RemoveAdmin(cur realm, addr address) {
-	if err := adminGroup.RemoveMember(cur.Previous().Address(), addr); err != nil {
+	if err := adminGroup.RemoveMember(0, cur, addr); err != nil {
 		panic(err)
 	}
 }
