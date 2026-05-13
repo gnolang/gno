@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -114,6 +115,36 @@ var gRealmType = &DeclaredType{
 					Results: []FieldType{{
 						Type: nil,
 					}},
+				},
+			}, {
+				Name: "IsCode",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: BoolType}},
+				},
+			}, {
+				Name: "IsUser",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: BoolType}},
+				},
+			}, {
+				Name: "IsUserCall",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: BoolType}},
+				},
+			}, {
+				Name: "IsUserRun",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: BoolType}},
+				},
+			}, {
+				Name: "IsEphemeral",
+				Type: &FuncType{
+					Params:  nil,
+					Results: []FieldType{{Type: BoolType}},
 				},
 			}, {
 				Name: "String",
@@ -300,6 +331,31 @@ func derefRealmStruct(tv *TypedValue) *StructValue {
 	}
 	sv, _ := tv.V.(*StructValue)
 	return sv
+}
+
+// realmIsEphemeral reports whether pkgPath matches the ephemeral pattern
+// "domain/e/...". Mirrors chain/runtime.Realm.IsEphemeral.
+func realmIsEphemeral(pkgPath string) bool {
+	if pkgPath == "" {
+		return false
+	}
+	idx := strings.Index(pkgPath, "/e/")
+	if idx == -1 || len(pkgPath) <= idx+3 {
+		return false
+	}
+	// Domain segment must not itself contain a '/'.
+	return strings.Index(pkgPath[:idx], "/") == -1
+}
+
+// realmIsUserRun reports whether (addr, pkgPath) represents a user-run
+// ephemeral realm: pkgPath == "<domain>/e/<addr>/run". Mirrors
+// chain/runtime.Realm.IsUserRun.
+func realmIsUserRun(addr, pkgPath string) bool {
+	idx := strings.Index(pkgPath, "/")
+	if idx == -1 {
+		return false
+	}
+	return pkgPath == pkgPath[:idx]+"/e/"+addr+"/run"
 }
 
 // ----------------------------------------
@@ -1186,6 +1242,61 @@ func makeUverseNode() {
 				return
 			}
 			m.PushValue(prev)
+		},
+	)
+	// IsCode / IsUser / IsUserCall / IsUserRun / IsEphemeral mirror the
+	// classification methods on chain/runtime.Realm so a captured `cur`
+	// can answer caller-shape questions without a runtime walk. The
+	// derivations are pure on the (addr, pkgPath) stored in the .grealm
+	// struct and match the chain/runtime implementations at
+	// gnovm/stdlibs/chain/runtime/frame.gno.
+	defNativeMethod(".grealm", "IsCode",
+		nil,
+		Flds("", "bool"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			m.PushValue(typedBool(sv.Fields[1].GetString() != ""))
+		},
+	)
+	defNativeMethod(".grealm", "IsUserCall",
+		nil,
+		Flds("", "bool"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			m.PushValue(typedBool(sv.Fields[1].GetString() == ""))
+		},
+	)
+	defNativeMethod(".grealm", "IsUserRun",
+		nil,
+		Flds("", "bool"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			addr := sv.Fields[0].GetString()
+			path := sv.Fields[1].GetString()
+			m.PushValue(typedBool(realmIsUserRun(addr, path)))
+		},
+	)
+	defNativeMethod(".grealm", "IsUser",
+		nil,
+		Flds("", "bool"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			addr := sv.Fields[0].GetString()
+			path := sv.Fields[1].GetString()
+			m.PushValue(typedBool(path == "" || realmIsUserRun(addr, path)))
+		},
+	)
+	defNativeMethod(".grealm", "IsEphemeral",
+		nil,
+		Flds("", "bool"),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(nil)
+			sv := derefRealmStruct(arg0.TV)
+			m.PushValue(typedBool(realmIsEphemeral(sv.Fields[1].GetString())))
 		},
 	)
 	defNativeMethod(".grealm", "String",

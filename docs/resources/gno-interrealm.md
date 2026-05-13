@@ -518,6 +518,12 @@ a typed handle on the realm-context at the moment of the crossing call.
     `PkgPath() == ""`; calling `Previous()` past the origin panics with
     the same "frame not found" message `runtime.PreviousRealm()` uses
     for the same walk-end.
+  - `IsCode() bool`, `IsUser() bool`, `IsUserCall() bool`,
+    `IsUserRun() bool`, `IsEphemeral() bool` — classification methods
+    that mirror their counterparts on `chain/runtime.Realm`. Derived
+    purely from `Address()` + `PkgPath()`, so they return the same
+    values as the equivalent runtime calls at the corresponding
+    position.
   - `String() string` — debug-friendly representation.
 
 Parity with `runtime.{Current,Previous}Realm()` at every comparable

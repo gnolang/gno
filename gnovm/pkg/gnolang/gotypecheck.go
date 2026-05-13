@@ -43,7 +43,11 @@ type realm interface {
     Address() address
     PkgPath() string
     Previous() realm
-    Origin() realm
+    IsCode() bool
+    IsUser() bool
+    IsUserCall() bool
+    IsUserRun() bool
+    IsEphemeral() bool
     String() string
 }
 type Realm = realm
