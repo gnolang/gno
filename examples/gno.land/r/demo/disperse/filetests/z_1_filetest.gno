@@ -1,12 +1,11 @@
 // PKGPATH: gno.land/r/demo/main
 
-// SEND: 300ugnot
-
 package main
 
 import (
 	"chain"
 	"chain/banker"
+	"testing"
 
 	"gno.land/r/demo/disperse"
 )
@@ -16,6 +15,13 @@ func main() {
 	disperseAddr := chain.PackageAddress("gno.land/r/demo/disperse")
 	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
 	beneficiary2 := address("g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c")
+
+	// Envelope = 300 ugnot, but only 200 forwarded to disperse (the
+	// remaining 100 stays in mainAddr). Tests that the realm-balance
+	// check, not OriginSend, is what gates dispersal.
+	testing.IssueCoins(mainAddr, chain.Coins{{Denom: "ugnot", Amount: 300}})
+	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 300}})
+	testing.SetRealm(testing.NewUserRealm(mainAddr))
 
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
 	println("main balance before send:", banker_.GetCoins(mainAddr))

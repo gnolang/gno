@@ -1,0 +1,87 @@
+# Test vm/qeval_json returns Amino JSON for various value types.
+
+loadpkg gno.land/r/test/json $WORK/realm
+
+gnoland start
+
+# Query primitive int — returns Amino JSON with PrimitiveType and base64 N field
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetInt()"
+cmp stdout getint.stdout.golden
+
+# Query string — value appears as StringValue
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetString()"
+cmp stdout getstring.stdout.golden
+
+# Query bool
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetBool()"
+cmp stdout getbool.stdout.golden
+
+# Query struct — should contain StructValue with fields
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetStruct()"
+cmp stdout getstruct.stdout.golden
+
+# Query slice — should contain SliceValue
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetSlice()"
+cmp stdout getslice.stdout.golden
+
+# Query multiple return values — results array has multiple elements
+gnokey query vm/qeval_json --data "gno.land/r/test/json.GetMulti()"
+cmp stdout getmulti.stdout.golden
+
+# Error case: invalid expression
+! gnokey query vm/qeval_json --data "gno.land/r/test/json.NonExistent()"
+stderr 'NonExistent not declared'
+
+-- getint.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"KgAAAAAAAAA="}]}
+-- getstring.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"hello"}}]}
+-- getbool.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.PrimitiveType","value":"4"},"N":"AQAAAAAAAAA="}]}
+-- getstruct.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/json.User"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"0000000000000000000000000000000000000000:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"alice"}},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"HgAAAAAAAAA="}]}}]}
+-- getslice.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.SliceType","Elt":{"@type":"/gno.PrimitiveType","value":"32"},"Vrd":false},"V":{"@type":"/gno.SliceValue","Base":{"@type":"/gno.ArrayValue","ObjectInfo":{"ID":"0000000000000000000000000000000000000000:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"List":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AgAAAAAAAAA="},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AwAAAAAAAAA="}],"Data":null},"Offset":"0","Length":"3","Maxcap":"3"}}]}
+-- getmulti.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.PrimitiveType","value":"16"},"V":{"@type":"/gno.StringValue","value":"hello"}},{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"KgAAAAAAAAA="}]}
+-- realm/gnomod.toml --
+module = "gno.land/r/test/json"
+gno = "0.9"
+
+-- realm/realm.gno --
+package json
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func GetInt() int {
+	return 42
+}
+
+func GetString() string {
+	return "hello"
+}
+
+func GetBool() bool {
+	return true
+}
+
+func GetStruct() User {
+	return User{Name: "alice", Age: 30}
+}
+
+func GetSlice() []int {
+	return []int{1, 2, 3}
+}
+
+func GetMulti() (string, int) {
+	return "hello", 42
+}

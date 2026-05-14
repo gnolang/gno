@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/gnoland/boards"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 // Constants for different banning periods.
@@ -45,7 +45,7 @@ func Ban(_ realm, boardID boards.ID, user address, hours uint, reason string) {
 
 		banned, found := getBannedUsers(boardID)
 		if !found {
-			banned = avl.NewTree()
+			banned = bptree.NewBPTree32()
 			gBannedUsers.Set(boardID.Key(), banned)
 		}
 

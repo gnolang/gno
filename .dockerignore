@@ -6,6 +6,7 @@ misc/*
 !misc/loop/
 !misc/autocounterd/
 !misc/puregohid/
+!misc/val-scenarios/
 tests/docker-integration/
 docs/
 .github/
