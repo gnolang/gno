@@ -12,8 +12,14 @@ import (
 )
 
 var (
-	Token      *grc20.Token
-	adm        *grc20.PrivateLedger
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+	// UserTeller is intentionally exported for `maketx run` consumption.
+	// It is the canonical *fnTeller (verifiable via grc20.IsCanonicalTeller);
+	// foreign realms reading this var can call its methods, but the methods
+	// resolve the source-of-funds from cur.Previous().Address() via
+	// IsCurrent, so a caller can only spend their OWN balance — not the
+	// reader's. No cur is leaked via this exposure.
 	UserTeller grc20.Teller
 )
 

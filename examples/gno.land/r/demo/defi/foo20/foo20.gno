@@ -14,39 +14,39 @@ import (
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
-	UserTeller    grc20.Teller
+	userTeller    grc20.Teller
 	Ownable       = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func init(cur realm) {
 	Token, privateLedger = grc20.NewToken(0, cur, "Foo", "FOO", 4)
-	UserTeller = Token.CallerTeller()
+	userTeller = Token.CallerTeller()
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
 	grc20reg.Register(cross, Token, "")
 }
 
 func TotalSupply() int64 {
-	return UserTeller.TotalSupply()
+	return userTeller.TotalSupply()
 }
 
 func BalanceOf(owner address) int64 {
-	return UserTeller.BalanceOf(owner)
+	return userTeller.BalanceOf(owner)
 }
 
 func Allowance(owner, spender address) int64 {
-	return UserTeller.Allowance(owner, spender)
+	return userTeller.Allowance(owner, spender)
 }
 
 func Transfer(cur realm, to address, amount int64) {
-	checkErr(UserTeller.Transfer(0, cur, to, amount))
+	checkErr(userTeller.Transfer(0, cur, to, amount))
 }
 
 func Approve(cur realm, spender address, amount int64) {
-	checkErr(UserTeller.Approve(0, cur, spender, amount))
+	checkErr(userTeller.Approve(0, cur, spender, amount))
 }
 
 func TransferFrom(cur realm, from, to address, amount int64) {
-	checkErr(UserTeller.TransferFrom(0, cur, from, to, amount))
+	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
@@ -76,7 +76,7 @@ func Render(path string) string {
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := address(parts[1])
-		balance := UserTeller.BalanceOf(owner)
+		balance := userTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
