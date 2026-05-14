@@ -1,6 +1,7 @@
-package components
+package state
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"math"
@@ -12,6 +13,29 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// decodePkgJSON / decodeObjectJSON / decodeObjectJSONWithType are thin
+// test wrappers over the live entry points, pinned to the full-page
+// depth budget so the legacy walker fixtures decode unchanged.
+func decodePkgJSON(raw []byte) ([]StateNode, error) {
+	return DecodePackage(context.Background(), raw, DefaultPageRenderConfig())
+}
+
+func decodeObjectJSON(raw []byte) ([]StateNode, error) {
+	root, err := DecodeObject(context.Background(), raw, DefaultPageRenderConfig())
+	if err != nil {
+		return nil, err
+	}
+	return root.Children, nil
+}
+
+func decodeObjectJSONWithType(rawObject, rawType []byte) ([]StateNode, error) {
+	decoded, err := DecodeObjectFull(rawObject, rawType, DefaultPageRenderConfig())
+	if err != nil {
+		return nil, err
+	}
+	return decoded.Nodes, nil
+}
 
 // qpkgFixture mirrors the test fixture from misc/gnojs/src/decode.test.ts —
 // real Go test output of vm/qpkg_json. Names match what the TS decoder asserts
@@ -31,7 +55,7 @@ const qpkgFixture = `{
 func TestDecodePkgJSON_TopLevel(t *testing.T) {
 	t.Parallel()
 
-	nodes, err := DecodePkgJSON([]byte(qpkgFixture))
+	nodes, err := decodePkgJSON([]byte(qpkgFixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 6, "should decode 6 top-level nodes")
 
@@ -88,7 +112,7 @@ func TestDecodeObjectJSON_Struct(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
@@ -103,10 +127,10 @@ func TestDecodeObjectJSON_Struct(t *testing.T) {
 	assert.Equal(t, `"test"`, nodes[1].Value)
 }
 
-// TestDecodeCycleRef ensures ExportRefValue produces a non-expandable
+// TestExportRefValueCycle ensures ExportRefValue produces a non-expandable
 // "<cycle :N>" placeholder while preserving the type's kind (pointer here),
 // mirroring TS testDecodeCycleRef behavior.
-func TestDecodeCycleRef(t *testing.T) {
+func TestExportRefValueCycle(t *testing.T) {
 	t.Parallel()
 
 	const fixture = `{
@@ -117,7 +141,7 @@ func TestDecodeCycleRef(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -127,9 +151,9 @@ func TestDecodeCycleRef(t *testing.T) {
 	assert.Equal(t, "<cycle :1>", nodes[0].Value)
 }
 
-// TestDecodeHeapItemUnwrap verifies that a HeapItemValue is transparently
+// TestHeapItemValueUnwrap verifies that a HeapItemValue is transparently
 // unwrapped — its child becomes the visible node.
-func TestDecodeHeapItemUnwrap(t *testing.T) {
+func TestHeapItemValueUnwrap(t *testing.T) {
 	t.Parallel()
 
 	const fixture = `{
@@ -139,7 +163,7 @@ func TestDecodeHeapItemUnwrap(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -156,7 +180,7 @@ func TestDecodeNilT(t *testing.T) {
 
 	const fixture = `{"names": ["empty"], "values": [{}]}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -183,7 +207,7 @@ func TestDecodeMap(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -220,7 +244,7 @@ func TestDecodeSliceInline(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -242,7 +266,7 @@ func TestDecodeStringTruncated(t *testing.T) {
 	long := makeLongString(300)
 	fixture := `{"names": ["s"], "values": [{"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "` + long + `"}}]}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -278,7 +302,7 @@ func TestDecodeInlineStruct(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -309,7 +333,7 @@ func TestDecodePointerRefValue(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -334,7 +358,7 @@ func TestDecodeSliceRefBase(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -368,7 +392,7 @@ func TestDecodeFuncInline(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -396,7 +420,7 @@ func TestDecodeFuncRefValue(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -431,7 +455,7 @@ func TestDecodeClosureWithCaptures(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -464,7 +488,7 @@ func TestDecodeFuncNoCapturesNotClosure(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -499,7 +523,7 @@ func TestDecodeClosureMultipleCaptures(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -524,7 +548,7 @@ func TestDecodeArrayBytes(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -598,7 +622,7 @@ func TestDecodePrimitives_Variants(t *testing.T) {
 				`{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"%s"},"N":"%s"}]}`,
 				c.typeValue, c.nField,
 			)
-			nodes, err := DecodePkgJSON([]byte(fixture))
+			nodes, err := decodePkgJSON([]byte(fixture))
 			require.NoError(t, err)
 			require.Len(t, nodes, 1)
 			assert.Equal(t, c.wantType, nodes[0].Type, "type display")
@@ -626,7 +650,7 @@ func TestDecodeArrayInline(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -656,7 +680,7 @@ func TestDecodePointerInline(t *testing.T) {
 		]
 	}`
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -685,7 +709,7 @@ func TestDecodeObjectJSON_Map(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 	assert.Equal(t, `"k"`, nodes[0].Name, "map key as child name")
@@ -731,7 +755,7 @@ func TestDecodeObjectJSONWithType_LabelsStructFields(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSONWithType([]byte(objectJSON), []byte(typeJSON))
+	nodes, err := decodeObjectJSONWithType([]byte(objectJSON), []byte(typeJSON))
 	require.NoError(t, err)
 	require.Len(t, nodes, 2, "struct fields surface as top-level page rows")
 
@@ -756,7 +780,7 @@ func TestDecodeObjectJSONWithType_NilTypeFallsBack(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSONWithType([]byte(objectJSON), nil)
+	nodes, err := decodeObjectJSONWithType([]byte(objectJSON), nil)
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 	assert.Equal(t, "0", nodes[0].Name, "no type → positional index")
@@ -782,7 +806,7 @@ func TestDecodeObjectJSON_Func(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1, "stored function must surface as a single node, not 0")
 	assert.Equal(t, "func", nodes[0].Kind)
@@ -809,7 +833,7 @@ func TestDecodeObjectJSON_Slice_Inline(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "1", nodes[0].Value)
@@ -828,7 +852,7 @@ func TestDecodeObjectJSON_Slice_RefBase(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1, "ref-backed slice surfaces as one navigable handle")
 	assert.True(t, nodes[0].Expandable)
@@ -850,7 +874,7 @@ func TestDecodeObjectJSON_Pointer_Inline(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 	assert.Equal(t, "*", nodes[0].Name)
@@ -874,7 +898,7 @@ func TestDecodeObjectJSON_Array(t *testing.T) {
 		}
 	}`
 
-	nodes, err := DecodeObjectJSON([]byte(fixture))
+	nodes, err := decodeObjectJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "10", nodes[0].Value)
@@ -907,7 +931,7 @@ func TestDecodeMalformedJSON(t *testing.T) {
 					t.Fatalf("walker panicked on malformed input %q: %v", c.name, r)
 				}
 			}()
-			_, err := DecodePkgJSON([]byte(c.raw))
+			_, err := decodePkgJSON([]byte(c.raw))
 			assert.Error(t, err, "malformed input should produce an error, not a partial result")
 		})
 	}
@@ -920,24 +944,24 @@ func TestDecodeMalformedJSON(t *testing.T) {
 func TestDecodeEmptyPackage(t *testing.T) {
 	t.Parallel()
 
-	nodes, err := DecodePkgJSON([]byte(`{"names": [], "values": []}`))
+	nodes, err := decodePkgJSON([]byte(`{"names": [], "values": []}`))
 	require.NoError(t, err)
 	assert.Empty(t, nodes)
 }
 
 // ---- Stress / large-render tests ----------------------------------------
 
-// TestDecodeLargeMap_1k checks that decoding a 1000-entry map respects
-// maxChildrenPerNode: the total count is preserved on Length, the first
+// TestChildrenTruncationAt500 checks that decoding a 1000-entry map respects
+// maxChildrenPerNode (500): the total count is preserved on Length, the first
 // `cap` entries decode normally, and the surplus collapses into one
 // truncated sentinel. Guards the DoS bound against accidental removal.
-func TestDecodeLargeMap_1k(t *testing.T) {
+func TestChildrenTruncationAt500(t *testing.T) {
 	t.Parallel()
 
 	const n = 1000
 	fixture := buildLargeMapFixture(n)
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -963,7 +987,7 @@ func TestDecodeDeepStruct(t *testing.T) {
 	const depth = 50
 	fixture := buildDeepStructFixture(depth)
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -984,7 +1008,7 @@ func BenchmarkDecodeLargeMap_1k(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := DecodePkgJSON(fixture); err != nil {
+		if _, err := decodePkgJSON(fixture); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -995,7 +1019,7 @@ func BenchmarkDecodeDeepStruct_50(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := DecodePkgJSON(fixture); err != nil {
+		if _, err := decodePkgJSON(fixture); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -1011,7 +1035,7 @@ func BenchmarkDecodeLargeMap_1k_Parallel(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if _, err := DecodePkgJSON(fixture); err != nil {
+			if _, err := decodePkgJSON(fixture); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -1034,7 +1058,7 @@ func BenchmarkDecodeMixed_Parallel(b *testing.B) {
 			if i%3 == 0 {
 				payload = medium
 			}
-			if _, err := DecodePkgJSON(payload); err != nil {
+			if _, err := decodePkgJSON(payload); err != nil {
 				b.Fatal(err)
 			}
 			i++
@@ -1105,7 +1129,7 @@ func TestWalkerDepthBound(t *testing.T) {
 
 	// Sanity: a regular int round-trip walks at depth 0 normally.
 	const intFixture = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
-	nodes, err := DecodePkgJSON([]byte(intFixture))
+	nodes, err := decodePkgJSON([]byte(intFixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 	assert.Equal(t, "1", nodes[0].Value, "shallow walk produces real value")
@@ -1134,11 +1158,11 @@ func capturedIntTV(t *testing.T) gno.TypedValue {
 	return resp.Values[0]
 }
 
-// TestClampSliceWindow exhaustively covers the chain-supplied edge cases the
-// slice/array windows guard against: negative or out-of-range Offset/Length
-// and offset+length overflow. The pre-clamp code would panic on
-// av.List[offset:end] when offset > len.
-func TestClampSliceWindow(t *testing.T) {
+// TestSliceWindowClampNegative exhaustively covers the chain-supplied edge
+// cases the slice/array windows guard against: negative or out-of-range
+// Offset/Length and offset+length overflow. The pre-clamp code would panic
+// on av.List[offset:end] when offset > len.
+func TestSliceWindowClampNegative(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -1194,7 +1218,7 @@ func TestDecodeStruct_FieldCap(t *testing.T) {
 		]
 	}`, fields.String())
 
-	nodes, err := DecodePkgJSON([]byte(fixture))
+	nodes, err := decodePkgJSON([]byte(fixture))
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
 
@@ -1222,4 +1246,73 @@ func TestDecodeTypedValue_HeapItemChainRespectsDepth(t *testing.T) {
 	node := decodeTypedValue("root", inner)
 	assert.Equal(t, KindTruncated, node.Kind,
 		"chain must hit the depth limit (sentinel), not silently unwind past it")
+}
+
+// TestRefValueResolutionFailure — the walker never resolves a RefValue's
+// OID itself; an unresolvable ref (points to a missing/garbage object, or
+// resolution fails downstream) must still decode to an expandable ref node
+// so the user can click through, with no panic. Here the ref's OID is
+// well-formed but its target is never fetched — the walker emits the tag
+// regardless, which is exactly the failure-isolation contract.
+func TestRefValueResolutionFailure(t *testing.T) {
+	t.Parallel()
+
+	const fixture = `{
+		"objectid": "ffffffffffffffffffffffffffffffffffffffff:1",
+		"value": {"@type": "/gno.RefValue", "ObjectID": "0000000000000000000000000000000000000000:99"}
+	}`
+
+	var nodes []StateNode
+	require.NotPanics(t, func() {
+		var err error
+		nodes, err = decodeObjectJSON([]byte(fixture))
+		require.NoError(t, err)
+	})
+	require.Len(t, nodes, 1)
+	assert.Equal(t, KindRef, nodes[0].Kind, "unresolvable ref still surfaces as a ref node")
+	assert.True(t, nodes[0].Expandable)
+	assert.Equal(t, "0000000000000000000000000000000000000000:99", nodes[0].ObjectID,
+		"OID preserved so the user can navigate even though resolution failed")
+}
+
+// TestStructTypeIDForwarding pins decodeValueChildrenTyped's originalTid
+// forwarding: a HeapItemValue wrapping a stored RefValue under an
+// anonymous StructType yields a ref node with no intrinsic TypeID — the
+// original tid must be stamped on so the next preview round can still
+// resolve field names.
+func TestStructTypeIDForwarding(t *testing.T) {
+	t.Parallel()
+
+	// Object: HeapItemValue wrapping a RefValue (stored struct).
+	const objectJSON = `{
+		"objectid": "ffffffffffffffffffffffffffffffffffffffff:11",
+		"value": {
+			"@type": "/gno.HeapItemValue",
+			"Value": {
+				"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo/x.User"},
+				"V": {"@type": "/gno.RefValue", "ObjectID": "ffffffffffffffffffffffffffffffffffffffff:12"}
+			}
+		}
+	}`
+
+	// Type: an anonymous StructType — getTypeID returns "" for it, so the
+	// ref node has no intrinsic TypeID and must inherit the response tid.
+	const typeJSON = `{
+		"typeid": "gno.land/r/demo/x.User",
+		"type": {
+			"@type": "/gno.StructType",
+			"PkgPath": "gno.land/r/demo/x",
+			"Fields": [
+				{"Name": "Name", "Type": {"@type": "/gno.PrimitiveType", "value": "16"}, "Embedded": false, "Tag": ""}
+			]
+		}
+	}`
+
+	nodes, err := decodeObjectJSONWithType([]byte(objectJSON), []byte(typeJSON))
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+	assert.True(t, nodes[0].Expandable, "stored struct surfaces as an expandable ref node")
+	assert.Equal(t, "ffffffffffffffffffffffffffffffffffffffff:12", nodes[0].ObjectID)
+	assert.Equal(t, "gno.land/r/demo/x.User", nodes[0].TypeID,
+		"original tid forwarded onto the ref node lacking an intrinsic TypeID")
 }

@@ -5,8 +5,7 @@ import { BaseController, debounce } from "./controller.js";
 //   data-search-items-value="<CSS selector>"   (required)
 //   data-search-attribute-value="<attr>"       (default: data-name)
 //   data-action="input->search#filter"
-// Emits a bubbling `search:filter` CustomEvent with
-// `{ query, matchCount, totalCount }` after each pass.
+// Toggles `u-hidden` on non-matching items; no events emitted.
 export class SearchController extends BaseController {
 	private declare items: HTMLElement[];
 	private declare attribute: string;
@@ -39,20 +38,12 @@ export class SearchController extends BaseController {
 
 	private applyFilter = debounce((value: string): void => {
 		const q = value.trim().toLowerCase();
-		let matchCount = 0;
 		for (const el of this.items) {
 			const v = (el.getAttribute(this.attribute) || "").toLowerCase();
 			const match = q === "" || v.includes(q);
 			// `u-hidden` over the HTML `hidden` attr: authored `display:*`
 			// rules outrank the user-agent `[hidden] { display: none }`.
 			el.classList.toggle("u-hidden", !match);
-			if (match) matchCount++;
 		}
-		this.element.dispatchEvent(
-			new CustomEvent("search:filter", {
-				bubbles: true,
-				detail: { query: q, matchCount, totalCount: this.items.length },
-			}),
-		);
 	}, 100);
 }

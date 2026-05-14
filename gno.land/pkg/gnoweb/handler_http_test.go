@@ -307,113 +307,6 @@ func TestHTTPHandler_GetSourceDownload(t *testing.T) {
 	}
 }
 
-// TestHTTPHandler_ServeStateJSON covers the raw Amino JSON passthrough surface
-// (`?state&json`, oid, tid). Behavior intent: content flows unchanged from the
-// chain client, only oid/tid input length is validated, and pinned heights
-// get an immutable cache header.
-func TestHTTPHandler_ServeStateJSON(t *testing.T) {
-	t.Parallel()
-
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/state",
-		Files: map[string]string{
-			"render.gno": `package state`,
-		},
-	}
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-
-	tooLong := strings.Repeat("a", 257) // maxStateIDLength = 256
-
-	cases := []struct {
-		Name         string
-		Path         string
-		Status       int
-		ContentType  string
-		BodyContains string
-		CacheControl string
-	}{
-		{
-			Name:         "package json",
-			Path:         "/r/mock/state$state&json",
-			Status:       http.StatusOK,
-			ContentType:  "application/json; charset=utf-8",
-			BodyContains: `"names"`, // mock returns `{"names":[...],"values":[...]}`
-			CacheControl: "public, max-age=1",
-		},
-		{
-			Name:         "object json",
-			Path:         "/r/mock/state$state&oid=abc%3A1&json",
-			Status:       http.StatusOK,
-			ContentType:  "application/json; charset=utf-8",
-			BodyContains: `"objectid"`,
-			CacheControl: "public, max-age=1",
-		},
-		{
-			Name:         "type json",
-			Path:         "/r/mock/state$state&tid=foo&json",
-			Status:       http.StatusOK,
-			ContentType:  "application/json; charset=utf-8",
-			BodyContains: `"typeid"`,
-			CacheControl: "public, max-age=1",
-		},
-		{
-			Name:         "pinned height is immutable",
-			Path:         "/r/mock/state$state&json&height=42",
-			Status:       http.StatusOK,
-			ContentType:  "application/json; charset=utf-8",
-			CacheControl: "public, max-age=86400, immutable",
-		},
-		{
-			Name:         "oid too long is 400",
-			Path:         "/r/mock/state$state&oid=" + tooLong + "&json",
-			Status:       http.StatusBadRequest,
-			ContentType:  "application/json; charset=utf-8",
-			BodyContains: `"error":"invalid object id"`,
-		},
-		{
-			Name:         "tid too long is 400",
-			Path:         "/r/mock/state$state&tid=" + tooLong + "&json",
-			Status:       http.StatusBadRequest,
-			ContentType:  "application/json; charset=utf-8",
-			BodyContains: `"error":"invalid type id"`,
-		},
-		{
-			Name:         "missing realm is 404",
-			Path:         "/r/missing$state&json",
-			Status:       http.StatusNotFound,
-			ContentType:  "application/json; charset=utf-8",
-			BodyContains: `"error"`,
-		},
-	}
-
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
-
-			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
-			require.NoError(t, err)
-
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, tc.Status, rr.Code, "status")
-			assert.Equal(t, tc.ContentType, rr.Header().Get("Content-Type"), "content-type")
-			if tc.CacheControl != "" {
-				assert.Equal(t, tc.CacheControl, rr.Header().Get("Cache-Control"), "cache-control")
-			}
-			if tc.BodyContains != "" {
-				assert.Contains(t, rr.Body.String(), tc.BodyContains, "body")
-			}
-		})
-	}
-}
-
 func TestHTTPHandler_DirectoryViewExplorerMode(t *testing.T) {
 	mockPackage := &gnoweb.MockPackage{
 		Domain: "example.com",
@@ -1224,356 +1117,6 @@ func TestHTTPHandler_DownloadWithContext(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), content)
 }
 
-// TestHTTPHandler_GetStateView tests the state explorer page.
-func TestHTTPHandler_GetStateView(t *testing.T) {
-	t.Parallel()
-
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/path",
-		Files: map[string]string{
-			"render.gno": `package main; func Render(path string) string { return "hi" }`,
-			"gno.mod":    `module example.com/r/mock/path`,
-		},
-		Functions: []*doc.JSONFunc{
-			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
-		},
-	}
-
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/mock/path$state", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	assert.Contains(t, body, "state-explorer", "should contain the state explorer controller")
-	assert.Contains(t, body, "/r/mock/path", "should contain the package path")
-}
-
-// TestHTTPHandler_GetStateView_NotFound tests state view for a missing package.
-func TestHTTPHandler_GetStateView_NotFound(t *testing.T) {
-	t.Parallel()
-
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
-	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
-	handler, err := gnoweb.NewHTTPHandler(logger, config)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/nonexistent$state", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-// TestHTTPHandler_GetStateObjectView covers the per-object state page,
-// reachable via /r/foo$state&oid=<ObjectID>. The page must:
-//   - Render HTML (no JSON), 200
-//   - Show the object's fields as state rows
-//   - Include a breadcrumb back to the realm-level state page
-//
-// This locks in the post-Phase-4 contract: stored object refs in the
-// top-level page are <a> links to a server-rendered detail page (no AJAX).
-func TestHTTPHandler_GetStateObjectView(t *testing.T) {
-	t.Parallel()
-
-	const realmPath = "/r/test/pkg"
-
-	objectJSON := `{
-		"objectid": "ffffffffffffffffffffffffffffffffffffffff:1",
-		"value": {
-			"@type": "/gno.StructValue",
-			"Fields": [
-				{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "BwAAAAAAAAA="},
-				{"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "alice"}}
-			]
-		}
-	}`
-
-	client := &stateStubClient{
-		stubClient: &stubClient{},
-		stateObjectFunc: func(_ context.Context, oid string) ([]byte, error) {
-			if oid == "ffffffffffffffffffffffffffffffffffffffff:1" {
-				return []byte(objectJSON), nil
-			}
-			return nil, fmt.Errorf("not found")
-		},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
-		newTestHandlerConfig(t, client))
-
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
-		realmPath+"$state&oid=ffffffffffffffffffffffffffffffffffffffff%3A1", nil))
-
-	require.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "text/html; charset=utf-8", rr.Header().Get("Content-Type"),
-		"object page must serve HTML, not JSON (post-Phase-4 contract)")
-
-	body := rr.Body.String()
-	// The two struct fields decoded by DecodeObjectJSON.
-	assert.Contains(t, body, ">7<", "field 0 (int=7) renders as a leaf row")
-	assert.Contains(t, body, "alice", "field 1 (string=alice) renders as a leaf row")
-	// Breadcrumb back to the realm state page.
-	assert.Contains(t, body, `href="`+realmPath+`$state"`, "breadcrumb links back to realm root")
-	assert.Contains(t, body, "Object", "breadcrumb labels current location as Object")
-}
-
-// TestHTTPHandler_GetStateView_FuncSourceEnriched verifies the full
-// wiring: walker decodes a func node with Source → orchestrator fetches
-// the file and renders the snippet → template embeds the highlighted
-// body and the header srclink in the card.
-func TestHTTPHandler_GetStateView_FuncSourceEnriched(t *testing.T) {
-	t.Parallel()
-
-	const (
-		realmPath = "/r/test/srcfn"
-		fileName  = "foo.gno"
-		fileBody  = "package foo\n\nfunc Foo() int {\n\treturn 42\n}\n"
-	)
-
-	statePkgJSON := `{
-		"names": ["Foo"],
-		"values": [
-			{"T": {"@type": "/gno.FuncType", "Params": [], "Results": [{"Name": ".res.0", "Type": {"@type": "/gno.PrimitiveType", "value": "32"}, "Embedded": false, "Tag": ""}]},
-			 "V": {"@type": "/gno.FuncValue",
-				"Type": {"@type": "/gno.FuncType", "Params": [], "Results": [{"Name": ".res.0", "Type": {"@type": "/gno.PrimitiveType", "value": "32"}, "Embedded": false, "Tag": ""}]},
-				"Name": "Foo",
-				"Source": {"@type": "/gno.RefNode",
-					"Location": {"PkgPath": "` + realmPath + `", "File": "` + fileName + `",
-						"Span": {"Pos": {"Line": "3", "Column": "1"}, "End": {"Line": "5", "Column": "1"}, "Num": "0"}}}}}
-		]
-	}`
-
-	client := &stateStubClient{
-		stubClient: &stubClient{
-			fileFunc: func(_ context.Context, path, name string) ([]byte, gnoweb.FileMeta, error) {
-				if path == realmPath && name == fileName {
-					return []byte(fileBody), gnoweb.FileMeta{}, nil
-				}
-				return nil, gnoweb.FileMeta{}, errors.New("file not found")
-			},
-		},
-		statePkgFunc: func(_ context.Context, path string) ([]byte, error) {
-			if path == realmPath {
-				return []byte(statePkgJSON), nil
-			}
-			return nil, gnoweb.ErrClientPackageNotFound
-		},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
-		newTestHandlerConfig(t, client))
-
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, realmPath+"$state", nil))
-
-	require.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-
-	// The state explorer page must show the function name from the walker.
-	assert.Contains(t, body, ">Foo<", "function name appears as a row")
-	// Pretty card: header-only for non-closure funcs (mockup parity).
-	// The body is rendered in the Raw view's <details> kids — present in
-	// the same DOM but CSS-hidden until the user flips the toggle.
-	assert.Contains(t, body, "return",
-		"Raw-view <details> body still carries the snippet for expand")
-	// The card header carries a `srclink` for one-click navigation
-	// to the Source tab — that's the func's primary affordance in Pretty.
-	assert.Contains(t, body, ` srclink"`,
-		"card header surfaces a Source-tab link for the func")
-	assert.Contains(t, body, fileName+":3",
-		"srclink advertises file:line so users know what they're opening")
-}
-
-// TestHTTPHandler_GetStateView_HeightOutOfRange pins the friendly
-// failure mode for time-travel: when the chain rejects the height,
-// users see a focused 400 + the offending height — not a generic 500
-// "internal error" that hides the cause from anyone copy-pasting a
-// stale `?height=N` URL. PackageNotFound still wins (404 regardless
-// of height — the path is wrong independent of which block).
-func TestHTTPHandler_GetStateView_HeightOutOfRange(t *testing.T) {
-	t.Parallel()
-
-	const realmPath = "/r/test/heighterr"
-
-	client := &stateStubClient{
-		stubClient: &stubClient{},
-		statePkgFunc: func(_ context.Context, _ string) ([]byte, error) {
-			return nil, gnoweb.ErrClientResponse
-		},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
-		newTestHandlerConfig(t, client))
-
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
-		realmPath+"$state&height=99999999", nil))
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code, "out-of-range height surfaces as 400, not 500")
-	body := rr.Body.String()
-	assert.Contains(t, body, "block height 99999999 is not available",
-		"error message tells the user which height failed")
-}
-
-// TestHTTPHandler_ServeStateJSON_UnencodedColonOID — an unencoded `:` in
-// `oid=<hash>:<n>` must round-trip through the parser into the JSON
-// handler, not bail out via the HTML "invalid path" page.
-func TestHTTPHandler_ServeStateJSON_UnencodedColonOID(t *testing.T) {
-	t.Parallel()
-
-	mockPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/state",
-		Files:  map[string]string{"render.gno": `package state`},
-	}
-	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
-
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(io.Discard, nil)), config)
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/r/mock/state$state&oid=abc:1&json", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"),
-		"JSON caller must not receive HTML when an unencoded colon appears in webargs")
-	assert.Equal(t, http.StatusOK, rr.Code, "valid OID with bare colon should reach the JSON handler")
-	assert.Contains(t, rr.Body.String(), `"objectid"`,
-		"mock returns the object envelope when the OID round-trips correctly")
-}
-
-// TestHTTPHandler_ServeStateJSON_HeightOutOfRange — `?state&json` must
-// surface pinned-height failures as 400 + the same friendly message the
-// HTML page shows, not the generic upstream RPC error string.
-func TestHTTPHandler_ServeStateJSON_HeightOutOfRange(t *testing.T) {
-	t.Parallel()
-
-	const realmPath = "/r/test/heighterrjson"
-
-	client := &stateStubClient{
-		stubClient: &stubClient{},
-		statePkgFunc: func(_ context.Context, _ string) ([]byte, error) {
-			return nil, gnoweb.ErrClientResponse
-		},
-	}
-
-	handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
-		newTestHandlerConfig(t, client))
-
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet,
-		realmPath+"$state&json&height=99999999", nil))
-
-	assert.Equal(t, http.StatusBadRequest, rr.Code, "out-of-range height surfaces as 400, not 500")
-	assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"))
-	assert.Contains(t, rr.Body.String(), `"error":"block height 99999999 is not available"`,
-		"JSON envelope carries the same friendly message as the HTML page")
-}
-
-// TestHTTPHandler_GetStateView_ViewModeCookie pins the server-side
-// rendering of the saved Pretty/Tree choice. The state-view JS controller
-// writes a `state_view_mode` cookie on every toggle; the handler reads
-// it and stamps `checked` on the matching radio so the page paints in
-// the saved view from first paint — no flicker, no inline JS.
-func TestHTTPHandler_GetStateView_ViewModeCookie(t *testing.T) {
-	t.Parallel()
-
-	const realmPath = "/r/test/viewcookie"
-	const statePkgJSON = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
-
-	cases := []struct {
-		name           string
-		cookie         *http.Cookie
-		wantPrettyAttr string // checked attribute we expect on the pretty radio
-		wantTreeAttr   string // checked attribute we expect on the tree radio
-	}{
-		{
-			name:           "no cookie defaults to Pretty",
-			cookie:         nil,
-			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only" checked`,
-			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only">`,
-		},
-		{
-			name:           "tree cookie checks Tree",
-			cookie:         &http.Cookie{Name: "state_view_mode", Value: "tree"},
-			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only">`,
-			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only" checked`,
-		},
-		{
-			name:           "garbage cookie value falls through to Pretty",
-			cookie:         &http.Cookie{Name: "state_view_mode", Value: "<script>"},
-			wantPrettyAttr: `id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only" checked`,
-			wantTreeAttr:   `id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only">`,
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			client := &stateStubClient{
-				stubClient: &stubClient{},
-				statePkgFunc: func(_ context.Context, _ string) ([]byte, error) {
-					return []byte(statePkgJSON), nil
-				},
-			}
-			handler, _ := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)),
-				newTestHandlerConfig(t, client))
-
-			req := httptest.NewRequest(http.MethodGet, realmPath+"$state", nil)
-			if tc.cookie != nil {
-				req.AddCookie(tc.cookie)
-			}
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
-
-			require.Equal(t, http.StatusOK, rr.Code)
-			body := rr.Body.String()
-			assert.Contains(t, body, tc.wantPrettyAttr, "Pretty radio render mismatch")
-			assert.Contains(t, body, tc.wantTreeAttr, "Tree radio render mismatch")
-		})
-	}
-}
-
-// stateStubClient wraps stubClient but overrides state methods with custom functions.
-type stateStubClient struct {
-	*stubClient
-	statePkgFunc    func(context.Context, string) ([]byte, error)
-	stateObjectFunc func(context.Context, string) ([]byte, error)
-	stateTypeFunc   func(context.Context, string) ([]byte, error)
-}
-
-func (s *stateStubClient) StatePkg(ctx context.Context, path string, height int64) ([]byte, error) {
-	if s.statePkgFunc != nil {
-		return s.statePkgFunc(ctx, path)
-	}
-	return s.stubClient.StatePkg(ctx, path, height)
-}
-
-func (s *stateStubClient) StateObject(ctx context.Context, oid string, height int64) ([]byte, error) {
-	if s.stateObjectFunc != nil {
-		return s.stateObjectFunc(ctx, oid)
-	}
-	return s.stubClient.StateObject(ctx, oid, height)
-}
-
-func (s *stateStubClient) StateType(ctx context.Context, tid string, height int64) ([]byte, error) {
-	if s.stateTypeFunc != nil {
-		return s.stateTypeFunc(ctx, tid)
-	}
-	return s.stubClient.StateType(ctx, tid, height)
-}
-
 // TestHTTPHandler_Post_OpenRedirectBlocked tests that protocol-relative URLs
 // are blocked as a defense-in-depth measure.
 func TestHTTPHandler_Post_OpenRedirectBlocked(t *testing.T) {
@@ -2027,4 +1570,123 @@ func TestHTTPHandler_Post_BodyTooLarge(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code,
 		"oversized POST body must be rejected, not silently accepted")
+}
+
+// TestHTTPHandler_StatePageHeaderData regresses the wire-in: state-page
+// HTML responses MUST carry full HeaderData (breadcrumb + tab links)
+// like every other view, so the global gnoweb header renders against
+// the actual realm. Earlier code left HeaderData zero on the state
+// branch, which produced an empty searchbar input and tab links
+// pointing at "", visually swapping the breadcrumb and content header.
+func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path$state", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code, "state page must render OK")
+	body := rr.Body.String()
+
+	// The header search input is populated from HeaderData.RealmPath
+	// (set via EnrichHeaderData over RealmURL). If HeaderData is zero
+	// the value="" attribute is rendered against an empty path.
+	assert.Contains(t, body,
+		`value="/r/mock/path"`,
+		"global header search input must reflect the realm path — empty value means HeaderData was not threaded into IndexLayout")
+
+	// The tab links (Content / State / Source / Actions) are built
+	// from RealmURL by StaticHeaderDevLinks. The State tab must
+	// surface as an active menu link pointing at the same realm.
+	assert.Contains(t, body, `href="/r/mock/path$state"`,
+		"State tab link must point at the realm — empty href means RealmURL was not threaded")
+	assert.Contains(t, body, `href="/r/mock/path$source"`,
+		"Source tab link must point at the realm — empty href means RealmURL was not threaded")
+	assert.Contains(t, body, `href="/r/mock/path$help"`,
+		"Actions tab link must point at the realm — empty href means RealmURL was not threaded")
+
+	// The HTML <title> reflects domain + path. Empty Title means
+	// HeadData.Title was not set on the state branch. (Test config
+	// leaves Domain unset, so the title is " - /r/mock/path".)
+	assert.Contains(t, body, `<title> - /r/mock/path</title>`,
+		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
+}
+
+// TestHTTPHandler_StateJSONErrorOnBadURL regresses M9: a `$state&json`
+// request whose URL fails weburl.ParseFromURL must still get a JSON
+// envelope, not the HTML "invalid path" page — the JSON-in/JSON-out
+// contract holds even on the parse-failure path.
+func TestHTTPHandler_StateJSONErrorOnBadURL(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main`},
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	// `/~!1337` fails ParseFromURL ("invalid path"); the `$state&json`
+	// webargs still parse, so isStateJSONRequest must detect the JSON intent.
+	req := httptest.NewRequest(http.MethodGet, "/~!1337$state&json", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, rr.Header().Get("Content-Type"), "application/json",
+		"state+json parse failure must return a JSON content type, not HTML")
+	body := rr.Body.String()
+	assert.Contains(t, body, `"error"`, "must return the {\"error\":...} JSON envelope")
+	assert.NotContains(t, strings.ToLower(body), "<!doctype",
+		"must not return an HTML page for a JSON-requested URL")
+
+	// Sanity: the same bad URL WITHOUT json still renders the HTML page.
+	req2 := httptest.NewRequest(http.MethodGet, "/~!1337", nil)
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+	assert.Equal(t, http.StatusNotFound, rr2.Code)
+	assert.Contains(t, rr2.Body.String(), "invalid path",
+		"non-JSON bad URL must still render the HTML invalid-path page")
+}
+
+// TestHTTPHandler_GetAlwaysBoundsContext regresses H2: even with no
+// explicit Timeout configured, Get must apply defaultRequestTimeout so
+// r.Context() always carries a deadline. We assert indirectly — the
+// handler must still serve a normal request without hanging — and
+// directly via a client that inspects the context deadline.
+func TestHTTPHandler_GetAlwaysBoundsContext(t *testing.T) {
+	t.Parallel()
+
+	var sawDeadline bool
+	client := &stubClient{
+		realmFunc: func(ctx context.Context, _, _ string) ([]byte, error) {
+			_, sawDeadline = ctx.Deadline()
+			return []byte("# ok"), nil
+		},
+	}
+	config := newTestHandlerConfig(t, client)
+	// Timeout left at zero — the default must still apply.
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.True(t, sawDeadline,
+		"request context must carry a deadline even when Timeout is unset (H2 default)")
 }

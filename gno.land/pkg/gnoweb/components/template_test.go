@@ -32,69 +32,6 @@ func TestTemplateFunc_DerefInt(t *testing.T) {
 	assert.Equal(t, 0, derefInt(nil), "nil pointer should return 0")
 }
 
-func TestTemplateFunc_HeadingForKind(t *testing.T) {
-	t.Parallel()
-
-	headingForKind := funcMap["headingForKind"].(func(string) string)
-
-	assert.Equal(t, "Key", headingForKind(KindMap))
-	assert.Equal(t, "Index", headingForKind(KindSlice))
-	assert.Equal(t, "Index", headingForKind(KindArray))
-	assert.Equal(t, "Field", headingForKind(KindStruct))
-	assert.Equal(t, "Field", headingForKind("unknown"))
-}
-
-func TestTemplateFunc_KindIconID(t *testing.T) {
-	t.Parallel()
-
-	kindIconID := funcMap["kindIconID"].(func(string, string) string)
-
-	cases := []struct {
-		kind, typ string
-		want      string
-	}{
-		{KindPrimitive, "string", "kind-string"},
-		{KindPrimitive, "bool", "kind-bool"},
-		{KindPrimitive, "int64", "kind-number"},
-		{KindStruct, "", "kind-struct"},
-		{KindMap, "", "kind-map"},
-		{KindSlice, "", "kind-slice"},
-		{KindArray, "", "kind-slice"},
-		{KindPointer, "", "kind-pointer"},
-		{KindFunc, "", "kind-func"},
-		{KindClosure, "", "kind-closure"},
-		{KindRef, "", "kind-ref"},
-		{KindNil, "", "kind-nil"},
-		{KindPackage, "", "kind-package"},
-		{KindType, "", "kind-type"},
-		{KindInterface, "", "kind-interface"},
-		{"unknown", "", "kind-unknown"},
-	}
-	for _, tc := range cases {
-		assert.Equal(t, tc.want, kindIconID(tc.kind, tc.typ),
-			"kind=%q typ=%q", tc.kind, tc.typ)
-	}
-}
-
-func TestTemplateFunc_KindGroup(t *testing.T) {
-	t.Parallel()
-
-	kindGroup := funcMap["kindGroup"].(func(string) string)
-
-	assert.Equal(t, "state", kindGroup(KindStruct))
-	assert.Equal(t, "state", kindGroup(KindMap))
-	assert.Equal(t, "state", kindGroup(KindSlice))
-	assert.Equal(t, "state", kindGroup(KindArray))
-	assert.Equal(t, "state", kindGroup(KindPointer))
-	assert.Equal(t, "state", kindGroup(KindRef))
-	assert.Equal(t, "code", kindGroup(KindFunc))
-	assert.Equal(t, "code", kindGroup(KindClosure))
-	assert.Equal(t, "types", kindGroup(KindType))
-	assert.Equal(t, "types", kindGroup(KindInterface))
-	assert.Equal(t, "other", kindGroup(KindPrimitive))
-	assert.Equal(t, "other", kindGroup("unknown"))
-}
-
 func TestTemplateFunc_QueryHas(t *testing.T) {
 	t.Parallel()
 

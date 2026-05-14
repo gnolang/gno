@@ -58,6 +58,16 @@ type AppConfig struct {
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
 	RenderConfig RenderConfig
+	// StateRateLimitPerMinute caps the per-IP request rate against
+	// ?state* URLs (also used as the token-bucket burst). 0 ⇒ the
+	// HTTPHandler default (100/min). ADR-004 §Rate limiting.
+	StateRateLimitPerMinute int
+	// StateRateLimitTrustedProxies is the list of trusted reverse-proxy
+	// CIDRs (or bare IPs) for the per-IP rate limiter. X-Real-IP is honored
+	// only for connections originating inside one of these networks; empty
+	// (the default) trusts nothing, so untrusted deployments never trust
+	// attacker-controlled headers. ADR-004 §Rate limiting.
+	StateRateLimitTrustedProxies []string
 }
 
 // NewDefaultAppConfig returns a new default AppConfig. The default sets
@@ -66,13 +76,14 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:         localRemote, // local first
-		RemoteHelp:         localRemote, // local first
-		NodeRequestTimeout: time.Minute,
-		AssetsPath:         "/public/",
-		Domain:             "gno.land",
-		Aliases:            DefaultAliases,
-		RenderConfig:       NewDefaultRenderConfig(),
+		NodeRemote:              localRemote, // local first
+		RemoteHelp:              localRemote, // local first
+		NodeRequestTimeout:      time.Minute,
+		AssetsPath:              "/public/",
+		Domain:                  "gno.land",
+		Aliases:                 DefaultAliases,
+		RenderConfig:            NewDefaultRenderConfig(),
+		StateRateLimitPerMinute: 100,
 	}
 }
 
@@ -131,11 +142,13 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
 	httphandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
-		ClientAdapter: adpcli,
-		Meta:          staticMeta,
-		Renderer:      renderer,
-		Aliases:       cfg.Aliases,
-		Timeout:       cfg.NodeRequestTimeout,
+		ClientAdapter:                adpcli,
+		Meta:                         staticMeta,
+		Renderer:                     renderer,
+		Aliases:                      cfg.Aliases,
+		Timeout:                      cfg.NodeRequestTimeout,
+		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
+		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)

@@ -1,0 +1,19 @@
+{{/* frag_source.html — htmx fragment, chroma-highlighted source slice.
+
+     .SourceHTML is template.HTML (TRUSTED) — already escaped by chroma.
+     "See in code" permanent link points at the canonical full ?source
+     view (ADR-004 §Decision §2 fragment source).
+
+     Input: feature/state.FragSourceData. */}}
+
+{{ define "fragSource" }}
+  <div class="b-state-frag b-state-frag-source">
+    <header class="b-state-frag-source-head">
+      <small class="b-state-frag-source-loc">{{ .File }}{{ if .Line }}:{{ .Line }}{{ end }}</small>
+      <a class="b-state-permalink"
+         href="{{ stateSourceHref .PkgPath .File .Line .HeightParam }}"
+         aria-label="See in code">See in code</a>
+    </header>
+    <div class="b-state-frag-source-body code">{{ .SourceHTML }}</div>
+  </div>
+{{ end }}

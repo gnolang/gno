@@ -33,6 +33,7 @@ module.exports = (ctx) => {
 					here("../**/*.html"),
 					here("../**/*.go"),
 					here("./js/**/*.ts"),
+					here("../feature/**/*.ts"),
 				],
 				safelist: {
 					standard: [

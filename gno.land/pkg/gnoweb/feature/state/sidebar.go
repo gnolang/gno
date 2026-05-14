@@ -1,4 +1,4 @@
-package components
+package state
 
 import (
 	"fmt"
@@ -79,7 +79,7 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, height int64, info StateObj
 		// Owner link preserves height so time-travel holds across the hop.
 		meta = append(meta, StateMetaEntry{
 			Section: "Lineage", Label: "Owner", Value: ShortenOID(info.OwnerID, oid),
-			Href: stateObjectHref(pkgPath, info.OwnerID, "", height),
+			Href: stateObjectHref(pkgPath, info.OwnerID, "", heightParam(height), ""),
 			Mono: true,
 		})
 	}

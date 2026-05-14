@@ -1,17 +1,23 @@
-package components
+package state
 
-import "html/template"
+import (
+	"html/template"
 
-const StateViewType ViewType = "state-view"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+)
 
-// StateData is the render payload for views/state.html — field names
-// must match the template.
+// StateViewType re-exports the components-side constant so feature/state
+// callers (component.go) don't reach across packages for the View tag.
+// Both names resolve to the same underlying ViewType string.
+const StateViewType = components.StateViewType
+
+// StateData is the render payload for templates/page.html (renderPage) —
+// field names must match the template.
 type StateData struct {
 	PkgPath    string
 	Nodes      []StateNode
 	CountLabel string
 	Crumbs     []StateCrumb
-	PageNav    *StatePageNav
 	Sidebar    *StateSidebar
 
 	// IsObjectPage flips the template into single-object mode (`?state&oid=…`),
@@ -24,8 +30,7 @@ type StateData struct {
 	// LatestHref is the current URL with height stripped — "go back to live".
 	LatestHref template.URL
 
-	// ViewMode is "tree" or "" (pretty default), read from the
-	// state_view_mode cookie so first paint matches the saved view.
+	// ViewMode is "tree" or "" (pretty default), derived from ?view= query param.
 	ViewMode string
 
 	// RawJSON is the chain-native response (qpkg_json/qobject_json),
@@ -34,6 +39,18 @@ type StateData struct {
 
 	// KindCounts feeds the kind-filter tab counters.
 	KindCounts KindCounts
+
+	// DocIndexJSON is the pre-marshaled qdoc projection over top-level
+	// decls. Embedded inline so the client-side controller projects
+	// doc-comments onto htmx-loaded fragments without an extra RPC
+	// (ADR-004 §Decision §8).
+	DocIndexJSON template.JS
+
+	// HeightParam is the resolved decimal height stamped into every
+	// fragment hx-get URL so fragments inherit the parent page's
+	// concrete height during nginx stale-while-revalidate windows
+	// (ADR-004 §Decision §2). Empty for unstamped "latest".
+	HeightParam string
 }
 
 // KindCounts counts top-level declarations per filter-tab bucket.
@@ -100,14 +117,35 @@ type StateCrumb struct {
 	Href  template.URL
 }
 
-// StatePageNav describes pagination links for paginated collections.
-type StatePageNav struct {
-	PrevHref template.URL
-	NextHref template.URL
-	Label    string
+// ===== ADR-004 §Files: htmx-fragment render payloads =====
+
+// FragNodeData renders one node's content as a chrome-less HTML
+// fragment via the shared state/nodes renderer. PkgPath + ViewMode keep
+// nested permalinks correct; Height feeds sourceHref; Depth is the
+// parent row's tree depth so children indent via --depth.
+type FragNodeData struct {
+	Node        StateNode
+	PkgPath     string
+	Height      int64
+	HeightParam string
+	ViewMode    string
+	Depth       int
 }
 
-// StateView creates the View for the state explorer page.
-func StateView(data StateData) *View {
-	return NewTemplateView(StateViewType, "renderState", data)
+// FragSourceData feeds fragSource. SourceHTML is TRUSTED chroma markup
+// — the template does not escape it. PkgPath builds the "See in code"
+// permalink to the canonical full ?source view.
+type FragSourceData struct {
+	SourceHTML  template.HTML
+	PkgPath     string
+	File        string
+	Line        int
+	HeightParam string
+}
+
+// FragErrorData feeds fragError. Always returned with HTTP 200 so htmx
+// swaps the body (ADR-004 §Decision §2 fragment-error pattern).
+type FragErrorData struct {
+	Message   string
+	RetryHint string
 }

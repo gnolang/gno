@@ -1,0 +1,36 @@
+{{/* frag_node.html — htmx fragment renderer.
+
+     Swapped into the parent <details>'s .b-state-node-body. Renders the
+     expanded node's content with the SAME recursive state/node markup
+     as the server-rendered tree (shared via _nodes.html) — so nested
+     children get .row / --depth / .kids styling and stay drillable.
+
+     A func/closure object is promoted to the root by serveFragNode: its
+     highlighted body shows directly, captured variables (closures) list
+     below it. Depth is the parent row's tree depth; children render at
+     depth+1 so they step in via the legacy --depth mechanism.
+
+     Input: feature/state.FragNodeData. */}}
+
+{{ define "fragNode" }}
+  {{ $n := .Node }}
+  {{ $pkg := .PkgPath }}
+  {{ $h := .Height }}
+  {{ $hp := .HeightParam }}
+  {{ $vm := .ViewMode }}
+  {{ $depth := .Depth }}
+  <div class="b-state-frag b-state-frag-node">
+    {{/* func/closure object: highlighted body first, then captures. */}}
+    {{ if $n.SourceHTML }}
+      <div class="source" style="--depth: {{ $depth }};"><div class="code">{{ $n.SourceHTML }}</div></div>
+    {{ end }}
+    {{ if $n.Children }}
+      {{ if eq $n.Kind "closure" }}<div class="captures-label" style="--depth: {{ $depth }};">Captured variables:</div>{{ end }}
+      {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Toplevel" false "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+    {{ else if $n.Preview }}
+      <p class="b-state-frag-preview">{{ $n.Preview }}</p>
+    {{ else if not $n.SourceHTML }}
+      <p class="b-state-frag-empty">(empty)</p>
+    {{ end }}
+  </div>
+{{ end }}

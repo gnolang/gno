@@ -1,4 +1,4 @@
-package components
+package state
 
 import (
 	"encoding/hex"
@@ -30,6 +30,15 @@ const (
 	KindNil       = "nil"
 	KindCycle     = "cycle"
 	KindTruncated = "truncated"
+)
+
+// Node render-shape constants. Shape() classifies a node into exactly
+// one of these so the pretty-card and tree renderers agree on the
+// branch/ref/leaf distinction instead of each recomputing it.
+const (
+	ShapeLeaf   = "leaf"
+	ShapeBranch = "branch"
+	ShapeRef    = "ref"
 )
 
 // StateNode is the UI-friendly decoded representation of a gno value.
@@ -70,6 +79,21 @@ type StateNode struct {
 	Doc string
 }
 
+// Shape is the single source of truth for a node's render-shape, read by
+// both the pretty-card and tree templates. branch = children already
+// loaded; ref = expandable stored object fetched lazily on open; leaf =
+// everything else.
+func (n StateNode) Shape() string {
+	switch {
+	case len(n.Children) > 0:
+		return ShapeBranch
+	case n.ObjectID != "" && n.Expandable:
+		return ShapeRef
+	default:
+		return ShapeLeaf
+	}
+}
+
 // StateObjectInfoView mirrors a stored object's ObjectInfo, formatted for
 // display in the sidebar. The orchestrator extracts this from the queried
 // object's outermost Value (qobject_json response).
@@ -104,73 +128,23 @@ type objectResponse struct {
 	Value    gno.Value `json:"value"`
 }
 
-// DecodePkgJSON decodes a vm/qpkg_json response into top-level StateNodes.
-func DecodePkgJSON(raw []byte) ([]StateNode, error) {
-	var resp pkgResponse
-	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
-		return nil, fmt.Errorf("decode pkg JSON: %w", err)
-	}
-	nodes := make([]StateNode, 0, len(resp.Names))
-	for i, name := range resp.Names {
-		if i >= len(resp.Values) {
-			break
-		}
-		nodes = append(nodes, decodeTypedValue(name, resp.Values[i]))
-	}
-	return nodes, nil
-}
-
-// DecodeObjectJSON decodes a vm/qobject_json response into the contained
-// object's children. Struct fields fall back to positional indices without
-// a type context — use DecodeObjectJSONWithType for field names.
-func DecodeObjectJSON(raw []byte) ([]StateNode, error) {
-	var resp objectResponse
-	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
-		return nil, fmt.Errorf("decode object JSON: %w", err)
-	}
-	return decodeValueChildren(resp.Value), nil
-}
-
-// DecodeObjectJSONWithType decodes a vm/qobject_json response together
-// with a vm/qtype_json response so struct field names replace positional
-// indices. Nil/empty rawType falls back to plain DecodeObjectJSON.
-func DecodeObjectJSONWithType(rawObject, rawType []byte) ([]StateNode, error) {
-	var resp objectResponse
-	if err := amino.UnmarshalJSON(rawObject, &resp); err != nil {
-		return nil, fmt.Errorf("decode object JSON: %w", err)
-	}
-
-	// No type context provided: fall back to indices.
-	if len(rawType) == 0 {
-		return decodeValueChildren(resp.Value), nil
-	}
-
-	var typeResp struct {
-		TypeID string   `json:"typeid"`
-		Type   gno.Type `json:"type"`
-	}
-	if err := amino.UnmarshalJSON(rawType, &typeResp); err != nil || typeResp.Type == nil {
-		// Best-effort: bad type response shouldn't fail the page render.
-		return decodeValueChildren(resp.Value), nil
-	}
-
-	return decodeValueChildrenTyped(resp.Value, typeResp.Type, typeResp.TypeID), nil
-}
-
 // decodeValueChildrenTyped is decodeValueChildren plus an outer Type
 // used to resolve struct field names; originalTid is forwarded into
-// nested ref nodes so subsequent fetch rounds still resolve names.
-func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []StateNode {
+// nested ref nodes so subsequent fetch rounds still resolve names. cfg
+// bounds recursion depth identically to the untyped path.
+func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string, cfg RenderConfig) []StateNode {
+	startDepth := startDepthFor(cfg)
+	childCap := clampRenderConfig(cfg).MaxChildrenPerNode
+
 	// HeapItemValue: the type describes the inner TypedValue. Synthesize
 	// {T: t, V: hiv.Value.V, N: hiv.Value.N} so decodeStruct sees the
 	// resolved StructType when it walks fields.
 	if hiv, ok := v.(*gno.HeapItemValue); ok {
-		node := decodeTypedValue("value", gno.TypedValue{
+		node := decodeTypedValueAt(startDepth, "value", gno.TypedValue{
 			T: t, V: hiv.Value.V, N: hiv.Value.N,
 		})
-		// If the synthesis produced a ref node without a TypeID (typical
-		// when t is an anonymous StructType), forward the original tid so
-		// the next preview round still resolves field names.
+		// Ref node without a TypeID (anonymous StructType): forward the
+		// original tid so the next preview round still resolves names.
 		if node.ObjectID != "" && node.TypeID == "" && originalTid != "" {
 			node.TypeID = originalTid
 		}
@@ -186,8 +160,8 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 		if st, ok := bt.(*gno.StructType); ok {
 			total := len(sv.Fields)
 			shown := total
-			if shown > maxChildrenPerNode {
-				shown = maxChildrenPerNode
+			if shown > childCap {
+				shown = childCap
 			}
 			children := make([]StateNode, shown, shown+1)
 			for i := 0; i < shown; i++ {
@@ -195,7 +169,7 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 				if i < len(st.Fields) && st.Fields[i].Name != "" {
 					name = string(st.Fields[i].Name)
 				}
-				children[i] = decodeTypedValue(name, sv.Fields[i])
+				children[i] = decodeTypedValueAt(startDepth, name, sv.Fields[i])
 			}
 			if total > shown {
 				children = append(children, truncatedChildrenNode(total-shown))
@@ -204,8 +178,7 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string) []Sta
 		}
 	}
 
-	// Other shapes: use the existing un-typed children logic.
-	return decodeValueChildren(v)
+	return decodeValueChildren(cfg, v)
 }
 
 // ---- Core walker ----
@@ -258,6 +231,21 @@ func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
 
 func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 	if depth >= maxDecodeDepth {
+		// At the depth bound, a stored RefValue still becomes an
+		// expandable ref node — the user drills further via a fresh,
+		// rate-limited frag=node GET (ADR-004 §2). Only inline values
+		// with no OID to fetch fall back to the dead "(too deep)"
+		// sentinel.
+		if rv, ok := tv.V.(gno.RefValue); ok && rv.PkgPath == "" && !rv.ObjectID.IsZero() {
+			t := "(stored)"
+			if tv.T != nil {
+				t = typeName(tv.T)
+			}
+			return StateNode{
+				Name: name, Type: t, Kind: KindRef,
+				Expandable: true, ObjectID: rv.ObjectID.String(), TypeID: getTypeID(tv.T),
+			}
+		}
 		return tooDeepNode(name)
 	}
 	if tv.T == nil {
@@ -357,8 +345,13 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 // decodeValueChildren turns a queried Object's Value into the children
 // to display. Collection-shaped values yield one StateNode per element;
 // scalar shapes yield a single representative node so the page is never
-// empty.
-func decodeValueChildren(v gno.Value) []StateNode {
+// empty. cfg bounds both recursion depth and visible child count — it is
+// the single decoder shared by the full-page and fragment paths.
+func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
+	cfg = clampRenderConfig(cfg)
+	startDepth := startDepthFor(cfg)
+	childCap := cfg.MaxChildrenPerNode
+
 	switch cv := v.(type) {
 	case nil:
 		return nil
@@ -368,12 +361,12 @@ func decodeValueChildren(v gno.Value) []StateNode {
 	case *gno.StructValue:
 		total := len(cv.Fields)
 		shown := total
-		if shown > maxChildrenPerNode {
-			shown = maxChildrenPerNode
+		if shown > childCap {
+			shown = childCap
 		}
 		nodes := make([]StateNode, shown, shown+1)
 		for i := 0; i < shown; i++ {
-			nodes[i] = decodeTypedValue(strconv.Itoa(i), cv.Fields[i])
+			nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), cv.Fields[i])
 		}
 		if total > shown {
 			nodes = append(nodes, truncatedChildrenNode(total-shown))
@@ -389,12 +382,12 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		}
 		total := len(cv.List)
 		shown := total
-		if shown > maxChildrenPerNode {
-			shown = maxChildrenPerNode
+		if shown > childCap {
+			shown = childCap
 		}
 		nodes := make([]StateNode, shown, shown+1)
 		for i := 0; i < shown; i++ {
-			nodes[i] = decodeTypedValue(strconv.Itoa(i), cv.List[i])
+			nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), cv.List[i])
 		}
 		if total > shown {
 			nodes = append(nodes, truncatedChildrenNode(total-shown))
@@ -409,12 +402,12 @@ func decodeValueChildren(v gno.Value) []StateNode {
 			window := av.List[offset:end]
 			total := len(window)
 			shown := total
-			if shown > maxChildrenPerNode {
-				shown = maxChildrenPerNode
+			if shown > childCap {
+				shown = childCap
 			}
 			nodes := make([]StateNode, shown, shown+1)
 			for i := 0; i < shown; i++ {
-				nodes[i] = decodeTypedValue(strconv.Itoa(i), window[i])
+				nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), window[i])
 			}
 			if total > shown {
 				nodes = append(nodes, truncatedChildrenNode(total-shown))
@@ -437,11 +430,11 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		if cv.List != nil {
 			for cur := cv.List.Head; cur != nil; cur = cur.Next {
 				total++
-				if len(nodes) >= maxChildrenPerNode {
+				if len(nodes) >= childCap {
 					continue
 				}
 				keyStr := previewTypedValue(cur.Key)
-				nodes = append(nodes, decodeTypedValue(keyStr, cur.Value))
+				nodes = append(nodes, decodeTypedValueAt(startDepth, keyStr, cur.Value))
 			}
 		}
 		if total > len(nodes) {
@@ -451,7 +444,9 @@ func decodeValueChildren(v gno.Value) []StateNode {
 	case *gno.HeapItemValue:
 		// Unwrap: when the inner is a collection, return its children
 		// directly (no redundant "value :" row); scalars stay labelled.
-		inner := decodeTypedValue("value", cv.Value)
+		// Consumes one depth slot so a wrapper chain cannot recurse past
+		// the configured bound.
+		inner := decodeTypedValueAt(startDepth, "value", cv.Value)
 		if len(inner.Children) > 0 {
 			return inner.Children
 		}
@@ -459,12 +454,12 @@ func decodeValueChildren(v gno.Value) []StateNode {
 	case *gno.Block:
 		total := len(cv.Values)
 		shown := total
-		if shown > maxChildrenPerNode {
-			shown = maxChildrenPerNode
+		if shown > childCap {
+			shown = childCap
 		}
 		nodes := make([]StateNode, shown, shown+1)
 		for i := 0; i < shown; i++ {
-			nodes[i] = decodeTypedValue(strconv.Itoa(i), cv.Values[i])
+			nodes[i] = decodeTypedValueAt(startDepth, strconv.Itoa(i), cv.Values[i])
 		}
 		if total > shown {
 			nodes = append(nodes, truncatedChildrenNode(total-shown))
@@ -478,12 +473,12 @@ func decodeValueChildren(v gno.Value) []StateNode {
 		if name == "" {
 			name = "(function)"
 		}
-		return []StateNode{decodeFuncInline(0, name, cv)}
+		return []StateNode{decodeFuncInline(startDepth, name, cv)}
 	case *gno.BoundMethodValue:
-		return []StateNode{decodeFuncInline(0, "(method)", cv.Func)}
+		return []StateNode{decodeFuncInline(startDepth, "(method)", cv.Func)}
 	case gno.PointerValue:
 		if cv.TV != nil {
-			return []StateNode{decodeTypedValue("*", *cv.TV)}
+			return []StateNode{decodeTypedValueAt(startDepth, "*", *cv.TV)}
 		}
 		if rv, ok := cv.Base.(gno.RefValue); ok {
 			return []StateNode{{
@@ -682,6 +677,15 @@ func decodePointer(depth int, name, tName, typeID string, pv gno.PointerValue) S
 	return StateNode{Name: name, Type: tName, Kind: KindPointer, Value: "nil"}
 }
 
+// funcKind classifies a *FuncValue: KindClosure when it captures
+// variables, KindFunc otherwise.
+func funcKind(fv *gno.FuncValue) string {
+	if len(fv.Captures) > 0 {
+		return KindClosure
+	}
+	return KindFunc
+}
+
 func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 	sig := "func()"
 	if fv.Type != nil {
@@ -690,12 +694,8 @@ func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 		sig = fmt.Sprintf("func %s()", fv.Name)
 	}
 	src := extractFuncSource(fv)
-	hasCaps := len(fv.Captures) > 0
-	kind := KindFunc
-	if hasCaps {
-		kind = KindClosure
-	}
-	if hasCaps {
+	kind := funcKind(fv)
+	if len(fv.Captures) > 0 {
 		children := make([]StateNode, len(fv.Captures))
 		for i, capture := range fv.Captures {
 			children[i] = decodeTypedValueAt(depth+1, "value", capture)
@@ -825,7 +825,12 @@ func getTypeID(t gno.Type) string {
 	case gno.RefType:
 		return tt.ID.String()
 	case *gno.DeclaredType:
-		return tt.PkgPath + "." + string(tt.Name)
+		// Mirror DeclaredTypeID: package/file decls are PkgPath.Name;
+		// non-package-level decls disambiguate with [ParentLoc].
+		if tt.ParentLoc.IsZero() {
+			return tt.PkgPath + "." + string(tt.Name)
+		}
+		return tt.PkgPath + "[" + tt.ParentLoc.String() + "]." + string(tt.Name)
 	case *gno.PointerType:
 		return getTypeID(tt.Elt)
 	}
@@ -1118,7 +1123,9 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 
 // DecodeObjectFull parses qobject_json (and optional qtype_json) into
 // children to render plus the queried object's ObjectInfo in one pass.
-func DecodeObjectFull(rawObject, rawType []byte) (*DecodedObject, error) {
+// cfg bounds recursion depth on both the typed and untyped paths so a
+// &tid= request honours the same per-fragment budget as the untyped one.
+func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (*DecodedObject, error) {
 	var resp objectResponse
 	if err := amino.UnmarshalJSON(rawObject, &resp); err != nil {
 		return nil, fmt.Errorf("decode object JSON: %w", err)
@@ -1128,16 +1135,16 @@ func DecodeObjectFull(rawObject, rawType []byte) (*DecodedObject, error) {
 
 	var nodes []StateNode
 	if len(rawType) == 0 {
-		nodes = decodeValueChildren(resp.Value)
+		nodes = decodeValueChildren(cfg, resp.Value)
 	} else {
 		var typeResp struct {
 			TypeID string   `json:"typeid"`
 			Type   gno.Type `json:"type"`
 		}
 		if err := amino.UnmarshalJSON(rawType, &typeResp); err != nil || typeResp.Type == nil {
-			nodes = decodeValueChildren(resp.Value)
+			nodes = decodeValueChildren(cfg, resp.Value)
 		} else {
-			nodes = decodeValueChildrenTyped(resp.Value, typeResp.Type, typeResp.TypeID)
+			nodes = decodeValueChildrenTyped(resp.Value, typeResp.Type, typeResp.TypeID, cfg)
 		}
 	}
 	return &DecodedObject{Nodes: nodes, Info: info}, nil
