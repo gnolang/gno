@@ -463,11 +463,17 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 }
 
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
-	state, ok := appState.(GnoGenesisState)
-	if !ok {
+	switch state := appState.(type) {
+	case GnoGenesisState:
+		return cfg.applyInMemoryAppState(ctx, state, reqInitialHeight)
+	case *GenesisStateRef:
+		return cfg.applyStreamingAppState(ctx, state)
+	default:
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
+}
 
+func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGenesisState, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
 	// If GnoGenesisState.InitialHeight is set, it must match the authoritative
 	// GenesisDoc.InitialHeight (which comes in via req.InitialHeight). These
 	// fields are duplicated so tooling can read the app-level one; if they
@@ -500,168 +506,26 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 		)
 	}
 
+
 	cfg.bankk.InitGenesis(ctx, state.Bank)
-	// Apply genesis balances.
 	for _, bal := range state.Balances {
-		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
-		cfg.acck.SetAccount(ctx, acc)
-		err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount)
-		if err != nil {
-			panic(err)
-		}
+		cfg.applyBalance(ctx, bal)
 	}
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
 	cfg.acck.InitGenesis(ctx, state.Auth)
-
-	// The unrestricted address must have been created as one of the genesis accounts.
-	// Otherwise, we cannot verify the unrestricted address in the genesis state.
-
-	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
-		acc := cfg.acck.GetAccount(ctx, addr)
-		if acc == nil {
-			panic(fmt.Errorf("unrestricted address must be one of the genesis accounts: invalid account %q", addr))
-		}
-
-		accr := acc.(*GnoAccount)
-		accr.SetTokenLockWhitelisted(true)
-		cfg.acck.SetAccount(ctx, acc)
-	}
-
+	cfg.applyUnrestrictedAddrs(ctx, state.Auth.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, state.VM)
 
-	params := cfg.acck.GetParams(ctx)
-	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
-	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrice)
+	ctx = cfg.installAuthParams(ctx)
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
 	report := newReplayReport(state.GasReplayMode)
 
-	// Run genesis txs
 	for txIdx, tx := range state.Txs {
-		var (
-			stdTx    = tx.Tx
-			metadata = tx.Metadata
-
-			ctxFn sdk.ContextFn
-		)
-
-		// Check if there is metadata associated with the tx
-		if metadata != nil {
-			ctxFn = func(ctx sdk.Context) sdk.Context {
-				header := ctx.BlockHeader().(*bft.Header).Copy()
-				if metadata.Timestamp != 0 {
-					header.Time = time.Unix(metadata.Timestamp, 0)
-				}
-				if metadata.BlockHeight > 0 {
-					header.Height = metadata.BlockHeight
-				}
-
-				ctx = ctx.WithBlockHeader(header)
-
-				// For historical txs (BlockHeight > 0), override the chain ID
-				// for signature verification using the per-tx ChainID, provided
-				// it is in the genesis allowlist. This allows replaying txs from
-				// multiple past chains during a hard fork.
-				if metadata.BlockHeight > 0 && metadata.ChainID != "" && isPastChainID(state.PastChainIDs, metadata.ChainID) {
-					ctx = ctx.WithChainID(metadata.ChainID)
-				}
-
-				// GasReplayMode="source": bypass the new VM's gas meter for
-				// historical txs so outcomes match the source chain even when
-				// gas metering changed.
-				if state.GasReplayMode == "source" && metadata.BlockHeight > 0 {
-					ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
-				}
-
-				return ctx
-			}
-		}
-
-		// Genesis-mode txs (no metadata) were signed with the original chain
-		// ID. During a hardfork (PastChainIDs is set), verify their
-		// signatures against the original chain ID. Migration txs
-		// (metadata != nil with BlockHeight == 0) carry their own per-tx
-		// settings via metadata and are handled in the first branch above;
-		// excluding them here prevents the previous overwrite bug where
-		// this assignment stomped the metadata-driven Timestamp override.
-		//
-		// Compose with any prior ctxFn so future broadening of the
-		// predicate cannot silently regress.
-		if metadata == nil && len(state.PastChainIDs) > 0 {
-			originalChainID := state.PastChainIDs[0]
-			prev := ctxFn
-			ctxFn = func(ctx sdk.Context) sdk.Context {
-				if prev != nil {
-					ctx = prev(ctx)
-				}
-				return ctx.WithChainID(originalChainID)
-			}
-		}
-
-		// For historical txs with signer metadata, force-set account state
-		// so signature verification succeeds even if prior txs diverged.
-		// Uses pre-tx sequence — the value the signature was signed with.
-		//
-		// Invariant: SignerInfo is only populated by the export tool for historical
-		// txs (BlockHeight > 0). Genesis-mode txs (BlockHeight == 0) must never
-		// carry SignerInfo — if they did, the force-set would corrupt fresh account
-		// state. The BlockHeight > 0 guard enforces this.
-		if metadata != nil && metadata.BlockHeight > 0 && len(metadata.SignerInfo) > 0 {
-			for _, si := range metadata.SignerInfo {
-				acc := cfg.acck.GetAccount(ctx, si.Address)
-				if acc == nil {
-					// Account doesn't exist yet, create with specific account
-					// number, bypassing the auto-increment counter. Uniqueness
-					// of (Address, AccountNum) is enforced by the
-					// validateSignerInfo preflight above; the keeper does not
-					// re-check.
-					acc = cfg.acck.NewAccountWithUncheckedNumber(ctx, si.Address, si.AccountNum)
-				} else {
-					acc.SetAccountNumber(si.AccountNum)
-				}
-				acc.SetSequence(si.Sequence)
-				cfg.acck.SetAccount(ctx, acc)
-			}
-		}
-
-		// Failed txs: pre-tx sequence already set above. Skip execution —
-		// re-executing failed txs could cause double spends or unexpected
-		// behavior if the VM fix makes them succeed. The next tx's force-set
-		// will handle the correct sequence state.
-		// Response carries an explicit error so downstream consumers
-		// (indexers, explorers) don't mistake a skipped failed tx for a
-		// successful one.
-		if metadata != nil && metadata.Failed {
-			txResponses = append(txResponses, abci.ResponseDeliverTx{
-				ResponseBase: abci.ResponseBase{
-					Error: abci.StringError("replay skipped: tx failed on source chain"),
-					Log:   "genesis replay: skipped failed tx from source chain",
-				},
-			})
-			report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
-			continue
-		}
-
-		res := cfg.baseApp.Deliver(stdTx, ctxFn)
-		if res.IsErr() {
-			ctx.Logger().Error(
-				"Unable to deliver genesis tx",
-				"log", res.Log,
-				"error", res.Error,
-				"gas-used", res.GasUsed,
-			)
-		}
-
-		txResponses = append(txResponses, abci.ResponseDeliverTx{
-			ResponseBase: res.ResponseBase,
-			GasWanted:    res.GasWanted,
-			GasUsed:      res.GasUsed,
-		})
-		report.recordDeliverResult(txIdx, metadata, res)
-
-		cfg.GenesisTxResultHandler(ctx, stdTx, res)
+		resp, _ := cfg.deliverGenesisTx(ctx, txIdx, tx, state.PastChainIDs, state.GasReplayMode, report)
+		txResponses = append(txResponses, resp)
 	}
 
 	if reqInitialHeight > 1 {
@@ -672,12 +536,6 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 
 	report.emit(ctx.Logger())
 
-	// StrictReplay: refuse to boot if any non-skipped tx failed. Default off
-	// for backwards compatibility with test setups; hardfork operators must
-	// opt in. Otherwise the chain would happily boot in an inconsistent
-	// state (AppHash diverged from source for any failing tx in
-	// GasReplayMode="strict"), with the operator only noticing via the
-	// per-failure Warn lines emitted by report.emit above.
 	if cfg.StrictReplay {
 		if n := report.FailedCount(); n > 0 {
 			return txResponses, fmt.Errorf(
@@ -689,6 +547,263 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 	}
 
 	return txResponses, nil
+}
+
+// applyStreamingAppState mirrors applyInMemoryAppState but pulls each
+// genesis element from on-disk JSONL via the ref's iterators, keeping peak
+// heap bounded to a single element regardless of total size. Small sibling
+// fields (auth, bank, vm) are eagerly amino-decoded out of the envelope.
+func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *GenesisStateRef) ([]abci.ResponseDeliverTx, error) {
+	var bankState bank.GenesisState
+	if err := decodeSmallField(ref, appStateBankKey, &bankState); err != nil {
+		return nil, err
+	}
+	var authState auth.GenesisState
+	if err := decodeSmallField(ref, appStateAuthKey, &authState); err != nil {
+		return nil, err
+	}
+	var vmState vm.GenesisState
+	if err := decodeSmallField(ref, appStateVMKey, &vmState); err != nil {
+		return nil, err
+	}
+
+	cfg.bankk.InitGenesis(ctx, bankState)
+	for line, err := range ref.IterBalances(ctx.Context()) {
+		if err != nil {
+			return nil, fmt.Errorf("iter balances: %w", err)
+		}
+		var bal Balance
+		if err := amino.UnmarshalJSON(line, &bal); err != nil {
+			return nil, fmt.Errorf("decode balance: %w", err)
+		}
+		cfg.applyBalance(ctx, bal)
+	}
+	cfg.acck.InitGenesis(ctx, authState)
+	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
+	cfg.vmk.InitGenesis(ctx, vmState)
+
+	ctx = cfg.installAuthParams(ctx)
+
+	// Decode hardfork replay parameters from the small-field envelope.
+	var pastChainIDs []string
+	if raw, ok := ref.SmallField("past_chain_ids"); ok {
+		if err := amino.UnmarshalJSON(raw, &pastChainIDs); err != nil {
+			return nil, fmt.Errorf("decode past_chain_ids: %w", err)
+		}
+	}
+	var gasReplayMode string
+	if raw, ok := ref.SmallField("gas_replay_mode"); ok {
+		if err := amino.UnmarshalJSON(raw, &gasReplayMode); err != nil {
+			return nil, fmt.Errorf("decode gas_replay_mode: %w", err)
+		}
+	}
+
+	if err := validateGasReplayMode(gasReplayMode); err != nil {
+		return nil, err
+	}
+
+	report := newReplayReport(gasReplayMode)
+	txResponses := make([]abci.ResponseDeliverTx, 0, ref.TxCount())
+	txIdx := 0
+	for line, err := range ref.IterTxs(ctx.Context()) {
+		if err != nil {
+			return nil, fmt.Errorf("iter txs: %w", err)
+		}
+		var tx TxWithMetadata
+		if err := amino.UnmarshalJSON(line, &tx); err != nil {
+			return nil, fmt.Errorf("decode tx: %w", err)
+		}
+		resp, _ := cfg.deliverGenesisTx(ctx, txIdx, tx, pastChainIDs, gasReplayMode, report)
+		txResponses = append(txResponses, resp)
+		txIdx++
+	}
+
+	report.emit(ctx.Logger())
+
+	if cfg.StrictReplay {
+		if n := report.FailedCount(); n > 0 {
+			return txResponses, fmt.Errorf(
+				"strict replay: %d genesis tx(s) failed; chain refusing to boot "+
+					"(inspect the per-failure 'Genesis replay failure' log lines for details)",
+				n,
+			)
+		}
+	}
+
+	return txResponses, nil
+}
+
+func decodeSmallField(ref *GenesisStateRef, key string, into any) error {
+	raw, ok := ref.SmallField(key)
+	if !ok {
+		return fmt.Errorf("missing app_state.%s in genesis cache", key)
+	}
+	if err := amino.UnmarshalJSON(raw, into); err != nil {
+		return fmt.Errorf("decode app_state.%s: %w", key, err)
+	}
+	return nil
+}
+
+func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
+	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+	cfg.acck.SetAccount(ctx, acc)
+	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
+		panic(err)
+	}
+}
+
+// applyUnrestrictedAddrs flips the token-lock whitelist bit on each
+// unrestricted address. Each address must already exist as a genesis
+// account (i.e. must have appeared in balances), otherwise the verifier
+// can't verify the chain's unrestricted set.
+func (cfg InitChainerConfig) applyUnrestrictedAddrs(ctx sdk.Context, addrs []crypto.Address) {
+	for _, addr := range addrs {
+		acc := cfg.acck.GetAccount(ctx, addr)
+		if acc == nil {
+			panic(fmt.Errorf("unrestricted address must be one of the genesis accounts: invalid account %q", addr))
+		}
+		accr := acc.(*GnoAccount)
+		accr.SetTokenLockWhitelisted(true)
+		cfg.acck.SetAccount(ctx, acc)
+	}
+}
+
+func (cfg InitChainerConfig) installAuthParams(ctx sdk.Context) sdk.Context {
+	params := cfg.acck.GetParams(ctx)
+	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
+	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrice)
+	return ctx
+}
+
+// deliverGenesisTx applies all hardfork-aware context overrides and delivers a
+// single genesis tx. Returns the response and a skip flag (true when the tx was
+// a known-failed historical tx that must not be re-executed).
+func (cfg InitChainerConfig) deliverGenesisTx(
+	ctx sdk.Context,
+	txIdx int,
+	tx TxWithMetadata,
+	pastChainIDs []string,
+	gasReplayMode string,
+	report *replayReport,
+) (resp abci.ResponseDeliverTx, skip bool) {
+	stdTx := tx.Tx
+	metadata := tx.Metadata
+
+	var ctxFn sdk.ContextFn
+
+	// Check if there is metadata associated with the tx
+	if metadata != nil {
+		ctxFn = func(ctx sdk.Context) sdk.Context {
+			header := ctx.BlockHeader().(*bft.Header).Copy()
+			if metadata.Timestamp != 0 {
+				header.Time = time.Unix(metadata.Timestamp, 0)
+			}
+			if metadata.BlockHeight > 0 {
+				header.Height = metadata.BlockHeight
+			}
+
+			ctx = ctx.WithBlockHeader(header)
+
+			// For historical txs (BlockHeight > 0), override the chain ID
+			// for signature verification using the per-tx ChainID, provided
+			// it is in the genesis allowlist. This allows replaying txs from
+			// multiple past chains during a hard fork.
+			if metadata.BlockHeight > 0 && metadata.ChainID != "" && isPastChainID(pastChainIDs, metadata.ChainID) {
+				ctx = ctx.WithChainID(metadata.ChainID)
+			}
+
+			// GasReplayMode="source": bypass the new VM's gas meter for
+			// historical txs so outcomes match the source chain even when
+			// gas metering changed.
+			if gasReplayMode == "source" && metadata.BlockHeight > 0 {
+				ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
+			}
+
+			return ctx
+		}
+	}
+
+	// Genesis-mode txs (no metadata) were signed with the original chain
+	// ID. During a hardfork (PastChainIDs is set), verify their
+	// signatures against the original chain ID. Migration txs
+	// (metadata != nil with BlockHeight == 0) carry their own per-tx
+	// settings via metadata and are handled in the first branch above;
+	// excluding them here prevents the previous overwrite bug where
+	// this assignment stomped the metadata-driven Timestamp override.
+	//
+	// Compose with any prior ctxFn so future broadening of the
+	// predicate cannot silently regress.
+	if metadata == nil && len(pastChainIDs) > 0 {
+		originalChainID := pastChainIDs[0]
+		prev := ctxFn
+		ctxFn = func(ctx sdk.Context) sdk.Context {
+			if prev != nil {
+				ctx = prev(ctx)
+			}
+			return ctx.WithChainID(originalChainID)
+		}
+	}
+
+	// For historical txs with signer metadata, force-set account state
+	// so signature verification succeeds even if prior txs diverged.
+	// Uses pre-tx sequence — the value the signature was signed with.
+	//
+	// Invariant: SignerInfo is only populated by the export tool for historical
+	// txs (BlockHeight > 0). Genesis-mode txs (BlockHeight == 0) must never
+	// carry SignerInfo — if they did, the force-set would corrupt fresh account
+	// state. The BlockHeight > 0 guard enforces this.
+	if metadata != nil && metadata.BlockHeight > 0 && len(metadata.SignerInfo) > 0 {
+		for _, si := range metadata.SignerInfo {
+			acc := cfg.acck.GetAccount(ctx, si.Address)
+			if acc == nil {
+				// Account doesn't exist yet, create with specific account
+				// number, bypassing the auto-increment counter. Uniqueness
+				// of (Address, AccountNum) is enforced by the
+				// validateSignerInfo preflight above; the keeper does not
+				// re-check.
+				acc = cfg.acck.NewAccountWithUncheckedNumber(ctx, si.Address, si.AccountNum)
+			} else {
+				acc.SetAccountNumber(si.AccountNum)
+			}
+			acc.SetSequence(si.Sequence)
+			cfg.acck.SetAccount(ctx, acc)
+		}
+	}
+
+	// Failed txs: pre-tx sequence already set above. Skip execution —
+	// re-executing failed txs could cause double spends or unexpected
+	// behavior if the VM fix makes them succeed. The next tx's force-set
+	// will handle the correct sequence state.
+	// Response carries an explicit error so downstream consumers
+	// (indexers, explorers) don't mistake a skipped failed tx for a
+	// successful one.
+	if metadata != nil && metadata.Failed {
+		report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
+		return abci.ResponseDeliverTx{
+			ResponseBase: abci.ResponseBase{
+				Error: abci.StringError("replay skipped: tx failed on source chain"),
+				Log:   "genesis replay: skipped failed tx from source chain",
+			},
+		}, true
+	}
+
+	res := cfg.baseApp.Deliver(stdTx, ctxFn)
+	if res.IsErr() {
+		ctx.Logger().Error(
+			"Unable to deliver genesis tx",
+			"log", res.Log,
+			"error", res.Error,
+			"gas-used", res.GasUsed,
+		)
+	}
+
+	report.recordDeliverResult(txIdx, metadata, res)
+	cfg.GenesisTxResultHandler(ctx, stdTx, res)
+	return abci.ResponseDeliverTx{
+		ResponseBase: res.ResponseBase,
+		GasWanted:    res.GasWanted,
+		GasUsed:      res.GasUsed,
+	}, false
 }
 
 // validatorsV3PkgPath is the realm whose AssertGenesisValopersConsistent
