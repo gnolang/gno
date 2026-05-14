@@ -7,8 +7,6 @@
 package loci
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/nt/avl/v0"
 )
 
@@ -25,10 +23,17 @@ func New() *LociStore {
 	}
 }
 
-// Set stores a byte slice in the AVL tree using the `runtime.PreviousRealm().Address()`
-// string as the key.
-func (s *LociStore) Set(value []byte) {
-	key := string(runtime.PreviousRealm().Address())
+// Set stores a byte slice in the AVL tree using `rlm.Previous().Address()`
+// as the key. rlm must be the caller's own captured cur (asserted via
+// rlm.IsCurrent()); the previous walk used to be runtime.PreviousRealm()
+// which is forgeable from non-crossing wrappers — an attacker realm
+// could overwrite another realm's slot. With IsCurrent + rlm.Previous(),
+// the slot key is unforgeable.
+func (s *LociStore) Set(_ int, rlm realm, value []byte) {
+	if !rlm.IsCurrent() {
+		panic("loci: rlm does not match the current crossing frame")
+	}
+	key := string(rlm.Previous().Address())
 	s.internal.Set(key, value)
 }
 
