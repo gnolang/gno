@@ -119,7 +119,11 @@ func TestAnswerFormInvalidForm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formID, err := db.CreateForm("Test Form", "Test Description", "", "", tt.data)
+			var formID string
+			var err error
+			func(cur realm) {
+				formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", tt.data)
+			}(cross)
 			if err != nil {
 				t.Error(err)
 			}
@@ -135,7 +139,7 @@ func TestAnswerFormInvalidForm(t *testing.T) {
 				}
 			}()
 
-			db.SubmitForm(formID, tt.answer)
+			func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross)
 		})
 	}
 }

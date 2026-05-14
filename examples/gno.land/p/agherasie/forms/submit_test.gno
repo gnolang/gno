@@ -40,12 +40,16 @@ func TestAnswerForm(t *testing.T) {
 		}
 	]`
 
-	formID, err := db.CreateForm("Test Form", "Test Description", "", "", data)
+	var formID string
+	var err error
+	func(cur realm) {
+		formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", data)
+	}(cross)
 	if err != nil {
 		t.Error(err)
 	}
 	answers := `["Alex", 21, true, 0, [0, 1]]`
-	db.SubmitForm(formID, answers)
+	func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross)
 
 	urequire.True(t, len(db.Answers) == 1, "Expected 1 answer, got", string(len(db.Answers)))
 	urequire.True(t, db.Answers[0].FormID == formID, "Expected form ID", formID, "got", db.Answers[0].FormID)
@@ -71,26 +75,38 @@ func TestAnswerFormDates(t *testing.T) {
 	answers := `["Test"]`
 
 	urequire.PanicsWithMessage(t, "Form is closed", func() {
-		formID, err := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
+		var formID string
+		var err error
+		func(cur realm) {
+			formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", tomorrow, "", data)
+		}(cross)
 		if err != nil {
 			t.Error(err)
 		}
-		db.SubmitForm(formID, answers)
+		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross)
 	})
 
 	urequire.PanicsWithMessage(t, "Form is closed", func() {
-		formID, err := db.CreateForm("Test Form", "Test Description", "", yesterday, data)
+		var formID string
+		var err error
+		func(cur realm) {
+			formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", yesterday, data)
+		}(cross)
 		if err != nil {
 			t.Error(err)
 		}
-		db.SubmitForm(formID, answers)
+		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross)
 	})
 
 	urequire.NotPanics(t, func() {
-		formID, err := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
+		var formID string
+		var err error
+		func(cur realm) {
+			formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", yesterday, tomorrow, data)
+		}(cross)
 		if err != nil {
 			panic(err)
 		}
-		db.SubmitForm(formID, answers)
+		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross)
 	})
 }

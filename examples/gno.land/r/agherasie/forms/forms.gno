@@ -14,8 +14,8 @@ func init() {
 	db = forms.NewDB()
 }
 
-func CreateForm(_ realm, title string, description string, openAt string, closeAt string, data string) string {
-	id, err := db.CreateForm(title, description, openAt, closeAt, data)
+func CreateForm(cur realm, title string, description string, openAt string, closeAt string, data string) string {
+	id, err := db.CreateForm(0, cur, title, description, openAt, closeAt, data)
 	if err != nil {
 		panic(err)
 	}
@@ -88,13 +88,13 @@ func GetAnswer(formID string, authorID string) string {
 	return answer.Answers
 }
 
-func SubmitForm(_ realm, formID string, answers string) {
+func SubmitForm(cur realm, formID string, answers string) {
 	_, err := db.GetForm(formID)
 	if err != nil {
 		panic(err)
 	}
 
-	db.SubmitForm(formID, answers)
+	db.SubmitForm(0, cur, formID, answers)
 }
 
 func Render(_ string) string {

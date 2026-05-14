@@ -46,7 +46,11 @@ func TestCreateForm(t *testing.T) {
 	]`
 
 	urequire.NotPanics(t, func() {
-		id, err := db.CreateForm(title, description, openAt, closeAt, data)
+		var id string
+		var err error
+		func(cur realm) {
+			id, err = db.CreateForm(0, cur, title, description, openAt, closeAt, data)
+		}(cross)
 		if err != nil {
 			panic(err)
 		}
