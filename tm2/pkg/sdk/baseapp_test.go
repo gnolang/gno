@@ -1351,3 +1351,74 @@ func TestSetHaltHeight(t *testing.T) {
 	app.SetHaltHeight(0)
 	require.Equal(t, uint64(0), app.haltHeight)
 }
+
+// TestInitChain_SetsInitialVersion verifies that BaseApp.InitChain with
+// req.InitialHeight > 1 propagates SetInitialVersion to the multistore so
+// the next Commit lands at version=InitialHeight (multistore version =
+// chain height; no offset).
+func TestInitChain_SetsInitialVersion(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(100)
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain", InitialHeight: initialHeight})
+
+	// First block at InitialHeight.
+	app.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+	})
+	app.EndBlock(abci.RequestEndBlock{Height: initialHeight})
+	app.deliverState.ctx = app.deliverState.ctx.WithBlockHeader(&bft.Header{
+		ChainID: "test-chain",
+		Height:  initialHeight,
+	})
+	app.Commit()
+
+	assert.Equal(t, initialHeight, app.LastBlockHeight(),
+		"LastBlockHeight should equal InitialHeight after first Commit")
+}
+
+// TestBeginBlock_NoStatelessContiguityGuard documents that BaseApp no
+// longer rejects non-contiguous BeginBlock heights at the stateless
+// SDK layer (validateHeight was removed in the version-parity refactor).
+// Contiguity is now an upstream invariant enforced by the consensus
+// engine via state.ValidateBlock and the BlockStore.
+//
+// This test pins the resulting BaseApp behavior: a caller that reaches
+// BeginBlock with a non-contiguous header is accepted at the SDK layer.
+// If that ever needs to change (e.g., as belt-and-suspenders against
+// a non-cometbft consensus engine, or fuzzers driving BaseApp directly),
+// this test is the canary that flips first.
+func TestBeginBlock_NoStatelessContiguityGuard(t *testing.T) {
+	t.Parallel()
+
+	const initialHeight = int64(1000)
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain", InitialHeight: initialHeight})
+
+	// First block at InitialHeight is the documented happy path.
+	require.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight},
+		})
+	})
+	app.EndBlock(abci.RequestEndBlock{Height: initialHeight})
+	app.deliverState.ctx = app.deliverState.ctx.WithBlockHeader(&bft.Header{
+		ChainID: "test-chain",
+		Height:  initialHeight,
+	})
+	app.Commit()
+
+	// A non-contiguous next BeginBlock (skipping +10 instead of +1) is
+	// NOT rejected by BaseApp. Documented behavior post-validateHeight
+	// removal: consensus is the source of contiguity. If a future
+	// refactor reintroduces a stateless guard at the SDK layer, this
+	// expectation flips and the test breaks loudly — that's the point.
+	require.NotPanics(t, func() {
+		app.BeginBlock(abci.RequestBeginBlock{
+			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight + 10},
+		})
+	})
+}
