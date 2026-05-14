@@ -1,10 +1,11 @@
 # End-to-end test for the v3 valset propagation pipeline:
 #
-#   v3.NewProposalRequest(changesFn) -> dao.MustCreateProposal
+#   valopers.Register (operator profile + signing key bound)
+#   -> v3.NewValidatorProposalRequest([]ValoperChange) -> dao.MustCreateProposal
 #   -> member votes YES
 #   -> dao.ExecuteProposal
-#   -> v3 callback applies changes to in-realm PoA
-#   -> v3 callback writes valset:proposed + valset:dirty=true
+#   -> v3 executor re-resolves operator -> signing pubkey via valoperCache
+#   -> v3 executor writes valset:proposed + valset:dirty=true
 #   -> EndBlocker (next block) reads dirty, diffs current vs proposed,
 #      emits ValidatorUpdates, writes valset:current = proposed
 #
@@ -25,6 +26,7 @@ stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
 
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/v3/impl
 
@@ -43,24 +45,28 @@ stdout 'gpub1'
 ! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
 
 # Submit a v3 proposal to add a new validator (deterministic ed25519
-# pubkey from seed "e2e-valset-test-validator-seed-v1").
-gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+# pubkey from seed "e2e-valset-test-validator-seed-v1"). The script
+# first registers a valoper profile (operator = member, signing key
+# = the new pubkey) so v3's valoperCache has the entry the executor
+# will resolve at execution time.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 68_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # Sanity: proposal is in gov/dao at id 0. The proposal text shows
-# the validator's address derived from the new pubkey.
+# the operator address (member, who registered the valoper) and the
+# new operator-keyed format including power.
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout 'g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9: add'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0: add \(power 1\)'
 
 # Vote YES.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # Execute. v3 callback runs -> SetValsetProposal writes proposed +
 # dirty=true. The execute tx itself is a block; EndBlocker at the
 # end of THAT block reads dirty=true, computes diff, writes
 # valset:current = proposed, emits ValidatorUpdates.
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 24_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # Post-EndBlocker state: valset:current must now contain BOTH the
@@ -83,35 +89,41 @@ stdout 'false'
 # self-transfer. If the chain stalled at H+2 because the new
 # validator can't sign, this maketx would time out. A successful
 # OK! proves consensus made progress through the transition.
-gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
 stdout OK!
 
 -- proposer/create_proposal.gno --
 package main
 
 import (
-	pVals "gno.land/p/sys/validators"
+	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	v3 "gno.land/r/sys/validators/v3"
 )
 
 func main() {
+	// member's address — used as the OPERATOR address of the valoper
+	// profile (squat guard requires OriginCaller == operator addr).
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+
 	// Deterministic ed25519 pubkey from seed "e2e-valset-test-validator-seed-v1".
-	// Stable across test runs so we can grep for it post-EndBlock.
-	const (
-		newAddr   = "g1rz5cpd8kcm0x36us8fccsq5wsf3kdgpzdwfkk9"
-		newPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	// This is the SIGNING key that ends up in valset:current after
+	// proposal execution.
+	const newPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+
+	// Step 1: register the valoper profile so v3.valoperCache has
+	// the (operator -> signing pubkey) binding the executor will
+	// resolve at execution time.
+	valopers.Register(cross, "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
+
+	// Step 2: build the operator-keyed proposal. v3's executor reads
+	// valoperCache for op=member at execution time and publishes the
+	// signing pubkey it finds there.
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 1}},
+		"Add e2e-test-validator",
+		"regression for v3 propagation",
 	)
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{
-				Address:     address(newAddr),
-				PubKey:      newPubKey,
-				VotingPower: 1, // small power so genesis (power 10) keeps 91% quorum past H+2
-			},
-		}
-	}
-	pr := v3.NewProposalRequest(changesFn, "Add e2e-test-validator", "regression for v3 propagation")
 	dao.MustCreateProposal(cross, pr)
 }
 

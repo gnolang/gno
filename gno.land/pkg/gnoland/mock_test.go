@@ -175,6 +175,15 @@ type mockAuthKeeper struct{}
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
 	return nil
 }
+
+// NewAccountWithUncheckedNumber returns nil. This mock is only safe in tests
+// where no TxWithMetadata carries SignerInfo. If SignerInfo is present and
+// an account doesn't exist, the replay loop calls this and then calls
+// acc.SetSequence which will panic on a nil return. Use a real
+// AccountKeeper for those tests.
+func (m *mockAuthKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
+	return nil
+}
 func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account     { return nil }
 func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account                    { return nil }
 func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}
