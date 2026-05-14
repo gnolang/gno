@@ -105,10 +105,11 @@ For deeper test patterns see the [Testing guide](../resources/gno-testing.md); a
 fuller version of this counter lives at
 [`examples/gno.land/r/demo/counter`](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter).
 
-### Format and test
+### Format, lint, and test
 
 ```sh
 gno fmt ./...     # rewrite .gno files in canonical style
+gno lint ./...    # static checks for common mistakes
 gno test ./...    # run _test.gno files
 ```
 
@@ -130,8 +131,7 @@ are loaded by default including
 can modify and browse locally.
 
 For more options, see
-[Running a local dev node](./local-dev-with-gnodev.md) and
-[Cheatsheet: Run Locally](../cheatsheet.md#run-locally).
+[Running a local dev node](./local-dev-with-gnodev.md).
 
 ## Deploy to a shared network
 
@@ -146,9 +146,9 @@ target the same network. Pick one up front and keep `-remote` (and
 |------------|------------|--------------------------------------------|
 | Local      | `dev`      | `http://localhost:26657`                   |
 | Staging    | `staging`  | `https://rpc.staging.gno.land:443`         |
-| Testnet    | `testN`    | `https://rpc.testN.testnets.gno.land:443`  |
+| Testnet    | `testN`    | `https://rpc.<chainid>.testnets.gno.land:443` |
 
-Replace `testN` with the current testnet chainid (e.g. `test13`) — see
+Replace `testN`/`<chainid>` with the current testnet chainid (e.g. `test13`) — see
 [Networks](../resources/gnoland-networks.md) for the full list, the
 active testnet and mainnet status.
 
@@ -255,9 +255,7 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**
-(or `https://testN.testnets.gno.land/r/...` on the current testnet).
-For a full flag reference, see
-[Cheatsheet: Deploy a Package](../cheatsheet.md#deploy-a-package).
+(or `https://<chainid>.testnets.gno.land/r/...` on the current testnet).
 
 ### 6. Call your realm
 
@@ -296,8 +294,7 @@ gnokey query vm/qrender \
 
 This returns the `Render` output ("Count: 5") — a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
-reference, see [Cheatsheet: Call a Function](../cheatsheet.md#call-a-function)
-and [Interact with gnokey](../users/interact-with-gnokey.md).
+reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 

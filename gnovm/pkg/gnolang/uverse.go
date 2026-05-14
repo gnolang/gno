@@ -226,7 +226,11 @@ func UverseNode() *PackageNode {
 		makeUverseNode()
 		uverseInit = uverseInitialized
 	case uverseInitializing:
-		return &PackageNode{}
+		// Return an empty stub; set location so debug code
+		// can identify it as the uverse package.
+		pn := &PackageNode{}
+		pn.SetLocation(PackageNodeLocation(uversePkgPath))
+		return pn
 	}
 
 	return uverseNode
@@ -693,6 +697,9 @@ func makeUverseNode() {
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
+				if arg0.TV.V == nil {
+					return // delete on nil map is a no-op, matching Go behavior.
+				}
 				mv := arg0.TV.V.(*MapValue)
 
 				if m.IsReadonly(arg0.TV) {

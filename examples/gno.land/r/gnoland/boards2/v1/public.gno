@@ -18,8 +18,13 @@ const (
 	// MaxThreadTitleLength defines the maximum length allowed for thread titles.
 	MaxThreadTitleLength = 100
 
+	// MaxThreadBodyLength defines the maximum length allowed for thread bodies.
+	// 40,000 mirrors Reddit's self-post body cap.
+	MaxThreadBodyLength = 40000
+
 	// MaxReplyLength defines the maximum length allowed for replies.
-	MaxReplyLength = 1000
+	// 10,000 mirrors Reddit's comment cap.
+	MaxReplyLength = 10000
 )
 
 var (
@@ -223,6 +228,7 @@ func CreateThread(_ realm, boardID boards.ID, title, body string) boards.ID {
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
+	assertThreadBodyIsValid(body)
 
 	caller := runtime.PreviousRealm().Address()
 	assertUserIsNotBanned(boardID, caller)
@@ -318,6 +324,7 @@ func CreateRepost(_ realm, boardID, threadID, destinationBoardID boards.ID, titl
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
+	assertThreadBodyIsValid(body)
 
 	caller := runtime.PreviousRealm().Address()
 	assertUserIsNotBanned(destinationBoardID, caller)
@@ -479,6 +486,7 @@ func EditThread(_ realm, boardID, threadID boards.ID, title, body string) {
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
+	assertThreadBodyIsValid(body)
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
@@ -766,6 +774,13 @@ func assertThreadIsVisible(thread *boards.Post) {
 func assertReplyIsVisible(thread *boards.Post) {
 	if thread.Hidden {
 		panic("reply is hidden")
+	}
+}
+
+func assertThreadBodyIsValid(body string) {
+	if len(body) > MaxThreadBodyLength {
+		n := strconv.Itoa(MaxThreadBodyLength)
+		panic("thread body is too long, maximum allowed is " + n + " characters")
 	}
 }
 

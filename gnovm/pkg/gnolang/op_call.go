@@ -232,12 +232,21 @@ func (m *Machine) doOpCall() {
 }
 
 func (m *Machine) doOpCallNativeBody() {
-	m.LastFrame().Func.nativeBody(m)
+	fv := m.LastFrame().Func
+	gi := m.chargeNativeGas(fv)
+	fv.nativeBody(m)
+	if gi != nil {
+		m.chargeNativeGasPost(gi)
+	}
 }
 
 func (m *Machine) doOpCallDeferNativeBody() {
 	fv := m.PopValue().V.(*FuncValue)
+	gi := m.chargeNativeGas(fv)
 	fv.nativeBody(m)
+	if gi != nil {
+		m.chargeNativeGasPost(gi)
+	}
 }
 
 // Used by return and panic operation handlers.
@@ -562,6 +571,11 @@ func (m *Machine) doOpDefer() {
 // TODO: deprecate UnhandledPanicError and just use the Exception.
 // (use a field to mark transaction abort)
 func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
+	if m.BoundedPanicRender {
+		return UnhandledPanicError{
+			Descriptor: BoundedSprintException(m.Exception, m, BoundedRenderBytes),
+		}
+	}
 	numExceptions := m.Exception.NumExceptions()
 	exs := make([]string, numExceptions)
 	last := m.Exception
