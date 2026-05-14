@@ -6,8 +6,6 @@
 package authorizable
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -84,14 +82,26 @@ func (a *Authorizable) deleteFromAuthList(addr address) error {
 	return nil
 }
 
-func (a *Authorizable) OnAuthList() error {
-	current := runtime.CurrentRealm().Address()
-	return a.onAuthList(current)
+// OnAuthList reports whether rlm.Address() is on the auth list. rlm
+// must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// Pre-migration shape used runtime.CurrentRealm().Address() — vulnerable
+// to the .Title()-class read where a non-crossing wrapper made the walk
+// return the wrong realm. Explicit rlm closes that.
+func (a *Authorizable) OnAuthList(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrNotInAuthList
+	}
+	return a.onAuthList(rlm.Address())
 }
 
-func (a *Authorizable) PreviousOnAuthList() error {
-	previous := runtime.PreviousRealm().Address()
-	return a.onAuthList(previous)
+// PreviousOnAuthList reports whether rlm.Previous().Address() — the
+// realm that crossed into the caller — is on the auth list. Same rlm
+// contract as OnAuthList.
+func (a *Authorizable) PreviousOnAuthList(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrNotInAuthList
+	}
+	return a.onAuthList(rlm.Previous().Address())
 }
 
 func (a *Authorizable) onAuthList(caller address) error {
@@ -101,16 +111,14 @@ func (a *Authorizable) onAuthList(caller address) error {
 	return nil
 }
 
-func (a Authorizable) AssertOnAuthList() {
-	err := a.OnAuthList()
-	if err != nil {
+func (a Authorizable) AssertOnAuthList(_ int, rlm realm) {
+	if err := a.OnAuthList(0, rlm); err != nil {
 		panic(err)
 	}
 }
 
-func (a Authorizable) AssertPreviousOnAuthList() {
-	err := a.PreviousOnAuthList()
-	if err != nil {
+func (a Authorizable) AssertPreviousOnAuthList(_ int, rlm realm) {
+	if err := a.PreviousOnAuthList(0, rlm); err != nil {
 		panic(err)
 	}
 }

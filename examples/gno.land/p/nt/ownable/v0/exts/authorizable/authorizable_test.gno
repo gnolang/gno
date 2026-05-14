@@ -25,20 +25,22 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestOnAuthList(t *testing.T) {
+func TestOnAuthList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
-	if err := a.OnAuthList(); err == ErrNotInAuthList {
+	// After SetRealm, cur is the test-frame HIV with addr=alice;
+	// OnAuthList reports on rlm.Address() (i.e. cur.Address()).
+	if err := a.OnAuthList(0, cur); err == ErrNotInAuthList {
 		t.Fatalf("expected alice to be on the list")
 	}
 }
 
-func TestNotOnAuthList(t *testing.T) {
+func TestNotOnAuthList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(bob))
 
-	if err := a.OnAuthList(); err == nil {
+	if err := a.OnAuthList(0, cur); err == nil {
 		t.Fatalf("expected bob to not be on the list")
 	}
 }
@@ -89,12 +91,12 @@ func TestDeleteFromList(t *testing.T) {
 	}
 }
 
-func TestAssertOnList(t *testing.T) {
+func TestAssertOnList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 
 	uassert.PanicsWithMessage(t, ErrNotInAuthList.Error(), func() {
-		a.AssertOnAuthList()
+		a.AssertOnAuthList(0, cur)
 	})
 }

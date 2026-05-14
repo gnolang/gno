@@ -212,7 +212,7 @@ func UpdateMoniker(cur realm, addr address, moniker string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update the moniker.
 	v.Moniker = moniker
@@ -231,7 +231,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update the description.
 	v.Description = description
@@ -246,7 +246,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update status.
 	v.KeepRunning = keepRunning
@@ -268,7 +268,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update server type.
 	v.ServerType = serverType
@@ -304,7 +304,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v := GetByAddr(addr)
 
 	// Auth: caller must be on operator's auth list.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Throttle: limit one rotation per rotation_period_blocks per
 	// operator (per profile, not per caller — multi-member auth lists
