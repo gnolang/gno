@@ -14,16 +14,16 @@ type daoPublic struct {
 	impl *DAOPrivate
 }
 
-func (d *daoPublic) Propose(req daokit.ProposalRequest) uint64 {
-	return d.impl.Propose(req)
+func (d *daoPublic) Propose(_ int, rlm realm, req daokit.ProposalRequest) uint64 {
+	return d.impl.Propose(0, rlm, req)
 }
 
-func (d *daoPublic) Execute(id uint64) {
-	d.impl.Execute(id)
+func (d *daoPublic) Execute(_ int, rlm realm, id uint64) {
+	d.impl.Execute(0, rlm, id)
 }
 
-func (d *daoPublic) Vote(id uint64, vote daocond.Vote) {
-	d.impl.Vote(id, vote)
+func (d *daoPublic) Vote(_ int, rlm realm, id uint64, vote daocond.Vote) {
+	d.impl.Vote(0, rlm, id, vote)
 }
 
 // DAOPrivate is meant for internal realm usage and should not be exposed
@@ -136,27 +136,33 @@ func New(conf *Config) (daokit.DAO, *DAOPrivate) {
 	return &daoPublic{impl: dao}, dao
 }
 
-func (d *DAOPrivate) Vote(proposalID uint64, vote daocond.Vote) {
+func (d *DAOPrivate) Vote(_ int, rlm realm, proposalID uint64, vote daocond.Vote) {
 	if len(vote) > 16 {
 		panic("invalid vote")
 	}
 
-	voterID := d.assertCallerIsMember()
+	voterID := d.assertCallerIsMember(0, rlm)
 	d.Core.Vote(voterID, proposalID, vote)
 }
 
-func (d *DAOPrivate) Execute(proposalID uint64) {
-	_ = d.assertCallerIsMember()
+func (d *DAOPrivate) Execute(_ int, rlm realm, proposalID uint64) {
+	_ = d.assertCallerIsMember(0, rlm)
 	d.Core.Execute(proposalID)
 }
 
-func (d *DAOPrivate) Propose(req daokit.ProposalRequest) uint64 {
-	proposerID := d.assertCallerIsMember()
+func (d *DAOPrivate) Propose(_ int, rlm realm, req daokit.ProposalRequest) uint64 {
+	proposerID := d.assertCallerIsMember(0, rlm)
 	return d.Core.Propose(proposerID, req)
 }
 
-func (d *DAOPrivate) assertCallerIsMember() string {
-	id := runtime.PreviousRealm().Address().String()
+// assertCallerIsMember returns the rlm.Previous().Address() as a string
+// after verifying it's a current DAO member. rlm must be the caller's
+// own captured cur (asserted via rlm.IsCurrent()).
+func (d *DAOPrivate) assertCallerIsMember(_ int, rlm realm) string {
+	if !rlm.IsCurrent() {
+		panic(errors.New("caller is not a member"))
+	}
+	id := rlm.Previous().Address().String()
 	if !d.Members.IsMember(id) {
 		panic(errors.New("caller is not a member"))
 	}

@@ -6,16 +6,21 @@ import (
 	"gno.land/p/samcrew/daocond"
 )
 
+// DAO is the public interface for a DAO. All mutating methods take
+// (_ int, rlm realm) so the implementation can derive the caller's
+// identity from rlm.Previous().Address() under an rlm.IsCurrent()
+// guard — unforgeable, unlike the pre-migration runtime walk path
+// where a non-crossing wrapper could spoof the principal.
 type DAO interface {
-	Propose(req ProposalRequest) uint64
-	Execute(id uint64)
-	Vote(id uint64, vote daocond.Vote)
+	Propose(_ int, rlm realm, req ProposalRequest) uint64
+	Execute(_ int, rlm realm, id uint64)
+	Vote(_ int, rlm realm, id uint64, vote daocond.Vote)
 }
 
-func InstantExecute(d DAO, req ProposalRequest) uint64 {
-	id := d.Propose(req)
-	d.Vote(id, daocond.VoteYes)
-	d.Execute(id)
+func InstantExecute(_ int, rlm realm, d DAO, req ProposalRequest) uint64 {
+	id := d.Propose(0, rlm, req)
+	d.Vote(0, rlm, id, daocond.VoteYes)
+	d.Execute(0, rlm, id)
 	return id
 }
 

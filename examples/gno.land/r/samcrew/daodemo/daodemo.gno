@@ -51,12 +51,12 @@ func init() {
 	})
 }
 
-func Vote(proposalID uint64, vote daocond.Vote) {
-	DAO.Vote(proposalID, vote)
+func Vote(cur realm, proposalID uint64, vote daocond.Vote) {
+	DAO.Vote(0, cur, proposalID, vote)
 }
 
-func Execute(proposalID uint64) {
-	DAO.Execute(proposalID)
+func Execute(cur realm, proposalID uint64) {
+	DAO.Execute(0, cur, proposalID)
 }
 
 func Render(path string) string {
