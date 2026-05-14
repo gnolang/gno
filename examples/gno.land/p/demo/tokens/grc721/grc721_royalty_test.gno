@@ -22,45 +22,39 @@ func TestSetTokenRoyalty(t *testing.T) {
 
 	dummy.mint(addr1, TokenID("1"))
 
-	testing.SetRealm(testing.NewUserRealm(addr1))
-	func(cur realm) {
-		derr := dummy.SetTokenRoyalty(0, cur, TokenID("1"), RoyaltyInfo{
-			PaymentAddress: paymentAddress,
-			Percentage:     percentage,
-		})
-		uassert.NoError(t, derr, "Should not result in error")
+	derr := dummy.SetTokenRoyalty(addr1, TokenID("1"), RoyaltyInfo{
+		PaymentAddress: paymentAddress,
+		Percentage:     percentage,
+	})
+	uassert.NoError(t, derr, "Should not result in error")
 
-		// Test case: Invalid token ID
-		err := dummy.SetTokenRoyalty(0, cur, TokenID("3"), RoyaltyInfo{
-			PaymentAddress: paymentAddress,
-			Percentage:     percentage,
-		})
-		uassert.ErrorIs(t, err, ErrInvalidTokenId)
+	// Test case: Invalid token ID
+	err := dummy.SetTokenRoyalty(addr1, TokenID("3"), RoyaltyInfo{
+		PaymentAddress: paymentAddress,
+		Percentage:     percentage,
+	})
+	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
-		// Test case: Invalid payment address
-		aerr := dummy.SetTokenRoyalty(0, cur, TokenID("4"), RoyaltyInfo{
-			PaymentAddress: address("###"), // invalid address
-			Percentage:     percentage,
-		})
-		uassert.ErrorIs(t, aerr, ErrInvalidRoyaltyPaymentAddress)
+	// Test case: Invalid payment address
+	aerr := dummy.SetTokenRoyalty(addr1, TokenID("4"), RoyaltyInfo{
+		PaymentAddress: address("###"), // invalid address
+		Percentage:     percentage,
+	})
+	uassert.ErrorIs(t, aerr, ErrInvalidRoyaltyPaymentAddress)
 
-		// Test case: Invalid percentage
-		perr := dummy.SetTokenRoyalty(0, cur, TokenID("5"), RoyaltyInfo{
-			PaymentAddress: paymentAddress,
-			Percentage:     int64(200), // over maxRoyaltyPercentage
-		})
-		uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
-	}(cross)
+	// Test case: Invalid percentage
+	perr := dummy.SetTokenRoyalty(addr1, TokenID("5"), RoyaltyInfo{
+		PaymentAddress: paymentAddress,
+		Percentage:     int64(200), // over maxRoyaltyPercentage
+	})
+	uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
 
 	// addr2 is not the owner.
-	testing.SetRealm(testing.NewUserRealm(addr2))
-	func(cur realm) {
-		cerr := dummy.SetTokenRoyalty(0, cur, TokenID("1"), RoyaltyInfo{
-			PaymentAddress: paymentAddress,
-			Percentage:     percentage,
-		})
-		uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
-	}(cross)
+	cerr := dummy.SetTokenRoyalty(addr2, TokenID("1"), RoyaltyInfo{
+		PaymentAddress: paymentAddress,
+		Percentage:     percentage,
+	})
+	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	dummyPaymentAddress, dummyRoyaltyAmount, rerr := dummy.RoyaltyInfo(TokenID("1"), salePrice)
 	uassert.NoError(t, rerr, "RoyaltyInfo error")

@@ -71,10 +71,11 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 	return uri.(string), nil
 }
 
-// SetTokenURI sets the URI of a token. rlm must be the caller's own
-// captured cur (asserted via rlm.IsCurrent()); rlm.Previous().Address()
-// must equal the token's owner.
-func (s *basicNFT) SetTokenURI(_ int, rlm realm, tid TokenID, tURI TokenURI) (bool, error) {
+// SetTokenURI sets the URI of a token. caller must equal the token's
+// owner. The owning realm's public wrapper is responsible for deriving
+// caller from rlm.Previous().Address() under an rlm.IsCurrent() guard
+// before invoking this method; this method trusts the supplied caller.
+func (s *basicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
 	// check for invalid TokenID
 	if !s.exists(tid) {
 		return false, ErrInvalidTokenId
@@ -85,10 +86,7 @@ func (s *basicNFT) SetTokenURI(_ int, rlm realm, tid TokenID, tURI TokenURI) (bo
 	if err != nil {
 		return false, err
 	}
-	if !rlm.IsCurrent() {
-		return false, ErrCallerIsNotOwner
-	}
-	if rlm.Previous().Address() != owner {
+	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
 	s.tokenURIs.Set(tid.String(), tURI.String())
@@ -107,10 +105,11 @@ func (s *basicNFT) IsApprovedForAll(owner, operator address) bool {
 	return approved.(bool)
 }
 
-// Approve approves the input address for a particular token. rlm must
-// be the caller's own captured cur; rlm.Previous().Address() must be
-// the owner OR an operator approved for all on owner's behalf.
-func (s *basicNFT) Approve(_ int, rlm realm, to address, tid TokenID) error {
+// Approve approves the input address for a particular token. caller
+// must be the owner OR an operator approved for all on owner's behalf.
+// The owning realm's wrapper validates IsCurrent and derives caller
+// from rlm.Previous().Address() before calling.
+func (s *basicNFT) Approve(caller, to address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -123,10 +122,6 @@ func (s *basicNFT) Approve(_ int, rlm realm, to address, tid TokenID) error {
 		return ErrApprovalToCurrentOwner
 	}
 
-	if !rlm.IsCurrent() {
-		return ErrCallerIsNotOwnerOrApproved
-	}
-	caller := rlm.Previous().Address()
 	if caller != owner && !s.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -156,30 +151,22 @@ func (s *basicNFT) GetApproved(tid TokenID) (address, error) {
 }
 
 // SetApprovalForAll grants/revokes operator permission across all of
-// the caller's tokens. rlm must be the caller's own captured cur; the
-// owner whose approvals are mutated is rlm.Previous().Address().
-func (s *basicNFT) SetApprovalForAll(_ int, rlm realm, operator address, approved bool) error {
+// the caller's tokens. caller is the owner whose approvals are mutated;
+// the owning realm's wrapper derives it from rlm.Previous().Address()
+// under an IsCurrent() guard.
+func (s *basicNFT) SetApprovalForAll(caller, operator address, approved bool) error {
 	if err := isValidAddress(operator); err != nil {
 		return ErrInvalidAddress
 	}
-
-	if !rlm.IsCurrent() {
-		return ErrCallerIsNotOwnerOrApproved
-	}
-	caller := rlm.Previous().Address()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
 // SafeTransferFrom transfers a token from `from` to `to`, checking that
 // contract recipients are aware of the GRC721 protocol to prevent
-// tokens from being forever locked. rlm must be the caller's own
-// captured cur; rlm.Previous().Address() must be the owner or an
-// approved operator.
-func (s *basicNFT) SafeTransferFrom(_ int, rlm realm, from, to address, tid TokenID) error {
-	if !rlm.IsCurrent() {
-		return ErrCallerIsNotOwnerOrApproved
-	}
-	caller := rlm.Previous().Address()
+// tokens from being forever locked. caller must be the owner or an
+// approved operator. The owning realm's wrapper derives caller from
+// rlm.Previous().Address() under an IsCurrent() guard.
+func (s *basicNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -196,13 +183,9 @@ func (s *basicNFT) SafeTransferFrom(_ int, rlm realm, from, to address, tid Toke
 	return nil
 }
 
-// TransferFrom transfers a token from `from` to `to`. Same rlm contract
-// as SafeTransferFrom.
-func (s *basicNFT) TransferFrom(_ int, rlm realm, from, to address, tid TokenID) error {
-	if !rlm.IsCurrent() {
-		return ErrCallerIsNotOwnerOrApproved
-	}
-	caller := rlm.Previous().Address()
+// TransferFrom transfers a token from `from` to `to`. Same caller
+// contract as SafeTransferFrom.
+func (s *basicNFT) TransferFrom(caller, from, to address, tid TokenID) error {
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -439,8 +422,11 @@ func (s *basicNFT) RenderHome() (str string) {
 	return
 }
 
+// Getter returns an NFTGetter that yields a reader-only view of the NFT.
+// Safe to register with cross-realm aggregators like tokenhub — readers
+// only, no rlm-typed methods, so no cur can be captured via this surface.
 func (n *basicNFT) Getter() NFTGetter {
-	return func() IGRC721 {
+	return func() IGRC721Reader {
 		return n
 	}
 }

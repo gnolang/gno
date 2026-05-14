@@ -59,22 +59,34 @@ func GetApproved(tid grc721.TokenID) address {
 
 // Setters
 
+// The Approve / SetApprovalForAll / TransferFrom wrappers are the
+// owning realm's trusted boundary: they derive `caller` from
+// `cur.Previous().Address()` (unforgeable per-frame identity) and
+// hand the address-typed parameter to the concrete writer methods on
+// the unexported `foo *basicNFT`. The basicNFT writer methods take
+// `caller address` only — no rlm crosses the call, so even if the
+// underlying type were ever exposed as an interface, no cur could
+// leak through. See `p/demo/tokens/grc721/igrc721.gno` for the
+// Reader/Writer split doctrine.
 func Approve(cur realm, user address, tid grc721.TokenID) {
-	err := foo.Approve(0, cur, user, tid)
+	caller := cur.Previous().Address()
+	err := foo.Approve(caller, user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func SetApprovalForAll(cur realm, user address, approved bool) {
-	err := foo.SetApprovalForAll(0, cur, user, approved)
+	caller := cur.Previous().Address()
+	err := foo.SetApprovalForAll(caller, user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
-	err := foo.TransferFrom(0, cur, from, to, tid)
+	caller := cur.Previous().Address()
+	err := foo.TransferFrom(caller, from, to, tid)
 	if err != nil {
 		panic(err)
 	}

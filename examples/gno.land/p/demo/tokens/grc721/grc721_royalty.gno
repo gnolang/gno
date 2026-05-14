@@ -29,9 +29,9 @@ func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 }
 
 // SetTokenRoyalty sets the royalty information for a specific token ID.
-// rlm must be the caller's own captured cur; rlm.Previous().Address()
-// must be the token's owner.
-func (r *royaltyNFT) SetTokenRoyalty(_ int, rlm realm, tid TokenID, royaltyInfo RoyaltyInfo) error {
+// caller must equal the token's owner; the owning realm's wrapper
+// derives caller from rlm.Previous().Address() under IsCurrent.
+func (r *royaltyNFT) SetTokenRoyalty(caller address, tid TokenID, royaltyInfo RoyaltyInfo) error {
 	// Validate the payment address
 	if err := isValidAddress(royaltyInfo.PaymentAddress); err != nil {
 		return ErrInvalidRoyaltyPaymentAddress
@@ -47,10 +47,7 @@ func (r *royaltyNFT) SetTokenRoyalty(_ int, rlm realm, tid TokenID, royaltyInfo 
 	if err != nil {
 		return err
 	}
-	if !rlm.IsCurrent() {
-		return ErrCallerIsNotOwner
-	}
-	if rlm.Previous().Address() != owner {
+	if caller != owner {
 		return ErrCallerIsNotOwner
 	}
 

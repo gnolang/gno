@@ -118,16 +118,14 @@ func TestSetApprovalForAll(t *testing.T) {
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	uassert.False(t, isApprovedForAll)
 
-	testing.SetRealm(testing.NewUserRealm(caller))
-	var err error
-	func(cur realm) { err = dummy.SetApprovalForAll(0, cur, addr, true) }(cross)
+	err := dummy.SetApprovalForAll(caller, addr, true)
 	uassert.NoError(t, err, "should not result in error")
 
 	isApprovedForAll = dummy.IsApprovedForAll(caller, addr)
 	uassert.True(t, isApprovedForAll)
 
 	// Test setting approval to false
-	func(cur realm) { err = dummy.SetApprovalForAll(0, cur, addr, false) }(cross)
+	err = dummy.SetApprovalForAll(caller, addr, false)
 	uassert.NoError(t, err, "should not result in error")
 
 	isApprovedForAll = dummy.IsApprovedForAll(caller, addr)
@@ -156,15 +154,12 @@ func TestApprove(t *testing.T) {
 	_, err = dummy.GetApproved(TokenID("1"))
 	uassert.Error(t, err, "should result in error")
 
-	testing.SetRealm(testing.NewUserRealm(alice))
-	func(cur realm) {
-		err = dummy.Approve(0, cur, addr, TokenID("1"))
-		uassert.NoError(t, err, "should not result in error")
+	err = dummy.Approve(alice, addr, TokenID("1"))
+	uassert.NoError(t, err, "should not result in error")
 
-		approvedAddr, err := dummy.GetApproved(TokenID("1"))
-		uassert.NoError(t, err, "should result in error")
-		uassert.Equal(t, addr.String(), approvedAddr.String())
-	}(cross)
+	approvedAddr, err := dummy.GetApproved(TokenID("1"))
+	uassert.NoError(t, err, "should result in error")
+	uassert.Equal(t, addr.String(), approvedAddr.String())
 }
 
 func TestTransferFrom(t *testing.T) {
@@ -178,26 +173,23 @@ func TestTransferFrom(t *testing.T) {
 	dummy.mint(alice, TokenID("1"))
 	dummy.mint(alice, TokenID("2"))
 
-	testing.SetRealm(testing.NewUserRealm(alice))
-	func(cur realm) {
-		err := dummy.TransferFrom(0, cur, alice, addr, TokenID("1"))
-		uassert.NoError(t, err, "should result in error")
+	err := dummy.TransferFrom(alice, alice, addr, TokenID("1"))
+	uassert.NoError(t, err, "should result in error")
 
-		// Check balance of alice after transfer
-		balanceOfAlice, err := dummy.BalanceOf(alice)
-		uassert.NoError(t, err, "should result in error")
-		uassert.Equal(t, int64(1), balanceOfAlice)
+	// Check balance of alice after transfer
+	balanceOfAlice, err := dummy.BalanceOf(alice)
+	uassert.NoError(t, err, "should result in error")
+	uassert.Equal(t, int64(1), balanceOfAlice)
 
-		// Check balance of addr after transfer
-		balanceOfAddr, err := dummy.BalanceOf(addr)
-		uassert.NoError(t, err, "should not result in error")
-		uassert.Equal(t, int64(1), balanceOfAddr)
+	// Check balance of addr after transfer
+	balanceOfAddr, err := dummy.BalanceOf(addr)
+	uassert.NoError(t, err, "should not result in error")
+	uassert.Equal(t, int64(1), balanceOfAddr)
 
-		// Check Owner of transferred Token id
-		owner, err := dummy.OwnerOf(TokenID("1"))
-		uassert.NoError(t, err, "should result in error")
-		uassert.Equal(t, addr.String(), owner.String())
-	}(cross)
+	// Check Owner of transferred Token id
+	owner, err := dummy.OwnerOf(TokenID("1"))
+	uassert.NoError(t, err, "should result in error")
+	uassert.Equal(t, addr.String(), owner.String())
 }
 
 func TestSafeTransferFrom(t *testing.T) {
@@ -211,26 +203,23 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy.mint(alice, TokenID("1"))
 	dummy.mint(alice, TokenID("2"))
 
-	testing.SetRealm(testing.NewUserRealm(alice))
-	func(cur realm) {
-		err := dummy.SafeTransferFrom(0, cur, alice, addr, TokenID("1"))
-		uassert.NoError(t, err, "should not result in error")
+	err := dummy.SafeTransferFrom(alice, alice, addr, TokenID("1"))
+	uassert.NoError(t, err, "should not result in error")
 
-		// Check balance of alice after transfer
-		balanceOfAlice, err := dummy.BalanceOf(alice)
-		uassert.NoError(t, err, "should not result in error")
-		uassert.Equal(t, int64(1), balanceOfAlice)
+	// Check balance of alice after transfer
+	balanceOfAlice, err := dummy.BalanceOf(alice)
+	uassert.NoError(t, err, "should not result in error")
+	uassert.Equal(t, int64(1), balanceOfAlice)
 
-		// Check balance of addr after transfer
-		balanceOfAddr, err := dummy.BalanceOf(addr)
-		uassert.NoError(t, err, "should not result in error")
-		uassert.Equal(t, int64(1), balanceOfAddr)
+	// Check balance of addr after transfer
+	balanceOfAddr, err := dummy.BalanceOf(addr)
+	uassert.NoError(t, err, "should not result in error")
+	uassert.Equal(t, int64(1), balanceOfAddr)
 
-		// Check Owner of transferred Token id
-		owner, err := dummy.OwnerOf(TokenID("1"))
-		uassert.NoError(t, err, "should not result in error")
-		uassert.Equal(t, addr.String(), owner.String())
-	}(cross)
+	// Check Owner of transferred Token id
+	owner, err := dummy.OwnerOf(TokenID("1"))
+	uassert.NoError(t, err, "should not result in error")
+	uassert.Equal(t, addr.String(), owner.String())
 }
 
 func TestMint(t *testing.T) {
@@ -284,21 +273,16 @@ func TestSetTokenURI(t *testing.T) {
 
 	dummy.mint(addr1, TokenID("1"))
 
-	testing.SetRealm(testing.NewUserRealm(addr1))
-	func(cur realm) {
-		_, derr := dummy.SetTokenURI(0, cur, TokenID("1"), TokenURI(tokenURI))
-		uassert.NoError(t, derr, "should not result in error")
+	_, derr := dummy.SetTokenURI(addr1, TokenID("1"), TokenURI(tokenURI))
+	uassert.NoError(t, derr, "should not result in error")
 
-		// Test case: Invalid token ID
-		_, err := dummy.SetTokenURI(0, cur, TokenID("3"), TokenURI(tokenURI))
-		uassert.ErrorIs(t, err, ErrInvalidTokenId)
-	}(cross)
+	// Test case: Invalid token ID
+	_, err := dummy.SetTokenURI(addr1, TokenID("3"), TokenURI(tokenURI))
+	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
-	testing.SetRealm(testing.NewUserRealm(addr2))
-	func(cur realm) {
-		_, cerr := dummy.SetTokenURI(0, cur, TokenID("1"), TokenURI(tokenURI)) // addr2 trying to set URI for token 1
-		uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
-	}(cross)
+	// addr2 trying to set URI for token 1 (not owner)
+	_, cerr := dummy.SetTokenURI(addr2, TokenID("1"), TokenURI(tokenURI))
+	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
 	uassert.NoError(t, err, "TokenURI error")
@@ -326,25 +310,22 @@ func TestIsApprovedOrOwner(t *testing.T) {
 	uassert.True(t, isApprovedOrOwner, "owner should be approved")
 
 	// check operator
-	testing.SetRealm(testing.NewUserRealm(owner))
-	func(cur realm) {
-		err = dummy.SetApprovalForAll(0, cur, operator, true)
-		uassert.NoError(t, err)
-		isApprovedOrOwner = dummy.isApprovedOrOwner(operator, tid)
-		uassert.True(t, isApprovedOrOwner, "operator should be approved")
+	err = dummy.SetApprovalForAll(owner, operator, true)
+	uassert.NoError(t, err)
+	isApprovedOrOwner = dummy.isApprovedOrOwner(operator, tid)
+	uassert.True(t, isApprovedOrOwner, "operator should be approved")
 
-		// check approved
-		err = dummy.Approve(0, cur, approved, tid)
-		uassert.NoError(t, err)
-		isApprovedOrOwner = dummy.isApprovedOrOwner(approved, tid)
-		uassert.True(t, isApprovedOrOwner, "approved address should be approved")
+	// check approved
+	err = dummy.Approve(owner, approved, tid)
+	uassert.NoError(t, err)
+	isApprovedOrOwner = dummy.isApprovedOrOwner(approved, tid)
+	uassert.True(t, isApprovedOrOwner, "approved address should be approved")
 
-		// check other
-		isApprovedOrOwner = dummy.isApprovedOrOwner(other, tid)
-		uassert.False(t, isApprovedOrOwner, "other address should not be approved")
+	// check other
+	isApprovedOrOwner = dummy.isApprovedOrOwner(other, tid)
+	uassert.False(t, isApprovedOrOwner, "other address should not be approved")
 
-		// check non-existent token
-		isApprovedOrOwner = dummy.isApprovedOrOwner(owner, TokenID("999"))
-		uassert.False(t, isApprovedOrOwner, "non-existent token should not be approved")
-	}(cross)
+	// check non-existent token
+	isApprovedOrOwner = dummy.isApprovedOrOwner(owner, TokenID("999"))
+	uassert.False(t, isApprovedOrOwner, "non-existent token should not be approved")
 }

@@ -67,32 +67,32 @@ func (s *metadataNFT) TokenURI(tid TokenID) (string, error) {
 	return s.basicNFT.TokenURI(tid)
 }
 
-func (s *metadataNFT) SetTokenURI(_ int, rlm realm, tid TokenID, tURI TokenURI) (bool, error) {
-	return s.basicNFT.SetTokenURI(0, rlm, tid, tURI)
+func (s *metadataNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
+	return s.basicNFT.SetTokenURI(caller, tid, tURI)
 }
 
 func (s *metadataNFT) IsApprovedForAll(owner, operator address) bool {
 	return s.basicNFT.IsApprovedForAll(owner, operator)
 }
 
-func (s *metadataNFT) Approve(_ int, rlm realm, to address, tid TokenID) error {
-	return s.basicNFT.Approve(0, rlm, to, tid)
+func (s *metadataNFT) Approve(caller, to address, tid TokenID) error {
+	return s.basicNFT.Approve(caller, to, tid)
 }
 
 func (s *metadataNFT) GetApproved(tid TokenID) (address, error) {
 	return s.basicNFT.GetApproved(tid)
 }
 
-func (s *metadataNFT) SetApprovalForAll(_ int, rlm realm, operator address, approved bool) error {
-	return s.basicNFT.SetApprovalForAll(0, rlm, operator, approved)
+func (s *metadataNFT) SetApprovalForAll(caller, operator address, approved bool) error {
+	return s.basicNFT.SetApprovalForAll(caller, operator, approved)
 }
 
-func (s *metadataNFT) SafeTransferFrom(_ int, rlm realm, from, to address, tid TokenID) error {
-	return s.basicNFT.SafeTransferFrom(0, rlm, from, to, tid)
+func (s *metadataNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
+	return s.basicNFT.SafeTransferFrom(caller, from, to, tid)
 }
 
-func (s *metadataNFT) TransferFrom(_ int, rlm realm, from, to address, tid TokenID) error {
-	return s.basicNFT.TransferFrom(0, rlm, from, to, tid)
+func (s *metadataNFT) TransferFrom(caller, from, to address, tid TokenID) error {
+	return s.basicNFT.TransferFrom(caller, from, to, tid)
 }
 
 func (s *metadataNFT) Mint(to address, tid TokenID) error {
