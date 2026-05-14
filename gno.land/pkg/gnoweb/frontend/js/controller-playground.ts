@@ -229,6 +229,7 @@ export class PlaygroundController extends BaseController {
 	private _setOutput(text: string, isError: boolean = false): void {
 		this.outputEl.textContent = text;
 		this.outputEl.classList.toggle("u-color-danger", isError);
+		this.outputEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 	}
 
 	private _switchToFile(fileName: string): boolean {
