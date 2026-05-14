@@ -14,6 +14,12 @@ import (
 
 // TODO: Authorize sub realms to be able to call protected functions (use DAOs)
 
+// SECURITY XXX: boardsNS captures runtime.CurrentRealm().PkgPath() at
+// init time. The path is stable so safe today, but storing realm-derived
+// values in package vars is the same anti-pattern as storing the realm
+// itself. Fix: hardcode boardsNS as a const string and update it as part
+// of each version bump.
+//
 // Keeps the package path to Boards2 realm.
 // It ignores the last realm path element which is the current version.
 var boardsNS = path.Dir(runtime.CurrentRealm().PkgPath()) + "/"

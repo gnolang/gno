@@ -42,6 +42,11 @@ var (
 var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
+	// SECURITY XXX: gRealmPath captures runtime.CurrentRealm().PkgPath()
+	// at init. PkgPath is stable so safe today, but storing realm-derived
+	// state in package vars is the same anti-pattern as storing the realm
+	// itself — easy to mistake elsewhere for "fine to do." Fix: hardcode
+	// the path as a const string instead.
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
 	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // GovDAO T1 multisig
 )

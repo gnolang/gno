@@ -8,6 +8,14 @@ import (
 	tokens "gno.land/r/demo/defi/grc20factory"
 )
 
+// SECURITY XXX: realmAddr captures runtime.CurrentRealm().Address() at
+// package init. The Address is stable per-realm-path so this happens
+// to be safe today, but storing realm-derived values in package vars
+// is the same anti-pattern as storing the realm value itself. If anyone
+// later changes this to hold a full runtime.Realm (instead of just the
+// Address string), future capability-leak audits will need to revisit.
+// Fix: hardcode the address as a const (or compute it inline at each
+// use site) so there's no init-time runtime walk to think about.
 var realmAddr = runtime.CurrentRealm().Address()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot

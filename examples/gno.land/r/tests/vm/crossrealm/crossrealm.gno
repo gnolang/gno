@@ -103,6 +103,17 @@ func Exec(cb func() string) string {
 }
 
 // ------------------------------------
+// SECURITY XXX: Closure and Closure2 below are exported package-level
+// function-typed vars that any foreign realm can set via SetClosure /
+// SetClosure2 and trigger via ExecuteClosure / ExecuteClosureCross.
+// Closure2's signature is `func(realm)`, which means whoever sets it
+// receives a realm value at invocation time — capability-bearing data
+// stored in an exported package var, then handed back to caller-supplied
+// code. THIS IS DELIBERATE VM-PARITY-TEST INFRASTRUCTURE — these vars
+// exist to exercise the VM's handling of stored closures and cross-
+// realm callbacks. DO NOT COPY THIS PATTERN IN PRODUCTION CODE. Real
+// /r/ realms must never expose `func(realm)` (or any function-typed
+// value capable of receiving cur) as an exported package var.
 var Closure func()
 
 func SetClosure(cur realm, f func()) {

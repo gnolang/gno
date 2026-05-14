@@ -25,6 +25,12 @@ var (
 var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{2,29}$`)
 
 func init() {
-	// Keep track of the realm package path to make it available on render
+	// SECURITY XXX: this captures runtime.CurrentRealm().PkgPath() at
+	// init time and stores it in a package var. PkgPath is stable per
+	// realm so this is safe today, but storing realm-derived values in
+	// package state is the same anti-pattern as storing realm values
+	// themselves — easy to mistake for "OK to do" elsewhere. Fix: just
+	// hardcode the realm pkgPath as a const string; no init-time runtime
+	// walk needed.
 	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
 }

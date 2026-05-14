@@ -22,6 +22,15 @@ var allowedDAOs []string
 // proposals contains all the proposals in history.
 var proposals *Proposals = NewProposals()
 
+// SECURITY XXX: gRealm captures the full runtime.Realm struct at init
+// time. Only used at line ~34 for gRealm.PkgPath() in Render — safe
+// today (PkgPath is stable). But holding runtime.Realm in a package
+// var is the same anti-pattern as storing cur itself; a future change
+// adding gRealm.Address() to an auth path (or passing gRealm somewhere
+// as if it were a live capability) would convert a brittle pattern
+// into an actual leak. Fix: replace with a const string for the
+// PkgPath, or inline runtime.CurrentRealm().PkgPath() at the use site.
+//
 // Remember this realm for rendering.
 var gRealm = runtime.CurrentRealm()
 

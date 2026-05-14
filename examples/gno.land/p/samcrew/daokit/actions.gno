@@ -6,6 +6,24 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
+// SECURITY XXX: Action, ActionHandler, and the daocond.Condition /
+// daocond.Ballot interfaces are open extension points. Whatever you
+// register via Core.Resources.Set runs WITH THE DAO'S AUTHORITY when
+// a proposal executes — same level of trust as code inside the DAO
+// package itself. A hostile handler can do anything the DAO can do
+// (modify members, transfer treasury funds via an action that calls
+// a token, etc.). The owning realm is responsible for only registering
+// handlers/conditions from trusted code.
+//
+// Related re-entrancy risk: Core.Execute calls Condition.Eval before
+// running Action. A malicious Condition.Eval can call back into the
+// same DAO (Propose / Vote / Execute on another proposal) during the
+// same crossing frame. IsCurrent still passes because we're inside
+// the original caller's frame, so the re-entrant call runs as the
+// original caller. Same shape as Ethereum's DAO hack.
+// Fix: add a re-entrancy guard in Core.Execute — a package-level lock
+// or per-proposal in-flight flag — set before any user-supplied code
+// (Eval, Action.String, handler Execute) runs and cleared on return.
 type Action interface {
 	String() string
 	Type() string
