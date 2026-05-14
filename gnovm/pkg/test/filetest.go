@@ -3,9 +3,13 @@ package test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -13,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -43,6 +48,24 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", 0, fmt.Errorf("error parsing directives: %w", err)
+	}
+
+	// .go filetests under tests/files/testdata/ are regression tests for
+	// files lifted from Go's standard test corpus. When such a file ships
+	// without an explicit `// Output:` directive, derive the expected
+	// output by running it through the Go toolchain (`go run`) and inject
+	// the result as a synthesized Output directive — Gno's existing
+	// directive-matching path then compares Gno's output to Go's. To bless
+	// an intentional Gno-vs-Go divergence, the maintainer adds an explicit
+	// `// Output:` directive with Gno's actual output; the auto-derive
+	// below is bypassed and the directive serves as documentation.
+	if strings.HasSuffix(fname, ".go") && dirs.First(DirectiveOutput) == nil {
+		goOut, runErr := runGoSubprocess(source)
+		if runErr != nil {
+			return "", 0, fmt.Errorf(".go filetest %s: cannot derive expected output via `go run` "+
+				"(install go, or add an explicit `// Output:` directive): %w", fname, runErr)
+		}
+		dirs = append(dirs, Directive{Name: DirectiveOutput, Content: goOut})
 	}
 
 	// Sanity check: type-check directives are not available
@@ -404,7 +427,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+			if _, err := gno.TypeCheckMemPackage(memPackageForTypeCheck(mpkg), gno.TypeCheckOptions{
 				// Use Teststore to load imported packages,
 				// mimicing the loading behavior with on-chain.
 				// (if using m.Store, the realm package will
@@ -414,7 +437,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
 			}); err != nil {
-				tcError = fmt.Sprintf("%v", err.Error())
+				tcError = restoreGoExtInError(fname, fmt.Sprintf("%v", err.Error()))
 			}
 		}
 		// Must parse before set pn&pv.
@@ -448,13 +471,13 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
-			if _, err := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+			if _, err := gno.TypeCheckMemPackage(memPackageForTypeCheck(mpkg), gno.TypeCheckOptions{
 				Getter:     m.Store,
 				TestGetter: m.Store,
 				Mode:       gno.TCLatestRelaxed,
 				Cache:      opts.tcCache,
 			}); err != nil {
-				tcError = fmt.Sprintf("%v", err.Error())
+				tcError = restoreGoExtInError(fname, fmt.Sprintf("%v", err.Error()))
 			}
 		}
 		// Run decls and init functions.
@@ -703,4 +726,102 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 	}
 
 	return result, sc.Err()
+}
+
+// goSubprocessTimeout caps how long `go run` is allowed to take when
+// auto-deriving the expected output for a .go filetest. Most corpus
+// files complete in well under a second; the cap is here so a
+// pathological hang doesn't deadlock CI.
+var goSubprocessTimeout = 30 * time.Second
+
+// runGoSubprocess writes source to a temp .go file and runs it via
+// `go run`, returning the combined stdout+stderr. Used by runFiletest
+// to derive the expected output for .go filetests that ship without
+// an explicit `// Output:` directive — the result is injected as a
+// synthetic Output directive so the existing match logic compares
+// Gno's output against Go's.
+func runGoSubprocess(source []byte) (string, error) {
+	dir, err := os.MkdirTemp("", "gno-filetest-go-*")
+	if err != nil {
+		return "", fmt.Errorf("mkdir temp: %w", err)
+	}
+	defer os.RemoveAll(dir)
+	srcPath := filepath.Join(dir, "main.go")
+	if err := os.WriteFile(srcPath, source, 0o644); err != nil {
+		return "", fmt.Errorf("write temp source: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), goSubprocessTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", "run", srcPath)
+	cmd.Dir = dir
+	var combined bytes.Buffer
+	cmd.Stdout = &combined
+	cmd.Stderr = &combined
+	runErr := cmd.Run()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return "", fmt.Errorf("`go run` exceeded %s timeout", goSubprocessTimeout)
+	}
+	// Some corpus files exit non-zero (panic, exit code) but still
+	// produce output we want to compare against. Treat the combined
+	// output as the expected; only return error when there's no
+	// output AND the command failed (likely the binary isn't on PATH).
+	if runErr != nil && combined.Len() == 0 {
+		return "", fmt.Errorf("`go run` failed with no output: %w", runErr)
+	}
+	return strings.TrimRight(combined.String(), "\n"), nil
+}
+
+// memPackageForTypeCheck wraps mpkg so its files are visible to
+// gno.TypeCheckMemPackage. That call filters input by extension and
+// silently skips anything not ending in .gno (the .gno suffix is the
+// canonical user-source extension; .go in the gno repo conventionally
+// means VM/tooling implementation, which never goes through the
+// typecheck pipeline). For .go files dropped under tests/files/
+// testdata/ as regression tests for Go's standard test corpus, the
+// in-memory MemFile name gets aliased to .gno here so the typecheck
+// actually runs. The outer fname (used for parser provenance, error
+// attribution, and the runtime path) stays as .go everywhere else.
+//
+// Returns mpkg unchanged when no .go files are present.
+func memPackageForTypeCheck(mpkg *std.MemPackage) *std.MemPackage {
+	needsRename := false
+	for _, f := range mpkg.Files {
+		if filepath.Ext(f.Name) == ".go" {
+			needsRename = true
+			break
+		}
+	}
+	if !needsRename {
+		return mpkg
+	}
+	out := &std.MemPackage{
+		Type:  mpkg.Type,
+		Name:  mpkg.Name,
+		Path:  mpkg.Path,
+		Files: make([]*std.MemFile, len(mpkg.Files)),
+	}
+	for i, f := range mpkg.Files {
+		if filepath.Ext(f.Name) == ".go" {
+			out.Files[i] = &std.MemFile{
+				Name: strings.TrimSuffix(f.Name, ".go") + ".gno",
+				Body: f.Body,
+			}
+		} else {
+			out.Files[i] = f
+		}
+	}
+	return out
+}
+
+// restoreGoExtInError post-processes a TypeCheckMemPackage error
+// message so it references the original .go filename rather than the
+// .gno-suffix alias used internally by [memPackageForTypeCheck].
+// Acts on the basename only to avoid touching unrelated paths in the
+// message body. No-op when originalFname doesn't end in .go.
+func restoreGoExtInError(originalFname, tcError string) string {
+	if filepath.Ext(originalFname) != ".go" {
+		return tcError
+	}
+	base := strings.TrimSuffix(filepath.Base(originalFname), ".go")
+	return strings.ReplaceAll(tcError, base+".gno", base+".go")
 }

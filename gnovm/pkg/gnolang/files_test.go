@@ -92,6 +92,17 @@ func TestFiles(t *testing.T) {
 			strings.HasSuffix(path, ".swn") {
 			return nil
 		}
+		// Whitelist filetest extensions. .gno is the native extension;
+		// .go is accepted so regression tests for files from Go's
+		// standard test corpus (/usr/local/go/test/) can be dropped
+		// under tests/files/testdata/ without renaming. The testdata/
+		// convention keeps these files invisible to Go's own tooling
+		// (go list / go build / go test). For .go files without an
+		// explicit `// Output:` directive, RunFiletest auto-derives
+		// the expected output via `go run` — see filetest.go.
+		if !strings.HasSuffix(path, ".gno") && !strings.HasSuffix(path, ".go") {
+			return nil
+		}
 
 		content, err := fs.ReadFile(fsys, path)
 		if err != nil {
