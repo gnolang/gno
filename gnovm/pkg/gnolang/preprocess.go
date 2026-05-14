@@ -2014,6 +2014,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// signature, so we only need the inner NameExpr
 								// for path resolution.
 								innerNx := inner.Args[0].(*NameExpr)
+								// Defensive: the runtime resolves the path via
+								// Block.GetPointerTo (a block-parent walk +
+								// index). Paths of other VPTypes — VPUverse,
+								// VPField, VPValMethod, etc. — would resolve
+								// into the wrong slot or panic-deref. The Go
+								// typechecker prevents most non-VPBlock realm
+								// names from compiling (realm-typed uverse
+								// values are only `cross`/`.cur`, which are
+								// themselves preprocessor-recognized sentinels
+								// and shouldn't reach here). But spelling out
+								// the check gives a clear error message at the
+								// call site instead of an obscure "HIV-less
+								// receiver" panic at runtime.
+								if innerNx.Path.Type != VPBlock {
+									panic(fmt.Sprintf("cross2 argument must resolve to a block-scoped realm identifier (got VPType %d for %q)", innerNx.Path.Type, innerNx.Name))
+								}
 								// Stash the path; replace Args[0] with constNil;
 								// mark WithCross. The relaxed isLikeWithCross
 								// accepts the cross2 form via CrossArgPath.Type != 0.

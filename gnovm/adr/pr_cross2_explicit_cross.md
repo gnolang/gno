@@ -100,7 +100,7 @@ value-receiver copy and tried to pass the result to `cross2`.
 ### Allowed in tests
 
 `cross2(rlm)` follows the existing `crossingAllowed` carveout at
-`preprocess.go:4385-4398`: allowed in realm packages AND in any
+`preprocess.go:4455-4461`: allowed in realm packages AND in any
 `*_test.gno` file (regardless of package). Tests in /p/ packages can
 use `cross2(rlm)` to make their cross-call intent explicit.
 
@@ -137,14 +137,30 @@ use `cross2(rlm)` to make their cross-call intent explicit.
    - Inner `cross2` TRANS_LEAVE (uverse-func switch, alongside
      `_cross_gno0p0`, `cross`, `crossing`): validate the call shape is
      `cross2(<NameExpr>)` with exactly one bare identifier argument.
+     (The Go typechecker already enforces the realm type via the
+     `func cross2(rlm realm) realm` shim signature, so no additional
+     type check is needed here.)
    - Outer crossing-CallExpr's `Args[0]` validity check: accept
-     `*CallExpr` whose `Func` is the const-evaluated `cross2`.
-     Validate the inner NameExpr resolves to a `cur realm` parameter
-     of an enclosing crossing function (same rules as bare `cur`
-     at non-crossing call sites: enclosing-function check,
-     closure-capture rejection). Stash the resolved `ValuePath` on
-     the outer CallExpr's `CrossArgPath`, replace `Args[0]` with
-     `constNil`, and call `SetWithCross()`.
+     `*CallExpr` whose `Func` is the const-evaluated `cross2`. Verify
+     the inner NameExpr's resolved `ValuePath` is `VPBlock`-typed
+     (defensive — rejects pathological cases like `cross2(cross)`
+     whose path resolves through uverse, not a block slot). Stash
+     the path on the outer CallExpr's `CrossArgPath`, replace
+     `Args[0]` with `constNil`, and call `SetWithCross()`.
+     **No lexical check on where rlm came from** — neither the
+     "must be from a containing crossing function" nor the
+     "no closure capture" check is enforced. The runtime
+     IsCurrent-strict check in `installCrossingCur` is the sole
+     safety. This relaxation is intentional: it lets `cross2(rlm)`
+     work in the `(_ int, rlm realm, ...)` non-crossing helper
+     threading convention used throughout the security migration.
+     The tradeoff: a class of bare-`cur` *static* errors (closure
+     capture, non-crossing-scope rlm) become *latent runtime
+     panics* under cross2. Code that compiles and passes most tests
+     may panic only when a specific call sequence — e.g. A→B→A
+     re-entry threading the outer rlm — exercises the staleness.
+     See `gnovm/tests/files/zrealm_cross2_stalerlm.gno` for the
+     runtime-rejection test.
 
 7. **`gnovm/pkg/gnolang/op_call.go`** — `installCrossingCur` branches
    on `cx.CrossArgPath.Type`:
@@ -218,3 +234,9 @@ final shape.
   - `gnovm/tests/files/zrealm_cross2_stalerlm.gno` — runtime
     IsCurrent-strict catches a stale realm threaded through a
     cross-call chain where the outer frame is no longer topmost.
+  - `gnovm/tests/files/zrealm_cross2_iface.gno` — cross2(cur)
+    through interface dispatch (the primary cur-leak surface
+    that motivated the whole branch).
+  - `gnovm/tests/files/zrealm_cross2_ifacestale.gno` — stale rlm
+    via interface dispatch — the realistic threat shape — caught
+    at runtime by IsCurrent-strict.
