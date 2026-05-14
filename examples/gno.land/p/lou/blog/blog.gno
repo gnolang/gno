@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"chain/runtime"
 	"strings"
 	"time"
 
@@ -40,7 +39,13 @@ func (b Blog) Prefix() string {
 	return b.prefix
 }
 
-func NewBlog(title string, owner address, opts ...Options) (*Blog, error) {
+// NewBlog creates a Blog whose prefix is bound to the calling realm.
+// rlm must be the caller's own captured cur (asserted via
+// rlm.IsCurrent()); rlm.PkgPath() — the calling realm itself — provides
+// the prefix used for txlink/markdown URLs. Same shape as
+// grc20.NewToken's identity binding: unforgeable because rlm comes from
+// a runtime-validated crossing frame.
+func NewBlog(_ int, rlm realm, title string, owner address, opts ...Options) (*Blog, error) {
 	if title == "" {
 		return nil, ErrEmptyTitle
 	}
@@ -48,7 +53,10 @@ func NewBlog(title string, owner address, opts ...Options) (*Blog, error) {
 		return nil, err
 	}
 
-	pkgPath := runtime.CurrentRealm().PkgPath()
+	if !rlm.IsCurrent() {
+		return nil, ErrEmptyPrefix
+	}
+	pkgPath := rlm.PkgPath()
 	if pkgPath == "" {
 		return nil, ErrEmptyPrefix
 	}

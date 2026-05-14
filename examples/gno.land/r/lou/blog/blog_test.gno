@@ -7,12 +7,13 @@ import (
 	"gno.land/p/lou/blog"
 )
 
-func clearState(t *testing.T) {
+func clearState(_ int, rlm realm, t *testing.T) {
 	t.Helper()
 	var err error
 
 	admin = address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 	myBlog, err = blog.NewBlog(
+		0, rlm,
 		"Lou's Blog",
 		admin,
 		blog.WithUserResolver(myResolver),
@@ -24,7 +25,7 @@ func clearState(t *testing.T) {
 }
 
 func TestPackage(cur realm, t *testing.T) {
-	clearState(t)
+	clearState(0, cur, t)
 
 	testing.SetOriginCaller(admin)
 	testing.SetRealm(testing.NewUserRealm(admin))

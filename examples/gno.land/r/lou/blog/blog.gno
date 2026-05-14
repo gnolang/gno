@@ -12,8 +12,9 @@ var (
 	admin  = address("g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs")
 )
 
-func init() {
+func init(cur realm) {
 	myBlog, _ = blog.NewBlog(
+		0, cur,
 		"Lou's Blog",
 		admin,
 		blog.WithUserResolver(myResolver),
