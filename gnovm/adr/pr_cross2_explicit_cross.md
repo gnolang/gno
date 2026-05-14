@@ -43,10 +43,27 @@ f(cross2(rlm), args...)
 ```
 
 The argument to `cross2` must be a bare `NameExpr` (an identifier, not
-an arbitrary expression). It must resolve to the `cur realm` parameter
-of an enclosing crossing function, and it cannot be passed as a closure
-capture. These are the same lexical rules bare `cur` follows at
-non-crossing call sites (`g(cur, args...)`).
+an arbitrary expression). The identifier must be realm-typed. **No
+lexical check on where the realm came from** — the runtime
+IsCurrent-strict check is the safety. This allows the threading
+convention used throughout the migration:
+
+```gno
+// Non-crossing helper takes rlm via (_ int, rlm realm, ...) shape.
+// cross2(rlm) works here because the runtime check, not a lexical
+// rule, validates rlm.
+func helper(_ int, rlm realm) {
+    callee(cross2(rlm))
+}
+
+func main(cur realm) {
+    helper(0, cur)
+}
+```
+
+Stale rlm (captured in a different frame, threaded through cross-call
+chain where the outer frame is no longer topmost, or laundered through
+a value-receiver copy) panics at runtime when `cross2` runs.
 
 ### Semantics
 
@@ -182,8 +199,22 @@ final shape.
   `examples/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` and
   the project's runtime-to-cur migration notes.
 - Filetests verifying cross2 behavior:
-  - `gnovm/tests/files/zrealm_cross2_basic.gno` — happy path.
-  - `gnovm/tests/files/zrealm_cross2_notname.gno` — preprocess-time
-    rejection of non-NameExpr arguments.
-  - `gnovm/tests/files/zrealm_cross2_closurecap.gno` — preprocess-time
-    rejection of closure-captured rlm.
+  - `gnovm/tests/files/zrealm_cross2_basic.gno` — happy path; bare
+    `cross` and `cross2(cur)` produce identical output.
+  - `gnovm/tests/files/zrealm_cross2_rlm.gno` — cross2 in a
+    `(_ int, rlm realm)` non-crossing helper (the threading
+    convention; demonstrates the lexical-check relaxation).
+  - `gnovm/tests/files/zrealm_cross2_crosspkg.gno` — cross2 driving
+    a cross-realm call into another package; output identical to
+    bare cross.
+  - `gnovm/tests/files/zrealm_cross2_notname.gno` — preprocess
+    rejects non-NameExpr arguments (e.g. function call).
+  - `gnovm/tests/files/zrealm_cross2_previous.gno` — preprocess
+    rejects method-call expressions like `cur.Previous()`.
+  - `gnovm/tests/files/zrealm_cross2_noarg.gno` — preprocess +
+    typecheck reject `cross2()` with no args.
+  - `gnovm/tests/files/zrealm_cross2_extra.gno` — preprocess +
+    typecheck reject `cross2(rlm, x)` with extra args.
+  - `gnovm/tests/files/zrealm_cross2_stalerlm.gno` — runtime
+    IsCurrent-strict catches a stale realm threaded through a
+    cross-call chain where the outer frame is no longer topmost.

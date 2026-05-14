@@ -1999,33 +1999,21 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									innerFunc.GetFunc().Name != "cross2" {
 									panic(fmt.Sprintf("only `cur`, `cross`, or `cross2(rlm)` allowed as first arg to a crossing function; got call to %v", inner.Func))
 								}
-								// Validate the inner cur-resolution path the same
-								// way as the Name("cur") branch below: rlm must
-								// resolve to a `cur realm` parameter of an enclosing
-								// crossing function, and cannot be captured through
-								// a func lit closure. This catches cross2(stashedRealm)
-								// at preprocess time; the runtime IsCurrent-strict
-								// check is the defense-in-depth.
+								// No lexical check on where rlm comes from. The
+								// runtime IsCurrent-strict check is the safety:
+								// rlm must be the current crossing frame's Cur
+								// by HIV identity at runtime, regardless of
+								// whether it came from a crossing-function param,
+								// a (_ int, rlm realm) helper param, or a
+								// closure capture. The user explicitly chose
+								// runtime-only validation so the threading
+								// convention works — the helper takes rlm and
+								// can use cross2(rlm) without needing to be
+								// itself a crossing function. Go's typechecker
+								// already enforces realm-typed via cross2's shim
+								// signature, so we only need the inner NameExpr
+								// for path resolution.
 								innerNx := inner.Args[0].(*NameExpr)
-								dbn := last.GetBlockNodeForPath(store, innerNx.Path)
-								switch dbn := dbn.(type) {
-								case *FuncDecl:
-									dft := getType(&dbn.Type).(*FuncType)
-									if !dft.IsCrossing() {
-										panic("cross2(rlm) — rlm must be the `cur realm` argument of a containing crossing function")
-									}
-								case *FuncLitExpr:
-									dft := getType(&dbn.Type).(*FuncType)
-									if !dft.IsCrossing() {
-										panic("cross2(rlm) — rlm must be the `cur realm` argument of a containing crossing function")
-									}
-								default:
-									panic(fmt.Sprintf("cross2(rlm) — rlm must be the `cur realm` argument of a containing crossing function (resolved to %T)", dbn))
-								}
-								fle, _, found := findFirstClosure(stack, dbn)
-								if found && dbn != fle {
-									panic(fmt.Sprintf("cross2(rlm) — rlm cannot be passed as a closure capture, but found %v", fle))
-								}
 								// Stash the path; replace Args[0] with constNil;
 								// mark WithCross. The relaxed isLikeWithCross
 								// accepts the cross2 form via CrossArgPath.Type != 0.
