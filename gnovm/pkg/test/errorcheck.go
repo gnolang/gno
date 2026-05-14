@@ -36,11 +36,12 @@ import (
 // marker verification is then bypassed and the directive serves as
 // documentation of the accepted divergence.
 //
-// The exported entry points ([ParseInlineErrors], [MarkerMatches],
-// [VerifyErrorcheckMarkers], [PrependPkgPathIfNeeded]) are intended
-// for use by external test drivers that walk a Go test corpus and
-// dispatch files through this harness. The corresponding internal
-// dispatch path in runFiletest uses these same helpers.
+// The exported entry points ([HasInlineErrorMarkers],
+// [ParseInlineErrors], [MarkerMatches], [VerifyErrorcheckMarkers],
+// [IsRunnable], [PrependPkgPathIfNeeded]) are intended for use by
+// external test drivers that walk a Go test corpus and dispatch
+// files through this harness. The corresponding internal dispatch
+// path in runFiletest uses these same helpers.
 
 // InlineError is one `// ERROR "regex"` marker attached to a source
 // line. Patterns are kept as Go regex strings; alternatives inside a
@@ -239,6 +240,20 @@ var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
 // funcMainRe matches `func main()` at line start.
 var funcMainRe = regexp.MustCompile(`(?m)^func main\(\)`)
+
+// IsRunnable reports whether source can be `go run` — i.e. declares
+// `package main` AND has a top-level `func main()`. Files lacking
+// either are compile-only by intent: gc accepts and never runs them,
+// and Gno's harness must apply the PKGPATH+synthetic-main rescue (via
+// [PrependPkgPathIfNeeded]) to reach preprocess+typecheck. Used by
+// dispatch logic to route .go files into the compile-only path.
+func IsRunnable(source []byte) bool {
+	m := pkgDeclRe.FindSubmatch(source)
+	if m == nil || string(m[1]) != "main" {
+		return false
+	}
+	return funcMainRe.Match(source)
+}
 
 // indent prefixes every line of s with prefix.
 func indent(s, prefix string) string {

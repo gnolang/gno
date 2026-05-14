@@ -34,16 +34,9 @@ test corpus (`/usr/local/go/test/`). After fixing a Gno bug surfaced on
 a corpus file, drop the original `.go` file verbatim into
 `files/testdata/` to lock the fix in CI — no rename, no conversion.
 
-**Comparison behavior.** The harness picks one of two modes based on
-file content; both are bypassed by the corresponding explicit
+**Comparison behavior.** The harness picks one of three modes based
+on file content; each is bypassed by the corresponding explicit
 directive (the blessed-divergence escape hatch).
-
-*Run mode* (default). When a `.go` filetest has no explicit
-`// Output:` directive and no `// ERROR` markers, the harness derives
-the expected output by running the file through the Go toolchain
-(`go run`) and compares Gno's output to Go's. Test passes only when
-Gno matches Go. Bypass with an explicit `// Output:` directive
-carrying Gno's actual output.
 
 *Errorcheck mode.* When the source carries inline `// ERROR "regex"`
 markers (Go's standard test corpus convention), the harness applies a
@@ -58,8 +51,28 @@ catches the kind of error gc does", not "Gno enumerates every
 individual error". Bypass with an explicit `// Error:` directive
 carrying Gno's actual error wording.
 
-See `files/testdata/run/canary.go` for the minimal run-mode pattern
-and `files/testdata/errorcheck/canary.go` for errorcheck.
+*Compile-only mode.* When the source is not runnable (non-main
+package, or no `func main()`), the harness applies the same
+PKGPATH+synthetic-main rescue and PASSes iff Gno's preprocess and
+the bundled go/types both produce no error. Mirrors gc's `// compile`
+semantics: gc accepts the file and never runs it. Bypass with an
+explicit `// TypeCheckError:` or `// Error:` directive carrying Gno's
+actual error wording — useful when Gno legitimately rejects code gc
+accepts and you want to lock that in (note: gno.land's deploy gate
+runs go/types ahead of Gno preprocess, so divergences here are
+production-shielded).
+
+*Run mode* (default). When a `.go` filetest is runnable and has no
+explicit `// Output:` directive, the harness derives the expected
+output by running the file through the Go toolchain (`go run`) and
+compares Gno's output to Go's. Test passes only when Gno matches Go.
+Bypass with an explicit `// Output:` directive carrying Gno's actual
+output.
+
+See `files/testdata/run/canary.go` (run mode),
+`files/testdata/errorcheck/canary.go` (errorcheck), and
+`files/testdata/compile/canary.go` (compile-only) for the minimal
+patterns.
 
 Notes:
 - Native filetest directives (`// PKGPATH:`, `// Output:`, `// Error:`,

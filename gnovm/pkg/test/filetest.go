@@ -51,24 +51,34 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	// .go filetests under tests/files/testdata/ are regression tests for
-	// files lifted from Go's standard test corpus. Two dispatch modes,
-	// detected from source content; both are bypassed by their respective
-	// explicit directive (which serves as the blessed-divergence escape
-	// hatch and documentation of the intentional difference):
+	// files lifted from Go's standard test corpus. Three dispatch modes,
+	// detected from source content; each is bypassed by an explicit
+	// directive (which serves as the blessed-divergence escape hatch and
+	// documentation of the intentional difference):
 	//
 	//   - errorcheck: source carries `// ERROR "regex"` markers. We apply
 	//     a PKGPATH+synthetic-main rescue, run the file, and verify Gno
 	//     rejected it with wording that matches at least one marker.
 	//     Bypassed by an explicit `// Error:` directive. See errorcheck.go.
 	//
-	//   - run: source has no Output directive. We derive the expected
-	//     output by running the file through the Go toolchain (`go run`)
-	//     and inject it as a synthesized Output directive — Gno's existing
-	//     directive-matching path then compares Gno's output to Go's.
-	//     Bypassed by an explicit `// Output:` directive.
+	//   - compile-only: file is not runnable (non-main package, or no
+	//     `func main()`) — gc accepts and never runs it. We apply the
+	//     same PKGPATH+synthetic-main rescue so Gno's preprocess+go/types
+	//     can run; the existing match path PASSes iff both produced no
+	//     error. Bypassed by an explicit `// TypeCheckError:` or
+	//     `// Error:` directive.
+	//
+	//   - run: file is runnable and has no Output directive. We derive
+	//     the expected output by running the file through the Go toolchain
+	//     (`go run`) and inject it as a synthesized Output directive —
+	//     Gno's existing directive-matching path then compares Gno's
+	//     output to Go's. Bypassed by an explicit `// Output:` directive.
 	var errorcheckMarkers []InlineError
 	if strings.HasSuffix(fname, ".go") {
-		if HasInlineErrorMarkers(source) && dirs.First(DirectiveError) == nil {
+		hasErrorDir := dirs.First(DirectiveError) != nil
+		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
+		switch {
+		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			errorcheckMarkers = ParseInlineErrors(source)
 			source = PrependPkgPathIfNeeded(source)
 			// Re-parse: PrependPkgPathIfNeeded may have prepended a
@@ -77,7 +87,13 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			if err != nil {
 				return "", 0, fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
 			}
-		} else if dirs.First(DirectiveOutput) == nil {
+		case !IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir:
+			source = PrependPkgPathIfNeeded(source)
+			dirs, err = ParseDirectives(bytes.NewReader(source))
+			if err != nil {
+				return "", 0, fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
+			}
+		case dirs.First(DirectiveOutput) == nil:
 			goOut, runErr := runGoSubprocess(source)
 			if runErr != nil {
 				return "", 0, fmt.Errorf(".go filetest %s: cannot derive expected output via `go run` "+
