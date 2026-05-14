@@ -255,7 +255,7 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**
-(or `https:/<testN>.testnets.gno.land/r/...` on the current testnet).
+(or `https://<testN>.testnets.gno.land/r/...` on the current testnet).
 
 Two optional flags are worth knowing about:
 - `-send <amount>ugnot` — transfer GNOT to the realm with the deploy.
@@ -263,10 +263,9 @@ Two optional flags are worth knowing about:
   the chain may lock; the transaction fails if the cap is exceeded.
 
 For the full flag list, see
-[`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage)
-or [Cheatsheet: Deploy a Package](../cheatsheet.md#deploy-a-package). You can
-also deploy via the [Playground](https://play.gno.land) with a browser wallet
-like Adena.
+[`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage).
+You can also deploy via the [Playground](https://play.gno.land) with a browser
+wallet like Adena.
 
 ### 6. Call your realm
 
@@ -305,14 +304,13 @@ gnokey query vm/qrender \
 
 This returns the `Render` output ("Count: 5") — a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
-reference, see [Cheatsheet: Call a Function](../cheatsheet.md#call-a-function)
-and [Interact with gnokey](../users/interact-with-gnokey.md).
+reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
 1. [r/docs](https://gno.land/r/docs) — on-chain tour
 2. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
-3. [Tutorial: `minisocial` dApp](./tutorial-minisocial.md) — end-to-end with deploy
+3. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md) — pricing, estimation, and the "out of gas" fix
 5. [Storage deposit](../resources/storage-deposit.md) — how on-chain storage is paid for, and how to cap it with `-max-deposit`
 
