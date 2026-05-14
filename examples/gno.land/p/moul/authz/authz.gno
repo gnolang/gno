@@ -57,6 +57,36 @@ type Authorizer struct {
 // Authority represents an entity that can authorize privileged actions.
 // It is implemented by MemberAuthority, ContractAuthority, AutoAcceptAuthority,
 // and DroppedAuthority.
+//
+// Authority is the canonical safe shape for cross-package authority
+// interfaces: methods are address-typed (no realm/cur crosses the interface
+// boundary), and consumers correctly derive `caller` from
+// `cur.Previous().Address()` under `rlm.IsCurrent()` before invoking
+// Authorize. No cur-leak (class 1) is possible through this interface.
+//
+// However, two RESIDUAL RISKS apply:
+//
+//   - Class-3 impl-substitution: NewWithAuthority and Authorizer.Transfer
+//     accept any Authority impl. A malicious Authority can always-approve
+//     (silent privilege escalation) or always-deny (denial-of-service).
+//     Consumers should pass canonical impls from this package
+//     (MemberAuthority, ContractAuthority, AutoAcceptAuthority,
+//     DroppedAuthority) unless they have explicit reason to register a
+//     foreign impl. We do not expose an IsCanonicalAuthority allowlist
+//     because the package is intentionally extensible — third-party impls
+//     are the design intent.
+//
+//   - Class-4 closed-over-authority: NewContractAuthority and
+//     NewRestrictedContractAuthority capture a caller-supplied
+//     PrivilegedActionHandler closure. The handler runs synchronously
+//     inside Authorize with the consumer's authority. A hostile handler
+//     can swallow actions, log the caller, or execute arbitrary code
+//     under the consumer's frame. Register only trusted handler functions.
+//     See r/gnops/valopers/init.gno for the realistic registration shape.
+//
+// We do NOT seal Authority via an unexported marker method — that pattern
+// is bypassable via embedding in Gno; see
+// p/test/seal/filetests/z_seal_*_filetest.gno for the four bypass tests.
 type Authority interface {
 	// Authorize executes a privileged action if the caller is authorized
 	// Additional args can be provided for context (e.g., for proposal creation)
@@ -103,7 +133,13 @@ func NewWithMembers(addrs ...address) *Authorizer {
 	}
 }
 
-// NewWithAuthority creates a new Authorizer with a specific authority
+// NewWithAuthority creates a new Authorizer with a specific authority.
+//
+// SECURITY: `authority` is an open-interface input — any value satisfying
+// Authority is accepted. A malicious impl can always-approve (privilege
+// escalation) or always-deny (DoS). Prefer canonical impls from this
+// package (NewMemberAuthority, NewContractAuthority, NewAutoAcceptAuthority,
+// NewDroppedAuthority) unless you specifically need a foreign impl.
 func NewWithAuthority(authority Authority) *Authorizer {
 	return &Authorizer{
 		auth: authority,
@@ -120,6 +156,16 @@ func (a *Authorizer) Authority() Authority {
 // principal is rlm.Previous().Address(). Closes the address-parameter
 // forgery: an external realm cannot supply Owner() as `caller` to
 // bypass the underlying Authority's check.
+//
+// SECURITY (runtime substitution): once the current authority approves a
+// Transfer, the new authority is installed and effective on the next call.
+// If an attacker ever becomes the authority — even briefly — they can
+// install a permanent DroppedAuthority (DoS) or an AutoAcceptAuthority
+// (privilege escalation). Consumers concerned about this should wrap
+// Transfer with a one-shot guard or a quorum/cooldown check.
+//
+// `newAuthority` is also an open-interface input — see NewWithAuthority's
+// Class-3 caveat. Pass canonical impls.
 func (a *Authorizer) Transfer(_ int, rlm realm, newAuthority Authority) error {
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
@@ -259,6 +305,16 @@ type ContractAuthority struct {
 	proposer        Authority // controls who can create proposals
 }
 
+// NewContractAuthority creates a new contract-based authority.
+//
+// SECURITY (Class-4 captured callback): `handler` is a caller-supplied
+// closure that runs SYNCHRONOUSLY inside Authorize, with the consumer's
+// authority. A hostile handler can swallow actions, log the caller, or
+// execute arbitrary code under the consumer's frame. The package-internal
+// wrappedAction guards "execute action only from contractAddr" but the
+// handler can call wrappedAction however it likes (multiple times, never,
+// out of order). Register only trusted handler functions; treat handler
+// registration as the trust boundary.
 func NewContractAuthority(path string, handler PrivilegedActionHandler) *ContractAuthority {
 	return &ContractAuthority{
 		contractPath:    path,
@@ -270,6 +326,14 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 
 // NewRestrictedContractAuthority creates a new contract authority with a
 // proposer restriction.
+//
+// SECURITY:
+//   - `handler` is the same Class-4 captured-callback risk as
+//     NewContractAuthority — runs synchronously inside Authorize with the
+//     consumer's authority. Register only trusted handler functions.
+//   - `proposer` is an open-interface input (Class-3 impl-substitution).
+//     A hostile proposer Authority can always-approve creation of any
+//     proposal, defeating the restriction. Pass canonical impls only.
 func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler, proposer Authority) Authority {
 	if path == "" {
 		panic("contract path cannot be empty")
