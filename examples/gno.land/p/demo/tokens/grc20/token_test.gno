@@ -2,6 +2,7 @@ package grc20
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -23,6 +24,56 @@ func newTestToken(name, symbol string, decimals int) (tok *Token, adm *PrivateLe
 func TestTestImpl(t *testing.T) {
 	bank, _ := newTestToken("Dummy", "DUMMY", 4)
 	urequire.False(t, bank == nil, "dummy should not be nil")
+}
+
+func TestNewTokenValidation(t *testing.T) {
+	// Each case wraps NewToken in a crossing closure (same as newTestToken)
+	// to satisfy IsCurrent + non-empty pkgPath. The validation under test
+	// is the name/symbol/decimals checks that run after.
+	mustPanic := func(name, sym string, dec int, want error, label string) {
+		t.Helper()
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("%s: expected panic, got none", label)
+				return
+			}
+			if r != want {
+				t.Errorf("%s: expected %v, got %v", label, want, r)
+			}
+		}()
+		newTestToken(name, sym, dec)
+	}
+
+	// Empty name / symbol.
+	mustPanic("", "OK", 4, ErrInvalidName, "empty name")
+	mustPanic("Name", "", 4, ErrInvalidSymbol, "empty symbol")
+
+	// Length caps.
+	mustPanic(strings.Repeat("a", MaxNameLen+1), "OK", 4, ErrInvalidName, "name too long")
+	mustPanic("Name", strings.Repeat("A", MaxSymbolLen+1), 4, ErrInvalidSymbol, "symbol too long")
+
+	// Name control characters.
+	mustPanic("bad\x01name", "OK", 4, ErrInvalidName, "name with control char")
+	mustPanic("bad\nname", "OK", 4, ErrInvalidName, "name with newline")
+
+	// Symbol charset — disallowed delimiters and whitespace.
+	mustPanic("Name", "BA.D", 4, ErrInvalidSymbol, "symbol with dot")
+	mustPanic("Name", "BA/D", 4, ErrInvalidSymbol, "symbol with slash")
+	mustPanic("Name", "BA D", 4, ErrInvalidSymbol, "symbol with space")
+	mustPanic("Name", "BA\"D", 4, ErrInvalidSymbol, "symbol with quote")
+
+	// Decimals out of range.
+	mustPanic("Name", "OK", -1, ErrInvalidDecimals, "negative decimals")
+	mustPanic("Name", "OK", MaxDecimals+1, ErrInvalidDecimals, "decimals over cap")
+
+	// Boundary positives — should NOT panic.
+	tok, _ := newTestToken(strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), MaxDecimals)
+	urequire.True(t, tok != nil, "boundary name+symbol+decimals should succeed")
+
+	// UTF-8 name with non-ASCII is allowed.
+	tok2, _ := newTestToken("Доллар", "RUB", 2)
+	urequire.True(t, tok2 != nil, "UTF-8 name should be allowed")
 }
 
 func TestToken(t *testing.T) {

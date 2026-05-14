@@ -111,6 +111,22 @@ var (
 	ErrInvalidAmount         = errors.New("invalid amount")
 	ErrSpoofedRealm          = errors.New("rlm does not match the current crossing frame")
 	ErrNotRealm              = errors.New("rlm must be a realm (got EOA/origin)")
+	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
+	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
+	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
+)
+
+// Construction limits. Symbol is restricted to the same charset as
+// grc20reg.validateSlug because Token.ID() = origRealm + "." + symbol is
+// emitted in events and frequently used as a registry slug; banning `.`
+// `/` and whitespace here prevents downstream parsers from being fooled
+// by ambiguous IDs (e.g. an attacker emitting tokens whose ID parses as
+// belonging to a victim realm). Name is for display only and allows
+// any valid UTF-8 except control characters.
+const (
+	MaxNameLen   = 64
+	MaxSymbolLen = 11
+	MaxDecimals  = 18
 )
 
 const (

@@ -32,11 +32,14 @@ func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *Pri
 	if pkgPath == "" {
 		panic(ErrNotRealm)
 	}
-	if name == "" {
-		panic("name should not be empty")
+	if !validName(name) {
+		panic(ErrInvalidName)
 	}
-	if symbol == "" {
-		panic("symbol should not be empty")
+	if !validSymbol(symbol) {
+		panic(ErrInvalidSymbol)
+	}
+	if decimals < 0 || decimals > MaxDecimals {
+		panic(ErrInvalidDecimals)
 	}
 	ledger := &PrivateLedger{}
 	token := &Token{
@@ -48,6 +51,42 @@ func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*Token, *Pri
 	}
 	ledger.token = token
 	return token, ledger
+}
+
+// validName reports whether name is a valid display name: non-empty,
+// within MaxNameLen, and contains no control characters (any rune
+// below 0x20 or 0x7f). Permits Unicode letters, digits, punctuation,
+// and spaces — name is purely a display field.
+func validName(name string) bool {
+	if name == "" || len(name) > MaxNameLen {
+		return false
+	}
+	for _, c := range name {
+		if c < 0x20 || c == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// validSymbol reports whether symbol is a valid token symbol: non-empty,
+// within MaxSymbolLen, and consists only of [A-Za-z0-9_-]. Matches
+// grc20reg.validateSlug so the symbol round-trips cleanly through
+// Token.ID() and any registry binding.
+func validSymbol(symbol string) bool {
+	if symbol == "" || len(symbol) > MaxSymbolLen {
+		return false
+	}
+	for _, c := range symbol {
+		if !isAlnum(c) && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func isAlnum(c rune) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
 // GetName returns the name of the token.
