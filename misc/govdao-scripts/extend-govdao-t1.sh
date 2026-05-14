@@ -5,12 +5,7 @@
 # Usage:
 #   ./extend-govdao-t1.sh
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
@@ -47,8 +42,8 @@ func main() {
 GOEOF
 
 echo "Extending govDAO T1 with 6 new members"
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 

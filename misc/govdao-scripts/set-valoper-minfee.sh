@@ -6,12 +6,7 @@
 #   ./set-valoper-minfee.sh 0          # disable registration fee
 #   ./set-valoper-minfee.sh 20000000   # set to 20 GNOT
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 if [ $# -ne 1 ]; then
@@ -49,8 +44,8 @@ func main() {
 GOEOF
 
 echo "Setting valoper registration min fee to: ${MIN_FEE} ugnot"
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 
