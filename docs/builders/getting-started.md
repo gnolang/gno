@@ -29,13 +29,12 @@ The toolchain has three binaries:
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 ```
 
-Binaries land in `$GOPATH/bin`. The script is bash-only; Windows users
-should use WSL or see [Other methods](./install.md) for source builds
-and Docker.
+Binaries land in `$HOME/.gno/bin`. The script is bash-only; Windows users should use
+WSL or see [Other methods](./install.md) for source builds and Docker.
 
 :::tip
-`gno: command not found`? Add `$GOPATH/bin` to
-your `$PATH`: `export PATH="$PATH:$(go env GOPATH)/bin"`.
+`gno: command not found`? Add `$HOME/.gno/bin` to your `$PATH`:
+`export PATH="$HOME/.gno/bin:$PATH"`.
 :::
 
 ## Run locally with gnodev
@@ -122,7 +121,8 @@ gnodev .
 Open http://localhost:8888 — gnoweb shows your realm under its
 package path. Click into it to see the `Render` output ("Count: 0"),
 browse exported functions and source code, and view prefunded account
-balances. The `devtest` account is preloaded, so no faucet is needed.
+balances. Every key in your local `gnokey` keybase is auto-funded at
+startup, so no faucet is needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass multiple
 directories to load several packages at once; the bundled `examples/`
@@ -130,13 +130,98 @@ are loaded by default including
 [`r/docs`](http://localhost:8888/r/docs), an on-chain guided tour you
 can modify and browse locally.
 
+### Create a key
+
+Every transaction (deploy or function call) is signed by a key.
+Create one with `gnokey`:
+
+```sh
+gnokey add mykey
+```
+
+It prompts for an encryption password and prints a 24-word mnemonic
+— store it somewhere safe to recover the key later. List your keys
+to see the derived `g1...` address:
+
+```sh
+gnokey list
+```
+
+```text
+0. mykey (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
+```
+
+That `g1...` address is your on-chain identity. It owns funds, signs
+transactions, and forms the base of your address-based namespace
+when you deploy to a shared network.
+
+:::warning
+Keys created this way are **development-only**. Do not reuse the
+mnemonic for real funds.
+:::
+
+### Call Increment
+
+Every realm page in gnoweb has three tabs in the top header:
+**Content** (the `Render` output you've already seen), **Source**
+(the `.gno` files), and **Actions**. The Actions tab introspects the
+realm's exported crossing functions and, for each one, gives you both
+a form to call it from the browser via a connected wallet (e.g.
+[Adena](../users/third-party-wallets.md)) and the equivalent `gnokey`
+command pre-filled with the values you've typed, copy-pasteable and
+ready to run.
+
+For `Increment`, the command looks like this:
+
+```sh
+gnokey maketx call \
+  -pkgpath "gno.land/r/myname/myrealm" \
+  -func "Increment" -args "5" \
+  -gas-fee 1000000ugnot -gas-wanted 1000000000 \
+  -chainid dev -remote http://localhost:26657 \
+  mykey
+```
+
+`-gas-wanted` is the maximum units the transaction may consume;
+`-gas-fee` is the price per unit (in `ugnot`, the smallest GNOT
+denomination). Together they cap what you'll pay — see
+[Gas fees](../resources/gas-fees.md) for estimation and tuning.
+
+The signer at the end is the `mykey` you just created. gnodev
+auto-funds every key in your local keybase on startup, so it's
+ready to spend with no faucet — and you'll reuse the same key for
+the staging and testnet sections later.
+
+`gnodev` also prints a `devtest` seed at startup. That's a well-known
+test account — the seed is public and the same on every machine, so
+it's only useful for shared dev fixtures. Treat it as throwaway and
+never reuse the mnemonic elsewhere.
+
+On success you'll see:
+
+```text
+(5 int)
+OK!
+GAS WANTED: 1000000000
+GAS USED:   234567
+HEIGHT:     42
+EVENTS:     []
+TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+```
+
+The leading `(5 int)` is `Increment`'s return value. Reload the realm
+page and `Render` flips from "Count: 0" to "Count: 5"; re-run to keep
+incrementing.
+
 For more options, see
 [Running a local dev node](./local-dev-with-gnodev.md).
 
 ## Deploy to a shared network
 
-Publish your package to a live testnet. You'll need a key, some test
-`ugnot` for gas, and one `addpkg` transaction.
+Publish your package to a live testnet. Two things change compared
+to `gnodev`: keys aren't auto-funded — you'll need test `ugnot` from
+a faucet — and each deploy is one explicit `addpkg` transaction
+instead of hot-reload on file save.
 
 Every command that hits the chain (faucet, query, deploy, call) must
 target the same network. Pick one up front and keep `-remote` (and
@@ -157,36 +242,7 @@ fine for a throwaway first deploy. For anything you want to keep around,
 use the current **testnet** instead; staging wipes regularly and your
 realm will disappear with it.
 
-### 1. Create a key
-
-Every transaction (deploy, function call) is signed by a key. 
-Create one with `gnokey`:
-
-```sh
-gnokey add dev
-```
-
-Prompts for an encryption password and prints a 24-word mnemonic,
-store it securely to recover the key later. List your keys to read
-the derived `g1...` address:
-
-```sh
-gnokey list
-```
-
-```text
-0. dev (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
-```
-
-That `g1...` address is your on-chain identity. It owns funds, signs
-deploys, and forms the base of your address-based namespace.
-
-:::warning
-Keys created this way are **development-only**. Do not reuse the
-mnemonic for real funds; faucet tokens are testnet-only.
-:::
-
-### 2. Get test tokens
+### 1. Get test tokens
 
 Deploys cost [gas](../resources/gas-fees.md), paid in `ugnot`. Get test tokens from the faucet:
 
@@ -195,7 +251,7 @@ address, pick a network, and submit. Tokens arrive in seconds. The
 faucet is rate-limited per address; wait out the cooldown if a
 re-request is rejected.
 
-### 3. Query on-chain
+### 2. Query on-chain
 
 Confirm the funds landed before spending them on a deploy:
 
@@ -207,7 +263,7 @@ Response shows your balance as `<amount>ugnot` (1 GNOT = 1,000,000
 ugnot). Read-only queries like this don't need a chainid or a key,
 they hit the RPC endpoint directly.
 
-### 4. Before you deploy
+### 3. Before you deploy
 
 Two things to know before publishing your first package:
 
@@ -224,10 +280,10 @@ sign once to acknowledge, then retry the deploy:
 ```sh
 gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
   -args "<current-hash>" -gas-fee 100000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 dev
+  -chainid staging -remote https://rpc.staging.gno.land:443 mykey
 ```
 
-### 5. Deploy your package
+### 4. Deploy your package
 
 `addpkg` uploads a directory of `.gno` files (with its `gnomod.toml`)
 as a single package on-chain.
@@ -239,10 +295,10 @@ gnokey maketx addpkg \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
   -broadcast \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
-  dev
+  mykey
 ```
 
-The trailing `dev` is the key name from step 1. On success you'll see:
+The `mykey` at the end is the key you created earlier. On success you'll see:
 
 ```text
 OK!
@@ -267,7 +323,7 @@ For the full flag list, see
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 
-### 6. Call your realm
+### 5. Call your realm
 
 After deploying, call `Increment` to change on-chain state:
 
@@ -278,7 +334,7 @@ gnokey maketx call \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
   -broadcast \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
-  dev
+  mykey
 ```
 
 On success the response leads with the return value, then the tx
