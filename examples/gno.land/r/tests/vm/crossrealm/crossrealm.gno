@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tests/p_crossrealm"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type LocalStruct struct {

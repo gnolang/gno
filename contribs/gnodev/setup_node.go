@@ -7,6 +7,7 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
@@ -83,6 +84,20 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}
 
+	// Register the init controller at genesis so it can handle
+	// post-genesis user registrations.
+	bootstrapTx := gnoland.TxWithMetadata{
+		Tx: std.Tx{
+			Msgs: []std.Msg{vm.MsgCall{
+				Caller:  nodeConfig.DefaultCreator,
+				PkgPath: "gno.land/r/sys/users/init",
+				Func:    "Bootstrap",
+			}},
+			Fee: std.NewFee(2_000_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+		},
+	}
+	nodeConfig.InitialTxs = append([]gnoland.TxWithMetadata{bootstrapTx}, nodeConfig.InitialTxs...)
+
 	if len(paths) > 0 {
 		logger.Info("packages", "paths", paths)
 	} else {
@@ -111,6 +126,8 @@ func setupDevNodeConfig(
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
+	config.TMConfig.Consensus.CreateEmptyBlocks = cfg.emptyBlocks
+	config.TMConfig.Consensus.CreateEmptyBlocksInterval = time.Duration(cfg.emptyBlocksInterval) * time.Second
 
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr

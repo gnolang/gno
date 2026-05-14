@@ -2,7 +2,7 @@ package config
 
 import (
 	"gno.land/p/n2p5/mgroup"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 const (

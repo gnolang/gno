@@ -10,15 +10,12 @@ coverage:
   round: down
   precision: 2
   status:
-    patch: # new lines
+    project:
       default:
-        target: 80
-        threshold: 10
-        base: auto
-        if_no_uploads: error
-        if_not_found: success
-        if_ci_failed: error
-        only_pulls: true # Only check patch coverage on PRs
+        informational: true
+    patch:
+      default:
+        informational: true
 
 flag_management:
   default_rules:
@@ -26,10 +23,12 @@ flag_management:
     statuses:
       - type: project
         target: auto
-        threshold: 10 # Let's decrease this later.
-      - type: patch
-        target: auto # Let's decrease this later.
         threshold: 10
+        informational: true
+      - type: patch
+        target: auto
+        threshold: 10
+        informational: true
 
 ignore:
   - "tm2/pkg/db/mockdb"

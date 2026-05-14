@@ -344,6 +344,10 @@ func buildTranspiledPackage(fileOrPkg, goBinary string) error {
 		// can't use filepath.Join as it cleans its results.
 		target = filepath.Dir(fileOrPkg) + string(filepath.Separator) + dstFilename
 	} else {
+		if info.Name() == "filetests" {
+			// We don't transpile filetest files, so we will get the error "no Go files in dir"
+			return nil
+		}
 		// Go does not allow building packages using absolute paths, and requires
 		// relative paths to always be prefixed with `./` (because the argument
 		// go expects are import paths, not directories).

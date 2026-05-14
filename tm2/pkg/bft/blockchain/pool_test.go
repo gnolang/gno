@@ -43,7 +43,7 @@ func (p testPeer) simulateInput(input inputData) {
 	block := &types.Block{Header: types.Header{Height: input.request.Height}}
 	input.pool.AddBlock(input.request.PeerID, block, 123)
 	// TODO: uncommenting this creates a race which is detected by: https://github.com/golang/go/blob/2bd767b1022dd3254bcec469f0ee164024726486/src/testing/testing.go#L854-L856
-	// see: https://github.com/tendermint/classic/issues/3390#issue-418379890
+	// see: https://github.com/tendermint/tendermint/issues/3390#issue-418379890
 	// input.t.Logf("Added block from peer %v (height: %v)", input.request.PeerID, input.request.Height)
 }
 
@@ -227,4 +227,80 @@ func TestBlockPoolRemovePeer(t *testing.T) {
 	}
 
 	assert.EqualValues(t, 0, pool.MaxPeerHeight())
+}
+
+func TestBlockPoolSetPeerHeightDecrease(t *testing.T) {
+	t.Parallel()
+
+	requestsCh := make(chan BlockRequest)
+	errorsCh := make(chan peerError)
+
+	pool := NewBlockPool(1, requestsCh, errorsCh)
+	pool.SetLogger(log.NewTestingLogger(t))
+	err := pool.Start()
+	require.NoError(t, err)
+	defer pool.Stop()
+
+	peerA := p2pTypes.ID("peerA")
+	peerB := p2pTypes.ID("peerB")
+
+	pool.SetPeerHeight(peerA, 1000)
+	pool.SetPeerHeight(peerB, 500)
+	assert.EqualValues(t, 1000, pool.MaxPeerHeight())
+
+	// peerA lowers its height; max must be recalculated from peerB
+	pool.SetPeerHeight(peerA, 10)
+	assert.EqualValues(t, 500, pool.MaxPeerHeight())
+}
+
+func TestBlockPoolMaxHeightPoisonAttack(t *testing.T) {
+	t.Parallel()
+
+	requestsCh := make(chan BlockRequest)
+	errorsCh := make(chan peerError)
+
+	pool := NewBlockPool(1, requestsCh, errorsCh)
+	pool.SetLogger(log.NewTestingLogger(t))
+	err := pool.Start()
+	require.NoError(t, err)
+	defer pool.Stop()
+
+	honest := p2pTypes.ID("honest")
+	attacker := p2pTypes.ID("attacker")
+
+	pool.SetPeerHeight(honest, 50)
+	pool.SetPeerHeight(attacker, 10_000_000)
+	assert.EqualValues(t, 10_000_000, pool.MaxPeerHeight())
+
+	// attacker "corrects" to a real height — max must drop to honest peer's height
+	pool.SetPeerHeight(attacker, 1)
+	assert.EqualValues(t, 50, pool.MaxPeerHeight())
+
+	// removing the attacker should leave max unchanged
+	pool.RemovePeer(attacker)
+	assert.EqualValues(t, 50, pool.MaxPeerHeight())
+}
+
+func TestBlockPoolSetPeerHeightDecreaseNoOvercorrect(t *testing.T) {
+	t.Parallel()
+
+	requestsCh := make(chan BlockRequest)
+	errorsCh := make(chan peerError)
+
+	pool := NewBlockPool(1, requestsCh, errorsCh)
+	pool.SetLogger(log.NewTestingLogger(t))
+	err := pool.Start()
+	require.NoError(t, err)
+	defer pool.Stop()
+
+	peerA := p2pTypes.ID("peerA")
+	peerB := p2pTypes.ID("peerB")
+
+	pool.SetPeerHeight(peerA, 100)
+	pool.SetPeerHeight(peerB, 80)
+	assert.EqualValues(t, 100, pool.MaxPeerHeight())
+
+	// peerB lowers its height, but peerB was not the max — max must stay at 100
+	pool.SetPeerHeight(peerB, 70)
+	assert.EqualValues(t, 100, pool.MaxPeerHeight())
 }

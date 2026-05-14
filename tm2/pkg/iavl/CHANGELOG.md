@@ -18,7 +18,7 @@
 
 ### IMPROVEMENTS
 
-- [\#46](https://github.com/tendermint/classic/iavl/issues/46) Removed all instances of cmn (tendermint/tendermint/libs/common)
+- [\#46](https://github.com/cosmos/iavl/issues/46) Removed all instances of cmn (tendermint/tendermint/libs/common)
 
 ## 0.12.3 (July 12, 2019)
 
@@ -37,7 +37,7 @@ IMPROVEMENTS
 
 IMPROVEMENTS
 
-- Use Tendermint v0.30.2 and close batch after write (related pull request in Tendermint: https://github.com/tendermint/classic/pull/3397)
+- Use Tendermint v0.30.2 and close batch after write (related pull request in Tendermint: https://github.com/tendermint/tendermint/pull/3397)
 
 ## 0.12.1 (February 12, 2019)
 
@@ -49,7 +49,7 @@ IMPROVEMENTS
 
 BREAKING CHANGES
 
-- Uses new Tendermint ReverseIterator API. See https://github.com/tendermint/classic/pull/2913
+- Uses new Tendermint ReverseIterator API. See https://github.com/tendermint/tendermint/pull/2913
 
 ## 0.11.1 (October 29, 2018)
 
@@ -68,9 +68,9 @@ IMPROVEMENTS
 
 - Database key format avoids use of fmt.Sprintf fmt.Sscanf leading to ~10% speedup in benchmark BenchmarkTreeLoadAndDelete ([#107], thanks to [@silasdavis])
 
-[#107]: https://github.com/tendermint/classic/iavl/pull/107
+[#107]: https://github.com/cosmos/iavl/pull/107
 [@silasdavis]: https://github.com/silasdavis
-[#96]: https://github.com/tendermint/classic/iavl/pull/96
+[#96]: https://github.com/cosmos/iavl/pull/96
 
 ## 0.10.0
 
@@ -81,8 +81,8 @@ BREAKING CHANGES
   - load read-only snapshots at previous versions on demand
   - load mutable trees at the most recently saved tree
 
-[1]: https://github.com/tendermint/classic/iavl/blob/9e62436856efa94c1223043be36ebda01ae0b6fc/mutable_tree.go#L14-L21
-[2]: https://github.com/tendermint/classic/iavl/blob/9e62436856efa94c1223043be36ebda01ae0b6fc/immutable_tree.go#L10-L17
+[1]: https://github.com/cosmos/iavl/blob/9e62436856efa94c1223043be36ebda01ae0b6fc/mutable_tree.go#L14-L21
+[2]: https://github.com/cosmos/iavl/blob/9e62436856efa94c1223043be36ebda01ae0b6fc/immutable_tree.go#L10-L17
 
 BUG FIXES
 

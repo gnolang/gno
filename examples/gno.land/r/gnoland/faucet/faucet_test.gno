@@ -5,12 +5,12 @@ import (
 	"chain/banker"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 )
 
 func TestPackage(t *testing.T) {
 	var (
-		adminaddr        = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr        = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		faucetaddr       = chain.PackageAddress("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")

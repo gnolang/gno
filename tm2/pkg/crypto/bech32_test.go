@@ -14,12 +14,12 @@ import (
 )
 
 var invalidStrs = []string{
-	crypto.Bech32AddrPrefix + "AB0C",
-	crypto.Bech32AddrPrefix + "1234",
-	crypto.Bech32AddrPrefix + "5678",
-	crypto.Bech32AddrPrefix + "BBAB",
-	crypto.Bech32AddrPrefix + "FF04",
-	crypto.Bech32AddrPrefix + "6789",
+	crypto.Bech32AddrPrefix() + "AB0C",
+	crypto.Bech32AddrPrefix() + "1234",
+	crypto.Bech32AddrPrefix() + "5678",
+	crypto.Bech32AddrPrefix() + "BBAB",
+	crypto.Bech32AddrPrefix() + "FF04",
+	crypto.Bech32AddrPrefix() + "6789",
 }
 
 func TestEmptyAddresses(t *testing.T) {
@@ -27,7 +27,7 @@ func TestEmptyAddresses(t *testing.T) {
 
 	require.Equal(t, (crypto.Address{}).String(), "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe")
 
-	addr := crypto.AddressFromBytes(make([]byte, 20))
+	addr := crypto.MustAddressFromBytes(make([]byte, 20))
 	require.True(t, addr.IsZero())
 
 	addr, err := crypto.AddressFromBech32("")
@@ -59,7 +59,7 @@ func TestRandBech32AddrConsistency(t *testing.T) {
 	for range 1000 {
 		cc8.Read(pub[:])
 
-		addr := crypto.AddressFromBytes(pub.Address().Bytes())
+		addr := crypto.MustAddressFromBytes(pub.Address().Bytes())
 		testMarshal(t, addr, amino.Marshal, amino.Unmarshal)
 		testMarshal(t, addr, amino.MarshalJSON, amino.UnmarshalJSON)
 		testMarshal(t, addr, json.Marshal, json.Unmarshal)

@@ -52,6 +52,9 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
+	if line := s.GetLine(); line != 0 {
+		m.Lastline = line
+	}
 	if debug {
 		debug.Printf("PEEK STMT: %v\n", s)
 		debug.Printf("%v\n", m)
@@ -85,7 +88,8 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		bs := m.LastBlock().GetBodyStmt()
+		last := m.LastBlock()
+		bs := last.GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
 			bs.NumOps = len(m.Ops)
@@ -119,6 +123,18 @@ func (m *Machine) doOpExec(op Op) {
 				m.PushExpr(bs.Cond)
 				m.PushOp(OpEval)
 			}
+			// copy heap item defines in init to new heap items.
+			m.incrCPU(OpCPUSlopeForLoopHeap * int64(bs.NumInit))
+			for i := 0; i < bs.NumInit; i++ {
+				hiv, ok := last.Values[i].V.(*HeapItemValue)
+				if !ok {
+					continue
+				}
+				last.Values[i].V = &HeapItemValue{
+					Value: hiv.Value,
+				}
+			}
+			// run post if exists.
 			bs.NextBodyIndex = -1
 			if next := bs.Post; next == nil {
 				bs.Active = nil
@@ -145,17 +161,28 @@ func (m *Machine) doOpExec(op Op) {
 			var ll int
 			var dv *TypedValue
 			if op == OpRangeIterArrayPtr {
-				dv = xv.V.(PointerValue).TV
-				*xv = *dv
+				if xv.V == nil {
+					// In Go, `for range nilPtr` and `for i := range nilPtr`
+					// work fine (length is known from the type), but
+					// `for i, v := range nilPtr` panics because accessing
+					// values requires dereferencing the nil pointer.
+					// We defer that panic to the value-assignment phase below.
+					ll = baseOf(xv.T.Elem()).(*ArrayType).Len
+				} else {
+					dv = xv.V.(PointerValue).TV
+					*xv = *dv
+					ll = dv.GetLength()
+				}
 			} else {
 				dv = xv
 				*xv = xv.Copy(m.Alloc)
+				ll = dv.GetLength()
 			}
-			ll = dv.GetLength()
 			if ll == 0 { // early termination
 				m.PopFrameAndReset()
 				return
 			}
+			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = len(m.Values)
@@ -179,6 +206,12 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
+				// In Go, `for i, v := range nilPtrToArray` panics because
+				// reading `v` requires dereferencing the nil pointer.
+				if op == OpRangeIterArrayPtr && xv.V == nil {
+					m.pushPanic(typedString("runtime error: nil pointer dereference"))
+					return
+				}
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
@@ -498,10 +531,15 @@ EXEC_SWITCH:
 	case *ForStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
+		numInit := 0
+		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
+			numInit = len(as.Lhs)
+		}
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
 			BodyLen:       len(cs.Body),
 			NextBodyIndex: -2,
+			NumInit:       numInit,
 			Cond:          cs.Cond,
 			Post:          cs.Post,
 		}
@@ -806,6 +844,7 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
+	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
@@ -935,7 +974,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(m.Store, cv, tv)
+	match := isEql(m, cv, tv)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

@@ -9,8 +9,11 @@ export function debounce<P extends unknown[]>(
 	};
 }
 
+// Escape for $'...' bash quoting (handles newlines + all shell special chars)
 export function escapeShellSpecialChars(arg: string): string {
-	return arg.replace(/([$`"\\!|&;<>*?{}()])/g, "\\$1");
+	return arg
+		.replace(/([$`"\\!|&;<>*?{}()'])/g, "\\$1") // escape shell special chars + single quote
+		.replace(/\n/g, "\\n"); // convert newlines to \n
 }
 
 export function toKebabCase(str: string): string {

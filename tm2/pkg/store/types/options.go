@@ -13,7 +13,7 @@ type PruningOptions struct {
 	// A value of 0 means keep no recent states.
 	KeepRecent int64
 	// This is the distance between state-sync waypoint states to be stored.
-	// See https://github.com/tendermint/classic/issues/828
+	// See https://github.com/tendermint/tendermint/issues/828
 	// A value of 1 means store every state.
 	// A value of 0 means store no waypoints. (node cannot assist in state-sync)
 	// By default this value should be set the same across all nodes,

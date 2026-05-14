@@ -5,7 +5,7 @@ import (
 	"chain/runtime"
 
 	"gno.land/p/demo/tokens/grc20"
-	t "gno.land/p/nt/treasury"
+	t "gno.land/p/nt/treasury/v0"
 
 	"gno.land/r/demo/defi/grc20reg"
 	"gno.land/r/gov/dao"

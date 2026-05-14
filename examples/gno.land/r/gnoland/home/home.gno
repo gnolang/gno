@@ -4,18 +4,16 @@ import (
 	"chain/runtime"
 	"strconv"
 
+	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/dynreplacer"
-	"gno.land/p/nt/ownable"
-	blog "gno.land/r/gnoland/blog"
-
+	"gno.land/p/nt/ownable/v0"
 	"gno.land/r/devrels/events"
-	users "gno.land/r/gnoland/users/v1"
-	"gno.land/r/leon/hor"
+	blog "gno.land/r/gnoland/blog"
 )
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	Admin    = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func Render(_ string) string {
@@ -27,31 +25,37 @@ func Render(_ string) string {
 		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 		return out
 	})
-	r.RegisterCallback(":latest-hor:", func() string {
-		return hor.RenderExhibWidget(5)
-	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
-	r.RegisterCallback(":latest-gnomes:", func() string {
-		return users.RenderLatestUsersWidget(5)
-	})
+	r.RegisterCallback(":newsletter-button:", newsletterButton)
 	r.RegisterCallback(":chain-height:", func() string {
 		return strconv.Itoa(int(runtime.ChainHeight()))
 	})
 
 	template := `# Welcome to Gno.land
 
-We’re building Gno.land, set to become the leading open-source smart contract
+We're building Gno.land, set to become the leading open-source smart contract
 platform, using Gno, an interpreted and fully deterministic variation of the
 Go programming language for succinct and composable smart contracts.
 
 With transparent and timeless code, Gno.land is the next generation of smart
-contract platforms, serving as the “GitHub” of the ecosystem, with realms built
+contract platforms, serving as the "GitHub" of the ecosystem, with realms built
 using fully transparent, auditable code that anyone can inspect and reuse.
 
 Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
 censorship-resistant platforms accessible to everyone. If you want to help lay
-the foundations of a fairer and freer world, join us today. 
+the foundations of a fairer and freer world, join us today.
 
+---
+
+## [Boards](/r/gnoland/boards2/v1) - On-chain forum for the Gno.land community
+
+**Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
+
+Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
+
+**[Open Boards](/r/gnoland/boards2/v1)**
+
+---
 
 <gno-columns>
 ## Learn about Gno.land
@@ -71,7 +75,6 @@ the foundations of a fairer and freer world, join us today.
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Gno by Example](/r/docs/home)
 - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
@@ -81,8 +84,9 @@ the foundations of a fairer and freer world, join us today.
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Staging chain](https://docs.gno.land/resources/gnoland-networks/#staging-environments-portal-loops)
-- [Testnet 7](https://test7.testnets.gno.land/)
+- [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
+- [Staging](https://staging.gno.land/)
+- [Testnet 12](https://test12.testnets.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
 </gno-columns>
@@ -95,15 +99,9 @@ the foundations of a fairer and freer world, join us today.
 
 |||
 
-## [Latest Events](/r/devrels/events)
+## [Latest Events](/events)
 
 :upcoming-events:
-
-||| 
-
-## [Hall of Realms](/r/leon/hor)
-
-:latest-hor:
 
 </gno-columns>
 
@@ -132,7 +130,7 @@ All code in Gno.land is organized in packages, and each package lives at a uniqu
 
 Official realm packages developed by the Gno.land core team.
 
-[-> Browse](/r/gnoland)
+[Browse](/r/gnoland)
 
 |||
 
@@ -140,7 +138,7 @@ Official realm packages developed by the Gno.land core team.
 
 System-level realm packages used by the chain.
 
-[-> Browse](/r/sys)
+[Browse](/r/sys)
 
 |||
 
@@ -148,7 +146,7 @@ System-level realm packages used by the chain.
 
 Demo realm packages showcasing what’s possible.
 
-[-> Browse](/r/demo)
+[Browse](/r/demo)
 
 |||
 
@@ -156,20 +154,13 @@ Demo realm packages showcasing what’s possible.
 
 Pure packages for demo purposes.
 
-[-> Browse](/p/demo)
+[Browse](/p/demo)
 
 </gno-columns>
 
 ---
 
 <gno-columns>
-## Latest Gnomes
-
-Latest Gnomes in the [registry](/r/gnoland/users/v1).
-
-:latest-gnomes:
-
-|||
 
 ## Socials
 
@@ -189,15 +180,32 @@ Latest Gnomes in the [registry](/r/gnoland/users/v1).
 
 ---
 
-**This is a testnet.**
-Package names are not guaranteed to be available for production.
-`
+## Sign up for our newsletter
+
+Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
+
+:newsletter-button:
+
+---
+
+**This is a testnet.** Package names are not guaranteed to be available for production.`
 
 	if override != "" {
 		template = override
 	}
 	result := r.Replace(template)
 	return result
+}
+
+func newsletterButton() string {
+	return svgbtn.Button(
+		256,
+		44,
+		"#226c57",
+		"#ffffff",
+		"Subscribe to stay in the Gno",
+		"https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b",
+	)
 }
 
 func quoteOfTheBlock() string {
@@ -215,6 +223,12 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwnedByPrevious()
+	Admin.AssertOwned()
 	override = content
+}
+
+func AdminTransferOwnership(cur realm, newOwner address) {
+	if err := Admin.TransferOwnership(newOwner); err != nil {
+		panic(err)
+	}
 }

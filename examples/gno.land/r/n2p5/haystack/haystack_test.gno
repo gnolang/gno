@@ -6,8 +6,8 @@ import (
 
 	"gno.land/p/n2p5/haystack"
 	"gno.land/p/n2p5/haystack/needle"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 func TestHaystack(t *testing.T) {

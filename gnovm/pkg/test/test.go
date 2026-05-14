@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"go.uber.org/multierr"
 )
@@ -71,13 +72,14 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runti
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
 // It is only used for linting/preprocessing.
-func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
+func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, gasMeter store.GasMeter) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:         testStore,
 		Output:        output,
 		Context:       Context("", pkgPath, nil),
 		Debug:         debug,
 		ReviveEnabled: true,
+		GasMeter:      gasMeter,
 	})
 }
 
@@ -98,20 +100,120 @@ func (o outputWithError) StderrWrite(p []byte) (int, error) { return o.errW.Writ
 
 // ----------------------------------------
 // testParams
+//
+// In-memory backing for the gno test runner's param store. Mirrors
+// the production keeper's missing-key semantics: a Get against an
+// absent key leaves the destination at its zero value (matches
+// tm2/pkg/sdk/params/keeper.go:getIfExists). Type safety is
+// per-method, so values are stored as any and asserted on read.
+//
+// State lifetime: a fresh testParams is constructed per top-level
+// Machine setup; t.Run subtests share the same map and must
+// explicitly seed/reset to isolate.
 
-type testParams struct{}
-
-func newTestParams() *testParams {
-	return &testParams{}
+type testParams struct {
+	values map[string]any
 }
 
-func (tp *testParams) SetBool(key string, val bool)                     { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)                  { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)                   { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64)                 { /* noop */ }
-func (tp *testParams) SetString(key string, val string)                 { /* noop */ }
-func (tp *testParams) SetStrings(key string, val []string)              { /* noop */ }
-func (tp *testParams) UpdateStrings(key string, val []string, add bool) { /* noop */ }
+func newTestParams() *testParams {
+	return &testParams{values: map[string]any{}}
+}
+
+func (tp *testParams) SetBool(key string, val bool)        { tp.values[key] = val }
+func (tp *testParams) SetBytes(key string, val []byte)     { tp.values[key] = val }
+func (tp *testParams) SetInt64(key string, val int64)      { tp.values[key] = val }
+func (tp *testParams) SetUint64(key string, val uint64)    { tp.values[key] = val }
+func (tp *testParams) SetString(key string, val string)    { tp.values[key] = val }
+func (tp *testParams) SetStrings(key string, val []string) { tp.values[key] = val }
+
+func (tp *testParams) UpdateStrings(key string, val []string, add bool) {
+	cur, _ := tp.values[key].([]string)
+	// Mirror production semantics in gno.land/pkg/sdk/vm/builtins.go: add
+	// dedupes against the existing set; remove drops any element listed.
+	existing := make(map[string]bool, len(cur))
+	for _, s := range cur {
+		existing[s] = true
+	}
+	if add {
+		for _, v := range val {
+			if !existing[v] {
+				cur = append(cur, v)
+				existing[v] = true
+			}
+		}
+	} else {
+		drop := make(map[string]bool, len(val))
+		for _, v := range val {
+			drop[v] = true
+		}
+		out := cur[:0]
+		for _, v := range cur {
+			if !drop[v] {
+				out = append(out, v)
+			}
+		}
+		cur = out
+	}
+	tp.values[key] = cur
+}
+
+// GetXxx return false on absent key OR present-with-wrong-type
+// (treated as not-present for this getter — same fail-safe shape as
+// the production keeper's amino-unmarshal would surface).
+
+func (tp *testParams) GetBool(key string, ptr *bool) bool {
+	v, ok := tp.values[key].(bool)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetBytes(key string, ptr *[]byte) bool {
+	v, ok := tp.values[key].([]byte)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetInt64(key string, ptr *int64) bool {
+	v, ok := tp.values[key].(int64)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetUint64(key string, ptr *uint64) bool {
+	v, ok := tp.values[key].(uint64)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetString(key string, ptr *string) bool {
+	v, ok := tp.values[key].(string)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
+
+func (tp *testParams) GetStrings(key string, ptr *[]string) bool {
+	v, ok := tp.values[key].([]string)
+	if !ok {
+		return false
+	}
+	*ptr = v
+	return true
+}
 
 // ----------------------------------------
 // main test function
@@ -230,7 +332,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// `pkg_test` tests. This allows us to "export" symbols from the pkg
 	// tests and import them from the `pkg_test` tests.
 	tcw := opts.BaseStore.CacheWrap()
-	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil)
+	tgs := opts.TestStore.BeginTransaction(tcw, tcw, nil, nil)
 
 	// Let opts.TestStore load itself.
 	// This needs to happen before LoadImports, as LoadImports will
@@ -303,7 +405,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, testFileName)
+			testFilePath := filepath.Join(fsDir, "filetests", testFileName)
 			// XXX consider this
 			testName := fsDir + "/" + testFileName
 			// testName := "file/" + testFileName
@@ -318,7 +420,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			tcheck := false // already type-checked e.g. by cmd/gno/test.go
 			// We can not use shared tx gno store (tgs) between _filetest.gno since we need to
 			// isolate the state between them
-			changed, err := opts.runFiletest(
+			changed, gas, err := opts.runFiletest(
 				testFileName, []byte(testFile.Body), opts.TestStore, tcheck)
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
@@ -331,11 +433,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+				fmt.Fprintf(opts.Error, "--- FAIL: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 				fmt.Fprintln(opts.Error, err.Error())
 				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
 			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
+				fmt.Fprintf(opts.Error, "--- PASS: %s (elapsed: %s, gas: %d)\n", testName, dstr, gas)
 			}
 
 			// XXX: add per-test metrics
@@ -377,7 +479,7 @@ func (opts *TestOptions) runTestFiles(
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
 	m.Alloc = alloc
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
@@ -398,7 +500,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug)
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
@@ -479,6 +581,9 @@ func (opts *TestOptions) runTestFiles(
 				},
 			},
 		))
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
+		}
 
 		if opts.Events {
 			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()

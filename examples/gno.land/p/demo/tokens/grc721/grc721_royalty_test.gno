@@ -3,8 +3,8 @@ package grc721
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 func TestSetTokenRoyalty(t *testing.T) {

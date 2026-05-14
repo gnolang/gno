@@ -34,8 +34,12 @@ var (
 	//  - sub.domain.tld/c/letter
 	//  - sub.domain.tld/d/works
 	//  - sub.domain.tld/r/realm
-	//  - sub.domain.tld/r/_realm/_path
-	//  - sub.domain.tld/p/package/_path123/etc
+	//  - sub.domain.tld/r/realm/sub-path
+	//  - sub.domain.tld/p/package/path123/etc
+	//
+	// Note: each path segment must START with [a-z] (no leading separator)
+	// and END with [a-z0-9] (no trailing separator); single hyphens or
+	// underscores are allowed between alphanumerics but never consecutive.
 	//
 	// Further validation should be done with LETTER to determine the type of pkgPath:
 	//  - /r/ for realm paths
@@ -52,8 +56,8 @@ var (
 	//  - math
 	//  - math/fourier123
 	//  - justnodots
-	//  - _nodots123
-	//  - _nodots123/_subpath1/_subpath2
+	//  - nodots123
+	//  - nodots123/subpath1/subpath2
 	Re_gnoStdPkgPath = r.N("PKGPATH",
 		Re_name, r.S(r.E(`/`), Re_name)) // no dots, just name(s) with `/` delimiter.
 
@@ -62,8 +66,8 @@ var (
 	Re_domain = r.N("DOMAIN", // all lowercase
 		r.N("SLD", r.P(r.P(r.C(`a-z0-9-`)), r.E(`.`))), // sub(level)domain, permissive w/ dashes.
 		r.N("TLD", r.R(2, 63, r.C(`a-z`))))             // top level domain, 2~63 letters.
-	Re_name    = r.G(r.M(`_`), r.C(`a-z`), r.S(r.C(`a-z0-9_`))) // optional leading _, start with letter, no dots!
-	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))       // starts with g1, all lowercase.
+	Re_name    = r.G(r.C(`a-z`), r.S(r.C(`a-z0-9`)), r.S(r.C(`_-`), r.P(r.C(`a-z0-9`)))) // start with letter; alphanumeric body; separators (`_` or `-`) only between alphanumerics, never consecutive, never trailing
+	Re_address = r.N("ADDRESS", `g1`, r.P(r.C(`a-z0-9`)))                                // starts with g1, all lowercase.
 
 	// Compile at init to avoid runtime compilation.
 	ReGnoUserPkgPath = Re_gnoUserPkgPath.Compile()
@@ -160,8 +164,10 @@ func IsTestFile(file string) bool {
 
 var (
 	goodFiles = []string{
-		"LICENSE",
-		"README.md",
+		"license",
+		"license.txt",
+		"licence",
+		"licence.txt",
 		"gno.mod",
 	}
 	// NOTE: Xtn is easier to type than Extension due to proximity of 'e'
@@ -171,6 +177,7 @@ var (
 	goodFileXtns = []string{
 		".gno",
 		".toml",
+		".md",
 		// ".txtar", // XXX: to be considered
 	}
 	badFileXtns = []string{
@@ -560,6 +567,9 @@ func (mptype MemPackageType) Validate(pkgPath string) {
 	// Check if MPUser*.
 	switch {
 	case mptype.IsUserlib():
+		if strings.HasSuffix(pkgPath, "/filetests") {
+			panic(fmt.Sprintf("expected user package path for %q but got %q ending in filetests", mptype, pkgPath))
+		}
 		if !IsUserlib(pkgPath) {
 			panic(fmt.Sprintf("expected user package path for %q but got %q", mptype, pkgPath))
 		}
@@ -640,7 +650,8 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
-// additionally README.md, LICENSE.
+// additionally LICENSE, *.md and *.toml .
+// All *_filetest.gno files are added from subdirectory filetests.
 //
 // ReadMemPackage only reads good file extensions or whitelisted good files,
 // and ignores bad file extensions. Validation will fail if any bad extensions
@@ -674,17 +685,40 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 	}
 	// Construct list of files to add to mpkg.
 	list := make([]string, 0, len(files))
+	filetestsDir := ""
 	for _, file := range files {
+		if file.IsDir() && file.Name() == "filetests" {
+			// Process filetests dir below
+			filetestsDir = filepath.Join(dir, file.Name())
+			continue
+		}
 		// Ignore directories and hidden files, only include allowed files & extensions,
 		// then exclude files that are of the bad extensions.
+		// We do case ignore to check goodFiles. MemFile ValidateBasic will enforce case rules.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, file.Name())) ||
+				!slices.Contains(goodFiles, strings.ToLower(file.Name()))) ||
 			endsWithAny(file.Name(), badFileXtns) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	if filetestsDir != "" {
+		// Add filetest files from the subdir
+		filetestsFiles, err := os.ReadDir(filetestsDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range filetestsFiles {
+			if strings.HasSuffix(file.Name(), "_filetest.gno") {
+				checkPath := filepath.Join(dir, file.Name())
+				if slices.Contains(list, checkPath) {
+					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
+				}
+				list = append(list, filepath.Join(filetestsDir, file.Name()))
+			}
+		}
 	}
 	return ReadMemPackageFromList(list, pkgPath, mptype)
 }
@@ -1031,7 +1065,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			continue
 		}
 		if !endsWithAny(fname, goodFileXtns) {
-			if !slices.Contains(goodFiles, fname) {
+			if !slices.Contains(goodFiles, strings.ToLower(fname)) {
 				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: unrecognized file type", fname))
 				continue
 			}

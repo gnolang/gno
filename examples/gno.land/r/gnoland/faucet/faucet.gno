@@ -6,14 +6,14 @@ import (
 	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
 	// configurable by admin.
-	gAdminAddr          address = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	gControllers                = avl.NewTree()
+	gAdminAddr          address = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	gControllers                = bptree.NewBPTree32()
 	gControllersMaxSize         = 10 // limit it to 10
 	gInPause                    = false
 	gMessage                    = "# Community Faucet.\n\n"

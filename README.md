@@ -19,6 +19,8 @@ programming language, designed to build succinct and composable smart contracts.
 The first blockchain to use it is gno.land, a contribution-based chain, backed
 by a variation of the [Tendermint](./tm2) consensus engine.
 
+PLEASE NOTE: This is NOT the same project or token as the excellent Gnosis.io project.
+
 ## Getting Started
 
 Explore Gno through our comprehensive documentation:

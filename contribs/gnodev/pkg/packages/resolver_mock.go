@@ -2,6 +2,7 @@ package packages
 
 import (
 	"go/token"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -9,6 +10,7 @@ import (
 type MockResolver struct {
 	pkgs         map[string]*std.MemPackage
 	resolveCalls map[string]int // Track resolve calls per path
+	mtx          sync.Mutex
 }
 
 func NewMockResolver(pkgs ...*std.MemPackage) *MockResolver {
@@ -23,11 +25,15 @@ func NewMockResolver(pkgs ...*std.MemPackage) *MockResolver {
 }
 
 func (m *MockResolver) ResolveCalls(fset *token.FileSet, path string) int {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	count := m.resolveCalls[path]
 	return count
 }
 
 func (m *MockResolver) Resolve(fset *token.FileSet, path string) (*Package, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	m.resolveCalls[path]++ // Increment call count
 	if mempkg, ok := m.pkgs[path]; ok {
 		return &Package{MemPackage: *mempkg}, nil

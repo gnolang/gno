@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/todolist"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // State variables

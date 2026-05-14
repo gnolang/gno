@@ -10,6 +10,13 @@ import (
 
 const HelpViewType ViewType = "help-view"
 
+// HelpFunction pairs a doc.JSONFunc with its documentation already rendered
+// as an HTML Component, so the template can embed it via `{{ render . }}`.
+type HelpFunction struct {
+	*doc.JSONFunc
+	DocComponent Component
+}
+
 type HelpData struct {
 	// Selected function
 	SelectedFunc string
@@ -17,12 +24,12 @@ type HelpData struct {
 	SelectedSend string
 
 	RealmName   string
-	Functions   []*doc.JSONFunc
+	Functions   []HelpFunction
 	ChainId     string
 	Remote      string
 	PkgPath     string
 	PkgFullPath string
-	Doc         string
+	Doc         Component
 	Domain      string
 }
 
@@ -34,6 +41,14 @@ type HelpTocData struct {
 type HelpTocItem struct {
 	Link string
 	Text string
+}
+
+type CommandData struct {
+	FuncName   string
+	PkgPath    string
+	ParamNames []string
+	ChainId    string
+	Remote     string
 }
 
 type helpViewParams struct {
@@ -51,9 +66,9 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		return data.SelectedArgs[param.Name], nil
 	}
 
-	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
+	funcs["buildHelpURL"] = func(data HelpData, fn HelpFunction) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := data.Domain + pkgPath + "$help&func=" + fn.Name
+		url := pkgPath + "$help&func=" + fn.Name
 		if len(fn.Params) > 0 {
 			url += "&"
 			for i, param := range fn.Params {
@@ -67,6 +82,23 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			}
 		}
 		return url
+	}
+
+	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
+		// Extract parameter names
+		paramNames := make([]string, len(fn.Params))
+
+		for i, param := range fn.Params {
+			paramNames[i] = param.Name
+		}
+
+		return CommandData{
+			FuncName:   fn.Name,
+			PkgPath:    data.PkgPath,
+			ParamNames: paramNames,
+			ChainId:    data.ChainId,
+			Remote:     data.Remote,
+		}
 	}
 }
 

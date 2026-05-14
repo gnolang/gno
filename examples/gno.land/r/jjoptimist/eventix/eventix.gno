@@ -9,9 +9,9 @@ import (
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Event struct {
@@ -71,6 +71,9 @@ func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, m
 }
 
 func BuyTicket(_ realm, eventId uint64) {
+	if !runtime.PreviousRealm().IsUserCall() {
+		panic("only user-call (maketx call) accepted")
+	}
 	event, exists := getEvent(eventId)
 	if !exists {
 		panic("Event does not exist")

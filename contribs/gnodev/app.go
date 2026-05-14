@@ -236,12 +236,16 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		ds.webHomePath = webHome
 	}
 
-	ds.watcher, err = watcher.NewPackageWatcher(loggerEvents, ds.emitterServer)
-	if err != nil {
-		return fmt.Errorf("unable to setup packages watcher: %w", err)
-	}
+	if !ds.cfg.noWatch {
+		ds.watcher, err = watcher.NewPackageWatcher(loggerEvents, ds.emitterServer)
+		if err != nil {
+			return fmt.Errorf("unable to setup packages watcher: %w", err)
+		}
 
-	ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+		ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+	} else {
+		ds.logger.WithGroup("Watcher").Info("watcher disabled (--no-watch)")
+	}
 
 	return nil
 }
@@ -315,7 +319,9 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 				}
 
 				// Update the watcher list with the currently loaded packages
-				ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+				if !ds.cfg.noWatch {
+					ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+				}
 
 				// Reloading the node once is sufficient, so exit the loop
 				return
@@ -401,6 +407,11 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 		ds.logger.WithGroup("--- READY").Info("for commands and help, press `h`", "took", time.Since(ds.start))
 	} else {
 		ds.logger.Info("node is ready", "took", time.Since(ds.start))
+	}
+
+	if ds.cfg.noWatch {
+		<-ctx.Done()
+		return context.Cause(ctx)
 	}
 
 	for {

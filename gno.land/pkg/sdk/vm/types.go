@@ -11,6 +11,7 @@ import (
 // AccountKeeperI is the limited interface only needed for VM.
 type AccountKeeperI interface {
 	GetAccount(ctx sdk.Context, addr crypto.Address) std.Account
+	SetSessionAccount(ctx sdk.Context, master crypto.Address, acc std.Account)
 }
 
 // BankKeeperI is the limited interface only needed for VM.
@@ -28,7 +29,6 @@ type ParamsKeeperI interface {
 	params.ParamsKeeperI
 
 	IsRegistered(moduleName string) bool
-	GetRegisteredKeeper(moduleName string) params.ParamfulKeeper
 }
 
 // Public facing function signatures.

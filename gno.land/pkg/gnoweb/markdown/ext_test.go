@@ -33,7 +33,9 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	require.NoError(t, err)
 
 	// Create parser context with the test URL
-	ctxOpts := parser.WithContext(NewGnoParserContext(gnourl))
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{
+		GnoURL: gnourl,
+	}))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
 		return !strings.HasPrefix(uri, "https://") // disallow https

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/thox/accesscontrol"
 )
 

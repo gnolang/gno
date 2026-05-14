@@ -2,16 +2,49 @@
 <footer class="b-footer">
   <nav class="c-center c-view-grid">
     <a class="logo" href="/">{{ template "ui/logo" }}</a>
-    <div class="menu c-view-grid">
-      {{ range .Sections }}
+    <div class="nav-primary">
+      {{ with index .Sections 0 }}
       <ul aria-label="{{ .Title }}">
         {{ range .Links }}
         <li><a href="{{ .URL }}">{{ .Label }}</a></li>
         {{ end }}
       </ul>
       {{ end }}
+      {{ with index .Sections 1 }}
+      <ul class="nav-social" aria-label="{{ .Title }}">
+        {{ range .Links }}
+        <li><a href="{{ .URL }}">{{ .Label }}</a></li>
+        {{ end }}
+      </ul>
+      {{ end }}
+    </div>
+    <div class="nav-theme">
+      <button type="button" class="b-btn c-inline" data-controller="theme" data-action="click->theme#toggle"
+        aria-label="Toggle theme" title="Toggle theme">
+        <svg data-theme-target="sun" class="u-hidden c-icon" aria-hidden="true">
+          <title>Light theme</title>
+          <use href="#ico-sun"></use>
+        </svg>
+        <svg data-theme-target="moon" class="u-hidden c-icon" aria-hidden="true">
+          <title>Dark theme</title>
+          <use href="#ico-moon"></use>
+        </svg>
+        <svg data-theme-target="system" class="c-icon" aria-hidden="true">
+          <title>System theme</title>
+          <use href="#ico-system"></use>
+        </svg>
+        <span class="nav-theme-label" aria-hidden="true"></span>
+      </button>
     </div>
   </nav>
+  <div class="legal c-center">
+    <p>{{ .LegalNotice }}</p>
+    <nav aria-label="Legal">
+      {{ range .LegalLinks }}
+      <a href="{{ .URL }}">{{ .Label }}</a>
+      {{ end }}
+    </nav>
+  </div>
 </footer>
 
 <!-- javascript module src -->

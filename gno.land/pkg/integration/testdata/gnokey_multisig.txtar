@@ -2,18 +2,18 @@
 # Demonstrates creating multisig without all private keys on same computer
 
 # 1. Create alice account using entropy (private key on this computer)
-input test123
-input test123
 input alice entropy seed with sufficient randomness from dice rolls and other random sources
 input y
+input test123
+input test123
 gnokey add alice --entropy --insecure-password-stdin --home $WORK
 stdout 'alice \(local\)'
 stdout 'g1kfc8mxuqvg2zks5sf003y8u5pmhttg74l5pcz7'
 
 # 2. Create bob account from recovered mnemonic (could be from another device)
-input test123
-input test123
 input wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect
+input test123
+input test123
 gnokey add bob --recover --insecure-password-stdin --home $WORK
 stdout 'bob \(local\)'
 stdout 'g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054'

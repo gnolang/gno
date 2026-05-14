@@ -1,0 +1,256 @@
+# Mechanism to connect to the ABCI application: socket | grpc
+abci = "socket"
+
+# Database backend: pebbledb | goleveldb | boltdb
+#* pebbledb (github.com/cockroachdb/pebble)
+#  - pure go
+#  - stable
+#* goleveldb (github.com/syndtr/goleveldb)
+#  - pure go
+#  - stable
+#  - use goleveldb build tag
+#* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
+#  - EXPERIMENTAL
+#  - may be faster is some use-cases (random reads - indexer)
+#  - use boltdb build tag (go build -tags boltdb)
+db_backend = "pebbledb"
+
+# Database directory
+db_dir = "db"
+
+# If this node is many blocks behind the tip of the chain, FastSync
+# allows them to catchup quickly by downloading blocks in parallel
+# and verifying their commits
+fast_sync = true
+home = ""
+
+# A custom human readable name for this node
+moniker = "artemis.local" # Change me!
+
+# Path to the JSON file containing the private key to use for node authentication in the p2p protocol
+node_key_file = "secrets/node_key.json"
+
+# TCP or UNIX socket address for the profiling server to listen on
+prof_laddr = ""
+
+# TCP or UNIX socket address of the ABCI application,
+# or the name of an ABCI application compiled in with the Tendermint binary
+proxy_app = "tcp://127.0.0.1:26658"
+
+##### app settings #####
+[application]
+
+# Lowest gas prices accepted by a validator
+min_gas_prices = ""
+
+# State pruning strategy [everything, nothing, syncable]
+prune_strategy = "syncable"
+
+##### consensus configuration options #####
+[consensus]
+
+# EmptyBlocks mode and possible interval between empty blocks
+create_empty_blocks = true
+create_empty_blocks_interval = "0s"
+home = ""
+
+# Reactor sleep duration parameters
+peer_gossip_sleep_duration = "10ms" # Do NOT change me, leave me at 10ms!
+peer_query_maj23_sleep_duration = "2s"
+
+# Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
+skip_timeout_commit = false
+timeout_commit = "3s" # Do NOT change me, leave me at 3s!
+timeout_precommit = "1s"
+timeout_precommit_delta = "500ms"
+timeout_prevote = "1s"
+timeout_prevote_delta = "500ms"
+timeout_propose = "3s"
+timeout_propose_delta = "500ms"
+wal_file = "wal/cs.wal/wal"
+
+##### private validator configuration options #####
+[consensus.priv_validator]
+home = ""
+
+# Path to the JSON file containing the private key to use for signing using a local signer
+local_signer = "priv_validator_key.json"
+
+# Path to the JSON file containing the last validator state to prevent double-signing
+sign_state = "priv_validator_state.json"
+
+# Configuration for the remote signer client
+[consensus.priv_validator.remote_signer]
+
+# Maximum number of retries to dial the remote signer. If set to -1, will retry indefinitely
+dial_max_retries = -1
+
+# Interval between retries to dial the remote signer
+dial_retry_interval = "5s"
+
+# Timeout to dial the remote signer
+dial_timeout = "5s"
+
+# Timeout for requests to the remote signer
+request_timeout = "5s"
+
+# Address of the remote signer to dial (UNIX or TCP). If set, the local signer is disabled
+server_address = ""
+
+# List of authorized public keys for the remote signer (only for TCP). If empty, all keys are authorized
+tcp_authorized_keys = []
+
+# Keep alive period for the remote signer connection (only for TCP)
+tcp_keep_alive_period = "2s"
+
+##### mempool configuration options #####
+[mempool]
+broadcast = true
+
+# Size of the cache (used to filter transactions we saw earlier) in transactions
+cache_size = 10000
+home = ""
+
+# Limit the total size of all txs in the mempool.
+# This only accounts for raw transactions (e.g. given 1MB transactions and
+# max_txs_bytes=5MB, mempool will only accept 5 transactions).
+max_pending_txs_bytes = 1073741824 # ~1GB
+recheck = true
+
+# Maximum number of transactions in the mempool
+size = 10000 # Advised value is 10000
+wal_dir = ""
+
+##### peer to peer configuration options #####
+[p2p]
+
+# Address to advertise to peers for them to dial
+# If empty, will use the same port as the laddr,
+# and will introspect on the listener or use UPnP
+# to figure out the address.
+external_address = "" # Change me!
+
+# Time to wait before flushing messages out on the connection
+flush_throttle_timeout = "10ms" # Do NOT change me, leave me at 10ms!
+home = ""
+
+# Address to listen for incoming connections
+laddr = "tcp://0.0.0.0:26656"
+
+# Maximum number of inbound peers
+max_num_inbound_peers = 40
+
+# Maximum number of outbound peers to connect to, excluding persistent peers
+max_num_outbound_peers = 40 # Advised value is 40
+
+# Maximum size of a message packet payload, in bytes
+max_packet_msg_payload_size = 1024
+
+# Comma separated list of nodes to keep persistent connections to
+persistent_peers = "g16vururjetll2nrgpqwpsjvttx5wu6q6xl937ga@gno-core-sen-01.test10.testnets.gno.land:26656"
+
+# Set true to enable the peer-exchange reactor
+pex = true
+
+# Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
+private_peer_ids = ""
+
+# Rate at which packets can be received, in bytes/second
+recv_rate = 5120000
+
+# Comma separated list of seed nodes to connect to
+seeds = "g16vururjetll2nrgpqwpsjvttx5wu6q6xl937ga@gno-core-sen-01.test10.testnets.gno.land:26656"
+
+# Rate at which packets can be sent, in bytes/second
+send_rate = 5120000
+
+##### rpc server configuration options #####
+[rpc]
+
+# A list of non simple headers the client is allowed to use with cross-domain requests
+cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"]
+
+# A list of methods the client is allowed to use with cross-domain requests
+cors_allowed_methods = ["HEAD", "GET", "POST", "OPTIONS"]
+
+# A list of origins a cross-domain request can be executed from
+# Default value '[]' disables cors support
+# Use '["*"]' to allow any origin
+cors_allowed_origins = ["*"]
+
+# TCP or UNIX socket address for the gRPC server to listen on
+# NOTE: This server only supports /broadcast_tx_commit
+grpc_laddr = ""
+
+# Maximum number of simultaneous connections.
+# Does not include RPC (HTTP&WebSocket) connections. See max_open_connections
+# If you want to accept a larger number than the default, make sure
+# you increase your OS limits.
+# 0 - unlimited.
+# Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+# 1024 - 40 - 10 - 50 = 924 = ~900
+grpc_max_open_connections = 900
+home = ""
+
+# TCP or UNIX socket address for the RPC server to listen on
+laddr = "tcp://0.0.0.0:26657" # Please use a reverse proxy!
+
+# Maximum size of request body, in bytes
+max_body_bytes = 1000000
+
+# Maximum size of request header, in bytes
+max_header_bytes = 1048576
+
+# Maximum number of simultaneous connections (including WebSocket).
+# Does not include gRPC connections. See grpc_max_open_connections
+# If you want to accept a larger number than the default, make sure
+# you increase your OS limits.
+# 0 - unlimited.
+# Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+# 1024 - 40 - 10 - 50 = 924 = ~900
+max_open_connections = 900
+
+# How long to wait for a tx to be committed during /broadcast_tx_commit.
+# WARNING: Using a value larger than 10s will result in increasing the
+# global HTTP write timeout, which applies to all connections and endpoints.
+# See https://github.com/tendermint/classic/issues/3435
+timeout_broadcast_tx_commit = "10s"
+
+# The path to a file containing certificate that is used to create the HTTPS server.
+# Might be either absolute path or path related to tendermint's config directory.
+# If the certificate is signed by a certificate authority,
+# the certFile should be the concatenation of the server's certificate, any intermediates,
+# and the CA's certificate.
+# NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+tls_cert_file = ""
+
+# The path to a file containing matching private key that is used to create the HTTPS server.
+# Might be either absolute path or path related to tendermint's config directory.
+# NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+tls_key_file = ""
+
+# Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool
+unsafe = false
+
+##### node telemetry #####
+[telemetry]
+enabled = true # Advised to be `true`
+
+# the endpoint to export metrics to, like a local OpenTelemetry collector
+exporter_endpoint = "" # Change me to the OTEL endpoint!
+meter_name = "test10.gno.land"
+
+# the ID helps to distinguish instances of the same service that exist at the same time (e.g. instances of a horizontally scaled service), in Prometheus this is transformed into the label 'exported_instance
+service_instance_id = "gno-node-1" # Change me!
+
+# in Prometheus this is transformed into the label 'exported_job'
+service_name = "gno.land"
+
+##### event store #####
+[tx_event_store]
+
+# Type of event store
+event_store_type = "none"
+
+# Event store parameters
+[tx_event_store.event_store_params]

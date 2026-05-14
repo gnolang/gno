@@ -77,17 +77,18 @@ to perform the test:
 	token along with the transaction. The format is for example "1000000ugnot".
 	Default is empty.
 
-These directives, instead, match the comment that follows with the result
-of the GnoVM, acting as a "golden test":
-	- "Output:" tests the following comment with the standard output of the
-	filetest.
-	- "Error:" tests the following comment with any panic, or other kind of
-	error that the filetest generates (like a parsing or preprocessing error).
-	- "Realm:" tests the following comment against the store log, which can show
-	what realm information is stored.
-	- "Stacktrace:" can be used to verify the following lines against the
-	stacktrace of the error.
-	- "Events:" can be used to verify the emitted events against a JSON.
+These directives match the comment that follows against the result of the
+GnoVM execution, acting as "golden tests":
+	- "Output:" standard output of the filetest.
+	- "Error:" any panic, or other error (parsing, preprocessing, etc.).
+	- "Realm:" store log, showing what realm information is stored.
+	- "Events:" emitted events, as JSON.
+	- "Preprocessed:" preprocessed AST of the filetest's main file.
+	- "Stacktrace:" Gno stacktrace on panic.
+	- "Gas:" gas consumed during execution.
+	- "Storage:" realm storage diffs produced during execution.
+	- "TypeCheckError:" type-check errors (only available for gnovm internal
+	test files).
 
 To speed up execution, imports of pure packages are processed separately from
 the execution of the tests. This makes testing faster, but means that the
@@ -308,7 +309,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
 			if mod == nil || !mod.Ignore {
-				errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+				_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
 					Getter:     opts.TestStore,
 					TestGetter: opts.TestStore,
 					Mode:       gno.TCLatestRelaxed,

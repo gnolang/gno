@@ -3,8 +3,8 @@ package daocond
 import (
 	"testing"
 
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 /*

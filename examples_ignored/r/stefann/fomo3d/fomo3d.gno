@@ -221,7 +221,7 @@ func ClaimDividends() {
 
 // ClaimOwnerFee allows the owner to withdraw accumulated fees
 func ClaimOwnerFee() {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 
 	if gameState.OwnerFee == 0 {
 		panic(ErrNoFeesToClaim.Error())

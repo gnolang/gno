@@ -19,6 +19,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 	"github.com/gorilla/websocket"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -129,6 +130,8 @@ func funcReturnTypes(f any) []reflect.Type {
 // jsonrpc calls grab the given method's function info and runs reflect.Call
 func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		_, span := traces.Tracer().Start(r.Context(), traceMakeJSONRPCHandler)
+		defer span.End()
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			WriteRPCResponseHTTP(w, types.RPCInvalidRequestError(types.JSONRPCStringID(""), errors.Wrap(err, "error reading request body")))
@@ -141,11 +144,19 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 			return
 		}
 
-		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of Requests ---
-		var requests types.RPCRequests
-		if err := json.Unmarshal(b, &requests); err == nil {
+		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of raw messages ---
+		var rawRequests []json.RawMessage
+		if err := json.Unmarshal(b, &rawRequests); err == nil {
 			var responses types.RPCResponses
-			for _, req := range requests {
+			for _, raw := range rawRequests {
+				var req types.RPCRequest
+				if err := json.Unmarshal(raw, &req); err != nil {
+					responses = append(responses, types.RPCInvalidRequestError(
+						types.JSONRPCStringID(""),
+						errors.Wrap(err, "error unmarshalling request"),
+					))
+					continue
+				}
 				if resp := processRequest(r, req, funcMap, logger); resp != nil {
 					responses = append(responses, *resp)
 				}
@@ -175,6 +186,8 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 // If the request should produce a response, it returns a pointer to that response.
 // Otherwise (e.g. if the request is a notification or fails validation), it returns nil.
 func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*RPCFunc, logger *slog.Logger) *types.RPCResponse {
+	_, span := traces.Tracer().Start(r.Context(), "processRequest")
+	defer span.End()
 	// Skip notifications (an empty ID indicates no response should be sent)
 	if req.ID == types.JSONRPCStringID("") {
 		logger.Debug("Skipping notification (empty ID)")
@@ -207,7 +220,7 @@ func processRequest(r *http.Request, req types.RPCRequest, funcMap map[string]*R
 
 	// Call the RPC function using reflection.
 	returns := rpcFunc.f.Call(args)
-	logger.Info("HTTPJSONRPC", "method", req.Method, "args", args, "returns", returns)
+	logger.Debug("HTTPJSONRPC", "method", req.Method)
 
 	// Convert the reflection return values into a result value for JSON serialization.
 	result, err := unreflectResult(returns)
@@ -333,6 +346,8 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	// All other endpoints
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("HTTP HANDLER", "req", r)
+		_, span := traces.Tracer().Start(r.Context(), traceMakeHTTPHandler)
+		defer span.End()
 
 		ctx := &types.Context{HTTPReq: r}
 		args := []reflect.Value{reflect.ValueOf(ctx)}
@@ -346,7 +361,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 
 		returns := rpcFunc.f.Call(args)
 
-		logger.Info("HTTPRestRPC", "method", r.URL.Path, "args", args, "returns", returns)
+		logger.Debug("HTTPRestRPC", "method", r.URL.Path)
 		result, err := unreflectResult(returns)
 		if err != nil {
 			var statusErr *types.HTTPStatusError
@@ -641,7 +656,7 @@ func (wsc *wsConnection) readRoutine() {
 			_, in, err := wsc.baseConn.ReadMessage()
 			if err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					wsc.Logger.Info("Client closed the connection")
+					wsc.Logger.Debug("Client closed the connection")
 				} else {
 					wsc.Logger.Error("Failed to read request", "err", err)
 				}
@@ -658,8 +673,22 @@ func (wsc *wsConnection) readRoutine() {
 				responses types.RPCResponses
 			)
 
-			// Try to unmarshal the requests as a batch
-			if err := json.Unmarshal(in, &requests); err != nil {
+			// Try to unmarshal as a batch of raw messages first, so that one
+			// malformed element does not prevent valid requests from being processed.
+			var rawRequests []json.RawMessage
+			if err := json.Unmarshal(in, &rawRequests); err == nil {
+				for _, raw := range rawRequests {
+					var req types.RPCRequest
+					if err := json.Unmarshal(raw, &req); err != nil {
+						responses = append(responses, types.RPCInvalidRequestError(
+							types.JSONRPCStringID(""),
+							errors.Wrap(err, "error unmarshalling request"),
+						))
+						continue
+					}
+					requests = append(requests, req)
+				}
+			} else {
 				// Next, try to unmarshal as a single request
 				var request types.RPCRequest
 				if err := json.Unmarshal(in, &request); err != nil {
@@ -711,8 +740,7 @@ func (wsc *wsConnection) readRoutine() {
 
 				returns := rpcFunc.f.Call(args)
 
-				// TODO: Need to encode args/returns to string if we want to log them
-				wsc.Logger.Info("WSJSONRPC", "method", request.Method)
+				wsc.Logger.Debug("WSJSONRPC", "method", request.Method)
 
 				result, err := unreflectResult(returns)
 				if err != nil {
@@ -722,17 +750,17 @@ func (wsc *wsConnection) readRoutine() {
 				}
 
 				responses = append(responses, types.NewRPCSuccessResponse(request.ID, result))
+			}
 
-				if len(responses) > 0 {
-					wsc.WriteRPCResponses(responses)
+			if len(responses) > 0 {
+				wsc.WriteRPCResponses(responses)
 
-					// Log telemetry
-					if telemetryEnabled {
-						metrics.WSRequestTime.Record(
-							context.Background(),
-							time.Since(responseStart).Milliseconds(),
-						)
-					}
+				// Log telemetry
+				if telemetryEnabled {
+					metrics.WSRequestTime.Record(
+						context.Background(),
+						time.Since(responseStart).Milliseconds(),
+					)
 				}
 			}
 		}
@@ -797,7 +825,7 @@ func (wsc *wsConnection) writeRoutine() {
 }
 
 // All writes to the websocket must (re)set the write deadline.
-// If some writes don't set it while others do, they may timeout incorrectly (https://github.com/gnolang/gno/tm2/pkg/bft/issues/553)
+// If some writes don't set it while others do, they may timeout incorrectly (https://github.com/tendermint/tendermint/issues/553)
 func (wsc *wsConnection) writeMessageWithDeadline(msgType int, msg []byte) error {
 	if err := wsc.baseConn.SetWriteDeadline(time.Now().Add(wsc.writeWait)); err != nil {
 		return err

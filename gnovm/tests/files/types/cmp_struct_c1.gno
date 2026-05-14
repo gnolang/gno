@@ -16,7 +16,7 @@ func main() {
 }
 
 // Error:
-// main/cmp_struct_c1.gno:15:10-18: cannot use main.bar as main.foo without explicit conversion
+// main/cmp_struct_c1.gno:15:10-18: invalid operation: (mismatched types main.bar and main.foo)
 
 // TypeCheckError:
 // main/cmp_struct_c1.gno:15:16: invalid operation: bb == fa (mismatched types bar and foo)

@@ -339,6 +339,50 @@ func (kb dbKeybase) Delete(nameOrBech32, passphrase string, skipPass bool) error
 	return nil
 }
 
+// Rename renames an existing key from oldName to newName.
+// It returns an error if oldName doesn't exist or newName already exists.
+func (kb dbKeybase) Rename(oldName, newName string) error {
+	info, err := kb.GetByName(oldName)
+	if err != nil {
+		return err
+	}
+
+	exists, err := kb.HasByName(newName)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		return fmt.Errorf("key with name %q already exists", newName)
+	}
+
+	var newInfo Info
+
+	switch i := info.(type) {
+	case localInfo:
+		i.Name = newName
+		newInfo = &i
+	case ledgerInfo:
+		i.Name = newName
+		newInfo = &i
+	case offlineInfo:
+		i.Name = newName
+		newInfo = &i
+	case multiInfo:
+		i.Name = newName
+		newInfo = &i
+	default:
+		return fmt.Errorf("unsupported key type for rename")
+	}
+
+	// Explicitly delete the old name entry before writing the new one.
+	// writeInfo would clean it up via address dedup, but being explicit
+	// avoids relying on that side effect.
+	kb.db.DeleteSync(infoKey(oldName))
+
+	return kb.writeInfo(newName, newInfo)
+}
+
 // Rotate changes the passphrase with which an already stored key is
 // encrypted.
 //

@@ -4,8 +4,8 @@ import (
 	"chain/runtime"
 	"math/overflow"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type basicGRC1155Token struct {
@@ -74,12 +74,13 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 		return true
 	}
 	key := owner.String() + ":" + operator.String()
-	_, found := s.operatorApprovals.Get(key)
+	approved, found := s.operatorApprovals.Get(key)
 	if !found {
 		return false
 	}
 
-	return true
+	ab, ok := approved.(bool)
+	return ok && ab
 }
 
 // Safely transfers `tokenId` token from `from` to `to`, checking that

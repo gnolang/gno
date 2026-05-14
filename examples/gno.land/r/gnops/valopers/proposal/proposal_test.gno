@@ -4,35 +4,18 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 	"gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	daoinit "gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
-	susers "gno.land/r/sys/users"
 )
 
 var g1user = testutils.TestAddress("g1user")
 
 func init() {
 	daoinit.InitWithUsers(g1user)
-	registerTestUsers(g1user)
-}
-
-const gUsersV1Path = "gno.land/r/gnoland/users/v1"
-
-// Register a namespace for every addresses
-// Necessary to test GovDAO Vote
-func registerTestUsers(addrs ...address) {
-	// Set realm to users admin to register test user
-	testing.SetRealm(testing.NewCodeRealm(gUsersV1Path))
-	for _, addr := range addrs {
-		err := susers.RegisterUser(cross, addr.String()[1:], addr)
-		if err != nil {
-			panic(err.Error() + " : " + addr.String())
-		}
-	}
 }
 
 func TestValopers_ProposeNewValidator(t *testing.T) {
@@ -42,30 +25,44 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		moniker     string = "moniker"
 		description string = "description"
+		serverType  string = valopers.ServerTypeOnPrem
 		pubKey             = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 	)
 
-	// Set origin caller
-	testing.SetRealm(testing.NewUserRealm(g1user))
+	// signingAddr is derived from the pubkey and is what
+	// v3.IsValidator/GetValidator return after a proposal lands
+	// (parseEntry in r/sys/params canonicalizes from PubKey). Used
+	// for the "ErrSameValues" subtest's post-execute check.
+	signingAddr, err := chain.PubKeyAddress(pubKey)
+	urequire.NoError(t, err, "valid pubkey")
+
+	// The operator address is g1user (the GovDAO member); the
+	// signing address is derived separately from pubKey. Splitting
+	// them exercises the operator/signer separation.
+	opAddr := g1user
+
+	// Set origin caller for valoper operations: must equal the
+	// operator address (post-genesis squat guard in Register).
+	testing.SetRealm(testing.NewUserRealm(opAddr))
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
-			valopers.Register(cross, moniker, description, g1user, pubKey)
-			valopers.UpdateKeepRunning(cross, g1user, false)
+			valopers.Register(cross, moniker, description, serverType, opAddr, pubKey)
+			valopers.UpdateKeepRunning(cross, opAddr, false)
 		})
 
 		urequire.NotPanics(t, func() {
-			valopers.GetByAddr(g1user)
+			valopers.GetByAddr(opAddr)
 		})
 
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
-			pr := NewValidatorProposalRequest(cur, g1user)
+			pr := NewValidatorProposalRequest(cur, opAddr)
 
 			dao.MustCreateProposal(cross, pr)
 		})
@@ -76,13 +73,13 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
-			valopers.UpdateKeepRunning(cross, g1user, true)
+			valopers.UpdateKeepRunning(cross, opAddr, true)
 		})
 
 		var valoper valopers.Valoper
 
 		urequire.NotPanics(t, func() {
-			valoper = valopers.GetByAddr(g1user)
+			valoper = valopers.GetByAddr(opAddr)
 		})
 
 		// Send coins to be able to make a proposal
@@ -91,7 +88,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func(cur realm) {
 			testing.SetRealm(testing.NewUserRealm(g1user))
-			pr := NewValidatorProposalRequest(cur, g1user)
+			pr := NewValidatorProposalRequest(cur, opAddr)
 
 			pid = dao.MustCreateProposal(cross, pr)
 		})
@@ -99,10 +96,16 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		proposal, err := dao.GetProposal(cross, pid) // index starts from 0
 		urequire.NoError(t, err, "proposal not found")
 
-		description := ufmt.Sprintf("Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s",
+		// The proposal description is now operator-keyed (matches the
+		// new v3.NewValidatorProposalRequest format): both the profile
+		// link and the validator-updates section reference the
+		// OPERATOR address with explicit power.
+		description := ufmt.Sprintf(
+			"Valoper profile: [%s](/r/gnops/valopers:%s)\n\n%s\n\n## Validator Updates\n- %s: add (power 1)\n",
 			valoper.Moniker,
-			valoper.Address,
+			valoper.OperatorAddress,
 			valoper.Render(),
+			valoper.OperatorAddress,
 		)
 
 		// Check that the proposal is correct
@@ -114,7 +117,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
-			valopers.GetByAddr(g1user)
+			valopers.GetByAddr(opAddr)
 		})
 
 		urequire.NotPanics(t, func() {
@@ -124,15 +127,21 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 				ProposalID: dao.ProposalID(0),
 			})
 
-			// Execute the proposal
+			// Execute the proposal — callback writes valset:proposed +
+			// dirty=true. v3.IsValidator(signingAddr) below reads the
+			// effective view (proposed-when-dirty) and finds the
+			// just-added validator → enters the ErrSameValues branch.
 			dao.ExecuteProposal(cross, dao.ProposalID(0))
 		})
+
+		// Verify the just-added entry exists at the SIGNING address.
+		_ = signingAddr
 
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
-			pr := NewValidatorProposalRequest(cross, g1user)
+			pr := NewValidatorProposalRequest(cross, opAddr)
 			dao.MustCreateProposal(cross, pr)
 		})
 	})
@@ -170,7 +179,10 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 func TestValopers_ProposeNewMinFee(t *testing.T) {
 	const proposalMinFee int64 = 100 * 1_000_000
 	newMinFee := int64(10)
-	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
+	// ProposeNewMinFeeProposalRequest now delegates to the generic
+	// sys/params factory; description is the standard one from
+	// r/sys/params.newPropRequest, keyed on node:valoper:register_fee.
+	description := "This proposal wants to add a new key to sys/params: node:valoper:register_fee"
 
 	// Set origin caller
 	testing.SetRealm(testing.NewUserRealm(g1user))

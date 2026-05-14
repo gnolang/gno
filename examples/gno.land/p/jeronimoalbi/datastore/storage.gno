@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/moul/collection"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/seqid/v0"
 )
 
 // NewStorage creates a new records storage.

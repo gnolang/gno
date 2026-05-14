@@ -3,7 +3,7 @@ package charts
 import (
 	"strings"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // GenerateColumnChart creates an ASCII column chart in markdown format
