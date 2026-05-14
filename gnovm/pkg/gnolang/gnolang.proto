@@ -197,6 +197,7 @@ message CallExpr {
 	bool varg = 4 [json_name = "Varg"];
 	sint64 num_args = 5 [json_name = "NumArgs"];
 	bool with_cross = 6 [json_name = "WithCross"];
+	ValuePath cross_arg_path = 7 [json_name = "CrossArgPath"];
 }
 
 message IndexExpr {

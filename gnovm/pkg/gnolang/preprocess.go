@@ -1927,6 +1927,26 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						case "cross":
 							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
+						case "cross2":
+							// cross2(rlm) — the explicit form of bare `cross`.
+							// Validate the call shape here; the outer crossing
+							// CallExpr's LEAVE handler at LEAVE_CALL_EXPR_END_CHECK_CROSSING
+							// will recognize this *CallExpr at its Args[0] and
+							// stash the inner NameExpr's ValuePath on the
+							// outer's CrossArgPath field.
+							//
+							// The argument must be a single bare NameExpr —
+							// restricting to a name (not an arbitrary realm-
+							// typed expression) lets installCrossingCur
+							// resolve via Block.GetPointerTo without
+							// re-entering the eval loop, and matches the
+							// realistic usage `cross2(cur)` / `cross2(rlm)`.
+							if len(n.Args) != 1 {
+								panic("cross2 takes exactly one argument: the in-scope realm")
+							}
+							if _, ok := n.Args[0].(*NameExpr); !ok {
+								panic("cross2 argument must be a bare realm-typed identifier (a name, not an expression)")
+							}
 						case "crossing":
 							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
 								panic("crossing() is reserved and deprecated")
@@ -1958,11 +1978,66 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// only happen with a `cur` declared as the first realm argument
 							// of a containing function.
 							if len(n.Args) == 0 {
-								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross)", n))
+								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur, cross, or cross2(rlm))", n))
 							}
+
+							// cross2(rlm) appears here as a *CallExpr at Args[0]:
+							// the inner CallExpr's TRANS_LEAVE (above) has already
+							// validated the shape (exactly one NameExpr arg).
+							// Stash the inner NameExpr's resolved ValuePath on the
+							// outer CallExpr's CrossArgPath so installCrossingCur
+							// can resolve it at runtime, then replace Args[0] with
+							// constNil and set WithCross (same end state as bare
+							// cross). The bare-cross path's Args[0] niltv check at
+							// op_call.go:78 remains satisfied because Args[0] IS
+							// nil for both forms; the cross2-vs-bare distinction
+							// is recorded on CrossArgPath.
+							if inner, ok := n.Args[0].(*CallExpr); ok {
+								innerFunc, fnOK := inner.Func.(*ConstExpr)
+								if !fnOK || innerFunc.GetFunc() == nil ||
+									innerFunc.GetFunc().PkgPath != uversePkgPath ||
+									innerFunc.GetFunc().Name != "cross2" {
+									panic(fmt.Sprintf("only `cur`, `cross`, or `cross2(rlm)` allowed as first arg to a crossing function; got call to %v", inner.Func))
+								}
+								// Validate the inner cur-resolution path the same
+								// way as the Name("cur") branch below: rlm must
+								// resolve to a `cur realm` parameter of an enclosing
+								// crossing function, and cannot be captured through
+								// a func lit closure. This catches cross2(stashedRealm)
+								// at preprocess time; the runtime IsCurrent-strict
+								// check is the defense-in-depth.
+								innerNx := inner.Args[0].(*NameExpr)
+								dbn := last.GetBlockNodeForPath(store, innerNx.Path)
+								switch dbn := dbn.(type) {
+								case *FuncDecl:
+									dft := getType(&dbn.Type).(*FuncType)
+									if !dft.IsCrossing() {
+										panic("cross2(rlm) — rlm must be the `cur realm` argument of a containing crossing function")
+									}
+								case *FuncLitExpr:
+									dft := getType(&dbn.Type).(*FuncType)
+									if !dft.IsCrossing() {
+										panic("cross2(rlm) — rlm must be the `cur realm` argument of a containing crossing function")
+									}
+								default:
+									panic(fmt.Sprintf("cross2(rlm) — rlm must be the `cur realm` argument of a containing crossing function (resolved to %T)", dbn))
+								}
+								fle, _, found := findFirstClosure(stack, dbn)
+								if found && dbn != fle {
+									panic(fmt.Sprintf("cross2(rlm) — rlm cannot be passed as a closure capture, but found %v", fle))
+								}
+								// Stash the path; replace Args[0] with constNil;
+								// mark WithCross. The relaxed isLikeWithCross
+								// accepts the cross2 form via CrossArgPath.Type != 0.
+								n.CrossArgPath = innerNx.Path
+								n.Args[0] = constNil(inner)
+								n.SetWithCross()
+								goto LEAVE_CALL_EXPR_END_CHECK_CROSSING
+							}
+
 							nx, ok := n.Args[0].(*NameExpr)
 							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
-								panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
+								panic(fmt.Sprintf("only `cur`, `cross`, or `cross2(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
 							case Name(".cur"):

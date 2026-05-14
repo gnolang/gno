@@ -377,6 +377,71 @@ func realmHIV(tv *TypedValue) *HeapItemValue {
 	return hiv
 }
 
+// realmIsCurrentOnMachine reports whether tv is the topmost crossing
+// frame's Cur. Shared by the .grealm.IsCurrent method and (via the
+// strict wrapper below) by installCrossingCur's cross2 path.
+//
+// Method dispatch on .grealm (value receiver) goes through VPValMethod
+// which struct-copies the receiver, dropping the outer HIV pointer.
+// When that happens, recvHIV is nil and we fall back to
+// (addr, pkgPath, prev.HIV) — the prev field's PointerValue.Base
+// survives the struct copy because TypedValue.Copy is shallow for
+// PointerValues. The parent HIV pointer is per-cross unique
+// (installCrossingCur mints a fresh HIV every cross-call), so combined
+// with addr/pkgPath it's as discriminative as the outer HIV for any
+// cur the language allows to be passed around.
+func realmIsCurrentOnMachine(m *Machine, tv *TypedValue) bool {
+	recvHIV := realmHIV(tv)
+	recvSV := derefRealmStruct(tv)
+	if recvSV == nil || len(recvSV.Fields) < 3 {
+		return false
+	}
+	recvPrev := realmHIV(&recvSV.Fields[2])
+	recvPath := recvSV.Fields[1].GetString()
+	recvAddr := recvSV.Fields[0].GetString()
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if !fr.IsCall() {
+			continue
+		}
+		if !(fr.WithCross || fr.DidCrossing) {
+			continue
+		}
+		if fr.Cur.T == nil {
+			continue
+		}
+		if recvHIV != nil {
+			return realmHIV(&fr.Cur) == recvHIV
+		}
+		curSV := derefRealmStruct(&fr.Cur)
+		if curSV == nil || len(curSV.Fields) < 3 {
+			continue
+		}
+		// prev pointer first (cheapest + most discriminative),
+		// then pkgPath, then addr.
+		return realmHIV(&curSV.Fields[2]) == recvPrev &&
+			curSV.Fields[1].GetString() == recvPath &&
+			curSV.Fields[0].GetString() == recvAddr
+	}
+	return false
+}
+
+// realmIsCurrentStrict is realmIsCurrentOnMachine but rejects the
+// HIV-less fallback path entirely. Used by installCrossingCur where
+// the trust boundary requires the strongest possible check — a realm
+// value passed as a function parameter (via NameExpr resolution)
+// always preserves its HIV (TypedValue.Copy is shallow for the
+// underlying PointerValue.Base), so a legitimate cross2(rlm) caller
+// never reaches the HIV-less branch. Rejecting it closes the
+// value-receiver-laundered-cur attack surface that the user-facing
+// IsCurrent method has to accommodate.
+func realmIsCurrentStrict(m *Machine, tv *TypedValue) bool {
+	if realmHIV(tv) == nil {
+		return false
+	}
+	return realmIsCurrentOnMachine(m, tv)
+}
+
 // realmIsEphemeral reports whether pkgPath matches the ephemeral pattern
 // "domain/e/...". Mirrors chain/runtime.Realm.IsEphemeral.
 func realmIsEphemeral(pkgPath string) bool {
@@ -1365,53 +1430,7 @@ func makeUverseNode() {
 		Flds("", "bool"),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			// Method dispatch on .grealm (value receiver) goes through
-			// VPValMethod which struct-copies the receiver, dropping the
-			// outer HIV pointer. When that happens, recvHIV is nil and we
-			// fall back to (addr, pkgPath, prev.HIV) — the prev field's
-			// PointerValue.Base survives the struct copy because
-			// TypedValue.Copy is shallow for PointerValues. The parent HIV
-			// pointer is per-cross unique (installCrossingCur mints a
-			// fresh HIV every cross-call), so combined with addr/pkgPath
-			// it's as discriminative as the outer HIV for any cur the
-			// language allows to be passed around.
-			recvHIV := realmHIV(arg0.TV)
-			recvSV := derefRealmStruct(arg0.TV)
-			if recvSV == nil || len(recvSV.Fields) < 3 {
-				m.PushValue(typedBool(false))
-				return
-			}
-			recvPrev := realmHIV(&recvSV.Fields[2])
-			recvPath := recvSV.Fields[1].GetString()
-			recvAddr := recvSV.Fields[0].GetString()
-			for i := len(m.Frames) - 1; i >= 0; i-- {
-				fr := &m.Frames[i]
-				if !fr.IsCall() {
-					continue
-				}
-				if !(fr.WithCross || fr.DidCrossing) {
-					continue
-				}
-				if fr.Cur.T == nil {
-					continue
-				}
-				if recvHIV != nil {
-					m.PushValue(typedBool(realmHIV(&fr.Cur) == recvHIV))
-					return
-				}
-				curSV := derefRealmStruct(&fr.Cur)
-				if curSV == nil || len(curSV.Fields) < 3 {
-					continue
-				}
-				// prev pointer first (cheapest + most discriminative),
-				// then pkgPath, then addr.
-				match := realmHIV(&curSV.Fields[2]) == recvPrev &&
-					curSV.Fields[1].GetString() == recvPath &&
-					curSV.Fields[0].GetString() == recvAddr
-				m.PushValue(typedBool(match))
-				return
-			}
-			m.PushValue(typedBool(false))
+			m.PushValue(typedBool(realmIsCurrentOnMachine(m, arg0.TV)))
 		},
 	)
 	defNativeMethod(".grealm", "String",
@@ -1452,6 +1471,32 @@ func makeUverseNode() {
 		func(m *Machine) {
 			// This is handled by op_call instead.
 			panic("cross is a virtual function")
+		},
+	)
+	// cross2(rlm) is the explicit form of bare `cross`. It coexists
+	// with `cross` during the gno 0.9 migration: where bare `cross`
+	// relies on the preprocessor to recognize the keyword in Args[0]
+	// position, cross2(rlm) is a real call expression whose argument
+	// is the realm value the caller is "crossing from." The
+	// preprocessor stashes the inner NameExpr's ValuePath on the
+	// outer CallExpr's CrossArgPath field and replaces Args[0] with
+	// constNil — the body of cross2 is never executed. At runtime,
+	// installCrossingCur resolves the path against the caller's block,
+	// verifies the resolved realm IsCurrent (strict — no HIV-less
+	// fallback), and uses it as the prev for the newly minted cur.
+	// Generic X param/result mirrors `_cross_gno0p0` so the inner
+	// call type-checks against any realm-typed argument.
+	defNative("cross2",
+		Flds( // param
+			"rlm", GenT("X", nil),
+		),
+		Flds( // result
+			"result", GenT("X", nil),
+		),
+		func(m *Machine) {
+			// preprocessor should have rewritten the outer call to use
+			// CrossArgPath; this body must never execute.
+			panic("cross2 is a virtual function; preprocessor should have replaced it")
 		},
 	)
 	defNative("attach",
