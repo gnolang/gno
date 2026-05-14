@@ -7,14 +7,16 @@ package daodemo
 import (
 	"gno.land/p/samcrew/basedao"
 	"gno.land/p/samcrew/daocond"
-	"gno.land/p/samcrew/daokit"
 	"gno.land/r/demo/profile"
 )
 
-var (
-	DAO        daokit.DAO
-	daoPrivate *basedao.DAOPrivate
-)
+// DAO is the canonical public surface — a concrete *basedao.DAOWrapper,
+// NOT the daokit.DAO interface. Holding the concrete wrapper prevents
+// any /r/ from down-casting to the address-typed interface (which would
+// re-introduce a Class-2 designation-forgery surface). All mutating
+// methods on *DAOWrapper take (_ int, rlm realm, ...) and validate
+// IsCurrent before deriving the caller.
+var DAO *basedao.DAOWrapper
 
 // TODO: add a little bit more complexity to show daocond initialization
 func init() {
@@ -41,7 +43,7 @@ func init() {
 	// and & or use va_args so you can pass as many conditions as you want
 	adminCond := daocond.And(membersMajority, publicRelationships, financeOfficer)
 
-	DAO, daoPrivate = basedao.New(&basedao.Config{
+	DAO = basedao.New(&basedao.Config{
 		Name:             "Demo DAOKIT DAO",
 		Description:      "This is a demo DAO built with [DAOKIT](/p/samcrew/daokit)",
 		Members:          memberStore,
@@ -60,5 +62,5 @@ func Execute(cur realm, proposalID uint64) {
 }
 
 func Render(path string) string {
-	return daoPrivate.Render(path)
+	return DAO.Render(path)
 }

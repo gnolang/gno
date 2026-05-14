@@ -35,7 +35,8 @@ func TestNewDAO(t *testing.T) {
 	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
-	_, dao := New(conf)
+	wrapper := New(conf)
+	dao := wrapper.Private()
 	roles := dao.Members.GetRoles()
 	if len(roles) != 1 {
 		t.Errorf("Expected 1 role, got %d", len(roles))
@@ -55,7 +56,7 @@ func TestNewDAO(t *testing.T) {
 	}
 
 	urequire.Equal(t, 4, dao.Core.ResourcesCount(), "expected 4 resources")
-	urequire.Equal(t, dao.Realm.PkgPath(), daoRealm.PkgPath())
+	urequire.Equal(t, dao.RealmPkgPath, daoRealm.PkgPath())
 
 	// XXX: check realm and profile
 }
@@ -665,7 +666,7 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 }
 
 type testingDAOContext struct {
-	dao                    daokit.DAO
+	dao                    *DAOWrapper
 	privdao                *DAOPrivate
 	mockHandlerCalled      *bool
 	mockHandler            daokit.ActionHandler
@@ -689,7 +690,8 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
-	pubdao, dao := New(conf)
+	pubdao := New(conf)
+	dao := pubdao.Private()
 
 	mockHandlerCalled := false
 	mockHandler := daokit.NewActionHandler("valid", func(_ interface{}) { mockHandlerCalled = true })
@@ -739,6 +741,6 @@ func (c *testingDAOContext) execute(id uint64) {
 }
 
 func (c *testingDAOContext) instantExecute(req daokit.ProposalRequest) (id uint64) {
-	func(cur realm) { id = daokit.InstantExecute(0, cur, c.dao, req) }(cross)
+	func(cur realm) { id = c.dao.InstantExecute(0, cur, req) }(cross)
 	return
 }

@@ -6,22 +6,25 @@ import (
 	"gno.land/p/samcrew/daocond"
 )
 
-// DAO is the public interface for a DAO. All mutating methods take
-// (_ int, rlm realm) so the implementation can derive the caller's
-// identity from rlm.Previous().Address() under an rlm.IsCurrent()
-// guard — unforgeable, unlike the pre-migration runtime walk path
-// where a non-crossing wrapper could spoof the principal.
+// DAO is the internal dispatch interface for a DAO. All methods are
+// address-typed (no rlm crosses the interface boundary) so a malicious
+// implementer cannot capture a cur from a consumer's wrapper. This is the
+// Authority-pattern: the trusted rlm-validating wrapper (e.g.
+// *basedao.DAOWrapper) is the only public surface; this interface is
+// dispatch-only.
+//
+// CONTRACT: NEVER store this interface as a public package var, NEVER
+// accept it as a public function parameter, and NEVER return it from a
+// public constructor. Public APIs should expose a concrete wrapper type
+// (such as *basedao.DAOWrapper) whose rlm-typed methods derive the
+// caller from cur.Previous().Address() under an IsCurrent() guard.
+//
+// Sealing via an unexported marker method would NOT help — embedding
+// bypasses the seal; see p/test/seal/filetests/z_seal_*_filetest.gno.
 type DAO interface {
-	Propose(_ int, rlm realm, req ProposalRequest) uint64
-	Execute(_ int, rlm realm, id uint64)
-	Vote(_ int, rlm realm, id uint64, vote daocond.Vote)
-}
-
-func InstantExecute(_ int, rlm realm, d DAO, req ProposalRequest) uint64 {
-	id := d.Propose(0, rlm, req)
-	d.Vote(0, rlm, id, daocond.VoteYes)
-	d.Execute(0, rlm, id)
-	return id
+	Propose(proposer address, req ProposalRequest) uint64
+	Execute(executor address, id uint64)
+	Vote(voter address, id uint64, vote daocond.Vote)
 }
 
 type Core struct {
