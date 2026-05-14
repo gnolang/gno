@@ -9,16 +9,35 @@ import (
 )
 
 var (
-	ErrNoBankerProvided  = errors.New("no banker provided")
-	ErrDuplicateBanker   = errors.New("duplicate banker")
-	ErrBankerNotFound    = errors.New("banker not found")
-	ErrSendPaymentFailed = errors.New("failed to send payment")
+	ErrNoBankerProvided      = errors.New("no banker provided")
+	ErrDuplicateBanker       = errors.New("duplicate banker")
+	ErrBankerNotFound        = errors.New("banker not found")
+	ErrSendPaymentFailed     = errors.New("failed to send payment")
+	ErrNonCanonicalBankerImpl = errors.New("non-canonical Banker impl: only *CoinsBanker / *GRC20Banker accepted")
 )
 
 // New creates a new Treasury instance with the given bankers.
+//
+// Each banker must be one of treasury's canonical concrete impls
+// (*CoinsBanker, *GRC20Banker) per IsCanonicalBanker. Foreign-realm impls
+// (including embedded wrappers around canonical types) are rejected: a
+// malicious Send impl would receive a capability token via its rlm
+// parameter when treasury.Send dispatches into it.
+//
+// The allowlist validates type only, not captured state. Treasury operators
+// must construct their own bankers; never accept a pre-built *Banker value
+// from an external realm.
 func New(bankers []Banker) (*Treasury, error) {
 	if len(bankers) == 0 {
 		return nil, ErrNoBankerProvided
+	}
+
+	// Canonical-impl allowlist: reject foreign types (embedding-based
+	// bypasses fail here because type assertions are nominal).
+	for _, b := range bankers {
+		if !IsCanonicalBanker(b) {
+			return nil, ErrNonCanonicalBankerImpl
+		}
 	}
 
 	// Create a new Treasury instance.
