@@ -698,7 +698,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 			ts.Fatalf("query account %q error: %s", account.GetName(), err.Error())
 		}
 
-		var qret struct{ BaseAccount std.BaseAccount }
+		var qret gnoland.GnoAccount
 		if err = amino.UnmarshalJSON(qres.Response.Data, &qret); err != nil {
 			ts.Fatalf("query account %q unarmshal error: %s", account.GetName(), err.Error())
 		}

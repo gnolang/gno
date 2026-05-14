@@ -4,17 +4,17 @@ import (
 	"chain/runtime"
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 var (
 	adminAddr     address
-	moderatorList avl.Tree
+	moderatorList bptree.BPTree
 	inPause       bool
 )
 
 func init() {
-	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
+	// adminAddr = runtime.OriginCaller() // FIXME: find a way to use this from the main's genesis.
 	adminAddr = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 }
 

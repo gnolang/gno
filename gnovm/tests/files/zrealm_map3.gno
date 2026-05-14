@@ -44,7 +44,7 @@ func main(cur realm) {
 }
 
 // Output:
-// assign panic: cannot directly modify readonly tainted object (w/o method): rm<~VPBlock(1,0)>[(const ("attacker" string))]
+// assign panic: cannot directly modify readonly tainted object (use a method or crossing function): rm<~VPBlock(1,0)>[(const ("attacker" string))]
 // delete panic: cannot delete from readonly tainted map
 // admin exists: true
 // user1: 500
