@@ -81,7 +81,13 @@ func TestTimelock(t *testing.T) {
 	t.Run("UpdateDelay", func(t *testing.T) {
 		newDelay := uint64(4) // 4 seconds
 
-		err := timelockUtil.UpdateDelay(newDelay)
+		// UpdateDelay now requires the caller to be the timelock owner;
+		// thread cur via a crossing closure under SetRealm(NewUserRealm)
+		// so rlm.Previous().Address() resolves to the test's OriginCaller
+		// (the owner set at NewTimeLock construction).
+		testing.SetRealm(testing.NewUserRealm(runtime.OriginCaller()))
+		var err error
+		func(cur realm) { err = timelockUtil.UpdateDelay(0, cur, newDelay) }(cross)
 		uassert.NoError(t, err, "UpdateDelay failed")
 
 		uassert.Equal(t, newDelay, timelockUtil.minDelay, "minDelay not updated")
