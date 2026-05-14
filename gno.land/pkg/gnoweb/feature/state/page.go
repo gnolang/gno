@@ -162,7 +162,6 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 		CountLabel:   fmt.Sprintf("Object %s", TruncOID(oid, 8, 6)),
 		Crumbs:       crumbs,
 		Sidebar:      BuildObjectSidebar(u.Path, oid, tid, height, decoded.Info, nodes),
-		IsObjectPage: true,
 		KindCounts:   ComputeKindCounts(nodes),
 		Height:       height,
 		HeightParam:  heightParam(height),

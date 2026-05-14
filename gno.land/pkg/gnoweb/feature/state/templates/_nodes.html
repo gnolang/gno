@@ -33,6 +33,10 @@
   {{ $vm := .ViewMode }}
   {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
   {{ $shape := $n.Shape }}
+  {{/* A plain func has no Children/ObjectID → Shape()==leaf, but it is
+       expandable to disclose its body — route it through the branch arm
+       so it gets the same lazy source expander closures get. Tree-only. */}}
+  {{ if and (eq $shape "leaf") (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}{{ $shape = "branch" }}{{ end }}
 
   {{ if eq $shape "ref" }}
     {{/* Ref leaf — htmx-lazy <details>. The ↗ permalink sits inside
@@ -76,7 +80,7 @@
       <p class="b-state-doc" data-doc-slot></p>
       <div class="kids">
         {{ if and (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}
-          {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "AutoLoad" false) }}
+          {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "Depth" (add $depth 1)) }}
         {{ end }}
         {{ if and (eq $n.Kind "closure") $n.Children }}
           <div class="captures-label" style="--depth: {{ add $depth 1 }};">Captured variables:</div>
@@ -97,21 +101,20 @@
   {{ end }}
 {{ end }}
 
-{{/* htmx-expandable details for a func/closure source body. AutoLoad
-     (object pages only — bounded to one source-details per page) opens
-     + auto-fetches the body; everywhere else it stays closed + lazy on
-     toggle, since a package page can carry N attacker-controlled funcs.
-     The "See in code" permalink points at the full ?source view. */}}
+{{/* htmx-expandable details for a func/closure source body. Always
+     closed + lazy on toggle — the body is never auto-fetched on load,
+     since a page can carry N attacker-controlled funcs. The "See in
+     code" permalink points at the full ?source view. */}}
 {{ define "state/source-details" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
   {{ $h := .Height }}
   {{ $hp := .HeightParam }}
-  {{ $autoload := .AutoLoad }}
+  {{ $depth := .Depth }}
   {{ with $n.Source }}
-  <details class="b-state-source-lazy"{{ if $autoload }} open{{ end }}
+  <details class="b-state-source-lazy" style="--depth: {{ $depth }};"
            hx-get="{{ stateFragSourceHref $pkg .File .StartLine .EndLine $hp }}"
-           hx-trigger="{{ if $autoload }}load once{{ else }}toggle once{{ end }}"
+           hx-trigger="toggle once"
            hx-target="find .b-state-source-body"
            hx-swap="innerHTML"
            hx-disinherit="*">

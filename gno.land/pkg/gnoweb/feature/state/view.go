@@ -20,10 +20,6 @@ type StateData struct {
 	Crumbs     []StateCrumb
 	Sidebar    *StateSidebar
 
-	// IsObjectPage flips the template into single-object mode (`?state&oid=…`),
-	// which surfaces richer detail than the realm root listing.
-	IsObjectPage bool
-
 	// Height is the pinned block height (`?height=N`), 0 for latest.
 	Height int64
 

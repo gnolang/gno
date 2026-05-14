@@ -212,8 +212,6 @@ func TestFragNodeHappyPath(t *testing.T) {
 
 func TestFragNodeStampsHeight(t *testing.T) {
 	// Set up a ref child so the template emits a nested hx-get URL we can grep.
-	// Use objBodies so only the parent OID resolves — preview-resolve fails on
-	// the inner ref, leaving it bare so the lazy <details> with hx-get fires.
 	const innerOID = "ffffffffffffffffffffffffffffffffffffffff:9"
 	body := []byte(fmt.Sprintf(`{
 		"objectid": %q,
@@ -241,6 +239,43 @@ func TestFragNodeStampsHeight(t *testing.T) {
 
 	assert.Equal(t, "public, max-age=86400, immutable", rec.Header().Get("Cache-Control"),
 		"pinned-height fragments are immutable")
+}
+
+func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
+	// A ref child whose target object IS resolvable. frag=node must STILL
+	// render it as a lazy <details> (b-state-lazy + hx-get) — never flatten it
+	// into a pre-rendered branch via an eager fetch — so the tree stays
+	// recursively drillable, one level (one StateObject RPC) per click.
+	const innerOID = "ffffffffffffffffffffffffffffffffffffffff:9"
+	parent := []byte(fmt.Sprintf(`{
+		"objectid": %q,
+		"value": {
+			"@type": "/gno.StructValue",
+			"Fields": [
+				{"T": {"@type": "/gno.RefType", "ID": "gno.land/r/x.User"},
+				 "V": {"@type": "/gno.RefValue", "ObjectID": %q}}
+			]
+		}
+	}`, fragOID, innerOID))
+	client := &fragMockClient{objBodies: map[string][]byte{
+		fragOID:  parent,
+		innerOID: fragStructBody(innerOID), // resolvable — an eager fetch WOULD succeed
+	}}
+	h := newFragHandler(client, nil)
+
+	rec := serveFragReq(t, h, url.Values{
+		"frag": {"node"},
+		"oid":  {fragOID},
+	})
+	require.Equal(t, http.StatusOK, rec.Code, "got body=%q", rec.Body.String())
+
+	out := rec.Body.String()
+	assert.Contains(t, out, `class="b-state-lazy"`,
+		"a ref child must render as a lazy <details> so the tree stays recursively expandable")
+	assert.Contains(t, out, "hx-get=",
+		"the lazy ref child must carry an hx-get to fetch its next level on click")
+	assert.Equal(t, int32(1), atomic.LoadInt32(&client.objCalls),
+		"frag=node loads only the clicked object — ref children are NOT eagerly fetched")
 }
 
 func TestFragNodeCacheControlLatest(t *testing.T) {

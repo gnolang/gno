@@ -150,12 +150,11 @@
     {{ if .Nodes }}
       <div class="c-stack">
         {{ $pkg := .PkgPath }}
-        {{ $isObj := .IsObjectPage }}
         {{ $h := .Height }}
         {{ $hp := .HeightParam }}
         {{ $vm := .ViewMode }}
         {{ range .Nodes }}
-          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "IsObjectPage" $isObj "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
         {{ end }}
       </div>
     {{ else }}
@@ -235,7 +234,6 @@
 {{ define "state/decl" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
-  {{ $isObj := .IsObjectPage }}
   {{ $h := .Height }}
   {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
@@ -348,13 +346,11 @@
         </section>
       {{ end }}
 
-      {{/* ADR-004 §2: func/method/closure bodies collapse into a lazy
-           <details>. Closures open + auto-load (hx-trigger=load) so their
-           captured-state context is visible at a glance — closures are rare
-           so the page-load fan-out stays bounded; each is still a separate
-           rate-limited htmx GET, not server work on the ?state response. */}}
+      {{/* func/closure bodies collapse into a lazy <details> — fetched
+           on toggle, never on load, so a page with N funcs can't burst
+           N source-fragment GETs. */}}
       {{ if and (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}
-        {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "AutoLoad" $isObj) }}
+        {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "Depth" 0) }}
       {{ end }}
 
       {{ if and (eq $n.Kind "closure") $n.Children }}

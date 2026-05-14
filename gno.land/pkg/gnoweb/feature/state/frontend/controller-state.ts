@@ -48,10 +48,16 @@ export class StateController extends BaseController {
 			this.viewTree;
 		const top = tree.querySelectorAll<HTMLDetailsElement>(":scope > details");
 		this.bulkInProgress = true;
-		for (const d of top) if (d.open !== expand) d.open = expand;
+		for (const d of top) {
+			// Bulk-expanding a lazy ref would fire its htmx fetch — never
+			// burst N fragment GETs. Collapse still applies to every row.
+			if (expand && d.classList.contains("b-state-lazy")) continue;
+			if (d.open !== expand) d.open = expand;
+		}
 		this.bulkInProgress = false;
 		if (expand) {
 			for (const d of top) {
+				if (d.classList.contains("b-state-lazy")) continue;
 				const k = d.getAttribute("data-tree-key");
 				if (k) this.openSet.add(k);
 			}
@@ -83,7 +89,9 @@ export class StateController extends BaseController {
 		const t = e.target;
 		if (!(t instanceof HTMLDetailsElement)) return;
 		const k = t.getAttribute("data-tree-key");
-		if (!k) return;
+		// Lazy refs are never persisted — restoring them on reload would
+		// re-fire their htmx fetch. Only pre-rendered branches persist.
+		if (!k || t.classList.contains("b-state-lazy")) return;
 		if (t.open) this.openSet.add(k);
 		else this.openSet.delete(k);
 		this.persistOpen();
@@ -92,8 +100,10 @@ export class StateController extends BaseController {
 	// Scoped: re-applied only inside the htmx swap target.
 	private applyOpen(root: HTMLElement): void {
 		if (this.openSet.size === 0) return;
+		// `:not(.b-state-lazy)` — restoring a lazy ref open would re-fire its
+		// htmx fetch; only pre-rendered branches are safe to reopen.
 		for (const el of root.querySelectorAll<HTMLDetailsElement>(
-			"details[data-tree-key]",
+			"details[data-tree-key]:not(.b-state-lazy)",
 		)) {
 			const k = el.getAttribute("data-tree-key");
 			if (k && this.openSet.has(k) && !el.open) el.open = true;

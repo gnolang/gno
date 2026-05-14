@@ -123,15 +123,9 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 		}
 	}
 
-	// Bounded preview: ResolvePreviews dedupes + clamps internally at
-	// PreviewMaxFetches (15). Per ADR-004 §URL contract a single frag=node
-	// expansion should consume ≤5; in practice the tree shape (depth=3,
-	// children≤500) keeps actual fan-out well under both bounds. Reuses
-	// page.go's previewAdapter so the frag and full-page pipelines share
-	// one ObjectFetcher impl.
-	if h.deps.Client != nil && len(root.Children) > 0 {
-		_, _ = resolvePreviewsFor(ctx, h.deps.Logger, h.deps.Client, height, root.Children)
-	}
+	// No eager preview fetch here: ref children stay bare (ShapeRef →
+	// b-state-lazy + hx-get) so the tree stays recursively drillable —
+	// one StateObject RPC per click, no fan-out.
 	hp := heightParam(height)
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
 	EnrichLinks(root.Children, u.Path, hp, viewMode)

@@ -373,40 +373,25 @@ func TestRegressionPermalinkInsideSummary(t *testing.T) {
 	}
 }
 
-// Regression: source-details auto-load (hx-trigger=load) is gated on the
-// dedicated object page — bounded to one source-details per page — NOT on
-// closure-ness. A package page can carry N attacker-controlled funcs, so
-// there every source-details stays closed + lazy (hx-trigger=toggle); the
-// object page (1 object) auto-opens so the body shows at a glance.
-func TestRegressionSourceAutoLoadGatedOnObjectPage(t *testing.T) {
+// Regression: a func/closure source body is NEVER auto-loaded (hx-trigger=load)
+// — it stays closed + lazy (hx-trigger=toggle), so opening a page with N
+// attacker-controlled funcs can never burst N source-fragment GETs.
+func TestRegressionSourceNeverAutoLoads(t *testing.T) {
 	nodes := []StateNode{
 		{Name: "Fn", Kind: KindFunc, Source: &SourceLocation{File: "f.gno", StartLine: 5, EndLine: 9}, Anchor: "fn"},
 		{Name: "Cl", Kind: KindClosure, Source: &SourceLocation{File: "f.gno", StartLine: 12, EndLine: 20}, Anchor: "cl"},
 	}
-
-	// Package page: no auto-load — every source-details is lazy on toggle.
-	var pkg strings.Builder
-	if err := PageTemplate.ExecuteTemplate(&pkg, "renderPage", StateData{
+	var buf strings.Builder
+	if err := PageTemplate.ExecuteTemplate(&buf, "renderPage", StateData{
 		PkgPath: "/r/test", Nodes: nodes, KindCounts: KindCounts{All: 2, Code: 2},
 	}); err != nil {
-		t.Fatalf("render package page: %v", err)
+		t.Fatalf("render: %v", err)
 	}
-	if strings.Contains(pkg.String(), `hx-trigger="load once"`) {
-		t.Errorf("package page must NOT auto-load source — N funcs is attacker-controlled fan-out")
+	if strings.Contains(buf.String(), `hx-trigger="load once"`) {
+		t.Errorf("source-details must NOT auto-load — fan-out is attacker-controlled")
 	}
-	if !strings.Contains(pkg.String(), `hx-trigger="toggle once"`) {
-		t.Errorf("package-page source-details must stay lazy (hx-trigger=toggle)")
-	}
-
-	// Object page: bounded to one — auto-loads so the body shows at a glance.
-	var obj strings.Builder
-	if err := PageTemplate.ExecuteTemplate(&obj, "renderPage", StateData{
-		PkgPath: "/r/test", IsObjectPage: true, Nodes: nodes[:1], KindCounts: KindCounts{All: 1, Code: 1},
-	}); err != nil {
-		t.Fatalf("render object page: %v", err)
-	}
-	if !strings.Contains(obj.String(), `hx-trigger="load once"`) {
-		t.Errorf("object page must auto-load its single source-details; body head=%s", head(obj.String(), 600))
+	if !strings.Contains(buf.String(), `hx-trigger="toggle once"`) {
+		t.Errorf("source-details must stay lazy (hx-trigger=toggle)")
 	}
 }
 
@@ -517,5 +502,36 @@ func TestRegressionTreeViewPermalinksCarryViewParam(t *testing.T) {
 	rec2 := servePageReq(t, h, url.Values{}, "/r/demo")
 	if strings.Contains(rec2.Body.String(), `view=pretty`) || strings.Contains(rec2.Body.String(), `view=tree`) {
 		t.Errorf("pretty-mode page unexpectedly stamps view= into permalinks")
+	}
+}
+
+// Regression: a plain func has no Children and no ObjectID → Shape()==leaf,
+// but it IS expandable to disclose its source body. In the tree view it must
+// render as an expandable row carrying a lazy source expander — not a
+// dead-end leaf row (closures already get this via their captures→branch).
+func TestRegressionPlainFuncExpandableInTree(t *testing.T) {
+	fn := StateNode{
+		Name: "Render", Kind: KindFunc, Type: "func() string",
+		Source:     &SourceLocation{File: "render.gno", StartLine: 1, EndLine: 3},
+		Expandable: true,
+	}
+	var buf strings.Builder
+	if err := PageTemplate.ExecuteTemplate(&buf, "state/node", map[string]any{
+		"Node": fn, "PkgPath": "/r/demo", "Depth": 0,
+		"Toplevel": true, "Height": int64(0), "HeightParam": "", "ViewMode": "tree",
+	}); err != nil {
+		t.Fatalf("render state/node: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "b-state-source-lazy") {
+		t.Errorf("plain func in tree must expose a lazy source expander; got: %s", out)
+	}
+	if strings.Contains(out, `data-shape="leaf"`) {
+		t.Errorf("a func with a source body is not a leaf — it must be expandable; got: %s", out)
+	}
+	// The source expander sits inside the func's .kids — it must carry the
+	// child --depth (parent+1) so it indents under the func, not flush-left.
+	if !strings.Contains(out, `class="b-state-source-lazy" style="--depth: 1;"`) {
+		t.Errorf("tree source expander must carry --depth to align under its func; got: %s", out)
 	}
 }

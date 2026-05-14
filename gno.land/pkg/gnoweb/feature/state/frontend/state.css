@@ -281,6 +281,17 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	color: var(--s-color-text-primary);
 }
 
+/* The whole expander — summary AND the swapped-in code body — indents
+   under its tree row via --depth, mirroring .row. On the <details> (not
+   the summary) so the body stays aligned with the summary, not just it. */
+.b-state-source-lazy {
+	padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
+}
+
+.b-state-source-lazy > summary:not(.row) {
+	padding-block: 0.2rem;
+}
+
 /* Lazy-node summary: name leads, a muted "details" hint marks it as
    expandable so a collapsed row never reads as a bare repeat of the
    card header. */
@@ -1287,7 +1298,8 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		}
 	}
 
-	.row[data-shape="branch"] {
+	.row[data-shape="branch"],
+	.row[data-shape="ref"] {
 		cursor: pointer;
 		list-style: none;
 
@@ -1312,7 +1324,8 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		}
 	}
 
-	details[open] > .row[data-shape="branch"]::before {
+	details[open] > .row[data-shape="branch"]::before,
+	details[open] > .row[data-shape="ref"]::before {
 		transform: rotate(90deg);
 		color: var(--s-color-text-primary);
 	}
