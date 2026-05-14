@@ -87,14 +87,14 @@ type Options func(*Blog)
 func WithDisableLikes() Options {
 	return func(b *Blog) {
 		b.DisableLikes = true
-		b.SetDisablePostLikes(true)
+		b.setDisablePostLikes(true)
 	}
 }
 
 func WithDisableComments() Options {
 	return func(b *Blog) {
 		b.DisableComments = true
-		b.SetDisableComments(true)
+		b.setDisableComments(true)
 	}
 }
 
@@ -104,8 +104,8 @@ func WithUserResolver(resolver UserResolver) Options {
 	}
 }
 
-func (b *Blog) AddPost(post *Post) error {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) AddPost(_ int, rlm realm, post *Post) error {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post.id = b.PostId.Next()
 	if _, err := b.GetPostBySlug(post.Slug()); err == nil {
@@ -130,8 +130,8 @@ func (b *Blog) AddPost(post *Post) error {
 	return nil
 }
 
-func (b *Blog) UpdatePostById(id string, newPost *Post) error {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) UpdatePostById(_ int, rlm realm, id string, newPost *Post) error {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostById(id)
 	if err != nil {
@@ -145,8 +145,8 @@ func (b *Blog) UpdatePostById(id string, newPost *Post) error {
 	return nil
 }
 
-func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) UpdatePostBySlug(_ int, rlm realm, slug string, newPost *Post) error {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
@@ -160,8 +160,8 @@ func (b *Blog) UpdatePostBySlug(slug string, newPost *Post) error {
 	return nil
 }
 
-func (b *Blog) DeletePostById(id string) error {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) DeletePostById(_ int, rlm realm, id string) error {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostById(id)
 	if err != nil {
@@ -170,8 +170,8 @@ func (b *Blog) DeletePostById(id string) error {
 	return b.DeletePost(post)
 }
 
-func (b *Blog) DeletePostBySlug(slug string) error {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) DeletePostBySlug(_ int, rlm realm, slug string) error {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
@@ -190,29 +190,31 @@ func (b *Blog) DeletePost(post *Post) error {
 	return nil
 }
 
-func (b *Blog) LikePostById(id string) error { // toggles between like and unlike
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) LikePostById(_ int, rlm realm, id string) error { // toggles between like and unlike
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostById(id)
 	if err != nil {
 		return err
 	}
-	if err := post.LikePost(runtime.PreviousRealm().Address().String()); err != nil {
-		post.UnlikePost(runtime.PreviousRealm().Address().String())
+	caller := rlm.Previous().Address().String()
+	if err := post.LikePost(caller); err != nil {
+		post.UnlikePost(caller)
 	}
 	return nil
 
 }
 
-func (b *Blog) LikePostBySlug(slug string) error { // toggles between like and unlike
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) LikePostBySlug(_ int, rlm realm, slug string) error { // toggles between like and unlike
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 
 	post, err := b.GetPostBySlug(slug)
 	if err != nil {
 		return err
 	}
-	if err := post.LikePost(runtime.PreviousRealm().Address().String()); err != nil {
-		post.UnlikePost(runtime.PreviousRealm().Address().String())
+	caller := rlm.Previous().Address().String()
+	if err := post.LikePost(caller); err != nil {
+		post.UnlikePost(caller)
 	}
 	return nil
 }
@@ -233,9 +235,12 @@ func (b Blog) GetPostBySlug(slug string) (*Post, error) {
 	return post.(*Post), nil
 }
 
-func (b *Blog) SetDisablePostLikes(disable bool) {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) SetDisablePostLikes(_ int, rlm realm, disable bool) {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
+	b.setDisablePostLikes(disable)
+}
 
+func (b *Blog) setDisablePostLikes(disable bool) {
 	b.DisableLikes = disable
 	b.Posts.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
@@ -254,9 +259,12 @@ func (b *Blog) SetDisablePostLikes(disable bool) {
 	})
 }
 
-func (b *Blog) SetDisableComments(disable bool) {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) SetDisableComments(_ int, rlm realm, disable bool) {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
+	b.setDisableComments(disable)
+}
 
+func (b *Blog) setDisableComments(disable bool) {
 	b.DisableComments = disable
 	b.Posts.Iterate("", "", func(_ string, value any) bool {
 		post := value.(*Post)
@@ -275,13 +283,13 @@ func (b *Blog) SetDisableComments(disable bool) {
 	})
 }
 
-func (b *Blog) SetUserResolver(resolver UserResolver) {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) SetUserResolver(_ int, rlm realm, resolver UserResolver) {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 	b.UserResolver = resolver
 }
 
-func (b *Blog) SetCustomHeader(presets []HeaderPreset) {
-	b.Authorizable.AssertPreviousOnAuthList()
+func (b *Blog) SetCustomHeader(_ int, rlm realm, presets []HeaderPreset) {
+	b.Authorizable.AssertPreviousOnAuthList(0, rlm)
 	b.CustomHeader = &presets
 }
 
