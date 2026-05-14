@@ -747,7 +747,7 @@ func (m *Machine) doOpConvert() {
 			// Except allow if xv.T is m.Realm.
 			// XXX do we need/want this?
 		} else {
-			sliceType, ok := xv.T.(*SliceType)
+			sliceType, ok := baseOf(xv.T).(*SliceType)
 			isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
 			if isBytesArray && t.Kind() == StringKind {
 				// Allow conversion from []byte to string
