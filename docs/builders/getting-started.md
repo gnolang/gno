@@ -122,7 +122,7 @@ gnodev .
 Open http://localhost:8888 — gnoweb shows your realm under its
 package path. Click into it to see the `Render` output ("Count: 0"),
 browse exported functions and source code, and view prefunded account
-balances. The `test1` account is preloaded, so no faucet is needed.
+balances. The `devtest` account is preloaded, so no faucet is needed.
 
 Save a `.gno` file and the chain reloads automatically. Pass multiple
 directories to load several packages at once; the bundled `examples/`
@@ -146,9 +146,9 @@ target the same network. Pick one up front and keep `-remote` (and
 |------------|------------|--------------------------------------------|
 | Local      | `dev`      | `http://localhost:26657`                   |
 | Staging    | `staging`  | `https://rpc.staging.gno.land:443`         |
-| Testnet    | `testN`    | `https://rpc.<chainid>.testnets.gno.land:443` |
+| Testnet    | `testN`    | `https://rpc.<testN>.testnets.gno.land:443` |
 
-Replace `testN`/`<chainid>` with the current testnet chainid (e.g. `test13`) — see
+Replace `<testN>` with the current testnet chainid (e.g. `test13`) — see
 [Networks](../resources/gnoland-networks.md) for the full list, the
 active testnet and mainnet status.
 
@@ -188,7 +188,7 @@ mnemonic for real funds; faucet tokens are testnet-only.
 
 ### 2. Get test tokens
 
-Deploys cost gas, paid in `ugnot`. Get test tokens from the faucet:
+Deploys cost [gas](../resources/gas-fees.md), paid in `ugnot`. Get test tokens from the faucet:
 
 Go to **[faucet.gno.land](https://faucet.gno.land)**, paste your `g1…`
 address, pick a network, and submit. Tokens arrive in seconds. The
@@ -255,7 +255,18 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 
 The package is now live and browsable at
 **`https://staging.gno.land/r/<your-g1-addr>/myrealm`**
-(or `https://<chainid>.testnets.gno.land/r/...` on the current testnet).
+(or `https:/<testN>.testnets.gno.land/r/...` on the current testnet).
+
+Two optional flags are worth knowing about:
+- `-send <amount>ugnot` — transfer GNOT to the realm with the deploy.
+- `-max-deposit <amount>ugnot` — cap the [storage deposit](../resources/storage-deposit.md)
+  the chain may lock; the transaction fails if the cap is exceeded.
+
+For the full flag list, see
+[`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage)
+or [Cheatsheet: Deploy a Package](../cheatsheet.md#deploy-a-package). You can
+also deploy via the [Playground](https://play.gno.land) with a browser wallet
+like Adena.
 
 ### 6. Call your realm
 
@@ -294,14 +305,16 @@ gnokey query vm/qrender \
 
 This returns the `Render` output ("Count: 5") — a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
-reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
+reference, see [Cheatsheet: Call a Function](../cheatsheet.md#call-a-function)
+and [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
 1. [r/docs](https://gno.land/r/docs) — on-chain tour
-2. [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — realm structure via Counter
-3. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
-4. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
+2. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
+3. [Tutorial: `minisocial` dApp](./tutorial-minisocial.md) — end-to-end with deploy
+4. [Gas fees](../resources/gas-fees.md) — pricing, estimation, and the "out of gas" fix
+5. [Storage deposit](../resources/storage-deposit.md) — how on-chain storage is paid for, and how to cap it with `-max-deposit`
 
 ## Getting help
 
