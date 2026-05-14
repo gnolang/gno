@@ -23,6 +23,16 @@ type ParamsInterface interface {
 	SetBytes(key string, val []byte)
 	SetStrings(key string, val []string)
 	UpdateStrings(key string, val []string, add bool)
+	// GetXxx writes the stored value (if any) into *ptr and returns
+	// whether the key existed. A return of false leaves *ptr at its
+	// zero value, distinguishing "never set" from "set to zero" —
+	// which the in-memory backed types alone cannot.
+	GetString(key string, ptr *string) bool
+	GetBool(key string, ptr *bool) bool
+	GetInt64(key string, ptr *int64) bool
+	GetUint64(key string, ptr *uint64) bool
+	GetBytes(key string, ptr *[]byte) bool
+	GetStrings(key string, ptr *[]string) bool
 }
 
 type ExecContext struct {
@@ -47,14 +57,7 @@ func (e ExecContext) GetExecContext() ExecContext {
 	return e
 }
 
-// GetOriginSend returns the OriginSend coins.
-// This implements gno.OriginSendProvider to avoid import cycles.
-func (e ExecContext) GetOriginSend() std.Coins {
-	return e.OriginSend
-}
-
 var _ ExecContexter = ExecContext{}
-var _ gno.OriginSendProvider = ExecContext{}
 
 // ExecContexter is a type capable of returning the parent [ExecContext]. When
 // using these standard libraries, m.Context should always implement this

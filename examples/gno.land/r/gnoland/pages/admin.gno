@@ -4,12 +4,12 @@ import (
 	"chain/runtime"
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 var (
 	adminAddr     address
-	moderatorList avl.Tree
+	moderatorList bptree.BPTree
 	inPause       bool
 )
 
