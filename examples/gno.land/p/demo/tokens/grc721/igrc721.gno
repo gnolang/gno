@@ -3,11 +3,11 @@ package grc721
 type IGRC721 interface {
 	BalanceOf(owner address) (int64, error)
 	OwnerOf(tid TokenID) (address, error)
-	SetTokenURI(tid TokenID, tURI TokenURI) (bool, error)
-	SafeTransferFrom(from, to address, tid TokenID) error
-	TransferFrom(from, to address, tid TokenID) error
-	Approve(approved address, tid TokenID) error
-	SetApprovalForAll(operator address, approved bool) error
+	SetTokenURI(_ int, rlm realm, tid TokenID, tURI TokenURI) (bool, error)
+	SafeTransferFrom(_ int, rlm realm, from, to address, tid TokenID) error
+	TransferFrom(_ int, rlm realm, from, to address, tid TokenID) error
+	Approve(_ int, rlm realm, approved address, tid TokenID) error
+	SetApprovalForAll(_ int, rlm realm, operator address, approved bool) error
 	GetApproved(tid TokenID) (address, error)
 	IsApprovedForAll(owner, operator address) bool
 }

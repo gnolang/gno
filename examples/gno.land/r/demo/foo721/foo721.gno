@@ -59,22 +59,22 @@ func GetApproved(tid grc721.TokenID) address {
 
 // Setters
 
-func Approve(_ realm, user address, tid grc721.TokenID) {
-	err := foo.Approve(user, tid)
+func Approve(cur realm, user address, tid grc721.TokenID) {
+	err := foo.Approve(0, cur, user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(_ realm, user address, approved bool) {
-	err := foo.SetApprovalForAll(user, approved)
+func SetApprovalForAll(cur realm, user address, approved bool) {
+	err := foo.SetApprovalForAll(0, cur, user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(_ realm, from, to address, tid grc721.TokenID) {
-	err := foo.TransferFrom(from, to, tid)
+func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
+	err := foo.TransferFrom(0, cur, from, to, tid)
 	if err != nil {
 		panic(err)
 	}
