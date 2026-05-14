@@ -1,7 +1,6 @@
 package home
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/n2p5/chonk"
