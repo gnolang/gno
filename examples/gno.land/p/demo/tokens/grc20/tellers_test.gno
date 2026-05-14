@@ -16,6 +16,25 @@ func TestCallerTellerImpl(t *testing.T) {
 	var _ Teller = teller
 }
 
+// evilWrap embeds Teller; the seal-marker pattern (if we had one) would be
+// satisfied via promotion, but IsCanonicalTeller rejects it because *evilWrap
+// is nominally distinct from *fnTeller.
+type evilWrap struct {
+	Teller
+}
+
+func TestIsCanonicalTeller(t *testing.T) {
+	tok, _ := newTestToken("Dummy", "DUMMY", 4)
+	legit := tok.CallerTeller()
+
+	uassert.True(t, IsCanonicalTeller(legit),
+		"canonical *fnTeller from CallerTeller must pass")
+
+	evil := &evilWrap{Teller: legit}
+	uassert.False(t, IsCanonicalTeller(evil),
+		"foreign type embedding a canonical Teller must be rejected")
+}
+
 // asAlice / asBob / asCarl are tiny crossing-function helpers that the
 // CallerTeller-based tests use to enter a fresh crossing frame whose
 // cur.Previous() is the supplied user. SetRealm(NewUserRealm(addr))

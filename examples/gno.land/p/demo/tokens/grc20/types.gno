@@ -12,6 +12,17 @@ import (
 //
 // The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
+//
+// SECURITY: Transfer/Approve/TransferFrom take (_ int, rlm realm, ...), so
+// handing a Teller value to untrusted code yields a capability token to
+// whatever Transfer/Approve/TransferFrom impl that code dispatches into.
+// Any /p/ or /r/ function that accepts a Teller as a parameter from external
+// callers MUST type-assert against the canonical concrete type (*fnTeller)
+// via IsCanonicalTeller and reject otherwise. An unexported-marker "seal"
+// does NOT defend against this — see
+// p/test/seal/filetests/z_seal_iface_embedding_filetest.gno
+// for the realistic embedding-bypass attack. Reference impl for the
+// canonical-allowlist pattern: p/jaekwon/allowancesender.
 type Teller interface {
 	// Returns the name of the token.
 	GetName() string
@@ -142,3 +153,22 @@ type fnTeller struct {
 }
 
 var _ Teller = (*fnTeller)(nil)
+
+// IsCanonicalTeller reports whether t is the canonical *fnTeller produced by
+// Token.CallerTeller / RealmTeller / RealmSubTeller / ReadonlyTeller /
+// ImpersonateTeller. Use this at any public entry point that accepts a
+// Teller from an external caller before invoking its methods.
+//
+// Foreign types — including embedding-based wrappers like
+// `type Evil struct { grc20.Teller }` — are rejected because type
+// assertions are nominal: *Evil is not *fnTeller, regardless of method
+// promotion. This is the reliable defense; the unexported-marker "seal"
+// pattern is bypassable via embedding (see
+// p/test/seal/filetests/z_seal_iface_embedding_filetest.gno).
+//
+// Mirrors the precedent of chain/banker.IsCanonical and
+// p/jaekwon/allowancesender's canonical-impl check.
+func IsCanonicalTeller(t Teller) bool {
+	_, ok := t.(*fnTeller)
+	return ok
+}
