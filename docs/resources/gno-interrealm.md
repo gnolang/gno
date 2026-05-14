@@ -25,14 +25,14 @@ Gno.land supports three types of packages:
   functionality
 - **Ephemeral Packages (`/e/`)**: Temporary code execution with MsgRun
   which allows a custom main() function to be run instead of a single
-  function call as with MsgExec.
+  function call as with MsgCall.
 
 For an overview of the different package types in Gno (`/p/`, `/r/`, and
 `/e/`), see [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md).
 
 Interrealm programming refers to the ability of one realm to call functions
 in another realm. This can occur between:
-- Regular realms (`/r/`) calling other regular realms via MsgExec and MsgRun.
+- Regular realms (`/r/`) calling other regular realms via MsgCall and MsgRun.
 - Ephemeral realms (`/e/`) calling regular realms via MsgRun (like main.go)
 
 The key concept is that code executing in one realm context can interact with
