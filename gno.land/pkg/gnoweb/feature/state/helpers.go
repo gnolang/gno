@@ -79,7 +79,9 @@ func stateObjectHref(pkgPath, oid, typeID, heightParam, viewMode string) templat
 // depth is the row's tree depth — the server renders the fragment's
 // children at depth+1 so they step in under the parent via the same
 // --depth mechanism as the server-rendered tree (purely presentational).
-func stateFragNodeHref(pkgPath, oid, typeID, heightParam string, depth int) template.URL {
+// viewMode keeps a tree-view expansion in tree format; pretty (default)
+// stays unstamped so the nginx cache key stays minimal.
+func stateFragNodeHref(pkgPath, oid, typeID, heightParam string, depth int, viewMode string) template.URL {
 	wq := url.Values{"state": {""}, "frag": {"node"}, "oid": {oid}}
 	if typeID != "" {
 		wq.Set("tid", typeID)
@@ -89,6 +91,9 @@ func stateFragNodeHref(pkgPath, oid, typeID, heightParam string, depth int) temp
 	}
 	if depth > 0 {
 		wq.Set("depth", strconv.Itoa(depth))
+	}
+	if viewMode == "tree" {
+		wq.Set("view", "tree")
 	}
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
 	return template.URL(u.EncodeWebURL()) //nolint:gosec

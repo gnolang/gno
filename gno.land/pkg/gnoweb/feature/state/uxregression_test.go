@@ -283,10 +283,11 @@ func TestUXPromiseTopLevelCrawlable(t *testing.T) {
 	}
 }
 
-// Promise: ADR-004 §8 doc-index hydration — an expandable frag=node
-// child (the kind that can reference a named, documented declaration)
-// MUST carry `[data-name]` + an empty `[data-doc-slot]` placeholder so
-// controller-state.ts can project docs onto lazy-loaded fragments.
+// Promise: ADR-004 §8 doc-index hydration — an expandable tree-view
+// frag=node child (the kind that can reference a named, documented
+// declaration) MUST carry `[data-name]` + an empty `[data-doc-slot]`
+// placeholder so controller-state.ts can project docs onto lazy-loaded
+// fragments. The doc-slot pair is tree-view markup, hence view=tree.
 func TestUXPromiseFragmentDocSlotPlaceholder(t *testing.T) {
 	const oid = "abcdef0123456789abcdef0123456789abcdef01:8"
 	// One field that is itself a nested struct → renders as a <details>
@@ -304,7 +305,7 @@ func TestUXPromiseFragmentDocSlotPlaceholder(t *testing.T) {
 	}`)
 	client := &fragMockClient{objBytes: body}
 	h := newFragHandler(client, nil)
-	rec := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {oid}})
+	rec := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {oid}, "view": {"tree"}})
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("frag=node: status = %d, want 200", rec.Code)

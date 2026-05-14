@@ -364,7 +364,7 @@
              `not $n.Source` — a node carrying a Source is a func/closure
              already handled by state/source-details above; without this
              guard a preview-promoted func renders BOTH expanders. */}}
-        {{ template "state/node-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp) }}
+        {{ template "state/node-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
       {{ else if and $n.Href $n.Preview }}
         <p class="preview">{{ $n.Preview }}</p>
       {{ end }}
@@ -393,8 +393,9 @@
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
   {{ $hp := .HeightParam }}
+  {{ $vm := .ViewMode }}
   <details class="b-state-lazy" data-name="{{ $n.Name }}" data-tree-key="{{ $n.ObjectID }}"
-           hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp 0 }}"
+           hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp 0 $vm }}"
            hx-trigger="toggle once"
            hx-target="find .b-state-node-body"
            hx-swap="innerHTML"

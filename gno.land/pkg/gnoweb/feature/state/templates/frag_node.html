@@ -26,7 +26,11 @@
     {{ end }}
     {{ if $n.Children }}
       {{ if eq $n.Kind "closure" }}<div class="captures-label" style="--depth: {{ $depth }};">Captured variables:</div>{{ end }}
-      {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Toplevel" false "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+      {{ if eq $vm "tree" }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Toplevel" false "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+      {{ else }}
+        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Heading" (headingForKind $n.Kind) "HeightParam" $hp) }}
+      {{ end }}
     {{ else if $n.Preview }}
       <p class="b-state-frag-preview">{{ $n.Preview }}</p>
     {{ else if not $n.SourceHTML }}

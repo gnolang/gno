@@ -494,7 +494,7 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 		}
 
 		.captures-label {
-			margin-block: var(--g-space-2) var(--g-space-1);
+			margin-block: var(--g-space-6) var(--g-space-1);
 			color: var(--s-color-text-info);
 			font-size: var(--g-font-size-90);
 			font-style: italic;
@@ -1468,7 +1468,7 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		font-size: 0.85em;
 		font-style: italic;
 		padding-inline-start: calc(var(--depth, 0) * 1.25rem + 0.25rem);
-		margin-block: var(--g-space-2) var(--g-space-1);
+		margin-block: var(--g-space-6) var(--g-space-1);
 	}
 
 	.row:target,

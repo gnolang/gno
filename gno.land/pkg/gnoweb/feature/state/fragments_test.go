@@ -242,10 +242,11 @@ func TestFragNodeStampsHeight(t *testing.T) {
 }
 
 func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
-	// A ref child whose target object IS resolvable. frag=node must STILL
-	// render it as a lazy <details> (b-state-lazy + hx-get) — never flatten it
-	// into a pre-rendered branch via an eager fetch — so the tree stays
-	// recursively drillable, one level (one StateObject RPC) per click.
+	// A ref child whose target object IS resolvable. A tree-view frag=node
+	// must STILL render it as a lazy <details> (b-state-lazy + hx-get) —
+	// never flatten it into a pre-rendered branch via an eager fetch — so
+	// the tree stays recursively drillable, one level (one StateObject RPC)
+	// per click. view=tree because the lazy <details> is tree-view markup.
 	const innerOID = "ffffffffffffffffffffffffffffffffffffffff:9"
 	parent := []byte(fmt.Sprintf(`{
 		"objectid": %q,
@@ -266,6 +267,7 @@ func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
 	rec := serveFragReq(t, h, url.Values{
 		"frag": {"node"},
 		"oid":  {fragOID},
+		"view": {"tree"},
 	})
 	require.Equal(t, http.StatusOK, rec.Code, "got body=%q", rec.Body.String())
 
@@ -276,6 +278,60 @@ func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
 		"the lazy ref child must carry an hx-get to fetch its next level on click")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&client.objCalls),
 		"frag=node loads only the clicked object — ref children are NOT eagerly fetched")
+}
+
+// fragMapBody returns a qobject_json MapValue payload with two string→int
+// entries — the pretty-view fragment must render these as a fields table.
+func fragMapBody(oid string) []byte {
+	return []byte(fmt.Sprintf(`{
+		"objectid": %q,
+		"value": {
+			"@type": "/gno.MapValue",
+			"ObjectInfo": {"ID": %q},
+			"List": {"List": [
+				{"Key": {"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "alpha"}},
+				 "Value": {"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AQAAAAAAAAA="}},
+				{"Key": {"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "beta"}},
+				 "Value": {"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AgAAAAAAAAA="}}
+			]}
+		}
+	}`, oid, oid))
+}
+
+// Regression: a frag=node request for a pretty-view card (no view=tree) must
+// render the pretty fields table — not the bare tree .row markup. With
+// view=tree it must still render the tree format. The fragment learns the
+// view mode from the request's `view` param.
+func TestFragNodeRespectsViewMode(t *testing.T) {
+	client := &fragMockClient{objBytes: fragMapBody(fragOID)}
+	h := newFragHandler(client, nil)
+
+	// Pretty (default): no view= param → pretty fields table.
+	pretty := serveFragReq(t, h, url.Values{
+		"frag": {"node"},
+		"oid":  {fragOID},
+	})
+	require.Equal(t, http.StatusOK, pretty.Code, "got body=%q", pretty.Body.String())
+	pb := pretty.Body.String()
+	assert.Contains(t, pb, "fields-frame",
+		"pretty-view fragment must render the state/decl-children fields table")
+	assert.Contains(t, pb, "fields-head",
+		"pretty-view fragment must render the fields-head row (map → Key heading)")
+	assert.NotContains(t, pb, `class="row"`,
+		"pretty-view fragment must NOT fall back to the bare tree .row markup")
+
+	// Tree: view=tree → tree .row markup.
+	tree := serveFragReq(t, h, url.Values{
+		"frag": {"node"},
+		"oid":  {fragOID},
+		"view": {"tree"},
+	})
+	require.Equal(t, http.StatusOK, tree.Code, "got body=%q", tree.Body.String())
+	tb := tree.Body.String()
+	assert.Contains(t, tb, `class="row"`,
+		"tree-view fragment must still render the tree state/node .row markup")
+	assert.NotContains(t, tb, "fields-frame",
+		"tree-view fragment must NOT render the pretty fields table")
 }
 
 func TestFragNodeCacheControlLatest(t *testing.T) {
@@ -572,6 +628,7 @@ func TestFragNodeFuncSourceOversizeFallsBack(t *testing.T) {
 
 // M8: the attacker-controlled depth param drives only a presentational
 // --depth step-in; an absurd value must be clamped to maxFragmentDepth.
+// view=tree because --depth is tree-view markup.
 func TestFragNodeDepthClamped(t *testing.T) {
 	client := &fragMockClient{objBytes: fragStructBody(fragOID)}
 	h := newFragHandler(client, nil)
@@ -579,6 +636,7 @@ func TestFragNodeDepthClamped(t *testing.T) {
 		"frag":  {"node"},
 		"oid":   {fragOID},
 		"depth": {"999"},
+		"view":  {"tree"},
 	})
 
 	require.Equal(t, http.StatusOK, rec.Code)

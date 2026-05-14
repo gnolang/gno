@@ -165,7 +165,9 @@ func TestFragNodeTemplateRenders(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := buf.String()
-	forbid := []string{"<html", "<head", "<script", "<!doctype"}
+	// `<head>` / `<head ` — not bare `<head`, which substring-matches the
+	// legit `<header class="fields-head">` in the pretty fields table.
+	forbid := []string{"<html", "<head>", "<head ", "<script", "<!doctype"}
 	for _, f := range forbid {
 		if strings.Contains(strings.ToLower(out), f) {
 			t.Errorf("fragment unexpectedly contains chrome %q", f)

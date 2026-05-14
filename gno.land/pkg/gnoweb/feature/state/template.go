@@ -139,9 +139,13 @@ var funcMap = template.FuncMap{
 // into BOTH the page and the node-fragment template sets so an
 // htmx-loaded fragment renders with the exact same recursive markup +
 // .row/--depth CSS as the server-rendered tree.
+//
+// page.html is also parsed into FragNodeTemplate so the fragment can
+// render the pretty-view fields table (state/decl-children + helpers)
+// — parse-time only, no runtime cost beyond extra defines in memory.
 var (
 	PageTemplate       = mustParse("renderPage", "templates/page.html", "templates/_nodes.html")
-	FragNodeTemplate   = mustParse("fragNode", "templates/frag_node.html", "templates/_nodes.html")
+	FragNodeTemplate   = mustParse("fragNode", "templates/frag_node.html", "templates/_nodes.html", "templates/page.html")
 	FragSourceTemplate = mustParse("fragSource", "templates/frag_source.html")
 	FragErrorTemplate  = mustParse("fragError", "templates/frag_error.html")
 )

@@ -74,6 +74,22 @@ func previewStructBody(oid string, val0, val1 int) []byte {
 	}`, oid, encodeInt64LE(int64(val0)), encodeInt64LE(int64(val1))))
 }
 
+// previewMapBody returns a minimal qobject_json shape for a 1-entry
+// string→int map — the map analogue of previewStructBody.
+func previewMapBody(oid string) []byte {
+	return []byte(fmt.Sprintf(`{
+		"objectid": %q,
+		"value": {
+			"@type": "/gno.MapValue",
+			"ObjectInfo": {"ID": %q},
+			"List": {"List": [
+				{"Key": {"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "k"}},
+				 "Value": {"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AQAAAAAAAAA="}}
+			]}
+		}
+	}`, oid, oid))
+}
+
 // TestPreviewBudgetCap15 pins the 15-fetch cap from ADR-004 §Resource bounds.
 // 20 ref candidates → exactly 15 fetched, 5 left as bare refs.
 func TestPreviewBudgetCap15(t *testing.T) {
@@ -108,6 +124,26 @@ func TestPreviewBudgetCap15(t *testing.T) {
 	}
 	assert.Equal(t, PreviewMaxFetches, enriched, "exactly cap nodes inlined")
 	assert.Equal(t, N-PreviewMaxFetches, bare, "remainder stays as bare refs")
+}
+
+// TestPreviewResolvesMapEntries: a top-level map ref must resolve like a
+// struct ref — its entries inlined as Children — so the pretty view shows a
+// flat table, not the lazy <details> fallback. Maps had no preview coverage.
+func TestPreviewResolvesMapEntries(t *testing.T) {
+	t.Parallel()
+
+	const oid = "ffffffffffffffffffffffffffffffffffffffff:44"
+	nodes := []StateNode{
+		{Name: "Settings", Type: "map[string]int", Kind: KindMap, ObjectID: oid, Expandable: true},
+	}
+	fetcher := &previewMockFetcher{bodies: map[string][]byte{oid: previewMapBody(oid)}}
+
+	spent, err := ResolvePreviews(context.Background(), nil, fetcher, nil, nodes)
+	require.NoError(t, err)
+	assert.Equal(t, 1, spent, "one fetch for the map ref")
+	require.NotEmpty(t, nodes[0].Children,
+		"map entries must inline as Children — else the pretty view falls back to the lazy <details> tree")
+	assert.Equal(t, `"k"`, nodes[0].Children[0].Name, "map key as child name")
 }
 
 // TestPreviewTwoRoundResolution pins the Gno-specific heap→ref→struct chain:
