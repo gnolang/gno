@@ -4020,20 +4020,6 @@ func (goo *BinaryExpr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth in
 
 func (goo CallExpr) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	{
-		before := offset
-		offset, err = goo.CrossArgPath.MarshalBinary2(cdc, buf, offset)
-		if err != nil {
-			return offset, err
-		}
-		dataLen := before - offset
-		if dataLen > 0 {
-			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
-			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 7, amino.Typ3ByteLength)
-		} else {
-			offset = before
-		}
-	}
 	if goo.WithCross {
 		{
 			before := offset
@@ -4153,15 +4139,6 @@ func (goo CallExpr) SizeBinary2(cdc *amino.Codec) (int, error) {
 	}
 	if goo.WithCross {
 		s += 1 + 1
-	}
-	{
-		cs, err := goo.CrossArgPath.SizeBinary2(cdc)
-		if err != nil {
-			return 0, err
-		}
-		if cs > 0 {
-			s += 1 + amino.UvarintSize(uint64(cs)) + cs
-		}
 	}
 	return s, nil
 }
@@ -4284,18 +4261,6 @@ func (goo *CallExpr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 			}
 			bz = bz[n:]
 			goo.WithCross = bool(v)
-		case 7:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 7: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
-			}
-			fbz, n, err := amino.DecodeByteSlice(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			if err := goo.CrossArgPath.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
-				return err
-			}
 		default:
 			return fmt.Errorf("unknown field number %d for CallExpr", fnum)
 		}

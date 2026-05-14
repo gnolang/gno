@@ -69,51 +69,38 @@ func (m *Machine) doOpPrecall() {
 	}
 }
 
-// installCrossingCur replaces the placeholder cross-arg with a freshly
-// captured cur realm and records it on the just-pushed frame.
+// installCrossingCur replaces the cross-arg slot with a freshly minted
+// cur realm and records it on the just-pushed frame.
 //
-// Two paths:
+// Two paths, distinguished by what Args[0] evaluated to on the value
+// stack:
 //
-//   - Bare `cross`: cx.CrossArgPath is zero. The new cur's prev comes
-//     from m.callingCurOrOrigin() — a frame-walk that finds the
-//     topmost crossing frame's Cur (or the per-tx origin).
+//   - Bare `cross`: the preprocessor replaced Args[0] with a constNil,
+//     so its stack slot is undefined. The new cur's prev comes from
+//     m.callingCurOrOrigin() — a frame walk that finds the topmost
+//     crossing frame's Cur (or the per-tx origin).
 //
-//   - Explicit `cross2(rlm)`: cx.CrossArgPath.Type != 0. The preprocessor
-//     has stashed the rlm NameExpr's ValuePath here. Resolve it against
-//     the caller's block (LastBlock returns the caller's block at this
-//     point — the new frame is pushed but its block hasn't been pushed
-//     yet, that happens later in doOpCall), require the resolved value
-//     to be a realm that IsCurrent-strict (HIV identity match against
-//     the topmost crossing frame's Cur — no value-receiver-laundered
-//     fallback), and use it as the new cur's prev. If rlm has been
-//     stashed in a struct field, closure, or sibling frame and isn't
-//     the current Cur, IsCurrent-strict rejects it and we panic.
+//   - Explicit `cross2(rlm)`: Args[0] is the inner cross2 CallExpr.
+//     At runtime cross2's native body validates IsCurrent-strict on
+//     rlm and pushes it back unchanged, so the stack slot holds the
+//     validated realm value. We use it directly as the new cur's
+//     prev — no second IsCurrent check needed here.
 func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath string) {
 	if !isCrossing {
 		panic("non-crossing function in cross call")
 	}
-	niltv := m.PeekValue(cx.NumArgs)
-	if !niltv.IsUndefined() {
-		panic(fmt.Sprintf("expected nil for realm argument in cross call but got %v", niltv))
-	}
+	argtv := m.PeekValue(cx.NumArgs)
 	var prev TypedValue
-	if cx.CrossArgPath.Type != 0 {
-		// cross2(rlm) path: resolve the rlm value from the caller's
-		// block and verify IsCurrent-strict before using as prev.
-		ptr := m.LastBlock().GetPointerTo(m.Store, cx.CrossArgPath)
-		if ptr.TV == nil {
-			panic("cross2: failed to resolve rlm path (preprocessor invariant violated)")
-		}
-		if !realmIsCurrentStrict(m, ptr.TV) {
-			panic("cross2: rlm is not the current cur (stale capture, sibling frame, or HIV-less receiver)")
-		}
-		prev = *ptr.TV
-	} else {
-		// Bare `cross` path: caller's current Cur via frame walk.
+	if argtv.IsUndefined() {
+		// Bare `cross` path.
 		prev = m.callingCurOrOrigin()
+	} else {
+		// cross2(rlm) form: argtv is the realm value cross2 pushed
+		// back after its own IsCurrent-strict check.
+		prev = *argtv
 	}
 	crlm := NewConcreteRealm(m.Alloc, pkgPath, prev)
-	niltv.Assign(m.Alloc, crlm, false)
+	argtv.Assign(m.Alloc, crlm, false)
 	m.LastFrame().Cur = crlm
 }
 

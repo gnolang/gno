@@ -106,84 +106,99 @@ use `cross2(rlm)` to make their cross-call intent explicit.
 
 ## Implementation
 
+The design routes cross2 through Gno's normal eval/native-call
+machinery: cross2 is a real runtime function that returns its
+argument unchanged (after IsCurrent-strict validation), and the
+outer crossing call's `installCrossingCur` peeks the evaluated rlm
+on the value stack and uses it as the new cur's prev. **No special
+AST plumbing, no path resolution, no wire-format addition.** An
+earlier path-stashing design (CrossArgPath as a serialized field
+on CallExpr) was abandoned because it couldn't handle closure
+captures correctly — closure-captured names live via heap-item
+indirection, not the parent-block chain that `Block.GetPointerTo`
+walks. The normal eval machinery handles heap-item indirection
+transparently.
+
 ### Files changed
 
-1. **`gnovm/pkg/gnolang/nodes.go`** — Add `CrossArgPath ValuePath` field
-   to `CallExpr`. Relax `isLikeWithCross` to return true when
-   `CrossArgPath.Type != 0` (the cross2 indicator, independent of
-   `Args[0]`).
-
-2. **`gnovm/pkg/gnolang/gnolang.proto`** — Add proto field 7
-   (`ValuePath cross_arg_path`) to `CallExpr`.
-
-3. **`gnovm/pkg/gnolang/pb3_gen.go`** — Regenerated via
-   `misc/genproto2` (auto-generated; do not hand-edit).
-
-4. **`gnovm/pkg/gnolang/gotypecheck.go`** — Add `func cross2(rlm realm)
+1. **`gnovm/pkg/gnolang/gotypecheck.go`** — Add `func cross2(rlm realm)
    realm { return rlm }` shim to the gno 0.9 per-package
    `.gnobuiltins.gno` (alongside `var cross realm`). The 0.0 shim
    intentionally does NOT declare `cross2` — `cross2` is a 0.9-only
    construct.
 
-5. **`gnovm/pkg/gnolang/uverse.go`** — Register `cross2` as a generic
+2. **`gnovm/pkg/gnolang/uverse.go`** — Register `cross2` as a generic
    native (`defNative("cross2", ...)` with generic X param/result,
-   mirroring `_cross_gno0p0`'s shape; body panics because the
-   preprocessor should always rewrite the outer call away). Also
-   factor the existing `IsCurrent` method body into a shared
-   `realmIsCurrentOnMachine` helper and add `realmIsCurrentStrict`
-   (rejects the HIV-less fallback path).
+   mirroring `_cross_gno0p0`'s shape). The native body validates
+   `realmIsCurrentStrict` on the argument and panics if false;
+   otherwise pushes the argument unchanged. Also factor the existing
+   `IsCurrent` method body into a shared `realmIsCurrentOnMachine`
+   helper and add `realmIsCurrentStrict` (rejects the HIV-less
+   fallback path — the strict check is the trust boundary).
 
-6. **`gnovm/pkg/gnolang/preprocess.go`** —
-   - Inner `cross2` TRANS_LEAVE (uverse-func switch, alongside
-     `_cross_gno0p0`, `cross`, `crossing`): validate the call shape is
-     `cross2(<NameExpr>)` with exactly one bare identifier argument.
-     (The Go typechecker already enforces the realm type via the
-     `func cross2(rlm realm) realm` shim signature, so no additional
-     type check is needed here.)
-   - Outer crossing-CallExpr's `Args[0]` validity check: accept
-     `*CallExpr` whose `Func` is the const-evaluated `cross2`. Verify
-     the inner NameExpr's resolved `ValuePath` is `VPBlock`-typed
-     (defensive — rejects pathological cases like `cross2(cross)`
-     whose path resolves through uverse, not a block slot). Stash
-     the path on the outer CallExpr's `CrossArgPath`, replace
-     `Args[0]` with `constNil`, and call `SetWithCross()`.
-     **No lexical check on where rlm came from** — neither the
-     "must be from a containing crossing function" nor the
-     "no closure capture" check is enforced. The runtime
-     IsCurrent-strict check in `installCrossingCur` is the sole
-     safety. This relaxation is intentional: it lets `cross2(rlm)`
-     work in the `(_ int, rlm realm, ...)` non-crossing helper
-     threading convention used throughout the security migration.
-     The tradeoff: a class of bare-`cur` *static* errors (closure
-     capture, non-crossing-scope rlm) become *latent runtime
-     panics* under cross2. Code that compiles and passes most tests
-     may panic only when a specific call sequence — e.g. A→B→A
-     re-entry threading the outer rlm — exercises the staleness.
-     See `gnovm/tests/files/zrealm_cross2_stalerlm.gno` for the
-     runtime-rejection test.
+3. **`gnovm/pkg/gnolang/nodes.go`** — Extend `isLikeWithCross` to
+   accept a `*CallExpr` at `Args[0]` whose `Func` is the const-
+   evaluated uverse `cross2` native, in addition to the existing
+   `*NameExpr` named `cur`/`cross`.
 
-7. **`gnovm/pkg/gnolang/op_call.go`** — `installCrossingCur` branches
-   on `cx.CrossArgPath.Type`:
-   - Zero (bare cross): existing path — `prev = m.callingCurOrOrigin()`.
-   - Non-zero (cross2): resolve via `m.LastBlock().GetPointerTo(m.Store,
-     cx.CrossArgPath)`, run `realmIsCurrentStrict`, panic if false,
-     `prev = *ptr.TV`.
+4. **`gnovm/pkg/gnolang/preprocess.go`** — Three checks at preprocess:
+   - **Inner `cross2` TRANS_LEAVE** (uverse-func switch, alongside
+     `_cross_gno0p0`, `cross`, `crossing`): validate the call shape
+     is `cross2(<NameExpr>)` with exactly one bare identifier
+     argument. Verify the parent context is `Args[0]` of a
+     crossing-function call (ftype == TRANS_CALL_ARG && index == 0,
+     parent `*CallExpr` whose Func resolves to a crossing
+     `*FuncType`). Reject stray cross2 usage (`x := cross2(rlm)`,
+     cross2 at non-zero arg index, cross2 at Args[0] of a
+     non-crossing function).
+   - **Outer crossing-CallExpr's `Args[0]` validity check**: accept
+     `*CallExpr` whose `Func` is the const-evaluated `cross2`. Call
+     `n.SetWithCross()`. **Leave Args[0] in place** — at runtime
+     the inner cross2 native runs and pushes the validated rlm
+     onto the stack at Args[0]'s slot.
+   - **Defer rejection**: at `LEAVE_CALL_EXPR_END_CHECK_CROSSING`,
+     panic if `n.WithCross && ftype == TRANS_DEFER_CALL`.
+     `defer f(cross, ...)` and `defer f(cross2(rlm), ...)` would
+     crash at runtime because `doOpReturnCallDefers` bypasses
+     `doOpPrecall` and never invokes `installCrossingCur`. The
+     panic message points at the closure-wrapper workaround:
+     `defer func() { f(cross, args...) }()`.
 
-### Why CrossArgPath is a serialized struct field, not an attribute
+5. **`gnovm/pkg/gnolang/op_call.go`** — `installCrossingCur` branches
+   on whether `m.PeekValue(cx.NumArgs)` is undefined:
+   - **Undefined** (bare cross — Args[0] is `constNil`): mint cur
+     with `prev = m.callingCurOrOrigin()`. Existing semantics.
+   - **Realm value** (cross2 — Args[0] is the inner cross2 CallExpr
+     that evaluated to rlm): cross2 already validated IsCurrent-strict,
+     use `prev = *argtv` directly. No second check needed.
 
-ASTs are persisted in chain state preprocessed. Attributes
-(`Attributes.data`) are marked `// not persisted` — they don't survive
-cold-loads of a realm. `WithCross` is a struct field (proto field 6)
-and survives. If we'd stashed `CrossArgPath` as an attribute, then
-after a realm cold-load the runtime would see `WithCross=true` with no
-`CrossArgPath` info, silently fall back to the bare-cross path
-(`callingCurOrOrigin`), and lose the IsCurrent-strict check — exactly
-the security property the explicit form adds.
+No lexical check on where rlm came from. cross2 works with
+parameter-rlm, closure-captured rlm, struct-field rlm — any
+realm-typed identifier that can be evaluated by the normal eval
+machinery. The runtime IsCurrent-strict check (in cross2's body)
+is the sole safety; if rlm is stale (sibling frame, A→B→A
+re-entry, value-receiver-laundered), cross2 panics with a clear
+message at the cross2 call site.
 
-So `CrossArgPath` must be persisted alongside `WithCross`. This is a
-wire-format change (proto field 7) and is reversible only as a future
-proto change; the change is small (one `ValuePath` per CallExpr, and
-only non-zero for the cross2 form).
+### Why this design (and not path-stashing)
+
+An earlier implementation stashed the inner NameExpr's resolved
+`ValuePath` on a new `CallExpr.CrossArgPath` field (serialized as
+proto field 7) and re-resolved it at install time via
+`Block.GetPointerTo`. This had two flaws:
+
+1. **Closure-captured names crashed with Go nil-deref.** Closure
+   captures live via heap-item indirection, not the parent-block
+   chain that GetPointerTo walks. A path computed at preprocess
+   relative to the closure body didn't resolve at install time.
+2. **Wire-format change**. Adding `CrossArgPath` to `CallExpr`
+   required a proto field — irreversible once deployed.
+
+The current design (cross2 as a normal native) sidesteps both:
+no path resolution at install time (the runtime evaluates the
+inner cross2 call through the normal machinery, which handles
+heap-item indirection transparently), and no AST shape change
+(cross2 is just another uverse function).
 
 ## Migration rule
 
@@ -240,3 +255,45 @@ final shape.
   - `gnovm/tests/files/zrealm_cross2_ifacestale.gno` — stale rlm
     via interface dispatch — the realistic threat shape — caught
     at runtime by IsCurrent-strict.
+  - `gnovm/tests/files/zrealm_cross2_closurecap.gno` — closure
+    captures a realm-typed local; the closure's invocation from
+    the same crossing frame succeeds. (Previously crashed under
+    the path-stashing design.)
+  - `gnovm/tests/files/zrealm_cross2_closuresib.gno` — closure
+    captures rlm in main, is passed via cross-call into another
+    crossing function and invoked there; cross2 panics on the
+    runtime IsCurrent-strict check because main's frame is no
+    longer topmost.
+  - `gnovm/tests/files/zrealm_cross2_stray.gno` — preprocess
+    rejects standalone `x := cross2(cur)` (cross2 must appear at
+    Args[0] of a crossing call).
+  - `gnovm/tests/files/zrealm_cross2_nonxfn.gno` — preprocess
+    rejects `cross2(cur)` at Args[0] of a non-crossing function.
+  - `gnovm/tests/files/zrealm_cross2_defer.gno` /
+    `zrealm_cross2_defercross.gno` — preprocess rejects
+    `defer f(cross2(rlm), ...)` and `defer f(cross, ...)`. The
+    deferred-call dispatch path bypasses `installCrossingCur`
+    and would crash at runtime; the panic message recommends
+    the closure-wrapper workaround.
+  - `gnovm/tests/files/zrealm_cross2_deferwrap.gno` — the
+    closure-wrapper workaround for deferring a crossing call:
+    `defer func() { f(cross, args) }()`.
+
+## Known follow-ups (out of scope for this implementation)
+
+- **`fr.Cur` not set on deferred frame**. `doOpReturnCallDefers`
+  pushes the deferred callee's frame but doesn't run the
+  inherit-from-block code that op_call.go does for non-crossing
+  calls of crossing functions. Today this is masked because
+  frame walks skip `fr.Cur.T == nil` frames and find the
+  deferring function's frame underneath (whose Cur happens to
+  match the deferred callee's `cur` parameter). A future-code
+  reader of `m.LastFrame().Cur` directly would see nil. ~5-10
+  LOC fix; deferred to a follow-up.
+
+- **cross2(rlm) inside a closure-wrapper deferred call** — the
+  `defer func() { f(cross2(rlm)) }()` pattern: rlm is captured
+  by the closure at defer time; at defer-fire time rlm is read
+  from the closure's captures. If rlm was the deferring
+  function's cur (typical case), this works. The runtime
+  IsCurrent-strict check is the safety.

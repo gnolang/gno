@@ -1475,17 +1475,26 @@ func makeUverseNode() {
 	)
 	// cross2(rlm) is the explicit form of bare `cross`. It coexists
 	// with `cross` during the gno 0.9 migration: where bare `cross`
-	// relies on the preprocessor to recognize the keyword in Args[0]
-	// position, cross2(rlm) is a real call expression whose argument
-	// is the realm value the caller is "crossing from." The
-	// preprocessor stashes the inner NameExpr's ValuePath on the
-	// outer CallExpr's CrossArgPath field and replaces Args[0] with
-	// constNil — the body of cross2 is never executed. At runtime,
-	// installCrossingCur resolves the path against the caller's block,
-	// verifies the resolved realm IsCurrent (strict — no HIV-less
-	// fallback), and uses it as the prev for the newly minted cur.
-	// Generic X param/result mirrors `_cross_gno0p0` so the inner
-	// call type-checks against any realm-typed argument.
+	// is a preprocessor-recognized sentinel, cross2(rlm) is a real
+	// runtime function call that validates IsCurrent-strict on rlm
+	// and returns it unchanged.
+	//
+	// When used at Args[0] of a crossing call (the intended usage),
+	// the validated rlm flows through to the outer call's Args[0]
+	// slot; installCrossingCur peeks the realm value and uses it as
+	// the new cur's prev. No second IsCurrent check is needed
+	// downstream because cross2 has already validated.
+	//
+	// The frame walk in realmIsCurrentStrict skips cross2's own
+	// frame (cross2 is non-crossing native), so it finds the most
+	// recent crossing frame — the caller of whatever evaluated
+	// cross2(rlm). rlm's HIV must match that frame's Cur by pointer
+	// identity, which catches stale rlm captured in closures, sibling
+	// frames, value-receiver-laundered receivers, etc.
+	//
+	// Generic X param/result mirrors `_cross_gno0p0`; the Go-side
+	// typechecker shim narrows X to realm via the .gnobuiltins.gno
+	// signature `func cross2(rlm realm) realm`.
 	defNative("cross2",
 		Flds( // param
 			"rlm", GenT("X", nil),
@@ -1494,9 +1503,11 @@ func makeUverseNode() {
 			"result", GenT("X", nil),
 		),
 		func(m *Machine) {
-			// preprocessor should have rewritten the outer call to use
-			// CrossArgPath; this body must never execute.
-			panic("cross2 is a virtual function; preprocessor should have replaced it")
+			arg0 := m.LastBlock().GetParams1(nil)
+			if !realmIsCurrentStrict(m, arg0.TV) {
+				panic("cross2: rlm is not the current cur (stale capture, sibling frame, or HIV-less receiver)")
+			}
+			m.PushValue(*arg0.TV)
 		},
 	)
 	defNative("attach",

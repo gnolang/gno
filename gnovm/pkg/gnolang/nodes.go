@@ -418,43 +418,29 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Varg      bool  // if true, final arg is variadic.
 	NumArgs   int   // len(Args) or len(Args[0].Results)
 	WithCross bool  // if cross-called with `cur`.
-	// CrossArgPath records the ValuePath of the rlm argument supplied
-	// via the explicit `cross2(rlm)` form. Zero-valued (Type == 0) when
-	// the call is bare-`cross` or non-crossing. When non-zero, the
-	// runtime resolves the path in the caller's block at
-	// installCrossingCur time, requires the result to be a non-HIV-less
-	// realm value that IsCurrent (strict), and uses it as the prev for
-	// the newly minted cur. Serialized as proto field 7 — required to
-	// survive realm cold-loads, since attributes are preprocessor-only.
-	CrossArgPath ValuePath
 }
 
 // returns true if x is of form fn(cur,...), fn(cross,...), or
-// fn(cross2(...), ...). but fn(cur,...) doesn't always mean with cross,
-// because `cur` could be anything, so this is a sanity check.
+// fn(cross2(rlm), ...). fn(cur,...) doesn't always mean with cross,
+// because `cur` could be anything; this is a sanity check.
 //
-// The cross2 form is recognized after the preprocessor has rewritten
-// the call: Args[0] has been replaced with constNil(...) and
-// CrossArgPath holds the resolved rlm path. SetWithCross is called by
-// the preprocessor AT THE TIME of the rewrite (before the Args[0] swap
-// in the bare-cross/cur path; either before or after the swap in the
-// cross2 path — both orderings work because the CrossArgPath presence
-// is the cross2 indicator independent of Args[0]).
+// For the cross2 form, Args[0] is a *CallExpr whose Func is the
+// const-evaluated uverse `cross2` native. At runtime cross2's body
+// validates IsCurrent-strict on rlm and returns it; the outer
+// crossing call's installCrossingCur peeks the evaluated realm
+// value and uses it as the new cur's prev.
 func (x *CallExpr) isLikeWithCross() bool {
-	if x.CrossArgPath.Type != 0 {
-		// cross2 form: path stashed by preprocessor.
-		return true
-	}
 	if len(x.Args) == 0 {
 		return false
 	}
-	first := x.Args[0]
-	nx, ok := first.(*NameExpr)
-	if !ok {
-		return false
-	}
-	if nx.Name == Name("cross") || nx.Name == Name("cur") {
-		return true
+	switch first := x.Args[0].(type) {
+	case *NameExpr:
+		return first.Name == Name("cross") || first.Name == Name("cur")
+	case *CallExpr:
+		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
+			return fcx.GetFunc().PkgPath == uversePkgPath &&
+				fcx.GetFunc().Name == "cross2"
+		}
 	}
 	return false
 }
