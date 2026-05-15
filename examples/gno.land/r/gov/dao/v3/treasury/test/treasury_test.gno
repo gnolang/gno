@@ -42,10 +42,7 @@ func (dp *dummyPayment) String() string   { return dp.str }
 
 func init() {
 	// Register allowed Realm path.
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{allowedRealm.PkgPath()},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.NewGovDAO(), []string{allowedRealm.PkgPath()}))
 }
 
 func ugnotCoins(t *testing.T, amount int64) chain.Coins {

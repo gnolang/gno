@@ -18,9 +18,7 @@ func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
 		t, _ := memberstore.GetTier(memberstore.T1)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	default:
 		panic("unsupported tier: " + tier)
 	}
@@ -35,10 +33,7 @@ func init() {
 
 	// Set up the DAO implementation using proper constructor
 	govDAO := impl.NewGovDAO()
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         govDAO,
-		AllowedDAOs: []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"}))
 }
 
 func main() {

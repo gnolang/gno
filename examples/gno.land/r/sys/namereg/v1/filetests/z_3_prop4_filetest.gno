@@ -36,19 +36,13 @@ func main() {
 
 	// Propose, vote, execute: pause.
 	dao.MustCreateProposal(cross, users.NewSetPausedExecutor(true))
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 	dao.ExecuteProposal(cross, dao.ProposalID(0))
 	println("paused after pause prop:", users.IsPaused())
 
 	// Propose, vote, execute: unpause.
 	dao.MustCreateProposal(cross, users.NewSetPausedExecutor(false))
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(1),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
 	dao.ExecuteProposal(cross, dao.ProposalID(1))
 	println("paused after unpause prop:", users.IsPaused())
 

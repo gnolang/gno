@@ -40,10 +40,7 @@ func main() {
 	testing.SetOriginCaller(c)
 
 	// Vote and execute.
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 	dao.ExecuteProposal(cross, dao.ProposalID(0))
 
 	// New price should be active. Register a user with the new amount;

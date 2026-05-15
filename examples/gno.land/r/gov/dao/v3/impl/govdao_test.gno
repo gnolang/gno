@@ -14,10 +14,7 @@ import (
 func init() {
 	loadMembers()
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         govDAO,
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(govDAO, []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 var (
@@ -85,39 +82,24 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	urequire.Equal(t, int(pid), 0)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m11)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.NoVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m2)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.NoVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m3)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.NoVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m4)
 
 	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
-		dao.MustVoteOnProposal(cross, dao.VoteRequest{
-			Option:     dao.NoVote,
-			ProposalID: dao.ProposalID(0),
-		})
+		dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 	})
 
 	testing.SetOriginCaller(m111)
@@ -137,10 +119,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1111)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.NoVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	accepted := dao.ExecuteProposal(cross, dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
@@ -261,31 +240,19 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, int(pid), 8)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(pid),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m11)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(pid),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m2)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(pid),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m3)
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(pid),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m111)
 
@@ -326,34 +293,19 @@ func TestAbstainVote(cur realm, t *testing.T) {
 
 	// Other members vote YES to reach supermajority
 	testing.SetOriginCaller(m11)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m111)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m1111)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m2)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m3)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
 
 	// Verify render shows correct percentages
 	urequire.Equal(t, true, contains(dao.Render(pid.String()), "YES PERCENT: 81.25%"))

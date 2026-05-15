@@ -34,7 +34,5 @@ func init() {
 
 	// Set the DAO implementation.  AllowedDAOs is intentionally left empty
 	// so that the genesis MsgRun can manipulate the memberstore directly.
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO: impl.GetInstance(),
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), nil))
 }

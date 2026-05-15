@@ -52,10 +52,7 @@ func TestExeUnlockTransfer(t *testing.T) {
 	urequire.NotPanics(
 		t,
 		func() {
-			dao.MustVoteOnProposal(cross, dao.VoteRequest{
-				Option:     dao.YesVote,
-				ProposalID: dao.ProposalID(id),
-			})
+			dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
 		},
 	)
 

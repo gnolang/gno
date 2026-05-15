@@ -24,8 +24,8 @@ func init() {
 	// Initialize GovDAO members
 	memberstore.Get().DeleteAll()
 	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetMember(memberstore.T1, user, &memberstore.Member{InvitationPoints: 3})
-	dao.UpdateImpl(cross, dao.UpdateRequest{DAO: impl.NewGovDAO()})
+	memberstore.Get().SetMember(memberstore.T1, user, memberstore.NewMember(3))
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.NewGovDAO(), nil))
 
 	// Create an executor that always fails
 	cb := func(realm) error { return errors.New("Boom!") }

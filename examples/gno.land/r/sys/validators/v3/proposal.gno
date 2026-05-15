@@ -25,6 +25,13 @@ type ValoperChange struct {
 	Power           uint64
 }
 
+func NewValoperChange(operatorAddress address, power uint64) ValoperChange {
+	return ValoperChange{
+		OperatorAddress: operatorAddress,
+		Power:           power,
+	}
+}
+
 const errNoValoperChanges = "no valoper changes proposed"
 
 // NewValidatorProposalRequest builds a GovDAO proposal that, when

@@ -14,10 +14,7 @@ func Init() {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 func InitWithUsers(addrs ...address) {
@@ -31,13 +28,10 @@ func InitWithUsers(addrs ...address) {
 		if !a.IsValid() {
 			panic("invalid address: " + a.String())
 		}
-		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})
+		memberstore.Get().SetMember(memberstore.T1, a, memberstore.NewMember(3))
 	}
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.NewGovDAO(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 func assertIsDevChain() {

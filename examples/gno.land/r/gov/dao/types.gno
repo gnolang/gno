@@ -31,6 +31,21 @@ type VoteRequest struct {
 	Metadata   interface{}
 }
 
+func NewVoteRequest(option VoteOption, proposalID ProposalID) VoteRequest {
+	return VoteRequest{
+		Option:     option,
+		ProposalID: proposalID,
+	}
+}
+
+func NewVoteRequestWithMetadata(option VoteOption, proposalID ProposalID, metadata interface{}) VoteRequest {
+	return VoteRequest{
+		Option:     option,
+		ProposalID: proposalID,
+		Metadata:   metadata,
+	}
+}
+
 func NewProposalRequest(title string, description string, executor Executor) ProposalRequest {
 	return ProposalRequest{
 		title:       title,
@@ -254,4 +269,21 @@ type DAO interface {
 type UpdateRequest struct {
 	DAO         DAO
 	AllowedDAOs []string
+}
+
+// NewUpdateRequest copies allowedDAOs into a fresh slice owned by
+// /r/gov/dao. Under PLAN3's storage=authority model, if we stored
+// the caller-passed slice directly, the base ArrayValue would
+// retain PkgID = caller_realm: storage rent would attribute to
+// caller, and /r/gov/dao could not mutate (e.g. append to) its own
+// copy without a DidUpdate panic. The internal copy ensures the
+// UpdateRequest and its AllowedDAOs both live entirely in
+// /r/gov/dao's authority.
+func NewUpdateRequest(d DAO, allowedDAOs []string) UpdateRequest {
+	cp := make([]string, len(allowedDAOs))
+	copy(cp, allowedDAOs)
+	return UpdateRequest{
+		DAO:         d,
+		AllowedDAOs: cp,
+	}
 }

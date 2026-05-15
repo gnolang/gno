@@ -41,10 +41,8 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
-		dao.UpdateImpl(cross, dao.UpdateRequest{
-			DAO:         newDao,
-			AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
-		})
+		// keeping previous realm just in case something went wrong
+		dao.UpdateImpl(cross, dao.NewUpdateRequest(newDao, []string{"gno.land/r/gov/dao/v3/impl", realmPkg}))
 		return nil
 	}
 
@@ -220,19 +218,13 @@ func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
 		t, _ := memberstore.GetTier(memberstore.T1)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	case memberstore.T2:
 		t, _ := memberstore.GetTier(memberstore.T2)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	case memberstore.T3:
 		t, _ := memberstore.GetTier(memberstore.T3)
-		return &memberstore.Member{
-			InvitationPoints: t.InvitationPoints,
-		}
+		return memberstore.NewMember(t.InvitationPoints)
 	default:
 		panic("member not found by the specified tier")
 	}

@@ -62,9 +62,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 	)
 
 	return validators.NewValidatorProposalRequest(
-		[]validators.ValoperChange{
-			{OperatorAddress: valoper.OperatorAddress, Power: votingPower},
-		},
+		[]validators.ValoperChange{validators.NewValoperChange(valoper.OperatorAddress, votingPower)},
 		title,
 		description,
 	)

@@ -46,10 +46,7 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	println("--")
 	println(dao.Render("0"))

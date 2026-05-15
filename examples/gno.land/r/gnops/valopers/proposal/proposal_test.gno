@@ -122,10 +122,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		urequire.NotPanics(t, func() {
 			// Vote the proposal created in the previous test
-			dao.MustVoteOnProposal(cross, dao.VoteRequest{
-				Option:     dao.YesVote,
-				ProposalID: dao.ProposalID(0),
-			})
+			dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 			// Execute the proposal — callback writes valset:proposed +
 			// dirty=true. v3.IsValidator(signingAddr) below reads the
