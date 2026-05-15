@@ -57,7 +57,6 @@ export class PlaygroundController extends BaseController {
 	private declare view: EditorView;
 	private declare langCompartment: Compartment;
 	private declare themeCompartment: Compartment;
-	private isAnimationRunning = false;
 
 	protected connect(): void {
 		const initialCodeEl = this.getTarget("initial-code") as HTMLTextAreaElement;
@@ -258,8 +257,10 @@ export class PlaygroundController extends BaseController {
 			btn.className = "b-playground-output-copy-btn";
 			btn.title = "Copy to clipboard";
 			btn.setAttribute("aria-label", "Copy to clipboard");
+			btn.setAttribute("data-controller", "copy");
+			btn.setAttribute("data-action", "click->copy#copy");
+			btn.setAttribute("data-copy-text-value", text);
 			btn.appendChild(makeCopyIcon());
-			btn.addEventListener("click", () => this._copyOutputItem(text, btn));
 			row.appendChild(btn);
 		}
 
@@ -269,25 +270,6 @@ export class PlaygroundController extends BaseController {
 
 	private _setErrorOutput(text: string): void {
 		this._resetOutput(text, false, true);
-	}
-
-	private _copyOutputItem(text: string, btn: HTMLElement): void {
-		if (this.isAnimationRunning) return;
-
-		navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				this.isAnimationRunning = true;
-				const icons = Array.from(
-					btn.querySelectorAll("use"),
-				) as SVGUseElement[];
-				icons.forEach((icon) => icon.classList.toggle("u-hidden"));
-				setTimeout(() => {
-					icons.forEach((icon) => icon.classList.toggle("u-hidden"));
-					this.isAnimationRunning = false;
-				}, 750);
-			})
-			.catch(() => {});
 	}
 
 	private _switchToFile(fileName: string): boolean {
