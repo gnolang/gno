@@ -24,12 +24,20 @@ func assertCallerIsAllowed() {
 }
 
 // AddValidator is a public method that allows whitelisted realms to add
-// a validator to the set. The operator must already be registered in
-// valoperCache with KeepRunning=true.
-func AddValidator(cur realm, change ValoperChange) {
+// a validator to the set. If the operator is not yet in valoperCache, it
+// is auto-registered using the provided signingPubKey and signingAddress
+// with KeepRunning=true.
+func AddValidator(cur realm, change ValoperChange, signingPubKey string, signingAddress address) {
 	assertCallerIsAllowed()
 	if change.Power == 0 {
 		panic("AddValidator requires Power > 0; use RemoveValidator for removals")
+	}
+	if _, ok := valoperCache.Get(change.OperatorAddress.String()); !ok {
+		valoperCache.Set(change.OperatorAddress.String(), cacheEntry{
+			SigningPubKey:  signingPubKey,
+			SigningAddress: signingAddress,
+			KeepRunning:    true,
+		})
 	}
 	exec := newValoperChangeExecutor([]ValoperChange{change})
 	if err := exec.Execute(cross); err != nil {
@@ -38,9 +46,13 @@ func AddValidator(cur realm, change ValoperChange) {
 }
 
 // RemoveValidator is a public method that allows whitelisted realms to remove
-// a validator from the set, looked up by operator address.
+// a validator from the set, looked up by operator address. If the operator
+// is not in valoperCache (never added), this is a no-op.
 func RemoveValidator(cur realm, op address) {
 	assertCallerIsAllowed()
+	if _, ok := valoperCache.Get(op.String()); !ok {
+		return
+	}
 	exec := newValoperChangeExecutor([]ValoperChange{{OperatorAddress: op, Power: 0}})
 	if err := exec.Execute(cross); err != nil {
 		panic(err)
