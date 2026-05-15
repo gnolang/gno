@@ -1,7 +1,6 @@
 package validators
 
 import (
-	"errors"
 	"math/overflow"
 	"strings"
 	"time"
@@ -101,7 +100,7 @@ func NewTrustLevelPropRequest(numerator, denominator uint64, title, description 
 func newTrustLevelExecutor(newRatio trustRatio) dao.Executor {
 	callback := func(cur realm) error {
 		if newRatio.lessThan(trustLevelMinAllowed) || trustLevelMaxAllowed.lessThan(newRatio) {
-			return errors.New(errInvalidTrustLevel)
+			panic(errInvalidTrustLevel)
 		}
 		trustLevelRatio = newRatio
 		return nil
