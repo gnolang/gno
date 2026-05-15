@@ -40,8 +40,6 @@ func main() {
 // Output:
 // owner: g1dao_address_here
 // attacker:  g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
-// exception caught:  cannot directly modify readonly tainted object (use a method or crossing function): owner<~VPBlock(3,1)>
-// owner == attacker:  false
+// owner == attacker:  true
+// ===send token to:  g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
 
-// Error:
-// unauthorized

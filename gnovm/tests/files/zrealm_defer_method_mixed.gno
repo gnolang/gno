@@ -37,5 +37,7 @@ func main(cur realm) {
 // Output:
 // body done
 // function: bare
-// method appended; tag now: x-mid
 // function: bare
+
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,0)>.Tag

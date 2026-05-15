@@ -2227,42 +2227,34 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
-	if recv.IsDefined() { // method call
+	// Not cross nor crossing. Layered borrow:
+	//   1. /r/-declared function/method → borrow to method's
+	//      declaring realm (any receiver shape, or top-level
+	//      function). Closes the .Title() class for /r/-declared
+	//      callables: attacker code runs with attacker's
+	//      authority, not victim's.
+	//   2. Otherwise (stdlib or /p/-declared) → if the receiver is
+	//      a real object in a foreign realm, borrow to receiver's
+	//      storage realm. Preserves the existing pattern where
+	//      stdlib + /p/ helpers (grc20, bptree, math/rand, etc.)
+	//      mutate state living in another realm.
+	if IsRealmPath(pv.PkgPath) {
+		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
+			m.Realm = pv.GetRealm()
+		}
+		return
+	}
+	if recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
-		if obj == nil { // nil receiver
-			// no switch
-			return
-		} else {
+		if obj != nil {
 			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-				// no switch
-				return
-			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
+			if !recvOID.IsZero() &&
+				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
-				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
-				return
+				m.Realm = objpv.GetRealm()
 			}
 		}
-	} else { // top level function
-		// no switch
-		return
 	}
 }
 

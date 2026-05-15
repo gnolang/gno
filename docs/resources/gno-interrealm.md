@@ -53,24 +53,37 @@ cross-calls (`fn(cross, ...)`).
 
 **Realm-storage-context** determines where new and modified objects are
 persisted during realm-transaction finalization. It changes on explicit
-cross-calls *and* on implicit borrow-crosses (calling a non-crossing method on
-a real object residing in a different realm). The realm-storage-context is not
-directly accessible at runtime and has no associated address.
+cross-calls *and* on implicit borrow-crosses. There are two kinds of implicit
+borrow:
+
+  1. **Declaring-realm borrow** (any /r/-declared callable): when a function,
+     method, or closure declared in `/r/X` is invoked from a different
+     realm-storage-context, the storage-context soft-switches to `/r/X` for
+     the call duration. This applies to top-level functions, methods (on real,
+     unreal, or primitive receivers), and closures whose construction site
+     was in `/r/X`. It does NOT change realm-context.
+
+  2. **Storage-realm borrow** (stdlib + /p/ methods on real foreign
+     receivers): when a non-`/r/`-declared method (stdlib or `/p/`) is called
+     on a real receiver whose storage realm differs from the current
+     realm-storage-context, the storage-context soft-switches to the
+     receiver's storage realm. Lets generic library methods (`bptree.Set`,
+     `grc20.Transfer`, etc.) mutate state living in another realm.
 
 After an explicit cross-call, both contexts refer to the same realm. They
-diverge when calling a non-crossing method of a real object residing in a
-different realm — the realm-storage-context shifts to the receiver's realm
-while the realm-context stays the same.
+diverge under either implicit borrow — realm-context stays the same, storage
+moves.
 
 | Call type | Realm-context changes? | Storage-context changes? | Boundary? | Finalizes? |
 |---|---|---|---|---|
 | `fn(cross, ...)` to same realm | Yes* | No | Yes | Yes |
 | `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
-| `fn(nil, ...)` (non-crossing-call) | No | No | No | No |
-| Non-crossing method, real receiver in same realm | No | No | No | No |
-| Non-crossing method, real receiver in different realm | No | Yes | Yes | Yes |
-| Non-crossing method, unreal receiver | No | No | No | No |
-| Non-crossing function | No | No | No | No |
+| `fn(nil, ...)` (non-crossing-call of crossing-function), same realm | No | No | No | No |
+| Non-crossing method in own (caller's) realm | No | No | No | No |
+| Non-crossing /r/-declared callable in foreign realm (method, top-level, closure) | No | Yes (declaring) | Yes | Yes |
+| Stdlib or /p/ method, real receiver in different realm | No | Yes (storage) | Yes | Yes |
+| Stdlib or /p/ method, unreal/primitive receiver | No | No | No | No |
+| Stdlib or /p/ top-level function | No | No | No | No |
 
 \* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
 shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
@@ -354,19 +367,33 @@ All functions in Gno execute under a realm context as determined by the call
 stack. Objects that reside in a realm can only be modified if the realm context
 matches.
 
-A function declared in p packages when called:
+A function declared in p packages (or in stdlib) when called:
 
- * inherits the last realm for package declared functions and closures.
- * inherits the last realm when a method is called on unreal receiver.
- * implicitly crosses to the receiver's resident realm when a method of the
-   receiver is called. The receiver's realm is also called the "borrow realm".
+ * inherits the last realm for top-level functions and closures.
+ * inherits the last realm when a method is called on an unreal or primitive
+   receiver.
+ * implicitly storage-borrows to the receiver's resident realm when a method
+   is called on a real receiver residing in a different realm. The receiver's
+   resident realm is the "borrow realm" for this call.
 
-A function declared in a realm package when called:
+A function declared in a realm package (`/r/X`) when called:
 
- * explicitly crosses to the realm in which the function is declared if the
-   function is declared as `func fn(cur realm, ...){...}` (with `cur realm` as the
-   first argument). The new realm is called the "current realm".
- * otherwise follows the same rules as for p packages.
+ * explicitly crosses to `/r/X` if the function is declared as
+   `func fn(cur realm, ...){...}` (with `cur realm` as the first argument) AND
+   called with `cross` as the first argument. The new realm is called the
+   "current realm".
+ * otherwise (non-crossing call of a `/r/X`-declared callable from a different
+   realm-storage-context) **implicitly declaring-borrows to `/r/X`** for the
+   call duration. This applies uniformly: top-level functions, methods on any
+   receiver shape (real, unreal, primitive), and closures whose
+   construction site was `/r/X`. The realm-context does NOT change.
+
+The declaring-realm borrow is the key safety mechanism that prevents an
+attacker-supplied value from running attacker's method body with victim's
+authority. When victim invokes `e.Method()` where `Method` is declared in
+`/r/attacker`, the borrow makes the method body run with `m.Realm = /r/attacker`,
+and any attempt to mutate victim-owned state from inside the body fails the
+`DidUpdate()` PkgID check.
 
 `runtime.CurrentRealm()` returns the current realm-context that was last
 cross-called to. `runtime.PreviousRealm()` returns the realm-context
@@ -389,24 +416,43 @@ realm) when a method is called on a receiver residing in a foreign realm.
 ### Implicit Realm-Storage Borrowing
 
 Besides (explicit) realm-context changes via the `fn(cross, ...)` cross-call
-syntax, implicit realm-storage-context changes occur when calling a
-non-crossing method of a receiver object residing in different realm-storage.
-The realm-storage-context "borrows" to the receiver's realm, which allows the
-method to directly modify its receiver and any objects reachable from it that
-reside in the same realm-storage. The realm-context does not change (so
-`runtime.CurrentRealm()` and `runtime.PreviousRealm()` are unaffected; the
-agency of the caller remains the same). However, objects reachable from the
-receiver but residing in a *different* realm-storage cannot be modified — the
-`DidUpdate()` guard in the runtime enforces that only objects belonging to the
-borrowed realm can be mutated.
+syntax, implicit realm-storage-context changes occur in two scenarios. Both
+"borrow" the realm-storage-context for the duration of the call without
+changing the realm-context (so `runtime.CurrentRealm()` and
+`runtime.PreviousRealm()` are unaffected; the agency of the caller remains
+the same). In both cases the `DidUpdate()` guard in the runtime enforces
+that only objects belonging to the borrowed realm can be mutated; reachable
+objects in any *other* realm-storage cannot be modified.
 
-This borrowing behavior allows non-crossing methods of receivers to behave the
-same whether declared in a realm package or p package: p package code copied
-over to a realm package, or realm package code copied over to another realm,
-have the exact same behavior. Crossing methods of a realm package would still
-behave differently when copied over to another realm, as crossing-methods
-always change the realm-context and realm-storage-context to the declared
-realm.
+**Declaring-realm borrow (for `/r/`-declared callables).** When a function,
+method, or closure declared in a realm package `/r/X` is invoked while the
+current realm-storage-context is something else, the storage-context
+soft-switches to `/r/X` for the call duration. This applies uniformly:
+top-level functions, methods on any receiver shape (real, unreal, or
+primitive), and closures whose construction-site package was `/r/X`. The
+rule is symmetric and unforgeable — invoking attacker-declared code from
+victim's realm-context will run that code under attacker's authority, not
+victim's, so attacker cannot mutate victim-owned state via direct field
+writes from inside the called body. This is the language-level defense
+against the "method on attacker-supplied value" attack class.
+
+**Storage-realm borrow (for stdlib and `/p/` methods on foreign real
+receivers).** When a non-`/r/`-declared method (stdlib or `/p/`) is called
+on a real receiver whose storage realm differs from the current
+realm-storage-context, the storage-context soft-switches to the receiver's
+storage realm. This lets generic library methods — `bptree.Set`, the GRC20
+Teller methods, `strconv.Itoa` and similar — mutate state living in the
+caller's realm without requiring every helper to be re-declared per
+caller-realm.
+
+This split mirrors the two design intents: `/r/` packages contain
+realm-bound logic whose authority should follow the declaring realm; `/p/`
+and stdlib packages contain generic library code that should operate on
+caller-supplied data with caller-aligned storage-context. The result is
+that `/p/` package code can be copied verbatim into a realm package and
+behave identically (because both still see the same storage-realm borrow
+on real receivers), while `/r/` code copied between realms changes its
+authority (because the declaring-realm borrow follows the new home).
 
 ### Crossing-Method Semantics
 
@@ -441,7 +487,10 @@ type Token struct {
     Balance int
 }
 
-// Non-crossing method: borrows receiver's storage realm.
+// Non-crossing method on /r/-declared type: storage-context borrows
+// to /r/alice/tokens (the declaring realm), NOT the receiver's storage
+// realm. Debit can only mutate t.Balance when myToken itself is stored
+// in /r/alice/tokens.
 func (t *Token) Debit(amount int) {
     t.Balance -= amount
 }
@@ -462,16 +511,35 @@ import "gno.land/r/alice/tokens"
 var myToken *tokens.Token // persisted in /r/bob/bob
 
 func Spend(_ realm) {
-    // Non-crossing call: storage-context borrows to /r/bob/bob
-    // (receiver's realm). Debit() CAN modify myToken.
-    myToken.Debit(10) // ok: borrowed storage matches receiver
+    // Non-crossing call on a /r/-declared method: storage-context
+    // borrows to /r/alice/tokens (the method's declaring realm), NOT
+    // to /r/bob/bob (the receiver's storage realm). Debit() runs with
+    // alice's authority and cannot mutate myToken (which is owned by
+    // /r/bob/bob).
+    myToken.Debit(10) // fails: declaring realm /r/alice/tokens ≠ myToken's storage /r/bob/bob
 
-    // Crossing call: storage-context shifts to /r/alice/tokens
-    // (where the type is declared), not /r/bob/bob (where myToken resides).
-    // Transfer() CANNOT directly modify myToken.
+    // Crossing call: storage-context shifts to /r/alice/tokens (same
+    // target as the non-crossing form above for /r/-declared methods).
+    // Transfer() also CANNOT directly modify myToken.
     myToken.Transfer(cross, "g1...", 10) // fails: receiver in external realm
 }
 ```
+
+Under the declaring-realm borrow rule, methods declared in `/r/` packages
+behave consistently regardless of whether they're called with `cross` or
+non-crossing: the method's body always runs with the declaring realm's
+authority. Storage-realm borrow (mutating the receiver's surrounding state)
+only applies to stdlib and `/p/` methods — exactly the cases where the
+helper is intended to operate on caller-supplied data.
+
+If you need a `/r/A`-declared method to mutate state stored in `/r/B`, the
+caller in `/r/B` must own the mutation: pass the data into the method as an
+argument and let the method return the new value, or expose a method on
+`/r/B`'s own type that delegates internally. The pattern of "method on
+my-type, mutate via foreign-realm-stored receiver" is intentionally not
+supported, because it would allow foreign-realm code to run with the
+storage realm's authority — defeating the declaring-realm borrow's
+purpose.
 
 New unreal objects reachable from the borrowed realm (or current realm if there
 was no method call that borrowed) become persisted in the borrowed realm (or

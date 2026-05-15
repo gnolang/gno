@@ -28,3 +28,7 @@ func main(cur realm) {
 
 // Output:
 // about to return; defers will run LIFO
+
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): b<VPBlock(1,0)>.Items
+// 	cannot directly modify readonly tainted object (use a method or crossing function): b<VPBlock(1,0)>.Items

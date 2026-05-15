@@ -29,4 +29,5 @@ func main(cur realm) {
 // Output:
 // before defer fires, c.N = 0
 
-// Realm:
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): c<VPBlock(1,0)>.N

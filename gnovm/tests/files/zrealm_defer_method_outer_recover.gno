@@ -40,3 +40,4 @@ func main(cur realm) {
 
 // Output:
 // Closed before defer fires: false
+// RECOVERED: cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,0)>.Closed

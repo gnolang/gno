@@ -36,6 +36,7 @@ func main(cur realm) {
 // Output:
 // 2
 
+
 // Realm oplog legend (object IDs are from this run; package = crossrealm_f):
 //   :2  PackageValue (escaped, RefCount=2)
 //   :3  PackageBlock — holds the `entries` slice header
@@ -208,4 +209,5 @@ func main(cur realm) {
 //                  }
 //              },
 // d[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:9](-397)
+// finalizerealm["gno.land/r/tests/vm/crossrealm_f"]
 // finalizerealm["gno.land/r/test/impl"]

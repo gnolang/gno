@@ -35,9 +35,14 @@ func TestRealmPanicToError(t *testing.T) {
 	const message = "token instance does not exist"
 	var err error
 
-	// Define a panicking function (not crossing).
+	// Define a panicking function (local panic; does not cross any
+	// realm boundary). Under the unified declaring-realm borrow,
+	// calling grc20.Bank() would borrow into /r/demo/defi/grc20factory
+	// and any panic there would cross a realm boundary, becoming an
+	// abort catchable only by revive() — see the `aborting` case
+	// below. To exercise the pure recover() path, panic locally.
 	panicking := func() {
-		grc20.Bank("unknown")
+		panic(message)
 	}
 
 	// panicking function should panic.

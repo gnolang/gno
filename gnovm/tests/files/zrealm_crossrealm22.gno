@@ -221,6 +221,7 @@ func main(cur realm) {
 //                      "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:3"
 //                  }
 //              },
+// finalizerealm["gno.land/r/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
@@ -261,6 +262,7 @@ func main(cur realm) {
 //                  "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:5"
 //              }
 //          }
+// finalizerealm["gno.land/r/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
@@ -373,6 +375,7 @@ func main(cur realm) {
 // d[07e973c6aeab1f1cb747d0903cb1e4d369226376:44](-507)
 // d[07e973c6aeab1f1cb747d0903cb1e4d369226376:45](-401)
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
+// finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // u[06279d1e03ecb38b84822f9caf584bd16913470d:5](0)=
@@ -404,6 +407,7 @@ func main(cur realm) {
 //                  "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:5"
 //              }
 //          }
+// finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // c[07e973c6aeab1f1cb747d0903cb1e4d369226376:46](380)={
 //     "Crossing": false,
@@ -497,6 +501,7 @@ func main(cur realm) {
 //                      "ObjectID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:14"
 //                  }
 //              },
+// finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
 // finalizerealm["gno.land/r/crossrealm"]

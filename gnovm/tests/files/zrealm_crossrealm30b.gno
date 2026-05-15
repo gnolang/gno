@@ -40,4 +40,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): sa<VPBlock(1,1)>.A
+// cannot directly modify readonly tainted object (use a method or crossing function): sb<VPBlock(1,0)>.B

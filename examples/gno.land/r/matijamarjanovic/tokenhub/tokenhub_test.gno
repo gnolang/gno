@@ -158,42 +158,53 @@ func TestMustGetFunctions(cur realm, t *testing.T) {
 	retrievedToken := MustGetToken("gno.land/r/matijamarjanovic/tokenhub.must_token")
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
 
-	defer func() {
-		r := recover()
-		uassert.True(t, r != nil, "MustGetToken should panic for non-existent token")
-		uassert.True(t, strings.Contains(r.(string), "unknown token"), "Panic message should mention unknown token")
-	}()
-	MustGetToken("non_existent_token")
+	// Under the unified declaring-realm borrow, calling MustGetToken
+	// (which dispatches to grc20reg.MustGet in /r/demo/defi/grc20reg)
+	// crosses a soft realm boundary. Panics across borrows are aborts
+	// not catchable by plain defer/recover — use revive() to capture.
+	r := revive(func() { MustGetToken("non_existent_token") })
+	uassert.True(t, r != nil, "MustGetToken should panic for non-existent token")
+	uassert.True(t, strings.Contains(r.(string), "unknown token"), "Panic message should mention unknown token")
 
 	nft := grc721.NewBasicNFT("Must NFT", "MNFT")
 	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
 	RegisterNFT(cross, nft.Getter(), "must_nft", "1")
 
-	retrievedNFT := MustGetNFT("gno.land/r/matijamarjanovic/home.must_nft.1")
+	// NFT registration key is cur.Previous().PkgPath() + "." + collection + "." + tokenId
+	// where cur.Previous() at the cross-call site is the realm set via SetRealm above (testRealmPkgPath).
+	retrievedNFT := MustGetNFT(testRealmPkgPath + ".must_nft.1")
 	metadata, ok := retrievedNFT.(grc721.IGRC721CollectionMetadata)
 	urequire.True(t, ok, "NFT should implement IGRC721CollectionMetadata")
 	uassert.Equal(t, "Must NFT", metadata.Name(), "NFT name should match")
 
-	defer func() {
-		r := recover()
-		uassert.True(t, r != nil, "MustGetNFT should panic for non-existent NFT")
-		uassert.True(t, strings.Contains(r.(string), "unknown NFT"), "Panic message should mention unknown NFT")
+	// MustGetNFT's panic is local (panic site is in this package, no foreign
+	// realm call), so defer/recover catches it without crossing any borrow.
+	func() {
+		defer func() {
+			r := recover()
+			uassert.True(t, r != nil, "MustGetNFT should panic for non-existent NFT")
+			uassert.True(t, strings.Contains(r.(string), "unknown NFT"), "Panic message should mention unknown NFT")
+		}()
+		MustGetNFT("non_existent_nft")
 	}()
-	MustGetNFT("non_existent_nft")
 
 	mt := grc1155.NewBasicGRC1155Token("must-uri")
 	RegisterMultiToken(cross, mt.Getter(), "must_mt")
 
-	retrievedMT := MustGetMultiToken("gno.land/r/matijamarjanovic/home.must_mt")
+	// MultiToken registration key is cur.Previous().PkgPath() + "." + tokenID.
+	retrievedMT := MustGetMultiToken(testRealmPkgPath + ".must_mt")
 	_, ok = retrievedMT.(grc1155.IGRC1155)
 	urequire.True(t, ok, "Retrieved multi-token should implement IGRC1155")
 
-	defer func() {
-		r := recover()
-		uassert.True(t, r != nil, "MustGetMultiToken should panic for non-existent multi-token")
-		uassert.True(t, strings.Contains(r.(string), "unknown multi-token"), "Panic message should mention unknown multi-token")
+	// Local panic, same as MustGetNFT above.
+	func() {
+		defer func() {
+			r := recover()
+			uassert.True(t, r != nil, "MustGetMultiToken should panic for non-existent multi-token")
+			uassert.True(t, strings.Contains(r.(string), "unknown multi-token"), "Panic message should mention unknown multi-token")
+		}()
+		MustGetMultiToken("non_existent_mt")
 	}()
-	MustGetMultiToken("non_existent_mt")
 }
 
 func resetState(t *testing.T) {
