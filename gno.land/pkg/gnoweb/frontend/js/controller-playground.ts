@@ -140,17 +140,33 @@ export class PlaygroundController extends BaseController {
 		this._scrollByPage(1);
 	}
 
+	private _isValidFileName(name: string): boolean {
+		return name.endsWith(".gno") || name === GNOMOD_FILE;
+	}
+
 	private _parseInitialCode(initialCode: string): void {
 		if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
 			const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
 			for (let i = 1; i < parts.length; i += 2) {
 				const name = parts[i].trim();
 				const content = (parts[i + 1] || "").trim();
-				if (name) this.files.push({ name, content });
+
+				// Make sure file name has no path prefix
+				if (name.includes("/") || name.includes("\\") || name.includes("..")) {
+					console.warn(
+						`PlaygroundControler: rejected unsafe file name: "${name}"`,
+					);
+					continue;
+				}
+
+				if (name && this._isValidFileName(name)) {
+					this.files.push({ name, content });
+				}
 			}
 
-			if (this.files.length === 0)
+			if (this.files.length === 0) {
 				this.files = [{ name: "main.gno", content: initialCode }];
+			}
 		} else {
 			this.files = [{ name: "main.gno", content: initialCode }];
 		}
@@ -269,14 +285,19 @@ export class PlaygroundController extends BaseController {
 		const name = prompt("File name (e.g. main.gno or gnomod.toml):");
 		if (name == null) return;
 
+		// If a file with the same name exists, switch to it
 		if (this._switchToFile(name)) return;
 
-		const isGnomod = name === GNOMOD_FILE;
-		if (!name.endsWith(".gno") && !isGnomod) return;
+		if (!this._isValidFileName(name)) {
+			console.error(
+				`PlaygroundController: invalid name, file not added: ${name}`,
+			);
+			return;
+		}
 
-		const domain = this.getValue("domain") || "gno.land";
 		let content = DEFAULT_GNO_CONTENT;
-		if (isGnomod) {
+		if (name === GNOMOD_FILE) {
+			const domain = this.getValue("domain") || "gno.land";
 			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
 		}
 
@@ -416,6 +437,17 @@ function createTar(
 	const blocks: Uint8Array[] = [];
 
 	for (const file of files) {
+		if (
+			file.name.includes("/") ||
+			file.name.includes("\\") ||
+			file.name.includes("..")
+		) {
+			console.error(
+				`PlaygroundController: skipped file with unsafe name in tar: "${file.name}"`,
+			);
+			continue;
+		}
+
 		const data = encoder.encode(file.content);
 
 		// TAR's numeric fields are ASCII octal strings
