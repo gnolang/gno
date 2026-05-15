@@ -147,10 +147,11 @@ func (vm *VMKeeper) Initialize(
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
-			_, err := gno.TypeCheckMemPackage(mp, opts)
+			pkg, err := gno.TypeCheckMemPackage(mp, opts)
 			if err != nil {
 				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
 			}
+			opts.Cache[stdlib] = pkg
 		}
 
 		logger.Debug("GnoVM packages preprocessed",
@@ -199,10 +200,11 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 			Cache:      cachedInitTypeCheckCache,
 		}
 		for _, lib := range stdlibs.InitOrder() {
-			_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+			pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 			if err != nil {
 				panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 			}
+			opts.Cache[lib] = pkg
 		}
 		cachedStdlib.gno = gs
 	})
@@ -229,13 +231,14 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		Getter:     gs,
 		TestGetter: vm.testStdlibCache.memPackageGetter(gs),
 		Mode:       gno.TCLatestStrict,
-		Cache:      vm.getTypeCheckCache(ctx),
+		Cache:      vm.typeCheckCache,
 	}
 	for _, lib := range stdlibs.InitOrder() {
-		_, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
+		pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
 		if err != nil {
 			panic(fmt.Errorf("failed type checking stdlib %q: %w", lib, err))
 		}
+		opts.Cache[lib] = pkg
 	}
 }
 

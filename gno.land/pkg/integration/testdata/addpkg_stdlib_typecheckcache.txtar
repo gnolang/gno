@@ -1,0 +1,42 @@
+# Regression test for non-deterministic gas consumption caused by incomplete
+# vm.typeCheckCache population.
+#
+# Root cause: LoadStdlib (used on cold start) and LoadStdlibCached/Initialize
+# did not store the root package of each TypeCheckMemPackage call into
+# vm.typeCheckCache, only its dependencies (populated via ImportFrom).
+# This left "leaf" stdlibs — packages not imported by any other stdlib —
+# absent from the cache on every node startup.
+#
+# Effect: when a user transaction imports a missing stdlib (e.g. "time"),
+# GetMemPackage is called for that stdlib during type-checking, charging
+# ~900K extra gas (8 gas/byte × ~112KB). This caused consensus failure:
+# nodes that had restarted (and had a warmer cache from Initialize) disagreed
+# on gas with genesis-fresh nodes, causing one to report OOG on a tx that
+# the other accepted.
+#
+# Fix: after each TypeCheckMemPackage call in the init loop, store the
+# returned *types.Package into opts.Cache directly, ensuring all stdlibs
+# — including leaves — are cached from the first transaction onwards.
+#
+# This test verifies the fix by deploying a package that imports "time"
+# (a leaf stdlib not imported by any other stdlib) with a gas limit that is
+# sufficient when "time" is in typeCheckCache (~2.3M) but triggers OOG when
+# it must be loaded from the store on every tx (~3.2M).
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/timeuser -pkgpath gno.land/r/$test1_user_addr/timeuser -gas-fee 1000000ugnot -gas-wanted 2700000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+-- timeuser/gnomod.toml --
+module = "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/timeuser"
+gno = "0.9"
+
+-- timeuser/timeuser.gno --
+package timeuser
+
+import "time"
+
+func Render(_ string) string {
+	return "current time: " + time.Now().String()
+}
