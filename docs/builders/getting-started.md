@@ -208,9 +208,10 @@ gnokey maketx call \
   alice
 ```
 
-`-gas-wanted` is the maximum units the transaction may consume;
-`-gas-fee` is the price per unit (in `ugnot`, the smallest GNOT
-denomination). Together they cap what you'll pay — see
+`-pkgpath` is the realm's on-chain path — the same one you passed to
+`gno mod init`. `-gas-wanted` is the maximum units the transaction
+may consume; `-gas-fee` is the price per unit (in `ugnot`, the
+smallest GNOT denomination). Together they cap what you'll pay — see
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
 The signer at the end is the `alice` key you just created. You'll
@@ -310,7 +311,9 @@ gnokey maketx addpkg \
   alice
 ```
 
-The `alice` key at the end is the one you created earlier. On success you'll see:
+`-pkgdir` is the local directory to upload (`.` for the current
+directory). 
+The `alice` key at the end signs the transaction. On success you'll see:
 
 ```text
 OK!
