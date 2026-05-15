@@ -99,9 +99,9 @@ func (m *fragMockClient) StateType(context.Context, string, int64) ([]byte, erro
 // gotHeight records the last-requested height so tests can pin the
 // time-travel-aware contract on FileFetcher.
 type fragFileFetcher struct {
-	body       []byte
-	err        error
-	gotHeight  int64
+	body      []byte
+	err       error
+	gotHeight int64
 }
 
 func (f *fragFileFetcher) Fetch(_ context.Context, _, _ string, height int64) ([]byte, error) {

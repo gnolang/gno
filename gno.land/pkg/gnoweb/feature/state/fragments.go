@@ -199,11 +199,12 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 	if len(content) > MaxFragmentFileSize {
 		writeFragSuccessHeaders(w, height)
 		w.WriteHeader(http.StatusOK)
+		// Static literal, no attacker-controlled input: the only reason
+		// it goes through template.HTML is the FragSourceData.SourceHTML
+		// type contract (trusted-markup chroma output elsewhere).
+		const tooLargeMsg = `<p class="b-state-frag-source-toolarge">File is too large to preview here. Open it in the source tab.</p>`
 		_ = FragSourceTemplate.ExecuteTemplate(w, "fragSource", FragSourceData{
-			SourceHTML: template.HTML(
-				`<p class="b-state-frag-source-toolarge">File is too large to preview here. ` +
-					`Open it in the source tab.</p>`,
-			),
+			SourceHTML:  template.HTML(tooLargeMsg), //nolint:gosec
 			PkgPath:     u.Path,
 			File:        file,
 			Line:        line,
