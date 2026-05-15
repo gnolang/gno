@@ -36,7 +36,7 @@ func TestAddValidator_NotAllowed(cur realm, t *testing.T) {
 	op := testutils.TestAddress("op-A")
 	urequire.AbortsWithMessage(t,
 		"realm gno.land/r/demo/unknown is not allowed to modify the validator set",
-		func() { AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10}) },
+		func() { AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10}, pubKeyA, mustAddr(t, pubKeyA)) },
 	)
 }
 
@@ -50,7 +50,7 @@ func TestAddValidator_UserNotAllowed(cur realm, t *testing.T) {
 	op := testutils.TestAddress("op-A")
 	urequire.AbortsWithMessage(t,
 		"caller must be a realm, not a user",
-		func() { AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10}) },
+		func() { AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10}, pubKeyA, mustAddr(t, pubKeyA)) },
 	)
 }
 
@@ -72,7 +72,7 @@ func TestAddValidator_Allowed(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewCodeRealm(allowedPath))
 
-	AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10})
+	AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10}, pubKeyB, mustAddr(t, pubKeyB))
 	uassert.True(t, IsValidator(mustAddr(t, pubKeyB)))
 }
 
@@ -95,7 +95,7 @@ func TestRemoveValidator_Allowed(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(allowedPath))
 
 	addrB := mustAddr(t, pubKeyB)
-	AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10})
+	AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 10}, pubKeyB, mustAddr(t, pubKeyB))
 	uassert.True(t, IsValidator(addrB))
 
 	RemoveValidator(cross, op)
@@ -126,7 +126,7 @@ func TestAddValidator_RejectsPowerZero(cur realm, t *testing.T) {
 	op := testutils.TestAddress("op-A")
 	urequire.AbortsWithMessage(t,
 		"AddValidator requires Power > 0; use RemoveValidator for removals",
-		func() { AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 0}) },
+		func() { AddValidator(cross, ValoperChange{OperatorAddress: op, Power: 0}, pubKeyA, mustAddr(t, pubKeyA)) },
 	)
 }
 
