@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
-# Add a validator to gnoland1 via govDAO proposal.
+# Add a validator via govDAO proposal.
 #
 # Usage:
 #   ./add-validator.sh <address> <pub_key> [voting_power]
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (default: moul)
-#   CHAIN_ID      - chain ID (default: gnoland1)
-#   REMOTE        - RPC endpoint (default: 127.0.0.1:26657)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
-GNOKEY_NAME="${GNOKEY_NAME:-moul}"
-CHAIN_ID="${CHAIN_ID:-gnoland1}"
-REMOTE="${REMOTE:-https://rpc.betanet.testnets.gno.land:443}"
+GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
+CHAIN_ID="${CHAIN_ID:?CHAIN_ID is required}"
+REMOTE="${REMOTE:?REMOTE is required}"
 GAS_WANTED="${GAS_WANTED:-50000000}"
 GAS_FEE="${GAS_FEE:-1000000ugnot}"
 
@@ -29,6 +24,15 @@ fi
 ADDR="$1"
 PUB_KEY="$2"
 POWER="${3:-1}"
+
+# voting_power must be a positive integer. Tendermint treats Power=0 as
+# a remove operation, which would silently turn this script into a
+# remove if a user passes 0 by mistake. Catch it here.
+if ! [[ "$POWER" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: voting_power must be a positive integer (got: '$POWER')"
+  echo "       use ./rm-validator.sh to remove a validator from the set"
+  exit 1
+fi
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -63,8 +67,8 @@ func main() {
 GOEOF
 
 echo "Adding validator: ${ADDR} (power=${POWER})"
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 
