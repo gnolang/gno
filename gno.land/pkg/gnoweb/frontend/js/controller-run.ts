@@ -94,31 +94,6 @@ func main() {
 		this.executeCmdEl.textContent = this._buildCmd(false);
 	}
 
-	private _copyToClipboard(text: string, btn: HTMLElement): void {
-		navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				const span = btn.querySelector("span");
-				if (!span) return;
-				const orig = span.textContent;
-				span.textContent = "Copied!";
-				setTimeout(() => {
-					span.textContent = orig;
-				}, 1500);
-			})
-			.catch(() => {
-				// fallback: select the pre element content
-				const pre = btn.closest(".b-run-command-block")?.querySelector("pre");
-				if (pre) {
-					const sel = window.getSelection();
-					const range = document.createRange();
-					range.selectNodeContents(pre);
-					sel?.removeAllRanges();
-					sel?.addRange(range);
-				}
-			});
-	}
-
 	public resetCode(): void {
 		this.codeEl.value = this._buildTemplate();
 	}
@@ -131,19 +106,5 @@ func main() {
 		a.download = "script.gno";
 		a.click();
 		URL.revokeObjectURL(url);
-	}
-
-	public copyDryRun(event: Event): void {
-		this._copyToClipboard(
-			this._buildCmd(true),
-			event.currentTarget as HTMLElement,
-		);
-	}
-
-	public copyExecute(event: Event): void {
-		this._copyToClipboard(
-			this._buildCmd(false),
-			event.currentTarget as HTMLElement,
-		);
 	}
 }

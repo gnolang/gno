@@ -3114,21 +3114,6 @@ main.dev-mode .b-toc a {
 	color: var(--s-color-text-primary);
 }
 
-.b-run-copy-btn {
-	margin-inline-start: auto;
-}
-
-.b-run-command-pre {
-	background-color: var(--s-color-bg-base);
-	border-radius: var(--s-rounded);
-	padding: var(--g-space-4);
-	font-size: var(--g-font-size-100);
-	color: var(--s-color-text-secondary);
-	white-space: pre-wrap;
-	word-break: break-word;
-	min-height: var(--g-space-12);
-}
-
 /* ==========================================================================
    DOC EXAMPLE — collapsible code block in doc-context markdown rendering
    ========================================================================== */
