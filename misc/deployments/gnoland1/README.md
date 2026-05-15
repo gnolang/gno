@@ -87,3 +87,10 @@ The `--skip-genesis-sig-verification` flag is required (known incompatibility be
    ```
 
 5. Ping the team on the validators Signal group so we can add you via a GovDAO proposal. Include your validator address and public key from the step above.
+
+
+## See also
+
+- https://github.com/aeddi/gno-validator
+- https://github.com/samouraiworld/gno-validator-tools
+- ...
