@@ -2624,7 +2624,10 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
-		hv := m.Alloc.NewHeapItem(tv.T, tv)
+		// Heap-slot wrapper is anonymous; nil t skips the eager-
+		// constructor check. The contained composite literal was
+		// already eager-constructor-checked at its own allocation.
+		hv := m.Alloc.NewHeapItem(nil, tv)
 		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,

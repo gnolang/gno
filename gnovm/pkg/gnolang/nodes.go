@@ -1372,16 +1372,24 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 		// other packages are allocted while loading from store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
+		// PLAN3 Phase 2: stamp PkgID = the package's own ID on
+		// both PackageValue and its inner Block. PackageNode
+		// caches PkgID on first access.
+		pid := pn.GetPkgID()
+		blk := &Block{
+			Source: pn,
+		}
+		blk.ObjectInfo.SetPkgID(pid)
 		pv = &PackageValue{
-			Block: &Block{
-				Source: pn,
-			},
+			Block:      blk,
 			PkgName:    pn.PkgName,
 			PkgPath:    pn.PkgPath,
+			PkgID:      pid,
 			FNames:     nil,
 			FBlocks:    nil,
 			fBlocksMap: make(map[string]*Block),
 		}
+		pv.ObjectInfo.SetPkgID(pid)
 	}
 	// Cannot set ObjectID here; it is not real yet.
 	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
@@ -1455,9 +1463,14 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				panic("unexpected heap item")
 			}
 			if heapItems[pvl+i] {
+				// Heap-slot wrappers are anonymous; the contained
+				// value's type can be cross-realm (e.g., package
+				// vars of /r/foreign types) but the HIV slot
+				// itself is not /r/-declared. Pass nil to skip
+				// the eager-constructor check.
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: alloc.NewHeapItem(nvs[i].T, nvs[i]),
+					V: alloc.NewHeapItem(nil, nvs[i]),
 				}
 			}
 		}

@@ -706,21 +706,26 @@ func (m *Machine) doOpFuncLit() {
 			captures = append(captures, *ptr.TV)
 		}
 	}
+	fv := &FuncValue{
+		Type:       ft,
+		IsMethod:   false,
+		IsClosure:  true,
+		Source:     x,
+		Name:       "",
+		Parent:     nil,
+		Captures:   captures,
+		PkgPath:    m.Package.PkgPath,
+		Crossing:   ft.IsCrossing(),
+		body:       x.Body,
+		nativeBody: nil,
+	}
+	// PLAN3 Phase 2: closures belong to wherever they were
+	// evaluated (currentRealmID), not their lexical PkgPath.
+	// FuncType has no declaring-realm semantics on its own.
+	m.Alloc.stampPkgID(&fv.ObjectInfo)
 	m.PushValue(TypedValue{
 		T: ft,
-		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			IsClosure:  true,
-			Source:     x,
-			Name:       "",
-			Parent:     nil,
-			Captures:   captures,
-			PkgPath:    m.Package.PkgPath,
-			Crossing:   ft.IsCrossing(),
-			body:       x.Body,
-			nativeBody: nil,
-		},
+		V: fv,
 	})
 }
 

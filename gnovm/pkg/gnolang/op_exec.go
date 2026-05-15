@@ -130,9 +130,13 @@ func (m *Machine) doOpExec(op Op) {
 				if !ok {
 					continue
 				}
-				last.Values[i].V = &HeapItemValue{
+				// PLAN3 Phase 2: for-loop init re-allocates the
+				// heap slot in the current realm.
+				newHIV := &HeapItemValue{
 					Value: hiv.Value,
 				}
+				m.Alloc.stampPkgID(&newHIV.ObjectInfo)
+				last.Values[i].V = newHIV
 			}
 			// run post if exists.
 			bs.NextBodyIndex = -1

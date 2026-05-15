@@ -103,7 +103,11 @@ func PkgIDFromPkgPath(path string) PkgID {
 	if IsStdlib(path) {
 		pkgID.Hashlet[0] |= 0x80
 	}
-	if IsStdlib(path) || IsPPackagePath(path) {
+	// uverse is the VM-builtin runtime; treat it as immutable so
+	// PLAN3 Phase 2's eager-constructor check correctly classifies
+	// uverse-declared types (gConcreteRealmType, etc.) as
+	// non-realm.
+	if IsStdlib(path) || IsPPackagePath(path) || path == uversePkgPath {
 		pkgID.Hashlet[0] |= 0x40
 	}
 	if _, isInternal := IsInternalPath(path); isInternal {

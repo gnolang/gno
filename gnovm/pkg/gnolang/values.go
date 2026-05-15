@@ -563,7 +563,7 @@ func (fv *FuncValue) IsNative() bool {
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	alloc.AllocateFunc()
-	return &FuncValue{
+	cp := &FuncValue{
 		Type:       fv.Type,
 		IsMethod:   fv.IsMethod,
 		Source:     fv.Source,
@@ -577,6 +577,12 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
+	// PLAN3 Phase 2: FuncValue.Copy preserves source PkgID. A
+	// closure copy is a re-binding, not a re-creation in a new
+	// realm. The function's identity belongs to where it was
+	// declared, captured by the source.
+	cp.ObjectInfo.SetPkgID(fv.ObjectInfo.ID.PkgID)
+	return cp
 }
 
 func (fv *FuncValue) GetType(store Store) *FuncType {
@@ -1950,6 +1956,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: dtv2,
 		}
+		// PLAN3 Phase 2: bound method wrapper belongs to the realm
+		// doing the binding; the receiver carries its own PkgID
+		// independently.
+		alloc.stampPkgID(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -1987,6 +1997,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: ptv, // bound to tv ptr, not dtv.
 		}
+		// PLAN3 Phase 2: bound method wrapper belongs to the realm
+		// doing the binding.
+		alloc.stampPkgID(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2430,11 +2443,16 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 			V: alloc.NewHeapItem(nil, TypedValue{}),
 		}
 	}
-	return &Block{
+	blk := &Block{
 		Source: source,
 		Values: values,
 		Parent: parent,
 	}
+	// PLAN3 Phase 2: Blocks belong to the executing realm
+	// (currentRealmID), representing a lexical scope inside that
+	// realm's running code.
+	alloc.stampPkgID(&blk.ObjectInfo)
+	return blk
 }
 
 func (b *Block) GetSource(store Store) BlockNode {
@@ -2555,6 +2573,9 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 				panic("expected name expr heap define type")
 			}
 			hiv := &HeapItemValue{}
+			// PLAN3 Phase 2: heap slot inherits the Block's PkgID
+			// (the lexical scope's realm).
+			hiv.ObjectInfo.SetPkgID(b.ObjectInfo.ID.PkgID)
 			*ptr.TV = TypedValue{
 				T: heapItemType{},
 				V: hiv,
@@ -2625,9 +2646,12 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	for i := len(b.Values); i < numNames; i++ {
 		tv := sb.Values[i]
 		if heapItems[i] {
+			// Heap-slot wrapper is anonymous; nil t skips the
+			// eager-constructor check (the contained value's
+			// type may be cross-realm but the slot itself isn't).
 			bvalues = append(bvalues, TypedValue{
 				T: heapItemType{},
-				V: alloc.NewHeapItem(tv.T, tv),
+				V: alloc.NewHeapItem(nil, tv),
 			})
 		} else {
 			bvalues = append(bvalues, tv)

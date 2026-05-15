@@ -195,6 +195,12 @@ var gConcreteRealmPtrType = &PointerType{Elt: gConcreteRealmType}
 // place. Pass alloc=nil to skip allocator charging (used for the global
 // placeholder origin built at package init).
 func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue) TypedValue {
+	// Realm-handle values are ephemeral and forbidden from
+	// persistence (see refusePersistRealmHIV). They never reach
+	// assignNewObjectID or saveObject — so deliberately don't
+	// stamp PkgID here. Any attempt to persist them is caught by
+	// the refuse-persist guard with a clearer error than what
+	// cross-realm finalize would produce.
 	sv := &StructValue{Fields: []TypedValue{
 		{T: gAddressType, V: StringValue(addr)},
 		{T: StringType, V: StringValue(pkgPath)},
@@ -204,7 +210,10 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	if alloc == nil {
 		hiv = &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
 	} else {
-		hiv = alloc.NewHeapItem(gConcreteRealmType, TypedValue{T: gConcreteRealmType, V: sv})
+		// alloc.NewHeapItem would stamp PkgID = currentRealmID,
+		// which routes through cross-realm finalize. Bypass it.
+		alloc.AllocateHeapItem()
+		hiv = &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
 	}
 	return TypedValue{
 		T: gConcreteRealmPtrType,
