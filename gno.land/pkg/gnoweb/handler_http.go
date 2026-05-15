@@ -142,8 +142,8 @@ type clientFileFetcher struct {
 	client ClientAdapter
 }
 
-func (f *clientFileFetcher) Fetch(ctx context.Context, pkgPath, fileName string) ([]byte, error) {
-	src, _, err := f.client.File(ctx, pkgPath, fileName, 0)
+func (f *clientFileFetcher) Fetch(ctx context.Context, pkgPath, fileName string, height int64) ([]byte, error) {
+	src, _, err := f.client.File(ctx, pkgPath, fileName, height)
 	return src, err
 }
 

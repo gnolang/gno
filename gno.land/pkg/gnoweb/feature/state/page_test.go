@@ -410,8 +410,8 @@ func TestServePackagePageDefersPreviewsViaRevealedTrigger(t *testing.T) {
 		t.Errorf("objCalls = %d, want 0 (no preview burst at render time)", got)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `hx-trigger="revealed once delay:200ms"`) {
-		t.Errorf("expected hx-trigger=\"revealed once delay:200ms\" in skeleton; missing from body head:\n%s",
+	if !strings.Contains(body, `hx-trigger="revealed once"`) {
+		t.Errorf("expected hx-trigger=\"revealed once\" in skeleton; missing from body head:\n%s",
 			head(body, 800))
 	}
 }

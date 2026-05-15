@@ -96,12 +96,16 @@ func (m *fragMockClient) StateType(context.Context, string, int64) ([]byte, erro
 }
 
 // fragFileFetcher is a tiny components.FileFetcher used by frag=source tests.
+// gotHeight records the last-requested height so tests can pin the
+// time-travel-aware contract on FileFetcher.
 type fragFileFetcher struct {
-	body []byte
-	err  error
+	body       []byte
+	err        error
+	gotHeight  int64
 }
 
-func (f *fragFileFetcher) Fetch(_ context.Context, _, _ string) ([]byte, error) {
+func (f *fragFileFetcher) Fetch(_ context.Context, _, _ string, height int64) ([]byte, error) {
+	f.gotHeight = height
 	return f.body, f.err
 }
 
@@ -587,6 +591,23 @@ func TestFragSourceHappyPath(t *testing.T) {
 	assert.Contains(t, body, "b-state-frag-source", "must render fragSource template")
 	assert.Contains(t, body, "foo.gno", "file name appears in the source-fragment header")
 	assert.Contains(t, body, "line3", "the target line must appear in the highlighted slice")
+}
+
+// frag=source must thread `?height=N` through to FileFetcher so the
+// rendered source matches the pinned value snapshot, not always latest.
+func TestFragSourceThreadsHeight(t *testing.T) {
+	ff := &fragFileFetcher{body: []byte("a\nb\nc\n")}
+	h := newFragHandler(&fragMockClient{}, ff)
+
+	rec := serveFragReq(t, h, url.Values{
+		"frag":   {"source"},
+		"file":   {"foo.gno"},
+		"line":   {"2"},
+		"height": {"42"},
+	})
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, int64(42), ff.gotHeight,
+		"FileFetcher must receive the pinned height, not 0 (latest)")
 }
 
 func TestFragSourceRejectsLargeFile(t *testing.T) {

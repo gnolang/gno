@@ -94,17 +94,28 @@ export class CopyController extends BaseController {
 	}
 
 	// Fetch + copy. Used by buttons that need the source bytes lazily
-	// (e.g. the state explorer's "Copy package JSON" — server no longer
+	// (e.g. the state explorer's "Copy package JSON" - server no longer
 	// inlines the raw payload in the page, so this fetches ?state&json
-	// on click). Same-origin only.
+	// on click). Same-origin enforced explicitly: defense-in-depth if a
+	// future caller renders an attacker-controlled URL into the attribute.
 	private async _fetchAndCopyToClipboard(
 		url: string,
 		icons: HTMLElement[],
 	): Promise<void> {
 		try {
-			const res = await fetch(url, { credentials: "same-origin" });
+			const target = new URL(url, location.href);
+			if (target.origin !== location.origin) {
+				console.error(`Copy: refusing cross-origin fetch ${target.origin}`);
+				this._showFeedback(icons);
+				return;
+			}
+			const res = await fetch(target.toString(), {
+				credentials: "same-origin",
+			});
 			if (!res.ok) {
-				console.error(`Copy: fetch ${url} returned ${res.status}`);
+				console.error(
+					`Copy: fetch ${target.toString()} returned ${res.status}`,
+				);
 				this._showFeedback(icons);
 				return;
 			}

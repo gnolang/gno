@@ -382,13 +382,14 @@
   {{ $pkg := .PkgPath }}
   {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
-  {{/* revealed-once + 200ms delay: throttles a scroll-bot or a deep
-       above-fold viewport from firing N parallel fragment GETs at
-       page paint — each tab still sees N hydrations, but they trickle
-       through the per-IP limiter and the chain node. */}}
+  {{/* revealed-once fires when the card enters the viewport: above-fold
+       cards hydrate at first paint, below-fold on scroll. Per-element
+       burst (one GET per visible card) is bounded by the global RPC
+       semaphore and the per-IP rate limiter; the trigger does not
+       serialize across elements. */}}
   <details class="b-state-lazy" data-name="{{ $n.Name }}" data-tree-key="{{ $n.ObjectID }}"
            hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp 0 $vm }}"
-           hx-trigger="revealed once delay:200ms"
+           hx-trigger="revealed once"
            hx-target="find .b-state-node-body"
            hx-swap="innerHTML"
            hx-disinherit="*">

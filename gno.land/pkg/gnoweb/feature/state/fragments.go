@@ -112,7 +112,7 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 				h.deps.FileFetcher != nil && h.deps.Highlighter != nil {
 				// Cap like serveFragSource: oversize files skip highlighting
 				// and degrade to the lazy <details>/permalink fallback.
-				if content, ferr := h.deps.FileFetcher.Fetch(ctx, u.Path, root.Source.File); ferr == nil && len(content) <= MaxFragmentFileSize {
+				if content, ferr := h.deps.FileFetcher.Fetch(ctx, u.Path, root.Source.File, height); ferr == nil && len(content) <= MaxFragmentFileSize {
 					slice := sliceLines(content, root.Source.StartLine, root.Source.EndLine)
 					if html, herr := h.deps.Highlighter.Render(root.Source.File, slice); herr == nil {
 						root.SourceHTML = html
@@ -186,7 +186,7 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 		return writeFragError(w, "Source view unavailable", "Open the file from the source tab.")
 	}
 
-	content, err := h.deps.FileFetcher.Fetch(ctx, u.Path, file)
+	content, err := h.deps.FileFetcher.Fetch(ctx, u.Path, file, height)
 	if err != nil {
 		return h.fragErrorFromClient(w, err, height, "file", file)
 	}
