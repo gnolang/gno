@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -31,15 +32,22 @@ type pageMockClient struct {
 	// guards in page.go's errgroup goroutines (errgroup doesn't recover).
 	pkgPanic, docPanic, objPanic, typPanic bool
 
+	// docHook lets a test observe the ctx Doc receives (e.g. assert that
+	// errgroup.WithContext cancels Doc when StatePkg errors fast).
+	docHook func(ctx context.Context)
+
 	objCalls int32
 }
 
 func (m *pageMockClient) Realm(context.Context, string, string) ([]byte, error)    { return nil, nil }
 func (m *pageMockClient) ListPaths(context.Context, string, int) ([]string, error) { return nil, nil }
 
-func (m *pageMockClient) Doc(context.Context, string, int64) (*doc.JSONDocumentation, error) {
+func (m *pageMockClient) Doc(ctx context.Context, _ string, _ int64) (*doc.JSONDocumentation, error) {
 	if m.docPanic {
 		panic("doc fetch boom")
+	}
+	if m.docHook != nil {
+		m.docHook(ctx)
 	}
 	return m.docResp, m.docErr
 }
@@ -394,6 +402,36 @@ func TestServePageRecoversFetchGoroutinePanics(t *testing.T) {
 				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
 			}
 		})
+	}
+}
+
+// When the primary fetch (StatePkg / StateObject) fails fast, the
+// sibling goroutine (Doc / StateType) should see its ctx cancelled so
+// it does not waste a chain RPC slot and a round trip after the page
+// has already been doomed. Requires errgroup.WithContext.
+func TestServePackagePageCancelsSiblingOnFatalFetch(t *testing.T) {
+	docSawCancel := make(chan struct{}, 1)
+	client := &pageMockClient{
+		pkgErr: errors.New("package not found"),
+		docHook: func(ctx context.Context) {
+			select {
+			case <-ctx.Done():
+				docSawCancel <- struct{}{}
+			case <-time.After(500 * time.Millisecond):
+				// no cancel observed — sibling will be reported as not cancelled
+			}
+		},
+	}
+	h := newPageHandler(client)
+	rec := servePageReq(t, h, url.Values{}, "/r/demo")
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rec.Code)
+	}
+	select {
+	case <-docSawCancel:
+		// pass
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Doc goroutine ctx was not cancelled after StatePkg failed; errgroup.WithContext missing?")
 	}
 }
 

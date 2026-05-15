@@ -19,15 +19,16 @@ export class StateController extends BaseController {
 		if (this.viewTree) {
 			this.applyOpen(this.viewTree);
 			this.projectDocs(this.viewTree);
-			// Capture: older engines didn't bubble `toggle`.
-			this.viewTree.addEventListener("toggle", this.onToggle, true);
+			// `toggle` bubbles on every supported browser since 2020; bubble
+			// phase is fine and keeps the listener consistent with the rest.
+			this.viewTree.addEventListener("toggle", this.onToggle, false);
 		}
 		this.restoreViewMode();
 		document.addEventListener("htmx:afterSwap", this.onAfterSwap);
 	}
 
 	protected disconnect(): void {
-		this.viewTree?.removeEventListener("toggle", this.onToggle, true);
+		this.viewTree?.removeEventListener("toggle", this.onToggle, false);
 		document.removeEventListener("htmx:afterSwap", this.onAfterSwap);
 	}
 

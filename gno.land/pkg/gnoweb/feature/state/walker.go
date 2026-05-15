@@ -694,10 +694,19 @@ func decodeFuncInline(depth int, name string, fv *gno.FuncValue) StateNode {
 	}
 	src := extractFuncSource(fv)
 	kind := funcKind(fv)
-	if len(fv.Captures) > 0 {
-		children := make([]StateNode, len(fv.Captures))
-		for i, capture := range fv.Captures {
-			children[i] = decodeTypedValueAt(depth+1, "value", capture)
+	if total := len(fv.Captures); total > 0 {
+		// Same cap as struct/array/map/slice: chain-supplied captures
+		// are attacker-controlled, surplus collapses to one sentinel.
+		shown := total
+		if shown > maxChildrenPerNode {
+			shown = maxChildrenPerNode
+		}
+		children := make([]StateNode, shown, shown+1)
+		for i := 0; i < shown; i++ {
+			children[i] = decodeTypedValueAt(depth+1, "value", fv.Captures[i])
+		}
+		if total > shown {
+			children = append(children, truncatedChildrenNode(total-shown))
 		}
 		return StateNode{
 			Name: name, Type: sig, Kind: kind,

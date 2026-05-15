@@ -14,10 +14,11 @@ import (
 // (client.go:19-25). If those strings ever change, both sides must move in
 // lockstep — keep this list aligned.
 const (
-	clientErrPackageNotFound = "package not found"
-	clientErrObjectNotFound  = "object not found"
-	clientErrTimeout         = "RPC node request timeout"
-	clientErrBadRequest      = "bad request"
+	clientErrPackageNotFound  = "package not found"
+	clientErrObjectNotFound   = "object not found"
+	clientErrTimeout          = "RPC node request timeout"
+	clientErrBadRequest       = "bad request"
+	clientErrResponseTooLarge = "RPC node response too large"
 )
 
 // mapClientError classifies a ClientAdapter error into (status, friendly msg).
@@ -34,6 +35,12 @@ func mapClientError(err error, height int64) (status int, message string) {
 	msg := err.Error()
 	if strings.Contains(msg, clientErrPackageNotFound) || strings.Contains(msg, clientErrObjectNotFound) {
 		return http.StatusNotFound, msg
+	}
+	// Catch the over-cap upstream response before the height branch, otherwise
+	// a real "response too large" gets reported as "block height N is not
+	// available" when the request is height-pinned.
+	if strings.Contains(msg, clientErrResponseTooLarge) {
+		return http.StatusBadGateway, "upstream response too large"
 	}
 	if height > 0 {
 		return http.StatusBadRequest, fmt.Sprintf("block height %d is not available", height)

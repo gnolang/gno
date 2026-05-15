@@ -469,6 +469,44 @@ func TestDecodeClosureWithCaptures(t *testing.T) {
 	assert.Equal(t, "ffffffffffffffffffffffffffffffffffffffff:13", c.Children[0].ObjectID)
 }
 
+// A hostile closure with more captures than maxChildrenPerNode must be
+// clamped: walker emits the cap'd slice plus a KindTruncated sentinel,
+// same pattern as struct/array/map/slice. Without this, attacker-
+// controlled chain data can blow the DOM via a closure carrying millions
+// of capture entries inside the 8 MiB payload cap.
+func TestDecodeClosureClampsCaptures(t *testing.T) {
+	t.Parallel()
+
+	const capPrimitive = `{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AQAAAAAAAAA="}`
+	total := maxChildrenPerNode + 5
+	captures := make([]string, total)
+	for i := range captures {
+		captures[i] = capPrimitive
+	}
+	fixture := fmt.Sprintf(`{
+		"names": ["stepper"],
+		"values": [
+			{"T": {"@type": "/gno.FuncType", "Params": [], "Results": []},
+			 "V": {"@type": "/gno.FuncValue",
+				"Type": {"@type": "/gno.FuncType", "Params": [], "Results": []},
+				"Name": "",
+				"Captures": [%s]}}
+		]
+	}`, strings.Join(captures, ","))
+
+	nodes, err := decodePkgJSON([]byte(fixture))
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+
+	c := nodes[0]
+	assert.Equal(t, KindClosure, c.Kind)
+	require.Len(t, c.Children, maxChildrenPerNode+1,
+		"captures must be clamped to maxChildrenPerNode + 1 truncated indicator")
+	last := c.Children[maxChildrenPerNode]
+	assert.Equal(t, KindTruncated, last.Kind, "trailing child is the truncated sentinel")
+	assert.Contains(t, last.Value, fmt.Sprintf("%d more", total-maxChildrenPerNode))
+}
+
 // TestDecodeFuncNoCapturesNotClosure mirrors TS test of same name: a FuncValue
 // with empty Captures is "func", not "closure".
 func TestDecodeFuncNoCapturesNotClosure(t *testing.T) {

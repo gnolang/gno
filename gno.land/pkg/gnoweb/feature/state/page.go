@@ -41,18 +41,19 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		raw  []byte
 		jdoc *doc.JSONDocumentation
 	)
-	var g errgroup.Group
-	// Both fetches decode attacker-controlled chain data — recover so an
-	// amino panic surfaces as a clean 500 (StatePkg) or a doc-less page
-	// (Doc), never as a process crash.
+	// WithContext cancels the sibling Doc fetch as soon as StatePkg fails,
+	// freeing the RPC slot and saving a wasted round trip. Both closures
+	// decode attacker-controlled chain data and defer panic recovery so a
+	// malformed payload never crashes the process.
+	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
 		defer recoverToErr(h.deps.Logger, "statepkg", &err, "path", u.EncodeURL())
-		raw, err = h.deps.Client.StatePkg(ctx, u.Path, height)
+		raw, err = h.deps.Client.StatePkg(gctx, u.Path, height)
 		return err
 	})
 	g.Go(func() error {
 		defer recoverFetcher(h.deps.Logger, "doc", "path", u.EncodeURL())
-		d, derr := h.deps.Client.Doc(ctx, u.Path, height)
+		d, derr := h.deps.Client.Doc(gctx, u.Path, height)
 		if derr != nil {
 			h.deps.Logger.Warn("unable to fetch package docs", "error", derr, "path", u.EncodeURL())
 			return nil
@@ -113,18 +114,19 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 	}
 
 	var raw, typeRaw []byte
-	var g errgroup.Group
-	// See servePackagePage: same panic-recover discipline. StateObject
-	// fatal → 500, StateType non-fatal → type-less render.
+	// See servePackagePage: same panic-recover discipline and same
+	// WithContext semantics so a fatal StateObject cancels the optional
+	// StateType sibling fetch.
+	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
 		defer recoverToErr(h.deps.Logger, "stateobject", &err, "path", u.EncodeURL(), "oid", oid)
-		raw, err = h.deps.Client.StateObject(ctx, oid, height)
+		raw, err = h.deps.Client.StateObject(gctx, oid, height)
 		return err
 	})
 	if tid != "" {
 		g.Go(func() error {
 			defer recoverFetcher(h.deps.Logger, "statetype", "path", u.EncodeURL(), "tid", tid)
-			tr, err := h.deps.Client.StateType(ctx, tid, height)
+			tr, err := h.deps.Client.StateType(gctx, tid, height)
 			if err != nil {
 				h.deps.Logger.Warn("unable to fetch type for state object",
 					"error", err, "path", u.EncodeURL(), "tid", tid)
