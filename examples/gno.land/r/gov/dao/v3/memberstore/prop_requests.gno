@@ -3,7 +3,7 @@ package memberstore
 import (
 	"chain/runtime"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 
 	"gno.land/r/gov/dao"
 )
@@ -18,7 +18,7 @@ func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
 		panic("proposer is not a member")
 	}
 
-	newTiers := TiersByName{avl.NewTree()}
+	newTiers := TiersByName{bptree.NewBPTree32()}
 	for name, tier := range tiers {
 		newTiers.Set(name, tier)
 	}

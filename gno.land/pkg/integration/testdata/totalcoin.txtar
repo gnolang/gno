@@ -14,14 +14,14 @@ adduser test2
 gnoland start
 
 ## deploy the supply tracker realm
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/supply_tracker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/test/supply_tracker -gas-fee 1000000ugnot -gas-wanted 3800000 -chainid=tendermint_test test1
 stdout OK!
 
 ## ============================================
 ## TEST 1: TotalCoin for non-existent denom returns 0
 ## ============================================
 
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTotalSupply -args "nonexistent" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTotalSupply -args "nonexistent" -gas-fee 1000000ugnot -gas-wanted 2100000 -chainid=tendermint_test test1
 stdout '\(0 int64\)'
 
 ## ============================================
@@ -29,11 +29,11 @@ stdout '\(0 int64\)'
 ## ============================================
 
 ## mint 1000 realm coins to test1
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Mint -args ${test1_user_addr} -args "token" -args "1000" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Mint -args ${test1_user_addr} -args "token" -args "1000" -gas-fee 1000000ugnot -gas-wanted 2600000 -chainid=tendermint_test test1
 stdout OK!
 
 ## check total supply after minting — use the full qualified denom with leading /
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTotalSupply -args "/gno.land/r/test/supply_tracker:token" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTotalSupply -args "/gno.land/r/test/supply_tracker:token" -gas-fee 1000000ugnot -gas-wanted 2100000 -chainid=tendermint_test test1
 stdout '\(1000 int64\)'
 
 ## ============================================
@@ -41,11 +41,11 @@ stdout '\(1000 int64\)'
 ## ============================================
 
 ## mint 500 realm coins to test2
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Mint -args ${test2_user_addr} -args "token" -args "500" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Mint -args ${test2_user_addr} -args "token" -args "500" -gas-fee 1000000ugnot -gas-wanted 3100000 -chainid=tendermint_test test1
 stdout OK!
 
 ## total supply should now be 1500
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTokenSupply -args "token" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTokenSupply -args "token" -gas-fee 1000000ugnot -gas-wanted 2100000 -chainid=tendermint_test test1
 stdout '\(1500 int64\)'
 
 ## ============================================
@@ -53,11 +53,11 @@ stdout '\(1500 int64\)'
 ## ============================================
 
 ## burn 300 realm coins from test1
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Burn -args ${test1_user_addr} -args "token" -args "300" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func Burn -args ${test1_user_addr} -args "token" -args "300" -gas-fee 1000000ugnot -gas-wanted 2600000 -chainid=tendermint_test test1
 stdout OK!
 
 ## total supply should now be 1200
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTokenSupply -args "token" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func GetTokenSupply -args "token" -gas-fee 1000000ugnot -gas-wanted 2100000 -chainid=tendermint_test test1
 stdout '\(1200 int64\)'
 
 ## ============================================
@@ -65,7 +65,7 @@ stdout '\(1200 int64\)'
 ## ============================================
 
 ## ugnot supply should be non-zero (genesis balances exist)
-gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func CheckUgnotSupply -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/supply_tracker -func CheckUgnotSupply -gas-fee 1000000ugnot -gas-wanted 1900000 -chainid=tendermint_test test1
 stdout '\(true bool\)'
 
 -- gnomod.toml --

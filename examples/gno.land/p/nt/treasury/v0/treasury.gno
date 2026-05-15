@@ -3,8 +3,8 @@ package treasury
 import (
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/bptree/v0"
+	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -22,7 +22,7 @@ func New(bankers []Banker) (*Treasury, error) {
 	}
 
 	// Create a new Treasury instance.
-	treasury := &Treasury{bankers: avl.NewTree()}
+	treasury := &Treasury{bankers: bptree.NewBPTree32()}
 
 	// Register the bankers.
 	for _, banker := range bankers {
