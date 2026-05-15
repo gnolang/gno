@@ -409,7 +409,9 @@ export class PlaygroundController extends BaseController {
 	}
 }
 
-function createTar(files: { name: string; content: string }[]): Uint8Array<ArrayBuffer> {
+function createTar(
+	files: { name: string; content: string }[],
+): Uint8Array<ArrayBuffer> {
 	const encoder = new TextEncoder();
 	const blocks: Uint8Array[] = [];
 
