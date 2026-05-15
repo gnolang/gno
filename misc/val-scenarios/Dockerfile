@@ -3,7 +3,7 @@
 # Build context must be the repository root:
 #   docker build -f misc/val-scenarios/Dockerfile --target valsignerd .
 
-FROM golang:1.24-alpine AS build
+FROM golang:1.25-alpine AS build
 
 ENV CGO_ENABLED=0 GOOS=linux
 WORKDIR /gnoroot

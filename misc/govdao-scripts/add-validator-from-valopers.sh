@@ -8,12 +8,7 @@
 # Usage:
 #   ./add-validator-from-valopers.sh <address>
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 10000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
@@ -58,8 +53,8 @@ func main() {
 GOEOF
 
 echo "Adding validator from valopers: ${ADDR}"
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 
