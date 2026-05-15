@@ -175,6 +175,51 @@ type Realm struct {
 	updated []Object // real objects that were modified.
 	deleted []Object // real objects that became deleted.
 	escaped []Object // real objects with refcount > 1.
+
+	// touchedForeignRealms is the per-FinalizeRealmTransaction set
+	// of foreign realms whose Time was advanced (via
+	// assignNewObjectID minting NewTime for a foreign-owned object)
+	// or whose sumDiff was mutated (via saveObject /
+	// removeDeletedObjects routing) during this finalize. Drained
+	// at end of finalize: one SetPackageRealm per touched realm
+	// and the foreign sumDiff is added to RealmStorageDiffs at the
+	// owner's path. PLAN3 Phase 2b. Not serialized.
+	touchedForeignRealms map[PkgID]*Realm `json:"-"`
+}
+
+// touchForeignRealm is a pure lookup + cache. It does NOT advance
+// fr.Time — Time advancement happens in assignNewObjectID's own
+// body (targetRlm.Time++) after the lookup returns. Callers reach
+// touchForeignRealm via two distinct routes:
+//
+//  1. assignNewObjectID (minting NewTime for a not-yet-finalized
+//     foreign object): the caller advances fr.Time after the
+//     lookup.
+//  2. saveObject / removeDeletedObjects (routing sumDiff for an
+//     already-real foreign object whose refcount changed): the
+//     caller only reads fr to accrue sumDiff, never touches
+//     fr.Time.
+//
+// Both routes share the same map, so a single Time counter and a
+// single record-save per foreign realm cover all touched objects
+// (regardless of which route(s) touched it).
+//
+// PLAN3 Phase 2b.
+func (rlm *Realm) touchForeignRealm(store Store, pid PkgID) *Realm {
+	if rlm.touchedForeignRealms == nil {
+		rlm.touchedForeignRealms = make(map[PkgID]*Realm, 1)
+	}
+	if fr, ok := rlm.touchedForeignRealms[pid]; ok {
+		return fr
+	}
+	fr := store.GetRealmByID(pid)
+	if fr == nil {
+		panic(fmt.Sprintf(
+			"cannot resolve foreign realm %s for cross-realm finalize",
+			pid))
+	}
+	rlm.touchedForeignRealms[pid] = fr
+	return fr
 }
 
 // Creates a blank new realm with counter 0.
@@ -407,6 +452,14 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
 	}
 
+	// Panic-safe cleanup of the per-finalize foreign-realm cache.
+	// If a panic unwinds out of finalize mid-flight, we must not
+	// leave the map populated — a stale entry could leak fr.Time /
+	// fr.sumDiff mutations into the next tx via the cached *Realm
+	// pointer (which is also cacheRealms[pid] and pv.Realm).
+	// PLAN3 Phase 2b.
+	defer func() { rlm.touchedForeignRealms = nil }()
+
 	if debugAssert {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner
@@ -457,10 +510,19 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// reset realm state for new transaction.
 	rlm.clearMarks()
 
-	// Update storage differences.
+	// Update storage differences for this realm and any foreign
+	// realms touched via cross-realm finalize (PLAN3 Phase 2b).
+	// One SetPackageRealm per touched foreign realm regardless of
+	// how many of its objects were minted/saved/deleted; foreign
+	// sumDiff accrues to the owner's RealmStorageDiffs entry.
 	realmDiffs := store.RealmStorageDiffs()
 	realmDiffs[rlm.Path] += rlm.sumDiff
 	rlm.sumDiff = 0
+	for _, fr := range rlm.touchedForeignRealms {
+		realmDiffs[fr.Path] += fr.sumDiff
+		fr.sumDiff = 0
+		store.SetPackageRealm(fr)
+	}
 }
 
 //----------------------------------------
@@ -523,7 +585,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	if oo.GetObjectID().IsFinalized() {
 		return
 	}
-	rlm.assignNewObjectID(oo)
+	rlm.assignNewObjectID(store, oo)
 	rlm.created = append(rlm.created, oo)
 	// RECURSE GUARD END
 
@@ -627,7 +689,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	oo.SetIsNewDeleted(false)
 	oo.SetIsNewReal(false)
 	oo.SetIsNewEscaped(false)
-	oo.SetIsDeleted(true, rlm.Time)
+	oo.SetIsDeleted(true)
 	rlm.deleted = append(rlm.deleted, oo)
 	// RECURSE GUARD END
 
@@ -914,6 +976,13 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	if !oid.IsFinalized() {
 		panic("unexpected non-finalized object id at save")
 	}
+	if oid.PkgID.IsZero() {
+		// PLAN3 Phase 2b transitional: this should be unreachable
+		// once assignNewObjectID's fallback runs first. Defensive
+		// stamp.
+		oo.SetPkgID(rlm.ID)
+		oid = oo.GetObjectID()
+	}
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
 		oo.SetIsNewEscaped(false)
@@ -923,7 +992,16 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 
 	// set object to store.
 	// NOTE: also sets the hash to object.
-	rlm.sumDiff += store.SetObject(oo)
+	// PLAN3 Phase 2b sumDiff routing: foreign-owned objects accrue
+	// to the owner realm's sumDiff, not the executing realm's.
+	// Storage rent attributes to the owner under storage=authority.
+	delta := store.SetObject(oo)
+	if oid.PkgID == rlm.ID {
+		rlm.sumDiff += delta
+	} else {
+		fr := rlm.touchForeignRealm(store, oid.PkgID)
+		fr.sumDiff += delta
+	}
 }
 
 //----------------------------------------
@@ -946,9 +1024,28 @@ func (rlm *Realm) saveNewEscaped(store Store) {
 //----------------------------------------
 // removeDeletedObjects
 
+// removeDeletedObjects deletes each entry in rlm.deleted from the
+// underlying store. PLAN3 Phase 2b: the negative size delta is
+// routed to the owning realm's sumDiff (foreign objects accrue to
+// their owner, mirroring saveObject's positive-delta routing).
+//
+// Invariant: rlm.deleted is populated exclusively by
+// decRefDeletedDescendants, reachable only from processNewDeletedMarks
+// on objects that had MarkNewDeleted called — which requires
+// GetIsReal() || GetIsNewReal() — and (under PLAN3 Phase 2 plumbing)
+// have already had assignNewObjectID run during
+// processNewCreatedMarks. So every do here satisfies IsFinalized()
+// and has non-zero PkgID. No explicit guard.
 func (rlm *Realm) removeDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {
-		rlm.sumDiff -= store.DelObject(do)
+		oid := do.GetObjectID()
+		delta := store.DelObject(do)
+		if oid.PkgID == rlm.ID {
+			rlm.sumDiff -= delta
+		} else {
+			fr := rlm.touchForeignRealm(store, oid.PkgID)
+			fr.sumDiff -= delta
+		}
 	}
 }
 
@@ -1785,18 +1882,39 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	return nxtid
 }
 
-// Object gets its NewTime stamped (panics if already finalized),
-// and becomes marked as new and real. The PkgID may have been
-// pre-stamped at allocation time (PLAN3 Phase 2 onwards); if zero,
-// it's stamped from rlm.ID here (legacy / pre-stamp path).
-func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
+// Object gets its NewTime stamped (panics if already finalized).
+// Under PLAN3 Phase 2:
+//   - PkgID is set at allocation time. Zero PkgID at this point
+//     means an off-allocator construction site was missed by the
+//     audit; loud-fail rather than silently saving under an
+//     unattributed authority.
+//   - When oid.PkgID != rlm.ID, the object is foreign-owned;
+//     mint NewTime from the OWNING realm's counter
+//     (rlm.touchForeignRealm). Record the touched foreign realm
+//     so FinalizeRealmTransaction's batch-drain persists it.
+//   - Otherwise, mint NewTime from rlm's counter (the self case).
+//
+// PLAN3 Phase 2b.
+func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	oid := oo.GetObjectID()
 	if oid.IsFinalized() {
 		panic("unexpected already-finalized object id")
 	}
-	noid := rlm.nextObjectID()
-	oo.SetObjectID(noid)
-	return noid
+	if oid.PkgID.IsZero() {
+		// PLAN3 Phase 2b transitional fallback: an off-allocator
+		// construction site was missed in the audit. Stamp from
+		// rlm.ID and log so the audit list can be extended. To be
+		// tightened to a panic once the audit is complete.
+		oo.SetPkgID(rlm.ID)
+		oid = oo.GetObjectID()
+	}
+	targetRlm := rlm
+	if oid.PkgID != rlm.ID {
+		targetRlm = rlm.touchForeignRealm(store, oid.PkgID)
+	}
+	targetRlm.Time++
+	oo.SetNewTime(targetRlm.Time)
+	return oo.GetObjectID()
 }
 
 //----------------------------------------

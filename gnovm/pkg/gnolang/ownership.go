@@ -118,6 +118,8 @@ type Object interface {
 	GetObjectID() ObjectID
 	MustGetObjectID() ObjectID
 	SetObjectID(oid ObjectID)
+	SetNewTime(t uint64) // PLAN3: partial stamp during assignNewObjectID
+	SetPkgID(p PkgID)    // PLAN3: partial stamp at allocation time
 	GetHash() ValueHash
 	SetHash(ValueHash)
 	GetOwner() Object
@@ -137,7 +139,7 @@ type Object interface {
 	GetIsEscaped() bool
 	SetIsEscaped(bool)
 	GetIsDeleted() bool
-	SetIsDeleted(bool, uint64)
+	SetIsDeleted(bool)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
 	GetIsNewEscaped() bool
@@ -352,16 +354,12 @@ func (oi *ObjectInfo) GetIsDeleted() bool {
 	return oi.isDeleted
 }
 
-func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
-	// NOTE: Don't over-write modtime.
-	// Consider adding a DelTime, or just log it somewhere, or
-	// continue to ignore it.
-
-	// The above comment is likely made because it could introduce complexity
-	// Objects can be "undeleted" if referenced during a transaction
-	// If an object is deleted and then undeleted in the same transaction
-	// If an object is deleted multiple times
-	// ie...continue to ignore it
+// SetIsDeleted marks the object as deleted. PLAN3 Phase 2b: the
+// previously-accepted-but-ignored mt parameter was dropped; the
+// deletion is just a tombstone marker, not a clock. Under
+// cross-realm finalize this also removes the "myrealm's clock
+// stamps yourrealm's tombstone" semantic discrepancy.
+func (oi *ObjectInfo) SetIsDeleted(x bool) {
 	oi.isDeleted = x
 }
 
