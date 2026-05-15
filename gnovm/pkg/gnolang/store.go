@@ -583,6 +583,11 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 		rlm := ds.GetPackageRealm(pv.PkgPath)
 		pv.Realm = rlm
 	}
+	// Re-derive denormalized PkgID cache (PLAN3 Phase 2; pv.PkgID is
+	// marked json:"-" so amino skipped it on load).
+	if pv.PkgID.IsZero() {
+		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
+	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
 }

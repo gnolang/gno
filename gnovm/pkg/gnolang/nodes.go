@@ -1332,6 +1332,19 @@ type PackageNode struct {
 	PkgPath  string
 	PkgName  Name
 	*FileSet // provides .GetDeclFor*()
+
+	// pkgID is the lazy-cached PkgID derived from PkgPath.
+	// PLAN3 Phase 2. Not serialized.
+	pkgID PkgID
+}
+
+// GetPkgID returns the cached PkgID for this PackageNode, computing
+// it lazily on first call from PkgPath. PLAN3 Phase 2.
+func (pn *PackageNode) GetPkgID() PkgID {
+	if pn.pkgID.IsZero() {
+		pn.pkgID = PkgIDFromPkgPath(pn.PkgPath)
+	}
+	return pn.pkgID
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1444,7 +1457,7 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 			if heapItems[pvl+i] {
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: alloc.NewHeapItem(nvs[i]),
+					V: alloc.NewHeapItem(nvs[i].T, nvs[i]),
 				}
 			}
 		}

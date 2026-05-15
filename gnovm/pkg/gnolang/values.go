@@ -321,22 +321,45 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
+func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
 	}
 	*/
 	if av.Data == nil {
-		av2 := alloc.NewListArray(len(av.List))
+		av2 := alloc.NewListArray(t, len(av.List))
 		for i, tv := range av.List {
 			av2.List[i] = tv.Copy(alloc)
 		}
 		return av2
 	}
-	av2 := alloc.NewDataArray(len(av.Data))
+	av2 := alloc.NewDataArray(t, len(av.Data))
 	copy(av2.Data, av.Data)
 	return av2
+}
+
+// CopyForReceiver makes a transient receiver copy of av that
+// preserves source PkgID + NewTime. Counterpart of
+// StructValue.CopyForReceiver for value-method dispatch on named
+// array types. PLAN3 Phase 2.
+func (av *ArrayValue) CopyForReceiver(alloc *Allocator, t Type) *ArrayValue {
+	saved := alloc.currentRealmID
+	alloc.currentRealmID = av.ObjectInfo.ID.PkgID
+	defer func() { alloc.currentRealmID = saved }()
+
+	var cp *ArrayValue
+	if av.Data == nil {
+		cp = alloc.NewListArray(t, len(av.List))
+		for i, tv := range av.List {
+			cp.List[i] = tv.Copy(alloc)
+		}
+	} else {
+		cp = alloc.NewDataArray(t, len(av.Data))
+		copy(cp.Data, av.Data)
+	}
+	cp.ObjectInfo.ID.NewTime = av.ObjectInfo.ID.NewTime
+	return cp
 }
 
 // ----------------------------------------
@@ -447,7 +470,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
+func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -463,7 +486,35 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 
-	return alloc.NewStruct(fields)
+	return alloc.NewStruct(t, fields)
+}
+
+// CopyForReceiver makes a transient receiver copy of sv that
+// preserves the source's PkgID + NewTime. The only call site is
+// VPValMethod (values.go:1885 area) for value-method dispatch.
+// PLAN3 Phase 2 — closes the /p/-attacker-via-interface-value-method
+// gap by ensuring Layer 2 reads the source's authority rather than
+// the laundered allocator-stamped PkgID.
+//
+// Temporarily swaps alloc.currentRealmID to the source's PkgID for
+// the duration of the field-copy + struct construction. This makes
+// the eager-constructor check pass at every nested foreign-struct
+// field (because currentRealmID matches each field type's
+// declaring realm). After the copy, the swap is unwound.
+func (sv *StructValue) CopyForReceiver(alloc *Allocator, t Type) *StructValue {
+	saved := alloc.currentRealmID
+	alloc.currentRealmID = sv.ObjectInfo.ID.PkgID
+	defer func() { alloc.currentRealmID = saved }()
+
+	fields := alloc.NewStructFields(len(sv.Fields))
+	for i, field := range sv.Fields {
+		fields[i] = field.Copy(alloc)
+	}
+	cp := alloc.NewStruct(t, fields)
+	// alloc.NewStruct stamped cp.ID.PkgID = saved (source's PkgID).
+	// Also copy NewTime so cp.GetIsReal() mirrors source.
+	cp.ObjectInfo.ID.NewTime = sv.ObjectInfo.ID.NewTime
+	return cp
 }
 
 // ----------------------------------------
@@ -799,10 +850,15 @@ type PackageValue struct {
 	Block      Value
 	PkgName    Name
 	PkgPath    string
-	FNames     []string
-	FBlocks    []Value
-	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
-	Private    bool
+	// PkgID is the denormalized cache of PkgIDFromPkgPath(PkgPath).
+	// PLAN3 Phase 2: set at construction (alloc.go:NewPackageValue,
+	// preprocess.go package-init paths, etc.) and re-derived on load
+	// in fillPackage. NOT serialized — wire format is unchanged.
+	PkgID   PkgID `json:"-"`
+	FNames  []string
+	FBlocks []Value
+	Realm   *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Private bool
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[string]*Block
@@ -1056,11 +1112,11 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.V = cv.Copy(alloc)
 	case *ArrayValue:
 		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
+		cp.V = cv.Copy(alloc, tv.T)
 		cp.N = tv.N // preserve N_Readonly
 	case *StructValue:
 		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
+		cp.V = cv.Copy(alloc, tv.T)
 		cp.N = tv.N // preserve N_Readonly
 	default:
 		cp = tv
@@ -1077,9 +1133,9 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc)
+			cp.V = refObjectValue.Copy(alloc, tv.T)
 		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc)
+			cp.V = refObjectValue.Copy(alloc, tv.T)
 		}
 	default:
 		cp = tv.Copy(alloc)
@@ -2371,7 +2427,7 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: alloc.NewHeapItem(TypedValue{}),
+			V: alloc.NewHeapItem(nil, TypedValue{}),
 		}
 	}
 	return &Block{
@@ -2571,7 +2627,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 		if heapItems[i] {
 			bvalues = append(bvalues, TypedValue{
 				T: heapItemType{},
-				V: alloc.NewHeapItem(tv),
+				V: alloc.NewHeapItem(tv.T, tv),
 			})
 		} else {
 			bvalues = append(bvalues, tv)
@@ -2632,15 +2688,16 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 	return alloc.NewStruct(
+		st,
 		defaultStructFields(alloc, st),
 	)
 }
 
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
-		return alloc.NewDataArray(at.Len)
+		return alloc.NewDataArray(at, at.Len)
 	}
-	av := alloc.NewListArray(at.Len)
+	av := alloc.NewListArray(at, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		for i := range at.Len {

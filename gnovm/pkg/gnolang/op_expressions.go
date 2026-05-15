@@ -497,8 +497,10 @@ func (m *Machine) doOpSliceLit() {
 	m.incrCPU(OpCPUSlopeSliceLit * int64(el))
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
-	// construct element buf slice.
-	baseArray := m.Alloc.NewListArray(el)
+	// construct element buf slice. SliceValue is anonymous (st is
+	// the SliceType), so the inner ArrayValue.Base is allocated at
+	// currentRealmID without an eager-constructor check (nil t).
+	baseArray := m.Alloc.NewListArray(nil, el)
 	es := baseArray.List
 	m.PopCopyValues(es)
 	// construct and push value.
@@ -533,8 +535,9 @@ func (m *Machine) doOpSliceLit2() {
 	}
 	m.incrCPU(OpCPUSlopeSliceLit2 * (maxVal + 1))
 	// construct element buf slice.
-	// alloc before the underlying array constructed
-	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
+	// alloc before the underlying array constructed. Anonymous base
+	// array; nil t skips the eager-constructor check.
+	baseArray := m.Alloc.NewListArray(nil, int(maxVal+1))
 	es := baseArray.List
 
 	for i := range el {
@@ -577,7 +580,7 @@ func (m *Machine) doOpMapLit() {
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := m.Alloc.NewMap(0)
+	mv := m.Alloc.NewMap(mt, 0)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
@@ -666,7 +669,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv := m.Alloc.NewStruct(fs)
+	sv := m.Alloc.NewStruct(xt, fs)
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,

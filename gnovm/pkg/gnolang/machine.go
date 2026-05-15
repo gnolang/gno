@@ -2624,7 +2624,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
-		hv := m.Alloc.NewHeapItem(tv)
+		hv := m.Alloc.NewHeapItem(tv.T, tv)
 		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,

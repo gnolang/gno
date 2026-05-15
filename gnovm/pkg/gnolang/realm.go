@@ -130,6 +130,13 @@ func (pid PkgID) IsInternalPkg() bool {
 	return pid.Hashlet[0]&0x20 != 0
 }
 
+// IsRealmPkg returns true for /r/-declared packages: non-zero PkgID
+// that is neither stdlib nor /p/ (i.e., not immutable). Used by
+// the PLAN3 Phase 2 eager-constructor check.
+func (pid PkgID) IsRealmPkg() bool {
+	return !pid.IsZero() && !pid.IsImmutablePkg()
+}
+
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)

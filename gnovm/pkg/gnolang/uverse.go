@@ -204,7 +204,7 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	if alloc == nil {
 		hiv = &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
 	} else {
-		hiv = alloc.NewHeapItem(TypedValue{T: gConcreteRealmType, V: sv})
+		hiv = alloc.NewHeapItem(gConcreteRealmType, TypedValue{T: gConcreteRealmType, V: sv})
 	}
 	return TypedValue{
 		T: gConcreteRealmPtrType,
@@ -585,7 +585,7 @@ func makeUverseNode() {
 				// NOTE: this hack works because
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
-				newArrayValue := m.Alloc.NewDataArray(len(arg1String))
+				newArrayValue := m.Alloc.NewDataArray(nil, len(arg1String))
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(len(arg1String)))
 				copy(newArrayValue.Data, []byte(arg1String))
 				arg1.TV = &TypedValue{
@@ -628,7 +628,7 @@ func makeUverseNode() {
 						return
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(nil, *SliceValue) new data bytes ---
-						arrayValue := m.Alloc.NewDataArray(arg1Length)
+						arrayValue := m.Alloc.NewDataArray(nil, arg1Length)
 						m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
 						if arg1Base.Data == nil {
 							copyListToData(
@@ -646,7 +646,7 @@ func makeUverseNode() {
 						return
 					} else {
 						// append(nil, *SliceValue) new list ---------
-						arrayValue := m.Alloc.NewListArray(arg1Length)
+						arrayValue := m.Alloc.NewListArray(nil, arg1Length)
 						if arg1Length > 0 {
 							m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 							for i := range arg1Length {
@@ -773,7 +773,7 @@ func makeUverseNode() {
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *SliceValue) new data bytes ---
 						newLength := arg0Length + arg1Length
-						arrayValue := m.Alloc.NewDataArray(newLength)
+						arrayValue := m.Alloc.NewDataArray(nil, newLength)
 						if 0 < arg0Length {
 							m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg0Length))
 							if arg0Base.Data == nil {
@@ -806,7 +806,7 @@ func makeUverseNode() {
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
 						arrayLen := arg0Length + arg1Length
-						arrayValue := m.Alloc.NewListArray(arrayLen)
+						arrayValue := m.Alloc.NewListArray(nil, arrayLen)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
 								m.incrCPU(OpCPUSlopeCopyElement * int64(arg0Length))
@@ -1065,14 +1065,14 @@ func makeUverseNode() {
 						m.Panic(typedString("runtime error: makeslice: len out of range"))
 					}
 					if et.Kind() == Uint8Kind {
-						arrayValue := m.Alloc.NewDataArray(li)
+						arrayValue := m.Alloc.NewDataArray(nil, li)
 						m.PushValue(TypedValue{
 							T: tt,
 							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
 						})
 						return
 					} else {
-						arrayValue := m.Alloc.NewListArray(li)
+						arrayValue := m.Alloc.NewListArray(nil, li)
 						if et.Kind() == InterfaceKind {
 							// leave as is
 						} else {
@@ -1107,14 +1107,14 @@ func makeUverseNode() {
 					}
 
 					if et.Kind() == Uint8Kind {
-						arrayValue := m.Alloc.NewDataArray(ci)
+						arrayValue := m.Alloc.NewDataArray(nil, ci)
 						m.PushValue(TypedValue{
 							T: tt,
 							V: m.Alloc.NewSlice(arrayValue, 0, li, ci),
 						})
 						return
 					} else {
-						arrayValue := m.Alloc.NewListArray(ci)
+						arrayValue := m.Alloc.NewListArray(nil, ci)
 						if et := bt.Elem(); et.Kind() == InterfaceKind {
 							// leave as is
 						} else {
@@ -1148,12 +1148,11 @@ func makeUverseNode() {
 					panic("make() of slice type takes 2 or 3 arguments")
 				}
 			case *MapType:
-				// NOTE: the type is not used.
 				switch vargsl {
 				case 0:
 					m.PushValue(TypedValue{
 						T: tt,
-						V: m.Alloc.NewMap(0),
+						V: m.Alloc.NewMap(tt, 0),
 					})
 					return
 				case 1:
@@ -1161,7 +1160,7 @@ func makeUverseNode() {
 					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
 						T: tt,
-						V: m.Alloc.NewMap(li),
+						V: m.Alloc.NewMap(tt, li),
 					})
 					return
 				default:
@@ -1186,7 +1185,7 @@ func makeUverseNode() {
 			tt := arg0.TV.GetType()
 			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
-			hi := m.Alloc.NewHeapItem(tv)
+			hi := m.Alloc.NewHeapItem(tt, tv)
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,

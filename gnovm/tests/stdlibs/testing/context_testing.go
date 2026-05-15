@@ -156,10 +156,12 @@ func X_originRealm(m *gno.Machine) gno.TypedValue {
 }
 
 func X_newRealm(m *gno.Machine, addr, pkgPath string) gno.TypedValue {
+	rlmType := m.Store.GetType("chain/runtime.Realm")
 	return gno.TypedValue{
 		// testing imports chain/runtime, so this type is always available.
-		T: m.Store.GetType("chain/runtime.Realm"),
+		T: rlmType,
 		V: m.Alloc.NewStructWithFields(
+			rlmType,
 			// addr address
 			gno.TypedValue{T: m.Store.GetType(".uverse.address"), V: gno.StringValue(addr)},
 			// pkgPath string
