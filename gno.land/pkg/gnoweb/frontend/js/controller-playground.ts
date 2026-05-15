@@ -380,7 +380,7 @@ export class PlaygroundController extends BaseController {
 
 	public downloadFiles(): void {
 		// Make sure current file content is the latest when downloading
-		this.files[this.activeFile].content = this.codeEl.value;
+		this.files[this.activeFile].content = this._getCode();
 
 		if (this.files.length === 1) {
 			this._triggerDownload(
@@ -409,7 +409,7 @@ export class PlaygroundController extends BaseController {
 	}
 }
 
-function createTar(files: { name: string; content: string }[]): Uint8Array {
+function createTar(files: { name: string; content: string }[]): Uint8Array<ArrayBuffer> {
 	const encoder = new TextEncoder();
 	const blocks: Uint8Array[] = [];
 
