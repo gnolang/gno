@@ -156,15 +156,7 @@ The private side signs your transactions; the public side derives the
 `g1…` address that identifies you on chain. You'll need one to do
 anything that writes state — a deploy, a function call, a transfer.
 
-:::tip
-On a local chain, you can skip this entirely: `gnodev` auto-imports a
-`dev` key into your keybase on startup. The mnemonic is public and
-identical on every machine, so the key is throwaway — but you can sign
-transactions with `dev` immediately, no `gnokey add` needed. Pass
-`--no-dev-key` to opt out.
-:::
-
-Otherwise, create a fresh key:
+Create one:
 
 ```sh
 gnokey add alice
@@ -221,9 +213,8 @@ gnokey maketx call \
 denomination). Together they cap what you'll pay — see
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
-The signer at the end is the `alice` key you just created (or `dev`,
-auto-imported by gnodev). You'll reuse the same key in the staging and
-testnet sections below.
+The signer at the end is the `alice` key you just created. You'll
+reuse it in the staging and testnet sections below.
 
 On success you'll see:
 
