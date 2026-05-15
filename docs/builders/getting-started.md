@@ -2,11 +2,8 @@
 
 Gno.land is a Layer 1 blockchain where smart contracts are written in
 **Gno**, a deterministic variant of Go. If you can write Go, you can
-write Gno.
-
-Realms (`r/`) hold on-chain state, packages (`p/`) provide stateless
-libraries, and the GnoVM interprets everything. See
-[What is Gno.land?](./what-is-gnolang.md) for the full picture.
+write Gno. See [What is Gno.land?](./what-is-gnolang.md) for the full
+picture.
 
 This page walks you from zero to a working local chain and your first
 on-chain transaction. Just want the commands? See [Quick Start](./quickstart.md).
@@ -32,6 +29,12 @@ curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh 
 Binaries land in `$HOME/.gno/bin`. The script is bash-only; Windows users should use
 WSL or see [Other methods](./install.md) for source builds and Docker.
 
+Verify the toolchain is on your `$PATH`:
+
+```sh
+gno version && gnokey version && gnodev --help
+```
+
 :::tip
 `gno: command not found`? Add `$HOME/.gno/bin` to your `$PATH`:
 `export PATH="$HOME/.gno/bin:$PATH"`.
@@ -39,8 +42,14 @@ WSL or see [Other methods](./install.md) for source builds and Docker.
 
 ## Run locally with gnodev
 
-This section creates a realm, runs a local chain with `gnodev`, and
-opens it in a browser in `gnoweb`.
+The fastest way to learn Gno is to run a chain on your own machine.
+`gnodev` boots a single-node devnet with hot reload, a built-in
+gnoweb UI, and a keybase whose accounts are pre-funded — no faucet,
+no genesis file, no peers to configure.
+
+You'll write a small realm, run it through the local toolchain
+(`gno fmt`/`lint`/`test`), boot the chain, then sign a real
+transaction against it. Everything in this section runs offline.
 
 ### Declare the module path
 
@@ -50,13 +59,13 @@ gno mod init gno.land/r/myname/myrealm
 
 This writes a `gnomod.toml` in the current directory, declaring the
 package's on-chain path. Use `gno.land/r/…` for realms (stateful) or
-`gno.land/p/…` for packages (stateless — note that pure packages cannot
+`gno.land/p/…` for pure packages (stateless — note that pure packages cannot
 import realms; see [import rules](../resources/gno-packages.md#import-rules)).
 
 ### Write Gno code
 
-Add `.gno` files next to the freshly created `gnomod.toml`. We'll build
-a counter, a realm that stores a number and exposes a function to
+Then, add `.gno` files next to the freshly created `gnomod.toml`. We'll
+build a counter — a realm that stores a number and exposes a function to
 increment it:
 
 ```gno
@@ -106,6 +115,12 @@ fuller version of this counter lives at
 
 ### Format, lint, and test
 
+The `gno` CLI ships the same toolchain you'd expect from Go: a
+formatter that rewrites code in canonical style, a linter that
+catches common mistakes (unused imports, dead code, misuse of
+`cross`/`realm`), and a test runner that executes `_test.gno`
+files. Run them from the package directory before every commit:
+
 ```sh
 gno fmt ./...     # rewrite .gno files in canonical style
 gno lint ./...    # static checks for common mistakes
@@ -113,6 +128,10 @@ gno test ./...    # run _test.gno files
 ```
 
 ### Run a local chain
+
+Once the code passes tests, boot a devnet from the package directory.
+`gnodev` starts a single-node chain, loads the realm at its declared
+package path, and serves gnoweb in the foreground:
 
 ```sh
 gnodev .
@@ -132,11 +151,15 @@ can modify and browse locally.
 
 ### Create a key
 
-Every transaction (deploy or function call) is signed by a key.
-Create one with `gnokey`:
+A **key** is a private/public keypair managed locally by `gnokey`.
+The private side signs your transactions; the public side derives the
+`g1…` address that identifies you on chain. You'll need one to do
+anything that writes state — a deploy, a function call, a transfer.
+
+Create one:
 
 ```sh
-gnokey add mykey
+gnokey add alice
 ```
 
 It prompts for an encryption password and prints a 24-word mnemonic
@@ -148,7 +171,7 @@ gnokey list
 ```
 
 ```text
-0. mykey (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
+0. alice (local) - addr: g1abc...xyz pub: gpub1pgf..., path: <nil>
 ```
 
 That `g1...` address is your on-chain identity. It owns funds, signs
@@ -159,6 +182,9 @@ when you deploy to a shared network.
 Keys created this way are **development-only**. Do not reuse the
 mnemonic for real funds.
 :::
+
+For key import, derivation, and the full keybase reference, see
+[Interact with gnokey](../users/interact-with-gnokey.md#managing-key-pairs).
 
 ### Call Increment
 
@@ -179,7 +205,7 @@ gnokey maketx call \
   -func "Increment" -args "5" \
   -gas-fee 1000000ugnot -gas-wanted 1000000000 \
   -chainid dev -remote http://localhost:26657 \
-  mykey
+  alice
 ```
 
 `-gas-wanted` is the maximum units the transaction may consume;
@@ -187,15 +213,8 @@ gnokey maketx call \
 denomination). Together they cap what you'll pay — see
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
-The signer at the end is the `mykey` you just created. gnodev
-auto-funds every key in your local keybase on startup, so it's
-ready to spend with no faucet — and you'll reuse the same key for
-the staging and testnet sections later.
-
-`gnodev` also prints a `devtest` seed at startup. That's a well-known
-test account — the seed is public and the same on every machine, so
-it's only useful for shared dev fixtures. Treat it as throwaway and
-never reuse the mnemonic elsewhere.
+The signer at the end is the `alice` key you just created. You'll
+reuse it in the staging and testnet sections below.
 
 On success you'll see:
 
@@ -223,9 +242,9 @@ to `gnodev`: keys aren't auto-funded — you'll need test `ugnot` from
 a faucet — and each deploy is one explicit `addpkg` transaction
 instead of hot-reload on file save.
 
-Every command that hits the chain (faucet, query, deploy, call) must
-target the same network. Pick one up front and keep `-remote` (and
-`-chainid`) consistent throughout:
+Pick a target network now and use it consistently — the faucet's
+network dropdown and every `gnokey` command's `-remote` (and
+`-chainid`) flags must match:
 
 | Network    | `-chainid` | `-remote`                                  |
 |------------|------------|--------------------------------------------|
@@ -269,19 +288,13 @@ Two things to know before publishing your first package:
 
 **Namespaces.** Anyone can deploy under their address-based namespace
 (`gno.land/r/<your-g1-addr>/…`). Username-based namespaces like
-`gno.land/r/alice/…` are not available yet and will require registration.
+`gno.land/r/alice/…` aren't supported yet — see
+[Users and Teams](../resources/users-and-teams.md).
 
-**CLA.** Publishing code on gno.land may require acknowledging a
-[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md),
-read it first. If `addpkg` fails with `has not signed the required CLA`,
-fetch the current hash from [`r/sys/cla`](https://gno.land/r/sys/cla) and
-sign once to acknowledge, then retry the deploy:
-
-```sh
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign \
-  -args "<current-hash>" -gas-fee 100000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 mykey
-```
+**CLA.** Some networks require contributors to acknowledge a
+[Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md)
+before deploying. If `addpkg` fails with `has not signed the required CLA`,
+sign once at [`r/sys/cla`](https://gno.land/r/sys/cla) and retry.
 
 ### 4. Deploy your package
 
@@ -293,12 +306,11 @@ gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -broadcast \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
-  mykey
+  alice
 ```
 
-The `mykey` at the end is the key you created earlier. On success you'll see:
+The `alice` key at the end is the one you created earlier. On success you'll see:
 
 ```text
 OK!
@@ -325,16 +337,17 @@ wallet like Adena.
 
 ### 5. Call your realm
 
-After deploying, call `Increment` to change on-chain state:
+Same shape as the local call earlier, with two changes: the package
+path uses your address-based namespace, and `-gas-wanted` is tuned to
+a realistic value.
 
 ```sh
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -func "Increment" -args "5" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -broadcast \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
-  mykey
+  alice
 ```
 
 On success the response leads with the return value, then the tx
