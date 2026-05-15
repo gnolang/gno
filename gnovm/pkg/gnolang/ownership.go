@@ -76,17 +76,36 @@ func (oid ObjectID) IsPackageID() bool {
 	return !oid.PkgID.IsZero() && oid.NewTime == 1
 }
 
-// TODO: make faster by making PkgID a pointer
-// and enforcing that the value of PkgID is never zero.
+// IsZero returns true iff the ObjectID is completely empty (both
+// PkgID and NewTime are zero). This is the "totally empty" state
+// — used to detect "no owner exists" / "transient/never-stamped".
+//
+// Under the PLAN3 lifecycle there are three states:
+//
+//	empty:     PkgID zero, NewTime zero        (never went through allocator)
+//	allocated: PkgID set,  NewTime zero        (PLAN3 Phase 2 onwards)
+//	finalized: PkgID set,  NewTime ≥ 1         (real, persisted)
+//
+// Use IsFinalized() for "has a real persisted identity" and
+// GetIsReal() (on ObjectInfo) as the convenience equivalent.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.PkgID.IsZero() {
-			if oid.NewTime != 0 {
-				panic("should not happen")
-			}
+		// The impossible state is PkgID zero + NewTime non-zero.
+		// PkgID set + NewTime zero is the allocated-but-unfinalized
+		// state, valid under PLAN3.
+		if oid.PkgID.IsZero() && oid.NewTime != 0 {
+			panic("invariant: NewTime set but PkgID zero")
 		}
 	}
-	return oid.PkgID.IsZero()
+	return oid.PkgID.IsZero() && oid.NewTime == 0
+}
+
+// IsFinalized returns true iff the ObjectID has been stamped with a
+// NewTime by assignNewObjectID — i.e., it has a real persisted
+// identity. The allocated-but-unfinalized state (PkgID set, NewTime
+// zero) returns false.
+func (oid ObjectID) IsFinalized() bool {
+	return oid.NewTime != 0
 }
 
 type ObjectIDer interface {
@@ -220,8 +239,8 @@ func (oi *ObjectInfo) GetObjectID() ObjectID {
 }
 
 func (oi *ObjectInfo) MustGetObjectID() ObjectID {
-	if oi.ID.IsZero() {
-		panic("unexpected zero object id")
+	if !oi.ID.IsFinalized() {
+		panic("unexpected non-finalized object id")
 	}
 	return oi.ID
 }
@@ -260,9 +279,27 @@ func (oi *ObjectInfo) GetIsOwned() bool {
 	return !oi.OwnerID.IsZero()
 }
 
-// NOTE: does not return true for new reals.
+// GetIsReal returns true iff the object has a finalized ObjectID
+// (NewTime ≥ 1). Allocated-but-unfinalized objects (PkgID set,
+// NewTime zero) return false, matching the pre-PLAN3 intent.
+// Note: does not return true for new-reals (those waiting for
+// assignNewObjectID at finalize time).
 func (oi *ObjectInfo) GetIsReal() bool {
-	return !oi.ID.IsZero()
+	return oi.ID.IsFinalized()
+}
+
+// SetNewTime stamps only the NewTime portion of the ObjectID,
+// preserving any pre-existing PkgID set at allocation time.
+// Used by assignNewObjectID under PLAN3.
+func (oi *ObjectInfo) SetNewTime(t uint64) {
+	oi.ID.NewTime = t
+}
+
+// SetPkgID stamps only the PkgID portion of the ObjectID,
+// preserving any pre-existing NewTime. Used by allocator
+// constructors under PLAN3 to stamp authority at allocation.
+func (oi *ObjectInfo) SetPkgID(p PkgID) {
+	oi.ID.PkgID = p
 }
 
 func (oi *ObjectInfo) GetModTime() uint64 {

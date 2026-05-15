@@ -18,6 +18,13 @@ type Allocator struct {
 	bytes    int64
 	collect  func() (left int64, ok bool) // gc callback
 	gasMeter store.GasMeter
+
+	// currentRealmID mirrors m.Realm.ID at all times. Synced via
+	// Machine.setRealm at every realm transition (PLAN3 Phase 1).
+	// Used by allocator constructors at Phase 2 to stamp PkgID
+	// onto newly-allocated objects' ObjectInfo without needing a
+	// *Machine reference. Zero when m.Realm is nil.
+	currentRealmID PkgID
 }
 
 // for gonative, which doesn't consider the allocator.

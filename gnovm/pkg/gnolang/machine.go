@@ -266,9 +266,28 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 		panic(errors.Wrap(err, "set package when machine not empty"))
 	}
 	m.Package = pv
-	m.Realm = pv.GetRealm()
+	m.setRealm(pv.GetRealm())
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
+	}
+}
+
+// setRealm updates both m.Realm and m.Alloc.currentRealmID, keeping
+// them in lock-step. Every m.Realm assignment must route through
+// this helper so the allocator's currentRealmID stays accurate
+// (PLAN3 Phase 1). Used by allocator constructors at Phase 2 to
+// stamp PkgID onto newly-allocated objects.
+//
+// Accepts nil — clears currentRealmID to PkgID{} which matches
+// "no realm context."
+func (m *Machine) setRealm(r *Realm) {
+	m.Realm = r
+	if m.Alloc != nil {
+		if r != nil {
+			m.Alloc.currentRealmID = r.ID
+		} else {
+			m.Alloc.currentRealmID = PkgID{}
+		}
 	}
 }
 
@@ -387,7 +406,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// store new package values and types
 		throwaway = m.saveNewPackageValuesAndTypes()
 		if throwaway != nil {
-			m.Realm = throwaway
+			m.setRealm(throwaway)
 		}
 	}
 	// run init functions
@@ -398,7 +417,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// store mempackage; we already validated type.
 		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
 		if throwaway != nil {
-			m.Realm = nil
+			m.setRealm(nil)
 		}
 	}
 
@@ -608,11 +627,11 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		// store new package values and types
 		throwaway = m.saveNewPackageValuesAndTypes()
 		if throwaway != nil {
-			m.Realm = throwaway
+			m.setRealm(throwaway)
 		}
 		m.resavePackageValues(throwaway)
 		if throwaway != nil {
-			m.Realm = nil
+			m.setRealm(nil)
 		}
 	}
 	return pn, pv
@@ -2198,7 +2217,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				mrpath,
 			))
 		}
-		m.Realm = pv.GetRealm()
+		m.setRealm(pv.GetRealm())
 		return
 	}
 
@@ -2240,7 +2259,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//      mutate state living in another realm.
 	if IsRealmPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
-			m.Realm = pv.GetRealm()
+			m.setRealm(pv.GetRealm())
 		}
 		return
 	}
@@ -2252,7 +2271,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				m.Realm = objpv.GetRealm()
+				m.setRealm(objpv.GetRealm())
 			}
 		}
 	}
@@ -2335,7 +2354,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
-	m.Realm = fr.LastRealm
+	m.setRealm(fr.LastRealm)
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions

@@ -507,10 +507,13 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	}
 
 	// RECURSE GUARD
-	// if id already set, skip.
-	// this happens when a node marked created was already
-	// visited via recursion from a prior marked created.
-	if !oo.GetObjectID().IsZero() {
+	// if NewTime is already stamped, the object has been finalized
+	// in this pass — skip. Under PLAN3, PkgID is set at allocation
+	// time, so IsZero() (which now checks both fields) is permanently
+	// false post-allocation and cannot be used as the recurse guard.
+	// IsFinalized() (NewTime != 0) is the correct "already-visited"
+	// signal here, set by assignNewObjectID below.
+	if oo.GetObjectID().IsFinalized() {
 		return
 	}
 	rlm.assignNewObjectID(oo)
@@ -582,8 +585,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
 		if debugAssert {
-			if oo.GetObjectID().IsZero() {
-				panic("new deleted mark should have an object ID")
+			if !oo.GetObjectID().IsFinalized() {
+				panic("new deleted mark should have a finalized object ID")
 			}
 		}
 		if oo.GetRefCount() > 0 {
@@ -599,8 +602,8 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	if debugAssert {
-		if oo.GetObjectID().IsZero() {
-			panic("cannot decrement references of deleted descendants of object with no object ID")
+		if !oo.GetObjectID().IsFinalized() {
+			panic("cannot decrement references of deleted descendants of object with no finalized ID")
 		}
 		if oo.GetRefCount() != 0 {
 			panic("cannot decrement references of deleted descendants of object with references")
@@ -694,8 +697,8 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 					// exists, mark dirty.
 					rlm.MarkDirty(po)
 				}
-				if eo.GetObjectID().IsZero() {
-					// eo was passed from caller.
+				if !eo.GetObjectID().IsFinalized() {
+					// eo was passed from caller (not yet finalized).
 					rlm.incRefCreatedDescendants(store, eo)
 					eo.SetIsNewReal(true)
 				}
@@ -834,8 +837,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 			panic("cannot save new real or non-dirty objects")
 		}
 		// object id should have been assigned during processNewCreatedMarks.
-		if oo.GetObjectID().IsZero() {
-			panic("cannot save object with no ID")
+		if !oo.GetObjectID().IsFinalized() {
+			panic("cannot save object with no finalized ID")
 		}
 		// deleted objects should not have gotten here.
 		if false ||
@@ -901,8 +904,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
-	if oid.IsZero() {
-		panic("unexpected zero object id")
+	if !oid.IsFinalized() {
+		panic("unexpected non-finalized object id at save")
 	}
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
@@ -1775,12 +1778,14 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	return nxtid
 }
 
-// Object gets its id set (panics if already set), and becomes
-// marked as new and real.
+// Object gets its NewTime stamped (panics if already finalized),
+// and becomes marked as new and real. The PkgID may have been
+// pre-stamped at allocation time (PLAN3 Phase 2 onwards); if zero,
+// it's stamped from rlm.ID here (legacy / pre-stamp path).
 func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 	oid := oo.GetObjectID()
-	if !oid.IsZero() {
-		panic("unexpected non-zero object id")
+	if oid.IsFinalized() {
+		panic("unexpected already-finalized object id")
 	}
 	noid := rlm.nextObjectID()
 	oo.SetObjectID(noid)
