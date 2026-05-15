@@ -361,6 +361,24 @@ func fragFuncBody(oid string) []byte {
 	}`, oid))
 }
 
+// fragClosureBody returns a qobject_json payload whose value is a FuncValue
+// with one captured primitive — funcKind() classifies it as closure.
+func fragClosureBody(oid string) []byte {
+	return []byte(fmt.Sprintf(`{
+		"objectid": %q,
+		"value": {
+			"@type": "/gno.FuncValue",
+			"Type": {"@type": "/gno.FuncType", "Params": [], "Results": []},
+			"Name": "stepper",
+			"Captures": [
+				{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AQAAAAAAAAA="}
+			],
+			"Source": {"@type": "/gno.RefNode",
+				"Location": {"PkgPath": "gno.land/r/demo", "File": "f.gno",
+					"Span": {"Pos": {"Line": "2", "Column": "1"}, "End": {"Line": "4", "Column": "1"}, "Num": "0"}}}}
+	}`, oid))
+}
+
 // Regression: expanding a func/closure via frag=node must show the actual
 // function body — the handler promotes the decoded FuncValue to the root
 // and fetches+highlights its Source span. Without this the fragment was a
@@ -382,6 +400,37 @@ func TestFragNodeRendersFuncSource(t *testing.T) {
 		"the fetched source span must appear in the fragment")
 	assert.NotContains(t, body, "b-state-frag-empty",
 		"a func with source is not 'empty'")
+}
+
+// Closure detection only surfaces *after* fetching the FuncValue (the
+// walker sees a bare RefValue at package level — no captures visible).
+// frag=node must therefore inject the closure tag into the pretty card
+// header via an HTMX OOB swap so the visual state matches the data
+// without paying an extra render-time RPC.
+func TestFragNodeClosureEmitsOOBTagSwap(t *testing.T) {
+	client := &fragMockClient{objBytes: fragClosureBody(fragOID)}
+	ff := &fragFileFetcher{body: []byte("line1\nfunc() { return x }\nbody\nlast\n")}
+	h := newFragHandler(client, ff)
+	rec := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {fragOID}})
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+	wantID := `id="card-` + strings.ReplaceAll(fragOID, ":", "-") + `-tag"`
+	assert.Contains(t, body, wantID, "OOB swap must target the per-card slot id")
+	assert.Contains(t, body, `hx-swap-oob="true"`)
+	assert.Contains(t, body, `<span class="b-tag">closure</span>`)
+}
+
+// Negative: a plain func (no captures) must NOT emit the OOB tag.
+func TestFragNodeFuncDoesNotEmitOOBTag(t *testing.T) {
+	client := &fragMockClient{objBytes: fragFuncBody(fragOID)}
+	ff := &fragFileFetcher{body: []byte("line1\nfunc Render() {}\nbody\nlast\n")}
+	h := newFragHandler(client, ff)
+	rec := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {fragOID}})
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.NotContains(t, rec.Body.String(), `hx-swap-oob="true"`,
+		"non-closure must not emit OOB tag swap")
 }
 
 func TestFragNodeInvalidOID(t *testing.T) {

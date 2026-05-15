@@ -29,8 +29,9 @@ var funcMap = template.FuncMap{
 		return *p
 	},
 
-	"truncOID": TruncOID,
-	"oidShort": ShortenOID,
+	"truncOID":     TruncOID,
+	"oidShort":     ShortenOID,
+	"oidTagSlotID": oidTagSlotID,
 
 	"headingForKind": func(kind string) string {
 		switch kind {
@@ -113,6 +114,7 @@ var funcMap = template.FuncMap{
 	"stateFragNodeHref":   stateFragNodeHref,
 	"stateFragSourceHref": stateFragSourceHref,
 	"stateObjectHref":     stateObjectHref,
+	"stateRawJSONHref":    stateRawJSONHref,
 	"stateSourceHref":     stateSourceHref,
 
 	"dict": func(kv ...any) (map[string]any, error) {

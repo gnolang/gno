@@ -165,36 +165,23 @@
   {{ if .Nodes }}
     <div class="view-tree" data-state-target="view-tree">
       <div class="tree-toolbar">
-        {{ if .RawJSON }}
-          {{/* Per ADR-004 §Consequences §Negative: label is "Copy package
-               JSON" to set correct expectation (top-level + previews
-               only; full graph via ?state&json). */}}
-          <button type="button" class="b-inline-btn c-with-icon"
-            data-controller="copy" data-action="click->copy#copy"
-            data-copy-remote-value="state-raw-json" title="Copy package JSON" aria-label="Copy package JSON">
-            <svg class="c-icon" aria-hidden="true">
-              <use href="#ico-copy" data-copy-target="icon"></use>
-              <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
-            </svg>
-            <span>Copy package JSON</span>
-          </button>
-        {{ end }}
-        {{/* Top-level rows render with <details open>, so the honest
-             initial state is "pressed" — controller-state reconciles
-             this against the live DOM on connect(). */}}
+        {{/* Async fetch via ?state&json — the raw qpkg_json is NOT
+             inlined in the page anymore (memory amp on every viewer),
+             so the button hits the JSON endpoint on click instead. */}}
         <button type="button" class="b-inline-btn c-with-icon"
-          data-action="click->state#toggleAll"
-          aria-pressed="true" title="Expand or collapse top-level rows">
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-unfold"></use></svg>
-          <span data-state-target="toggle-label">Collapse all</span>
+          data-controller="copy" data-action="click->copy#copy"
+          data-copy-fetch-value="{{ stateRawJSONHref .PkgPath .HeightParam }}"
+          title="Copy package JSON" aria-label="Copy package JSON">
+          <svg class="c-icon" aria-hidden="true">
+            <use href="#ico-copy" data-copy-target="icon"></use>
+            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+          </svg>
+          <span>Copy package JSON</span>
         </button>
       </div>
       <div class="tree">
         {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height "HeightParam" .HeightParam "ViewMode" .ViewMode) }}
       </div>
-      {{ if .RawJSON }}
-        <pre data-copy-target="state-raw-json" hidden>{{ .RawJSON }}</pre>
-      {{ end }}
     </div>
   {{ end }}
 </article>
@@ -240,7 +227,11 @@
   <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}-pretty"{{ end }} data-kind="{{ $n.Kind }}" data-kind-group="{{ kindGroup $n.Kind }}" data-name="{{ $n.Name }}">
     <header>
       <div class="title">
-        <h2>{{ template "state/kind-glyph" $n }}{{ $n.Name }}{{ if eq $n.Kind "closure" }} <span class="b-tag">closure</span>{{ end }}</h2>
+        {{/* Tag slot stays empty at SSR for ref cards: the walker only
+             sees a RefValue at package level so it cannot tell closure
+             from func. The frag=node response OOB-swaps the slot at
+             hydration when the fetched FuncValue carries Captures. */}}
+        <h2>{{ template "state/kind-glyph" $n }}{{ $n.Name }}{{ if $n.ObjectID }} <span id="{{ oidTagSlotID $n.ObjectID }}"></span>{{ end }}{{ if eq $n.Kind "closure" }} <span class="b-tag">closure</span>{{ end }}</h2>
         <span class="subtitle">
           <span class="type">{{ $n.Type }}</span>
           {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
@@ -394,15 +385,18 @@
   {{ $pkg := .PkgPath }}
   {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
+  {{/* revealed-once + 200ms delay: throttles a scroll-bot or a deep
+       above-fold viewport from firing N parallel fragment GETs at
+       page paint — each tab still sees N hydrations, but they trickle
+       through the per-IP limiter and the chain node. */}}
   <details class="b-state-lazy" data-name="{{ $n.Name }}" data-tree-key="{{ $n.ObjectID }}"
            hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp 0 $vm }}"
-           hx-trigger="toggle once"
+           hx-trigger="revealed once delay:200ms"
            hx-target="find .b-state-node-body"
            hx-swap="innerHTML"
            hx-disinherit="*">
     {{/* Card header already carries name+type+doc — this summary is the
-         expansion affordance: name + a muted "details" hint, plus len/
-         preview when the preview pass resolved them. */}}
+         expansion affordance: name + a muted "details" hint. */}}
     <summary>
       <span class="b-state-node-name">{{ $n.Name }}</span>
       <span class="b-state-node-hint">details</span>

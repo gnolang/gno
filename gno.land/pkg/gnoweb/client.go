@@ -23,7 +23,43 @@ var (
 	ErrClientBadRequest        = errors.New("bad request")
 	ErrClientTimeout           = errors.New("RPC node request timeout")
 	ErrClientResponse          = errors.New("RPC node response error")
+	ErrClientResponseTooLarge  = errors.New("RPC node response too large")
 )
+
+// maxRPCResponseSize caps every per-query response from the RPC node.
+// A legit realm package + qobject_json response is well under 1 MB; 8 MB
+// is a generous headroom that still bounds memory amplification when a
+// misbehaving/compromised node ships a multi-MB amino blob.
+const maxRPCResponseSize = 8 << 20 // 8 MiB
+
+// maxConcurrentRPC caps in-flight outbound RPCs per rpcClient. Under
+// the lazy-preview model, one viewport can fire dozens of fragment
+// requests in parallel; without this gate they would saturate the
+// chain node. 64 leaves room for ~5 concurrent users on a 32-ref
+// viewport without queueing while still bounding chain-side load.
+const maxConcurrentRPC = 64
+
+// acquireRPCSlot blocks until a slot is free or ctx is cancelled, then
+// returns a release function that frees the slot. Always returns a
+// non-nil release fn so callers can defer unconditionally.
+func acquireRPCSlot(ctx context.Context, slots chan struct{}) (func(), error) {
+	select {
+	case slots <- struct{}{}:
+		return func() { <-slots }, nil
+	case <-ctx.Done():
+		return func() {}, ctx.Err()
+	}
+}
+
+// checkResponseSize enforces maxRPCResponseSize on a raw qres.Data slice.
+// The wrapped error preserves errors.Is matching against the sentinel
+// while exposing the size in logs for forensics.
+func checkResponseSize(data []byte) error {
+	if len(data) > maxRPCResponseSize {
+		return fmt.Errorf("%w: %d bytes (max %d)", ErrClientResponseTooLarge, len(data), maxRPCResponseSize)
+	}
+	return nil
+}
 
 type FileMeta struct {
 	Lines  int
@@ -71,9 +107,10 @@ type ClientAdapter interface {
 }
 
 type rpcClient struct {
-	domain string
-	logger *slog.Logger
-	client *client.RPCClient
+	domain   string
+	logger   *slog.Logger
+	client   *client.RPCClient
+	rpcSlots chan struct{}
 }
 
 var _ ClientAdapter = (*rpcClient)(nil)
@@ -82,9 +119,10 @@ var _ ClientAdapter = (*rpcClient)(nil)
 // It requires a configured logger and WebClientConfig.
 func NewRPCClientAdapter(logger *slog.Logger, cli *client.RPCClient, domain string) ClientAdapter {
 	return &rpcClient{
-		logger: logger,
-		domain: domain,
-		client: cli,
+		logger:   logger,
+		domain:   domain,
+		client:   cli,
+		rpcSlots: make(chan struct{}, maxConcurrentRPC),
 	}
 }
 
@@ -222,7 +260,23 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
 func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
-	c.logger.Info("querying node", "path", qpath, "data", string(data), "height", height)
+	// Debug, not Info: `data` carries attacker-supplied OID/TID/file —
+	// at hot-path rates this would amplify log volume by an order of
+	// magnitude. Failures still log at Warn/Error below.
+	c.logger.Debug("querying node", "path", qpath, "data", string(data), "height", height)
+
+	// Bound concurrent outbound RPCs process-wide so gnoweb cannot
+	// hammer the chain node under HTTP burst — orthogonal to any
+	// HTTP-level rate limit (gnoweb's or nginx's), which sees neither
+	// the fan-out nor the per-request RPC count.
+	release, err := acquireRPCSlot(ctx, c.rpcSlots)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, ErrClientTimeout
+		}
+		return nil, err
+	}
+	defer release()
 
 	start := time.Now()
 	opts := client.DefaultABCIQueryOptions
@@ -259,6 +313,11 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 
 	qerr := qres.Response.Error
 	if qerr == nil {
+		if sizeErr := checkResponseSize(qres.Response.Data); sizeErr != nil {
+			c.logger.Error("RPC response exceeded size cap",
+				"path", qpath, "size", len(qres.Response.Data))
+			return nil, sizeErr
+		}
 		return qres.Response.Data, nil
 	}
 

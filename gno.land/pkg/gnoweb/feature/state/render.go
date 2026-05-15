@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
@@ -75,41 +74,10 @@ func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (StateNode,
 	return root, nil
 }
 
-// decodeObjectValue unmarshals a qobject_json payload to its gno.Value.
-// Shared by the preview-pass shape probes so one fetched payload is
-// parsed once, not once per probe.
-func decodeObjectValue(raw []byte) (gno.Value, error) {
-	var resp objectResponse
-	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
-		return nil, fmt.Errorf("decode object JSON: %w", err)
-	}
-	return resp.Value, nil
-}
-
-// decodeHeapItemInner unwraps a heap-item box — Gno's transparent wrapper
-// around closure-captured / escaping variables — so callers can promote
-// the inner value over the redundant "<heapItemType>" layer.
-func decodeHeapItemInner(v gno.Value, cfg RenderConfig) (StateNode, bool) {
-	hiv, ok := v.(*gno.HeapItemValue)
-	if !ok {
-		return StateNode{}, false
-	}
-	return decodeTypedValueAt(startDepthFor(cfg), "value", hiv.Value), true
-}
-
-// decodeFuncKind classifies a func object: only a fetched *FuncValue
-// carries .Captures — the package-level FuncType the walker sees cannot.
-func decodeFuncKind(v gno.Value) (string, bool) {
-	fv, ok := v.(*gno.FuncValue)
-	if !ok {
-		return "", false
-	}
-	return funcKind(fv), true
-}
-
 // DecodePackage decodes a qpkg_json payload into the top-level slots,
-// bounded by cfg. Previews are NOT resolved here — refs stay as
-// expandable ref nodes for ResolvePreviews to follow.
+// bounded by cfg. Refs stay as expandable nodes carrying their OID —
+// the pretty view hydrates them lazily via hx-trigger="revealed" and
+// the tree view via hx-trigger="toggle" on user click.
 func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig) ([]StateNode, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

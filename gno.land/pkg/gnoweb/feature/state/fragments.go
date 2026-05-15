@@ -48,9 +48,9 @@ func (h *Handler) serveFragment(ctx context.Context, w http.ResponseWriter, _ *h
 	}
 }
 
-// serveFragNode renders the immediate children of one expanded node as an
-// htmx fragment. One StateObject RPC + up to fragPreviewCap nested preview
-// RPCs total — the amplification budget for a single user expansion.
+// serveFragNode renders the immediate children of one expanded node as
+// an htmx fragment. Bounded fan-out: 1 StateObject + ≤1 StateType +
+// ≤1 qfile (for func bodies); no chained preview fetches.
 func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) (int, *components.View) {
 	oid := u.WebQuery.Get("oid")
 	if err := ValidateOID(oid); err != nil {
@@ -150,6 +150,7 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 		HeightParam: hp,
 		ViewMode:    viewMode,
 		Depth:       childDepth,
+		OID:         oid,
 	}); err != nil {
 		h.deps.Logger.Error("frag=node template execute failed", "oid", oid, "err", err)
 	}

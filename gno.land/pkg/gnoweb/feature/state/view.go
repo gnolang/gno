@@ -29,10 +29,6 @@ type StateData struct {
 	// ViewMode is "tree" or "" (pretty default), derived from ?view= query param.
 	ViewMode string
 
-	// RawJSON is the chain-native response (qpkg_json/qobject_json),
-	// embedded as a hidden element for the "Copy JSON" toolbar button.
-	RawJSON string
-
 	// KindCounts feeds the kind-filter tab counters.
 	KindCounts KindCounts
 
@@ -126,6 +122,10 @@ type FragNodeData struct {
 	HeightParam string
 	ViewMode    string
 	Depth       int
+	// OID is the request's `?oid=…` — preserved separately because the
+	// fragment's promoted root (func/closure inline) has no ObjectID of
+	// its own. Drives the closure-tag OOB-swap target id.
+	OID string
 }
 
 // FragSourceData feeds fragSource. SourceHTML is TRUSTED chroma markup

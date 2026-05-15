@@ -7,15 +7,15 @@ import (
 	"log/slog"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
-// recoverFetcher must be deferred in every fetcher goroutine so a panic
-// from one fetch never crashes the whole render. The shared log key set
-// also gives prod a single grep target. The recovered value is clipped
-// so a hostile chain returning an enormous panic payload cannot turn
-// the log line itself into an amplification vector.
+// recoverFetcher is deferred in fetch goroutines whose panic must be
+// swallowed (errgroup doesn't recover; without this an amino panic on
+// hostile chain data unwinds past errgroup → process crash). Panic
+// payload is clipped to 512c so the log line itself can't amplify.
 func recoverFetcher(logger *slog.Logger, kind string, fields ...any) {
 	if r := recover(); r != nil {
 		logger.Error("fetcher panic recovered",
@@ -23,35 +23,28 @@ func recoverFetcher(logger *slog.Logger, kind string, fields ...any) {
 	}
 }
 
+// recoverToErr is recoverFetcher's fatal counterpart: writes a sentinel
+// into errp (caller's named return) so errgroup.Wait surfaces a 500.
+func recoverToErr(logger *slog.Logger, kind string, errp *error, fields ...any) {
+	if r := recover(); r != nil {
+		logger.Error("fetcher panic recovered",
+			append([]any{"kind", kind, "panic", fmt.Sprintf("%.512s", r)}, fields...)...)
+		*errp = fmt.Errorf("%s: panic recovered", kind)
+	}
+}
+
 // isFuncKind reports whether n renders as a func or closure — the two
-// share the lazy-expand path and the funcs-first preview priority.
+// share the lazy-expand path in the tree renderer (state/source-details).
 func isFuncKind(n *StateNode) bool {
 	return n.Kind == KindFunc || n.Kind == KindClosure
 }
 
-// collectPreviewCandidates gathers stored refs (ObjectID + Expandable,
-// no inline children) for the bounded preview pass. Funcs/closures go
-// first: their fetch is terminal (Kind-detection only, no cascade), so
-// it earns budget priority over data-ref previews.
-func collectPreviewCandidates(nodes []StateNode, out *[]*StateNode) {
-	isCandidate := func(n *StateNode) bool {
-		return n.ObjectID != "" && n.Expandable && len(n.Children) == 0
-	}
-	for i := range nodes {
-		if n := &nodes[i]; isCandidate(n) && isFuncKind(n) {
-			*out = append(*out, n)
-		}
-	}
-	for i := range nodes {
-		if n := &nodes[i]; isCandidate(n) && !isFuncKind(n) {
-			*out = append(*out, n)
-		}
-	}
-	for i := range nodes {
-		if n := &nodes[i]; len(n.Children) > 0 {
-			collectPreviewCandidates(n.Children, out)
-		}
-	}
+// oidTagSlotID derives a DOM-safe id for the per-card tag slot. The OID
+// format is `<40-hex>:<index>`; ":" is not allowed in CSS selectors and
+// brittle in querySelector, so swap it to "-". Used by state/decl + the
+// frag=node OOB swap that injects the closure tag at hydration.
+func oidTagSlotID(oid string) string {
+	return "card-" + strings.ReplaceAll(oid, ":", "-") + "-tag"
 }
 
 // All four *Href builders MUST use gnoweb's `$webargs` grammar (the
@@ -107,6 +100,18 @@ func stateFragSourceHref(pkgPath, file string, line, endLine int, heightParam st
 	if endLine > 0 && endLine >= line {
 		wq.Set("end", strconv.Itoa(endLine))
 	}
+	if heightParam != "" {
+		wq.Set("height", heightParam)
+	}
+	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
+	return template.URL(u.EncodeWebURL()) //nolint:gosec
+}
+
+// stateRawJSONHref builds the `<pkgPath>$state&json[&height=N]` URL for
+// the lazy "Copy package JSON" button — the raw qpkg_json payload the
+// page no longer inlines (memory amp + cache poisoning risk).
+func stateRawJSONHref(pkgPath, heightParam string) template.URL {
+	wq := url.Values{"state": {""}, "json": {""}}
 	if heightParam != "" {
 		wq.Set("height", heightParam)
 	}

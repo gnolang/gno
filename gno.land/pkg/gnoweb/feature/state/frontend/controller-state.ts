@@ -10,7 +10,6 @@ export class StateController extends BaseController {
 	private declare openSet: Set<string>;
 	private declare viewTree: HTMLElement | null;
 	private docIndex: Record<string, string> = {};
-	private bulkInProgress = false;
 
 	protected connect(): void {
 		this.viewTree = this.getTarget("view-tree");
@@ -19,7 +18,6 @@ export class StateController extends BaseController {
 		this.loadDocIndex();
 		if (this.viewTree) {
 			this.applyOpen(this.viewTree);
-			this.syncToggleAllState();
 			this.projectDocs(this.viewTree);
 			// Capture: older engines didn't bubble `toggle`.
 			this.viewTree.addEventListener("toggle", this.onToggle, true);
@@ -33,59 +31,7 @@ export class StateController extends BaseController {
 		document.removeEventListener("htmx:afterSwap", this.onAfterSwap);
 	}
 
-	// Bounded to top-level (ADR-004 §5): recursive expand-all would
-	// burst N fragment fetches and reintroduce amplification. The
-	// top-level <details> are direct children of `.tree`, not of the
-	// data-state-target host (`.view-tree`) — scope to `.tree` so the
-	// `:scope > details` filter actually matches.
-	public toggleAll(event: Event): void {
-		if (!this.viewTree) return;
-		const btn = event.currentTarget;
-		if (!(btn instanceof HTMLElement)) return;
-		const expand = btn.getAttribute("aria-pressed") !== "true";
-		const tree =
-			this.viewTree.querySelector<HTMLElement>(":scope > .tree") ??
-			this.viewTree;
-		const top = tree.querySelectorAll<HTMLDetailsElement>(":scope > details");
-		this.bulkInProgress = true;
-		for (const d of top) {
-			// Bulk-expanding a lazy ref would fire its htmx fetch — never
-			// burst N fragment GETs. Collapse still applies to every row.
-			if (expand && d.classList.contains("b-state-lazy")) continue;
-			if (d.open !== expand) d.open = expand;
-		}
-		this.bulkInProgress = false;
-		if (expand) {
-			for (const d of top) {
-				if (d.classList.contains("b-state-lazy")) continue;
-				const k = d.getAttribute("data-tree-key");
-				if (k) this.openSet.add(k);
-			}
-		} else this.openSet.clear();
-		this.persistOpen();
-		btn.setAttribute("aria-pressed", String(expand));
-		const label = this.getTarget("toggle-label");
-		if (label) label.textContent = expand ? "Collapse all" : "Expand all";
-	}
-
-	// applyOpen() restores an arbitrary open-subset, so the template's
-	// static aria-pressed can lie — re-derive from the live DOM.
-	private syncToggleAllState(): void {
-		if (!this.viewTree) return;
-		const tree =
-			this.viewTree.querySelector<HTMLElement>(":scope > .tree") ??
-			this.viewTree;
-		const top = tree.querySelectorAll<HTMLDetailsElement>(":scope > details");
-		const label = this.getTarget("toggle-label");
-		const btn = label?.closest("button");
-		if (!btn || top.length === 0) return;
-		const allOpen = [...top].every((d) => d.open);
-		btn.setAttribute("aria-pressed", String(allOpen));
-		if (label) label.textContent = allOpen ? "Collapse all" : "Expand all";
-	}
-
 	private onToggle = (e: Event): void => {
-		if (this.bulkInProgress) return;
 		const t = e.target;
 		if (!(t instanceof HTMLDetailsElement)) return;
 		const k = t.getAttribute("data-tree-key");

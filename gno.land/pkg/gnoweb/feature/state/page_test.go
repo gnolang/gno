@@ -27,6 +27,10 @@ type pageMockClient struct {
 	typBytes map[string][]byte
 	typErr   error
 
+	// *Panic fields make the matching fetch panic — exercises the recover
+	// guards in page.go's errgroup goroutines (errgroup doesn't recover).
+	pkgPanic, docPanic, objPanic, typPanic bool
+
 	objCalls int32
 }
 
@@ -34,15 +38,24 @@ func (m *pageMockClient) Realm(context.Context, string, string) ([]byte, error) 
 func (m *pageMockClient) ListPaths(context.Context, string, int) ([]string, error) { return nil, nil }
 
 func (m *pageMockClient) Doc(context.Context, string, int64) (*doc.JSONDocumentation, error) {
+	if m.docPanic {
+		panic("doc fetch boom")
+	}
 	return m.docResp, m.docErr
 }
 
 func (m *pageMockClient) StatePkg(context.Context, string, int64) ([]byte, error) {
+	if m.pkgPanic {
+		panic("statepkg fetch boom")
+	}
 	return m.pkgBytes, m.pkgErr
 }
 
 func (m *pageMockClient) StateObject(_ context.Context, oid string, _ int64) ([]byte, error) {
 	atomic.AddInt32(&m.objCalls, 1)
+	if m.objPanic {
+		panic("stateobject fetch boom")
+	}
 	if m.objErr != nil {
 		return nil, m.objErr
 	}
@@ -53,6 +66,9 @@ func (m *pageMockClient) StateObject(_ context.Context, oid string, _ int64) ([]
 }
 
 func (m *pageMockClient) StateType(_ context.Context, tid string, _ int64) ([]byte, error) {
+	if m.typPanic {
+		panic("statetype fetch boom")
+	}
 	if m.typErr != nil {
 		return nil, m.typErr
 	}
@@ -270,39 +286,6 @@ func TestServePageEmbedsDocIndex(t *testing.T) {
 	}
 }
 
-func TestServePagePreviewsResolved(t *testing.T) {
-	// Three top-level refs with canned object bodies. ResolvePreviews must
-	// fan out and inline at least three of them (well under the 15 cap).
-	oid1 := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1"
-	oid2 := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
-	oid3 := "cccccccccccccccccccccccccccccccccccccccc:3"
-	pkg := fmt.Sprintf(`{
-	  "names": ["R1", "R2", "R3"],
-	  "values": [
-	    {"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo.T"}, "V": {"@type": "/gno.RefValue", "ObjectID": %q}},
-	    {"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo.T"}, "V": {"@type": "/gno.RefValue", "ObjectID": %q}},
-	    {"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo.T"}, "V": {"@type": "/gno.RefValue", "ObjectID": %q}}
-	  ]
-	}`, oid1, oid2, oid3)
-
-	client := &pageMockClient{
-		pkgBytes: []byte(pkg),
-		objBytes: map[string][]byte{
-			oid1: previewStructBody(oid1, 1, 2),
-			oid2: previewStructBody(oid2, 3, 4),
-			oid3: previewStructBody(oid3, 5, 6),
-		},
-	}
-	h := newPageHandler(client)
-	rec := servePageReq(t, h, url.Values{}, "/r/demo")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if got := atomic.LoadInt32(&client.objCalls); got < 3 {
-		t.Errorf("objCalls = %d, want ≥ 3 (preview resolve), body=%s", got, head(rec.Body.String(), 400))
-	}
-}
-
 func TestServePageNoCookieVary(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
 	h := newPageHandler(client)
@@ -313,13 +296,14 @@ func TestServePageNoCookieVary(t *testing.T) {
 	}
 }
 
-func TestServePageRawJSONEmbedded(t *testing.T) {
-	// DecodePackage must succeed for the body to reach the Copy package
-	// JSON hidden pre; the marker string round-trips through RawJSON.
+// Pin the contract that the SSR response does NOT inline the raw
+// qpkg_json payload — that would amplify every page-view by the full
+// chain payload size for a copy button most viewers never click.
+func TestServePageDoesNotInlineRawJSON(t *testing.T) {
 	raw := []byte(`{
 	  "names": ["v"],
 	  "values": [
-	    {"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "marker"}}
+	    {"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "rawjson-canary"}}
 	  ]
 	}`)
 	h := newPageHandler(&pageMockClient{pkgBytes: raw})
@@ -328,11 +312,8 @@ func TestServePageRawJSONEmbedded(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, head(rec.Body.String(), 400))
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `data-copy-target="state-raw-json"`) {
-		t.Errorf("body missing data-copy-target=state-raw-json (hidden RawJSON pre)\n%s", head(body, 1200))
-	}
-	if !strings.Contains(body, "marker") {
-		t.Errorf("body missing decoded marker string\n%s", head(body, 800))
+	if strings.Contains(body, `data-copy-target="state-raw-json"`) {
+		t.Errorf("body must NOT contain state-raw-json copy target (RawJSON inlining was dropped)\n%s", head(body, 1200))
 	}
 }
 
@@ -360,5 +341,77 @@ func TestServePageObjectSetsNoindex(t *testing.T) {
 	rec := servePageReq(t, h, url.Values{"oid": {validOID}}, "/r/demo")
 	if got := rec.Header().Get("X-Robots-Tag"); got != "noindex, nofollow" {
 		t.Errorf("X-Robots-Tag = %q on ?state&oid= page; want noindex, nofollow", got)
+	}
+}
+
+// errgroup does not recover panics and net/http only recovers the
+// connection goroutine — so a panic from amino decoding attacker-
+// controlled chain data inside a page-path fetch goroutine would crash
+// the whole process. Fatal fetches (StatePkg/StateObject) must surface
+// as a clean 500; non-fatal ones (Doc/StateType) must be swallowed so
+// the page still renders.
+func TestServePageRecoversFetchGoroutinePanics(t *testing.T) {
+	const validOID = "abcdef0123456789abcdef0123456789abcdef01:7"
+	const validTID = "1111111111111111111111111111111111111111"
+	for _, tc := range []struct {
+		name       string
+		client     *pageMockClient
+		query      url.Values
+		wantStatus int
+	}{
+		{
+			"StatePkg panic -> clean 500, not a process crash",
+			&pageMockClient{pkgPanic: true},
+			url.Values{},
+			http.StatusInternalServerError,
+		},
+		{
+			"Doc panic -> swallowed, package page still renders",
+			&pageMockClient{pkgBytes: []byte(pageFixturePkg), docPanic: true},
+			url.Values{},
+			http.StatusOK,
+		},
+		{
+			"StateObject panic -> clean 500, not a process crash",
+			&pageMockClient{objPanic: true},
+			url.Values{"oid": {validOID}},
+			http.StatusInternalServerError,
+		},
+		{
+			"StateType panic -> swallowed, object page still renders",
+			&pageMockClient{
+				objBytes: map[string][]byte{validOID: []byte(pageFixtureObj)},
+				typPanic: true,
+			},
+			url.Values{"oid": {validOID}, "tid": {validTID}},
+			http.StatusOK,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newPageHandler(tc.client)
+			rec := servePageReq(t, h, tc.query, "/r/demo")
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+		})
+	}
+}
+
+// Pretty view must NOT burst preview RPCs at render time; refs
+// hydrate via hx-trigger="revealed once" on viewport entry.
+func TestServePackagePageDefersPreviewsViaRevealedTrigger(t *testing.T) {
+	client := &pageMockClient{pkgBytes: refsPkgJSON(3)}
+	h := newPageHandler(client)
+	rec := servePageReq(t, h, url.Values{}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := atomic.LoadInt32(&client.objCalls); got != 0 {
+		t.Errorf("objCalls = %d, want 0 (no preview burst at render time)", got)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `hx-trigger="revealed once delay:200ms"`) {
+		t.Errorf("expected hx-trigger=\"revealed once delay:200ms\" in skeleton; missing from body head:\n%s",
+			head(body, 800))
 	}
 }

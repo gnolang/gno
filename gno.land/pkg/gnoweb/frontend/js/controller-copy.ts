@@ -93,6 +93,29 @@ export class CopyController extends BaseController {
 		await this._writeToClipboard(sanitizedText, icons);
 	}
 
+	// Fetch + copy. Used by buttons that need the source bytes lazily
+	// (e.g. the state explorer's "Copy package JSON" — server no longer
+	// inlines the raw payload in the page, so this fetches ?state&json
+	// on click). Same-origin only.
+	private async _fetchAndCopyToClipboard(
+		url: string,
+		icons: HTMLElement[],
+	): Promise<void> {
+		try {
+			const res = await fetch(url, { credentials: "same-origin" });
+			if (!res.ok) {
+				console.error(`Copy: fetch ${url} returned ${res.status}`);
+				this._showFeedback(icons);
+				return;
+			}
+			const text = await res.text();
+			await this._writeToClipboard(text, icons);
+		} catch (err) {
+			console.error("Copy: fetch failed.", err);
+			this._showFeedback(icons);
+		}
+	}
+
 	// DOM ACTIONS
 	// handle click event (DOM action)
 	public copy(event: Event): void {
@@ -117,6 +140,12 @@ export class CopyController extends BaseController {
 			}
 			const clean = this.hasValue("clean");
 			this._copyToClipboard(target, btnClickedIcons, clean);
+			return;
+		}
+
+		// Handle data-copy-fetch (lazy same-origin fetch of bytes).
+		if (this.getValue("fetch")) {
+			this._fetchAndCopyToClipboard(this.getValue("fetch"), btnClickedIcons);
 			return;
 		}
 

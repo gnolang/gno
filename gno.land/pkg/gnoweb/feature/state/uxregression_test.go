@@ -144,16 +144,29 @@ func TestUXPromisePerCardAnchorsStable(t *testing.T) {
 	}
 }
 
-// Promise: Copy package JSON button — the button must exist and carry
-// the relabeled text from ADR-004 §Consequences §Negative.
-func TestUXPromiseCopyPackageJSONButton(t *testing.T) {
+// Promise: Copy package JSON button exists and hits ?state&json via
+// async fetch (no inline RawJSON in the page body — that was the memory
+// amp vector). Wires data-copy-fetch-value (lazy) instead of the old
+// data-copy-remote-value (inline).
+func TestUXPromiseCopyPackageJSONAsyncButton(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
 	h := newPageHandler(client)
 	rec := servePageReq(t, h, url.Values{}, "/r/demo")
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "Copy package JSON") {
-		t.Errorf(`"Copy package JSON" button missing/relabeled differently`)
+		t.Errorf(`"Copy package JSON" button label missing`)
+	}
+	if !strings.Contains(body, `data-copy-fetch-value=`) {
+		t.Errorf("Copy button must wire async fetch via data-copy-fetch-value")
+	}
+	// The href encodes both ?state and ?json — actual encoding may vary,
+	// but state=& and json= must both be present in the URL.
+	if !strings.Contains(body, `$state`) || !strings.Contains(body, `json`) {
+		t.Errorf("Copy button URL must target ?state&json: body head=%s", head(body, 600))
+	}
+	if strings.Contains(body, `data-copy-remote-value="state-raw-json"`) {
+		t.Errorf("inline RawJSON copy target must NOT be present (memory amp vector)")
 	}
 }
 

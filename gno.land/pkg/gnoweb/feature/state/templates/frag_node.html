@@ -19,6 +19,11 @@
   {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
   {{ $depth := .Depth }}
+  {{/* OOB tag injection — populates the empty slot in the pretty
+       card header when the fetched FuncValue carries captures. Zero
+       extra RPC: the fragment fetch is already happening for the
+       lazy hydration; this is just markup. */}}
+  {{ if and (eq $n.Kind "closure") .OID }}<span id="{{ oidTagSlotID .OID }}" hx-swap-oob="true"><span class="b-tag">closure</span></span>{{ end }}
   <div class="b-state-frag b-state-frag-node">
     {{/* func/closure object: highlighted body first, then captures. */}}
     {{ if $n.SourceHTML }}

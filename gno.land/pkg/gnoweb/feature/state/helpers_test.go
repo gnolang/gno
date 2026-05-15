@@ -103,27 +103,6 @@ func TestStateSourceHref_UsesWebargsGrammar(t *testing.T) {
 	assert.NotContains(t, string(bare), "#L", "no line anchor when line is 0")
 }
 
-// TestCollectPreviewCandidates — top-level refs come first (BFS), and only
-// refs with ObjectID+Expandable and no inline children are picked up.
-func TestCollectPreviewCandidates(t *testing.T) {
-	t.Parallel()
-
-	nodes := []StateNode{
-		{Name: "topRef", ObjectID: "a:1", Expandable: true}, // candidate
-		{Name: "leaf", Value: "1"},                          // skipped: no ObjectID
-		{Name: "branch", Children: []StateNode{ // recurse
-			{Name: "nestedRef", ObjectID: "b:1", Expandable: true},                                     // candidate
-			{Name: "preFilled", ObjectID: "c:1", Expandable: true, Children: []StateNode{{Name: "x"}}}, // skipped: has children
-		}},
-	}
-	var out []*StateNode
-	collectPreviewCandidates(nodes, &out)
-	require.Len(t, out, 2, "only refs with ObjectID+Expandable+no children qualify")
-	// BFS: top-level wins over nested.
-	assert.Equal(t, "topRef", out[0].Name)
-	assert.Equal(t, "nestedRef", out[1].Name)
-}
-
 // TestAttachDocs_MatchByName covers the doc projection by Name against
 // the union of vals + funs + typs entries. Pin the contract so a future
 // refactor of the priority order (or a typo in the loop) fails here.

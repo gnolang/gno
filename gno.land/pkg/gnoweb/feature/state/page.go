@@ -33,22 +33,25 @@ func (h *Handler) servePage(ctx context.Context, w http.ResponseWriter, r *http.
 	return h.servePackagePage(ctx, w, u, height)
 }
 
-// servePackagePage handles `?state` — mirrors getStatePackageView semantics
-// against the ADR-004 slim path (DecodePackage + ResolvePreviews).
+// servePackagePage handles `?state` — fetches StatePkg + Doc in parallel
+// and renders the pretty/tree views. Previews stay lazy (hx-trigger=
+// revealed in the template) so the SSR path itself does 2 RPCs.
 func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL, height int64) (int, *components.View) {
 	var (
 		raw  []byte
 		jdoc *doc.JSONDocumentation
 	)
 	var g errgroup.Group
-	// StatePkg failure is fatal; Doc failure is logged and swallowed so a
-	// missing doc index never fails the whole page.
-	g.Go(func() error {
-		var err error
+	// Both fetches decode attacker-controlled chain data — recover so an
+	// amino panic surfaces as a clean 500 (StatePkg) or a doc-less page
+	// (Doc), never as a process crash.
+	g.Go(func() (err error) {
+		defer recoverToErr(h.deps.Logger, "statepkg", &err, "path", u.EncodeURL())
 		raw, err = h.deps.Client.StatePkg(ctx, u.Path, height)
 		return err
 	})
 	g.Go(func() error {
+		defer recoverFetcher(h.deps.Logger, "doc", "path", u.EncodeURL())
 		d, derr := h.deps.Client.Doc(ctx, u.Path, height)
 		if derr != nil {
 			h.deps.Logger.Warn("unable to fetch package docs", "error", derr, "path", u.EncodeURL())
@@ -77,9 +80,9 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		docIndex = marshalDocIndexJSON(vals, funs, typs, h.deps.Logger)
 	}
 
-	if _, perr := resolvePreviewsFor(ctx, h.deps.Logger, h.deps.Client, height, nodes); perr != nil {
-		h.deps.Logger.Debug("preview resolve returned error", "error", perr)
-	}
+	// Refs hydrate lazily via hx-trigger="revealed" (state/node-details
+	// in page.html) — SSR render is 2 RPCs; fragment requests pay the
+	// rest, one per ref scrolled into view.
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
 	EnrichLinks(nodes, u.Path, heightParam(height), viewMode)
 
@@ -92,7 +95,6 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		Height:       height,
 		HeightParam:  heightParam(height),
 		LatestHref:   template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
-		RawJSON:      string(raw),
 		DocIndexJSON: docIndex,
 		ViewMode:     viewMode,
 	}
@@ -112,15 +114,16 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 
 	var raw, typeRaw []byte
 	var g errgroup.Group
-	// StateObject failure is fatal; StateType failure is logged and
-	// swallowed so a missing type never fails the whole page.
-	g.Go(func() error {
-		var err error
+	// See servePackagePage: same panic-recover discipline. StateObject
+	// fatal → 500, StateType non-fatal → type-less render.
+	g.Go(func() (err error) {
+		defer recoverToErr(h.deps.Logger, "stateobject", &err, "path", u.EncodeURL(), "oid", oid)
 		raw, err = h.deps.Client.StateObject(ctx, oid, height)
 		return err
 	})
 	if tid != "" {
 		g.Go(func() error {
+			defer recoverFetcher(h.deps.Logger, "statetype", "path", u.EncodeURL(), "tid", tid)
 			tr, err := h.deps.Client.StateType(ctx, tid, height)
 			if err != nil {
 				h.deps.Logger.Warn("unable to fetch type for state object",
@@ -148,9 +151,7 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 
 	nodes := decoded.Nodes
 
-	if _, perr := resolvePreviewsFor(ctx, h.deps.Logger, h.deps.Client, height, nodes); perr != nil {
-		h.deps.Logger.Debug("preview resolve returned error", "error", perr)
-	}
+	// Refs hydrate lazily — see servePackagePage.
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
 	EnrichLinks(nodes, u.Path, heightParam(height), viewMode)
 
@@ -166,7 +167,6 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 		Height:       height,
 		HeightParam:  heightParam(height),
 		LatestHref:   template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
-		RawJSON:      string(raw),
 		DocIndexJSON: "{}",
 		ViewMode:     viewMode,
 	}
@@ -256,26 +256,4 @@ func marshalDocIndexJSON(vals, funs, typs []NamedDoc, logger *slog.Logger) templ
 		return template.JS("{}")
 	}
 	return template.JS(b) //nolint:gosec // JSON object intended for <script type="application/json"> embed
-}
-
-// previewAdapter adapts ClientAdapter to ObjectFetcher so ResolvePreviews
-// can fan out without holding a reference to the broader client surface.
-type previewAdapter struct {
-	client ClientAdapter
-	height int64
-}
-
-func (a *previewAdapter) FetchObject(ctx context.Context, oid string) ([]byte, error) {
-	return a.client.StateObject(ctx, oid, a.height)
-}
-
-func (a *previewAdapter) FetchType(ctx context.Context, tid string) ([]byte, error) {
-	return a.client.StateType(ctx, tid, a.height)
-}
-
-// resolvePreviewsFor wraps ResolvePreviews with a single previewAdapter
-// instance satisfying both ObjectFetcher and TypeFetcher.
-func resolvePreviewsFor(ctx context.Context, logger *slog.Logger, client ClientAdapter, height int64, nodes []StateNode) (int, error) {
-	a := &previewAdapter{client: client, height: height}
-	return ResolvePreviews(ctx, logger, a, a, nodes)
 }

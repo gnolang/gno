@@ -9,7 +9,15 @@ import (
 	"time"
 )
 
-// RateLimitConfig configures the per-IP token bucket. See ADR-004 §Decision §7.
+// RateLimitConfig configures the per-IP token bucket.
+//
+// Budget math under the lazy-preview model: each pretty-view page-load
+// debits 1 token for the SSR request + ~1 token per ref scrolled into
+// view (fragment GETs). A page with N above-fold refs consumes 1+N
+// tokens. With PerMinute=Burst=100 (default), a viewport-heavy page
+// can consume a third of the budget in one paint — acceptable for a
+// transitional defense-in-depth bucket. Primary HTTP rate-limit belongs
+// to nginx; this limiter is the fallback when gnoweb is deployed alone.
 //
 // Zero value is the "disabled" mode: NewIPLimiter returns nil and the
 // limiter check is a no-op, allowing Deps to default-zero without touching it.

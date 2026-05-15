@@ -163,6 +163,12 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-pretty {
 body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	display: block;
 }
+/* Tree view is its own first-class browser — kind tabs + search are
+   pretty-view affordances (per-card filtering by data-name). Same
+   CSS-only toggle pattern as the view-pretty/view-tree swap above. */
+body:has(#state-view-tree:checked) .b-page-subheader {
+	display: none;
+}
 
 /* ==========================================================================
    State explorer: htmx fragment loading + error + permalinks
@@ -1065,25 +1071,13 @@ body:has(#state-view-tree:checked) .b-state-explorer .view-tree {
 	}
 }
 
-.b-state-explorer .view-tree {
-	.tree-toolbar {
-		position: absolute;
-		top: var(--g-space-3);
-		right: var(--g-space-4);
-		display: flex;
-		gap: var(--g-space-3);
-		z-index: var(--g-z-1);
-		color: var(--s-color-text-tertiary);
-		font-size: var(--g-font-size-100);
-	}
-
-	.b-inline-btn[aria-pressed] .c-icon {
-		transition: transform var(--g-transition-fast);
-	}
-
-	.b-inline-btn[aria-pressed="true"] .c-icon {
-		transform: rotate(180deg);
-	}
+.b-state-explorer .view-tree .tree-toolbar {
+	position: absolute;
+	top: var(--g-space-3);
+	right: var(--g-space-4);
+	z-index: var(--g-z-1);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-100);
 }
 
 .b-page-subheader {
