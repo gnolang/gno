@@ -72,7 +72,7 @@ func AbortsWithMessage(t uassert.TestingT, msg string, f any, msgs ...string) {
 // Note: This relies on Gno's `revive` mechanism.
 func NotAborts(t uassert.TestingT, f any, msgs ...string) {
 	t.Helper()
-	if uassert.NotPanics(t, f, msgs...) {
+	if uassert.NotAborts(t, f, msgs...) {
 		return
 	}
 	t.FailNow()
