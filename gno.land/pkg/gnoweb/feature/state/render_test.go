@@ -90,12 +90,10 @@ func TestDecodePackageDepthBudget(t *testing.T) {
 	assert.LessOrEqual(t, got, 3)
 }
 
-// TestDecodeObjectFullTypedHonorsDepth is the C1 regression: the typed
-// fragment path (DecodeObjectFull with a &tid=) must honor the shallow
-// per-fragment depth budget exactly like the untyped path. Before the fix,
-// the typed path decoded at depth 0 against the full maxDecodeDepth (256),
-// so a deep struct under a valid tid recursed 256 levels — violating
-// ADR-004 §Resource bounds (≤3 per fragment).
+// The typed fragment path (DecodeObjectFull with a &tid=) must honor the
+// shallow per-fragment depth budget exactly like the untyped path. Without
+// this, a deep struct under a valid tid would recurse to maxDecodeDepth
+// (256), violating the per-fragment ≤3 bound.
 func TestDecodeObjectFullTypedHonorsDepth(t *testing.T) {
 	t.Parallel()
 
@@ -131,7 +129,7 @@ func TestDecodeObjectFullTypedHonorsDepth(t *testing.T) {
 	require.NotEmpty(t, decoded.Nodes)
 	got := depthOfFirstChild(decoded.Nodes[0], depth)
 	require.NotEqual(t, -1, got,
-		"typed fragment decode must truncate — C1: typed path bypassed the depth bound")
+		"typed fragment decode must truncate within the depth budget")
 	assert.LessOrEqual(t, got, DefaultFragmentRenderConfig().MaxDecodeDepth,
 		"typed decode must honor cfg.MaxDecodeDepth, not the full maxDecodeDepth")
 

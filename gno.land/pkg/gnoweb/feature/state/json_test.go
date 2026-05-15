@@ -216,8 +216,7 @@ func TestServeJSONCacheControlPinned(t *testing.T) {
 }
 
 func TestServeJSONNoIndexHeader(t *testing.T) {
-	// X-Robots-Tag must be set on success responses (per ADR-004 §URL
-	// contract) so per-height snapshots are not indexed as web pages.
+	// X-Robots-Tag on success keeps per-height snapshots out of search engines.
 	h := newJSONHandler(&mockJSONClient{pkgBytes: []byte(`{}`)})
 	rec := serveJSONReq(t, h, url.Values{})
 

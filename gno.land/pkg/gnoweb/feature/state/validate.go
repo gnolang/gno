@@ -8,7 +8,6 @@ import (
 	"unicode"
 )
 
-// Validation patterns per ADR-004 §2.
 var (
 	OIDPattern  = regexp.MustCompile(`^[A-Fa-f0-9]{40}:\d+$`)
 	FilePattern = regexp.MustCompile(`^[A-Za-z0-9_./-]+\.gno$`)
@@ -52,8 +51,7 @@ func ValidateFile(s string) error {
 	// FilePattern's char class accepts `.` and `/`, which composes into
 	// `..` and `/..` traversal segments. The RPC fetcher path-joins onto
 	// the pkgPath and cleans the result, so a traversal would resolve to
-	// a different on-chain package (cache pollution + ADR-004 §Threat
-	// model claim violation). Reject explicitly to keep the contract.
+	// a different on-chain package (cache pollution). Reject explicitly.
 	if s == ".." || strings.HasPrefix(s, "../") || strings.HasSuffix(s, "/..") ||
 		strings.Contains(s, "/../") || strings.HasPrefix(s, "/") {
 		return ErrInvalidFile
@@ -83,8 +81,7 @@ func ValidateLine(s string) (int, error) {
 
 // CanonicalViewMode normalizes the ?state&view=… query param. Returns
 // "pretty" (default) for empty or unknown input, "tree" for "tree".
-// URL-driven view-mode (ADR-004 §6 Option B) keeps the nginx cache key
-// URL-only and avoids the SSR cookie + Vary: Cookie split.
+// URL-driven so the nginx cache key stays URL-only (no Vary: Cookie split).
 func CanonicalViewMode(s string) string {
 	if s == "tree" {
 		return "tree"

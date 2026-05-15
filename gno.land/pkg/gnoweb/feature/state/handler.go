@@ -15,13 +15,10 @@ import (
 // own tighter fragmentTimeout (2 s) — see fragments.go.
 const pageTimeout = 10 * time.Second
 
-// Handle is the main entry for ?state* URLs. Return shape mirrors
-// the gnoweb wire-in expectation: a nil view means "body already written".
-//
-// The per-IP token-bucket runs first (ADR-004 §7 — load-bearing security
-// layer for the amplification fix). On reject, htmx clients see the
-// fragment-error pattern (HTTP 200 + visible body); non-htmx clients see
-// the standard 429 + Retry-After.
+// Handle is the main entry for ?state* URLs. A nil view return means
+// "body already written". The per-IP token-bucket runs first: on reject,
+// htmx clients see a fragment-error (HTTP 200 + visible body); non-htmx
+// clients get the standard 429 + Retry-After.
 func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Request, u *weburl.GnoURL) (int, *components.View) {
 	if h.limiter != nil {
 		ip := extractIP(r, h.deps.RateLimit.TrustedProxies)
@@ -58,5 +55,4 @@ func writeRateLimited(w http.ResponseWriter, r *http.Request) (int, *components.
 	return http.StatusTooManyRequests, nil
 }
 
-// serveFragment lives in fragments.go (ADR-004 §Decision §2).
-// servePage lives in page.go.
+// serveFragment lives in fragments.go; servePage lives in page.go.

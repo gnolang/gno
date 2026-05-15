@@ -210,8 +210,8 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 	color: var(--s-color-text-caution);
 }
 
-/* ADR-004 §8 doc-index hydration slot — hidden until controller-state.ts
-   populates it from #state-doc-index. */
+/* Doc-index hydration slot — hidden until controller-state.ts populates
+   it from #state-doc-index. */
 .b-state-doc:empty {
 	display: none;
 }
@@ -1142,18 +1142,21 @@ body:has(#state-view-tree:checked) .b-page-subheader {
    matches one flat attribute, not stacked :not() chains. Targets
    pretty-view cards AND tree-view top-level rows/<details> (both
    carry data-kind-group) so the filter applies in either view. */
+body:has(#kf-state:checked) .b-state-decl:not([data-kind-group="state"]),
+body:has(#kf-code:checked) .b-state-decl:not([data-kind-group="code"]),
+body:has(#kf-types:checked) .b-state-decl:not([data-kind-group="types"]),
 body:has(#kf-state:checked)
-	.b-state-decl:not([data-kind-group="state"]),
+	.view-tree
+	> .tree
+	> [data-kind-group]:not([data-kind-group="state"]),
 body:has(#kf-code:checked)
-	.b-state-decl:not([data-kind-group="code"]),
+	.view-tree
+	> .tree
+	> [data-kind-group]:not([data-kind-group="code"]),
 body:has(#kf-types:checked)
-	.b-state-decl:not([data-kind-group="types"]),
-body:has(#kf-state:checked)
-	.view-tree > .tree > [data-kind-group]:not([data-kind-group="state"]),
-body:has(#kf-code:checked)
-	.view-tree > .tree > [data-kind-group]:not([data-kind-group="code"]),
-body:has(#kf-types:checked)
-	.view-tree > .tree > [data-kind-group]:not([data-kind-group="types"]) {
+	.view-tree
+	> .tree
+	> [data-kind-group]:not([data-kind-group="types"]) {
 	display: none;
 }
 
@@ -1162,8 +1165,7 @@ body:has(#kf-types:checked)
    filters: not `.u-hidden` (search JS) AND matching the active
    kind-group. One variant per kind-filter radio so a search + kind
    filter that jointly hide everything still surfaces the message. */
-body:has(#kf-all:checked)
-	.view-pretty
+body:has(#kf-all:checked) .view-pretty
 	> .c-stack:not(:has(> .b-state-decl:not(.u-hidden)))::before,
 body:has(#kf-state:checked)
 	.view-pretty

@@ -19,7 +19,7 @@ import (
 // servePage renders the full HTML page for `?state` and `?state&oid=…`.
 // Returns (http.StatusOK, nil) on success after writing the body directly;
 // on error returns the mapped status plus a renderable status view so the
-// gnoweb wire-in (Phase 9) can present it through its standard chrome.
+// gnoweb wire-in can present it through its standard chrome.
 func (h *Handler) servePage(ctx context.Context, w http.ResponseWriter, r *http.Request, u *weburl.GnoURL) (int, *components.View) {
 	height := u.Height()
 

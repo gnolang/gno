@@ -7,24 +7,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
-// RenderConfig holds the per-call decode bounds the slim ADR-004 path
-// applies to one object's Amino payload. Distinct from walker.go's
-// package-wide constants because fragments use a shallow depth budget
-// (≤3) while the legacy full-page path stays at the original 256.
+// RenderConfig bounds one Amino decode. Fragments use a shallow depth (≤3);
+// the full-page path keeps walker.go's 256 for legacy parity.
 type RenderConfig struct {
-	// MaxChildrenPerNode caps the visible children of any collection
-	// node — surplus collapses to one KindTruncated sentinel. Mirrors
-	// walker.go's package-wide bound; exposed here so fragment-mode
-	// callers can tighten it if needed.
+	// MaxChildrenPerNode caps visible children; surplus collapses to one
+	// KindTruncated sentinel.
 	MaxChildrenPerNode int
 	// MaxDecodeDepth bounds recursion depth for this single decode.
-	// ADR-004 §Resource bounds: ≤3 for fragment-mode rendering, 256
-	// for full-page legacy parity.
 	MaxDecodeDepth int
 }
 
-// DefaultFragmentRenderConfig is the slim per-fragment budget from
-// ADR-004 §Resource bounds.
+// DefaultFragmentRenderConfig is the slim per-fragment budget (depth ≤3).
 func DefaultFragmentRenderConfig() RenderConfig {
 	return RenderConfig{
 		MaxChildrenPerNode: maxChildrenPerNode,
@@ -50,9 +43,7 @@ func startDepthFor(cfg RenderConfig) int {
 
 // DecodeObject decodes one qobject_json payload into a root StateNode
 // whose Children are the decoded fields/elements, bounded by cfg.
-// Refs surface as KindRef nodes; ExportRefValue cycle markers render as
-// KindCycle (the gnovm exporter's per-export scope is what bounds
-// cycles — ADR-004 §Consequences §Negative).
+// Refs surface as KindRef; ExportRefValue cycle markers as KindCycle.
 func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (StateNode, error) {
 	if err := ctx.Err(); err != nil {
 		return StateNode{}, err

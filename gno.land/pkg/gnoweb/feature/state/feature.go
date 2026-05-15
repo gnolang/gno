@@ -24,20 +24,17 @@ type ClientAdapter interface {
 }
 
 // Deps is a struct of interfaces so each field is independently mockable.
-// See ADR-004 §1 (Deps shape).
 type Deps struct {
 	Client      ClientAdapter
 	Highlighter components.SnippetHighlighter
 	// FileFetcher reads one source file by (pkgPath, fileName). Optional:
 	// when nil, frag=source returns a fragment-error pointing at the
-	// permanent ?source link. The gnoweb wire-in wraps the chain client
-	// + height into a components.FileFetcher per-request because the
-	// state.ClientAdapter local interface cannot carry the gnoweb-side
-	// FileMeta return without an import cycle.
+	// permanent ?source link. Wrapped per-request because the local
+	// ClientAdapter cannot carry FileMeta without an import cycle.
 	FileFetcher components.FileFetcher
 	Logger      *slog.Logger
-	// RateLimit configures the per-IP token bucket (ADR-004 §7).
-	// Zero value disables it; the limiter check in Handle becomes a no-op.
+	// RateLimit configures the per-IP token bucket. Zero value disables it;
+	// the limiter check in Handle becomes a no-op.
 	RateLimit RateLimitConfig
 }
 

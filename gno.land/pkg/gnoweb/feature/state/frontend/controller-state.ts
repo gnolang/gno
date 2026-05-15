@@ -69,9 +69,9 @@ export class StateController extends BaseController {
 			?.scrollIntoView({ behavior: "smooth", block: "start" });
 	};
 
-	// ADR-004 §8: doc-index island. Server inlines a `{name: doc}` JSON
-	// blob keyed by top-level decl name. Parsed once at connect; the
-	// projection runs again per htmx swap to hydrate lazy-loaded fragments.
+	// Doc-index island: server inlines a `{name: doc}` JSON blob keyed by
+	// top-level decl name. Parsed once at connect; the projection runs
+	// again per htmx swap to hydrate lazy-loaded fragments.
 	private loadDocIndex(): void {
 		try {
 			const el = document.getElementById("state-doc-index");
@@ -122,7 +122,7 @@ export class StateController extends BaseController {
 		} catch {}
 	}
 
-	// URL-driven view-mode (ADR-004 §6). CSS toggles via
+	// URL-driven view-mode. CSS toggles via
 	// `body:has(#state-view-tree:checked)` — the radio drives the swap.
 	public updateView(event: Event): void {
 		const t = event.target;

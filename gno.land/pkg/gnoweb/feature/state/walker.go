@@ -233,9 +233,8 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 	if depth >= maxDecodeDepth {
 		// At the depth bound, a stored RefValue still becomes an
 		// expandable ref node — the user drills further via a fresh,
-		// rate-limited frag=node GET (ADR-004 §2). Only inline values
-		// with no OID to fetch fall back to the dead "(too deep)"
-		// sentinel.
+		// rate-limited frag=node GET. Only inline values with no OID
+		// to fetch fall back to the dead "(too deep)" sentinel.
 		if rv, ok := tv.V.(gno.RefValue); ok && rv.PkgPath == "" && !rv.ObjectID.IsZero() {
 			t := "(stored)"
 			if tv.T != nil {

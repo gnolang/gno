@@ -140,7 +140,7 @@ func TestAttachDocs_EmptyDocsSkipped(t *testing.T) {
 }
 
 // TestRecoverFetcher_LogsClippedPanic — a hostile chain returning an enormous
-// panic payload must not blow up the log line itself (ADR-004 §amplification).
+// panic payload must not blow up the log line itself.
 func TestRecoverFetcher_LogsClippedPanic(t *testing.T) {
 	t.Parallel()
 

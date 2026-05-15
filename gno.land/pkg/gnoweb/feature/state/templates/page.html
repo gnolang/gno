@@ -1,19 +1,17 @@
-{{/* State explorer page — ADR-004 hybrid SSR + htmx fragments.
-     Inputs: feature/state.StateData. */}}
+{{/* State explorer page — hybrid SSR + htmx fragments.
+     Input: feature/state.StateData. */}}
 
 {{ define "renderPage" }}
 <div class="b-state-page" data-controller="state" data-state-pkg-value="{{ .PkgPath }}">
 
-{{/* Scoped htmx config — only state-explorer pages load htmx (the
-     library itself is bundled into controller-state.js by esbuild, so
-     it loads automatically with that controller, kept off other pages).
-     Forced flags per ADR-004 §3 (htmx hardening). Note:
+{{/* Scoped htmx config — only state-explorer pages load htmx (bundled
+     into controller-state.js by esbuild). Hardening flags pinned;
      useTemplateFragments was removed in htmx 2.x. */}}
 <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"includeIndicatorStyles":false,"defaultSwapStyle":"innerHTML","historyCacheSize":0}'>
 
-{{/* Doc index island — ADR-004 §8. Read by controller-state.ts on
-     htmx:afterSwap to project doc-comments onto newly-inserted nodes.
-     Safe: .DocIndexJSON is template.JS (pre-marshaled, server-trusted). */}}
+{{/* Doc index island — read by controller-state.ts on htmx:afterSwap
+     to project doc-comments onto newly-inserted nodes. .DocIndexJSON
+     is template.JS (pre-marshaled, server-trusted). */}}
 <script type="application/json" id="state-doc-index">{{ if .DocIndexJSON }}{{ .DocIndexJSON }}{{ else }}{}{{ end }}</script>
 
 {{ if .Sidebar }}
@@ -214,10 +212,9 @@
 
 {{ define "state/kind-glyph" }}<span class="kind-glyph" aria-hidden="true">{{ template "state/kind-icon" . }}</span>{{ end }}
 
-{{/* Per-decl card. Adds an htmx-expandable details for objects so deep
-     graphs lazy-load (ADR-004 §Decision §2). Every hx-get includes
-     &height= when HeightParam is set, and carries a sibling permanent
-     link for no-JS / SEO / share. */}}
+{{/* Per-decl card. Adds htmx-expandable details for objects so deep
+     graphs lazy-load. Every hx-get includes &height= when HeightParam
+     is set, and carries a sibling permanent link for no-JS / SEO. */}}
 {{ define "state/decl" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
@@ -351,7 +348,7 @@
       {{ if $n.Children }}
         {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" 0 "Heading" (headingForKind $n.Kind) "HeightParam" $hp) }}
       {{ else if and $n.ObjectID $n.Expandable (not $n.Source) }}
-        {{/* No children pre-loaded → htmx-fetched on user open. ADR-004 §2.
+        {{/* No children pre-loaded → htmx-fetched on user open.
              `not $n.Source` — a node carrying a Source is a func/closure
              already handled by state/source-details above; without this
              guard a preview-promoted func renders BOTH expanders. */}}

@@ -13,9 +13,9 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
-// fragmentTimeout is the per-fragment deadline per ADR-004 §Resource bounds.
-// Derived from the request ctx so an upstream deadline (HTTP server timeout)
-// still wins; this is the upper bound a fragment can spend, not the floor.
+// fragmentTimeout is the per-fragment deadline. Derived from the request
+// ctx so an upstream deadline still wins — this is the upper bound, not
+// the floor.
 const fragmentTimeout = 2 * time.Second
 
 // fragSourceContextLines is the symmetrical window of lines rendered around
@@ -29,11 +29,10 @@ const fragSourceContextLines = 10
 // plenty — anything larger is absurd visual indent, not a real tree.
 const maxFragmentDepth = 10
 
-// serveFragment dispatches the fragment endpoints under one per-request
-// 2 s timeout derived from the request context. Unknown `frag` values
-// surface as fragment-errors (HTTP 200 + error body) so htmx swaps a
-// visible message instead of silently dropping the response — see
-// ADR-004 §Decision §2 fragment-error pattern.
+// serveFragment dispatches fragment endpoints under one per-request 2s
+// timeout. Unknown `frag` values surface as fragment-errors (HTTP 200 +
+// error body) so htmx swaps a visible message instead of silently dropping
+// the response.
 func (h *Handler) serveFragment(ctx context.Context, w http.ResponseWriter, _ *http.Request, u *weburl.GnoURL) (int, *components.View) {
 	fragCtx, cancel := context.WithTimeout(ctx, fragmentTimeout)
 	defer cancel()
@@ -92,8 +91,8 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 		}
 	}
 	if !typed {
-		// Depth ≤3 per ADR-004 §Resource bounds; deeper exploration requires
-		// the user to expand a nested node (new fragment GET).
+		// Depth ≤3; deeper exploration requires the user to expand a nested
+		// node (new fragment GET).
 		root, err = DecodeObject(ctx, raw, DefaultFragmentRenderConfig())
 		if err != nil {
 			h.deps.Logger.Error("frag=node decode failed", "oid", oid, "err", err)
@@ -256,9 +255,8 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 }
 
 // writeFragError emits an HTTP-200 error fragment so htmx swaps a visible
-// message instead of silently dropping a 4xx/5xx (ADR-004 §Decision §2).
-// The Cache-Control: no-store header prevents nginx from caching transient
-// failures.
+// message instead of silently dropping a 4xx/5xx. Cache-Control: no-store
+// prevents nginx from caching transient failures.
 func writeFragError(w http.ResponseWriter, message string, retryHints ...string) (int, *components.View) {
 	var hint string
 	if len(retryHints) > 0 {

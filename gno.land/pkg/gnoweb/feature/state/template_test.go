@@ -208,7 +208,7 @@ func TestFragSourceRenders(t *testing.T) {
 	for _, m := range []string{
 		"main.gno:12",
 		`<pre class="chroma">func Hi() {}</pre>`,
-		// H7: permalink uses the routable $webargs grammar with the pkg path.
+		// permalink uses the routable $webargs grammar with the pkg path.
 		`/r/test$`,
 		`file=main.gno`,
 		`source`,
@@ -225,8 +225,7 @@ func TestFragSourceRenders(t *testing.T) {
 	}
 }
 
-// ADR-004 §Decision §2 stale-while-revalidate invariant: every hx-get
-// URL inherits HeightParam.
+// Stale-while-revalidate invariant: every hx-get URL inherits HeightParam.
 func TestHeightStampedIntoHxGet(t *testing.T) {
 	data := StateData{
 		PkgPath:     "/r/test",
@@ -256,10 +255,9 @@ func TestHeightStampedIntoHxGet(t *testing.T) {
 	}
 }
 
-// ADR-004 §Decision §2: every htmx-driven row has a no-JS fallback. In
-// tree view + source-details that's the sibling b-state-permalink; in
-// pretty view, state/node-details intentionally carries none — the
-// enclosing card's Open/Inspect CTA is the fallback. Heuristic:
+// Every htmx-driven row must have a no-JS fallback. Tree view +
+// source-details use the sibling b-state-permalink; pretty view falls
+// back to the enclosing card's Open/Inspect CTA. Heuristic:
 // permalink + card-CTA count ≥ hx-get count.
 func TestPermanentLinkPresentForEveryHxGet(t *testing.T) {
 	data := StateData{

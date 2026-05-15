@@ -33,15 +33,14 @@ type StateData struct {
 	KindCounts KindCounts
 
 	// DocIndexJSON is the pre-marshaled qdoc projection over top-level
-	// decls. Embedded inline so the client-side controller projects
-	// doc-comments onto htmx-loaded fragments without an extra RPC
-	// (ADR-004 §Decision §8).
+	// decls, embedded inline so the client-side controller can project
+	// doc-comments onto htmx-loaded fragments without an extra RPC.
 	DocIndexJSON template.JS
 
 	// HeightParam is the resolved decimal height stamped into every
 	// fragment hx-get URL so fragments inherit the parent page's
-	// concrete height during nginx stale-while-revalidate windows
-	// (ADR-004 §Decision §2). Empty for unstamped "latest".
+	// concrete height during nginx stale-while-revalidate windows.
+	// Empty for unstamped "latest".
 	HeightParam string
 }
 
@@ -109,7 +108,7 @@ type StateCrumb struct {
 	Href  template.URL
 }
 
-// ===== ADR-004 §Files: htmx-fragment render payloads =====
+// ===== htmx-fragment render payloads =====
 
 // FragNodeData renders one node's content as a chrome-less HTML
 // fragment via the shared state/nodes renderer. PkgPath + ViewMode keep
@@ -140,7 +139,7 @@ type FragSourceData struct {
 }
 
 // FragErrorData feeds fragError. Always returned with HTTP 200 so htmx
-// swaps the body (ADR-004 §Decision §2 fragment-error pattern).
+// swaps the body instead of silently dropping a 4xx/5xx.
 type FragErrorData struct {
 	Message   string
 	RetryHint string

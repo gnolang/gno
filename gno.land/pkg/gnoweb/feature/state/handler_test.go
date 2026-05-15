@@ -116,10 +116,9 @@ func TestHandleEndToEndFragmentFromTemplateURL(t *testing.T) {
 	}
 }
 
-// TestHandleEnforcesRateLimit pins ADR-004 §7: the limiter is the
-// load-bearing security layer that makes the amplification fix complete.
-// Calling Handle from one IP past the burst must return 429 (plain) or
-// HTTP 200 + fragment-error (htmx) — never silently pass through.
+// The per-IP rate limiter is the load-bearing security layer that bounds
+// RPC fan-out. Calling Handle from one IP past the burst must return 429
+// (plain) or HTTP 200 + fragment-error (htmx) — never silently pass through.
 func TestHandleEnforcesRateLimit(t *testing.T) {
 	now := time.Unix(0, 0)
 	h := New(Deps{

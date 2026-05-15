@@ -292,7 +292,7 @@ func TestServePageNoCookieVary(t *testing.T) {
 	rec := servePageReq(t, h, url.Values{}, "/r/demo")
 
 	if v := rec.Header().Get("Vary"); strings.Contains(strings.ToLower(v), "cookie") {
-		t.Errorf("Vary header unexpectedly contains Cookie: %q (ADR-004 dropped the cookie)", v)
+		t.Errorf("Vary header unexpectedly contains Cookie: %q", v)
 	}
 }
 
@@ -327,7 +327,7 @@ func TestServePageSetsHTMLHeaders(t *testing.T) {
 	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Errorf("X-Content-Type-Options = %q, want nosniff", got)
 	}
-	// ADR-004 §URL contract: canonical ?state is indexable — no X-Robots-Tag.
+	// Canonical ?state is indexable — no X-Robots-Tag.
 	if got := rec.Header().Get("X-Robots-Tag"); got != "" {
 		t.Errorf("X-Robots-Tag = %q on canonical ?state page; want empty (indexable)", got)
 	}

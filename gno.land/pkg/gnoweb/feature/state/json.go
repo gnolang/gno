@@ -15,13 +15,10 @@ import (
 //
 // Bytes flow through unmodified: no decoder, no walker, no fan-out, so none
 // of the per-render bounds apply. Validation happens before any RPC so a
-// malformed oid/tid never reaches the chain. Per ADR-004 §URL contract this
-// API surface is unchanged from ADR-003.
+// malformed oid/tid never reaches the chain.
 //
-// The (status, view) return is kept for signature parity with the rest of
-// Handler — JSON endpoints write directly to w and always return a nil view.
-// Phase 9 wire-in interprets a nil view as "body already written, status
-// already set".
+// JSON endpoints write directly to w and always return a nil view; the
+// wire-in interprets a nil view as "body already written, status set".
 func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, u *weburl.GnoURL) (int, *components.View) {
 	height := u.Height()
 
@@ -57,8 +54,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// Per ADR-004 §URL contract: this is a machine-readable API surface; we
-	// don't want search engines indexing per-height snapshots as web pages.
+	// Machine-readable surface; don't index per-height snapshots as web pages.
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	// Pinned `?height=N` is immutable once the block is finalized; "latest"
 	// gets a 1s freshness window matching the ~3s block time. Sets the

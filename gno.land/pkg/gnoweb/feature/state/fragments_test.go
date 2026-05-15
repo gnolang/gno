@@ -20,13 +20,12 @@ import (
 )
 
 // fragMockClient is a configurable ClientAdapter for fragment-handler tests.
-// Distinct from json_test.go's mockJSONClient so per-method behavior — delays,
-// canned bodies — can be tuned independently. The struct also captures
-// per-method call counts so amplification regressions are observable.
+// Distinct from mockJSONClient so per-method behavior (delays, canned bodies)
+// can be tuned independently. Captures per-method call counts so RPC fan-out
+// regressions are observable.
 //
 // StateObject lookup tries objBodies[oid] first (per-OID dispatch for tests
-// that exercise preview resolution), then falls back to objBytes (single
-// canned payload for simple tests).
+// that exercise preview resolution), then falls back to objBytes.
 type fragMockClient struct {
 	pkgBytes []byte
 	pkgErr   error
@@ -161,7 +160,7 @@ func TestFragErrorReturnsHTTP200WithBody(t *testing.T) {
 	status, view := writeFragError(rec, "boom", "retry hint")
 
 	assert.Equal(t, http.StatusOK, status,
-		"fragment errors return HTTP 200 so htmx swaps the body (ADR-004 §Decision §2)")
+		"fragment errors return HTTP 200 so htmx swaps the body")
 	assert.Nil(t, view, "writeFragError writes directly to w; view is always nil")
 	assert.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
@@ -200,7 +199,7 @@ func TestFragNodeHappyPath(t *testing.T) {
 		"Content-Type = %q, want text/html...", ct)
 	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
 	assert.Equal(t, "noindex, nofollow", rec.Header().Get("X-Robots-Tag"),
-		"fragment URLs must carry X-Robots-Tag per ADR-004 §URL contract")
+		"fragment URLs must carry X-Robots-Tag")
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "b-state-frag-node", "must render the fragNode template")
@@ -381,8 +380,8 @@ func fragClosureBody(oid string) []byte {
 
 // Regression: expanding a func/closure via frag=node must show the actual
 // function body — the handler promotes the decoded FuncValue to the root
-// and fetches+highlights its Source span. Without this the fragment was a
-// useless "(function): func()" row (the original PR gap).
+// and fetches+highlights its Source span; otherwise the fragment is a
+// useless "(function): func()" row.
 func TestFragNodeRendersFuncSource(t *testing.T) {
 	client := &fragMockClient{objBytes: fragFuncBody(fragOID)}
 	ff := &fragFileFetcher{body: []byte("line1\nfunc Render() {}\nbody\nlast\n")}
@@ -526,7 +525,7 @@ func TestFragNodeDepthCap(t *testing.T) {
 		cur = cur.Children[0]
 	}
 	assert.True(t, hitSentinel,
-		"frag=node must use DefaultFragmentRenderConfig (depth=3) per ADR-004 §Resource bounds")
+		"frag=node must use DefaultFragmentRenderConfig (depth=3)")
 
 	// End-to-end smoke: the handler must still succeed on the deep fixture
 	// (no panic, no error status).
@@ -628,7 +627,7 @@ func TestFragSourceRejectsInvalidFile(t *testing.T) {
 	assert.NotContains(t, body, "ignored", "the fetcher must never be called")
 }
 
-// H7: the "See in code" permalink must use the routable $source webargs
+// The "See in code" permalink must use the routable $source webargs
 // grammar with the full pkg path — not the dead relative ?source form.
 func TestFragSourcePermalinkUsesWebargsGrammar(t *testing.T) {
 	src := []byte("line1\nline2\nline3\nline4\n")
@@ -651,9 +650,9 @@ func TestFragSourcePermalinkUsesWebargsGrammar(t *testing.T) {
 	assert.Contains(t, body, "#L2", "permalink must anchor at the target line")
 }
 
-// M4: a func/closure expanded via frag=node whose source file exceeds
-// MaxFragmentFileSize must skip highlighting (no huge slice) and fall back
-// to the lazy <details>/permalink — the handler must not crash.
+// A func/closure expanded via frag=node whose source file exceeds
+// MaxFragmentFileSize must skip highlighting and fall back to the lazy
+// <details>/permalink — the handler must not crash.
 func TestFragNodeFuncSourceOversizeFallsBack(t *testing.T) {
 	client := &fragMockClient{objBytes: fragFuncBody(fragOID)}
 	big := make([]byte, MaxFragmentFileSize+1)
@@ -675,7 +674,7 @@ func TestFragNodeFuncSourceOversizeFallsBack(t *testing.T) {
 		"oversize func source falls back to the lazy <details>/permalink, not an inline slice")
 }
 
-// M8: the attacker-controlled depth param drives only a presentational
+// The attacker-controlled depth param drives only a presentational
 // --depth step-in; an absurd value must be clamped to maxFragmentDepth.
 // view=tree because --depth is tree-view markup.
 func TestFragNodeDepthClamped(t *testing.T) {

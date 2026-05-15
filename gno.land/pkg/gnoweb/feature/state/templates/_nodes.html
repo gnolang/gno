@@ -22,7 +22,7 @@
      ObjectID get an htmx hx-get + sibling permalink so the tree-view
      also benefits from lazy expansion. data-name + an empty
      data-doc-slot let controller-state.ts project doc-comments from the
-     #state-doc-index island (ADR-004 §8). */}}
+     #state-doc-index island. */}}
 {{ define "state/node" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
@@ -40,9 +40,9 @@
 
   {{ if eq $shape "ref" }}
     {{/* Ref leaf — htmx-lazy <details>. The ↗ permalink sits inside
-         <summary> (ADR-004 §2): clicking it navigates (it's interactive
-         content, so it doesn't toggle the parent); clicking elsewhere
-         in the summary toggles + fires the hx-get. */}}
+         <summary>: clicking it navigates (it's interactive content,
+         so it doesn't toggle the parent); clicking elsewhere in the
+         summary toggles + fires the hx-get. */}}
     <details class="b-state-lazy" data-name="{{ $n.Name }}"{{ if $top }} data-kind-group="{{ kindGroup $n.Kind }}"{{ end }}{{ if and $top $id }} id="{{ $id }}-tree"{{ end }} data-tree-key="{{ $n.ObjectID }}"
              hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp $depth $vm }}"
              hx-trigger="toggle once"

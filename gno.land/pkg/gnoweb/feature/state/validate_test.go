@@ -55,9 +55,9 @@ func TestValidateFile(t *testing.T) {
 		}
 	}
 	// Path-traversal hardening: regex's char-class allows `.` + `/` which
-	// composes into `..` and `/../` — ADR-004 §Threat model promises
-	// path-traversal protection at handler entry, so each variant must be
-	// rejected. Adding `.gno` suffix proves the regex alone is insufficient.
+	// composes into `..` and `/../`; each variant must be rejected at
+	// handler entry. Adding `.gno` suffix proves the regex alone is
+	// insufficient.
 	bad := []string{
 		"../etc/passwd",
 		"../other.gno",

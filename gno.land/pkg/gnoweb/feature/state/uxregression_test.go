@@ -12,8 +12,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
-// Each TestUXPromise* test pins one promise from PR #5649's body so a
-// future refactor cannot silently break the documented UX contract.
+// Each TestUXPromise* test pins one UX contract so a future refactor
+// cannot silently break it.
 
 // Promise: Bookmarkable URLs — `?state&oid=X&tid=Y` round-trips. The
 // page-render must accept &oid and &tid together and the resulting body
@@ -36,7 +36,7 @@ func TestUXPromiseBookmarkableObjectURL(t *testing.T) {
 	if !strings.Contains(body, "Object ") {
 		t.Errorf("object page must surface Object label; body=%q", head(body, 400))
 	}
-	// X-Robots-Tag: object pages are not crawled (ADR-004 §URL contract)
+	// X-Robots-Tag: object pages are not crawled.
 	if got := rec.Header().Get("X-Robots-Tag"); got != "noindex, nofollow" {
 		t.Errorf("X-Robots-Tag = %q, want noindex,nofollow for object pages", got)
 	}
@@ -64,9 +64,7 @@ func TestUXPromiseTimeTravelLatestLink(t *testing.T) {
 
 // Promise: doc comments inline (top-level + doc-index embedded for
 // fragments). The script island MUST be present and contain the doc
-// data so fragments can hydrate doc-comments client-side. This pins
-// the §8 contract even though the controller-state.ts hydration is
-// currently not implemented (flagged MAJOR in the review report).
+// data so fragments can hydrate doc-comments client-side.
 func TestUXPromiseDocIndexIslandPresent(t *testing.T) {
 	client := &pageMockClient{
 		pkgBytes: []byte(pageFixturePkg),
@@ -170,11 +168,10 @@ func TestUXPromiseCopyPackageJSONAsyncButton(t *testing.T) {
 	}
 }
 
-// Promise: htmx config hardening flags reach the rendered <meta>. ADR-
-// 004 §3 specifies allowEval=false, allowScriptTags=false,
-// selfRequestsOnly=true, includeIndicatorStyles=false, historyCacheSize=0
-// and explicitly says useTemplateFragments must NOT be set (removed in
-// htmx 2.x).
+// Promise: htmx config hardening flags reach the rendered <meta>:
+// allowEval=false, allowScriptTags=false, selfRequestsOnly=true,
+// includeIndicatorStyles=false, historyCacheSize=0; useTemplateFragments
+// must NOT be set (removed in htmx 2.x).
 func TestUXPromiseHtmxConfigHardening(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
 	h := newPageHandler(client)
@@ -220,8 +217,8 @@ func TestUXPromiseFragmentsDoNotChangeBreadcrumb(t *testing.T) {
 	}
 }
 
-// Promise: JSON API endpoints stable (ADR-003 surface unchanged). The
-// envelope, headers, and status codes must match ADR-003 baseline.
+// Promise: JSON API surface unchanged from ADR-003 — envelope, headers,
+// and status codes must match the documented baseline.
 func TestUXPromiseJSONAPIStable(t *testing.T) {
 	pkg := []byte(`{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`)
 	client := &pageMockClient{pkgBytes: pkg}
@@ -245,7 +242,7 @@ func TestUXPromiseJSONAPIStable(t *testing.T) {
 }
 
 // Promise: ?state&height=N → JSON: pinned height returns immutable
-// cache header (ADR-004 §URL contract row 6).
+// cache header.
 func TestUXPromiseJSONPinnedImmutable(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(`{"names":[],"values":[]}`)}
 	h := newPageHandler(client)
@@ -296,11 +293,11 @@ func TestUXPromiseTopLevelCrawlable(t *testing.T) {
 	}
 }
 
-// Promise: ADR-004 §8 doc-index hydration — an expandable tree-view
-// frag=node child (the kind that can reference a named, documented
-// declaration) MUST carry `[data-name]` + an empty `[data-doc-slot]`
-// placeholder so controller-state.ts can project docs onto lazy-loaded
-// fragments. The doc-slot pair is tree-view markup, hence view=tree.
+// Promise: doc-index hydration — an expandable tree-view frag=node child
+// (that can reference a named, documented declaration) MUST carry
+// `[data-name]` + an empty `[data-doc-slot]` placeholder so
+// controller-state.ts can project docs onto lazy-loaded fragments.
+// Tree-view markup, hence view=tree.
 func TestUXPromiseFragmentDocSlotPlaceholder(t *testing.T) {
 	const oid = "abcdef0123456789abcdef0123456789abcdef01:8"
 	// One field that is itself a nested struct → renders as a <details>
@@ -336,11 +333,11 @@ func TestUXPromiseFragmentDocSlotPlaceholder(t *testing.T) {
 }
 
 // Regression: the htmx-lazy permalink ↗ lives INSIDE its parent
-// <details>'s <summary> (ADR-004 §2 example). The <a> is interactive
-// content, so a click on it navigates without toggling the <details>;
-// a click anywhere else in the summary toggles + fires the hx-get. This
-// pins the structure so a refactor can't reintroduce the wrapper-div
-// detour that pushed the link to a confusing, faint right-margin slot.
+// <details>'s <summary>. The <a> is interactive content, so a click on
+// it navigates without toggling the <details>; a click elsewhere in the
+// summary toggles + fires the hx-get. Pins the structure so a refactor
+// can't reintroduce the wrapper-div detour that pushed the link to a
+// confusing, faint right-margin slot.
 func TestRegressionPermalinkInsideSummary(t *testing.T) {
 	data := StateData{
 		PkgPath: "/r/test",
@@ -383,7 +380,7 @@ func TestRegressionPermalinkInsideSummary(t *testing.T) {
 		rest = rest[i+end+len("</summary>"):]
 	}
 	if insideSummary != permalinks {
-		t.Errorf("%d b-state-permalink total but only %d inside <summary> — all must be nested in the summary (ADR-004 §2)", permalinks, insideSummary)
+		t.Errorf("%d b-state-permalink total but only %d inside <summary> — all must be nested in the summary", permalinks, insideSummary)
 	}
 }
 
@@ -409,18 +406,10 @@ func TestRegressionSourceNeverAutoLoads(t *testing.T) {
 	}
 }
 
-// R1's regression test lives in gno.land/pkg/gnoweb/handler_http_test.go
-// (TestHTTPHandler_StatePageHeaderData) — it exercises the full Get()
-// wire-in to verify the global header renders with realm-aware data.
-// The feature/state package can't reach IndexLayout, so the test here
-// would be tautological.
-
 // Regression: the sidebar "On this page" label must render the
 // b-expend-btn affordance (label + checkbox + chevron SVG) so the
-// mobile-collapse interaction works. Earlier audits accidentally
-// reduced it to a static <div class="expend-label">, dropping the
-// tap-to-toggle control on small viewports. The state feature template
-// is isolated and can't reuse components/layouts/aside.html's
+// mobile-collapse interaction works. The state feature template is
+// isolated and can't reuse components/layouts/aside.html's
 // ui/expend_label partial, so the state-local "state/expend-label"
 // partial must mirror that markup exactly.
 func TestRegressionExpendLabelKeepsToggleAffordance(t *testing.T) {
