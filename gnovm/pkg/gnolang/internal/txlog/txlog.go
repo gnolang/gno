@@ -7,7 +7,11 @@
 // when calling [MapCommitter.Commit].
 package txlog
 
-import "iter"
+import (
+	"iter"
+	"maps"
+	"sync"
+)
 
 // Map is a generic interface to a key/value map, like Go's builtin map.
 type Map[K comparable, V any] interface {
@@ -145,4 +149,57 @@ func (b txLog[K, V]) Iterate() iter.Seq2[K, V] {
 type deletable[V any] struct {
 	v       V
 	deleted bool
+}
+
+// SyncGoMap is a thread-safe variant of [GoMap] using [sync.RWMutex].
+// Use it for root (node-lifetime) maps that are shared as the source of
+// concurrent [txLog] wrappers (e.g. simulate goroutines reading while
+// DeliverTx commits write to the same underlying map).
+type SyncGoMap[K comparable, V any] struct {
+	mu sync.RWMutex
+	m  map[K]V
+}
+
+// NewSyncGoMap returns an empty, initialized [SyncGoMap].
+func NewSyncGoMap[K comparable, V any]() *SyncGoMap[K, V] {
+	return &SyncGoMap[K, V]{m: make(map[K]V)}
+}
+
+// Get implements [Map].
+func (s *SyncGoMap[K, V]) Get(k K) (V, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	v, ok := s.m[k]
+	return v, ok
+}
+
+// Set implements [Map].
+func (s *SyncGoMap[K, V]) Set(k K, v V) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.m[k] = v
+}
+
+// Delete implements [Map].
+func (s *SyncGoMap[K, V]) Delete(k K) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.m, k)
+}
+
+// Iterate implements [Map]. It takes a consistent snapshot under RLock and
+// iterates the snapshot, so the lock is not held during yield calls.
+// This avoids a deadlock when txLog.Iterate calls both source.Iterate and
+// source.Get on the same goroutine.
+func (s *SyncGoMap[K, V]) Iterate() iter.Seq2[K, V] {
+	s.mu.RLock()
+	snapshot := maps.Clone(s.m)
+	s.mu.RUnlock()
+	return func(yield func(K, V) bool) {
+		for k, v := range snapshot {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
 }

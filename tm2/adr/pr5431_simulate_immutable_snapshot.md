@@ -95,3 +95,39 @@ snapshot methods and is a more invasive refactor for the same result.
 
 - **Race-free**: Verified with `go test -race` including a dedicated concurrent
   simulate+commit test (`TestSimulateConcurrentWithCommit`).
+
+---
+
+## Follow-on: GnoVM `cacheNodes` data race
+
+### Context
+
+PR5431 correctly isolated the IAVL/KV store layer via `MultiImmutableCacheWrapWithVersion`. However, stress-testing the separate-queryMtx configuration (8 simulate goroutines + 100 broadcast txs in waves, `go test -race -count=10`) revealed a second race at the GnoVM store layer.
+
+`VMKeeper` holds a single `vm.gnoStore` (`*defaultStore`) that lives for the node lifetime. Its `cacheNodes` field (`txlog.Map[Location, BlockNode]`) is initialized as a plain `GoMap[Location, BlockNode]` — a bare Go map with no synchronization.
+
+When `BeginTransaction()` is called it wraps the root map with `txlog.Wrap(ds.cacheNodes)`, producing a per-transaction `txLog{source: rootGoMap, dirty: {}}`. The `dirty` map is private to each transaction. But `source` is the **shared root GoMap**, accessed concurrently by:
+
+- Goroutine A (Simulate, `queryMtx`): on a `cacheNodes` cache miss, `txLog.Get()` falls through to `source.Get(k)` — a direct read on the root GoMap (`txlog.go`, `txLog.Get`).
+- Goroutine B (DeliverTx commit, `mtx`): `transactionStore.Write()` → `txLog.Commit()` → `source.Set(k, v)` for every dirty node — a direct write on the root GoMap (`txlog.go`, `txLog.Commit`).
+
+A concurrent map read and map write is a fatal Go data race. `cacheObjects` and `cacheTypes` are not affected — transaction stores allocate fresh empty maps for those and never fall through to the root store's copies. Only `cacheNodes` uses the txlog wrapper pattern with a shared source.
+
+### Decision
+
+Add `SyncGoMap[K, V]` to `gnovm/pkg/gnolang/internal/txlog` — a struct wrapping a plain map with `sync.RWMutex` that implements the same `Map[K, V]` interface. Initialize the root store's `cacheNodes` with `NewSyncGoMap[Location, BlockNode]()` instead of `GoMap`.
+
+`txlog.Wrap()` accepts any `Map[K, V]`, so `BeginTransaction()` continues to work unchanged: each transaction gets a `txLog{source: *SyncGoMap}`, and all reads/writes flowing through the wrapper's source pointer go through the mutex.
+
+`SyncGoMap.Iterate()` takes a snapshot under `RLock` and releases the lock before yielding. This is required because `txLog.Iterate()` calls `b.source.Get(k)` while iterating `b.source.Iterate()` — holding `RLock` for the full duration of the lazy iterator would cause a deadlock under write pressure on the same goroutine.
+
+### Alternatives considered
+
+**VMKeeper-level `RWMutex`**: Guard `CommitGnoTransactionStore` with a write lock and the simulate path with a read lock. This re-serializes simulate and DeliverTx at the keeper boundary, defeating the purpose of the separate `queryMtx`.
+
+**Snapshot on `BeginTransaction`**: Deep-copy `cacheNodes` into a fresh map for each transaction instead of wrapping it. Correct but expensive — the cache may contain thousands of BlockNodes per block.
+
+### Consequences
+
+- The root `cacheNodes` map acquires a read lock on every `txLog.Get()` source fallthrough and a write lock on every `txLog.Commit()` flush. BlockNode lookups are read-heavy (one write per new node, many reads per execution), so `RWMutex` contention is low in practice.
+- Verified with `go test -race -run TestSimulateBurstDuringCommit -count=10` (`gno.land/pkg/gnoclient`), which runs 8 simulate goroutines concurrently with 100 broadcast txs and previously reproduced the race in 2/10 runs.
