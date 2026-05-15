@@ -569,7 +569,7 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types
 
 	defaultCfg := gnoclient.BaseTxCfg{
 		GasFee:    ugnot.ValueString(1000000), // Gas fee
-		GasWanted: 3_000_000,                  // Gas wanted
+		GasWanted: 4_000_000,                  // Gas wanted
 	}
 
 	return testingCallRealmWithConfig(t, node, defaultCfg, msgs...)
