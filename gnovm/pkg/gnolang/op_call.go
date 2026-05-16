@@ -341,11 +341,33 @@ func (m *Machine) doOpCall() {
 		curIdx = 1
 	}
 	if ft.IsCrossing() && fv.nativeBody == nil && fr.Cur.T == nil && len(b.Values) > curIdx {
-		fr.Cur = b.Values[curIdx]
+		// Unwrap a heap-promoted slot: when cur is captured by a nested
+		// closure, the preprocessor heap-promotes its block slot, so
+		// b.Values[curIdx] is a *HeapItemValue wrapper rather than the
+		// realm PointerValue itself. Storing the wrapper on fr.Cur would
+		// hide the underlying HIV from realmHIV (used by .grealm.IsCurrent
+		// and cross2's strict check), making the frame invisible to the
+		// HIV-identity walk. Deref to keep fr.Cur shaped like a normal
+		// PointerValue+HIV realm. The block slot itself must stay heap-
+		// wrapped (the closure-capture preprocess check at doOpFuncLit
+		// expects ptr.TV.T to be heapItemType), so the preprocess-origin
+		// rebuild writes into the HIV's Value field rather than replacing
+		// the slot entry.
+		bvSlot := &b.Values[curIdx]
+		hiv, isHeap := bvSlot.V.(*HeapItemValue)
+		if isHeap {
+			fr.Cur = hiv.Value
+		} else {
+			fr.Cur = *bvSlot
+		}
 		if m.curUsesPreprocessOrigin(&fr.Cur) {
 			fresh := NewConcreteRealm(m.Alloc, fv.PkgPath, buildOriginRealm(m))
 			fr.Cur = fresh
-			b.Values[curIdx] = fresh
+			if isHeap {
+				hiv.Value = fresh
+			} else {
+				*bvSlot = fresh
+			}
 		}
 	}
 }
