@@ -180,7 +180,7 @@ func ProposeSetPaused(v bool) dao.ProposalRequest {
 		title,
 		desc,
 		dao.NewSimpleExecutor(cb, ""),
-		govimpl.FilterByTier{Tier: memberstore.T1},
+		govimpl.NewFilterByTier(memberstore.T1),
 	)
 }
 

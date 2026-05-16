@@ -25,6 +25,10 @@ type Allocator struct {
 	// onto newly-allocated objects' ObjectInfo without needing a
 	// *Machine reference. Zero when m.Realm is nil.
 	currentRealmID PkgID
+	// currentRealmPath mirrors m.Realm.Path; used in
+	// checkEagerConstructor's panic message so users see a readable
+	// realm path rather than an opaque PkgID hex.
+	currentRealmPath string
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -397,21 +401,23 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
-// checkEagerConstructor panics if asked to allocate a /r/-declared
+// checkEagerConstructor panics if asked to construct a /r/-declared
 // type when the executing realm is different. PLAN3 Phase 2 — the
-// allocator-level enforcement of "storage = authority": every
+// enforcement of "storage = authority": every meaningfully-constructed
 // /r/-typed object must originate inside its declaring realm.
+//
+// Only fires at user-visible construction sites: composite literals
+// (doOpStructLit/ArrayLit/MapLit/SliceLit*) and the new()/make()
+// uverse builtins. Zero-value defaults (return-slot init, var
+// declarations, copies) are not "construction" in the sense that
+// matters here — they are anonymous placeholders that will be
+// overwritten or carry a copied PkgID.
 //
 // Anonymous composites, primitives, /p/, and stdlib types have no
 // declaring-realm constraint and pass through unchecked.
 //
-// nil t (e.g. constructor-internal sub-allocations like
-// SliceValue.Base inside NewSliceFromList) is treated as "no
-// constraint" — the inner object inherits currentRealmID.
-//
-// nil alloc (gonative paths, preprocess-time helpers) skips the
-// check entirely — same nil-receiver tolerance as the rest of
-// the allocator API.
+// nil t and nil alloc skip the check entirely (gonative, preprocess,
+// anonymous sub-allocations).
 func (alloc *Allocator) checkEagerConstructor(t Type) {
 	if alloc == nil || t == nil {
 		return
@@ -422,8 +428,8 @@ func (alloc *Allocator) checkEagerConstructor(t Type) {
 	}
 	if pid != alloc.currentRealmID {
 		panic(fmt.Sprintf(
-			"cannot allocate %s-declared value in %s",
-			pid, alloc.currentRealmID))
+			"cannot allocate %s in realm %s",
+			t.String(), alloc.currentRealmPath))
 	}
 }
 
@@ -445,7 +451,6 @@ func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
-	alloc.checkEagerConstructor(t)
 	alloc.AllocateListArray(int64(n))
 	av := &ArrayValue{
 		List: make([]TypedValue, n),
@@ -463,7 +468,6 @@ func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 		panic(&Exception{Value: typedString("length and capacity swapped")})
 	}
 
-	alloc.checkEagerConstructor(t)
 	alloc.AllocateListArray(int64(c))
 	av := &ArrayValue{
 		List: make([]TypedValue, l, c),
@@ -477,7 +481,6 @@ func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
 
-	alloc.checkEagerConstructor(t)
 	alloc.AllocateDataArray(int64(n))
 	av := &ArrayValue{
 		Data: make([]byte, n),
@@ -551,7 +554,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
-	alloc.checkEagerConstructor(t)
 	alloc.AllocateStruct()
 	sv := &StructValue{
 		Fields: fields,
@@ -573,7 +575,6 @@ func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *Struc
 }
 
 func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
-	alloc.checkEagerConstructor(t)
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
@@ -620,7 +621,6 @@ func (alloc *Allocator) NewType(t Type) Type {
 }
 
 func (alloc *Allocator) NewHeapItem(t Type, tv TypedValue) *HeapItemValue {
-	alloc.checkEagerConstructor(t)
 	alloc.AllocateHeapItem()
 	hiv := &HeapItemValue{Value: tv}
 	alloc.stampPkgID(&hiv.ObjectInfo)

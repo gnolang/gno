@@ -17,7 +17,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 stdout 'data: # GovDAO'
 
 # add the proposal
-gnokey maketx run -gas-fee 4100001ugnot -gas-wanted 45_000_000 -chainid=tendermint_test member $WORK/proposer/create_invalid_proposal.gno
+gnokey maketx run -gas-fee 4100001ugnot -gas-wanted 46_000_000 -chainid=tendermint_test member $WORK/proposer/create_invalid_proposal.gno
 stdout OK!
 
 # call gov/dao render to check the proposal was created
@@ -26,7 +26,7 @@ stdout 'Prop #0 - Member Promotion Proposal'
 stdout 'This is a proposal to promote g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r from \*\*T3\*\* to \*\*T2\*\*.'
 
 # vote on the proposal 1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 # vote on the proposal 2
@@ -34,7 +34,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -g
 stdout OK!
 
 # add the proposal
-gnokey maketx run -gas-fee 4100001ugnot -gas-wanted 46_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+gnokey maketx run -gas-fee 4100001ugnot -gas-wanted 47_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
 stdout OK!
 
 # call proposal execution
@@ -104,11 +104,8 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
-	memberstore.Get().SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), &memberstore.Member{InvitationPoints: 2}) // member to promote
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
+	memberstore.Get().SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), memberstore.NewMember(2)) // member to promote
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

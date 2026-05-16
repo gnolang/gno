@@ -37,7 +37,7 @@ stderr 'restricted token transfer error'
 gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 ## Submit a proposal to add a regular use as the unrestricted account.
-gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unrestricted.gno
+gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unrestricted.gno
 
 stdout '0'
 
@@ -47,7 +47,7 @@ gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tenderm
 stdout 'OK!'
 
 ## Execute the unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 27_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 29_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
@@ -67,17 +67,17 @@ stdout '["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","g18e22n23g462drp4pyszyl6e6m
 
 
 ## Submit a proposal to remove regular1 and regular2 as the unrestricted accounts.
-gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose_restricted.gno
+gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1 $WORK/run/propose_restricted.gno
 
 stdout '1'
 
 ## Vote for the remove unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 24_000_000 -chainid=tendermint_test test1 $WORK/run/vote_proposal1.gno
+gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 25_000_000 -chainid=tendermint_test test1 $WORK/run/vote_proposal1.gno
 
 stdout 'OK!'
 
 ## Execute the remove unrestricted account proposal using test1
-gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 27_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal1.gno
+gnokey maketx run  -gas-fee 2600001ugnot -gas-wanted 28_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal1.gno
 
 stdout 'OK!'
 
@@ -154,10 +154,7 @@ import (
 )
 
 func main() {
-	dao.MustVoteOnProposal(cross,dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross,dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 -- run/exec_proposal.gno --
@@ -182,10 +179,7 @@ import (
 )
 
 func main() {
-	dao.MustVoteOnProposal(cross,dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(1),
-	})
+	dao.MustVoteOnProposal(cross,dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
 }
 -- run/exec_proposal1.gno --
 package main

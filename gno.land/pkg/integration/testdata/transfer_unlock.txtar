@@ -24,7 +24,7 @@ gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tenderm
 
 ## Submit a proposal to unlock the transfer. When token transfer is locked, only the predefined unrestricted account test1 in the genesis state can
 ## pay the fee and submit a proposal to unlock the transfer.
-gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unlock.gno
+gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unlock.gno
 
 stdout '0'
 
@@ -34,7 +34,7 @@ gnokey maketx run  -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tenderm
 stdout 'OK!'
 
 ## Execute unlock proposal with unrestricted account test1
-gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 26_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+gnokey maketx run  -gas-fee 2500001ugnot -gas-wanted 27_000_000  -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
@@ -74,10 +74,7 @@ import (
 )
 
 func main() {
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 -- run/exec_proposal.gno --

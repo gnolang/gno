@@ -15,7 +15,7 @@ gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 
 stdout OK!
 
 ## Propose to update default deposit.
-gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
 
 stdout OK!
 
@@ -72,12 +72,9 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 -- run/vote_proposal.gno --
 package main
@@ -87,10 +84,7 @@ import (
 )
 
 func main() {
-  dao.MustVoteOnProposal(cross,dao.VoteRequest{
-    Option:     dao.YesVote,
-    ProposalID: dao.ProposalID(0),
-  })
+  dao.MustVoteOnProposal(cross,dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 

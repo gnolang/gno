@@ -20,13 +20,13 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveIntToPublicRealm -gas-fee 410001ugnot -gas-wanted 4_500_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 500001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveSliceToPublicRealm -gas-fee 500001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 500001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMapToPublicRealm -gas-fee 500001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 570001ugnot -gas-wanted 5_700_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveStructToPublicRealm -gas-fee 570001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveMixedStructToPublicRealmWithoutRef -gas-fee 530001ugnot -gas-wanted 5_300_000 -chainid=tendermint_test test1
@@ -53,7 +53,7 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveNestedToPublicRealmAfterSaving -gas-fee 740001ugnot -gas-wanted 7_400_000 -chainid=tendermint_test test1
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 550001ugnot -gas-wanted 5_500_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveClosureToPublicRealm -gas-fee 550001ugnot -gas-wanted 5_700_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/foobar/normalrealm -func SaveValueFromNormalStructToPublicRealm -gas-fee 580001ugnot -gas-wanted 5_800_000 -chainid=tendermint_test test1

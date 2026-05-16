@@ -321,33 +321,15 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
+// Copy duplicates an existing ArrayValue. The result inherits the
+// source's PkgID — copying propagates existing authority rather than
+// minting new authority. PLAN3 Phase 2.
 func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
 	}
 	*/
-	if av.Data == nil {
-		av2 := alloc.NewListArray(t, len(av.List))
-		for i, tv := range av.List {
-			av2.List[i] = tv.Copy(alloc)
-		}
-		return av2
-	}
-	av2 := alloc.NewDataArray(t, len(av.Data))
-	copy(av2.Data, av.Data)
-	return av2
-}
-
-// CopyForReceiver makes a transient receiver copy of av that
-// preserves source PkgID + NewTime. Counterpart of
-// StructValue.CopyForReceiver for value-method dispatch on named
-// array types. PLAN3 Phase 2.
-func (av *ArrayValue) CopyForReceiver(alloc *Allocator, t Type) *ArrayValue {
-	saved := alloc.currentRealmID
-	alloc.currentRealmID = av.ObjectInfo.ID.PkgID
-	defer func() { alloc.currentRealmID = saved }()
-
 	var cp *ArrayValue
 	if av.Data == nil {
 		cp = alloc.NewListArray(t, len(av.List))
@@ -358,7 +340,16 @@ func (av *ArrayValue) CopyForReceiver(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	cp.ObjectInfo.ID.NewTime = av.ObjectInfo.ID.NewTime
+	cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	return cp
+}
+
+// CopyForReceiver duplicates av and also preserves the source's
+// NewTime, mirroring the source's finalization state. Used by value-
+// method receiver copies.
+func (av *ArrayValue) CopyForReceiver(alloc *Allocator, t Type) *ArrayValue {
+	cp := av.Copy(alloc, t)
+	cp.ObjectInfo.SetNewTime(av.ObjectInfo.ID.NewTime)
 	return cp
 }
 
@@ -470,6 +461,12 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
+// Copy duplicates an existing StructValue. The result inherits the
+// source's PkgID — copying propagates existing authority rather than
+// minting new authority. PLAN3 Phase 2.
+//
+// Each field is copied individually so value fields stay by-value
+// (e.g. inlined arrays are physically duplicated rather than aliased).
 func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
@@ -477,43 +474,20 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-
-	// Each field needs to be copied individually to ensure that
-	// value fields are copied as such, even though they may be represented
-	// as pointers. A good example of this would be a struct that has
-	// a field that is an array. The value array is represented as a pointer.
-	for i, field := range sv.Fields {
-		fields[i] = field.Copy(alloc)
-	}
-
-	return alloc.NewStruct(t, fields)
-}
-
-// CopyForReceiver makes a transient receiver copy of sv that
-// preserves the source's PkgID + NewTime. The only call site is
-// VPValMethod (values.go:1885 area) for value-method dispatch.
-// PLAN3 Phase 2 — closes the /p/-attacker-via-interface-value-method
-// gap by ensuring Layer 2 reads the source's authority rather than
-// the laundered allocator-stamped PkgID.
-//
-// Temporarily swaps alloc.currentRealmID to the source's PkgID for
-// the duration of the field-copy + struct construction. This makes
-// the eager-constructor check pass at every nested foreign-struct
-// field (because currentRealmID matches each field type's
-// declaring realm). After the copy, the swap is unwound.
-func (sv *StructValue) CopyForReceiver(alloc *Allocator, t Type) *StructValue {
-	saved := alloc.currentRealmID
-	alloc.currentRealmID = sv.ObjectInfo.ID.PkgID
-	defer func() { alloc.currentRealmID = saved }()
-
-	fields := alloc.NewStructFields(len(sv.Fields))
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	// alloc.NewStruct stamped cp.ID.PkgID = saved (source's PkgID).
-	// Also copy NewTime so cp.GetIsReal() mirrors source.
-	cp.ObjectInfo.ID.NewTime = sv.ObjectInfo.ID.NewTime
+	cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	return cp
+}
+
+// CopyForReceiver duplicates sv and also preserves the source's
+// NewTime so the receiver-copy mirrors the source's finalization
+// state. Used by VPValMethod for value-method receiver copies.
+func (sv *StructValue) CopyForReceiver(alloc *Allocator, t Type) *StructValue {
+	cp := sv.Copy(alloc, t)
+	cp.ObjectInfo.SetNewTime(sv.ObjectInfo.ID.NewTime)
 	return cp
 }
 

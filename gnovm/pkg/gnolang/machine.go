@@ -285,8 +285,10 @@ func (m *Machine) setRealm(r *Realm) {
 	if m.Alloc != nil {
 		if r != nil {
 			m.Alloc.currentRealmID = r.ID
+			m.Alloc.currentRealmPath = r.Path
 		} else {
 			m.Alloc.currentRealmID = PkgID{}
+			m.Alloc.currentRealmPath = ""
 		}
 	}
 }
