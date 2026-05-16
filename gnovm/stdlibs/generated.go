@@ -14,6 +14,7 @@ import (
 	libs_crypto_ed25519 "github.com/gnolang/gno/gnovm/stdlibs/crypto/ed25519"
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
+	libs_math_big "github.com/gnolang/gno/gnovm/stdlibs/math/big"
 	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
@@ -992,6 +993,390 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"math/big",
+		"add",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  bool
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  bool
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []byte
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			r0, r1 := libs_math_big.X_add(p0, p1, p2, p3)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"math/big",
+		"sub",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  bool
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  bool
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []byte
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			r0, r1 := libs_math_big.X_sub(p0, p1, p2, p3)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"math/big",
+		"mul",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  bool
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  bool
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []byte
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			r0, r1 := libs_math_big.X_mul(p0, p1, p2, p3)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"math/big",
+		"quoRem",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("[]byte")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  bool
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  bool
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []byte
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			r0, r1, r2, r3 := libs_math_big.X_quoRem(p0, p1, p2, p3)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+		},
+	},
+	{
+		"math/big",
+		"divMod",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p3"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("[]byte")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  bool
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  bool
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []byte
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			r0, r1, r2, r3 := libs_math_big.X_divMod(p0, p1, p2, p3)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+		},
+	},
+	{
+		"math/big",
+		"setString",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("bool")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  int
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			r0, r1, r2 := libs_math_big.X_setString(p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+		},
+	},
+	{
+		"math/big",
+		"text",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  bool
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  int
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0 := libs_math_big.X_text(p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
 		"sys/params",
 		"setSysParamString",
 		[]gno.FieldTypeExpr{
@@ -1696,6 +2081,7 @@ var initOrder = [...]string{
 	"hash",
 	"hash/adler32",
 	"html",
+	"math/big",
 	"math/rand",
 	"path",
 	"net/url",
