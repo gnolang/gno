@@ -329,11 +329,18 @@ func (m *Machine) doOpCall() {
 	// preprocess-time placeholder (built without OriginCaller knowledge),
 	// rebuild with the per-tx origin so cur.Previous() carries the EOA
 	// addr that runtime.PreviousRealm() surfaces.
+	//
+	// Skip natives: uverse helpers like cross2(rlm realm) realm satisfy
+	// ft.IsCrossing() at runtime because their generic X param resolves
+	// to realm, but they were never registered with a preprocess-time
+	// origin placeholder. Inheriting + rebuilding here would replace
+	// the caller-supplied rlm with a fresh uverse-pkgPath realm and
+	// trip cross2's IsCurrent-strict check.
 	curIdx := 0
 	if !fr.Receiver.IsUndefined() {
 		curIdx = 1
 	}
-	if ft.IsCrossing() && fr.Cur.T == nil && len(b.Values) > curIdx {
+	if ft.IsCrossing() && fv.nativeBody == nil && fr.Cur.T == nil && len(b.Values) > curIdx {
 		fr.Cur = b.Values[curIdx]
 		if m.curUsesPreprocessOrigin(&fr.Cur) {
 			fresh := NewConcreteRealm(m.Alloc, fv.PkgPath, buildOriginRealm(m))
