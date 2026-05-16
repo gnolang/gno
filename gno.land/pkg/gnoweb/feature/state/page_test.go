@@ -459,11 +459,11 @@ func TestServePackagePageDefersPreviewsViaRevealedTrigger(t *testing.T) {
 // TestServePackagePageFullSidebar — the full sidebar TOC must surface
 // every realm decl (icon + label + href) regardless of which slice the
 // current page renders. On-page entries get in-page anchors; off-page
-// entries get the paginated cross-page URL. 12 decls + default page
-// size of 5 → 7 off-page entries surface.
+// entries get the paginated cross-page URL. 12 decls + explicit limit=5
+// → 7 off-page entries surface.
 func TestServePackagePageFullSidebar(t *testing.T) {
 	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)})
-	rec := servePageReq(t, h, url.Values{}, "/r/demo")
+	rec := servePageReq(t, h, url.Values{"limit": {"5"}}, "/r/demo")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}

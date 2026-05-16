@@ -53,6 +53,7 @@ func TestDecodePackagePagination(t *testing.T) {
 	fixture := buildManyTopLevelDeclsFixture(12)
 
 	t.Run("first page", func(t *testing.T) {
+		t.Parallel()
 		nodes, total, err := DecodePackage(context.Background(), fixture, DefaultPageRenderConfig(), 0, 5)
 		require.NoError(t, err)
 		assert.Equal(t, 12, total)
@@ -62,6 +63,7 @@ func TestDecodePackagePagination(t *testing.T) {
 	})
 
 	t.Run("middle page", func(t *testing.T) {
+		t.Parallel()
 		nodes, total, err := DecodePackage(context.Background(), fixture, DefaultPageRenderConfig(), 5, 5)
 		require.NoError(t, err)
 		assert.Equal(t, 12, total)
@@ -71,6 +73,7 @@ func TestDecodePackagePagination(t *testing.T) {
 	})
 
 	t.Run("last partial page", func(t *testing.T) {
+		t.Parallel()
 		nodes, total, err := DecodePackage(context.Background(), fixture, DefaultPageRenderConfig(), 10, 5)
 		require.NoError(t, err)
 		assert.Equal(t, 12, total)
@@ -80,6 +83,7 @@ func TestDecodePackagePagination(t *testing.T) {
 	})
 
 	t.Run("out-of-range offset", func(t *testing.T) {
+		t.Parallel()
 		nodes, total, err := DecodePackage(context.Background(), fixture, DefaultPageRenderConfig(), 99, 5)
 		require.NoError(t, err)
 		assert.Equal(t, 12, total, "total stays honest even with out-of-range offset")
@@ -87,6 +91,7 @@ func TestDecodePackagePagination(t *testing.T) {
 	})
 
 	t.Run("negative offset clamps", func(t *testing.T) {
+		t.Parallel()
 		nodes, _, err := DecodePackage(context.Background(), fixture, DefaultPageRenderConfig(), -1, 5)
 		require.NoError(t, err)
 		require.Len(t, nodes, 5)
@@ -94,6 +99,7 @@ func TestDecodePackagePagination(t *testing.T) {
 	})
 
 	t.Run("limit zero defaults to cap", func(t *testing.T) {
+		t.Parallel()
 		nodes, _, err := DecodePackage(context.Background(), fixture, DefaultPageRenderConfig(), 0, 0)
 		require.NoError(t, err)
 		assert.Len(t, nodes, min(maxTopLevelDecls, 12))
@@ -109,6 +115,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 	t.Parallel()
 
 	t.Run("first page of three", func(t *testing.T) {
+		t.Parallel()
 		p := buildPagination("/r/foo", "", "pretty", 12, 0, 5)
 		require.NotNil(t, p)
 		assert.Equal(t, 12, p.Total)
@@ -124,6 +131,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 	})
 
 	t.Run("middle page", func(t *testing.T) {
+		t.Parallel()
 		p := buildPagination("/r/foo", "", "pretty", 12, 5, 5)
 		require.NotNil(t, p)
 		assert.True(t, p.HasPrev)
@@ -134,6 +142,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 	})
 
 	t.Run("last page", func(t *testing.T) {
+		t.Parallel()
 		p := buildPagination("/r/foo", "", "pretty", 12, 10, 5)
 		require.NotNil(t, p)
 		assert.Equal(t, 11, p.StartNumber)
@@ -145,10 +154,12 @@ func TestBuildPaginationHrefs(t *testing.T) {
 	})
 
 	t.Run("no pagination when total ≤ limit at offset 0", func(t *testing.T) {
+		t.Parallel()
 		assert.Nil(t, buildPagination("/r/foo", "", "pretty", 3, 0, 5))
 	})
 
 	t.Run("view and height preserved on every href", func(t *testing.T) {
+		t.Parallel()
 		p := buildPagination("/r/foo", "100", "tree", 12, 0, 5)
 		require.NotNil(t, p)
 		assert.Contains(t, string(p.NextHref), "view=tree")
@@ -158,6 +169,7 @@ func TestBuildPaginationHrefs(t *testing.T) {
 	})
 
 	t.Run("out-of-range offset still renders honest 0-0 summary", func(t *testing.T) {
+		t.Parallel()
 		p := buildPagination("/r/foo", "", "pretty", 12, 99, 5)
 		require.NotNil(t, p)
 		assert.Equal(t, 0, p.StartNumber, "no rows shown → start collapses to 0")
@@ -276,6 +288,7 @@ func TestTemplateStampsViewModeLiteralPerContainer(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			client := &pageMockClient{pkgBytes: []byte(refOnly)}
 			h := newPageHandler(client)
 			q := url.Values{}

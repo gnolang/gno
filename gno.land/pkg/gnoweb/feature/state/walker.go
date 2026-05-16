@@ -196,7 +196,7 @@ const (
 // per page. Unlike maxChildrenPerNode (which truncates inner collections
 // with a sentinel), the surplus here is exposed via pagination so large
 // realms stay fully explorable.
-const maxTopLevelDecls = 5
+const maxTopLevelDecls = 500
 
 // maxSidebarTOC caps the full-sidebar TOC entry count. Above this, the
 // rendered list shows the cap and a "+N more — paginate to see them"
