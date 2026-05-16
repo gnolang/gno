@@ -13,13 +13,13 @@ func executor(realm) error {
 	return wantErr
 }
 
-func main() {
+func main(cur realm) {
 	// Arrange
 	def := definition.MustNew("Title", "Body", definition.WithExecutor(executor))
 	fn := def.Executor()
 
 	// Act
-	err := fn(cross)
+	err := fn(cross2(cur))
 
 	// Assert
 	println(err == wantErr)

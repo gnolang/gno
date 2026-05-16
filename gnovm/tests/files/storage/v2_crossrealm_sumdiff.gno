@@ -20,11 +20,11 @@ import (
 // - /r/tests/vm/crossrealm: bytes for the reference + linkage  in its own state
 // - /r/tests/vm/crossrealm_b: bytes for f's own struct fields (mutated SetS)
 
-func main() {
+func main(cur realm) {
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooer(cross, f)
+	crossrealm.SetFooer(cross2(cur), f)
 	f.SetS("ABCD")
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	print(".")
 }
 

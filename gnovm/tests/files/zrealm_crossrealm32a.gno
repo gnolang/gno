@@ -12,14 +12,14 @@ func Public(cur realm) {
 	println("previous realm: ", runtime.PreviousRealm())
 }
 
-func main() {
+func main(cur realm) {
 	f := func(cur realm) {
 		Public(cur)
 	}
 
-	crossrealm.SetClosure2(cross, f)
+	crossrealm.SetClosure2(cross2(cur), f)
 
-	crossrealm.ExecuteClosureCross(cross)
+	crossrealm.ExecuteClosureCross(cross2(cur))
 }
 
 // Output:

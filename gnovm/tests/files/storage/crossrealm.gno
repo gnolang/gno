@@ -6,12 +6,12 @@ import (
 	"gno.land/r/tests/vm/crossrealm_b"
 )
 
-func main() {
+func main(cur realm) {
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.SetFooer(cross2(cur), f)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	f.SetS("ABCD")
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	print(".")
 }
 

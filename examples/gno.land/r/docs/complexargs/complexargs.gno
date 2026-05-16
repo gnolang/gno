@@ -70,11 +70,11 @@ const msgrun = `package main
 // Import the realm you want to call
 import "gno.land/r/docs/complexargs"
 
-func main() {
+func main(cur realm) {
 	// Create the complex arguments to pass:
 	slice := []int{1, 2, 3}
 	// Call the function
-	complexargs.SetSlice(cross, slice)
+	complexargs.SetSlice(cross2(cur), slice)
 
 	// The same can be done with custom types:
 	obj := complexargs.CustomType{Name: "whatever", Numbers: []int{1, 10, 100}}

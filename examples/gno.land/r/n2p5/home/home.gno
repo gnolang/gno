@@ -14,8 +14,8 @@ var (
 	preview = chonk.New()
 )
 
-func init() {
-	hor.Register(cross, "n2p5's Home Realm", "")
+func init(cur realm) {
+	hor.Register(cross2(cur), "n2p5's Home Realm", "")
 
 }
 

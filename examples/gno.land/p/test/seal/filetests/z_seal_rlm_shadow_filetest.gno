@@ -54,8 +54,8 @@ func attack(cur realm) {
 	println("stash holds:", capturedRealmPkgPath)
 }
 
-func main() {
-	attack(cross)
+func main(cur realm) {
+	attack(cross2(cur))
 }
 
 // Output:

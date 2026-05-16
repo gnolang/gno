@@ -15,8 +15,8 @@ var (
 	pocInnovationName string
 )
 
-func init() {
-	hor.Register(cross, "Sacha's Home Realm", "A home away from home.")
+func init(cur realm) {
+	hor.Register(cross2(cur), "Sacha's Home Realm", "A home away from home.")
 
 	banner = "https://ipfs.io/ipfs/QmWKvxG4GifnCbCp5yPMpNmkjr7jvR9rHTmwA86Daap9sY"
 	story = "In the quiet layers of gno.land, a gnome brushed against a line of forgotten code. No one saw him. No one knows what he changed. But sometimes, in the logs...\n\n\"gnonk.\"\n\nJust once. Then silence."

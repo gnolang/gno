@@ -61,8 +61,8 @@ package foo20wrapper
 import "gno.land/r/registry"
 import "gno.land/r/foo20"
 
-func init() {
-	  registry.Register(cross, "foo20", foo20.Transfer)
+func init(cur realm) {
+	  registry.Register(cross2(cur), "foo20", foo20.Transfer)
 }
 
 -- foo20/gnomod.toml --

@@ -8,14 +8,14 @@ import (
 	"gno.land/p/morgan/chess/glicko2"
 )
 
-func TestLobbyJoin(t *testing.T) {
+func TestLobbyJoin(cur realm, t *testing.T) {
 	cleanup()
 	testing.SetRealm(testing.NewUserRealm(white))
-	LobbyJoin(cross, 10*60, 5)
+	LobbyJoin(cross2(cur), 10*60, 5)
 	os.Sleep(time.Second * 5)
 	testing.SetRealm(testing.NewUserRealm(black))
-	LobbyJoin(cross, 10*60, 5)
-	res := LobbyGameFound(cross)
+	LobbyJoin(cross2(cur), 10*60, 5)
+	res := LobbyGameFound(cross2(cur))
 	if res == "null" {
 		t.Errorf("LobbyGameFound is null")
 	}
@@ -161,7 +161,7 @@ func TestLobbyGameFound(t *testing.T) {
 	}
 }
 
-func TestLobbyJoin_HasOpenGames(t *testing.T) {
+func TestLobbyJoin_HasOpenGames(cur realm, t *testing.T) {
 	cleanup()
 	g := &Game{
 		ID:    "123",
@@ -174,7 +174,7 @@ func TestLobbyJoin_HasOpenGames(t *testing.T) {
 	addToUser2Games(black, g)
 
 	testing.SetRealm(testing.NewUserRealm(white))
-	LobbyJoin(cross, 10*60, 5)
+	LobbyJoin(cross2(cur), 10*60, 5)
 	if g.State != GameStateAborted {
 		t.Errorf("state wrong: want %d got %d", GameStateAborted, g.State)
 	}

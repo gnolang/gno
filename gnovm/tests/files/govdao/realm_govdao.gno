@@ -16,11 +16,11 @@ var (
 	user3 address = chain.PackageAddress("user3.gno")
 )
 
-func init() {
+func init(cur realm) {
 	daoinit.InitWithUsers(user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-	dao.UpdateImpl(cross, dao.UpdateRequest{
+	dao.UpdateImpl(cross2(cur), dao.UpdateRequest{
 		DAO: govDAO,
 	})
 }

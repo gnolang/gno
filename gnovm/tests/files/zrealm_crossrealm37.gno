@@ -7,7 +7,7 @@ import (
 	"gno.land/r/tests/vm/crossrealm_e"
 )
 
-func main() {
+func main(cur realm) {
 	println("owner:", crossrealm_e.GetOwner())
 	attacker := runtime.CurrentRealm().Address()
 	println("attacker: ", attacker)
@@ -25,7 +25,7 @@ func main() {
 	owner := crossrealm_e.GetOwner()
 	println("owner == attacker: ", owner == attacker)
 
-	crossrealm_e.TransferToken(cross)
+	crossrealm_e.TransferToken(cross2(cur))
 }
 
 // before fix:

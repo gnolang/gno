@@ -9,12 +9,12 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-func TestAssertOriginCall(t *testing.T) {
+func TestAssertOriginCall(cur realm, t *testing.T) {
 	// CallAssertOriginCall(): no panic
 	caller := testutils.TestAddress("caller")
 	testing.SetRealm(testing.NewUserRealm(caller))
-	tests.CallAssertOriginCall(cross)
-	if !tests.CallIsOriginCall(cross) {
+	tests.CallAssertOriginCall(cross2(cur))
+	if !tests.CallIsOriginCall(cross2(cur)) {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
@@ -45,18 +45,18 @@ func TestAssertOriginCall(t *testing.T) {
 	}
 }
 
-func TestPreviousRealm(t *testing.T) {
+func TestPreviousRealm(cur realm, t *testing.T) {
 	var (
 		firstRealm = chain.PackageAddress("gno.land/r/tests/vm_test")
 		rTestsAddr = chain.PackageAddress("gno.land/r/tests/vm")
 	)
 	// When only one realm in the frames, PreviousRealm returns the same realm
-	if addr := tests.GetPreviousRealm(cross).Address(); addr != firstRealm {
-		println(tests.GetPreviousRealm(cross))
+	if addr := tests.GetPreviousRealm(cross2(cur)).Address(); addr != firstRealm {
+		println(tests.GetPreviousRealm(cross2(cur)))
 		t.Errorf("want GetPreviousRealm().Address==%s, got %s", firstRealm, addr)
 	}
 	// When 2 or more realms in the frames, PreviousRealm returns the second to last
-	if addr := tests.GetRSubtestsPreviousRealm(cross).Address(); addr != rTestsAddr {
+	if addr := tests.GetRSubtestsPreviousRealm(cross2(cur)).Address(); addr != rTestsAddr {
 		t.Errorf("want GetRSubtestsPreviousRealm().Address==%s, got %s", rTestsAddr, addr)
 	}
 }

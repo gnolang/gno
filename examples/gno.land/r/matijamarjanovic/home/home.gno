@@ -26,7 +26,7 @@ var (
 	minimalLink string
 )
 
-func init() {
+func init(cur realm) {
 	pfp = "https://avatars.githubusercontent.com/u/93043005?s=60&v=4"
 	pfpCaption = "My github profile picture"
 	abtMe = `Blockchain & Full Stack Developer and a Computer Science Student who enjoys hackathons and building cool stuff. My current passion is DeFi. Outside of work, I enjoy travelling, weightlifting and combat sports.`
@@ -38,7 +38,7 @@ func init() {
 	modernLink = txlink.NewLink("VoteModern").URL()
 	classicLink = txlink.NewLink("VoteClassic").URL()
 	minimalLink = txlink.NewLink("VoteMinimal").URL()
-	hor.Register(cross, "Matija Marijanovic's Home Realm", "")
+	hor.Register(cross2(cur), "Matija Marijanovic's Home Realm", "")
 }
 
 func UpdatePFP(cur realm, url, caption string) {

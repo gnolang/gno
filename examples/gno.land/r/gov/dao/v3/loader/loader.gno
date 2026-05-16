@@ -26,7 +26,7 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
+func init(cur realm) {
 	// Create tier entries in the members tree (required before any SetMember).
 	memberstore.Get().SetTier(memberstore.T1)
 	memberstore.Get().SetTier(memberstore.T2)
@@ -34,5 +34,5 @@ func init() {
 
 	// Set the DAO implementation.  AllowedDAOs is intentionally left empty
 	// so that the genesis MsgRun can manipulate the memberstore directly.
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), nil))
+	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(), nil))
 }

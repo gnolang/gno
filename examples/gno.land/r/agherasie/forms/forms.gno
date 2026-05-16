@@ -9,8 +9,8 @@ import (
 
 var db *forms.FormDB
 
-func init() {
-	hor.Register(cross, "Ahgerasle's forms", "")
+func init(cur realm) {
+	hor.Register(cross2(cur), "Ahgerasle's forms", "")
 	db = forms.NewDB()
 }
 

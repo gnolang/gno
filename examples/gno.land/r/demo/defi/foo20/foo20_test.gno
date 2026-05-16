@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestReadOnlyPublicMethods(t *testing.T) {
+func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	var (
 		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		alice = testutils.TestAddress("alice")
@@ -37,7 +37,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 	// bob uses the faucet.
 	testing.SetOriginCaller(bob)
-	Faucet(cross)
+	Faucet(cross2(cur))
 
 	// check balances #2.
 	{

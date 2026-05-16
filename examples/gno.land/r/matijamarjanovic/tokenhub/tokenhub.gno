@@ -26,8 +26,8 @@ var (
 
 const pageSize = 10
 
-func init() {
-	hor.Register(cross, "Token Hub", "Registry for tokens and NFTs on gno.land")
+func init(cur realm) {
+	hor.Register(cross2(cur), "Token Hub", "Registry for tokens and NFTs on gno.land")
 }
 
 // RegisterToken is a function that uses gno.land/r/demo/defi/grc20reg to register a token

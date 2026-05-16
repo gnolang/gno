@@ -8,14 +8,14 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(cross, text1)
+	err := CreatePost(cross2(cur), text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
@@ -26,7 +26,7 @@ func TestCreatePostSingle(t *testing.T) {
 	uassert.True(t, condition, "expected render to contain text & alice's address")
 }
 
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -44,7 +44,7 @@ func TestCreatePostMultiple(t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(cross, p.text)
+		err := CreatePost(cross2(cur), p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
@@ -60,25 +60,25 @@ func TestCreatePostMultiple(t *testing.T) {
 	}
 }
 
-func TestReset(t *testing.T) {
+func TestReset(cur realm, t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = CreatePost(cross, text1)
+	_ = CreatePost(cross2(cur), text1)
 
 	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
 	testing.SetRealm(testing.NewUserRealm(Ownable.Owner()))
-	ResetPosts(cross)
+	ResetPosts(cross2(cur))
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = CreatePost(cross, text2)
+	_ = CreatePost(cross2(cur), text2)
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")

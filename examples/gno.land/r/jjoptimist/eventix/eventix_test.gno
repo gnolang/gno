@@ -13,10 +13,10 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestCreateEvent(t *testing.T) {
+func TestCreateEvent(cur realm, t *testing.T) {
 	// Test successful event creation
 	eventId := CreateEvent(
-		cross,
+		cross2(cur),
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
@@ -38,10 +38,10 @@ func TestCreateEvent(t *testing.T) {
 	})
 }
 
-func TestBuyTicket(t *testing.T) {
+func TestBuyTicket(cur realm, t *testing.T) {
 	// Setup test event
 	eventId := CreateEvent(
-		cross,
+		cross2(cur),
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
@@ -60,7 +60,7 @@ func TestBuyTicket(t *testing.T) {
 
 	// Test successful purchase
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	BuyTicket(cross, eventId)
+	BuyTicket(cross2(cur), eventId)
 
 	event, _ := getEvent(eventId)
 	if event.ticketsSold != 1 {
@@ -75,14 +75,14 @@ func TestBuyTicket(t *testing.T) {
 
 	// Test buying sold out event
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	BuyTicket(cross, eventId) // Buy second ticket
+	BuyTicket(cross2(cur), eventId) // Buy second ticket
 
 	uassert.AbortsWithMessage(t, "Event is sold out", func() {
 		BuyTicket(cross, eventId)
 	})
 }
 
-func TestBuyTicketWithGRC20(t *testing.T) {
+func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
 
@@ -92,7 +92,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
 		token, ledger = grc20.NewToken(0, cur, "Test Token", "TEST", 6)
-	}(cross)
+	}(cross2(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -137,7 +137,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(buyer))
 
 	// Buy ticket
-	BuyTicket(cross, eventId)
+	BuyTicket(cross2(cur), eventId)
 
 	// Verify purchase
 	event, exists := getEvent(eventId)

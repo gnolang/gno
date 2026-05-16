@@ -24,8 +24,8 @@ import (
 	"gno.land/r/tests/vm/crossrealm_f"
 )
 
-func init() {
-	crossrealm_f.Add(cross, crossrealm_f.NewEntry("a", 1))
+func init(cur realm) {
+	crossrealm_f.Add(cross2(cur), crossrealm_f.NewEntry("a", 1))
 }
 
 func main(cur realm) {

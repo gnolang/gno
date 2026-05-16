@@ -23,15 +23,15 @@ func (f *fooer) Bar() {
 
 var f *fooer
 
-func init() {
+func init(cur realm) {
 	f = &fooer{s: "A"}
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.SetFooer(cross2(cur), f)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cross-call to
 	// external realm function gno.land/r/crossrealm_test.Foo from
 	// gno.land/r/tests/vm/crossrealm
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross2(cur))
 }
 
 func main(cur realm) {

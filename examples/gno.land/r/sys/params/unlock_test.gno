@@ -16,21 +16,21 @@ func init() {
 	ini.InitWithUsers(g1user)
 }
 
-func TestProUnlockTransfer(t *testing.T) {
+func TestProUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
-	id := dao.MustCreateProposal(cross, pr)
-	p, err := dao.GetProposal(cross, id)
+	id := dao.MustCreateProposal(cross2(cur), pr)
+	p, err := dao.GetProposal(cross2(cur), id)
 	urequire.NoError(t, err)
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
-func TestFailUnlockTransfer(t *testing.T) {
+func TestFailUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
-	id := dao.MustCreateProposal(cross, pr)
+	id := dao.MustCreateProposal(cross2(cur), pr)
 	urequire.AbortsWithMessage(
 		t,
 		"proposal didn't reach supermajority yet: 66.66",
@@ -40,12 +40,12 @@ func TestFailUnlockTransfer(t *testing.T) {
 	)
 }
 
-func TestExeUnlockTransfer(t *testing.T) {
+func TestExeUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
-	id := dao.MustCreateProposal(cross, pr)
-	_, err := dao.GetProposal(cross, id)
+	id := dao.MustCreateProposal(cross2(cur), pr)
+	_, err := dao.GetProposal(cross2(cur), id)
 	urequire.NoError(t, err)
 	// urequire.True(t, dao.Active == p.Status()) // TODO
 

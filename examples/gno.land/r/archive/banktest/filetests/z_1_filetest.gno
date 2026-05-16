@@ -9,7 +9,7 @@ import (
 	"gno.land/r/archive/banktest"
 )
 
-func main() {
+func main(cur realm) {
 	banktestAddr := chain.PackageAddress("gno.land/r/archive/banktest")
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
 
@@ -18,7 +18,7 @@ func main() {
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
 
-	res := banktest.Deposit(cross, "ugnot", 101000000)
+	res := banktest.Deposit(cross2(cur), "ugnot", 101000000)
 	println(res)
 }
 

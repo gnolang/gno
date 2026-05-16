@@ -42,7 +42,7 @@ var (
 	endPos, startPos Position
 )
 
-func init() {
+func init(cur realm) {
 	// Generate the map
 	seed := uint64(runtime.ChainHeight())
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
@@ -50,7 +50,7 @@ func init() {
 	salt = rng.Int64()
 
 	// Register to hor
-	hor.Register(cross, "GnoMaze, A 3D Maze Game", "")
+	hor.Register(cross2(cur), "GnoMaze, A 3D Maze Game", "")
 }
 
 // Position represents the X, Y coordinates in the maze

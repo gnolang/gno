@@ -11,12 +11,12 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-func init() {
+func init(cur realm) {
 	// Unit tests run with DefaultHeight=123, so the production init() in init.gno
 	// (guarded on height==0) is a no-op in tests. Temporarily reset height so we
 	// can whitelist this realm as a controller for testing.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 }
 

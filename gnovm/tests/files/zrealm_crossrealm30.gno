@@ -23,10 +23,10 @@ func (sb *StructB) Set(sa *StructA) {
 	sb.B = sa
 }
 
-func init() {
+func init(cur realm) {
 	// save StructB{} in crossrealm_b.
 	sb := &StructB{}
-	crossrealm_b.SetObject(cross, sb)
+	crossrealm_b.SetObject(cross2(cur), sb)
 }
 
 func main() {

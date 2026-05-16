@@ -24,7 +24,7 @@ func memberByTier(tier string) *memberstore.Member {
 	}
 }
 
-func init() {
+func init(cur realm) {
 	// Load members for testing
 	mstore := memberstore.Get()
 	mstore.DeleteAll()
@@ -33,10 +33,10 @@ func init() {
 
 	// Set up the DAO implementation using proper constructor
 	govDAO := impl.NewGovDAO()
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"}))
 }
 
-func main() {
+func main(cur realm) {
 	// Create an executor in a specific realm to test creation realm tracking
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/contract"))
 	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor description")
@@ -51,10 +51,10 @@ func main() {
 	// Switch to user realm to create the proposal
 	testing.SetOriginCaller(testUser)
 	testing.SetRealm(testing.NewUserRealm(testUser))
-	pid := dao.MustCreateProposal(cross, proposalRequest)
+	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
 
 	// Get the proposal and test the core functionality
-	prop := dao.MustGetProposal(cross, pid)
+	prop := dao.MustGetProposal(cross2(cur), pid)
 
 	// Test that executor string is captured correctly
 	println("Executor string:", prop.ExecutorString())

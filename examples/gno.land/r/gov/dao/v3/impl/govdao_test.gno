@@ -11,10 +11,10 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
+func init(cur realm) {
 	loadMembers()
 
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(govDAO, []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 var (
@@ -219,7 +219,7 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
-func TestUpgradeDaoImplementation(t *testing.T) {
+func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
@@ -236,23 +236,23 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid := dao.MustCreateProposal(cross, preq)
+	pid := dao.MustCreateProposal(cross2(cur), preq)
 	urequire.Equal(t, int(pid), 8)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m11)
 
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m2)
 
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m3)
 
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m111)
 
@@ -261,13 +261,13 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// 	Option:     dao.YesVote,
 	// 	ProposalID: dao.ProposalID(pid),
 	// })
-	dao.MustVoteOnProposalSimple(cross, int64(pid), "YES")
+	dao.MustVoteOnProposalSimple(cross2(cur), int64(pid), "YES")
 
 	urequire.Equal(t, true, contains(dao.Render("8"), "**Proposal is open for votes**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "68.42105263157895%"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "0%"))
 
-	accepted := dao.ExecuteProposal(cross, dao.ProposalID(pid))
+	accepted := dao.ExecuteProposal(cross2(cur), dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
 	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))

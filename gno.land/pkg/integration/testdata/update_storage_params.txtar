@@ -111,8 +111,8 @@ package storage
 
 var record Foo
 
-func init(){
-	NewFoo(cross,"hello")
+func init(cur realm){
+	NewFoo(cross2(cur),"hello")
 }
 
 type Foo struct{

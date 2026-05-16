@@ -19,11 +19,11 @@ func (fooer) Bar() {
 
 var f *fooer
 
-func init() {
+func init(cur realm) {
 	println("init")
 	f = &fooer{}
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCur(cross)
+	crossrealm.SetFooer(cross2(cur), f)
+	crossrealm.CallFooerFooCur(cross2(cur))
 }
 
 func main(cur realm) {

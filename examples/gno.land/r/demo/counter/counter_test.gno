@@ -2,9 +2,9 @@ package counter
 
 import "testing"
 
-func TestIncrement(t *testing.T) {
+func TestIncrement(cur realm, t *testing.T) {
 	counter = 0
-	val := Increment(cross)
+	val := Increment(cross2(cur))
 	if val != 1 {
 		t.Fatalf("result from Increment(): %d != 1", val)
 	}

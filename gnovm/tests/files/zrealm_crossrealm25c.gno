@@ -12,11 +12,11 @@ type Struct struct {
 // var s *int
 var s_g *Struct
 
-func init() {
+func init(cur realm) {
 	println("s := &Struct{A: 100}")
 	s := &Struct{A: 100}
 	println("crossrealm_b.SetObject(cross, &s.A)")
-	crossrealm_b.SetObject(cross, &s.A)
+	crossrealm_b.SetObject(cross2(cur), &s.A)
 	println("s_g = s")
 	s_g = s
 }

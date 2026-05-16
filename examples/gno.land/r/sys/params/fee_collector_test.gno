@@ -7,13 +7,13 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func TestSetFeeCollector(t *testing.T) {
+func TestSetFeeCollector(cur realm, t *testing.T) {
 	userRealm := testing.NewUserRealm(g1user)
 	testing.SetRealm(userRealm)
 
 	pr := NewSetFeeCollectorRequest(userRealm.Address())
-	id := dao.MustCreateProposal(cross, pr)
-	_, err := dao.GetProposal(cross, id)
+	id := dao.MustCreateProposal(cross2(cur), pr)
+	_, err := dao.GetProposal(cross2(cur), id)
 	urequire.NoError(t, err)
 
 	urequire.NotPanics(

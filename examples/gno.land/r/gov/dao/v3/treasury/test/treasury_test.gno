@@ -40,9 +40,9 @@ var _ trs_pkg.Payment = (*dummyPayment)(nil)
 func (dp *dummyPayment) BankerID() string { return dp.bankerID }
 func (dp *dummyPayment) String() string   { return dp.str }
 
-func init() {
+func init(cur realm) {
 	// Register allowed Realm path.
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.NewGovDAO(), []string{allowedRealm.PkgPath()}))
+	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{allowedRealm.PkgPath()}))
 }
 
 func ugnotCoins(t *testing.T, amount int64) chain.Coins {

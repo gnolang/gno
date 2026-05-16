@@ -19,12 +19,12 @@ var (
 	govdao     = impl.NewGovDAO()
 )
 
-func init() {
+func init(cur realm) {
 	// Initialize GovDAO members
 	memberstore.Get().DeleteAll()
 	memberstore.Get().SetTier(memberstore.T1)
 	memberstore.Get().SetMember(memberstore.T1, user, memberstore.NewMember(3))
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
 
 	// Create a dummy executor
 	cb := func(realm) error { return nil }
@@ -35,7 +35,7 @@ func init() {
 
 	// Create the proposal from a realm so GovDAO instance is able to render the proposal
 	testing.SetRealm(testing.NewUserRealm(user))
-	proposalID = dao.MustCreateProposal(cross, request)
+	proposalID = dao.MustCreateProposal(cross2(cur), request)
 	renderPath = strconv.FormatUint(uint64(proposalID), 10)
 
 	// Register proposal with the local GovDAO instance

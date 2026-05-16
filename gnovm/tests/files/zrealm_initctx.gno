@@ -12,9 +12,9 @@ var (
 	addrInit = address("addrInit")
 )
 
-func init() {
+func init(cur realm) {
 	addr = runtime.OriginCaller()
-	addrInit = tests.InitOriginCaller(cross)
+	addrInit = tests.InitOriginCaller(cross2(cur))
 }
 
 func main(cur realm) {

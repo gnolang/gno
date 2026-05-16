@@ -126,14 +126,14 @@ func TestUpdateSigningKey_RejectsReuseOfActiveKey(t *testing.T) {
 	})
 }
 
-func TestUpdateSigningKey_RejectsReuseOfRetiredKey(t *testing.T) {
+func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
 	info := registerForRotation(t)
 
 	// First rotation: info.PubKey -> rotateTargetPubKey. info.PubKey
 	// becomes retired.
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
-	UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
+	UpdateSigningKey(cross2(cur), info.Address, rotateTargetPubKey)
 
 	// Second rotation back to info.PubKey must fail — it's retired
 	// but signingRegistry retains it forever.
@@ -144,11 +144,11 @@ func TestUpdateSigningKey_RejectsReuseOfRetiredKey(t *testing.T) {
 	})
 }
 
-func TestUpdateSigningKey_LastRotationHeightAdvances(t *testing.T) {
+func TestUpdateSigningKey_LastRotationHeightAdvances(cur realm, t *testing.T) {
 	info := registerForRotation(t)
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
-	UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
+	UpdateSigningKey(cross2(cur), info.Address, rotateTargetPubKey)
 
 	v := GetByAddr(info.Address)
 	uassert.True(t, v.LastRotationHeight > 0, "LastRotationHeight set on rotation")

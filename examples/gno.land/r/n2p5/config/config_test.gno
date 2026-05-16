@@ -7,13 +7,13 @@ import (
 	"gno.land/p/nt/testutils/v0"
 )
 
-func TestAddBackupOwner(t *testing.T) {
+func TestAddBackupOwner(cur realm, t *testing.T) {
 	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
 	testing.SetOriginCaller(owner)
-	AddBackupOwner(cross, u1)
+	AddBackupOwner(cross2(cur), u1)
 	b := BackupOwners()
 	if b[1] != u1.String() {
 		t.Error("failed to add u1 to backupowners")
@@ -27,17 +27,17 @@ func TestAddBackupOwner(t *testing.T) {
 	}
 
 	testing.SetOriginCaller(owner)
-	RemoveBackupOwner(cross, u1)
-	RemoveBackupOwner(cross, u2)
+	RemoveBackupOwner(cross2(cur), u1)
+	RemoveBackupOwner(cross2(cur), u2)
 }
 
-func TestRemoveBackupOwner(t *testing.T) {
+func TestRemoveBackupOwner(cur realm, t *testing.T) {
 	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
 	testing.SetOriginCaller(owner)
-	AddBackupOwner(cross, u1)
+	AddBackupOwner(cross2(cur), u1)
 
 	testing.SetOriginCaller(u2)
 	r := revive(func() {
@@ -48,14 +48,14 @@ func TestRemoveBackupOwner(t *testing.T) {
 	}
 
 	testing.SetOriginCaller(owner)
-	RemoveBackupOwner(cross, u1)
+	RemoveBackupOwner(cross2(cur), u1)
 
 	if len(BackupOwners()) != 1 {
 		t.Error("BackupOwners should be length == 1 ")
 	}
 }
 
-func TestClaimOwnership(t *testing.T) {
+func TestClaimOwnership(cur realm, t *testing.T) {
 	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 
@@ -64,26 +64,26 @@ func TestClaimOwnership(t *testing.T) {
 	}
 
 	testing.SetOriginCaller(owner)
-	AddBackupOwner(cross, u1)
+	AddBackupOwner(cross2(cur), u1)
 
 	testing.SetOriginCaller(u1)
-	ClaimOwnership(cross)
+	ClaimOwnership(cross2(cur))
 
 	if u1 != Owner() {
 		t.Errorf("expected: %v, got: %v", owner, Owner())
 	}
 
 	testing.SetOriginCaller(owner)
-	ClaimOwnership(cross)
+	ClaimOwnership(cross2(cur))
 }
 
-func TestAddAdmin(t *testing.T) {
+func TestAddAdmin(cur realm, t *testing.T) {
 	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
 	testing.SetOriginCaller(owner)
-	AddAdmin(cross, u1)
+	AddAdmin(cross2(cur), u1)
 	admins := Admins()
 	if admins[1] != u1.String() {
 		t.Error("failed to add u1 to admins group")
@@ -98,16 +98,16 @@ func TestAddAdmin(t *testing.T) {
 
 	// cleanup
 	testing.SetOriginCaller(owner)
-	RemoveAdmin(cross, u1)
+	RemoveAdmin(cross2(cur), u1)
 }
 
-func TestRemoveAdmin(t *testing.T) {
+func TestRemoveAdmin(cur realm, t *testing.T) {
 	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
 	testing.SetOriginCaller(owner)
-	AddAdmin(cross, u1)
+	AddAdmin(cross2(cur), u1)
 
 	testing.SetOriginCaller(u2)
 	r := revive(func() {
@@ -118,20 +118,20 @@ func TestRemoveAdmin(t *testing.T) {
 	}
 
 	testing.SetOriginCaller(owner)
-	RemoveAdmin(cross, u1)
+	RemoveAdmin(cross2(cur), u1)
 
 	if len(Admins()) != 1 {
 		t.Error("Admin should be length == 1 ")
 	}
 }
 
-func TestIsAdmin(t *testing.T) {
+func TestIsAdmin(cur realm, t *testing.T) {
 	owner := address("g1j39fhg29uehm7twwnhvnpz3ggrm6tprhq65t0t")
 	u1 := testutils.TestAddress("u1")
 	u2 := testutils.TestAddress("u2")
 
 	testing.SetOriginCaller(owner)
-	AddAdmin(cross, u1)
+	AddAdmin(cross2(cur), u1)
 
 	if !IsAdmin(owner) {
 		t.Error("owner should be admin")

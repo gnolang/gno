@@ -35,15 +35,15 @@ func (propDef) Executor() pdao.ExecFunc {
 	}
 }
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user1)
+	commondao.Invite(cross2(cur), user1)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user1))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross, "Foo")
+	dao = commondao.New(cross2(cur), "Foo")
 
 	// Configure DAO
 	dao.Members().Add(user1)
