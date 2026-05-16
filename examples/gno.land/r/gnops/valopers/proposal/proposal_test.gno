@@ -24,7 +24,7 @@ func init() {
 	daoinit.InitWithUsers(g1user)
 }
 
-func TestValopers_ProposeNewValidator(t *testing.T) {
+func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 	const (
 		registerMinFee int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
 		proposalMinFee int64 = 100 * 1_000_000
@@ -55,19 +55,19 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valopers.Register(cross, moniker, description, serverType, opAddr, pubKey)
 			valopers.UpdateKeepRunning(cross, opAddr, false)
 		})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valopers.GetByAddr(opAddr)
 		})
 
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.AbortsWithMessage(t, ErrValidatorMissing.Error(), func(cur realm) {
+		urequire.AbortsWithMessage(t, cur, ErrValidatorMissing.Error(), func(cur realm) {
 			pr := NewValidatorProposalRequest(cur, opAddr)
 
 			dao.MustCreateProposal(cross, pr)
@@ -78,13 +78,13 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valopers.UpdateKeepRunning(cross, opAddr, true)
 		})
 
 		var valoper valopers.Valoper
 
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valoper = valopers.GetByAddr(opAddr)
 		})
 
@@ -92,7 +92,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
-		urequire.NotPanics(t, func(cur realm) {
+		urequire.NotPanics(t, cur, func(cur realm) {
 			testing.SetRealm(testing.NewUserRealm(g1user))
 			pr := NewValidatorProposalRequest(cur, opAddr)
 
@@ -122,11 +122,11 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to register a valoper
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valopers.GetByAddr(opAddr)
 		})
 
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			// Vote the proposal created in the previous test
 			dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
@@ -143,7 +143,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		// Send coins to be able to make a proposal
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
-		urequire.AbortsWithMessage(t, ErrSameValues.Error(), func() {
+		urequire.AbortsWithMessage(t, cur, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(cross, opAddr)
 			dao.MustCreateProposal(cross, pr)
 		})
@@ -163,7 +163,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		pr := ProposeNewInstructionsProposalRequest(cross, newInstructions)
 
 		pid = dao.MustCreateProposal(cross, pr)
@@ -194,7 +194,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		pr := ProposeNewMinFeeProposalRequest(cross, newMinFee)
 
 		pid = dao.MustCreateProposal(cross, pr)
@@ -207,7 +207,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 }
 
 /* TODO fix this @moul
-func TestValopers_ProposeNewValidator2(t *testing.T) {
+func TestValopers_ProposeNewValidator2(cur realm, t *testing.T) {
 	const (
 		registerMinFee int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
 		proposalMinFee int64 = 100 * 1_000_000
@@ -222,45 +222,45 @@ func TestValopers_ProposeNewValidator2(t *testing.T) {
 
 	t.Run("create valid proposal", func(t *testing.T) {
 		// Validator exists, should not panic
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			_ = valopers.MustGetValoper(g1user)
 		})
 
 		// Create the proposal
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			cross(valopers.Register)(moniker, description, g1user, pubKey)
 		})
 
 		// Verify proposal details
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valoper := valopers.MustGetValoper(g1user)
 			urequire.Equal(t, moniker, valoper.Moniker)
 			urequire.Equal(t, description, valoper.Description)
 		})
 		// Execute proposal with admin rights
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			std.TestSetOrigCaller(std.Admin)
 			cross(dao.ExecuteProposal)(dao.ProposalID(0))
 		})
 		// Check if valoper was updated
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valoper := valopers.MustGetValoper(g1user)
 			urequire.Equal(t, moniker, valoper.Moniker)
 			urequire.Equal(t, description, valoper.Description)
 		})
 
 		// Expect ExecuteProposal to pass
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			cross(dao.ExecuteProposal)(dao.ProposalID(0))
 		})
 		// Check if valoper was updated
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			valoper := valopers.MustGetValoper(g1user)
 			urequire.Equal(t, moniker, valoper.Moniker)
 			urequire.Equal(t, description, valoper.Description)
 		})
 		// Execute proposal with admin rights
-		urequire.NotPanics(t, func() {
+		urequire.NotPanics(t, cur, func() {
 			std.TestSetOrigCaller(std.Admin)
 			cross(dao.ExecuteProposal)(dao.ProposalID(0))
 		})
