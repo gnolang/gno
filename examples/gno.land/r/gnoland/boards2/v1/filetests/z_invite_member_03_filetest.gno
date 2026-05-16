@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_invite_member_03_filetest
+
+package z_invite_member_03_filetest
 
 import (
 	"testing"
@@ -13,10 +15,10 @@ const (
 	user  address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross, 0, user, boards.Role("foobar")) // Operate on realm DAO instead of individual boards
+	boards2.InviteMember(cross2(cur), 0, user, boards.Role("foobar")) // Operate on realm DAO instead of individual boards
 }
 
 // Error:

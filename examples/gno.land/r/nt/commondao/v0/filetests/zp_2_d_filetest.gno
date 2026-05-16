@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_2_d_filetest
+
+package zp_2_d_filetest
 
 import (
 	"testing"
@@ -13,13 +15,13 @@ const (
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross, "Foo")
+	dao := commondao.New(cross2(cur), "Foo")
 
 	options := commondao.GetOptions(dao.ID())
 	options.SetAllowChildren(true)
@@ -28,11 +30,11 @@ func init() {
 	daoID = dao.ID()
 }
 
-func main() {
+func main(cur realm) {
 	// Call with a user that is not a member of the DAO
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross, daoID, "", "")
+	commondao.CreateSubDAOProposal(cross2(cur), daoID, "", "")
 }
 
 // Error:

@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_2_b_filetest
+
 // Test getting boards
-package main
+package z_2_b_filetest
 
 import (
 	"testing"
@@ -8,11 +10,11 @@ import (
 	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boards2.CreateBoard(cross, "aaa123", false, false)
-	boards2.CreateBoard(cross, "bbb123", false, false)
-	boards2.CreateBoard(cross, "ccc123", false, false)
+	boards2.CreateBoard(cross2(cur), "aaa123", false, false)
+	boards2.CreateBoard(cross2(cur), "bbb123", false, false)
+	boards2.CreateBoard(cross2(cur), "ccc123", false, false)
 }
 
 func main() {

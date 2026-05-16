@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_reply_04_filetest
+
+package z_create_reply_04_filetest
 
 import (
 	"testing"
@@ -15,19 +17,19 @@ var (
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
+	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
 
 	// Hide thread by flagging it so reply can't be submitted
-	boards2.FlagThread(cross, bid, tid, "reason")
+	boards2.FlagThread(cross2(cur), bid, tid, "reason")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateReply(cross, bid, tid, 0, "Test reply")
+	boards2.CreateReply(cross2(cur), bid, tid, 0, "Test reply")
 }
 
 // Error:

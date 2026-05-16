@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_8_f_filetest
+
+package z_8_f_filetest
 
 import (
 	"testing"
@@ -13,10 +15,10 @@ const (
 
 var rootID uint64
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
@@ -24,7 +26,7 @@ func init() {
 
 	// Create root DAO without subDAOs
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	rootID = commondao.New(cross, "Root DAO").ID()
+	rootID = commondao.New(cross2(cur), "Root DAO").ID()
 }
 
 func main() {

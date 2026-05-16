@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_3_b_filetest
+
+package zp_3_b_filetest
 
 import (
 	"testing"
@@ -18,26 +20,26 @@ var (
 	subDAO *pcommondao.CommonDAO
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross, "Foo")
+	dao = commondao.New(cross2(cur), "Foo")
 	dao.Members().Add(user)
 
 	options := commondao.GetOptions(dao.ID())
 	options.SetAllowDissolutionProposals(true)
 
 	// Create a SubDAO to be dissolveed
-	subDAO = commondao.NewSubDAO(cross, "Bar", dao.ID())
+	subDAO = commondao.NewSubDAO(cross2(cur), "Bar", dao.ID())
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateDissolutionProposal(cross, subDAO.ID())
+	pID := commondao.CreateDissolutionProposal(cross2(cur), subDAO.ID())
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {

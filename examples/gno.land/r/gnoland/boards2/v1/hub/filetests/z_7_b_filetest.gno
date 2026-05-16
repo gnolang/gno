@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_7_b_filetest
+
 // Test getting comments from a thread
-package main
+package z_7_b_filetest
 
 import (
 	"testing"
@@ -10,17 +12,17 @@ import (
 
 var thread hub.Thread
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID := boards2.CreateBoard(cross, "test123", false, false)
-	threadID := boards2.CreateThread(cross, boardID, "Title", "Body")
-	commentID := boards2.CreateReply(cross, boardID, threadID, 0, "Comment 1")
+	boardID := boards2.CreateBoard(cross2(cur), "test123", false, false)
+	threadID := boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
+	commentID := boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Comment 1")
 
 	// Create another comment
-	boards2.CreateReply(cross, boardID, threadID, 0, "Comment 2")
+	boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Comment 2")
 
 	// Add a reply (it should not be included in the output)
-	boards2.CreateReply(cross, boardID, threadID, commentID, "Reply")
+	boards2.CreateReply(cross2(cur), boardID, threadID, commentID, "Reply")
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))

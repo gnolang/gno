@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_required_account_amount_00_filetest
+
+package z_set_required_account_amount_00_filetest
 
 import (
 	"testing"
@@ -8,10 +10,10 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetRequiredAccountAmount(cross, 1_000_000)
+	boards2.SetRequiredAccountAmount(cross2(cur), 1_000_000)
 
 	println(boards2.RequiredAccountAmount)
 }

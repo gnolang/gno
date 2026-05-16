@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_reply_04_filetest
+
+package z_delete_reply_04_filetest
 
 import (
 	"testing"
@@ -15,19 +17,19 @@ var (
 	tid, rid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
 
-	rid = boards2.CreateReply(cross, bid, tid, 0, "Parent")
-	boards2.CreateReply(cross, bid, tid, rid, "Child reply")
+	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "Parent")
+	boards2.CreateReply(cross2(cur), bid, tid, rid, "Child reply")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.DeleteReply(cross, bid, tid, rid)
+	boards2.DeleteReply(cross2(cur), bid, tid, rid)
 
 	// Render content must contain the releted message instead of reply's body
 	println(boards2.Render("test-board/1/2"))

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_flagging_threshold_01_filetest
+
+package z_set_flagging_threshold_01_filetest
 
 import (
 	"testing"
@@ -13,10 +15,10 @@ const (
 	bid   boards.ID = 404
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetFlaggingThreshold(cross, bid, 1)
+	boards2.SetFlaggingThreshold(cross2(cur), bid, 1)
 }
 
 // Error:

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_flag_reply_07_filetest
+
+package z_flag_reply_07_filetest
 
 import (
 	"testing"
@@ -18,23 +20,23 @@ var (
 	rid, tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	// Created a board with flagging threshold greater than 1
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	boards2.SetFlaggingThreshold(cross, bid, 2)
+	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
+	boards2.SetFlaggingThreshold(cross2(cur), bid, 2)
 
 	// Create a reply so the realm owner can flag and hide it with a single flag
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
+	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "body")
 	// Also freeze board to make sure that realm owner can still flag the reply
-	boards2.FreezeBoard(cross, bid)
+	boards2.FreezeBoard(cross2(cur), bid)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagReply(cross, bid, tid, rid, "Reason")
+	boards2.FlagReply(cross2(cur), bid, tid, rid, "Reason")
 
 	// Render content must contain a message about the hidden reply
 	println(boards2.Render("test-board/1/2"))

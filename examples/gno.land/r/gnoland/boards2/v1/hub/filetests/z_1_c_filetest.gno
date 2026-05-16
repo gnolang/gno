@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_1_c_filetest
+
 // Test non default reposted thread values
-package main
+package z_1_c_filetest
 
 import (
 	"testing"
@@ -15,29 +17,29 @@ var (
 	threadID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	srcBoardID := boards2.CreateBoard(cross, "origin123", false, false)
+	srcBoardID := boards2.CreateBoard(cross2(cur), "origin123", false, false)
 
 	// Create two threads where the second is the one to repost
-	boards2.CreateThread(cross, srcBoardID, "Title1", "Body1")
-	srcThreadID := boards2.CreateThread(cross, srcBoardID, "Title2", "Body2") // ID = 2
+	boards2.CreateThread(cross2(cur), srcBoardID, "Title1", "Body1")
+	srcThreadID := boards2.CreateThread(cross2(cur), srcBoardID, "Title2", "Body2") // ID = 2
 
 	// Create repost
-	boardID = boards2.CreateBoard(cross, "test123", false, false)
-	threadID = boards2.CreateRepost(cross, srcBoardID, srcThreadID, boardID, "Title", "Body")
+	boardID = boards2.CreateBoard(cross2(cur), "test123", false, false)
+	threadID = boards2.CreateRepost(cross2(cur), srcBoardID, srcThreadID, boardID, "Title", "Body")
 
 	// Edit repost
-	boards2.EditThread(cross, boardID, threadID, "Foo", "Bar")
+	boards2.EditThread(cross2(cur), boardID, threadID, "Foo", "Bar")
 
 	// Add a comment to the repost
-	boards2.CreateReply(cross, boardID, threadID, 0, "Comment")
+	boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Comment")
 
 	// Freeze repost
-	boards2.FreezeThread(cross, boardID, threadID)
+	boards2.FreezeThread(cross2(cur), boardID, threadID)
 
 	// Flag repost
-	boards2.FlagThread(cross, boardID, threadID, "Reason")
+	boards2.FlagThread(cross2(cur), boardID, threadID, "Reason")
 }
 
 func main() {

@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_6_d_filetest
+
 // Test getting flags from a comment
-package main
+package z_6_d_filetest
 
 import (
 	"testing"
@@ -16,26 +18,26 @@ const (
 
 var comment hub.Comment
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boardID := boards2.CreateBoard(cross, "test123", false, false)
-	threadID := boards2.CreateThread(cross, boardID, "Title", "Body")
-	commentID := boards2.CreateReply(cross, boardID, threadID, 0, "Comment")
+	boardID := boards2.CreateBoard(cross2(cur), "test123", false, false)
+	threadID := boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
+	commentID := boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Comment")
 
 	// Invite member
-	boards2.InviteMember(cross, boardID, admin, "admin")
-	boards2.InviteMember(cross, boardID, moderator, "moderator")
+	boards2.InviteMember(cross2(cur), boardID, admin, "admin")
+	boards2.InviteMember(cross2(cur), boardID, moderator, "moderator")
 
 	// Update flagging threshold to two flags
-	boards2.SetFlaggingThreshold(cross, boardID, 2)
+	boards2.SetFlaggingThreshold(cross2(cur), boardID, 2)
 
 	// Add first flag
 	testing.SetRealm(testing.NewUserRealm(admin))
-	boards2.FlagReply(cross, boardID, threadID, commentID, "Reason 1")
+	boards2.FlagReply(cross2(cur), boardID, threadID, commentID, "Reason 1")
 
 	// Add second flag
 	testing.SetRealm(testing.NewUserRealm(moderator))
-	boards2.FlagReply(cross, boardID, threadID, commentID, "Reason 2")
+	boards2.FlagReply(cross2(cur), boardID, threadID, commentID, "Reason 2")
 
 	// Get readonly comment
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))

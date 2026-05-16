@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_lock_realm_05_filetest
+
+package z_lock_realm_05_filetest
 
 import (
 	"testing"
@@ -8,16 +10,16 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func init() {
+func init(cur realm) {
 	// Lock the realm without locking realm members
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.LockRealm(cross, false)
+	boards2.LockRealm(cross2(cur), false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.LockRealm(cross, true)
+	boards2.LockRealm(cross2(cur), true)
 
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())

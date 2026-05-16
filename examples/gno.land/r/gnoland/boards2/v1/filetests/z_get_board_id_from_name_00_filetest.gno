@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_get_board_id_from_name_00_filetest
+
+package z_get_board_id_from_name_00_filetest
 
 import (
 	"testing"
@@ -15,15 +17,15 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, name, false, false)
+	bid = boards2.CreateBoard(cross2(cur), name, false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	bid2, found := boards2.GetBoardIDFromName(cross, name)
+	bid2, found := boards2.GetBoardIDFromName(cross2(cur), name)
 
 	println(found)
 	println(bid2 == bid)

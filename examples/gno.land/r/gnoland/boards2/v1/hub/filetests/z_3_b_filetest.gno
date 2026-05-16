@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_3_b_filetest
+
 // Test getting threads from a board
-package main
+package z_3_b_filetest
 
 import (
 	"testing"
@@ -10,14 +12,14 @@ import (
 
 var board hub.Board
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID := boards2.CreateBoard(cross, "test123", false, false)
+	boardID := boards2.CreateBoard(cross2(cur), "test123", false, false)
 
 	// Create a couple of board threads
-	boards2.CreateThread(cross, boardID, "First", "Body")
-	boards2.CreateThread(cross, boardID, "Second", "Body")
-	boards2.CreateThread(cross, boardID, "Third", "Body")
+	boards2.CreateThread(cross2(cur), boardID, "First", "Body")
+	boards2.CreateThread(cross2(cur), boardID, "Second", "Body")
+	boards2.CreateThread(cross2(cur), boardID, "Third", "Body")
 
 	// Get readonly board
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))

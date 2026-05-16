@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_change_member_role_01_filetest
+
+package z_change_member_role_01_filetest
 
 import (
 	"testing"
@@ -16,16 +18,16 @@ const (
 
 var bid boards.ID // Operate on board DAO
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "foo123", false, false)
-	boards2.InviteMember(cross, bid, member, boards2.RoleGuest)
+	bid = boards2.CreateBoard(cross2(cur), "foo123", false, false)
+	boards2.InviteMember(cross2(cur), bid, member, boards2.RoleGuest)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross, bid, member, newRole)
+	boards2.ChangeMemberRole(cross2(cur), bid, member, newRole)
 
 	// Ensure that new role has been changed
 	println(boards2.HasMemberRole(bid, member, newRole))

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/faucet/filetests/z3_filetest
+
+package z3_filetest
 
 import (
 	"chain"
@@ -15,7 +17,7 @@ func init() {
 }
 
 // assert render with 2 controllers and 2 transfers
-func main() {
+func main(cur realm) {
 	var (
 		adminaddr       = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		controlleraddr1 = testutils.TestAddress("controller1")
@@ -24,21 +26,21 @@ func main() {
 		_               = testutils.TestAddress("test2")
 	)
 	testing.SetRealm(testing.NewUserRealm(adminaddr))
-	err := faucet.AdminAddController(cross, controlleraddr1)
+	err := faucet.AdminAddController(cross2(cur), controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(cross, controlleraddr2)
+	err = faucet.AdminAddController(cross2(cur), controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
 	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
-	err = faucet.Transfer(cross, testaddr1, 1_000_000)
+	err = faucet.Transfer(cross2(cur), testaddr1, 1_000_000)
 	if err != "" {
 		panic(err)
 	}
 	testing.SetRealm(testing.NewUserRealm(controlleraddr2))
-	err = faucet.Transfer(cross, testaddr1, 2_000_000)
+	err = faucet.Transfer(cross2(cur), testaddr1, 2_000_000)
 	if err != "" {
 		panic(err)
 	}

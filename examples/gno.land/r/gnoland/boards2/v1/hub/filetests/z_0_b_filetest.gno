@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_0_b_filetest
+
 // Test non default board values
-package main
+package z_0_b_filetest
 
 import (
 	"testing"
@@ -12,21 +14,21 @@ import (
 
 var boardID boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross, "test123", false, false)
+	boardID = boards2.CreateBoard(cross2(cur), "test123", false, false)
 
 	// Invite member
-	boards2.InviteMember(cross, boardID, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "admin")
+	boards2.InviteMember(cross2(cur), boardID, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "admin")
 
 	// Rename board
-	boards2.RenameBoard(cross, "test123", "foo123")
+	boards2.RenameBoard(cross2(cur), "test123", "foo123")
 
 	// Create a thread
-	boards2.CreateThread(cross, boardID, "Title", "Body")
+	boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
 
 	// Freeze board
-	boards2.FreezeBoard(cross, boardID)
+	boards2.FreezeBoard(cross2(cur), boardID)
 }
 
 func main() {

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_0_g_filetest
+
+package zp_0_g_filetest
 
 import (
 	"testing"
@@ -13,13 +15,13 @@ const (
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross, "Foo")
+	dao := commondao.New(cross2(cur), "Foo")
 	dao.Members().Add(user)
 
 	options := commondao.GetOptions(dao.ID())
@@ -28,10 +30,10 @@ func init() {
 	daoID = dao.ID()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateMembersUpdateProposal(cross, daoID, "", "")
+	commondao.CreateMembersUpdateProposal(cross2(cur), daoID, "", "")
 }
 
 // Error:

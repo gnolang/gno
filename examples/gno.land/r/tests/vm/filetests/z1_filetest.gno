@@ -1,13 +1,15 @@
-package main
+// PKGPATH: gno.land/r/tests/vm/filetests/z1_filetest
+
+package z1_filetest
 
 import (
 	tests "gno.land/r/tests/vm"
 )
 
-func main() {
-	println(tests.Counter(cross))
-	tests.IncCounter(cross)
-	println(tests.Counter(cross))
+func main(cur realm) {
+	println(tests.Counter(cross2(cur)))
+	tests.IncCounter(cross2(cur))
+	println(tests.Counter(cross2(cur)))
 }
 
 // Output:

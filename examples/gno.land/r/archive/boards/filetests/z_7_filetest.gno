@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/archive/boards/filetests/z_7_filetest
+
+package z_7_filetest
 
 // SEND: 1000000ugnot
 
@@ -9,16 +11,16 @@ import (
 	uinit "gno.land/r/sys/users/init"
 )
 
-func init() {
+func init(cur realm) {
 	// register
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross2(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
 
 	// create board and post
-	bid := boards.CreateBoard(cross, "test_board")
-	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
+	bid := boards.CreateBoard(cross2(cur), "test_board")
+	boards.CreateThread(cross2(cur), bid, "First Post (title)", "Body of the first post. (body)")
 }
 
 func main() {

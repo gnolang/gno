@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_3_a_filetest
+
 // Test getting threads from an empty board
-package main
+package z_3_a_filetest
 
 import (
 	"testing"
@@ -12,9 +14,9 @@ import (
 
 var boardID boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross, "test123", false, false)
+	boardID = boards2.CreateBoard(cross2(cur), "test123", false, false)
 }
 
 func main() {

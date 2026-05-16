@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_permissions_01_filetest
+
+package z_set_permissions_01_filetest
 
 import (
 	"testing"
@@ -21,10 +23,10 @@ func init() {
 	perms = permissions.New()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.SetPermissions(cross, bid, perms)
+	boards2.SetPermissions(cross2(cur), bid, perms)
 }
 
 // Error:

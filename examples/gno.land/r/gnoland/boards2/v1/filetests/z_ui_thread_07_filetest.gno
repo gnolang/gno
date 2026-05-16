@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_thread_07_filetest
+
 // Render thread with a title that contains Markdown
-package main
+package z_ui_thread_07_filetest
 
 import (
 	"testing"
@@ -16,12 +18,12 @@ const (
 
 var threadID boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, boardName, false, false)
-	threadID = boards2.CreateThread(cross, boardID, "[Foo](https://foo.com)", "Body")
+	boardID := boards2.CreateBoard(cross2(cur), boardName, false, false)
+	threadID = boards2.CreateThread(cross2(cur), boardID, "[Foo](https://foo.com)", "Body")
 }
 
 func main() {

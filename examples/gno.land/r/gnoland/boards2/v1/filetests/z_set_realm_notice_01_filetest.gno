@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_set_realm_notice_01_filetest
+
+package z_set_realm_notice_01_filetest
 
 import (
 	"testing"
@@ -8,16 +10,16 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func init() {
+func init(cur realm) {
 	// Set an initial message so it can be cleared
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.SetRealmNotice(cross, "This is a test realm message")
+	boards2.SetRealmNotice(cross2(cur), "This is a test realm message")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetRealmNotice(cross, "")
+	boards2.SetRealmNotice(cross2(cur), "")
 
 	println(boards2.Notice == "")
 }

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_5_e_filetest
+
+package z_5_e_filetest
 
 import (
 	"testing"
@@ -27,15 +29,15 @@ var (
 	proposal *pdao.Proposal
 )
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	dao := commondao.New(cross, "Foo")
+	dao := commondao.New(cross2(cur), "Foo")
 	daoID = dao.ID()
 
 	// Configure DAO
@@ -45,10 +47,10 @@ func init() {
 	proposal, _ = dao.Propose(user, propDef{})
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Vote(cross, daoID, proposal.ID(), "invalid", "")
+	commondao.Vote(cross2(cur), daoID, proposal.ID(), "invalid", "")
 }
 
 // Error:

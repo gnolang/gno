@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_accept_invite_03_filetest
+
+package z_accept_invite_03_filetest
 
 import (
 	"testing"
@@ -15,19 +17,19 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	boards2.RequestInvite(cross, bid)
+	boards2.RequestInvite(cross2(cur), bid)
 }
 
-func main() {
+func main(cur realm) {
 	// Caller is not a member and has no permission to invite
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.AcceptInvite(cross, bid, user)
+	boards2.AcceptInvite(cross2(cur), bid, user)
 }
 
 // Error:

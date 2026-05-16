@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_1_a_filetest
+
+package z_1_a_filetest
 
 import (
 	"testing"
@@ -11,10 +13,10 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	println(commondao.IsInvited(user))
 }

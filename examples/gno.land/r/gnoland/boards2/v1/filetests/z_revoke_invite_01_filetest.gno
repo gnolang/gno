@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_revoke_invite_01_filetest
+
+package z_revoke_invite_01_filetest
 
 import (
 	"testing"
@@ -15,15 +17,15 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.RevokeInvite(cross, bid, user)
+	boards2.RevokeInvite(cross2(cur), bid, user)
 }
 
 // Error:

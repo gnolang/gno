@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_3_a_filetest
+
+package z_3_a_filetest
 
 import (
 	"chain"
@@ -18,21 +20,21 @@ var (
 	realmAddr = chain.PackageAddress("gno.land/r/test")
 )
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	daoID = commondao.New(cross, "Foo").ID()
+	daoID = commondao.New(cross2(cur), "Foo").ID()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	commondao.TransferOwnership(cross, daoID, newRealm)
+	commondao.TransferOwnership(cross2(cur), daoID, newRealm)
 
 	println(commondao.IsOwner(realmAddr, daoID))
 	println(commondao.IsOwner(newRealm, daoID))

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_invite_member_00_filetest
+
+package z_invite_member_00_filetest
 
 import (
 	"testing"
@@ -15,10 +17,10 @@ const (
 	role          = boards2.RoleOwner
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross, bid, user, role)
+	boards2.InviteMember(cross2(cur), bid, user, role)
 
 	// Check that user is invited
 	println(boards2.HasMemberRole(bid, user, role))

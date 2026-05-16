@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_7_a_filetest
+
 // Test getting comments from a thread without comments
-package main
+package z_7_a_filetest
 
 import (
 	"testing"
@@ -10,10 +12,10 @@ import (
 
 var thread hub.Thread
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID := boards2.CreateBoard(cross, "test123", false, false)
-	threadID := boards2.CreateThread(cross, boardID, "Title", "Body")
+	boardID := boards2.CreateBoard(cross2(cur), "test123", false, false)
+	threadID := boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))

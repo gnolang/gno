@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_edit_thread_03_filetest
+
+package z_edit_thread_03_filetest
 
 import (
 	"testing"
@@ -8,10 +10,10 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.EditThread(cross, 404, 1, "Foo", "bar")
+	boards2.EditThread(cross2(cur), 404, 1, "Foo", "bar")
 }
 
 // Error:

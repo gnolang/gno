@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_edit_thread_04_filetest
+
+package z_edit_thread_04_filetest
 
 import (
 	"testing"
@@ -15,16 +17,16 @@ var (
 	pid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	pid = boards2.CreateThread(cross, bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
+	pid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.EditThread(cross, bid, pid, "Foo", "")
+	boards2.EditThread(cross2(cur), bid, pid, "Foo", "")
 }
 
 // Error:

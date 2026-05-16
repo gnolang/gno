@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_5_b_filetest
+
 // Test getting reposts of a thread
-package main
+package z_5_b_filetest
 
 import (
 	"testing"
@@ -10,18 +12,18 @@ import (
 
 var thread hub.Thread
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID := boards2.CreateBoard(cross, "aaa123", false, false)
-	threadID := boards2.CreateThread(cross, boardID, "Title", "Body")
+	boardID := boards2.CreateBoard(cross2(cur), "aaa123", false, false)
+	threadID := boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
 
 	// Create first repost
-	dstBoardID := boards2.CreateBoard(cross, "bbb123", false, false)
-	boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "First", "Body")
+	dstBoardID := boards2.CreateBoard(cross2(cur), "bbb123", false, false)
+	boards2.CreateRepost(cross2(cur), boardID, threadID, dstBoardID, "First", "Body")
 
 	// Create second repost
-	dstBoardID = boards2.CreateBoard(cross, "ccc123", false, false)
-	boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Second", "Body")
+	dstBoardID = boards2.CreateBoard(cross2(cur), "ccc123", false, false)
+	boards2.CreateRepost(cross2(cur), boardID, threadID, dstBoardID, "Second", "Body")
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))

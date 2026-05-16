@@ -1,11 +1,13 @@
-package main
+// PKGPATH: gno.land/r/demo/tamagotchi/filetests/z0_filetest
+
+package z0_filetest
 
 import (
 	"gno.land/r/demo/tamagotchi"
 )
 
-func main() {
-	tamagotchi.Reset(cross, "tamagnotchi")
+func main(cur realm) {
+	tamagotchi.Reset(cross2(cur), "tamagnotchi")
 	println(tamagotchi.Render(""))
 }
 

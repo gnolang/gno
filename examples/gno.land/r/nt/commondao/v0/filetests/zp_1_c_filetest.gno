@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_1_c_filetest
+
+package zp_1_c_filetest
 
 import (
 	"testing"
@@ -15,13 +17,13 @@ const (
 
 var dao *pcommondao.CommonDAO
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross, "Foo")
+	dao = commondao.New(cross2(cur), "Foo")
 	dao.Members().Add(user)
 	dao.Members().Add(owner)
 
@@ -29,10 +31,10 @@ func init() {
 	options.SetAllowTextProposals(false) // Disallow text proposals
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateTextProposal(cross, dao.ID(), "", "", 0)
+	commondao.CreateTextProposal(cross2(cur), dao.ID(), "", "", 0)
 }
 
 // Error:

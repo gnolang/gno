@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_3_d_filetest
+
+package zp_3_d_filetest
 
 import (
 	"testing"
@@ -13,20 +15,20 @@ const (
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross, "Foo").ID()
+	daoID = commondao.New(cross2(cur), "Foo").ID()
 
 	options := commondao.GetOptions(daoID)
 	options.SetAllowDissolutionProposals(false)
 }
 
-func main() {
-	commondao.CreateDissolutionProposal(cross, daoID)
+func main(cur realm) {
+	commondao.CreateDissolutionProposal(cross2(cur), daoID)
 }
 
 // Error:

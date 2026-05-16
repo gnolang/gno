@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_04_filetest
+
 // Render default board view when there are no threads.
-package main
+package z_ui_board_04_filetest
 
 import (
 	"testing"
@@ -12,10 +14,10 @@ const (
 	boardName         = "TestBoard"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false, false)
+	boards2.CreateBoard(cross2(cur), boardName, false, false)
 }
 
 func main() {

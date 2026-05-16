@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_thread_06_filetest
+
 // Render thread repost of a flagged thread.
-package main
+package z_ui_thread_06_filetest
 
 import (
 	"testing"
@@ -17,20 +19,20 @@ const (
 
 var repostThreadID boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, srcBoardName, false, false)
-	threadID := boards2.CreateThread(cross, boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross2(cur), srcBoardName, false, false)
+	threadID := boards2.CreateThread(cross2(cur), boardID, "Foo", "Body")
 
 	// Repost thread into a different board
-	dstBoardID := boards2.CreateBoard(cross, dstBoardName, false, false)
-	repostThreadID = boards2.CreateRepost(cross, boardID, threadID, dstBoardID, "Bar", "Body2")
+	dstBoardID := boards2.CreateBoard(cross2(cur), dstBoardName, false, false)
+	repostThreadID = boards2.CreateRepost(cross2(cur), boardID, threadID, dstBoardID, "Bar", "Body2")
 
 	// Flag original thread
-	boards2.SetFlaggingThreshold(cross, boardID, 1)
-	boards2.FlagThread(cross, boardID, threadID, "Reason")
+	boards2.SetFlaggingThreshold(cross2(cur), boardID, 1)
+	boards2.FlagThread(cross2(cur), boardID, threadID, "Reason")
 }
 
 func main() {

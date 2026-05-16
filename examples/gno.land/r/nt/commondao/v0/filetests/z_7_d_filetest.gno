@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_7_d_filetest
+
+package z_7_d_filetest
 
 import (
 	"testing"
@@ -13,24 +15,24 @@ const (
 
 var parentID uint64
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross2(cur), user)
 
 	// The origin must be the invited user
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	parentDAO := commondao.New(cross, "Parent DAO", commondao.AllowChildren(false)) // Disallow SubDAOs
+	parentDAO := commondao.New(cross2(cur), "Parent DAO", commondao.AllowChildren(false)) // Disallow SubDAOs
 	parentID = parentDAO.ID()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
 
-	commondao.NewSubDAO(cross, "Foo", parentID)
+	commondao.NewSubDAO(cross2(cur), "Foo", parentID)
 }
 
 // Error:

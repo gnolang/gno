@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_board_10_filetest
+
+package z_create_board_10_filetest
 
 import (
 	"testing"
@@ -8,11 +10,11 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Should fail because board name has a space which is not allowed
-	boards2.CreateBoard(cross, "test 123", false, false)
+	boards2.CreateBoard(cross2(cur), "test 123", false, false)
 }
 
 // Error:

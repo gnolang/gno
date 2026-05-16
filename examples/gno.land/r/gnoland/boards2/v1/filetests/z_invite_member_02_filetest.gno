@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_invite_member_02_filetest
+
+package z_invite_member_02_filetest
 
 import (
 	"testing"
@@ -17,19 +19,19 @@ const (
 
 var bid boards.ID // Operate on board DAO
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, false)
+	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
 
 	// Add an admin member
-	boards2.InviteMember(cross, bid, admin, boards2.RoleAdmin)
+	boards2.InviteMember(cross2(cur), bid, admin, boards2.RoleAdmin)
 }
 
-func main() {
+func main(cur realm) {
 	// Next call will be done by the admin member
 	testing.SetRealm(testing.NewUserRealm(admin))
 
-	boards2.InviteMember(cross, bid, user, role)
+	boards2.InviteMember(cross2(cur), bid, user, role)
 
 	// Check that user is invited
 	println(boards2.HasMemberRole(bid, user, role))

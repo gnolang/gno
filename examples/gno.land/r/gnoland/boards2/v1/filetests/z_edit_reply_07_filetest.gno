@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_edit_reply_07_filetest
+
+package z_edit_reply_07_filetest
 
 import (
 	"testing"
@@ -15,17 +17,17 @@ var (
 	tid, rid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
+	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "body")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.EditReply(cross, bid, tid, rid, "")
+	boards2.EditReply(cross2(cur), bid, tid, rid, "")
 }
 
 // Error:

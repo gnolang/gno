@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_board_04_filetest
+
+package z_create_board_04_filetest
 
 import (
 	"testing"
@@ -9,17 +11,17 @@ import (
 
 const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
-func init() {
+func init(cur realm) {
 	// uinit.RegisterUser is genesis-only since the security fix.
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnoland", address("g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"))
+	uinit.RegisterUser(cross2(cur), "gnoland", address("g1g3lsfxhvaqgdv4ccemwpnms4fv6t3aq3p5z6u7"))
 	testing.SetHeight(123)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, "gnoland", false, false)
+	boards2.CreateBoard(cross2(cur), "gnoland", false, false)
 }
 
 // Error:

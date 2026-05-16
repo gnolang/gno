@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_1_a_filetest
+
 // Test default thread values
-package main
+package z_1_a_filetest
 
 import (
 	"testing"
@@ -15,10 +17,10 @@ var (
 	threadID boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross, "origin123", false, false)
-	threadID = boards2.CreateThread(cross, boardID, "Title", "Body")
+	boardID = boards2.CreateBoard(cross2(cur), "origin123", false, false)
+	threadID = boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
 }
 
 func main() {
