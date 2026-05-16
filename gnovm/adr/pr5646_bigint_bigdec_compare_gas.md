@@ -12,7 +12,7 @@ In `gnovm/pkg/gnolang/op_binary.go` (master state):
 |-----|--------------|--------------|
 | `==` | `OpCPUSlopeBigIntEql` upfront in `doOpEql`        | none |
 | `!=` | none — `doOpNeq` delegates to `isEql` only        | none |
-| `<`  | `OpCPUSlopeBigIntLss` upfront in `doOpLss`        | none |
+| `<`  | `OpCPUSlopeBigIntLss` upfront in `doOpLss` (renamed to `…Cmp` here) | none |
 | `<=` | none                                              | none |
 | `>`  | none                                              | none |
 | `>=` | none                                              | none |
@@ -62,10 +62,24 @@ reachable from `.gno` source today.
   `BigdecKind` case. `doOpNeq` automatically inherits the charge because it
   calls `isEql`.
 - `isLss/Leq/Gtr/Geq` (`<`, `<=`, `>`, `>=`): each gets
-  `incrCPUBigInt(...OpCPUSlopeBigIntLss)` and
+  `incrCPUBigInt(...OpCPUSlopeBigIntCmp)` and
   `incrCPUBigDec(...OpCPUSlopeBigDecCmp)` in the BigInt/BigDec branches.
-  `OpCPUSlopeBigIntLss` is reused for all four lex ops because the underlying
-  `Cmp()` work is identical regardless of the operator.
+  A single `Cmp` constant is shared by all four lex ops on each side because
+  the underlying `Cmp()` work is identical regardless of the operator.
+- Rename master's `OpCPUSlopeBigIntLss` → `OpCPUSlopeBigIntCmp`. The fit
+  value (`= 9`) is unchanged — it was measured against `Lss` because that
+  was the only caller in master, but `big.Int.Cmp()` is comparator-invariant
+  so the same per-bit cost applies to `<=`, `>`, `>=` as well. Renaming
+  avoids the misleading sight of `OpCPUSlopeBigIntLss` at `isGeq` call
+  sites, and mirrors the new `OpCPUSlopeBigDecCmp` exactly.
+- Switch the type gate inside `incrCPUBigInt`/`incrCPUBigDec` and friends
+  (the `Quad` and `Unary` variants too) from `lv.T == UntypedBig{int,dec}Type`
+  to `baseOf(lv.T) == UntypedBig{int,dec}Type`. Strict-equality gating
+  silently skipped the charge on any `*DeclaredType` wrapping the underlying
+  primitive — which is exactly the future scenario the metering claims to
+  defend against. `baseOf` is what the corresponding `*Assign` helpers
+  already use to dispatch the computation, so the metering surface now
+  matches. Also applied to the inline gate in `doOpShl`.
 - Add two new constants in `machine.go`:
   - `OpCPUSlopeBigDecEql` — used by `==` / `!=`.
   - `OpCPUSlopeBigDecCmp` — used by `<` / `<=` / `>` / `>=`.
@@ -84,13 +98,13 @@ reachable from `.gno` source today.
 
 2. **Single shared `OpCPUSlopeBigDecCmp` for all six ops** (no separate
    `Eql`). Rejected for symmetry with BigInt: existing code already has
-   distinct `OpCPUSlopeBigIntEql` (= 10) and `OpCPUSlopeBigIntLss` (= 9)
-   constants, and `==`/`!=` may want a different calibration once benchmarks
-   land.
+   distinct `OpCPUSlopeBigIntEql` (= 10) and (post-rename)
+   `OpCPUSlopeBigIntCmp` (= 9) constants, and `==`/`!=` may want a different
+   calibration once benchmarks land.
 
 3. **Define separate `OpCPUSlopeBigIntLeq/Gtr/Geq` constants** instead of
-   reusing `OpCPUSlopeBigIntLss`. Rejected: `Cmp()` is the same function call
-   regardless of comparator, so the per-bit cost is the same.
+   sharing one `Cmp`. Rejected: `Cmp()` is the same function call regardless
+   of comparator, so the per-bit cost is the same.
 
 4. **Skip the BigDec metering** since runtime paths are unreachable today.
    Rejected for parity: master already meters BigDec arithmetic in the same

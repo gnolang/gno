@@ -351,7 +351,7 @@ func (m *Machine) doOpShl() {
 	}
 
 	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
-	if lv.T == UntypedBigintType {
+	if baseOf(lv.T) == UntypedBigintType {
 		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
 	}
 
@@ -601,7 +601,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Flt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) < 0
@@ -650,7 +650,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Fle64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) <= 0
@@ -699,7 +699,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Fgt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) > 0
@@ -748,7 +748,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case Float64Kind:
 		return softfloat.Fge64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
-		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
+		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntCmp)
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
 		return lb.Cmp(rb) >= 0

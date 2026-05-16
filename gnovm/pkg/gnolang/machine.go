@@ -1225,10 +1225,16 @@ const GasFactorCPU int64 = 1
 //----------------------------------------
 // "CPU" steps.
 
+// Each gate uses baseOf(.T) — not strict equality — so a future declared
+// type wrapping UntypedBig{int,dec}Type (e.g. `type Foo bigint`) is still
+// metered. baseOf is what the *Assign helpers in op_binary.go use to
+// dispatch the actual computation, so the metering follows the same
+// surface area.
+
 // incrCPUBigInt charges per-kilobit CPU gas for BigInt binary ops.
 // slopePerKb is the gas cost per 1024 bits of max(lv, rv) bit length.
 func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
-	if lv.T == UntypedBigintType {
+	if baseOf(lv.T) == UntypedBigintType {
 		lb := int64(lv.GetBigInt().BitLen())
 		rb := int64(rv.GetBigInt().BitLen())
 		m.incrCPU(max(lb, rb) * slopePerKb / 1024)
@@ -1240,7 +1246,7 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 // maxAllocTx bump (current 500MB caps bit-length at ~4B, safe under
 // int64) can't silently wrap into a negative charge.
 func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
-	if lv.T == UntypedBigintType {
+	if baseOf(lv.T) == UntypedBigintType {
 		lb := int64(lv.GetBigInt().BitLen()) / 32
 		rb := int64(rv.GetBigInt().BitLen()) / 32
 		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 32)
@@ -1249,7 +1255,7 @@ func (m *Machine) incrCPUBigIntQuad(lv, rv *TypedValue, slope int64) {
 
 // incrCPUBigDec charges per-100-digit CPU gas for BigDec binary ops.
 func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
-	if lv.T == UntypedBigdecType {
+	if baseOf(lv.T) == UntypedBigdecType {
 		lb := lv.GetBigDec().NumDigits()
 		rb := rv.GetBigDec().NumDigits()
 		m.incrCPU(max(lb, rb) * slopePer100 / 100)
@@ -1260,7 +1266,7 @@ func (m *Machine) incrCPUBigDec(lv, rv *TypedValue, slopePer100 int64) {
 // gas = (digits/10)^2 * slope / 10. overflow.Mulp keeps the compute
 // safe if maxAllocTx is ever raised.
 func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
-	if lv.T == UntypedBigdecType {
+	if baseOf(lv.T) == UntypedBigdecType {
 		lb := lv.GetBigDec().NumDigits() / 10
 		rb := rv.GetBigDec().NumDigits() / 10
 		m.incrCPU(overflow.Mulp(overflow.Mulp(lb, rb), slope) / 10)
@@ -1269,7 +1275,7 @@ func (m *Machine) incrCPUBigDecQuad(lv, rv *TypedValue, slope int64) {
 
 // incrCPUBigUnary charges per-kilobit CPU gas for unary BigInt ops.
 func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
-	if xv.T == UntypedBigintType {
+	if baseOf(xv.T) == UntypedBigintType {
 		bits := int64(xv.GetBigInt().BitLen())
 		m.incrCPU(bits * slopePerKb / 1024)
 	}
@@ -1277,7 +1283,7 @@ func (m *Machine) incrCPUBigUnary(xv *TypedValue, slopePerKb int64) {
 
 // incrCPUBigDecUnary charges per-100-digit CPU gas for unary BigDec ops.
 func (m *Machine) incrCPUBigDecUnary(xv *TypedValue, slopePer100 int64) {
-	if xv.T == UntypedBigdecType {
+	if baseOf(xv.T) == UntypedBigdecType {
 		digits := xv.GetBigDec().NumDigits()
 		m.incrCPU(digits * slopePer100 / 100)
 	}
@@ -1483,8 +1489,8 @@ const (
 	OpCPUSlopeBigIntUxor  = 46 // fit: 0.0446 ns/bit * 1024 = 45.6
 	OpCPUSlopeBigIntInc   = 62 // fit: 0.0604 ns/bit * 1024 = 61.9
 	OpCPUSlopeBigIntDec   = 62 // fit: 0.0606 ns/bit * 1024 = 62.1
-	OpCPUSlopeBigIntEql   = 10 // fit: 0.0097 ns/bit * 1024 = 9.9
-	OpCPUSlopeBigIntLss   = 9  // fit: 0.0089 ns/bit * 1024 = 9.1
+	OpCPUSlopeBigIntEql   = 10 // fit: 0.0097 ns/bit * 1024 = 9.9 (used by ==, !=)
+	OpCPUSlopeBigIntCmp   = 9  // fit: 0.0089 ns/bit * 1024 = 9.1 (used by <, <=, >, >=; benched as Lss — Cmp() cost is comparator-invariant)
 	// Quadratic: gas = (bits/32) * (bits/32) * slope / 32.
 	// Fit includes both same-width and cross-width benchmarks.
 	// Cross-width ops (e.g. 4096÷64) are cheaper per Q-unit than same-width,
@@ -1500,11 +1506,11 @@ const (
 	OpCPUSlopeBigIntShr = 51 // fit: 0.0498 ns/bit * 1024 = 51.0 (abs of negative fit)
 
 	// BigDec per-digit slopes: gas = digits * slope / 100.
-	OpCPUSlopeBigDecAdd = 375 // fit: 3.7522 ns/digit * 100 = 375.2
-	OpCPUSlopeBigDecSub = 20  // fit: 0.2031 ns/digit * 100 = 20.3
-	// TODO: OpCPUSlopeBigDecEql/Cmp are placeholders reusing the Sub fit;
+	// OpCPUSlopeBigDecEql/Cmp are placeholders reusing the Sub fit because
 	// apd.Decimal.Cmp() walks digits similarly but lacks dedicated benchmarks.
-	// Mirror BigInt's Eql/Lss split until calibrated separately.
+	// Mirror BigInt's Eql/Cmp split until calibrated separately.
+	OpCPUSlopeBigDecAdd  = 375 // fit: 3.7522 ns/digit * 100 = 375.2
+	OpCPUSlopeBigDecSub  = 20  // fit: 0.2031 ns/digit * 100 = 20.3
 	OpCPUSlopeBigDecEql  = 20  // placeholder, ≈ Sub fit (used by ==, !=)
 	OpCPUSlopeBigDecCmp  = 20  // placeholder, ≈ Sub fit (used by <, <=, >, >=)
 	OpCPUSlopeBigDecUneg = 13  // fit: 0.1279 ns/digit * 100 = 12.8
