@@ -1063,7 +1063,7 @@ func makeUverseNode() {
 			vargs := arg1
 			vargsl := vargs.TV.GetLength()
 			tt := arg0.TV.GetType()
-			m.Alloc.checkEagerConstructor(tt)
+			m.Alloc.checkConstructionTime(tt)
 			switch bt := baseOf(tt).(type) {
 			case *SliceType:
 				et := bt.Elem()
@@ -1193,7 +1193,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			tt := arg0.TV.GetType()
-			m.Alloc.checkEagerConstructor(tt)
+			m.Alloc.checkConstructionTime(tt)
 			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
 			hi := m.Alloc.NewHeapItem(tt, tv)

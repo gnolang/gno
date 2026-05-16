@@ -1467,7 +1467,7 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				// value's type can be cross-realm (e.g., package
 				// vars of /r/foreign types) but the HIV slot
 				// itself is not /r/-declared. Pass nil to skip
-				// the eager-constructor check.
+				// the construction-time check.
 				nvs[i] = TypedValue{
 					T: heapItemType{},
 					V: alloc.NewHeapItem(nil, nvs[i]),

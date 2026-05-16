@@ -2589,7 +2589,7 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 		tv := sb.Values[i]
 		if heapItems[i] {
 			// Heap-slot wrapper is anonymous; nil t skips the
-			// eager-constructor check (the contained value's
+			// construction-time check (the contained value's
 			// type may be cross-realm but the slot itself isn't).
 			bvalues = append(bvalues, TypedValue{
 				T: heapItemType{},

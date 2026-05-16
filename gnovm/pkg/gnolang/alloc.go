@@ -26,7 +26,7 @@ type Allocator struct {
 	// *Machine reference. Zero when m.Realm is nil.
 	currentRealmID PkgID
 	// currentRealmPath mirrors m.Realm.Path; used in
-	// checkEagerConstructor's panic message so users see a readable
+	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
 }
@@ -401,7 +401,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
-// checkEagerConstructor panics if asked to construct a /r/-declared
+// checkConstructionTime panics if asked to construct a /r/-declared
 // type when the executing realm is different. interrealm v2 Phase 2 — the
 // enforcement of "storage = authority": every meaningfully-constructed
 // /r/-typed object must originate inside its declaring realm.
@@ -418,7 +418,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 //
 // nil t and nil alloc skip the check entirely (gonative, preprocess,
 // anonymous sub-allocations).
-func (alloc *Allocator) checkEagerConstructor(t Type) {
+func (alloc *Allocator) checkConstructionTime(t Type) {
 	if alloc == nil || t == nil {
 		return
 	}

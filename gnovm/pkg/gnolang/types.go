@@ -746,7 +746,7 @@ type StructType struct {
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
 	// on first GetPkgID() call. Used by interrealm v2 Phase 2's
-	// eager-constructor check via getDeclaredPkgID. Not serialized
+	// construction-time check via getDeclaredPkgID. Not serialized
 	// (unexported, re-derived deterministically from PkgPath).
 	pkgID PkgID
 
@@ -1480,7 +1480,7 @@ type DeclaredType struct {
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
 	// on first GetPkgID() call. Used by interrealm v2 Phase 2's
-	// eager-constructor check via getDeclaredPkgID. Not serialized.
+	// construction-time check via getDeclaredPkgID. Not serialized.
 	pkgID PkgID
 
 	// methodIndex maps method Name → its position in Methods for O(1)
@@ -2968,7 +2968,7 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{
 
 // declaredPkgPath walks Pointer/Declared/Struct type wrappers to
 // find the outermost named type's declaring package. Used by the
-// interrealm v2 allocator's eager-constructor check (Phase 2) to decide
+// interrealm v2 allocator's construction-time check (Phase 2) to decide
 // PkgID stamping at allocation time.
 //
 // Returns "" for unnamed composites (anonymous arrays, slices,
@@ -3019,8 +3019,8 @@ func (st *StructType) GetPkgID() PkgID {
 // getDeclaredPkgID walks Pointer/Declared/Struct type wrappers to
 // find the outermost named type's PkgID via cached lookups.
 // Returns zero PkgID for unnamed composites and PkgPath=""
-// anonymous types. Used by the interrealm v2 Phase 2 eager-constructor
-// check (Allocator.checkEagerConstructor).
+// anonymous types. Used by the interrealm v2 Phase 2 construction-time
+// check (Allocator.checkConstructionTime).
 func getDeclaredPkgID(t Type) PkgID {
 	for {
 		switch tt := t.(type) {

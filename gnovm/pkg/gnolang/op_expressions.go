@@ -438,7 +438,7 @@ func (m *Machine) doOpArrayLit() {
 	m.incrCPU(OpCPUSlopeArrayLit * int64(ne))
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
-	m.Alloc.checkEagerConstructor(at)
+	m.Alloc.checkConstructionTime(at)
 	bt := baseOf(at).(*ArrayType)
 	// construct array value.
 	av := defaultArrayValue(m.Alloc, bt)
@@ -498,10 +498,10 @@ func (m *Machine) doOpSliceLit() {
 	m.incrCPU(OpCPUSlopeSliceLit * int64(el))
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
-	m.Alloc.checkEagerConstructor(st)
+	m.Alloc.checkConstructionTime(st)
 	// construct element buf slice. SliceValue is anonymous (st is
 	// the SliceType); the inner ArrayValue.Base is allocated at
-	// currentRealmID. The eager check above already gated by st.
+	// currentRealmID. The construction-time check above already gated by st.
 	baseArray := m.Alloc.NewListArray(nil, el)
 	es := baseArray.List
 	m.PopCopyValues(es)
@@ -526,7 +526,7 @@ func (m *Machine) doOpSliceLit2() {
 	tvs := m.PopValues(el * 2)
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
-	m.Alloc.checkEagerConstructor(st)
+	m.Alloc.checkConstructionTime(st)
 	// calculate maximum index.
 	var maxVal int64
 	for i := range el {
@@ -539,7 +539,7 @@ func (m *Machine) doOpSliceLit2() {
 	m.incrCPU(OpCPUSlopeSliceLit2 * (maxVal + 1))
 	// construct element buf slice.
 	// alloc before the underlying array constructed. Anonymous base
-	// array; nil t skips the eager-constructor check.
+	// array; nil t skips the construction-time check.
 	baseArray := m.Alloc.NewListArray(nil, int(maxVal+1))
 	es := baseArray.List
 
@@ -581,7 +581,7 @@ func (m *Machine) doOpMapLit() {
 	m.incrCPU(OpCPUSlopeMapLit * int64(ne))
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
-	m.Alloc.checkEagerConstructor(mt)
+	m.Alloc.checkConstructionTime(mt)
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
 	mv := m.Alloc.NewMap(mt, 0)
@@ -617,7 +617,7 @@ func (m *Machine) doOpStructLit() {
 	m.incrCPU(OpCPUSlopeStructLit * int64(el))
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
-	m.Alloc.checkEagerConstructor(xt)
+	m.Alloc.checkConstructionTime(xt)
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
 	fs := []TypedValue(nil)

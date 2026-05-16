@@ -104,7 +104,7 @@ func PkgIDFromPkgPath(path string) PkgID {
 		pkgID.Hashlet[0] |= 0x80
 	}
 	// uverse is the VM-builtin runtime; treat it as immutable so
-	// interrealm v2 Phase 2's eager-constructor check correctly classifies
+	// interrealm v2 Phase 2's construction-time check correctly classifies
 	// uverse-declared types (gConcreteRealmType, etc.) as
 	// non-realm.
 	if IsStdlib(path) || IsPPackagePath(path) || path == uversePkgPath {
@@ -136,7 +136,7 @@ func (pid PkgID) IsInternalPkg() bool {
 
 // IsRealmPkg returns true for /r/-declared packages: non-zero PkgID
 // that is neither stdlib nor /p/ (i.e., not immutable). Used by
-// the interrealm v2 Phase 2 eager-constructor check.
+// the interrealm v2 Phase 2 construction-time check.
 func (pid PkgID) IsRealmPkg() bool {
 	return !pid.IsZero() && !pid.IsImmutablePkg()
 }

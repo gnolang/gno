@@ -5,7 +5,7 @@ package bar
 import "gno.land/r/tests/vm/crossrealm"
 
 // interrealm v2 Phase 2: composite literal of a foreign /r/-declared type
-// from outside its declaring realm panics at the eager-constructor
+// from outside its declaring realm panics at the construction-time
 // check (doOpStructLit). Authority cannot be forged.
 
 func main() {

@@ -5,7 +5,7 @@ package bar
 import "gno.land/r/tests/vm/crossrealm"
 
 // interrealm v2 Phase 2: new() on a foreign /r/-declared type from outside
-// its declaring realm panics at the eager-constructor check
+// its declaring realm panics at the construction-time check
 // (uverse new builtin). Authority cannot be forged via *T.
 
 func main() {

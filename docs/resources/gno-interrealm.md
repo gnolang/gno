@@ -314,7 +314,7 @@ Two consequences follow:
    returned from a foreign realm's constructor — carries its authoring
    realm's PkgID immediately, and the borrow follows.
 
-2. **Eager-constructor enforcement.** Composite literals (`/r/foo.T{...}`),
+2. **Construction-time enforcement.** Composite literals (`/r/foo.T{...}`),
    `new(/r/foo.T)`, and `make([]/r/foo.T, ...)` of a foreign `/r/`-declared
    type panic when invoked outside the declaring realm. Authority cannot
    be forged by constructing values of a realm's types from elsewhere —

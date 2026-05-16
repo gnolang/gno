@@ -29,7 +29,7 @@
 #     runtime.CurrentRealm()/PreviousRealm(); those track only
 #     explicit fn(cross, ...) crossings.
 #
-#   Eager-constructor:  composite literals, new(), make() of foreign
+#   Construction-time:  composite literals, new(), make() of foreign
 #     /r/-declared types panic at the call site.
 #
 #   Readonly taint:  values read from foreign-realm state carry
@@ -39,8 +39,8 @@
 #     silently launder authority when passed cross-realm (Phase 2d).
 #
 # Narrow filetests for behaviors that don't need integration:
-#   - gnovm/tests/files/zrealm_v2_eager_composite_fail.gno
-#   - gnovm/tests/files/zrealm_v2_eager_new_fail.gno
+#   - gnovm/tests/files/zrealm_v2_construction_composite_fail.gno
+#   - gnovm/tests/files/zrealm_v2_construction_new_fail.gno
 #   - gnovm/tests/files/zrealm_v2_foreign_mutate_unreal_bytes.gno
 #   - gnovm/tests/files/zrealm_p_convert_readonly_ok_filetest.gno
 #   - gnovm/tests/files/exploit/realm_exploiter.gno
@@ -53,7 +53,7 @@ gnoland start
 ## Setup
 ## ============================================================
 
-gnokey maketx addpkg -pkgdir $WORK/lib -pkgpath gno.land/p/test/plan3lib -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/lib -pkgpath gno.land/p/test/v2lib -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
 stdout OK!
 
 gnokey maketx addpkg -pkgdir $WORK/owned -pkgpath gno.land/r/test/owned -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
@@ -78,12 +78,20 @@ stdout 'neighborLibA=0'
 
 ## L1_FnTopLevel: top-level /r/-declared fn invoked from foreign realm.
 ## Body's `global = n` succeeds (Layer 1 borrow → m.Realm = /r/owned).
+##
+##   func L1_FnTopLevel(cur realm) {
+##       owned.MutateGlobal(5)
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_FnTopLevel -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'global=5 '
 
 ## L1_MethodRealSelf: method on real receiver writes to own field.
+##
+##   func L1_MethodRealSelf(cur realm) {
+##       owned.Real.Mutate()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodRealSelf -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -92,11 +100,20 @@ stdout 'realValue=1 '
 ## L1_MethodRealForeignWrite: /r/owned method writes to a
 ## /r/neighbor-owned field. Layer 1 borrow shifts m.Realm to
 ## /r/owned, the foreign-field write panics on readonly taint.
+##
+##   func L1_MethodRealForeignWrite(cur realm) {
+##       owned.OverwriteA(neighbor.Lib)
+##   }
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodRealForeignWrite -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'cannot directly modify readonly tainted object'
 
 ## L1_MethodUnrealSelf: method on UNREAL receiver succeeds in memory
 ## but produces no persisted state delta (receiver discarded).
+##
+##   func L1_MethodUnrealSelf(cur realm) {
+##       r := owned.Factory()
+##       r.Mutate()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodUnrealSelf -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -104,6 +121,10 @@ stdout 'realValue=1 '
 
 ## L1_Closure: closure captured at /r/owned package-level. Borrow
 ## fires on the closure's construction-site realm.
+##
+##   func L1_Closure(cur realm) {
+##       owned.Closure()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_Closure -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -111,6 +132,11 @@ stdout 'global=6 '
 
 ## L1_BoundMethod: bound-method dispatch (`f := obj.M; f()`) goes
 ## through BoundMethodValue, still triggers Layer 1.
+##
+##   func L1_BoundMethod(cur realm) {
+##       f := owned.Real.Mutate
+##       f()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_BoundMethod -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -121,6 +147,10 @@ stdout 'realValue=2 '
 ## PkgID). Borrow targets the declaring realm of the method, not
 ## caller. The body writes its observation to owned.trace, asserted
 ## via qrender below.
+##
+##   func L1_ValueReceiver(cur realm) {
+##       owned.RecordValueReceiverTrace()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_ValueReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -128,6 +158,10 @@ stdout 'trace=L1_ValueReceiver:cur=gno.land/r/test/caller'
 
 ## L1_MultiHop: caller → neighbor.MutateOwnedVia → owned.Real.Mutate.
 ## Two Layer 1 borrows on the stack; both unwind correctly.
+##
+##   func L1_MultiHop(cur realm) {
+##       neighbor.MutateOwnedVia(owned.Real)
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MultiHop -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -136,6 +170,10 @@ stdout 'realValue=3 '
 ## L1_CrossingExplicit: explicit fn(cross, ...) shifts BOTH realm-
 ## context AND storage-context to /r/owned. Body's CurrentRealm
 ## reports /r/owned, PreviousRealm reports /r/caller.
+##
+##   func L1_CrossingExplicit(cur realm) {
+##       owned.PublicSet(cross, 99)
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_CrossingExplicit -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -155,6 +193,10 @@ stderr 'cannot cur-call to external realm function'
 
 ## L2_PMethodOnOwnedReal: /p/-method on real /r/owned-allocated
 ## receiver. Layer 2 borrows m.Realm to /r/owned; write succeeds.
+##
+##   func L2_PMethodOnOwnedReal(cur realm) {
+##       owned.Lib.TouchA()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnOwnedReal -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -164,12 +206,21 @@ stdout 'libA=1 '
 ## for unreal foreign receivers too. owned.LibFactory() returns
 ## a PkgID=/r/owned LibContainer with NewTime=0; TouchA still
 ## borrows to /r/owned.
+##
+##   func L2_PMethodOnOwnedUnreal(cur realm) {
+##       lc := owned.LibFactory()
+##       lc.TouchA()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnOwnedUnreal -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 # unreal receiver — no persisted state delta
 
 ## L2_PMethodOnNeighborReceiver: 3-realm geometry. Receiver in
 ## /r/neighbor. Layer 2 → /r/neighbor (not /r/owned, not /r/caller).
+##
+##   func L2_PMethodOnNeighborReceiver(cur realm) {
+##       neighbor.Lib.TouchA()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnNeighborReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/neighbor:"
@@ -177,6 +228,11 @@ stdout 'neighborLibA=1'
 
 ## L2_PMethodOnPrimitiveReceiver: primitive-receiver /p/-method does
 ## NOT trigger Layer 2 (no Object identity to carry PkgID).
+##
+##   func L2_PMethodOnPrimitiveReceiver(cur realm) {
+##       var p v2lib.PrimitiveCounter = 42
+##       _ = p.Touch()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnPrimitiveReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 
@@ -188,6 +244,11 @@ stdout OK!
 ## IFACE_DispatchTargetsDeclaring: caller invokes Toucher.Touch()
 ## where dynamic type is /r/owned.EvilToucher. VPInterface dispatch
 ## still triggers Layer 1 to /r/owned.
+##
+##   func IFACE_DispatchTargetsDeclaring(cur realm) {
+##       var t v2lib.Toucher = owned.NewEvilToucher()
+##       t.Touch()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func IFACE_DispatchTargetsDeclaring -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -195,17 +256,25 @@ stdout 'global=100 '
 
 
 ## ============================================================
-## Eager-constructor (also covered by filetests; included for completeness)
+## Construction-time (also covered by filetests; included for completeness)
 ## ============================================================
 
-## EAGER_CompositeLitFails: `&owned.Resource{Value: 1}` from caller.
-## doOpStructLit's eager check panics.
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func EAGER_CompositeLitFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+## CONSTRUCT_CompositeLitFails: `&owned.Resource{Value: 1}` from caller.
+## doOpStructLit's construction-time check panics.
+##
+##   func CONSTRUCT_CompositeLitFails(cur realm) {
+##       _ = &owned.Resource{Value: 1}
+##   }
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func CONSTRUCT_CompositeLitFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'cannot allocate gno.land/r/test/owned.Resource in realm gno.land/r/test/caller'
 
-## EAGER_NewFails: `new(owned.Resource)` from caller. uverse `new`'s
-## eager check panics.
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func EAGER_NewFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+## CONSTRUCT_NewFails: `new(owned.Resource)` from caller. uverse `new`'s
+## construction-time check panics.
+##
+##   func CONSTRUCT_NewFails(cur realm) {
+##       _ = new(owned.Resource)
+##   }
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func CONSTRUCT_NewFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'cannot allocate gno.land/r/test/owned.Resource in realm gno.land/r/test/caller'
 
 
@@ -217,6 +286,10 @@ stderr 'cannot allocate gno.land/r/test/owned.Resource in realm gno.land/r/test/
 ## N_Readonly from the dot-selector read), passes back through
 ## owned.MutateSlice. Even with Layer 1 borrow active, the taint
 ## survives and the indexed write panics.
+##
+##   func READONLY_RoundTripFails(cur realm) {
+##       owned.MutateSlice(owned.GlobalSlice)
+##   }
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripFails -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stderr 'cannot directly modify readonly tainted object'
 
@@ -228,6 +301,10 @@ stderr 'cannot directly modify readonly tainted object'
 ## CTX_BorrowDoesNotShiftCurrentRealm: Layer 1 borrow shifts m.Realm
 ## but NOT runtime.CurrentRealm(). Inside the borrowed body,
 ## CurrentRealm reports caller (or user for top-level user calls).
+##
+##   func CTX_BorrowDoesNotShiftCurrentRealm(cur realm) {
+##       owned.Real.RecordRealmTraceForCTX()
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func CTX_BorrowDoesNotShiftCurrentRealm -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -245,6 +322,15 @@ stdout 'trace=CTX:cur=gno.land/r/test/caller'
 ## equivalent capability is `revive(fn)` (see panic-revive spec).
 ## This case demonstrates that an unrecovered cross-realm panic
 ## leaks through caller's defer/recover and aborts the tx.
+##
+##   func DEFER_BorrowUnwindAfterRecover(cur realm) {
+##       defer func() {
+##           if recover() != nil {
+##               owned.RecordDeferResume()
+##           }
+##       }()
+##       owned.PanicInsideBorrow()
+##   }
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func DEFER_BorrowUnwindAfterRecover -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stderr 'intentional panic for unwind test'
 
@@ -258,6 +344,13 @@ stderr 'intentional panic for unwind test'
 ## (Same mechanism as L1_ValueReceiver, but the trace records the
 ## copy's effective declaring realm rather than just the borrow
 ## target.)
+##
+##   func COPY_PreservesPkgID(cur realm) {
+##       r := owned.Factory()
+##       // value-method dispatch — Copy preserves PkgID:
+##       id := (*r).Identify()
+##       owned.RecordCopyTrace(id)
+##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func COPY_PreservesPkgID -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
@@ -269,11 +362,11 @@ stdout 'trace=COPY:gno.land/r/test/owned'
 ## ============================================================
 
 -- lib/gnomod.toml --
-module = "gno.land/p/test/plan3lib"
+module = "gno.land/p/test/v2lib"
 gno = "0.9"
 
 -- lib/lib.gno --
-package plan3lib
+package v2lib
 
 type LibContainer struct {
 	A int
@@ -304,7 +397,7 @@ package owned
 import (
 	"chain/runtime"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/test/plan3lib"
+	"gno.land/p/test/v2lib"
 )
 
 type Resource struct {
@@ -326,7 +419,7 @@ func (r *Resource) RecordRealmTraceForCTX() {
 var (
 	global      int
 	Real        = &Resource{Value: 0}
-	Lib         = &plan3lib.LibContainer{A: 0}
+	Lib         = &v2lib.LibContainer{A: 0}
 	GlobalSlice = []int{1, 2, 3}
 	trace       string
 )
@@ -335,7 +428,7 @@ func MutateGlobal(n int) {
 	global = n
 }
 
-func OverwriteA(lc *plan3lib.LibContainer) {
+func OverwriteA(lc *v2lib.LibContainer) {
 	lc.A = 99
 }
 
@@ -343,8 +436,8 @@ func Factory() *Resource {
 	return &Resource{Value: 0}
 }
 
-func LibFactory() *plan3lib.LibContainer {
-	return &plan3lib.LibContainer{A: 0}
+func LibFactory() *v2lib.LibContainer {
+	return &v2lib.LibContainer{A: 0}
 }
 
 var Closure = func() {
@@ -418,11 +511,11 @@ package neighbor
 
 import (
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/test/plan3lib"
+	"gno.land/p/test/v2lib"
 	"gno.land/r/test/owned"
 )
 
-var Lib = &plan3lib.LibContainer{A: 0}
+var Lib = &v2lib.LibContainer{A: 0}
 
 func MutateOwnedVia(r *owned.Resource) {
 	r.Mutate()
@@ -441,7 +534,7 @@ gno = "0.9"
 package caller
 
 import (
-	"gno.land/p/test/plan3lib"
+	"gno.land/p/test/v2lib"
 	"gno.land/r/test/neighbor"
 	"gno.land/r/test/owned"
 )
@@ -502,24 +595,24 @@ func L2_PMethodOnNeighborReceiver(cur realm) {
 }
 
 func L2_PMethodOnPrimitiveReceiver(cur realm) {
-	var p plan3lib.PrimitiveCounter = 42
+	var p v2lib.PrimitiveCounter = 42
 	_ = p.Touch()
 }
 
 // ----- Interface dispatch -----
 
 func IFACE_DispatchTargetsDeclaring(cur realm) {
-	var t plan3lib.Toucher = owned.NewEvilToucher()
+	var t v2lib.Toucher = owned.NewEvilToucher()
 	t.Touch()
 }
 
-// ----- Eager-constructor -----
+// ----- Construction-time -----
 
-func EAGER_CompositeLitFails(cur realm) {
+func CONSTRUCT_CompositeLitFails(cur realm) {
 	_ = &owned.Resource{Value: 1}
 }
 
-func EAGER_NewFails(cur realm) {
+func CONSTRUCT_NewFails(cur realm) {
 	_ = new(owned.Resource)
 }
 

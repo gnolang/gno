@@ -23,7 +23,7 @@ The two key v2 semantics changes relative to v1:
    cases of v1 now correctly route writes back to the declaring realm at each
    hop.
 
-2. **Eager-constructor enforcement.**  Foreign /r/-declared types cannot be
+2. **Construction-time enforcement.**  Foreign /r/-declared types cannot be
    constructed via composite literal, `new(...)`, or `make(...)` from outside
    the declaring realm.  Several v1 cases that used `new(alice.Object)` from a
    caller realm now fail at construction time rather than at the later
@@ -55,15 +55,15 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
  * fn is method declared in /r/realm (nil or unreal receiver):
    - CASE rB1: method has nil receiver                              -- Layer 1 borrows (succeeds)
    - CASE rB2: method has nil receiver (external)                   -- Layer 1 borrows (succeeds)
-   - CASE rB3: method has unreal receiver (inline)                  -- eager-constructor panic
-   - CASE rB4: method has unreal receiver (var)                     -- eager-constructor panic
+   - CASE rB3: method has unreal receiver (inline)                  -- construction-time panic
+   - CASE rB4: method has unreal receiver (var)                     -- construction-time panic
 
  * fn is method declared in /r/realm (real receiver):
-   - CASE rC1: method has real receiver                             -- eager-constructor panic
-   - CASE rC2: method has real receiver (external)                  -- eager-constructor panic
-   - CASE rC3: method has real receiver via closure                 -- eager-constructor panic
-   - CASE rC4: method has real receiver via closure (external)      -- eager-constructor panic
-   - CASE rC5: method has real receiver via closure too late        -- eager-constructor panic
+   - CASE rC1: method has real receiver                             -- construction-time panic
+   - CASE rC2: method has real receiver (external)                  -- construction-time panic
+   - CASE rC3: method has real receiver via closure                 -- construction-time panic
+   - CASE rC4: method has real receiver via closure (external)      -- construction-time panic
+   - CASE rC5: method has real receiver via closure too late        -- construction-time panic
 
  * fn is crossing function declared in /r/realm:
    - CASE rD1: direct modification from external closure            -- illegal modification (static)
@@ -117,7 +117,7 @@ account for the difference between realm and pure package.
    defined foreign receiver: Layer 2 first shifts m.Realm to the receiver's
    authoring realm, then the inner `bob.PrivateFunc` call fires Layer 1 to
    /r/bob where the write lands.
- * "eager-constructor panic" replaces the v1 "FAIL: caller != bob" outcome for
+ * "construction-time panic" replaces the v1 "FAIL: caller != bob" outcome for
    cases that use `new(alice.Object)`.  The construction is rejected before
    any of the storage-cross logic runs.  Under v2, `alice.NewObject()` (a
    constructor function declared in /r/alice) is the only way for foreign
@@ -131,7 +131,7 @@ would be `[bob,alice]`.  The "FAIL: caller != bob" labels on rA1/rA2/rA3/rB1/rB2
 become SUCCESS because Layer 1 routes the inner `bob.PrivateFunc` write back
 to `/r/bob`; the rB3/rB4/rC1-rC5 labels become "PANIC: cannot allocate
 gno.land/r/alice.Object in realm gno.land/r/caller" at the `new(alice.Object)`
-line (eager-constructor enforcement).  The walkthrough is preserved as-is
+line (construction-time enforcement).  The walkthrough is preserved as-is
 because it documents the *case structure* and v1 expectations.  For v2
 outcomes see the case-summary table above and `interrealm_v2.txtar`.
 

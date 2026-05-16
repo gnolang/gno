@@ -693,9 +693,9 @@ This also sidesteps the "myrealm's clock stamps yourrealm's
 tombstone" semantic discrepancy from the review — no clock is
 stamped, the deletion marker is just a boolean.
 
-### Eager-constructor enforcement
+### Construction-time enforcement
 
-The plan **commits to eager-constructor enforcement**: the allocator
+The plan **commits to construction-time enforcement**: the allocator
 panics if asked to allocate a /r/foo-typed value when the executing
 realm is not /r/foo. This makes the storage=authority invariant
 strict — every /r/-typed object originates inside its declaring
@@ -723,7 +723,7 @@ for the invariant. Constructors run with Layer 1 borrow to their
 declaring realm, return a /r/-typed value with the correct PkgID
 to the caller, who then passes it on.
 
-### Where the eager check fires (implementation refinement)
+### Where the construction-time check fires (implementation refinement)
 
 The original spec stated the check fires inside every allocator
 constructor (`Alloc.NewStruct` / `NewListArray` / `NewMap` /
@@ -767,7 +767,7 @@ going through Layer 1 borrow at the cross-call boundary.
 ### Type-cached PkgID
 
 `DeclaredType` and `StructType` both carry a `PkgPath` field. Under
-the eager-constructor check (and any future Type→PkgID resolution),
+the construction-time check (and any future Type→PkgID resolution),
 the conversion path `PkgPath → PkgID` is `sync.Map.Load`-backed
 (realm.go:96-114) but still costs an atomic lookup, interface
 unboxing, and pointer dereference per call. Cache the resolved
@@ -808,7 +808,7 @@ and stays warm. Other Type implementations (ArrayType, SliceType,
 MapType, FuncType, ChanType) have no meaningful PkgPath; their
 `GetPkgID` would return `PkgID{}` and is unnecessary.
 
-Add a helper for the eager-constructor check that walks
+Add a helper for the construction-time check that walks
 Pointer/Declared/Struct wrappers and reads the cached PkgID:
 
 ```go
@@ -844,7 +844,7 @@ func (pid PkgID) IsRealmPkg() bool {
 ### Allocator API and PkgID assignment
 
 ```go
-func (alloc *Allocator) checkEagerConstructor(t Type) {
+func (alloc *Allocator) checkConstructionTime(t Type) {
     pkgID := getDeclaredPkgID(t)
     if !pkgID.IsRealmPkg() {
         return  // anonymous, primitive, /p/, stdlib — no restriction
@@ -857,13 +857,13 @@ func (alloc *Allocator) checkEagerConstructor(t Type) {
 }
 ```
 
-`checkEagerConstructor` is **not** called from generic allocator
+`checkConstructionTime` is **not** called from generic allocator
 constructors. Per the refinement above, it fires only at user-
 visible construction sites — composite-literal handlers in
 `op_expressions.go` and the `new()`/`make()` uverse builtins.
 Generic constructors keep the `t Type` parameter for API
 consistency (and so future Type-driven behavior can hook in) but
-no longer enforce the eager check internally.
+no longer enforce the construction-time check internally.
 
 Every allocator constructor calls `alloc.stampPkgID(&obj.ObjectInfo)`
 unconditionally — `obj.ID.PkgID = alloc.currentRealmID` for every
@@ -1010,10 +1010,10 @@ ObjectInfo is **not** inherited. This matches the design intent:
 copying a value into the current realm makes the copy live in the
 current realm.
 
-The eager-constructor check must wire through Path B for it to be
+The construction-time check must wire through Path B for it to be
 sound. `StructValue.Copy(alloc)` calls `alloc.NewStruct(fields)` —
-under interrealm v2 this needs a `Type` parameter to check eager
-construction. Add `t Type` parameter to `Copy`: `(sv *StructValue)
+under interrealm v2 this needs a `Type` parameter for the
+construction-time check. Add `t Type` parameter to `Copy`: `(sv *StructValue)
 Copy(alloc *Allocator, t Type)`. Threads the type from the caller
 (who has `tv.T` in scope).
 
@@ -1021,7 +1021,7 @@ Copy(alloc *Allocator, t Type)`. Threads the type from the caller
 `*Allocator`, it uses `alloc.AllocateFunc()` only for size
 accounting and constructs the FuncValue as a literal (values.go:513),
 bypassing `alloc.NewStruct`/`NewListArray` and therefore the
-eager-constructor check. It is correctly handled in the off-allocator
+construction-time check. It is correctly handled in the off-allocator
 list above: the copy preserves source PkgID (`cp.ID.PkgID =
 fv.ID.PkgID`) because a closure copy is a re-binding, not a
 re-creation.
@@ -1049,18 +1049,18 @@ interface gap for value-method dispatch:
    m.Realm=victim → DidUpdate passes. **Attack succeeds.**
 
 To close this, value-method receiver copying must preserve source
-PkgID **and bypass the eager-constructor check**. The naive approach
+PkgID **and bypass the construction-time check**. The naive approach
 of "Copy then re-stamp" doesn't work because `Copy(alloc, t)` invokes
-`alloc.NewStruct(t, fields)` which runs `checkEagerConstructor(t)` —
+`alloc.NewStruct(t, fields)` which runs `checkConstructionTime(t)` —
 for a cross-realm `/r/foo.Thing` receiver, the check sees
 `pkgID=/r/foo, currentRealmID=victim` and **panics before** the
 re-stamp runs. This would also break the legitimate `External /r/
 stored in caller's realm, method mutates self` case (victim does
 `t := /r/foo.NewThing(); t.ValueRead()` → VPValMethod copies t →
-eager check panics).
+construction-time check panics).
 
 The fix is to swap `alloc.currentRealmID` to the source's PkgID for
-the duration of the receiver copy. Eager-constructor checks at every
+the duration of the receiver copy. Construction-time checks at every
 depth then pass naturally because `currentRealmID` matches the
 type's declaring realm at every nested field. The fresh
 `*StructValue` keeps source PkgID, and nested foreign-struct fields
@@ -1075,7 +1075,7 @@ variant needed).
 // The copy is transient (never finalized, never persisted, no
 // DidUpdate fires on it via realm.go:239's !GetIsReal() skip), so
 // it does not "mint foreign authority" — it routes to existing
-// authority for dispatch. To prevent the generic eager-constructor
+// authority for dispatch. To prevent the generic construction-time
 // check from panicking on cross-realm receivers (and on their
 // nested foreign struct fields), temporarily swap
 // alloc.currentRealmID to match the source's declaring realm for
@@ -1107,7 +1107,7 @@ other ~13 generic Copy call sites (general-purpose in-memory copies
 via `unrefCopy`, package-init paths, etc.) remain on the generic
 checked-stamping rule.
 
-Receiver-copy is the only legitimate exception to the eager check.
+Receiver-copy is the only legitimate exception to the construction-time check.
 `*MapValue`, `*FuncValue`, `*SliceValue` cannot be value-method
 receivers (per Go semantics — maps are reference types, funcs use
 pointer-style dispatch), so the variant is needed only for
@@ -1124,7 +1124,7 @@ Trace under the fix:
 
 - **Legitimate cross-realm value-method dispatch**: victim does
   `t := /r/foo.NewThing(); t.ValueRead()`. VPValMethod calls
-  CopyForReceiver(alloc) — no eager check, copy retains PkgID=/r/foo.
+  CopyForReceiver(alloc) — no construction-time check, copy retains PkgID=/r/foo.
   Layer 1 fires (`ValueRead` is /r/foo-declared) so m.Realm shifts
   to /r/foo. Inside ValueRead, the body operates on the receiver
   copy (transient, PkgID=/r/foo matches m.Realm.ID). Reads succeed;
@@ -1319,11 +1319,11 @@ ship together as the borrow-rule + spec update):
   time and the rest of the plan can be staged behind it.
 
 - **PR 2 — Runtime: Phase 1 + Phase 2.** Lands after PR 1 is in.
-  Adds allocation-time PkgID stamping, eager-constructor enforcement,
+  Adds allocation-time PkgID stamping, construction-time enforcement,
   the audit-table migrations, the Realm cache, and the cross-realm
   finalize machinery. Phase 1 must land at least atomically with
   Phase 2 in this PR (Phase 1 alone is safe, Phase 2 alone is
-  broken — see Implementation notes). The eager-constructor panic
+  broken — see Implementation notes). The construction-time panic
   is the audit mechanism for any allocation site PR 1 missed:
   tests fail loudly with the offending file/line.
 
@@ -1333,14 +1333,14 @@ ship together as the borrow-rule + spec update):
   updates `docs/resources/gno-interrealm.md` + the whitepaper.
 
 PR ordering rationale: PR 1 leaves the runtime untouched but
-prepares the example codebase to survive PR 2's eager-constructor
+prepares the example codebase to survive PR 2's construction-time
 panic. PR 2 introduces the new authority model but doesn't yet
 change method-dispatch borrow rules (legacy HEAD borrow stays in
 place), so the security gap interrealm v2 closes is technically not closed
 until PR 3 lands — but each PR is independently safe and reversible.
 
 **Missed-site recovery rule**: if PR 2 testing reveals an example
-site that Phase 0 missed (the eager-constructor panic fires in a
+site that Phase 0 missed (the construction-time panic fires in a
 test), the fix is a **follow-up commit on PR 2**, not a PR 1
 amendment. The follow-up adds the needed constructor function (if
 not already present) and updates the call site, then re-runs PR 2's
@@ -1481,7 +1481,7 @@ needed. PR 2 (the runtime change) builds on top of it.
    `StructType`. Add `GetPkgID()` method on each (lazy-compute via
    `PkgIDFromPkgPath`). Add `PkgID.IsRealmPkg()` predicate.
 2. Add `getDeclaredPkgID(t Type) PkgID` walker helper.
-3. Add `Allocator.checkEagerConstructor(t Type)` method that
+3. Add `Allocator.checkConstructionTime(t Type)` method that
    panics if `getDeclaredPkgID(t).IsRealmPkg() &&
    getDeclaredPkgID(t) != alloc.currentRealmID`. The
    `decidePkgID` per-allocation helper is **not** introduced;
@@ -1491,7 +1491,7 @@ needed. PR 2 (the runtime change) builds on top of it.
    `NewListArray`, `NewListArray2`, `NewDataArray`, `NewMap`,
    `NewHeapItem`, `NewPackageValue`). Update all call sites (~50
    sites across non-test production code). Inside each constructor:
-   `alloc.checkEagerConstructor(t)`, then stamp PkgID =
+   `alloc.checkConstructionTime(t)`, then stamp PkgID =
    `alloc.currentRealmID`.
 5. Add `PkgID PkgID` field to `PackageValue` (computed at
    construction; not serialized — re-derived on load) and `pkgID`
@@ -1503,7 +1503,7 @@ needed. PR 2 (the runtime change) builds on top of it.
    `*PackageValue`/`*PackageNode` in scope use `pv.PkgID` /
    `pn.GetPkgID()`.
 7. (Examples refactor already landed in PR 1 / Phase 0 above. The
-   eager-constructor panic at allocator-stamping time is the audit
+   construction-time panic at allocator-stamping time is the audit
    mechanism: if any example site was missed by Phase 0, the
    relevant tests panic here with the file/line, and the fix is
    adding/using a constructor in that realm.)
@@ -1535,7 +1535,7 @@ needed. PR 2 (the runtime change) builds on top of it.
 **Validation**: Build cleanly. Most tests pass — semantics not yet
 consumed by the borrow rule. Expected: some golden output regenerations
 in zrealm filetests as ObjectID.PkgID values shift to allocation-time
-realms. The eager-constructor check should panic on any of the 16
+realms. The construction-time check should panic on any of the 16
 example sites identified in the survey that haven't been refactored;
 this is the validation that the check is firing in the right places.
 
@@ -1643,7 +1643,7 @@ runtime verification.
   level.
 
 - /r/-typed allocation outside the declaring realm is handled by
-  eager-constructor enforcement (see the section of that name above).
+  construction-time enforcement (see the section of that name above).
   The allocator panics if asked to allocate a /r/foo-typed value
   when `currentRealmID != /r/foo`. This forces every /r/-typed value
   to originate inside its declaring realm via that realm's
@@ -1656,7 +1656,7 @@ runtime verification.
 The following are notes for future work, not part of this plan:
 
 - **Restrict cross-realm allocations at preprocess time** — promote
-  the runtime eager-constructor check to a static (preprocess-time)
+  the runtime construction-time check to a static (preprocess-time)
   rejection of composite literals / `make` / `new` expressions whose
   type is declared in a foreign /r/ realm. Better error messages and
   catches the violation before allocation. Not addressed here; the
