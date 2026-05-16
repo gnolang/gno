@@ -388,7 +388,8 @@ func realmHIV(tv *TypedValue) *HeapItemValue {
 
 // realmIsCurrentOnMachine reports whether tv is the topmost crossing
 // frame's Cur, by HIV pointer identity. Used by both .grealm.IsCurrent
-// (informational) and installCrossingCur's cross2 path (authority).
+// (informational) and installCrossingCur's cross2 path (authority) —
+// these share a single semantic: rlm.IsCurrent() ⇔ cross2(rlm) accepts.
 //
 // Pointer-receiver method dispatch preserves the outer PointerValue, so
 // recvHIV is always populated for any realm value the language allows

@@ -2096,11 +2096,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								default:
 									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 								}
-								// the `cur` cannot be passed as capture through a func lit.
-								fle, _, found := findFirstClosure(stack, dbn)
-								if found && dbn != fle {
-									panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
-								}
+								// NOTE: closure-captured cur is allowed here. With pointer-
+								// receiver .grealm methods preserving HIV through dispatch
+								// (see DefineNativePtrMethod), and persistence refusing realm
+								// values (refusePersistRealmHIV), a captured cur cannot
+								// outlive its originating frame across txs. Within a single
+								// tx, the captured cur is a valid handle to its frame's
+								// authority — runtime semantics of pkg.Fn(cur, ...) flow
+								// the captured value through installCrossingCur as the
+								// new cur's prev.
 							case Name("cross"):
 								// n is a valid crossing call of a crossing function.
 								n.SetWithCross()
