@@ -50,7 +50,7 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "612bc2d556301d10e5ea58bbe818487f3ce6b828f137866b4a2afb5f901338cd"
+const expectedCrossrealm38Hash = "1c9da9df0c666a9d7b4b611e8ec509402013a11ee53ace2ab2741b466561c510"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
@@ -81,11 +81,11 @@ package crossrealm38impl
 import "gno.land/r/tests/vm/crossrealm_f"
 
 func init() {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
+	crossrealm_f.Add(cross, crossrealm_f.NewEntry("a", 1))
 }
 
 func AddC(cur realm) {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "c", Value: 3})
+	crossrealm_f.Add(cross, crossrealm_f.NewEntry("c", 3))
 }
 `},
 	}

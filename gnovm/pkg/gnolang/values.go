@@ -321,9 +321,12 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-// Copy duplicates an existing ArrayValue. The result inherits the
-// source's PkgID — copying propagates existing authority rather than
-// minting new authority. interrealm v2 Phase 2.
+// Copy duplicates an existing ArrayValue. When the source carries a
+// realm PkgID, the result inherits it — copying propagates existing
+// authority rather than minting new authority. When the source PkgID
+// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
+// currentRealmID stamp from NewListArray/NewDataArray stands, so the
+// copy belongs to the realm doing the copying. interrealm v2 Phase 2.
 func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
@@ -340,7 +343,9 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	if av.ObjectInfo.ID.PkgID.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	}
 	return cp
 }
 
@@ -452,9 +457,12 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-// Copy duplicates an existing StructValue. The result inherits the
-// source's PkgID — copying propagates existing authority rather than
-// minting new authority. interrealm v2 Phase 2.
+// Copy duplicates an existing StructValue. When the source carries a
+// realm PkgID, the result inherits it — copying propagates existing
+// authority rather than minting new authority. When the source PkgID
+// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
+// currentRealmID stamp from NewStruct stands, so the copy belongs to
+// the realm doing the copying. interrealm v2 Phase 2.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
@@ -469,7 +477,9 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	if sv.ObjectInfo.ID.PkgID.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	}
 	return cp
 }
 

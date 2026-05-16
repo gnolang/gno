@@ -35,8 +35,11 @@
 #   Readonly taint:  values read from foreign-realm state carry
 #     N_Readonly; later writes panic, surviving conversions (Phase 4).
 #
-#   Copy semantics:  Copy preserves source PkgID; values do not
-#     silently launder authority when passed cross-realm (Phase 2d).
+#   Copy semantics:  Copy preserves source PkgID when the source
+#     carries realm authority (Phase 2d); when the source PkgID is
+#     non-realm (stdlib or /p/ init), the copy is restamped to the
+#     copying realm so a /r/-caller can mutate its own local copy of
+#     a /p/-init default value.
 #
 # Narrow filetests for behaviors that don't need integration:
 #   - gnovm/tests/files/zrealm_v2_construction_composite_fail.gno
@@ -356,6 +359,26 @@ stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'trace=COPY:gno.land/r/test/owned'
 
+## COPY_PInitRestampedToCurRealm: a /p/ helper (CopyAndMutate) copies
+## its /p/-init-allocated default into a local and writes through that
+## local — the same pattern as gno.land/p/jeronimoalbi/datasource.NewQuery.
+## Without the IsRealmPkg gate in Copy the local would inherit /p/'s
+## PkgID and the write would trip the readonly check (m.Realm = caller
+## ≠ /p/); with the gate, the copy is restamped to currentRealmID and
+## the mutation succeeds.
+##
+##   func COPY_PInitRestampedToCurRealm(cur realm) {
+##       n := v2lib.CopyAndMutate(42)
+##       if n != 42 {
+##           panic("write did not take effect")
+##       }
+##       owned.RecordCopyTrace("PInitRestamped")
+##   }
+gnokey maketx call -pkgpath gno.land/r/test/caller -func COPY_PInitRestampedToCurRealm -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
+stdout 'trace=COPY:PInitRestamped'
+
 
 ## ============================================================
 ## Fixture realms
@@ -374,6 +397,20 @@ type LibContainer struct {
 
 func (lc *LibContainer) TouchA() {
 	lc.A++
+}
+
+// DefaultLib is allocated at /p/ init time; its StructValue carries
+// PkgID = /p/test/v2lib (non-realm). CopyAndMutate exercises the same
+// pattern as gno.land/p/jeronimoalbi/datasource.NewQuery: a /p/ helper
+// copies the default and mutates the local. Without the IsRealmPkg
+// gate in Copy, the local would carry /p/ PkgID and the write would
+// trip the readonly check (m.Realm = caller's realm ≠ /p/).
+var DefaultLib = LibContainer{A: 7}
+
+func CopyAndMutate(newA int) int {
+	c := DefaultLib
+	c.A = newA
+	return c.A
 }
 
 type PrimitiveCounter int
@@ -646,6 +683,14 @@ func COPY_PreservesPkgID(cur realm) {
 	// value-method dispatch — Copy preserves PkgID:
 	id := (*r).Identify()
 	owned.RecordCopyTrace(id)
+}
+
+func COPY_PInitRestampedToCurRealm(cur realm) {
+	n := v2lib.CopyAndMutate(42)
+	if n != 42 {
+		panic("write did not take effect")
+	}
+	owned.RecordCopyTrace("PInitRestamped")
 }
 
 
