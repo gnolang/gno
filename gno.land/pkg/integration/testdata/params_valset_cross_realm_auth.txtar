@@ -1,0 +1,78 @@
+# Cross-realm auth boundary test for v3's two push entrypoints:
+# NotifyValoperChanged and RotateValoperSigningKey.
+#
+# Both entrypoints are crossing functions guarded by assertValopersCaller,
+# which requires runtime.PreviousRealm().PkgPath() == gno.land/r/gnops/valopers.
+# Per docs/resources/gno-interrealm.md the check works only when (a) the
+# host is a crossing function and (b) it is invoked via `cross` from a
+# crossing function in valopers. A hostile third realm cross-calling
+# either entrypoint must be rejected: PreviousRealm().PkgPath() returns
+# the attacker's pkgpath, not valopers, so the guard panics.
+#
+# This test deploys a hostile realm /r/test/attacker that exposes two
+# wrappers, one per entrypoint, and asserts both txs panic. State must
+# be unchanged afterwards.
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+
+gnoland start
+
+# Deploy the hostile realm.
+gnokey maketx addpkg -pkgdir $WORK/attacker -pkgpath gno.land/r/test/attacker -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Snapshot valset:current — must remain identical after both rejections.
+gnokey query params/node:valset:current
+stdout 'data:'
+cp stdout valset_before.txt
+
+# Attack 1: cross-call NotifyValoperChanged from /r/test/attacker.
+# assertValopersCaller sees PreviousRealm pkgpath = /r/test/attacker
+# and panics.
+! gnokey maketx call -pkgpath gno.land/r/test/attacker -func AttackNotify -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test test1
+stderr 'caller realm must be gno.land/r/gnops/valopers'
+
+# Attack 2: cross-call RotateValoperSigningKey from /r/test/attacker.
+# Must hit the same guard.
+! gnokey maketx call -pkgpath gno.land/r/test/attacker -func AttackRotate -gas-fee 5000000ugnot -gas-wanted 50_000_000 -broadcast -chainid=tendermint_test test1
+stderr 'caller realm must be gno.land/r/gnops/valopers'
+
+# State unchanged: valset:current must be byte-equal to before.
+gnokey query params/node:valset:current
+cp stdout valset_after.txt
+cmp valset_before.txt valset_after.txt
+
+-- attacker/gnomod.toml --
+module = "gno.land/r/test/attacker"
+gno = "0.9"
+
+-- attacker/attacker.gno --
+package attacker
+
+import (
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+// AttackNotify cross-calls v3.NotifyValoperChanged. The attacker
+// supplies arbitrary operator/key fields, hoping the cache write
+// goes through. v3's assertValopersCaller must reject because
+// PreviousRealm.PkgPath() == gno.land/r/test/attacker.
+func AttackNotify(cur realm) {
+	const fakeOp = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	const fakePubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	// SigningAddress here is bogus — the assert fires before any
+	// inputs are inspected, so this is fine.
+	v3.NotifyValoperChanged(cross, address(fakeOp), fakePubKey, address(fakeOp), true)
+}
+
+// AttackRotate cross-calls v3.RotateValoperSigningKey with an
+// (oldPubKey, newPubKey) pair. Must hit the same guard before any
+// state mutation.
+func AttackRotate(cur realm) {
+	const fakeOp = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	const oldPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	const newPubKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj"
+	v3.RotateValoperSigningKey(cross, address(fakeOp), oldPubKey, newPubKey)
+}

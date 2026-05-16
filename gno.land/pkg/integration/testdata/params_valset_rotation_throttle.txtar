@@ -1,0 +1,102 @@
+# Throttle-window enforcement test for valopers.UpdateSigningKey.
+#
+# Invariant: ChainHeight() - v.LastRotationHeight >=
+# rotation_period_blocks. The throttle is the primary spam defense for
+# rotation while rotation_fee remains 0 (pre-transfer-enablement).
+#
+# This test sets rotation_period_blocks to 3 (small enough to fit
+# inside a txtar window, large enough that the immediate-after-Register
+# rotation lands inside the deny window). Then exercises:
+#   (a) immediate rotation (throttle fires, ErrRotationThrottled)
+#   (b) rotation after enough blocks have passed (succeeds)
+#
+# The throttle window is per-OPERATOR (LastRotationHeight is on the
+# Valoper struct), so a multi-member auth list can't multiplicatively
+# rotate within the period — that's also implicitly verified: the
+# immediate retry uses the same operator profile.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Set rotation_period_blocks=3 via govdao (small enough that we can
+# eventually unblock within a txtar; large enough that the immediate-
+# after-Register rotation hits the throttle).
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/set_throttle.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey query params/node:valoper:rotation_period_blocks
+stdout '"3"'
+
+# Register operator A at height H. LastRotationHeight = H.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A profile' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# (a) Immediate rotation at height H+1: H+1 - H = 1 < 3, throttle fires.
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test member
+stderr 'rotation throttled'
+
+# Burn two blocks with self-sends so the throttle window expires. Each
+# maketx is one block. After two of these, the chain is at H+~4 (the
+# failed throttle attempt above also advanced height by 1 since
+# DeliverTx is run per-block).
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# (b) Rotation now succeeds: enough blocks have elapsed.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Defense-in-depth: a SECOND immediate rotation must fail again, since
+# LastRotationHeight has been advanced by step (b).
+! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqv78qzekzh8ysj26zgda53kngk6x9329la0vjhwp75t4ytkymfhzz46a2dz -broadcast -chainid=tendermint_test member
+stderr 'rotation throttled'
+
+-- run/set_throttle.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	sysparams "gno.land/r/sys/params"
+)
+
+func main() {
+	pr := sysparams.NewSysParamInt64PropRequest("node", "valoper", "rotation_period_blocks", 3)
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

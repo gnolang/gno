@@ -1,0 +1,132 @@
+# Duplicate-operator rejection at proposal creation time.
+#
+# Each operator may appear at most once per proposal. The legacy
+# [{op,0},{op,N}] power-update pair is now a duplicate and rejected
+# at NewValidatorProposalRequest, before any vote+execute. Same for
+# any other shape that mentions the same op twice ([{op,N},{op,M}],
+# [{op,0},{op,0}]).
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Register operator A so the cache lookup at create time succeeds.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# Snapshot valset:current — none of the rejected proposals can mutate it.
+gnokey query params/node:valset:current
+cp stdout valset_baseline.txt
+
+# (a) [{A,0},{A,2},{A,3}] — triple same-op: rejected at create.
+! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/case_a.gno
+stderr 'duplicate operator in proposal'
+
+# (b) [{A,0},{A,0}] — double remove: rejected at create.
+! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/case_b.gno
+stderr 'duplicate operator in proposal'
+
+# (c) [{A,2},{A,0}] — add-first / remove-second: rejected at create.
+! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/case_c.gno
+stderr 'duplicate operator in proposal'
+
+# valset:current must still equal the baseline (no proposal reached
+# vote/execute, no state changed).
+gnokey query params/node:valset:current
+cp stdout valset_after.txt
+cmp valset_baseline.txt valset_after.txt
+
+-- run/case_a.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{
+			{OperatorAddress: address(memberAddr), Power: 0},
+			{OperatorAddress: address(memberAddr), Power: 2},
+			{OperatorAddress: address(memberAddr), Power: 3},
+		},
+		"case (a) triple-same-op",
+		"",
+	)
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- run/case_b.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{
+			{OperatorAddress: address(memberAddr), Power: 0},
+			{OperatorAddress: address(memberAddr), Power: 0},
+		},
+		"case (b) double-remove",
+		"",
+	)
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- run/case_c.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+	pr := v3.NewValidatorProposalRequest(
+		[]v3.ValoperChange{
+			{OperatorAddress: address(memberAddr), Power: 2},
+			{OperatorAddress: address(memberAddr), Power: 0},
+		},
+		"case (c) add-first remove-second",
+		"",
+	)
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
