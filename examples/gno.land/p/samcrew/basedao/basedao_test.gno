@@ -40,7 +40,7 @@ func TestNewDAO(t *testing.T) {
 	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
-	wrapper := New(conf)
+	wrapper := New(conf, cur)
 	dao := wrapper.Private()
 	roles := dao.Members.GetRoles()
 	if len(roles) != 1 {
@@ -695,7 +695,7 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
-	pubdao := New(conf)
+	pubdao := New(conf, cur)
 	dao := pubdao.Private()
 
 	mockHandlerCalled := false

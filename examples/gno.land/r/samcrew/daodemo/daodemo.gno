@@ -19,7 +19,7 @@ import (
 var DAO *basedao.DAOWrapper
 
 // TODO: add a little bit more complexity to show daocond initialization
-func init() {
+func init(cur realm) {
 	initialRoles := []basedao.RoleInfo{
 		{Name: "admin", Description: "Admin is the superuser"},
 		{Name: "public-relationships", Description: "Responsible of communication with the public"},
@@ -50,7 +50,7 @@ func init() {
 		InitialCondition: adminCond,
 		GetProfileString: profile.GetStringField,
 		SetProfileString: profile.SetStringField,
-	})
+	}, cur)
 }
 
 func Vote(cur realm, proposalID uint64, vote daocond.Vote) {

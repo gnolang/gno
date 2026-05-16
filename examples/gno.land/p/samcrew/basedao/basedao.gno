@@ -119,7 +119,11 @@ const EventBaseDAOCreated = "BaseDAOCreated"
 // it exposes rlm-validating Propose / Vote / Execute / InstantExecute /
 // Render methods, and a .Private() accessor for the owning realm to wire
 // custom action handlers at init time.
-func New(conf *Config) *DAOWrapper {
+//
+// rlm is threaded into the optional `conf.SetProfileString` callback via
+// cross2(rlm). /p/ production code cannot declare crossing functions, so
+// rlm is taken as a non-first parameter — callers pass `cur` directly.
+func New(conf *Config, rlm realm) *DAOWrapper {
 	// XXX: emit events from memberstore
 
 	members := conf.Members
@@ -147,9 +151,9 @@ func New(conf *Config) *DAOWrapper {
 	}
 
 	if conf.SetProfileString != nil {
-		conf.SetProfileString(cross, "DisplayName", conf.Name)
-		conf.SetProfileString(cross, "Bio", conf.Description)
-		conf.SetProfileString(cross, "Avatar", conf.ImageURI)
+		conf.SetProfileString(cross2(rlm), "DisplayName", conf.Name)
+		conf.SetProfileString(cross2(rlm), "Bio", conf.Description)
+		conf.SetProfileString(cross2(rlm), "Avatar", conf.ImageURI)
 	}
 
 	if !conf.NoDefaultHandlers {
