@@ -34,7 +34,7 @@ func TestCreateEvent(cur realm, t *testing.T) {
 
 	// Test invalid date format
 	urequire.AbortsWithMessage(t, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
-		CreateEvent(cross, "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
+		CreateEvent(cross2(cur), "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
 	})
 }
 
@@ -55,7 +55,7 @@ func TestBuyTicket(cur realm, t *testing.T) {
 	testing.SetOriginCaller(buyer)
 
 	uassert.AbortsWithMessage(t, "Invalid payment amount: needs to be 1000000ugnot", func() {
-		BuyTicket(cross, eventId)
+		BuyTicket(cross2(cur), eventId)
 	})
 
 	// Test successful purchase
@@ -78,7 +78,7 @@ func TestBuyTicket(cur realm, t *testing.T) {
 	BuyTicket(cross2(cur), eventId) // Buy second ticket
 
 	uassert.AbortsWithMessage(t, "Event is sold out", func() {
-		BuyTicket(cross, eventId)
+		BuyTicket(cross2(cur), eventId)
 	})
 }
 
@@ -111,7 +111,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var eventId uint64
 	crossThrough(testing.NewCodeRealm("gno.land/r/jjoptimist/eventix"), func() {
 		eventId = CreateEvent(
-			cross,
+			cross2(cur),
 			"GRC20 Event",
 			"An event with GRC20 payment",
 			"2024-12-31T23:59:59Z",

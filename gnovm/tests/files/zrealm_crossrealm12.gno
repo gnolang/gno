@@ -17,7 +17,7 @@ func main(cur realm) {
 		{runtime.CurrentRealm},
 		{psubtests.GetCurrentRealm},
 		{func() runtime.Realm {
-			return rsubtests.GetCurrentRealm(cross)
+			return rsubtests.GetCurrentRealm(cross2(cur))
 		}},
 	}
 

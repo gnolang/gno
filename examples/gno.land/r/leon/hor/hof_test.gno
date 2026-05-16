@@ -86,7 +86,7 @@ func TestUpvote(cur realm, t *testing.T) {
 	testing.SetRealm(adminRealm)
 
 	urequire.NotPanics(t, func() {
-		Upvote(cross, rlmPath)
+		Upvote(cross2(cur), rlmPath)
 	})
 
 	// Check both trees for 1 upvote
@@ -94,7 +94,7 @@ func TestUpvote(cur realm, t *testing.T) {
 
 	// Check double upvote
 	uassert.AbortsWithMessage(t, ErrDoubleUpvote.Error(), func() {
-		Upvote(cross, rlmPath)
+		Upvote(cross2(cur), rlmPath)
 	})
 }
 
@@ -109,7 +109,7 @@ func TestDownvote(cur realm, t *testing.T) {
 	testing.SetRealm(userRealm)
 
 	urequire.NotPanics(t, func() {
-		Downvote(cross, rlmPath)
+		Downvote(cross2(cur), rlmPath)
 	})
 
 	// Check both trees for 1 upvote
@@ -117,7 +117,7 @@ func TestDownvote(cur realm, t *testing.T) {
 
 	// Check double downvote
 	uassert.AbortsWithMessage(t, ErrDoubleDownvote.Error(), func() {
-		Downvote(cross, rlmPath)
+		Downvote(cross2(cur), rlmPath)
 	})
 }
 
@@ -127,14 +127,14 @@ func TestDelete(cur realm, t *testing.T) {
 	testing.SetOriginCaller(admin)
 
 	uassert.AbortsWithMessage(t, ErrNoSuchItem.Error(), func() {
-		Delete(cross, "nonexistentpkgpath")
+		Delete(cross2(cur), "nonexistentpkgpath")
 	})
 
 	i, _ := exhibition.items.Get(rlmPath)
 	_ = i.(*Item).id
 
 	uassert.NotPanics(t, func() {
-		Delete(cross, rlmPath)
+		Delete(cross2(cur), rlmPath)
 	})
 
 	uassert.False(t, exhibition.items.Has(rlmPath))

@@ -125,7 +125,7 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(rand))
 
 	uassert.AbortsWithMessage(t, errNotModerator.Error(), func() {
-		ModAddCommenter(cross, testutils.TestAddress("evil"))
+		ModAddCommenter(cross2(cur), testutils.TestAddress("evil"))
 	})
 
 	// Remove a commenter
@@ -204,13 +204,13 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	testing.SetOriginCaller(commenter)
 	testing.SetRealm(testing.NewUserRealm(commenter))
 	uassert.NotAborts(t, func() {
-		AddComment(cross, slug, "comment")
+		AddComment(cross2(cur), slug, "comment")
 	})
 
 	// Delete the comment
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
 	uassert.NotAborts(t, func() {
-		ModDelComment(cross, slug, 0)
+		ModDelComment(cross2(cur), slug, 0)
 	})
 }

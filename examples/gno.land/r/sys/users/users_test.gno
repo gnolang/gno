@@ -16,7 +16,7 @@ func TestResolveName(cur realm, t *testing.T) {
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -27,7 +27,7 @@ func TestResolveName(cur realm, t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -42,7 +42,7 @@ func TestResolveName(cur realm, t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -71,7 +71,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 
@@ -82,7 +82,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -96,7 +96,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -175,7 +175,7 @@ func TestResolveAny(cur realm, t *testing.T) {
 	t.Run("name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res, _ := ResolveAny(alice)
 
@@ -186,7 +186,7 @@ func TestResolveAny(cur realm, t *testing.T) {
 	t.Run("address", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res, _ := ResolveAny(aliceAddr.String())
 
@@ -383,7 +383,7 @@ func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 
 	t.Run("warning_injected_on_collision", func(t *testing.T) {
 		cleanStore(t)
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), "vitalik", aliceAddr))
 
 		req := ProposeRegisterUser("vital1k", bobAddr)
 		uassert.True(t,

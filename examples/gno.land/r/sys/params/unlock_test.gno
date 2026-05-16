@@ -35,7 +35,7 @@ func TestFailUnlockTransfer(cur realm, t *testing.T) {
 		t,
 		"proposal didn't reach supermajority yet: 66.66",
 		func() {
-			dao.ExecuteProposal(cross, id)
+			dao.ExecuteProposal(cross2(cur), id)
 		},
 	)
 }
@@ -52,14 +52,14 @@ func TestExeUnlockTransfer(cur realm, t *testing.T) {
 	urequire.NotPanics(
 		t,
 		func() {
-			dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
+			dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
 		},
 	)
 
 	urequire.NotPanics(
 		t,
 		func() {
-			dao.ExecuteProposal(cross, id)
+			dao.ExecuteProposal(cross2(cur), id)
 		},
 	)
 }

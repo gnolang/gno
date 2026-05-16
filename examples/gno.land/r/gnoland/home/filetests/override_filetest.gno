@@ -19,7 +19,7 @@ func main(cur realm) {
 	newAdmin := testutils.TestAddress("newAdmin")
 	home.AdminTransferOwnership(cross2(cur), newAdmin)
 	if err := revive(func() {
-		home.AdminSetOverride(cross, "Not admin anymore")
+		home.AdminSetOverride(cross2(cur), "Not admin anymore")
 	}); err == nil {
 		panic("AdminSetOverride should have aborted the transaction")
 	}

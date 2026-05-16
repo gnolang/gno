@@ -20,7 +20,7 @@ func TestAddBackupOwner(cur realm, t *testing.T) {
 	}
 	testing.SetOriginCaller(u1)
 	r := revive(func() {
-		AddBackupOwner(cross, u2)
+		AddBackupOwner(cross2(cur), u2)
 	})
 	if r != ownable.ErrUnauthorized {
 		t.Error("failed to catch unauthorized access")
@@ -41,7 +41,7 @@ func TestRemoveBackupOwner(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(u2)
 	r := revive(func() {
-		RemoveBackupOwner(cross, u1)
+		RemoveBackupOwner(cross2(cur), u1)
 	})
 	if r != ownable.ErrUnauthorized {
 		t.Error("failed to catch unauthorized access")
@@ -90,7 +90,7 @@ func TestAddAdmin(cur realm, t *testing.T) {
 	}
 	testing.SetOriginCaller(u1)
 	r := revive(func() {
-		AddAdmin(cross, u2)
+		AddAdmin(cross2(cur), u2)
 	})
 	if r != ownable.ErrUnauthorized {
 		t.Error("failed to catch unauthorized access")
@@ -111,7 +111,7 @@ func TestRemoveAdmin(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(u2)
 	r := revive(func() {
-		RemoveAdmin(cross, u1)
+		RemoveAdmin(cross2(cur), u1)
 	})
 	if r != ownable.ErrUnauthorized {
 		t.Error("failed to catch unauthorized access")

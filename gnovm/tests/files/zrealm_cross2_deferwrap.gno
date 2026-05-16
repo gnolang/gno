@@ -13,7 +13,7 @@ func callee(cur realm) string {
 func main(cur realm) {
 	// defer the closure; inside, do the cross-call.
 	defer func() {
-		println("from defer:", callee(cross))
+		println("from defer:", callee(cross2(cur)))
 	}()
 	println("body done")
 }

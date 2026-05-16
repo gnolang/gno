@@ -140,7 +140,7 @@ func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 	uassert.AbortsWithMessage(t, ErrSigningKeyTaken.Error(), func() {
-		UpdateSigningKey(cross, info.Address, info.PubKey)
+		UpdateSigningKey(cross2(cur), info.Address, info.PubKey)
 	})
 }
 
@@ -155,6 +155,6 @@ func TestUpdateSigningKey_LastRotationHeightAdvances(cur realm, t *testing.T) {
 
 	// Immediately after, throttle rejects again.
 	uassert.AbortsWithMessage(t, ErrRotationThrottled.Error(), func() {
-		UpdateSigningKey(cross, info.Address, "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5cjrffs")
+		UpdateSigningKey(cross2(cur), info.Address, "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5cjrffs")
 	})
 }

@@ -8,7 +8,7 @@ import (
 func main(cur realm) {
 	println("test1", tests.CurrentRealmPath(cross2(cur)))
 	func() {
-		println("test2", tests.CurrentRealmPath(cross))
+		println("test2", tests.CurrentRealmPath(cross2(cur)))
 	}()
 	x := tests.CurrentRealmPath
 	println("test3", x(cross2(cur)))

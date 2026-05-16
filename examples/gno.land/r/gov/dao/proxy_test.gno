@@ -29,7 +29,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(testing.NewCodeRealm(invalid))
 	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
-		UpdateImpl(cross, UpdateRequest{
+		UpdateImpl(cross2(cur), UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -37,7 +37,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// dao in charge can add a new dao
 	testing.SetRealm(testing.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		UpdateImpl(cross, UpdateRequest{
+		UpdateImpl(cross2(cur), UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -45,7 +45,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// v3 that is in charge adds v5 in charge
 	testing.SetRealm(testing.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		UpdateImpl(cross, UpdateRequest{
+		UpdateImpl(cross2(cur), UpdateRequest{
 			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v3, v5},
 		})
@@ -54,7 +54,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// v3 can still do updates
 	testing.SetRealm(testing.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
-		UpdateImpl(cross, UpdateRequest{
+		UpdateImpl(cross2(cur), UpdateRequest{
 			AllowedDAOs: []string{v4},
 		})
 	})
@@ -62,7 +62,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(testing.NewCodeRealm(v3))
 	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
-		UpdateImpl(cross, UpdateRequest{
+		UpdateImpl(cross2(cur), UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
 	})
@@ -76,7 +76,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 			},
 			"",
 		)
-		pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
+		pid = MustCreateProposal(cross2(cur), NewProposalRequest("Proposal Title", "Description", e))
 	})
 
 	p, err := GetProposal(cross2(cur), 1000)

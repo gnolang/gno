@@ -23,10 +23,10 @@ func TestAssertOriginCall(cur realm, t *testing.T) {
 	r := revive(func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
-		if tests.CallIsOriginCall(cross) {
+		if tests.CallIsOriginCall(cross2(cur)) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		tests.CallAssertOriginCall(cross) // <---
+		tests.CallAssertOriginCall(cross2(cur)) // <---
 	})
 	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
 		t.Error("expected abort but did not")
@@ -35,10 +35,10 @@ func TestAssertOriginCall(cur realm, t *testing.T) {
 	r = revive(func() {
 		// if called inside a function literal, this is no longer an origin call
 		// because there's one additional frame (the function literal block).
-		if tests.CallSubtestsIsOriginCall(cross) {
+		if tests.CallSubtestsIsOriginCall(cross2(cur)) {
 			t.Errorf("expected IsOriginCall=false but got true")
 		}
-		tests.CallSubtestsAssertOriginCall(cross)
+		tests.CallSubtestsAssertOriginCall(cross2(cur))
 	})
 	if fmt.Sprintf("%v", r) != "invalid non-origin call" {
 		t.Error("expected abort but did not")

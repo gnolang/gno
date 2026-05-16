@@ -179,7 +179,7 @@ func TestNewValidatorProposalRequest_RemoveOperator(cur realm, t *testing.T) {
 	// Executor runs inside a crossing dao.Executor.Execute call, so
 	// the panic surfaces as an abort, not a regular panic.
 	uassert.AbortsContains(t, "would empty the validator set", func() {
-		_ = newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross)
+		_ = newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross2(cur))
 	})
 }
 
@@ -373,7 +373,7 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(cur r
 	})
 
 	uassert.AbortsContains(t, "KeepRunning=false at execution", func() {
-		_ = exec.Execute(cross)
+		_ = exec.Execute(cross2(cur))
 	})
 }
 
@@ -543,7 +543,7 @@ func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(cur realm,
 	urequire.True(t, removed, "fixture: cache entry must have been present before Remove")
 
 	uassert.AbortsContains(t, "operator vanished from valoperCache between propose and execute", func() {
-		_ = exec.Execute(cross)
+		_ = exec.Execute(cross2(cur))
 	})
 }
 

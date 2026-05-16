@@ -110,7 +110,7 @@ func TestAllowedDAOs(cur realm, t *testing.T) {
 	uassert.AbortsWithMessage(
 		t,
 		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
-		func() { treasury.Send(cross, dummyP) },
+		func() { treasury.Send(cross2(cur), dummyP) },
 	)
 
 	// Set the current Realm to the allowed one.
@@ -121,7 +121,7 @@ func TestAllowedDAOs(cur realm, t *testing.T) {
 	uassert.AbortsWithMessage(
 		t,
 		"banker not found: "+dummyP.BankerID(),
-		func() { treasury.Send(cross, dummyP) },
+		func() { treasury.Send(cross2(cur), dummyP) },
 	)
 }
 
@@ -169,7 +169,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 		t,
 		"failed to send payment: GRC20 token not found: UNKNOW",
 		func() {
-			treasury.Send(cross, trs_pkg.NewGRC20Payment("UNKNOW", 100, user1Addr))
+			treasury.Send(cross2(cur), trs_pkg.NewGRC20Payment("UNKNOW", 100, user1Addr))
 		},
 	)
 
@@ -195,7 +195,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 			// Try to send a GRC20 payment with a registered token, it should not abort.
 			uassert.NotAborts(t, func() {
 				treasury.Send(
-					cross,
+					cross2(cur),
 					trs_pkg.NewGRC20Payment(
 						keyed.key,
 						txAmount,
@@ -239,7 +239,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 		t,
 		"failed to send payment: invalid payment type",
 		func() {
-			treasury.Send(cross, &dummyPayment{bankerID: grc20BankerID})
+			treasury.Send(cross2(cur), &dummyPayment{bankerID: grc20BankerID})
 		},
 	)
 
@@ -249,7 +249,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 		"failed to send payment: insufficient balance",
 		func() {
 			treasury.Send(
-				cross,
+				cross2(cur),
 				trs_pkg.NewGRC20Payment(
 					keyedTokens[0].key,
 					mintAmount*42, // Try to send more than the treasury has.
@@ -309,11 +309,11 @@ func TestSendCoinPayment(cur realm, t *testing.T) {
 		// Send ugnot coins to user1 and user2.
 		uassert.NotAborts(t, func() {
 			treasury.Send(
-				cross,
+				cross2(cur),
 				trs_pkg.NewCoinsPayment(ugnotCoins(t, txAmount), user1Addr),
 			)
 			treasury.Send(
-				cross,
+				cross2(cur),
 				trs_pkg.NewCoinsPayment(ugnotCoins(t, txAmount), user2Addr),
 			)
 		})

@@ -34,7 +34,7 @@ func TestSign(cur realm, t *testing.T) {
 func TestSign_FromRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users/init"))
 
-	rec := revive(func() { Sign(cross, "Hey!") })
+	rec := revive(func() { Sign(cross2(cur), "Hey!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -54,7 +54,7 @@ func TestSign_Double(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 	Sign(cross2(cur), "Hello!")
 
-	rec := revive(func() { Sign(cross, "Hello again!") })
+	rec := revive(func() { Sign(cross2(cur), "Hello again!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -73,7 +73,7 @@ func TestSign_InvalidMessage(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 
-	rec := revive(func() { Sign(cross, "\x00Hello!") })
+	rec := revive(func() { Sign(cross2(cur), "\x00Hello!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}

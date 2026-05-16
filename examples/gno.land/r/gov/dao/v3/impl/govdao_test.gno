@@ -64,11 +64,11 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	nm1 := testutils.TestAddress("nm1")
 
 	urequire.AbortsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func(cur realm) {
-		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
+		dao.MustCreateProposal(cross2(cur), NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
 	urequire.AbortsWithMessage(t, "proposer is not a member", func(cur realm) {
-		dao.MustCreateProposal(cross, NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+		dao.MustCreateProposal(cross2(cur), NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
 	testing.SetOriginCaller(m1)
@@ -99,7 +99,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	testing.SetOriginCaller(m4)
 
 	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
-		dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
+		dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 	})
 
 	testing.SetOriginCaller(m111)
@@ -115,7 +115,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
 	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66.66", func() {
-		dao.ExecuteProposal(cross, dao.ProposalID(0))
+		dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
 	})
 
 	testing.SetOriginCaller(m1111)
