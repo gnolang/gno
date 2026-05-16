@@ -1965,7 +1965,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// ftype guarantees parent is a CallExpr; sanity.
 								panic("cross2(rlm): internal — parent is not a CallExpr")
 							}
-							pft, _ := evalStaticTypeOf(store, last, pc.Func).(*FuncType)
+							// baseOf unwraps DeclaredType to its underlying *FuncType,
+							// so named function types (`type Fn func(realm) error`)
+							// are recognized as crossing-shape calls.
+							pft, _ := baseOf(evalStaticTypeOf(store, last, pc.Func)).(*FuncType)
 							if pft == nil || !pft.IsCrossing() {
 								panic("cross2(rlm) can only be used as the first argument to a crossing-function call")
 							}
