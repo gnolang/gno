@@ -11,7 +11,7 @@ import (
 	"gno.land/p/thox/accesscontrol"
 )
 
-func TestTimelock(t *testing.T) {
+func TestTimelock(cur realm, t *testing.T) {
 	// Initialization
 	timestamps := avl.NewTree()
 	minDelay := uint64(2) // 2 seconds to simplify testing
@@ -87,7 +87,7 @@ func TestTimelock(t *testing.T) {
 		// (the owner set at NewTimeLock construction).
 		testing.SetRealm(testing.NewUserRealm(runtime.OriginCaller()))
 		var err error
-		func(cur realm) { err = timelockUtil.UpdateDelay(0, cur, newDelay) }(cross)
+		func(cur realm) { err = timelockUtil.UpdateDelay(0, cur, newDelay) }(cross2(cur))
 		uassert.NoError(t, err, "UpdateDelay failed")
 
 		uassert.Equal(t, newDelay, timelockUtil.minDelay, "minDelay not updated")

@@ -21,30 +21,30 @@ var (
 	payee = testutils.TestAddress("payee")
 )
 
-func TestNewLifetimeSubscription_RejectsInvalidPayee(t *testing.T) {
+func TestNewLifetimeSubscription_RejectsInvalidPayee(cur realm, t *testing.T) {
 	uassert.PanicsWithMessage(t, cur, ErrInvalidPayee.Error(), func() {
 		NewLifetimeSubscription(alice, 1000, address(""))
 	})
 }
 
-func TestSubscribe_RejectsInvalidSubscriber(t *testing.T) {
+func TestSubscribe_RejectsInvalidSubscriber(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 	err := ls.Subscribe(&allowancesender.AllowanceSender{}, address(""))
 	uassert.ErrorIs(t, err, ErrInvalidSubscriber)
 }
 
-func TestHasValidSubscription_NoSub(t *testing.T) {
+func TestHasValidSubscription_NoSub(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 	uassert.ErrorIs(t, ls.HasValidSubscription(alice), ErrNoSub)
 }
 
-func TestHasValidSubscription_Active(t *testing.T) {
+func TestHasValidSubscription_Active(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 	ls.subs.Set(alice.String(), true)
 	uassert.NoError(t, ls.HasValidSubscription(alice))
 }
 
-func TestSubscribe_AlreadySubscribedReturnsErrBeforeSend(t *testing.T) {
+func TestSubscribe_AlreadySubscribedReturnsErrBeforeSend(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 	ls.subs.Set(alice.String(), true)
 
@@ -52,7 +52,7 @@ func TestSubscribe_AlreadySubscribedReturnsErrBeforeSend(t *testing.T) {
 	uassert.ErrorIs(t, err, ErrAlreadySub)
 }
 
-func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
+func TestSubscribe_SendPanicLeavesNoRecord(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 
 	func() {
@@ -63,26 +63,26 @@ func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
 	uassert.ErrorIs(t, ls.HasValidSubscription(bob), ErrNoSub)
 }
 
-func TestUpdateAmount_OwnerSucceeds(t *testing.T) {
+func TestUpdateAmount_OwnerSucceeds(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	var err error
-	func(cur realm) { err = ls.UpdateAmount(0, cur, 2000) }(cross)
+	func(cur realm) { err = ls.UpdateAmount(0, cur, 2000) }(cross2(cur))
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(2000), ls.GetAmount())
 }
 
-func TestUpdateAmount_NonOwnerFails(t *testing.T) {
+func TestUpdateAmount_NonOwnerFails(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	var err error
-	func(cur realm) { err = ls.UpdateAmount(0, cur, 3000) }(cross)
+	func(cur realm) { err = ls.UpdateAmount(0, cur, 3000) }(cross2(cur))
 	uassert.ErrorIs(t, err, ErrNotAuthorized)
 }
 
-func TestGetPayee(t *testing.T) {
+func TestGetPayee(cur realm, t *testing.T) {
 	ls := NewLifetimeSubscription(alice, 1000, payee)
 	uassert.Equal(t, payee.String(), ls.GetPayee().String())
 }

@@ -20,7 +20,7 @@ var (
 	charlie = testutils.TestAddress("charlie")
 )
 
-func TestNew(t *testing.T) {
+func TestNew(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 
 	a := New(ownable.NewWithAddress(alice))
@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestOnAuthList(t *testing.T) {
+func TestOnAuthList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
@@ -42,7 +42,7 @@ func TestOnAuthList(t *testing.T) {
 	}
 }
 
-func TestNotOnAuthList(t *testing.T) {
+func TestNotOnAuthList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(bob))
 
@@ -51,53 +51,53 @@ func TestNotOnAuthList(t *testing.T) {
 	}
 }
 
-func TestAddToAuthList(t *testing.T) {
+func TestAddToAuthList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	var err error
-	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross)
+	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross2(cur))
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(bob))
-	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross)
+	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross2(cur))
 	if err == nil {
 		t.Fatalf("Expected AddToAuth to error while bob called it, but it didn't")
 	}
 }
 
-func TestDeleteFromList(t *testing.T) {
+func TestDeleteFromList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	var err error
-	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross)
+	func(cur realm) { err = a.AddToAuthList(0, cur, bob) }(cross2(cur))
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	func(cur realm) { err = a.AddToAuthList(0, cur, charlie) }(cross)
+	func(cur realm) { err = a.AddToAuthList(0, cur, charlie) }(cross2(cur))
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
 	// Try an unauthorized deletion (bob is not the superuser).
 	testing.SetRealm(testing.NewUserRealm(bob))
-	func(cur realm) { err = a.DeleteFromAuthList(0, cur, alice) }(cross)
+	func(cur realm) { err = a.DeleteFromAuthList(0, cur, alice) }(cross2(cur))
 	if err == nil {
 		t.Fatalf("Expected DelFromAuth to error with %v", err)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-	func(cur realm) { err = a.DeleteFromAuthList(0, cur, charlie) }(cross)
+	func(cur realm) { err = a.DeleteFromAuthList(0, cur, charlie) }(cross2(cur))
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 }
 
-func TestAssertOnList(t *testing.T) {
+func TestAssertOnList(cur realm, t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(bob))

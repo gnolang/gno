@@ -44,31 +44,31 @@ var (
 // Full payment-path coverage requires integration txtars, which are
 // future work.
 
-func TestNewRecurringSubscription_RejectsInvalidPayee(t *testing.T) {
+func TestNewRecurringSubscription_RejectsInvalidPayee(cur realm, t *testing.T) {
 	uassert.PanicsWithMessage(t, cur, ErrInvalidPayee.Error(), func() {
 		NewRecurringSubscription(alice, time.Hour, 1000, address(""))
 	})
 }
 
-func TestSubscribe_RejectsInvalidSubscriber(t *testing.T) {
+func TestSubscribe_RejectsInvalidSubscriber(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	err := rs.Subscribe(&allowancesender.AllowanceSender{}, address(""))
 	uassert.ErrorIs(t, err, ErrInvalidSubscriber)
 }
 
-func TestHasValidSubscription_NoSub(t *testing.T) {
+func TestHasValidSubscription_NoSub(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	err := rs.HasValidSubscription(alice)
 	uassert.ErrorIs(t, err, ErrNoSub)
 }
 
-func TestHasValidSubscription_Active(t *testing.T) {
+func TestHasValidSubscription_Active(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	rs.subs.Set(alice.String(), time.Now().Add(time.Hour))
 	uassert.NoError(t, rs.HasValidSubscription(alice))
 }
 
-func TestHasValidSubscription_Expired(t *testing.T) {
+func TestHasValidSubscription_Expired(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	rs.subs.Set(alice.String(), time.Now().Add(-time.Hour))
 	uassert.ErrorIs(t, rs.HasValidSubscription(alice), ErrSubExpired)
@@ -79,7 +79,7 @@ func TestHasValidSubscription_Expired(t *testing.T) {
 // active, Subscribe returns ErrAlreadySub WITHOUT calling al.Send. We
 // pass an unusable empty AllowanceSender; if Send were called it would
 // panic, but the early return prevents that.
-func TestSubscribe_AlreadyActiveReturnsErrBeforeSend(t *testing.T) {
+func TestSubscribe_AlreadyActiveReturnsErrBeforeSend(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	rs.subs.Set(alice.String(), time.Now().Add(time.Hour))
 
@@ -91,7 +91,7 @@ func TestSubscribe_AlreadyActiveReturnsErrBeforeSend(t *testing.T) {
 // junk AllowanceSender → Send panics → tx revert. Since unit tests don't
 // have tx semantics, the panic propagates. Recover and assert no
 // subscription was recorded.
-func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
+func TestSubscribe_SendPanicLeavesNoRecord(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
 	func() {
@@ -102,42 +102,42 @@ func TestSubscribe_SendPanicLeavesNoRecord(t *testing.T) {
 	uassert.ErrorIs(t, rs.HasValidSubscription(bob), ErrNoSub)
 }
 
-func TestUpdateAmount_OwnerSucceeds(t *testing.T) {
+func TestUpdateAmount_OwnerSucceeds(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	var err error
-	func(cur realm) { err = rs.UpdateAmount(0, cur, 2000) }(cross)
+	func(cur realm) { err = rs.UpdateAmount(0, cur, 2000) }(cross2(cur))
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(2000), rs.GetAmount())
 }
 
-func TestUpdateAmount_NonOwnerFails(t *testing.T) {
+func TestUpdateAmount_NonOwnerFails(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	var err error
-	func(cur realm) { err = rs.UpdateAmount(0, cur, 3000) }(cross)
+	func(cur realm) { err = rs.UpdateAmount(0, cur, 3000) }(cross2(cur))
 	uassert.ErrorIs(t, err, ErrNotAuthorized)
 }
 
-func TestGetAmount(t *testing.T) {
+func TestGetAmount(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	uassert.Equal(t, int64(1000), rs.GetAmount())
 }
 
-func TestGetPayee(t *testing.T) {
+func TestGetPayee(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	uassert.Equal(t, payee.String(), rs.GetPayee().String())
 }
 
-func TestGetExpiration_NoSub(t *testing.T) {
+func TestGetExpiration_NoSub(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	_, err := rs.GetExpiration(alice)
 	uassert.ErrorIs(t, err, ErrNoSub)
 }
 
-func TestGetExpiration_Active(t *testing.T) {
+func TestGetExpiration_Active(cur realm, t *testing.T) {
 	rs := NewRecurringSubscription(alice, time.Hour, 1000, payee)
 	expected := time.Now().Add(time.Hour)
 	rs.subs.Set(alice.String(), expected)
