@@ -1098,7 +1098,7 @@ func (rlm *Realm) clearMarks() {
 func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[TypeID]struct{}) {
 	objID := obj.GetObjectID()
 	if objID.PkgID != rlm.ID && isPkgPrivateFromPkgID(store, objID.PkgID) {
-		panic("cannot persist reference of object from the private realm " + pkgPathFromPkgID(store, objID.PkgID))
+		panic("cannot persist object from the private realm " + pkgPathFromPkgID(store, objID.PkgID))
 	}
 
 	// NOTE: should i set the visited tids map at the higher level so it's set one time.
