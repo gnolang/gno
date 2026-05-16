@@ -282,6 +282,50 @@ Exposed values accessed through dot-selectors and index-expressions from
 external realm logic are tainted read-only. For the full rules see
 [Readonly Taint Specification](#readonly-taint-specification).
 
+### Storage = Authority (allocation-time PkgID)
+
+Every object's `ObjectInfo.ID.PkgID` is stamped at *allocation time* to the
+realm-storage-context that allocated it. This is the unifying invariant:
+the realm that holds storage authority over an object is the same realm
+that allocated it — there's no separate "ownership" or "linked-to" concept
+divergent from PkgID.
+
+```go
+type ObjectID struct {
+    PkgID   PkgID  // stamped at allocation (the authoring realm)
+    NewTime uint64 // stamped at finalization (zero until persisted)
+}
+```
+
+Three states an `ObjectID` can be in:
+
+| State        | `PkgID`  | `NewTime`  | Meaning                                  |
+|--------------|----------|------------|------------------------------------------|
+| empty        | zero     | zero       | Never went through the allocator         |
+| allocated    | set      | zero       | In memory; authority known, not persisted|
+| finalized    | set      | non-zero   | Real; persisted with a tx-stamped NewTime|
+
+Two consequences follow:
+
+1. **Storage-realm borrow extends to unreal receivers.** Pre-PLAN3, the
+   storage-realm borrow only fired for *real* foreign receivers (the
+   "owning realm" was only knowable after finalization). With PkgID set
+   at allocation, an unreal foreign receiver — for example, a value just
+   returned from a foreign realm's constructor — carries its authoring
+   realm's PkgID immediately, and the borrow follows.
+
+2. **Eager-constructor enforcement.** Composite literals (`/r/foo.T{...}`),
+   `new(/r/foo.T)`, and `make([]/r/foo.T, ...)` of a foreign `/r/`-declared
+   type panic when invoked outside the declaring realm. Authority cannot
+   be forged by constructing values of a realm's types from elsewhere —
+   construction must go through a realm-declared constructor function,
+   which Layer 1 borrow temporarily activates the declaring realm for.
+
+Storage rent attribution follows PkgID too: when a transaction mutates an
+object owned by `/r/A` from `/r/B`'s code, the byte delta accrues to
+`/r/A`'s ledger, not `/r/B`'s, because `/r/A` is the authoring (and
+storage-paying) realm.
+
 ## Crossing-Functions and Crossing-Methods
 
 Realm crossing occurs when a crossing function (declared as
@@ -436,14 +480,20 @@ victim's, so attacker cannot mutate victim-owned state via direct field
 writes from inside the called body. This is the language-level defense
 against the "method on attacker-supplied value" attack class.
 
-**Storage-realm borrow (for stdlib and `/p/` methods on foreign real
+**Storage-realm borrow (for stdlib and `/p/` methods on foreign
 receivers).** When a non-`/r/`-declared method (stdlib or `/p/`) is called
-on a real receiver whose storage realm differs from the current
+on a defined receiver whose authoring realm differs from the current
 realm-storage-context, the storage-context soft-switches to the receiver's
-storage realm. This lets generic library methods — `bptree.Set`, the GRC20
+authoring realm. This lets generic library methods — `bptree.Set`, the GRC20
 Teller methods, `strconv.Itoa` and similar — mutate state living in the
 caller's realm without requiring every helper to be re-declared per
 caller-realm.
+
+The receiver's *authoring realm* is its `PkgID`, stamped at allocation time
+(see "Storage = Authority" below). This means the storage-realm borrow
+applies to both real (finalized, persisted) receivers AND unreal
+(allocated but not yet persisted) receivers — any defined receiver carries
+its allocation-realm authority across calls.
 
 This split mirrors the two design intents: `/r/` packages contain
 realm-bound logic whose authority should follow the declaring realm; `/p/`

@@ -227,12 +227,27 @@ Applies uniformly to top-level functions, methods on any receiver shape
 (real, unreal, primitive), and closures whose construction site was
 \passthrough{\lstinline!/r/X!}.
 \item \textbf{Storage-realm borrow} (stdlib and
-\passthrough{\lstinline!/p/!} methods on real foreign receivers): when a
-non-\passthrough{\lstinline!/r/!}-declared method is called on a real
-receiver whose storage realm differs from the current
+\passthrough{\lstinline!/p/!} methods on foreign receivers): when a
+non-\passthrough{\lstinline!/r/!}-declared method is called on a defined
+receiver whose authoring realm differs from the current
 realm-storage-context, the storage-context soft-switches to the
-receiver's storage realm.
+receiver's authoring realm. The authoring realm is the receiver's
+\passthrough{\lstinline!PkgID!}, stamped at allocation time --- so the
+borrow applies uniformly to real (persisted) and unreal (allocated)
+receivers.
 \end{itemize}
+
+Every object's storage authority is stamped at \emph{allocation time}
+as the \passthrough{\lstinline!ObjectInfo.ID.PkgID!} field, unifying
+storage with authority: the realm that allocated an object is the
+realm that holds storage authority over it, and storage rent
+attribution follows the same field. Constructing a value of a foreign
+\passthrough{\lstinline!/r/!}-declared type from outside the declaring
+realm (composite literals, \passthrough{\lstinline!new()!},
+\passthrough{\lstinline!make()!}) is rejected at runtime --- authority
+cannot be forged, so all construction must flow through the declaring
+realm's constructor functions (which the declaring-realm borrow
+activates).
 
 The realm-storage-context is not directly accessible at runtime and has
 no associated address.
@@ -261,9 +276,9 @@ Non-crossing method in own (caller's) realm & No & No & No & No \\
 \hline
 Non-crossing \passthrough{\lstinline!/r/!}-declared callable in foreign realm & No & Yes (declaring) & Yes & Yes \\
 \hline
-Stdlib or \passthrough{\lstinline!/p/!} method, real recv.\ in diff.\ realm & No & Yes (storage) & Yes & Yes \\
+Stdlib or \passthrough{\lstinline!/p/!} method, defined recv.\ in diff.\ realm & No & Yes (storage) & Yes & Yes \\
 \hline
-Stdlib or \passthrough{\lstinline!/p/!} method, unreal/primitive recv. & No & No & No & No \\
+Stdlib or \passthrough{\lstinline!/p/!} method, primitive recv. & No & No & No & No \\
 \hline
 Stdlib or \passthrough{\lstinline!/p/!} top-level function & No & No & No & No \\
 \hline
