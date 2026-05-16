@@ -109,7 +109,7 @@ func UseSelfAmount(cur realm, amount int64) {
 // address as additional funds B can later drain.
 func GiveBankerToB(cur realm) {
 	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-	bankerb.Receive(cross, b)
+	bankerb.Receive(cross2(cur), b)
 }
 
 -- bankerb/gnomod.toml --

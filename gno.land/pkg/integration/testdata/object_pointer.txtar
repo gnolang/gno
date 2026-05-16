@@ -71,7 +71,7 @@ func WorkingNew(cur realm) {
 
 func BuggedNew(cur realm) {
 	callerPtr = pkg.New()
- 	callee.Register(cross, callerPtr)
+ 	callee.Register(cross2(cur), callerPtr)
 }
 
 func Set(cur realm, value int) {

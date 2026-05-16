@@ -91,7 +91,7 @@ func NonCrossingMutation(cur realm) {
 }
 
 func CrossingMutation(cur realm) {
- 	borrowrealm.MutateCrossing(cross)
+ 	borrowrealm.MutateCrossing(cross2(cur))
 }
 
 func NonCrossingObjectMutation(cur realm) {
@@ -107,7 +107,7 @@ func CallMutateObject(cur realm) {
 }
 
 func InspectRealmsCrossing(cur realm) {
- 	borrowrealm.InspectRealmsCrossing(cross)
+ 	borrowrealm.InspectRealmsCrossing(cross2(cur))
 }
 
 func InspectRealmsNonCrossing(cur realm) {
@@ -115,15 +115,15 @@ func InspectRealmsNonCrossing(cur realm) {
 }
 
 func MutateObjectWithBorrowCrossing(cur realm) {
- 	borrowrealm.MutateObjectWithBorrowCrossing(cross)
+ 	borrowrealm.MutateObjectWithBorrowCrossing(cross2(cur))
 }
 
 func MutateCrossingObject(cur realm) {
- 	borrowrealm.Object.MutateCrossing(cross)
+ 	borrowrealm.Object.MutateCrossing(cross2(cur))
 }
 
 func MutateCrossingObjectRootedAtCaller(cur realm) {
- 	obj.MutateCrossingObjectRootedAtCaller(cross)
+ 	obj.MutateCrossingObjectRootedAtCaller(cross2(cur))
 }
 
 func Render(_ string) string {

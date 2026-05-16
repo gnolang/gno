@@ -47,13 +47,13 @@ import (
 )
 
 func ExecGood(cur realm) []int {
-	alice.SetClosure(cross, peter.F(alice.GetAllowedList()))
-	alice.ExecuteClosure(cross)
+	alice.SetClosure(cross2(cur), peter.F(alice.GetAllowedList()))
+	alice.ExecuteClosure(cross2(cur))
 	return alice.AllowedList
 }
 
 func ExecBad(cur realm) []int {
-	alice.SetClosure(cross, peter.F(alice.AllowedList))
-	alice.ExecuteClosure(cross)
+	alice.SetClosure(cross2(cur), peter.F(alice.AllowedList))
+	alice.ExecuteClosure(cross2(cur))
 	return alice.AllowedList
 }

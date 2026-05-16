@@ -87,14 +87,14 @@ func DeferCloseNoCross(cur realm) {
 func DeferCloseCrossNoPersist(cur realm) {
 	al := newAllowance(cur)
 	defer al.Close()
-	diag2callee.Receive(cross, al)
+	diag2callee.Receive(cross2(cur), al)
 }
 
 // F: defer Close + cross + callee persists. Original failing case.
 func DeferCloseCrossPersist(cur realm) {
 	al := newAllowance(cur)
 	defer al.Close()
-	diag2callee.Store(cross, al)
+	diag2callee.Store(cross2(cur), al)
 }
 
 // G: defer Close + cross + callee persists + INLINE al.Close().
@@ -103,6 +103,6 @@ func DeferCloseCrossPersist(cur realm) {
 func DeferCloseCrossPersistAlsoInline(cur realm) {
 	al := newAllowance(cur)
 	defer al.Close()
-	diag2callee.Store(cross, al)
+	diag2callee.Store(cross2(cur), al)
 	al.Close() // inline; should succeed per earlier diagnostic
 }

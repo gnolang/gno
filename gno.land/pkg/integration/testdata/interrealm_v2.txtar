@@ -613,7 +613,7 @@ func L1_MultiHop(cur realm) {
 }
 
 func L1_CrossingExplicit(cur realm) {
-	owned.PublicSet(cross, 99)
+	owned.PublicSet(cross2(cur), 99)
 }
 
 // ----- Layer 2 -----

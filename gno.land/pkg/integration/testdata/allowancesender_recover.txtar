@@ -125,7 +125,7 @@ func GrantAndStoreWithRecover(cur realm) {
 		println("CLOSE_COMPLETED")
 	}()
 
-	recovercallee.Store(cross, al)
+	recovercallee.Store(cross2(cur), al)
 	println("AFTER_STORE")
 }
 
@@ -139,5 +139,5 @@ func GrantAndStoreDirect(cur realm) {
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 
-	recovercallee.Store(cross, al)
+	recovercallee.Store(cross2(cur), al)
 }

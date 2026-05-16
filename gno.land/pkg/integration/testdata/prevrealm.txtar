@@ -110,11 +110,11 @@ package foo
 import "gno.land/r/myrlm"
 
 func A(cur realm) string {
-	return myrlm.A(cross)
+	return myrlm.A(cross2(cur))
 }
 
 func B(cur realm) string {
-	return myrlm.B(cross)
+	return myrlm.B(cross2(cur))
 }
 -- p/demo/bar/bar.gno --
 package bar

@@ -142,15 +142,15 @@ package foo
 import "gno.land/r/myrlm"
 
 func A(cur realm) {
-	myrlm.A(cross)
+	myrlm.A(cross2(cur))
 }
 
 func B(cur realm) {
-	myrlm.B(cross)
+	myrlm.B(cross2(cur))
 }
 
 func C(cur realm) {
-	myrlm.C(cross)
+	myrlm.C(cross2(cur))
 }
 -- p/demo/bar/bar.gno --
 package bar

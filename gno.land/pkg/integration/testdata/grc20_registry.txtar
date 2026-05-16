@@ -43,7 +43,7 @@ func TransferByName(cur realm, name string, to string, amount uint64) string {
 			continue
 		}
 
-		if runtime.CurrentRealm().Address().String() != pair.cb(cross, address(to), amount) {
+		if runtime.CurrentRealm().Address().String() != pair.cb(cross2(cur), address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 

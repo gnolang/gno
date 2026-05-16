@@ -100,75 +100,75 @@ func init() {
 }
 
 func SaveTreeToPublicRealm(cur realm) {
-    publicrealm.SaveYourTree(cross, tree)
+    publicrealm.SaveYourTree(cross2(cur), tree)
 }
 
 func SaveIntToPublicRealm(cur realm) {
-    publicrealm.SaveYourInt(cross, integerValue)
+    publicrealm.SaveYourInt(cross2(cur), integerValue)
 }
 
 func SaveSliceToPublicRealm(cur realm) {
-    publicrealm.SaveYourSlice(cross, normalSlice)
+    publicrealm.SaveYourSlice(cross2(cur), normalSlice)
 }
 
 func SaveMapToPublicRealm(cur realm) {
-    publicrealm.SaveYourMap(cross, normalMap)
+    publicrealm.SaveYourMap(cross2(cur), normalMap)
 }
 
 func SaveStructToPublicRealm(cur realm) {
-    publicrealm.SaveYourStruct(cross, normalStruct)
+    publicrealm.SaveYourStruct(cross2(cur), normalStruct)
 }
 
 func SaveMixedStructToPublicRealmWithoutRef(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, nil)
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    mixed := publicrealm.CreatePublicStruct(cross2(cur), "mixed", nil, nil)
+    publicrealm.SaveYourMixedStruct(cross2(cur), mixed)
 }
 
 func SaveMixedStructToPublicRealmWithRefToStruct(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", nil, normalStruct)
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    mixed := publicrealm.CreatePublicStruct(cross2(cur), "mixed", nil, normalStruct)
+    publicrealm.SaveYourMixedStruct(cross2(cur), mixed)
 }
 
 func SaveMixedStructToPublicRealmWithRefToTree(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", tree, nil)
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    mixed := publicrealm.CreatePublicStruct(cross2(cur), "mixed", tree, nil)
+    publicrealm.SaveYourMixedStruct(cross2(cur), mixed)
 }
 
 var savedMixedInNormal *publicrealm.PublicStruct
 
 func SaveMixedStructToPublicRealmAfterSaving(cur realm) {
-    mixed := publicrealm.CreatePublicStruct(cross, "mixed", tree, normalStruct)
+    mixed := publicrealm.CreatePublicStruct(cross2(cur), "mixed", tree, normalStruct)
     savedMixedInNormal = mixed
-    publicrealm.SaveYourMixedStruct(cross, mixed)
+    publicrealm.SaveYourMixedStruct(cross2(cur), mixed)
 }
 
 func SaveInterfaceToPublicRealm(cur realm) {
     var iface interface{} = tree
-    publicrealm.SaveYourInterface(cross, iface)
+    publicrealm.SaveYourInterface(cross2(cur), iface)
 }
 
 func SaveArrayToPublicRealm(cur realm) {
     arr := [3]*avl.Tree{tree, tree, tree}
-    publicrealm.SaveYourArray(cross, arr)
+    publicrealm.SaveYourArray(cross2(cur), arr)
 }
 
 func SaveNestedToPublicRealm(cur realm) {
-    nested := publicrealm.CreateNestedStruct(cross)
+    nested := publicrealm.CreateNestedStruct(cross2(cur))
     nested.SetNormalRef(tree)
-    publicrealm.SaveYourNested(cross, nested)
+    publicrealm.SaveYourNested(cross2(cur), nested)
 }
 
 var savedNestedInNormal *publicrealm.NestedStruct
 
 func SaveNestedToPublicRealmAfterSaving(cur realm) {
-    nested := publicrealm.CreateNestedStruct(cross)
+    nested := publicrealm.CreateNestedStruct(cross2(cur))
     nested.SetNormalRef(tree)
     savedNestedInNormal = nested
-    publicrealm.SaveYourNested(cross, nested)
+    publicrealm.SaveYourNested(cross2(cur), nested)
 }
 
 func SaveClosureToPublicRealm(cur realm) {
-    publicrealm.SaveYourClosure(cross, GetNewTree)
+    publicrealm.SaveYourClosure(cross2(cur), GetNewTree)
 }
 
 func GetNewTree() *avl.Tree {
@@ -181,7 +181,7 @@ func SaveValueFromNormalStructToPublicRealm(cur realm) {
         Value: 0,
         Tree:  avl.NewTree(),
     }
-    publicrealm.SaveYourValueFromNormalStruct(cross, normalData)
+    publicrealm.SaveYourValueFromNormalStruct(cross2(cur), normalData)
 }
 
 func GetTreePointer() *avl.Tree {

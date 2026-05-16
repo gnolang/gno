@@ -111,5 +111,5 @@ func GrantWithOuterRecover(cur realm) {
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 
-	outerrecovercallee.Store(cross, al)
+	outerrecovercallee.Store(cross2(cur), al)
 }

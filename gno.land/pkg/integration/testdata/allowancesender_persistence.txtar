@@ -129,7 +129,7 @@ func GrantAndSpend(cur realm, limit int64, amount int64) {
 	defer al.Close()
 
 	caller := runtime.PreviousRealm().Address()
-	callee.SpendTo(cross, al, caller, amount)
+	callee.SpendTo(cross2(cur), al, caller, amount)
 }
 
 // GrantAndSpendNegative exercises the negative-amount path.
@@ -141,7 +141,7 @@ func GrantAndSpendNegative(cur realm) {
 	defer al.Close()
 
 	caller := runtime.PreviousRealm().Address()
-	callee.SpendNegative(cross, al, caller)
+	callee.SpendNegative(cross2(cur), al, caller)
 }
 
 // GrantAndStore demonstrates the unsupported pattern: callee persists
@@ -154,5 +154,5 @@ func GrantAndStore(cur realm) {
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 
-	callee.Store(cross, al)
+	callee.Store(cross2(cur), al)
 }
