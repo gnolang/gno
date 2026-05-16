@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/sys/namereg/v1/filetests/z_1_prop2_filetest
+
+package z_1_prop2_filetest
 
 import (
 	"chain"
@@ -15,10 +17,10 @@ import (
 // Test updating a name via GovDAO
 var c address = runtime.OriginCaller()
 
-func init() {
+func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross, chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
 	daov3init.InitWithUsers(c)
@@ -28,16 +30,16 @@ func init() {
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-	users.Register(cross, "nym-alice123")
+	users.Register(cross2(cur), "nym-alice123")
 
 	// Prop to delete user
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
 	pr := users.ProposeDeleteUser(alice, "delete user test")
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetOriginCaller(c)
 
 	println("--")
@@ -46,13 +48,13 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	println("--")
 	println(dao.Render("0"))
 	println("--")
 
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
 
 	println("--")
 	println(dao.Render("0"))
