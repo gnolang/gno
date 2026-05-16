@@ -137,7 +137,7 @@ func Vote(_ realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason s
 }
 
 // Execute executes a DAO proposal.
-func Execute(_ realm, daoID, proposalID uint64) {
+func Execute(cur realm, daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowExecution {
@@ -147,7 +147,7 @@ func Execute(_ realm, daoID, proposalID uint64) {
 	caller := runtime.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 
-	err := dao.Execute(proposalID)
+	err := dao.Execute(proposalID, cur)
 	if err != nil {
 		panic(err)
 	}

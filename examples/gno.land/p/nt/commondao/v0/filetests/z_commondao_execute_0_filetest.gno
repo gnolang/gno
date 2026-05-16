@@ -36,11 +36,11 @@ func init() {
 	proposal = dao.MustPropose(member, testPropDef{})
 }
 
-func main() {
+func main(cur realm) {
 	// Make sure proposal is executed in a realm different than the one where definition has been defined
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/testing/dao"))
 
-	err := dao.Execute(proposal.ID())
+	err := dao.Execute(proposal.ID(), cur)
 
 	println(err == nil)
 	println(string(proposal.Status()))
