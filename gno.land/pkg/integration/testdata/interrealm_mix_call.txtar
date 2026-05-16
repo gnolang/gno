@@ -17,30 +17,32 @@ gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 0'
 
 ## execute NonCrossingMutation
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test2
-stderr 'cannot directly modify readonly tainted object'
+## PLAN3: Layer 1 borrows m.Realm = /r/borrowrealm for the duration
+## of borrowrealm.Mutate(); the write `value++` is now a same-realm
+## mutation and succeeds. (Pre-PLAN3: panicked on readonly taint.)
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingMutation -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 0, value = 0'
+stdout 'Object\.value = 0, value = 1'
 
 ## execute CrossingMutation
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CrossingMutation -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 0, value = 1'
+stdout 'Object\.value = 0, value = 2'
 
 ## execute NonCrossingObjectMutation
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func NonCrossingObjectMutation -gas-fee 350001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 1, value = 1'
+stdout 'Object\.value = 1, value = 2'
 
 ## execute ObjectMutationRootedAtCaller
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 350001ugnot -gas-wanted 3_500_000 -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func ObjectMutationRootedAtCaller -gas-fee 390001ugnot -gas-wanted 3_900_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
 stdout 'obj\.value = 1'
 
 ## execute CallMutateObject
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CallMutateObject -gas-fee 310001ugnot -gas-wanted 3_100_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 2, value = 1'
+stdout 'Object\.value = 2, value = 2'
 
 ## execute InspectRealmsCrossing
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsCrossing -gas-fee 290001ugnot -gas-wanted 2_900_000 -chainid=tendermint_test test2
@@ -51,13 +53,20 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func InspectRealmsNonCr
 ## execute MutateObjectWithBorrowCrossing
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateObjectWithBorrowCrossing -gas-fee 310001ugnot -gas-wanted 3_100_000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/borrowrealm:"
-stdout 'Object\.value = 3, value = 1'
+stdout 'Object\.value = 3, value = 2'
 
 ## execute MutateCrossingObjectRootedAtCaller
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test2
-stderr 'cannot directly modify readonly tainted object'
+## PLAN3: callerrealm.obj was created by `borrowrealm.NewObject()` in
+## callerrealm's init. Layer 1 borrow during NewObject made m.Realm =
+## /r/borrowrealm, so the composite literal &ObjectImplem{} was stamped
+## with PkgID = /r/borrowrealm. Cross-call to MutateCrossingObject-
+## RootedAtCaller shifts m.Realm to /r/borrowrealm, matching the
+## object's PkgID — write succeeds. (Pre-PLAN3: the object's storage-
+## owner was deduced as callerrealm from the package var rooting it,
+## so the cross-call's m.Realm = borrowrealm didn't match, panicked.)
+gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func MutateCrossingObjectRootedAtCaller -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test2
 gnokey query "vm/qrender" --data "gno.land/r/test/callerrealm:"
-stdout 'obj\.value = 1'
+stdout 'obj\.value = 2'
 
 -- callerrealm/gnomod.toml --
 module = "gno.land/r/test/callerrealm"
