@@ -178,6 +178,41 @@ func (t *T) Run(name string, f testingFunc) bool {
 	return true
 }
 
+// RunCur is the crossing-aware variant of T.Run. The subtest closure
+// is declared `func(cur realm, t *testing.T)` and runs as a crossing
+// function — its `cur` parameter is the immediate crossing frame's
+// param, so `cross2(cur)` inside the closure validates strictly.
+// Pass the parent test's cur as the second argument; tRunner_cur
+// threads it through the closure's frame setup via the testing-
+// package preprocessor exemption.
+//
+// Top-level helper (not a method) because methods with `cur realm`
+// after the receiver are rejected as crossing-shaped declarations
+// in a non-realm package. Pass the *T explicitly.
+//
+// Use this instead of T.Run when the subtest body needs to perform
+// cross-calls — bare `cross` still works but `cross2(cur)` requires
+// the closure to have its own cur in scope, which RunCur provides.
+func RunCur(t *T, parent realm, name string, f testingFunc_cur) bool {
+	fullName := t.name + "/" + rewrite(name)
+
+	subT := &T{
+		parent:    t,
+		name:      fullName,
+		verbose:   t.verbose,
+		runFilter: t.runFilter,
+	}
+
+	if t.failfast && t.Failed() {
+		return false
+	}
+
+	t.subs = append(t.subs, subT)
+
+	tRunner_cur(subT, f, parent, t.verbose)
+	return true
+}
+
 func (t *T) Setenv(key, value string) {
 	panic("not yet implemented")
 }

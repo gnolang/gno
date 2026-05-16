@@ -13,10 +13,10 @@ import (
 func TestResolveName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
-	t.Run("single_name", func(t *testing.T) {
+	testing.RunCur(t, cur, "single_name", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -24,10 +24,10 @@ func TestResolveName(cur realm, t *testing.T) {
 		uassert.True(t, isLatest)
 	})
 
-	t.Run("name+Alias", func(t *testing.T) {
+	testing.RunCur(t, cur, "name+Alias", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -39,10 +39,10 @@ func TestResolveName(cur realm, t *testing.T) {
 		uassert.True(t, isLatest)
 	})
 
-	t.Run("multiple_aliases", func(t *testing.T) {
+	testing.RunCur(t, cur, "multiple_aliases", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -68,10 +68,10 @@ func TestResolveName(cur realm, t *testing.T) {
 func TestResolveAddress(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
-	t.Run("single_name", func(t *testing.T) {
+	testing.RunCur(t, cur, "single_name", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 
@@ -79,10 +79,10 @@ func TestResolveAddress(cur realm, t *testing.T) {
 		uassert.Equal(t, alice, res.Name())
 	})
 
-	t.Run("name+Alias", func(t *testing.T) {
+	testing.RunCur(t, cur, "name+Alias", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
 		urequire.NoError(t, data.UpdateName("alice1"))
 
@@ -93,10 +93,10 @@ func TestResolveAddress(cur realm, t *testing.T) {
 		uassert.Equal(t, "alice1", res.Name())
 	})
 
-	t.Run("multiple_aliases", func(t *testing.T) {
+	testing.RunCur(t, cur, "multiple_aliases", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -172,10 +172,10 @@ func TestROStores(cur realm, t *testing.T) {
 func TestResolveAny(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
-	t.Run("name", func(t *testing.T) {
+	testing.RunCur(t, cur, "name", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res, _ := ResolveAny(alice)
 
@@ -183,10 +183,10 @@ func TestResolveAny(cur realm, t *testing.T) {
 		uassert.Equal(t, alice, res.Name())
 	})
 
-	t.Run("address", func(t *testing.T) {
+	testing.RunCur(t, cur, "address", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 
 		res, _ := ResolveAny(aliceAddr.String())
 
@@ -381,9 +381,9 @@ func TestControllerQueries(cur realm, t *testing.T) {
 func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
-	t.Run("warning_injected_on_collision", func(t *testing.T) {
+	testing.RunCur(t, cur, "warning_injected_on_collision", func(cur realm, t *testing.T) {
 		cleanStore(t)
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross2(cur), "vitalik", aliceAddr))
 
 		req := ProposeRegisterUser("vital1k", bobAddr)
 		uassert.True(t,
