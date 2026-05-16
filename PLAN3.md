@@ -719,6 +719,47 @@ for the invariant. Constructors run with Layer 1 borrow to their
 declaring realm, return a /r/-typed value with the correct PkgID
 to the caller, who then passes it on.
 
+### Where the eager check fires (implementation refinement)
+
+The original spec stated the check fires inside every allocator
+constructor (`Alloc.NewStruct` / `NewListArray` / `NewMap` /
+`NewHeapItem`). Implementation discovered this is too aggressive:
+internal default-init paths legitimately allocate /r/-typed values
+outside their declaring realm. Concrete cases:
+
+- **Return-slot init in `doOpCall`** (op_call.go:292): when a /r/foo
+  function returns a `/r/bar.T`, the call setup defaults the return
+  slot to a zero `bar.T` via `defaultTypedValue` → `defaultStructValue`
+  → `Alloc.NewStruct(bar.T, ...)`. This fires from the caller's realm
+  context but predates the borrow that would activate `/r/bar`.
+- **Var declarations**: `var x bar.T` in /r/foo's code allocates a
+  zero value before any /r/bar code runs.
+- **Generic copies**: `Copy(alloc, t)` for /r/bar values passing
+  through /r/foo code calls `Alloc.NewStruct(bar.T, ...)` with /r/foo
+  as currentRealmID, then overwrites PkgID with the source's.
+
+The fix: the check fires only at **user-visible construction sites**
+that mint authority — i.e. where the user wrote an expression that
+constructs a non-zero value of the type:
+
+- Composite literals: `doOpStructLit`, `doOpArrayLit`, `doOpMapLit`,
+  `doOpSliceLit`, `doOpSliceLit2` (`op_expressions.go`).
+- The `new()` and `make()` uverse builtins.
+
+`stampPkgID` continues to fire inside every constructor — every
+allocator-emitted object gets a PkgID stamp (currentRealmID by
+default; overwritten by `Copy` and friends to propagate authority).
+Only the **panic gate** moved to user-visible sites; the **stamping
+mechanism** remains allocator-level.
+
+Coverage gap: piecewise construction (`var x foreign.T; x.Field =
+...`) bypasses the check. Acceptable because (1) composite literal
+is the main idiom in Gno code, (2) field writes on real objects
+are gated by tainted-readonly checks at the SET op, (3) field
+writes on heap (unreal) objects are only visible to the constructing
+realm — they can't be persisted into cross-realm storage without
+going through Layer 1 borrow at the cross-call boundary.
+
 ### Type-cached PkgID
 
 `DeclaredType` and `StructType` both carry a `PkgPath` field. Under
@@ -798,8 +839,6 @@ func (pid PkgID) IsRealmPkg() bool {
 
 ### Allocator API and PkgID assignment
 
-Each allocator constructor takes the type being allocated:
-
 ```go
 func (alloc *Allocator) checkEagerConstructor(t Type) {
     pkgID := getDeclaredPkgID(t)
@@ -808,16 +847,25 @@ func (alloc *Allocator) checkEagerConstructor(t Type) {
     }
     if pkgID != alloc.currentRealmID {
         panic(fmt.Sprintf(
-            "cannot allocate %s-declared value in %s",
-            pkgID, alloc.currentRealmID))
+            "cannot allocate %s in realm %s",
+            t.String(), alloc.currentRealmPath))
     }
 }
 ```
 
-Inside every allocator constructor that takes a `Type`, the first
-operation is `alloc.checkEagerConstructor(t)`. With the check
-passing, `obj.ID.PkgID = alloc.currentRealmID` unconditionally —
-the per-allocation `decidePkgID` helper is gone.
+`checkEagerConstructor` is **not** called from generic allocator
+constructors. Per the refinement above, it fires only at user-
+visible construction sites — composite-literal handlers in
+`op_expressions.go` and the `new()`/`make()` uverse builtins.
+Generic constructors keep the `t Type` parameter for API
+consistency (and so future Type-driven behavior can hook in) but
+no longer enforce the eager check internally.
+
+Every allocator constructor calls `alloc.stampPkgID(&obj.ObjectInfo)`
+unconditionally — `obj.ID.PkgID = alloc.currentRealmID` for every
+new Object. `Copy` and `CopyForReceiver` then overwrite that stamp
+with the source's PkgID to propagate authority across copies; the
+per-allocation `decidePkgID` helper from the original spec is gone.
 
 Thread `Type` through allocator constructors:
 
