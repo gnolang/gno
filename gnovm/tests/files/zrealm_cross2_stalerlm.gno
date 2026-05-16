@@ -39,4 +39,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cross2: rlm is not the current cur (stale capture, sibling frame, or HIV-less receiver)
+// cross2: rlm is not the current cur (stale capture or sibling frame)

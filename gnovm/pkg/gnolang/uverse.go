@@ -374,9 +374,9 @@ func derefRealmStruct(tv *TypedValue) *StructValue {
 }
 
 // realmHIV extracts the underlying *HeapItemValue from a realm TypedValue.
-// Returns nil for the value-receiver path (bare *StructValue with no HIV
-// wrapper) — pointer-identity comparison is meaningful only in the
-// pointer-typed form produced by newRealmHIVPointer.
+// Since all .grealm methods are pointer-receiver (see DefineNativePtrMethod
+// usage in makeUverseNode), the outer PointerValue+HIV wrapper survives
+// dispatch and HIV identity is always available.
 func realmHIV(tv *TypedValue) *HeapItemValue {
 	pv, ok := tv.V.(PointerValue)
 	if !ok {
@@ -387,27 +387,19 @@ func realmHIV(tv *TypedValue) *HeapItemValue {
 }
 
 // realmIsCurrentOnMachine reports whether tv is the topmost crossing
-// frame's Cur. Shared by the .grealm.IsCurrent method and (via the
-// strict wrapper below) by installCrossingCur's cross2 path.
+// frame's Cur, by HIV pointer identity. Used by both .grealm.IsCurrent
+// (informational) and installCrossingCur's cross2 path (authority).
 //
-// Method dispatch on .grealm (value receiver) goes through VPValMethod
-// which struct-copies the receiver, dropping the outer HIV pointer.
-// When that happens, recvHIV is nil and we fall back to
-// (addr, pkgPath, prev.HIV) — the prev field's PointerValue.Base
-// survives the struct copy because TypedValue.Copy is shallow for
-// PointerValues. The parent HIV pointer is per-cross unique
-// (installCrossingCur mints a fresh HIV every cross-call), so combined
-// with addr/pkgPath it's as discriminative as the outer HIV for any
-// cur the language allows to be passed around.
+// Pointer-receiver method dispatch preserves the outer PointerValue, so
+// recvHIV is always populated for any realm value the language allows
+// to flow into a method or function call. A nil HIV here means tv isn't
+// a real realm value (e.g., zero-value/uninitialized) and the check
+// rejects.
 func realmIsCurrentOnMachine(m *Machine, tv *TypedValue) bool {
 	recvHIV := realmHIV(tv)
-	recvSV := derefRealmStruct(tv)
-	if recvSV == nil || len(recvSV.Fields) < 3 {
+	if recvHIV == nil {
 		return false
 	}
-	recvPrev := realmHIV(&recvSV.Fields[2])
-	recvPath := recvSV.Fields[1].GetString()
-	recvAddr := recvSV.Fields[0].GetString()
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if !fr.IsCall() {
@@ -419,36 +411,9 @@ func realmIsCurrentOnMachine(m *Machine, tv *TypedValue) bool {
 		if fr.Cur.T == nil {
 			continue
 		}
-		if recvHIV != nil {
-			return realmHIV(&fr.Cur) == recvHIV
-		}
-		curSV := derefRealmStruct(&fr.Cur)
-		if curSV == nil || len(curSV.Fields) < 3 {
-			continue
-		}
-		// prev pointer first (cheapest + most discriminative),
-		// then pkgPath, then addr.
-		return realmHIV(&curSV.Fields[2]) == recvPrev &&
-			curSV.Fields[1].GetString() == recvPath &&
-			curSV.Fields[0].GetString() == recvAddr
+		return realmHIV(&fr.Cur) == recvHIV
 	}
 	return false
-}
-
-// realmIsCurrentStrict is realmIsCurrentOnMachine but rejects the
-// HIV-less fallback path entirely. Used by installCrossingCur where
-// the trust boundary requires the strongest possible check — a realm
-// value passed as a function parameter (via NameExpr resolution)
-// always preserves its HIV (TypedValue.Copy is shallow for the
-// underlying PointerValue.Base), so a legitimate cross2(rlm) caller
-// never reaches the HIV-less branch. Rejecting it closes the
-// value-receiver-laundered-cur attack surface that the user-facing
-// IsCurrent method has to accommodate.
-func realmIsCurrentStrict(m *Machine, tv *TypedValue) bool {
-	if realmHIV(tv) == nil {
-		return false
-	}
-	return realmIsCurrentOnMachine(m, tv)
 }
 
 // realmIsEphemeral reports whether pkgPath matches the ephemeral pattern
@@ -547,6 +512,7 @@ func makeUverseNode() {
 	}
 	defNative := uverseNode.DefineNative
 	defNativeMethod := uverseNode.DefineNativeMethod
+	defNativePtrMethod := uverseNode.DefineNativePtrMethod
 
 	// Primitive types
 	undefined := TypedValue{}
@@ -1316,7 +1282,7 @@ func makeUverseNode() {
 	)
 	def("realm", asValue(gRealmType))
 	def(".grealm", asValue(gConcreteRealmType))
-	defNativeMethod(".grealm", "Address",
+	defNativePtrMethod(".grealm", "Address",
 		nil, // params
 		Flds( // results
 			"", "address",
@@ -1328,7 +1294,7 @@ func makeUverseNode() {
 			m.PushValue(TypedValue{T: gAddressType, V: StringValue(addr)})
 		},
 	)
-	defNativeMethod(".grealm", "PkgPath",
+	defNativePtrMethod(".grealm", "PkgPath",
 		nil, // params
 		Flds( // results
 			"", "string",
@@ -1340,7 +1306,7 @@ func makeUverseNode() {
 			m.PushValue(typedString(path))
 		},
 	)
-	defNativeMethod(".grealm", "Previous",
+	defNativePtrMethod(".grealm", "Previous",
 		nil, // params
 		Flds( // results
 			"", "realm",
@@ -1369,7 +1335,7 @@ func makeUverseNode() {
 	// derivations are pure on the (addr, pkgPath) stored in the .grealm
 	// struct and match the chain/runtime implementations at
 	// gnovm/stdlibs/chain/runtime/frame.gno.
-	defNativeMethod(".grealm", "IsCode",
+	defNativePtrMethod(".grealm", "IsCode",
 		nil,
 		Flds("", "bool"),
 		func(m *Machine) {
@@ -1378,7 +1344,7 @@ func makeUverseNode() {
 			m.PushValue(typedBool(sv.Fields[1].GetString() != ""))
 		},
 	)
-	defNativeMethod(".grealm", "IsUserCall",
+	defNativePtrMethod(".grealm", "IsUserCall",
 		nil,
 		Flds("", "bool"),
 		func(m *Machine) {
@@ -1387,7 +1353,7 @@ func makeUverseNode() {
 			m.PushValue(typedBool(sv.Fields[1].GetString() == ""))
 		},
 	)
-	defNativeMethod(".grealm", "IsUserRun",
+	defNativePtrMethod(".grealm", "IsUserRun",
 		nil,
 		Flds("", "bool"),
 		func(m *Machine) {
@@ -1398,7 +1364,7 @@ func makeUverseNode() {
 			m.PushValue(typedBool(realmIsUserRun(addr, path)))
 		},
 	)
-	defNativeMethod(".grealm", "IsUser",
+	defNativePtrMethod(".grealm", "IsUser",
 		nil,
 		Flds("", "bool"),
 		func(m *Machine) {
@@ -1409,7 +1375,7 @@ func makeUverseNode() {
 			m.PushValue(typedBool(path == "" || realmIsUserRun(addr, path)))
 		},
 	)
-	defNativeMethod(".grealm", "IsEphemeral",
+	defNativePtrMethod(".grealm", "IsEphemeral",
 		nil,
 		Flds("", "bool"),
 		func(m *Machine) {
@@ -1435,7 +1401,7 @@ func makeUverseNode() {
 	// has no anchor there. Returns false when no crossing frame is in
 	// scope (top of machine during package init's non-crossing entry,
 	// MsgRun main, etc.).
-	defNativeMethod(".grealm", "IsCurrent",
+	defNativePtrMethod(".grealm", "IsCurrent",
 		nil,
 		Flds("", "bool"),
 		func(m *Machine) {
@@ -1443,7 +1409,7 @@ func makeUverseNode() {
 			m.PushValue(typedBool(realmIsCurrentOnMachine(m, arg0.TV)))
 		},
 	)
-	defNativeMethod(".grealm", "String",
+	defNativePtrMethod(".grealm", "String",
 		nil, // params
 		Flds( // results
 			"", "string",
@@ -1486,8 +1452,8 @@ func makeUverseNode() {
 	// cross2(rlm) is the explicit form of bare `cross`. It coexists
 	// with `cross` during the gno 0.9 migration: where bare `cross`
 	// is a preprocessor-recognized sentinel, cross2(rlm) is a real
-	// runtime function call that validates IsCurrent-strict on rlm
-	// and returns it unchanged.
+	// runtime function call that validates IsCurrent on rlm and
+	// returns it unchanged.
 	//
 	// When used at Args[0] of a crossing call (the intended usage),
 	// the validated rlm flows through to the outer call's Args[0]
@@ -1495,12 +1461,11 @@ func makeUverseNode() {
 	// the new cur's prev. No second IsCurrent check is needed
 	// downstream because cross2 has already validated.
 	//
-	// The frame walk in realmIsCurrentStrict skips cross2's own
-	// frame (cross2 is non-crossing native), so it finds the most
-	// recent crossing frame — the caller of whatever evaluated
-	// cross2(rlm). rlm's HIV must match that frame's Cur by pointer
-	// identity, which catches stale rlm captured in closures, sibling
-	// frames, value-receiver-laundered receivers, etc.
+	// realmIsCurrentOnMachine skips cross2's own frame (cross2 is
+	// non-crossing native), finds the most recent crossing frame —
+	// the caller of whatever evaluated cross2(rlm) — and compares
+	// rlm's HIV against that frame's Cur by pointer identity. Catches
+	// stale rlm from sibling frames or captured-and-outlived frames.
 	//
 	// Generic X param/result mirrors `_cross_gno0p0`; the Go-side
 	// typechecker shim narrows X to realm via the .gnobuiltins.gno
@@ -1514,8 +1479,8 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
-			if !realmIsCurrentStrict(m, arg0.TV) {
-				panic("cross2: rlm is not the current cur (stale capture, sibling frame, or HIV-less receiver)")
+			if !realmIsCurrentOnMachine(m, arg0.TV) {
+				panic("cross2: rlm is not the current cur (stale capture or sibling frame)")
 			}
 			m.PushValue(*arg0.TV)
 		},

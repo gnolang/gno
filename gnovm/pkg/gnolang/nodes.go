@@ -1506,8 +1506,22 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	fv.nativeBody = native
 }
 
-// DefineNativeMethod defines a native method.
+// DefineNativeMethod defines a native method with a value receiver.
 func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	pn.defineNativeMethod(r, n, ps, rs, native, false)
+}
+
+// DefineNativePtrMethod defines a native method with a pointer receiver
+// (`func (_ *r) n(...)`). Used when the receiver needs to preserve its
+// outer pointer/HIV identity through method dispatch — value-receiver
+// dispatch struct-copies the receiver and drops the outer PointerValue,
+// which matters for types like `.grealm` where HIV-identity is the
+// security primitive.
+func (pn *PackageNode) DefineNativePtrMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	pn.defineNativeMethod(r, n, ps, rs, native, true)
+}
+
+func (pn *PackageNode) defineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine), ptr bool) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
@@ -1515,7 +1529,11 @@ func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs,
 		panic("DefineNative expects a function, but got nil")
 	}
 
-	fd := MthdD(n, Fld("_", Nx(r)), ps, rs, nil)
+	var recvType Expr = Nx(r)
+	if ptr {
+		recvType = &StarExpr{X: Nx(r)}
+	}
+	fd := MthdD(n, Fld("_", recvType), ps, rs, nil)
 	fd = Preprocess(nil, pn, fd).(*FuncDecl)
 	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {
