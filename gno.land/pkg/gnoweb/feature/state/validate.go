@@ -17,6 +17,7 @@ const (
 	MaxStateIDLength    = 256
 	MaxFragmentLine     = 1_000_000
 	MaxFragmentFileSize = 256 * 1024
+	MaxSearchQueryLen   = 128
 )
 
 var (
@@ -27,6 +28,7 @@ var (
 	ErrInvalidLine   = errors.New("invalid line")
 	ErrInvalidOffset = errors.New("invalid offset")
 	ErrInvalidLimit  = errors.New("invalid limit")
+	ErrInvalidSearch = errors.New("invalid search")
 )
 
 func ValidateOID(s string) error {
@@ -112,6 +114,21 @@ func ValidateLimit(s string) (int, error) {
 		n = maxTopLevelDecls
 	}
 	return n, nil
+}
+
+// ValidateSearch bounds the attacker-controlled `search` query param.
+// Empty / whitespace-only → "" (no filter). Length cap makes the O(N×M)
+// Contains scan cheap; control bytes are rejected to keep the query
+// log-safe.
+func ValidateSearch(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", nil
+	}
+	if len(s) > MaxSearchQueryLen || strings.ContainsFunc(s, unicode.IsControl) {
+		return "", ErrInvalidSearch
+	}
+	return s, nil
 }
 
 // View mode constants for the ?state&view= query param. Used everywhere

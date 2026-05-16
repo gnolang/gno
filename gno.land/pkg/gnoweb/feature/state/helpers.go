@@ -141,6 +141,60 @@ func statePageHref(pkgPath, heightParam, viewMode string, offset, limit int) tem
 	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
+// canonicalStateURL builds the URL the address bar should show after a
+// search-driven htmx swap. Mirrors statePageHref's canonical shape but
+// also stamps `search=` when the filter is active. Empty offset / pretty
+// view / empty height stay omitted so page-1 cache-key parity holds.
+func canonicalStateURL(pkgPath, heightParam, viewMode, search string, offset int) template.URL {
+	wq := url.Values{"state": {""}}
+	if search != "" {
+		wq.Set("search", search)
+	}
+	if offset > 0 {
+		wq.Set("offset", strconv.Itoa(offset))
+	}
+	if heightParam != "" {
+		wq.Set("height", heightParam)
+	}
+	if viewMode == ViewModeTree {
+		wq.Set("view", ViewModeTree)
+	}
+	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
+	return template.URL(u.EncodeWebURL()) //nolint:gosec
+}
+
+// stateSearchBaseHref builds the search input's base href: canonical
+// `<pkg>$state[&height=H][&view=tree]`. The `search=` param is appended
+// by the client at request time.
+func stateSearchBaseHref(pkgPath, heightParam, viewMode string) template.URL {
+	wq := url.Values{"state": {""}}
+	if heightParam != "" {
+		wq.Set("height", heightParam)
+	}
+	if viewMode == ViewModeTree {
+		wq.Set("view", ViewModeTree)
+	}
+	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
+	return template.URL(u.EncodeWebURL()) //nolint:gosec
+}
+
+// filterIndices returns the positions of names that contain query
+// (case-insensitive substring match). Empty query → nil (caller falls
+// back to contiguous indices).
+func filterIndices(names []string, query string) []int {
+	if query == "" {
+		return nil
+	}
+	needle := strings.ToLower(query)
+	out := make([]int, 0, len(names)/4)
+	for i, name := range names {
+		if strings.Contains(strings.ToLower(name), needle) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
 // computeAnchors returns one fragment-safe anchor per Name, using the
 // same suffix-discipline as buildTOC so duplicate labels still get unique
 // targets ("Foo", "Foo" → "state-foo", "state-foo-1"). Pre-computed so

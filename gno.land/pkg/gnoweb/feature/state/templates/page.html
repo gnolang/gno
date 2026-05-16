@@ -14,11 +14,178 @@
      is template.JS (pre-marshaled, server-trusted). */}}
 <script type="application/json" id="state-doc-index">{{ if .DocIndexJSON }}{{ .DocIndexJSON }}{{ else }}{}{{ end }}</script>
 
+{{ template "state/sidebar" . }}
+
+<header class="b-content-header">
+  <h1 class="title b-content-h1">
+    {{ if .Crumbs }}{{ with index .Crumbs 0 }}{{ if .Href }}
+      <a class="back-link" href="{{ .Href }}" aria-label="Back to {{ .Label }}" title="Back to {{ .Label }}">
+        <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-left"></use></svg>
+      </a>
+    {{ end }}{{ end }}{{ end }}
+    <span>{{ .CountLabel }}</span>
+    <span class="b-tag">state</span>
+  </h1>
+  <div class="header-info">
+    <div class="b-btns">
+      <details class="b-state-history">
+        <summary class="b-btn b-btn--secondary b-btn--input c-with-icon">
+          {{ if .Height }}<span class="badge">@ #{{ .Height }}</span>
+          {{ else }}<span>Time-travel</span>{{ end }}
+          <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-down"></use></svg>
+        </summary>
+        <form method="GET" action="{{ .LatestHref }}" class="form">
+          <div class="b-input">
+            <label for="state-height-input">Block height</label>
+            <input type="number" id="state-height-input" name="height" min="1" placeholder="latest" {{ if .Height }}value="{{ .Height }}"{{ end }} autocomplete="off" class="u-font-mono">
+          </div>
+          <button type="submit" class="b-btn b-btn--secondary">Go</button>
+          {{ if .Height }}<a class="b-link--muted clear" href="{{ .LatestHref }}">↺ Latest</a>{{ end }}
+        </form>
+      </details>
+
+      {{ if .Nodes }}
+        <fieldset class="b-state-view-toggle" aria-label="State view mode">
+          <input type="radio" name="state-view-mode" id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only"{{ if ne .ViewMode "tree" }} checked{{ end }}>
+          <label for="state-view-pretty">Pretty</label>
+          <input type="radio" name="state-view-mode" id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only"{{ if eq .ViewMode "tree" }} checked{{ end }}>
+          <label for="state-view-tree">Tree</label>
+        </fieldset>
+      {{ end }}
+    </div>
+  </div>
+</header>
+
+{{/* Anchored on .Sidebar (not .Nodes) so a 0-result search keeps the
+     bar in place mid-typing. */}}
 {{ if .Sidebar }}
-<aside class="b-sidebar sidebar" aria-label="State navigation">
+  <nav class="b-page-subheader" aria-label="Filter declarations">
+    {{ template "state/kind-tabs" . }}
+    <div class="state-search b-input" role="search">
+      <input type="search" name="search" placeholder="Search declarations"
+        value="{{ .SearchQuery }}"
+        hx-get="{{ stateSearchBaseHref .PkgPath .HeightParam .ViewMode }}"
+        hx-trigger="input changed delay:200ms, keyup[key=='Enter']"
+        hx-target="#state-results"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        aria-label="Search declarations">
+      <svg class="c-icon"><use href="#ico-search"></use></svg>
+    </div>
+  </nav>
+{{ end }}
+
+<article class="b-state-explorer" id="state-results">
+  {{ template "state/results-inner" . }}
+</article>
+</div>
+{{ end }}
+
+{{ define "state/kind-tabs" }}
+<div class="packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs">
+  {{ template "state/kind-tabs-inner" .KindCounts }}
+</div>
+{{ end }}
+
+{{ define "state/kind-tabs-oob" }}
+<div class="packages-tabs" role="radiogroup" aria-label="Filter by kind" id="state-kind-tabs" hx-swap-oob="true">
+  {{ template "state/kind-tabs-inner" .KindCounts }}
+</div>
+{{ end }}
+
+{{ define "state/kind-tabs-inner" }}
+  <label>
+    <input type="radio" name="kind-filter" id="kf-all" value="all" class="u-sr-only" checked>
+    All
+    <span class="b-tag--tertiary">{{ .All }}</span>
+  </label>
+  <label>
+    <input type="radio" name="kind-filter" id="kf-state" value="state" class="u-sr-only">
+    State
+    <span class="b-tag--tertiary">{{ .State }}</span>
+  </label>
+  <label>
+    <input type="radio" name="kind-filter" id="kf-code" value="code" class="u-sr-only">
+    Code
+    <span class="b-tag--tertiary">{{ .Code }}</span>
+  </label>
+  <label>
+    <input type="radio" name="kind-filter" id="kf-types" value="types" class="u-sr-only">
+    Types
+    <span class="b-tag--tertiary">{{ .Types }}</span>
+  </label>
+{{ end }}
+
+{{ define "searchFragment" }}
+{{ template "state/results-inner" . }}
+{{ template "state/sidebar-oob" . }}
+{{ template "state/kind-tabs-oob" . }}
+{{ end }}
+
+{{ define "state/results-inner" }}
+  <div class="view-pretty">
+    {{ if .Nodes }}
+      <div class="c-stack">
+        {{ $pkg := .PkgPath }}
+        {{ $h := .Height }}
+        {{ $hp := .HeightParam }}
+        {{/* Literal "pretty": each container stamps its own fragment URLs
+             so the CSS-only Pretty/Tree toggle doesn't leak fragments
+             across containers. Mirror in view-tree below. */}}
+        {{ range .Nodes }}
+          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" "pretty") }}
+        {{ end }}
+      </div>
+    {{ else if .SearchQuery }}
+      <p class="empty">No declarations match <code>{{ .SearchQuery }}</code>.</p>
+    {{ else }}
+      <p class="empty">This package has no exposed state.</p>
+    {{ end }}
+  </div>
+
+  {{ if .Nodes }}
+    <div class="view-tree" data-state-target="view-tree">
+      <div class="tree">
+        {{/* Literal "tree" — see view-pretty above. */}}
+        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height "HeightParam" .HeightParam "ViewMode" "tree") }}
+      </div>
+    </div>
+  {{ end }}
+
+  {{ template "state/pagination" . }}
+{{ end }}
+
+{{ define "state/sidebar" }}
+{{ if .Sidebar }}
+<aside class="b-sidebar sidebar" id="state-sidebar" aria-label="State navigation">
+  {{ template "state/sidebar-inner" . }}
+</aside>
+{{ end }}
+{{ end }}
+
+{{/* Rendered even when .Sidebar is nil so a prior non-empty sidebar
+     can be cleared on swap. */}}
+{{ define "state/sidebar-oob" }}
+<aside class="b-sidebar sidebar" id="state-sidebar" aria-label="State navigation" hx-swap-oob="true">
+  {{ if .Sidebar }}{{ template "state/sidebar-inner" . }}{{ end }}
+</aside>
+{{ end }}
+
+{{ define "state/sidebar-inner" }}
   <div>
     <div id="sidebar-summary" class="inner u-no-scrollbar">
       {{ template "state/expend-label" "On this page" }}
+      {{/* Click → fetch ?state&json. Raw JSON is not inlined in the page
+           (memory amp per viewer). */}}
+      <div class="b-state-export">
+        <button type="button" class="b-inline-btn c-with-icon"
+          data-controller="copy" data-action="click->copy#copy"
+          data-copy-fetch-value="{{ stateRawJSONHref .PkgPath .HeightParam }}"
+          title="Copy package JSON" aria-label="Copy package JSON">
+          {{ template "state/copy-icon" }}
+          <span>Copy package JSON</span>
+        </button>
+      </div>
       <nav>
         {{ if .Sidebar.Meta }}
           <dl class="b-state-meta">
@@ -66,137 +233,7 @@
       </nav>
     </div>
   </div>
-</aside>
 {{ end }}
-
-<header class="b-content-header">
-  <h1 class="title b-content-h1">
-    {{ if .Crumbs }}{{ with index .Crumbs 0 }}{{ if .Href }}
-      <a class="back-link" href="{{ .Href }}" aria-label="Back to {{ .Label }}" title="Back to {{ .Label }}">
-        <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-left"></use></svg>
-      </a>
-    {{ end }}{{ end }}{{ end }}
-    <span>{{ .CountLabel }}</span>
-    <span class="b-tag">state</span>
-  </h1>
-  <div class="header-info">
-    <div class="b-btns">
-      <details class="b-state-history">
-        <summary class="b-btn b-btn--secondary b-btn--input c-with-icon">
-          {{ if .Height }}<span class="badge">@ #{{ .Height }}</span>
-          {{ else }}<span>Time-travel</span>{{ end }}
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-down"></use></svg>
-        </summary>
-        <form method="GET" action="{{ .LatestHref }}" class="form">
-          <div class="b-input">
-            <label for="state-height-input">Block height</label>
-            <input type="number" id="state-height-input" name="height" min="1" placeholder="latest" {{ if .Height }}value="{{ .Height }}"{{ end }} autocomplete="off" class="u-font-mono">
-          </div>
-          <button type="submit" class="b-btn b-btn--secondary">Go</button>
-          {{ if .Height }}<a class="b-link--muted clear" href="{{ .LatestHref }}">↺ Latest</a>{{ end }}
-        </form>
-      </details>
-
-      {{ if .Nodes }}
-        <fieldset class="b-state-view-toggle" aria-label="State view mode">
-          <input type="radio" name="state-view-mode" id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only"{{ if ne .ViewMode "tree" }} checked{{ end }}>
-          <label for="state-view-pretty">Pretty</label>
-          <input type="radio" name="state-view-mode" id="state-view-tree" value="tree" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only"{{ if eq .ViewMode "tree" }} checked{{ end }}>
-          <label for="state-view-tree">Tree</label>
-        </fieldset>
-      {{ end }}
-    </div>
-  </div>
-</header>
-
-{{ if .Nodes }}
-  <nav class="b-page-subheader" aria-label="Filter declarations">
-    <div class="packages-tabs" role="radiogroup" aria-label="Filter by kind">
-      <label>
-        <input type="radio" name="kind-filter" id="kf-all" value="all" class="u-sr-only" checked>
-        All
-        <span class="b-tag--tertiary">{{ .KindCounts.All }}</span>
-      </label>
-      <label>
-        <input type="radio" name="kind-filter" id="kf-state" value="state" class="u-sr-only">
-        State
-        <span class="b-tag--tertiary">{{ .KindCounts.State }}</span>
-      </label>
-      <label>
-        <input type="radio" name="kind-filter" id="kf-code" value="code" class="u-sr-only">
-        Code
-        <span class="b-tag--tertiary">{{ .KindCounts.Code }}</span>
-      </label>
-      <label>
-        <input type="radio" name="kind-filter" id="kf-types" value="types" class="u-sr-only">
-        Types
-        <span class="b-tag--tertiary">{{ .KindCounts.Types }}</span>
-      </label>
-    </div>
-    <div class="state-search b-input">
-      {{/* Hidden height field — hx-include picks it up so every fragment
-           request inherits the parent page's resolved height. */}}
-      {{ if .HeightParam }}<input type="hidden" name="height" value="{{ .HeightParam }}">{{ end }}
-      <input type="search" placeholder="Search declarations"
-        data-controller="search"
-        data-search-items-value=".b-state-decl[data-name], .b-state-toc li[data-name], .view-tree .tree > [data-name]"
-        data-action="input->search#filter"
-        aria-label="Filter declarations by name">
-      <svg class="c-icon"><use href="#ico-search"></use></svg>
-    </div>
-  </nav>
-{{ end }}
-
-<article class="b-state-explorer">
-  <div class="view-pretty">
-    {{ if .Nodes }}
-      <div class="c-stack">
-        {{ $pkg := .PkgPath }}
-        {{ $h := .Height }}
-        {{ $hp := .HeightParam }}
-        {{/* Literal "pretty": each container stamps its own fragment URLs
-             so the CSS-only Pretty/Tree toggle doesn't leak fragments
-             across containers. Mirror in view-tree below. */}}
-        {{ range .Nodes }}
-          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" "pretty") }}
-        {{ end }}
-      </div>
-    {{ else }}
-      <p class="empty">This package has no exposed state.</p>
-    {{ end }}
-  </div>
-
-  {{ if .Nodes }}
-    <div class="view-tree" data-state-target="view-tree">
-      <div class="tree-toolbar">
-        {{/* Async fetch via ?state&json — the raw qpkg_json is NOT
-             inlined in the page anymore (memory amp on every viewer),
-             so the button hits the JSON endpoint on click instead. */}}
-        <button type="button" class="b-inline-btn c-with-icon"
-          data-controller="copy" data-action="click->copy#copy"
-          data-copy-fetch-value="{{ stateRawJSONHref .PkgPath .HeightParam }}"
-          title="Copy package JSON" aria-label="Copy package JSON">
-          <svg class="c-icon" aria-hidden="true">
-            <use href="#ico-copy" data-copy-target="icon"></use>
-            <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
-          </svg>
-          <span>Copy package JSON</span>
-        </button>
-      </div>
-      <div class="tree">
-        {{/* Literal "tree" — see view-pretty above. */}}
-        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height "HeightParam" .HeightParam "ViewMode" "tree") }}
-      </div>
-    </div>
-  {{ end }}
-
-  {{ template "state/pagination" . }}
-</article>
-</div>
-{{ end }}
-
-{{/* ===== Inline-page partials (kept local so renderPage executes
-     without depending on components.tmpl). ===== */}}
 
 {{/* Mirror of components/layouts/aside.html "ui/expend_label" — the
      state feature template-set is isolated so we can't `template` into

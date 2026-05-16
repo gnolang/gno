@@ -116,6 +116,8 @@ var funcMap = template.FuncMap{
 	"stateObjectHref":     stateObjectHref,
 	"stateRawJSONHref":    stateRawJSONHref,
 	"stateSourceHref":     stateSourceHref,
+	"stateBaseHref":       RealmStateHref,
+	"stateSearchBaseHref": stateSearchBaseHref,
 
 	"dict": func(kv ...any) (map[string]any, error) {
 		if len(kv)%2 != 0 {
@@ -150,6 +152,11 @@ var (
 	FragNodeTemplate   = mustParse("fragNode", "templates/frag_node.html", "templates/_nodes.html", "templates/page.html", "templates/_pagination.html")
 	FragSourceTemplate = mustParse("fragSource", "templates/frag_source.html")
 	FragErrorTemplate  = mustParse("fragError", "templates/frag_error.html")
+	// SearchFragmentTemplate renders the htmx response for the search
+	// input: replaces #state-results' innerHTML and OOB-swaps
+	// #state-sidebar. Needs the same template tree as PageTemplate so
+	// state/decl, state/nodes, state/pagination all resolve.
+	SearchFragmentTemplate = mustParse("searchFragment", "templates/page.html", "templates/_nodes.html", "templates/_pagination.html")
 )
 
 func mustParse(name string, paths ...string) *template.Template {

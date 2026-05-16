@@ -113,6 +113,36 @@ func TestValidateOffset(t *testing.T) {
 	}
 }
 
+func TestValidateSearch(t *testing.T) {
+	// Empty → empty (no filter).
+	if s, err := ValidateSearch(""); err != nil || s != "" {
+		t.Fatalf("empty search: got (%q, %v), want (\"\", nil)", s, err)
+	}
+	// Normal ascii substring passes through unchanged.
+	if s, err := ValidateSearch("foo"); err != nil || s != "foo" {
+		t.Fatalf("valid search: got (%q, %v)", s, err)
+	}
+	// Oversized rejected — keeps O(N×M) Contains scan cheap.
+	long := make([]byte, MaxSearchQueryLen+1)
+	for i := range long {
+		long[i] = 'a'
+	}
+	if _, err := ValidateSearch(string(long)); err == nil {
+		t.Fatal("oversized search accepted")
+	}
+	// Control bytes rejected — log-safe + banner-reflect-safe.
+	bad := []string{
+		"foo\ninjected",
+		"foo\x00",
+		"foo\tBar",
+	}
+	for _, s := range bad {
+		if _, err := ValidateSearch(s); err == nil {
+			t.Fatalf("invalid search %q accepted", s)
+		}
+	}
+}
+
 func TestValidateLimit(t *testing.T) {
 	// Empty → default page size.
 	if n, err := ValidateLimit(""); err != nil || n != maxTopLevelDecls {

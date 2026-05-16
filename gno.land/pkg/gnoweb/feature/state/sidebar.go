@@ -153,9 +153,6 @@ func buildTOC(nodes []StateNode) []StateTOCEntry {
 // the cap, so the template can render the "+N more" hint.
 func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTypes []string, currentOffset, limit int, heightParam string) (*StateSidebar, bool) {
 	total := len(allNames)
-	if total == 0 {
-		return nil, false
-	}
 	if limit <= 0 {
 		limit = maxTopLevelDecls
 	}

@@ -244,7 +244,9 @@ func TestServePagePinnedHeight(t *testing.T) {
 	// gnoweb $webargs grammar puts height inside the path-attached
 	// webquery (encoded as `&amp;` by html/template in attribute contexts).
 	hxGetCount := strings.Count(body, `hx-get="`)
-	heightCount := strings.Count(body, `&amp;height=12345`)
+	// Height can land in any position of the alpha-sorted webarg list, so
+	// either prefix is valid: `$height=…` (first key) or `&amp;height=…`.
+	heightCount := strings.Count(body, `height=12345`)
 	if hxGetCount == 0 {
 		t.Fatalf("expected at least one hx-get in body\n%s", head(body, 800))
 	}
@@ -485,5 +487,165 @@ func TestServePackagePageFullSidebar(t *testing.T) {
 	// Off-page <li> carries data-off-page="true" for CSS/aria.
 	if !strings.Contains(body, `data-off-page="true"`) {
 		t.Errorf("off-page <li> must carry data-off-page attr; body head:\n%s", head(body, 1200))
+	}
+}
+
+// TestServePackagePageSearchFiltersAndPaginates — `?search=v1` filters
+// both the rendered card set AND the sidebar TOC to names containing
+// "v1" (v1, v10, v11). Non-matching entries are dropped from the sidebar
+// so users see exactly what's on-page.
+func TestServePackagePageSearchFiltersAndPaginates(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)})
+	rec := servePageReq(t, h, url.Values{"search": {"v1"}}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+
+	// Exactly v1, v10, v11 land as decl cards.
+	cardCount := strings.Count(body, `class="b-state-decl"`)
+	if cardCount != 3 {
+		t.Errorf("got %d b-state-decl cards, want 3 (v1, v10, v11); body head:\n%s",
+			cardCount, head(body, 1200))
+	}
+	for _, name := range []string{"v1", "v10", "v11"} {
+		if !strings.Contains(body, `data-name="`+name+`"`) {
+			t.Errorf("filtered card for %q missing; body head:\n%s", name, head(body, 1200))
+		}
+	}
+
+	// Sidebar TOC mirrors the filter — non-matching entries dropped.
+	for _, name := range []string{"v0", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"} {
+		if strings.Contains(body, `data-name="`+name+`"`) {
+			t.Errorf("sidebar TOC kept non-matching %q under search filter; body head:\n%s",
+				name, head(body, 1200))
+		}
+	}
+}
+
+// TestServePackagePageSearchInvalid400 — a control byte in search must
+// surface as a clean 400, not a reflected banner.
+func TestServePackagePageSearchInvalid400(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(3)})
+	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "search": {"bad\nquery"}}}
+	req := httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
+	status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+	}
+	if view == nil {
+		t.Fatalf("view is nil; want a status-error view")
+	}
+}
+
+// TestSearchResetsOffsetPastFilteredTotal — if the user paginates deep
+// and then submits a search whose result set is small, the carried-over
+// offset would push them past the filtered total and render a blank
+// page. The server resets offset to 0 in that case so the user always
+// lands on the first page of matches.
+func TestSearchResetsOffsetPastFilteredTotal(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)})
+	// "v0" matches exactly one decl. offset=10 (page 3 in the unfiltered
+	// realm) is past the filtered total of 1.
+	rec := servePageReq(t, h, url.Values{"search": {"v0"}, "offset": {"10"}}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `class="b-state-decl" id="state-v0-pretty"`) {
+		t.Errorf("v0 card missing — offset wasn't reset to 0; body head:\n%s", head(body, 1500))
+	}
+}
+
+// TestSearchEmptyStateKeepsSubheader — a no-match query keeps the
+// subheader (search bar + kind tabs) and the sidebar shell visible so
+// the user can keep typing / clear; only the cards list collapses to
+// the empty-state copy.
+func TestSearchEmptyStateKeepsSubheader(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(3)})
+	rec := servePageReq(t, h, url.Values{"search": {"xyz"}}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "No declarations match") {
+		t.Errorf("body missing empty-state copy; body head:\n%s", head(body, 1200))
+	}
+	if !strings.Contains(body, `type="search" name="search"`) {
+		t.Errorf("search bar disappeared on 0 results — should stay anchored; body head:\n%s", head(body, 1200))
+	}
+	if !strings.Contains(body, `class="b-sidebar`) {
+		t.Errorf("sidebar shell disappeared on 0 results — should stay visible; body head:\n%s", head(body, 1200))
+	}
+}
+
+// TestServePackagePageSearchFragmentOnHXRequest — htmx requests
+// (identified by the HX-Request header) get the search fragment back,
+// not the full page chrome. The body must contain the cards container,
+// the OOB-marked sidebar, and NO <html> wrapper. Response carries
+// HX-Push-Url so the address bar reflects the filtered URL.
+func TestServePackagePageSearchFragmentOnHXRequest(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)})
+	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "search": {"v1"}}}
+	req := httptest.NewRequest(http.MethodGet, "/r/demo$state&search=v1", nil)
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	status, view := h.servePage(context.Background(), rec, req, u)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want %d", status, http.StatusOK)
+	}
+	if view != nil {
+		t.Fatalf("view = %v, want nil (body already written)", view)
+	}
+	body := rec.Body.String()
+
+	// Chrome-less fragment — no full-page wrapper.
+	if strings.Contains(body, "<html") || strings.Contains(body, "<!doctype") {
+		t.Errorf("htmx fragment must NOT include page chrome; body head=%s", head(body, 400))
+	}
+	// Cards for v1 / v10 / v11 land in the fragment.
+	for _, name := range []string{"v1", "v10", "v11"} {
+		if !strings.Contains(body, `data-name="`+name+`"`) {
+			t.Errorf("fragment missing card %q; body head=%s", name, head(body, 1200))
+		}
+	}
+	// OOB sidebar present so the TOC stays in sync with the filtered set.
+	if !strings.Contains(body, `id="state-sidebar"`) {
+		t.Errorf("fragment missing OOB sidebar id; body head=%s", head(body, 1200))
+	}
+	if !strings.Contains(body, `hx-swap-oob="true"`) {
+		t.Errorf("fragment sidebar missing hx-swap-oob=\"true\"; body head=%s", head(body, 1200))
+	}
+	// HX-Push-Url carries the canonical $webargs URL the address bar should show.
+	pushURL := rec.Header().Get("HX-Push-Url")
+	if pushURL == "" {
+		t.Fatalf("HX-Push-Url header missing")
+	}
+	if !strings.Contains(pushURL, "$") || !strings.Contains(pushURL, "search=v1") {
+		t.Errorf("HX-Push-Url = %q; want canonical $webargs URL with search=v1", pushURL)
+	}
+	// Same canonical cache header as the full page.
+	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "max-age") {
+		t.Errorf("fragment Cache-Control = %q; want a max-age value", cc)
+	}
+}
+
+// TestServePackagePageFullPageWithoutHXRequest — without the HX-Request
+// header, the same URL returns the full page (chrome inside IndexLayout).
+// Pins the dispatch contract so a missing HX header never accidentally
+// triggers the fragment path.
+func TestServePackagePageFullPageWithoutHXRequest(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)})
+	rec := servePageReq(t, h, url.Values{"search": {"v1"}}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Header().Get("HX-Push-Url") != "" {
+		t.Errorf("HX-Push-Url unexpectedly set on full-page response")
+	}
+	body := rec.Body.String()
+	// Full-page response contains the htmx-config meta — fragments don't.
+	if !strings.Contains(body, `<meta name="htmx-config"`) {
+		t.Errorf("full-page response missing htmx-config meta; body head=%s", head(body, 600))
 	}
 }

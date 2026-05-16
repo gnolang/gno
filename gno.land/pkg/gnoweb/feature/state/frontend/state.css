@@ -1071,11 +1071,8 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 	}
 }
 
-.b-state-explorer .view-tree .tree-toolbar {
-	position: absolute;
-	top: var(--g-space-3);
-	right: var(--g-space-4);
-	z-index: var(--g-z-1);
+.b-state-export {
+	margin-block: var(--g-space-2) var(--g-space-3);
 	color: var(--s-color-text-tertiary);
 	font-size: var(--g-font-size-100);
 }
@@ -1160,29 +1157,19 @@ body:has(#kf-types:checked)
 	display: none;
 }
 
-/* Empty state — flat selectors (postcss compat output mangles nested
-   :has chains). A card counts as "shown" only when it survives BOTH
-   filters: not `.u-hidden` (search JS) AND matching the active
-   kind-group. One variant per kind-filter radio so a search + kind
-   filter that jointly hide everything still surfaces the message. */
-body:has(#kf-all:checked) .view-pretty
-	> .c-stack:not(:has(> .b-state-decl:not(.u-hidden)))::before,
-body:has(#kf-state:checked)
-	.view-pretty
-	> .c-stack:not(
-		:has(> .b-state-decl[data-kind-group="state"]:not(.u-hidden))
-	)::before,
+/* Kind-filter empty state. Search is server-side now (cards either
+   render or don't — no client-side hiding), so this only catches the
+   case where a non-All kind tab is selected and the visible set has
+   nothing in that bucket. */
+body:has(#kf-state:checked) .view-pretty
+	> .c-stack:not(:has(> .b-state-decl[data-kind-group="state"]))::before,
 body:has(#kf-code:checked)
 	.view-pretty
-	> .c-stack:not(
-		:has(> .b-state-decl[data-kind-group="code"]:not(.u-hidden))
-	)::before,
+	> .c-stack:not(:has(> .b-state-decl[data-kind-group="code"]))::before,
 body:has(#kf-types:checked)
 	.view-pretty
-	> .c-stack:not(
-		:has(> .b-state-decl[data-kind-group="types"]:not(.u-hidden))
-	)::before {
-	content: "No declarations match your search.";
+	> .c-stack:not(:has(> .b-state-decl[data-kind-group="types"]))::before {
+	content: "No declarations in this category.";
 	display: block;
 	text-align: center;
 	color: var(--s-color-text-tertiary);
@@ -1202,9 +1189,6 @@ body:has(#kf-types:checked)
 }
 
 .b-state-toc {
-	max-height: 60vh;
-	overflow-y: auto;
-
 	small.type[data-kind] {
 		margin-inline-start: var(--g-space-2);
 		font-family: var(--g-font-family-mono);
@@ -1519,4 +1503,11 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 		color: var(--s-color-text-primary);
 		font-variant-numeric: tabular-nums;
 	}
+}
+
+/* Hide the native × — live-debounced erase already commits the clear. */
+.state-search input[type="search"]::-webkit-search-cancel-button,
+.state-search input[type="search"]::-webkit-search-decoration {
+	-webkit-appearance: none;
+	appearance: none;
 }

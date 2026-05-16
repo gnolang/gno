@@ -55,6 +55,10 @@ type StateData struct {
 	// SidebarTotal carries the realm's full top-level decl count so the
 	// truncation hint can show the dropped-entry tail count (Total - cap).
 	SidebarTotal int
+
+	// SearchQuery is the validated `?search=` value. Empty when no filter
+	// is active. Drives the banner + form input value in the template.
+	SearchQuery string
 }
 
 // Pagination is the view-model for the top-level decls listing footer.

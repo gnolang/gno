@@ -111,17 +111,32 @@ func TestUXPromiseDocIndexHTMLEscaped(t *testing.T) {
 	}
 }
 
-// Promise: OID searchbar navigation (shared controller-searchbar still
-// works). The page must include the search form data-controller hook so
-// the existing TS controller-searchbar can bind.
+// Promise: server-side search bar. The input is now htmx-driven: it
+// fires GET <pkg>$state&search=… on input/Enter, swaps #state-results
+// inner HTML, OOB-swaps #state-sidebar, and pushes the canonical URL.
+// No full reload, no JS form-intercept, no focus loss.
 func TestUXPromiseSearchBarPresent(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
 	h := newPageHandler(client)
 	rec := servePageReq(t, h, url.Values{}, "/r/demo")
 
 	body := rec.Body.String()
-	if !strings.Contains(body, `data-controller="search"`) {
-		t.Errorf("declaration search bar (controller-search) missing")
+	required := []string{
+		`hx-get="/r/demo$state"`,
+		`hx-trigger="input changed delay:200ms, keyup[key=='Enter']"`,
+		`hx-target="#state-results"`,
+		`hx-push-url="true"`,
+		`type="search" name="search"`,
+	}
+	for _, r := range required {
+		if !strings.Contains(body, r) {
+			t.Errorf("search bar missing %q; body head=%s", r, head(body, 1200))
+		}
+	}
+	// The old JS-driven handlers must be gone.
+	if strings.Contains(body, `data-action="input->state#liveSearch"`) ||
+		strings.Contains(body, `data-action="submit->state#submitSearch"`) {
+		t.Errorf("legacy JS search handlers must be removed; body head=%s", head(body, 1200))
 	}
 }
 

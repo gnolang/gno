@@ -30,13 +30,15 @@ func (h *Handler) servePage(ctx context.Context, w http.ResponseWriter, r *http.
 		}
 		return h.serveObjectPage(ctx, w, u, oid, height)
 	}
-	return h.servePackagePage(ctx, w, u, height)
+	return h.servePackagePage(ctx, w, r, u, height)
 }
 
 // servePackagePage handles `?state` — fetches StatePkg + Doc in parallel
 // and renders the pretty/tree views. Previews stay lazy (hx-trigger=
 // revealed in the template) so the SSR path itself does 2 RPCs.
-func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL, height int64) (int, *components.View) {
+// htmx search requests are served as a fragment (cards + OOB sidebar)
+// instead of the full page; r.Header `HX-Request` distinguishes the two.
+func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, r *http.Request, u *weburl.GnoURL, height int64) (int, *components.View) {
 	offset, err := ValidateOffset(u.WebQuery.Get("offset"))
 	if err != nil {
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid offset")
@@ -44,6 +46,15 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 	limit, err := ValidateLimit(u.WebQuery.Get("limit"))
 	if err != nil {
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid limit")
+	}
+	// Canonical lives in $webargs; ?query fallback mirrors u.Height().
+	searchRaw := u.WebQuery.Get("search")
+	if searchRaw == "" {
+		searchRaw = u.Query.Get("search")
+	}
+	search, err := ValidateSearch(searchRaw)
+	if err != nil {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid search")
 	}
 
 	var (
@@ -77,8 +88,7 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		return status, components.StatusErrorComponent(msg)
 	}
 
-	// Parse once, walk the page slice, and peek-kind every other slot
-	// for the full sidebar TOC — zero extra RPC, single amino decode.
+	// Parse once; peek-kind powers the sidebar TOC without re-decoding.
 	resp, err := parsePackage(raw)
 	if err != nil {
 		h.deps.Logger.Error("unable to decode state JSON", "error", err, "path", u.EncodeURL())
@@ -86,9 +96,7 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 	}
 	realmTotal := min(len(resp.Names), len(resp.Values))
 	anchors := computeAnchors(resp.Names)
-	// Peek bounded by the sidebar cap — entries past maxSidebarTOC are
-	// never rendered, so their kind/type would be wasted work on huge
-	// realms.
+	// Bound the peek loop to what the sidebar can actually render.
 	peekEnd := min(realmTotal, maxSidebarTOC)
 	allKinds := make([]string, peekEnd)
 	allTypes := make([]string, peekEnd)
@@ -99,10 +107,26 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 	if pageLimit <= 0 {
 		pageLimit = maxTopLevelDecls
 	}
-	start, end := clampSliceWindow(offset, pageLimit, realmTotal)
-	indices := make([]int, 0, end-start)
-	for i := start; i < end; i++ {
-		indices = append(indices, i)
+	var (
+		indices  []int
+		setTotal int
+	)
+	if search != "" {
+		matches := filterIndices(resp.Names, search)
+		setTotal = len(matches)
+		// Offset past the filtered total would render a blank page; reset.
+		if offset >= setTotal {
+			offset = 0
+		}
+		start, end := clampSliceWindow(offset, pageLimit, setTotal)
+		indices = matches[start:end]
+	} else {
+		setTotal = realmTotal
+		start, end := clampSliceWindow(offset, pageLimit, realmTotal)
+		indices = make([]int, 0, end-start)
+		for i := start; i < end; i++ {
+			indices = append(indices, i)
+		}
 	}
 	nodes, err := decodePackageSlice(ctx, resp, RenderConfig{MaxChildrenPerNode: maxChildrenPerNode, MaxDecodeDepth: maxDecodeDepth}, indices)
 	if err != nil {
@@ -129,7 +153,37 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 	hp := heightParam(height)
 	EnrichLinks(nodes, u.Path, hp, ViewModePretty)
 
-	sidebar, truncated := BuildPackageSidebarFull(u.Path, resp.Names[:realmTotal], anchors[:realmTotal], allKinds, allTypes, offset, pageLimit, hp)
+	// Sidebar mirrors the visible cards: full realm by default, filtered
+	// subset under search.
+	sidebarNames := resp.Names[:realmTotal]
+	sidebarAnchors := anchors[:realmTotal]
+	sidebarKinds := allKinds
+	sidebarTypes := allTypes
+	sidebarOffset := offset
+	sidebarLimit := pageLimit
+	if search != "" {
+		sidebarNames = make([]string, 0, len(indices))
+		sidebarAnchors = make([]string, 0, len(indices))
+		sidebarKinds = make([]string, 0, len(indices))
+		sidebarTypes = make([]string, 0, len(indices))
+		for _, idx := range indices {
+			sidebarNames = append(sidebarNames, resp.Names[idx])
+			sidebarAnchors = append(sidebarAnchors, anchors[idx])
+			if idx < len(allKinds) {
+				sidebarKinds = append(sidebarKinds, allKinds[idx])
+			}
+			if idx < len(allTypes) {
+				sidebarTypes = append(sidebarTypes, allTypes[idx])
+			}
+		}
+		sidebarOffset = 0
+		sidebarLimit = len(indices)
+	}
+	sidebar, truncated := BuildPackageSidebarFull(u.Path, sidebarNames, sidebarAnchors, sidebarKinds, sidebarTypes, sidebarOffset, sidebarLimit, hp)
+	// Empty realm → no sidebar at all. Filter-yields-zero keeps the shell.
+	if realmTotal == 0 {
+		sidebar = nil
+	}
 
 	data := StateData{
 		PkgPath:          u.Path,
@@ -144,7 +198,12 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		LatestHref:       template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
 		DocIndexJSON:     docIndex,
 		ViewMode:         viewMode,
-		Pagination:       buildPagination(u.Path, hp, viewMode, realmTotal, offset, pageLimit),
+		Pagination:       buildPagination(u.Path, hp, viewMode, setTotal, offset, pageLimit),
+		SearchQuery:      search,
+	}
+
+	if r != nil && r.Header.Get("HX-Request") != "" {
+		return h.writeSearchFragment(w, height, offset, data)
 	}
 
 	return h.writePage(w, height, false, data)
@@ -242,10 +301,27 @@ func (h *Handler) writePage(w http.ResponseWriter, height int64, noindex bool, d
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", cacheControlForHeight(height))
+	w.Header().Set("Vary", "HX-Request")
 	if noindex {
 		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	}
 	return http.StatusOK, NewPageView(data)
+}
+
+// writeSearchFragment writes the partial response for an HX-Request search.
+// Body is written here — caller must not write a View.
+func (h *Handler) writeSearchFragment(w http.ResponseWriter, height int64, offset int, data StateData) (int, *components.View) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", cacheControlForHeight(height))
+	// Splits cache entries for partial vs full-page responses.
+	w.Header().Set("Vary", "HX-Request")
+	w.Header().Set("HX-Push-Url", string(canonicalStateURL(data.PkgPath, data.HeightParam, data.ViewMode, data.SearchQuery, offset)))
+	w.WriteHeader(http.StatusOK)
+	if err := SearchFragmentTemplate.ExecuteTemplate(w, "searchFragment", data); err != nil {
+		h.deps.Logger.Error("search fragment template execute failed", "err", err)
+	}
+	return http.StatusOK, nil
 }
 
 // heightParam returns the decimal string stamped into every fragment hx-get

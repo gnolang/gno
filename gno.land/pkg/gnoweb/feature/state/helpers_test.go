@@ -174,6 +174,21 @@ func TestComputeAnchors(t *testing.T) {
 	)
 }
 
+// TestFilterIndices pins the search-filter substring scan: empty query
+// returns nil so the caller can fall back to the contiguous-indices path,
+// matches are case-insensitive, and insertion order is preserved.
+func TestFilterIndices(t *testing.T) {
+	t.Parallel()
+
+	assert.Nil(t, filterIndices([]string{"Foo", "Bar"}, ""), "empty query → nil")
+
+	got := filterIndices([]string{"Foo", "barFoo", "baz", "FOO"}, "foo")
+	assert.Equal(t, []int{0, 1, 3}, got, "case-insensitive + insertion order")
+
+	got = filterIndices([]string{"a", "b", "c"}, "zzz")
+	assert.Empty(t, got, "no-match → empty slice")
+}
+
 // TestStatePageAnchorHref locks the `#fragment` suffix grammar: anchors
 // land verbatim after the encoded webargs URL, on-page page-1 URLs stay
 // canonical (no offset/limit), and cross-page hops surface offset=.

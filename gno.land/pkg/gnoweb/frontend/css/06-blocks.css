@@ -1159,9 +1159,9 @@
 		   Subtract the sticky offset + a bottom breathing margin. */
 		max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
 		overflow-y: auto;
-		/* Thin scrollbar instead of none — a scrollable region must
-		   advertise that it scrolls and stay reachable. */
-		scrollbar-width: thin;
+		/* Scrollbar hidden via the `u-no-scrollbar` utility the sidebar
+		   templates already carry — wheel/touch scrolling stays
+		   reachable, the bar just doesn't render. */
 		border-radius: var(--s-rounded-sm);
 		background-color: var(--s-color-bg-surface-primary);
 
