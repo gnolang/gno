@@ -26,7 +26,7 @@ stdout OK!
 # Add A to valset at power=1 via a normal proposal (id 0).
 gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
@@ -65,7 +65,7 @@ import (
 func main() {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
-		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 1}},
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"baseline add",
 		"",
 	)
@@ -83,7 +83,7 @@ import (
 func main() {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
-		[]v3.ValoperChange{{OperatorAddress: address(memberAddr), Power: 2}},
+		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 2)},
 		"fresh add of opted-out op (must reject)",
 		"",
 	)
@@ -102,8 +102,8 @@ func main() {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
 		[]v3.ValoperChange{
-			{OperatorAddress: address(memberAddr), Power: 0},
-			{OperatorAddress: address(memberAddr), Power: 2},
+			v3.NewValoperChange(address(memberAddr), 0),
+			v3.NewValoperChange(address(memberAddr), 2),
 		},
 		"power update on opted-out operator (passes per current spec)",
 		"",
@@ -125,10 +125,7 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

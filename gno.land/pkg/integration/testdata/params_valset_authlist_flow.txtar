@@ -34,9 +34,9 @@ gnoland start
 # on height-LastRotationHeight < rotation_period_blocks.
 gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/disable_throttle.gno
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 22_000_000 -args 0 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # member registers their own valoper profile with pubKey P.
@@ -48,15 +48,15 @@ stdout OK!
 stderr 'caller is not in authorized list'
 
 # member grants test2 the authority to rotate.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func AddToAuthList -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func AddToAuthList -gas-fee 4000001ugnot -gas-wanted 11_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # (b) test2 NOW on auth list: rotation must succeed.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test2
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 20_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -broadcast -chainid=tendermint_test test2
 stdout OK!
 
 # member revokes test2's authority.
-gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -gas-fee 4000001ugnot -gas-wanted 40_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func DeleteFromAuthList -gas-fee 4000001ugnot -gas-wanted 8_800_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args $test2_user_addr -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # (c) test2 again attempts a rotation; must reject post-revoke.
@@ -90,10 +90,7 @@ func init() {
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
