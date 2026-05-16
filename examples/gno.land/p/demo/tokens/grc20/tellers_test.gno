@@ -106,7 +106,7 @@ func TestTeller(t *testing.T) {
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
 
-func TestCallerTeller(t *testing.T) {
+func TestCallerTeller(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")

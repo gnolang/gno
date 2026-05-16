@@ -26,7 +26,7 @@ func resetState() {
 	claURL = ""
 }
 
-func TestSign(t *testing.T) {
+func TestSign(cur realm, t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)
@@ -37,7 +37,7 @@ func TestSign(t *testing.T) {
 	uassert.True(t, HasValidSignature(address(testUser1)))
 }
 
-func TestSign_WrongHash(t *testing.T) {
+func TestSign_WrongHash(cur realm, t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)
@@ -58,7 +58,7 @@ func TestHasValidSignature_Disabled(t *testing.T) {
 	uassert.True(t, HasValidSignature(address(testUser2)))
 }
 
-func TestHasValidSignature_Valid(t *testing.T) {
+func TestHasValidSignature_Valid(cur realm, t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)
@@ -77,7 +77,7 @@ func TestHasValidSignature_NotSigned(t *testing.T) {
 	uassert.False(t, HasValidSignature(address(testUser1)))
 }
 
-func TestSetRequiredHash_ResetsSignatures(t *testing.T) {
+func TestSetRequiredHash_ResetsSignatures(cur realm, t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)

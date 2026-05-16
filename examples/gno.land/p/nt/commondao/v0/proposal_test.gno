@@ -426,7 +426,7 @@ func TestProposalTally(t *testing.T) {
 	}
 }
 
-func TestMustValidate(t *testing.T) {
+func TestMustValidate(cur realm, t *testing.T) {
 	uassert.NotPanics(t, cur, func() {
 		commondao.MustValidate(testPropDef{})
 	}, "expect validation to succeed")

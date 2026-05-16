@@ -30,7 +30,7 @@ func clearState(t *testing.T) {
 	commenterList = bptree.NewBPTree32()
 }
 
-func TestBlog_AdminControls(t *testing.T) {
+func TestBlog_AdminControls(cur realm, t *testing.T) {
 	t.Run("non-admin call", func(t *testing.T) {
 		clearState(t)
 
@@ -81,7 +81,7 @@ func TestBlog_AdminControls(t *testing.T) {
 	})
 }
 
-func TestBlog_AddRemoveModerator(t *testing.T) {
+func TestBlog_AddRemoveModerator(cur realm, t *testing.T) {
 	clearState(t)
 
 	mod := testutils.TestAddress("mod")
@@ -104,7 +104,7 @@ func TestBlog_AddRemoveModerator(t *testing.T) {
 	uassert.False(t, isMod.(bool))
 }
 
-func TestBlog_AddCommenter(t *testing.T) {
+func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	clearState(t)
 
 	var (
@@ -143,7 +143,7 @@ func TestBlog_AddCommenter(t *testing.T) {
 	uassert.False(t, active.(bool))
 }
 
-func TestBlog_ManagePost(t *testing.T) {
+func TestBlog_ManagePost(cur realm, t *testing.T) {
 	clearState(t)
 
 	var (
@@ -172,7 +172,7 @@ func TestBlog_ManagePost(t *testing.T) {
 	uassert.TypedNil(t, b.GetPost(slug))
 }
 
-func TestBlog_ManageComment(t *testing.T) {
+func TestBlog_ManageComment(cur realm, t *testing.T) {
 	clearState(t)
 
 	var (

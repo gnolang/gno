@@ -59,7 +59,7 @@ func loadMembers() {
 	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
 }
 
-func TestCreateProposalAndVote(t *testing.T) {
+func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	loadMembers()
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
@@ -134,7 +134,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("0"), "NO PERCENT: 81.25%"))
 }
 
-func TestExecutorCreationRealm(t *testing.T) {
+func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	loadMembers()
 
 	// Test that executor creation realm is captured correctly
@@ -173,7 +173,7 @@ func TestExecutorCreationRealm(t *testing.T) {
 	urequire.Equal(t, true, contains(individualRendered, "This proposal tests executor creation realm tracking"))
 }
 
-func TestProposalPagination(t *testing.T) {
+func TestProposalPagination(cur realm, t *testing.T) {
 	loadMembers()
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
@@ -225,7 +225,7 @@ func TestProposalPagination(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
-func TestUpgradeDaoImplementation(t *testing.T) {
+func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
@@ -279,7 +279,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
 }
 
-func TestAbstainVote(t *testing.T) {
+func TestAbstainVote(cur realm, t *testing.T) {
 	loadMembers()
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"

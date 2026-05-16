@@ -150,7 +150,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 	})
 }
 
-func TestValopers_ProposeNewInstructions(t *testing.T) {
+func TestValopers_ProposeNewInstructions(cur realm, t *testing.T) {
 	const proposalMinFee int64 = 100 * 1_000_000
 
 	newInstructions := "new instructions"
@@ -179,7 +179,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	urequire.Equal(t, description, proposal.Description())
 }
 
-func TestValopers_ProposeNewMinFee(t *testing.T) {
+func TestValopers_ProposeNewMinFee(cur realm, t *testing.T) {
 	const proposalMinFee int64 = 100 * 1_000_000
 	newMinFee := int64(10)
 	// ProposeNewMinFeeProposalRequest now delegates to the generic

@@ -15,7 +15,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestOptions(t *testing.T) {
+func TestOptions(cur realm, t *testing.T) {
 	tests := []struct {
 		name     string
 		option   func() definition.Option

@@ -14,7 +14,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestGetFormByID(t *testing.T) {
+func TestGetFormByID(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
 	title := "Simple Form"
@@ -32,7 +32,7 @@ func TestGetFormByID(t *testing.T) {
 	})
 }
 
-func TestGetForms(t *testing.T) {
+func TestGetForms(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
 	description := "This is a form"

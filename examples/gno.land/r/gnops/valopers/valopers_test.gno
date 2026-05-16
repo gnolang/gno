@@ -21,7 +21,7 @@ var minFee = chain.NewCoin("ugnot", 20*1_000_000)
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert dispatch helpers that gained an `rlm realm` param. These tests
 // pass `func()` callbacks (no crossing inside the callback), so rlm is
-// ignored — a nil realm here is safe and avoids restructuring the tests.
+// ignored — a nil realm here is safe.
 var cur realm
 
 // resetState clears realm-level state and zeroes the valoper sys-params

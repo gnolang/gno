@@ -33,7 +33,7 @@ func TestSimplePanicToError(t *testing.T) {
 	uassert.Equal(t, err.Error(), "42")
 }
 
-func TestRealmPanicToError(t *testing.T) {
+func TestRealmPanicToError(cur realm, t *testing.T) {
 	// Set a test realm to be able to call a realm.
 	testRealm := testing.NewCodeRealm("gno.land/r/aeddi/panictoerr/test")
 	testing.SetRealm(testRealm)

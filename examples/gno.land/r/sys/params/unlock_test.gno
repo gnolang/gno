@@ -9,12 +9,6 @@ import (
 	ini "gno.land/r/gov/dao/v3/init"
 )
 
-
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
 var g1user = testutils.TestAddress("g1user")
 
 func init() {
@@ -22,7 +16,7 @@ func init() {
 	ini.InitWithUsers(g1user)
 }
 
-func TestProUnlockTransfer(t *testing.T) {
+func TestProUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
@@ -32,7 +26,7 @@ func TestProUnlockTransfer(t *testing.T) {
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
-func TestFailUnlockTransfer(t *testing.T) {
+func TestFailUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()
@@ -46,7 +40,7 @@ func TestFailUnlockTransfer(t *testing.T) {
 	)
 }
 
-func TestExeUnlockTransfer(t *testing.T) {
+func TestExeUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
 	pr := ProposeUnlockTransferRequest()

@@ -7,13 +7,7 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
-func TestAnswerForm(t *testing.T) {
+func TestAnswerForm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	db := NewDB()
@@ -63,7 +57,7 @@ func TestAnswerForm(t *testing.T) {
 	urequire.True(t, err == nil, "Submit should not return an error")
 }
 
-func TestAnswerFormDates(t *testing.T) {
+func TestAnswerFormDates(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 	db := NewDB()
 

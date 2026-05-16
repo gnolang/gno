@@ -18,7 +18,7 @@ import (
 var cur realm
 var _ commondao.ProposalDefinition = (*TextPropDefinition)(nil)
 
-func TestTextPropDefinitionNew(t *testing.T) {
+func TestTextPropDefinitionNew(cur realm, t *testing.T) {
 	cases := []struct {
 		name         string
 		title, body  string

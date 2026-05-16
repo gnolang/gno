@@ -16,7 +16,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestResolveName(t *testing.T) {
+func TestResolveName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestResolveName(t *testing.T) {
 	})
 }
 
-func TestResolveAddress(t *testing.T) {
+func TestResolveAddress(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestResolveAddress(t *testing.T) {
 	})
 }
 
-func TestROStores(t *testing.T) {
+func TestROStores(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
@@ -175,7 +175,7 @@ func TestROStores(t *testing.T) {
 	})
 }
 
-func TestResolveAny(t *testing.T) {
+func TestResolveAny(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("name", func(t *testing.T) {
@@ -209,7 +209,7 @@ func TestResolveAny(t *testing.T) {
 	})
 }
 
-func TestProposeErrors(t *testing.T) {
+func TestProposeErrors(cur realm, t *testing.T) {
 	t.Run("propose_register_user_errors", func(t *testing.T) {
 		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
 			ProposeRegisterUser("bad name", aliceAddr)
@@ -384,7 +384,7 @@ func TestControllerQueries(t *testing.T) {
 // with an existing registration. The warning surfaces the colliding
 // existing name to voters; the proposal still goes through if voted in
 // (decision #3, DAO grants always bypass).
-func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
+func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("warning_injected_on_collision", func(t *testing.T) {

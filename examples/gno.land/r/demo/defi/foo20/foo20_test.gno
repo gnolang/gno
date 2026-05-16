@@ -13,7 +13,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestReadOnlyPublicMethods(t *testing.T) {
+func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	var (
 		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		alice = testutils.TestAddress("alice")
@@ -61,7 +61,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 }
 
-func TestErrConditions(t *testing.T) {
+func TestErrConditions(cur realm, t *testing.T) {
 	var (
 		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		empty = address("")

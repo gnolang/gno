@@ -139,7 +139,7 @@ func TestPausedVerifier(t *testing.T) {
 //
 // NOTE: this test mutates the package-level `paused` var directly to
 // avoid driving the full DAO flow. Restores the value via defer.
-func TestProposeSetPaused_idempotency(t *testing.T) {
+func TestProposeSetPaused_idempotency(cur realm, t *testing.T) {
 	saved := paused
 	defer func() { paused = saved }()
 
@@ -176,7 +176,7 @@ func TestProposeSetPaused_idempotency(t *testing.T) {
 // TestSetPaused_internal verifies the private setPaused actuator
 // directly. Bypasses the proposal flow to confirm the toggle and the
 // event-emission path independently.
-func TestSetPaused_internal(t *testing.T) {
+func TestSetPaused_internal(cur realm, t *testing.T) {
 	saved := paused
 	defer func() { paused = saved }()
 
@@ -199,7 +199,7 @@ func TestIsPaused(t *testing.T) {
 	uassert.True(t, IsPaused())
 }
 
-func TestEnable(t *testing.T) {
+func TestEnable(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("random")))
 	uassert.AbortsWithMessage(t, cur, "caller is not admin", func() {
 		Enable(cross)

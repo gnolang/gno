@@ -19,7 +19,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestCreateEvent(t *testing.T) {
+func TestCreateEvent(cur realm, t *testing.T) {
 	// Test successful event creation
 	eventId := CreateEvent(
 		cross2(cur),
@@ -44,7 +44,7 @@ func TestCreateEvent(t *testing.T) {
 	})
 }
 
-func TestBuyTicket(t *testing.T) {
+func TestBuyTicket(cur realm, t *testing.T) {
 	// Setup test event
 	eventId := CreateEvent(
 		cross2(cur),
@@ -88,7 +88,7 @@ func TestBuyTicket(t *testing.T) {
 	})
 }
 
-func TestBuyTicketWithGRC20(t *testing.T) {
+func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
 

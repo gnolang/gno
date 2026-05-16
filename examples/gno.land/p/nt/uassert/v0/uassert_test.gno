@@ -76,7 +76,7 @@ func TestFalse(t *testing.T) {
 	mockT.equals(t, "error: should be false")
 }
 
-func TestPanicsWithMessage(t *testing.T) {
+func TestPanicsWithMessage(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.PanicsWithMessage(mockT, cur, "panic", func() {
 		panic(errors.New("panic"))
@@ -107,7 +107,7 @@ func TestPanicsWithMessage(t *testing.T) {
 	mockT.equals(t, "error: func should panic with message:\t\"Panic!\"\n\tActual panic value:\t\"panic\"")
 }
 
-func TestPanicsContains(t *testing.T) {
+func TestPanicsContains(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.PanicsContains(mockT, cur, "panic", func() {
 		panic(errors.New("panic: something happened"))
@@ -131,7 +131,7 @@ func TestPanicsContains(t *testing.T) {
 	mockT.equals(t, "error: func should panic\n\tPanic value:\tnil")
 }
 
-func TestAbortsWithMessage(t *testing.T) {
+func TestAbortsWithMessage(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsWithMessage(mockT, cur, "abort message", func() {
 		tests.ExecSwitch(cross, func() {
@@ -183,7 +183,7 @@ func TestAbortsWithMessage(t *testing.T) {
 	// XXX: test with Error
 }
 
-func TestAbortsContains(t *testing.T) {
+func TestAbortsContains(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsContains(mockT, cur, "abort", func() {
 		tests.ExecSwitch(cross, func() {
@@ -213,7 +213,7 @@ func TestAbortsContains(t *testing.T) {
 	mockT.equals(t, "error: func should abort")
 }
 
-func TestNotAborts(t *testing.T) {
+func TestNotAborts(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 
 	if !uassert.NotPanics(mockT, cur, func() {
@@ -234,7 +234,7 @@ func TestNotAborts(t *testing.T) {
 	mockT.equals(t, "error: func should not abort\n\tAbort value:\tAbort!")
 }
 
-func TestNotPanics(t *testing.T) {
+func TestNotPanics(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 
 	if !uassert.NotPanics(mockT, cur, func() {

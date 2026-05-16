@@ -21,7 +21,7 @@ var (
 	parsedTimeNow, _ = time.Parse(time.RFC3339, now)
 )
 
-func TestAddEvent(t *testing.T) {
+func TestAddEvent(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
@@ -65,7 +65,7 @@ func TestAddEvent(t *testing.T) {
 	}
 }
 
-func TestAddEventErrors(t *testing.T) {
+func TestAddEventErrors(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	_, err := AddEvent(cross2(cur), "", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
@@ -88,7 +88,7 @@ func TestAddEventErrors(t *testing.T) {
 	uassert.ErrorContains(t, err, ErrDescriptionTooLong.Error())
 }
 
-func TestDeleteEvent(t *testing.T) {
+func TestDeleteEvent(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
@@ -111,7 +111,7 @@ func TestDeleteEvent(t *testing.T) {
 	}
 }
 
-func TestEditEvent(t *testing.T) {
+func TestEditEvent(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
@@ -141,7 +141,7 @@ func TestEditEvent(t *testing.T) {
 	uassert.Equal(t, edited.location, loc)
 }
 
-func TestInvalidEdit(t *testing.T) {
+func TestInvalidEdit(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	uassert.AbortsWithMessage(t, cur, ErrNoSuchID.Error(), func() {
@@ -167,7 +167,7 @@ func TestParseTimes(t *testing.T) {
 	uassert.ErrorContains(t, err, ErrStartEndTimezonemMismatch.Error())
 }
 
-func TestRenderEventWidget(t *testing.T) {
+func TestRenderEventWidget(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	// No events yet

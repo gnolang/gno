@@ -58,7 +58,7 @@ func TestDeterministicOutput(t *testing.T) {
 	}
 }
 
-func TestPickRandomLettersOnly(t *testing.T) {
+func TestPickRandomLettersOnly(cur realm, t *testing.T) {
 	f := NewGenerator()
 
 	// Source without any letters only word

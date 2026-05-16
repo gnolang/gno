@@ -25,7 +25,7 @@ const invalid = "gno.land/r/invalid/dao"
 
 var alice = testutils.TestAddress("alice")
 
-func TestProxy_Functions(t *testing.T) {
+func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
 	UpdateImpl(cross2(cur), UpdateRequest{
 		DAO:         &dummyDao{},

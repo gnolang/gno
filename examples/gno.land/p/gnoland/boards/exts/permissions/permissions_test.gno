@@ -23,7 +23,7 @@ const (
 
 var _ boards.Permissions = (*Permissions)(nil)
 
-func TestBasicPermissionsWithPermission(t *testing.T) {
+func TestBasicPermissionsWithPermission(cur realm, t *testing.T) {
 	cases := []struct {
 		name       string
 		user       address
@@ -335,7 +335,7 @@ func TestBasicPermissionsHasPermission(t *testing.T) {
 	}
 }
 
-func TestBasicPermissionsSetUserRoles(t *testing.T) {
+func TestBasicPermissionsSetUserRoles(cur realm, t *testing.T) {
 	cases := []struct {
 		name          string
 		user          address

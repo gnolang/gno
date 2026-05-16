@@ -15,7 +15,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestNew(t *testing.T) {
+func TestNew(cur realm, t *testing.T) {
 	tests := []struct {
 		name     string
 		attrs    []string
@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestFormInput(t *testing.T) {
+func TestFormInput(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -132,7 +132,7 @@ func TestFormInput(t *testing.T) {
 	}
 }
 
-func TestFormRadio(t *testing.T) {
+func TestFormRadio(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -205,7 +205,7 @@ func TestFormRadio(t *testing.T) {
 	}
 }
 
-func TestFormCheckbox(t *testing.T) {
+func TestFormCheckbox(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -278,7 +278,7 @@ func TestFormCheckbox(t *testing.T) {
 	}
 }
 
-func TestFormTextarea(t *testing.T) {
+func TestFormTextarea(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string
@@ -336,7 +336,7 @@ func TestFormTextarea(t *testing.T) {
 	}
 }
 
-func TestFormSelect(t *testing.T) {
+func TestFormSelect(cur realm, t *testing.T) {
 	tests := []struct {
 		name      string
 		inputName string

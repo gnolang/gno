@@ -16,7 +16,7 @@ import (
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
-func TestHaystack(t *testing.T) {
+func TestHaystack(cur realm, t *testing.T) {
 	t.Parallel()
 	// needleHex returns a hex-encoded needle and its hash for a given index.
 	genNeedleHex := func(i int) (string, string) {

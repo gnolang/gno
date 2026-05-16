@@ -40,7 +40,7 @@ func init() {
 	adminRealm = testing.NewUserRealm(admin)
 }
 
-func TestRegister(t *testing.T) {
+func TestRegister(cur realm, t *testing.T) {
 	// Test user realm register
 	aliceRealm := testing.NewUserRealm(alice)
 	testing.SetRealm(aliceRealm)
@@ -82,7 +82,7 @@ func TestRegister(t *testing.T) {
 	uassert.False(t, itemExists(t, rlmPath2))
 }
 
-func TestUpvote(t *testing.T) {
+func TestUpvote(cur realm, t *testing.T) {
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
@@ -104,7 +104,7 @@ func TestUpvote(t *testing.T) {
 	})
 }
 
-func TestDownvote(t *testing.T) {
+func TestDownvote(cur realm, t *testing.T) {
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
@@ -127,7 +127,7 @@ func TestDownvote(t *testing.T) {
 	})
 }
 
-func TestDelete(t *testing.T) {
+func TestDelete(cur realm, t *testing.T) {
 	userRealm := testing.NewUserRealm(admin)
 	testing.SetRealm(userRealm)
 	testing.SetOriginCaller(admin)
@@ -173,7 +173,7 @@ func TestgetVoteSortKey(t *testing.T) {
 	urequire.Equal(t, generatedKey, expectedKey)
 }
 
-func TestSortByUpvote(t *testing.T) {
+func TestSortByUpvote(cur realm, t *testing.T) {
 	// Remove all items from all trees
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.items.Remove(key)
@@ -231,7 +231,7 @@ func TestSortByUpvote(t *testing.T) {
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
 
-func TestSortByDownvote(t *testing.T) {
+func TestSortByDownvote(cur realm, t *testing.T) {
 	// Remove all items from all trees
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.items.Remove(key)
@@ -293,7 +293,7 @@ func TestSortByDownvote(t *testing.T) {
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
 
-func TestSortByCreation(t *testing.T) {
+func TestSortByCreation(cur realm, t *testing.T) {
 	// Remove all items from all trees
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.items.Remove(key)
@@ -339,7 +339,7 @@ func TestSortByCreation(t *testing.T) {
 }
 
 /* XXX fix @moul
-func TestGetScore(t *testing.T) {
+func TestGetScore(cur realm, t *testing.T) {
 	score, err := h.GetScore(42)
 	uassert.Nil(t, err)
 	uassert.Equal(t, 0, score)

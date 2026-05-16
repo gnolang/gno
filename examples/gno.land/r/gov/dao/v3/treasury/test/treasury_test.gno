@@ -105,7 +105,7 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 	return keyedTokens
 }
 
-func TestAllowedDAOs(t *testing.T) {
+func TestAllowedDAOs(cur realm, t *testing.T) {
 	// Set the current Realm to the not allowed one.
 	testing.SetRealm(notAllowedRealm)
 
@@ -166,7 +166,7 @@ func TestRegisteredBankers(t *testing.T) {
 	}
 }
 
-func TestSendGRC20Payment(t *testing.T) {
+func TestSendGRC20Payment(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
@@ -270,7 +270,7 @@ func TestSendGRC20Payment(t *testing.T) {
 	uassert.Equal(t, len(history), 6)
 }
 
-func TestSendCoinPayment(t *testing.T) {
+func TestSendCoinPayment(cur realm, t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 

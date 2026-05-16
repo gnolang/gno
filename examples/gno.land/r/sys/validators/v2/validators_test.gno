@@ -154,7 +154,7 @@ func TestGetChanges_BoundedRange(t *testing.T) {
 	uassert.Equal(t, 0, len(GetChanges(h2+1, h2+1)))
 }
 
-func TestGetChanges_PanicsOnInvalidRange(t *testing.T) {
+func TestGetChanges_PanicsOnInvalidRange(cur realm, t *testing.T) {
 	uassert.PanicsWithMessage(t, cur, "invalid range: from must be <= to", func() {
 		GetChanges(10, 5)
 	})

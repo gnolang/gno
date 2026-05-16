@@ -10,12 +10,6 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
 // seedCache populates valoperCache with the given (op, pubkey, kr)
 // tuples — used in tests to satisfy NewValidatorProposalRequest's
 // creation-time membership check without going through valopers.
@@ -35,7 +29,7 @@ func seedCache(t *testing.T, entries []struct {
 	}
 }
 
-func TestNewValidatorProposalRequest_RejectsUnknownOperator(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsUnknownOperator(cur realm, t *testing.T) {
 	resetCache()
 
 	op := testutils.TestAddress("ghost-op")
@@ -49,7 +43,7 @@ func TestNewValidatorProposalRequest_RejectsUnknownOperator(t *testing.T) {
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsEmptyChanges(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsEmptyChanges(cur realm, t *testing.T) {
 	resetCache()
 
 	uassert.PanicsContains(t, cur, errNoValoperChanges, func() {
@@ -57,7 +51,7 @@ func TestNewValidatorProposalRequest_RejectsEmptyChanges(t *testing.T) {
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsEmptyTitle(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsEmptyTitle(cur realm, t *testing.T) {
 	resetCache()
 	op := testutils.TestAddress("op-A")
 	seedCache(t, []struct {
@@ -75,7 +69,7 @@ func TestNewValidatorProposalRequest_RejectsEmptyTitle(t *testing.T) {
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsTooManyChanges(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsTooManyChanges(cur realm, t *testing.T) {
 	resetCache()
 
 	// Seed 41 cache entries so the membership check passes; the
@@ -128,7 +122,7 @@ func TestNewValidatorProposalRequest_DescriptionRendering(t *testing.T) {
 	uassert.True(t, contains(desc, opB.String()+": remove"))
 }
 
-func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(cur realm, t *testing.T) {
 	// Creation-time captured changes: ValoperChange refers to opA.
 	// Cache for opA points to pubKeyA at creation. Before execution,
 	// opA's cache entry is updated to pubKeyB. Executor must publish
@@ -167,7 +161,7 @@ func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(t *testing.T) {
 	uassert.Equal(t, uint64(7), effective[0].VotingPower)
 }
 
-func TestNewValidatorProposalRequest_RemoveOperator(t *testing.T) {
+func TestNewValidatorProposalRequest_RemoveOperator(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 
@@ -189,7 +183,7 @@ func TestNewValidatorProposalRequest_RemoveOperator(t *testing.T) {
 	})
 }
 
-func TestNewValidatorProposalRequest_RemoveLeavesOthers(t *testing.T) {
+func TestNewValidatorProposalRequest_RemoveLeavesOthers(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 
@@ -220,7 +214,7 @@ func TestNewValidatorProposalRequest_RemoveLeavesOthers(t *testing.T) {
 	uassert.Equal(t, pubKeyB, effective[0].PubKey)
 }
 
-func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(cur realm, t *testing.T) {
 	resetCache()
 	op := testutils.TestAddress("op-A")
 	seedCache(t, []struct {
@@ -237,7 +231,7 @@ func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(t *testin
 	})
 }
 
-func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T) {
+func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(cur realm, t *testing.T) {
 	// KeepRunning=false is the operator's opt-out signal; removing
 	// such an operator must still be allowed (it's the standard
 	// exit path). Only adds are gated.
@@ -273,7 +267,7 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T
 	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross2(cur)))
 }
 
-func TestNewValidatorProposalRequest_RejectsDuplicateOp(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsDuplicateOp(cur realm, t *testing.T) {
 	// Each operator may appear at most once per proposal; any shape
 	// that mentions the same op twice must panic at create-time.
 	resetCache()
@@ -296,7 +290,7 @@ func TestNewValidatorProposalRequest_RejectsDuplicateOp(t *testing.T) {
 	}
 }
 
-func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(cur realm, t *testing.T) {
 	// KeepRunning=false is binding: no proposal shape can keep an
 	// opted-out operator in the active set. The dedupe rejection
 	// fires before the KR check is even reached.
@@ -319,7 +313,7 @@ func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(t *test
 	})
 }
 
-func TestNewValidatorProposalRequest_UpsertExistingValidator(t *testing.T) {
+func TestNewValidatorProposalRequest_UpsertExistingValidator(cur realm, t *testing.T) {
 	// Single-entry {op, newPower} against an op already in the
 	// effective valset must upsert: the existing entry's power is
 	// overwritten, no remove/re-add ceremony required.
@@ -355,7 +349,7 @@ func TestNewValidatorProposalRequest_UpsertExistingValidator(t *testing.T) {
 	uassert.Equal(t, uint64(1), powerOf[pubKeyB], "opB unchanged")
 }
 
-func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(cur realm, t *testing.T) {
 	// KeepRunning=true at proposal-create time; operator flips to
 	// false BEFORE the executor runs. Race-safety check rejects.
 	resetValset(t)
@@ -383,7 +377,7 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *te
 	})
 }
 
-func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(t *testing.T) {
+func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(cur realm, t *testing.T) {
 	// RotateValoperSigningKey publishes valset:proposed before any
 	// subsequent executor reads, so baseline always reflects the
 	// post-rotation state. A later power-update upserts at NEW only;
@@ -427,7 +421,7 @@ func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(t *testing.T) {
 	urequire.Equal(t, 2, len(effective), "exactly two entries — opA(NEW), opB")
 }
 
-func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(t *testing.T) {
+func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(cur realm, t *testing.T) {
 	// Pin executor behavior on a phantom state (cache=NEW,
 	// valset:current=OLD, dirty=false) — unreachable via natural
 	// flow because RotateValoperSigningKey publishes proposed
@@ -470,7 +464,7 @@ func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(t 
 		"three entries — phantom-state ghost; this state is unreachable via natural flow")
 }
 
-func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
+func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(cur realm, t *testing.T) {
 	// Same-block ordering: proposal-execute writes proposed
 	// (dirty=true); a subsequent rotation reads proposed-when-dirty
 	// and accumulates the prior power change rather than clobbering
@@ -527,7 +521,7 @@ func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
 // test still passes — it's a contract-pinning test for the panic itself.
 // If the team decides the branch is unreachable enough to drop, this
 // test is the first thing to break.
-func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 

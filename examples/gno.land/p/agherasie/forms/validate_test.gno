@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestAnswerFormInvalidForm(t *testing.T) {
+func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 	db := NewDB()
 
