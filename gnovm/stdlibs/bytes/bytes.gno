@@ -87,6 +87,11 @@ func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
 }
 
+// ContainsFunc reports whether any of the UTF-8-encoded code points r within b satisfy f(r).
+func ContainsFunc(b []byte, f func(rune) bool) bool {
+	return IndexFunc(b, f) >= 0
+}
+
 // IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
 func IndexByte(b []byte, c byte) int {
 	return bytealg.IndexByte(b, c)
@@ -1176,4 +1181,53 @@ func Index(s, sep []byte) int {
 		}
 	}
 	return -1
+}
+
+// Cut slices s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, Cut returns s, nil, false.
+//
+// Cut returns slices of the original slice s, not copies.
+func Cut(s, sep []byte) (before, after []byte, found bool) {
+	if i := Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, nil, false
+}
+
+// Clone returns a copy of b[:len(b)].
+// The result may have additional unused capacity.
+// Clone(nil) returns nil.
+func Clone(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	return append([]byte{}, b...)
+}
+
+// CutPrefix returns s without the provided leading prefix byte slice
+// and reports whether it found the prefix.
+// If s doesn't start with prefix, CutPrefix returns s, false.
+// If prefix is the empty byte slice, CutPrefix returns s, true.
+//
+// CutPrefix returns slices of the original slice s, not copies.
+func CutPrefix(s, prefix []byte) (after []byte, found bool) {
+	if !HasPrefix(s, prefix) {
+		return s, false
+	}
+	return s[len(prefix):], true
+}
+
+// CutSuffix returns s without the provided ending suffix byte slice
+// and reports whether it found the suffix.
+// If s doesn't end with suffix, CutSuffix returns s, false.
+// If suffix is the empty byte slice, CutSuffix returns s, true.
+//
+// CutSuffix returns slices of the original slice s, not copies.
+func CutSuffix(s, suffix []byte) (before []byte, found bool) {
+	if !HasSuffix(s, suffix) {
+		return s, false
+	}
+	return s[:len(s)-len(suffix)], true
 }
