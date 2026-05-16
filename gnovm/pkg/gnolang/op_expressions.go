@@ -748,35 +748,18 @@ func (m *Machine) doOpConvert() {
 		m.incrCPU(OpCPUConvertNumeric)
 	}
 
-	// BEGIN conversion checks
-	// These protect against inter-realm conversion exploits.
-
-	// Case 1.
-	// Do not allow conversion of value stored in external realm.
-	// Otherwise anyone could convert an external object insecurely.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
-		if xvdt, ok := xv.T.(*DeclaredType); ok &&
-			xvdt.PkgPath == m.Realm.Path {
-			// Except allow if xv.T is m.Realm.
-			// XXX do we need/want this?
-		} else {
-			panic("illegal conversion of readonly or externally stored value")
-		}
-	}
-
-	// Case 2.
-	// Do not allow conversion to type of external realm.
-	// Only code declared within the same realm my perform such
-	// conversions, otherwise the realm could be tricked
-	// into executing a subtle exploit of mutating some
-	// value (say a pointer) stored in its own realm by
-	// a hostile construction converted to look safe.
+	// Inter-realm conversion guard: prevent constructing a value of
+	// a foreign /r/-declared type from outside the declaring realm.
+	// (The previous Case 1 source-side readonly check was dropped in
+	// PLAN3 Phase 4 — ConvertTo operates in place on *TypedValue
+	// without touching tv.N, so the N_Readonly bit survives the
+	// conversion and any later write is still caught at the write
+	// site (PopAsPointer2, append/copy/delete).)
 	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
 		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
 			panic("illegal conversion to external realm type")
 		}
 	}
-	// END conversion checks
 
 	// Per-N CPU gas for parameterized conversions.
 	if xv.T != nil {
