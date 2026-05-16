@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strconv"
 	"testing"
 	"unicode/utf8"
 )
@@ -656,6 +657,24 @@ func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 			b.Read(buf)
 		}
 	}
+}
+
+func TestWriteAppend(t *testing.T) {
+	var got bytes.Buffer
+	var want []byte
+	for i := 0; i < 1000; i++ {
+		b := got.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		want = strconv.AppendInt(want, int64(i), 10)
+		got.Write(b)
+	}
+	if !bytes.Equal(got.Bytes(), want) {
+		t.Fatalf("Bytes() = %q, want %q", &got, want)
+	}
+
+	// XXX: upstream also asserts testing.AllocsPerRun returns 0 to prove
+	// AvailableBuffer enables alloc-free appends. gno's testing package does
+	// not expose AllocsPerRun, so this allocation assertion is omitted.
 }
 
 // Check that we don't compact too often. From Issue 5154.
