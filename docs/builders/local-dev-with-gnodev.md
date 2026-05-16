@@ -77,7 +77,7 @@ You can verify the balance of your addresses by pressing `A` when `gnodev` is ru
 Accounts    ┃ I (2) known keys
             ┃   table=
             ┃   │ KeyName  Address                                   Balance
-            ┃   │ test1    g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  10000000000000ugnot
+            ┃   │ dev      g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5  10000000000000ugnot
             ┃   │ MyKey    g1q4q3uegdnq9rsvf3xgxydr3yqd2v6w2tww5920  10000000000000ugnot
 ```
 
@@ -120,12 +120,20 @@ You should receive an output similar to the following:
 ```bash
 ❯ gnodev
 Loader      ┃ I guessing directory path path=gno.land/r/example/counter dir={your_pwd}
-Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ I dev key imported name=dev addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Accounts    ┃ I default address resolved from keybase name=dev addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 Node        ┃ I packages paths=[gno.land/r/example/counter]
 Event       ┃ I sending event to clients clients=0 type=NODE_RESET event=&{}
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 --- READY   ┃ I for commands and help, press `h` took=1.391020125s
 ```
+
+On first run, `gnodev` writes the well-known deployer mnemonic into your
+local `gnokey` keybase under the name `dev`. The mnemonic is public and
+identical on every machine, so the key is a throwaway suitable only for
+local chains. From any terminal, `gnokey ... dev` then signs against the
+preloaded account with no further setup. Pass `-no-dev-key` to skip the
+import; an existing keybase entry named `dev` is never overwritten.
 
 By opening the `gnoweb` listener address, [`http://localhost:8888`](http://127.0.0.1:8888),
 we should see the render of our `counter` realm:
@@ -208,4 +216,4 @@ After running gnodev, you can access several components:
 3. The web-based gnodev UI to monitor your node
 
 [^1]: The default deployer address is `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`,
-a.k.a. `test1` - the mnemonic phrase for this address is publicly known.
+a.k.a. `dev` - the mnemonic phrase for this address is publicly known.
