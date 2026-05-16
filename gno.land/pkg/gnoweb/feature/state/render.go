@@ -65,29 +65,31 @@ func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (StateNode,
 	return root, nil
 }
 
-// DecodePackage decodes a qpkg_json payload into the top-level slots,
-// bounded by cfg. Refs stay as expandable nodes carrying their OID —
-// the pretty view hydrates them lazily via hx-trigger="revealed" and
-// the tree view via hx-trigger="toggle" on user click.
-func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig) ([]StateNode, error) {
+// DecodePackage decodes a paginated window over a qpkg_json payload's
+// top-level slots, bounded by cfg. Returns (page, total, err); the caller
+// builds the prev/next view-model from total via buildPagination.
+func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig, offset, limit int) ([]StateNode, int, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	cfg = clampRenderConfig(cfg)
 
 	var resp pkgResponse
 	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
-		return nil, fmt.Errorf("decode pkg JSON: %w", err)
+		return nil, 0, fmt.Errorf("decode pkg JSON: %w", err)
 	}
+
+	total := min(len(resp.Names), len(resp.Values))
+	if limit <= 0 {
+		limit = maxTopLevelDecls
+	}
+	start, end := clampSliceWindow(offset, limit, total)
 	startDepth := startDepthFor(cfg)
-	nodes := make([]StateNode, 0, len(resp.Names))
-	for i, name := range resp.Names {
-		if i >= len(resp.Values) {
-			break
-		}
-		nodes = append(nodes, decodeTypedValueAt(startDepth, name, resp.Values[i]))
+	nodes := make([]StateNode, 0, end-start)
+	for i := start; i < end; i++ {
+		nodes = append(nodes, decodeTypedValueAt(startDepth, resp.Names[i], resp.Values[i]))
 	}
-	return nodes, nil
+	return nodes, total, nil
 }
 
 // clampRenderConfig defaults zero/negative fields to safe values so a

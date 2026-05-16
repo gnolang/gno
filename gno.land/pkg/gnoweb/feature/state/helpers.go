@@ -119,6 +119,76 @@ func stateRawJSONHref(pkgPath, heightParam string) template.URL {
 	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
+// statePageHref builds the `<pkgPath>$state[&offset=N&limit=M&view=tree&
+// height=H]` permalink for the pagination footer. offset=0 and the
+// default limit are omitted to keep page-1 cache-key parity with the
+// canonical unparameterized state URL.
+func statePageHref(pkgPath, heightParam, viewMode string, offset, limit int) template.URL {
+	wq := url.Values{"state": {""}}
+	if offset > 0 {
+		wq.Set("offset", strconv.Itoa(offset))
+	}
+	if limit > 0 && limit != maxTopLevelDecls {
+		wq.Set("limit", strconv.Itoa(limit))
+	}
+	if heightParam != "" {
+		wq.Set("height", heightParam)
+	}
+	if viewMode == ViewModeTree {
+		wq.Set("view", ViewModeTree)
+	}
+	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
+	return template.URL(u.EncodeWebURL()) //nolint:gosec
+}
+
+// buildPagination computes the prev/next view-model from a paginated
+// DecodePackage result. Returns nil when total ≤ limit at offset 0.
+// Hrefs are gated on HasPrev/HasNext to skip work on edge pages.
+func buildPagination(pkgPath, heightParam, viewMode string, total, offset, limit int) *Pagination {
+	if total <= limit && offset <= 0 {
+		return nil
+	}
+	start, end := clampSliceWindow(offset, limit, total)
+	p := &Pagination{
+		Total:       total,
+		StartNumber: start + 1,
+		EndNumber:   end,
+		HasPrev:     start > 0,
+		HasNext:     end < total,
+	}
+	if p.HasPrev {
+		prev := max(start-limit, 0)
+		p.FirstHref = statePageHref(pkgPath, heightParam, viewMode, 0, limit)
+		p.PrevHref = statePageHref(pkgPath, heightParam, viewMode, prev, limit)
+	}
+	if p.HasNext {
+		p.NextHref = statePageHref(pkgPath, heightParam, viewMode, end, limit)
+		p.LastHref = statePageHref(pkgPath, heightParam, viewMode, lastPageOffset(total, limit), limit)
+	}
+	if end == start {
+		p.StartNumber = 0 // empty page → honest "Showing 0–0"
+	}
+	return p
+}
+
+// lastPageOffset returns the offset of the last page. total=12, limit=5 → 10.
+func lastPageOffset(total, limit int) int {
+	if total <= 0 || limit <= 0 {
+		return 0
+	}
+	return ((total - 1) / limit) * limit
+}
+
+// cacheControlForHeight returns the canonical Cache-Control shared by
+// every state-feature response surface. Pinned heights are immutable
+// (24h); "latest" gets a 1s window matching block time.
+func cacheControlForHeight(height int64) string {
+	if height > 0 {
+		return "public, max-age=86400, immutable"
+	}
+	return "public, max-age=1"
+}
+
 // stateSourceHref builds the permanent `<pkgPath>$source&file=F` link to
 // the canonical full-source view — the "See in code" target out of a
 // frag=source fragment. Uses the `$webargs` grammar so it routes; the

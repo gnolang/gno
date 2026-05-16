@@ -94,3 +94,45 @@ func TestValidateLine(t *testing.T) {
 		t.Fatal("zero line accepted")
 	}
 }
+
+func TestValidateOffset(t *testing.T) {
+	if n, err := ValidateOffset(""); err != nil || n != 0 {
+		t.Fatalf("empty offset: got (%d, %v), want (0, nil)", n, err)
+	}
+	if n, err := ValidateOffset("42"); err != nil || n != 42 {
+		t.Fatalf("valid offset: got (%d, %v)", n, err)
+	}
+	if n, err := ValidateOffset("0"); err != nil || n != 0 {
+		t.Fatalf("zero offset: got (%d, %v), want (0, nil)", n, err)
+	}
+	if _, err := ValidateOffset("-1"); err == nil {
+		t.Fatal("negative offset accepted")
+	}
+	if _, err := ValidateOffset("abc"); err == nil {
+		t.Fatal("non-numeric offset accepted")
+	}
+}
+
+func TestValidateLimit(t *testing.T) {
+	// Empty → default page size.
+	if n, err := ValidateLimit(""); err != nil || n != maxTopLevelDecls {
+		t.Fatalf("empty limit: got (%d, %v), want (%d, nil)", n, err, maxTopLevelDecls)
+	}
+	// In-range value passes through.
+	if n, err := ValidateLimit("3"); err != nil || n != 3 {
+		t.Fatalf("valid limit: got (%d, %v)", n, err)
+	}
+	// zero/negative rejected (would render empty pages otherwise — explicit
+	// error so the handler can 400 instead of silently degrading).
+	if _, err := ValidateLimit("0"); err == nil {
+		t.Fatal("zero limit accepted")
+	}
+	if _, err := ValidateLimit("-5"); err == nil {
+		t.Fatal("negative limit accepted")
+	}
+	// Above-cap clamps silently — protects the per-page fragment fan-out
+	// budget regardless of attacker input.
+	if n, err := ValidateLimit("999"); err != nil || n != maxTopLevelDecls {
+		t.Fatalf("limit clamp: got (%d, %v), want (%d, nil)", n, err, maxTopLevelDecls)
+	}
+}

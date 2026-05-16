@@ -42,6 +42,25 @@ type StateData struct {
 	// concrete height during nginx stale-while-revalidate windows.
 	// Empty for unstamped "latest".
 	HeightParam string
+
+	// Pagination is the prev/next view-model for the top-level decls
+	// footer. nil when total ≤ limit at offset 0 (no footer needed).
+	Pagination *Pagination
+}
+
+// Pagination is the view-model for the top-level decls listing footer.
+// Hrefs stay in the canonical `$webargs` grammar so navigation routes
+// through the state handler and survives nginx caching.
+type Pagination struct {
+	Total       int
+	StartNumber int // 1-based inclusive; may collapse to 0 on empty page
+	EndNumber   int
+	HasPrev     bool
+	HasNext     bool
+	FirstHref   template.URL
+	PrevHref    template.URL
+	NextHref    template.URL
+	LastHref    template.URL
 }
 
 // KindCounts counts top-level declarations per filter-tab bucket.

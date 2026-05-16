@@ -1479,3 +1479,33 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 	background-color: var(--s-color-bg-selected);
 	border-radius: var(--s-rounded-sm);
 }
+
+/* Pagination footer for the top-level decls listing. Shared between
+   pretty and tree modes (the article wrapper renders it once). Hidden
+   entirely when the handler returns nil .Pagination — Cube CSS block
+   layer (b-*), composed with the existing .b-btns utility. */
+.b-state-pagination {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-3);
+	margin-block-start: var(--g-space-8);
+	padding-block: var(--g-space-4);
+	border-block-start: 1px solid var(--s-color-border-subtle);
+
+	@media (--md) {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.summary {
+		margin: 0;
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-90);
+	}
+
+	.summary strong {
+		color: var(--s-color-text-primary);
+		font-variant-numeric: tabular-nums;
+	}
+}

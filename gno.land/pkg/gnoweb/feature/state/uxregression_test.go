@@ -293,15 +293,14 @@ func TestUXPromiseTopLevelCrawlable(t *testing.T) {
 	}
 }
 
-// Promise: doc-index hydration — an expandable tree-view frag=node child
-// (that can reference a named, documented declaration) MUST carry
-// `[data-name]` + an empty `[data-doc-slot]` placeholder so
-// controller-state.ts can project docs onto lazy-loaded fragments.
-// Tree-view markup, hence view=tree.
-func TestUXPromiseFragmentDocSlotPlaceholder(t *testing.T) {
+// Promise: doc-comments are scoped to the pretty container. Tree rows
+// are the dense / scannable view — no description paragraphs to preserve
+// the hierarchy's readability. The doc-slot for JS hydration lives in
+// the pretty SSR wrapper (state/node-details, tested via the page path);
+// neither tree nor pretty fragment RESPONSES carry it (fragments fill
+// .b-state-node-body inside the SSR'd parent).
+func TestUXPromiseDocsScopedToPrettyContainer(t *testing.T) {
 	const oid = "abcdef0123456789abcdef0123456789abcdef01:8"
-	// One field that is itself a nested struct → renders as a <details>
-	// branch row, which carries the data-name + data-doc-slot pair.
 	body := []byte(`{
 		"objectid": "` + oid + `",
 		"value": {
@@ -313,22 +312,28 @@ func TestUXPromiseFragmentDocSlotPlaceholder(t *testing.T) {
 			]
 		}
 	}`)
+
+	// 1) Tree fragment response: no doc-slot — tree stays dense.
 	client := &fragMockClient{objBytes: body}
 	h := newFragHandler(client, nil)
-	rec := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {oid}, "view": {"tree"}})
+	tree := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {oid}, "view": {"tree"}})
+	if tree.Code != http.StatusOK {
+		t.Fatalf("tree frag=node: status = %d, want 200", tree.Code)
+	}
+	if tb := tree.Body.String(); strings.Contains(tb, `data-doc-slot`) {
+		t.Errorf("tree-view fragment must NOT carry data-doc-slot (dense view by design)")
+	}
 
+	// 2) SSR page (pretty) wrapper: doc-slot present so JS hydration can
+	//    fill descriptions for ref/branch top-level decls.
+	pageClient := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
+	ph := newPageHandler(pageClient)
+	rec := servePageReq(t, ph, url.Values{}, "/r/demo")
 	if rec.Code != http.StatusOK {
-		t.Fatalf("frag=node: status = %d, want 200", rec.Code)
+		t.Fatalf("page: status = %d, want 200", rec.Code)
 	}
-	bodyStr := rec.Body.String()
-	if !strings.Contains(bodyStr, `data-name=`) {
-		t.Errorf("expandable frag children must carry data-name for doc-index hydration")
-	}
-	if !strings.Contains(bodyStr, `data-doc-slot`) {
-		t.Errorf("expandable frag children must carry an empty data-doc-slot placeholder")
-	}
-	if !strings.Contains(bodyStr, `class="b-state-doc"`) {
-		t.Errorf("doc-slot must use the b-state-doc class for styling")
+	if !strings.Contains(rec.Body.String(), `data-doc-slot`) {
+		t.Errorf("pretty page must carry data-doc-slot for doc-index hydration")
 	}
 }
 
@@ -476,11 +481,14 @@ func TestRegressionFragmentURLsUseWebargs(t *testing.T) {
 	}
 }
 
-// Regression: when ViewMode=tree, every server-rendered permalink must
-// carry `&view=tree` so navigation preserves the user's selection across
-// hops. Without this, a tree-view user clicking a ↗ permalink lands on
-// the destination page in pretty mode, the JS controller has to flip the
-// radio mid-render, and the URL share-ability promise is broken.
+// Regression: per-container view-mode literal contract. The pretty
+// container always emits canonical permalinks (no `view=`) and the tree
+// container always emits `&view=tree` — regardless of the URL's `?view=`
+// param. The page-mode toggle is client-side CSS-only, so each container
+// must stamp its own permalinks at SSR; otherwise switching the toggle
+// after page-load would have a pretty user click a tree-stamped link
+// (or vice versa) and lose their selection. The old contract assumed a
+// uniform per-page view-mode, which broke fragment hydration on toggle.
 func TestRegressionTreeViewPermalinksCarryViewParam(t *testing.T) {
 	client := &pageMockClient{
 		pkgBytes: []byte(`{
@@ -491,20 +499,29 @@ func TestRegressionTreeViewPermalinksCarryViewParam(t *testing.T) {
 		}`),
 	}
 	h := newPageHandler(client)
-	rec := servePageReq(t, h, url.Values{"view": {"tree"}}, "/r/demo")
-	body := rec.Body.String()
 
-	// `&` in attribute-context interpolation becomes `&amp;` after html/template
-	// escapes the template.URL value.
-	if !strings.Contains(body, `&amp;view=tree`) {
-		t.Errorf("tree-view permalinks missing &view=tree propagation; body head=%s", head(body, 600))
-	}
+	for _, urlView := range []string{"", "tree"} {
+		q := url.Values{}
+		if urlView != "" {
+			q.Set("view", urlView)
+		}
+		rec := servePageReq(t, h, q, "/r/demo")
+		body := rec.Body.String()
 
-	// Pretty mode (default) must NOT include &view= — keeps the canonical
-	// URL short and the nginx cache key minimal.
-	rec2 := servePageReq(t, h, url.Values{}, "/r/demo")
-	if strings.Contains(rec2.Body.String(), `view=pretty`) || strings.Contains(rec2.Body.String(), `view=tree`) {
-		t.Errorf("pretty-mode page unexpectedly stamps view= into permalinks")
+		// Body is one rendered HTML page. Both containers coexist in the
+		// DOM; CSS picks which is visible. Per-container view-mode
+		// contract must hold in both URL view-mode arms.
+		prettyChunk := sliceBetween(body, `<div class="view-pretty">`, `<div class="view-tree"`)
+		treeChunk := sliceBetween(body, `<div class="view-tree"`, `</article>`)
+
+		if strings.Contains(prettyChunk, "view=tree") || strings.Contains(prettyChunk, "view=pretty") {
+			t.Errorf("URL view=%q: pretty container leaked view= into a permalink", urlView)
+		}
+		// `&` in attribute-context interpolation becomes `&amp;` after
+		// html/template escapes the template.URL value.
+		if !strings.Contains(treeChunk, `&amp;view=tree`) {
+			t.Errorf("URL view=%q: tree container missing &view=tree on permalinks; head=%s", urlView, head(treeChunk, 400))
+		}
 	}
 }
 

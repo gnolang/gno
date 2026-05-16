@@ -337,6 +337,40 @@ func TestFragNodeRespectsViewMode(t *testing.T) {
 		"tree-view fragment must NOT render the pretty fields table")
 }
 
+// Regression: hx-get for a top-level ref omits depth=0 (canonical URL),
+// so serveFragNode receives no depth param. It must still indent the
+// expanded children at --depth=1, not flush-left at --depth=0 — otherwise
+// every top-level tree expansion loses its hierarchy.
+func TestFragNodeIndentsTopLevelExpansion(t *testing.T) {
+	// Tree-view fragment for a struct so the response carries .row markup.
+	client := &fragMockClient{objBytes: fragStructBody(fragOID)}
+	h := newFragHandler(client, nil)
+
+	// No depth= → emulates a top-level ref expansion.
+	rec := serveFragReq(t, h, url.Values{
+		"frag": {"node"},
+		"oid":  {fragOID},
+		"view": {"tree"},
+	})
+	require.Equal(t, http.StatusOK, rec.Code, "got body=%q", rec.Body.String())
+	body := rec.Body.String()
+	assert.Contains(t, body, "--depth: 1",
+		"missing depth= must yield childDepth=1 so top-level expansions indent")
+	assert.NotContains(t, body, "--depth: 0",
+		"flush-left rendering is the bug")
+
+	// Explicit depth=3 → children render at depth=4.
+	rec = serveFragReq(t, h, url.Values{
+		"frag":  {"node"},
+		"oid":   {fragOID},
+		"view":  {"tree"},
+		"depth": {"3"},
+	})
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "--depth: 4",
+		"depth=3 parent must render children at depth=4")
+}
+
 func TestFragNodeCacheControlLatest(t *testing.T) {
 	client := &fragMockClient{objBytes: fragStructBody(fragOID)}
 	h := newFragHandler(client, nil)

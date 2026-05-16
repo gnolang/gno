@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 
@@ -79,12 +80,13 @@ func TestDecodePackageDepthBudget(t *testing.T) {
 
 	raw := []byte(buildDeepStructFixture(30))
 
-	nodes, err := DecodePackage(context.Background(), raw, RenderConfig{
+	nodes, total, err := DecodePackage(context.Background(), raw, RenderConfig{
 		MaxChildrenPerNode: maxChildrenPerNode,
 		MaxDecodeDepth:     3,
-	})
+	}, 0, math.MaxInt32)
 	require.NoError(t, err)
 	require.Len(t, nodes, 1)
+	assert.Equal(t, 1, total, "single top-level decl in fixture")
 	got := depthOfFirstChild(nodes[0], 30)
 	require.NotEqual(t, -1, got, "shallow cfg must truncate the deep package value")
 	assert.LessOrEqual(t, got, 3)

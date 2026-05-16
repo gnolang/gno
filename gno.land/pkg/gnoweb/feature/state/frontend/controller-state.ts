@@ -1,4 +1,4 @@
-import "htmx.org";
+import htmx from "htmx.org";
 import { BaseController } from "../../../frontend/js/controller.js";
 
 // Client-only view-mode pref (no SSR cookie — cache key stays URL-only).
@@ -12,6 +12,11 @@ export class StateController extends BaseController {
 	private docIndex: Record<string, string> = {};
 
 	protected connect(): void {
+		// Bundled htmx auto-inits on DOMContentLoaded, but the Stimulus
+		// dynamic-import can land later → page un-processed, every
+		// hx-trigger silent. Idempotent on already-processed nodes.
+		htmx.process(this.element);
+
 		this.viewTree = this.getTarget("view-tree");
 		this.treeStorageKey = `state_tree_open:${this.getValue("pkg") || "global"}`;
 		this.openSet = this.loadOpen();

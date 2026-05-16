@@ -58,7 +58,9 @@
         <a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $hp $vm }}"
            class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>
       </summary>
-      <p class="b-state-doc" data-doc-slot></p>
+      {{/* Doc-comments stay scoped to the pretty card (state/decl). Tree
+           rows are the dense / scannable view by design — no description
+           paragraphs to keep the hierarchy readable. */}}
       <div class="b-state-node-body" aria-busy="false"></div>
     </details>
 
@@ -77,7 +79,6 @@
         {{ if $n.ObjectID }}<a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $hp $vm }}"
            class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>{{ end }}
       </summary>
-      <p class="b-state-doc" data-doc-slot></p>
       <div class="kids">
         {{ if and (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}
           {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "Depth" (add $depth 1)) }}

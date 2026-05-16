@@ -80,8 +80,11 @@ func serveJSONReq(t *testing.T, h *Handler, query url.Values) *httptest.Response
 }
 
 func TestServeJSONPackageHappyPath(t *testing.T) {
-	want := []byte(`{"hello":"world"}`)
-	h := newJSONHandler(&mockJSONClient{pkgBytes: want})
+	// Wrapped response: Names + Values pass through unchanged, surrounded
+	// by the {pkg_path, height, total, offset, limit} envelope so clients
+	// can paginate the rest of the realm without losing the qpkg_json
+	// shape they already decode.
+	h := newJSONHandler(&mockJSONClient{pkgBytes: buildManyTopLevelDeclsFixture(3)})
 	rec := serveJSONReq(t, h, url.Values{})
 
 	if rec.Code != http.StatusOK {
@@ -90,8 +93,15 @@ func TestServeJSONPackageHappyPath(t *testing.T) {
 	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/json") {
 		t.Fatalf("Content-Type = %q, want application/json...", got)
 	}
-	if got := rec.Body.Bytes(); string(got) != string(want) {
-		t.Fatalf("body = %q, want %q", got, want)
+	var got pkgJSONWrapper
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("body is not a pkgJSONWrapper: %v (body=%q)", err, rec.Body.String())
+	}
+	if got.PkgPath != "/r/demo" || got.Total != 3 || got.Offset != 0 {
+		t.Fatalf("envelope = %+v, want pkg=/r/demo total=3 offset=0", got)
+	}
+	if len(got.Names) != 3 || got.Names[0] != "v0" {
+		t.Fatalf("names = %v, want [v0 v1 v2]", got.Names)
 	}
 }
 

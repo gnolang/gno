@@ -146,8 +146,8 @@ var funcMap = template.FuncMap{
 // render the pretty-view fields table (state/decl-children + helpers)
 // — parse-time only, no runtime cost beyond extra defines in memory.
 var (
-	PageTemplate       = mustParse("renderPage", "templates/page.html", "templates/_nodes.html")
-	FragNodeTemplate   = mustParse("fragNode", "templates/frag_node.html", "templates/_nodes.html", "templates/page.html")
+	PageTemplate       = mustParse("renderPage", "templates/page.html", "templates/_nodes.html", "templates/_pagination.html")
+	FragNodeTemplate   = mustParse("fragNode", "templates/frag_node.html", "templates/_nodes.html", "templates/page.html", "templates/_pagination.html")
 	FragSourceTemplate = mustParse("fragSource", "templates/frag_source.html")
 	FragErrorTemplate  = mustParse("fragError", "templates/frag_error.html")
 )

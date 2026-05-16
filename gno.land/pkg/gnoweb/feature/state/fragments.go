@@ -129,16 +129,13 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
 	EnrichLinks(root.Children, u.Path, hp, viewMode)
 
-	// depth is presentational only — the parent row's tree depth, so the
-	// fragment's children render at depth+1 and step in via --depth.
-	// Clamped to maxFragmentDepth; bad input degrades to 0 (flush-left).
-	childDepth := 0
-	if d, derr := strconv.Atoi(u.WebQuery.Get("depth")); derr == nil && d >= 0 {
-		if d > maxFragmentDepth {
-			d = maxFragmentDepth
-		}
-		childDepth = d + 1
+	// childDepth = parent + 1 always: stateFragNodeHref omits depth=0
+	// from the URL, so missing query still resolves to parent=0.
+	parentDepth := 0
+	if d, derr := strconv.Atoi(u.WebQuery.Get("depth")); derr == nil && d > 0 {
+		parentDepth = min(d, maxFragmentDepth)
 	}
+	childDepth := parentDepth + 1
 
 	writeFragSuccessHeaders(w, height)
 	w.WriteHeader(http.StatusOK)
@@ -300,11 +297,7 @@ func writeFragSuccessHeaders(w http.ResponseWriter, height int64) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-	if height > 0 {
-		w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
-	} else {
-		w.Header().Set("Cache-Control", "public, max-age=1")
-	}
+	w.Header().Set("Cache-Control", cacheControlForHeight(height))
 }
 
 // htmlEscapePre wraps the bytes in <pre>…</pre> with HTML escaping. Used

@@ -192,6 +192,12 @@ const (
 	maxChildrenPerNode = 500
 )
 
+// maxTopLevelDecls caps the number of top-level declarations rendered
+// per page. Unlike maxChildrenPerNode (which truncates inner collections
+// with a sentinel), the surplus here is exposed via pagination so large
+// realms stay fully explorable.
+const maxTopLevelDecls = 5
+
 // tooDeepNode is the sentinel emitted when a subtree exceeds maxDecodeDepth.
 func tooDeepNode(name string) StateNode {
 	return StateNode{Name: name, Type: "(too deep)", Kind: KindTruncated, Value: "…"}

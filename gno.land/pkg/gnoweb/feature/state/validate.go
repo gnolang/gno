@@ -25,6 +25,8 @@ var (
 	ErrInvalidFile   = errors.New("invalid file")
 	ErrInvalidHeight = errors.New("invalid height")
 	ErrInvalidLine   = errors.New("invalid line")
+	ErrInvalidOffset = errors.New("invalid offset")
+	ErrInvalidLimit  = errors.New("invalid limit")
 )
 
 func ValidateOID(s string) error {
@@ -79,12 +81,52 @@ func ValidateLine(s string) (int, error) {
 	return n, nil
 }
 
-// CanonicalViewMode normalizes the ?state&view=… query param. Returns
-// "pretty" (default) for empty or unknown input, "tree" for "tree".
+// ValidateOffset bounds the attacker-controlled `offset` pagination param.
+// Empty input → 0 (first page). Anything else must parse to a non-negative
+// integer; oversize values survive validation because the page handler
+// clamps offset to total after the decode (out-of-range pages render empty).
+func ValidateOffset(s string) (int, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0, ErrInvalidOffset
+	}
+	return n, nil
+}
+
+// ValidateLimit bounds the attacker-controlled `limit` pagination param.
+// Empty input → maxTopLevelDecls (default page size). Anything else must
+// parse to a positive integer; values above the cap silently clamp so the
+// per-page fragment fan-out budget always holds.
+func ValidateLimit(s string) (int, error) {
+	if s == "" {
+		return maxTopLevelDecls, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 1 {
+		return 0, ErrInvalidLimit
+	}
+	if n > maxTopLevelDecls {
+		n = maxTopLevelDecls
+	}
+	return n, nil
+}
+
+// View mode constants for the ?state&view= query param. Used everywhere
+// the Go side compares against the mode to avoid string-literal sprawl.
+// Templates still use raw literals — that's UI presentation, not config.
+const (
+	ViewModePretty = "pretty"
+	ViewModeTree   = "tree"
+)
+
+// CanonicalViewMode normalizes the ?state&view=… query param.
 // URL-driven so the nginx cache key stays URL-only (no Vary: Cookie split).
 func CanonicalViewMode(s string) string {
-	if s == "tree" {
-		return "tree"
+	if s == ViewModeTree {
+		return ViewModeTree
 	}
-	return "pretty"
+	return ViewModePretty
 }

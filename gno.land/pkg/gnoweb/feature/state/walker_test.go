@@ -16,9 +16,12 @@ import (
 
 // decodePkgJSON / decodeObjectJSON / decodeObjectJSONWithType are thin
 // test wrappers over the live entry points, pinned to the full-page
-// depth budget so the legacy walker fixtures decode unchanged.
+// depth budget so the legacy walker fixtures decode unchanged. The
+// math.MaxInt32 limit collapses to total via paginationWindow, so the
+// legacy fixtures' "decode all top-level" expectation still holds.
 func decodePkgJSON(raw []byte) ([]StateNode, error) {
-	return DecodePackage(context.Background(), raw, DefaultPageRenderConfig())
+	nodes, _, err := DecodePackage(context.Background(), raw, DefaultPageRenderConfig(), 0, math.MaxInt32)
+	return nodes, err
 }
 
 func decodeObjectJSON(raw []byte) ([]StateNode, error) {

@@ -37,6 +37,15 @@ func (h *Handler) servePage(ctx context.Context, w http.ResponseWriter, r *http.
 // and renders the pretty/tree views. Previews stay lazy (hx-trigger=
 // revealed in the template) so the SSR path itself does 2 RPCs.
 func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL, height int64) (int, *components.View) {
+	offset, err := ValidateOffset(u.WebQuery.Get("offset"))
+	if err != nil {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid offset")
+	}
+	limit, err := ValidateLimit(u.WebQuery.Get("limit"))
+	if err != nil {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid limit")
+	}
+
 	var (
 		raw  []byte
 		jdoc *doc.JSONDocumentation
@@ -46,10 +55,10 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 	// decode attacker-controlled chain data and defer panic recovery so a
 	// malformed payload never crashes the process.
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() (err error) {
-		defer recoverToErr(h.deps.Logger, "statepkg", &err, "path", u.EncodeURL())
-		raw, err = h.deps.Client.StatePkg(gctx, u.Path, height)
-		return err
+	g.Go(func() (gerr error) {
+		defer recoverToErr(h.deps.Logger, "statepkg", &gerr, "path", u.EncodeURL())
+		raw, gerr = h.deps.Client.StatePkg(gctx, u.Path, height)
+		return gerr
 	})
 	g.Go(func() error {
 		defer recoverFetcher(h.deps.Logger, "doc", "path", u.EncodeURL())
@@ -68,7 +77,7 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		return status, components.StatusErrorComponent(msg)
 	}
 
-	nodes, err := DecodePackage(ctx, raw, RenderConfig{MaxChildrenPerNode: maxChildrenPerNode, MaxDecodeDepth: maxDecodeDepth})
+	nodes, total, err := DecodePackage(ctx, raw, RenderConfig{MaxChildrenPerNode: maxChildrenPerNode, MaxDecodeDepth: maxDecodeDepth}, offset, limit)
 	if err != nil {
 		h.deps.Logger.Error("unable to decode state JSON", "error", err, "path", u.EncodeURL())
 		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state")
@@ -81,11 +90,12 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		docIndex = marshalDocIndexJSON(vals, funs, typs, h.deps.Logger)
 	}
 
-	// Refs hydrate lazily via hx-trigger="revealed" (state/node-details
-	// in page.html) — SSR render is 2 RPCs; fragment requests pay the
-	// rest, one per ref scrolled into view.
+	// Pretty literal: pretty hrefs stay canonical; the tree container
+	// builds its own view=tree hrefs inline (see _nodes.html) so the
+	// CSS-only toggle never leaks fragments between containers.
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
-	EnrichLinks(nodes, u.Path, heightParam(height), viewMode)
+	hp := heightParam(height)
+	EnrichLinks(nodes, u.Path, hp, ViewModePretty)
 
 	data := StateData{
 		PkgPath:      u.Path,
@@ -94,10 +104,11 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		Sidebar:      BuildPackageSidebar(u.Path, nodes),
 		KindCounts:   ComputeKindCounts(nodes),
 		Height:       height,
-		HeightParam:  heightParam(height),
+		HeightParam:  hp,
 		LatestHref:   template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
 		DocIndexJSON: docIndex,
 		ViewMode:     viewMode,
+		Pagination:   buildPagination(u.Path, hp, viewMode, total, offset, limit),
 	}
 
 	return h.writePage(w, height, false, data)
@@ -153,9 +164,10 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 
 	nodes := decoded.Nodes
 
-	// Refs hydrate lazily — see servePackagePage.
+	// See servePackagePage for the literal-ViewMode rationale.
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
-	EnrichLinks(nodes, u.Path, heightParam(height), viewMode)
+	hp := heightParam(height)
+	EnrichLinks(nodes, u.Path, hp, ViewModePretty)
 
 	crumbs := []StateCrumb{{Label: shortPackageLabel(u.Path), Href: RealmStateHref(u.Path)}}
 
@@ -167,7 +179,7 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 		Sidebar:      BuildObjectSidebar(u.Path, oid, tid, height, decoded.Info, nodes),
 		KindCounts:   ComputeKindCounts(nodes),
 		Height:       height,
-		HeightParam:  heightParam(height),
+		HeightParam:  hp,
 		LatestHref:   template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
 		DocIndexJSON: "{}",
 		ViewMode:     viewMode,
@@ -193,11 +205,7 @@ func shortPackageLabel(pkgPath string) string {
 func (h *Handler) writePage(w http.ResponseWriter, height int64, noindex bool, data StateData) (int, *components.View) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if height > 0 {
-		w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
-	} else {
-		w.Header().Set("Cache-Control", "public, max-age=1")
-	}
+	w.Header().Set("Cache-Control", cacheControlForHeight(height))
 	if noindex {
 		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	}

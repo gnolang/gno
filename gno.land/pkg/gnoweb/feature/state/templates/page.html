@@ -150,9 +150,11 @@
         {{ $pkg := .PkgPath }}
         {{ $h := .Height }}
         {{ $hp := .HeightParam }}
-        {{ $vm := .ViewMode }}
+        {{/* Literal "pretty": each container stamps its own fragment URLs
+             so the CSS-only Pretty/Tree toggle doesn't leak fragments
+             across containers. Mirror in view-tree below. */}}
         {{ range .Nodes }}
-          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" "pretty") }}
         {{ end }}
       </div>
     {{ else }}
@@ -178,10 +180,13 @@
         </button>
       </div>
       <div class="tree">
-        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height "HeightParam" .HeightParam "ViewMode" .ViewMode) }}
+        {{/* Literal "tree" — see view-pretty above. */}}
+        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height "HeightParam" .HeightParam "ViewMode" "tree") }}
       </div>
     </div>
   {{ end }}
+
+  {{ template "state/pagination" . }}
 </article>
 </div>
 {{ end }}
@@ -389,6 +394,7 @@
        visible card) is bounded by the global RPC semaphore and the
        per-IP rate limiter; the trigger does not serialize across
        elements. */}}
+  {{/* `open` by default so the hydrated table is visible inline. */}}
   <details open class="b-state-lazy" data-name="{{ $n.Name }}" data-tree-key="{{ $n.ObjectID }}"
            hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp 0 $vm }}"
            hx-trigger="revealed once"
