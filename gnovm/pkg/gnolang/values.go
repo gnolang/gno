@@ -344,15 +344,6 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	return cp
 }
 
-// CopyForReceiver duplicates av and also preserves the source's
-// NewTime, mirroring the source's finalization state. Used by value-
-// method receiver copies.
-func (av *ArrayValue) CopyForReceiver(alloc *Allocator, t Type) *ArrayValue {
-	cp := av.Copy(alloc, t)
-	cp.ObjectInfo.SetNewTime(av.ObjectInfo.ID.NewTime)
-	return cp
-}
-
 // ----------------------------------------
 // SliceValue
 
@@ -479,15 +470,6 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	}
 	cp := alloc.NewStruct(t, fields)
 	cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
-	return cp
-}
-
-// CopyForReceiver duplicates sv and also preserves the source's
-// NewTime so the receiver-copy mirrors the source's finalization
-// state. Used by VPValMethod for value-method receiver copies.
-func (sv *StructValue) CopyForReceiver(alloc *Allocator, t Type) *StructValue {
-	cp := sv.Copy(alloc, t)
-	cp.ObjectInfo.SetNewTime(sv.ObjectInfo.ID.NewTime)
 	return cp
 }
 
@@ -1737,20 +1719,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 func (tv *TypedValue) AssignToBlock(other TypedValue) {
 	if _, ok := tv.T.(heapItemType); ok {
 		tv.V.(*HeapItemValue).Value = other
-	} else {
-		*tv = other
-	}
-}
-
-// Like AssignToBlock but creates a new heap item instead.
-// This should only be used when both the base parent and the value are unreal
-// new values, or call rlm.DidUpdate manually.
-func (tv *TypedValue) DefineToBlock(other TypedValue) {
-	if _, ok := tv.T.(heapItemType); ok {
-		*tv = TypedValue{
-			T: heapItemType{},
-			V: &HeapItemValue{Value: other},
-		}
 	} else {
 		*tv = other
 	}

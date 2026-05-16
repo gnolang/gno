@@ -981,9 +981,8 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 		panic("unexpected non-finalized object id at save")
 	}
 	if oid.PkgID.IsZero() {
-		// PLAN3 Phase 2b transitional: this should be unreachable
-		// once assignNewObjectID's fallback runs first. Defensive
-		// stamp.
+		// Defensive: should be unreachable in practice because
+		// assignNewObjectID's transitional fallback runs first.
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
 	}
@@ -1905,10 +1904,12 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		panic("unexpected already-finalized object id")
 	}
 	if oid.PkgID.IsZero() {
-		// PLAN3 Phase 2b transitional fallback: an off-allocator
-		// construction site was missed in the audit. Stamp from
-		// rlm.ID and log so the audit list can be extended. To be
-		// tightened to a panic once the audit is complete.
+		// Objects allocated outside any realm context (e.g. stdlib
+		// Block init when m.Realm is nil, non-realm filetests) reach
+		// finalize without an authority stamp. Route them to the
+		// finalizing realm — by definition they're part of its state,
+		// not someone else's. No authority leak: stdlib code can't
+		// forge /r/-declared types, only anonymous Blocks/HeapItems.
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
 	}
