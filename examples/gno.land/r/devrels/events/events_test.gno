@@ -145,7 +145,7 @@ func TestInvalidEdit(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	uassert.AbortsWithMessage(t, cur, ErrNoSuchID.Error(), func() {
-		EditEvent(cross, "123123", "", "", "", "", "", "")
+		EditEvent(cross2(cur), "123123", "", "", "", "", "", "")
 	})
 }
 

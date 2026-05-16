@@ -44,7 +44,7 @@ func TestSign_WrongHash(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(testUser1))
 	uassert.AbortsWithMessage(t, cur, "hash does not match required CLA hash", func() {
-		Sign(cross, testHash2)
+		Sign(cross2(cur), testHash2)
 	})
 
 	uassert.False(t, HasValidSignature(address(testUser1)))

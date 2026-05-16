@@ -40,7 +40,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(nonAdmin))
 
 		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
-			AdminSetInPause(cross, true)
+			AdminSetInPause(cross2(cur), true)
 		})
 	})
 
@@ -51,7 +51,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(adminAddr))
 
 		uassert.NotAborts(t, cur, func() {
-			AdminSetInPause(cross, true)
+			AdminSetInPause(cross2(cur), true)
 		})
 
 		uassert.True(t, inPause)
@@ -67,7 +67,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		)
 
 		testing.SetRealm(testing.NewUserRealm(adminAddr))
-		AdminSetAdminAddr(cross, newAdmin)
+		AdminSetAdminAddr(cross2(cur), newAdmin)
 
 		uassert.Equal(t, adminAddr, newAdmin)
 
@@ -76,7 +76,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(oldAdmin))
 
 		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
-			AdminSetInPause(cross, false)
+			AdminSetInPause(cross2(cur), false)
 		})
 	})
 }

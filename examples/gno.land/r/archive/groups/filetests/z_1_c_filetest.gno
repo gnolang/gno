@@ -13,8 +13,8 @@ import (
 
 var gid groups.GroupID
 
-func main() {
-	gid = groups.CreateGroup(cross, "test_group")
+func main(cur realm) {
+	gid = groups.CreateGroup(cross2(cur), "test_group")
 	println(gid)
 
 	// add member via anon user
@@ -22,7 +22,7 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
-	groups.AddMember(cross, gid, test2.String(), 42, "metadata3")
+	groups.AddMember(cross2(cur), gid, test2.String(), 42, "metadata3")
 }
 
 // Error:

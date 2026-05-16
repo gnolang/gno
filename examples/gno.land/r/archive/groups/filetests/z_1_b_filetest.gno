@@ -13,16 +13,16 @@ import (
 
 var gid groups.GroupID
 
-func main() {
+func main(cur realm) {
 	caller := runtime.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnouser123", caller)
+	uinit.RegisterUser(cross2(cur), "gnouser123", caller)
 	testing.SetHeight(123)
 
-	gid = groups.CreateGroup(cross, "test_group")
+	gid = groups.CreateGroup(cross2(cur), "test_group")
 	println(gid)
-	groups.AddMember(cross, 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
+	groups.AddMember(cross2(cur), 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 	println(groups.Render(""))
 }
 

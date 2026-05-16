@@ -202,13 +202,13 @@ func TestIsPaused(t *testing.T) {
 func TestEnable(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("random")))
 	uassert.AbortsWithMessage(t, cur, "caller is not admin", func() {
-		Enable(cross)
+		Enable(cross2(cur))
 	})
 	uassert.False(t, IsEnabled())
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	uassert.NotPanics(t, cur, func() {
-		Enable(cross)
+		Enable(cross2(cur))
 	})
 	uassert.True(t, IsEnabled())
 }

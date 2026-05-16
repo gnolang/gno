@@ -86,7 +86,7 @@ func TestErrConditions(cur realm, t *testing.T) {
 					panic(err)
 				}
 			}},
-			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross, empty, 1) }},
+			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross2(cur), empty, 1) }},
 		}
 		for _, tc := range tests {
 			if tc.isCross {

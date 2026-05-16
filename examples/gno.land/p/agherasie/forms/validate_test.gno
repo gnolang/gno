@@ -123,7 +123,7 @@ func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 			var err error
 			func(cur realm) {
 				formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", tt.data)
-			}(cross)
+			}(cross2(cur))
 			if err != nil {
 				t.Error(err)
 			}
@@ -139,7 +139,7 @@ func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 				}
 			}()
 
-			func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross)
+			func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross2(cur))
 		})
 	}
 }

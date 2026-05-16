@@ -10,7 +10,7 @@ import (
 	"gno.land/r/demo/disperse"
 )
 
-func main() {
+func main(cur realm) {
 	disperseAddr := chain.PackageAddress("gno.land/r/demo/disperse")
 	mainAddr := chain.PackageAddress("gno.land/r/demo/main")
 	beneficiary1 := address("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0")
@@ -18,15 +18,15 @@ func main() {
 
 	testing.SetOriginCaller(mainAddr)
 
-	tokens.New(cross, "test", "TEST", 4, 0, 0)
-	tokens.Mint(cross, "TEST", mainAddr, 200)
+	tokens.New(cross2(cur), "test", "TEST", 4, 0, 0)
+	tokens.Mint(cross2(cur), "TEST", mainAddr, 200)
 	println("main balance before:", tokens.BalanceOf("TEST", mainAddr))
 
-	tokens.Approve(cross, "TEST", disperseAddr, 200)
+	tokens.Approve(cross2(cur), "TEST", disperseAddr, 200)
 	println("disperse allowance before:", tokens.Allowance("TEST", mainAddr, disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	disperse.DisperseGRC20String(cross, addressesStr, "150TEST,50TEST")
+	disperse.DisperseGRC20String(cross2(cur), addressesStr, "150TEST,50TEST")
 
 	println("main balance after:", tokens.BalanceOf("TEST", mainAddr))
 	println("disperse allowance after:", tokens.Allowance("TEST", mainAddr, disperseAddr))

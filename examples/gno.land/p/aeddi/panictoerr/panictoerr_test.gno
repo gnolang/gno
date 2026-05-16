@@ -75,7 +75,7 @@ func TestRealmPanicToError(cur realm, t *testing.T) {
 
 	// Define an aborting function (crossing).
 	aborting := func() {
-		grc20.Faucet(cross, "unknown")
+		grc20.Faucet(cross2(cur), "unknown")
 	}
 
 	// aborting function should abort.

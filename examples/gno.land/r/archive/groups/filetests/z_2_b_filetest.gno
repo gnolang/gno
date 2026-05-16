@@ -12,13 +12,13 @@ import (
 
 var gid groups.GroupID
 
-func main() {
+func main(cur realm) {
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross2(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
-	gid = groups.CreateGroup(cross, "test_group")
+	gid = groups.CreateGroup(cross2(cur), "test_group")
 	println(gid)
-	groups.DeleteMember(cross, 2, 0)
+	groups.DeleteMember(cross2(cur), 2, 0)
 	println(groups.Render(""))
 }
 
