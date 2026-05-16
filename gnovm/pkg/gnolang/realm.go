@@ -1912,6 +1912,14 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		// forge /r/-declared types, only anonymous Blocks/HeapItems.
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
+	} else if oid.PkgID != rlm.ID && isPkgEphemeralFromPkgID(store, oid.PkgID) {
+		// Objects allocated in ephemeral run-realms (`/e/.../run`,
+		// from gnokey maketx run) carry an ephemeral PkgID that won't
+		// exist after the tx. When such an object is being persisted
+		// into a real realm, adopt it: re-stamp PkgID to the persisting
+		// realm so storage rent + future reads route consistently.
+		oo.SetPkgID(rlm.ID)
+		oid = oo.GetObjectID()
 	}
 	targetRlm := rlm
 	if oid.PkgID != rlm.ID {
@@ -2073,6 +2081,24 @@ func isPkgPrivateFromPkgID(store Store, pkgID PkgID) bool {
 		panic("oid with time set at 1 does not refer to package value")
 	}
 	return pv.Private
+}
+
+// isPkgEphemeralFromPkgID reports whether pkgID resolves to an
+// ephemeral run-realm (e.g. `/e/<addr>/run` from gnokey maketx run).
+// Such realms are transient and don't persist past the tx, so any
+// object stamped with one must be adopted by the persisting realm
+// at finalize time (see assignNewObjectID).
+func isPkgEphemeralFromPkgID(store Store, pkgID PkgID) bool {
+	oid := ObjectIDFromPkgID(pkgID)
+	oo := store.GetObject(oid)
+	if oo == nil {
+		return false
+	}
+	pv, ok := oo.(*PackageValue)
+	if !ok {
+		return false
+	}
+	return IsEphemeralPath(pv.PkgPath)
 }
 
 func pkgPathFromPkgID(store Store, pkgID PkgID) string {

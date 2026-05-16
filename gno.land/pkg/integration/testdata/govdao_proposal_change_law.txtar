@@ -37,7 +37,7 @@ import (
 )
 
 func main() {
-	preq := impl.NewChangeLawRequest(cross, impl.Law{Supermajority:50})
+	preq := impl.NewChangeLawRequest(cross, impl.NewLaw(50))
 	dao.MustCreateProposal(cross, preq)
 }
 
