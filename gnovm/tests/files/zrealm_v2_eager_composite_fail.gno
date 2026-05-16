@@ -4,7 +4,7 @@ package bar
 
 import "gno.land/r/tests/vm/crossrealm"
 
-// PLAN3 Phase 2: composite literal of a foreign /r/-declared type
+// interrealm v2 Phase 2: composite literal of a foreign /r/-declared type
 // from outside its declaring realm panics at the eager-constructor
 // check (doOpStructLit). Authority cannot be forged.
 

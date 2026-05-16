@@ -323,7 +323,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 
 // Copy duplicates an existing ArrayValue. The result inherits the
 // source's PkgID — copying propagates existing authority rather than
-// minting new authority. PLAN3 Phase 2.
+// minting new authority. interrealm v2 Phase 2.
 func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
@@ -454,7 +454,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 
 // Copy duplicates an existing StructValue. The result inherits the
 // source's PkgID — copying propagates existing authority rather than
-// minting new authority. PLAN3 Phase 2.
+// minting new authority. interrealm v2 Phase 2.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
@@ -533,7 +533,7 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
-	// PLAN3 Phase 2: FuncValue.Copy preserves source PkgID. A
+	// interrealm v2 Phase 2: FuncValue.Copy preserves source PkgID. A
 	// closure copy is a re-binding, not a re-creation in a new
 	// realm. The function's identity belongs to where it was
 	// declared, captured by the source.
@@ -813,7 +813,7 @@ type PackageValue struct {
 	PkgName    Name
 	PkgPath    string
 	// PkgID is the denormalized cache of PkgIDFromPkgPath(PkgPath).
-	// PLAN3 Phase 2: set at construction (alloc.go:NewPackageValue,
+	// interrealm v2 Phase 2: set at construction (alloc.go:NewPackageValue,
 	// preprocess.go package-init paths, etc.) and re-derived on load
 	// in fillPackage. NOT serialized — wire format is unchanged.
 	PkgID   PkgID `json:"-"`
@@ -1898,7 +1898,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: dtv2,
 		}
-		// PLAN3 Phase 2: bound method wrapper belongs to the realm
+		// interrealm v2 Phase 2: bound method wrapper belongs to the realm
 		// doing the binding; the receiver carries its own PkgID
 		// independently.
 		alloc.stampPkgID(&bmv.ObjectInfo)
@@ -1939,7 +1939,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: ptv, // bound to tv ptr, not dtv.
 		}
-		// PLAN3 Phase 2: bound method wrapper belongs to the realm
+		// interrealm v2 Phase 2: bound method wrapper belongs to the realm
 		// doing the binding.
 		alloc.stampPkgID(&bmv.ObjectInfo)
 		return PointerValue{
@@ -2390,7 +2390,7 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 		Values: values,
 		Parent: parent,
 	}
-	// PLAN3 Phase 2: Blocks belong to the executing realm
+	// interrealm v2 Phase 2: Blocks belong to the executing realm
 	// (currentRealmID), representing a lexical scope inside that
 	// realm's running code.
 	alloc.stampPkgID(&blk.ObjectInfo)
@@ -2515,7 +2515,7 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 				panic("expected name expr heap define type")
 			}
 			hiv := &HeapItemValue{}
-			// PLAN3 Phase 2: heap slot inherits the Block's PkgID
+			// interrealm v2 Phase 2: heap slot inherits the Block's PkgID
 			// (the lexical scope's realm).
 			hiv.ObjectInfo.SetPkgID(b.ObjectInfo.ID.PkgID)
 			*ptr.TV = TypedValue{

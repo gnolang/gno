@@ -1334,12 +1334,12 @@ type PackageNode struct {
 	*FileSet // provides .GetDeclFor*()
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
-	// PLAN3 Phase 2. Not serialized.
+	// interrealm v2 Phase 2. Not serialized.
 	pkgID PkgID
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing
-// it lazily on first call from PkgPath. PLAN3 Phase 2.
+// it lazily on first call from PkgPath. interrealm v2 Phase 2.
 func (pn *PackageNode) GetPkgID() PkgID {
 	if pn.pkgID.IsZero() {
 		pn.pkgID = PkgIDFromPkgPath(pn.PkgPath)
@@ -1372,7 +1372,7 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 		// other packages are allocted while loading from store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
-		// PLAN3 Phase 2: stamp PkgID = the package's own ID on
+		// interrealm v2 Phase 2: stamp PkgID = the package's own ID on
 		// both PackageValue and its inner Block. PackageNode
 		// caches PkgID on first access.
 		pid := pn.GetPkgID()

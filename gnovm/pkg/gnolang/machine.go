@@ -275,7 +275,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // setRealm updates both m.Realm and m.Alloc.currentRealmID, keeping
 // them in lock-step. Every m.Realm assignment must route through
 // this helper so the allocator's currentRealmID stays accurate
-// (PLAN3 Phase 1). Used by allocator constructors at Phase 2 to
+// (interrealm v2 Phase 1). Used by allocator constructors at Phase 2 to
 // stamp PkgID onto newly-allocated objects.
 //
 // Accepts nil — clears currentRealmID to PkgID{} which matches

@@ -1,6 +1,6 @@
-# PLAN3 interrealm borrow rule — exhaustive behavior reference.
+# interrealm v2 borrow rule — exhaustive behavior reference.
 #
-# Affirmative-coverage counterpart to the pre-PLAN3 tests
+# Affirmative-coverage counterpart to the pre-interrealm-v2 tests
 # interrealm_final.txtar / interrealm_mix_call.txtar /
 # interrealm_mix_run.txtar (which test the inverted pre-Layer-1-borrow
 # semantics). Kept side-by-side so a reader can compare expectations.
@@ -11,7 +11,7 @@
 # them via `vm/qrender` (since `println` side-effects are not
 # captured by maketx call's stdout).
 #
-# PLAN3 rules under test (see PLAN3.md § "Storage = Authority" and
+# interrealm v2 rules under test (see gnovm/adr/interrealm_v2.md § "Storage = Authority" and
 # docs/resources/gno-interrealm.md § "Implicit Realm-Storage Borrowing"):
 #
 #   Layer 1 — declaring-realm borrow:  any /r/X-declared callable
@@ -22,7 +22,7 @@
 #   Layer 2 — storage-realm borrow:  a /p/-declared (or stdlib)
 #     method invoked on a defined receiver whose authoring PkgID
 #     differs from m.Realm soft-switches m.Realm to the receiver's
-#     PkgID. Under PLAN3 Phase 3 this fires for both REAL and UNREAL
+#     PkgID. Under interrealm v2 Phase 3 this fires for both REAL and UNREAL
 #     foreign receivers.
 #
 #   Realm-context invariant:  Borrow shifts m.Realm but NOT
@@ -39,9 +39,9 @@
 #     silently launder authority when passed cross-realm (Phase 2d).
 #
 # Narrow filetests for behaviors that don't need integration:
-#   - gnovm/tests/files/zrealm_plan3_eager_composite_fail.gno
-#   - gnovm/tests/files/zrealm_plan3_eager_new_fail.gno
-#   - gnovm/tests/files/zrealm_plan3_foreign_mutate_unreal_bytes.gno
+#   - gnovm/tests/files/zrealm_v2_eager_composite_fail.gno
+#   - gnovm/tests/files/zrealm_v2_eager_new_fail.gno
+#   - gnovm/tests/files/zrealm_v2_foreign_mutate_unreal_bytes.gno
 #   - gnovm/tests/files/zrealm_p_convert_readonly_ok_filetest.gno
 #   - gnovm/tests/files/exploit/realm_exploiter.gno
 
@@ -117,7 +117,7 @@ gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'realValue=2 '
 
 ## L1_ValueReceiver: value-method dispatch creates a copy via
-## VPValMethod → StructValue.Copy (PLAN3 Phase 2d preserves source
+## VPValMethod → StructValue.Copy (interrealm v2 Phase 2d preserves source
 ## PkgID). Borrow targets the declaring realm of the method, not
 ## caller. The body writes its observation to owned.trace, asserted
 ## via qrender below.
@@ -160,7 +160,7 @@ stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'libA=1 '
 
-## L2_PMethodOnOwnedUnreal: PLAN3 Phase 3 expansion — Layer 2 fires
+## L2_PMethodOnOwnedUnreal: interrealm v2 Phase 3 expansion — Layer 2 fires
 ## for unreal foreign receivers too. owned.LibFactory() returns
 ## a PkgID=/r/owned LibContainer with NewTime=0; TouchA still
 ## borrows to /r/owned.
@@ -254,7 +254,7 @@ stderr 'intentional panic for unwind test'
 ## ============================================================
 
 ## COPY_PreservesPkgID: value-method dispatch copies the receiver
-## via StructValue.Copy; PLAN3 Phase 2d preserves source PkgID.
+## via StructValue.Copy; interrealm v2 Phase 2d preserves source PkgID.
 ## (Same mechanism as L1_ValueReceiver, but the trace records the
 ## copy's effective declaring realm rather than just the borrow
 ## target.)

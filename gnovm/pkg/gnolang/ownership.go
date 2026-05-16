@@ -80,10 +80,10 @@ func (oid ObjectID) IsPackageID() bool {
 // PkgID and NewTime are zero). This is the "totally empty" state
 // — used to detect "no owner exists" / "transient/never-stamped".
 //
-// Under the PLAN3 lifecycle there are three states:
+// Under the interrealm v2 lifecycle there are three states:
 //
 //	empty:     PkgID zero, NewTime zero        (never went through allocator)
-//	allocated: PkgID set,  NewTime zero        (PLAN3 Phase 2 onwards)
+//	allocated: PkgID set,  NewTime zero        (interrealm v2 Phase 2 onwards)
 //	finalized: PkgID set,  NewTime ≥ 1         (real, persisted)
 //
 // Use IsFinalized() for "has a real persisted identity" and
@@ -92,7 +92,7 @@ func (oid ObjectID) IsZero() bool {
 	if debug {
 		// The impossible state is PkgID zero + NewTime non-zero.
 		// PkgID set + NewTime zero is the allocated-but-unfinalized
-		// state, valid under PLAN3.
+		// state, valid under interrealm v2.
 		if oid.PkgID.IsZero() && oid.NewTime != 0 {
 			panic("invariant: NewTime set but PkgID zero")
 		}
@@ -118,8 +118,8 @@ type Object interface {
 	GetObjectID() ObjectID
 	MustGetObjectID() ObjectID
 	SetObjectID(oid ObjectID)
-	SetNewTime(t uint64) // PLAN3: partial stamp during assignNewObjectID
-	SetPkgID(p PkgID)    // PLAN3: partial stamp at allocation time
+	SetNewTime(t uint64) // interrealm v2: partial stamp during assignNewObjectID
+	SetPkgID(p PkgID)    // interrealm v2: partial stamp at allocation time
 	GetHash() ValueHash
 	SetHash(ValueHash)
 	GetOwner() Object
@@ -283,7 +283,7 @@ func (oi *ObjectInfo) GetIsOwned() bool {
 
 // GetIsReal returns true iff the object has a finalized ObjectID
 // (NewTime ≥ 1). Allocated-but-unfinalized objects (PkgID set,
-// NewTime zero) return false, matching the pre-PLAN3 intent.
+// NewTime zero) return false, matching the pre-interrealm-v2 intent.
 // Note: does not return true for new-reals (those waiting for
 // assignNewObjectID at finalize time).
 func (oi *ObjectInfo) GetIsReal() bool {
@@ -292,14 +292,14 @@ func (oi *ObjectInfo) GetIsReal() bool {
 
 // SetNewTime stamps only the NewTime portion of the ObjectID,
 // preserving any pre-existing PkgID set at allocation time.
-// Used by assignNewObjectID under PLAN3.
+// Used by assignNewObjectID under interrealm v2.
 func (oi *ObjectInfo) SetNewTime(t uint64) {
 	oi.ID.NewTime = t
 }
 
 // SetPkgID stamps only the PkgID portion of the ObjectID,
 // preserving any pre-existing NewTime. Used by allocator
-// constructors under PLAN3 to stamp authority at allocation.
+// constructors under interrealm v2 to stamp authority at allocation.
 func (oi *ObjectInfo) SetPkgID(p PkgID) {
 	oi.ID.PkgID = p
 }
@@ -354,7 +354,7 @@ func (oi *ObjectInfo) GetIsDeleted() bool {
 	return oi.isDeleted
 }
 
-// SetIsDeleted marks the object as deleted. PLAN3 Phase 2b: the
+// SetIsDeleted marks the object as deleted. interrealm v2 Phase 2b: the
 // previously-accepted-but-ignored mt parameter was dropped; the
 // deletion is just a tombstone marker, not a clock. Under
 // cross-realm finalize this also removes the "myrealm's clock

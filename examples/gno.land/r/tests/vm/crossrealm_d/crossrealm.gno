@@ -39,7 +39,7 @@ func DoubleCounter(cur realm) int {
 
 // MutateBytes mutates the first byte of bz to 0xff. Used to test
 // whether a foreign realm can write to caller-allocated bytes.
-// Under PLAN3 storage=authority, bz has PkgID=caller; Layer 1 borrow
+// Under interrealm v2 storage=authority, bz has PkgID=caller; Layer 1 borrow
 // here makes m.Realm=crossrealm_d (declaring realm); the write site
 // (bz[0] = ...) should fire readonly because bz.PkgID != m.Realm.ID.
 func MutateBytes(bz []byte) {

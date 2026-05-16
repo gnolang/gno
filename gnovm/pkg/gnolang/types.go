@@ -745,7 +745,7 @@ type StructType struct {
 	typeid TypeID
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
-	// on first GetPkgID() call. Used by PLAN3 Phase 2's
+	// on first GetPkgID() call. Used by interrealm v2 Phase 2's
 	// eager-constructor check via getDeclaredPkgID. Not serialized
 	// (unexported, re-derived deterministically from PkgPath).
 	pkgID PkgID
@@ -1479,7 +1479,7 @@ type DeclaredType struct {
 	sealed bool // for ensuring correctness with recursive types.
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
-	// on first GetPkgID() call. Used by PLAN3 Phase 2's
+	// on first GetPkgID() call. Used by interrealm v2 Phase 2's
 	// eager-constructor check via getDeclaredPkgID. Not serialized.
 	pkgID PkgID
 
@@ -2968,7 +2968,7 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{
 
 // declaredPkgPath walks Pointer/Declared/Struct type wrappers to
 // find the outermost named type's declaring package. Used by the
-// PLAN3 allocator's eager-constructor check (Phase 2) to decide
+// interrealm v2 allocator's eager-constructor check (Phase 2) to decide
 // PkgID stamping at allocation time.
 //
 // Returns "" for unnamed composites (anonymous arrays, slices,
@@ -2995,7 +2995,7 @@ func declaredPkgPath(t Type) string {
 }
 
 // GetPkgID returns the cached PkgID for this DeclaredType, computing
-// it lazily on first call from PkgPath. PLAN3 Phase 2.
+// it lazily on first call from PkgPath. interrealm v2 Phase 2.
 func (dt *DeclaredType) GetPkgID() PkgID {
 	if dt.pkgID.IsZero() {
 		dt.pkgID = PkgIDFromPkgPath(dt.PkgPath)
@@ -3005,7 +3005,7 @@ func (dt *DeclaredType) GetPkgID() PkgID {
 
 // GetPkgID returns the cached PkgID for this StructType, computing
 // it lazily on first call from PkgPath. Returns zero PkgID for
-// anonymous structs declared in PkgPath="" contexts. PLAN3 Phase 2.
+// anonymous structs declared in PkgPath="" contexts. interrealm v2 Phase 2.
 func (st *StructType) GetPkgID() PkgID {
 	if st.PkgPath == "" {
 		return PkgID{}
@@ -3019,7 +3019,7 @@ func (st *StructType) GetPkgID() PkgID {
 // getDeclaredPkgID walks Pointer/Declared/Struct type wrappers to
 // find the outermost named type's PkgID via cached lookups.
 // Returns zero PkgID for unnamed composites and PkgPath=""
-// anonymous types. Used by the PLAN3 Phase 2 eager-constructor
+// anonymous types. Used by the interrealm v2 Phase 2 eager-constructor
 // check (Allocator.checkEagerConstructor).
 func getDeclaredPkgID(t Type) PkgID {
 	for {

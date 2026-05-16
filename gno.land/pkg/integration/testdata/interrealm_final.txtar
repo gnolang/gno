@@ -22,10 +22,10 @@ gnokey maketx addpkg -pkgdir $WORK/peter -pkgpath gno.land/p/test/peter -gas-fee
 gnokey maketx addpkg -pkgdir $WORK/callerrealm -pkgpath gno.land/r/test/callerrealm -gas-fee 730001ugnot -gas-wanted 7_300_000 -chainid=tendermint_test test1
 
 ## test CASE_rA1
-## PLAN3: bob.Do is /r/bob-declared → Layer 1 borrows m.Realm = /r/bob.
+## interrealm v2: bob.Do is /r/bob-declared → Layer 1 borrows m.Realm = /r/bob.
 ## fn=alice.TopFunc is invoked, /r/alice-declared → Layer 1 → /r/alice.
 ## Inside TopFunc, bob.PrivateFunc() → Layer 1 → /r/bob, writes succeed.
-## (Pre-PLAN3: stayed in caller's m.Realm throughout, write panicked.)
+## (Pre-interrealm-v2: stayed in caller's m.Realm throughout, write panicked.)
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rA1 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
 stdout 'OK'
 
@@ -46,7 +46,7 @@ gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rB2 -gas-fee 
 stdout 'OK'
 
 ## test CASE_rB3
-## PLAN3: new(alice.Object) in callerrealm body trips the eager-
+## interrealm v2: new(alice.Object) in callerrealm body trips the eager-
 ## constructor check (alice.Object is /r/alice-declared, m.Realm =
 ## /r/callerrealm). Failure mode shifted from readonly-taint at the
 ## later write to eager panic at construction.
@@ -58,12 +58,12 @@ stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/ca
 stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/callerrealm'
 
 ## test CASE_rC1
-## PLAN3: all CASE_rC* construct alice.Object via `new(alice.Object)`
+## interrealm v2: all CASE_rC* construct alice.Object via `new(alice.Object)`
 ## in callerrealm body — eager-constructor check rejects the
 ## construction before any of the storage-cross dispatch logic runs.
 ## The failure mode shifted from "depends on storage realm" (pre-
-## PLAN3 success/fail variation) to a uniform eager panic. Under
-## PLAN3, foreign /r/ types must be constructed via a constructor
+## interrealm v2 success/fail variation) to a uniform eager panic. Under
+## interrealm v2, foreign /r/ types must be constructed via a constructor
 ## function (alice.NewObject() etc.) — see Phase 0 refactor of
 ## examples/r/gov/dao for the canonical pattern.
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC1 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
@@ -94,12 +94,12 @@ stderr 'cannot directly mutate gno.land/r/test/bob.AllowedList from gno.land/r/t
 # stdout 'AllowedList = \[1, 2, 3\]'
 
 ## test CASE_pA1
-## PLAN3: all CASE_p* use /p/peter.Object (no eager-constructor
+## interrealm v2: all CASE_p* use /p/peter.Object (no eager-constructor
 ## check for /p/-declared types). The chain bob.Do2 → fn(privFunc)
 ## → privFunc = bob.PrivateFunc all gets routed correctly via Layer
 ## 1 borrow at each hop (bob.Do2 → /r/bob, then bob.PrivateFunc →
 ## /r/bob), so the write `private = -1` lands in bob's own state
-## and succeeds. The pre-PLAN3 failures were because m.Realm stayed
+## and succeeds. The pre-interrealm-v2 failures were because m.Realm stayed
 ## as caller throughout — fixed by Layer 1's uniform application.
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pA1 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
 stdout 'OK'

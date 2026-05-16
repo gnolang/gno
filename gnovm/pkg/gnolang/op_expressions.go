@@ -724,7 +724,7 @@ func (m *Machine) doOpFuncLit() {
 		body:       x.Body,
 		nativeBody: nil,
 	}
-	// PLAN3 Phase 2: closures belong to wherever they were
+	// interrealm v2 Phase 2: closures belong to wherever they were
 	// evaluated (currentRealmID), not their lexical PkgPath.
 	// FuncType has no declaring-realm semantics on its own.
 	m.Alloc.stampPkgID(&fv.ObjectInfo)
@@ -751,7 +751,7 @@ func (m *Machine) doOpConvert() {
 	// Inter-realm conversion guard: prevent constructing a value of
 	// a foreign /r/-declared type from outside the declaring realm.
 	// (The previous Case 1 source-side readonly check was dropped in
-	// PLAN3 Phase 4 — ConvertTo operates in place on *TypedValue
+	// interrealm v2 Phase 4 — ConvertTo operates in place on *TypedValue
 	// without touching tv.N, so the N_Readonly bit survives the
 	// conversion and any later write is still caught at the write
 	// site (PopAsPointer2, append/copy/delete).)

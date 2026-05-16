@@ -6,7 +6,7 @@ import (
 	"gno.land/r/tests/vm/crossrealm_b"
 )
 
-// PLAN3 Phase 2: sumDiff routing — storage cost for objects accrue
+// interrealm v2 Phase 2: sumDiff routing — storage cost for objects accrue
 // to their OWNING realm (PkgID), not the realm that triggered the
 // save. Verifies touchedForeignRealms + FinalizeRealmTransaction's
 // batch save / per-realm sumDiff drain.

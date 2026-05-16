@@ -244,7 +244,7 @@ func SaveValueFromPrivateStructToPublicRealm(cur realm) {
     // Save a VALUE (not pointer) of a private struct type to public
     // realm. Contrasts with SaveStructToPublicRealm above which sends
     // a *PrivateData persisted via init(). Here pvData is freshly
-    // allocated in private realm, so under PLAN3 its PkgID=privaterealm
+    // allocated in private realm, so under interrealm v2 its PkgID=privaterealm
     // and persistence fails at the object check (rather than the type
     // check, which only fires for already-real objects).
     pvData := PrivateData{

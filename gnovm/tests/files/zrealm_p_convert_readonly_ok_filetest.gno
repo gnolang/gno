@@ -6,7 +6,7 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-// PLAN3 Phase 4: dropping the source-side readonly check in
+// interrealm v2 Phase 4: dropping the source-side readonly check in
 // doOpConvert (old Case 1) lets legitimate read-only patterns
 // work — converting a foreign /r/-owned value into an anonymous
 // struct type for inspection no longer panics. The N_Readonly
@@ -17,7 +17,7 @@ import (
 
 func main() {
 	// Cross-realm read into a local anonymous struct type.
-	// Pre-PLAN3 Phase 4 this panicked with "illegal conversion
+	// Pre-interrealm-v2 Phase 4 this panicked with "illegal conversion
 	// of readonly or externally stored value." Now it succeeds;
 	// reads work, but writes via the converted value still fail.
 	x := (struct {

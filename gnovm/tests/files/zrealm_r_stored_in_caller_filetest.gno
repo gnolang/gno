@@ -8,7 +8,7 @@ import (
 	"gno.land/r/tests/vm/crossrealm"
 )
 
-// PLAN3 Phase 3 positive counterpart: external /r/-declared value
+// interrealm v2 Phase 3 positive counterpart: external /r/-declared value
 // held by caller; method dispatch borrows correctly to the declaring
 // realm and the method body can read/inspect its own state without
 // running afoul of the readonly taint.

@@ -130,7 +130,7 @@ func (m *Machine) doOpExec(op Op) {
 				if !ok {
 					continue
 				}
-				// PLAN3 Phase 2: for-loop init re-allocates the
+				// interrealm v2 Phase 2: for-loop init re-allocates the
 				// heap slot in the current realm.
 				newHIV := &HeapItemValue{
 					Value: hiv.Value,

@@ -1,9 +1,13 @@
-# Realm Authority via Allocation-Time PkgID
+# Interrealm Specification v2 — Realm Authority via Allocation-Time PkgID
 
-Plan for closing the .Title()-attack class across /r/ and /p/ types and
+Spec for closing the .Title()-attack class across /r/ and /p/ types and
 resolving the cross-realm-stored-receiver weirdness, by making
 `ObjectInfo.ID.PkgID` reflect the *authority realm* at allocation rather
 than the *storage realm* determined at link-time.
+
+Supersedes the cases enumerated in `pr4890_interrealm_cases.md` (v1
+"do not storage-cross" semantics). See `gno.land/pkg/integration/testdata/interrealm_v2.txtar`
+for the affirmative-coverage test suite.
 
 ## Background
 
@@ -111,7 +115,7 @@ as real. Under the new model, PkgID is set at allocation (before
 finalize), so this would mark objects as real prematurely.
 
 There are three distinct lifecycle states an `ObjectID` can be in
-under PLAN3:
+under interrealm v2:
 
 | State | `PkgID` | `NewTime` | Meaning |
 |---|---|---|---|
@@ -141,11 +145,11 @@ func (oi *ObjectInfo) GetIsReal() bool {
 **Redefining `IsZero` to check both fields is a blocking prerequisite
 of this plan.** Today (`ownership.go:81-90`) `IsZero` returns
 `oid.PkgID.IsZero()` only, with a debug invariant
-`PkgID == 0 ↔ NewTime == 0`. PLAN3 breaks that invariant: an
+`PkgID == 0 ↔ NewTime == 0`. interrealm v2 breaks that invariant: an
 allocated-but-not-finalized object has `PkgID ≠ 0, NewTime == 0`. If
 `IsZero` is not redefined to check both fields, every caller that
 means "totally empty" silently flips to mean "no PkgID" (which under
-PLAN3 means "nothing has touched the allocator yet"), and the debug
+interrealm v2 means "nothing has touched the allocator yet"), and the debug
 invariant panics at the first allocator stamping.
 
 Update the existing debug invariant in `IsZero` to reflect the new
@@ -190,7 +194,7 @@ Exhaustive audit against current HEAD (re-cite line numbers at
 implementation time — the table covers every relevant site found by
 the greps above):
 
-| File:line | Code | Today's intent | PLAN3 intent | Migration |
+| File:line | Code | Today's intent | interrealm v2 intent | Migration |
 |---|---|---|---|---|
 | `realm.go:239` | `!po.GetIsReal()` | real | **finalized** | `IsFinalized()` (or keep `GetIsReal` after its redef) |
 | `realm.go:270` | `co.GetIsReal()` (DidUpdate new child) | real | **finalized** | keep `GetIsReal` (redef) |
@@ -200,7 +204,7 @@ the greps above):
 | `realm.go:332` | `!oo.GetIsReal() && !oo.GetIsNewReal()` (MarkDirty debug) | real-or-newreal | **finalized**-or-newreal | keep `GetIsReal` (redef) |
 | `realm.go:352` | same pattern in MarkNewDeleted | same | same | keep |
 | `realm.go:372` | same pattern in MarkNewEscaped | same | same | keep |
-| `realm.go:513` | `!oo.GetObjectID().IsZero()` (incRefCreatedDescendants recurse guard) | "already assigned" (PkgID set) | **finalized** ("already stamped with NewTime") | **migrate to `!oo.GetObjectID().IsFinalized()`** — critical: under PLAN3, newly-allocated objects have non-zero PkgID from allocation, so leaving this as `IsZero` would skip every first visit and break finalization |
+| `realm.go:513` | `!oo.GetObjectID().IsZero()` (incRefCreatedDescendants recurse guard) | "already assigned" (PkgID set) | **finalized** ("already stamped with NewTime") | **migrate to `!oo.GetObjectID().IsFinalized()`** — critical: under interrealm v2, newly-allocated objects have non-zero PkgID from allocation, so leaving this as `IsZero` would skip every first visit and break finalization |
 | `realm.go:540` | `child.GetIsReal()` | real | **finalized** | keep `GetIsReal` (redef) |
 | `realm.go:585` | `oo.GetObjectID().IsZero()` panic (processNewDeletedMarks) | "no ID yet" | **non-finalized** (a marked-deleted object must be finalized) | **migrate to `!oo.GetObjectID().IsFinalized()`** |
 | `realm.go:602` | `oo.GetObjectID().IsZero()` panic (decRefDeletedDescendants) | "no ID yet" | **non-finalized** | **migrate to `!oo.GetObjectID().IsFinalized()`** |
@@ -209,21 +213,21 @@ the greps above):
 | `realm.go:837` | `oo.GetObjectID().IsZero()` panic (saveUnsavedObjectRecursively) | "no ID" | **non-finalized** | **migrate to `!oo.GetObjectID().IsFinalized()`** |
 | `realm.go:890` | `!oo.GetIsReal()` panic (save-existing branch) | real | **finalized** | keep `GetIsReal` (redef) |
 | `realm.go:904` | `oid.IsZero()` panic (saveObject) | "no ID" | **non-finalized** | **migrate to `!oid.IsFinalized()`** + add the PkgID-non-zero invariant check (Finalize-time PkgID-set invariant below) |
-| `realm.go:saveObject` (NEW, PLAN3-added) | `oid.PkgID.IsZero()` panic + PkgID-based sumDiff routing | n/a (new) | **PkgID-non-zero invariant + foreign-realm routing** | new code per §"sumDiff / storage-diff attribution for foreign objects" |
-| `realm.go:removeDeletedObjects` (NEW, PLAN3-added) | `oid.PkgID == rlm.ID` branch | n/a (new) | **foreign-realm routing** | new code per §"sumDiff / storage-diff attribution"; assumes `rlm.deleted` is invariant-finalized at entry (see invariant note below) |
+| `realm.go:saveObject` (NEW, interrealm v2-added) | `oid.PkgID.IsZero()` panic + PkgID-based sumDiff routing | n/a (new) | **PkgID-non-zero invariant + foreign-realm routing** | new code per §"sumDiff / storage-diff attribution for foreign objects" |
+| `realm.go:removeDeletedObjects` (NEW, interrealm v2-added) | `oid.PkgID == rlm.ID` branch | n/a (new) | **foreign-realm routing** | new code per §"sumDiff / storage-diff attribution"; assumes `rlm.deleted` is invariant-finalized at entry (see invariant note below) |
 | `realm.go:1782` | `!oid.IsZero()` panic (assignNewObjectID precondition) | "already assigned" | **already finalized** | **migrate to `oid.IsFinalized()` panic** (see API split below) |
 | `realm.go:1814` | `!oo.GetIsReal()` panic (toRefValue) | real | **finalized** | keep `GetIsReal` (redef) |
 | `realm.go:1830` | `!oo.GetOwnerID().IsZero()` panic (toRefValue: escaped must have no owner) | **owner reference exists** | **empty** | **stays on `IsZero` (after IsZero redef)** |
 | `realm.go:1921` | `!poid.IsZero()` (getOwner: lazy-load via store iff owner ref exists) | **owner reference exists** | **empty** | **stays on `IsZero` (after IsZero redef)** |
-| `machine.go:2251` | `!recvOID.IsZero()` (PushFrameCall Layer 2 guard) | "receiver has been finalized at least to PkgID stage" | **non-empty (any allocated or finalized receiver)** | **stays on `IsZero` (after IsZero redef)** — under PLAN3 PkgID is set at allocation, so this correctly admits unreal foreign receivers (the desired Layer 2 expansion); falls through only for truly transient receivers (off-allocator construction sites that missed PkgID stamping, which the finalize-time invariant catches separately) |
-| `machine.go:2550` | `oid.IsZero()` (isExternalRealm: transient/local-var branch) | "transient" | **empty (truly never stamped)** | **stays on `IsZero` (after IsZero redef)**. Note: under PLAN3, allocator stamps PkgID at allocation for every object that goes through `m.Alloc.*`. Local vars do go through the allocator, so this branch becomes effectively dead for properly-stamped objects. Keep as a defensive fallback and add a comment noting the dead-branch implication. |
+| `machine.go:2251` | `!recvOID.IsZero()` (PushFrameCall Layer 2 guard) | "receiver has been finalized at least to PkgID stage" | **non-empty (any allocated or finalized receiver)** | **stays on `IsZero` (after IsZero redef)** — under interrealm v2 PkgID is set at allocation, so this correctly admits unreal foreign receivers (the desired Layer 2 expansion); falls through only for truly transient receivers (off-allocator construction sites that missed PkgID stamping, which the finalize-time invariant catches separately) |
+| `machine.go:2550` | `oid.IsZero()` (isExternalRealm: transient/local-var branch) | "transient" | **empty (truly never stamped)** | **stays on `IsZero` (after IsZero redef)**. Note: under interrealm v2, allocator stamps PkgID at allocation for every object that goes through `m.Alloc.*`. Local vars do go through the allocator, so this branch becomes effectively dead for properly-stamped objects. Keep as a defensive fallback and add a comment noting the dead-branch implication. |
 | `ownership.go:76` | `!oid.PkgID.IsZero() && oid.NewTime == 1` (`IsPackage` helper) | "is the package self-ObjectID" | unchanged | keep as-is |
 | `ownership.go:81-90` | `IsZero()` itself | "PkgID is zero" | "both fields zero" | **redefine per Finding #1** |
 | `ownership.go:223` | `oi.ID.IsZero()` panic (MustGetObjectID) | "no ID" | **non-finalized** (must be a valid ID to "must-get") | **migrate to `!oi.ID.IsFinalized()`** — no current call sites for MustGetObjectID (interface + impl only), so safe to tighten |
 | `ownership.go:260` | `!oi.OwnerID.IsZero()` (GetIsOwned) | **owner reference exists** | **empty** | **stays on `IsZero` (after IsZero redef)** |
 | `ownership.go:264-266` | `GetIsReal()` definition | `!ID.IsZero()` | **`ID.NewTime != 0`** | **redefine per "Redefine" block above** |
 | `ownership.go:282` | `oi.GetIsReal()` (DecRefCount debug) | real | **finalized** | keep `GetIsReal` (redef) |
-| `ownership.go:481` | `if tvoid.IsZero()` (IsReadonlyBy) | "no associated ObjectID" → not readonly by anyone | **empty** | **stays on `IsZero` (after IsZero redef)** — for an allocated-but-unfinalized object with PkgID set, `IsZero` returns false, so the function proceeds to the `PkgID != rid` check (the correct behavior under PLAN3) |
+| `ownership.go:481` | `if tvoid.IsZero()` (IsReadonlyBy) | "no associated ObjectID" → not readonly by anyone | **empty** | **stays on `IsZero` (after IsZero redef)** — for an allocated-but-unfinalized object with PkgID set, `IsZero` returns false, so the function proceeds to the `PkgID != rid` check (the correct behavior under interrealm v2) |
 | `store.go:628` | `oid.IsZero()` panic (SetObject debug) | "no ID" | **non-finalized** | **migrate to `!oid.IsFinalized()`** |
 | `values_export.go:97` | `obj.GetIsReal()` (cycle-handling: emit RefValue if persisted) | real | **finalized** | keep `GetIsReal` (redef) |
 | `values_export.go:136` | `oo.GetIsReal()` (persisted → emit RefValue) | real | **finalized** | keep `GetIsReal` (redef) |
@@ -233,7 +237,7 @@ Summary of action by intent class:
 
 - **15 sites** keep `GetIsReal()` and inherit the redefined `NewTime != 0` semantics. No code edit needed beyond the definition change.
 - **8 sites** migrate from `.IsZero()` to `.IsFinalized()` (or `!IsFinalized()`): `realm.go:513`, `585`, `602`, `697`, `837`, `904`, `1782` (assignNewObjectID — see API split), `ownership.go:223`, `store.go:628`.
-- **7 sites** stay on `.IsZero()` and inherit the redefined "both fields zero" semantics: `realm.go:740`, `realm.go:1830`, `realm.go:1921`, `machine.go:2251`, `machine.go:2550`, `ownership.go:260`, `ownership.go:481`, `realm_test.go:27`. These are all "owner-reference-exists?" or "transient?" tests where the old single-field check and the new both-fields check return the same result for every state actually used today, but the new check is necessary for correctness under the PLAN3 allocated-but-unfinalized state.
+- **7 sites** stay on `.IsZero()` and inherit the redefined "both fields zero" semantics: `realm.go:740`, `realm.go:1830`, `realm.go:1921`, `machine.go:2251`, `machine.go:2550`, `ownership.go:260`, `ownership.go:481`, `realm_test.go:27`. These are all "owner-reference-exists?" or "transient?" tests where the old single-field check and the new both-fields check return the same result for every state actually used today, but the new check is necessary for correctness under the interrealm v2 allocated-but-unfinalized state.
 - **1 site** is a special-form package-self check that uses raw `PkgID.IsZero()` directly and is unaffected: `ownership.go:76`.
 
 ### Finalize-time PkgID-set invariant
@@ -253,7 +257,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
         panic("unexpected non-finalized object id at save")
     }
     if oid.PkgID.IsZero() {
-        // Under PLAN3, PkgID must be stamped at allocation. A zero
+        // Under interrealm v2, PkgID must be stamped at allocation. A zero
         // PkgID here means an allocation site was missed by the
         // allocator plumbing. Loud-fail rather than silently saving
         // under an unattributed authority.
@@ -268,7 +272,7 @@ and to any other finalize/store-write path that mints a real
 object. **No fallback, no log-and-continue, no build tag.** A zero
 PkgID at finalize means an off-allocator construction site was
 missed in the Phase 2 audit. The panic is the audit mechanism:
-running the full test suite under PLAN3 will surface every missed
+running the full test suite under interrealm v2 will surface every missed
 site as a loud failure with the file/line of the allocation. Fix
 each site by routing through the allocator (or stamping PkgID
 inline per the off-allocator construction list above) until the
@@ -552,7 +556,7 @@ new save action introduced by this section is the foreign-realm-
 
 Today `saveObject` (realm.go:902-917) does
 `rlm.sumDiff += store.SetObject(oo)` — the per-object size delta is
-attributed to the **executing** realm's `sumDiff`. Under PLAN3's
+attributed to the **executing** realm's `sumDiff`. Under interrealm v2's
 storage = authority unification, storage rent should accrue to the
 **owning** realm. Route the diff to the owner:
 
@@ -993,14 +997,14 @@ plan needs each to handle PkgID with explicit intent:
 **Path A — `ObjectInfo.Copy()` for serialization** (`ownership.go:182`).
 Today this preserves the full `ID` (PkgID + NewTime) and is called
 only from `copyValueWithRefs` (`realm.go:1419`) during the persist-
-to-store marshaling pass. This is **correct under PLAN3** — the
+to-store marshaling pass. This is **correct under interrealm v2** — the
 persisted identity must round-trip; PkgID is the authority realm
 and survives serialization unchanged. No change needed.
 
 **Path B — `*Value.Copy(alloc)` for in-memory copies**
 (`values.go:324` ArrayValue.Copy, `values.go:450` StructValue.Copy).
 These allocate a fresh object via `alloc.NewListArray` /
-`alloc.NewStruct`, which under PLAN3 stamps PkgID =
+`alloc.NewStruct`, which under interrealm v2 stamps PkgID =
 `alloc.currentRealmID` on the fresh object. The source's
 ObjectInfo is **not** inherited. This matches the design intent:
 copying a value into the current realm makes the copy live in the
@@ -1008,7 +1012,7 @@ current realm.
 
 The eager-constructor check must wire through Path B for it to be
 sound. `StructValue.Copy(alloc)` calls `alloc.NewStruct(fields)` —
-under PLAN3 this needs a `Type` parameter to check eager
+under interrealm v2 this needs a `Type` parameter to check eager
 construction. Add `t Type` parameter to `Copy`: `(sv *StructValue)
 Copy(alloc *Allocator, t Type)`. Threads the type from the caller
 (who has `tv.T` in scope).
@@ -1258,7 +1262,7 @@ func Attack() {
 }
 ```
 
-Trace under PLAN3 *with* readonly machinery preserved:
+Trace under interrealm v2 *with* readonly machinery preserved:
 
 1. Attacker reads `myrealm.GlobalBytes`. m.Realm = /r/attacker;
    GlobalBytes underlying slice's PkgID = /r/myrealm. doOpSelector
@@ -1272,7 +1276,7 @@ Trace under PLAN3 *with* readonly machinery preserved:
    comparison.
 4. Write panics: "cannot modify readonly object."
 
-Trace under PLAN3 *without* readonly machinery (the version that was
+Trace under interrealm v2 *without* readonly machinery (the version that was
 considered and rejected):
 
 1. Attacker reads `myrealm.GlobalBytes`. No taint propagation. Result
@@ -1283,7 +1287,7 @@ considered and rejected):
    and `rlm.ID = /r/myrealm` — passes. Write succeeds. Attack
    completes.
 
-So: PLAN3's borrow rule alone does not prevent the round-trip case
+So: interrealm v2's borrow rule alone does not prevent the round-trip case
 when the attacker passes the victim's own data back to a victim
 method. The N_Readonly bit is the load-bearing piece of that defense
 and must be kept. The borrow rule + N_Readonly taint together close
@@ -1291,9 +1295,9 @@ the .Title()-attack class.
 
 ## Implementation phases
 
-**Compatibility**: PLAN3 is a **chain-breaking change**. It assumes
+**Compatibility**: interrealm v2 is a **chain-breaking change**. It assumes
 a fresh genesis. No migration path is provided for existing on-chain
-state: PLAN3 changes `ObjectID.PkgID` semantics from "storage realm
+state: interrealm v2 changes `ObjectID.PkgID` semantics from "storage realm
 determined at link time" to "authority realm stamped at allocation
 time," and existing persisted objects carry the old semantics in
 their stored ObjectIDs. Re-interpreting that state under the new
@@ -1311,7 +1315,7 @@ ship together as the borrow-rule + spec update):
   example call sites to use them. This works as a standalone refactor
   because composite literals are still legal at the language level —
   the runtime enforcement comes later. Tests stay green pre-runtime-
-  change. Independent of the rest of PLAN3, so it can land at any
+  change. Independent of the rest of interrealm v2, so it can land at any
   time and the rest of the plan can be staged behind it.
 
 - **PR 2 — Runtime: Phase 1 + Phase 2.** Lands after PR 1 is in.
@@ -1332,7 +1336,7 @@ PR ordering rationale: PR 1 leaves the runtime untouched but
 prepares the example codebase to survive PR 2's eager-constructor
 panic. PR 2 introduces the new authority model but doesn't yet
 change method-dispatch borrow rules (legacy HEAD borrow stays in
-place), so the security gap PLAN3 closes is technically not closed
+place), so the security gap interrealm v2 closes is technically not closed
 until PR 3 lands — but each PR is independently safe and reversible.
 
 **Missed-site recovery rule**: if PR 2 testing reveals an example

@@ -20,7 +20,7 @@ type Allocator struct {
 	gasMeter store.GasMeter
 
 	// currentRealmID mirrors m.Realm.ID at all times. Synced via
-	// Machine.setRealm at every realm transition (PLAN3 Phase 1).
+	// Machine.setRealm at every realm transition (interrealm v2 Phase 1).
 	// Used by allocator constructors at Phase 2 to stamp PkgID
 	// onto newly-allocated objects' ObjectInfo without needing a
 	// *Machine reference. Zero when m.Realm is nil.
@@ -77,7 +77,7 @@ const (
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
 	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
-	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — PLAN3 +24 bytes for PkgID field (Hashlet + alignment)
+	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
 
@@ -402,7 +402,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 // checkEagerConstructor panics if asked to construct a /r/-declared
-// type when the executing realm is different. PLAN3 Phase 2 — the
+// type when the executing realm is different. interrealm v2 Phase 2 — the
 // enforcement of "storage = authority": every meaningfully-constructed
 // /r/-typed object must originate inside its declaring realm.
 //

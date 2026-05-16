@@ -8,9 +8,9 @@ import (
 	"gno.land/r/tests/vm/crossrealm"
 )
 
-// PLAN3 Phase 3: /p/-method dispatched on an unreal foreign receiver
+// interrealm v2 Phase 3: /p/-method dispatched on an unreal foreign receiver
 // borrows m.Realm to the receiver's PkgID (Layer 2 expansion).
-// Pre-PLAN3 the borrow only fired for REAL foreign receivers; under
+// Pre-interrealm-v2 the borrow only fired for REAL foreign receivers; under
 // Phase 2's allocation-time PkgID stamping, unreal receivers also
 // carry their authoring realm's PkgID and Layer 2 follows.
 //

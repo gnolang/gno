@@ -272,7 +272,7 @@ type UpdateRequest struct {
 }
 
 // NewUpdateRequest copies allowedDAOs into a fresh slice owned by
-// /r/gov/dao. Under PLAN3's storage=authority model, if we stored
+// /r/gov/dao. Under interrealm v2's storage=authority model, if we stored
 // the caller-passed slice directly, the base ArrayValue would
 // retain PkgID = caller_realm: storage rent would attribute to
 // caller, and /r/gov/dao could not mutate (e.g. append to) its own

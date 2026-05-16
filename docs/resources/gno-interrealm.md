@@ -307,7 +307,7 @@ Three states an `ObjectID` can be in:
 
 Two consequences follow:
 
-1. **Storage-realm borrow extends to unreal receivers.** Pre-PLAN3, the
+1. **Storage-realm borrow extends to unreal receivers.** Pre-interrealm-v2, the
    storage-realm borrow only fired for *real* foreign receivers (the
    "owning realm" was only knowable after finalization). With PkgID set
    at allocation, an unreal foreign receiver — for example, a value just

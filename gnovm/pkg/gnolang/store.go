@@ -50,7 +50,7 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
-	GetRealmByID(pid PkgID) *Realm // PLAN3: cache-backed PkgID lookup
+	GetRealmByID(pid PkgID) *Realm // interrealm v2: cache-backed PkgID lookup
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
@@ -147,7 +147,7 @@ type defaultStore struct {
 	// SetPackageRealm; consulted by GetRealmByID and fillPackage.
 	// Ensures pv.Realm and any other in-tx caller observe the same
 	// pointer (so in-memory Time/sumDiff mutations are visible
-	// everywhere). PLAN3 Phase 1.
+	// everywhere). interrealm v2 Phase 1.
 	cacheRealms map[PkgID]*Realm
 	alloc       *Allocator // for accounting for cached items
 
@@ -407,7 +407,7 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 }
 
 // Some atomic operation. Consults cacheRealms before reading from
-// baseStore (PLAN3 Phase 1); populates the cache on read so that
+// baseStore (interrealm v2 Phase 1); populates the cache on read so that
 // subsequent in-tx callers observe the same *Realm pointer.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
@@ -443,7 +443,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // GetRealmByID looks up a Realm via the per-tx cache, falling back
 // to a path-resolution + baseStore load on miss. Single source of
-// truth for in-memory *Realm pointers within a tx. PLAN3 Phase 1;
+// truth for in-memory *Realm pointers within a tx. interrealm v2 Phase 1;
 // used by PushFrameCall Layer 2 borrow and by cross-realm finalize
 // (Phase 2's touchForeignRealm).
 func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
@@ -459,7 +459,7 @@ func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
 
 // An atomic operation to set the package realm info (id counter etc).
 // Refreshes the cacheRealms entry so subsequent in-tx reads see the
-// updated *Realm pointer (PLAN3 Phase 1).
+// updated *Realm pointer (interrealm v2 Phase 1).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -583,7 +583,7 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 		rlm := ds.GetPackageRealm(pv.PkgPath)
 		pv.Realm = rlm
 	}
-	// Re-derive denormalized PkgID cache (PLAN3 Phase 2; pv.PkgID is
+	// Re-derive denormalized PkgID cache (interrealm v2 Phase 2; pv.PkgID is
 	// marked json:"-" so amino skipped it on load).
 	if pv.PkgID.IsZero() {
 		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
@@ -719,7 +719,7 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
 	// delete from cache. Lock-step evict cacheRealms when the object
-	// being deleted is a PackageValue (PLAN3 Phase 1): keeps the
+	// being deleted is a PackageValue (interrealm v2 Phase 1): keeps the
 	// pv.Realm == cacheRealms[pid] invariant.
 	delete(ds.cacheObjects, oid)
 	if _, isPV := oo.(*PackageValue); isPV {
@@ -1161,7 +1161,7 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	// Lock-step reset cacheRealms (PLAN3 Phase 1).
+	// Lock-step reset cacheRealms (interrealm v2 Phase 1).
 	ds.cacheRealms = make(map[PkgID]*Realm)
 	ds.realmStorageDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
@@ -1176,7 +1176,7 @@ func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 		}
 		if obj.GetLastGCCycle() < gcCycle {
 			delete(ds.cacheObjects, objId)
-			// Lock-step evict cacheRealms (PLAN3 Phase 1) when a
+			// Lock-step evict cacheRealms (interrealm v2 Phase 1) when a
 			// PackageValue is evicted. Falls back to PkgID derivation
 			// from PkgPath if the PV's PkgID hasn't been stamped yet
 			// (Phase 2 plumbing not fully in place).

@@ -4,7 +4,7 @@ package bar
 
 import "gno.land/r/tests/vm/crossrealm"
 
-// PLAN3 Phase 2: new() on a foreign /r/-declared type from outside
+// interrealm v2 Phase 2: new() on a foreign /r/-declared type from outside
 // its declaring realm panics at the eager-constructor check
 // (uverse new builtin). Authority cannot be forged via *T.
 

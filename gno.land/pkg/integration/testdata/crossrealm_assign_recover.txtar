@@ -1,20 +1,20 @@
 # Test: cross-realm calls and the realm-author's responsibility for
 # guarding state-modifying entry points.
 #
-# Pre-PLAN3, the VM defended against an "exported non-crossing setter"
+# Pre-interrealm-v2, the VM defended against an "exported non-crossing setter"
 # footgun via a pre-mutation readonly check in PopAsPointer2 (added in
 # commit f87249327). A cross-realm caller invoking such a setter would
 # trip the readonly panic before the assignment landed in memory, even
 # with a recover() to swallow it.
 #
-# Under PLAN3, the declaring-realm borrow (Layer 1) shifts m.Realm to
+# Under interrealm v2, the declaring-realm borrow (Layer 1) shifts m.Realm to
 # the declaring realm for the duration of any /r/-declared callable —
 # regardless of crossing/non-crossing. Inside SetOwner's body the
 # borrow makes the write owner=o a SAME-REALM mutation, which is
-# legitimate under PLAN3's storage=authority model.
+# legitimate under interrealm v2's storage=authority model.
 #
 # Consequence: an exported unguarded setter IS exploitable cross-realm
-# under PLAN3. The defense is no longer at the VM layer; it is the
+# under interrealm v2. The defense is no longer at the VM layer; it is the
 # realm author's responsibility to gate state-modifying entry points
 # with `cur realm` + a caller check (see TransferOwnership below).
 #
@@ -38,12 +38,12 @@ stdout 'owner: g1dao0000000000000000000000000000000000'
 gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 420001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test attacker
 
 ## FOOTGUN 1: assign+recover via exported non-crossing setter.
-## Under PLAN3, Layer 1 borrow makes SetOwner's owner=o write a same-
+## Under interrealm v2, Layer 1 borrow makes SetOwner's owner=o write a same-
 ## realm mutation. The recover is never triggered (no panic). owner
 ## actually changes in memory; the subsequent Withdraw passes its
 ## owner check and proceeds to banker.SendCoins, which fails because
 ## the vault was never funded. The "insufficient coins" error here
-## is the proof that the owner check was bypassed — pre-PLAN3 the
+## is the proof that the owner check was bypassed — pre-interrealm-v2 the
 ## failure would have been "unauthorized" at the Withdraw guard.
 ! gnokey maketx call -pkgpath gno.land/r/test/attack -func Attack -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'insufficient coins'
@@ -57,7 +57,7 @@ stdout 'owner: g1dao0000000000000000000000000000000000'
 
 ## TEST 2 (positive control): the crossing setter correctly rejects
 ## non-owners. TransferOwnership uses `cur realm` and inspects
-## PreviousRealm().Address(), which under PLAN3 returns the calling
+## PreviousRealm().Address(), which under interrealm v2 returns the calling
 ## user (attacker) — not the declaring realm — and the check fires.
 ! gnokey maketx call -pkgpath gno.land/r/test/vault -func TransferOwnership -args ${attacker_user_addr} -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'unauthorized'
