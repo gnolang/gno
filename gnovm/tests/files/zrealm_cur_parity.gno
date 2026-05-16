@@ -33,7 +33,7 @@ func main(cur realm) {
 	println("main parity:", mainOK)
 
 	// Cross-call into curchain_a.A; A logs whether parity held there.
-	curchain_a.A(cross)
+	curchain_a.A(cross2(cur))
 }
 
 // curMatchesRuntime checks that the captured `cur` value agrees on

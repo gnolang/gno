@@ -34,7 +34,7 @@ func init() {
 // RegisterToken registers a token in grc20reg with the given slug.
 // Returns the registry key that can be used to retrieve the token.
 func RegisterToken(cur realm, token *grc20.Token, slug string) string {
-	grc20reg.Register(cross, token, slug)
+	grc20reg.Register(cross2(cur), token, slug)
 	return fqname.Construct(cur.PkgPath(), slug)
 }
 

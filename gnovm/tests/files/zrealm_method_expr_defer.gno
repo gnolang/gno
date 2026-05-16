@@ -22,7 +22,7 @@ func (s *S) Close() {
 
 func main(cur realm) {
 	s := &S{}
-	crossrealm.SetObject(cross, s)
+	crossrealm.SetObject(cross2(cur), s)
 	defer (*S).Close(s)
 	println("body done")
 }

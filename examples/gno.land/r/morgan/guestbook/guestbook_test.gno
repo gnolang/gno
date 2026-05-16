@@ -13,10 +13,10 @@ func TestSign(cur realm, t *testing.T) {
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	Sign(cross, "Hello!")
+	Sign(cross2(cur), "Hello!")
 
 	testing.SetRealm(testing.NewUserRealm("g1user2"))
-	Sign(cross, "Hello2!")
+	Sign(cross2(cur), "Hello2!")
 
 	res := Render("")
 	t.Log(res)
@@ -52,7 +52,7 @@ func TestSign_Double(cur realm, t *testing.T) {
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	Sign(cross, "Hello!")
+	Sign(cross2(cur), "Hello!")
 
 	rec := revive(func() { Sign(cross, "Hello again!") })
 	if rec == nil {
@@ -99,14 +99,14 @@ func TestAdminDelete(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
-	Sign(cross, bad)
+	Sign(cross2(cur), bad)
 
 	if rnd := Render(""); !strings.Contains(rnd, bad) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminDelete(cross, signatureID.String())
+	AdminDelete(cross2(cur), signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {
 		t.Error("render contains bad message", rnd)

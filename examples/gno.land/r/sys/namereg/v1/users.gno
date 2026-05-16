@@ -76,7 +76,7 @@ func Register(cur realm, username string) {
 	// canonical form clashes with an existing registration in any
 	// controller.
 	registrant := cur.Previous().Address()
-	if err := susers.RegisterUser(cross, username, registrant); err != nil {
+	if err := susers.RegisterUser(cross2(cur), username, registrant); err != nil {
 		panic(err)
 	}
 

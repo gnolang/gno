@@ -14,7 +14,7 @@ var v S
 func main(cur realm) {
 	println("main()")
 	v.v = new(int)
-	crossrealm_b.SetObject(cross, &v)
+	crossrealm_b.SetObject(cross2(cur), &v)
 	println("done")
 }
 

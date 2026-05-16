@@ -24,7 +24,7 @@ func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 	// Caller realm = valopers; auth check passes.
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
 
-	NotifyValoperChanged(cross, op, pubKeyA, signingAddr, true)
+	NotifyValoperChanged(cross2(cur), op, pubKeyA, signingAddr, true)
 
 	rawEntry, ok := valoperCache.Get(op.String())
 	urequire.True(t, ok, "cache entry must exist")
@@ -35,7 +35,7 @@ func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 
 	// Subsequent call updates the same slot.
 	signingAddrB := mustAddr(t, pubKeyB)
-	NotifyValoperChanged(cross, op, pubKeyB, signingAddrB, false)
+	NotifyValoperChanged(cross2(cur), op, pubKeyB, signingAddrB, false)
 
 	rawEntry, ok = valoperCache.Get(op.String())
 	urequire.True(t, ok)
@@ -76,7 +76,7 @@ func TestRotateValoperSigningKey_AppliesRotation(cur realm, t *testing.T) {
 	op := testutils.TestAddress("op-A")
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
 
-	RotateValoperSigningKey(cross, op, pubKeyA, pubKeyB)
+	RotateValoperSigningKey(cross2(cur), op, pubKeyA, pubKeyB)
 
 	// After rotation the effective set (proposed-when-dirty) should
 	// contain pubKeyB at the same power; pubKeyA should be gone.
@@ -222,11 +222,11 @@ func TestRotateValoperSigningKey_AccumulatesAcrossSameBlock(cur realm, t *testin
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
 
 	// First rotation: A → B. Read-modify-write of GetValsetEffective.
-	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyB)
+	RotateValoperSigningKey(cross2(cur), opA, pubKeyA, pubKeyB)
 
 	// Second rotation in the same block: C → A. Should not clobber
 	// the first rotation; should read proposed-when-dirty as baseline.
-	RotateValoperSigningKey(cross, opC, pubKeyC, pubKeyA)
+	RotateValoperSigningKey(cross2(cur), opC, pubKeyC, pubKeyA)
 
 	// Final effective set: {pubKeyB:10, pubKeyA:5}. Order may differ
 	// because GetValsetEffective parses sysparams' sorted-string slot

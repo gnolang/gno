@@ -55,7 +55,7 @@ func init() {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user1))
 
-	commondao.Execute(cross, dao.ID(), proposal.ID())
+	commondao.Execute(cross2(cur), dao.ID(), proposal.ID())
 
 	p := dao.FinishedProposals().Get(proposal.ID())
 	if p == nil {

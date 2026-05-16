@@ -21,8 +21,8 @@ var f *fooer
 
 func main(cur realm) {
 	f = &fooer{}
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCur(cross)
+	crossrealm.SetFooer(cross2(cur), f)
+	crossrealm.CallFooerFooCur(cross2(cur))
 }
 
 // Error:

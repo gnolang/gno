@@ -22,7 +22,7 @@ func init() {
 
 func main(cur realm) {
 	println("crossrealm_b.IncrementObject(cross)")
-	println(crossrealm_b.IncrementObject(cross))
+	println(crossrealm_b.IncrementObject(cross2(cur)))
 	println(ourS.A)
 }
 

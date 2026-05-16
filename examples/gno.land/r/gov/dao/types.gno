@@ -186,7 +186,7 @@ func (e *SimpleExecutor) Execute(cur realm) error {
 		return nil
 	}
 
-	return e.callback(cross)
+	return e.callback(cross2(cur))
 }
 
 func (e *SimpleExecutor) String() string {
@@ -215,7 +215,7 @@ func (e *SafeExecutor) Execute(cur realm) error {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 
-	return e.e.Execute(cross)
+	return e.e.Execute(cross2(cur))
 }
 
 func (e *SafeExecutor) String() string {

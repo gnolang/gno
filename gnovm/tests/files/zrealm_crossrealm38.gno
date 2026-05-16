@@ -29,7 +29,7 @@ func init() {
 }
 
 func main(cur realm) {
-	crossrealm_f.Add(cross, crossrealm_f.NewEntry("c", 3))
+	crossrealm_f.Add(cross2(cur), crossrealm_f.NewEntry("c", 3))
 	println(crossrealm_f.Len())
 }
 

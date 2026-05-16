@@ -31,7 +31,7 @@ func main(cur realm) {
 	}()
 
 	s := &Switch{}
-	crossrealm.SetObject(cross, s)
+	crossrealm.SetObject(cross2(cur), s)
 
 	defer s.Close()
 

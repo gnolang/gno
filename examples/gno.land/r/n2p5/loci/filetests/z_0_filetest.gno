@@ -10,23 +10,23 @@ func main(cur realm) {
 	println("caller: " + string(caller.Address()))
 
 	// test nothing being set, yet.
-	r0 := loci.Get(cross, caller.Address())
+	r0 := loci.Get(cross2(cur), caller.Address())
 	println("expect: " + "")
 	println("got   : " + r0)
 
 	// set the value, which uses the CurrentRealm as the caller.
 	input1 := "aGVsbG8sIHdvcmxkCg=="
-	loci.Set(cross, input1)
+	loci.Set(cross2(cur), input1)
 	println("set   : " + string(input1))
-	r1 := loci.Get(cross, caller.Address())
+	r1 := loci.Get(cross2(cur), caller.Address())
 	println("expect: " + input1)
 	println("got   : " + r1)
 
 	// change the value, which should override the previous value.
 	input2 := "Z29vZGJ5ZSwgd29ybGQK"
-	loci.Set(cross, input2)
+	loci.Set(cross2(cur), input2)
 	println("set   : " + string(input2))
-	r2 := loci.Get(cross, caller.Address())
+	r2 := loci.Get(cross2(cur), caller.Address())
 	println("expect: " + input2)
 	println("got   : " + r2)
 

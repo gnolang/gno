@@ -119,7 +119,7 @@ func TestROStores(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+	urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 	roNS := GetReadOnlyNameStore()
 	roAS := GetReadonlyAddrStore()
 

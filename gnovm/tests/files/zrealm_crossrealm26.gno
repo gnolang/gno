@@ -11,7 +11,7 @@ type Struct struct {
 
 func main(cur realm) {
 	s := &Struct{A: 100}
-	crossrealm_b.SetObject(cross, func() { println(&s.A) })
+	crossrealm_b.SetObject(cross2(cur), func() { println(&s.A) })
 	s.A = 123
 	println(s)
 }

@@ -13,7 +13,7 @@ import (
 
 func main(cur realm) {
 	println("== via bare cross ==")
-	crossrealm.PrintRealms(cross)
+	crossrealm.PrintRealms(cross2(cur))
 	println("== via cross2(cur) ==")
 	crossrealm.PrintRealms(cross2(cur))
 }

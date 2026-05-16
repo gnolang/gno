@@ -26,7 +26,7 @@ var (
 func init(cur realm) {
 	Token, adm = grc20.NewToken(0, cur, "Bar", "BAR", 4)
 	UserTeller = Token.CallerTeller()
-	grc20reg.Register(cross, Token, "")
+	grc20reg.Register(cross2(cur), Token, "")
 }
 
 func Faucet(cur realm) string {

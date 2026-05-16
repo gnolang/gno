@@ -21,7 +21,7 @@ var alice = testutils.TestAddress("alice")
 
 func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
-	UpdateImpl(cross, UpdateRequest{
+	UpdateImpl(cross2(cur), UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{v3},
 	})
@@ -79,11 +79,11 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 		pid = MustCreateProposal(cross, NewProposalRequest("Proposal Title", "Description", e))
 	})
 
-	p, err := GetProposal(cross, 1000)
+	p, err := GetProposal(cross2(cur), 1000)
 	if p != nil || err == nil {
 		panic("proposal should not exist and should return an error")
 	}
-	p = MustGetProposal(cross, pid)
+	p = MustGetProposal(cross2(cur), pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
 	urequire.Equal(t, p.Author().String(), alice.String())
 
@@ -97,7 +97,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// reset state
 	testing.SetRealm(testing.NewCodeRealm(v4))
-	UpdateImpl(cross, UpdateRequest{
+	UpdateImpl(cross2(cur), UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
 	})

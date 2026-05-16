@@ -136,7 +136,7 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 	name := "Bar"
 	p := newSubDAOPropDefinition(parentDAO, name, &members)
 	fn := p.Executor()
-	err := fn(cross)
+	err := fn(cross2(cur))
 	urequire.NoError(t, err, "expected no execution error")
 
 	// Expect SubDAO to be created
@@ -278,7 +278,7 @@ func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
 
 	p := newDissolvePropDefinition(dao)
 	fn := p.Executor()
-	err := fn(cross)
+	err := fn(cross2(cur))
 	urequire.NoError(t, err, "expected no execution error")
 
 	uassert.True(t, dao.IsDeleted(), "expected DAO to be soft deleted")

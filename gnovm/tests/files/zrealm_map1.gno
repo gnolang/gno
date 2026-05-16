@@ -9,7 +9,7 @@ func main(cur realm) {
 	// Create a map in this realm with multiple entries
 	m := map[string]int{"admin": 1000, "user1": 500, "user2": 200}
 
-	crossrealm_b.SetObject(cross, m)
+	crossrealm_b.SetObject(cross2(cur), m)
 
 	obj := crossrealm_b.GetObject()
 	rm := obj.(map[string]int)

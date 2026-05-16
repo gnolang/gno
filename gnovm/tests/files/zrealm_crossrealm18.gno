@@ -22,17 +22,17 @@ var f crossrealm.Fooer = crossrealm.SetFooer(cross, &fooer{})
 func init(cur realm) {
 	println("init")
 	// crossrealm.CallFooerFooCur(cross) <-- should panic
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross2(cur))
 }
 
 func main(cur realm) {
 	println("main")
 	// crossrealm.CallFooerFooCur(cross) <-- should panic
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross2(cur))
 	print(".")
 }
 

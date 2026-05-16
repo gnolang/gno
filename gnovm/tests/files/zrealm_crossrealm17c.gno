@@ -24,12 +24,12 @@ var f *fooer
 func main(cur realm) {
 	f = &fooer{}
 	c := &container{f}
-	crossrealm.SetFooer(cross, c)
+	crossrealm.SetFooer(cross2(cur), c)
 	// crossrealm.CallFooerFooCur(cur) <- panics: cannot cur-call to
 	// external realm function
 	// gno.land/r/tests/vm/crossrealm.crossrealm<VPBlock(2,1)>.CallFooerFooCur
 	// from gno.land/r/crossrealm_test
-	crossrealm.CallFooerFooCur(cross)
+	crossrealm.CallFooerFooCur(cross2(cur))
 
 }
 

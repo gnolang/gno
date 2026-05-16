@@ -19,7 +19,7 @@ func init(cur realm) {
 		admin,
 		blog.WithUserResolver(myResolver),
 	)
-	hor.Register(cross, "Lou's blog realm", "")
+	hor.Register(cross2(cur), "Lou's blog realm", "")
 }
 
 func Render(path string) string {

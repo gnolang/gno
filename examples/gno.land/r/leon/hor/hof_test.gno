@@ -39,40 +39,40 @@ func TestRegister(cur realm, t *testing.T) {
 	aliceRealm := testing.NewUserRealm(alice)
 	testing.SetRealm(aliceRealm)
 
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Test register while paused
 	testing.SetRealm(adminRealm)
-	err := Pause(cross)
+	err := Pause(cross2(cur))
 	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(testing.NewCodeRealm(rlmPath))
 
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Unpause
 	testing.SetRealm(adminRealm)
-	err = Unpause(cross)
+	err = Unpause(cross2(cur))
 	uassert.NoError(t, err)
 
 	// Set legitimate caller
 	testing.SetRealm(testing.NewCodeRealm(rlmPath))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	// Find registered items
 	uassert.True(t, itemExists(t, rlmPath))
 
 	// Test register with invalid title
 	testing.SetRealm(testing.NewCodeRealm(rlmPath2))
-	Register(cross, invalidTitle, validDesc)
+	Register(cross2(cur), invalidTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath2))
 
 	// Test register with invalid description
 	testing.SetRealm(testing.NewCodeRealm(rlmPath2))
-	Register(cross, validTitle, invalidDescription)
+	Register(cross2(cur), validTitle, invalidDescription)
 	uassert.False(t, itemExists(t, rlmPath2))
 }
 
@@ -188,13 +188,13 @@ func TestSortByUpvote(cur realm, t *testing.T) {
 
 	// Add items
 	testing.SetRealm(testing.NewCodeRealm(rlmPath3))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	testing.SetRealm(testing.NewCodeRealm(rlmPath4))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	testing.SetRealm(testing.NewCodeRealm(rlmPath5))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	user1 := testutils.TestAddress("user1")
 	user2 := testutils.TestAddress("user2")
@@ -202,18 +202,18 @@ func TestSortByUpvote(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(user1)
 	testing.SetRealm(testing.NewUserRealm(user1))
-	Upvote(cross, rlmPath3)
-	Upvote(cross, rlmPath4)
-	Upvote(cross, rlmPath5)
+	Upvote(cross2(cur), rlmPath3)
+	Upvote(cross2(cur), rlmPath4)
+	Upvote(cross2(cur), rlmPath5)
 
 	testing.SetOriginCaller(user2)
 	testing.SetRealm(testing.NewUserRealm(user2))
-	Upvote(cross, rlmPath4)
-	Upvote(cross, rlmPath5)
+	Upvote(cross2(cur), rlmPath4)
+	Upvote(cross2(cur), rlmPath5)
 
 	testing.SetOriginCaller(user3)
 	testing.SetRealm(testing.NewUserRealm(user3))
-	Upvote(cross, rlmPath5)
+	Upvote(cross2(cur), rlmPath5)
 
 	// We are displaying data in reverse order in render, so items should be sorted in reverse order
 	_, firstRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(0)
@@ -246,13 +246,13 @@ func TestSortByDownvote(cur realm, t *testing.T) {
 
 	// Add items
 	testing.SetRealm(testing.NewCodeRealm(rlmPath3))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	testing.SetRealm(testing.NewCodeRealm(rlmPath4))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	testing.SetRealm(testing.NewCodeRealm(rlmPath5))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	user1 := testutils.TestAddress("user1")
 	user2 := testutils.TestAddress("user2")
@@ -260,18 +260,18 @@ func TestSortByDownvote(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(user1)
 	testing.SetRealm(testing.NewUserRealm(user1))
-	Downvote(cross, rlmPath3)
-	Downvote(cross, rlmPath4)
-	Downvote(cross, rlmPath5)
+	Downvote(cross2(cur), rlmPath3)
+	Downvote(cross2(cur), rlmPath4)
+	Downvote(cross2(cur), rlmPath5)
 
 	testing.SetOriginCaller(user2)
 	testing.SetRealm(testing.NewUserRealm(user2))
-	Downvote(cross, rlmPath4)
-	Downvote(cross, rlmPath5)
+	Downvote(cross2(cur), rlmPath4)
+	Downvote(cross2(cur), rlmPath5)
 
 	testing.SetOriginCaller(user3)
 	testing.SetRealm(testing.NewUserRealm(user3))
-	Downvote(cross, rlmPath5)
+	Downvote(cross2(cur), rlmPath5)
 
 	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
 	_, firstRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(0)
@@ -308,15 +308,15 @@ func TestSortByCreation(cur realm, t *testing.T) {
 
 	testing.SkipHeights(10)
 	testing.SetRealm(testing.NewCodeRealm(rlmPath3))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	testing.SkipHeights(10)
 	testing.SetRealm(testing.NewCodeRealm(rlmPath4))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	testing.SkipHeights(10)
 	testing.SetRealm(testing.NewCodeRealm(rlmPath5))
-	Register(cross, validTitle, validDesc)
+	Register(cross2(cur), validTitle, validDesc)
 
 	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
 	_, firstRawValue := exhibition.itemsSortedByCreation.GetByIndex(0)

@@ -21,7 +21,7 @@ var f crossrealm.Fooer = crossrealm.SetFooer(cross, &fooer{})
 
 func init(cur realm) {
 	println("init")
-	crossrealm.CallFooerFooCur(cross)
+	crossrealm.CallFooerFooCur(cross2(cur))
 }
 
 func main(cur realm) {

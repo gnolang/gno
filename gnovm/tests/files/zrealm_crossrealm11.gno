@@ -78,7 +78,7 @@ func main(cur realm) {
 		{ // with no Exec
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross2(cur))
 			} else {
 				r = tt.callerFn()
 			}
@@ -105,7 +105,7 @@ func main(cur realm) {
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.ExecSwitch(cross, func() {
+		rtests.ExecSwitch(cross2(cur), func() {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
 				r = tt.callerFnCrossing(cross)

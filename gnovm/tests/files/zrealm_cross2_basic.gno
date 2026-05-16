@@ -11,7 +11,7 @@ func callee(cur realm) string {
 
 func main(cur realm) {
 	// Bare cross: classic form.
-	println("bare cross:   ", callee(cross))
+	println("bare cross:   ", callee(cross2(cur)))
 	// Explicit cross2(cur): identical end state.
 	println("cross2(cur):  ", callee(cross2(cur)))
 }

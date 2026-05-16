@@ -52,7 +52,7 @@ func CallFooerFooCur(cur realm) {
 }
 
 func CallFooerFooCross(cur realm) {
-	fooer.Foo(cross)
+	fooer.Foo(cross2(cur))
 }
 
 func CallFooerBar() {
@@ -89,7 +89,7 @@ func CallFooerGetterFooCur(cur realm) {
 }
 
 func CallFooerGetterFooCross(cur realm) {
-	fooerGetter().Foo(cross)
+	fooerGetter().Foo(cross2(cur))
 }
 
 // This is a top function that does switch realms.
@@ -130,7 +130,7 @@ func SetClosure2(cur realm, f func(realm)) {
 	Closure2 = f
 }
 func ExecuteClosureCross(cur realm) {
-	Closure2(cross)
+	Closure2(cross2(cur))
 }
 
 // Closure -> FooUpdate

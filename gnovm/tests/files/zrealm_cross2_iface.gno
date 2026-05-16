@@ -27,7 +27,7 @@ func (i *impl) Cross(cur realm) string {
 func main(cur realm) {
 	var c Crosser = &impl{name: "iface"}
 	// Bare cross through interface dispatch.
-	println(c.Cross(cross))
+	println(c.Cross(cross2(cur)))
 	// cross2(cur) through interface dispatch — identical result.
 	println(c.Cross(cross2(cur)))
 }

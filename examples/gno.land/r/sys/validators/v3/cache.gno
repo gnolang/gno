@@ -133,7 +133,7 @@ func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string)
 		entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 	}
 	sort.Strings(entries)
-	sysparams.SetValsetProposal(cross, entries)
+	sysparams.SetValsetProposal(cross2(cur), entries)
 
 	chain.Emit(
 		"ValoperRotated",

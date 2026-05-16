@@ -21,13 +21,13 @@ var f *fooer
 
 func main(cur realm) {
 	f = &fooer{}
-	crossrealm.SetFooer(cross, f)
+	crossrealm.SetFooer(cross2(cur), f)
 	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cur-call to
 	// external realm function gno.land/r/crossrealm_test.Foo from
 	// gno.land/r/tests/vm/crossrealm
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.CallFooerFooCross(cross2(cur))
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross2(cur))
 	print(".")
 }
 

@@ -27,7 +27,7 @@ func main(cur realm) {
 	fn := func() string {
 		return callee(cross2(rlm))
 	}
-	runClosure(cross, fn)
+	runClosure(cross2(cur), fn)
 }
 
 // Error:

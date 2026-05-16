@@ -27,15 +27,15 @@ func A(cur realm, outerCur realm, depth int) {
 	}
 	// First invocation: outerCur is M, A's own cur is A1.
 	// Pass outerCur through B and back into A.
-	B(cross, outerCur)
+	B(cross2(cur), outerCur)
 }
 
 func B(cur realm, outerCur realm) {
-	A(cross, outerCur, 1)
+	A(cross2(cur), outerCur, 1)
 }
 
 func main(cur realm) {
-	A(cross, cur, 0)
+	A(cross2(cur), cur, 0)
 }
 
 // Error:

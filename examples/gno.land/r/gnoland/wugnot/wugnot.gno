@@ -23,7 +23,7 @@ const (
 
 func init(cur realm) {
 	Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
-	grc20reg.Register(cross, Token, "")
+	grc20reg.Register(cross2(cur), Token, "")
 }
 
 func Deposit(cur realm) {

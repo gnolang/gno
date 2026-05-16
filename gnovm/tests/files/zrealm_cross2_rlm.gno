@@ -22,7 +22,7 @@ func main(cur realm) {
 	// Call the helper, threading cur as rlm.
 	println("via helper:   ", helper(0, cur))
 	// And bare cross from main for comparison.
-	println("bare cross:   ", callee(cross))
+	println("bare cross:   ", callee(cross2(cur)))
 }
 
 // Output:

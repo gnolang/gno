@@ -29,16 +29,16 @@ func A(cur realm, outerCur realm, c Crosser, depth int) {
 		println(c.Cross(cross2(outerCur)))
 		return
 	}
-	B(cross, outerCur, c)
+	B(cross2(cur), outerCur, c)
 }
 
 func B(cur realm, outerCur realm, c Crosser) {
-	A(cross, outerCur, c, 1)
+	A(cross2(cur), outerCur, c, 1)
 }
 
 func main(cur realm) {
 	var c Crosser = impl{}
-	A(cross, cur, c, 0)
+	A(cross2(cur), cur, c, 0)
 }
 
 // Error:

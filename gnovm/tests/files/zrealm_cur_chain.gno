@@ -10,7 +10,7 @@ import (
 // next .Previous() is nil. Origin walks to main.
 func main(cur realm) {
 	println("main cur.PkgPath:", cur.PkgPath())
-	curchain_a.A(cross)
+	curchain_a.A(cross2(cur))
 }
 
 // Output:

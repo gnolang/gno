@@ -199,7 +199,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	})
 
 	// Refresh v3's cache for this operator.
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.NotifyValoperChanged(cross2(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // UpdateMoniker updates an existing valoper's moniker.
@@ -255,7 +255,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	valopers.Set(addr.String(), v)
 
 	// Refresh v3's cache (KeepRunning is one of the cached fields).
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.NotifyValoperChanged(cross2(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // UpdateServerType updates an existing valoper's server type.
@@ -366,8 +366,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// Apply to consensus via v3, then refresh v3's cache view of the
 	// profile. Order matters only in that both must complete; tx
 	// atomicity rolls back together on any panic.
-	validators.RotateValoperSigningKey(cross, addr, oldPubKey, newPubKey)
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.RotateValoperSigningKey(cross2(cur), addr, oldPubKey, newPubKey)
+	validators.NotifyValoperChanged(cross2(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // GetByAddr fetches the valoper using the operator address, if present.

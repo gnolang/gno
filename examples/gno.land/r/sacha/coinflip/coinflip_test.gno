@@ -11,7 +11,7 @@ import (
 var coinflipAddr = chain.PackageAddress("gno.land/r/sacha/coinflip")
 
 func TestGetRealmBalance(cur realm, t *testing.T) {
-	value := GetRealmBalance(cross)
+	value := GetRealmBalance(cross2(cur))
 
 	if value != 0 {
 		t.Fatalf("Expected 0, got %v", value)
@@ -40,7 +40,7 @@ func TestWithdrawal(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(sachaAddr))
 
-	Withdrawal(cross, 1000)
+	Withdrawal(cross2(cur), 1000)
 
 	mainbal := banker_.GetCoins(coinflipAddr)
 	sachabal := banker_.GetCoins(sachaAddr)
@@ -58,7 +58,7 @@ func TestSendPrize(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
-	sendPrize(cross, aliceAddr, 1000)
+	sendPrize(cross2(cur), aliceAddr, 1000)
 
 	mainbal := banker_.GetCoins(coinflipAddr)
 	alicebal := banker_.GetCoins(aliceAddr)

@@ -9,8 +9,8 @@ func callee(cur realm) string {
 }
 
 func main(cur realm) {
-	defer callee(cross)
+	defer callee(cross2(cur))
 }
 
 // Error:
-// gno.land/r/demo/cross2defercross/zrealm_cross2_defercross.gno:12:8-21: crossing call (`cross` or `cross2(rlm)`) cannot be deferred directly — the deferred-call dispatch path doesn't mint a fresh cur. Wrap in a closure: `defer func() { fn(cross, args...) }()`
+// gno.land/r/demo/cross2defercross/zrealm_cross2_defercross.gno:12:8-27: crossing call (`cross` or `cross2(rlm)`) cannot be deferred directly — the deferred-call dispatch path doesn't mint a fresh cur. Wrap in a closure: `defer func() { fn(cross, args...) }()`

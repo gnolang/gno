@@ -151,7 +151,7 @@ func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(cur realm, t *test
 		KeepRunning:    true,
 	})
 
-	urequire.NoError(t, exec.Execute(cross))
+	urequire.NoError(t, exec.Execute(cross2(cur)))
 
 	// Effective valset should contain pubKeyB (post-rotation), not
 	// pubKeyA (creation-time).
@@ -206,7 +206,7 @@ func TestNewValidatorProposalRequest_RemoveLeavesOthers(cur realm, t *testing.T)
 
 	changes := []ValoperChange{{OperatorAddress: opA, Power: 0}}
 	// Build the executor directly (private function, same package).
-	urequire.NoError(t, newValoperChangeExecutor(changes).Execute(cross))
+	urequire.NoError(t, newValoperChangeExecutor(changes).Execute(cross2(cur)))
 
 	// Effective set: only opB / pubKeyB remains.
 	effective := sysparams.GetValsetEffective()
@@ -264,7 +264,7 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(cur realm, t
 	_ = pr
 
 	// Executor also succeeds.
-	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross))
+	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross2(cur)))
 }
 
 func TestNewValidatorProposalRequest_RejectsDuplicateOp(cur realm, t *testing.T) {
@@ -338,7 +338,7 @@ func TestNewValidatorProposalRequest_UpsertExistingValidator(cur realm, t *testi
 	})
 
 	changes := []ValoperChange{{OperatorAddress: opA, Power: 9}}
-	urequire.NoError(t, newValoperChangeExecutor(changes).Execute(cross))
+	urequire.NoError(t, newValoperChangeExecutor(changes).Execute(cross2(cur)))
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -401,13 +401,13 @@ func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(cur realm, t *t
 	})
 
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
-	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyC)
-	NotifyValoperChanged(cross, opA, pubKeyC, mustAddr(t, pubKeyC), true)
+	RotateValoperSigningKey(cross2(cur), opA, pubKeyA, pubKeyC)
+	NotifyValoperChanged(cross2(cur), opA, pubKeyC, mustAddr(t, pubKeyC), true)
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	urequire.NoError(t, newValoperChangeExecutor(
 		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
-	).Execute(cross))
+	).Execute(cross2(cur)))
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -450,7 +450,7 @@ func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(cu
 
 	urequire.NoError(t, newValoperChangeExecutor(
 		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
-	).Execute(cross))
+	).Execute(cross2(cur)))
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -490,11 +490,11 @@ func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(cur realm, t *te
 
 	urequire.NoError(t, newValoperChangeExecutor(
 		[]ValoperChange{{OperatorAddress: opA, Power: 3}},
-	).Execute(cross))
+	).Execute(cross2(cur)))
 
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
-	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyC)
-	NotifyValoperChanged(cross, opA, pubKeyC, mustAddr(t, pubKeyC), true)
+	RotateValoperSigningKey(cross2(cur), opA, pubKeyA, pubKeyC)
+	NotifyValoperChanged(cross2(cur), opA, pubKeyC, mustAddr(t, pubKeyC), true)
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}

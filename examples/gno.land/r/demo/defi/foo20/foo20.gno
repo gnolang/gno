@@ -22,7 +22,7 @@ func init(cur realm) {
 	Token, privateLedger = grc20.NewToken(0, cur, "Foo", "FOO", 4)
 	userTeller = Token.CallerTeller()
 	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	grc20reg.Register(cross, Token, "")
+	grc20reg.Register(cross2(cur), Token, "")
 }
 
 func TotalSupply() int64 {

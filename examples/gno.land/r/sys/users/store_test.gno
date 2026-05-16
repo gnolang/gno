@@ -520,7 +520,7 @@ func TestCanonicalEntry_Persists_After_Delete(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+	urequire.NoError(t, RegisterUser(cross2(cur), "vitalik", aliceAddr))
 	data := ResolveAddress(aliceAddr)
 	urequire.NoError(t, data.Delete())
 
@@ -532,7 +532,7 @@ func TestCanonicalEntry_Persists_After_Delete(cur realm, t *testing.T) {
 	// A different user CANNOT register a confusable variant — the deleted
 	// user's canonical claim still stands.
 	uassert.ErrorContains(t,
-		RegisterUser(cross, "vital1k", bobAddr),
+		RegisterUser(cross2(cur), "vital1k", bobAddr),
 		ErrCanonicalCollision.Error(),
 	)
 }
@@ -543,7 +543,7 @@ func TestCanonicalEntry_Persists_After_UpdateName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(cross, "alice", aliceAddr))
+	urequire.NoError(t, RegisterUser(cross2(cur), "alice", aliceAddr))
 	data := ResolveAddress(aliceAddr)
 	testing.SetOriginCaller(whitelistedCallerAddr)
 	urequire.NoError(t, data.UpdateName("alice2"))

@@ -38,11 +38,11 @@ func CallIsOriginCall(cur realm) bool {
 }
 
 func CallSubtestsAssertOriginCall(cur realm) {
-	rsubtests.CallAssertOriginCall(cross)
+	rsubtests.CallAssertOriginCall(cross2(cur))
 }
 
 func CallSubtestsIsOriginCall(cur realm) bool {
-	return rsubtests.CallIsOriginCall(cross)
+	return rsubtests.CallIsOriginCall(cross2(cur))
 }
 
 //----------------------------------------
@@ -98,7 +98,7 @@ func GetPreviousRealm(cur realm) runtime.Realm {
 }
 
 func GetRSubtestsPreviousRealm(cur realm) runtime.Realm {
-	return rsubtests.GetPreviousRealm(cross)
+	return rsubtests.GetPreviousRealm(cross2(cur))
 }
 
 func Exec(fn func()) {
@@ -127,5 +127,5 @@ func BankerOriginSend(cur realm) string {
 }
 
 func RTestsOriginSend(cur realm) string {
-	return rsubtests.BankerOriginSend(cross)
+	return rsubtests.BankerOriginSend(cross2(cur))
 }

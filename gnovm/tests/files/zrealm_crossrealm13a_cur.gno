@@ -13,21 +13,21 @@ import (
 func main(cur realm) {
 	println("From main:")
 	PrintRealm(cur)
-	PrintRealm(cross)
+	PrintRealm(cross2(cur))
 	println(pad("CurrentRealm:"), renderCur(cur))
 	println(pad("PreviousRealm:"), renderPrev(cur))
 	println("")
 
 	println("From g1user origin:")
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	PrintRealm(cross)
+	PrintRealm(cross2(cur))
 	println(pad("CurrentRealm:"), renderCur(cur))
 	println(pad("PreviousRealm:"), renderPrev(cur))
 	println("")
 
 	println("From gno.land/r/sys/users realm:")
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
-	PrintRealm(cross)
+	PrintRealm(cross2(cur))
 	println(pad("CurrentRealm:"), renderCur(cur))
 	println(pad("PreviousRealm:"), renderPrev(cur))
 }
