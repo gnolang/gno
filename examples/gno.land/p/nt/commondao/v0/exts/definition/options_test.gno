@@ -9,6 +9,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 func TestOptions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -109,9 +115,9 @@ func TestOptions(t *testing.T) {
 
 			// Assert
 			if tt.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tt.panicMsg, fn, "expect panic with message")
+				urequire.PanicsWithMessage(t, cur, tt.panicMsg, fn, "expect panic with message")
 			} else {
-				urequire.NotPanics(t, fn, "expect no panic")
+				urequire.NotPanics(t, cur, fn, "expect no panic")
 				urequire.True(t, option != nil, "expect a non nil option")
 			}
 		})

@@ -10,6 +10,12 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	alice = testutils.TestAddress("alice")
 	bob   = testutils.TestAddress("bob")
@@ -39,7 +45,7 @@ var (
 // future work.
 
 func TestNewRecurringSubscription_RejectsInvalidPayee(t *testing.T) {
-	uassert.PanicsWithMessage(t, ErrInvalidPayee.Error(), func() {
+	uassert.PanicsWithMessage(t, cur, ErrInvalidPayee.Error(), func() {
 		NewRecurringSubscription(alice, time.Hour, 1000, address(""))
 	})
 }

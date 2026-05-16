@@ -7,6 +7,12 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 func TestNewGenerator(t *testing.T) {
 	f := NewGenerator()
 
@@ -59,7 +65,7 @@ func TestPickRandomLettersOnly(t *testing.T) {
 	testData := []string{"hello8", "123", "6world", "hey_hey", "ok."}
 
 	uassert.PanicsWithMessage(
-		t,
+		t, cur,
 		"could not find a letters-only word after 100 attempts",
 		func() { f.pickRandomLettersOnly(&testData) },
 	)

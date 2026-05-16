@@ -20,6 +20,12 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	user1Addr       = testutils.TestAddress("g1user1")
 	user2Addr       = testutils.TestAddress("g1user2")
@@ -99,7 +105,7 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 	return keyedTokens
 }
 
-func TestAllowedDAOs(cur realm, t *testing.T) {
+func TestAllowedDAOs(t *testing.T) {
 	// Set the current Realm to the not allowed one.
 	testing.SetRealm(notAllowedRealm)
 
@@ -108,7 +114,7 @@ func TestAllowedDAOs(cur realm, t *testing.T) {
 
 	// Try to send, it should abort because the Realm is not allowed.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"this Realm is not allowed to send payment: "+notAllowedRealm.PkgPath(),
 		func() { treasury.Send(cross2(cur), dummyP) },
 	)
@@ -119,13 +125,13 @@ func TestAllowedDAOs(cur realm, t *testing.T) {
 	// Try to send, it should not abort because the Realm is allowed,
 	// but because the dummy banker ID is not registered.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"banker not found: "+dummyP.BankerID(),
 		func() { treasury.Send(cross2(cur), dummyP) },
 	)
 }
 
-func TestRegisteredBankers(cur realm, t *testing.T) {
+func TestRegisteredBankers(t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
@@ -160,13 +166,13 @@ func TestRegisteredBankers(cur realm, t *testing.T) {
 	}
 }
 
-func TestSendGRC20Payment(cur realm, t *testing.T) {
+func TestSendGRC20Payment(t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
 	// Try to send a GRC20 payment with a not registered token, it should abort.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"failed to send payment: GRC20 token not found: UNKNOW",
 		func() {
 			treasury.Send(cross2(cur), trs_pkg.NewGRC20Payment("UNKNOW", 100, user1Addr))
@@ -193,7 +199,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 			uassert.Equal(t, keyed.token.BalanceOf(userAddr), int64(0))
 
 			// Try to send a GRC20 payment with a registered token, it should not abort.
-			uassert.NotAborts(t, func() {
+			uassert.NotAborts(t, cur, func() {
 				treasury.Send(
 					cross2(cur),
 					trs_pkg.NewGRC20Payment(
@@ -236,7 +242,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 
 	// Try to send a dummy payment with the GRC20 banker ID, it should abort.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"failed to send payment: invalid payment type",
 		func() {
 			treasury.Send(cross2(cur), &dummyPayment{bankerID: grc20BankerID})
@@ -245,7 +251,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 
 	// Try to send a GRC20 payment without enough balance, it should abort.
 	uassert.AbortsWithMessage(
-		t,
+		t, cur,
 		"failed to send payment: insufficient balance",
 		func() {
 			treasury.Send(
@@ -264,7 +270,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 	uassert.Equal(t, len(history), 6)
 }
 
-func TestSendCoinPayment(cur realm, t *testing.T) {
+func TestSendCoinPayment(t *testing.T) {
 	// Set the current Realm to the allowed one.
 	testing.SetRealm(allowedRealm)
 
@@ -307,7 +313,7 @@ func TestSendCoinPayment(cur realm, t *testing.T) {
 	// Treasury send coins.
 	for i := int64(0); i < 3; i++ {
 		// Send ugnot coins to user1 and user2.
-		uassert.NotAborts(t, func() {
+		uassert.NotAborts(t, cur, func() {
 			treasury.Send(
 				cross2(cur),
 				trs_pkg.NewCoinsPayment(ugnotCoins(t, txAmount), user1Addr),

@@ -9,13 +9,19 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	suRealm          = testing.NewUserRealm(address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
 	now              = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
 	parsedTimeNow, _ = time.Parse(time.RFC3339, now)
 )
 
-func TestAddEvent(cur realm, t *testing.T) {
+func TestAddEvent(t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
@@ -59,7 +65,7 @@ func TestAddEvent(cur realm, t *testing.T) {
 	}
 }
 
-func TestAddEventErrors(cur realm, t *testing.T) {
+func TestAddEventErrors(t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	_, err := AddEvent(cross2(cur), "", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
@@ -82,7 +88,7 @@ func TestAddEventErrors(cur realm, t *testing.T) {
 	uassert.ErrorContains(t, err, ErrDescriptionTooLong.Error())
 }
 
-func TestDeleteEvent(cur realm, t *testing.T) {
+func TestDeleteEvent(t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
@@ -105,7 +111,7 @@ func TestDeleteEvent(cur realm, t *testing.T) {
 	}
 }
 
-func TestEditEvent(cur realm, t *testing.T) {
+func TestEditEvent(t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
@@ -138,7 +144,7 @@ func TestEditEvent(cur realm, t *testing.T) {
 func TestInvalidEdit(t *testing.T) {
 	testing.SetRealm(suRealm)
 
-	uassert.AbortsWithMessage(t, ErrNoSuchID.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrNoSuchID.Error(), func() {
 		EditEvent(cross, "123123", "", "", "", "", "", "")
 	})
 }
@@ -161,7 +167,7 @@ func TestParseTimes(t *testing.T) {
 	uassert.ErrorContains(t, err, ErrStartEndTimezonemMismatch.Error())
 }
 
-func TestRenderEventWidget(cur realm, t *testing.T) {
+func TestRenderEventWidget(t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	// No events yet

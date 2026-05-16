@@ -8,6 +8,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	alice = testutils.TestAddress("alice")
 	bob   = testutils.TestAddress("bob")
@@ -139,21 +145,21 @@ func TestProposeSetPaused_idempotency(t *testing.T) {
 
 	t.Run("propose pause when already paused panics", func(t *testing.T) {
 		paused = true
-		urequire.PanicsWithMessage(t,
+		urequire.PanicsWithMessage(t, cur,
 			"paused state already matches requested value; no-op proposal rejected",
 			func() { ProposeSetPaused(true) })
 	})
 
 	t.Run("propose unpause when already unpaused panics", func(t *testing.T) {
 		paused = false
-		urequire.PanicsWithMessage(t,
+		urequire.PanicsWithMessage(t, cur,
 			"paused state already matches requested value; no-op proposal rejected",
 			func() { ProposeSetPaused(false) })
 	})
 
 	t.Run("propose pause when unpaused succeeds", func(t *testing.T) {
 		paused = false
-		urequire.NotPanics(t, func() { ProposeSetPaused(true) })
+		urequire.NotPanics(t, cur, func() { ProposeSetPaused(true) })
 		// The proposal-create call doesn't actually mutate paused —
 		// only its execution would. Confirm.
 		uassert.False(t, paused)
@@ -161,7 +167,7 @@ func TestProposeSetPaused_idempotency(t *testing.T) {
 
 	t.Run("propose unpause when paused succeeds", func(t *testing.T) {
 		paused = true
-		urequire.NotPanics(t, func() { ProposeSetPaused(false) })
+		urequire.NotPanics(t, cur, func() { ProposeSetPaused(false) })
 		// Same: proposal-create does not mutate.
 		uassert.True(t, paused)
 	})
@@ -170,7 +176,7 @@ func TestProposeSetPaused_idempotency(t *testing.T) {
 // TestSetPaused_internal verifies the private setPaused actuator
 // directly. Bypasses the proposal flow to confirm the toggle and the
 // event-emission path independently.
-func TestSetPaused_internal(cur realm, t *testing.T) {
+func TestSetPaused_internal(t *testing.T) {
 	saved := paused
 	defer func() { paused = saved }()
 
@@ -195,13 +201,13 @@ func TestIsPaused(t *testing.T) {
 
 func TestEnable(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("random")))
-	uassert.AbortsWithMessage(t, "caller is not admin", func() {
+	uassert.AbortsWithMessage(t, cur, "caller is not admin", func() {
 		Enable(cross)
 	})
 	uassert.False(t, IsEnabled())
 
 	testing.SetRealm(testing.NewUserRealm(admin))
-	uassert.NotPanics(t, func() {
+	uassert.NotPanics(t, cur, func() {
 		Enable(cross)
 	})
 	uassert.True(t, IsEnabled())

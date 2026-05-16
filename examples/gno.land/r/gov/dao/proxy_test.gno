@@ -8,6 +8,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 const (
 	v3 = "gno.land/r/gov/dao/v3/impl"
 	v4 = "gno.land/r/gov/dao/v4/impl"
@@ -19,7 +25,7 @@ const invalid = "gno.land/r/invalid/dao"
 
 var alice = testutils.TestAddress("alice")
 
-func TestProxy_Functions(cur realm, t *testing.T) {
+func TestProxy_Functions(t *testing.T) {
 	// initialize tests
 	UpdateImpl(cross2(cur), UpdateRequest{
 		DAO:         &dummyDao{},
@@ -28,7 +34,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(testing.NewCodeRealm(invalid))
-	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
+	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
 		UpdateImpl(cross2(cur), UpdateRequest{
 			DAO: &dummyDao{},
 		})
@@ -36,7 +42,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// dao in charge can add a new dao
 	testing.SetRealm(testing.NewCodeRealm(v3))
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		UpdateImpl(cross2(cur), UpdateRequest{
 			DAO: &dummyDao{},
 		})
@@ -44,7 +50,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// v3 that is in charge adds v5 in charge
 	testing.SetRealm(testing.NewCodeRealm(v3))
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		UpdateImpl(cross2(cur), UpdateRequest{
 			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v3, v5},
@@ -53,7 +59,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// v3 can still do updates
 	testing.SetRealm(testing.NewCodeRealm(v3))
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		UpdateImpl(cross2(cur), UpdateRequest{
 			AllowedDAOs: []string{v4},
 		})
@@ -61,7 +67,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(testing.NewCodeRealm(v3))
-	urequire.AbortsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
+	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		UpdateImpl(cross2(cur), UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
@@ -69,7 +75,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	var pid ProposalID
 	testing.SetRealm(testing.NewUserRealm(alice))
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		e := NewSimpleExecutor(
 			func(realm) error {
 				return nil

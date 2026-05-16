@@ -10,7 +10,13 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestResolveName(cur realm, t *testing.T) {
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+func TestResolveName(t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
@@ -65,7 +71,7 @@ func TestResolveName(cur realm, t *testing.T) {
 	})
 }
 
-func TestResolveAddress(cur realm, t *testing.T) {
+func TestResolveAddress(t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
@@ -115,7 +121,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 	})
 }
 
-func TestROStores(cur realm, t *testing.T) {
+func TestROStores(t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
@@ -169,7 +175,7 @@ func TestROStores(cur realm, t *testing.T) {
 	})
 }
 
-func TestResolveAny(cur realm, t *testing.T) {
+func TestResolveAny(t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("name", func(t *testing.T) {
@@ -203,12 +209,12 @@ func TestResolveAny(cur realm, t *testing.T) {
 	})
 }
 
-func TestProposeErrors(cur realm, t *testing.T) {
+func TestProposeErrors(t *testing.T) {
 	t.Run("propose_register_user_errors", func(t *testing.T) {
-		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
 			ProposeRegisterUser("bad name", aliceAddr)
 		})
-		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
 			ProposeRegisterUser(alice, "badaddress")
 		})
 	})
@@ -216,10 +222,10 @@ func TestProposeErrors(cur realm, t *testing.T) {
 	t.Run("propose_update_name_errors", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
 			ProposeUpdateName("badaddress", "alice1")
 		})
-		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
 			ProposeUpdateName(aliceAddr, "bad name")
 		})
 		// Note: unregistered user is not checked at proposal creation time.
@@ -229,7 +235,7 @@ func TestProposeErrors(cur realm, t *testing.T) {
 	t.Run("propose_delete_user_errors", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
+		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
 			ProposeDeleteUser("badaddress")
 		})
 		// Note: unregistered user is not checked at proposal creation time.
@@ -248,7 +254,7 @@ func TestProposeErrors(cur realm, t *testing.T) {
 //   - toAdd already present is benign — remove still happens
 //   - toRemove already absent is benign — add still happens, no error
 //   - errors that aren't the idempotency cases still propagate
-func TestApplyControllerSwap(cur realm, t *testing.T) {
+func TestApplyControllerSwap(t *testing.T) {
 	// Use unique addresses per subtest to avoid having to drain the
 	// controllers set (addrset.Set has no clear/iterate-all method, and
 	// state persists across subtests in this package's tests).
@@ -315,7 +321,7 @@ func TestApplyControllerSwap(cur realm, t *testing.T) {
 // Audit finding #20: the controller whitelist must be queryable from
 // outside the package so operators can monitor authority without
 // source-diving or replaying governance proposals.
-func TestControllerQueries(cur realm, t *testing.T) {
+func TestControllerQueries(t *testing.T) {
 	t.Run("IsController reflects whitelist state", func(t *testing.T) {
 		a := testutils.TestAddress("queryA1")
 		b := testutils.TestAddress("queryB1")
@@ -378,7 +384,7 @@ func TestControllerQueries(cur realm, t *testing.T) {
 // with an existing registration. The warning surfaces the colliding
 // existing name to voters; the proposal still goes through if voted in
 // (decision #3, DAO grants always bypass).
-func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
+func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("warning_injected_on_collision", func(t *testing.T) {

@@ -8,6 +8,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 func TestGetFormByID(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
@@ -17,7 +23,7 @@ func TestGetFormByID(t *testing.T) {
 	closeAt := "2021-01-02T00:00:00Z"
 	data := `[{"label":"Name","fieldType":"string","required":true},{"label":"Age","fieldType":"number","required":false},{"label":"Is this a test?","fieldType":"boolean","required":false},{"label":"Favorite Food","fieldType":"['Pizza', 'Schnitzel', 'Burger']","required":true},{"label":"Favorite Foods","fieldType":"{'Pizza', 'Schnitzel', 'Burger'}","required":true}]`
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		id := CreateForm(cross, title, description, openAt, closeAt, data)
 
 		form := GetFormByID(id)
@@ -33,7 +39,7 @@ func TestGetForms(t *testing.T) {
 	openAt := "2021-01-01T00:00:00Z"
 	closeAt := "2021-01-02T00:00:00Z"
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		data1 := `[{"label":"Name","fieldType":"string","required":true}]`
 		CreateForm(cross, "NameForm", description, openAt, closeAt, data1)
 		data2 := `[{"label":"Age","fieldType":"number","required":false}]`

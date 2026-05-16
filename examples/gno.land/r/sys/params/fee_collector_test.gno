@@ -7,7 +7,13 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func TestSetFeeCollector(cur realm, t *testing.T) {
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+func TestSetFeeCollector(t *testing.T) {
 	userRealm := testing.NewUserRealm(g1user)
 	testing.SetRealm(userRealm)
 
@@ -17,14 +23,14 @@ func TestSetFeeCollector(cur realm, t *testing.T) {
 	urequire.NoError(t, err)
 
 	urequire.NotPanics(
-		t,
+		t, cur,
 		func() {
 			dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
 		},
 	)
 
 	urequire.NotPanics(
-		t,
+		t, cur,
 		func() {
 			dao.ExecuteProposal(cross2(cur), id)
 		},

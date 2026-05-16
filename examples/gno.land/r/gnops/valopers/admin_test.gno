@@ -8,7 +8,13 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-func TestUpdateInstructions(cur realm, t *testing.T) {
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+func TestUpdateInstructions(t *testing.T) {
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
 			"gno.land/r/gov/dao",
@@ -20,13 +26,13 @@ func TestUpdateInstructions(cur realm, t *testing.T) {
 
 	newInstructions := "new instructions"
 
-	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
+	uassert.PanicsWithMessage(t, cur, "action can only be executed by the contract", func() {
 		updateInstructions(0, cur, newInstructions)
 	})
 
 	testing.SetOriginCaller(chain.PackageAddress("gno.land/r/gov/dao"))
 
-	uassert.NotPanics(t, func() {
+	uassert.NotPanics(t, cur, func() {
 		updateInstructions(0, cur, newInstructions)
 	})
 

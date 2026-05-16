@@ -10,6 +10,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 // clearState wipes the global state between test calls
 func clearState(t *testing.T) {
 	t.Helper()
@@ -33,7 +39,7 @@ func TestBlog_AdminControls(t *testing.T) {
 		testing.SetOriginCaller(nonAdmin)
 		testing.SetRealm(testing.NewUserRealm(nonAdmin))
 
-		uassert.AbortsWithMessage(t, errNotAdmin.Error(), func() {
+		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
 			AdminSetInPause(cross, true)
 		})
 	})
@@ -44,7 +50,7 @@ func TestBlog_AdminControls(t *testing.T) {
 		testing.SetOriginCaller(adminAddr)
 		testing.SetRealm(testing.NewUserRealm(adminAddr))
 
-		uassert.NotAborts(t, func() {
+		uassert.NotAborts(t, cur, func() {
 			AdminSetInPause(cross, true)
 		})
 
@@ -69,13 +75,13 @@ func TestBlog_AdminControls(t *testing.T) {
 		testing.SetOriginCaller(oldAdmin)
 		testing.SetRealm(testing.NewUserRealm(oldAdmin))
 
-		uassert.AbortsWithMessage(t, errNotAdmin.Error(), func() {
+		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
 			AdminSetInPause(cross, false)
 		})
 	})
 }
 
-func TestBlog_AddRemoveModerator(cur realm, t *testing.T) {
+func TestBlog_AddRemoveModerator(t *testing.T) {
 	clearState(t)
 
 	mod := testutils.TestAddress("mod")
@@ -98,7 +104,7 @@ func TestBlog_AddRemoveModerator(cur realm, t *testing.T) {
 	uassert.False(t, isMod.(bool))
 }
 
-func TestBlog_AddCommenter(cur realm, t *testing.T) {
+func TestBlog_AddCommenter(t *testing.T) {
 	clearState(t)
 
 	var (
@@ -124,7 +130,7 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	testing.SetOriginCaller(rand)
 	testing.SetRealm(testing.NewUserRealm(rand))
 
-	uassert.AbortsWithMessage(t, errNotModerator.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, errNotModerator.Error(), func() {
 		ModAddCommenter(cross2(cur), testutils.TestAddress("evil"))
 	})
 
@@ -137,7 +143,7 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	uassert.False(t, active.(bool))
 }
 
-func TestBlog_ManagePost(cur realm, t *testing.T) {
+func TestBlog_ManagePost(t *testing.T) {
 	clearState(t)
 
 	var (
@@ -166,7 +172,7 @@ func TestBlog_ManagePost(cur realm, t *testing.T) {
 	uassert.TypedNil(t, b.GetPost(slug))
 }
 
-func TestBlog_ManageComment(cur realm, t *testing.T) {
+func TestBlog_ManageComment(t *testing.T) {
 	clearState(t)
 
 	var (
@@ -203,14 +209,14 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	// Add the comment
 	testing.SetOriginCaller(commenter)
 	testing.SetRealm(testing.NewUserRealm(commenter))
-	uassert.NotAborts(t, func() {
+	uassert.NotAborts(t, cur, func() {
 		AddComment(cross2(cur), slug, "comment")
 	})
 
 	// Delete the comment
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
-	uassert.NotAborts(t, func() {
+	uassert.NotAborts(t, cur, func() {
 		ModDelComment(cross2(cur), slug, 0)
 	})
 }

@@ -11,6 +11,12 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 func TestProposalNew(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -421,15 +427,15 @@ func TestProposalTally(t *testing.T) {
 }
 
 func TestMustValidate(t *testing.T) {
-	uassert.NotPanics(t, func() {
+	uassert.NotPanics(t, cur, func() {
 		commondao.MustValidate(testPropDef{})
 	}, "expect validation to succeed")
 
-	uassert.PanicsWithMessage(t, "validable proposal definition is nil", func() {
+	uassert.PanicsWithMessage(t, cur, "validable proposal definition is nil", func() {
 		commondao.MustValidate(nil)
 	}, "expect validation to panic with nil definition")
 
-	uassert.PanicsWithMessage(t, "boom!", func() {
+	uassert.PanicsWithMessage(t, cur, "boom!", func() {
 		commondao.MustValidate(testPropDef{validationErr: errors.New("boom!")})
 	}, "expect validation to panic")
 }

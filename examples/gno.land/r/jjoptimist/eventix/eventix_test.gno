@@ -13,7 +13,13 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestCreateEvent(cur realm, t *testing.T) {
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+func TestCreateEvent(t *testing.T) {
 	// Test successful event creation
 	eventId := CreateEvent(
 		cross2(cur),
@@ -33,12 +39,12 @@ func TestCreateEvent(cur realm, t *testing.T) {
 	uassert.Equal(t, "Test Event", event.name)
 
 	// Test invalid date format
-	urequire.AbortsWithMessage(t, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
+	urequire.AbortsWithMessage(t, cur, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
 		CreateEvent(cross2(cur), "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
 	})
 }
 
-func TestBuyTicket(cur realm, t *testing.T) {
+func TestBuyTicket(t *testing.T) {
 	// Setup test event
 	eventId := CreateEvent(
 		cross2(cur),
@@ -54,7 +60,7 @@ func TestBuyTicket(cur realm, t *testing.T) {
 	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	testing.SetOriginCaller(buyer)
 
-	uassert.AbortsWithMessage(t, "Invalid payment amount: needs to be 1000000ugnot", func() {
+	uassert.AbortsWithMessage(t, cur, "Invalid payment amount: needs to be 1000000ugnot", func() {
 		BuyTicket(cross2(cur), eventId)
 	})
 
@@ -77,12 +83,12 @@ func TestBuyTicket(cur realm, t *testing.T) {
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	BuyTicket(cross2(cur), eventId) // Buy second ticket
 
-	uassert.AbortsWithMessage(t, "Event is sold out", func() {
+	uassert.AbortsWithMessage(t, cur, "Event is sold out", func() {
 		BuyTicket(cross2(cur), eventId)
 	})
 }
 
-func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
+func TestBuyTicketWithGRC20(t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
 

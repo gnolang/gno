@@ -8,6 +8,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 // mockBanker implements banker.Banker for unit testing without
 // touching real bank state. Records every SendCoins call.
 //
@@ -78,7 +84,7 @@ func TestNew_NonCanonicalBanker(t *testing.T) {
 	// could pass a no-op banker and cause AllowanceSender.Send to
 	// silently succeed without moving real coins.
 	mb := &mockBanker{}
-	uassert.PanicsWithMessage(t,
+	uassert.PanicsWithMessage(t, cur,
 		"allowancesender: inner banker is not the canonical chain/banker.Banker",
 		func() {
 			New(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1)))
@@ -87,7 +93,7 @@ func TestNew_NonCanonicalBanker(t *testing.T) {
 
 func TestNew_NilInner(t *testing.T) {
 	// Nil also fails IsCanonical (nil interface assertion is false).
-	uassert.PanicsWithMessage(t,
+	uassert.PanicsWithMessage(t, cur,
 		"allowancesender: inner banker is not the canonical chain/banker.Banker",
 		func() {
 			New(nil, payer, chain.NewCoins(chain.NewCoin("ugnot", 1)))
@@ -110,7 +116,7 @@ func TestSend_WithinCap(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 400)))
 	})
 
@@ -124,10 +130,10 @@ func TestSend_MultipleWithinCap(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 300)))
 	})
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(carol, chain.NewCoins(chain.NewCoin("ugnot", 600)))
 	})
 
@@ -140,7 +146,7 @@ func TestSend_ExactlyAtCap(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 	})
 	uassert.Equal(t, int64(1000), al.Spent().AmountOf("ugnot"))
@@ -155,7 +161,7 @@ func TestSend_ExceedsCapInOneCall(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	uassert.PanicsWithMessage(t, "allowancesender: cap exceeded for denom ugnot", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: cap exceeded for denom ugnot", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 1001)))
 	})
 	// State must not change on rejection.
@@ -167,10 +173,10 @@ func TestSend_ExceedsCapAcrossCalls(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 700)))
 	})
-	uassert.PanicsWithMessage(t, "allowancesender: cap exceeded for denom ugnot", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: cap exceeded for denom ugnot", func() {
 		al.Send(carol, chain.NewCoins(chain.NewCoin("ugnot", 400)))
 	})
 	// First send happened, second didn't.
@@ -183,7 +189,7 @@ func TestSend_DenomNotInCap(t *testing.T) {
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
 	// "atom" is not in cap; capAmt=0; any positive amount panics.
-	uassert.PanicsWithMessage(t, "allowancesender: cap exceeded for denom atom", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: cap exceeded for denom atom", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("atom", 1)))
 	})
 }
@@ -192,7 +198,7 @@ func TestSend_ZeroCap(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.Coins{}) // empty cap
 
-	uassert.PanicsWithMessage(t, "allowancesender: cap exceeded for denom ugnot", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: cap exceeded for denom ugnot", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 1)))
 	})
 }
@@ -204,7 +210,7 @@ func TestSend_AfterClose(t *testing.T) {
 	al.Close()
 	uassert.True(t, al.Closed())
 
-	uassert.PanicsWithMessage(t, "allowancesender: closed", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: closed", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 100)))
 	})
 	uassert.Equal(t, 0, len(mb.sends))
@@ -222,7 +228,7 @@ func TestSend_MultiDenomCap(t *testing.T) {
 	))
 
 	// Spend on both denoms within their caps.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(
 			chain.NewCoin("ugnot", 600),
 			chain.NewCoin("foo", 30),
@@ -245,7 +251,7 @@ func TestSend_OneDenomExceedsBlocksAll(t *testing.T) {
 	))
 
 	// foo would exceed (51 > 50); whole send rejected, ugnot doesn't go through.
-	uassert.PanicsWithMessage(t, "allowancesender: cap exceeded for denom foo", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: cap exceeded for denom foo", func() {
 		al.Send(bob, chain.NewCoins(
 			chain.NewCoin("ugnot", 100),
 			chain.NewCoin("foo", 51),
@@ -267,8 +273,8 @@ func TestClose_Idempotent(t *testing.T) {
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
 	al.Close()
-	urequire.NotPanics(t, func() { al.Close() })
-	urequire.NotPanics(t, func() { al.Close() })
+	urequire.NotPanics(t, cur, func() { al.Close() })
+	urequire.NotPanics(t, cur, func() { al.Close() })
 	uassert.True(t, al.Closed())
 }
 
@@ -277,7 +283,7 @@ func TestClose_DoesNotInterfereWithReadMethods(t *testing.T) {
 	limit := chain.NewCoins(chain.NewCoin("ugnot", 1000))
 	al := newWithMock(mb, payer, limit)
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 250)))
 	})
 	al.Close()
@@ -297,7 +303,7 @@ func TestSend_InnerPanicRollsBackSpent(t *testing.T) {
 	mb := &mockBanker{failNext: true, failMsg: "insufficient funds"}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	uassert.PanicsWithMessage(t, "insufficient funds", func() {
+	uassert.PanicsWithMessage(t, cur, "insufficient funds", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 500)))
 	})
 
@@ -306,7 +312,7 @@ func TestSend_InnerPanicRollsBackSpent(t *testing.T) {
 	uassert.Equal(t, int64(1000), al.Remaining().AmountOf("ugnot"))
 
 	// And subsequent valid Send still works.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 200)))
 	})
 	uassert.Equal(t, int64(200), al.Spent().AmountOf("ugnot"))
@@ -327,7 +333,7 @@ func TestRemaining_FullySpent(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 100)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 100)))
 	})
 	uassert.Equal(t, 0, len(al.Remaining()))
@@ -341,7 +347,7 @@ func TestRemaining_PartialAcrossDenoms(t *testing.T) {
 	))
 
 	// Spend all of foo, half of ugnot.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(
 			chain.NewCoin("ugnot", 500),
 			chain.NewCoin("foo", 50),
@@ -365,7 +371,7 @@ func TestPointerSemantics_CloseVisibleViaAlias(t *testing.T) {
 
 	// Aliasing the pointer should share state.
 	alias := al
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		alias.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 100)))
 	})
 	uassert.Equal(t, int64(100), al.Spent().AmountOf("ugnot"))
@@ -375,7 +381,7 @@ func TestPointerSemantics_CloseVisibleViaAlias(t *testing.T) {
 	uassert.True(t, al.Closed())
 	uassert.True(t, alias.Closed())
 
-	uassert.PanicsWithMessage(t, "allowancesender: closed", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: closed", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 1)))
 	})
 }
@@ -399,7 +405,7 @@ func TestCap_ReturnsDefensiveCopy(t *testing.T) {
 	uassert.Equal(t, int64(1000), again.AmountOf("ugnot"))
 
 	// Confirm enforcement still works: 1001 should still be rejected.
-	uassert.PanicsWithMessage(t, "allowancesender: cap exceeded for denom ugnot", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: cap exceeded for denom ugnot", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 1001)))
 	})
 }
@@ -408,7 +414,7 @@ func TestSpent_ReturnsDefensiveCopy(t *testing.T) {
 	mb := &mockBanker{}
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 300)))
 	})
 
@@ -431,10 +437,10 @@ func TestMultipleAllowances_Independent(t *testing.T) {
 	a1 := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 100)))
 	a2 := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 200)))
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		a1.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 80)))
 	})
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		a2.Send(carol, chain.NewCoins(chain.NewCoin("ugnot", 150)))
 	})
 
@@ -446,10 +452,10 @@ func TestMultipleAllowances_Independent(t *testing.T) {
 	uassert.True(t, a1.Closed())
 	uassert.False(t, a2.Closed())
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		a2.Send(carol, chain.NewCoins(chain.NewCoin("ugnot", 50)))
 	})
-	uassert.PanicsWithMessage(t, "allowancesender: closed", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: closed", func() {
 		a1.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 1)))
 	})
 }
@@ -468,14 +474,14 @@ func TestSend_OverflowAttempt(t *testing.T) {
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", maxInt64)))
 
 	// First spend uses most of the cap.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", maxInt64-100)))
 	})
 
 	// Now spent ≈ MaxInt64 - 100. An adversary tries to pass amount
 	// 200, which would overflow when added to spent. Must panic with
 	// "amount overflow", not silently wrap to negative and bypass cap.
-	uassert.PanicsWithMessage(t, "allowancesender: amount overflow on spent+amt for denom ugnot", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: amount overflow on spent+amt for denom ugnot", func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 200)))
 	})
 
@@ -490,14 +496,14 @@ func TestSend_NegativeAmount(t *testing.T) {
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
 	// Spend something so we have a non-zero spent.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 200)))
 	})
 
 	// Adversary tries to "uncharge" the allowance by passing a negative
 	// amount. Without this guard, spent would decrease, allowing more
 	// future spends than originally permitted.
-	uassert.PanicsWithMessage(t, "allowancesender: negative amount not allowed for denom ugnot", func() {
+	uassert.PanicsWithMessage(t, cur, "allowancesender: negative amount not allowed for denom ugnot", func() {
 		al.Send(bob, chain.Coins{chain.Coin{Denom: "ugnot", Amount: -50}})
 	})
 
@@ -528,7 +534,7 @@ func TestSend_RecoveredPanicDoesNotBurnAllowance(t *testing.T) {
 
 	// And subsequent valid Send (with non-failing inner) succeeds with
 	// full cap available.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.NewCoins(chain.NewCoin("ugnot", 800)))
 	})
 	uassert.Equal(t, int64(800), al.Spent().AmountOf("ugnot"))
@@ -543,7 +549,7 @@ func TestSend_EmptyAmt(t *testing.T) {
 	al := newWithMock(mb, payer, chain.NewCoins(chain.NewCoin("ugnot", 1000)))
 
 	// Sending zero coins should not panic; just no-op forwards to inner.
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		al.Send(bob, chain.Coins{})
 	})
 

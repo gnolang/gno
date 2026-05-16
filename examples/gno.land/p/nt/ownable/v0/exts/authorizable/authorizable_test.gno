@@ -8,6 +8,12 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	alice   = testutils.TestAddress("alice")
 	bob     = testutils.TestAddress("bob")
@@ -25,7 +31,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestOnAuthList(cur realm, t *testing.T) {
+func TestOnAuthList(t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(alice))
 
@@ -36,7 +42,7 @@ func TestOnAuthList(cur realm, t *testing.T) {
 	}
 }
 
-func TestNotOnAuthList(cur realm, t *testing.T) {
+func TestNotOnAuthList(t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 	testing.SetRealm(testing.NewUserRealm(bob))
 
@@ -91,12 +97,12 @@ func TestDeleteFromList(t *testing.T) {
 	}
 }
 
-func TestAssertOnList(cur realm, t *testing.T) {
+func TestAssertOnList(t *testing.T) {
 	a := New(ownable.NewWithAddress(alice))
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 
-	uassert.PanicsWithMessage(t, ErrNotInAuthList.Error(), func() {
+	uassert.PanicsWithMessage(t, cur, ErrNotInAuthList.Error(), func() {
 		a.AssertOnAuthList(0, cur)
 	})
 }

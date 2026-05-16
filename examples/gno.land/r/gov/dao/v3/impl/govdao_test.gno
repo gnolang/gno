@@ -11,6 +11,12 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 func init(cur realm) {
 	loadMembers()
 
@@ -53,7 +59,7 @@ func loadMembers() {
 	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
 }
 
-func TestCreateProposalAndVote(cur realm, t *testing.T) {
+func TestCreateProposalAndVote(t *testing.T) {
 	loadMembers()
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
@@ -63,11 +69,11 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 
 	nm1 := testutils.TestAddress("nm1")
 
-	urequire.AbortsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func(cur realm) {
+	urequire.AbortsWithMessage(t, cur, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func(cur realm) {
 		dao.MustCreateProposal(cross2(cur), NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
-	urequire.AbortsWithMessage(t, "proposer is not a member", func(cur realm) {
+	urequire.AbortsWithMessage(t, cur, "proposer is not a member", func(cur realm) {
 		dao.MustCreateProposal(cross2(cur), NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
@@ -98,7 +104,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(m4)
 
-	urequire.AbortsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
+	urequire.AbortsWithMessage(t, cur, "member on specified tier is not allowed to vote on this proposal", func() {
 		dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 	})
 
@@ -114,7 +120,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	urequire.Equal(t, true, strings.Contains(dao.Render(""), "Prop #0 - New T2 Member Proposal"))
 	// urequire.Equal(t, true, strings.Contains(dao.Render(""), "Author: "+m1.String()))
 
-	urequire.AbortsWithMessage(t, "proposal didn't reach supermajority yet: 66.66", func() {
+	urequire.AbortsWithMessage(t, cur, "proposal didn't reach supermajority yet: 66.66", func() {
 		dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
 	})
 
@@ -128,7 +134,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("0"), "NO PERCENT: 81.25%"))
 }
 
-func TestExecutorCreationRealm(cur realm, t *testing.T) {
+func TestExecutorCreationRealm(t *testing.T) {
 	loadMembers()
 
 	// Test that executor creation realm is captured correctly
@@ -167,7 +173,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(individualRendered, "This proposal tests executor creation realm tracking"))
 }
 
-func TestProposalPagination(cur realm, t *testing.T) {
+func TestProposalPagination(t *testing.T) {
 	loadMembers()
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
@@ -219,13 +225,13 @@ func TestProposalPagination(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
-func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
+func TestUpgradeDaoImplementation(t *testing.T) {
 	loadMembers()
 
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
+	urequire.PanicsWithMessage(t, cur, "proposer is not a member", func() {
 		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
@@ -273,7 +279,7 @@ func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
 }
 
-func TestAbstainVote(cur realm, t *testing.T) {
+func TestAbstainVote(t *testing.T) {
 	loadMembers()
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"

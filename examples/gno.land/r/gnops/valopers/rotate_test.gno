@@ -9,6 +9,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 const (
 	// Second valid pubkey used as the rotation target. Distinct from
 	// validValidatorInfo's pubkey so the signingRegistry uniqueness
@@ -48,7 +54,7 @@ func TestUpdateSigningKey_HappyPath(t *testing.T) {
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 
-	uassert.NotAborts(t, func() {
+	uassert.NotAborts(t, cur, func() {
 		UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
 	})
 
@@ -81,21 +87,21 @@ func TestUpdateSigningKey_ThrottleRejection(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 
 	// Try to rotate immediately, before throttle elapses.
-	uassert.AbortsWithMessage(t, ErrRotationThrottled.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrRotationThrottled.Error(), func() {
 		UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
 	})
 
 	// Advance just shy of the threshold; still rejected.
 	testing.SkipHeights(testRotationPeriodBlocks - 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
-	uassert.AbortsWithMessage(t, ErrRotationThrottled.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrRotationThrottled.Error(), func() {
 		UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
 	})
 
 	// One more block — now exactly at the threshold; allowed.
 	testing.SkipHeights(1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
-	uassert.NotAborts(t, func() {
+	uassert.NotAborts(t, cur, func() {
 		UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
 	})
 }
@@ -110,7 +116,7 @@ func TestUpdateSigningKey_RejectsNonAuthListCaller(t *testing.T) {
 	// Pin the exact authorizable error so this catches an auth
 	// regression rather than any abort. Empty-substring match (the
 	// previous form) accepted any panic, including unrelated ones.
-	uassert.AbortsContains(t, "not in authorized list", func() {
+	uassert.AbortsContains(t, cur, "not in authorized list", func() {
 		UpdateSigningKey(cross, info.Address, rotateTargetPubKey)
 	})
 }
@@ -121,12 +127,12 @@ func TestUpdateSigningKey_RejectsReuseOfActiveKey(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 
 	// Try to "rotate" to the same key — already in registry.
-	uassert.AbortsWithMessage(t, ErrSigningKeyTaken.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrSigningKeyTaken.Error(), func() {
 		UpdateSigningKey(cross, info.Address, info.PubKey)
 	})
 }
 
-func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
+func TestUpdateSigningKey_RejectsReuseOfRetiredKey(t *testing.T) {
 	info := registerForRotation(t)
 
 	// First rotation: info.PubKey -> rotateTargetPubKey. info.PubKey
@@ -139,12 +145,12 @@ func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
 	// but signingRegistry retains it forever.
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
-	uassert.AbortsWithMessage(t, ErrSigningKeyTaken.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrSigningKeyTaken.Error(), func() {
 		UpdateSigningKey(cross2(cur), info.Address, info.PubKey)
 	})
 }
 
-func TestUpdateSigningKey_LastRotationHeightAdvances(cur realm, t *testing.T) {
+func TestUpdateSigningKey_LastRotationHeightAdvances(t *testing.T) {
 	info := registerForRotation(t)
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
@@ -154,7 +160,7 @@ func TestUpdateSigningKey_LastRotationHeightAdvances(cur realm, t *testing.T) {
 	uassert.True(t, v.LastRotationHeight > 0, "LastRotationHeight set on rotation")
 
 	// Immediately after, throttle rejects again.
-	uassert.AbortsWithMessage(t, ErrRotationThrottled.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrRotationThrottled.Error(), func() {
 		UpdateSigningKey(cross2(cur), info.Address, "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5cjrffs")
 	})
 }

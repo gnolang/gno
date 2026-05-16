@@ -10,9 +10,15 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var _ commondao.ProposalDefinition = (*TextPropDefinition)(nil)
 
-func TestTextPropDefinitionNew(cur realm, t *testing.T) {
+func TestTextPropDefinitionNew(t *testing.T) {
 	cases := []struct {
 		name         string
 		title, body  string
@@ -69,21 +75,21 @@ func TestTextPropDefinitionNew(cur realm, t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tc.panicMsg, func() {
+				urequire.PanicsWithMessage(t, cur, tc.panicMsg, func() {
 					NewTextPropDefinition(tc.title, tc.body, tc.quorum, tc.votingPeriod)
 				}, "expected definition to panic with message")
 
 				return
 			}
 
-			urequire.NotPanics(t, func() {
+			urequire.NotPanics(t, cur, func() {
 				NewTextPropDefinition(tc.title, tc.body, tc.quorum, tc.votingPeriod)
 			}, "expected definition to be created")
 		})
 	}
 }
 
-func TestTextPropDefinitionTally(cur realm, t *testing.T) {
+func TestTextPropDefinitionTally(t *testing.T) {
 	cases := []struct {
 		name    string
 		members []address

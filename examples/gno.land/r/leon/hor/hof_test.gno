@@ -10,6 +10,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 const (
 	rlmPath  = "gno.land/r/gnoland/home"
 	rlmPath2 = "gno.land/r/gnoland/test2"
@@ -34,7 +40,7 @@ func init() {
 	adminRealm = testing.NewUserRealm(admin)
 }
 
-func TestRegister(cur realm, t *testing.T) {
+func TestRegister(t *testing.T) {
 	// Test user realm register
 	aliceRealm := testing.NewUserRealm(alice)
 	testing.SetRealm(aliceRealm)
@@ -76,7 +82,7 @@ func TestRegister(cur realm, t *testing.T) {
 	uassert.False(t, itemExists(t, rlmPath2))
 }
 
-func TestUpvote(cur realm, t *testing.T) {
+func TestUpvote(t *testing.T) {
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
@@ -85,7 +91,7 @@ func TestUpvote(cur realm, t *testing.T) {
 
 	testing.SetRealm(adminRealm)
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		Upvote(cross2(cur), rlmPath)
 	})
 
@@ -93,12 +99,12 @@ func TestUpvote(cur realm, t *testing.T) {
 	uassert.Equal(t, item.upvote.Size(), 1)
 
 	// Check double upvote
-	uassert.AbortsWithMessage(t, ErrDoubleUpvote.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrDoubleUpvote.Error(), func() {
 		Upvote(cross2(cur), rlmPath)
 	})
 }
 
-func TestDownvote(cur realm, t *testing.T) {
+func TestDownvote(t *testing.T) {
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
@@ -108,7 +114,7 @@ func TestDownvote(cur realm, t *testing.T) {
 	userRealm := testing.NewUserRealm(alice)
 	testing.SetRealm(userRealm)
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		Downvote(cross2(cur), rlmPath)
 	})
 
@@ -116,24 +122,24 @@ func TestDownvote(cur realm, t *testing.T) {
 	uassert.Equal(t, item.downvote.Size(), 1)
 
 	// Check double downvote
-	uassert.AbortsWithMessage(t, ErrDoubleDownvote.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrDoubleDownvote.Error(), func() {
 		Downvote(cross2(cur), rlmPath)
 	})
 }
 
-func TestDelete(cur realm, t *testing.T) {
+func TestDelete(t *testing.T) {
 	userRealm := testing.NewUserRealm(admin)
 	testing.SetRealm(userRealm)
 	testing.SetOriginCaller(admin)
 
-	uassert.AbortsWithMessage(t, ErrNoSuchItem.Error(), func() {
+	uassert.AbortsWithMessage(t, cur, ErrNoSuchItem.Error(), func() {
 		Delete(cross2(cur), "nonexistentpkgpath")
 	})
 
 	i, _ := exhibition.items.Get(rlmPath)
 	_ = i.(*Item).id
 
-	uassert.NotPanics(t, func() {
+	uassert.NotPanics(t, cur, func() {
 		Delete(cross2(cur), rlmPath)
 	})
 
@@ -167,7 +173,7 @@ func TestgetVoteSortKey(t *testing.T) {
 	urequire.Equal(t, generatedKey, expectedKey)
 }
 
-func TestSortByUpvote(cur realm, t *testing.T) {
+func TestSortByUpvote(t *testing.T) {
 	// Remove all items from all trees
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.items.Remove(key)
@@ -225,7 +231,7 @@ func TestSortByUpvote(cur realm, t *testing.T) {
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
 
-func TestSortByDownvote(cur realm, t *testing.T) {
+func TestSortByDownvote(t *testing.T) {
 	// Remove all items from all trees
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.items.Remove(key)
@@ -287,7 +293,7 @@ func TestSortByDownvote(cur realm, t *testing.T) {
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
 }
 
-func TestSortByCreation(cur realm, t *testing.T) {
+func TestSortByCreation(t *testing.T) {
 	// Remove all items from all trees
 	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.items.Remove(key)
@@ -333,11 +339,11 @@ func TestSortByCreation(cur realm, t *testing.T) {
 }
 
 /* XXX fix @moul
-func TestGetScore(cur realm, t *testing.T) {
+func TestGetScore(t *testing.T) {
 	score, err := h.GetScore(42)
 	uassert.Nil(t, err)
 	uassert.Equal(t, 0, score)
-	uassert.NotPanics(t, func() {
+	uassert.NotPanics(t, cur, func() {
 		uassert.Equal(t, 0, h.MustGetScore(42))
 	})
 }

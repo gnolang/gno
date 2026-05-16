@@ -7,6 +7,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 func TestAnswerForm(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 
@@ -74,7 +80,7 @@ func TestAnswerFormDates(t *testing.T) {
 	]`
 	answers := `["Test"]`
 
-	urequire.PanicsWithMessage(t, "Form is closed", func() {
+	urequire.PanicsWithMessage(t, cur, "Form is closed", func() {
 		var formID string
 		var err error
 		func(cur realm) {
@@ -86,7 +92,7 @@ func TestAnswerFormDates(t *testing.T) {
 		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross)
 	})
 
-	urequire.PanicsWithMessage(t, "Form is closed", func() {
+	urequire.PanicsWithMessage(t, cur, "Form is closed", func() {
 		var formID string
 		var err error
 		func(cur realm) {
@@ -98,7 +104,7 @@ func TestAnswerFormDates(t *testing.T) {
 		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross)
 	})
 
-	urequire.NotPanics(t, func() {
+	urequire.NotPanics(t, cur, func() {
 		var formID string
 		var err error
 		func(cur realm) {

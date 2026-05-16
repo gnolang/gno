@@ -7,6 +7,12 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 const (
 	testHash1 = "abc123def456"
 	testHash2 = "xyz789uvw012"
@@ -20,7 +26,7 @@ func resetState() {
 	claURL = ""
 }
 
-func TestSign(cur realm, t *testing.T) {
+func TestSign(t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)
@@ -37,7 +43,7 @@ func TestSign_WrongHash(t *testing.T) {
 	setRequiredHash(testHash1)
 
 	testing.SetRealm(testing.NewUserRealm(testUser1))
-	uassert.AbortsWithMessage(t, "hash does not match required CLA hash", func() {
+	uassert.AbortsWithMessage(t, cur, "hash does not match required CLA hash", func() {
 		Sign(cross, testHash2)
 	})
 
@@ -52,7 +58,7 @@ func TestHasValidSignature_Disabled(t *testing.T) {
 	uassert.True(t, HasValidSignature(address(testUser2)))
 }
 
-func TestHasValidSignature_Valid(cur realm, t *testing.T) {
+func TestHasValidSignature_Valid(t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)
@@ -71,7 +77,7 @@ func TestHasValidSignature_NotSigned(t *testing.T) {
 	uassert.False(t, HasValidSignature(address(testUser1)))
 }
 
-func TestSetRequiredHash_ResetsSignatures(cur realm, t *testing.T) {
+func TestSetRequiredHash_ResetsSignatures(t *testing.T) {
 	resetState()
 
 	setRequiredHash(testHash1)

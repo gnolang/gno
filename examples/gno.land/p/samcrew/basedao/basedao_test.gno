@@ -9,11 +9,23 @@ import (
 	"gno.land/p/samcrew/daokit"
 )
 
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 var (
 	alice = testutils.TestAddress("alice")
 	bob   = testutils.TestAddress("bob")
 	carol = testutils.TestAddress("carol")
 	dave  = testutils.TestAddress("dave")
+
+	// cur is a zero-value realm used as a placeholder when forwarding to
+	// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+	// These tests pass `func()` callbacks (no crossing), so rlm is ignored —
+	// a nil realm here is safe and avoids restructuring the tests.
+	cur realm
 )
 
 func TestNewDAO(t *testing.T) {
@@ -251,9 +263,9 @@ func TestVote(t *testing.T) {
 			*tdao.mockHandlerCalled = false
 
 			if test.expected.panic != "" {
-				urequire.PanicsWithMessage(t, test.expected.panic, run)
+				urequire.PanicsWithMessage(t, cur, test.expected.panic, run)
 			} else {
-				urequire.NotPanics(t, run)
+				urequire.NotPanics(t, cur, run)
 				urequire.False(t, *tdao.mockHandlerCalled, "execute should not be called")
 				proposal := tdao.privdao.Core.Proposals.GetProposal(test.input.proposalID)
 				eval := proposal.Condition.Eval(proposal.Ballot)
