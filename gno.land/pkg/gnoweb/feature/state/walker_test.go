@@ -1357,3 +1357,47 @@ func TestStructTypeIDForwarding(t *testing.T) {
 	assert.Equal(t, "gno.land/r/demo/x.User", nodes[0].TypeID,
 		"original tid forwarded onto the ref node lacking an intrinsic TypeID")
 }
+
+// TestPeekTopLevelKind pins the cheap kind/type classifier used by the
+// full sidebar TOC. It must match what a full decodeTypedValueAt would
+// have assigned, without walking the value's children.
+func TestPeekTopLevelKind(t *testing.T) {
+	t.Parallel()
+
+	t.Run("primitive int", func(t *testing.T) {
+		t.Parallel()
+		tv := gno.TypedValue{T: gno.IntType}
+		kind, typ := peekTopLevelKind(tv)
+		assert.Equal(t, KindPrimitive, kind)
+		assert.Equal(t, "int", typ)
+	})
+
+	t.Run("nil typed value", func(t *testing.T) {
+		t.Parallel()
+		kind, typ := peekTopLevelKind(gno.TypedValue{})
+		assert.Equal(t, KindNil, kind)
+		assert.Equal(t, "<nil>", typ)
+	})
+
+	t.Run("RefValue with PkgPath is package", func(t *testing.T) {
+		t.Parallel()
+		tv := gno.TypedValue{
+			T: gno.IntType,
+			V: gno.RefValue{PkgPath: "gno.land/r/x"},
+		}
+		kind, _ := peekTopLevelKind(tv)
+		assert.Equal(t, KindPackage, kind)
+	})
+
+	t.Run("FuncType with RefValue is func", func(t *testing.T) {
+		t.Parallel()
+		ft := &gno.FuncType{}
+		tv := gno.TypedValue{
+			T: ft,
+			V: gno.RefValue{ObjectID: gno.ObjectID{NewTime: 1}},
+		}
+		kind, typ := peekTopLevelKind(tv)
+		assert.Equal(t, KindFunc, kind)
+		assert.Contains(t, typ, "func(")
+	})
+}

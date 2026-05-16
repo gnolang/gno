@@ -141,6 +141,37 @@ func statePageHref(pkgPath, heightParam, viewMode string, offset, limit int) tem
 	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
+// computeAnchors returns one fragment-safe anchor per Name, using the
+// same suffix-discipline as buildTOC so duplicate labels still get unique
+// targets ("Foo", "Foo" → "state-foo", "state-foo-1"). Pre-computed so
+// the full-sidebar builder can mint anchors for off-page entries without
+// allocating a parallel StateNode slice.
+func computeAnchors(names []string) []string {
+	anchors := make([]string, len(names))
+	seen := make(map[string]int, len(names))
+	for i, name := range names {
+		base := stateAnchorOf(name)
+		anchor := base
+		if seen[base] > 0 {
+			anchor = fmt.Sprintf("%s-%d", base, seen[base])
+		}
+		seen[base]++
+		anchors[i] = anchor
+	}
+	return anchors
+}
+
+// statePageAnchorHref returns statePageHref(...) with a `#fragment`
+// appended. The anchor is encoded as a literal fragment so links to
+// off-page decls land directly on the row after the cross-page hop.
+func statePageAnchorHref(pkgPath, heightParam, viewMode string, offset, limit int, anchor string) template.URL {
+	base := string(statePageHref(pkgPath, heightParam, viewMode, offset, limit))
+	if anchor == "" {
+		return template.URL(base) //nolint:gosec
+	}
+	return template.URL(base + "#" + anchor) //nolint:gosec
+}
+
 // buildPagination computes the prev/next view-model from a paginated
 // DecodePackage result. Returns nil when total ≤ limit at offset 0.
 // Hrefs are gated on HasPrev/HasNext to skip work on edge pages.

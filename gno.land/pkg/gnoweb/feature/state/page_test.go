@@ -453,3 +453,37 @@ func TestServePackagePageDefersPreviewsViaRevealedTrigger(t *testing.T) {
 			head(body, 800))
 	}
 }
+
+// TestServePackagePageFullSidebar — the full sidebar TOC must surface
+// every realm decl (icon + label + href) regardless of which slice the
+// current page renders. On-page entries get in-page anchors; off-page
+// entries get the paginated cross-page URL. 12 decls + default page
+// size of 5 → 7 off-page entries surface.
+func TestServePackagePageFullSidebar(t *testing.T) {
+	h := newPageHandler(&pageMockClient{pkgBytes: buildManyTopLevelDeclsFixture(12)})
+	rec := servePageReq(t, h, url.Values{}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	// Every decl (v0..v11) appears in the TOC, on-page first then off-page.
+	for i := 0; i < 12; i++ {
+		name := fmt.Sprintf("v%d", i)
+		if !strings.Contains(body, `data-name="`+name+`"`) {
+			t.Errorf("body missing TOC entry for %q\n%s", name, head(body, 800))
+		}
+	}
+	// Default page (offset=0, limit=5) → indices 0..4 land in-page; 5..11
+	// land off-page. Off-page anchors point at the paginated URL.
+	if !strings.Contains(body, `href="#state-v0-pretty"`) {
+		t.Errorf("on-page entry must use in-page anchor; body head:\n%s", head(body, 1200))
+	}
+	// One of the off-page entries — paginated href + fragment.
+	if !strings.Contains(body, `offset=5`) || !strings.Contains(body, `#state-v5-pretty`) {
+		t.Errorf("off-page entry must use paginated href with fragment; body head:\n%s", head(body, 1200))
+	}
+	// Off-page <li> carries data-off-page="true" for CSS/aria.
+	if !strings.Contains(body, `data-off-page="true"`) {
+		t.Errorf("off-page <li> must carry data-off-page attr; body head:\n%s", head(body, 1200))
+	}
+}

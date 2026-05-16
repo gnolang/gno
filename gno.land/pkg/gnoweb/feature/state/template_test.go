@@ -388,7 +388,10 @@ func TestPageTemplateSidebarTOC(t *testing.T) {
 		Sidebar: &StateSidebar{
 			Heading: "On this page",
 			TOC: []StateTOCEntry{
-				{Label: "Counter", Anchor: "state-counter", Kind: KindStruct, Type: "Counter"},
+				{
+					Label: "Counter", Anchor: "state-counter", Kind: KindStruct, Type: "Counter",
+					PrettyHref: "#state-counter-pretty", TreeHref: "#state-counter-tree", OnPage: true,
+				},
 			},
 		},
 		KindCounts: KindCounts{All: 1, State: 1},

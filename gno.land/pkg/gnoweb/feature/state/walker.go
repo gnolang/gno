@@ -198,6 +198,32 @@ const (
 // realms stay fully explorable.
 const maxTopLevelDecls = 5
 
+// maxSidebarTOC caps the full-sidebar TOC entry count. Above this, the
+// rendered list shows the cap and a "+N more — paginate to see them"
+// truncation hint, keeping DOM size bounded for pathological realms
+// while every on-page decl still gets an in-page anchor target.
+const maxSidebarTOC = 5000
+
+// peekTopLevelKind returns the kind+type a full decodeTypedValueAt would
+// assign to a top-level decl, without walking the value's children. Used
+// by the full sidebar TOC to icon every entry regardless of whether the
+// per-page window decoded it.
+func peekTopLevelKind(tv gno.TypedValue) (kind, typeLabel string) {
+	if tv.T == nil {
+		return KindNil, "<nil>"
+	}
+	bt := baseType(tv.T)
+	if _, isFunc := bt.(*gno.FuncType); isFunc {
+		if _, ok := tv.V.(gno.RefValue); ok {
+			return KindFunc, funcSignature(tv.T)
+		}
+	}
+	if rv, ok := tv.V.(gno.RefValue); ok && rv.PkgPath != "" {
+		return KindPackage, typeName(tv.T)
+	}
+	return typeKind(tv.T), typeName(tv.T)
+}
+
 // tooDeepNode is the sentinel emitted when a subtree exceeds maxDecodeDepth.
 func tooDeepNode(name string) StateNode {
 	return StateNode{Name: name, Type: "(too deep)", Kind: KindTruncated, Value: "…"}

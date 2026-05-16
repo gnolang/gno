@@ -1202,6 +1202,9 @@ body:has(#kf-types:checked)
 }
 
 .b-state-toc {
+	max-height: 60vh;
+	overflow-y: auto;
+
 	small.type[data-kind] {
 		margin-inline-start: var(--g-space-2);
 		font-family: var(--g-font-family-mono);
@@ -1222,6 +1225,14 @@ body:has(#kf-types:checked)
 		text-overflow: ellipsis;
 		min-width: 0;
 	}
+}
+
+.b-state-toc-truncated {
+	margin-block-start: var(--g-space-2);
+	padding: var(--g-space-2) var(--g-space-3);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-80);
+	font-style: italic;
 }
 
 /* Flat selectors here — postcss's compat output mangles nested ones. */

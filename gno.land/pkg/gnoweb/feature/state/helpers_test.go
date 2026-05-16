@@ -160,3 +160,38 @@ func TestRecoverFetcher_LogsClippedPanic(t *testing.T) {
 	// the 4096-byte raw payload (would be ~4400+ if the clip didn't fire).
 	assert.Less(t, len(out), 3000, "log line must not amplify the panic payload verbatim")
 }
+
+// TestComputeAnchors pins the dedup-aware fragment-anchor minting used by
+// the full sidebar TOC. Mirrors buildTOC's suffix discipline so off-page
+// entries land on the same row id buildTOC would have stamped.
+func TestComputeAnchors(t *testing.T) {
+	t.Parallel()
+
+	got := computeAnchors([]string{"Foo", "Bar", "Foo", "Foo"})
+	assert.Equal(t,
+		[]string{"state-foo", "state-bar", "state-foo-1", "state-foo-2"},
+		got,
+	)
+}
+
+// TestStatePageAnchorHref locks the `#fragment` suffix grammar: anchors
+// land verbatim after the encoded webargs URL, on-page page-1 URLs stay
+// canonical (no offset/limit), and cross-page hops surface offset=.
+func TestStatePageAnchorHref(t *testing.T) {
+	t.Parallel()
+
+	t.Run("on-page-1 pretty omits offset", func(t *testing.T) {
+		t.Parallel()
+		got := string(statePageAnchorHref("/r/foo", "", "pretty", 0, maxTopLevelDecls, "state-a-pretty"))
+		assert.NotContains(t, got, "offset=")
+		assert.True(t, strings.HasSuffix(got, "#state-a-pretty"))
+	})
+
+	t.Run("cross-page tree carries view+offset", func(t *testing.T) {
+		t.Parallel()
+		got := string(statePageAnchorHref("/r/foo", "", "tree", 5, maxTopLevelDecls, "state-z-tree"))
+		assert.Contains(t, got, "offset=5")
+		assert.Contains(t, got, "view=tree")
+		assert.True(t, strings.HasSuffix(got, "#state-z-tree"))
+	})
+}

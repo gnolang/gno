@@ -117,6 +117,8 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, height int64, info StateObj
 
 // buildTOC builds TOC entries from top-level StateNodes, mutating each
 // node's Anchor so the template can stamp `id="<anchor>"` on the row.
+// Per-object pages always render every node on-page, so PrettyHref /
+// TreeHref are in-page fragment anchors and OnPage is true.
 func buildTOC(nodes []StateNode) []StateTOCEntry {
 	entries := make([]StateTOCEntry, 0, len(nodes))
 	seen := make(map[string]int)
@@ -131,13 +133,89 @@ func buildTOC(nodes []StateNode) []StateTOCEntry {
 		seen[base]++
 		n.Anchor = anchor
 		entries = append(entries, StateTOCEntry{
-			Label:  n.Name,
-			Anchor: anchor,
-			Kind:   n.Kind,
-			Type:   n.Type,
+			Label:      n.Name,
+			Anchor:     anchor,
+			Kind:       n.Kind,
+			Type:       n.Type,
+			PrettyHref: template.URL("#" + anchor + "-pretty"), //nolint:gosec
+			TreeHref:   template.URL("#" + anchor + "-tree"),   //nolint:gosec
+			OnPage:     true,
 		})
 	}
 	return entries
+}
+
+// BuildPackageSidebarFull assembles the sidebar with a TOC covering every
+// top-level decl (capped at maxSidebarTOC), regardless of which slice the
+// current page renders. On-page entries point to in-page anchors; off-page
+// ones point to the cross-page state URL stamped with the right offset.
+// Returns (sidebar, truncated) — truncated is true when allNames exceeds
+// the cap, so the template can render the "+N more" hint.
+func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTypes []string, currentOffset, limit int, heightParam string) (*StateSidebar, bool) {
+	total := len(allNames)
+	if total == 0 {
+		return nil, false
+	}
+	if limit <= 0 {
+		limit = maxTopLevelDecls
+	}
+	pageEnd := currentOffset + limit
+	heading := "Top-level declarations"
+	if !strings.HasPrefix(pkgPath, "/r/") {
+		heading = "Package declarations"
+	}
+	kindLabel := PkgKindLabel(pkgPath)
+
+	shown := total
+	if shown > maxSidebarTOC {
+		shown = maxSidebarTOC
+	}
+	entries := make([]StateTOCEntry, 0, shown)
+	for i := 0; i < shown; i++ {
+		anchor := ""
+		if i < len(anchors) {
+			anchor = anchors[i]
+		}
+		kind := ""
+		if i < len(allKinds) {
+			kind = allKinds[i]
+		}
+		typ := ""
+		if i < len(allTypes) {
+			typ = allTypes[i]
+		}
+		onPage := i >= currentOffset && i < pageEnd
+		var prettyHref, treeHref template.URL
+		if onPage {
+			prettyHref = template.URL("#" + anchor + "-pretty") //nolint:gosec
+			treeHref = template.URL("#" + anchor + "-tree")     //nolint:gosec
+		} else {
+			// Off-page: snap to the page boundary that contains this index
+			// so the link reuses the canonical paginated URL (and its
+			// nginx cache key) instead of a per-row offset.
+			off := (i / limit) * limit
+			prettyHref = statePageAnchorHref(pkgPath, heightParam, ViewModePretty, off, limit, anchor+"-pretty")
+			treeHref = statePageAnchorHref(pkgPath, heightParam, ViewModeTree, off, limit, anchor+"-tree")
+		}
+		entries = append(entries, StateTOCEntry{
+			Label:      allNames[i],
+			Anchor:     anchor,
+			Kind:       kind,
+			Type:       typ,
+			PrettyHref: prettyHref,
+			TreeHref:   treeHref,
+			OnPage:     onPage,
+		})
+	}
+	truncated := total > maxSidebarTOC
+	return &StateSidebar{
+		Heading: heading,
+		TOC:     entries,
+		Meta: []StateMetaEntry{
+			{Section: kindLabel, Label: "Path", Value: pkgPath},
+			{Section: "Stats", Label: "Declarations", Value: fmt.Sprintf("%d", total), Inline: true},
+		},
+	}, truncated
 }
 
 // stateAnchorOf turns a node name into a fragment-safe anchor (never empty).

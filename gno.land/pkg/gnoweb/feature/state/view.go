@@ -46,6 +46,15 @@ type StateData struct {
 	// Pagination is the prev/next view-model for the top-level decls
 	// footer. nil when total ≤ limit at offset 0 (no footer needed).
 	Pagination *Pagination
+
+	// SidebarTruncated is true when the full TOC exceeds maxSidebarTOC and
+	// only the first cap entries are surfaced. The template renders a
+	// "+N more — paginate to see them" hint when set.
+	SidebarTruncated bool
+
+	// SidebarTotal carries the realm's full top-level decl count so the
+	// truncation hint can show the dropped-entry tail count (Total - cap).
+	SidebarTotal int
 }
 
 // Pagination is the view-model for the top-level decls listing footer.
@@ -96,12 +105,20 @@ type StateSidebar struct {
 }
 
 // StateTOCEntry is a side-rail nav entry. Anchor matches `id="<anchor>"`
-// on the corresponding row.
+// on the corresponding row. PrettyHref/TreeHref are pre-computed by the
+// sidebar builder: in-page anchors for on-page entries, cross-page
+// `$state&offset=N#anchor` URLs for off-page ones — the template stamps
+// them verbatim so it never has to know which kind it is rendering.
 type StateTOCEntry struct {
-	Label  string
-	Anchor string
-	Kind   string
-	Type   string
+	Label      string
+	Anchor     string
+	Kind       string
+	Type       string
+	PrettyHref template.URL
+	TreeHref   template.URL
+	// OnPage marks entries that resolve to an in-page row id; off-page
+	// entries set data-off-page="true" on the rendered <li>.
+	OnPage bool
 }
 
 // StateMetaEntry is a single key/value fact in the sidebar.

@@ -77,10 +77,42 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 		return status, components.StatusErrorComponent(msg)
 	}
 
-	nodes, total, err := DecodePackage(ctx, raw, RenderConfig{MaxChildrenPerNode: maxChildrenPerNode, MaxDecodeDepth: maxDecodeDepth}, offset, limit)
+	// Parse once, walk the page slice, and peek-kind every other slot
+	// for the full sidebar TOC — zero extra RPC, single amino decode.
+	resp, err := parsePackage(raw)
 	if err != nil {
 		h.deps.Logger.Error("unable to decode state JSON", "error", err, "path", u.EncodeURL())
 		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state")
+	}
+	realmTotal := min(len(resp.Names), len(resp.Values))
+	anchors := computeAnchors(resp.Names)
+	// Peek bounded by the sidebar cap — entries past maxSidebarTOC are
+	// never rendered, so their kind/type would be wasted work on huge
+	// realms.
+	peekEnd := min(realmTotal, maxSidebarTOC)
+	allKinds := make([]string, peekEnd)
+	allTypes := make([]string, peekEnd)
+	for i := 0; i < peekEnd; i++ {
+		allKinds[i], allTypes[i] = peekTopLevelKind(resp.Values[i])
+	}
+	pageLimit := limit
+	if pageLimit <= 0 {
+		pageLimit = maxTopLevelDecls
+	}
+	start, end := clampSliceWindow(offset, pageLimit, realmTotal)
+	indices := make([]int, 0, end-start)
+	for i := start; i < end; i++ {
+		indices = append(indices, i)
+	}
+	nodes, err := decodePackageSlice(ctx, resp, RenderConfig{MaxChildrenPerNode: maxChildrenPerNode, MaxDecodeDepth: maxDecodeDepth}, indices)
+	if err != nil {
+		h.deps.Logger.Error("unable to decode state JSON", "error", err, "path", u.EncodeURL())
+		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state")
+	}
+	for i, idx := range indices {
+		if i < len(nodes) && idx < len(anchors) {
+			nodes[i].Anchor = anchors[idx]
+		}
 	}
 
 	var docIndex template.JS = "{}"
@@ -97,18 +129,22 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, u
 	hp := heightParam(height)
 	EnrichLinks(nodes, u.Path, hp, ViewModePretty)
 
+	sidebar, truncated := BuildPackageSidebarFull(u.Path, resp.Names[:realmTotal], anchors[:realmTotal], allKinds, allTypes, offset, pageLimit, hp)
+
 	data := StateData{
-		PkgPath:      u.Path,
-		Nodes:        nodes,
-		CountLabel:   shortPackageLabel(u.Path),
-		Sidebar:      BuildPackageSidebar(u.Path, nodes),
-		KindCounts:   ComputeKindCounts(nodes),
-		Height:       height,
-		HeightParam:  hp,
-		LatestHref:   template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
-		DocIndexJSON: docIndex,
-		ViewMode:     viewMode,
-		Pagination:   buildPagination(u.Path, hp, viewMode, total, offset, limit),
+		PkgPath:          u.Path,
+		Nodes:            nodes,
+		CountLabel:       shortPackageLabel(u.Path),
+		Sidebar:          sidebar,
+		SidebarTruncated: truncated,
+		SidebarTotal:     realmTotal,
+		KindCounts:       ComputeKindCounts(nodes),
+		Height:           height,
+		HeightParam:      hp,
+		LatestHref:       template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
+		DocIndexJSON:     docIndex,
+		ViewMode:         viewMode,
+		Pagination:       buildPagination(u.Path, hp, viewMode, realmTotal, offset, pageLimit),
 	}
 
 	return h.writePage(w, height, false, data)

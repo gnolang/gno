@@ -44,13 +44,13 @@
           {{ $treeMode := eq .ViewMode "tree" }}
           <ul class="b-toc b-state-toc">
             {{ range .Sidebar.TOC }}
-              <li data-name="{{ .Label }}">
-                <a class="c-with-icon toc-pretty" data-state-target="toc-pretty" href="#{{ .Anchor }}-pretty"{{ if $treeMode }} aria-hidden="true" tabindex="-1"{{ end }}>
+              <li data-name="{{ .Label }}"{{ if not .OnPage }} data-off-page="true"{{ end }}>
+                <a class="c-with-icon toc-pretty" data-state-target="toc-pretty" href="{{ .PrettyHref }}"{{ if $treeMode }} aria-hidden="true" tabindex="-1"{{ end }}>
                   {{ template "state/kind-icon" . }}
                   <span class="label">{{ .Label }}</span>
                   {{ if .Type }}<small class="type" data-kind="{{ .Kind }}">{{ .Type }}</small>{{ end }}
                 </a>
-                <a class="c-with-icon toc-tree" data-state-target="toc-tree" href="#{{ .Anchor }}-tree"{{ if not $treeMode }} aria-hidden="true" tabindex="-1"{{ end }}>
+                <a class="c-with-icon toc-tree" data-state-target="toc-tree" href="{{ .TreeHref }}"{{ if not $treeMode }} aria-hidden="true" tabindex="-1"{{ end }}>
                   {{ template "state/kind-icon" . }}
                   <span class="label">{{ .Label }}</span>
                   {{ if .Type }}<small class="type" data-kind="{{ .Kind }}">{{ .Type }}</small>{{ end }}
@@ -58,6 +58,10 @@
               </li>
             {{ end }}
           </ul>
+          {{ if .SidebarTruncated }}
+            {{/* Cap kept in sync with state.maxSidebarTOC (5000). */}}
+            <p class="b-state-toc-truncated">+ {{ sub .SidebarTotal 5000 }} more — paginate to see them.</p>
+          {{ end }}
         {{ end }}
       </nav>
     </div>
