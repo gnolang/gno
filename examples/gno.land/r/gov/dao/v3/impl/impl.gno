@@ -9,17 +9,6 @@ import (
 var (
 	law    *Law
 	govDAO *GovDAO = NewGovDAO()
-	// SECURITY XXX: gRealm captures the full runtime.Realm struct at
-	// init time. Only used at line ~22 for gRealm.PkgPath() — that's
-	// safe (PkgPath is a stable string). But holding a runtime.Realm
-	// value in a package var is the same anti-pattern as storing `cur`
-	// itself. A future change that adds another use of gRealm (e.g.
-	// gRealm.Address() being used for auth, or worse, gRealm being
-	// passed somewhere as if it were a live capability) would convert
-	// a brittle pattern into an actual leak. Fix: replace with two
-	// const strings (gRealmPkgPath, gRealmAddress) computed once and
-	// hardcoded, or just inline the runtime call at the single use site.
-	gRealm         = runtime.CurrentRealm()
 )
 
 func init() {
@@ -31,7 +20,7 @@ func init() {
 func Render(cur realm, in string) string {
 	// Same-realm: pass cur to govDAO.Render (also crossing, but same realm
 	// so use the literal cur form rather than cross2).
-	return govDAO.Render(cur, gRealm.PkgPath(), in)
+	return govDAO.Render(cur, cur.PkgPath(), in)
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
