@@ -28,8 +28,10 @@ func init() {
 	}
 }
 
-func Render(in string) string {
-	return govDAO.Render(gRealm.PkgPath(), in)
+func Render(cur realm, in string) string {
+	// Same-realm: pass cur to govDAO.Render (also crossing, but same realm
+	// so use the literal cur form rather than cross2).
+	return govDAO.Render(cur, gRealm.PkgPath(), in)
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.

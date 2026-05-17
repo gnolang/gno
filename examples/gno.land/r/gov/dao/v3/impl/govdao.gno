@@ -125,12 +125,12 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
 	}
 
-	if status.YesPercent() >= law.Supermajority {
+	if status.YesPercent(0, rlm) >= law.Supermajority {
 		status.Accepted = true
 		return true, nil
 	}
 
-	if status.NoPercent() >= law.Supermajority {
+	if status.NoPercent(0, rlm) >= law.Supermajority {
 		status.Denied = true
 		return false, nil
 	}
@@ -157,8 +157,9 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 	return err
 }
 
-func (g *GovDAO) Render(pkgPath string, path string) string {
-	return g.render.Render(pkgPath, path)
+func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
+	// Same-realm dispatch: pass cur through as data (non-crossing).
+	return g.render.Render(0, cur, pkgPath, path)
 }
 
 func (g *GovDAO) isValidCall() bool {

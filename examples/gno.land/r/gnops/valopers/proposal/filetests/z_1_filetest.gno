@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers/proposal_test
+// PKGPATH: gno.land/r/test/proposal
 // SEND: 100000000ugnot
 
-package proposal_test
+package proposal
 
 import (
 	"testing"
@@ -44,8 +44,8 @@ func init() {
 	}
 }
 
-func main() {
-	println(dao.Render(""))
+func main(cur realm) {
+	println(dao.Render(cross2(cur), ""))
 }
 
 // Output:

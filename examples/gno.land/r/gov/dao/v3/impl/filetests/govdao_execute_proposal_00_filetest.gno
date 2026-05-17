@@ -49,7 +49,7 @@ func main(cur realm) {
 
 	println(err.Error())
 	println()
-	println(govdao.Render("gno.land/r/gov/dao/v3/impl", renderPath))
+	println(govdao.Render(cross2(cur), "gno.land/r/gov/dao/v3/impl", renderPath))
 }
 
 // Output:

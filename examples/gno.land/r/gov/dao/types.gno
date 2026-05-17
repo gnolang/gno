@@ -259,7 +259,10 @@ type DAO interface {
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
-	Render(pkgpath string, path string) string
+	// Crossing: the chain query layer auto-injects .cur, and
+	// implementations forward cur to internal rlm-aware helpers (mux
+	// RenderRlm + downstream cross2(rlm) reads).
+	Render(cur realm, pkgpath string, path string) string
 }
 
 type UpdateRequest struct {

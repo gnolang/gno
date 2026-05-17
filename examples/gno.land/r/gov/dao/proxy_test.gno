@@ -98,7 +98,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	urequire.Equal(
 		t,
 		"Render: gno.land/r/gov/dao/test",
-		Render("test"),
+		Render(cross2(cur), "test"),
 	)
 
 	// reset state
@@ -130,6 +130,6 @@ func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor
 	return nil
 }
 
-func (dd *dummyDao) Render(pkgpath string, path string) string {
+func (dd *dummyDao) Render(cur realm, pkgpath string, path string) string {
 	return "Render: " + pkgpath + "/" + path
 }

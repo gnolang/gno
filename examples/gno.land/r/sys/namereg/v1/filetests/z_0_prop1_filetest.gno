@@ -43,21 +43,21 @@ func main(cur realm) {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(dao.Render(""))
+	println(dao.Render(cross2(cur), ""))
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross2(cur), "0"))
 	println("--")
 
 	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross2(cur), "0"))
 	println("--")
 
 	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
 
 	println("--")
-	println(dao.Render("0"))
+	println(dao.Render(cross2(cur), "0"))
 
 	data, _ := susers.ResolveName("alice_new123")
 	println(data.Addr())

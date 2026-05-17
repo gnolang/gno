@@ -36,11 +36,11 @@ var gRealm = runtime.CurrentRealm()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
-func Render(p string) string {
+func Render(cur realm, p string) string {
 	if dao == nil {
 		return "DAO not initialized"
 	}
-	return dao.Render(gRealm.PkgPath(), p)
+	return dao.Render(cross2(cur), gRealm.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
