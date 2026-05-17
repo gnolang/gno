@@ -179,7 +179,11 @@ func TestBadDecode(t *testing.T) {
 
 func TestCVE202224675(t *testing.T) {
 	// Prior to CVE-2022-24675, this input would cause a stack overflow.
-	input := []byte(strings.Repeat("-----BEGIN \n", 10000000))
+	// XXX: upstream uses 10000000 iterations; reduced here because gno VM
+	// is ~200x slower than native Go and the original count adds minutes
+	// to the test suite. The regression check is on the recursion path,
+	// not the input size.
+	input := []byte(strings.Repeat("-----BEGIN \n", 100000))
 	result, rest := Decode(input)
 	if result != nil || !bytes.Equal(rest, input) {
 		t.Errorf("Encode of %#v decoded as %#v", input, rest)
