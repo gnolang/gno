@@ -515,13 +515,13 @@ func TestGrow(t *testing.T) {
 			// If we read, this affects buf.off, which is good to test.
 			readBytes, _ := buf.Read(tmp)
 			yBytes := bytes.Repeat(y, growLen)
-			// XXX: upstream wraps this in testing.AllocsPerRun(100, ...) and asserts
-			// no allocs occur in Write. gno has no allocation counter, so the assertion
-			// is dropped; the explicit loop preserves the original 100-iteration stress
-			// on the grow-after-data path.
-			for i := 0; i < 100; i++ {
+			allocs := testing.AllocsPerRun2(100, func() {
 				buf.Grow(growLen)
 				buf.Write(yBytes)
+			})
+			// Check no allocation occurs in write, as long as we're single-threaded.
+			if allocs != 0 {
+				t.Errorf("allocation occurred during write")
 			}
 			// Check that buffer has correct data.
 			if !bytes.Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
