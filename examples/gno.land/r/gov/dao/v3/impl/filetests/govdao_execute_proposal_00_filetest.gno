@@ -40,12 +40,12 @@ func init(cur realm) {
 	renderPath = strconv.FormatUint(uint64(proposalID), 10)
 
 	// Register proposal with the local GovDAO instance
-	govdao.PostCreateProposal(request, proposalID)
+	govdao.PostCreateProposal(0, cur, request, proposalID)
 }
 
-func main() {
+func main(cur realm) {
 	// Execute proposal, status should be REJECTED
-	err := govdao.ExecuteProposal(proposalID, executor)
+	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
 
 	println(err.Error())
 	println()

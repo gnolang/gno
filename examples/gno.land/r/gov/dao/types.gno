@@ -226,30 +226,36 @@ func (e *SafeExecutor) CreationRealm() string {
 	return e.e.CreationRealm()
 }
 
+// DAO is the govDAO implementation interface. All mutating/auth-gated
+// methods take rlm as their realm-typed parameter in the second position
+// (the `_ int, rlm realm` non-crossing form): callers thread the proxy's
+// cur as data without forcing a realm transition, so the impl's existing
+// runtime.CurrentRealm()-based auth gates (isValidCall, memberstore.Get)
+// continue to see the proxy realm. Render stays unchanged.
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
 	// It is intended to be used to get the address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest) (address, error)
+	PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
-	PostCreateProposal(r ProposalRequest, pid ProposalID)
+	PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID)
 
 	// VoteOnProposal will send a petition to vote for a specific proposal
 	// to the actual govDAO implementation
-	VoteOnProposal(r VoteRequest) error
+	VoteOnProposal(_ int, rlm realm, r VoteRequest) error
 
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
-	PreExecuteProposal(pid ProposalID) (bool, error)
+	PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error)
 
 	// ExecuteProposal executes the proposal executor and on error changes proposal
 	// status to denied with the error message being the denial reason.
 	// It returns the executor error when it fails.
-	ExecuteProposal(pid ProposalID, e Executor) error
+	ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.

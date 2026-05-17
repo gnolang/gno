@@ -17,9 +17,9 @@ func init() {
 	executor = dao.NewSimpleExecutor(cb, "")
 }
 
-func main() {
+func main(cur realm) {
 	// Try to execute a proposal that doesn't exist
-	govdao.ExecuteProposal(404, executor)
+	govdao.ExecuteProposal(0, cur, 404, executor)
 }
 
 // Error:
