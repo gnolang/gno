@@ -33,6 +33,19 @@ func recoverToErr(logger *slog.Logger, kind string, errp *error, fields ...any) 
 	}
 }
 
+// recoverDecodeToErr is recoverToErr scoped to decoder functions that have
+// no logger of their own. The caller's handler already logs decode errors
+// with full request context (path, oid, height) when it surfaces the err,
+// so the wrapped panic payload (clipped to 512c) rides that existing log
+// line. Keeps the decoder boundary panic-proof — amino's hard panics on
+// hostile chain bytes (json_decode.go's "unsupported type" et al.) never
+// unwind past the function they live in.
+func recoverDecodeToErr(kind string, errp *error) {
+	if r := recover(); r != nil {
+		*errp = fmt.Errorf("%s: panic recovered: %.512s", kind, r)
+	}
+}
+
 // isFuncKind reports whether n renders as a func or closure — the two
 // share the lazy-expand path in the tree renderer (state/source-details).
 func isFuncKind(n *StateNode) bool {

@@ -44,7 +44,10 @@ func startDepthFor(cfg RenderConfig) int {
 // DecodeObject decodes one qobject_json payload into a root StateNode
 // whose Children are the decoded fields/elements, bounded by cfg.
 // Refs surface as KindRef; ExportRefValue cycle markers as KindCycle.
-func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (StateNode, error) {
+// recoverDecodeToErr keeps amino's hard panics on hostile chain bytes
+// inside the function — the caller gets an error, never a torn request.
+func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (root StateNode, err error) {
+	defer recoverDecodeToErr("decode object JSON", &err)
 	if err := ctx.Err(); err != nil {
 		return StateNode{}, err
 	}
@@ -55,7 +58,7 @@ func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (StateNode,
 		return StateNode{}, fmt.Errorf("decode object JSON: %w", err)
 	}
 
-	root := StateNode{
+	root = StateNode{
 		Name:     "(object)",
 		Kind:     KindStruct,
 		ObjectID: resp.ObjectID,
@@ -94,8 +97,10 @@ func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig, offset, li
 // parsePackage is the amino-decode half of DecodePackage. Exposed so the
 // page handler can compute full-sidebar metadata (peekTopLevelKind over
 // every Value) from a single parse, instead of decoding the package twice.
-func parsePackage(raw []byte) (pkgResponse, error) {
-	var resp pkgResponse
+// recoverDecodeToErr keeps an amino panic on hostile chain bytes inside
+// the function; the caller sees a clean error and returns 500.
+func parsePackage(raw []byte) (resp pkgResponse, err error) {
+	defer recoverDecodeToErr("decode pkg JSON", &err)
 	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
 		return pkgResponse{}, fmt.Errorf("decode pkg JSON: %w", err)
 	}
@@ -105,14 +110,17 @@ func parsePackage(raw []byte) (pkgResponse, error) {
 // decodePackageSlice walks the selected top-level indices of an already-
 // parsed pkgResponse, bounded by cfg. indices is consumed positionally so
 // the caller can align anchors/kinds with the returned nodes slice.
-func decodePackageSlice(ctx context.Context, resp pkgResponse, cfg RenderConfig, indices []int) ([]StateNode, error) {
+// recoverDecodeToErr catches walker panics on hostile values so a single
+// malformed top-level decl cannot tear the whole page response.
+func decodePackageSlice(ctx context.Context, resp pkgResponse, cfg RenderConfig, indices []int) (nodes []StateNode, err error) {
+	defer recoverDecodeToErr("decode pkg slice", &err)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	cfg = clampRenderConfig(cfg)
 	startDepth := startDepthFor(cfg)
 	total := min(len(resp.Names), len(resp.Values))
-	nodes := make([]StateNode, 0, len(indices))
+	nodes = make([]StateNode, 0, len(indices))
 	for _, i := range indices {
 		if i < 0 || i >= total {
 			continue

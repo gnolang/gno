@@ -61,10 +61,12 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, r
 		raw  []byte
 		jdoc *doc.JSONDocumentation
 	)
-	// WithContext cancels the sibling Doc fetch as soon as StatePkg fails,
-	// freeing the RPC slot and saving a wasted round trip. Both closures
-	// decode attacker-controlled chain data and defer panic recovery so a
-	// malformed payload never crashes the process.
+	// One-way fail-fast: a fatal StatePkg failure cancels gctx and short-
+	// circuits the Doc sibling (freeing the RPC slot, saving a round trip).
+	// Doc is best-effort — its errors and panics are swallowed so the page
+	// still renders without doc comments. Decoding of `raw` happens after
+	// g.Wait below, gated by parsePackage/decodePackageSlice's own panic
+	// recovery so a malformed payload never crashes the process.
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (gerr error) {
 		defer recoverToErr(h.deps.Logger, "statepkg", &gerr, "path", u.EncodeURL())
@@ -220,9 +222,11 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 	}
 
 	var raw, typeRaw []byte
-	// See servePackagePage: same panic-recover discipline and same
-	// WithContext semantics so a fatal StateObject cancels the optional
-	// StateType sibling fetch.
+	// One-way fail-fast (mirrors servePackagePage): a fatal StateObject
+	// failure cancels the optional StateType sibling. StateType is best-
+	// effort (positional fallback on miss) so its errors and panics are
+	// swallowed. DecodeObjectFull below carries its own panic recovery
+	// so amino panics on hostile chain bytes never escape the handler.
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
 		defer recoverToErr(h.deps.Logger, "stateobject", &err, "path", u.EncodeURL(), "oid", oid)

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
@@ -77,6 +79,43 @@ func serveJSONReq(t *testing.T, h *Handler, query url.Values) *httptest.Response
 	rec := httptest.NewRecorder()
 	h.Handle(context.Background(), rec, req, u)
 	return rec
+}
+
+// TestUpstreamPkgJSONShapeIsPlainJSON pins the wire-shape assumption that
+// serveJSONPackage's json.go relies on: qpkg_json returns a top-level
+// `{"names":[…],"values":[…]}` object — plain JSON keys, NO `@type` amino
+// envelope. serveJSONPackage uses stdlib json.Unmarshal (cheap, lets values
+// pass through as json.RawMessage); the moment the VM wraps the payload
+// in a `{"@type":"…","names":…}` shape, that path will silently mis-decode
+// and clients lose pagination. This test breaks loudly first.
+//
+// If you're touching this, also touch values_export.go ExportValues /
+// keeper.go QueryPkgJSON in gno.land/pkg/sdk/vm/ — those are the upstream.
+func TestUpstreamPkgJSONShapeIsPlainJSON(t *testing.T) {
+	t.Parallel()
+
+	raw := buildManyTopLevelDeclsFixture(3)
+
+	// 1) Top-level decodes as plain JSON into our wrapper shape.
+	var probe struct {
+		Type   string            `json:"@type"`
+		Names  []string          `json:"names"`
+		Values []json.RawMessage `json:"values"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe),
+		"qpkg_json must be plain JSON at the root — stdlib decode is the\n"+
+			"contract serveJSONPackage relies on")
+
+	// 2) No amino envelope at the root: if @type appears here, json.Unmarshal\n
+	//    would still succeed (it just sees an extra field) but the wrapper\n
+	//    semantics break for any future amino-aware consumer.
+	require.Empty(t, probe.Type,
+		"upstream qpkg_json must NOT carry a top-level @type envelope; if it\n"+
+			"does, serveJSONPackage must switch to amino.UnmarshalJSON")
+
+	// 3) Names/Values present and aligned — the pagination invariant.
+	require.Len(t, probe.Names, 3)
+	require.Len(t, probe.Values, 3)
 }
 
 func TestServeJSONPackageHappyPath(t *testing.T) {

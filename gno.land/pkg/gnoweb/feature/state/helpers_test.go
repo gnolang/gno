@@ -161,6 +161,52 @@ func TestRecoverFetcher_LogsClippedPanic(t *testing.T) {
 	assert.Less(t, len(out), 3000, "log line must not amplify the panic payload verbatim")
 }
 
+// TestRecoverDecodeToErr — decoders must never panic past their boundary.
+// recoverDecodeToErr converts a panic on hostile chain bytes into a wrapped
+// error so the handler logs it through its existing error path and surfaces
+// a clean 500 to the user, instead of unwinding to net/http's top-level
+// recover (which logs as a process event and tears the connection).
+func TestRecoverDecodeToErr(t *testing.T) {
+	t.Parallel()
+
+	got := func() (err error) {
+		defer recoverDecodeToErr("decode pkg JSON", &err)
+		panic("synthetic amino panic")
+	}()
+
+	require.Error(t, got)
+	assert.Contains(t, got.Error(), "decode pkg JSON")
+	assert.Contains(t, got.Error(), "panic recovered")
+}
+
+// TestRecoverDecodeToErr_NoPanic — happy path must leave the caller's
+// named-return err untouched.
+func TestRecoverDecodeToErr_NoPanic(t *testing.T) {
+	t.Parallel()
+
+	got := func() (err error) {
+		defer recoverDecodeToErr("decode pkg JSON", &err)
+		return nil
+	}()
+
+	assert.NoError(t, got)
+}
+
+// TestRecoverDecodeToErr_ClipsLargePayload — same 512-rune clip discipline
+// as recoverFetcher: a hostile decoder panic payload cannot amplify the
+// error message logged downstream.
+func TestRecoverDecodeToErr_ClipsLargePayload(t *testing.T) {
+	t.Parallel()
+
+	got := func() (err error) {
+		defer recoverDecodeToErr("decode object JSON", &err)
+		panic(string(make([]byte, 4096)))
+	}()
+
+	require.Error(t, got)
+	assert.Less(t, len(got.Error()), 1024, "error must not embed the full panic payload")
+}
+
 // TestComputeAnchors pins the dedup-aware fragment-anchor minting used by
 // the full sidebar TOC. Mirrors buildTOC's suffix discipline so off-page
 // entries land on the same row id buildTOC would have stamped.
