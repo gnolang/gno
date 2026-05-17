@@ -1612,7 +1612,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			}
 		}
 	case FieldType:
-		panic(&Exception{Value: typedString("runtime error: field (pseudo)type cannot be used as map key")})
+		panic(NewException(typedString("runtime error: field (pseudo)type cannot be used as map key")))
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
 		al := av.GetLength()
@@ -1639,7 +1639,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		}
 		bz = append(bz, ']')
 	case *SliceType:
-		panic(&Exception{Value: typedString("runtime error: slice type cannot be used as map key")})
+		panic(NewException(typedString("runtime error: slice type cannot be used as map key")))
 	case *StructType:
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
@@ -1780,7 +1780,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			path.SetDepth(0)
 		case 2:
 			if tv.V == nil {
-				panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+				panic(NewException(typedString("runtime error: nil pointer dereference")))
 			}
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
@@ -1796,7 +1796,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 	case VPDerefValMethod:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+			panic(NewException(typedString("runtime error: nil pointer dereference")))
 		}
 		dtv2 := tv.V.(PointerValue).TV
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
@@ -1983,10 +1983,10 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 			}
 
 			if ii >= len(sv) {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
+				panic(NewException(typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))))
 			}
 			if ii < 0 {
-				panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
+				panic(NewException(typedString(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))))
 			}
 
 			btv.SetUint8(sv[ii])
@@ -2004,14 +2004,14 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil slice index (out of bounds)")})
+			panic(NewException(typedString("runtime error: nil slice index (out of bounds)")))
 		}
 		sv := tv.V.(*SliceValue)
 		ii := int(iv.ConvertGetInt())
 		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: uninitialized map index")})
+			panic(NewException(typedString("runtime error: uninitialized map index")))
 		}
 		mv := tv.V.(*MapValue)
 
@@ -2161,26 +2161,26 @@ func (tv *TypedValue) GetCapacity() int {
 
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if low < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
-			low))})
+			low))))
 	}
 	if high < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
-			low))})
+			low))))
 	}
 	if low > high {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d > %d",
-			low, high))})
+			low, high))))
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if tv.GetLength() < high {
-			panic(&Exception{Value: typedString(fmt.Sprintf(
+			panic(NewException(typedString(fmt.Sprintf(
 				"runtime error: slice bounds out of range [%d:%d] with string length %d",
-				low, high, tv.GetLength()))})
+				low, high, tv.GetLength()))))
 		}
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
@@ -2188,14 +2188,14 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		}
-		panic(&Exception{Value: typedString(
+		panic(NewException(typedString(
 			"non-string primitive type cannot be sliced",
-		)})
+		)))
 	case *ArrayType:
 		if tv.GetLength() < high {
-			panic(&Exception{Value: typedString(fmt.Sprintf(
+			panic(NewException(typedString(fmt.Sprintf(
 				"runtime error: slice bounds out of range [%d:%d] with array length %d",
-				low, high, tv.GetLength()))})
+				low, high, tv.GetLength()))))
 		}
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
@@ -2214,13 +2214,13 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	case *SliceType:
 		// XXX consider restricting slice expansion if slice is readonly.
 		if tv.GetCapacity() < high {
-			panic(&Exception{Value: typedString(fmt.Sprintf(
+			panic(NewException(typedString(fmt.Sprintf(
 				"runtime error: slice bounds out of range [%d:%d] with capacity %d",
-				low, high, tv.GetCapacity()))})
+				low, high, tv.GetCapacity()))))
 		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
-				panic(&Exception{Value: typedString("runtime error: nil slice index out of range")})
+				panic(NewException(typedString("runtime error: nil slice index out of range")))
 			}
 			return TypedValue{
 				T: tv.T,
@@ -2245,39 +2245,39 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 
 func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
 	if lowVal < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
-			lowVal))})
+			lowVal))))
 	}
 	if highVal < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
-			highVal))})
+			highVal))))
 	}
 	if maxVal < 0 {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
-			maxVal))})
+			maxVal))))
 	}
 	if lowVal > highVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d > %d",
-			lowVal, highVal))})
+			lowVal, highVal))))
 	}
 	if highVal > maxVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d > %d",
-			highVal, maxVal))})
+			highVal, maxVal))))
 	}
 	if tv.GetCapacity() < highVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: slice bounds out of range [%d:%d:%d] with capacity %d",
-			lowVal, highVal, maxVal, tv.GetCapacity()))})
+			lowVal, highVal, maxVal, tv.GetCapacity()))))
 	}
 	if tv.GetCapacity() < maxVal {
-		panic(&Exception{Value: typedString(fmt.Sprintf(
+		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: slice bounds out of range [%d:%d:%d] with capacity %d",
-			lowVal, highVal, maxVal, tv.GetCapacity()))})
+			lowVal, highVal, maxVal, tv.GetCapacity()))))
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
@@ -2299,7 +2299,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 		// XXX consider restricting slice expansion if slice is readonly.
 		if tv.V == nil {
 			if lowVal != 0 || highVal != 0 || maxVal != 0 {
-				panic(&Exception{Value: typedString("runtime error: nil slice index out of range")})
+				panic(NewException(typedString("runtime error: nil slice index out of range")))
 			}
 			return TypedValue{
 				T: tv.T,

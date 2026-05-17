@@ -1526,6 +1526,8 @@ func (m *Machine) Run(st Stage) {
 
 	// Iterative exception recovery: catch Go-level *Exception panics and
 	// convert them to the cooperative pushPanic path without recursion.
+	// Abort'd exceptions are terminal — re-panic directly so the outer
+	// recoverer sees them unchanged (their GoStack/Descriptor survive).
 	for {
 		caught := m.runOnce()
 		if caught == nil {
@@ -1534,7 +1536,10 @@ func (m *Machine) Run(st Stage) {
 		if caught.Stacktrace.IsZero() {
 			caught.Stacktrace = m.Stacktrace()
 		}
-		m.pushPanic(caught.Value)
+		if caught.Abort {
+			panic(caught)
+		}
+		m.pushPanicException(caught)
 	}
 }
 
@@ -2665,11 +2670,8 @@ func (m *Machine) PanicString(ex string) {
 // Keep this code in sync with those calls.
 // Note that m.Run() will fill in the stacktrace if it isn't present.
 func (m *Machine) Panic(etv TypedValue) {
-	// Construct a new exception.
-	ex := &Exception{
-		Value:      etv,
-		Stacktrace: m.Stacktrace(),
-	}
+	ex := NewException(etv)
+	ex.Stacktrace = m.Stacktrace()
 	// Panic immediately.
 	panic(ex)
 }
@@ -2679,22 +2681,23 @@ func (m *Machine) Panic(etv TypedValue) {
 // It should ONLY be called from doOp* Op handlers,
 // and should return immediately from the origin Op.
 func (m *Machine) pushPanic(etv TypedValue) {
-	// Construct a new exception.
-	ex := &Exception{
+	m.pushPanicException(&Exception{
 		Value:      etv,
 		Stacktrace: m.Stacktrace(),
-	}
-	// Pop after capturing stacktrace.
+		GoStack:    captureExceptionStack(1),
+	})
+}
+
+// pushPanicException is pushPanic's internal entry taking an existing
+// *Exception (caught by runOnce from a panic(NewException(...))). Preserves
+// GoStack/Descriptor/etc. across the cooperative re-entry.
+func (m *Machine) pushPanicException(ex *Exception) {
 	fr := m.PopUntilLastCallFrame()
-	// Link ex.Previous.
 	if m.Exception == nil {
-		// Recall the last m.Exception before frame.
 		m.Exception = ex.WithPrevious(fr.LastException)
 	} else {
-		// Replace existing m.Exception with new.
 		m.Exception = ex.WithPrevious(m.Exception)
 	}
-
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
