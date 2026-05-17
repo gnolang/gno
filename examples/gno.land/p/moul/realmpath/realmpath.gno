@@ -74,6 +74,20 @@ func (r *Request) PathPart(index int) string {
 
 // String rebuilds the URL from the path and query values.
 // If the Realm is not set, it automatically retrieves the current realm path.
+//
+// SECURITY (Class-2-shaped, intentionally accepted): runtime.CurrentRealm()
+// inside a non-crossing /p/ method is .Title()-vulnerable — it walks past
+// non-crossing frames to the most-recent crossing ancestor, not the
+// immediate caller. The lazily-captured r.Realm is therefore NOT a reliable
+// identity claim under a contrived call chain.
+//
+// This is acceptable here because r.Realm is consumed only as a URL string
+// for rendering (the line below builds reconstructedPath for display); no
+// caller in /examples uses it for authorization. If you add a new consumer
+// that gates writes/auth on r.Realm, replace the lazy fill with an explicit
+// `req.Realm = cur.PkgPath()` set by the caller under rlm.IsCurrent(), or
+// switch to a sibling method that takes a realm parameter — see
+// docs/resources/gno-security.md for the threat-class taxonomy.
 func (r *Request) String() string {
 	// Automatically set the Realm if it is not already defined
 	if r.Realm == "" {

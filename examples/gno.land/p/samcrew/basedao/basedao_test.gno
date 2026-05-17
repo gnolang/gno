@@ -21,7 +21,7 @@ var (
 	cur realm
 )
 
-func TestNewDAO(t *testing.T) {
+func TestNewDAO(cur realm, t *testing.T) {
 	initialRoles := []RoleInfo{
 		{Name: "admin", Description: "Admin is the superuser"},
 	}
@@ -61,7 +61,7 @@ func TestNewDAO(t *testing.T) {
 	}
 
 	urequire.Equal(t, 4, dao.Core.ResourcesCount(), "expected 4 resources")
-	urequire.Equal(t, dao.RealmPkgPath, daoRealm.PkgPath())
+	urequire.Equal(t, dao.RealmPkgPath, cur.PkgPath())
 
 	// XXX: check realm and profile
 }
@@ -695,7 +695,8 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
-	pubdao := New(conf, cur)
+	var pubdao *DAOWrapper
+	func(cur realm) { pubdao = New(conf, cur) }(cross)
 	dao := pubdao.Private()
 
 	mockHandlerCalled := false

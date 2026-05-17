@@ -8,7 +8,7 @@ func Example_basic(cur realm) {
 	auth := NewWithMembers(cur.Previous().Address())
 
 	// Use the authority to perform a privileged action
-	auth.Do(0, cur, "update_config", func() error {
+	auth.DoByCurrent(0, cur, "update_config", func() error {
 		// config = newValue
 		return nil
 	})
@@ -35,7 +35,7 @@ func Example_contractAuthority(cur realm) {
 	)
 
 	// Privileged actions will be handled by the contract
-	auth.Do(0, cur, "update_params", func() error {
+	auth.DoByCurrent(0, cur, "update_params", func() error {
 		// Executes after DAO approval
 		return nil
 	})
@@ -59,7 +59,7 @@ func Example_restrictedContractAuthority(cur realm) {
 	)
 
 	// Only members can propose, and contract must approve
-	auth.Do(0, cur, "update_params", func() error {
+	auth.DoByCurrent(0, cur, "update_params", func() error {
 		// Executes after:
 		// 1. Proposer initiates
 		// 2. DAO approves

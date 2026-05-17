@@ -47,7 +47,7 @@ func TestAuthorizerAuthorize(cur realm, t *testing.T) {
 	// Test successful action with args
 	executed := false
 	args := []any{"test_arg", 123}
-	err := auth.Do(0, cur, "test_action", func() error {
+	err := auth.DoByCurrent(0, cur, "test_action", func() error {
 		executed = true
 		return nil
 	}, args...)
@@ -59,7 +59,7 @@ func TestAuthorizerAuthorize(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("bob")))
 
 	executed = false
-	err = auth.Do(0, cur, "test_action", func() error {
+	err = auth.DoByCurrent(0, cur, "test_action", func() error {
 		executed = true
 		return nil
 	}, "unauthorized_arg")
@@ -71,7 +71,7 @@ func TestAuthorizerAuthorize(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	expectedErr := errors.New("test error")
 
-	err = auth.Do(0, cur, "test_action", func() error {
+	err = auth.DoByCurrent(0, cur, "test_action", func() error {
 		return expectedErr
 	})
 
@@ -191,7 +191,7 @@ func TestAuthorizerWithDroppedAuthority(cur realm, t *testing.T) {
 	uassert.True(t, err == nil, "expected no error")
 
 	// Try to execute action
-	err = auth.Do(0, cur, "test_action", func() error {
+	err = auth.DoByCurrent(0, cur, "test_action", func() error {
 		return nil
 	})
 	uassert.True(t, err != nil, "expected error from dropped authority")
@@ -530,7 +530,7 @@ func TestContractAuthorityUnauthorizedCaller(cur realm, t *testing.T) {
 
 	// 1. Attempt action from unauthorized user
 	testing.SetRealm(testing.NewUserRealm(unauthorizedAddr))
-	err := authorizer.Do(0, cur, "test_action_unauthorized", privilegedAction)
+	err := authorizer.DoByCurrent(0, cur, "test_action_unauthorized", privilegedAction)
 
 	// Assertions for unauthorized call
 	uassert.Error(t, err, "DoByCurrent should return an error for unauthorized caller")
@@ -542,7 +542,7 @@ func TestContractAuthorityUnauthorizedCaller(cur realm, t *testing.T) {
 	handlerExecutedCorrectly = false // Reset flag
 	actionExecuted = false           // Reset flag
 	testing.SetRealm(testing.NewCodeRealm(contractPath))
-	err = authorizer.Do(0, cur, "test_action_authorized", privilegedAction)
+	err = authorizer.DoByCurrent(0, cur, "test_action_authorized", privilegedAction)
 
 	// Assertions for authorized call
 	uassert.NoError(t, err, "DoByCurrent should succeed for authorized contract caller")
@@ -550,46 +550,53 @@ func TestContractAuthorityUnauthorizedCaller(cur realm, t *testing.T) {
 	uassert.True(t, actionExecuted, "Privileged action should have executed for authorized caller")
 }
 
-// TestAuthorizerDoByPrevious verifies the "previous realm authorizes"
-// pattern: caller invokes auth.Do with cur.Previous() so the authority
-// check sees the realm that crossed into us, not us.
+// TestAuthorizerDoByPrevious verifies the "calling realm authorizes"
+// pattern: a function (the inner crossing closure) invokes
+// DoByPrevious so the authority check sees cur.Previous() — the realm
+// that crossed into it — not the function's own realm.
+//
+// Each scenario crosses into the inner closure via cross2(cur) after
+// SetRealm — inside the closure, cur is the fresh live cur and
+// cur.Previous() is the SetRealm'd outer realm. This is the only way
+// to exercise DoByPrevious correctly under the IsCurrent guard, which
+// rejects synthetic realm values (testing.MakeRealm) and stored
+// stale captures.
 func TestAuthorizerDoByPrevious(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
 	auth := NewWithMembers(alice)
 
-	// Simulate: alice EOA crossed into r/test/test. From r/test/test's
-	// perspective cur.Previous() is alice — an authorized member.
-	const testPkgPath = "gno.land/r/test/test"
-	aliceRealm := testing.MakeRealm(alice, "", testing.OriginRealm())
-	aliceCrossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, aliceRealm)
-
+	// alice (member) crosses in: cur.Previous() == alice inside the inner closure.
+	testing.SetRealm(testing.NewUserRealm(alice))
 	executed := false
 	args := []any{"test_arg", 123}
-	err := auth.Do(0, aliceCrossed.Previous(), "test_action", func() error {
-		executed = true
-		return nil
-	}, args...)
-	uassert.NoError(t, err, "expected no error")
-	uassert.True(t, executed, "action should have been executed")
+	func(cur realm) {
+		err := auth.DoByPrevious(0, cur, "test_action", func() error {
+			executed = true
+			return nil
+		}, args...)
+		uassert.NoError(t, err, "expected no error")
+		uassert.True(t, executed, "action should have been executed")
+	}(cross2(cur))
 
 	expectedErr := errors.New("test error")
-	err = auth.Do(0, aliceCrossed.Previous(), "test_action", func() error {
-		return expectedErr
-	})
-	uassert.ErrorContains(t, err, expectedErr.Error(), "expected error")
+	func(cur realm) {
+		err := auth.DoByPrevious(0, cur, "test_action", func() error {
+			return expectedErr
+		})
+		uassert.ErrorContains(t, err, expectedErr.Error(), "expected error")
+	}(cross2(cur))
 
-	// Simulate: bob (not a member) crossed into r/test/test. Authorize
-	// must reject.
-	bobRealm := testing.MakeRealm(bob, "", testing.OriginRealm())
-	bobCrossed := testing.MakeRealm(chain.PackageAddress(testPkgPath), testPkgPath, bobRealm)
-
+	// bob (not a member) crosses in: Authorize must reject.
+	testing.SetRealm(testing.NewUserRealm(bob))
 	executed = false
-	err = auth.Do(0, bobCrossed.Previous(), "test_action", func() error {
-		executed = true
-		return nil
-	}, "unauthorized_arg")
-	uassert.ErrorContains(t, err, "unauthorized", "expected error")
-	uassert.False(t, executed, "action should not have been executed")
+	func(cur realm) {
+		err := auth.DoByPrevious(0, cur, "test_action", func() error {
+			executed = true
+			return nil
+		}, "unauthorized_arg")
+		uassert.ErrorContains(t, err, "unauthorized", "expected error")
+		uassert.False(t, executed, "action should not have been executed")
+	}(cross2(cur))
 }

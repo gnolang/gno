@@ -11,7 +11,7 @@ func Auth() *authz.Authorizer {
 }
 
 func updateInstructions(_ int, rlm realm, newInstructions string) {
-	err := auth.Do(0, rlm, "update-instructions", func() error {
+	err := auth.DoByCurrent(0, rlm, "update-instructions", func() error {
 		instructions = newInstructions
 		return nil
 	})

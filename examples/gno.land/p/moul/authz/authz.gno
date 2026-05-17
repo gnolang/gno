@@ -24,9 +24,8 @@
 //	var auth = authz.NewWithMembers(member)
 //
 //	// Create functions that require authorization
-//	func UpdateConfig(newValue string) error {
-//		crossing()
-//		return auth.DoByPrevious("update_config", func() error {
+//	func UpdateConfig(cur realm, newValue string) error {
+//		return auth.DoByPrevious(0, cur, "update_config", func() error {
 //			config = newValue
 //			return nil
 //		})
@@ -37,7 +36,6 @@ package authz
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 	"strings"
 
@@ -177,19 +175,46 @@ func (a *Authorizer) Transfer(_ int, rlm realm, newAuthority Authority) error {
 	})
 }
 
-// Do executes a privileged action authorized as `rlm`. The caller
-// chooses which realm authorizes by passing either their own `cur`
-// (was DoByCurrent) or `cur.Previous()` (was DoByPrevious):
+// DoByCurrent executes a privileged action authorized as `rlm`. `rlm`
+// must be the caller's own live cur (asserted via rlm.IsCurrent());
+// the authorized principal is `rlm.Address()`. To authorize as the
+// realm that called your function, use `DoByPrevious`.
 //
-//	auth.Do(0, cur, "update_config", func() error { ... })            // current realm authorizes
-//	auth.Do(0, cur.Previous(), "update_config", func() error { ... }) // calling realm authorizes
+//	auth.DoByCurrent(0, cur, "update_config", func() error { ... })    // current realm authorizes
+//	auth.DoByPrevious(0, cur, "update_config", func() error { ... })   // calling realm authorizes
 //
 // The `_ int` first parameter is a deliberate sentinel that pushes
-// `rlm realm` past the first-arg position so Do stays a non-crossing
-// method — otherwise it would be a crossing method and rlm.Previous()
-// inside would resolve one realm deeper than the caller intended.
-func (a *Authorizer) Do(_ int, rlm realm, title string, action PrivilegedAction, args ...any) error {
+// `rlm realm` past the first-arg position so DoByCurrent stays a
+// non-crossing method — otherwise it would be a crossing method and
+// rlm.Previous() inside would resolve one realm deeper than the caller
+// intended.
+//
+// SECURITY: the IsCurrent guard closes Class-2 designation forgery (see
+// docs/resources/gno-security.md). A realm value's .Address() is set
+// when the value is minted at a crossing frame; the value can in
+// principle be stored and replayed. Without IsCurrent, a hostile realm
+// could capture a high-privilege realm's cur.Previous() (e.g., when
+// that realm called into it) and later pass the stored value here to
+// authorize actions as that realm. IsCurrent rejects stale captures by
+// requiring the value to match the topmost live crossing frame's cur.
+func (a *Authorizer) DoByCurrent(_ int, rlm realm, title string, action PrivilegedAction, args ...any) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
 	return a.auth.Authorize(rlm.Address(), title, action, args...)
+}
+
+// DoByPrevious executes a privileged action authorized as the realm
+// that called the function invoking DoByPrevious. `rlm` must be the
+// caller's own live cur; the principal is derived as
+// `rlm.Previous().Address()`. Mirrors the Transfer/AddMember pattern:
+// always take live cur, derive the caller-of-caller internally rather
+// than accepting a stored/forwarded realm value.
+func (a *Authorizer) DoByPrevious(_ int, rlm realm, title string, action PrivilegedAction, args ...any) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
+	return a.auth.Authorize(rlm.Previous().Address(), title, action, args...)
 }
 
 // String returns a string representation of the auth authority
@@ -360,12 +385,16 @@ func (a *ContractAuthority) Authorize(caller address, title string, action Privi
 	// setup a once instance to ensure the action is executed only once
 	executionOnce := once.Once{}
 
-	// Wrap the action to ensure it can only be executed by the contract
+	// wrappedAction enforces at-most-once invocation. The previous
+	// gate `runtime.CurrentRealm() == contractAddr` is removed: it
+	// was .Title()-bypassable (runtime.CurrentRealm walks past
+	// non-crossing frames to the most-recent crossing ancestor) and
+	// the trust boundary is now upstream — Authorizer.DoByCurrent /
+	// DoByPrevious require rlm.IsCurrent() and pass a non-forgeable
+	// principal to Authorize, while the consumer realm's handler
+	// closure is the Class-4 trust root by lexical capture at
+	// registration time.
 	wrappedAction := func() error {
-		current := runtime.CurrentRealm().Address()
-		if current != a.contractAddr {
-			return errors.New("action can only be executed by the contract")
-		}
 		return executionOnce.DoErr(func() error {
 			return action()
 		})

@@ -290,7 +290,7 @@ func init() {
 		InitialCondition: adminCond,
 		GetProfileString: profile.GetStringField,
 		SetProfileString: profile.SetStringField,
-	})
+	}, cur)
 }
 
 func Vote(cur realm, proposalID uint64, vote daocond.Vote) {

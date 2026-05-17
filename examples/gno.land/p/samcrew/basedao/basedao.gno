@@ -2,7 +2,6 @@ package basedao
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 
 	"gno.land/p/nt/mux/v0"
@@ -126,6 +125,16 @@ const EventBaseDAOCreated = "BaseDAOCreated"
 func New(conf *Config, rlm realm) *DAOWrapper {
 	// XXX: emit events from memberstore
 
+	// IsCurrent gate: rlm must be the caller's live cur. Otherwise
+	// RealmPkgPath/RealmAddress (captured below into a long-lived
+	// struct) would be set from a stale or sibling-frame value, and
+	// the cross2(rlm) calls further down would panic anyway when
+	// SetProfileString is non-nil. Catch the misuse up-front so the
+	// `SetProfileString == nil` path is also guarded.
+	if !rlm.IsCurrent() {
+		panic("basedao.New: rlm is not the caller's live cur")
+	}
+
 	members := conf.Members
 	if members == nil {
 		members = NewMembersStore(nil, nil)
@@ -135,14 +144,13 @@ func New(conf *Config, rlm realm) *DAOWrapper {
 		panic(errors.New("GetProfileString is required"))
 	}
 
-	curRealm := runtime.CurrentRealm()
 	core := daokit.NewCore()
 	dao := &DAOPrivate{
 		Core:             core,
 		Members:          members,
 		GetProfileString: conf.GetProfileString,
-		RealmPkgPath:     curRealm.PkgPath(),
-		RealmAddress:     curRealm.Address(),
+		RealmPkgPath:     rlm.PkgPath(),
+		RealmAddress:     rlm.Address(),
 	}
 	dao.initRenderingRouter()
 
