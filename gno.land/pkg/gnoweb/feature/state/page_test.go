@@ -157,7 +157,6 @@ func TestServePagePackageHappyPath(t *testing.T) {
 	}
 	body := rec.Body.String()
 	must := []string{
-		`<meta name="htmx-config"`,
 		// Gnoweb URL grammar puts state args in $webargs, NOT ?query —
 		// `?state&frag=node` would fall through the WebQuery dispatch
 		// and return the full page, defeating htmx lazy expansion.
@@ -644,8 +643,8 @@ func TestServePackagePageFullPageWithoutHXRequest(t *testing.T) {
 		t.Errorf("HX-Push-Url unexpectedly set on full-page response")
 	}
 	body := rec.Body.String()
-	// Full-page response contains the htmx-config meta — fragments don't.
-	if !strings.Contains(body, `<meta name="htmx-config"`) {
-		t.Errorf("full-page response missing htmx-config meta; body head=%s", head(body, 600))
+	// Full-page response carries the SSR doc-index island — fragments don't.
+	if !strings.Contains(body, `id="state-doc-index"`) {
+		t.Errorf("full-page response missing doc-index island; body head=%s", head(body, 600))
 	}
 }

@@ -1072,7 +1072,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 }
 
 .b-state-export {
-	margin-block: var(--g-space-2) var(--g-space-3);
+	margin-block-end: var(--g-space-3);
 	color: var(--s-color-text-tertiary);
 	font-size: var(--g-font-size-100);
 }
@@ -1233,6 +1233,53 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 /* `scroll-margin-top` keeps anchor jumps clear of sticky chrome. */
 .b-state-explorer [id] {
 	scroll-margin-top: var(--g-space-24);
+}
+
+/* Deep-link focus mode: :target + :has() hides siblings of the matched
+   top-level entry. Two scoped blocks (one per view) — :target matches
+   across `display:none` ancestors, so a single union rule would blank
+   the inactive view on a cross-view hash. */
+.b-state-focus-exit {
+	display: none;
+	margin-block-end: var(--g-space-4);
+}
+
+.b-state-page:has(.view-pretty .b-state-decl[id]:target) {
+	.b-state-focus-exit {
+		display: inline-flex;
+	}
+
+	.b-state-pagination {
+		display: none;
+	}
+
+	.view-pretty .b-state-decl[id]:not(:target) {
+		display: none;
+	}
+
+	/* Viewport-tall scroll-margin clamps the scroll-to-anchor to 0 so
+	   the focus-mode chrome (back link, header, subheader) stays in view. */
+	.view-pretty .b-state-decl[id]:target {
+		scroll-margin-top: 100vh;
+	}
+}
+
+.b-state-page:has(.view-tree details[id]:target) {
+	.b-state-focus-exit {
+		display: inline-flex;
+	}
+
+	.b-state-pagination {
+		display: none;
+	}
+
+	.view-tree details[id]:not(:target) {
+		display: none;
+	}
+
+	.view-tree details[id]:target {
+		scroll-margin-top: 100vh;
+	}
 }
 
 /* ===== STATE EXPLORER ===== */

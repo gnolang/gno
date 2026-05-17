@@ -107,7 +107,7 @@ func TestHandleEndToEndFragmentFromTemplateURL(t *testing.T) {
 	// The dispatch must reach the fragment branch — fragment success
 	// (`b-state-frag-node`) OR fragment error (`b-state-frag-error`) both
 	// confirm that. The bug we're guarding against is full-page fallback,
-	// which would surface `<!doctype>` and the page-level htmx-config meta.
+	// which would surface `<!doctype>` and the SSR doc-index island.
 	if strings.Contains(strings.ToLower(body), "<!doctype") {
 		t.Fatalf("Handle returned a FULL PAGE for a fragment request — URL grammar regression")
 	}

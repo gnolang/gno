@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"html/template"
+	"os"
 	"strings"
 	"testing"
 )
@@ -127,10 +128,6 @@ func TestPageTemplateRendersBasic(t *testing.T) {
 	out := buf.String()
 
 	must := []string{
-		`<meta name="htmx-config"`,
-		`"allowEval":false`,
-		`"allowScriptTags":false`,
-		`"selfRequestsOnly":true`,
 		`<script type="application/json" id="state-doc-index">`,
 		// Gnoweb $webargs URL (alphabetical sort puts `frag` first, `state` last).
 		// `&` in the attribute interpolation gets HTML-escaped to `&amp;`.
@@ -310,33 +307,35 @@ func TestNodeDetailsSummaryCarriesHint(t *testing.T) {
 	}
 }
 
-// TestPageTemplateHasHtmxConfigMeta pins the forced htmx-config meta
-// flags. htmx itself is bundled into controller-state.js by esbuild
-// (no separate <script src> tag), and reads this meta at boot whether
-// loaded externally or bundled.
-func TestPageTemplateHasHtmxConfigMeta(t *testing.T) {
-	data := StateData{
-		PkgPath: "/r/test",
-		Nodes:   []StateNode{{Name: "X", Kind: KindStruct}},
+// TestControllerStateBundleHardensHtmxConfig pins the htmx hardening
+// flags in controller-state.ts. htmx is bundled into controller-state.js
+// by esbuild, and config now lives in the bundle (not an inline <meta>)
+// so the page can keep <aside> as :first-child for the shared sidebar
+// margin rule. The test reads the source so a regression — someone
+// dropping the Object.assign — is caught at the Go-side, not silently
+// shipped to the browser.
+func TestControllerStateBundleHardensHtmxConfig(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile("frontend/controller-state.ts")
+	if err != nil {
+		t.Fatalf("read controller-state.ts: %v", err)
 	}
-	var buf bytes.Buffer
-	if err := PageTemplate.ExecuteTemplate(&buf, "renderPage", data); err != nil {
-		t.Fatalf("render: %v", err)
+	body := string(src)
+	required := []string{
+		"allowEval: false",
+		"allowScriptTags: false",
+		"selfRequestsOnly: true",
+		"includeIndicatorStyles: false",
+		`defaultSwapStyle: "innerHTML"`,
+		"historyCacheSize: 0",
 	}
-	out := buf.String()
-	must := []string{
-		`<meta name="htmx-config"`,
-		`"allowEval":false`,
-		`"allowScriptTags":false`,
-		`"selfRequestsOnly":true`,
-		`"includeIndicatorStyles":false`,
-		`"defaultSwapStyle":"innerHTML"`,
-		`"historyCacheSize":0`,
-	}
-	for _, m := range must {
-		if !strings.Contains(out, m) {
-			t.Errorf("output missing %q\n--- output (head) ---\n%s", m, head(out, 1500))
+	for _, r := range required {
+		if !strings.Contains(body, r) {
+			t.Errorf("controller-state.ts missing hardening flag %q", r)
 		}
+	}
+	if strings.Contains(body, "useTemplateFragments") {
+		t.Errorf("htmx-config must NOT set useTemplateFragments — flag removed in htmx 2.x")
 	}
 }
 

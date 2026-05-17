@@ -198,6 +198,7 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, r
 		Height:           height,
 		HeightParam:      hp,
 		LatestHref:       template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
+		ListHref:         template.URL(u.EncodeWebURL()),                 //nolint:gosec
 		DocIndexJSON:     docIndex,
 		ViewMode:         viewMode,
 		Pagination:       buildPagination(u.Path, hp, viewMode, setTotal, offset, pageLimit),
@@ -280,6 +281,7 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 		Height:       height,
 		HeightParam:  hp,
 		LatestHref:   template.URL(u.WithoutHeight().EncodeWebURL()), //nolint:gosec
+		ListHref:     template.URL(u.EncodeWebURL()),                 //nolint:gosec
 		DocIndexJSON: "{}",
 		ViewMode:     viewMode,
 	}

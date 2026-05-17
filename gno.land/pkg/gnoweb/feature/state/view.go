@@ -26,6 +26,10 @@ type StateData struct {
 	// LatestHref is the current URL with height stripped — "go back to live".
 	LatestHref template.URL
 
+	// ListHref is the current URL without `#fragment` — clicked to exit
+	// the CSS focus mode by clearing the hash without a reload.
+	ListHref template.URL
+
 	// ViewMode is "tree" or "" (pretty default), derived from ?view= query param.
 	ViewMode string
 

@@ -183,34 +183,18 @@ func TestUXPromiseCopyPackageJSONAsyncButton(t *testing.T) {
 	}
 }
 
-// Promise: htmx config hardening flags reach the rendered <meta>:
-// allowEval=false, allowScriptTags=false, selfRequestsOnly=true,
-// includeIndicatorStyles=false, historyCacheSize=0; useTemplateFragments
-// must NOT be set (removed in htmx 2.x).
-func TestUXPromiseHtmxConfigHardening(t *testing.T) {
+// Promise: full-page response carries the SSR doc-index island that
+// fragments don't — it's the marker downstream code (and humans) use
+// to tell a bootstrap render from a partial swap. htmx hardening lives
+// in the controller-state.ts bundle; see TestControllerStateBundleHardensHtmxConfig.
+func TestUXPromiseFullPageHasDocIndexIsland(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
 	h := newPageHandler(client)
 	rec := servePageReq(t, h, url.Values{}, "/r/demo")
 
 	body := rec.Body.String()
-	required := []string{
-		`"allowEval":false`,
-		`"allowScriptTags":false`,
-		`"selfRequestsOnly":true`,
-		`"includeIndicatorStyles":false`,
-		`"historyCacheSize":0`,
-	}
-	for _, r := range required {
-		if !strings.Contains(body, r) {
-			t.Errorf("htmx-config missing flag %q", r)
-		}
-	}
-	if strings.Contains(body, `useTemplateFragments`) && !strings.Contains(body, `// useTemplateFragments`) {
-		// Allow it inside a Go template comment ({{/* … */}}) which is
-		// stripped at render — but never appearing as a real config key.
-		if strings.Contains(body, `"useTemplateFragments"`) {
-			t.Errorf("htmx-config must NOT set useTemplateFragments — flag removed in htmx 2.x")
-		}
+	if !strings.Contains(body, `id="state-doc-index"`) {
+		t.Errorf("full-page response missing doc-index island; body head=%s", body[:min(600, len(body))])
 	}
 }
 

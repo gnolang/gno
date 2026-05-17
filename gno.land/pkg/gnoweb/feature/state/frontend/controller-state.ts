@@ -1,6 +1,17 @@
 import htmx from "htmx.org";
 import { BaseController } from "../../../frontend/js/controller.js";
 
+// Hardening flags. Module-level so they apply before htmx's DOMContentLoaded
+// auto-init.
+Object.assign(htmx.config, {
+	allowEval: false,
+	allowScriptTags: false,
+	selfRequestsOnly: true,
+	includeIndicatorStyles: false,
+	defaultSwapStyle: "innerHTML",
+	historyCacheSize: 0,
+});
+
 // Client-only view-mode pref (no SSR cookie — cache key stays URL-only).
 const VIEW_STORAGE_KEY = "stateViewMode";
 const VIEW_VALID_MODES = new Set(["pretty", "tree"]);

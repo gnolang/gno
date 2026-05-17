@@ -4,16 +4,6 @@
 {{ define "renderPage" }}
 <div class="b-state-page" data-controller="state" data-state-pkg-value="{{ .PkgPath }}">
 
-{{/* Scoped htmx config — only state-explorer pages load htmx (bundled
-     into controller-state.js by esbuild). Hardening flags pinned;
-     useTemplateFragments was removed in htmx 2.x. */}}
-<meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"includeIndicatorStyles":false,"defaultSwapStyle":"innerHTML","historyCacheSize":0}'>
-
-{{/* Doc index island — read by controller-state.ts on htmx:afterSwap
-     to project doc-comments onto newly-inserted nodes. .DocIndexJSON
-     is template.JS (pre-marshaled, server-trusted). */}}
-<script type="application/json" id="state-doc-index">{{ if .DocIndexJSON }}{{ .DocIndexJSON }}{{ else }}{}{{ end }}</script>
-
 {{ template "state/sidebar" . }}
 
 <header class="b-content-header">
@@ -76,8 +66,20 @@
 {{ end }}
 
 <article class="b-state-explorer" id="state-results">
+  {{/* Focus-mode exit. CSS reveals it on :has(:target). href is the
+       current URL minus fragment — clicking is a hash-only nav. */}}
+  <a class="b-state-focus-exit b-link--muted c-with-icon" href="{{ .ListHref }}">
+    <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-left"></use></svg>
+    <span>Back to all declarations</span>
+  </a>
   {{ template "state/results-inner" . }}
 </article>
+
+{{/* Doc-index data island. Trails at the end of .b-state-page so the
+     <aside> above stays :first-child for the shared sidebar margin rule.
+     Read by getElementById; `type=application/json` is non-executable,
+     so CSP `script-src` permits it under strict policies. */}}
+<script type="application/json" id="state-doc-index">{{ if .DocIndexJSON }}{{ .DocIndexJSON }}{{ else }}{}{{ end }}</script>
 </div>
 {{ end }}
 
@@ -175,18 +177,20 @@
   <div>
     <div id="sidebar-summary" class="inner u-no-scrollbar">
       {{ template "state/expend-label" "On this page" }}
-      {{/* Click → fetch ?state&json. Raw JSON is not inlined in the page
-           (memory amp per viewer). */}}
-      <div class="b-state-export">
-        <button type="button" class="b-inline-btn c-with-icon"
-          data-controller="copy" data-action="click->copy#copy"
-          data-copy-fetch-value="{{ stateRawJSONHref .PkgPath .HeightParam }}"
-          title="Copy package JSON" aria-label="Copy package JSON">
-          {{ template "state/copy-icon" }}
-          <span>Copy package JSON</span>
-        </button>
-      </div>
+      {{/* Copy JSON + meta + TOC all live inside <nav> to preserve the
+           shared `.b-expend-btn:has(:checked) + nav` adjacency on mobile. */}}
       <nav>
+        {{/* Click → fetch ?state&json. Raw JSON is not inlined in the page
+             (memory amp per viewer). */}}
+        <div class="b-state-export">
+          <button type="button" class="b-inline-btn c-with-icon"
+            data-controller="copy" data-action="click->copy#copy"
+            data-copy-fetch-value="{{ stateRawJSONHref .PkgPath .HeightParam }}"
+            title="Copy package JSON" aria-label="Copy package JSON">
+            {{ template "state/copy-icon" }}
+            <span>Copy package JSON</span>
+          </button>
+        </div>
         {{ if .Sidebar.Meta }}
           <dl class="b-state-meta">
             {{ range .Sidebar.Meta }}
