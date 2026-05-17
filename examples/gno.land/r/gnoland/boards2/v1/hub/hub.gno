@@ -38,9 +38,10 @@ func GetComment(boardID, threadID, commentID uint64) (Comment, bool) {
 func GetBoards(start, count int) []Board {
 	var boards_ []Board
 
-	// Cross into current hub realm to be able to call protected `Iterate()` fucntion
-	func(realm) {
-		boards2.Iterate(start, count, func(b *boards.Board) bool {
+	// Cross into hub realm so cross2(cur) below carries the hub's cur
+	// to boards2.Iterate — the namespace check inside reads cur.Previous().
+	func(cur realm) {
+		boards2.Iterate(cross2(cur), start, count, func(b *boards.Board) bool {
 			boards_ = append(boards_, NewSafeBoard(b))
 			return false
 		})
@@ -164,9 +165,10 @@ func GetReplies(boardID, threadID, commentID uint64, start, count int) []Comment
 }
 
 func getBoard(boardID uint64) (*boards.Board, bool) {
-	// Cross into current hub realm to be able to call protected `GetBoard()` fucntion
-	return func(realm) (*boards.Board, bool) {
-		return boards2.GetBoard(boards.ID(boardID))
+	// Cross into hub realm so cross2(cur) below carries the hub's cur
+	// to boards2.GetBoard — the namespace check inside reads cur.Previous().
+	return func(cur realm) (*boards.Board, bool) {
+		return boards2.GetBoard(cross2(cur), boards.ID(boardID))
 	}(cross)
 }
 

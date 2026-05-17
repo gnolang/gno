@@ -5,7 +5,6 @@
 package boards2
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/gnoland/boards"
@@ -19,22 +18,22 @@ const boardsNS = "gno.land/r/gnoland/boards2/"
 
 // GetRealmPermissions returns Boards2 realm permissions.
 // This is a protected function only callable by Boards2 sub realms.
-func GetRealmPermissions() boards.Permissions {
-	assertRealmHasBoardsNS(runtime.CurrentRealm())
+func GetRealmPermissions(cur realm) boards.Permissions {
+	assertCallerHasBoardsNS(0, cur.Previous())
 	return gPerms
 }
 
 // GetBoard returns a board.
 // This is a protected function only callable by Boards2 sub realms.
-func GetBoard(boardID boards.ID) (_ *boards.Board, found bool) {
-	assertRealmHasBoardsNS(runtime.CurrentRealm())
+func GetBoard(cur realm, boardID boards.ID) (_ *boards.Board, found bool) {
+	assertCallerHasBoardsNS(0, cur.Previous())
 	return gBoards.Get(boardID)
 }
 
 // MustGetBoard returns a board or panics on error.
 // This is a protected function only callable by Boards2 sub realms.
-func MustGetBoard(boardID boards.ID) *boards.Board {
-	assertRealmHasBoardsNS(runtime.CurrentRealm())
+func MustGetBoard(cur realm, boardID boards.ID) *boards.Board {
+	assertCallerHasBoardsNS(0, cur.Previous())
 	return mustGetBoard(boardID)
 }
 
@@ -42,14 +41,17 @@ func MustGetBoard(boardID boards.ID) *boards.Board {
 // Iteration is done for all boards, including the ones that are not listed.
 // To reverse iterate boards use a negative count.
 // If the callback returns true, iteration is stopped.
-func Iterate(start, count int, fn boards.BoardIterFn) bool {
-	assertRealmHasBoardsNS(runtime.CurrentRealm())
+func Iterate(cur realm, start, count int, fn boards.BoardIterFn) bool {
+	assertCallerHasBoardsNS(0, cur.Previous())
 	return gBoards.Iterate(start, count, fn)
 }
 
-// assertRealmHasBoardsNS asserts that a realm lives within Boards2 namespace.
-func assertRealmHasBoardsNS(r runtime.Realm) {
-	if !strings.HasPrefix(r.PkgPath(), boardsNS) {
+// assertCallerHasBoardsNS panics unless rlm.PkgPath() lives within the
+// Boards2 namespace. Callers pass cur.Previous() — cross2 already validated
+// cur as the immediate caller's live cur, so PkgPath() here is authentic.
+// _ int discriminator keeps this helper non-crossing.
+func assertCallerHasBoardsNS(_ int, rlm realm) {
+	if !strings.HasPrefix(rlm.PkgPath(), boardsNS) {
 		panic("forbidden, caller should live within \"" + boardsNS + "\" namespace")
 	}
 }
