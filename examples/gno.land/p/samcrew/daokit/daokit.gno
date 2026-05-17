@@ -1,3 +1,60 @@
+// Package daokit is a reference DAO toolkit (propose / vote / execute,
+// resource registration, action handlers) used internally by
+// p/samcrew/basedao and the r/samcrew/daodemo example realm.
+//
+// ─── STATUS: EXPERIMENTAL / INSECURE / INCOMPLETE / COMPLICATED ───
+//
+// Do not use as the basis for a production DAO without significant
+// hardening. The gnoland chain's actual governance is r/gov/dao/v3
+// (independent code path; not built on daokit).
+//
+// Known issues (non-exhaustive):
+//
+//   - Re-entrancy: Core.ExecuteWithDispatch evaluates the
+//     caller-supplied daocond.Condition.Eval BEFORE mutating proposal
+//     status. A hostile Condition can re-enter Propose/Vote/Execute
+//     mid-flight on the same DAO. The SECURITY XXX in actions.gno
+//     (lines 17-26) proposes a per-proposal in-flight flag — not
+//     implemented.
+//
+//   - Status state machine is incomplete: there is no Failed or
+//     Closed state. ExecuteWithDispatch moves Status Open→Passed
+//     BEFORE invoking the handler, then sets Executed only on
+//     success. A handler panic leaves the proposal stuck in Passed
+//     with no path to retry, fail, or cancel.
+//
+//   - ResourcesStore.Set silently overwrites entries by Action kind.
+//     The Handler is re-fetched at execute time, so a malicious
+//     owner can swap the handler between propose and execute. The
+//     captured Condition is immune (resolved at propose time) but
+//     Handler is not.
+//
+//   - Core.Vote does not bound the Vote payload size. Anyone
+//     reaching Core directly (e.g. via *DAOPrivate.Core in basedao)
+//     can grief storage. basedao.DAOPrivate.Vote bounds at 16 bytes;
+//     the underlying Core does not.
+//
+//   - daokit.ActionHandler and daocond.Condition are open interfaces.
+//     Hostile implementations registered via Resources.Set run with
+//     the DAO's authority — same trust level as code inside the DAO
+//     package itself. This is documented in actions.gno but not
+//     enforced.
+//
+//   - Stale comment at actions.gno:102-108 references a removed
+//     InstantExecute free function that no longer exists.
+//
+// Architectural complexity notes:
+//
+//   - The Action / ActionHandler / Resources triangle requires three
+//     coordinated registrations per action kind (Action type,
+//     Handler closure, Resource entry with Condition).
+//   - basedao layers a DAOWrapper / DAOPrivate split on top, with a
+//     recent rlm-aware dispatch carve-out (ExecuteWithDispatch override)
+//     for the one action that needs cross-realm authority. Reading the
+//     execute path requires tracing through three packages.
+//
+// Use at your own risk. If you adopt this package, fork it and
+// harden the items above before exposing it to untrusted input.
 package daokit
 
 import (

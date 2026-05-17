@@ -1,3 +1,69 @@
+// Package basedao is a reference DAO implementation built on
+// p/samcrew/daokit. Used by the r/samcrew/daodemo example realm.
+//
+// ─── STATUS: EXPERIMENTAL / INSECURE / INCOMPLETE / COMPLICATED ───
+//
+// Do not use as the basis for a production DAO without significant
+// hardening. The gnoland chain's actual governance is r/gov/dao/v3
+// (independent code path; not built on basedao).
+//
+// Known issues (non-exhaustive):
+//
+//   - DAOWrapper.Private() returns the raw *DAOPrivate. Its Core,
+//     Members, and Resources fields are all exported and mutable.
+//     A caller that holds *DAOPrivate can mutate members, swap
+//     handlers, or invoke Core.Execute directly with any address,
+//     bypassing IsCurrent / member-only / proposal-vote gates. The
+//     "DAOPrivate is internal-only" contract is documented but
+//     unenforced — anyone exposing *DAOPrivate outside their own
+//     realm has handed the DAO away.
+//
+//   - MembersStore.RemoveMember has a role-bookkeeping bug: the line
+//     `role.Members.Remove(role.Name)` should be `Remove(member)`.
+//     Removed members continue to count toward Role-keyed quorum
+//     math (RoleThreshold / RoleCount conditions) until the role
+//     itself is removed.
+//
+//   - No "at-least-one-member" invariant. RemoveMember accepts going
+//     to zero members; the resulting DAO is permanently bricked
+//     (IsMember returns false for all callers, all writes panic).
+//     Similarly, no "at-least-one-admin" guard if you use a
+//     RoleThreshold condition.
+//
+//   - Address/role-name input validation is missing in handlers.
+//     ActionAddMember.Address is not checked for .IsValid(); empty
+//     or zero addresses produce phantom voters that can be added
+//     and granted roles. Role names accept arbitrary strings
+//     including empty / unicode / slashes (the last breaks
+//     render-URL construction).
+//
+//   - The recent EditProfile bare-cross fix (commit a632a2dc8)
+//     adds an rlm-aware carve-out via ExecuteWithDispatch +
+//     editProfileStubHandler. If a caller reaches the legacy
+//     DAOPrivate.Execute → Core.Execute path for an EditProfile
+//     proposal, the stub panics AFTER UpdateStatus mutates
+//     Open→Passed, leaving the proposal permanently stuck.
+//     Production daodemo doesn't trigger this; tests don't either.
+//
+//   - See p/samcrew/daokit's package doc for additional issues
+//     inherited from the underlying toolkit (re-entrancy via
+//     Condition.Eval, stuck-Passed handler-panic state,
+//     resource-overwrite mid-flight, etc.)
+//
+// Architectural complexity notes:
+//
+//   - The action dispatch path threads through three packages
+//     (basedao → daokit Core → registered Handler), with an
+//     additional carve-out (DAOPrivate.executeWithRlm +
+//     editProfileHandler) for cross-realm dispatch that needs a
+//     live cur. Auditing any single action requires understanding
+//     all three layers.
+//   - DAOWrapper (rlm-typed public surface) and DAOPrivate
+//     (address-typed internal) is the Authority-pattern split;
+//     the split is correct in intent but Private() escapes it.
+//
+// Use at your own risk. If you adopt this package, fork it and
+// harden the items above before exposing it to untrusted input.
 package basedao
 
 import (
