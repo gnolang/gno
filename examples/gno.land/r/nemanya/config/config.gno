@@ -49,6 +49,9 @@ func SetBackup(cur realm, a address) error {
 }
 
 func checkAuthorized(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrUnauthorized
+	}
 	caller := rlm.Previous().Address()
 	isAuthorized := caller == main || caller == backup
 

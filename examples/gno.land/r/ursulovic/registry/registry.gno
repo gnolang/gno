@@ -45,8 +45,16 @@ func SetBackupAddress(cur realm, addr address) error {
 	return nil
 }
 
-// It will stay here for now, might be useful later
+// assertAuthorized checks that the caller realm (rlm.Previous()) is the
+// main or backup address. rlm must be the caller's live cur — the
+// IsCurrent gate makes the helper safe-by-construction so a future
+// non-crossing call site can't silently bypass auth by passing a
+// stashed or sibling-frame realm value. See
+// docs/resources/gno-security.md (Class-2 designation forgery).
 func assertAuthorized(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic(ErrUnauthorized)
+	}
 	caller := rlm.Previous().Address()
 	isAuthorized := caller == mainAddress || caller == backupAddress
 

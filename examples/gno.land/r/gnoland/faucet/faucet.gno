@@ -86,6 +86,9 @@ func Render(cur realm, _ string) string {
 }
 
 func assertIsController(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
+	}
 	caller := rlm.Previous().Address()
 	ok := gControllers.Has(caller.String())
 	if !ok {

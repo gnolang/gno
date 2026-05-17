@@ -109,6 +109,9 @@ func assertUserNotInLobby(caller address) {
 // refreshLobby serves to run through the lobby, kick timed out users, and see if any users
 // can be matched with the current user.
 func refreshLobby(_ int, rlm realm, tc tcLobby) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	callerAddr := rlm.Previous().Address()
 	now := time.Now()
 	for idx, player := range lobby[tc] {

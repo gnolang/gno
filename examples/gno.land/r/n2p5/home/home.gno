@@ -52,6 +52,9 @@ func Render(path string) string {
 
 // assertAdmin panics if the caller is not an admin as defined in the config realm.
 func assertAdmin(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	caller := rlm.Previous().Address()
 	if !config.IsAdmin(caller) {
 		panic("forbidden: must be admin")

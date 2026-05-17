@@ -140,6 +140,9 @@ func RevokeInvite(cur realm, boardID boards.ID, user address) {
 }
 
 func inviteMembers(_ int, rlm realm, boardID boards.ID, invites ...Invite) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	if len(invites) == 0 {
 		panic("one or more user invites are required")
 	}

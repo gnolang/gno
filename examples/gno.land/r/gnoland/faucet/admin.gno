@@ -79,6 +79,9 @@ func AdminRemoveController(cur realm, addr address) string {
 }
 
 func assertIsAdmin(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
+	}
 	caller := rlm.Previous().Address()
 	if caller != gAdminAddr {
 		return errors.New("restricted for admin")

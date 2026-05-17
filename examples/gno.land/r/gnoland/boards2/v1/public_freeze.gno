@@ -47,6 +47,9 @@ func IsThreadFrozen(boardID, threadID boards.ID) bool {
 }
 
 func setBoardReadonly(_ int, rlm realm, boardID boards.ID, readonly bool) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
@@ -71,6 +74,9 @@ func setBoardReadonly(_ int, rlm realm, boardID boards.ID, readonly bool) {
 }
 
 func setThreadReadonly(_ int, rlm realm, boardID, threadID boards.ID, readonly bool) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)

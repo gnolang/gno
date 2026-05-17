@@ -394,6 +394,9 @@ func Abort(cur realm, gameID string) string {
 }
 
 func abort(_ int, rlm realm, g *Game) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
+	}
 	if len(g.Position.Moves) >= 2 {
 		return errors.New("game can no longer be aborted; if you wish to quit, resign")
 	}
@@ -421,6 +424,9 @@ func Resign(cur realm, gameID string) string {
 }
 
 func resign(_ int, rlm realm, g *Game) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
+	}
 	if len(g.Position.Moves) < 2 {
 		return abort(0, rlm, g)
 	}
@@ -539,6 +545,9 @@ func checkErr(err error) {
 // For payment paths, use IsUserCall() (EOA only) — see
 // docs/resources/effective-gno.md#verifying-inbound-coin-payments.
 func assertOriginCall(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	if !rlm.Previous().IsUser() {
 		panic("invalid non-origin call")
 	}
