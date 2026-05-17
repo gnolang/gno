@@ -24,7 +24,7 @@ func init(cur realm) {
 	dao := commondao.New(cross2(cur), "Foo")
 
 	// Disallow SubDAO creation
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross2(cur), dao.ID())
 	options.SetAllowSubDAOPorposals(false)
 
 	daoID = dao.ID()

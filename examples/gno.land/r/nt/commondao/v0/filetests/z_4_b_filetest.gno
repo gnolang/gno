@@ -26,11 +26,11 @@ func init(cur realm) {
 	daoID = commondao.New(cross2(cur), "Foo").ID()
 }
 
-func main() {
+func main(cur realm) {
 	// Use a caller that is not the owner of the DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/tests/vm"))
 
-	commondao.Get(daoID)
+	commondao.Get(cross2(cur), daoID)
 }
 
 // Error:

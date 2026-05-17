@@ -26,7 +26,7 @@ func init(cur realm) {
 	dao = commondao.New(cross2(cur), "Foo")
 	dao.Members().Add(user)
 
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross2(cur), dao.ID())
 	options.SetAllowDissolutionProposals(true)
 }
 

@@ -29,10 +29,10 @@ func init(cur realm) {
 	commondao.New(cross2(cur), "C")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	dao := commondao.Get(daoID)
+	dao := commondao.Get(cross2(cur), daoID)
 	if dao == nil {
 		panic("expected DAO to be found")
 	}

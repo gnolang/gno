@@ -23,7 +23,7 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	daoID = commondao.New(cross2(cur), "Foo").ID()
 
-	options := commondao.GetOptions(daoID)
+	options := commondao.GetOptions(cross2(cur), daoID)
 	options.SetAllowDissolutionProposals(false)
 }
 

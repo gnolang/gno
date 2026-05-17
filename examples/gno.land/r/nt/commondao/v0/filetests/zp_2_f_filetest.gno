@@ -27,7 +27,7 @@ func init(cur realm) {
 
 	commondao.NewSubDAO(cross2(cur), name, dao.ID())
 
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross2(cur), dao.ID())
 	options.SetAllowChildren(true)
 	options.SetAllowSubDAOPorposals(true)
 

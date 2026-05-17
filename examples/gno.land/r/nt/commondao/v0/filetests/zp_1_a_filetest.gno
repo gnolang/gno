@@ -30,7 +30,7 @@ func init(cur realm) {
 	dao.Members().Add(user)
 	dao.Members().Add(owner)
 
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross2(cur), dao.ID())
 	options.SetAllowTextProposals(true)
 }
 

@@ -29,7 +29,7 @@ func init(cur realm) {
 	dao := commondao.New(cross2(cur), "Foo")
 	daoID = dao.ID()
 
-	options := commondao.GetOptions(daoID)
+	options := commondao.GetOptions(cross2(cur), daoID)
 	options.SetAllowMembersUpdate(true)
 }
 

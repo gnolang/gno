@@ -29,11 +29,11 @@ func init(cur realm) {
 	rootID = commondao.New(cross2(cur), "Root DAO").ID()
 }
 
-func main() {
+func main(cur realm) {
 	// Use a caller that is not the owner of the DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/tests"))
 
-	commondao.NewIterator(rootID)
+	commondao.NewIterator(cross2(cur), rootID)
 }
 
 // Error:

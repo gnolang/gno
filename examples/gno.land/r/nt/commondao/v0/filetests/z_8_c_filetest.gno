@@ -35,10 +35,10 @@ func init(cur realm) {
 	rootID = rootDAO.ID()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	iter := commondao.NewIterator(rootID, commondao.WithOffset(2))
+	iter := commondao.NewIterator(cross2(cur), rootID, commondao.WithOffset(2))
 
 	println("Count =", iter.Count())
 

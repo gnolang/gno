@@ -67,8 +67,8 @@ func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) *comm
 
 // GetOptions returns the configuration of a DAO.
 // It panics if caller doesn't have ownership of the DAO instance.
-func GetOptions(daoID uint64) *Options {
-	if !isOwner(runtime.CurrentRealm().Address(), daoID) {
+func GetOptions(cur realm, daoID uint64) *Options {
+	if !isOwner(cur.Previous().Address(), daoID) {
 		panic("unauthorized")
 	}
 
@@ -102,14 +102,14 @@ func TransferOwnership(cur realm, daoID uint64, newOwner address) {
 // Get returns a common DAO searched by ID.
 // It panics if caller doesn't have ownership of the DAO instance.
 // Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
-func Get(daoID uint64) *commondao.CommonDAO {
-	assertIsOwner(runtime.CurrentRealm().Address(), daoID)
+func Get(cur realm, daoID uint64) *commondao.CommonDAO {
+	assertIsOwner(cur.Previous().Address(), daoID)
 	return mustGetDAO(daoID)
 }
 
 // GetSize returns the number of SubDAOs under a specified root DAO.
-func GetSize(rootID uint64) int {
-	assertIsOwner(runtime.CurrentRealm().Address(), rootID)
+func GetSize(cur realm, rootID uint64) int {
+	assertIsOwner(cur.Previous().Address(), rootID)
 
 	tree := getTree(rootID)
 	if tree == nil {

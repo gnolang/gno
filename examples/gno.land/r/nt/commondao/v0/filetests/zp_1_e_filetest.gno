@@ -25,7 +25,7 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 	dao = commondao.New(cross2(cur), "Foo")
 
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross2(cur), dao.ID())
 	options.SetAllowTextProposals(true)
 }
 

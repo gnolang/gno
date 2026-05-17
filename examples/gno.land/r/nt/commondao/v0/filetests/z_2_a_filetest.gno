@@ -37,7 +37,7 @@ func main(cur realm) {
 	println(dao.Name() == name)
 	println(commondao.IsOwner(realmAddr, dao.ID()))
 	println(commondao.IsInvited(user))
-	println(commondao.GetOptions(dao.ID()) != nil)
+	println(commondao.GetOptions(cross2(cur), dao.ID()) != nil)
 }
 
 // Output:
