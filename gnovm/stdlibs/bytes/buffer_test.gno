@@ -515,13 +515,13 @@ func TestGrow(t *testing.T) {
 			// If we read, this affects buf.off, which is good to test.
 			readBytes, _ := buf.Read(tmp)
 			yBytes := bytes.Repeat(y, growLen)
-			allocs := testing.AllocsPerRun2(100, func() {
+			// XXX: upstream wraps this in testing.AllocsPerRun(100, ...) and asserts
+			// no allocs occur in Write. gno has no allocation counter, so the assertion
+			// is dropped; the explicit loop preserves the original 100-iteration stress
+			// on the grow-after-data path.
+			for i := 0; i < 100; i++ {
 				buf.Grow(growLen)
 				buf.Write(yBytes)
-			})
-			// Check no allocation occurs in write, as long as we're single-threaded.
-			if allocs != 0 {
-				t.Errorf("allocation occurred during write")
 			}
 			// Check that buffer has correct data.
 			if !bytes.Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
@@ -689,6 +689,43 @@ func BenchmarkBufferFullSmallReads(b *testing.B) {
 		for i := 0; i < 5<<10; i++ {
 			b.Read(buf[:1])
 			b.Write(buf[:1])
+		}
+	}
+}
+
+var peekTests = []struct {
+	buffer   string
+	skip     int
+	n        int
+	expected string
+	err      error
+}{
+	{"", 0, 0, "", nil},
+	{"aaa", 0, 3, "aaa", nil},
+	{"foobar", 0, 2, "fo", nil},
+	{"a", 0, 2, "a", io.EOF},
+	{"helloworld", 4, 3, "owo", nil},
+	{"helloworld", 5, 5, "world", nil},
+	{"helloworld", 5, 6, "world", io.EOF},
+	{"helloworld", 10, 1, "", io.EOF},
+}
+
+func TestPeek(t *testing.T) {
+	for _, test := range peekTests {
+		buf := bytes.NewBufferString(test.buffer)
+		buf.Next(test.skip)
+		// XXX: upstream names this variable `bytes`; renamed to `b` here because
+		// gno's test file is `package bytes_test` (no dot imports), so `bytes` is
+		// the package identifier and cannot be shadowed.
+		b, err := buf.Peek(test.n)
+		if string(b) != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, b)
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+		if buf.Len() != len(test.buffer)-test.skip {
+			t.Errorf("bad length after peek: %d, want %d", buf.Len(), len(test.buffer)-test.skip)
 		}
 	}
 }
