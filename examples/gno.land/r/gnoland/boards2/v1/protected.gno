@@ -6,7 +6,6 @@ package boards2
 
 import (
 	"chain/runtime"
-	"path"
 	"strings"
 
 	"gno.land/p/gnoland/boards"
@@ -14,15 +13,9 @@ import (
 
 // TODO: Authorize sub realms to be able to call protected functions (use DAOs)
 
-// SECURITY XXX: boardsNS captures runtime.CurrentRealm().PkgPath() at
-// init time. The path is stable so safe today, but storing realm-derived
-// values in package vars is the same anti-pattern as storing the realm
-// itself. Fix: hardcode boardsNS as a const string and update it as part
-// of each version bump.
-//
-// Keeps the package path to Boards2 realm.
-// It ignores the last realm path element which is the current version.
-var boardsNS = path.Dir(runtime.CurrentRealm().PkgPath()) + "/"
+// boardsNS is the package-path namespace shared by all Boards2 versions.
+// Update as part of each version bump.
+const boardsNS = "gno.land/r/gnoland/boards2/"
 
 // GetRealmPermissions returns Boards2 realm permissions.
 // This is a protected function only callable by Boards2 sub realms.

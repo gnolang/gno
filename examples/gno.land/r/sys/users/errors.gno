@@ -27,31 +27,22 @@ var (
 	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
 )
 
-// SECURITY XXX: ErrNotWhitelisted holds runtime.Realm values as struct
-// fields. The error is read-only and only used for formatting an error
-// message (via .Error() below), so there's no active capability leak
-// here today. BUT — storing realm values in struct fields is the same
-// anti-pattern as storing `cur` itself. Once this pattern exists,
-// future code might be tempted to actually USE the Realm methods on
-// the stored value (Address(), PkgPath() — currently fine; or in the
-// future, anything that walks back to identity). The Realm value's
-// IsCurrent() always returns false for a captured value, which is the
-// only thing preventing it from being a live capability today.
-// Fix: store the PkgPath and Address as plain strings, not the full
-// Realm struct. Same display behavior, no anti-pattern footprint.
+// ErrNotWhitelisted stores the current and previous realm identities as
+// plain strings so the error is a pure data record with no live realm
+// values held in its fields.
 type ErrNotWhitelisted struct {
-	Current  runtime.Realm // not whitelisted
-	Previous runtime.Realm // for context
+	Current  string // "CodeRealm{ <addr>, <pkgPath> }" or "UserRealm{ <addr> }" — not whitelisted
+	Previous string // same shape — for context
 }
 
 func NewErrNotWhitelisted() ErrNotWhitelisted {
 	return ErrNotWhitelisted{
-		Current:  runtime.CurrentRealm(),
-		Previous: runtime.PreviousRealm(),
+		Current:  runtime.CurrentRealm().String(),
+		Previous: runtime.PreviousRealm().String(),
 	}
 }
 
 func (e ErrNotWhitelisted) Error() string {
-	return ufmt.Sprintf("%scurrent realm/user does not exist in whitelist: %v (previous: %v)",
+	return ufmt.Sprintf("%scurrent realm/user does not exist in whitelist: %s (previous: %s)",
 		prefix, e.Current, e.Previous)
 }
