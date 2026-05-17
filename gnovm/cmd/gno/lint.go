@@ -10,6 +10,7 @@ import (
 	goio "io"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/cmdutil"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -431,21 +432,37 @@ func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet
 		return nil
 	}
 
-	isSingleString := func(t *types.Tuple) bool {
-		return t != nil &&
-			t.Len() == 1 &&
-			t.At(0) != nil &&
-			t.At(0).Type().String() == "string"
+	// Accept both the legacy non-crossing form `Render(string) string`
+	// and the crossing form `Render(cur realm, string) string`. The
+	// crossing form is auto-injected with .cur by the chain query layer
+	// (see MaybeInjectCurForEval).
+	params, results := s.Params(), s.Results()
+	isString := func(t *types.Tuple, i int) bool {
+		return t != nil && i < t.Len() && t.At(i) != nil && t.At(i).Type().String() == "string"
+	}
+	isRealm := func(t *types.Tuple, i int) bool {
+		if t == nil || i >= t.Len() || t.At(i) == nil {
+			return false
+		}
+		// gno's `realm` type is exposed via the gnobuiltins shim as
+		// gnobuiltins/gno0p9.realm (alias .Realm). Match by suffix to
+		// tolerate qualifier variants.
+		ts := t.At(i).Type().String()
+		return strings.HasSuffix(ts, ".realm") || strings.HasSuffix(ts, ".Realm")
 	}
 
-	if !isSingleString(s.Params()) || !isSingleString(s.Results()) {
+	validResults := results != nil && results.Len() == 1 && isString(results, 0)
+	validNonCrossing := params != nil && params.Len() == 1 && isString(params, 0)
+	validCrossing := params != nil && params.Len() == 2 && isRealm(params, 0) && isString(params, 1)
+
+	if !validResults || (!validNonCrossing && !validCrossing) {
 		location := pkg.Path()
 		if fset != nil && fn.Pos().IsValid() {
 			pos := fset.Position(fn.Pos())
 			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
 		}
 
-		err := fmt.Errorf("invalid signature for the realm's Render function; must be of the form: func Render(string) string")
+		err := fmt.Errorf("invalid signature for the realm's Render function; must be `func Render(string) string` or `func Render(cur realm, string) string`")
 		fmt.Fprintln(io.Err(), gnoIssue{
 			Code:       gnoLintError,
 			Msg:        err.Error(),
