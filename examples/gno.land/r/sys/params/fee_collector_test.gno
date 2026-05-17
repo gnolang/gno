@@ -19,7 +19,7 @@ func TestSetFeeCollector(cur realm, t *testing.T) {
 
 	pr := NewSetFeeCollectorRequest(userRealm.Address())
 	id := dao.MustCreateProposal(cross2(cur), pr)
-	_, err := dao.GetProposal(cross2(cur), id)
+	_, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 
 	urequire.NotPanics(

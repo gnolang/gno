@@ -136,14 +136,6 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	return nil
 }
 
-func (g *GovDAO) PreGetProposal(pid dao.ProposalID) error {
-	return nil
-}
-
-func (g *GovDAO) PostGetProposal(pid dao.ProposalID, p *dao.Proposal) error {
-	return nil
-}
-
 func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
 	if !g.isValidCall() {
 		return false, errors.New("proposal execution must be done directly by a user")

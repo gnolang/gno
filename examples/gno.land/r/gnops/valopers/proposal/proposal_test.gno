@@ -99,7 +99,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 			pid = dao.MustCreateProposal(cross2(cur), pr)
 		})
 
-		proposal, err := dao.GetProposal(cross2(cur), pid) // index starts from 0
+		proposal, err := dao.GetProposal(pid) // index starts from 0
 		urequire.NoError(t, err, "proposal not found")
 
 		// The proposal description is now operator-keyed (matches the
@@ -169,7 +169,7 @@ func TestValopers_ProposeNewInstructions(cur realm, t *testing.T) {
 		pid = dao.MustCreateProposal(cross2(cur), pr)
 	})
 
-	proposal, err := dao.GetProposal(cross2(cur), pid) // index starts from 0
+	proposal, err := dao.GetProposal(pid) // index starts from 0
 	urequire.NoError(t, err, "proposal not found")
 	if proposal == nil {
 		panic("PROPOSAL NOT FOUND")
@@ -200,7 +200,7 @@ func TestValopers_ProposeNewMinFee(cur realm, t *testing.T) {
 		pid = dao.MustCreateProposal(cross2(cur), pr)
 	})
 
-	proposal, err := dao.GetProposal(cross2(cur), pid) // index starts from 0
+	proposal, err := dao.GetProposal(pid) // index starts from 0
 	urequire.NoError(t, err, "proposal not found")
 	// Check that the proposal is correct
 	urequire.Equal(t, description, proposal.Description())

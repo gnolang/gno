@@ -21,7 +21,7 @@ func TestProUnlockTransfer(cur realm, t *testing.T) {
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross2(cur), pr)
-	p, err := dao.GetProposal(cross2(cur), id)
+	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
@@ -45,7 +45,7 @@ func TestExeUnlockTransfer(cur realm, t *testing.T) {
 
 	pr := ProposeUnlockTransferRequest()
 	id := dao.MustCreateProposal(cross2(cur), pr)
-	_, err := dao.GetProposal(cross2(cur), id)
+	_, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	// urequire.True(t, dao.Active == p.Status()) // TODO
 

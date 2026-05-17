@@ -87,7 +87,7 @@ func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
 		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
-	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	p, err := dao.GetProposal(dao.ProposalID(pid))
 	if err != nil {
 		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
 	}
@@ -127,7 +127,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
-	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	p, err := dao.GetProposal(dao.ProposalID(pid))
 	if err != nil {
 		return ufmt.Sprintf("# Proposal not found\n\n%s\n\n", err.Error())
 	}

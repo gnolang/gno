@@ -155,7 +155,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
 
 	// Get the proposal
-	prop := dao.MustGetProposal(cross2(cur), pid)
+	prop := dao.MustGetProposal(pid)
 
 	// Verify the author is m1
 	urequire.Equal(t, m1, prop.Author())

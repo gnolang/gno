@@ -85,11 +85,11 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 		pid = MustCreateProposal(cross2(cur), NewProposalRequest("Proposal Title", "Description", e))
 	})
 
-	p, err := GetProposal(cross2(cur), 1000)
+	p, err := GetProposal(1000)
 	if p != nil || err == nil {
 		panic("proposal should not exist and should return an error")
 	}
-	p = MustGetProposal(cross2(cur), pid)
+	p = MustGetProposal(pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
 	urequire.Equal(t, p.Author().String(), alice.String())
 
@@ -119,14 +119,6 @@ func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
 }
 
 func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {
-	return nil
-}
-
-func (dd *dummyDao) PreGetProposal(pid ProposalID) error {
-	return nil
-}
-
-func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
 	return nil
 }
 

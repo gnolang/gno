@@ -54,7 +54,7 @@ func main(cur realm) {
 	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
 
 	// Get the proposal and test the core functionality
-	prop := dao.MustGetProposal(cross2(cur), pid)
+	prop := dao.MustGetProposal(pid)
 
 	// Test that executor string is captured correctly
 	println("Executor string:", prop.ExecutorString())

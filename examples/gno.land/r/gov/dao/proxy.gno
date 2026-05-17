@@ -126,8 +126,8 @@ func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
 	})
 }
 
-func MustGetProposal(cur realm, pid ProposalID) *Proposal {
-	p, err := GetProposal(cur, pid)
+func MustGetProposal(pid ProposalID) *Proposal {
+	p, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -135,24 +135,17 @@ func MustGetProposal(cur realm, pid ProposalID) *Proposal {
 	return p
 }
 
-// GetProposal gets created proposal by its ID
-func GetProposal(cur realm, pid ProposalID) (*Proposal, error) {
+// GetProposal gets created proposal by its ID. Non-crossing pure read:
+// looks up the proposal in this realm's package var. Callable directly
+// from any realm without cross-call syntax.
+func GetProposal(pid ProposalID) (*Proposal, error) {
 	if dao == nil {
 		return nil, errors.New("DAO not initialized")
 	}
-	if err := dao.PreGetProposal(pid); err != nil {
-		return nil, err
-	}
-
 	prop := proposals.GetProposal(pid)
 	if prop == nil {
 		return nil, errors.New(ufmt.Sprintf("Proposal %v does not exist.", int64(pid)))
 	}
-
-	if err := dao.PostGetProposal(pid, prop); err != nil {
-		return nil, err
-	}
-
 	return prop, nil
 }
 
@@ -209,7 +202,7 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 	if !execute {
 		return false
 	}
-	prop, err := GetProposal(cur, pid)
+	prop, err := GetProposal(pid)
 	if err != nil {
 		panic(err.Error())
 	}
