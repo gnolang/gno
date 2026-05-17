@@ -37,10 +37,10 @@ func InviteMembers(_ realm, boardID boards.ID, invites ...Invite) {
 }
 
 // RequestInvite request to be invited to a board.
-func RequestInvite(_ realm, boardID boards.ID) {
+func RequestInvite(cur realm, boardID boards.ID) {
 	assertMembersUpdateIsEnabled(boardID)
 
-	if !runtime.PreviousRealm().IsUser() {
+	if !cur.Previous().IsUser() {
 		panic("caller must be user")
 	}
 
@@ -53,7 +53,7 @@ func RequestInvite(_ realm, boardID boards.ID) {
 	// TODO: Make open invite requests optional (per board)
 
 	board := mustGetBoard(boardID)
-	user := runtime.PreviousRealm().Address()
+	user := cur.Previous().Address()
 	if board.Permissions.HasUser(user) {
 		panic("caller is already a member")
 	}
@@ -75,7 +75,7 @@ func RequestInvite(_ realm, boardID boards.ID) {
 }
 
 // AcceptInvite accepts a board invite request.
-func AcceptInvite(_ realm, boardID boards.ID, user address) {
+func AcceptInvite(cur realm, boardID boards.ID, user address) {
 	assertMembersUpdateIsEnabled(boardID)
 	assertInviteRequestExists(boardID, user)
 
@@ -84,7 +84,7 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 		panic("user is already a member")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	invite := Invite{
 		User: user,
 		Role: RoleGuest,
@@ -116,11 +116,11 @@ func AcceptInvite(_ realm, boardID boards.ID, user address) {
 }
 
 // RevokeInvite revokes a board invite request.
-func RevokeInvite(_ realm, boardID boards.ID, user address) {
+func RevokeInvite(cur realm, boardID boards.ID, user address) {
 	assertInviteRequestExists(boardID, user)
 
 	board := mustGetBoard(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	args := boards.Args{boardID, user, RoleGuest}
 	board.Permissions.WithPermission(caller, PermissionMemberInviteRevoke, args, crossingFn(func() {
 		invitee := user.String()

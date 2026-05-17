@@ -11,13 +11,13 @@ import (
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
-func Invite(_ realm, invitee address) {
+func Invite(cur realm, invitee address) {
 	if !invitee.IsValid() {
 		panic("invalid address")
 	}
 
 	dao := mustGetDAO(CommonDAOID)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if !dao.Members().Has(caller) {
 		panic("unauthorized")
 	}
@@ -32,11 +32,11 @@ func IsInvited(addr address) bool {
 
 // New creates a new CommonDAO.
 // An invitation is required to be able to create new DAOs.
-func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
+func New(cur realm, name string, options ...Option) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if !hasOwnership(caller) {
 		orig := runtime.OriginCaller()
 		assertIsInvited(orig)
@@ -47,8 +47,8 @@ func New(_ realm, name string, options ...Option) *commondao.CommonDAO {
 }
 
 // NewSubDAO creates a new SubDAO.
-func NewSubDAO(_ realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
-	caller := runtime.PreviousRealm().Address()
+func NewSubDAO(cur realm, name string, parentID uint64, options ...Option) *commondao.CommonDAO {
+	caller := cur.Previous().Address()
 	assertIsOwner(caller, parentID)
 
 	parentOptions := getOptions(parentID)
@@ -82,13 +82,12 @@ func IsOwner(addr address, daoID uint64) bool {
 
 // TransferOwnership transfers DAO ownership to a different address.
 func TransferOwnership(cur realm, daoID uint64, newOwner address) {
-	assertIsOwner(runtime.PreviousRealm().Address(), daoID)
+	caller := cur.Previous().Address()
+	assertIsOwner(caller, daoID)
 
 	if !newOwner.IsValid() {
 		panic("invalid owner address")
 	}
-
-	caller := runtime.PreviousRealm().Address()
 	ids := getOwnership(caller)
 	for i, id := range ids {
 		if id == daoID {
@@ -120,14 +119,14 @@ func GetSize(rootID uint64) int {
 }
 
 // Vote submits a vote for a DAO proposal.
-func Vote(_ realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
+func Vote(cur realm, daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 	o := getOptions(dao.ID())
 	if !o.AllowVoting {
 		panic("voting is not enabled")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertCallerIsMember(caller, dao)
 
 	err := dao.Vote(caller, proposalID, vote, reason)
@@ -144,7 +143,7 @@ func Execute(cur realm, daoID, proposalID uint64) {
 		panic("proposal execution is not enabled")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertCallerIsMember(caller, dao)
 
 	err := dao.Execute(proposalID, cur)
