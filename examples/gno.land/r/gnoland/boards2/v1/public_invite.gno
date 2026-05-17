@@ -2,7 +2,6 @@ package boards2
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"time"
 
@@ -22,8 +21,8 @@ type Invite struct {
 // InviteMember adds a member to the realm or to a board.
 //
 // A role can optionally be specified to be assigned to the new member.
-func InviteMember(_ realm, boardID boards.ID, user address, role boards.Role) {
-	inviteMembers(boardID, Invite{
+func InviteMember(cur realm, boardID boards.ID, user address, role boards.Role) {
+	inviteMembers(0, cur, boardID, Invite{
 		User: user,
 		Role: role,
 	})
@@ -32,8 +31,8 @@ func InviteMember(_ realm, boardID boards.ID, user address, role boards.Role) {
 // InviteMembers adds one or more members to the realm or to a board.
 //
 // Board ID is only required when inviting a member to a specific board.
-func InviteMembers(_ realm, boardID boards.ID, invites ...Invite) {
-	inviteMembers(boardID, invites...)
+func InviteMembers(cur realm, boardID boards.ID, invites ...Invite) {
+	inviteMembers(0, cur, boardID, invites...)
 }
 
 // RequestInvite request to be invited to a board.
@@ -140,7 +139,7 @@ func RevokeInvite(cur realm, boardID boards.ID, user address) {
 	}))
 }
 
-func inviteMembers(boardID boards.ID, invites ...Invite) {
+func inviteMembers(_ int, rlm realm, boardID boards.ID, invites ...Invite) {
 	if len(invites) == 0 {
 		panic("one or more user invites are required")
 	}
@@ -149,7 +148,7 @@ func inviteMembers(boardID boards.ID, invites ...Invite) {
 	assertNoDuplicatedInvites(invites)
 
 	perms := mustGetPermissions(boardID)
-	caller := runtime.PreviousRealm().Address()
+	caller := rlm.Previous().Address()
 	args := boards.Args{caller, boardID, invites}
 	perms.WithPermission(caller, PermissionMemberInvite, args, crossingFn(func() {
 		assertMembersUpdateIsEnabled(boardID)
