@@ -1,0 +1,62 @@
+## Render with optional `cur realm` first parameter.
+##
+## Realms may declare `Render(cur realm, path string) string` in addition
+## to the legacy `Render(path string) string`. The chain query path
+## detects the crossing form via the same machinery init(cur realm) and
+## main(cur realm) use (Machine.MaybeInjectCurForEval) and supplies an
+## origin-realm `.cur` automatically — qrender callers do not change.
+##
+## The realm under test (gno.land/r/test/render_crossing) declares:
+##   func Render(cur realm, path string) string
+## and dispatches an internal crossing helper via `cross2(cur)`, exercising
+## the full cur-threading path through the query machine.
+
+loadpkg gno.land/r/test/render_crossing $WORK
+
+gnoland start
+
+# qrender against a realm that declares Render(cur realm, path string).
+# The qrender caller passes only the path — the chain auto-injects .cur.
+gnokey query vm/qrender --data 'gno.land/r/test/render_crossing:hello'
+# Outer cur (Render's own .cur) — pkgpath is the realm, prev is the
+# empty origin placeholder.
+stdout 'Render cur.PkgPath\(\) = gno.land/r/test/render_crossing'
+stdout 'Render cur.Previous\(\).PkgPath\(\) = ""'
+# Inner cur (after cross2(cur) into observe) — same realm, but prev
+# is now Render's frame, so prev.PkgPath() is the realm pkgpath.
+stdout 'observe cur.PkgPath\(\) = gno.land/r/test/render_crossing'
+stdout 'observe cur.Previous\(\).PkgPath\(\) = "gno.land/r/test/render_crossing"'
+stdout 'path = hello'
+
+# Empty path query — also exercises the crossing form.
+gnokey query vm/qrender --data 'gno.land/r/test/render_crossing:'
+stdout 'path = $'
+
+-- gnomod.toml --
+module = "gno.land/r/test/render_crossing"
+gno = "0.9"
+
+-- render.gno --
+package render_crossing
+
+// observe is a crossing helper. Calling it via cross2(cur) from Render
+// exercises the full cur-threading path through the query machine.
+// Returns the inner cur's pkgpath and its prev's pkgpath.
+func observe(cur realm) (own, prev string) {
+	return cur.PkgPath(), cur.Previous().PkgPath()
+}
+
+func Render(cur realm, path string) string {
+	// Outer cur is the .cur injected by Machine.MaybeInjectCurForEval —
+	// pkgpath of the realm itself, prev is the empty origin.
+	outerOwn := cur.PkgPath()
+	outerPrev := cur.Previous().PkgPath()
+	// Inner cur: cross2(cur) into the same realm. The new frame's cur
+	// has the same pkgpath, but prev = the outer Render frame's pkgpath.
+	innerOwn, innerPrev := observe(cross2(cur))
+	return "Render cur.PkgPath() = " + outerOwn +
+		"\nRender cur.Previous().PkgPath() = \"" + outerPrev + "\"" +
+		"\nobserve cur.PkgPath() = " + innerOwn +
+		"\nobserve cur.Previous().PkgPath() = \"" + innerPrev + "\"" +
+		"\npath = " + path
+}
