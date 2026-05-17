@@ -25,7 +25,7 @@ func TestUpdateNameCallerIdentity(cur realm, t *testing.T) {
 	controllerPath := initControllerPath
 	nonControllerPath := "gno.land/r/evil/attacker"
 
-	t.Run("whitelisted_controller_can_update", func(t *testing.T) {
+	t.Run("whitelisted_controller_can_update", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		// Register as whitelisted controller
@@ -35,11 +35,11 @@ func TestUpdateNameCallerIdentity(cur realm, t *testing.T) {
 		// Resolve and update name — should succeed because controller is whitelisted
 		data := ResolveAddress(testutils.TestAddress("testuser1"))
 		urequire.NotEqual(t, nil, data)
-		uassert.NoError(t, data.UpdateName("newname1"))
+		uassert.NoError(t, data.UpdateName(0, cur, "newname1"))
 		uassert.Equal(t, "newname1", data.Name())
 	})
 
-	t.Run("non_whitelisted_realm_cannot_update", func(t *testing.T) {
+	t.Run("non_whitelisted_realm_cannot_update", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		// Register as whitelisted controller
@@ -51,7 +51,7 @@ func TestUpdateNameCallerIdentity(cur realm, t *testing.T) {
 
 		// Switch to non-whitelisted realm — UpdateName should fail
 		testing.SetRealm(testing.NewCodeRealm(nonControllerPath))
-		err := data.UpdateName("hacked")
+		err := data.UpdateName(0, cur, "hacked")
 		uassert.ErrorContains(t, err, "does not exist in whitelist")
 		uassert.Equal(t, "testuser2", data.Name()) // name unchanged
 	})
@@ -62,7 +62,7 @@ func TestDeleteCallerIdentity(cur realm, t *testing.T) {
 	controllerPath := initControllerPath
 	nonControllerPath := "gno.land/r/evil/attacker"
 
-	t.Run("whitelisted_controller_can_delete", func(t *testing.T) {
+	t.Run("whitelisted_controller_can_delete", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		testing.SetRealm(testing.NewCodeRealm(controllerPath))
@@ -70,11 +70,11 @@ func TestDeleteCallerIdentity(cur realm, t *testing.T) {
 
 		data := ResolveAddress(testutils.TestAddress("deluser1"))
 		urequire.NotEqual(t, nil, data)
-		uassert.NoError(t, data.Delete())
+		uassert.NoError(t, data.Delete(0, cur))
 		uassert.True(t, data.IsDeleted())
 	})
 
-	t.Run("non_whitelisted_realm_cannot_delete", func(t *testing.T) {
+	t.Run("non_whitelisted_realm_cannot_delete", func(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		testing.SetRealm(testing.NewCodeRealm(controllerPath))
@@ -85,7 +85,7 @@ func TestDeleteCallerIdentity(cur realm, t *testing.T) {
 
 		// Switch to non-whitelisted realm — Delete should fail
 		testing.SetRealm(testing.NewCodeRealm(nonControllerPath))
-		err := data.Delete()
+		err := data.Delete(0, cur)
 		uassert.ErrorContains(t, err, "does not exist in whitelist")
 		uassert.False(t, data.IsDeleted()) // not deleted
 	})

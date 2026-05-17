@@ -35,7 +35,7 @@ func TestResolveName(cur realm, t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
-		urequire.NoError(t, data.UpdateName("alice1"))
+		urequire.NoError(t, data.UpdateName(0, cur, "alice1"))
 
 		res, isLatest := ResolveName("alice1")
 		urequire.NotEqual(t, nil, res)
@@ -58,7 +58,7 @@ func TestResolveName(cur realm, t *testing.T) {
 			names = append(names, alias)
 
 			data, _ := ResolveName(alice)
-			urequire.NoError(t, data.UpdateName(alias))
+			urequire.NoError(t, data.UpdateName(0, cur, alias))
 		}
 
 		for _, alias := range names {
@@ -90,7 +90,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 
 		urequire.NoError(t, RegisterUser(cross2(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
-		urequire.NoError(t, data.UpdateName("alice1"))
+		urequire.NoError(t, data.UpdateName(0, cur, "alice1"))
 
 		res := ResolveAddress(aliceAddr)
 		urequire.NotEqual(t, nil, res)
@@ -112,7 +112,7 @@ func TestResolveAddress(cur realm, t *testing.T) {
 			alias := "alice" + strconv.Itoa(i)
 			names = append(names, alias)
 			data, _ := ResolveName(alice)
-			urequire.NoError(t, data.UpdateName(alias))
+			urequire.NoError(t, data.UpdateName(0, cur, alias))
 		}
 
 		res := ResolveAddress(aliceAddr)
@@ -138,7 +138,7 @@ func TestROStores(cur realm, t *testing.T) {
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
 
 		// Try to modify data
-		roData.Delete()
+		roData.Delete(0, cur)
 		raw, ok := nameStore.Get(alice)
 		uassert.False(t, raw.(*UserData).deleted)
 
@@ -150,7 +150,7 @@ func TestROStores(cur realm, t *testing.T) {
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
 
 		// Try to modify data
-		roData.Delete()
+		roData.Delete(0, cur)
 		raw, ok = nameStore.Get(alice)
 		uassert.False(t, raw.(*UserData).deleted)
 	})
@@ -159,7 +159,7 @@ func TestROStores(cur realm, t *testing.T) {
 		raw, _ := nameStore.Get(alice)
 		aliceData := raw.(*UserData)
 
-		urequire.NoError(t, aliceData.Delete())
+		urequire.NoError(t, aliceData.Delete(0, cur))
 		urequire.True(t, aliceData.IsDeleted())
 
 		// Should be nil because of makeSafeFn

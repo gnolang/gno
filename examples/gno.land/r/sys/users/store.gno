@@ -137,8 +137,8 @@ func registerUser(cur realm, name string, address_XXX address, ignoreCanonical b
 func RegisterUser(cur realm, name string, address_XXX address) error {
 	// At genesis (height 0), allow any caller to register users.
 	// After genesis, only whitelisted controllers can register.
-	if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
-		return NewErrNotWhitelisted()
+	if runtime.ChainHeight() > 0 && !controllers.Has(cur.Previous().Address()) {
+		return NewErrNotWhitelisted(0, cur.Previous())
 	}
 
 	return registerUser(cur, name, address_XXX, false)
@@ -151,8 +151,8 @@ func RegisterUser(cur realm, name string, address_XXX address) error {
 // registered here can canonical-collide with existing ones, weakening
 // confusable protection for everyone.
 func RegisterUserIgnoreCanonical(cur realm, name string, address_XXX address) error {
-	if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
-		return NewErrNotWhitelisted()
+	if runtime.ChainHeight() > 0 && !controllers.Has(cur.Previous().Address()) {
+		return NewErrNotWhitelisted(0, cur.Previous())
 	}
 
 	return registerUser(cur, name, address_XXX, true)
@@ -215,14 +215,18 @@ func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 // Enforces canonical-collision detection.
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
-func (u *UserData) UpdateName(newName string) error {
+//
+// rlm is the cur of the caller's enclosing crossing function (passed as
+// data via the `_ int, rlm realm` non-crossing form). rlm.Address() is
+// the calling realm against which we authorize.
+func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
 	// Validate caller
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
-		return NewErrNotWhitelisted()
+	if !controllers.Has(rlm.Address()) {
+		return NewErrNotWhitelisted(0, rlm)
 	}
 
 	return u.updateName(newName, false)
@@ -232,13 +236,13 @@ func (u *UserData) UpdateName(newName string) error {
 // whitelist gate, but ErrCanonicalCollision is suppressed. The canonical
 // store is still written; a prior entry with the same canonical key is
 // silently overwritten (decision #14, later-wins).
-func (u *UserData) UpdateNameIgnoreCanonical(newName string) error {
+func (u *UserData) UpdateNameIgnoreCanonical(_ int, rlm realm, newName string) error {
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
-		return NewErrNotWhitelisted()
+	if !controllers.Has(rlm.Address()) {
+		return NewErrNotWhitelisted(0, rlm)
 	}
 
 	return u.updateName(newName, true)
@@ -257,14 +261,15 @@ func (u *UserData) delete() error {
 }
 
 // Delete marks a user and all their aliases as deleted.
-func (u *UserData) Delete() error {
+// rlm is the cur of the caller's enclosing crossing function; see UpdateName.
+func (u *UserData) Delete(_ int, rlm realm) error {
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
 	// Validate caller
-	if !controllers.Has(runtime.CurrentRealm().Address()) {
-		return NewErrNotWhitelisted()
+	if !controllers.Has(rlm.Address()) {
+		return NewErrNotWhitelisted(0, rlm)
 	}
 
 	return u.delete()

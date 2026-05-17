@@ -214,7 +214,7 @@ func Controllers() []address {
 
 func deleteFromWhitelist(addr address) error {
 	if !controllers.Has(addr) {
-		return NewErrNotWhitelisted()
+		return ErrNotWhitelisted{Caller: "UserRealm{ " + addr.String() + " }"}
 	}
 
 	if ok := controllers.Remove(addr); !ok {
