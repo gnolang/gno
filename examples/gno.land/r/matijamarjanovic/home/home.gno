@@ -2,7 +2,6 @@ package home
 
 import (
 	"chain/banker"
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/moul/md"
@@ -94,7 +93,7 @@ func CollectBalance(cur realm) {
 	if err := Auth.Do(0, cur.Previous(), "collect_balance", func() error {
 		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		ownerAddr := Address()
-		banker_.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker_.GetCoins(runtime.CurrentRealm().Address()))
+		banker_.SendCoins(cur.Address(), ownerAddr, banker_.GetCoins(cur.Address()))
 		return nil
 	}); err != nil {
 		panic(err)

@@ -433,7 +433,7 @@ func Render(cur realm, path string) string {
 		Direction: atoiDefault(query.Get("dir"), 0), // Start facing east
 	}
 
-	cpath := strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
+	cpath := strings.TrimPrefix(cur.PkgPath(), runtime.ChainDomain())
 	psum := p.SumCode()
 	reset := "[reset](" + cpath + ")"
 

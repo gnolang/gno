@@ -19,7 +19,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(cur realm, name string) BoardID {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
 
@@ -38,7 +38,7 @@ func CreateBoard(cur realm, name string) BoardID {
 
 // checkAnonFee reads banker.OriginSend() to verify the anonymous-posting
 // fee was attached to the tx. Callers MUST also assert
-// runtime.PreviousRealm().IsUserCall() before calling — see
+// cur.Previous().IsUserCall() before calling — see
 // docs/resources/effective-gno.md#verifying-inbound-coin-payments.
 func checkAnonFee() bool {
 	sent := banker.OriginSend()
@@ -50,7 +50,7 @@ func checkAnonFee() bool {
 }
 
 func CreateThread(cur realm, bid BoardID, title string, body string) PostID {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
 
@@ -69,7 +69,7 @@ func CreateThread(cur realm, bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(cur realm, bid BoardID, threadid, postid PostID, body string) PostID {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
 
@@ -100,7 +100,7 @@ func CreateReply(cur realm, bid BoardID, threadid, postid PostID, body string) P
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(cur realm, bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
 
@@ -131,7 +131,7 @@ func CreateRepost(cur realm, bid BoardID, postid PostID, title string, body stri
 }
 
 func DeletePost(cur realm, bid BoardID, threadid, postid PostID, reason string) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
 
@@ -164,7 +164,7 @@ func DeletePost(cur realm, bid BoardID, threadid, postid PostID, reason string) 
 }
 
 func EditPost(cur realm, bid BoardID, threadid, postid PostID, title, body string) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("invalid non-user call")
 	}
 

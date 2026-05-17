@@ -3,7 +3,6 @@ package faucet
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"errors"
 
 	"gno.land/p/nt/bptree/v0"
@@ -71,7 +70,7 @@ func Render(cur realm, _ string) string {
 	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
 	output += ufmt.Sprintf("Total transfers: %s (in %d times).\n\n", gTotalTransferred.String(), gTotalTransfers)
 
-	output += "Package address: " + runtime.CurrentRealm().Address().String() + "\n\n"
+	output += "Package address: " + cur.Address().String() + "\n\n"
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
