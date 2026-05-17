@@ -316,7 +316,7 @@ type testCommandPlayer struct {
 }
 
 func (tc *testCommandPlayer) Run(t *testing.T, bufs map[string]string) {
-	bufs["result"] = GetPlayer(tc.addr)
+	bufs["result"] = GetPlayer(cross, tc.addr)
 }
 
 type testCommandCopy struct {
