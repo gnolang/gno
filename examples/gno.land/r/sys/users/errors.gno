@@ -22,6 +22,13 @@ var (
 	ErrDeletedUser    = errors.New(prefix + "cannot register a new username after deleting")
 
 	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
+
+	// ErrInvalidRealm is returned by controller-gated *UserData mutators
+	// when the supplied rlm is not the caller's live cur (i.e.
+	// rlm.IsCurrent() is false). Closes Class-2 designation forgery via
+	// a stored stale realm value whose .Address() resolves to a
+	// whitelisted controller. See docs/resources/gno-security.md.
+	ErrInvalidRealm = errors.New(prefix + "rlm is not the caller's live cur")
 )
 
 // ErrNotWhitelisted stores the failing caller's realm identity as a

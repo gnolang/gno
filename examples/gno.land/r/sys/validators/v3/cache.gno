@@ -39,6 +39,16 @@ type cacheEntry struct {
 // would see PreviousRealm() == UserRealm (pkgpath ""); a third realm
 // cross-call would see its own pkgpath. Either fails this check.
 func assertValopersCaller(_ int, rlm realm) {
+	// Defense-in-depth IsCurrent gate. Current call sites pass live
+	// cur (cross2(cur) from valopers), so this never fires today — but
+	// the helper trusts its rlm input, and any future call that threads
+	// a stashed/sibling-frame realm value with .Previous().PkgPath() ==
+	// valopersRealmPath would silently bypass the gate (Class-2
+	// designation forgery; see docs/resources/gno-security.md). Gating
+	// here makes the precondition enforceable rather than convention.
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	caller := rlm.Previous().PkgPath()
 	if caller != valopersRealmPath {
 		panic("caller realm must be " + valopersRealmPath + ", got " + caller)

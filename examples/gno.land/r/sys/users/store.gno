@@ -220,6 +220,9 @@ func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 // data via the `_ int, rlm realm` non-crossing form). rlm.Address() is
 // the calling realm against which we authorize.
 func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
+	if !rlm.IsCurrent() {
+		return ErrInvalidRealm
+	}
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
@@ -237,6 +240,9 @@ func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
 // store is still written; a prior entry with the same canonical key is
 // silently overwritten (decision #14, later-wins).
 func (u *UserData) UpdateNameIgnoreCanonical(_ int, rlm realm, newName string) error {
+	if !rlm.IsCurrent() {
+		return ErrInvalidRealm
+	}
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
@@ -263,6 +269,9 @@ func (u *UserData) delete() error {
 // Delete marks a user and all their aliases as deleted.
 // rlm is the cur of the caller's enclosing crossing function; see UpdateName.
 func (u *UserData) Delete(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrInvalidRealm
+	}
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}

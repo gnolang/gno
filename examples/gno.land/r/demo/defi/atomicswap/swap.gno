@@ -46,6 +46,7 @@ func newSwap(
 // rlm is the cur of the surrounding crossing wrapper; rlm.Previous() is
 // the immediate caller of that wrapper, against which we authorize.
 func (s *Swap) Claim(_ int, rlm realm, preimage string) {
+	require(rlm.IsCurrent(), "unauthorized: rlm is not the caller's live cur")
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
 	require(rlm.Previous().Address() == s.recipient, "unauthorized")
@@ -60,6 +61,7 @@ func (s *Swap) Claim(_ int, rlm realm, preimage string) {
 
 // Refund allows the sender to refund the funds after the timelock has expired.
 func (s *Swap) Refund(_ int, rlm realm) {
+	require(rlm.IsCurrent(), "unauthorized: rlm is not the caller's live cur")
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
 	require(rlm.Previous().Address() == s.sender, "unauthorized")
