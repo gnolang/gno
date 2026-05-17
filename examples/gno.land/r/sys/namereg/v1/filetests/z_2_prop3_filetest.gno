@@ -29,7 +29,7 @@ func init(cur realm) {
 	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(c)
+	daov3init.InitWithUsers(cross2(cur), c)
 
 	// Propose raising the price from 0 to 20 GNOT.
 	testing.SetOriginCaller(c)

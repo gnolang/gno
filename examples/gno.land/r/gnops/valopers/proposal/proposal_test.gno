@@ -20,8 +20,8 @@ import (
 var cur realm
 var g1user = testutils.TestAddress("g1user")
 
-func init() {
-	daoinit.InitWithUsers(g1user)
+func init(cur realm) {
+	daoinit.InitWithUsers(cross2(cur), g1user)
 }
 
 func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {

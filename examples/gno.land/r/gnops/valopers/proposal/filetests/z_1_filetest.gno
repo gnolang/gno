@@ -23,9 +23,9 @@ const (
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetOriginCaller(g1user)
-	daoinit.InitWithUsers(g1user)
+	daoinit.InitWithUsers(cross2(cur), g1user)
 
 	// Register a validator: OriginCaller must equal operator addr (squat guard).
 	testing.SetOriginCaller(validAddress)

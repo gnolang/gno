@@ -21,9 +21,9 @@ var (
 
 func init(cur realm) {
 	// Initialize GovDAO members
-	memberstore.Get().DeleteAll()
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetMember(memberstore.T1, user, memberstore.NewMember(3))
+	memberstore.Get(0, cur).DeleteAll()
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
 	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
 
 	// Create a dummy executor

@@ -14,13 +14,13 @@ import (
 	"gno.land/r/gov/dao/v3/treasury"
 )
 
-func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
+func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
+	member, _ := memberstore.Get(0, cur).GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		law = &newLaw
 		return nil
 	}
@@ -30,8 +30,8 @@ func NewChangeLawRequest(_ realm, newLaw Law) dao.ProposalRequest {
 	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
-func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
+func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+	member, _ := memberstore.Get(0, cur).GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -50,7 +50,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -64,7 +64,7 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
+	member, _ := memberstore.Get(0, cur).GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -73,9 +73,9 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		member.RemoveInvitationPoint()
-		err := memberstore.Get().SetMember(tier, addr, memberByTier(tier))
+		err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier))
 
 		return err
 	}
@@ -91,8 +91,8 @@ func NewAddMemberRequest(_ realm, addr address, tier string, portfolio string) d
 	)
 }
 
-func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.ProposalRequest {
-	member, tier := memberstore.Get().GetMember(addr)
+func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.ProposalRequest {
+	member, tier := memberstore.Get(0, cur).GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
 	}
@@ -102,8 +102,8 @@ func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.Proposal
 		panic("T1 user removals must contains a reason.")
 	}
 
-	cb := func(_ realm) error {
-		memberstore.Get().RemoveMember(addr)
+	cb := func(cur realm) error {
+		memberstore.Get(0, cur).RemoveMember(addr)
 		return nil
 	}
 
@@ -117,8 +117,8 @@ func NewWithdrawMemberRequest(_ realm, addr address, reason string) dao.Proposal
 }
 
 func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.ProposalRequest {
-	cb := func(_ realm) error {
-		prevTier := memberstore.Get().RemoveMember(addr)
+	cb := func(cur realm) error {
+		prevTier := memberstore.Get(0, cur).RemoveMember(addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -127,7 +127,7 @@ func NewPromoteMemberRequest(addr address, fromTier string, toTier string) dao.P
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		err := memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+		err := memberstore.Get(0, cur).SetMember(toTier, addr, memberByTier(toTier))
 
 		return err
 	}

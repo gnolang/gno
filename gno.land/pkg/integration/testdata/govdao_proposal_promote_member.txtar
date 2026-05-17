@@ -99,13 +99,13 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
-	memberstore.Get().SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), memberstore.NewMember(2)) // member to promote
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
+	memberstore.Get(0, cur).SetMember(memberstore.T2, address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), memberstore.NewMember(2)) // member to promote
 
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

@@ -8,12 +8,12 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
+func NewChangeTiersRequest(cur realm, tiers map[string]Tier) dao.ProposalRequest {
 	if len(tiers) == 0 {
 		panic("tiers list is empty")
 	}
 
-	member, _ := Get().GetMember(runtime.OriginCaller())
+	member, _ := Get(0, cur).GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}

@@ -17,12 +17,12 @@ func setPaused(cur realm, newPausedValue bool) {
 
 func updateUsername(cur realm, userData *susers.UserData, newName string) error {
 	// UpdateName must be called from this realm.
-	return userData.UpdateName(newName)
+	return userData.UpdateName(0, cur, newName)
 }
 
 func deleteUserdata(cur realm, userData *susers.UserData) error {
 	// Delete must be called from this realm.
-	return userData.Delete()
+	return userData.Delete(0, cur)
 }
 
 func setRegisterPrice(cur realm, newPrice int64) {

@@ -18,7 +18,7 @@ import (
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
 func init(cur realm) {
-	loadMembers()
+	loadMembers(cur)
 
 	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/gov/dao/v3/impl"}))
 }
@@ -37,10 +37,10 @@ var (
 	noMember = testutils.TestAddress("nm1")
 )
 
-func loadMembers() {
+func loadMembers(cur realm) {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	mstore := memberstore.Get()
+	mstore := memberstore.Get(0, cur)
 	mstore.DeleteAll()
 
 	mstore.SetTier(memberstore.T1)
@@ -60,7 +60,7 @@ func loadMembers() {
 }
 
 func TestCreateProposalAndVote(cur realm, t *testing.T) {
-	loadMembers()
+	loadMembers(cur)
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
@@ -135,7 +135,7 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 }
 
 func TestExecutorCreationRealm(cur realm, t *testing.T) {
-	loadMembers()
+	loadMembers(cur)
 
 	// Test that executor creation realm is captured correctly
 	testing.SetOriginCaller(m1)
@@ -174,7 +174,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 }
 
 func TestProposalPagination(cur realm, t *testing.T) {
-	loadMembers()
+	loadMembers(cur)
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(m1)
@@ -226,19 +226,19 @@ func TestProposalPagination(cur realm, t *testing.T) {
 }
 
 func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
-	loadMembers()
+	loadMembers(cur)
 
 	testing.SetOriginCaller(noMember)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
 	urequire.PanicsWithMessage(t, cur, "proposer is not a member", func() {
-		NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
+		NewUpgradeDaoImplRequest(cur, govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 	})
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 
-	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
+	preq := NewUpgradeDaoImplRequest(cur, govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
@@ -280,7 +280,7 @@ func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 }
 
 func TestAbstainVote(cur realm, t *testing.T) {
-	loadMembers()
+	loadMembers(cur)
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 

@@ -32,8 +32,8 @@ import (
 // mnemonic.  See loader.gno for the full mnemonic.
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
-func main() {
-	ms := memberstore.Get()
+func main(cur realm) {
+	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add temporary deployer as sole T1 member ----
 	// This gives the deployer 100% supermajority so proposals pass.

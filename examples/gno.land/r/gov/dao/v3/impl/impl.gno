@@ -1,8 +1,6 @@
 package impl
 
 import (
-	"chain/runtime"
-
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
@@ -29,7 +27,7 @@ func AddMember(cur realm, addr address) {
 	if !caller.IsUser() {
 		panic("this function must be called by an EOA through msg call or msg run")
 	}
-	m, t := memberstore.Get().GetMember(caller.Address())
+	m, t := memberstore.Get(0, cur).GetMember(caller.Address())
 	if m == nil {
 		panic("caller is not a member")
 	}
@@ -40,13 +38,20 @@ func AddMember(cur realm, addr address) {
 
 	m.RemoveInvitationPoint()
 
-	if err := memberstore.Get().SetMember(memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
+	if err := memberstore.Get(0, cur).SetMember(memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
 		panic(err.Error())
 	}
 }
 
-func GetInstance() *GovDAO {
-	if runtime.CurrentRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
+// GetInstance returns the singleton *GovDAO. Only the loader realm may
+// call it (used during the bootstrap UpdateImpl handoff). The
+// IsCurrent() check rejects stale or stashed realm values; PkgPath()
+// after the check is the authentic immediate caller.
+func GetInstance(_ int, rlm realm) *GovDAO {
+	if !rlm.IsCurrent() {
+		panic("GetInstance: rlm is not the caller's live cur (stale capture or sibling frame)")
+	}
+	if rlm.PkgPath() != "gno.land/r/gov/dao/v3/loader" {
 		panic("not allowed")
 	}
 

@@ -57,14 +57,14 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross, dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 -- run/propose_invalid.gno --

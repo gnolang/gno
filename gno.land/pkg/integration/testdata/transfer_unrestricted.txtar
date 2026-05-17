@@ -115,7 +115,7 @@ package main
 import i "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	i.InitWithUsers(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(cross, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 -- run/propose_unrestricted.gno --
 package main

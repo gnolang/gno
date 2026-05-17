@@ -38,9 +38,9 @@ func NewGovDAO() *GovDAO {
 var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
-	if !g.isValidCall() {
-		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. current realm: %v; previous realm: %v",
-			runtime.CurrentRealm(), runtime.PreviousRealm()))
+	if !g.isValidCall(0, rlm) {
+		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. caller realm: %v; caller's previous: %v",
+			rlm, rlm.Previous()))
 	}
 
 	// Verify that the one creating the proposal is a member.
@@ -71,7 +71,7 @@ func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid
 }
 
 func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
-	if !g.isValidCall() {
+	if !g.isValidCall(0, rlm) {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
@@ -117,7 +117,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 }
 
 func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool, error) {
-	if !g.isValidCall() {
+	if !g.isValidCall(0, rlm) {
 		return false, errors.New("proposal execution must be done directly by a user")
 	}
 	status := g.pss.GetStatus(pid)
@@ -162,28 +162,35 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 	return g.render.Render(0, cur, pkgPath, path)
 }
 
-func (g *GovDAO) isValidCall() bool {
-	// We need to verify two cases:
-	// 1: r/gov/dao (proxy) functions called directly by an user
-	// 2: r/gov/dao/v3/impl methods called directly by an user
-
-	// case 1
-	if runtime.CurrentRealm().PkgPath() == "gno.land/r/gov/dao" {
-		// called directly by an user through MsgCall
-		if runtime.PreviousRealm().IsUser() {
-			return true
-		}
-		isMsgRun := chain.PackageAddress(runtime.PreviousRealm().PkgPath()) == runtime.OriginCaller()
-		// called directly by an user through MsgRun
-		if isMsgRun {
-			return true
-		}
+// isValidCall verifies that the impl method is being invoked from the
+// r/gov/dao proxy via a legitimate user transaction (MsgCall or MsgRun).
+//
+// The proxy passes its own crossing-frame Cur as rlm when calling the
+// impl methods. rlm.IsCurrent() rejects stale or stashed realm values —
+// a malicious realm cannot replay a captured proxy cur to impersonate
+// the proxy. After the IsCurrent() check:
+//   - rlm.PkgPath() == "gno.land/r/gov/dao" identifies the proxy
+//     unforgeably (pkg path is set at mint time by installCrossingCur).
+//   - rlm.Previous() is the caller of the proxy.
+//
+// The "called directly by user bypassing the proxy" path (formerly
+// case 2: runtime.CurrentRealm().IsUser()) is gone — the impl methods
+// are non-crossing-with-realm-arg now, so a direct user MsgCall to
+// them would not provide a valid rlm; the IsCurrent() check rejects
+// any forged realm. The proxy is the only legitimate entrypoint.
+func (g *GovDAO) isValidCall(_ int, rlm realm) bool {
+	if !rlm.IsCurrent() {
+		return false
 	}
-
-	// case 2
-	if runtime.CurrentRealm().IsUser() {
+	if rlm.PkgPath() != "gno.land/r/gov/dao" {
+		return false
+	}
+	prev := rlm.Previous()
+	// MsgCall: proxy was called directly by an EOA (UserRealm).
+	if prev.IsUser() {
 		return true
 	}
-
-	return false
+	// MsgRun: proxy was called from the ephemeral run realm; that
+	// realm's package address equals the EOA OriginCaller.
+	return chain.PackageAddress(prev.PkgPath()) == runtime.OriginCaller()
 }

@@ -11,9 +11,9 @@ import (
 
 var g1user = testutils.TestAddress("g1user")
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
-	ini.InitWithUsers(g1user)
+	ini.InitWithUsers(cross2(cur), g1user)
 }
 
 func TestProUnlockTransfer(cur realm, t *testing.T) {

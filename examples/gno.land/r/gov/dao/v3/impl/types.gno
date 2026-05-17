@@ -64,7 +64,7 @@ type proposalStatus struct {
 }
 
 func getMembers(cur realm) memberstore.MembersByTier {
-	return memberstore.Get()
+	return memberstore.Get(0, cur)
 }
 
 func newEmptyVoteStore() memberstore.MembersByTier {

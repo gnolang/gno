@@ -57,7 +57,7 @@ stdout OK!
 
 # Try to register a new user as a non controller
 ! gnokey maketx run -gas-fee 5000000ugnot -gas-wanted 95000000 -chainid=tendermint_test test1 $WORK/run/register_user2.gno
-stderr 'panic: r/sys/users: current realm/user does not exist in whitelist'
+stderr 'panic: r/sys/users: caller realm/user does not exist in whitelist'
 
 -- run/init_govdao.gno --
 package main
@@ -65,7 +65,7 @@ package main
 import dao "gno.land/r/gov/dao/v3/init"
 
 func main() {
-	dao.InitWithUsers("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.InitWithUsers(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_controller_add_proposal.gno --

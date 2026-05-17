@@ -17,7 +17,7 @@ var (
 )
 
 func init(cur realm) {
-	daoinit.InitWithUsers(user1, user2, user3)
+	daoinit.InitWithUsers(cross2(cur), user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
 	dao.UpdateImpl(cross2(cur), dao.UpdateRequest{
@@ -66,7 +66,7 @@ func ExecuteProposal(pid dao.ProposalID) bool {
 }
 
 func Render() {
-	println(dao.Render(""))
+	println(dao.Render(cross, ""))
 }
 
 // Output:
