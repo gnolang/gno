@@ -36,13 +36,12 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 		panic("proposer is not a member")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		// dao.UpdateImpl() must be cross-called from v3/impl but
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
-		// keeping previous realm just in case something went wrong
-		dao.UpdateImpl(cross, dao.NewUpdateRequest(newDao, []string{"gno.land/r/gov/dao/v3/impl", realmPkg}))
+		dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(newDao, []string{"gno.land/r/gov/dao/v3/impl", realmPkg}))
 		return nil
 	}
 
@@ -153,9 +152,9 @@ func NewTreasuryPaymentRequest(payment trs_pkg.Payment, reason string) dao.Propo
 		panic("treasury payment request requires a reason")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		return panictoerr.PanicToError(func() {
-			treasury.Send(cross, payment)
+			treasury.Send(cross2(cur), payment)
 		})
 	}
 
@@ -186,11 +185,11 @@ func NewTreasuryGRC20TokensUpdate(newTokenKeys []string) dao.ProposalRequest {
 		panic("the list of new tokens is empty")
 	}
 
-	cb := func(_ realm) error {
+	cb := func(cur realm) error {
 		return panictoerr.PanicToError(func() {
 			// NOTE:: Consider checking if the newTokenKeys are already registered
 			// in the grc20reg before updating the treasury tokens keys.
-			treasury.SetTokenKeys(cross, newTokenKeys)
+			treasury.SetTokenKeys(cross2(cur), newTokenKeys)
 		})
 	}
 
