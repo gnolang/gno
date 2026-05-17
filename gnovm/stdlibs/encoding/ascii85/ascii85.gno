@@ -42,7 +42,11 @@ func Encode(dst, src []byte) int {
 		switch len(src) {
 		default:
 			v |= uint32(src[3])
-			// XXX fallthrough not yet implemented from default
+			// XXX: upstream uses `fallthrough` here to chain into case 3.
+			// gno rejects fallthrough from `default:` ("cannot fallthrough
+			// final case in switch") even when default is textually first,
+			// so the chained bodies are inlined below. case→case fallthrough
+			// (used in case 3 / case 2 below) works fine.
 			// fallthrough
 			v |= uint32(src[2]) << 8
 			v |= uint32(src[1]) << 16

@@ -12,7 +12,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"sort"
+	"sort" // XXX: upstream imports "slices"; gno has no slices package (no generics)
 	"strings"
 )
 
@@ -289,7 +289,7 @@ func Encode(out io.Writer, b *Block) error {
 			}
 		}
 		// For consistency of output, write other headers sorted by key.
-		sort.Strings(h)
+		sort.Strings(h) // XXX: upstream is `slices.Sort(h)`; equivalent pre-Go-1.21 form
 		for _, k := range h {
 			if err := writeHeader(out, k, b.Headers[k]); err != nil {
 				return err
