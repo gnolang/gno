@@ -32,7 +32,7 @@ func main(cur realm) {
 	if err != "" {
 		panic(err)
 	}
-	println(faucet.Render(""))
+	println(faucet.Render(cross2(cur), ""))
 }
 
 // Output:
@@ -42,7 +42,7 @@ func main(cur realm) {
 // Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
-// Package address: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
+// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
 //
 // Admin: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 //

@@ -58,9 +58,9 @@ func bankerAddr(cur realm) address {
 	return cur.Address()
 }
 
-func Render(_ string) string {
+func Render(cur realm, _ string) string {
 	banker_ := banker.NewReadonlyBanker()
-	balance := banker_.GetCoins(bankerAddr(cross))
+	balance := banker_.GetCoins(bankerAddr(cross2(cur)))
 
 	output := gMessage
 	if gInPause {

@@ -423,7 +423,7 @@ func atoiDefault(s string, def int) int {
 }
 
 // Render renders the game interface
-func Render(path string) string {
+func Render(cur realm, path string) string {
 	u, _ := url.Parse(path)
 	query := u.Query()
 
@@ -469,7 +469,7 @@ func Render(path string) string {
 	// Generate view
 	view := strings.Join([]string{
 		"<gno-columns>",
-		renderGrid3D(cross, &p),
+		renderGrid3D(cross2(cur), &p),
 		"</gno-columns>",
 	}, "\n\n")
 

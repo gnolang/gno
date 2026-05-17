@@ -33,7 +33,7 @@ func main(cur realm) {
 	println("main after:", mainbal) // now 255.
 
 	// simulate a Render().
-	res = banktest.Render("")
+	res = banktest.Render(cross2(cur), "")
 	println(res)
 }
 

@@ -35,7 +35,7 @@ func main(cur realm) {
 	println("main after:", mainbal)
 
 	// simulate a Render(). banker should have given back all coins.
-	res = banktest.Render("")
+	res = banktest.Render(cross2(cur), "")
 	println(res)
 }
 
