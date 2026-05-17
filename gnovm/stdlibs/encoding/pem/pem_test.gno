@@ -6,10 +6,11 @@ package pem
 
 import (
 	"bytes"
-	"io"
 	"strings"
 	"testing"
-	// XXX: upstream also imports "reflect" and "testing/quick"; neither is available in gno
+	// XXX: upstream also imports "io", "reflect" and "testing/quick"; reflect
+	// and testing/quick aren't in gno, and io was only used by the omitted
+	// BenchmarkEncode / BenchmarkDecode.
 )
 
 type GetLineTest struct {
@@ -263,23 +264,9 @@ func TestLineBreaker(t *testing.T) {
 // and reflect, neither of which is available in gno. The empty-block subcase
 // from TestFuzz lives below as TestRoundtripEmpty.
 
-func BenchmarkEncode(b *testing.B) {
-	data := &Block{Bytes: make([]byte, 65536)}
-	b.SetBytes(int64(len(data.Bytes)))
-	for i := 0; i < b.N; i++ {
-		Encode(io.Discard, data)
-	}
-}
-
-func BenchmarkDecode(b *testing.B) {
-	block := &Block{Bytes: make([]byte, 65536)}
-	data := EncodeToMemory(block)
-	b.SetBytes(int64(len(data)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		Decode(data)
-	}
-}
+// XXX: upstream has BenchmarkEncode and BenchmarkDecode here; omitted because
+// they call b.SetBytes, which panics with "not yet implemented" in gno's
+// testing stdlib, and the gno test runner does not invoke benchmarks anyway.
 
 // XXX: not in upstream — salvaged from upstream TestFuzz's empty-block subcase,
 // kept here because TestFuzz itself requires testing/quick + reflect.
