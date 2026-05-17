@@ -341,6 +341,18 @@ func (b *Buffer) Next(n int) []byte {
 	return data
 }
 
+// Peek returns the next n bytes without advancing the buffer.
+// If Peek returns fewer than n bytes, it also returns [io.EOF].
+// The slice is only valid until the next call to a read or write method.
+// The slice aliases the buffer content at least until the next buffer modification,
+// so immediate changes to the slice will affect the result of future reads.
+func (b *Buffer) Peek(n int) ([]byte, error) {
+	if b.Len() < n {
+		return b.buf[b.off:], io.EOF
+	}
+	return b.buf[b.off : b.off+n], nil
+}
+
 // ReadByte reads and returns the next byte from the buffer.
 // If no byte is available, it returns error io.EOF.
 func (b *Buffer) ReadByte() (byte, error) {
