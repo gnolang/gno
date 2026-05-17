@@ -93,7 +93,8 @@ func CollectBalance(cur realm) {
 	if err := Auth.Do(0, cur.Previous(), "collect_balance", func() error {
 		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		ownerAddr := Address()
-		banker_.SendCoins(cur.Address(), ownerAddr, banker_.GetCoins(cur.Address()))
+		realmAddr := cur.Address()
+		banker_.SendCoins(realmAddr, ownerAddr, banker_.GetCoins(realmAddr))
 		return nil
 	}); err != nil {
 		panic(err)
