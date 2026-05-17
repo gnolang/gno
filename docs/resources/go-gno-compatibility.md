@@ -119,22 +119,22 @@ Legend:
 | crypto                                      | `todo`   |
 | crypto/aes                                  | `todo`   |
 | crypto/boring                               | `tbd`    |
-| crypto/cipher                               | `part`   |
+| crypto/cipher                               | `part`[^2] |
 | crypto/des                                  | `tbd`    |
 | crypto/dsa                                  | `tbd`    |
 | crypto/ecdh                                 | `tbd`    |
 | crypto/ecdsa                                | `tbd`    |
-| crypto/ed25519                              | `part`[^8] |
+| crypto/ed25519                              | `part`[^3] |
 | crypto/elliptic                             | `tbd`    |
 | crypto/hmac                                 | `todo`   |
-| crypto/md5                                  | `test`[^2] |
+| crypto/md5                                  | `test`[^4] |
 | crypto/rand                                 | `nondet` |
 | crypto/rc4                                  | `tbd`    |
 | crypto/rsa                                  | `tbd`    |
-| crypto/sha1                                 | `test`[^2] |
-| crypto/sha256                               | `part`[^3] |
+| crypto/sha1                                 | `test`[^4] |
+| crypto/sha256                               | `part`[^5] |
 | crypto/sha512                               | `tbd`    |
-| crypto/subtle                               | `tbd`    |
+| crypto/subtle                               | `part`[^6] |
 | crypto/tls                                  | `nondet` |
 | crypto/tls/fipsonly                         | `nondet` |
 | crypto/x509                                 | `tbd`    |
@@ -154,17 +154,17 @@ Legend:
 | encoding/asn1                               | `todo`   |
 | encoding/base32                             | `todo`   |
 | encoding/base64                             | `full`   |
-| encoding/binary                             | `part`   |
+| encoding/binary                             | `part`[^7] |
 | encoding/csv                                | `todo`   |
 | encoding/gob                                | `tbd`    |
 | encoding/hex                                | `full`   |
 | encoding/json                               | `todo`   |
 | encoding/pem                                | `todo`   |
 | encoding/xml                                | `todo`   |
-| errors                                      | `part`   |
+| errors                                      | `part`[^8] |
 | expvar                                      | `tbd`    |
 | flag                                        | `nondet` |
-| fmt                                         | `test`[^4] |
+| fmt                                         | `test`[^9] |
 | go/ast                                      | `gospec` |
 | go/build                                    | `gospec` |
 | go/build/constraint                         | `gospec` |
@@ -194,9 +194,9 @@ Legend:
 | image/jpeg                                  | `tbd`    |
 | image/png                                   | `tbd`    |
 | index/suffixarray                           | `tbd`    |
-| io                                          | `full`   |
+| io                                          | `full`[^10] |
 | io/fs                                       | `tbd`    |
-| io/ioutil                                   | removed[^5] |
+| io/ioutil                                   | removed[^11] |
 | log                                         | `tbd`    |
 | log/slog                                    | `tbd`    |
 | log/syslog                                  | `nondet` |
@@ -205,7 +205,7 @@ Legend:
 | math/big                                    | `tbd`    |
 | math/bits                                   | `full`   |
 | math/cmplx                                  | `tbd`    |
-| math/rand                                   | `full`[^9] |
+| math/rand                                   | `full`[^12] |
 | mime                                        | `tbd`    |
 | mime/multipart                              | `tbd`    |
 | mime/quotedprintable                        | `tbd`    |
@@ -247,8 +247,8 @@ Legend:
 | runtime/race                                | `gospec` |
 | runtime/trace                               | `gospec` |
 | slices                                      | `gnics`  |
-| sort                                        | `part`[^6] |
-| strconv                                     | `full`[^10] |
+| sort                                        | `part`[^13] |
+| strconv                                     | `full`[^14] |
 | strings                                     | `full`   |
 | sync                                        | `tbd`    |
 | sync/atomic                                 | `tbd`    |
@@ -262,7 +262,7 @@ Legend:
 | text/tabwriter                              | `todo`   |
 | text/template                               | `todo`   |
 | text/template/parse                         | `todo`   |
-| time                                        | `full`[^7] |
+| time                                        | `full`[^15] |
 | time/tzdata                                 | `tbd`    |
 | unicode                                     | `full`   |
 | unicode/utf16                               | `full`   |
@@ -273,27 +273,69 @@ Legend:
   some builtin functions. The "fake" package does not currently exist in Gno,
   but [all functions up to Go 1.17 exist](https://pkg.go.dev/builtin@go1.17),
   except for those relating to complex (real or imag) or channel types.
-[^2]: `crypto/sha1` and `crypto/md5` implement "deprecated" hashing
+[^2]: `crypto/cipher` provides the interfaces (`AEAD`, `Block`, `BlockMode`,
+  `Stream`, `StreamReader`, `StreamWriter`) but none of the mode constructors
+  (`NewCBCEncrypter`/`Decrypter`, `NewCTR`, `NewCFBEncrypter`/`Decrypter`,
+  `NewOFB`, `NewGCM` and friends). Practically unusable until a backing block
+  cipher (`crypto/aes` is `todo`) lands together with these constructors.
+[^3]: `crypto/ed25519` is currently only implemented for `Verify`, which should
+  still cover a majority of use cases. A full implementation is welcome.
+[^4]: `crypto/sha1` and `crypto/md5` implement "deprecated" hashing
   algorithms, widely considered unsafe for cryptographic hashing. Decision on
   whether to include these as part of the official standard libraries is still
   pending.
-[^3]: `crypto/sha256` is currently only implemented for `Sum256`, which should
+[^5]: `crypto/sha256` is currently only implemented for `Sum256`, which should
   still cover a majority of use cases. A full implementation is welcome.
-[^4]: like many other encoding packages, `fmt` depends on `reflect` to be added.
+[^6]: `crypto/subtle` currently ships `XORBytes` only. The constant-time
+  comparison primitives (`ConstantTimeCompare`, `ConstantTimeEq`,
+  `ConstantTimeSelect`, `ConstantTimeByteEq`, `ConstantTimeCopy`,
+  `ConstantTimeLessOrEq`) are not yet implemented.
+[^7]: `encoding/binary` only ships the varint family (`Varint`, `Uvarint`,
+  `PutVarint`, `PutUvarint`, `AppendVarint`, `AppendUvarint`, `ReadVarint`,
+  `ReadUvarint`) plus the `ByteOrder`/`AppendByteOrder` interfaces and the
+  `BigEndian`/`LittleEndian` values. The reflection-based helpers (`Read`,
+  `Write`, `Size`) depend on `reflect` (see [^9]).
+[^8]: `errors` currently ships `New` only. `Is`, `As`, `Unwrap`, and `Join`
+  are not yet available; tracked by issue
+  [#486](https://github.com/gnolang/gno/issues/486) and PR
+  [#5385](https://github.com/gnolang/gno/pull/5385) (`Is`, `Unwrap`, `Join`).
+[^9]: like many other encoding packages, `fmt` depends on `reflect` to be added.
   For now, package `gno.land/p/nt/ufmt/v0` may do what you need. In test
   functions, `fmt` works.
-[^5]: `io/ioutil` [is deprecated in Go.](https://pkg.go.dev/io/ioutil)
+[^10]: `io` does not ship `Pipe`, `PipeReader`, `PipeWriter`, or
+  `ErrClosedPipe`. Go's `Pipe` is goroutine-coupled and synchronous via
+  channels, neither of which exists in Gno.
+[^11]: `io/ioutil` [is deprecated in Go.](https://pkg.go.dev/io/ioutil)
   Its functionality has been moved to packages `os` and `io`. The functions
   which have been moved in `io` are implemented in that package.
-[^6]: `sort` has the notable omission of `sort.Slice`. You'll need to write a
-  bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`!
-[^7]: `time.Now` returns the block time rather than the system time, for
-  determinism. Concurrent functionality (such as `time.Ticker`) is not implemented.
-[^8]: `crypto/ed25519` is currently only implemented for `Verify`, which should
-  still cover a majority of use cases. A full implementation is welcome.
-[^9]: `math/rand` in Gno ports over Go's `math/rand/v2`.
-[^10]: `strconv` does not have the methods relating to types `complex64` and
+[^12]: `math/rand` in Gno ports over Go's `math/rand/v2`. The v1 names
+  (`Int31`, `Int31n`, `Int63`, `Int63n`, `Intn`, `Seed`, `NewSource`, `Read`,
+  global `Source` interface) are not available — use the v2 equivalents
+  (`Int32`, `Int32N`, `Int64`, `Int64N`, `IntN`, and the v2 constructors
+  `New`, `NewPCG`, `NewChaCha8`).
+[^13]: `sort` does not implement the closure-based helpers `sort.Slice`,
+  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. You'll need to write
+  a bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`.
+[^14]: `strconv` does not have the methods relating to types `complex64` and
   `complex128`.
+[^15]: `time.Now` returns the block time rather than the system time, for
+  determinism. Anything that pauses or schedules execution is not implemented:
+  `Sleep`, `After`, `AfterFunc`, `Tick`, `NewTicker`, `NewTimer`, and the
+  associated `Ticker`/`Timer` types.
+
+## Gno-only standard libraries
+
+The packages below are part of the Gno stdlib but have no Go counterpart.
+
+| package          | purpose                                                                   |
+|------------------|---------------------------------------------------------------------------|
+| `chain`          | Core chain types: `Address`, `Coin`, `Coins`, `Emit`/`Event`, helpers.    |
+| `chain/banker`   | Realm coin management (mint, burn, transfer, balance queries).            |
+| `chain/params`   | Chain-parameter accessors.                                                |
+| `chain/runtime`  | Runtime context accessors (`PreviousRealm`, current realm, height, …).    |
+| `sys/params`     | System-parameter setters (`SetSysParam{Bool,Bytes,Int64,String,...}`).    |
+| `crypto/bech32`  | Bech32 address encoding (`Encode`, `Decode`, `EncodeM`, `ConvertBits`).   |
+| `crypto/chacha20`| ChaCha20 stream cipher (`NewCipher`, `XORKeyStream`).                     |
 
 ## Tooling (`gno` binary)
 
