@@ -48,8 +48,9 @@ func init(cur realm) {
 		grc20Banker,
 	}
 
-	// Create the treasury instance with the bankers.
-	treasury, err = t.New(bankers)
+	// Create the treasury instance with the bankers. cur.PkgPath() is
+	// captured for render-link construction (See full history → /r/gov/dao/v3/treasury:.../history).
+	treasury, err = t.New(bankers, cur.PkgPath())
 	if err != nil {
 		panic("failed to create treasury: " + err.Error())
 	}

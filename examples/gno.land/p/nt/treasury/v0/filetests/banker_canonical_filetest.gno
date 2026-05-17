@@ -39,13 +39,13 @@ func main(cur realm) {
 	}
 
 	// Verify treasury.New rejects the same bypass attempt.
-	_, err = treasury.New([]treasury.Banker{evil})
+	_, err = treasury.New([]treasury.Banker{evil}, "")
 	if err != treasury.ErrNonCanonicalBankerImpl {
 		panic("expected ErrNonCanonicalBankerImpl from treasury.New; got: " + err.Error())
 	}
 
 	// And confirms the canonical banker still works.
-	_, err = treasury.New([]treasury.Banker{legit})
+	_, err = treasury.New([]treasury.Banker{legit}, "")
 	if err != nil {
 		panic("canonical banker must be accepted: " + err.Error())
 	}

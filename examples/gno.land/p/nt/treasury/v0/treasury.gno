@@ -18,6 +18,18 @@ var (
 
 // New creates a new Treasury instance with the given bankers.
 //
+// pkgPath should be the package path of the owning realm. It is
+// captured on the Treasury and used to build the "See full history"
+// link in RenderBanker. Pass `cur.PkgPath()` from the owning realm's
+// init (or another live-cur context). Passing "" disables the link.
+//
+// The path is stored as plain data — no IsCurrent guard inside this
+// /p/ constructor. The caller is the trust boundary; it must derive
+// the value from a real `cur realm` rather than accept it from
+// untrusted input. The captured path is consumed only for render
+// output (Class-2 designation-forgery shape, accepted as
+// display-only — see docs/resources/gno-security.md).
+//
 // Each banker must be one of treasury's canonical concrete impls
 // (*CoinsBanker, *GRC20Banker) per IsCanonicalBanker. Foreign-realm impls
 // (including embedded wrappers around canonical types) are rejected: a
@@ -27,7 +39,7 @@ var (
 // The allowlist validates type only, not captured state. Treasury operators
 // must construct their own bankers; never accept a pre-built *Banker value
 // from an external realm.
-func New(bankers []Banker) (*Treasury, error) {
+func New(bankers []Banker, pkgPath string) (*Treasury, error) {
 	if len(bankers) == 0 {
 		return nil, ErrNoBankerProvided
 	}
@@ -41,7 +53,7 @@ func New(bankers []Banker) (*Treasury, error) {
 	}
 
 	// Create a new Treasury instance.
-	treasury := &Treasury{bankers: bptree.NewBPTree32()}
+	treasury := &Treasury{bankers: bptree.NewBPTree32(), realmPath: pkgPath}
 
 	// Register the bankers.
 	for _, banker := range bankers {

@@ -11,8 +11,9 @@ import (
 // Treasury is the main structure that holds all bankers and their payment
 // history. It also provides a router for rendering the treasury pages.
 type Treasury struct {
-	bankers *bptree.BPTree // string -> *bankerRecord
-	router  *mux.Router
+	bankers   *bptree.BPTree // string -> *bankerRecord
+	router    *mux.Router
+	realmPath string // owning realm's PkgPath, captured at New() (used for render links)
 }
 
 // bankerRecord holds a Banker and its payment history.

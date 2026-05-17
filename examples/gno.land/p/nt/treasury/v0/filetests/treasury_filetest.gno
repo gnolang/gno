@@ -34,7 +34,7 @@ func main(cur realm) {
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Try to create a Treasury instance with no bankers.
-	_, err := treasury.New(nil)
+	_, err := treasury.New(nil, "")
 	if err != treasury.ErrNoBankerProvided {
 		panic("expected error when creating Treasury with no bankers")
 	}
@@ -58,14 +58,14 @@ func main(cur realm) {
 		grc20BankerDup, _ = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
 	)
 
-	_, err = treasury.New([]treasury.Banker{coinsBanker, grc20Banker, grc20BankerDup})
+	_, err = treasury.New([]treasury.Banker{coinsBanker, grc20Banker, grc20BankerDup}, "")
 	if !strings.Contains(err.Error(), treasury.ErrDuplicateBanker.Error()) {
 		panic("expected error when creating Treasury with duplicate banker")
 	}
 
 	// Create a Treasury instance with valid bankers.
 	bankers := []treasury.Banker{coinsBanker, grc20Banker}
-	t, err := treasury.New(bankers)
+	t, err := treasury.New(bankers, "")
 	if err != nil {
 		panic("failed to create Treasury: " + err.Error())
 	}
