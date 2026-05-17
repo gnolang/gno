@@ -130,7 +130,7 @@ func xNewGame(cur realm, opponentRaw string, seconds, increment int) string {
 		panic("negative increment invalid")
 	}
 
-	opponent := parsePlayer(0, cur.Previous(), opponentRaw)
+	opponent := parsePlayer(0, cur, opponentRaw)
 	caller := cur.Previous().Address()
 	assertUserNotInLobby(caller)
 
