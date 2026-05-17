@@ -23,14 +23,14 @@ func Heads(cur realm) {
 	runtime.AssertOriginCall()
 
 	flipResult := flip(1)
-	betLogic(flipResult)
+	betLogic(cross2(cur), flipResult)
 }
 
 func Tails(cur realm) {
 	runtime.AssertOriginCall()
 
 	flipResult := flip(0)
-	betLogic(flipResult)
+	betLogic(cross2(cur), flipResult)
 }
 
 func GetResults(cur realm) []Bet {
@@ -71,7 +71,7 @@ func flip(choice int) bool {
 	return result == choice
 }
 
-func getBet() chain.Coin {
+func getBet(cur realm) chain.Coin {
 	bet := banker.OriginSend()
 	if len(bet) != 1 || bet[0].Denom != denom {
 		panic("bet is invalid")
@@ -82,7 +82,7 @@ func getBet() chain.Coin {
 	if amount < minBetAmount {
 		panic("Bet too low")
 	}
-	if amount*2 > GetRealmBalance(cross) {
+	if amount*2 > GetRealmBalance(cross2(cur)) {
 		panic("Bet too high")
 	}
 
@@ -96,12 +96,12 @@ func sendPrize(cur realm, caller address, amount int64) {
 	banker_.SendCoins(cur.Address(), caller, wonCoins)
 }
 
-func betLogic(flipResult bool) {
+func betLogic(cur realm, flipResult bool) {
 	caller := runtime.OriginCaller()
-	bet := getBet()
+	bet := getBet(cross2(cur))
 
 	if flipResult == true {
-		sendPrize(cross, caller, bet.Amount*2)
+		sendPrize(cross2(cur), caller, bet.Amount*2)
 		chain.Emit("BetResult", "Result", "win")
 	} else {
 		chain.Emit("BetResult", "Result", "lose")
