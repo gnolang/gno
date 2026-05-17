@@ -1,7 +1,6 @@
 package atomicswap
 
 import (
-	"chain/runtime"
 	"crypto/sha256"
 	"encoding/hex"
 	"time"
@@ -44,28 +43,30 @@ func newSwap(
 }
 
 // Claim allows the recipient to claim the funds if they provide the correct preimage.
-func (s *Swap) Claim(preimage string) {
+// rlm is the cur of the surrounding crossing wrapper; rlm.Previous() is
+// the immediate caller of that wrapper, against which we authorize.
+func (s *Swap) Claim(_ int, rlm realm, preimage string) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(runtime.PreviousRealm().Address() == s.recipient, "unauthorized")
+	require(rlm.Previous().Address() == s.recipient, "unauthorized")
 
 	hashlock := sha256.Sum256([]byte(preimage))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	require(hashlockHex == s.hashlock, "invalid preimage")
 
 	s.claimed = true
-	s.sendFn(cross, s.recipient)
+	s.sendFn(cross2(rlm), s.recipient)
 }
 
 // Refund allows the sender to refund the funds after the timelock has expired.
-func (s *Swap) Refund() {
+func (s *Swap) Refund(_ int, rlm realm) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(runtime.PreviousRealm().Address() == s.sender, "unauthorized")
+	require(rlm.Previous().Address() == s.sender, "unauthorized")
 	require(time.Now().After(s.timelock), "timelock not expired")
 
 	s.refunded = true
-	s.sendFn(cross, s.sender)
+	s.sendFn(cross2(rlm), s.sender)
 }
 
 func (s Swap) Status() string {

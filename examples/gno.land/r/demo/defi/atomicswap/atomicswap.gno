@@ -134,13 +134,13 @@ func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock 
 // Claim loads a registered swap and tries to claim it.
 func Claim(cur realm, id int, secret string) {
 	swap := mustGet(id)
-	swap.Claim(secret)
+	swap.Claim(0, cur, secret)
 }
 
 // Refund loads a registered swap and tries to refund it.
 func Refund(cur realm, id int) {
 	swap := mustGet(id)
-	swap.Refund()
+	swap.Refund(0, cur)
 }
 
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
