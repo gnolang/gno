@@ -29,7 +29,7 @@ func init(cur realm) {
 
 	// Create an executor that always fails
 	cb := func(realm) error { return errors.New("Boom!") }
-	executor = dao.NewSimpleExecutor(cb, "")
+	executor = dao.NewSimpleExecutor(0, cur, cb, "")
 
 	// Create a proposal request that fails on execution
 	request := dao.NewProposalRequest("Test", "This proposal always fails on execution", executor)

@@ -61,7 +61,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 		valoper.Render(),
 	)
 
-	return validators.NewValidatorProposalRequest(
+	return validators.NewValidatorProposalRequest(cross2(cur),
 		[]validators.ValoperChange{validators.NewValoperChange(valoper.OperatorAddress, votingPower)},
 		title,
 		description,
@@ -76,7 +76,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 	title := "/p/gnops/valopers: Update instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(title, description, e)
 }
@@ -88,5 +88,5 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 // generic sys/params factory so the fee lives in
 // node:valoper:register_fee.
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
-	return sysparams.NewSysParamUint64PropRequest("node", "valoper", "register_fee", uint64(newMinFee))
+	return sysparams.NewSysParamUint64PropRequest(cross2(cur), "node", "valoper", "register_fee", uint64(newMinFee))
 }

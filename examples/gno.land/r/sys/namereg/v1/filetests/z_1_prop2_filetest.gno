@@ -35,7 +35,7 @@ func init(cur realm) {
 	// Prop to delete user
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
-	pr := users.ProposeDeleteUser(alice, "delete user test")
+	pr := users.ProposeDeleteUser(cross2(cur), alice, "delete user test")
 	dao.MustCreateProposal(cross2(cur), pr)
 }
 

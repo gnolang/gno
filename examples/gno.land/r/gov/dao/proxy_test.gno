@@ -76,7 +76,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	var pid ProposalID
 	testing.SetRealm(testing.NewUserRealm(alice))
 	urequire.NotPanics(t, cur, func() {
-		e := NewSimpleExecutor(
+		e := NewSimpleExecutor(0, cur,
 			func(realm) error {
 				return nil
 			},

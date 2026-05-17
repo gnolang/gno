@@ -147,19 +147,19 @@ func TestProposeSetPaused_idempotency(cur realm, t *testing.T) {
 		paused = true
 		urequire.PanicsWithMessage(t, cur,
 			"paused state already matches requested value; no-op proposal rejected",
-			func() { ProposeSetPaused(true) })
+			func() { ProposeSetPaused(cur, true) })
 	})
 
 	t.Run("propose unpause when already unpaused panics", func(t *testing.T) {
 		paused = false
 		urequire.PanicsWithMessage(t, cur,
 			"paused state already matches requested value; no-op proposal rejected",
-			func() { ProposeSetPaused(false) })
+			func() { ProposeSetPaused(cur, false) })
 	})
 
 	t.Run("propose pause when unpaused succeeds", func(t *testing.T) {
 		paused = false
-		urequire.NotPanics(t, cur, func() { ProposeSetPaused(true) })
+		urequire.NotPanics(t, cur, func() { ProposeSetPaused(cur, true) })
 		// The proposal-create call doesn't actually mutate paused —
 		// only its execution would. Confirm.
 		uassert.False(t, paused)
@@ -167,7 +167,7 @@ func TestProposeSetPaused_idempotency(cur realm, t *testing.T) {
 
 	t.Run("propose unpause when paused succeeds", func(t *testing.T) {
 		paused = true
-		urequire.NotPanics(t, cur, func() { ProposeSetPaused(false) })
+		urequire.NotPanics(t, cur, func() { ProposeSetPaused(cur, false) })
 		// Same: proposal-create does not mutate.
 		uassert.True(t, paused)
 	})

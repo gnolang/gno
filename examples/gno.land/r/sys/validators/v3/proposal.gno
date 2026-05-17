@@ -66,7 +66,7 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
 // successful execution. (Power-upsert on an existing op also emits
 // ValidatorAdded with the new power.)
-func NewValidatorProposalRequest(changes []ValoperChange, title, description string) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
 	}
@@ -122,7 +122,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 		}
 	}
 
-	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(changes))
+	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(cur, changes))
 }
 
 // newValoperChangeExecutor builds the GovDAO executor that, on
@@ -137,7 +137,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 // address, the entry's voting power is overwritten. Tendermint
 // natively handles ValidatorUpdates as upserts, so a single-entry
 // power change is the canonical form.
-func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
+func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 	callback := func(cur realm) error {
 		baseline := sysparams.GetValsetEffective()
 		set := make(map[address]validators.Validator, len(baseline))
@@ -202,5 +202,5 @@ func newValoperChangeExecutor(changes []ValoperChange) dao.Executor {
 		return nil
 	}
 
-	return dao.NewSimpleExecutor(callback, "")
+	return dao.NewSimpleExecutor(0, cur, callback, "")
 }

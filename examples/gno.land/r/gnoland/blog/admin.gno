@@ -45,7 +45,7 @@ func AdminRemoveModerator(_ realm, addr address) {
 
 func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
 	caller := cur.Previous().Address()
-	e := dao.NewSimpleExecutor(
+	e := dao.NewSimpleExecutor(0, cur, 
 		func(realm) error {
 			addPost(caller, slug, title, body, publicationDate, authors, tags)
 

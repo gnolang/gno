@@ -162,7 +162,7 @@ func IsEnabled() bool {
 // Idempotency: calling ProposeSetPaused(v) when the realm's current
 // paused state already equals v panics at proposal-creation time so
 // voters never see a proposal whose execution would no-op.
-func ProposeSetPaused(v bool) dao.ProposalRequest {
+func ProposeSetPaused(cur realm, v bool) dao.ProposalRequest {
 	if paused == v {
 		panic("paused state already matches requested value; no-op proposal rejected")
 	}
@@ -179,7 +179,7 @@ func ProposeSetPaused(v bool) dao.ProposalRequest {
 	return dao.NewProposalRequestWithFilter(
 		title,
 		desc,
-		dao.NewSimpleExecutor(cb, ""),
+		dao.NewSimpleExecutor(0, cur, cb, ""),
 		govimpl.NewFilterByTier(memberstore.T1),
 	)
 }

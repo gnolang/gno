@@ -39,7 +39,7 @@ func init(cur realm) {
 func main(cur realm) {
 	// Create an executor in a specific realm to test creation realm tracking
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/contract"))
-	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor description")
+	executor := dao.NewSimpleExecutor(0, cur, func(realm) error { return nil }, "Test executor description")
 
 	// Create a proposal request
 	proposalRequest := dao.NewProposalRequest(

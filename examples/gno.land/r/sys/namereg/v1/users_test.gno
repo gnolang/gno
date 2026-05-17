@@ -294,20 +294,20 @@ func TestRegister_PaymentErrorReflectsCurrentPrice(cur realm, t *testing.T) {
 // underflow the floor.
 func TestProposeNewRegisterPrice_floor(cur realm, t *testing.T) {
 	t.Run("zero is accepted (free registration is the default)", func(t *testing.T) {
-		urequire.NotPanics(t, cur, func() { ProposeNewRegisterPrice(0) })
+		urequire.NotPanics(t, cur, func() { ProposeNewRegisterPrice(cur, 0) })
 	})
 
 	t.Run("negative is rejected", func(t *testing.T) {
 		urequire.PanicsWithMessage(t, cur,
 			"price below floor: -1 ugnot < 0 ugnot (MinRegisterPrice)",
-			func() { ProposeNewRegisterPrice(-1) })
+			func() { ProposeNewRegisterPrice(cur, -1) })
 	})
 
 	t.Run("at floor is accepted", func(t *testing.T) {
-		urequire.NotPanics(t, cur, func() { ProposeNewRegisterPrice(MinRegisterPrice) })
+		urequire.NotPanics(t, cur, func() { ProposeNewRegisterPrice(cur, MinRegisterPrice) })
 	})
 
 	t.Run("above floor is accepted", func(t *testing.T) {
-		urequire.NotPanics(t, cur, func() { ProposeNewRegisterPrice(1_000_000_000) })
+		urequire.NotPanics(t, cur, func() { ProposeNewRegisterPrice(cur, 1_000_000_000) })
 	})
 }

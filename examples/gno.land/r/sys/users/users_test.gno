@@ -212,10 +212,10 @@ func TestResolveAny(cur realm, t *testing.T) {
 func TestProposeErrors(cur realm, t *testing.T) {
 	t.Run("propose_register_user_errors", func(t *testing.T) {
 		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
-			ProposeRegisterUser("bad name", aliceAddr)
+			ProposeRegisterUser(cur, "bad name", aliceAddr)
 		})
 		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
-			ProposeRegisterUser(alice, "badaddress")
+			ProposeRegisterUser(cur, alice, "badaddress")
 		})
 	})
 
@@ -223,10 +223,10 @@ func TestProposeErrors(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
-			ProposeUpdateName("badaddress", "alice1")
+			ProposeUpdateName(cur, "badaddress", "alice1")
 		})
 		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
-			ProposeUpdateName(aliceAddr, "bad name")
+			ProposeUpdateName(cur, aliceAddr, "bad name")
 		})
 		// Note: unregistered user is not checked at proposal creation time.
 		// The callback handles it at execution time.
@@ -236,7 +236,7 @@ func TestProposeErrors(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
-			ProposeDeleteUser("badaddress")
+			ProposeDeleteUser(cur, "badaddress")
 		})
 		// Note: unregistered user is not checked at proposal creation time.
 		// The callback handles it at execution time.
@@ -391,7 +391,7 @@ func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 		cleanStore(t)
 		urequire.NoError(t, RegisterUser(cross2(cur), "vitalik", aliceAddr))
 
-		req := ProposeRegisterUser("vital1k", bobAddr)
+		req := ProposeRegisterUser(cur, "vital1k", bobAddr)
 		uassert.True(t,
 			strings.Contains(req.Description(), "CANONICAL COLLISION"),
 			"description must include collision warning")
@@ -403,7 +403,7 @@ func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 	t.Run("no_warning_when_no_collision", func(t *testing.T) {
 		cleanStore(t)
 
-		req := ProposeRegisterUser("freshname", aliceAddr)
+		req := ProposeRegisterUser(cur, "freshname", aliceAddr)
 		uassert.False(t,
 			strings.Contains(req.Description(), "CANONICAL COLLISION"),
 			"description must not include collision warning when name is fresh")

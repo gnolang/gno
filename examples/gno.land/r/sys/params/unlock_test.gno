@@ -19,7 +19,7 @@ func init(cur realm) {
 func TestProUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
-	pr := ProposeUnlockTransferRequest()
+	pr := ProposeUnlockTransferRequest(cur)
 	id := dao.MustCreateProposal(cross2(cur), pr)
 	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
@@ -29,7 +29,7 @@ func TestProUnlockTransfer(cur realm, t *testing.T) {
 func TestFailUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
-	pr := ProposeUnlockTransferRequest()
+	pr := ProposeUnlockTransferRequest(cur)
 	id := dao.MustCreateProposal(cross2(cur), pr)
 	urequire.AbortsWithMessage(
 		t, cur,
@@ -43,7 +43,7 @@ func TestFailUnlockTransfer(cur realm, t *testing.T) {
 func TestExeUnlockTransfer(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(g1user))
 
-	pr := ProposeUnlockTransferRequest()
+	pr := ProposeUnlockTransferRequest(cur)
 	id := dao.MustCreateProposal(cross2(cur), pr)
 	_, err := dao.GetProposal(id)
 	urequire.NoError(t, err)

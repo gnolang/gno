@@ -34,7 +34,7 @@ func init(cur realm) {
 	// Propose raising the price from 0 to 20 GNOT.
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
-	pr := users.ProposeNewRegisterPrice(20_000_000)
+	pr := users.ProposeNewRegisterPrice(cross2(cur), 20_000_000)
 	dao.MustCreateProposal(cross2(cur), pr)
 }
 

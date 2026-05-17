@@ -142,7 +142,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/contract"))
 
 	// Create executor in the template contract realm
-	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor from template")
+	executor := dao.NewSimpleExecutor(0, cur, func(realm) error { return nil }, "Test executor from template")
 
 	proposalRequest := dao.NewProposalRequest(
 		"Test Proposal",

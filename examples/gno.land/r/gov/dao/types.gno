@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"chain/runtime"
 	"errors"
 
 	"gno.land/p/nt/bptree/v0"
@@ -160,7 +159,15 @@ type Executor interface {
 	CreationRealm() string
 }
 
-func NewSimpleExecutor(callback func(realm) error, description string) *SimpleExecutor {
+// NewSimpleExecutor constructs an Executor whose creationRealm is captured
+// from rlm.PkgPath() at construction time. The IsCurrent() check rejects
+// stale or stashed realm values so the captured value is the authentic
+// caller realm. creationRealm is display-only (rendered as "Executor
+// created in: ..." in proposal listings) — no auth gate downstream.
+func NewSimpleExecutor(_ int, rlm realm, callback func(realm) error, description string) *SimpleExecutor {
+	if !rlm.IsCurrent() {
+		panic("NewSimpleExecutor: rlm is not the caller's live cur (stale capture or sibling frame)")
+	}
 	if callback == nil {
 		panic("executor callback must not be nil")
 	}
@@ -168,7 +175,7 @@ func NewSimpleExecutor(callback func(realm) error, description string) *SimpleEx
 	return &SimpleExecutor{
 		callback:      callback,
 		desc:          description,
-		creationRealm: runtime.CurrentRealm().PkgPath(),
+		creationRealm: rlm.PkgPath(),
 	}
 }
 

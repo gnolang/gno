@@ -37,7 +37,7 @@ func AddControllerAtGenesis(_ realm, addr address) {
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
-func ProposeNewController(addr address) dao.ProposalRequest {
+func ProposeNewController(cur realm, addr address) dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -47,11 +47,11 @@ func ProposeNewController(addr address) dao.ProposalRequest {
 	}
 
 	desc := "This proposal adds " + addr.String() + " to `sys/users` realm's callers whitelist."
-	return dao.NewProposalRequest("Add Whitelisted Caller to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Add Whitelisted Caller to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(0, cur, cb, ""))
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
-func ProposeControllerRemoval(addr address) dao.ProposalRequest {
+func ProposeControllerRemoval(cur realm, addr address) dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -61,11 +61,11 @@ func ProposeControllerRemoval(addr address) dao.ProposalRequest {
 	}
 
 	desc := "This proposal removes " + addr.String() + " from `sys/users` realm's callers whitelist."
-	return dao.NewProposalRequest("Remove Whitelisted Caller From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Remove Whitelisted Caller From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(0, cur, cb, ""))
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
-func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRequest {
+func ProposeControllerAdditionAndRemoval(cur realm, toAdd, toRemove address) dao.ProposalRequest {
 	if !toAdd.IsValid() || !toRemove.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -79,7 +79,7 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove address) dao.ProposalRe
 		toAdd,
 		toRemove,
 	)
-	return dao.NewProposalRequest("Add and Remove Whitelisted Callers From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Add and Remove Whitelisted Callers From \"sys/users\" Realm", desc, dao.NewSimpleExecutor(0, cur, cb, ""))
 }
 
 // applyControllerSwap is the callback body of ProposeControllerAdditionAndRemoval,
@@ -114,7 +114,7 @@ func applyControllerSwap(toAdd, toRemove address) error {
 // controllers. The executor closure runs with ignoreCanonical=true (decision
 // #3): DAO grants always bypass canonical-collision detection. Voters see
 // any collision in the proposal description and can vote NO if unintended.
-func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
+func ProposeRegisterUser(cur realm, name string, addr address) dao.ProposalRequest {
 	// Validate the name and address now, even though registerUser will validate again
 	if err := validateName(name); err != nil {
 		panic(err.Error())
@@ -134,13 +134,13 @@ func ProposeRegisterUser(name string, addr address) dao.ProposalRequest {
 		return registerUser(cur, name, addr, true) // bypass canonical (decision #3)
 	}
 
-	return dao.NewProposalRequest("Register User to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Register User to \"sys/users\" Realm", desc, dao.NewSimpleExecutor(0, cur, cb, ""))
 }
 
 // ProposeUpdateName allows GovDAO to update a name with an alias without
 // checking controllers. Like ProposeRegisterUser, the executor runs with
 // ignoreCanonical=true (decision #3).
-func ProposeUpdateName(addr address, newName string) dao.ProposalRequest {
+func ProposeUpdateName(cur realm, addr address, newName string) dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -163,11 +163,11 @@ func ProposeUpdateName(addr address, newName string) dao.ProposalRequest {
 		return data.updateName(newName, true) // bypass canonical (decision #3)
 	}
 
-	return dao.NewProposalRequest("Update Name Alias in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Update Name Alias in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(0, cur, cb, ""))
 }
 
 // ProposeDeleteUser allows GovDAO to delete a user without checking controllers
-func ProposeDeleteUser(addr address) dao.ProposalRequest {
+func ProposeDeleteUser(cur realm, addr address) dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -181,7 +181,7 @@ func ProposeDeleteUser(addr address) dao.ProposalRequest {
 	}
 
 	desc := "This proposal deletes the user with address " + addr.String() + " in `sys/users`."
-	return dao.NewProposalRequest("Delete User in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(cb, ""))
+	return dao.NewProposalRequest("Delete User in \"sys/users\" Realm", desc, dao.NewSimpleExecutor(0, cur, cb, ""))
 }
 
 // IsController reports whether the given address is currently in the

@@ -33,13 +33,13 @@ func setRegisterPrice(cur realm, newPrice int64) {
 // Public API
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
-func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
+func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 	cb := func(cur realm) error {
 		setPaused(cur, newPausedValue)
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	if newPausedValue {
 		return dao.NewProposalRequest("User Registry V1: Pause", "", e)
@@ -59,7 +59,7 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 // subject to the base shape enforced by `r/sys/users.validateName`
 // (`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, max 64 chars), which runs inside
 // the updateUsername callback below.
-func ProposeNewName(addr address, newName string) dao.ProposalRequest {
+func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
@@ -70,7 +70,7 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 		return err
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Rename user `%s` to `%s`", userData.Name(), newName),
@@ -82,7 +82,7 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
 // This will make the associated address and names unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
-func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
+func ProposeDeleteUser(cur realm, addr address, reason string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
 		panic(susers.ErrUserNotExistOrDeleted)
@@ -92,7 +92,7 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 		return deleteUserdata(cur, userData)
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Delete user `%s`", userData.Name()),
@@ -105,7 +105,7 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 // Rejects prices below MinRegisterPrice (currently 0) at proposal-creation
 // time. (audit finding #14: original code only rejected negative values,
 // which would have been arithmetically nonsensical.)
-func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
+func ProposeNewRegisterPrice(cur realm, newPrice int64) dao.ProposalRequest {
 	if newPrice < MinRegisterPrice {
 		panic(ufmt.Sprintf("price below floor: %d ugnot < %d ugnot (MinRegisterPrice)",
 			newPrice, MinRegisterPrice))
@@ -116,7 +116,7 @@ func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, cur, cb, "")
 
 	return dao.NewProposalRequest(
 		ufmt.Sprintf("User Registry V1: Update registration price to `%d`", newPrice),

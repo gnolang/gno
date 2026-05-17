@@ -37,13 +37,13 @@ func main(cur realm) {
 	println("paused before:", users.IsPaused())
 
 	// Propose, vote, execute: pause.
-	dao.MustCreateProposal(cross2(cur), users.NewSetPausedExecutor(true))
+	dao.MustCreateProposal(cross2(cur), users.NewSetPausedExecutor(cross2(cur), true))
 	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
 	println("paused after pause prop:", users.IsPaused())
 
 	// Propose, vote, execute: unpause.
-	dao.MustCreateProposal(cross2(cur), users.NewSetPausedExecutor(false))
+	dao.MustCreateProposal(cross2(cur), users.NewSetPausedExecutor(cross2(cur), false))
 	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
 	dao.ExecuteProposal(cross2(cur), dao.ProposalID(1))
 	println("paused after unpause prop:", users.IsPaused())

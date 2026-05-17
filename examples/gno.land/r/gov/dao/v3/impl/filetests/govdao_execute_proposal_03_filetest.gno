@@ -11,10 +11,10 @@ var (
 	govdao   = impl.NewGovDAO()
 )
 
-func init() {
+func init(cur realm) {
 	// Create a dummy executor
 	cb := func(realm) error { return nil }
-	executor = dao.NewSimpleExecutor(cb, "")
+	executor = dao.NewSimpleExecutor(0, cur, cb, "")
 }
 
 func main(cur realm) {

@@ -29,7 +29,7 @@ func NewChangeTiersRequest(cur realm, tiers map[string]Tier) dao.ProposalRequest
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(callback, "New set of tiers proposed.")
+	e := dao.NewSimpleExecutor(0, cur, callback, "New set of tiers proposed.")
 
 	return dao.NewProposalRequest("Change Tiers Proposal", "This proposal is looking to change the existing Tiers in memberstore", e)
 }
