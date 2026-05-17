@@ -211,7 +211,7 @@ type SafeExecutor struct {
 
 func (e *SafeExecutor) Execute(cur realm) error {
 	// Verify the caller is an adequate Realm
-	if !InAllowedDAOs(runtime.PreviousRealm().PkgPath()) {
+	if !InAllowedDAOs(cur.Previous().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 

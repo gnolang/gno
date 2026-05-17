@@ -36,7 +36,7 @@ func Render(cur realm, in string) string {
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
 func AddMember(cur realm, addr address) {
-	caller := runtime.PreviousRealm()
+	caller := cur.Previous()
 	if !caller.IsUser() {
 		panic("this function must be called by an EOA through msg call or msg run")
 	}
