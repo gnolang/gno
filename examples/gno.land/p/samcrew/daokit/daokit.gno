@@ -52,7 +52,38 @@ func (d *Core) Vote(voterID string, proposalID uint64, vote daocond.Vote) {
 	proposal.Ballot.Vote(voterID, daocond.Vote(vote))
 }
 
+// Execute runs the proposal's registered action handler via the generic
+// daokit.ActionHandler.Execute path. Equivalent to
+// ExecuteWithDispatch(proposalID, nil).
 func (d *Core) Execute(proposalID uint64) {
+	d.ExecuteWithDispatch(proposalID, nil)
+}
+
+// ExecuteWithDispatch validates the proposal (existence, Open status,
+// Condition.Eval, status → Passed) and then either runs the registered
+// Handler or yields to the caller-supplied dispatch override. If
+// `dispatch(action)` returns true the generic Handler.Execute call is
+// skipped — the caller is asserting that it dispatched the action via
+// its own path. Used by basedao to thread a live `rlm` into the
+// EditProfile dispatcher without putting `rlm` on the public
+// daokit.ActionHandler interface (Class-1a defense — see
+// docs/resources/gno-security.md).
+//
+// The dispatch callback receives only the public `Action` value; no
+// `rlm` flows through this function's signature. rlm-bearing dispatch
+// is the caller's responsibility, captured in their closure.
+//
+// CAVEAT (documented contract-violation symptom): if the registered
+// generic Handler.Execute panics — e.g. basedao's editProfileStubHandler
+// when EditProfile is reached via the legacy DAOPrivate.Execute →
+// Core.Execute path — the proposal's status has already moved
+// Open → Passed (by UpdateStatus above), but Status = Executed is never
+// set. The proposal becomes stuck in Passed. This is only reachable
+// when a caller violates the "DAOPrivate is internal-only" contract
+// (basedao.gno DAOWrapper.Private() doc); production callers go through
+// DAOWrapper.Execute → DAOPrivate.executeWithRlm → here with a non-nil
+// dispatch that intercepts EditProfile before the stub is reached.
+func (d *Core) ExecuteWithDispatch(proposalID uint64, dispatch func(Action) bool) {
 	proposal := d.Proposals.GetProposal(proposalID)
 	if proposal == nil {
 		panic("proposal not found")
@@ -71,7 +102,9 @@ func (d *Core) Execute(proposalID uint64) {
 		panic("proposal does not meet the condition(s) or is already closed/executed")
 	}
 
-	d.Resources.Get(proposal.Action.Type()).Handler.Execute(proposal.Action)
+	if dispatch == nil || !dispatch(proposal.Action) {
+		d.Resources.Get(proposal.Action.Type()).Handler.Execute(proposal.Action)
+	}
 	proposal.Status = ProposalStatusExecuted
 	proposal.ExecutedAt = time.Now()
 }

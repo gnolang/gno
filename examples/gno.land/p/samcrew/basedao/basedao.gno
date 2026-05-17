@@ -34,7 +34,10 @@ func (w *DAOWrapper) Execute(_ int, rlm realm, id uint64) {
 		panic(errors.New("caller is not a member"))
 	}
 	executor := rlm.Previous().Address()
-	w.impl.Execute(executor, id)
+	// Route through the rlm-aware path: ActionEditProfileKind is dispatched
+	// via editProfileHandler.execute(0, rlm, ...) which uses cross2(rlm).
+	// All other action kinds fall through to generic Core dispatch.
+	w.impl.executeWithRlm(0, rlm, executor, id)
 }
 
 func (w *DAOWrapper) Vote(_ int, rlm realm, id uint64, vote daocond.Vote) {
@@ -93,6 +96,12 @@ type DAOPrivate struct {
 	// persist.
 	RealmPkgPath string
 	RealmAddress address
+	// editProfile carries the rlm-aware dispatcher for
+	// ActionEditProfileKind. nil if Config.SetProfileString was nil.
+	// See actions.gno for the rationale (concrete type + unexported
+	// method closes Class-1a; basedao routes around the generic
+	// daokit.ActionHandler interface for this one action).
+	editProfile *editProfileHandler
 }
 
 type Config struct {
@@ -170,8 +179,18 @@ func New(conf *Config, rlm realm) *DAOWrapper {
 		}
 
 		if conf.SetProfileString != nil {
+			// editProfile is the rlm-aware dispatcher used by
+			// DAOPrivate.executeWithRlm. The Resource entry below uses a
+			// panicking stub (editProfileStubHandler) so Core.Propose's
+			// Condition lookup succeeds; the stub is unreachable on the
+			// production execute path (DAOWrapper.Execute routes via
+			// executeWithRlm with an override that intercepts EditProfile).
+			dao.editProfile = &editProfileHandler{
+				setter:        conf.SetProfileString,
+				allowedFields: []string{"DisplayName", "Bio", "Avatar"},
+			}
 			dao.Core.Resources.Set(&daokit.Resource{
-				Handler:   NewEditProfileHandler(conf.SetProfileString, []string{"DisplayName", "Bio", "Avatar"}),
+				Handler:   editProfileStubHandler{},
 				Condition: conf.InitialCondition,
 			})
 		}
@@ -229,9 +248,32 @@ func (d *DAOPrivate) Vote(caller address, proposalID uint64, vote daocond.Vote) 
 }
 
 // Execute a proposal. See Vote for caller semantics.
+//
+// Address-typed legacy path (preserves the daokit.DAO interface contract
+// of no rlm crossing the dispatch boundary). EditProfile proposals
+// reaching this method will panic via the registered editProfileStubHandler
+// — they must be dispatched via DAOPrivate.executeWithRlm (which
+// DAOWrapper.Execute calls). See daokit.gno ExecuteWithDispatch CAVEAT.
 func (d *DAOPrivate) Execute(caller address, proposalID uint64) {
 	_ = d.assertCallerIsMember(caller)
 	d.Core.Execute(proposalID)
+}
+
+// executeWithRlm is the rlm-aware execute path. Called by DAOWrapper.Execute
+// after IsCurrent has been validated. Asserts caller membership (same as
+// DAOPrivate.Execute), then dispatches through Core.ExecuteWithDispatch
+// with an override that routes ActionEditProfileKind into the
+// editProfile concrete handler. All other action types fall through to
+// generic Core dispatch unchanged.
+func (d *DAOPrivate) executeWithRlm(_ int, rlm realm, caller address, proposalID uint64) {
+	_ = d.assertCallerIsMember(caller)
+	d.Core.ExecuteWithDispatch(proposalID, func(action daokit.Action) bool {
+		if action.Type() == ActionEditProfileKind && d.editProfile != nil {
+			d.editProfile.execute(0, rlm, action)
+			return true
+		}
+		return false
+	})
 }
 
 // Propose a proposal. See Vote for caller semantics.
