@@ -1,9 +1,7 @@
 package config
 
 import (
-	"chain/runtime"
 	"errors"
-	"strings"
 	"time"
 
 	"gno.land/p/nt/avl/v0"
@@ -11,11 +9,11 @@ import (
 	"gno.land/p/nt/seqid/v0"
 )
 
+const absPath = "/r/leon/config"
+
 var (
 	cfgID   seqid.ID
 	configs = avl.NewTree()
-
-	absPath = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
 
 	// SafeObjects
 	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
