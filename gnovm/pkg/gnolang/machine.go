@@ -1517,13 +1517,19 @@ const (
 	// this for every child call. Calibrated from BenchmarkComputeMapKey_*
 	// ns/op(pure) ~45-80 ns on Xeon-equivalent hardware.
 	OpCPUComputeMapKey = 80
-	// ComputeMapKey per-byte slope: O(N) cost of the byte-array fast path
-	// (ArrayType with av.Data != nil) and the StringType primitive path.
-	// Without this the cost of hashing a multi-MB key is paid as a single
-	// OpCPUComputeMapKey, which is the DoS vector closed by GHSA-m7rp-96x5-hvpx.
-	// gas = bytes * slope / 10. Calibrated to ~0.6 ns/byte on Xeon-equivalent
-	// hardware (fit: 0.56–0.73 ns/byte across len=128 … 16M).
-	OpCPUSlopeComputeMapKeyByte = 6 // per byte/10
+	// ComputeMapKey per-byte slope: charged on the total number of bytes
+	// appended to the per-call buffer, covering every O(N) work path
+	// uniformly — TypeID prefix, byte-array fast path (ArrayType with
+	// av.Data != nil), StringType primitive path, brackets/separators,
+	// uvarint length headers, and the parent loop's re-copy of each
+	// child's mk. Without this the cost of hashing a multi-MB key, or a
+	// type with a long TypeID, would be paid as a single OpCPUComputeMapKey
+	// (the DoS vector closed by GHSA-m7rp-96x5-hvpx).
+	// gas = bytes * slope / 10. Calibrated to the asymptotic per-byte memcpy
+	// throughput of ~0.36–0.40 ns/byte Xeon-equivalent (large-N regime
+	// from BenchmarkComputeMapKey_Bytes); the per-call constant absorbs
+	// the constant-overhead portion that dominates at small N.
+	OpCPUSlopeComputeMapKeyByte = 4 // per byte/10
 )
 
 //----------------------------------------

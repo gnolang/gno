@@ -1577,6 +1577,15 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
+	// Charge per-byte for all bytes appended to bz in this call (TypeID
+	// prefix, av.Data, string content, brackets/separators, uvarint
+	// length headers, children's mk re-appended). This catches every
+	// O(N) work path uniformly, including early isNaN returns.
+	if m != nil && m.GasMeter != nil {
+		defer func() {
+			m.GasMeter.ConsumeGas(int64(len(bz))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
+		}()
+	}
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
@@ -1586,11 +1595,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		// StringType is the only primitive whose MapKey work is O(N) (it
-		// appends the entire byte content); charge per-byte gas for it.
-		if m != nil && m.GasMeter != nil && tv.T.Kind() == StringKind {
-			m.GasMeter.ConsumeGas(int64(len(tv.GetString()))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
-		}
 		bz, isNaN = tv.MapKeyBytes(bz)
 		if isNaN {
 			return "", true
@@ -1643,10 +1647,6 @@ func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key
 				}
 			}
 		} else {
-			// Byte-array fast path: O(N) copy, charge per-byte gas.
-			if m != nil && m.GasMeter != nil {
-				m.GasMeter.ConsumeGas(int64(len(av.Data))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
-			}
 			bz = append(bz, av.Data...)
 		}
 		bz = append(bz, ']')
