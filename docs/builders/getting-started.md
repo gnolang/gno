@@ -14,7 +14,7 @@ Try the **[Playground](https://play.gno.land)** to write Gno in your browser.
 
 ## Install
 
-The toolchain has three binaries:
+This tutorial uses three of the toolchain binaries:
 
 | Binary    | What it is                                              |
 |-----------|---------------------------------------------------------|
