@@ -1,9 +1,12 @@
 # Getting started with Gno.land
 
 Gno.land is a Layer 1 blockchain where smart contracts are written in
-**Gno**, a deterministic variant of Go. If you can write Go, you can
-write Gno. See [What is Gno.land?](./what-is-gnolang.md) for the full
-picture.
+**Gno**, a deterministic variant of Go. If you know Go, you can write
+Gno — minus what doesn't fit on-chain: no goroutines, no `os`/`net`
+stdlibs, and `gno.land/...` imports only. See
+[What is Gno.land?](./what-is-gnolang.md) for the full picture and
+[Go vs Gno compatibility](../resources/go-gno-compatibility.md) for
+the differences.
 
 This page walks you from zero to a working local chain and your first
 on-chain transaction. Just want the commands? See [Quick Start](./quickstart.md).
