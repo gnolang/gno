@@ -397,17 +397,6 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 	if crlm != nil {
 		prlm := cfr.LastRealm
 		if cfr.WithCross {
-			// interrealm v2 Phase 3: when both sides of the cross are
-			// non-realm-pkg paths (/p/ or stdlib, including _test
-			// overlays), no realm-attachment semantics are in play —
-			// these don't persist state, so panics through the cross
-			// can propagate normally to the caller's defer/recover.
-			// Pre-Phase-3 this case had m.Realm=nil and was filtered
-			// by the outer `crlm != nil` guard; with /p/ packages now
-			// carrying real Realms, we need an explicit carve-out.
-			if !IsRealmPath(crlm.Path) && prlm != nil && !IsRealmPath(prlm.Path) {
-				return false
-			}
 			// Even if crlm == prlm, must finalize
 			// to preserve attachment rules.
 			return true
