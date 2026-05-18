@@ -2609,6 +2609,9 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
 	}
+	if _, isHIV := base.(*HeapItemValue); isHIV && oid.NewTime == 0 {
+		return false
+	}
 	return oid.PkgID != m.Realm.ID
 }
 
