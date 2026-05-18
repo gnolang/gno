@@ -1,29 +1,4 @@
-import {
-	defaultKeymap,
-	history,
-	historyKeymap,
-	indentWithTab,
-} from "@codemirror/commands";
-import {
-	bracketMatching,
-	defaultHighlightStyle,
-	indentOnInput,
-	indentUnit,
-	StreamLanguage,
-	syntaxHighlighting,
-} from "@codemirror/language";
-import { go } from "@codemirror/legacy-modes/mode/go";
-import { toml } from "@codemirror/legacy-modes/mode/toml";
-import { Compartment, EditorState } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
-import {
-	drawSelection,
-	EditorView,
-	highlightActiveLine,
-	highlightActiveLineGutter,
-	keymap,
-	lineNumbers,
-} from "@codemirror/view";
+import { CodeEditor, isDarkMode } from "./code-editor.js";
 import { BaseController, makeCopyIcon } from "./controller.js";
 
 interface PlaygroundFile {
@@ -38,56 +13,53 @@ const DEFAULT_GNO_CONTENT = "package main\n";
 // It stays under the 8192-byte default limit of common web servers (nginx, Apache).
 const MAX_SHARE_URL_LENGTH = 8_000;
 
-const goLang = StreamLanguage.define(go);
-const tomlLang = StreamLanguage.define(toml);
-
-function languageFromFilename(name: string): StreamLanguage<unknown> {
-	return name.endsWith(".toml") ? tomlLang : goLang;
-}
-
 export class PlaygroundController extends BaseController {
 	private declare files: PlaygroundFile[];
 	private declare activeFile: number;
-	private declare mountEl: HTMLElement;
+	private declare editorEl: HTMLElement;
 	private declare outputEl: HTMLElement;
 	private declare tabsEl: HTMLElement;
 	private declare tabsWrapEl: HTMLElement;
 	private declare prevBtnEl: HTMLButtonElement;
 	private declare nextBtnEl: HTMLButtonElement;
-	private declare view: EditorView;
-	private declare langCompartment: Compartment;
-	private declare themeCompartment: Compartment;
+	private declare editor: CodeEditor;
 
 	protected connect(): void {
 		const initialCodeEl = this.getTarget("initial-code") as HTMLTextAreaElement;
 
 		this.files = [];
 		this.activeFile = 0;
-		this.mountEl = this.getTarget("code") as HTMLElement;
+		this.editorEl = this.getTarget("editor") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
 		this.tabsEl = this.getTarget("tabs") as HTMLElement;
 		this.tabsWrapEl = this.getTarget("tabs-wrap") as HTMLElement;
 		this.prevBtnEl = this.getTarget("prev-button") as HTMLButtonElement;
 		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
-		if (!this.mountEl || !this.outputEl || !this.tabsEl || !initialCodeEl)
+		if (!this.editorEl || !this.outputEl || !this.tabsEl || !initialCodeEl)
 			return;
 
-		this.mountEl.addEventListener("focusin", () =>
+		this.editorEl.addEventListener("focusin", () =>
 			this._scrollActiveTabIntoView(),
 		);
 
 		this._parseInitialCode(initialCodeEl.value);
-		this._createEditor();
+
+		this.editor = new CodeEditor({
+			parent: this.editorEl,
+			content: this.files[0].content,
+			fileName: this.files[0].name,
+			isDarkMode: isDarkMode(),
+			onRun: () => this.runCode(),
+		});
+
+		this.on("theme:changed", () => {
+			this.editor.changeTheme(isDarkMode());
+		});
+
 		this._switchToDefaultFile();
 		this._setupTabsScroll();
 		this.renderTabs();
 		this.clearOutput();
-
-		this.on("theme:changed", () => {
-			this.view.dispatch({
-				effects: this.themeCompartment.reconfigure(this._getCodeEditorTheme()),
-			});
-		});
 	}
 
 	private _setupTabsScroll(): void {
@@ -180,69 +152,6 @@ export class PlaygroundController extends BaseController {
 		}
 	}
 
-	private _createEditor(): void {
-		this.langCompartment = new Compartment();
-		this.themeCompartment = new Compartment();
-
-		const runOnEnter = keymap.of([
-			{
-				key: "Mod-Enter",
-				preventDefault: true,
-				run: () => {
-					this.runCode();
-					return true;
-				},
-			},
-		]);
-
-		this.view = new EditorView({
-			parent: this.mountEl,
-			state: EditorState.create({
-				doc: this.files[0].content,
-				extensions: [
-					lineNumbers(),
-					highlightActiveLine(),
-					highlightActiveLineGutter(),
-					drawSelection(),
-					history(),
-					indentOnInput(),
-					indentUnit.of("\t"),
-					bracketMatching(),
-					this.langCompartment.of(languageFromFilename(this.files[0].name)),
-					this.themeCompartment.of(this._getCodeEditorTheme()),
-					runOnEnter,
-					keymap.of([indentWithTab, ...historyKeymap, ...defaultKeymap]),
-				],
-			}),
-		});
-	}
-
-	private _isDarkMode(): boolean {
-		return document.documentElement.getAttribute("data-theme") === "dark";
-	}
-
-	private _getCodeEditorTheme() {
-		return this._isDarkMode()
-			? oneDark
-			: syntaxHighlighting(defaultHighlightStyle, { fallback: true });
-	}
-
-	private _getCode(): string {
-		return this.view.state.doc.toString();
-	}
-
-	private _setCode(text: string): void {
-		this.view.dispatch({
-			changes: { from: 0, to: this.view.state.doc.length, insert: text },
-		});
-	}
-
-	private _setLanguage(name: string): void {
-		this.view.dispatch({
-			effects: this.langCompartment.reconfigure(languageFromFilename(name)),
-		});
-	}
-
 	private _resetOutput(
 		text: string,
 		copyable: boolean = false,
@@ -289,12 +198,12 @@ export class PlaygroundController extends BaseController {
 	}
 
 	private _switchToFile(fileName: string): boolean {
-		this.files[this.activeFile].content = this._getCode();
+		this.files[this.activeFile].content = this.editor.getCode();
 		const idx = this.files.findIndex((f) => f.name === fileName);
 		if (idx >= 0) {
 			this.activeFile = idx;
-			this._setCode(this.files[idx].content);
-			this._setLanguage(this.files[idx].name);
+			this.editor.setCode(this.files[idx].content);
+			this.editor.setLanguage(this.files[idx].name);
 			this.renderTabs();
 		}
 		return idx >= 0;
@@ -341,19 +250,19 @@ export class PlaygroundController extends BaseController {
 			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
 		}
 
-		this.files[this.activeFile].content = this._getCode();
+		this.files[this.activeFile].content = this.editor.getCode();
 		this.files.push({ name, content });
 		this.activeFile = this.files.length - 1;
-		this._setCode(this.files[this.activeFile].content);
-		this._setLanguage(this.files[this.activeFile].name);
+		this.editor.setCode(this.files[this.activeFile].content);
+		this.editor.setLanguage(this.files[this.activeFile].name);
 		this.renderTabs();
 	}
 
 	public async runCode(): Promise<void> {
-		this.files[this.activeFile].content = this._getCode();
+		this.files[this.activeFile].content = this.editor.getCode();
 		this._resetOutput("Running...");
 
-		const code = this._getCode();
+		const code = this.editor.getCode();
 		const pkgMatch = code.match(/^package\s+(\w+)/m);
 		const pkgName = pkgMatch ? pkgMatch[1] : "main";
 		const domain = this.getValue("domain") || "gno.land";
@@ -411,7 +320,7 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public async shareCode(): Promise<void> {
-		this.files[this.activeFile].content = this._getCode();
+		this.files[this.activeFile].content = this.editor.getCode();
 
 		const code =
 			this.files.length === 1
@@ -452,7 +361,7 @@ export class PlaygroundController extends BaseController {
 
 	public downloadFiles(): void {
 		// Make sure current file content is the latest when downloading
-		this.files[this.activeFile].content = this._getCode();
+		this.files[this.activeFile].content = this.editor.getCode();
 
 		if (this.files.length === 1) {
 			this._triggerDownload(

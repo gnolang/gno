@@ -27,16 +27,7 @@ UI - Run (maketx run) scratchpad
   
   <!-- Code editor -->
   <div class="b-playground-editor-area">
-    <div class="b-playground-editor">
-      <textarea
-        data-run-target="code"
-        class="b-playground-code"
-        spellcheck="false"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-      ></textarea>
-    </div>
+    <div class="b-playground-editor" data-run-target="editor"></div>
   </div>
 
   <!-- Command settings -->
@@ -83,13 +74,15 @@ UI - Run (maketx run) scratchpad
       <div class="b-run-command-header">
         <h4 class="b-run-command-label">Dry Run</h4>
         <span class="u-color-muted u-text-sm">simulates without broadcasting</span>
-        <button class="b-btn b-btn--ghost b-run-copy-btn"
-          data-action="click->run#copyDryRun" title="Copy to clipboard">
-          <svg class="c-icon"><use href="#ico-copy"></use></svg>
-          <span>Copy</span>
-        </button>
       </div>
-      <pre class="b-run-command-pre u-font-mono" data-run-target="dryRunCmd"></pre>
+      <div class="b-code u-mb-2">
+        <button data-controller="copy" data-action="click->copy#copy"
+          data-copy-remote-value="run-dry-run-cmd" class="btn-copy"
+          aria-label="Copy Command">
+          {{ template "ui/copy" }}
+        </button>
+        <pre><code><span class="u-font-mono" data-copy-target="run-dry-run-cmd" data-run-target="dryRunCmd"></span></code></pre>
+      </div>
     </div>
 
     <!-- Execute -->
@@ -97,13 +90,15 @@ UI - Run (maketx run) scratchpad
       <div class="b-run-command-header">
         <h4 class="b-run-command-label">Execute</h4>
         <span class="u-color-muted u-text-sm">broadcasts and runs on-chain</span>
-        <button class="b-btn b-btn--ghost b-run-copy-btn"
-          data-action="click->run#copyExecute" title="Copy to clipboard">
-          <svg class="c-icon"><use href="#ico-copy"></use></svg>
-          <span>Copy</span>
-        </button>
       </div>
-      <pre class="b-run-command-pre u-font-mono" data-run-target="executeCmd"></pre>
+      <div class="b-code u-mb-2">
+        <button data-controller="copy" data-action="click->copy#copy"
+          data-copy-remote-value="run-execute-cmd" class="btn-copy"
+          aria-label="Copy Command">
+          {{ template "ui/copy" }}
+        </button>
+        <pre><code><span class="u-font-mono" data-copy-target="run-execute-cmd" data-run-target="executeCmd"></span></code></pre>
+      </div>
     </div>
   </div>
 

@@ -1,3 +1,4 @@
+import { CodeEditor, isDarkMode } from "./code-editor.js";
 import { BaseController } from "./controller.js";
 
 export class RunController extends BaseController {
@@ -5,20 +6,21 @@ export class RunController extends BaseController {
 	private declare pkgAlias: string;
 	private declare remote: string;
 	private declare chainId: string;
-	private declare codeEl: HTMLTextAreaElement;
+	private declare editorEl: HTMLElement;
 	private declare keyEl: HTMLInputElement;
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
 	private declare dryRunCmdEl: HTMLElement;
 	private declare executeCmdEl: HTMLElement;
+	private declare editor: CodeEditor;
 
 	protected connect(): void {
 		this.pkgPath = this.getValue("pkg-path");
 		this.pkgAlias = this.getValue("pkg-alias") || "pkg";
 		this.remote = this.getValue("remote");
 		this.chainId = this.getValue("chain-id");
-		this.codeEl = this.getTarget("code") as HTMLTextAreaElement;
+		this.editorEl = this.getTarget("editor") as HTMLElement;
 		this.keyEl = this.getTarget("key") as HTMLInputElement;
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
@@ -26,11 +28,19 @@ export class RunController extends BaseController {
 		this.dryRunCmdEl = this.getTarget("dryRunCmd") as HTMLElement;
 		this.executeCmdEl = this.getTarget("executeCmd") as HTMLElement;
 
-		if (!this.codeEl || !this.dryRunCmdEl || !this.executeCmdEl) return;
+		if (!this.editorEl || !this.dryRunCmdEl || !this.executeCmdEl) return;
 
-		this.codeEl.value = this._buildTemplate();
+		this.editor = new CodeEditor({
+			parent: this.editorEl,
+			content: this._buildTemplate(),
+			fileName: "script.gno",
+			isDarkMode: isDarkMode(),
+		});
 
-		this._setupKeyboardShortcuts();
+		this.on("theme:changed", () => {
+			this.editor.changeTheme(isDarkMode());
+		});
+
 		this._setupInputListeners();
 		this._updateCommands();
 	}
@@ -45,18 +55,6 @@ func main() {
 \t// ${this.pkgAlias}.Render("")
 }
 `;
-	}
-
-	private _setupKeyboardShortcuts(): void {
-		this.codeEl.addEventListener("keydown", (e: KeyboardEvent) => {
-			if (e.key === "Tab" && !e.shiftKey) {
-				e.preventDefault();
-				const start = this.codeEl.selectionStart;
-				const end = this.codeEl.selectionEnd;
-				this.codeEl.value = `${this.codeEl.value.substring(0, start)}\t${this.codeEl.value.substring(end)}`;
-				this.codeEl.selectionStart = this.codeEl.selectionEnd = start + 1;
-			}
-		});
 	}
 
 	private _setupInputListeners(): void {
@@ -94,56 +92,17 @@ func main() {
 		this.executeCmdEl.textContent = this._buildCmd(false);
 	}
 
-	private _copyToClipboard(text: string, btn: HTMLElement): void {
-		navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				const span = btn.querySelector("span");
-				if (!span) return;
-				const orig = span.textContent;
-				span.textContent = "Copied!";
-				setTimeout(() => {
-					span.textContent = orig;
-				}, 1500);
-			})
-			.catch(() => {
-				// fallback: select the pre element content
-				const pre = btn.closest(".b-run-command-block")?.querySelector("pre");
-				if (pre) {
-					const sel = window.getSelection();
-					const range = document.createRange();
-					range.selectNodeContents(pre);
-					sel?.removeAllRanges();
-					sel?.addRange(range);
-				}
-			});
-	}
-
 	public resetCode(): void {
-		this.codeEl.value = this._buildTemplate();
+		this.editor.setCode(this._buildTemplate());
 	}
 
 	public downloadCode(): void {
-		const blob = new Blob([this.codeEl.value], { type: "text/plain" });
+		const blob = new Blob([this.editor.getCode()], { type: "text/plain" });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
 		a.download = "script.gno";
 		a.click();
 		URL.revokeObjectURL(url);
-	}
-
-	public copyDryRun(event: Event): void {
-		this._copyToClipboard(
-			this._buildCmd(true),
-			event.currentTarget as HTMLElement,
-		);
-	}
-
-	public copyExecute(event: Event): void {
-		this._copyToClipboard(
-			this._buildCmd(false),
-			event.currentTarget as HTMLElement,
-		);
 	}
 }

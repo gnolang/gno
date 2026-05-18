@@ -2838,12 +2838,6 @@ main.dev-mode .b-toc a {
 	min-height: 300px;
 	resize: vertical;
 	overflow: hidden;
-}
-
-.b-playground-code {
-	flex: 1;
-	display: flex;
-	min-height: 300px;
 
 	& .cm-editor {
 		flex: 1;
@@ -3150,21 +3144,6 @@ main.dev-mode .b-toc a {
 .b-run-command-label {
 	font-weight: var(--g-font-semibold);
 	color: var(--s-color-text-primary);
-}
-
-.b-run-copy-btn {
-	margin-inline-start: auto;
-}
-
-.b-run-command-pre {
-	background-color: var(--s-color-bg-base);
-	border-radius: var(--s-rounded);
-	padding: var(--g-space-4);
-	font-size: var(--g-font-size-100);
-	color: var(--s-color-text-secondary);
-	white-space: pre-wrap;
-	word-break: break-word;
-	min-height: var(--g-space-12);
 }
 
 /* ==========================================================================
