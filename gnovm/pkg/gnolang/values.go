@@ -2724,7 +2724,18 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
-			tv.V = store.GetObject(cv.ObjectID)
+			obj := store.GetObject(cv.ObjectID)
+			if debugAssert {
+				// Verify hash chain: parent's claimed child hash
+				// must match child's actual stored hash.
+				// Escaped objects carry zero RefValue hash (resolved via IAVL).
+				if childHash := obj.GetHash(); !cv.Hash.IsZero() && cv.Hash != childHash {
+					panic(fmt.Sprintf(
+						"hash chain broken at %s: parent claims child hash %X, but child has %X",
+						cv.ObjectID, cv.Hash.Bytes(), childHash.Bytes()))
+				}
+			}
+			tv.V = obj
 		}
 	case PointerValue:
 		// As a special case, cv.Base is filled
