@@ -630,10 +630,26 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			// extern package values are skipped.
 			continue
 		}
-		// Skip immutable package objects from external packages.
+		// Skip immutable-pkg children from external packages:
+		//   - Real (already-persisted) immutable-pkg refs: pre-existing
+		//     stdlib/p singletons this realm merely references and
+		//     shouldn't refcount-track.
+		//   - Unreal /p/-stamped objects: under the sandbox semantic,
+		//     /p/-method bodies must not silently allocate persistable
+		//     state under the caller's authority. They're skipped here
+		//     and will surface as toRefValue's "unexpected unreal
+		//     object" panic if reachable from persisted state — which
+		//     is the desired loud-fail for that pattern.
+		// Fresh (unreal) stdlib-stamped allocations are NOT skipped:
+		// these arise from legitimate stdlib helper patterns (e.g.,
+		// dbuf from base64.DecodeString) and get adopted by the
+		// persisting realm via assignNewObjectID's stdlib adoption
+		// branch.
 		childPkgID := child.GetObjectID().PkgID
 		if childPkgID.IsImmutablePkg() && childPkgID != rlm.ID {
-			continue
+			if child.GetIsReal() || !childPkgID.IsStdlibPkg() {
+				continue
+			}
 		}
 		child.IncRefCount()
 		rc := child.GetRefCount()
@@ -1954,6 +1970,22 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		// realm so storage rent + future reads route consistently.
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
+	} else if oid.PkgID != rlm.ID && oid.PkgID.IsStdlibPkg() {
+		// interrealm v2 Phase 3: an unreal object stamped with a
+		// stdlib PkgID arose from a fresh allocation inside a borrowed
+		// stdlib-method body (e.g. dbuf from base64.DecodeString) and
+		// got handed back to the caller for persistence. Stdlib helper
+		// patterns legitimately return such values, so the calling
+		// realm adopts them: re-stamp PkgID to rlm.ID.
+		//
+		// /p/-method bodies do NOT get this adoption — under the
+		// sandbox semantic, /p/-methods should not be able to silently
+		// allocate-and-return persistable state under the caller's
+		// authority. /p/ APIs that produce new state must do so via
+		// top-level functions (where m.Realm stays the caller's) or
+		// take pre-allocated targets as out-parameters.
+		oo.SetPkgID(rlm.ID)
+		oid = oo.GetObjectID()
 	}
 	targetRlm := rlm
 	if oid.PkgID != rlm.ID {
@@ -1997,7 +2029,8 @@ func toRefValue(val Value) RefValue {
 				PkgPath: pv.PkgPath,
 			}
 		} else if !oo.GetIsReal() {
-			panic("unexpected unreal object")
+			panic(fmt.Sprintf("unexpected unreal object: type=%T oid=%v isNewReal=%v isDirty=%v isNewDeleted=%v refCount=%d",
+				oo, oo.GetObjectID(), oo.GetIsNewReal(), oo.GetIsDirty(), oo.GetIsNewDeleted(), oo.GetRefCount()))
 		}
 
 		// NOTE: A dirty object here is valid when a parent is being
