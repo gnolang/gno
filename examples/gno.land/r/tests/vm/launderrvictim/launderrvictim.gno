@@ -48,3 +48,54 @@ func UseAnyMutator(m launderpkg.AnyMutator) {
 func ApplyHook(h func(*Immutable)) {
 	h(gImm)
 }
+
+// --- /p/-type embedded / fielded inside /r/-declared types ---
+//
+// The three shapes below mix /r/-declared containers with /p/-typed
+// inner state. Even though the container types are /r/-declared,
+// the inner /p/-typed values inherit /p/'s methods — including
+// Apply-style higher-order methods that take /p/-typed callbacks.
+// /p/-attacker code can supply such callbacks. The attacker reaches
+// the inner /p/-value (read access works), then invokes Apply with
+// a /p/-declared function pointer. Inside Apply (Rule 2 borrowed
+// to /r/launderrvictim), the callback runs without any Rule 1/2
+// shift (top-level /p/ fn), so the write commits under victim
+// authority.
+
+// WithEmbed embeds launderpkg.Immutable by VALUE (method promotion
+// gives WithEmbed an .Apply method).
+type WithEmbed struct {
+	launderpkg.Immutable
+}
+
+// WithPtr has a POINTER FIELD to launderpkg.Immutable.
+type WithPtr struct {
+	Inner *launderpkg.Immutable
+}
+
+// WithVal has a VALUE FIELD of launderpkg.Immutable (not embedded;
+// the field is named, no method promotion — but the value is still
+// addressable through c.Inner).
+type WithVal struct {
+	Inner launderpkg.Immutable
+}
+
+var (
+	gWithEmbed *WithEmbed
+	gWithPtr   *WithPtr
+	gWithVal   *WithVal
+)
+
+func init() {
+	gWithEmbed = &WithEmbed{Immutable: launderpkg.Immutable{Field: "embed-orig"}}
+	gWithPtr = &WithPtr{Inner: &launderpkg.Immutable{Field: "ptr-orig"}}
+	gWithVal = &WithVal{Inner: launderpkg.Immutable{Field: "val-orig"}}
+}
+
+func GetWithEmbed() *WithEmbed { return gWithEmbed }
+func GetWithPtr() *WithPtr     { return gWithPtr }
+func GetWithVal() *WithVal     { return gWithVal }
+
+func ReadEmbed() string { return gWithEmbed.Field }
+func ReadPtr() string   { return gWithPtr.Inner.Field }
+func ReadVal() string   { return gWithVal.Inner.Field }
