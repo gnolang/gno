@@ -8,12 +8,7 @@
 #   ./unrestrict-account.sh g1abc...123
 #   ./unrestrict-account.sh g1abc...123 g1def...456
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 if [ $# -eq 0 ]; then
@@ -58,8 +53,8 @@ echo "Unrestricting $# account(s):"
 for addr in "$@"; do
   echo "  $addr"
 done
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 

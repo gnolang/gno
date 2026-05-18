@@ -2909,12 +2909,50 @@ main.dev-mode .b-toc a {
 	font-family: var(--g-font-mono);
 	font-size: var(--g-font-size-75);
 	line-height: 1.6;
-	white-space: pre-wrap;
-	word-break: break-word;
 	min-height: 80px;
 	max-height: 300px;
 	overflow-y: auto;
 	background-color: var(--s-color-bg-base);
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.b-playground-output-item {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--g-space-2);
+}
+
+.b-playground-output-item-text {
+	flex: 1;
+	margin: 0;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: inherit;
+}
+
+.b-playground-output-copy-btn {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: var(--g-space-1);
+	color: var(--s-color-fg-muted);
+	border-radius: var(--g-radius-1);
+	transition:
+		color 0.15s,
+		background-color 0.15s;
+}
+
+.b-playground-output-copy-btn:hover {
+	color: var(--s-color-fg-default);
+	background-color: var(--s-color-bg-surface-secondary);
 }
 
 /* ==========================================================================

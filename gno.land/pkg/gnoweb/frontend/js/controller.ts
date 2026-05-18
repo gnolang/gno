@@ -3,6 +3,8 @@ import {
 	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
+	makeCopyIcon,
+	makeIcon,
 	toCamelCase,
 	toKebabCase,
 } from "./utils.js";
@@ -243,6 +245,8 @@ export {
 	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
+	makeCopyIcon,
+	makeIcon,
 	toCamelCase,
 	toKebabCase,
 };

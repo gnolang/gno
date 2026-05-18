@@ -1,5 +1,5 @@
 import { CodeEditor, isDarkMode } from "./code-editor.js";
-import { BaseController } from "./controller.js";
+import { BaseController, makeCopyIcon } from "./controller.js";
 
 interface PlaygroundFile {
 	name: string;
@@ -59,6 +59,7 @@ export class PlaygroundController extends BaseController {
 		this._switchToDefaultFile();
 		this._setupTabsScroll();
 		this.renderTabs();
+		this.clearOutput();
 	}
 
 	private _setupTabsScroll(): void {
@@ -151,10 +152,49 @@ export class PlaygroundController extends BaseController {
 		}
 	}
 
-	private _setOutput(text: string, isError: boolean = false): void {
-		this.outputEl.textContent = text;
-		this.outputEl.classList.toggle("u-color-danger", isError);
+	private _resetOutput(
+		text: string,
+		copyable: boolean = false,
+		isError: boolean = false,
+	): void {
+		while (this.outputEl.firstChild) {
+			this.outputEl.removeChild(this.outputEl.firstChild);
+		}
+		this._setOutput(text, copyable, isError);
+	}
+
+	private _setOutput(
+		text: string,
+		copyable: boolean = false,
+		isError: boolean = false,
+	): void {
+		const row = document.createElement("div");
+		row.className = "b-playground-output-item";
+		if (isError) row.classList.add("u-color-danger");
+
+		const pre = document.createElement("pre");
+		pre.className = "b-playground-output-item-text";
+		pre.textContent = text;
+		row.appendChild(pre);
+
+		if (copyable) {
+			const btn = document.createElement("button");
+			btn.className = "b-playground-output-copy-btn";
+			btn.title = "Copy to clipboard";
+			btn.setAttribute("aria-label", "Copy to clipboard");
+			btn.setAttribute("data-controller", "copy");
+			btn.setAttribute("data-action", "click->copy#copy");
+			btn.setAttribute("data-copy-text-value", text);
+			btn.appendChild(makeCopyIcon());
+			row.appendChild(btn);
+		}
+
+		this.outputEl.appendChild(row);
 		this.outputEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+	}
+
+	private _setErrorOutput(text: string): void {
+		this._resetOutput(text, false, true);
 	}
 
 	private _switchToFile(fileName: string): boolean {
@@ -220,7 +260,7 @@ export class PlaygroundController extends BaseController {
 
 	public async runCode(): Promise<void> {
 		this.files[this.activeFile].content = this.editor.getCode();
-		this._setOutput("Running...");
+		this._resetOutput("Running...");
 
 		const code = this.editor.getCode();
 		const pkgMatch = code.match(/^package\s+(\w+)/m);
@@ -239,32 +279,44 @@ export class PlaygroundController extends BaseController {
 				});
 				const result = await resp.json();
 				if (result.error) {
-					this._setOutput(`Error: ${result.error}`, true);
+					this._setErrorOutput(`Error: ${result.error}`);
 				} else {
-					this._setOutput(result.result);
+					this._resetOutput(result.result);
 				}
 			} catch {
+				this._resetOutput(
+					`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n`,
+				);
 				this._setOutput(
-					`Note: Server-side execution not available for scratch pad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n  gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,
+					` gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,
+					true,
 				);
 			}
 		} else {
-			this._setOutput(
-				`Package: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo run locally:\n  gno run ${this.files.map((f) => f.name).join(" ")}\n\nTo test:\n  gno test .`,
+			this._resetOutput(
+				`Package: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo run locally:`,
 			);
+			this._setOutput(
+				` gno run ${this.files.map((f) => f.name).join(" ")}`,
+				true,
+			);
+			this._setOutput("\n\nTo test:");
+			this._setOutput(" gno test .", true);
 		}
 	}
 
 	public runTests(): void {
-		this._setOutput(
-			"Testing requires a running gno node.\n\nTo test locally:\n  gno test .",
+		this._resetOutput(
+			"Testing requires a running gno node.\n\nTo test locally:",
 		);
+		this._setOutput(" gno test .", true);
 	}
 
 	public formatCode(): void {
-		this._setOutput(
-			`Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:\n  gno fmt -w ${this.files[this.activeFile].name}`,
+		this._resetOutput(
+			"Formatting requires server-side gno fmt (coming soon).\n\nTo format locally:",
 		);
+		this._setOutput(` gno fmt -w ${this.files[this.activeFile].name}`, true);
 	}
 
 	public async shareCode(): Promise<void> {
@@ -295,17 +347,16 @@ export class PlaygroundController extends BaseController {
 		// Share compressed code
 		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`;
 		if (url.length > MAX_SHARE_URL_LENGTH) {
-			this._setOutput(
+			this._setErrorOutput(
 				`Error: code is too large to share via URL.\n\nTry reducing the code or splitting into a deployed package.`,
-				true,
 			);
 			return;
 		}
 
 		navigator.clipboard
 			.writeText(url)
-			.then(() => this._setOutput("Share URL copied to clipboard!"))
-			.catch(() => this._setOutput(`Share URL:\n${url}`));
+			.then(() => this._resetOutput("Share URL copied to clipboard!"))
+			.catch(() => this._resetOutput(`Share URL:\n${url}`));
 	}
 
 	public downloadFiles(): void {
@@ -335,7 +386,7 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public clearOutput(): void {
-		this._setOutput("// Run code to see output here");
+		this._resetOutput("// Run code to see output here");
 	}
 }
 
