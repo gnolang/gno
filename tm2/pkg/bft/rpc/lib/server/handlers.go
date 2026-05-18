@@ -508,10 +508,10 @@ type wsStreamRequest struct {
 type wsConnection struct {
 	service.BaseService
 
-	remoteAddr  string
-	baseConn    *websocket.Conn
-	writeChan   chan types.RPCResponses
-	streamChan  chan wsStreamRequest
+	remoteAddr string
+	baseConn   *websocket.Conn
+	writeChan  chan types.RPCResponses
+	streamChan chan wsStreamRequest
 
 	funcMap map[string]*RPCFunc
 
