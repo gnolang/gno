@@ -32,17 +32,19 @@ func TestNewTokenValidation(t *testing.T) {
 	// is the name/symbol/decimals checks that run after.
 	mustPanic := func(name, sym string, dec int, want error, label string) {
 		t.Helper()
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Errorf("%s: expected panic, got none", label)
-				return
-			}
-			if r != want {
-				t.Errorf("%s: expected %v, got %v", label, want, r)
-			}
-		}()
-		newTestToken(name, sym, dec)
+		// newTestToken wraps NewToken in cross(...), so the panic from
+		// NewToken's validators crosses a realm boundary — use revive()
+		// (defer-recover doesn't see cross-realm panics).
+		r := revive(func() {
+			newTestToken(name, sym, dec)
+		})
+		if r == nil {
+			t.Errorf("%s: expected panic, got none", label)
+			return
+		}
+		if r != want {
+			t.Errorf("%s: expected %v, got %v", label, want, r)
+		}
 	}
 
 	// Empty name / symbol.
