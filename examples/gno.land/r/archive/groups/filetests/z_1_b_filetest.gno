@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archive/groups_test
-package groups_test
+// PKGPATH: gno.land/r/archive/groups/filetests/z_1_b
+package z_1_b
 
 // SEND: 1000000ugnot
 
