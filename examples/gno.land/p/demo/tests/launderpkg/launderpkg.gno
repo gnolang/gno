@@ -67,6 +67,16 @@ func (o *Object) UseAnyMutator(target *Immutable, m AnyMutator) {
 	m.Run(target)
 }
 
+// Bare is a /p/-declared struct type with NO methods. Used to test
+// whether embedding/fielding a methods-less /p/-type inside an
+// /r/-declared container exposes any laundering vector through
+// DIRECT field writes (no method dispatch, no Apply callback). The
+// expectation: readonly taint on the /r/-container propagates to
+// inner /p/-typed fields and direct writes panic.
+type Bare struct {
+	Field string
+}
+
 // Immutable is a deliberately read-only /p/ type: same struct layout
 // as Object, but no mutator method. A realm using Immutable as the
 // type of an exposed field intends "read-only API." The launder game

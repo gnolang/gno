@@ -99,3 +99,88 @@ func GetWithVal() *WithVal     { return gWithVal }
 func ReadEmbed() string { return gWithEmbed.Field }
 func ReadPtr() string   { return gWithPtr.Inner.Field }
 func ReadVal() string   { return gWithVal.Inner.Field }
+
+// --- Methods-less /p/-type inner state ---
+// launderpkg.Bare has no methods. These containers wrap Bare in
+// the three field shapes. The question: does readonly taint catch
+// a direct field write through the /r/-container's getter?
+
+type WithBareEmbed struct {
+	launderpkg.Bare
+}
+
+type WithBarePtr struct {
+	Inner *launderpkg.Bare
+}
+
+type WithBareVal struct {
+	Inner launderpkg.Bare
+}
+
+var (
+	gWithBareEmbed *WithBareEmbed
+	gWithBarePtr   *WithBarePtr
+	gWithBareVal   *WithBareVal
+)
+
+func init() {
+	gWithBareEmbed = &WithBareEmbed{Bare: launderpkg.Bare{Field: "bare-embed-orig"}}
+	gWithBarePtr = &WithBarePtr{Inner: &launderpkg.Bare{Field: "bare-ptr-orig"}}
+	gWithBareVal = &WithBareVal{Inner: launderpkg.Bare{Field: "bare-val-orig"}}
+}
+
+func GetWithBareEmbed() *WithBareEmbed { return gWithBareEmbed }
+func GetWithBarePtr() *WithBarePtr     { return gWithBarePtr }
+func GetWithBareVal() *WithBareVal     { return gWithBareVal }
+
+func ReadBareEmbed() string { return gWithBareEmbed.Field }
+func ReadBarePtr() string   { return gWithBarePtr.Inner.Field }
+func ReadBareVal() string   { return gWithBareVal.Inner.Field }
+
+// --- Composite containers holding /p/-typed elements ---
+// Slices, arrays, maps of methods-less /p/-Bare values and pointers.
+
+var (
+	gBareSlice    []launderpkg.Bare
+	gBarePtrSlice []*launderpkg.Bare
+	gBareArr      [3]launderpkg.Bare
+	gBarePtrArr   [3]*launderpkg.Bare
+	gBareMap      map[string]launderpkg.Bare
+	gBarePtrMap   map[string]*launderpkg.Bare
+)
+
+func init() {
+	gBareSlice = []launderpkg.Bare{
+		{Field: "slice0"}, {Field: "slice1"},
+	}
+	gBarePtrSlice = []*launderpkg.Bare{
+		{Field: "ptrslice0"}, {Field: "ptrslice1"},
+	}
+	gBareArr = [3]launderpkg.Bare{
+		{Field: "arr0"}, {Field: "arr1"}, {Field: "arr2"},
+	}
+	gBarePtrArr = [3]*launderpkg.Bare{
+		{Field: "ptrarr0"}, {Field: "ptrarr1"}, {Field: "ptrarr2"},
+	}
+	gBareMap = map[string]launderpkg.Bare{
+		"a": {Field: "mapA"}, "b": {Field: "mapB"},
+	}
+	gBarePtrMap = map[string]*launderpkg.Bare{
+		"a": {Field: "ptrmapA"}, "b": {Field: "ptrmapB"},
+	}
+}
+
+func GetBareSlice() []launderpkg.Bare         { return gBareSlice }
+func GetBarePtrSlice() []*launderpkg.Bare     { return gBarePtrSlice }
+func GetBareArr() *[3]launderpkg.Bare         { return &gBareArr }
+func GetBarePtrArr() *[3]*launderpkg.Bare     { return &gBarePtrArr }
+func GetBareMap() map[string]launderpkg.Bare  { return gBareMap }
+func GetBarePtrMap() map[string]*launderpkg.Bare { return gBarePtrMap }
+
+func ReadBareSlice0() string      { return gBareSlice[0].Field }
+func ReadBareSlice0Then1() string { return gBareSlice[1].Field }
+func ReadBarePtrSlice0() string { return gBarePtrSlice[0].Field }
+func ReadBareArr0() string      { return gBareArr[0].Field }
+func ReadBarePtrArr0() string   { return gBarePtrArr[0].Field }
+func ReadBareMapA() string      { return gBareMap["a"].Field }
+func ReadBarePtrMapA() string   { return gBarePtrMap["a"].Field }
