@@ -32,13 +32,15 @@ var (
 // misbehaving/compromised node ships a multi-MB amino blob.
 const maxRPCResponseSize = 8 << 20 // 8 MiB
 
-// maxConcurrentRPC caps in-flight outbound RPCs per rpcClient. Under
-// the lazy-preview model, one viewport can fire dozens of fragment
-// requests in parallel; without this gate they would saturate the
-// chain node. 32 keeps chain-side load tight while still absorbing a
-// typical viewport burst — queueing past that is preferable to fanning
-// out unbounded work to the node.
-const maxConcurrentRPC = 32
+// defaultMaxConcurrentRPC caps in-flight outbound RPCs per rpcClient
+// when AppConfig.MaxConcurrentRPC is left at zero. Under the lazy-
+// preview model, one viewport can fire dozens of fragment requests in
+// parallel; without this gate they would saturate the chain node. 32
+// keeps chain-side load tight while still absorbing a typical viewport
+// burst — queueing past that is preferable to fanning out unbounded
+// work to the node. Operators can tune via AppConfig when the chain
+// node has more headroom (or less).
+const defaultMaxConcurrentRPC = 32
 
 // acquireRPCSlot blocks until a slot is free or ctx is cancelled, then
 // returns a release function that frees the slot. Always returns a
@@ -116,9 +118,13 @@ type rpcClient struct {
 
 var _ ClientAdapter = (*rpcClient)(nil)
 
-// NewHTMLClient creates a new instance of WebClient.
-// It requires a configured logger and WebClientConfig.
-func NewRPCClientAdapter(logger *slog.Logger, cli *client.RPCClient, domain string) ClientAdapter {
+// NewRPCClientAdapter creates a new instance of rpcClient.
+// maxConcurrentRPC ≤ 0 ⇒ defaultMaxConcurrentRPC; positive values cap
+// in-flight outbound RPCs at that count.
+func NewRPCClientAdapter(logger *slog.Logger, cli *client.RPCClient, domain string, maxConcurrentRPC int) ClientAdapter {
+	if maxConcurrentRPC <= 0 {
+		maxConcurrentRPC = defaultMaxConcurrentRPC
+	}
 	return &rpcClient{
 		logger:   logger,
 		domain:   domain,

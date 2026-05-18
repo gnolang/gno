@@ -68,6 +68,11 @@ type AppConfig struct {
 	// (the default) trusts nothing, so untrusted deployments never trust
 	// attacker-controlled headers. ADR-003 §Resource bounds.
 	StateRateLimitTrustedProxies []string
+	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
+	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
+	// chain nodes under pressure; relax when capacity allows. ADR-003
+	// §Resource bounds.
+	MaxConcurrentRPC int
 }
 
 // NewDefaultAppConfig returns a new default AppConfig. The default sets
@@ -84,6 +89,7 @@ func NewDefaultAppConfig() *AppConfig {
 		Aliases:                 DefaultAliases,
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
+		MaxConcurrentRPC:        32,
 	}
 }
 
@@ -109,7 +115,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 
 	// Setup client adapter
-	adpcli := NewRPCClientAdapter(logger, rpcclient, cfg.Domain)
+	adpcli := NewRPCClientAdapter(logger, rpcclient, cfg.Domain, cfg.MaxConcurrentRPC)
 
 	// Setup StaticMetadata
 	chromaStylePath := path.Join(assetsBase, "_chroma", "style.css")
