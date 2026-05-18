@@ -748,13 +748,34 @@ func (m *Machine) doOpConvert() {
 		m.incrCPU(OpCPUConvertNumeric)
 	}
 
-	// Inter-realm conversion guard: prevent constructing a value of
-	// a foreign /r/-declared type from outside the declaring realm.
-	// (The previous Case 1 source-side readonly check was dropped in
-	// interrealm v2 Phase 4 — ConvertTo operates in place on *TypedValue
-	// without touching tv.N, so the N_Readonly bit survives the
-	// conversion and any later write is still caught at the write
-	// site (PopAsPointer2, append/copy/delete).)
+	// BEGIN conversion checks — protect against inter-realm
+	// conversion exploits.
+	//
+	// Case 1. Refuse conversion of a value stored in an external
+	// realm (foreign-readonly source). Without this, an attacker can
+	// declare a parallel /p/-type with the same struct layout as a
+	// /p/-typed victim field plus extra mutator methods, then convert
+	// the victim's pointer to the parallel type and invoke the new
+	// mutator — borrow rule 2 routes m.Realm to victim's realm for
+	// the duration of the /p/-method, so the write succeeds under
+	// victim authority. The N_Readonly bit on the converted value
+	// catches direct writes (`p.Field = ...`) but not writes inside
+	// a borrowed /p/-method body. See zrealm_launder_g_typepun.gno.
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+			xvdt.PkgPath == m.Realm.Path {
+			// Except allow conversion when xv.T is m.Realm's own
+			// declared type — the converting realm already has
+			// write authority over its own values.
+		} else {
+			panic("illegal conversion of readonly or externally stored value")
+		}
+	}
+
+	// Case 2. Refuse conversion to a foreign /r/-declared type — the
+	// converting realm cannot forge values of types it doesn't
+	// declare, otherwise it could fabricate "trusted" objects to
+	// hand back to the declaring realm.
 	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
 		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
 			panic("illegal conversion to external realm type")

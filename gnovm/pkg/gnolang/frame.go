@@ -30,6 +30,7 @@ type Frame struct {
 	LastRealm     *Realm        // previous frame's realm
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
 	DidCrossing   bool          // true if crossing() was called.
+	AuthOnlyShift bool          // true if PushFrameCall set m.Realm via setRealmAuthorityOnly (primitive-recv borrow); suppresses isRealmBoundary at frame pop.
 	Defers        []Defer       // deferred calls
 	IsDefer       bool          // was func defer called
 	IsRevive      bool          // calling revive()

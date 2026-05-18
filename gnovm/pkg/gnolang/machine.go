@@ -305,6 +305,23 @@ func (m *Machine) setRealm(r *Realm) {
 	}
 }
 
+// setRealmAuthorityOnly updates m.Realm without changing
+// m.Alloc.currentRealmID. Used by the primitive-recv borrow path
+// in PushFrameCall: a value-receiver method on a primitive-underlying
+// defined type has no Object identity for storage-borrow to anchor
+// to, but the receiver type's declaring package is a stable
+// authority anchor. Routing authority there blocks attacker-supplied
+// /p/-impls of foreign interfaces from inheriting borrowed authority
+// (see zrealm_launder_h_pcallback.gno). The allocator's stamping
+// context is deliberately left at the caller's natural realm so the
+// method body's local allocations don't get re-tagged.
+func (m *Machine) setRealmAuthorityOnly(r *Realm) {
+	if r == nil && m.Realm != nil {
+		panic("invariant violation: m.Realm cannot transition non-nil → nil")
+	}
+	m.Realm = r
+}
+
 //----------------------------------------
 // top level Run* methods.
 
@@ -2313,8 +2330,62 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				m.setRealm(objpv.GetRealm())
 			}
+		} else if dt, ok := recv.T.(*DeclaredType); ok && dt.PkgPath != "" {
+			// Primitive-underlying defined-type receiver: no Object
+			// identity for storage-borrow to anchor to. Without an
+			// anchor, attacker-supplied /p/-impls of foreign
+			// interfaces dispatched from inside a borrowed body
+			// inherit the borrowed authority and can mutate the
+			// outer victim's state (zrealm_launder_h_pcallback.gno).
+			//
+			// Narrow the anchor to the dangerous SHAPE: a
+			// primitive-receiver method whose signature includes a
+			// pointer to a foreign-/p/-declared type. Legit
+			// methods like time.Duration.String() (no foreign
+			// pointer params) and types.String.Less(other any) (param
+			// not a pointer) are not anchored — they continue to
+			// inherit caller's realm so their local allocations
+			// and reads work normally.
+			//
+			// When the shape matches, anchor authority to the
+			// receiver type's declaring package via
+			// setRealmAuthorityOnly (m.Realm changes; allocator's
+			// stamping context stays at caller's realm). Mark
+			// AuthOnlyShift to suppress the spurious finalize at
+			// frame pop.
+			if ft, ok := fv.Type.(*FuncType); ok && isPrimitiveRecvWithForeignPPtrParam(dt.PkgPath, ft) {
+				pid := PkgIDFromPkgPath(dt.PkgPath)
+				if m.Realm == nil || pid != m.Realm.ID {
+					dtPkgOID := ObjectIDFromPkgID(pid)
+					objpv := m.Store.GetObject(dtPkgOID).(*PackageValue)
+					m.setRealmAuthorityOnly(objpv.GetRealm())
+					m.LastFrame().AuthOnlyShift = true
+				}
+			}
 		}
 	}
+}
+
+// isPrimitiveRecvWithForeignPPtrParam tests whether a method's
+// signature matches the attacker-supplied-impl shape: at least one
+// parameter is a pointer to a /p/-declared type whose package is
+// different from the method's own (recvPkgPath). The method's
+// receiver is assumed to be primitive-underlying (caller verifies).
+func isPrimitiveRecvWithForeignPPtrParam(recvPkgPath string, ft *FuncType) bool {
+	for _, p := range ft.Params {
+		pt, ok := baseOf(p.Type).(*PointerType)
+		if !ok {
+			continue
+		}
+		pdt, ok := pt.Elt.(*DeclaredType)
+		if !ok {
+			continue
+		}
+		if IsPPackagePath(pdt.PkgPath) && pdt.PkgPath != recvPkgPath {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Machine) PopFrame() Frame {
