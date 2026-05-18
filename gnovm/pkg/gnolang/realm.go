@@ -1704,8 +1704,8 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Value)
 
 			fillValueTV(store, &cur.Key)
-			// nil machine: no gas charged during store reconstruction.
-			// deserialization from disk. At that point there is no *Machine in scope — we're inside the store layer
+			// nil machine: deserialization from disk has no *Machine in
+			// scope — we're inside the store layer, so no gas is charged.
 			mk, isNaN := cur.Key.ComputeMapKey(nil, store, false)
 			if !isNaN {
 				cv.vmap[mk] = cur

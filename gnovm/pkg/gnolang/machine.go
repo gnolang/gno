@@ -1511,8 +1511,19 @@ const (
 	// Quo: 0.001353 ns/digit^2. slope = 0.001353 * 1000 = 1.353 → 1.
 	OpCPUSlopeBigDecQuoQ = 1 // per (digits/10)^2 / 10
 
-	// TODO: fix an accurate value with benchmarks
-	OpCPUComputeMapKey = 10
+	// ComputeMapKey per-call constant: bookkeeping cost of one
+	// ComputeMapKey invocation (header bytes, type-ID append, switch
+	// dispatch). Recursive paths (array of element type, struct) charge
+	// this for every child call. Calibrated from BenchmarkComputeMapKey_*
+	// ns/op(pure) ~45-80 ns on Xeon-equivalent hardware.
+	OpCPUComputeMapKey = 80
+	// ComputeMapKey per-byte slope: O(N) cost of the byte-array fast path
+	// (ArrayType with av.Data != nil) and the StringType primitive path.
+	// Without this the cost of hashing a multi-MB key is paid as a single
+	// OpCPUComputeMapKey, which is the DoS vector closed by GHSA-m7rp-96x5-hvpx.
+	// gas = bytes * slope / 10. Calibrated to ~0.6 ns/byte on Xeon-equivalent
+	// hardware (fit: 0.56–0.73 ns/byte across len=128 … 16M).
+	OpCPUSlopeComputeMapKeyByte = 6 // per byte/10
 )
 
 //----------------------------------------

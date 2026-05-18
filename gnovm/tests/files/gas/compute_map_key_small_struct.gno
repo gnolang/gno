@@ -15,6 +15,5 @@ func main() {
 	m[keyMap] = 1
 }
 
-
 // Gas:
-// 5339
+// 6039
