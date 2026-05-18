@@ -570,6 +570,13 @@ func (m *Machine) doOpDefer() {
 // markAbort flips m.Exception into a terminal state (Abort=true,
 // Descriptor populated) and returns it for the caller to go-panic with.
 // Run() detects Abort and surfaces the *Exception directly.
+//
+// TODO: Descriptor currently joins bare panic values ("A\n\tB"). Match
+// Go's runtime by prefixing each entry with "panic: " (and a trailing
+// " [recovered]" on non-head entries) so consumers can distinguish a
+// panic chain from other error strings. Requires re-goldening every
+// filetest in gnovm/tests/files/{panic,recover}*.gno that asserts on
+// the Error: directive.
 func (m *Machine) markAbort() *Exception {
 	m.Exception.Abort = true
 	if m.BoundedPanicRender {
@@ -593,9 +600,10 @@ func (m *Machine) doOpPanic2() {
 	}
 	cfr := m.PopUntilLastCallFrame()
 	if cfr == nil {
-		// If we can't find a call frame, we're in a corrupted state.
-		// This can happen during init functions with realm calls.
-		// Return the original exception as an unhandled panic.
+		// No call frame left to unwind into — typically reached during
+		// init functions with realm calls. Mark m.Exception as Abort
+		// and go-panic; Run() detects Abort and surfaces the
+		// *Exception unchanged to the outer recoverer.
 		panic(m.markAbort())
 	}
 	m.PushOp(OpReturnCallDefers)

@@ -257,11 +257,12 @@ func toConstExpTrace(cte *ConstExpr) string {
 // Exception
 
 // Exception represents a panic that originates from a gno program.
-// Constructed at the raise site via NewException, which captures the
-// VM-internal Go call chain in GoStack; the helper returns the value to
-// its doOp* caller, which pushes it cooperatively via m.pushPanicException.
-// No code path panics with *Exception — recovery infrastructure is unused
-// for VM signals, retaining its purpose only for true Go runtime bugs.
+// Raised via Go-panic with a *Exception value, caught by (*Machine).runOnce,
+// then re-entered cooperatively through pushPanicException (defers, recover,
+// etc.). Abort'd exceptions bypass the cooperative path and re-panic out of
+// Run unchanged so the outer recoverer sees GoStack and Descriptor intact.
+// Preferred construction is NewException, which stamps the Go raise-site
+// chain into GoStack.
 //
 //nolint:errname // predates the error interface; renaming would touch the VM core
 type Exception struct {
@@ -309,9 +310,12 @@ func captureExceptionStack(skip int) string {
 			sb.WriteByte(':')
 			sb.WriteString(strconv.Itoa(f.Line))
 			sb.WriteByte('\n')
-			if strings.HasSuffix(f.Function, ".(*Machine).Run") {
-				break
-			}
+		}
+		// Stop at the VM entry frame. Checked outside the runtime
+		// filter so a stray runtime.* frame between the raise site
+		// and Run can't disable the cutoff.
+		if strings.HasSuffix(f.Function, ".(*Machine).Run") {
+			break
 		}
 		if !more {
 			break
@@ -320,6 +324,11 @@ func captureExceptionStack(skip int) string {
 	return sb.String()
 }
 
+// TrimOriginFile reduces an absolute compile-time file path to a
+// project-relative form for stack rendering. "/gnovm/" matches VM Go
+// sources; "/src/" matches Go stdlib frames that leak in when a panic
+// crosses standard-library helpers (e.g. fmt, runtime/debug). Paths
+// matching neither fall back to the basename.
 func TrimOriginFile(file string) string {
 	for _, marker := range []string{"/gnovm/", "/src/"} {
 		if i := strings.Index(file, marker); i >= 0 {
@@ -334,7 +343,9 @@ func TrimOriginFile(file string) string {
 
 // Error makes *Exception satisfy `error` for recoverer ergonomics.
 // Returns Descriptor when Abort is set (joined-chain format matching
-// legacy UnhandledPanicError.Error()), else the head exception's value.
+// legacy UnhandledPanicError.Error()). The non-abort branch is the
+// "raised but not yet terminal" case — typically reached only by
+// out-of-VM recoverers that intercept before defers exhaust.
 func (e *Exception) Error() string {
 	if e.Abort && e.Descriptor != "" {
 		return e.Descriptor

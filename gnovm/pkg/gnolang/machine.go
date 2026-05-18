@@ -49,9 +49,9 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
-	// BoundedPanicRender gates makeUnhandledPanicError to use the
-	// bounded printer (see bounded_strings.go). True on validator-
-	// side Machines; false for filetests, REPL, etc.
+	// BoundedPanicRender gates markAbort to use the bounded printer
+	// (see bounded_strings.go) when populating *Exception.Descriptor.
+	// True on validator-side Machines; false for filetests, REPL, etc.
 	BoundedPanicRender bool
 }
 
@@ -86,13 +86,14 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
-	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
-	// the bounded printer (see bounded_strings.go) so adversarial
-	// panic values (huge strings, deeply-nested composites, etc.)
-	// produce output capped at BoundedRenderBytes rather than
-	// allocating proportional to source size. Set true on every
-	// validator-side Machine; default false preserves the existing
-	// verbose render for filetests, REPL, and other trusted contexts.
+	// BoundedPanicRender, when true, makes markAbort use the bounded
+	// printer (see bounded_strings.go) when populating
+	// *Exception.Descriptor so adversarial panic values (huge strings,
+	// deeply-nested composites, etc.) produce output capped at
+	// BoundedRenderBytes rather than allocating proportional to source
+	// size. Set true on every validator-side Machine; default false
+	// preserves the existing verbose render for filetests, REPL, and
+	// other trusted contexts.
 	BoundedPanicRender bool
 }
 
@@ -2666,8 +2667,6 @@ func (m *Machine) PanicString(ex string) {
 // This function does go-panic.
 // To stop execution immediately stdlib native code MUST use this rather than
 // pushPanic().
-// Some code in realm.go and values.go will panic(&Exception{...}) directly.
-// Keep this code in sync with those calls.
 // Note that m.Run() will fill in the stacktrace if it isn't present.
 func (m *Machine) Panic(etv TypedValue) {
 	ex := NewException(etv)
@@ -2684,7 +2683,7 @@ func (m *Machine) pushPanic(etv TypedValue) {
 	m.pushPanicException(&Exception{
 		Value:      etv,
 		Stacktrace: m.Stacktrace(),
-		GoStack:    captureExceptionStack(1),
+		GoStack:    captureExceptionStack(2),
 	})
 }
 
