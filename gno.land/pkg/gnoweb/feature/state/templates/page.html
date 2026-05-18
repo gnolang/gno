@@ -230,8 +230,8 @@
             {{ end }}
           </ul>
           {{ if .SidebarTruncated }}
-            {{/* Cap kept in sync with state.maxSidebarTOC (5000). */}}
-            <p class="b-state-toc-truncated">+ {{ sub .SidebarTotal 5000 }} more — paginate to see them.</p>
+            {{/* Cap kept in sync with state.maxSidebarTOC (1000). */}}
+            <p class="b-state-toc-truncated">+ {{ sub .SidebarTotal 1000 }} more — paginate to see them.</p>
           {{ end }}
         {{ end }}
       </nav>

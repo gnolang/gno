@@ -201,8 +201,10 @@ const maxTopLevelDecls = 500
 // maxSidebarTOC caps the full-sidebar TOC entry count. Above this, the
 // rendered list shows the cap and a "+N more — paginate to see them"
 // truncation hint, keeping DOM size bounded for pathological realms
-// while every on-page decl still gets an in-page anchor target.
-const maxSidebarTOC = 5000
+// while every on-page decl still gets an in-page anchor target. 1000
+// is already well past the comfort threshold for a single-page TOC —
+// realms above this only stay usable via the paginated decl list.
+const maxSidebarTOC = 1000
 
 // peekTopLevelKind returns the kind+type a full decodeTypedValueAt would
 // assign to a top-level decl, without walking the value's children. Used

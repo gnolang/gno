@@ -109,7 +109,7 @@ scope.
 Realms with many top-level declarations paginate at `maxTopLevelDecls = 500`
 cards per page; page links carry `&offset=N` and survive search /
 view-mode / height. The sidebar TOC lists every top-level decl (capped at
-`maxSidebarTOC = 5000`) regardless of which paginated window is currently
+`maxSidebarTOC = 1000`) regardless of which paginated window is currently
 decoded, with off-page entries carrying pre-computed `&offset=N#anchor`
 URLs so a click jumps to the right slice and scrolls to the card.
 `peekTopLevelKind` reads only the kind discriminator from each amino value,
@@ -131,7 +131,8 @@ The decoder and HTTP entry protect against pathological state shapes
 - `maxChildrenPerNode = 500` — bound DOM size per collection / struct /
   block / captures slice; excess collapses into a single truncated sentinel
 - `maxTopLevelDecls = 500` — pagination cap on the page handler
-- `maxSidebarTOC = 5000` — peek-only walk for the full sidebar TOC
+- `maxSidebarTOC = 1000` — peek-only walk for the full sidebar TOC;
+  above this the realm only stays usable through the paginated decl list
 - `maxStateIDLength = 256` — bounds attacker-controlled `oid` / `tid`
   parameters before any RPC
 - `MaxSearchQueryLen = 128` plus `unicode.IsControl` reject on the `search`

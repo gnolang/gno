@@ -2,6 +2,7 @@ package state
 
 import (
 	"container/list"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -35,11 +36,15 @@ type RateLimitConfig struct {
 const defaultMaxIPs = 10_000
 
 // ParseTrustedProxies parses CIDR strings into networks for TrustedProxies.
-// A bare IP (no mask) is accepted and treated as a /32 or /128. Invalid
-// entries are skipped — a misconfigured proxy entry must never silently
-// widen trust.
-func ParseTrustedProxies(cidrs []string) []*net.IPNet {
-	var nets []*net.IPNet
+// A bare IP (no mask) is accepted and treated as a /32 or /128. Empty
+// entries are skipped, but any unparseable entry returns an error so a
+// misconfigured proxy list fails loudly at startup rather than silently
+// dropping entries (and quietly narrowing or widening trust).
+func ParseTrustedProxies(cidrs []string) ([]*net.IPNet, error) {
+	var (
+		nets    []*net.IPNet
+		invalid []string
+	)
 	for _, c := range cidrs {
 		c = strings.TrimSpace(c)
 		if c == "" {
@@ -55,9 +60,14 @@ func ParseTrustedProxies(cidrs []string) []*net.IPNet {
 				bits = 128
 			}
 			nets = append(nets, &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)})
+			continue
 		}
+		invalid = append(invalid, c)
 	}
-	return nets
+	if len(invalid) > 0 {
+		return nil, fmt.Errorf("invalid trusted proxy entries: %s", strings.Join(invalid, ", "))
+	}
+	return nets, nil
 }
 
 // ipBucket is a single-IP token bucket; refills based on wall-clock delta.

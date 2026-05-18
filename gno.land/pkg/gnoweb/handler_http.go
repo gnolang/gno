@@ -120,6 +120,10 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	if rate <= 0 {
 		rate = defaultStateRateLimitPerMinute
 	}
+	trustedProxies, err := state.ParseTrustedProxies(cfg.StateRateLimitTrustedProxies)
+	if err != nil {
+		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
+	}
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -129,7 +133,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			PerMinute:      rate,
 			Burst:          rate,
 			MaxIPs:         10_000,
-			TrustedProxies: state.ParseTrustedProxies(cfg.StateRateLimitTrustedProxies),
+			TrustedProxies: trustedProxies,
 		},
 	})
 	return h, nil
@@ -388,7 +392,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 	})
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err, 0)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -446,7 +450,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err, 0)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	var content bytes.Buffer
@@ -457,7 +461,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	})
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err, 0)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -551,7 +555,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	contribs, realmCount, err := h.buildContributions(ctx, username)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
-		return GetClientErrorStatusPage(gnourl, err, 0)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	// Compute package counts
@@ -583,7 +587,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
-		return GetClientErrorStatusPage(gnourl, err, 0)
+		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
 	// renderDoc renders a markdown documentation string to a Component.
@@ -686,7 +690,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
 		h.Logger.Warn("unable to list sources file", "path", gnourl.Path, "error", err)
-		return GetClientErrorStatusPage(gnourl, err, height)
+		return GetClientErrorStatusView(gnourl, err, height)
 	}
 
 	if len(files) == 0 {
@@ -738,7 +742,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 		file, meta, err := h.Client.File(ctx, pkgPath, fileName, 0)
 		if err != nil {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
-			return GetClientErrorStatusPage(gnourl, err, 0)
+			return GetClientErrorStatusView(gnourl, err, 0)
 		}
 
 		var buff bytes.Buffer
@@ -778,7 +782,7 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	if len(paths) == 0 || paths[0] == "" {
-		return GetClientErrorStatusPage(gnourl, ErrClientPackageNotFound, 0)
+		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
 	}
 
 	// Always use explorer mode for paths list
@@ -804,7 +808,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	if err != nil {
 		if !errors.Is(err, ErrClientPackageNotFound) {
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
-			return GetClientErrorStatusPage(gnourl, err, height)
+			return GetClientErrorStatusView(gnourl, err, height)
 		}
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
@@ -864,7 +868,7 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		status, _ := GetClientErrorStatusPage(gnourl, err, 0)
+		status, _ := GetClientErrorStatusView(gnourl, err, 0)
 		http.Error(w, "not found", status)
 		return
 	}
@@ -884,10 +888,8 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 	if err != nil {
 		return ""
 	}
-	for _, a := range allowed {
-		if c.Value == a {
-			return c.Value
-		}
+	if slices.Contains(allowed, c.Value) {
+		return c.Value
 	}
 	return ""
 }
@@ -946,10 +948,10 @@ func clientErrorMessage(err error, height int64) (int, string) {
 	}
 }
 
-// GetClientErrorStatusPage wraps clientErrorMessage into a renderable View.
+// GetClientErrorStatusView wraps clientErrorMessage into a renderable View.
 // `height` is the optional ?height=N pin from the URL — pass 0 when the
 // caller does not propagate it to the chain query.
-func GetClientErrorStatusPage(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
+func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *components.View) {
 	status, msg := clientErrorMessage(err, height)
 	if msg == "" {
 		return status, nil

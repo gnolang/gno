@@ -102,7 +102,10 @@ func TestRateLimitEvictsLRU(t *testing.T) {
 
 func mustCIDRs(t *testing.T, cidrs ...string) []*net.IPNet {
 	t.Helper()
-	nets := ParseTrustedProxies(cidrs)
+	nets, err := ParseTrustedProxies(cidrs)
+	if err != nil {
+		t.Fatalf("ParseTrustedProxies(%v) error: %v", cidrs, err)
+	}
 	if len(nets) != len(cidrs) {
 		t.Fatalf("ParseTrustedProxies(%v) = %d nets, want %d", cidrs, len(nets), len(cidrs))
 	}
@@ -149,16 +152,31 @@ func TestExtractIPTrustedProxy(t *testing.T) {
 }
 
 func TestParseTrustedProxies(t *testing.T) {
-	nets := ParseTrustedProxies([]string{"10.0.0.0/8", "192.168.1.5", "", "garbage", "::1"})
-	if len(nets) != 3 {
-		t.Fatalf("ParseTrustedProxies = %d nets, want 3 (CIDR + bare IPv4 + bare IPv6)", len(nets))
-	}
-	if !nets[1].Contains(net.ParseIP("192.168.1.5")) {
-		t.Fatal("bare IP 192.168.1.5 should be matched as /32")
-	}
-	if nets[1].Contains(net.ParseIP("192.168.1.6")) {
-		t.Fatal("bare IP 192.168.1.5 should NOT match a neighbor")
-	}
+	t.Run("valid entries", func(t *testing.T) {
+		nets, err := ParseTrustedProxies([]string{"10.0.0.0/8", "192.168.1.5", "", "::1"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(nets) != 3 {
+			t.Fatalf("ParseTrustedProxies = %d nets, want 3 (CIDR + bare IPv4 + bare IPv6)", len(nets))
+		}
+		if !nets[1].Contains(net.ParseIP("192.168.1.5")) {
+			t.Fatal("bare IP 192.168.1.5 should be matched as /32")
+		}
+		if nets[1].Contains(net.ParseIP("192.168.1.6")) {
+			t.Fatal("bare IP 192.168.1.5 should NOT match a neighbor")
+		}
+	})
+
+	t.Run("invalid entries error", func(t *testing.T) {
+		nets, err := ParseTrustedProxies([]string{"10.0.0.0/8", "garbage"})
+		if err == nil {
+			t.Fatal("expected error for invalid entry, got nil")
+		}
+		if nets != nil {
+			t.Fatalf("expected nil nets on error, got %v", nets)
+		}
+	})
 }
 
 func TestRateLimitDisabledWhenPerMinuteZero(t *testing.T) {

@@ -35,9 +35,10 @@ const maxRPCResponseSize = 8 << 20 // 8 MiB
 // maxConcurrentRPC caps in-flight outbound RPCs per rpcClient. Under
 // the lazy-preview model, one viewport can fire dozens of fragment
 // requests in parallel; without this gate they would saturate the
-// chain node. 64 leaves room for ~5 concurrent users on a 32-ref
-// viewport without queueing while still bounding chain-side load.
-const maxConcurrentRPC = 64
+// chain node. 32 keeps chain-side load tight while still absorbing a
+// typical viewport burst — queueing past that is preferable to fanning
+// out unbounded work to the node.
+const maxConcurrentRPC = 32
 
 // acquireRPCSlot blocks until a slot is free or ctx is cancelled, then
 // returns a release function that frees the slot. Always returns a

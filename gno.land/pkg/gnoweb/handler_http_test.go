@@ -377,7 +377,7 @@ func TestHTTPHandler_DirectoryViewErrorTotal(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	// GetClientErrorStatusPage by default should return 500
+	// GetClientErrorStatusView by default should return 500
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
@@ -551,7 +551,7 @@ func TestHTTPHandler_GetSourceView_NoFiles(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "no files available")
 }
 
-func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
+func TestHTTPHandler_GetClientErrorStatusView(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -632,7 +632,7 @@ func TestHTTPHandler_GetClientErrorStatusPage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			code, view := gnoweb.GetClientErrorStatusPage(nil, tc.err, tc.height)
+			code, view := gnoweb.GetClientErrorStatusView(nil, tc.err, tc.height)
 			assert.Equal(t, tc.wantCode, code)
 
 			if !tc.wantView {
@@ -1622,8 +1622,8 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
 }
 
-// TestHTTPHandler_StateJSONErrorOnBadURL regresses M9: a `$state&json`
-// request whose URL fails weburl.ParseFromURL must still get a JSON
+// TestHTTPHandler_StateJSONErrorOnBadURL checks that a `$state&json`
+// request whose URL fails weburl.ParseFromURL still gets a JSON
 // envelope, not the HTML "invalid path" page — the JSON-in/JSON-out
 // contract holds even on the parse-failure path.
 func TestHTTPHandler_StateJSONErrorOnBadURL(t *testing.T) {
@@ -1662,8 +1662,8 @@ func TestHTTPHandler_StateJSONErrorOnBadURL(t *testing.T) {
 		"non-JSON bad URL must still render the HTML invalid-path page")
 }
 
-// TestHTTPHandler_GetAlwaysBoundsContext regresses H2: even with no
-// explicit Timeout configured, Get must apply defaultRequestTimeout so
+// TestHTTPHandler_GetAlwaysBoundsContext checks that even with no
+// explicit Timeout configured, Get applies defaultRequestTimeout so
 // r.Context() always carries a deadline. We assert indirectly — the
 // handler must still serve a normal request without hanging — and
 // directly via a client that inspects the context deadline.
@@ -1688,5 +1688,5 @@ func TestHTTPHandler_GetAlwaysBoundsContext(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.True(t, sawDeadline,
-		"request context must carry a deadline even when Timeout is unset (H2 default)")
+		"request context must carry a deadline even when Timeout is unset")
 }
