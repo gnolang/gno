@@ -475,12 +475,16 @@ func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
 			if hiv.Value.IsReadonlyBy(rid) {
 				return true
 			}
-			// interrealm v2 Phase 3 (test-harness non-nil-alloc):
-			// when the HIV is unreal (NewTime == 0), it's a transient
-			// local heap wrapper around an escaping local var. Its
-			// PkgID is the allocation site, not an authority marker —
-			// don't gate readonly on it. Real HIVs (persisted heap
-			// slots in package state) still get the PkgID check below.
+			// An unreal HIV is a transient heap-promotion wrapper
+			// for an escaping local (closure capture, new(T), &T{},
+			// etc.) — not a realm-owned slot. The alloc-site PkgID
+			// stamp is incidental, so skip the PkgID gate while
+			// the HIV is unreal. Once persisted (NewTime>0) the
+			// standard gate applies: cross-realm writes to a
+			// persisted captured slot are rejected so callers must
+			// use an explicit crossing function in the owning
+			// realm, keeping all cross-realm side effects
+			// syntactically visible via `cross`.
 			if !hiv.GetIsReal() {
 				return false
 			}

@@ -2609,7 +2609,11 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
 	}
-	if _, isHIV := base.(*HeapItemValue); isHIV && oid.NewTime == 0 {
+	// Mirror IsReadonlyBy's HIV exception: an unreal HIV is a
+	// transient heap-promotion wrapper for an escaping local, not
+	// a realm-owned slot. Persisted (real) HIVs fall through to
+	// the standard PkgID gate.
+	if hiv, ok := base.(*HeapItemValue); ok && !hiv.GetIsReal() {
 		return false
 	}
 	return oid.PkgID != m.Realm.ID
