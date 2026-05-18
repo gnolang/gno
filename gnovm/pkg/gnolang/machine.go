@@ -265,6 +265,11 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	if err := m.CheckEmpty(); err != nil {
 		panic(errors.Wrap(err, "set package when machine not empty"))
 	}
+	if pv.Realm == nil {
+		// interrealm v2 Phase 3 invariant: every PackageValue carries a
+		// non-nil Realm (per NewPackageValue + fillPackage lazy-synth).
+		panic("invariant violation: SetActivePackage with nil pv.Realm: " + pv.PkgPath)
+	}
 	m.Package = pv
 	m.setRealm(pv.GetRealm())
 	m.Blocks = []*Block{
@@ -281,6 +286,13 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // Accepts nil — clears currentRealmID to PkgID{} which matches
 // "no realm context."
 func (m *Machine) setRealm(r *Realm) {
+	if r == nil && m.Realm != nil {
+		// interrealm v2 Phase 3 tripwire: once m.Realm is non-nil
+		// (after SetActivePackage), it must stay non-nil. A nil
+		// transition indicates a leftover from the pre-plan
+		// throwaway-realm pattern.
+		panic("invariant violation: m.Realm cannot transition non-nil → nil")
+	}
 	m.Realm = r
 	if m.Alloc != nil {
 		if r != nil {
@@ -403,23 +415,24 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	pv.deriveFBlocksMap(m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
-	var throwaway *Realm
 	if save {
 		// store new package values and types
-		throwaway = m.saveNewPackageValuesAndTypes()
-		if throwaway != nil {
-			m.setRealm(throwaway)
-		}
+		m.saveNewPackageValuesAndTypes()
 	}
 	// run init functions
 	m.runInitFromUpdates(pv, updates)
 	// save again after init.
 	if save {
-		m.resavePackageValues(throwaway)
+		m.resavePackageValues()
 		// store mempackage; we already validated type.
 		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
-		if throwaway != nil {
-			m.setRealm(nil)
+		// Flip Frozen for /p/ and stdlib packages, with a carve-out for
+		// math/rand which legitimately maintains globalRand state across
+		// calls. /r/, main, run-path, and _test overlays stay mutable.
+		// interrealm v2 Phase 3.
+		if pv.PkgID.IsImmutablePkg() && pv.PkgPath != "math/rand" {
+			pv.Realm.Frozen = true
+			m.Store.SetPackageRealm(pv.Realm)
 		}
 	}
 
@@ -566,26 +579,19 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
-	rlm := pv.GetRealm()
-	if rlm == nil && pv.IsRealm() {
-		rlm = NewRealm(pv.PkgPath) // throwaway
-	}
+	rlm := pv.GetRealm() // non-nil for every package post-step-2.
 	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
-	if rlm != nil {
-		pb := pv.GetBlock(m.Store)
-		for _, update := range updates {
-			// XXX simplify.
-			if hiv, ok := update.V.(*HeapItemValue); ok {
-				rlm.DidUpdate(pb, nil, hiv)
-			} else {
-				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
-			}
+	pb := pv.GetBlock(m.Store)
+	for _, update := range updates {
+		// XXX simplify.
+		if hiv, ok := update.V.(*HeapItemValue); ok {
+			rlm.DidUpdate(pb, nil, hiv)
+		} else {
+			rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
 		}
 	}
 	m.runInitFromUpdates(pv, updates)
-	if rlm != nil {
-		rlm.FinalizeRealmTransaction(m.Store)
-	}
+	rlm.FinalizeRealmTransaction(m.Store)
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
@@ -624,17 +630,15 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	// Get new values across all files in package.
 	pn.PrepareNewValues(nilAllocator, pv)
 	// save package value.
-	var throwaway *Realm
 	if save {
 		// store new package values and types
-		throwaway = m.saveNewPackageValuesAndTypes()
-		if throwaway != nil {
-			m.setRealm(throwaway)
-		}
-		m.resavePackageValues(throwaway)
-		if throwaway != nil {
-			m.setRealm(nil)
-		}
+		m.saveNewPackageValuesAndTypes()
+		m.resavePackageValues()
+		// PreprocessFiles is used for static type-checking flows (lint,
+		// preprocess-only test entry). It does NOT run init() — so the
+		// Frozen flip for immutable packages doesn't apply here. /p/
+		// packages preprocessed via this path remain Frozen=false until
+		// a real AddPackage flow runs runInitFromUpdates.
 	}
 	return pn, pv
 }
@@ -841,23 +845,18 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
 // This happens before any init calls.
-// Returns a throwaway realm package is not a realm,
-// such as stdlibs or /p/ packages.
-func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+// saveNewPackageValuesAndTypes finalizes pv.Realm and persists it.
+// Every PackageValue carries a non-nil Realm (per NewPackageValue);
+// the realm is used uniformly for /r/, /p/, stdlib, main, and
+// run-path. The Frozen flip for immutable packages happens in
+// runMemPackage after init completes. interrealm v2 Phase 3.
+func (m *Machine) saveNewPackageValuesAndTypes() {
 	// save package value and dependencies.
 	pv := m.Package
-	if pv.IsRealm() {
-		rlm := pv.Realm
-		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.Store)
-		// save package realm info.
-		m.Store.SetPackageRealm(rlm)
-	} else { // use a throwaway realm.
-		rlm := NewRealm(pv.PkgPath)
-		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.Store)
-		throwaway = rlm
-	}
+	rlm := pv.Realm
+	rlm.MarkNewReal(pv)
+	rlm.FinalizeRealmTransaction(m.Store)
+	m.Store.SetPackageRealm(rlm)
 	// save declared types — only those that belong to this package.
 	// Aliases to uverse types or to types from other packages have a
 	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
@@ -875,20 +874,14 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	return
 }
 
-// Resave any changes to realm after init calls.
-// Pass in the realm from m.saveNewPackageValuesAndTypes()
-// in case a throwaway was created.
-func (m *Machine) resavePackageValues(rlm *Realm) {
+// Resave any changes to realm after init calls. Uses pv.Realm,
+// which is non-nil for every package post-step-2. interrealm v2 Phase 3.
+func (m *Machine) resavePackageValues() {
 	// save package value and dependencies.
 	pv := m.Package
-	if pv.IsRealm() {
-		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m.Store)
-		// re-save package realm info.
-		m.Store.SetPackageRealm(rlm)
-	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m.Store)
-	}
+	rlm := pv.Realm
+	rlm.FinalizeRealmTransaction(m.Store)
+	m.Store.SetPackageRealm(rlm)
 	// types were already saved, and should not change
 	// even after running the init function.
 }

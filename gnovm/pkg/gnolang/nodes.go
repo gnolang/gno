@@ -1393,14 +1393,12 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 	}
 	// Cannot set ObjectID here; it is not real yet.
 	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
-	// Set realm for realm packages, main package, and ephemeral run packages
-	if IsRealmPath(pn.PkgPath) || pn.PkgPath == "main" {
-		rlm := NewRealm(pn.PkgPath)
-		pv.SetRealm(rlm)
-	} else if _, isRunPath := IsGnoRunPath(pn.PkgPath); isRunPath {
-		rlm := NewRealm(pn.PkgPath)
-		pv.SetRealm(rlm)
-	}
+	// Every package — /r/, /p/, stdlib, main, run-path — gets a Realm
+	// at construction. /r/-realms and main/run-path stay mutable;
+	// /p/ and stdlib get flipped to Frozen=true at the end of init via
+	// runMemPackage. interrealm v2 Phase 3.
+	rlm := NewRealm(pn.PkgPath)
+	pv.SetRealm(rlm)
 	pv.IncRefCount() // all package values have starting ref count of 1.
 	pn.PrepareNewValues(alloc, pv)
 	return pv
