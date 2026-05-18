@@ -106,20 +106,20 @@ func main() {
 //
 // Concrete shape for the scenario below:
 //
-//   HEAD (defer-repanic: nil deref)
-//     Value: ("runtime error: nil pointer dereference" string)
-//     GoStack:
-//       (*Machine).doOpStar           op_expressions.go:163
-//       (*Machine).runOnce            machine.go
-//       (*Machine).Run                machine.go
+//	HEAD (defer-repanic: nil deref)
+//	  Value: ("runtime error: nil pointer dereference" string)
+//	  GoStack:
+//	    (*Machine).doOpStar           op_expressions.go:163
+//	    (*Machine).runOnce            machine.go
+//	    (*Machine).Run                machine.go
 //
-//   Previous (user panic "A")
-//     Value: ("A" string)
-//     GoStack:
-//       makeUverseNode.func11         uverse.go        ← panic builtin's native body
-//       (*Machine).doOpCallNativeBody op_call.go
-//       (*Machine).runOnce            machine.go
-//       (*Machine).Run                machine.go
+//	Previous (user panic "A")
+//	  Value: ("A" string)
+//	  GoStack:
+//	    makeUverseNode.func11         uverse.go        ← panic builtin's native body
+//	    (*Machine).doOpCallNativeBody op_call.go
+//	    (*Machine).runOnce            machine.go
+//	    (*Machine).Run                machine.go
 func TestException_MixedOriginGoStack(t *testing.T) {
 	db := memdb.NewMemDB()
 	tm2 := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
