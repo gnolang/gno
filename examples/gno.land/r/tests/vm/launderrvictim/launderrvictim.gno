@@ -184,3 +184,121 @@ func ReadBareArr0() string      { return gBareArr[0].Field }
 func ReadBarePtrArr0() string   { return gBarePtrArr[0].Field }
 func ReadBareMapA() string      { return gBareMap["a"].Field }
 func ReadBarePtrMapA() string   { return gBarePtrMap["a"].Field }
+
+// --- Panic/defer/recover helpers ---
+// These victim-side helpers expose scenarios where the m.Realm
+// borrow can interact with deferred calls, recover(), and panics
+// in unusual control-flow shapes.
+
+// DeferCallback installs h as a defer inside an /r/launderrvictim
+// frame, then returns. h runs at frame pop. The question: at the
+// time h is invoked, m.Realm has just been restored to caller's
+// realm by PopFrameAndReturn — but wait, defers run BEFORE
+// PopFrameAndReturn. So m.Realm should still be victim's. Does
+// the deferred h then run under victim authority?
+func DeferCallback(h func(*Immutable)) {
+	defer h(gImm)
+}
+
+// PanicAfterPushDefer pushes a defer and then panics, so the defer
+// runs as part of panic unwinding. Tests that m.Realm is correctly
+// borrowed when the defer body invokes a foreign function.
+func PanicAfterPushDefer(h func(*Immutable)) {
+	defer h(gImm)
+	panic("victim-induced panic")
+}
+
+// DeferApplyHook defers an ApplyHook call. The deferred ApplyHook
+// itself runs Rule-1 borrow to /r/launderrvictim, and inside the
+// callback runs as Rule-1 of the attacker's realm — the standard
+// known-open Apply pattern, but now triggered via defer.
+func DeferApplyHook(h func(*Immutable)) {
+	defer ApplyHook(h)
+}
+
+// RecoverAndRetry: inside a victim method, defer a recover, write
+// something to gImm, then panic. After the recover, the function
+// returns normally. Tests that internal panic/recover doesn't leak
+// state.
+func RecoverAndRetry(h func(*Immutable)) (recovered any) {
+	defer func() {
+		recovered = recover()
+	}()
+	h(gImm)
+	return
+}
+
+// CallThenPanic invokes h synchronously and then panics. If h is
+// attacker-supplied and writes via captured pointer, this is just
+// a re-shape of ApplyHook.
+func CallThenPanic(h func(*Immutable)) {
+	h(gImm)
+	panic("victim panic after callback")
+}
+
+// CallPDeferApply: multi-level defer chain. Victim invokes a
+// /p/-method (DeferApply) on a victim-owned *launderpkg.Immutable;
+// the /p/-method defers the attacker callback. Three frames at
+// callback time: attacker.main → victim.CallPDeferApply →
+// /p/.DeferApply (deferred fn dispatches here).
+func CallPDeferApply(fn func(*launderpkg.Immutable)) {
+	gWithPtr.Inner.DeferApply(fn)
+}
+
+// --- Stored-hook plumbing ---
+//
+// Victim accepts caller-registered callbacks and dispatches them
+// LATER, from inside a /r/-victim method body. If the registered
+// callback is /p/-declared and writes through a captured /r/-stamped
+// pointer, the laundering shape is: stored callback rather than
+// callback-arg.
+
+type ImmHook func(*Immutable)
+
+var gHooks []ImmHook
+
+func RegisterHook(h ImmHook)   { gHooks = append(gHooks, h) }
+func RunHooks() {
+	for _, h := range gHooks {
+		h(gImm)
+	}
+}
+
+type PlainHook func()
+
+var gPlainHooks []PlainHook
+
+func RegisterPlainHook(h PlainHook) { gPlainHooks = append(gPlainHooks, h) }
+func RunPlainHooks() {
+	for _, h := range gPlainHooks {
+		h()
+	}
+}
+
+func ClearHooks() {
+	gHooks = nil
+	gPlainHooks = nil
+}
+
+// MakeWriterClosure constructs a /r/-victim-declared closure that
+// captures gImm and writes through it. The closure body is /r/-victim-
+// declared, so Rule 1 fires at invocation → m.Realm = /r/-victim →
+// write commits with victim authority. Returning this closure to an
+// attacker is "consenting to write" by the victim.
+func MakeWriterClosure(value string) func() {
+	return func() {
+		gImm.Field = value
+	}
+}
+
+// MakeApplyTrampoline returns a closure that captures &gImm.Field
+// indirectly: it captures *Immutable, and dispatches a caller-supplied
+// callback fn on it. /r/-victim-declared body → Rule 1 → m.Realm =
+// /r/-victim. If `fn` is /p/-declared (e.g. EvilWrite), it inherits
+// victim authority. This is "victim returns a closure that's itself
+// an Apply-style trampoline" — a packaged Apply.
+func MakeApplyTrampoline() func(func(*Immutable)) {
+	return func(fn func(*Immutable)) {
+		fn(gImm)
+	}
+}

@@ -101,3 +101,41 @@ func (i *Immutable) Read() string {
 func (i *Immutable) Apply(fn func(*Immutable)) {
 	fn(i)
 }
+
+// BumpToPwn is a no-arg, no-return /p/-method that mutates the
+// receiver. Used by stored-bound-method-value laundering probes:
+// `mv := victimImmPtr.BumpToPwn` has type `func()`, which fits
+// PlainHook = func(). When the bound method value is stored and
+// invoked later from /r/-victim context, recv-borrow Rule 2 fires on
+// the /r/-victim-stamped recv → m.Realm = /r/-victim → write
+// commits.
+func (i *Immutable) BumpToPwn() {
+	i.Field = "pwnd-via-bound-mv"
+}
+
+// DeferApply is the defer-variant of Apply: schedules fn(i) as a
+// defer instead of calling synchronously. Used to probe whether
+// the borrow rules apply the same when a callback is invoked from
+// inside a /p/-function's defer queue.
+func (i *Immutable) DeferApply(fn func(*Immutable)) {
+	defer fn(i)
+}
+
+// PanicAfterApply: invokes fn(i) synchronously, then panics after
+// return. If fn ran without panicking (write succeeded), the panic
+// here is /p/-realm panic propagating up.
+func (i *Immutable) PanicAfterApply(fn func(*Immutable)) {
+	fn(i)
+	panic("post-apply panic")
+}
+
+// RecoverApply: defers a recover(), then calls fn(i). If fn panics
+// with readonly, recover catches it (within the same /p/-pkg
+// frame). Returns the recovered value.
+func (i *Immutable) RecoverApply(fn func(*Immutable)) (rec any) {
+	defer func() {
+		rec = recover()
+	}()
+	fn(i)
+	return
+}
