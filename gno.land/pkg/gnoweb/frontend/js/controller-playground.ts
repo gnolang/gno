@@ -127,7 +127,7 @@ export class PlaygroundController extends BaseController {
 				// Make sure file name has no path prefix
 				if (name.includes("/") || name.includes("\\") || name.includes("..")) {
 					console.warn(
-						`PlaygroundControler: rejected unsafe file name: "${name}"`,
+						`PlaygroundController: rejected unsafe file name: "${name}"`,
 					);
 					continue;
 				}
