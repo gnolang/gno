@@ -287,15 +287,15 @@ func TestDeleteByNonAdmin(cur realm, t *testing.T) {
 	now := time.Now()
 	postID := postMemeAs(cur, alice, m, "Meme #1", now.Unix())
 
-	// Bob will try to delete meme posted by Alice, which should fail
+	// Bob will try to delete meme posted by Alice, which should fail.
+	// removePostAs wraps the call in cross2(cur), so the panic crosses
+	// a realm boundary and must be caught with revive(); a plain
+	// defer-recover wouldn't see it.
 	bob := testutils.TestAddress("bob")
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic when it should have")
-		}
-	}()
-
-	// Should panic - caught by defer
-	removePostAs(cur, bob, m, postID)
+	r := revive(func() {
+		removePostAs(cur, bob, m, postID)
+	})
+	if r == nil {
+		t.Errorf("code did not panic when it should have")
+	}
 }

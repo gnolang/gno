@@ -74,7 +74,7 @@ func TestAnswerFormDates(cur realm, t *testing.T) {
 	]`
 	answers := `["Test"]`
 
-	urequire.PanicsWithMessage(t, cur, "Form is closed", func() {
+	urequire.AbortsWithMessage(t, cur, "Form is closed", func() {
 		var formID string
 		var err error
 		func(cur realm) {
@@ -86,7 +86,7 @@ func TestAnswerFormDates(cur realm, t *testing.T) {
 		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross2(cur))
 	})
 
-	urequire.PanicsWithMessage(t, cur, "Form is closed", func() {
+	urequire.AbortsWithMessage(t, cur, "Form is closed", func() {
 		var formID string
 		var err error
 		func(cur realm) {
@@ -98,7 +98,7 @@ func TestAnswerFormDates(cur realm, t *testing.T) {
 		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross2(cur))
 	})
 
-	urequire.NotPanics(t, cur, func() {
+	urequire.NotAborts(t, cur, func() {
 		var formID string
 		var err error
 		func(cur realm) {
