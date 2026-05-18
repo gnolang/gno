@@ -45,8 +45,8 @@ func TestBalances(t *testing.T) {
 	require.True(t, coins.IsZero())
 
 	acc := env.acck.NewAccountWithAddress(env.ctx, addr)
-	acc.SetCoins(std.NewCoins(std.NewCoin("foo", 10)))
 	env.acck.SetAccount(env.ctx, acc)
+	env.bankk.SetCoins(env.ctx, addr, std.NewCoins(std.NewCoin("foo", 10)))
 	res = h.Query(env.ctx, req)
 	require.Nil(t, res.Error)
 	require.NotNil(t, res)

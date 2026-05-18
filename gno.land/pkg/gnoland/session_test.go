@@ -48,9 +48,9 @@ func setupSessionGnoEnv(t *testing.T) (testEnv, sdk.AnteHandler, crypto.PrivKey,
 	// Create and fund master account.
 	masterPriv, masterPub, masterAddr := tu.KeyTestPubAddr()
 	masterAcc := env.acck.NewAccountWithAddress(env.ctx, masterAddr)
-	masterAcc.SetCoins(tu.NewTestCoins())
 	masterAcc.SetPubKey(masterPub)
 	env.acck.SetAccount(env.ctx, masterAcc)
+	require.NoError(t, env.bankk.SetCoins(env.ctx, masterAddr, tu.NewTestCoins()))
 
 	// Set block time.
 	now := time.Now()

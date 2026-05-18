@@ -144,9 +144,9 @@ func TestGnoAccountRestriction(t *testing.T) {
 	assert.False(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
 	// Send Unrestricted
-	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
 	acck.SetAccount(ctx, fromAccount)
 	acck.SetAccount(ctx, toAccount)
+	bankk.SetCoins(ctx, fromAddress, std.NewCoins(std.NewCoin("foocoin", 10)))
 
 	err := bankk.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
 	require.NoError(t, err)
@@ -160,6 +160,7 @@ func TestGnoAccountRestriction(t *testing.T) {
 	assert.Equal(t, "restricted token transfer error", err.Error())
 
 	// Set unrestrict Account
+	fromAccount = acck.GetAccount(ctx, fromAddress)
 	fromAccount.(*GnoAccount).SetTokenLockWhitelisted(true)
 	assert.True(t, fromAccount.(*GnoAccount).IsTokenLockWhitelisted())
 
