@@ -20,9 +20,10 @@ func init(cur realm) {
 	daoinit.InitWithUsers(cross2(cur), user1, user2, user3)
 	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-	dao.UpdateImpl(cross2(cur), dao.UpdateRequest{
-		DAO: govDAO,
-	})
+	// UpdateRequest is declared in /r/gov/dao; the construction-time
+	// check forbids allocating it from /r/govdao directly. Use the
+	// dao-side constructor, which runs under Rule-1 borrow to /r/gov/dao.
+	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, nil))
 }
 
 func main() {
@@ -41,12 +42,15 @@ func main() {
 }
 
 func CreateProposal() dao.ProposalID {
-	e := dao.NewSimpleExecutor(
-		func(realm) error {
-			return nil
-		},
-		"",
-	)
+	// NewSimpleExecutor takes (_ int, rlm realm, ...); mint a live cur
+	// via a same-realm cross to pass through.
+	var e *dao.SimpleExecutor
+	func(cur realm) {
+		e = dao.NewSimpleExecutor(0, cur,
+			func(realm) error { return nil },
+			"",
+		)
+	}(cross)
 	pid := dao.MustCreateProposal(cross,
 		dao.NewProposalRequest("Proposal Title: Dummy proposal", "Description: Do nothing", e),
 	)
@@ -54,10 +58,9 @@ func CreateProposal() dao.ProposalID {
 }
 
 func VoteProposal(pid dao.ProposalID) {
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{
-		Option:     dao.YesVote,
-		ProposalID: pid,
-	})
+	// VoteRequest is /r/gov/dao-declared; use the dao-side constructor
+	// to satisfy the construction-time check.
+	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
 }
 
 func ExecuteProposal(pid dao.ProposalID) bool {

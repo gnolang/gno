@@ -142,8 +142,12 @@ func TestRegisteredBankers(t *testing.T) {
 	}
 
 	// Get the registered bankers from the treasury and compare their lengths.
-	registeredBankerIDs := treasury.ListBankerIDs()
-	uassert.Equal(t, len(registeredBankerIDs), len(expectedBankerIDs))
+	registered := treasury.ListBankerIDs()
+	uassert.Equal(t, len(registered), len(expectedBankerIDs))
+
+	// The treasury-returned slice is foreign-readonly; copy locally
+	// before sorting in place.
+	registeredBankerIDs := append([]string(nil), registered...)
 
 	// Sort both slices then compare them.
 	sort.StringSlice(expectedBankerIDs).Sort()
