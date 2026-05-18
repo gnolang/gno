@@ -64,14 +64,14 @@ type HTTPHandlerConfig struct {
 	Timeout       time.Duration
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
-	// burst. ADR-004 §Rate limiting.
+	// burst. ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
 	StateRateLimitTrustedProxies []string
 }
 
 // defaultStateRateLimitPerMinute is the safe-by-default cap applied when
-// no explicit value is configured. Matches the ADR-004 reference value.
+// no explicit value is configured. Matches the ADR-003 §Resource bounds value.
 const defaultStateRateLimitPerMinute = 100
 
 // validate checks if the HTTPHandlerConfig is valid.
@@ -98,7 +98,7 @@ type HTTPHandler struct {
 	Timeout  time.Duration
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
-	// method call (ADR-004 §Decision §1 wire-in).
+	// method call (ADR-003 §Architecture).
 	State *state.Handler
 }
 
@@ -242,7 +242,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	//   - ?state&frag=*           → htmx HTML fragment, writes body directly to w
 	//   - ?state[&oid=X[&tid=Y]]  → HTML page path, returns *components.View
 	//                                so IndexLayout wraps it in gnoweb chrome
-	// ADR-004 §Decision §1 wire-in. Body-already-written paths return nil
+	// ADR-003 §Architecture wire-in. Body-already-written paths return nil
 	// View; page path returns a non-nil View for chrome composition.
 	if gnourl.WebQuery.Has("state") {
 		status, view := h.State.Handle(r.Context(), w, r, gnourl)

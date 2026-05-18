@@ -312,5 +312,5 @@ function setWebarg(href: string, key: string, value: string | null): string {
 		pairs[idx] = [key, value];
 	}
 	const serialized = serializeWebargs(pairs);
-	return prefix + (serialized ? "$" + serialized : "") + suffix;
+	return prefix + (serialized ? `$${serialized}` : "") + suffix;
 }

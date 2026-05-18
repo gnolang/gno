@@ -60,13 +60,13 @@ type AppConfig struct {
 	RenderConfig RenderConfig
 	// StateRateLimitPerMinute caps the per-IP request rate against
 	// ?state* URLs (also used as the token-bucket burst). 0 ⇒ the
-	// HTTPHandler default (100/min). ADR-004 §Rate limiting.
+	// HTTPHandler default (100/min). ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies is the list of trusted reverse-proxy
 	// CIDRs (or bare IPs) for the per-IP rate limiter. X-Real-IP is honored
 	// only for connections originating inside one of these networks; empty
 	// (the default) trusts nothing, so untrusted deployments never trust
-	// attacker-controlled headers. ADR-004 §Rate limiting.
+	// attacker-controlled headers. ADR-003 §Resource bounds.
 	StateRateLimitTrustedProxies []string
 }
 
