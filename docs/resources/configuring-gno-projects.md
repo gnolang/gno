@@ -146,7 +146,7 @@ such as a remote chain.
 
 <!-- TODO: allow configuration of dependency source priority/hierarchy -->
 
-Note: `gnowork.toml` support is a work in progress for `gnodev` and `gnopls`. See [Editor Setup](../builders/editor-setup.md) to wire `gnopls` into your editor.
+Note: `gnowork.toml` support is a work in progress for `gnodev` and `gnopls`.
 
 #### Cleaning the dependency cache
 
