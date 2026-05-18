@@ -25,7 +25,7 @@ func LockRealm(cur realm, lockRealmMembers bool) {
 	}
 
 	caller := cur.Previous().Address()
-	gPerms.WithPermission(caller, PermissionRealmLock, boards.Args{}, crossingFn(func() {
+	gPerms.WithPermission(caller, PermissionRealmLock, boards.Args{}, func() {
 		gLocked.realm = true
 		gLocked.realmMembers = lockRealmMembers
 
@@ -34,7 +34,7 @@ func LockRealm(cur realm, lockRealmMembers bool) {
 			"caller", caller.String(),
 			"lockRealmMembers", strconv.FormatBool(lockRealmMembers),
 		)
-	}))
+	})
 }
 
 // IsRealmLocked checks if boards realm has been locked.

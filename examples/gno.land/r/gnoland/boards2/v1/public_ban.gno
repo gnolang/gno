@@ -35,7 +35,7 @@ func Ban(cur realm, boardID boards.ID, user address, hours uint, reason string) 
 	caller := cur.Previous().Address()
 	until := time.Now().Add(time.Minute * 60 * time.Duration(hours))
 	args := boards.Args{boardID, user, until, reason}
-	board.Permissions.WithPermission(caller, PermissionUserBan, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionUserBan, args, func() {
 		// When banning invited members make sure they are guests, otherwise
 		// disallow banning. Only guest or external users can be banned.
 		if board.Permissions.HasUser(user) && !board.Permissions.HasRole(user, RoleGuest) {
@@ -58,7 +58,7 @@ func Ban(cur realm, boardID boards.ID, user address, hours uint, reason string) 
 			"until", until.Format(time.RFC3339),
 			"reason", reason,
 		)
-	}))
+	})
 }
 
 // Unban unbans a user from a board.
@@ -68,7 +68,7 @@ func Unban(cur realm, boardID boards.ID, user address, reason string) {
 	board := mustGetBoard(boardID)
 	caller := cur.Previous().Address()
 	args := boards.Args{boardID, user, reason}
-	board.Permissions.WithPermission(caller, PermissionUserUnban, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionUserUnban, args, func() {
 		banned, found := getBannedUsers(boardID)
 		if !found || !banned.Has(user.String()) {
 			panic("user is not banned")
@@ -83,7 +83,7 @@ func Unban(cur realm, boardID boards.ID, user address, reason string) {
 			"user", user.String(),
 			"reason", reason,
 		)
-	}))
+	})
 }
 
 // IsBanned checks if a user is banned from a board.

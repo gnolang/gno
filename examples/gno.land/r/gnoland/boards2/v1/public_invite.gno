@@ -89,7 +89,7 @@ func AcceptInvite(cur realm, boardID boards.ID, user address) {
 		Role: RoleGuest,
 	}
 	args := boards.Args{caller, boardID, []Invite{invite}}
-	board.Permissions.WithPermission(caller, PermissionMemberInvite, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionMemberInvite, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		invitee := user.String()
@@ -111,7 +111,7 @@ func AcceptInvite(cur realm, boardID boards.ID, user address) {
 			"boardID", board.ID.String(),
 			"members", user.String()+":"+string(RoleGuest), // TODO: Support optional role assign
 		)
-	}))
+	})
 }
 
 // RevokeInvite revokes a board invite request.
@@ -121,7 +121,7 @@ func RevokeInvite(cur realm, boardID boards.ID, user address) {
 	board := mustGetBoard(boardID)
 	caller := cur.Previous().Address()
 	args := boards.Args{boardID, user, RoleGuest}
-	board.Permissions.WithPermission(caller, PermissionMemberInviteRevoke, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionMemberInviteRevoke, args, func() {
 		invitee := user.String()
 		requests, found := getInviteRequests(boardID)
 		if !found || !requests.Has(invitee) {
@@ -136,7 +136,7 @@ func RevokeInvite(cur realm, boardID boards.ID, user address) {
 			"boardID", board.ID.String(),
 			"user", user.String(),
 		)
-	}))
+	})
 }
 
 func inviteMembers(_ int, rlm realm, boardID boards.ID, invites ...Invite) {
@@ -153,7 +153,7 @@ func inviteMembers(_ int, rlm realm, boardID boards.ID, invites ...Invite) {
 	perms := mustGetPermissions(boardID)
 	caller := rlm.Previous().Address()
 	args := boards.Args{caller, boardID, invites}
-	perms.WithPermission(caller, PermissionMemberInvite, args, crossingFn(func() {
+	perms.WithPermission(caller, PermissionMemberInvite, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
 
 		users := make([]string, len(invites))
@@ -175,7 +175,7 @@ func inviteMembers(_ int, rlm realm, boardID boards.ID, invites ...Invite) {
 			"boardID", boardID.String(),
 			"members", strings.Join(users, ","),
 		)
-	}))
+	})
 }
 
 func assertInviteRequestExists(boardID boards.ID, user address) {

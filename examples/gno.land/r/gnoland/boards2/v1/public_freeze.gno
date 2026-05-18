@@ -59,7 +59,7 @@ func setBoardReadonly(_ int, rlm realm, boardID boards.ID, readonly bool) {
 
 	caller := rlm.Previous().Address()
 	args := boards.Args{caller, board.ID, readonly}
-	board.Permissions.WithPermission(caller, PermissionBoardFreeze, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionBoardFreeze, args, func() {
 		assertRealmIsNotLocked()
 
 		board.Readonly = readonly
@@ -70,7 +70,7 @@ func setBoardReadonly(_ int, rlm realm, boardID boards.ID, readonly bool) {
 			"boardID", board.ID.String(),
 			"frozen", strconv.FormatBool(readonly),
 		)
-	}))
+	})
 }
 
 func setThreadReadonly(_ int, rlm realm, boardID, threadID boards.ID, readonly bool) {
@@ -89,7 +89,7 @@ func setThreadReadonly(_ int, rlm realm, boardID, threadID boards.ID, readonly b
 
 	caller := rlm.Previous().Address()
 	args := boards.Args{caller, board.ID, thread.ID, readonly}
-	board.Permissions.WithPermission(caller, PermissionThreadFreeze, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionThreadFreeze, args, func() {
 		assertRealmIsNotLocked()
 
 		thread.Readonly = readonly
@@ -101,5 +101,5 @@ func setThreadReadonly(_ int, rlm realm, boardID, threadID boards.ID, readonly b
 			"threadID", thread.ID.String(),
 			"frozen", strconv.FormatBool(readonly),
 		)
-	}))
+	})
 }

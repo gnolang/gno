@@ -23,7 +23,7 @@ func SetFlaggingThreshold(cur realm, boardID boards.ID, threshold int) {
 
 	caller := cur.Previous().Address()
 	args := boards.Args{board.ID, threshold}
-	board.Permissions.WithPermission(caller, PermissionBoardFlaggingUpdate, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func() {
 		assertRealmIsNotLocked()
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
@@ -34,7 +34,7 @@ func SetFlaggingThreshold(cur realm, boardID boards.ID, threshold int) {
 			"boardID", board.ID.String(),
 			"threshold", strconv.Itoa(threshold),
 		)
-	}))
+	})
 }
 
 // GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
@@ -109,9 +109,9 @@ func FlagThread(cur realm, boardID, threadID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reason}
-	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, func() {
 		flagThread()
-	}))
+	})
 }
 
 // FlagReply adds a new flag to a comment or reply.
@@ -165,7 +165,7 @@ func FlagReply(cur realm, boardID, threadID, replyID boards.ID, reason string) {
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
-	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, crossingFn(func() {
+	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, func() {
 		flagReply()
-	}))
+	})
 }
