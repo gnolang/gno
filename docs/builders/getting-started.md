@@ -261,7 +261,8 @@ including mainnet status.
 Examples below use **staging** because it resets on a short cadence —
 fine for a throwaway first deploy. For anything you want to keep around,
 use the current **testnet** instead; staging wipes regularly and your
-realm will disappear with it.
+realm will disappear with it. **Mainnet** is for production deployments
+only — the faucet won't fund mainnet addresses, so you'll need real GNOT.
 
 ### 1. Get test tokens
 
