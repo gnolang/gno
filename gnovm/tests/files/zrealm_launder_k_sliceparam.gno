@@ -3,17 +3,13 @@ package launderk
 
 // Attack K: same shape as H but the interface method takes a
 // `[]*orig.Immutable` parameter (slice of foreign-/p/ pointers)
-// instead of a bare `*orig.Immutable`.
+// instead of a bare `*orig.Immutable`. The slice element write
+// inside the impl body commits the same way the bare-pointer write
+// did. Documents that composite-parameter shapes don't add or
+// remove anything from the H precondition.
 //
-// The Attack H/I fix's `hasForeignPPtrParam` predicate only checks
-// whether any parameter is itself a `*foreign-/p/-type`. A slice
-// (or map, channel, struct, etc.) of those is NOT directly a
-// pointer parameter, so the predicate skips. m.Realm inherits the
-// borrowed-from-victim authority, and the slice element write
-// inside the impl body commits.
-//
-// Tests whether the predicate needs to walk composite parameter
-// types to find embedded foreign-/p/-pointers.
+// Same preconditions as Attack H: exploitable only when victim
+// logic data is /p/-declared.
 
 import (
 	"gno.land/p/demo/tests/launderattack"
@@ -21,11 +17,16 @@ import (
 )
 
 func main(cur realm) {
+	println("before:", laundervictim.ReadImm())
+
 	gp := laundervictim.GetPtr()
 	imm := laundervictim.GetImm()
 
 	gp.UseSliceMutator(imm, launderattack.EvilSliceMutator(0))
+
+	println("after: ", laundervictim.ReadImm())
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,1)>[(const (0 int))].Field
+// Output:
+// before: original-imm
+// after:  pwnd-via-slice-arg

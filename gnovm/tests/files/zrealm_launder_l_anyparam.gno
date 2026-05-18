@@ -22,11 +22,12 @@ import (
 	"gno.land/r/tests/vm/laundervictim"
 )
 
-// *** STILL OPEN ***
-// Treating interface-typed params as foreign-pointer-bearing is
-// over-broad (breaks zrealm7 / avl + types.String.Less). Awaiting a
-// narrower defense — likely runtime arg-walk only when receiver
-// lacks an Object anchor.
+// Same preconditions as Attack H: exploitable only when victim
+// logic data is /p/-declared (so EvilAnyMutator's body can name
+// *launderpkg.Immutable in its type assertion). With /r/-declared
+// victim data, /p/launderattack cannot import the victim's type,
+// the assertion `x.(*r.victim.Immutable)` won't compile, and the
+// write is structurally impossible.
 
 func main(cur realm) {
 	println("before:", laundervictim.ReadImm())

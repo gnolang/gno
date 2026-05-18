@@ -3,22 +3,18 @@ package launderi
 
 // Attack I: NIL-POINTER-RECEIVER variant of Attack H.
 //
-// Where Attack H exploited primitive-underlying receivers
+// Where Attack H exploits primitive-underlying receivers
 // (GetFirstObject returns nil via the ownership.go default branch),
 // Attack I exploits POINTER-RECEIVER methods called on a nil pointer
 // (PointerValue with Base==nil → GetBase returns nil →
-// GetFirstObject returns nil). Same anchor gap, different shape.
+// GetFirstObject returns nil). Same Rule-2 anchor gap, different
+// shape: EvilNilRecv has a pointer-receiver method whose body does
+// not dereference the receiver, so calling
+// `(*EvilNilRecv)(nil).Run(imm)` from inside a borrowed-to-victim
+// body inherits victim authority and the write commits.
 //
-// EvilNilRecv has a pointer-receiver method whose body does not
-// dereference the receiver. Calling `(*EvilNilRecv)(nil).Run(imm)`
-// from inside a borrowed-to-victim body would inherit victim
-// authority — UNLESS PushFrameCall handles the nil-pointer-base case.
-//
-// Note: the fix from Attack H gates on `recv.T.(*DeclaredType)`. For
-// a pointer receiver, recv.T is *PointerType (not DeclaredType), so
-// the Attack H fix's branch does NOT fire. This test confirms
-// whether the nil-pointer variant is also closed or whether a
-// separate guard is needed.
+// Same preconditions as Attack H: exploitable only when victim
+// logic data is /p/-declared. Documented for completeness.
 
 import (
 	"gno.land/p/demo/tests/launderattack"
@@ -26,6 +22,8 @@ import (
 )
 
 func main(cur realm) {
+	println("before:", laundervictim.ReadImm())
+
 	gp := laundervictim.GetPtr()
 	imm := laundervictim.GetImm()
 
@@ -34,7 +32,10 @@ func main(cur realm) {
 	// just writes target.Field.
 	var nilEvil *launderattack.EvilNilRecv
 	gp.UseMutator(imm, nilEvil)
+
+	println("after: ", laundervictim.ReadImm())
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,1)>.Field
+// Output:
+// before: original-imm
+// after:  pwnd-via-nilrecv
