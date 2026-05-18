@@ -303,6 +303,7 @@ func captureExceptionStack(skip int) string {
 	var sb strings.Builder
 	for {
 		f, more := frames.Next()
+		// Step 1: filter out Go runtime noise.
 		if !strings.HasPrefix(f.Function, "runtime.") {
 			sb.WriteString(f.Function)
 			sb.WriteString("\n\t")
@@ -311,9 +312,7 @@ func captureExceptionStack(skip int) string {
 			sb.WriteString(strconv.Itoa(f.Line))
 			sb.WriteByte('\n')
 		}
-		// Stop at the VM entry frame. Checked outside the runtime
-		// filter so a stray runtime.* frame between the raise site
-		// and Run can't disable the cutoff.
+		// Step 2: cutoff at VM entry.
 		if strings.HasSuffix(f.Function, ".(*Machine).Run") {
 			break
 		}
