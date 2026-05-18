@@ -71,4 +71,4 @@ Live at **`https://staging.gno.land/r/<your-g1-addr>/counter`**.
 
 ## Next
 
-[r/docs](https://gno.land/r/docs) — on-chain tour of Gno.land.
+[r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land.

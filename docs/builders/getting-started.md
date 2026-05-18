@@ -245,15 +245,15 @@ Pick a target network now and use it consistently — the faucet's
 network dropdown and every `gnokey` command's `-remote` and
 `-chainid` flags must match:
 
-| Network    | `-chainid` | `-remote`                                  |
-|------------|------------|--------------------------------------------|
-| Local      | `dev`      | `http://localhost:26657`                   |
-| Staging    | `staging`  | `https://rpc.staging.gno.land:443`         |
-| Testnet    | `testN`    | `https://rpc.<testN>.testnets.gno.land:443` |
+| Network    | `-chainid` | `-remote`                                              |
+|------------|------------|--------------------------------------------------------|
+| Local      | `dev`      | `http://localhost:26657`                               |
+| Staging    | `staging`  | `https://rpc.staging.gno.land:443`                     |
+| Testnet    | `testN`    | `https://`​`rpc.<testN>.testnets.gno.land:443`         |
 
-Replace `<testN>` with the current testnet chainid (e.g. `test13`) — see
-[Networks](../resources/gnoland-networks.md) for the full list, the
-active testnet and mainnet status.
+Replace `testN` with the current testnet chainid — see
+[Networks](../resources/gnoland-networks.md) for the live list,
+including mainnet status.
 
 Examples below use **staging** because it resets on a short cadence —
 fine for a throwaway first deploy. For anything you want to keep around,
@@ -378,7 +378,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
-1. [r/docs](https://gno.land/r/docs) — on-chain tour
+1. [r/docs](https://staging.gno.land/r/docs) — on-chain tour
 2. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
 3. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md) — pricing, estimation, and the "out of gas" fix
