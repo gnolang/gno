@@ -41,6 +41,12 @@ type Machine struct {
 	Stage         Stage         // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
 	Lastline      int           // the line the VM is currently executing
+	// goStackCaptures bounds per-link GoStack captures within a single
+	// panic chain. NewException captures eagerly; pushPanicException
+	// clears the new ex.GoStack once the count is past MaxGoStackCaptures
+	// so adversarial deep chains (#5439-style) don't allocate unbounded
+	// Go-heap strings. Reset by Recover() when a chain is consumed.
+	goStackCaptures uint8
 
 	Debugger Debugger
 
@@ -2689,8 +2695,14 @@ func (m *Machine) pushPanic(etv TypedValue) {
 
 // pushPanicException is pushPanic's internal entry taking an existing
 // *Exception (caught by runOnce from a panic(NewException(...))). Preserves
-// GoStack/Descriptor/etc. across the cooperative re-entry.
+// GoStack/Descriptor/etc. across the cooperative re-entry, except past
+// MaxGoStackCaptures links per chain — see goStackCaptures.
 func (m *Machine) pushPanicException(ex *Exception) {
+	if m.goStackCaptures >= MaxGoStackCaptures {
+		ex.GoStack = ""
+	} else {
+		m.goStackCaptures++
+	}
 	fr := m.PopUntilLastCallFrame()
 	if m.Exception == nil {
 		m.Exception = ex.WithPrevious(fr.LastException)
@@ -2700,6 +2712,13 @@ func (m *Machine) pushPanicException(ex *Exception) {
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
+
+// MaxGoStackCaptures caps the number of *Exception.GoStack captures
+// retained per panic chain. Realistic chains are far shallower; the cap
+// bounds adversarial #5439-style scenarios where a malicious gno program
+// triggers thousands of defer re-panics to drain Go-heap memory with
+// unaccounted runtime.Callers strings.
+const MaxGoStackCaptures = 8
 
 // Recover is the underlying implementation of the recover() function in the
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
@@ -2737,6 +2756,7 @@ func (m *Machine) Recover() *Exception {
 	// call) to an older value when popping a frame with .LastException set
 	// from doOpReturnCallDefers() > m.PushFrameCall(isDefer=true).
 	m.Exception = nil
+	m.goStackCaptures = 0
 	return ex
 }
 

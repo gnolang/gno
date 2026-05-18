@@ -97,6 +97,81 @@ func main() {
 	}
 }
 
+// TestException_MixedOriginGoStack pins the per-link GoStack value of
+// #5681's constructor pattern. Head and Previous come from *different*
+// VM helpers — head from the nil-deref path (op_expressions.go), Previous
+// from the panic-builtin native body (uverse.go). A flag-gated design
+// (#5670) would set head.GoStack="" in this scenario, losing the cleanup
+// blow-up site.
+//
+// Concrete shape for the scenario below:
+//
+//   HEAD (defer-repanic: nil deref)
+//     Value: ("runtime error: nil pointer dereference" string)
+//     GoStack:
+//       (*Machine).doOpStar           op_expressions.go:163
+//       (*Machine).runOnce            machine.go
+//       (*Machine).Run                machine.go
+//
+//   Previous (user panic "A")
+//     Value: ("A" string)
+//     GoStack:
+//       makeUverseNode.func11         uverse.go        ← panic builtin's native body
+//       (*Machine).doOpCallNativeBody op_call.go
+//       (*Machine).runOnce            machine.go
+//       (*Machine).Run                machine.go
+func TestException_MixedOriginGoStack(t *testing.T) {
+	db := memdb.NewMemDB()
+	tm2 := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	st := NewStore(nil, tm2, tm2)
+	m := NewMachineWithOptions(MachineOptions{
+		Store:  st,
+		Output: io.Discard,
+		Alloc:  NewAllocator(64 * 1024 * 1024),
+	})
+	defer m.Release()
+
+	const source = `package mixed_origin
+
+func main() {
+	defer func() {
+		var p *int
+		_ = *p
+	}()
+	panic("A")
+}
+`
+	fn := m.MustParseFile("mixed.gno", source)
+	pn := NewPackageNode("mixed_origin", "mixed_origin", &FileSet{})
+	pv := pn.NewPackage(m.Alloc)
+	m.Store.SetBlockNode(pn)
+	m.Store.SetCachePackage(pv)
+	m.SetActivePackage(pv)
+
+	ex := runAndRecoverException(t, m, fn)
+
+	if ex.Previous == nil {
+		t.Fatal("expected 2-link chain")
+	}
+
+	// Head = defer-repanic via *p (nil-deref) — raised from doOpStar
+	// in op_expressions.go.
+	if !strings.Contains(ex.GoStack, "op_expressions.go") {
+		t.Fatalf("head GoStack missing op_expressions.go (defer-repanic site):\n%s", ex.GoStack)
+	}
+
+	// Previous = user panic("A") — raised from the panic builtin's
+	// native body in uverse.go.
+	if !strings.Contains(ex.Previous.GoStack, "uverse.go") {
+		t.Fatalf("Previous GoStack missing uverse.go (user-panic site):\n%s", ex.Previous.GoStack)
+	}
+
+	// And the two must differ — the whole point is mixed origins.
+	if ex.GoStack == ex.Previous.GoStack {
+		t.Fatalf("head and Previous GoStack identical, expected mixed origins:\n%s", ex.GoStack)
+	}
+}
+
 func runAndRecoverException(t *testing.T, m *Machine, fn *FileNode) (ex *Exception) {
 	t.Helper()
 	defer func() {

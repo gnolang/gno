@@ -64,16 +64,49 @@ func TestTrimStackPaths(t *testing.T) {
 
 func TestGoOriginOrStack_PrefersVMChain(t *testing.T) {
 	rr := runResult{
-		GoVMStack:    "frame.Raise\n\tgnovm/pkg/gnolang/frame.go:1\n",
+		GoVMChain: []runResultGoLink{
+			{Value: `("A" string)`, GoStack: "frame.Raise\n\tgnovm/pkg/gnolang/frame.go:1\n"},
+		},
 		GoPanicStack: []byte("...\n(*Machine).Run(...)\n\t/Users/x/gno/gnovm/pkg/gnolang/machine.go:1\nharness.Caller(...)\n\t/Users/x/gno/gnovm/pkg/test/filetest.go:1\n"),
 	}
 	got := goOriginOrStack(rr)
-	if !strings.HasPrefix(got, "\ngo stack:\nframe.Raise") {
-		t.Fatalf("expected go stack to lead with VM chain:\n%s", got)
+	if !strings.Contains(got, "=== panic 1 (original): (\"A\" string) ===") {
+		t.Fatalf("expected labeled chain block:\n%s", got)
+	}
+	if !strings.Contains(got, "frame.Raise") {
+		t.Fatalf("expected VM frame in chain:\n%s", got)
 	}
 	if !strings.Contains(got, "harness.Caller") {
 		t.Fatalf("expected harness suffix after VM chain:\n%s", got)
 	}
+}
+
+func TestGoOriginOrStack_MultiLinkChain(t *testing.T) {
+	rr := runResult{
+		GoVMChain: []runResultGoLink{
+			{Value: `("A" string)`, GoStack: "uverse.func11\n\tgnovm/pkg/gnolang/uverse.go:969\n"},
+			{Value: `("nil deref" string)`, GoStack: "doOpStar\n\tgnovm/pkg/gnolang/op_expressions.go:163\n"},
+		},
+	}
+	got := goOriginOrStack(rr)
+	if !strings.Contains(got, "=== panic 1 (original): (\"A\" string) ===") {
+		t.Fatalf("expected original-panic label:\n%s", got)
+	}
+	if !strings.Contains(got, "=== panic 2 (re-panic): (\"nil deref\" string) ===") {
+		t.Fatalf("expected re-panic label:\n%s", got)
+	}
+	if strings.Index(got, "uverse.go") > strings.Index(got, "op_expressions.go") {
+		t.Fatalf("expected chronological order (uverse before op_expressions):\n%s", got)
+	}
+}
+
+func TestGoOriginOrStack_AllEmptyChainFallsBackToRaw(t *testing.T) {
+	rr := runResult{
+		GoVMChain:    []runResultGoLink{{Value: "x", GoStack: ""}, {Value: "y", GoStack: ""}},
+		GoPanicStack: []byte("raw"),
+	}
+	got := goOriginOrStack(rr)
+	assert.Equal(t, "\nstack:\nraw", got)
 }
 
 func TestGoOriginOrStack_FallsBackToRawDump(t *testing.T) {
