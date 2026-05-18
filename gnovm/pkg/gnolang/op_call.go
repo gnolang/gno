@@ -400,13 +400,6 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 			// Even if crlm == prlm, must finalize
 			// to preserve attachment rules.
 			return true
-		} else if cfr.AuthOnlyShift {
-			// Authority-only shift (primitive-recv borrow) — m.Realm
-			// changed for the duration of the call but no objects in
-			// the shift-target realm were touched. Treat as not a
-			// boundary so we don't trigger a spurious finalize on the
-			// receiver type's declaring package.
-			return false
 		} else if crlm != prlm {
 			// .WithCross was already handled;
 			// This is for implicitly crossed

@@ -73,6 +73,57 @@ func (EvilMutator) Run(i *launderpkg.Immutable) {
 	i.Field = "pwnd-via-iface"
 }
 
+// EvilNilRecv tests the nil-pointer-receiver variant. Calling a method
+// on a nil *EvilNilRecv is legal in Gno when the body doesn't deref
+// the receiver. recv = PointerValue{Base: nil} → GetBase returns nil
+// → GetFirstObject returns nil. Same "no anchor" gap as the
+// primitive-receiver case, reachable through *T receivers.
+type EvilNilRecv struct {
+	X int // unused
+}
+
+func (n *EvilNilRecv) Run(i *launderpkg.Immutable) {
+	// Does NOT dereference n. Just writes through target.
+	i.Field = "pwnd-via-nilrecv"
+}
+
+// EvilFunc / EvilSlice / EvilMap — additional nil-anchor shapes.
+// nil-valued receivers of defined types whose underlying is a
+// reference type (slice/map/func) also have GetFirstObject == nil.
+// The Attack H/I fix should cover all of them via the
+// recvDeclaredTypePkgPath helper.
+type EvilFunc func()
+
+func (EvilFunc) Run(i *launderpkg.Immutable) { i.Field = "pwnd-via-func" }
+
+type EvilSlice []int
+
+func (EvilSlice) Run(i *launderpkg.Immutable) { i.Field = "pwnd-via-slice" }
+
+type EvilMap map[string]int
+
+func (EvilMap) Run(i *launderpkg.Immutable) { i.Field = "pwnd-via-map" }
+
+// EvilSliceMutator's Run takes a slice — NOT a pointer parameter, so
+// the Attack H/I fix's `hasForeignPPtrParam` predicate skips it.
+// Tests whether the anchor predicate needs to look INSIDE composite
+// parameter types for foreign-/p/ pointers.
+type EvilSliceMutator int
+
+func (EvilSliceMutator) Run(s []*launderpkg.Immutable) {
+	s[0].Field = "pwnd-via-slice-arg"
+}
+
+// EvilAnyMutator's Run takes `any` and type-asserts to *Immutable.
+// The signature reveals NO foreign-/p/-pointer statically — the
+// pointer is hidden inside the interface box. Probes whether the
+// predicate needs to fire on interface-typed params too.
+type EvilAnyMutator int
+
+func (EvilAnyMutator) Run(x any) {
+	t := x.(*launderpkg.Immutable)
+	t.Field = "pwnd-via-any-arg"
+}
 
 // Tamperer is a stamped /p/attack value (constructed at init under
 // /p/attack's realm context, stamped /p/attack, persisted Frozen).

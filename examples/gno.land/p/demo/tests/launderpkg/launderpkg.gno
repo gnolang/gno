@@ -41,6 +41,32 @@ func (o *Object) UseMutator(target *Immutable, m Mutator) {
 	m.Run(target)
 }
 
+// SliceMutator's Run takes a SLICE of pointers — exercises the
+// "non-pointer parameter that still conveys writable foreign data"
+// shape that Attack K explores.
+type SliceMutator interface {
+	Run([]*Immutable)
+}
+
+// UseSliceMutator dispatches a SliceMutator on a single-element
+// slice carrying target.
+func (o *Object) UseSliceMutator(target *Immutable, m SliceMutator) {
+	m.Run([]*Immutable{target})
+}
+
+// AnyMutator's Run takes `any` — interface-typed parameter. The
+// caller can box a *Immutable into the interface and an attacker
+// impl can type-assert back to write. Tests whether the predicate
+// needs to treat interface-typed params as potentially foreign.
+type AnyMutator interface {
+	Run(any)
+}
+
+// UseAnyMutator boxes target into `any` before dispatching.
+func (o *Object) UseAnyMutator(target *Immutable, m AnyMutator) {
+	m.Run(target)
+}
+
 // Immutable is a deliberately read-only /p/ type: same struct layout
 // as Object, but no mutator method. A realm using Immutable as the
 // type of an exposed field intends "read-only API." The launder game
