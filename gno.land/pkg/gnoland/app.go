@@ -506,7 +506,6 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 		)
 	}
 
-
 	cfg.bankk.InitGenesis(ctx, state.Bank)
 	for _, bal := range state.Balances {
 		cfg.applyBalance(ctx, bal)

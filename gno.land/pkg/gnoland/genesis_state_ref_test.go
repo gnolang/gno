@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -380,8 +380,8 @@ func TestLoadStreamingGenesisDoc_IndentedSourceProducesValidJSONL(t *testing.T) 
 	count := 0
 	for line, err := range ref.IterTxs(context.Background()) {
 		require.NoError(t, err)
-		var any json.RawMessage
-		require.NoError(t, json.Unmarshal(line, &any),
+		var raw json.RawMessage
+		require.NoError(t, json.Unmarshal(line, &raw),
 			"each JSONL line must be a single JSON value (line %d): %q", count, string(line))
 		count++
 	}
@@ -823,4 +823,3 @@ func TestResultGenesis_StreamJSON_SlimFixtureEndToEnd(t *testing.T) {
 			"validator[%d].pub_key must carry amino value marker after streaming round-trip", i)
 	}
 }
-
