@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh 
 ```
 
 Binaries land in `$HOME/.gno/bin`. The script is bash-only; Windows users should use
-WSL or see [Other methods](./install.md) for source builds and Docker.
+WSL or see [Installation page](./install.md) for source builds, Docker, version pinning (--version <tag>), or --full (validator node).
 
 Verify the toolchain is on your `$PATH`:
 
