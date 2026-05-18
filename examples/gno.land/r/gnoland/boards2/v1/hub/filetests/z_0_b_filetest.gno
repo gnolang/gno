@@ -52,7 +52,7 @@ func main() {
 // Output:
 // 1
 // foo123
-// slice[("test123" string)]
+// readonly(slice[("test123" string)])
 // true
 // 1
 // 2
