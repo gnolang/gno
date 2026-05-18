@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
 	"gno.land/p/samcrew/daocond"
 	"gno.land/p/samcrew/daokit"
@@ -130,18 +131,27 @@ func TestPropose(t *testing.T) {
 
 	for testName, test := range tests {
 		t.Run(testName, func(t *testing.T) {
-			if test.expected.panic {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("Expected panic, got none")
-					}
-				}()
-			}
 			*tdao.mockHandlerCalled = false
-			func() {
-				testing.SetOriginCaller(test.input.proposer)
-			}()
-			id := tdao.propose(test.input.proposalReq)
+			testing.SetOriginCaller(test.input.proposer)
+
+			// tdao.propose crosses into basedao via an IIFE same-realm
+			// cross; any panic inside the crossing frame is cross-realm
+			// and cannot be caught by defer/recover here. Use revive
+			// to capture the cross-boundary abort.
+			var id uint64
+			exc := revive(func() {
+				id = tdao.propose(test.input.proposalReq)
+			})
+			if test.expected.panic {
+				if exc == nil {
+					t.Errorf("Expected panic, got none")
+				}
+				return
+			}
+			if exc != nil {
+				t.Errorf("Unexpected panic: %v", exc)
+				return
+			}
 
 			urequire.False(t, *tdao.mockHandlerCalled, "execute should not be called")
 
@@ -256,7 +266,9 @@ func TestVote(t *testing.T) {
 			*tdao.mockHandlerCalled = false
 
 			if test.expected.panic != "" {
-				urequire.PanicsWithMessage(t, cur, test.expected.panic, run)
+				// tdao.vote crosses into basedao; panic is cross-realm
+				// and shows up as an abort, not a same-realm panic.
+				uassert.AbortsWithMessage(t, cur, test.expected.panic, run)
 			} else {
 				urequire.NotPanics(t, cur, run)
 				urequire.False(t, *tdao.mockHandlerCalled, "execute should not be called")
@@ -347,26 +359,28 @@ func TestExecuteProposal(t *testing.T) {
 
 	for testName, test := range tests {
 		t.Run(testName, func(t *testing.T) {
-			if test.expected.panic {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("Expected panic, got none")
-					}
-				}()
-			}
-
 			if test.input.haveVote {
-				func() {
-					testing.SetOriginCaller(test.input.voter)
-				}()
+				testing.SetOriginCaller(test.input.voter)
 				tdao.vote(test.input.proposalID, "yes")
-
 			}
 
-			func() {
-				testing.SetOriginCaller(test.input.executor)
-			}()
-			tdao.execute(test.input.proposalID)
+			testing.SetOriginCaller(test.input.executor)
+
+			// tdao.execute crosses into basedao; cross-realm panic is
+			// not catchable by defer/recover, so use revive.
+			exc := revive(func() {
+				tdao.execute(test.input.proposalID)
+			})
+			if test.expected.panic {
+				if exc == nil {
+					t.Errorf("Expected panic, got none")
+				}
+				return
+			}
+			if exc != nil {
+				t.Errorf("Unexpected panic: %v", exc)
+				return
+			}
 
 			proposal := tdao.privdao.Core.Proposals.GetProposal(test.input.proposalID)
 
@@ -433,18 +447,20 @@ func TestInstantExecute(t *testing.T) {
 
 	for testName, test := range tests {
 		t.Run(testName, func(t *testing.T) {
-			if test.expected.panic {
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("Expected panic, got none")
-					}
-				}()
-			}
+			testing.SetOriginCaller(test.input.executor)
 
-			func() {
-				testing.SetOriginCaller(test.input.executor)
-			}()
-			tdao.propose(test.input.proposalReq)
+			// tdao.propose crosses into basedao; cross-realm panic
+			// is not catchable by defer/recover, so use revive.
+			exc := revive(func() {
+				tdao.propose(test.input.proposalReq)
+			})
+			if test.expected.panic {
+				if exc == nil {
+					t.Errorf("Expected panic, got none")
+				}
+			} else if exc != nil {
+				t.Errorf("Unexpected panic: %v", exc)
+			}
 		})
 	}
 }
@@ -497,12 +513,6 @@ func TestAddMemberProposal(t *testing.T) {
 		t.Errorf("Expected member %s to have role 'admin'", bob.String())
 	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
-
 	proposalWithUnknownRole := daokit.ProposalRequest{
 		Title:       "My Proposal",
 		Description: "My Proposal Description",
@@ -511,7 +521,11 @@ func TestAddMemberProposal(t *testing.T) {
 			Roles:   []string{"unknown"},
 		}),
 	}
-	tdao.instantExecute(proposalWithUnknownRole)
+	// Cross-realm panic from instantExecute is not catchable by
+	// defer/recover; use revive.
+	if revive(func() { tdao.instantExecute(proposalWithUnknownRole) }) == nil {
+		t.Errorf("Expected panic, got none")
+	}
 }
 
 func TestRemoveMemberProposal(t *testing.T) {
@@ -563,42 +577,37 @@ func TestAddRoleToUserProposal(t *testing.T) {
 		t.Errorf("Expected member %s to have role 'admin'", bob.String())
 	}
 
-	defer func() {
-		// FIXME: this will pass if any other steps panics
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
+	// Cross-realm panics aren't catchable by defer/recover; use revive
+	// per failing case.
+	if revive(func() {
+		tdao.instantExecute(daokit.ProposalRequest{
+			Title:       "My Proposal",
+			Description: "My Proposal Description",
+			Action:      NewAssignRoleAction(&ActionAssignRole{Address: alice, Role: "unknown"}),
+		})
+	}) == nil {
+		t.Errorf("Expected panic on unknown role, got none")
+	}
 
-	tdao.instantExecute(daokit.ProposalRequest{
-		Title:       "My Proposal",
-		Description: "My Proposal Description",
-		Action:      NewAssignRoleAction(&ActionAssignRole{Address: alice, Role: "unknown"}),
-	})
+	if revive(func() {
+		tdao.instantExecute(daokit.ProposalRequest{
+			Title:       "My Proposal",
+			Description: "My Proposal Description",
+			Action:      NewAssignRoleAction(&ActionAssignRole{Address: carol, Role: "admin"}),
+		})
+	}) == nil {
+		t.Errorf("Expected panic on non-member, got none")
+	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
-
-	tdao.instantExecute(daokit.ProposalRequest{
-		Title:       "My Proposal",
-		Description: "My Proposal Description",
-		Action:      NewAssignRoleAction(&ActionAssignRole{Address: carol, Role: "admin"}),
-	})
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
-
-	tdao.instantExecute(daokit.ProposalRequest{
-		Title:       "My Proposal",
-		Description: "My Proposal Description",
-		Action:      NewAssignRoleAction(&ActionAssignRole{Address: bob, Role: "admin"}),
-	})
+	if revive(func() {
+		tdao.instantExecute(daokit.ProposalRequest{
+			Title:       "My Proposal",
+			Description: "My Proposal Description",
+			Action:      NewAssignRoleAction(&ActionAssignRole{Address: bob, Role: "admin"}),
+		})
+	}) == nil {
+		t.Errorf("Expected panic on already-assigned role, got none")
+	}
 }
 
 func TestRemoveRoleFromUserProposal(t *testing.T) {
@@ -627,25 +636,15 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 		t.Errorf("Expected member %s to not have role 'admin'", bob.String())
 	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
-
 	proposalWithUnknowkRole := daokit.ProposalRequest{
 		Title:       "My Proposal",
 		Description: "My Proposal Description",
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: alice, Role: "unknown"}),
 	}
 	testing.SetOriginCaller(alice)
-	tdao.instantExecute(proposalWithUnknowkRole)
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
+	if revive(func() { tdao.instantExecute(proposalWithUnknowkRole) }) == nil {
+		t.Errorf("Expected panic on unknown role, got none")
+	}
 
 	proposalWithNonMember := daokit.ProposalRequest{
 		Title:       "My Proposal",
@@ -653,13 +652,9 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: carol, Role: "admin"}),
 	}
 	testing.SetOriginCaller(alice)
-	tdao.instantExecute(proposalWithNonMember)
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic, got none")
-		}
-	}()
+	if revive(func() { tdao.instantExecute(proposalWithNonMember) }) == nil {
+		t.Errorf("Expected panic on non-member, got none")
+	}
 
 	proposalWithNonRole := daokit.ProposalRequest{
 		Title:       "My Proposal",
@@ -667,7 +662,9 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: bob, Role: "admin"}),
 	}
 	testing.SetOriginCaller(alice)
-	tdao.instantExecute(proposalWithNonRole)
+	if revive(func() { tdao.instantExecute(proposalWithNonRole) }) == nil {
+		t.Errorf("Expected panic on already-unassigned role, got none")
+	}
 }
 
 type testingDAOContext struct {
