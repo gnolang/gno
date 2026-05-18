@@ -3,8 +3,11 @@ package gnoweb
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 )
 
 // TestCheckResponseSizeRejectsOversized — defense in depth against a
@@ -74,5 +77,31 @@ func TestAcquireRPCSlotBoundsConcurrency(t *testing.T) {
 	// Bucket fully drained — len must be 0 (no slot leak from release fn).
 	if len(slots) != 0 {
 		t.Fatalf("slot leak: len(slots)=%d, want 0", len(slots))
+	}
+}
+
+// TestStateErrorSentinelPact pins the message contract between gnoweb's
+// ErrClient* sentinels and the substrings feature/state matches on in
+// mapClientError. The state package cannot import gnoweb (cycle), so a
+// silent rename of either side would route real 404s as generic 500s
+// without anyone noticing — this test catches that at build time.
+func TestStateErrorSentinelPact(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		sentinel error
+		substr   string
+	}{
+		{"package not found", ErrClientPackageNotFound, state.ClientErrPackageNotFound},
+		{"object not found", ErrClientObjectNotFound, state.ClientErrObjectNotFound},
+		{"timeout", ErrClientTimeout, state.ClientErrTimeout},
+		{"bad request", ErrClientBadRequest, state.ClientErrBadRequest},
+		{"response too large", ErrClientResponseTooLarge, state.ClientErrResponseTooLarge},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(tc.sentinel.Error(), tc.substr) {
+				t.Fatalf("sentinel %q does not contain feature/state substring %q — mapClientError will not classify this error correctly",
+					tc.sentinel.Error(), tc.substr)
+			}
+		})
 	}
 }

@@ -10,15 +10,14 @@ import (
 // Sentinel error message fragments. The feature/state package cannot import
 // gno.land/pkg/gnoweb (that would create an import cycle), so it cannot use
 // errors.Is against gnoweb's ErrClient* sentinels. Instead, mapClientError
-// matches on the stable error-message substrings produced by gnoweb's client
-// (client.go:19-25). If those strings ever change, both sides must move in
-// lockstep — keep this list aligned.
+// matches on the stable error-message substrings produced by gnoweb's client.
+// Exported so gnoweb pins the pact in a test (see TestStateErrorSentinelPact).
 const (
-	clientErrPackageNotFound  = "package not found"
-	clientErrObjectNotFound   = "object not found"
-	clientErrTimeout          = "RPC node request timeout"
-	clientErrBadRequest       = "bad request"
-	clientErrResponseTooLarge = "RPC node response too large"
+	ClientErrPackageNotFound  = "package not found"
+	ClientErrObjectNotFound   = "object not found"
+	ClientErrTimeout          = "RPC node request timeout"
+	ClientErrBadRequest       = "bad request"
+	ClientErrResponseTooLarge = "RPC node response too large"
 )
 
 // mapClientError classifies a ClientAdapter error into (status, friendly msg).
@@ -33,22 +32,22 @@ func mapClientError(err error, height int64) (status int, message string) {
 	}
 	// Substring match (not errors.Is) — see sentinel constants above.
 	msg := err.Error()
-	if strings.Contains(msg, clientErrPackageNotFound) || strings.Contains(msg, clientErrObjectNotFound) {
+	if strings.Contains(msg, ClientErrPackageNotFound) || strings.Contains(msg, ClientErrObjectNotFound) {
 		return http.StatusNotFound, msg
 	}
 	// Catch the over-cap upstream response before the height branch, otherwise
 	// a real "response too large" gets reported as "block height N is not
 	// available" when the request is height-pinned.
-	if strings.Contains(msg, clientErrResponseTooLarge) {
+	if strings.Contains(msg, ClientErrResponseTooLarge) {
 		return http.StatusBadGateway, "upstream response too large"
 	}
 	if height > 0 {
 		return http.StatusBadRequest, fmt.Sprintf("block height %d is not available", height)
 	}
 	switch {
-	case strings.Contains(msg, clientErrTimeout):
+	case strings.Contains(msg, ClientErrTimeout):
 		return http.StatusRequestTimeout, msg
-	case strings.Contains(msg, clientErrBadRequest):
+	case strings.Contains(msg, ClientErrBadRequest):
 		return http.StatusBadRequest, "bad request"
 	default:
 		return http.StatusInternalServerError, "internal error"

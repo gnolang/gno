@@ -1272,6 +1272,79 @@ func TestDecodeStruct_FieldCap(t *testing.T) {
 		"truncated sentinel must terminate the over-cap children list")
 }
 
+// TestDecodeSliceHostileLength feeds a SliceValue with chain-supplied
+// negative Length/Offset end-to-end through DecodePackage. The walker must
+// not panic on av.List[offset:end] — clampSliceWindow is the unit-level
+// guard, this test pins the live decode pipeline against the same payload.
+func TestDecodeSliceHostileLength(t *testing.T) {
+	t.Parallel()
+
+	const sliceType = `{"@type":"/gno.SliceType","Elt":{"@type":"/gno.PrimitiveType","value":"32"},"Vrd":false}`
+	const inlineArray = `{"@type":"/gno.ArrayValue","List":[
+		{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="},
+		{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AgAAAAAAAAA="}
+	]}`
+
+	cases := []struct {
+		name           string
+		offset, length string
+	}{
+		{"negative_length_inline", "0", "-1"},
+		{"negative_offset_inline", "-5", "2"},
+		{"both_negative_inline", "-3", "-3"},
+		{"offset_past_end_inline", "999", "1"},
+		{"length_past_end_inline", "0", "999"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fixture := fmt.Sprintf(`{
+				"names": ["s"],
+				"values": [
+					{"T": %s,
+					 "V": {"@type":"/gno.SliceValue","Base": %s,
+						"Offset": "%s", "Length": "%s", "Maxcap": "0"}}
+				]
+			}`, sliceType, inlineArray, tc.offset, tc.length)
+
+			nodes, err := decodePkgJSON([]byte(fixture))
+			require.NoError(t, err, "hostile Offset/Length must not surface as an error")
+			require.Len(t, nodes, 1)
+			s := nodes[0]
+			assert.Equal(t, "slice", s.Kind)
+			assert.LessOrEqual(t, len(s.Children), 2,
+				"children count must never exceed the backing array length")
+		})
+	}
+}
+
+// TestDecodeSliceHostileLengthRefBase covers the ref-base path: the walker
+// passes the chain-supplied length straight into intPtr without bounding,
+// so a negative value must produce a non-expandable node (length<=0), not
+// a card the user can click to fan out a chain-side fetch on garbage.
+func TestDecodeSliceHostileLengthRefBase(t *testing.T) {
+	t.Parallel()
+
+	const fixture = `{
+		"names": ["items"],
+		"values": [
+			{"T": {"@type":"/gno.SliceType","Elt":{"@type":"/gno.PrimitiveType","value":"32"},"Vrd":false},
+			 "V": {"@type":"/gno.SliceValue",
+				"Base": {"@type":"/gno.RefValue","ObjectID":"ffffffffffffffffffffffffffffffffffffffff:1"},
+				"Offset": "0", "Length": "-1", "Maxcap": "0"}}
+		]
+	}`
+
+	nodes, err := decodePkgJSON([]byte(fixture))
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+	s := nodes[0]
+	assert.Equal(t, "slice", s.Kind)
+	assert.False(t, s.Expandable,
+		"a chain-supplied negative length must not produce an expandable ref node")
+}
+
 // TestDecodeTypedValue_HeapItemChainRespectsDepth — a chain of nested
 // HeapItemValues must consume a depth slot per unwrap, otherwise a hostile
 // value could recurse beyond maxDecodeDepth and exhaust the Go stack.
