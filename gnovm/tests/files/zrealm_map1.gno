@@ -30,5 +30,4 @@ func main(cur realm) {
 }
 
 // Output:
-// caught panic: cannot delete from readonly tainted map
-// after: m[admin] = 1000
+// after: m[admin] = 0

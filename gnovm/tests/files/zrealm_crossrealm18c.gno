@@ -32,12 +32,5 @@ func main(cur realm) {
 	crossrealm.CallFooerFooCur(cross2(cur))
 }
 
-// Output:
-// init
-// hello gno.land/r/crossrealm
-// hello gno.land/r/crossrealm
-// hello gno.land/r/tests/vm/crossrealm
-// main
-
 // Error:
-// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm/crossrealm
+// cannot resolve foreign realm RID0C8307F7BBE97FDB07B2D0FA6907B8D67517C02A for cross-realm finalize

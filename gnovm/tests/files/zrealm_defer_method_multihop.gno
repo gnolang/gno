@@ -31,5 +31,3 @@ func main(cur realm) {
 // Output:
 // stored.N before defer fires = 0
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): c<VPBlock(1,0)>.N

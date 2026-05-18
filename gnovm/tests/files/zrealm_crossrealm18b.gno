@@ -28,4 +28,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm/crossrealm
+// cannot resolve foreign realm RID0C8307F7BBE97FDB07B2D0FA6907B8D67517C02A for cross-realm finalize

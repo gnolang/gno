@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -62,6 +63,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
 		return "", 0, fmt.Errorf("could not parse MAXALLOC directive: %w", err)
+	}
+	// Force a non-nil allocator so interrealm v2 Phase 2 PkgID stamping
+	// fires under filetests the same way it does in production. MAXALLOC
+	// directive remains the override for tests that want a specific cap.
+	if maxAlloc == 0 {
+		maxAlloc = math.MaxInt64
 	}
 
 	var opslog io.Writer

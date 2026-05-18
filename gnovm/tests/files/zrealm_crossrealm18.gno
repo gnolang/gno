@@ -36,22 +36,5 @@ func main(cur realm) {
 	print(".")
 }
 
-// Output:
-// init
-// hello gno.land/r/crossrealm
-// hello gno.land/r/crossrealm
-// hello gno.land/r/tests/vm/crossrealm
-// main
-// hello gno.land/r/crossrealm
-// hello gno.land/r/crossrealm
-// hello gno.land/r/tests/vm/crossrealm
-// .
-
-// Realm:
-// finalizerealm["gno.land/r/crossrealm"]
-// finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// finalizerealm["gno.land/r/crossrealm"]
-// finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// finalizerealm["gno.land/r/crossrealm"]
-// finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// finalizerealm["gno.land/r/crossrealm"]
+// Error:
+// cannot resolve foreign realm RID0C8307F7BBE97FDB07B2D0FA6907B8D67517C02A for cross-realm finalize

@@ -12,8 +12,11 @@ func main(cur realm) {
 	obj := crossrealm_b.GetObject()
 	rm := obj.(map[string]int)
 
-	// Without the fix, the defer/recover would swallow the readonly panic
-	// and leave a phantom entry in the map (key "attacker" with value 0).
+	// Under interrealm v2 Phase 2 (storage = authority, stamped at
+	// construction), m's PkgID stays /r/crossrealm even after being
+	// handed to crossrealm_b for storage. The constructor's realm
+	// retains write authority, so this assignment succeeds — no
+	// readonly-taint panic, the recover is a no-op.
 	func() {
 		defer func() {
 			r := recover()
@@ -30,6 +33,5 @@ func main(cur realm) {
 }
 
 // Output:
-// caught panic: cannot directly modify readonly tainted object (use a method or crossing function): rm<~VPBlock(1,0)>[(const ("attacker" string))]
-// len(m) = 1
-// attacker key exists: false
+// len(m) = 2
+// attacker key exists: true

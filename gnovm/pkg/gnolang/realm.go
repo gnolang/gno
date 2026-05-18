@@ -106,8 +106,8 @@ func PkgIDFromPkgPath(path string) PkgID {
 	// uverse is the VM-builtin runtime; treat it as immutable so
 	// interrealm v2 Phase 2's construction-time check correctly classifies
 	// uverse-declared types (gConcreteRealmType, etc.) as
-	// non-realm.
-	if IsStdlib(path) || IsPPackagePath(path) || path == uversePkgPath {
+	// non-realm. _test overlays are also immutable (see IsTestOverlayPath).
+	if IsStdlib(path) || IsPPackagePath(path) || IsTestOverlayPath(path) || path == uversePkgPath {
 		pkgID.Hashlet[0] |= 0x40
 	}
 	if _, isInternal := IsInternalPath(path); isInternal {

@@ -41,5 +41,7 @@ func main(cur realm) {
 //          and the origin user realm. which means the borrowed realm
 //          is excluded from CurrentRealm and PreviousRealm.
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,0)>.A
+// Output:
+// s.A: 101
+// current realm:  CodeRealm{ g1mdevzlw3defhhew53zsky80lhqnk94ew8grqdt, gno.land/r/borrow }
+// previous realm:  UserRealm{ g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm }
