@@ -88,7 +88,7 @@ func Render(path string) string {
 - **`var count int`** — top-level variables are automatically persisted
   to chain state after each transaction.
 - **`Increment`** — the `_ realm` parameter makes the function
-  ["crossing"](../resources/gno-interrealm.md), which is required for
+  [crossing function](../resources/gno-interrealm.md), which is required for
   any function that modifies realm state. Callers pass `cross` as the
   first argument.
 - **`Render`** — gnoweb calls this to display your realm in the
