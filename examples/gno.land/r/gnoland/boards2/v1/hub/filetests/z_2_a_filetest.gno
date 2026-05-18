@@ -10,7 +10,7 @@ import (
 
 func main() {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	boards := hub.GetBoards(0, boards2.BoardCount())
+	boards := hub.GetBoards(cross, 0, boards2.BoardCount())
 	println(len(boards))
 }
 

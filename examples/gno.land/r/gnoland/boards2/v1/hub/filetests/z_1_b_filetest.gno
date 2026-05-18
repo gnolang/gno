@@ -41,7 +41,7 @@ func init(cur realm) {
 
 func main() {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, found := hub.GetThread(uint64(boardID), uint64(threadID))
+	thread, found := hub.GetThread(cross, uint64(boardID), uint64(threadID))
 	if !found {
 		return
 	}

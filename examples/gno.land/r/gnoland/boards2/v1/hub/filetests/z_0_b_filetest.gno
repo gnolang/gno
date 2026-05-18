@@ -33,7 +33,7 @@ func init(cur realm) {
 
 func main() {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, found := hub.GetBoard(uint64(boardID))
+	board, found := hub.GetBoard(cross, uint64(boardID))
 	if !found {
 		return
 	}

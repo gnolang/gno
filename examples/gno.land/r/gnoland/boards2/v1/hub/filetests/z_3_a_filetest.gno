@@ -21,7 +21,7 @@ func init(cur realm) {
 
 func main() {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	boards := hub.GetThreads(uint64(boardID), 0, boards2.BoardCount())
+	boards := hub.GetThreads(cross, uint64(boardID), 0, boards2.BoardCount())
 	println(len(boards))
 }
 
