@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh 
 ```
 
 Binaries land in `$HOME/.gno/bin`. The script is bash-only; Windows users should use
-WSL or see [Installation page](./install.md) for source builds, Docker, version pinning (--version <tag>), or --full (validator node).
+WSL or see [Installation page](./install.md) for source builds, Docker, version pinning (`--version <tag>`), or `--full` (validator node).
 
 Verify the toolchain is on your `$PATH`:
 
@@ -37,7 +37,7 @@ gno version && gnokey version && gnodev --help
 
 :::tip
 `gno: command not found`? Add `$HOME/.gno/bin` to your `$PATH`:
-`export PATH="$HOME/.gno/bin:$PATH"`.
+`export PATH="$PATH:$HOME/.gno/bin"`.
 :::
 
 ## Run locally with gnodev
@@ -75,8 +75,8 @@ import "strconv"
 
 var count int
 
-func Increment(_ realm, n int) int {
-	count += n
+func Increment(_ realm) int {
+	count++
 	return count
 }
 
@@ -102,9 +102,9 @@ package myrealm
 import "testing"
 
 func TestIncrement(t *testing.T) {
-	val := Increment(cross, 5)
-	if val != 5 {
-		t.Fatalf("expected 5, got %d", val)
+	val := Increment(cross)
+	if val != 1 {
+		t.Fatalf("expected 1, got %d", val)
 	}
 }
 ```
@@ -126,28 +126,6 @@ gno fmt ./...     # rewrite .gno files in canonical style
 gno lint ./...    # static checks for common mistakes
 gno test ./...    # run _test.gno files
 ```
-
-### Run a local chain
-
-Once the code passes tests, boot a devnet from the package directory.
-`gnodev` starts a single-node chain, loads the realm at its declared
-package path, and serves gnoweb in the foreground:
-
-```sh
-gnodev .
-```
-
-Open http://localhost:8888 — gnoweb shows your realm under its
-package path. Click into it to see the `Render` output ("Count: 0"),
-browse exported functions and source code, and view prefunded account
-balances. Every key in your local `gnokey` keybase is auto-funded at
-startup, so no faucet is needed.
-
-Save a `.gno` file and the chain reloads automatically. Pass multiple
-directories to load several packages at once; the bundled `examples/`
-are loaded by default including
-[`r/docs`](http://localhost:8888/r/docs), an on-chain guided tour you
-can modify and browse locally.
 
 ### Create a key
 
@@ -186,6 +164,26 @@ mnemonic for real funds.
 For key import, derivation, and the full keybase reference, see
 [Interact with gnokey](../users/interact-with-gnokey.md#managing-key-pairs).
 
+### Run a local chain
+
+Once the code passes tests, boot a devnet from the package directory.
+`gnodev` starts a single-node chain, loads the realm at its declared
+package path, and serves gnoweb in the foreground:
+
+```sh
+gnodev .
+```
+
+Open http://localhost:8888 — gnoweb shows your realm under its
+package path. Click into it to see the `Render` output ("Count: 0"),
+browse exported functions and source code, and view prefunded account
+balances. Every key in your local `gnokey` keybase is auto-funded at
+startup, so `alice` already has GNOT to spend — no faucet needed.
+
+Save a `.gno` file and the chain reloads automatically. Pass
+additional directories on the command line to load several packages
+at once.
+
 ### Call Increment
 
 Every realm page in gnoweb has three tabs in the top header:
@@ -202,7 +200,7 @@ For `Increment`, the command looks like this:
 ```sh
 gnokey maketx call \
   -pkgpath "gno.land/r/myname/myrealm" \
-  -func "Increment" -args "5" \
+  -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 1000000000 \
   -chainid dev -remote http://localhost:26657 \
   alice
@@ -220,7 +218,7 @@ reuse it in the staging and testnet sections below.
 On success you'll see:
 
 ```text
-(5 int)
+(1 int)
 OK!
 GAS WANTED: 1000000000
 GAS USED:   234567
@@ -229,8 +227,8 @@ EVENTS:     []
 TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```
 
-The leading `(5 int)` is `Increment`'s return value. Reload the realm
-page and `Render` flips from "Count: 0" to "Count: 5"; re-run to keep
+The leading `(1 int)` is `Increment`'s return value. Reload the realm
+page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
 incrementing.
 
 For more options, see
@@ -347,7 +345,7 @@ a realistic value.
 ```sh
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
-  -func "Increment" -args "5" \
+  -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
   alice
@@ -357,7 +355,7 @@ On success the response leads with the return value, then the tx
 receipt:
 
 ```text
-(5 int)
+(1 int)
 OK!
 GAS WANTED: 2000000
 GAS USED:   234567
@@ -374,7 +372,7 @@ gnokey query vm/qrender \
   -remote https://rpc.staging.gno.land:443
 ```
 
-This returns the `Render` output ("Count: 5") — a free, read-only
+This returns the `Render` output ("Count: 1") — a free, read-only
 view of your realm's state. For the full `maketx call` and `gnokey`
 reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 

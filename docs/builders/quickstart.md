@@ -5,7 +5,8 @@
 ## Run locally
 
 ```sh
-# 1. Install the toolchain (gno, gnokey, gnodev)
+# 1. Install the toolchain (gno, gnokey, gnodev).
+#    Docker, source build, or pinned version: see install.md.
 curl -fsSL https://raw.githubusercontent.com/gnolang/gno/master/misc/install.sh | sh
 
 # 2. Create a realm
@@ -30,8 +31,8 @@ import "strconv"
 
 var count int
 
-func Increment(_ realm, n int) int {
-	count += n
+func Increment(_ realm) int {
+	count++
 	return count
 }
 
@@ -53,8 +54,6 @@ gnokey query bank/balances/<your-g1-addr> \
   -remote https://rpc.staging.gno.land:443
 
 # 7. Deploy
-#    First deploy may fail with "has not signed the required CLA" —
-#    sign once via r/sys/cla, see Getting started, then retry.
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
@@ -63,12 +62,12 @@ gnokey maketx addpkg \
 # 8. Call a realm function
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
-  -func "Increment" -args "5" \
+  -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 dev
 ```
 
-Live at <https://staging.gno.land/r/<your-g1-addr>/counter>.
+Live at **`https://staging.gno.land/r/<your-g1-addr>/counter`**.
 
 ## Next
 
