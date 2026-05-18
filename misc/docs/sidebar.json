@@ -43,6 +43,7 @@
           "resources/storage-deposit",
           "resources/gno-stdlibs",
           "resources/configuring-gno-projects",
+          "builders/editor-setup",
           "resources/gno-testing",
           "resources/realms",
           "resources/gno-interrealm",

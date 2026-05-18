@@ -94,8 +94,9 @@ This will be disabled only for the git repository you're currently on.
 
 ### Editor Setup
 
-For editor configuration and LSP support, see
-[github.com/gnoverse/gnopls](https://github.com/gnoverse/gnopls).
+See [docs/builders/editor-setup.md](./docs/builders/editor-setup.md) for
+configuring your editor with LSP support, autocompletion, and formatting
+for `.gno` files.
 
 ## Reporting Issues
 
