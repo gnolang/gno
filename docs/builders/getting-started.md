@@ -60,7 +60,7 @@ gno mod init gno.land/r/myname/myrealm
 This writes a `gnomod.toml` in the current directory, declaring the
 package's on-chain path. Use `gno.land/r/…` for realms (stateful) or
 `gno.land/p/…` for pure packages (stateless — note that pure packages cannot
-import realms; see [import rules](../resources/gno-packages.md#import-rules)).
+import realms; see [import rules](./anatomy-of-a-gno-package.md#import-rules)).
 
 ### Write Gno code
 
