@@ -86,3 +86,31 @@ func isHot(e Entry) bool {
 func isStale(e Entry) bool {
 	return ageDays(e.UpdatedAt) >= StaleDays
 }
+
+// dependsOn returns true if entry e is gated by user `handle`:
+// assignee match, requested reviewer match, or @handle mention in last comments.
+func dependsOn(e Entry, handle string) bool {
+	if hasAny(e.Assignees, handle) {
+		return true
+	}
+	if hasAny(e.RequestedReviewer, handle) {
+		return true
+	}
+	needle := "@" + strings.ToLower(handle)
+	for _, c := range e.RecentComments {
+		if strings.Contains(strings.ToLower(c.Body), needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// dependsOnOtherCore returns the matched core handle (other than jaekwon/moul) if any.
+func dependsOnOtherCore(e Entry) (string, bool) {
+	for _, h := range OtherCore {
+		if dependsOn(e, h) {
+			return h, true
+		}
+	}
+	return "", false
+}

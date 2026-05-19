@@ -97,3 +97,41 @@ func mustTime(s string) time.Time {
 	}
 	return t
 }
+
+func TestDependsOn(t *testing.T) {
+	fixedNow(t, "2026-05-20T00:00:00Z")
+
+	cases := []struct {
+		name   string
+		e      Entry
+		handle string
+		want   bool
+	}{
+		{"assignee match", Entry{Assignees: []string{"jaekwon"}}, "jaekwon", true},
+		{"requested reviewer match", Entry{RequestedReviewer: []string{"moul"}}, "moul", true},
+		{"mention in last comment",
+			Entry{RecentComments: []Comment{{Body: "could @jaekwon take a look?"}}},
+			"jaekwon", true},
+		{"unrelated", Entry{Assignees: []string{"alice"}}, "jaekwon", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := dependsOn(c.e, c.handle); got != c.want {
+				t.Errorf("dependsOn(%q)=%v want %v", c.handle, got, c.want)
+			}
+		})
+	}
+}
+
+func TestDependsOnOtherCore(t *testing.T) {
+	fixedNow(t, "2026-05-20T00:00:00Z")
+	e := Entry{RequestedReviewer: []string{"thehowl"}}
+	who, ok := dependsOnOtherCore(e)
+	if !ok || who != "thehowl" {
+		t.Errorf("dependsOnOtherCore=%q,%v want thehowl,true", who, ok)
+	}
+	e2 := Entry{RequestedReviewer: []string{"alice"}}
+	if _, ok := dependsOnOtherCore(e2); ok {
+		t.Errorf("dependsOnOtherCore should be false for non-core")
+	}
+}
