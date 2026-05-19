@@ -291,7 +291,7 @@ import (
 	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 )
 
-func TestCreatePostSingle(t *testing.T) {
+func TestCreatePostSingle(cur realm, t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
@@ -299,9 +299,10 @@ func TestCreatePostSingle(t *testing.T) {
 
 	text1 := "Hello World!"
 
-	// To call a crossing function, we specify the `cross` keyword
-	// This matches the first argument of type realm in the function itself
-	err := CreatePost(cross, text1)
+	// To call a crossing function, we pass cross(cur) as the first
+	// argument; cross(rlm) validates rlm is the current realm and
+	// flows through to the callee's `cur realm` parameter.
+	err := CreatePost(cross(cur), text1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -320,7 +321,7 @@ We can add the following test showcasing how TDT works in Gno:
 
 [embedmd]:# (../_assets/minisocial/posts_test-1.gno go /func TestCreatePostMultiple/ $)
 ```go
-func TestCreatePostMultiple(t *testing.T) {
+func TestCreatePostMultiple(cur realm, t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
 	posts := []struct {
 		text   string
@@ -337,10 +338,9 @@ func TestCreatePostMultiple(t *testing.T) {
 		authorAddr := testutils.TestAddress(p.author)
 		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
-		// Create the post
-		// To call a crossing function, we specify the `cross` keyword
-		// This matches the first argument of type realm in the function itself
-		err := CreatePost(cross, p.text)
+		// Create the post via cross(cur) so the realm capability flows
+		// to CreatePost's `cur realm` parameter.
+		err := CreatePost(cross(cur), p.text)
 		if err != nil {
 			t.Fatalf("expected no error for post '%s', got %v", p.text, err)
 		}

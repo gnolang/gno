@@ -119,7 +119,7 @@ when a realm consumes a service that it offers to external realms and users.
 
 For Go developers familiar with blockchain VMs like the EVM: in Solidity,
 calling another contract implicitly shifts `msg.sender`, making it easy to
-introduce reentrancy bugs or misattribute the caller. Gno's `cross` keyword
+introduce reentrancy bugs or misattribute the caller. Gno's `cross(rlm)` form
 makes every realm-context transition visible in source code and verifiable by
 the compiler, eliminating this class of bugs by construction.
 
@@ -367,9 +367,10 @@ parameter list. To prevent confusion it is illegal to use anywhere else, and
 cannot be used in p packages.
 
 The current realm-context and realm-storage-context changes when a
-crossing-function or crossing-method is called with the `cross` keyword in the
-first argument as in `fn(cross, ...)`. Such a call is called a "cross-call" or
-"crossing-call".
+crossing-function or crossing-method is called with `cross(rlm)` in the first
+argument position as in `fn(cross(rlm), ...)`. The `rlm` must be a realm-typed
+identifier in scope; the runtime verifies it is the current frame's `cur` before
+the cross-call proceeds. Such a call is called a "cross-call" or "crossing-call".
 
 ```go
 package main
@@ -378,13 +379,13 @@ import "gno.land/r/alice/extrealm"
 func MyMakeBread(cur realm, ingredients ...any) { ... }
 
 func main(cur realm) {
-    MyMakeBread(cross, "flour", "water") // ok -- cross into self.
-    extrealm.MakeBread(cross, "flour", "water") // ok -- cross into extrealm
+    MyMakeBread(cross(cur), "flour", "water")    // ok -- cross into self.
+    extrealm.MakeBread(cross(cur), "flour", "water") // ok -- cross into extrealm
 }
 ```
 
 When a crossing-function or crossing-method is called with `nil` as the first
-argument instead of `cross` it is called a non-crossing-call; and no
+argument instead of `cross(rlm)` it is called a non-crossing-call; and no
 realm-context nor realm-storage-context change takes place.
 
 ```go
@@ -424,7 +425,7 @@ A function declared in a realm package (`/r/X`) when called:
 
  * explicitly crosses to `/r/X` if the function is declared as
    `func fn(cur realm, ...){...}` (with `cur realm` as the first argument) AND
-   called with `cross` as the first argument. The new realm is called the
+   called with `cross(rlm)` as the first argument. The new realm is called the
    "current realm".
  * otherwise (non-crossing call of a `/r/X`-declared callable from a different
    realm-storage-context) **implicitly declaring-borrows to `/r/X`** for the
@@ -441,15 +442,15 @@ and any attempt to mutate victim-owned state from inside the body fails the
 
 `runtime.CurrentRealm()` returns the current realm-context that was last
 cross-called to. `runtime.PreviousRealm()` returns the realm-context
-cross-called to before the last cross-call. All cross-calls are explicit with
-the `cross` keyword, as well as non-crossing-calls of crossing-functions and
-crossing-methods with `nil` instead of `cross`.
+cross-called to before the last cross-call. All cross-calls are explicit via
+`cross(rlm)` at Args[0], as are non-crossing-calls of crossing-functions and
+crossing-methods (which use `nil` instead).
 
 A crossing function declared in the same realm package as the callee may be
-called like `fn(cross, ...)` or `fn(cur, ...)`. When called with `fn(cur, ...)`
-there will be no realm crossing, but when called like `fn(cross, ...)` there is
-technically a realm crossing and the current realm and previous realm returned
-are the same.
+called like `fn(cross(cur), ...)` or `fn(cur, ...)`. When called with
+`fn(cur, ...)` there is no realm crossing, but when called like
+`fn(cross(cur), ...)` there is technically a realm crossing and the current
+realm and previous realm returned are the same.
 
 The current realm and previous realm do not depend on any implicit crossing to
 the receiver's borrowed/storage realm even if the borrowed realm is the last
@@ -576,7 +577,7 @@ func Spend(_ realm) {
 ```
 
 Under the declaring-realm borrow rule, methods declared in `/r/` packages
-behave consistently regardless of whether they're called with `cross` or
+behave consistently regardless of whether they're called via `cross(rlm)` or
 non-crossing: the method's body always runs with the declaring realm's
 authority. Storage-realm borrow (mutating the receiver's surrounding state)
 only applies to stdlib and `/p/` methods — exactly the cases where the
@@ -682,8 +683,9 @@ itself.
 ## Realm-Transaction Finalization
 
 Realm-transaction finalization occurs when returning from a realm
-boundary. When returning from a cross-call (with `cross`) realm-transaction
-finalization will occur even with no change of realm-context or
+boundary. When returning from a cross-call (via `cross(rlm)`)
+realm-transaction finalization will occur even with no change of
+realm-context or
 realm-storage-context. Realm-transaction finalization does NOT occur when
 returning from a non-crossing-call of a method of an unreal receiver or a real
 receiver that resides in the same realm-storage-context as that of the caller.

@@ -1,8 +1,9 @@
 # Cross-Call Migration Guide
 
-Practical learnings from migrating bare `cross` → `cross2(cur)` /
-`cross2(rlm)` across the gno tree. Each entry is a general rule
-distilled from a concrete pitfall encountered during migration.
+Practical learnings from the runtime.{Current,Previous}Realm → `cur`
+threading migration, and the subsequent collapse of the bare-`cross`
+sentinel into the explicit `cross(rlm)` form. Each entry is a general
+rule distilled from a concrete pitfall encountered during migration.
 
 This is a living document. Append new learnings as discovered.
 
@@ -14,7 +15,7 @@ Two ways to thread `realm` through a function signature:
 
 | Form | Semantics |
 |---|---|
-| `func F(cur realm, ...)` | **Crossing function.** Called via `F(cross, ...)` or `F(cross2(rlm), ...)`. Each cross-call mints a fresh `cur` in the callee, creates a realm boundary, triggers finalization on return. |
+| `func F(cur realm, ...)` | **Crossing function.** Called via `F(cross(rlm), ...)`. Each cross-call mints a fresh `cur` in the callee, creates a realm boundary, triggers finalization on return. |
 | `func F(_ int, rlm realm, ...)` | **Non-crossing helper** that *takes a realm value*. Called as `F(0, cur, ...)` (plain value pass). No boundary, no finalization, no shift in `runtime.{Current,Previous}Realm()`. |
 
 The `_ int` discriminator in the second form is required: without it,
@@ -43,37 +44,32 @@ don't change crossing/non-crossing status".
 
 ---
 
-## 2. `cross2(cur)` ≠ bare `cross` for tests using `testing.SetRealm`
+## 2. Historical: `cross(cur)` ≠ bare `cross` for tests using `testing.SetRealm`
 
-Bare `cross` and `cross2(cur)` mint the new cur differently:
+> Resolved by the bare-`cross` removal — only `cross(rlm)` remains.
+> Preserved here as background context for the test-realm interaction
+> in §3 and §11.
+
+When the bare-`cross` sentinel still existed, it minted the new cur
+differently from `cross(rlm)`:
 
 - **Bare `cross`** (preprocessor sentinel): runtime's
-  `installCrossingCur` takes the `argtv.IsUndefined()` path and calls
-  `m.callingCurOrOrigin()`. If no crossing frame is found, it falls
-  through to `buildOriginRealm(m)` which **dynamically reads
-  `m.Context.OriginCaller`** and constructs a fresh realm with
+  `installCrossingCur` took the `argtv.IsUndefined()` path and called
+  `m.callingCurOrOrigin()`. If no crossing frame was found, it fell
+  through to `buildOriginRealm(m)` which **dynamically read
+  `m.Context.OriginCaller`** and constructed a fresh realm with
   `addr=OriginCaller, pkgPath="", prev=truly-nil`.
-- **`cross2(rlm)`**: takes the `else` branch in `installCrossingCur`
+- **`cross(rlm)`**: takes the `else` branch in `installCrossingCur`
   and uses `*argtv` as prev — the static rlm value passed in.
 
-Consequence: in test scopes where the pattern is
+In test scopes where the pattern was
 `testing.SetRealm(NewUserRealm(addr))` followed by an IIFE
 same-realm-cross to mint a fresh cur whose prev is the just-set user,
-bare `cross` works (it picks up `OriginCaller=addr` from the updated
-context), but `cross2(cur)` does **not** (it uses the static outer cur,
-whose prev is unchanged).
-
-The IIFE in such tests is doing real work, not noise. If you remove
-it during migration, the test will fail in a subtle way — the realm
-value reaching the SUT (e.g., `m.NewPost(0, cur, text)`) will have
-`Previous() = test framework default user`, not the SetRealm'd user.
-
-**Workaround for migration:** if the function under test takes a
-non-crossing `(_ int, rlm realm, ...)` and uses `rlm.Previous()` for
-identity, keep the bare-`cross` IIFE for now. Migrating these
-specific sites requires either (a) a new "build cur from origin"
-primitive, or (b) refactoring the SUT to take `caller address`
-explicitly.
+the bare-`cross` form picked up `OriginCaller=addr` from the updated
+context. With only `cross(rlm)` available now, tests that depended on
+this dynamic-origin behavior must instead either mutate `cur` in place
+via SetRealm before the cross-call (§3, §11) or take the caller address
+as an explicit parameter.
 
 ---
 
@@ -92,7 +88,7 @@ fn whose first param is `cur realm`:
 
 Because the parameter `cur` and `fr.Cur` share the same underlying
 `*HeapItemValue`, reads through `cur` see the mutated values. This is
-why `cross2(cur)` inside the test, post-SetRealm, can act as the
+why `cross(cur)` inside the test, post-SetRealm, can act as the
 SetRealm'd user — the mutation propagates through the HIV identity.
 
 **Implication for testing in `_test.gno`:** a test function declared
@@ -112,7 +108,7 @@ closure so it gets its own `fr.Cur`. `testing.T.Run` already accepts
 ```go
 t.Run(tc.name, func(cur realm, t *testing.T) {
     testing.SetRealm(testing.NewUserRealm(tc.caller))
-    SomeCrossingFn(cross2(cur))
+    SomeCrossingFn(cross(cur))
 })
 ```
 
@@ -126,7 +122,7 @@ realm` (non-crossing helper) need to be reconsidered: if they call
 `SetRealm` internally and rely on the mutation reaching `rlm`, they
 need to be crossing methods too (`Method(cur realm, ...)`) so that
 their frame has its own `fr.Cur`. Bridge non-crossing → crossing at
-the call site with `cross2(cur)`.
+the call site with `cross(cur)`.
 
 For an example refactor that threads through methods + an interface,
 see `r/morgan/chess/chess_test.gno`'s `testCommandRunner.Run(cur realm,
@@ -327,7 +323,7 @@ affects `X_getRealm` reads but not direct realm-value reads through
 `fr.Cur`.
 
 The closure-captured `cur` still refers to the *outer* subtest's HIV,
-which was never mutated. `cross2(cur)` inside `tdao.vote` then uses
+which was never mutated. `cross(cur)` inside `tdao.vote` then uses
 the un-mutated cur — `rlm.Previous().Address()` resolves to `""` (the
 fresh-origin default), not `voter`.
 
@@ -372,7 +368,7 @@ package main
 import "gno.land/r/foo"
 
 func main(cur realm) {
-    foo.Bar(cross2(cur), "arg")
+    foo.Bar(cross(cur), "arg")
 }
 ```
 
@@ -498,7 +494,9 @@ rather than mutating a package singleton.
 ## Appendix: open questions
 
 - **How best to mint a fresh cur after `SetRealm(NewUserRealm)`?**
-  See (2). A `cross2()`-no-arg form that uses `buildOriginRealm`
-  semantics would let us finish the migration without keeping the
-  IIFE-bare-cross pattern in test helpers. The alternative — exposing
-  the realm constructor primitives at the Gno level — is also viable.
+  See (2). With the bare-cross sentinel gone, the dynamic-origin path
+  in `buildOriginRealm` is reachable only via the compiler-synthesized
+  `.origin` lowering (MsgCall chain root) — not from user code. Either
+  a user-facing primitive (`cross.fromOrigin()` or similar) or
+  refactoring the SUTs to take caller address explicitly would close
+  this gap.
