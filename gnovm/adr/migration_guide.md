@@ -263,29 +263,7 @@ This was the root cause of three call-site fixes during the
 
 ---
 
-## 9. `defaultXxx` package-level vars + value-copy is a foot-gun
-
-A `/p/`-package init constructs `var defaultThing = Thing{...}`. A
-constructor `New() Thing { q := defaultThing; ... }` does a
-value-copy. Under foreign-call semantics, the package-level
-`defaultThing` is read-only to any caller (it lives in the `/p/`'s
-own — frozen — realm); the local `q` inherits the readonly taint via
-(7) and any subsequent `q.Field = x` panics.
-
-**Fix:** construct fresh inside the constructor:
-
-```go
-q := Thing{Count: DefaultCount}  // owned by caller's realm
-```
-
-Don't seed from a package-level default. The package var costs nothing
-to remove if the constructor inlines the default values.
-
-See `p/jeronimoalbi/datasource/query.gno` for the corrective.
-
----
-
-## 10. Removed: dead `crossingFn` shim
+## 9. Removed: dead `crossingFn` shim
 
 A pattern from before Rule-1 covered closures uniformly:
 
@@ -307,7 +285,7 @@ See `boards2/v1` `d4b567a64` for the removal.
 
 ---
 
-## 11. Filetest harness strips `_filetest` from filenames
+## 10. Filetest harness strips `_filetest` from filenames
 
 The gnovm filetest runner (`gnovm/pkg/test/filetest.go:393`) does
 `fname = strings.ReplaceAll(fname, "_filetest", "")` so the synthetic
@@ -324,7 +302,7 @@ heuristics.
 
 ---
 
-## 12. `SetRealm` inside a non-crossing closure silently no-ops
+## 11. `SetRealm` inside a non-crossing closure silently no-ops
 
 A natural-looking pattern in test code:
 

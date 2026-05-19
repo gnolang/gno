@@ -343,19 +343,8 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	// CLOSE_LAUNDER: preserve source PkgID for /r/ and /p/ stamps.
-	// Stdlib stamps are deliberately excluded — stdlib globals (e.g.
-	// binary.LittleEndian) are dispatch helpers that callers expect to
-	// "own" by value; preserving their stamps would cause
-	// PushFrameCall's borrow rule 2 to shift m.Realm into stdlib on
-	// every method call, trapping the caller's local writes inside
-	// stdlib functions as cross-realm. The launder threat is
-	// specifically /p/-stamped values being laundered into /r/
-	// ownership via deferred pointer-copy; that path is now closed
-	// while stdlib copy-semantics stay unchanged.
-	srcPid := av.ObjectInfo.ID.PkgID
-	if !srcPid.IsZero() && !srcPid.IsStdlibPkg() {
-		cp.ObjectInfo.SetPkgID(srcPid)
+	if av.ObjectInfo.ID.PkgID.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
 	}
 	return cp
 }
@@ -488,11 +477,8 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	// CLOSE_LAUNDER: preserve source PkgID for /r/ and /p/ stamps,
-	// excluding stdlib. See ArrayValue.Copy for rationale.
-	srcPid := sv.ObjectInfo.ID.PkgID
-	if !srcPid.IsZero() && !srcPid.IsStdlibPkg() {
-		cp.ObjectInfo.SetPkgID(srcPid)
+	if sv.ObjectInfo.ID.PkgID.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
 	}
 	return cp
 }
