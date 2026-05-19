@@ -25,24 +25,19 @@ func recoverFetcher(logger *slog.Logger, kind string, fields ...any) {
 
 // recoverToErr is recoverFetcher's fatal counterpart: writes a sentinel
 // into errp (caller's named return) so errgroup.Wait surfaces a 500.
+// The panic payload (clipped to 512c) rides the wrapped err so the
+// caller's existing error-log line carries the diagnostic. A nil logger
+// is accepted for decoder boundaries that have no logger of their own —
+// the handler that surfaces err logs it with full request context (path,
+// oid, height), so the embedded payload is what makes that line useful.
 func recoverToErr(logger *slog.Logger, kind string, errp *error, fields ...any) {
 	if r := recover(); r != nil {
-		logger.Error("fetcher panic recovered",
-			append([]any{"kind", kind, "panic", fmt.Sprintf("%.512s", r)}, fields...)...)
-		*errp = fmt.Errorf("%s: panic recovered", kind)
-	}
-}
-
-// recoverDecodeToErr is recoverToErr scoped to decoder functions that have
-// no logger of their own. The caller's handler already logs decode errors
-// with full request context (path, oid, height) when it surfaces the err,
-// so the wrapped panic payload (clipped to 512c) rides that existing log
-// line. Keeps the decoder boundary panic-proof — amino's hard panics on
-// hostile chain bytes (json_decode.go's "unsupported type" et al.) never
-// unwind past the function they live in.
-func recoverDecodeToErr(kind string, errp *error) {
-	if r := recover(); r != nil {
-		*errp = fmt.Errorf("%s: panic recovered: %.512s", kind, r)
+		payload := fmt.Sprintf("%.512s", r)
+		if logger != nil {
+			logger.Error("fetcher panic recovered",
+				append([]any{"kind", kind, "panic", payload}, fields...)...)
+		}
+		*errp = fmt.Errorf("%s: panic recovered: %s", kind, payload)
 	}
 }
 

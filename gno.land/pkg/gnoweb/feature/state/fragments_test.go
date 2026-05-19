@@ -161,11 +161,10 @@ const fragOID = "abcdef0123456789abcdef0123456789abcdef01:1"
 
 func TestFragErrorReturnsHTTP200WithBody(t *testing.T) {
 	rec := httptest.NewRecorder()
-	status, view := writeFragError(rec, "boom", "retry hint")
+	status := writeFragError(rec, "boom", "retry hint")
 
 	assert.Equal(t, http.StatusOK, status,
 		"fragment errors return HTTP 200 so htmx swaps the body")
-	assert.Nil(t, view, "writeFragError writes directly to w; view is always nil")
 	assert.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
 	assert.Contains(t, body, `role="alert"`, "must surface as ARIA alert")

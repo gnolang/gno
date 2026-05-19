@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
@@ -33,7 +32,7 @@ const maxFragmentDepth = 10
 // timeout. Unknown `frag` values surface as fragment-errors (HTTP 200 +
 // error body) so htmx swaps a visible message instead of silently dropping
 // the response.
-func (h *Handler) serveFragment(ctx context.Context, w http.ResponseWriter, _ *http.Request, u *weburl.GnoURL) (int, *components.View) {
+func (h *Handler) serveFragment(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) int {
 	fragCtx, cancel := context.WithTimeout(ctx, fragmentTimeout)
 	defer cancel()
 
@@ -50,7 +49,7 @@ func (h *Handler) serveFragment(ctx context.Context, w http.ResponseWriter, _ *h
 // serveFragNode renders the immediate children of one expanded node as
 // an htmx fragment. Bounded fan-out: 1 StateObject + ≤1 StateType +
 // ≤1 qfile (for func bodies); no chained preview fetches.
-func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) (int, *components.View) {
+func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) int {
 	oid := u.WebQuery.Get("oid")
 	if err := ValidateOID(oid); err != nil {
 		return writeFragError(w, "Invalid object ID", "Please retry from the page.")
@@ -150,13 +149,13 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	}); err != nil {
 		h.deps.Logger.Error("frag=node template execute failed", "oid", oid, "err", err)
 	}
-	return http.StatusOK, nil
+	return http.StatusOK
 }
 
 // serveFragSource renders a chroma'd window around the target line in the
 // requested file. Capped at MaxFragmentFileSize (256 KB) — oversize files
 // degrade to a fallback link to the full ?source view.
-func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) (int, *components.View) {
+func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) int {
 	file := u.WebQuery.Get("file")
 	if err := ValidateFile(file); err != nil {
 		return writeFragError(w, "Invalid file name", "")
@@ -207,7 +206,7 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 			Line:        line,
 			HeightParam: heightParam,
 		})
-		return http.StatusOK, nil
+		return http.StatusOK
 	}
 
 	// Explicit span (StartLine..EndLine from the func/method node) wins;
@@ -249,13 +248,13 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 	}); err != nil {
 		h.deps.Logger.Error("frag=source template execute failed", "file", file, "err", err)
 	}
-	return http.StatusOK, nil
+	return http.StatusOK
 }
 
 // writeFragError emits an HTTP-200 error fragment so htmx swaps a visible
 // message instead of silently dropping a 4xx/5xx. Cache-Control: no-store
 // prevents nginx from caching transient failures.
-func writeFragError(w http.ResponseWriter, message string, retryHints ...string) (int, *components.View) {
+func writeFragError(w http.ResponseWriter, message string, retryHints ...string) int {
 	var hint string
 	if len(retryHints) > 0 {
 		hint = retryHints[0]
@@ -268,13 +267,13 @@ func writeFragError(w http.ResponseWriter, message string, retryHints ...string)
 		Message:   message,
 		RetryHint: hint,
 	})
-	return http.StatusOK, nil
+	return http.StatusOK
 }
 
 // fragErrorFromClient maps a ClientAdapter error into the fragment-error
 // pattern, hiding internal-error details from the client while logging
 // the full error server-side. Always returns HTTP 200.
-func (h *Handler) fragErrorFromClient(w http.ResponseWriter, err error, height int64, logKey, logVal string) (int, *components.View) {
+func (h *Handler) fragErrorFromClient(w http.ResponseWriter, err error, height int64, logKey, logVal string) int {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		h.deps.Logger.Debug("fragment ctx ended", logKey, logVal, "err", err)
 		return writeFragError(w, "Request timed out", "Please retry.")

@@ -1167,11 +1167,11 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 // children to render plus the queried object's ObjectInfo in one pass.
 // cfg bounds recursion depth on both the typed and untyped paths so a
 // &tid= request honours the same per-fragment budget as the untyped one.
-// recoverDecodeToErr keeps amino + walker panics on hostile chain bytes
-// inside the function — the page/fragment handler surfaces a clean error
-// instead of unwinding to net/http's top-level recover.
+// recoverToErr keeps amino + walker panics on hostile chain bytes inside
+// the function — the page/fragment handler surfaces a clean error instead
+// of unwinding to net/http's top-level recover.
 func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *DecodedObject, err error) {
-	defer recoverDecodeToErr("decode object JSON", &err)
+	defer recoverToErr(nil, "decode object JSON", &err)
 
 	var resp objectResponse
 	if err := amino.UnmarshalJSON(rawObject, &resp); err != nil {

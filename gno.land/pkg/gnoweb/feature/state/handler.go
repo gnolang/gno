@@ -23,17 +23,17 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 	if h.limiter != nil {
 		ip := extractIP(r, h.deps.RateLimit.TrustedProxies)
 		if !h.limiter.Allow(ip) {
-			return writeRateLimited(w, r)
+			return writeRateLimited(w, r), nil
 		}
 	}
 	switch {
 	case u.WebQuery.Has("json"):
 		ctx, cancel := context.WithTimeout(ctx, pageTimeout)
 		defer cancel()
-		return h.serveJSON(ctx, w, r, u)
+		return h.serveJSON(ctx, w, u), nil
 	case u.WebQuery.Has("frag"):
 		// serveFragment applies its own (tighter) fragmentTimeout.
-		return h.serveFragment(ctx, w, r, u)
+		return h.serveFragment(ctx, w, u), nil
 	default:
 		ctx, cancel := context.WithTimeout(ctx, pageTimeout)
 		defer cancel()
@@ -43,8 +43,9 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 // writeRateLimited writes the rate-limit response: htmx clients get HTTP 200
 // + a visible fragment-error body; plain clients get HTTP 429 + Retry-After.
-// Always returns a nil view so the wire-in skips chrome wrapping.
-func writeRateLimited(w http.ResponseWriter, r *http.Request) (int, *components.View) {
+// Body is written directly; the caller wraps the int status with a nil
+// view so the wire-in skips chrome wrapping.
+func writeRateLimited(w http.ResponseWriter, r *http.Request) int {
 	if r.Header.Get("HX-Request") != "" {
 		return writeFragError(w, "Rate limit exceeded", "Please slow down and retry in a moment.")
 	}
@@ -52,7 +53,7 @@ func writeRateLimited(w http.ResponseWriter, r *http.Request) (int, *components.
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusTooManyRequests)
 	_, _ = w.Write([]byte("rate limit exceeded\n"))
-	return http.StatusTooManyRequests, nil
+	return http.StatusTooManyRequests
 }
 
 // serveFragment lives in fragments.go; servePage lives in page.go.
