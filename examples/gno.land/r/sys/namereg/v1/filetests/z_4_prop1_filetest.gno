@@ -1,4 +1,4 @@
-// Test updating a name via GovDAO when there's a canonical collision
+// Test updating a name via GovDAO when there's a canonical collision bypassing it
 package main
 
 import (
@@ -58,7 +58,8 @@ func main() {
 	println(isCurrent)
 	println(data.Addr())
 
-	// Make sure canonical is linked to Alice's username
+	// Make sure canonical collision was bypassed and now
+	// the canonical name is linked to Alice's username.
 	current, _ := susers.IsCanonicalTaken("v1tal1k")
 	println(current)
 }
