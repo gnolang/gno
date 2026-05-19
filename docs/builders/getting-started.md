@@ -295,7 +295,7 @@ Two things to know before publishing your first package:
 `gno.land/r/alice/…` aren't supported yet — see
 [Users and Teams](../resources/users-and-teams.md).
 
-**CLA.** Some networks require signing a
+**CLA.** Some networks require contributors to acknowledge and sign a
 [Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md)
 before deploying. It is currently off on every network (check
 [betanet](https://gno.land/r/sys/cla) or
