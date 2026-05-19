@@ -767,7 +767,6 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 		}
 		dir.Content = content
 		result = append(result, dir)
-		// fmt.Printf("#%d %s: [[[%s]]]\n", i, dir.Name, dir.Content)
 	}
 
 	return result, sc.Err()

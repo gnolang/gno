@@ -238,8 +238,8 @@ func PrependPkgPathIfNeeded(source []byte) []byte {
 // pkgDeclRe matches the Go package declaration; captures the name.
 var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
-// funcMainRe matches `func main()` at line start.
-var funcMainRe = regexp.MustCompile(`(?m)^func main\(\)`)
+// funcMainRe matches `func main()` at line start, with optional whitespace before `()`.
+var funcMainRe = regexp.MustCompile(`(?m)^func main\s*\(\)`)
 
 // IsRunnable reports whether source can be `go run` — i.e. declares
 // `package main` AND has a top-level `func main()`. Files lacking
