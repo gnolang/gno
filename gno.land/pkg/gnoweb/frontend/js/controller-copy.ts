@@ -109,6 +109,10 @@ export class CopyController extends BaseController {
 				this._showFeedback(icons);
 				return;
 			}
+			// TODO: show a loading state (idle → fetching → success/error) during
+			// the fetch — to be addressed in a dedicated PR alongside a consistent
+			// async-action feedback pattern for the explorer (copy, htmx triggers,
+			// pagination etc.).
 			const res = await fetch(target.toString(), {
 				credentials: "same-origin",
 			});
