@@ -29,14 +29,14 @@ func init(cur realm) {
 
 	// Register a validator: OriginCaller must equal operator addr (squat guard).
 	testing.SetOriginCaller(validAddress)
-	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
+	valopers.Register(cross2(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 
 	// Switch back to g1user for the GovDAO submission.
 	testing.SetOriginCaller(g1user)
 
 	if err := revive(func() {
-		pr := proposal.NewValidatorProposalRequest(cross, validAddress)
-		dao.MustCreateProposal(cross, pr)
+		pr := proposal.NewValidatorProposalRequest(cross2(cur), validAddress)
+		dao.MustCreateProposal(cross2(cur), pr)
 	}); err != nil {
 		println("r: ", err)
 	} else {

@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers_test
+// PKGPATH: gno.land/r/gnops/valopers/filetests/z_2
 // SEND: 20000000ugnot
 
-package valopers_test
+package z_2
 
 import (
 	"testing"
@@ -20,14 +20,14 @@ const (
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
-func init() {
+func init(cur realm) {
 	// OriginCaller must equal the operator address (post-genesis squat guard).
 	// validAddress here was chosen so that derive(validPubKey) == validAddress,
 	// so OperatorAddress == SigningAddress in this fixture.
 	testing.SetOriginCaller(validAddress)
 
 	// Register a validator and add the proposal
-	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
+	valopers.Register(cross2(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 }
 
 func main() {
