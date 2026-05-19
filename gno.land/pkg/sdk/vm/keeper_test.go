@@ -213,7 +213,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross)
+	return test.Echo(cross2(cur))
 }`,
 		},
 	}
@@ -378,7 +378,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross)
+	return test.Echo(cross2(cur))
 }`,
 		},
 	}
@@ -997,8 +997,8 @@ package main
 
 import "gno.land/r/test"
 
-func main() {
-	msg := test.Echo(cross)
+func main(cur realm) {
+	msg := test.Echo(cross2(cur))
 	println(msg)
 }
 `,
@@ -1053,8 +1053,8 @@ package main
 
 import "gno.land/r/test"
 
-func main() {
-	msg := test.Echo(cross)
+func main(cur realm) {
+	msg := test.Echo(cross2(cur))
 	println(msg)
 }
 `,
