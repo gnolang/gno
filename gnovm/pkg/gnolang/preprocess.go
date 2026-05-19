@@ -4507,12 +4507,26 @@ func isRealm(ctx BlockNode) bool {
 // tests declare `func TestXxx(cur realm, t *testing.T)` and pass `cur`
 // into newly-migrated methods — production code in `p/` still can't
 // define crossing functions.
+//
+// MsgRun ephemeral `/e/` packages may also declare a crossing top-level
+// `main` — the single entry point — so a run script can opt into
+// `func main(cur realm)` + `cross2(cur)` instead of bare `cross`. Only
+// the FuncDecl named `main` is allowed (no helper functions, no
+// function literals), matching the ephemeral one-shot model.
 func crossingAllowed(ctx BlockNode, n BlockNode) bool {
 	if isRealm(ctx) {
 		return true
 	}
 	file := n.GetLocation().File
-	return strings.HasSuffix(file, "_test.gno")
+	if strings.HasSuffix(file, "_test.gno") {
+		return true
+	}
+	if fd, ok := n.(*FuncDecl); ok && fd.Name == "main" {
+		if IsEphemeralPath(packageOf(ctx).PkgPath) {
+			return true
+		}
+	}
+	return false
 }
 
 func packageOf(last BlockNode) *PackageNode {

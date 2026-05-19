@@ -1109,7 +1109,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	defer m2.Release()
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
-	m2.RunMain()
+	m2.RunMainMaybeCrossing()
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
