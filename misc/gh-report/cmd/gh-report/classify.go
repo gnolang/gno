@@ -159,3 +159,17 @@ func isStuck(e Entry) bool {
 	}
 	return true
 }
+
+func isNewContributor(e Entry) bool {
+	if e.AuthorIsBot {
+		return false
+	}
+	switch e.AuthorAssociation {
+	case "FIRST_TIMER", "FIRST_TIME_CONTRIBUTOR", "NONE":
+		return true
+	}
+	if e.AuthorAccountAge > 0 && e.AuthorAccountAge < time.Duration(NewContribAccountDays)*24*time.Hour {
+		return true
+	}
+	return false
+}

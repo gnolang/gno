@@ -238,3 +238,29 @@ func TestIsStuck(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNewContributor(t *testing.T) {
+	cases := []struct {
+		name string
+		e    Entry
+		want bool
+	}{
+		{"first timer", Entry{AuthorAssociation: "FIRST_TIMER"}, true},
+		{"first time contributor", Entry{AuthorAssociation: "FIRST_TIME_CONTRIBUTOR"}, true},
+		{"none association", Entry{AuthorAssociation: "NONE"}, true},
+		{"contributor association, old account",
+			Entry{AuthorAssociation: "CONTRIBUTOR", AuthorAccountAge: 365 * 24 * time.Hour}, false},
+		{"contributor association, young account",
+			Entry{AuthorAssociation: "CONTRIBUTOR", AuthorAccountAge: 30 * 24 * time.Hour}, true},
+		{"bot author excluded",
+			Entry{AuthorAssociation: "NONE", AuthorIsBot: true}, false},
+		{"member", Entry{AuthorAssociation: "MEMBER"}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := isNewContributor(c.e); got != c.want {
+				t.Errorf("isNewContributor=%v want %v", got, c.want)
+			}
+		})
+	}
+}
