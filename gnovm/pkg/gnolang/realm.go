@@ -273,8 +273,34 @@ func (rlm *Realm) String() string {
 //   - PopAsPointer2 (write path): checks readonly before calling.
 //   - doOpIndex (read path): passes nilRealm, so DidUpdate is a no-op.
 //   - debugger: passes nilRealm (read-only), so DidUpdate is a no-op.
-func (rlm *Realm) DidUpdate(po, xo, co Object) {
+func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	if rlm == nil {
+		// /p/-immutability gate: in StageRun, reject mutations to real
+		// /p/-stamped objects. The borrow rule shifts m.Realm to the
+		// /p/-package's realm (= nil post Phase 3 revert) when a method
+		// is dispatched on a /p/-stamped receiver, which would otherwise
+		// silently allow writes to /p/-init state. Stdlib is exempt
+		// (legit stdlib dispatch reaches this path too). Init-time
+		// writes are in StageAdd, also exempt.
+		if m != nil && m.Stage == StageRun && po != nil && po.GetIsReal() {
+			pid := po.GetObjectID().PkgID
+			if pid.IsImmutablePkg() && !pid.IsStdlibPkg() {
+				var pkgPath string
+				if m.Store != nil {
+					if obj := m.Store.GetObject(ObjectIDFromPkgID(pid)); obj != nil {
+						if pv, ok := obj.(*PackageValue); ok {
+							pkgPath = pv.PkgPath
+						}
+					}
+				}
+				if pkgPath == "" {
+					pkgPath = pid.String()
+				}
+				panic(fmt.Sprintf(
+					"cannot mutate %s: package is immutable post-init",
+					pkgPath))
+			}
+		}
 		return
 	}
 	if bm.Enabled {

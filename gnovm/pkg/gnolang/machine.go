@@ -576,9 +576,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		for _, update := range updates {
 			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
-				rlm.DidUpdate(pb, nil, hiv)
+				rlm.DidUpdate(m, pb, nil, hiv)
 			} else {
-				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+				rlm.DidUpdate(m, pb, nil, update.GetFirstObject(m.Store))
 			}
 		}
 	}
@@ -2657,9 +2657,9 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 				// Ensure we always panic, without expecting the caller to do it.
 				m.Panic(typedString(readonlyAccessPanic(lx)))
 			}
-			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {
-			pv = xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, iv)
+			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 			ro = m.IsReadonly(xv)
 		}
 	case *SelectorExpr:

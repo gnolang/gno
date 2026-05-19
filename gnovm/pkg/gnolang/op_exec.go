@@ -194,7 +194,7 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -206,10 +206,10 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
-				ev := xv.GetPointerAtIndex(m.Realm, m.Alloc, m.Store, &iv).Deref()
+				ev := xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -290,7 +290,7 @@ func (m *Machine) doOpExec(op Op) {
 				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -303,7 +303,7 @@ func (m *Machine) doOpExec(op Op) {
 				ev := typedRune(bs.NextRune)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -386,7 +386,7 @@ func (m *Machine) doOpExec(op Op) {
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -399,7 +399,7 @@ func (m *Machine) doOpExec(op Op) {
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)

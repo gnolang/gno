@@ -658,7 +658,7 @@ func makeUverseNode() {
 				arg0Capacity := arg0Value.Maxcap
 				arg0Base := arg0Value.GetBase(m.Store)
 				// NOTE, ANY MODIFICATION TO arg0 SHOULD ALWAYS CALL
-				// m.Realm.DidUpdate(arg0Base, nil, nil) FIRST TO CHECK WRITE PERMISSIONS.
+				// m.Realm.DidUpdate(m, arg0Base, nil, nil) FIRST TO CHECK WRITE PERMISSIONS.
 				switch arg1Value := arg1.TV.V.(type) {
 				// ------------------------------------------------------------
 				// append(*SliceValue, nil)
@@ -713,7 +713,7 @@ func makeUverseNode() {
 										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 										list[dstStart+i] = newElem
 
-										m.Realm.DidUpdate(
+										m.Realm.DidUpdate(m, 
 											arg0Base,
 											oldElem.GetFirstObject(m.Store),
 											newElem.GetFirstObject(m.Store),
@@ -731,7 +731,7 @@ func makeUverseNode() {
 								// DidUpdate is required here: raw byte copies do not
 								// go through Assign2, so arg0Base would not be marked
 								// dirty otherwise.
-								m.Realm.DidUpdate(arg0Base, nil, nil)
+								m.Realm.DidUpdate(m, arg0Base, nil, nil)
 								data := arg0Base.Data
 								if arg1Base.Data == nil {
 									m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
@@ -898,7 +898,7 @@ func makeUverseNode() {
 				// returns a DataByteType pointer and Assign2 returns early for that
 				// case without calling DidUpdate. The top-level call ensures the
 				// backing array is always marked dirty in the realm store.
-				m.Realm.DidUpdate(dstBase, nil, nil)
+				m.Realm.DidUpdate(m, dstBase, nil, nil)
 				// Assign2 fast-paths DataByteType (values.go:217): just SetDataByte
 				// + single DidUpdate. Per-byte cost lands in the Primitive tier.
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(minl))
@@ -906,7 +906,7 @@ func makeUverseNode() {
 				for i := range minl {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 					srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 				}
 				res0 := TypedValue{
 					T: IntType,
@@ -930,7 +930,7 @@ func makeUverseNode() {
 				}
 				dstBase := dstv.GetBase(m.Store)
 				// Same as above: DidUpdate is required for the DataByte case.
-				m.Realm.DidUpdate(dstBase, nil, nil)
+				m.Realm.DidUpdate(m, dstBase, nil, nil)
 				srcv := src.TV.V.(*SliceValue)
 				srcBase := srcv.GetBase(m.Store)
 				dstStart := dstv.Offset
@@ -951,7 +951,7 @@ func makeUverseNode() {
 				for i := start; i != end; i += step {
 					dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 					srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-					dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+					dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 				}
 				res0 := TypedValue{
 					T: IntType,
@@ -992,11 +992,11 @@ func makeUverseNode() {
 				if m.Realm != nil {
 					// mark key as deleted
 					keyObj := itv.GetFirstObject(m.Store)
-					m.Realm.DidUpdate(mv, keyObj, nil)
+					m.Realm.DidUpdate(m, mv, keyObj, nil)
 
 					// mark value as deleted
 					valObj := val.GetFirstObject(m.Store)
-					m.Realm.DidUpdate(mv, valObj, nil)
+					m.Realm.DidUpdate(m, mv, valObj, nil)
 				}
 
 				return

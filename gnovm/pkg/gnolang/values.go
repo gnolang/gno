@@ -212,27 +212,22 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
-func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special cases.
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
-		if rlm != nil && pv.Base != nil {
-			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		if pv.Base != nil {
+			rlm.DidUpdate(m, pv.Base.(Object), nil, nil)
 		}
 		return
 	}
 	// General case
-	if rlm != nil {
-		if debug && pv.Base == nil {
-			panic("expected non-nil base for assignment")
-		}
-		oo1 := pv.TV.GetFirstObject(store)
-		pv.TV.Assign(alloc, tv2, cu)
-		oo2 := pv.TV.GetFirstObject(store)
-		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
-	} else {
-		pv.TV.Assign(alloc, tv2, cu)
+	oo1 := pv.TV.GetFirstObject(store)
+	pv.TV.Assign(alloc, tv2, cu)
+	oo2 := pv.TV.GetFirstObject(store)
+	if pv.Base != nil {
+		rlm.DidUpdate(m, pv.Base.(Object), oo1, oo2)
 	}
 }
 
@@ -1997,10 +1992,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nilRealm, nilAllocator, store, &iv)
+	return tv.GetPointerAtIndex(nil, nilRealm, nilAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -2070,7 +2065,7 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		// Read paths (doOpIndex, debugger) pass nilRealm → DidUpdate is a no-op.
 		newObject := ivk.GetFirstObject(store)
 		if oldObject != newObject {
-			rlm.DidUpdate(mv, oldObject, newObject)
+			rlm.DidUpdate(m, mv, oldObject, newObject)
 		}
 
 		return pv

@@ -28,7 +28,7 @@ func (m *Machine) doOpIndex1() {
 		}
 	default:
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
-		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
+		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
