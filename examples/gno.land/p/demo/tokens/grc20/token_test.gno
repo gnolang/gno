@@ -11,22 +11,23 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-// newTestToken constructs a Token with a fresh crossing-frame cur so
-// NewToken's IsCurrent check + rlm.PkgPath() derivation works in p/ test
-// scope. The closure's package path becomes the Token's origRealm.
-func newTestToken(name, symbol string, decimals int) (tok *Token, adm *PrivateLedger) {
+// newTestToken constructs a Token. The IIFE same-realm cross
+// promotes the test's EOA-origin cur into a fresh /p/grc20
+// CodeRealm cur so NewToken's IsCurrent + non-empty rlm.PkgPath()
+// checks pass. cross2(rlm) is the explicit-rlm form of bare `cross`.
+func newTestToken(_ int, rlm realm, name, symbol string, decimals int) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
 		tok, adm = NewToken(0, cur, name, symbol, decimals)
-	}(cross)
+	}(cross2(rlm))
 	return
 }
 
-func TestTestImpl(t *testing.T) {
-	bank, _ := newTestToken("Dummy", "DUMMY", 4)
+func TestTestImpl(cur realm, t *testing.T) {
+	bank, _ := newTestToken(0, cur, "Dummy", "DUMMY", 4)
 	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
-func TestNewTokenValidation(t *testing.T) {
+func TestNewTokenValidation(cur realm, t *testing.T) {
 	// Each case wraps NewToken in a crossing closure (same as newTestToken)
 	// to satisfy IsCurrent + non-empty pkgPath. The validation under test
 	// is the name/symbol/decimals checks that run after.
@@ -36,7 +37,7 @@ func TestNewTokenValidation(t *testing.T) {
 		// NewToken's validators crosses a realm boundary — use revive()
 		// (defer-recover doesn't see cross-realm panics).
 		r := revive(func() {
-			newTestToken(name, sym, dec)
+			newTestToken(0, cur, name, sym, dec)
 		})
 		if r == nil {
 			t.Errorf("%s: expected panic, got none", label)
@@ -70,22 +71,22 @@ func TestNewTokenValidation(t *testing.T) {
 	mustPanic("Name", "OK", MaxDecimals+1, ErrInvalidDecimals, "decimals over cap")
 
 	// Boundary positives — should NOT panic.
-	tok, _ := newTestToken(strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), MaxDecimals)
+	tok, _ := newTestToken(0, cur, strings.Repeat("a", MaxNameLen), strings.Repeat("A", MaxSymbolLen), MaxDecimals)
 	urequire.True(t, tok != nil, "boundary name+symbol+decimals should succeed")
 
 	// UTF-8 name with non-ASCII is allowed.
-	tok2, _ := newTestToken("Доллар", "RUB", 2)
+	tok2, _ := newTestToken(0, cur, "Доллар", "RUB", 2)
 	urequire.True(t, tok2 != nil, "UTF-8 name should be allowed")
 }
 
-func TestToken(t *testing.T) {
+func TestToken(cur realm, t *testing.T) {
 	var (
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 		carl  = testutils.TestAddress("carl")
 	)
 
-	bank, adm := newTestToken("Dummy", "DUMMY", 6)
+	bank, adm := newTestToken(0, cur, "Dummy", "DUMMY", 6)
 
 	checkBalances := func(aliceEB, bobEB, carlEB int64) {
 		t.Helper()
@@ -142,10 +143,10 @@ func TestToken(t *testing.T) {
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
 
-func TestMintOverflow(t *testing.T) {
+func TestMintOverflow(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := newTestToken("Dummy", "DUMMY", 6)
+	tok, adm := newTestToken(0, cur, "Dummy", "DUMMY", 6)
 
 	safeValue := int64(1 << 62)
 	urequire.NoError(t, adm.Mint(alice, safeValue))
@@ -155,7 +156,7 @@ func TestMintOverflow(t *testing.T) {
 	uassert.Error(t, err, "expected ErrMintOverflow")
 }
 
-func TestTransferFromAtomicity(t *testing.T) {
+func TestTransferFromAtomicity(cur realm, t *testing.T) {
 	var (
 		owner   = testutils.TestAddress("owner")
 		spender = testutils.TestAddress("spender")
@@ -164,7 +165,7 @@ func TestTransferFromAtomicity(t *testing.T) {
 		recipient        = testutils.TestAddress("to")
 	)
 
-	token, admin := newTestToken("Test", "TEST", 6)
+	token, admin := newTestToken(0, cur, "Test", "TEST", 6)
 
 	// owner has 100 tokens, spender has 50 allowance
 	initialBalance := int64(100)
@@ -196,10 +197,10 @@ func TestTransferFromAtomicity(t *testing.T) {
 	uassert.Error(t, err, "transfer should fail due to insufficient balance")
 }
 
-func TestMintUntilOverflow(t *testing.T) {
+func TestMintUntilOverflow(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
-	tok, adm := newTestToken("Dummy", "DUMMY", 6)
+	tok, adm := newTestToken(0, cur, "Dummy", "DUMMY", 6)
 
 	tests := []struct {
 		name           string
