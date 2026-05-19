@@ -14,12 +14,6 @@ var (
 	bob   = testutils.TestAddress("bob")
 	carol = testutils.TestAddress("carol")
 	dave  = testutils.TestAddress("dave")
-
-	// cur is a zero-value realm used as a placeholder when forwarding to
-	// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-	// These tests pass `func()` callbacks (no crossing), so rlm is ignored —
-	// a nil realm here is safe and avoids restructuring the tests.
-	cur realm
 )
 
 func TestNewDAO(cur realm, t *testing.T) {
@@ -67,13 +61,13 @@ func TestNewDAO(cur realm, t *testing.T) {
 	// XXX: check realm and profile
 }
 
-func TestPropose(t *testing.T) {
+func TestPropose(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{}},
 		{carol.String(), []string{}},
 	}
-	tdao := newTestingDAO(t, 0.6, members)
+	tdao := newTestingDAO(0, cur, t, 0.6, members)
 
 	type testNewProposalInput struct {
 		proposalReq daokit.ProposalRequest
@@ -130,9 +124,9 @@ func TestPropose(t *testing.T) {
 	}
 
 	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
+		t.Run(testName, func(cur realm, t *testing.T) {
 			*tdao.mockHandlerCalled = false
-			testing.SetOriginCaller(test.input.proposer)
+			testing.SetRealm(testing.NewUserRealm(test.input.proposer))
 
 			// tdao.propose crosses into basedao via an IIFE same-realm
 			// cross; any panic inside the crossing frame is cross-realm
@@ -140,7 +134,7 @@ func TestPropose(t *testing.T) {
 			// to capture the cross-boundary abort.
 			var id uint64
 			exc := revive(func() {
-				id = tdao.propose(test.input.proposalReq)
+				id = tdao.propose(0, cur, test.input.proposalReq)
 			})
 			if test.expected.panic {
 				if exc == nil {
@@ -172,15 +166,16 @@ func TestPropose(t *testing.T) {
 	}
 }
 
-func TestVote(t *testing.T) {
+func TestVote(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{}},
 		{carol.String(), []string{}},
 	}
-	tdao := newTestingDAO(t, 0.6, members)
+	tdao := newTestingDAO(0, cur, t, 0.6, members)
 
-	tdao.propose(tdao.mockProposalRequest)
+	testing.SetRealm(testing.NewUserRealm(alice))
+	tdao.propose(0, cur, tdao.mockProposalRequest)
 
 	type testVoteInput struct {
 		proposalID uint64
@@ -254,13 +249,14 @@ func TestVote(t *testing.T) {
 	}
 
 	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
+		t.Run(testName, func(cur realm, t *testing.T) {
+			// SetRealm must run here, not inside `run`: SetRealm targets
+			// the deepest non-testing frame's fr.Cur HIV. A non-crossing
+			// `run` closure has no fr.Cur, so a SetRealm-from-inside-run
+			// silently no-ops on the closure-captured cur.
+			testing.SetRealm(testing.NewUserRealm(test.input.voter))
 			run := func() {
-				func() {
-					testing.SetOriginCaller(test.input.voter)
-				}()
-				tdao.vote(test.input.proposalID, test.input.vote)
-
+				tdao.vote(0, cur, test.input.proposalID, test.input.vote)
 			}
 
 			*tdao.mockHandlerCalled = false
@@ -282,15 +278,16 @@ func TestVote(t *testing.T) {
 	}
 }
 
-func TestExecuteProposal(t *testing.T) {
+func TestExecuteProposal(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{}},
 		{carol.String(), []string{}},
 	}
-	tdao := newTestingDAO(t, 0.6, members)
+	tdao := newTestingDAO(0, cur, t, 0.6, members)
 
-	tdao.propose(tdao.mockProposalRequest)
+	testing.SetRealm(testing.NewUserRealm(alice))
+	tdao.propose(0, cur, tdao.mockProposalRequest)
 
 	type testExecuteInput struct {
 		proposalID uint64
@@ -358,18 +355,18 @@ func TestExecuteProposal(t *testing.T) {
 	}
 
 	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
+		t.Run(testName, func(cur realm, t *testing.T) {
 			if test.input.haveVote {
-				testing.SetOriginCaller(test.input.voter)
-				tdao.vote(test.input.proposalID, "yes")
+				testing.SetRealm(testing.NewUserRealm(test.input.voter))
+				tdao.vote(0, cur, test.input.proposalID, "yes")
 			}
 
-			testing.SetOriginCaller(test.input.executor)
+			testing.SetRealm(testing.NewUserRealm(test.input.executor))
 
 			// tdao.execute crosses into basedao; cross-realm panic is
 			// not catchable by defer/recover, so use revive.
 			exc := revive(func() {
-				tdao.execute(test.input.proposalID)
+				tdao.execute(0, cur, test.input.proposalID)
 			})
 			if test.expected.panic {
 				if exc == nil {
@@ -391,13 +388,13 @@ func TestExecuteProposal(t *testing.T) {
 	}
 }
 
-func TestInstantExecute(t *testing.T) {
+func TestInstantExecute(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{}},
 		{carol.String(), []string{}},
 	}
-	tdao := newTestingDAO(t, 0.6, members)
+	tdao := newTestingDAO(0, cur, t, 0.6, members)
 
 	type testInstantExecuteInput struct {
 		proposalReq daokit.ProposalRequest
@@ -446,13 +443,13 @@ func TestInstantExecute(t *testing.T) {
 	}
 
 	for testName, test := range tests {
-		t.Run(testName, func(t *testing.T) {
-			testing.SetOriginCaller(test.input.executor)
+		t.Run(testName, func(cur realm, t *testing.T) {
+			testing.SetRealm(testing.NewUserRealm(test.input.executor))
 
 			// tdao.propose crosses into basedao; cross-realm panic
 			// is not catchable by defer/recover, so use revive.
 			exc := revive(func() {
-				tdao.propose(test.input.proposalReq)
+				tdao.propose(0, cur, test.input.proposalReq)
 			})
 			if test.expected.panic {
 				if exc == nil {
@@ -465,13 +462,13 @@ func TestInstantExecute(t *testing.T) {
 	}
 }
 
-func TestGetMembers(t *testing.T) {
+func TestGetMembers(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{}},
 		{carol.String(), []string{}},
 	}
-	tdao := newTestingDAO(t, 0.6, members)
+	tdao := newTestingDAO(0, cur, t, 0.6, members)
 
 	expectedMembers := []string{alice.String(), bob.String(), carol.String()}
 	m := tdao.privdao.Members.GetMembers()
@@ -486,17 +483,18 @@ func TestGetMembers(t *testing.T) {
 	}
 }
 
-func TestAddMemberProposal(t *testing.T) {
+func TestAddMemberProposal(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 	}
-	tdao := newTestingDAO(t, 0.2, members)
+	tdao := newTestingDAO(0, cur, t, 0.2, members)
 
 	if tdao.privdao.Members.IsMember(bob.String()) {
 		t.Errorf("Expected member %s to not be a member", bob.String())
 	}
 
-	tdao.instantExecute(daokit.ProposalRequest{
+	testing.SetRealm(testing.NewUserRealm(alice))
+	tdao.instantExecute(0, cur, daokit.ProposalRequest{
 		Title:       "My Proposal",
 		Description: "My Proposal Description",
 		Action: NewAddMemberAction(&ActionAddMember{
@@ -523,17 +521,17 @@ func TestAddMemberProposal(t *testing.T) {
 	}
 	// Cross-realm panic from instantExecute is not catchable by
 	// defer/recover; use revive.
-	if revive(func() { tdao.instantExecute(proposalWithUnknownRole) }) == nil {
+	if revive(func() { tdao.instantExecute(0, cur, proposalWithUnknownRole) }) == nil {
 		t.Errorf("Expected panic, got none")
 	}
 }
 
-func TestRemoveMemberProposal(t *testing.T) {
+func TestRemoveMemberProposal(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{"admin"}},
 	}
-	tdao := newTestingDAO(t, 0.2, members)
+	tdao := newTestingDAO(0, cur, t, 0.2, members)
 
 	if !tdao.privdao.Members.IsMember(bob.String()) {
 		t.Errorf("Expected member %s to be a member", bob.String())
@@ -542,7 +540,8 @@ func TestRemoveMemberProposal(t *testing.T) {
 	if !tdao.privdao.Members.HasRole(bob.String(), "admin") {
 		t.Errorf("Expected member %s to have role 'admin'", bob.String())
 	}
-	tdao.instantExecute(daokit.ProposalRequest{
+	testing.SetRealm(testing.NewUserRealm(alice))
+	tdao.instantExecute(0, cur, daokit.ProposalRequest{
 		Title:       "My Proposal",
 		Description: "My Proposal Description",
 		Action:      NewRemoveMemberAction(bob),
@@ -557,18 +556,19 @@ func TestRemoveMemberProposal(t *testing.T) {
 	}
 }
 
-func TestAddRoleToUserProposal(t *testing.T) {
+func TestAddRoleToUserProposal(cur realm, t *testing.T) {
 	members := []Member{
 		{alice.String(), []string{"admin"}},
 		{bob.String(), []string{}},
 	}
-	tdao := newTestingDAO(t, 0.2, members)
+	tdao := newTestingDAO(0, cur, t, 0.2, members)
 
 	if tdao.privdao.Members.HasRole(bob.String(), "admin") {
 		t.Errorf("Expected member %s to not have role 'admin'", bob.String())
 	}
 
-	tdao.instantExecute(daokit.ProposalRequest{
+	testing.SetRealm(testing.NewUserRealm(alice))
+	tdao.instantExecute(0, cur, daokit.ProposalRequest{
 		Title:       "My Proposal",
 		Description: "My Proposal Description",
 		Action:      NewAssignRoleAction(&ActionAssignRole{Address: bob, Role: "admin"}),
@@ -580,7 +580,7 @@ func TestAddRoleToUserProposal(t *testing.T) {
 	// Cross-realm panics aren't catchable by defer/recover; use revive
 	// per failing case.
 	if revive(func() {
-		tdao.instantExecute(daokit.ProposalRequest{
+		tdao.instantExecute(0, cur, daokit.ProposalRequest{
 			Title:       "My Proposal",
 			Description: "My Proposal Description",
 			Action:      NewAssignRoleAction(&ActionAssignRole{Address: alice, Role: "unknown"}),
@@ -590,7 +590,7 @@ func TestAddRoleToUserProposal(t *testing.T) {
 	}
 
 	if revive(func() {
-		tdao.instantExecute(daokit.ProposalRequest{
+		tdao.instantExecute(0, cur, daokit.ProposalRequest{
 			Title:       "My Proposal",
 			Description: "My Proposal Description",
 			Action:      NewAssignRoleAction(&ActionAssignRole{Address: carol, Role: "admin"}),
@@ -600,7 +600,7 @@ func TestAddRoleToUserProposal(t *testing.T) {
 	}
 
 	if revive(func() {
-		tdao.instantExecute(daokit.ProposalRequest{
+		tdao.instantExecute(0, cur, daokit.ProposalRequest{
 			Title:       "My Proposal",
 			Description: "My Proposal Description",
 			Action:      NewAssignRoleAction(&ActionAssignRole{Address: bob, Role: "admin"}),
@@ -610,7 +610,7 @@ func TestAddRoleToUserProposal(t *testing.T) {
 	}
 }
 
-func TestRemoveRoleFromUserProposal(t *testing.T) {
+func TestRemoveRoleFromUserProposal(cur realm, t *testing.T) {
 	members := []Member{
 		{
 			alice.String(),
@@ -621,12 +621,13 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 			[]string{"admin"},
 		},
 	}
-	tdao := newTestingDAO(t, 0.2, members)
+	tdao := newTestingDAO(0, cur, t, 0.2, members)
 
 	if !tdao.privdao.Members.HasRole(bob.String(), "admin") {
 		t.Errorf("Expected member %s to have role 'admin'", bob.String())
 	}
-	tdao.instantExecute(daokit.ProposalRequest{
+	testing.SetRealm(testing.NewUserRealm(alice))
+	tdao.instantExecute(0, cur, daokit.ProposalRequest{
 		Title:       "My Proposal",
 		Description: "My Proposal Description",
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: bob, Role: "admin"}),
@@ -641,8 +642,8 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 		Description: "My Proposal Description",
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: alice, Role: "unknown"}),
 	}
-	testing.SetOriginCaller(alice)
-	if revive(func() { tdao.instantExecute(proposalWithUnknowkRole) }) == nil {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	if revive(func() { tdao.instantExecute(0, cur, proposalWithUnknowkRole) }) == nil {
 		t.Errorf("Expected panic on unknown role, got none")
 	}
 
@@ -651,8 +652,8 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 		Description: "My Proposal Description",
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: carol, Role: "admin"}),
 	}
-	testing.SetOriginCaller(alice)
-	if revive(func() { tdao.instantExecute(proposalWithNonMember) }) == nil {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	if revive(func() { tdao.instantExecute(0, cur, proposalWithNonMember) }) == nil {
 		t.Errorf("Expected panic on non-member, got none")
 	}
 
@@ -661,8 +662,8 @@ func TestRemoveRoleFromUserProposal(t *testing.T) {
 		Description: "My Proposal Description",
 		Action:      NewUnassignRoleAction(&ActionUnassignRole{Address: bob, Role: "admin"}),
 	}
-	testing.SetOriginCaller(alice)
-	if revive(func() { tdao.instantExecute(proposalWithNonRole) }) == nil {
+	testing.SetRealm(testing.NewUserRealm(alice))
+	if revive(func() { tdao.instantExecute(0, cur, proposalWithNonRole) }) == nil {
 		t.Errorf("Expected panic on already-unassigned role, got none")
 	}
 }
@@ -676,7 +677,7 @@ type testingDAOContext struct {
 	unknownProposalRequest daokit.ProposalRequest
 }
 
-func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDAOContext {
+func newTestingDAO(_ int, rlm realm, t *testing.T, threshold float64, members []Member) *testingDAOContext {
 	roles := []RoleInfo{{Name: "admin", Description: "Admin is the superuser"}}
 	membersStore := NewMembersStore(roles, members)
 	initialCondition := daocond.MembersThreshold(threshold, membersStore.IsMember, membersStore.MembersCount)
@@ -692,8 +693,7 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 	daoRealm := testing.NewCodeRealm("gno.land/r/testing/daorealm")
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(daoRealm)
-	var pubdao *DAOWrapper
-	func(cur realm) { pubdao = New(conf, cur) }(cross)
+	pubdao := New(conf, rlm)
 	dao := pubdao.Private()
 
 	mockHandlerCalled := false
@@ -725,25 +725,22 @@ func newTestingDAO(t *testing.T, threshold float64, members []Member) *testingDA
 	}
 }
 
-// Crossing-closure helpers for the migrated (_ int, rlm realm)
-// signatures. Each wraps dao.X / daokit.InstantExecute in a fresh
-// crossing frame so the call passes the IsCurrent + member-check
-// gates inside basedao.
+// Crossing wrappers for dao.X calls.
 
-func (c *testingDAOContext) propose(req daokit.ProposalRequest) (id uint64) {
-	func(cur realm) { id = c.dao.Propose(0, cur, req) }(cross)
+func (c *testingDAOContext) propose(_ int, rlm realm, req daokit.ProposalRequest) (id uint64) {
+	func(cur realm) { id = c.dao.Propose(0, cur, req) }(cross2(rlm))
 	return
 }
 
-func (c *testingDAOContext) vote(id uint64, v daocond.Vote) {
-	func(cur realm) { c.dao.Vote(0, cur, id, v) }(cross)
+func (c *testingDAOContext) vote(_ int, rlm realm, id uint64, v daocond.Vote) {
+	func(cur realm) { c.dao.Vote(0, cur, id, v) }(cross2(rlm))
 }
 
-func (c *testingDAOContext) execute(id uint64) {
-	func(cur realm) { c.dao.Execute(0, cur, id) }(cross)
+func (c *testingDAOContext) execute(_ int, rlm realm, id uint64) {
+	func(cur realm) { c.dao.Execute(0, cur, id) }(cross2(rlm))
 }
 
-func (c *testingDAOContext) instantExecute(req daokit.ProposalRequest) (id uint64) {
-	func(cur realm) { id = c.dao.InstantExecute(0, cur, req) }(cross)
+func (c *testingDAOContext) instantExecute(_ int, rlm realm, req daokit.ProposalRequest) (id uint64) {
+	func(cur realm) { id = c.dao.InstantExecute(0, cur, req) }(cross2(rlm))
 	return
 }

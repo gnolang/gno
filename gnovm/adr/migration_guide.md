@@ -324,6 +324,58 @@ heuristics.
 
 ---
 
+## 12. `SetRealm` inside a non-crossing closure silently no-ops
+
+A natural-looking pattern in test code:
+
+```go
+t.Run(name, func(cur realm, t *testing.T) {
+    run := func() {
+        testing.SetRealm(testing.NewUserRealm(voter))
+        tdao.vote(0, cur, ...) // expects rlm.Previous() == voter
+    }
+    uassert.AbortsWithMessage(t, cur, "...", run)
+})
+```
+
+**This is broken.** `run` is a non-crossing closure, so its frame has no
+`fr.Cur` of its own. When `SetRealm` walks frames to find the deepest
+non-testing frame, it lands on `run` first and tries to mutate
+`fr.Cur` in place — but `fr.Cur` is empty, so the in-place mutation in
+`X_setContext` (see `gnovm/tests/stdlibs/testing/context_testing.go`'s
+`if pv, ok := fr.Cur.V.(gno.PointerValue); ok && pv.TV != nil` guard)
+silently skips. Only `ctx.RealmFrames[frameIdx]` gets set, which
+affects `X_getRealm` reads but not direct realm-value reads through
+`fr.Cur`.
+
+The closure-captured `cur` still refers to the *outer* subtest's HIV,
+which was never mutated. `cross2(cur)` inside `tdao.vote` then uses
+the un-mutated cur — `rlm.Previous().Address()` resolves to `""` (the
+fresh-origin default), not `voter`.
+
+**Fix:** call `SetRealm` *outside* the non-crossing closure, in the
+enclosing crossing scope:
+
+```go
+t.Run(name, func(cur realm, t *testing.T) {
+    testing.SetRealm(testing.NewUserRealm(voter))  // mutates THIS frame's cur
+    run := func() {
+        tdao.vote(0, cur, ...)  // captured `cur` now points to mutated HIV
+    }
+    uassert.AbortsWithMessage(t, cur, "...", run)
+})
+```
+
+The subtest closure is itself crossing (`func(cur realm, t *testing.T)`),
+so it has an `fr.Cur` for SetRealm to target. After mutation, the
+closure-captured `cur` reads the mutated values because closure capture
+shares the variable (and the variable shares HIV with `fr.Cur`).
+
+See `p/samcrew/basedao/basedao_test.gno` `TestVote` for the corrected
+pattern.
+
+---
+
 ## Appendix: open questions
 
 - **How best to mint a fresh cur after `SetRealm(NewUserRealm)`?**
