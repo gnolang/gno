@@ -20,34 +20,48 @@ export class SearchbarController extends BaseController {
 			this.warn("input target missing or wrong type");
 			return;
 		}
-		let url = inputElement.value.trim();
-		if (!url) {
+		const raw = inputElement.value.trim();
+		if (!raw) {
 			this.warn("empty URL");
 			return;
 		}
 
 		// OID-shaped input redirects to the state view for that object,
 		// preserving ?height=N so time-travel survives the jump.
-		if (OID_PATTERN.test(url) && !url.startsWith("/")) {
+		if (OID_PATTERN.test(raw) && !raw.startsWith("/")) {
 			const realmPath = this.currentRealmPath();
 			if (realmPath) {
 				const h = new URLSearchParams(location.search).get("height");
 				const pin = h && /^\d+$/.test(h) ? `&height=${h}` : "";
-				location.href = `${realmPath}$state&oid=${encodeURIComponent(url)}${pin}`;
+				location.href = `${realmPath}$state&oid=${encodeURIComponent(raw)}${pin}`;
 				return;
 			}
 		}
 
-		if (!/^https?:\/\//i.test(url)) {
-			const baseUrl = window.location.origin;
-			url = `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+		// Otherwise: strip a leading gno.land host + resolve against the
+		// current origin so realm paths copied from anywhere land locally.
+		const target = SearchbarController.resolveTarget(raw);
+		if (target === null) {
+			this.warn(`invalid URL: ${raw}`);
+			return;
 		}
+		window.location.href = target;
+	}
 
-		try {
-			window.location.href = new URL(url).href;
-		} catch (_error) {
-			this.warn(`invalid URL: ${url}`);
+	// resolveTarget strips a leading `gno.land` host (with or without scheme)
+	// so realm paths copied from anywhere resolve locally; non-`gno.land`
+	// absolute URLs pass through, and relatives resolve against the origin.
+	static resolveTarget(input: string): string | null {
+		const stripped = input.replace(
+			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
+			"",
+		);
+		const url = URL.parse(stripped, window.location.origin);
+		if (!url) {
+			console.error("SearchBarController: Invalid URL.");
+			return null;
 		}
+		return url.href;
 	}
 
 	private currentRealmPath(): string | null {

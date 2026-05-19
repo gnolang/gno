@@ -58,6 +58,15 @@ func main() {
 	// key can bootstrap itself as a GovDAO T1 member for this proposal.
 	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
 
+	// Disable the 24h cooldown so the remove proposal later in this
+	// scenario isn't blocked. Mainnet keeps cooldown=24h; this scenario
+	// specifically exercises back-to-back add+remove and uses the
+	// governance-configurable cooldown to enable that.
+	disableReq := valr.NewCooldownPropRequest(0, "disable cooldown for e2e scenario 18", "")
+	disablePid := dao.MustCreateProposal(cross, disableReq)
+	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: disablePid})
+	dao.ExecuteProposal(cross, disablePid)
+
 	r := valr.NewValidatorProposalRequest(
 		[]valr.ValoperChange{
 			{
