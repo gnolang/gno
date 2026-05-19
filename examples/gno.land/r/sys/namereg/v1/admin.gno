@@ -28,6 +28,7 @@ func setPaused(cur realm, newPausedValue bool) {
 
 func updateUsername(cur realm, userData *susers.UserData, newName string) error {
 	// UpdateName must be called from this realm.
+	// If the canonical name exists it's re-mapped to the new name.
 	return userData.UpdateNameIgnoreCanonical(0, cur, newName)
 }
 
@@ -80,6 +81,10 @@ func NewSetPausedExecutor(cur realm, newPausedValue bool) dao.ProposalRequest {
 // subject to the base shape enforced by `r/sys/users.validateName`
 // (`^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, max 64 chars), which runs inside
 // the updateUsername callback below.
+//
+// The new name overrides any canonical name collision, so if a prior canonical
+// entry exists when the new name is applied it's silently overwritten, mapping
+// the canonical name to the new name.
 func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
