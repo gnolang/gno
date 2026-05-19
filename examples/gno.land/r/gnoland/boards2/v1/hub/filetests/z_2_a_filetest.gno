@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/hub/filetests/z_2_a_filetest
+
 // Test getting boards when no boards exist
-package main
+package z_2_a_filetest
 
 import (
 	"testing"
@@ -8,9 +10,9 @@ import (
 	"gno.land/r/gnoland/boards2/v1/hub"
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	boards := hub.GetBoards(cross, 0, boards2.BoardCount())
+	boards := hub.GetBoards(cross2(cur), 0, boards2.BoardCount())
 	println(len(boards))
 }
 

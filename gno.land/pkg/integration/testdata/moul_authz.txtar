@@ -40,9 +40,7 @@ func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
 	if runtime.CurrentRealm().PkgPath() != "gno.land/r/testing/resource" {
 		return errors.New("unauthorized proposer")
 	}
-	func(cur realm) {
-		props = append(props, &prop{title: title, action: action})
-	}(cross)
+	props = append(props, &prop{title: title, action: action})
 	return nil
 }
 
@@ -76,9 +74,7 @@ func Value(cur realm) string {
 
 func Edit(cur realm, newValue string) {
 	doEdit := func() error {
-		func(cur realm) {
-			value = newValue
-		}(cross)
+		value = newValue
 		return nil
 	}
 	if err := a.DoByPrevious(0, cur, "Edit", doEdit); err != nil {

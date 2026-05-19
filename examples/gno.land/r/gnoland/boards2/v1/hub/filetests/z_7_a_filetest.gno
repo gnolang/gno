@@ -19,12 +19,12 @@ func init(cur realm) {
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, _ = hub.GetThread(cross, uint64(boardID), uint64(threadID))
+	thread, _ = hub.GetThread(cross2(cur), uint64(boardID), uint64(threadID))
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comments := hub.GetComments(cross, thread.BoardID, thread.ID, 0, thread.CommentCount)
+	comments := hub.GetComments(cross2(cur), thread.BoardID, thread.ID, 0, thread.CommentCount)
 	println(len(comments))
 }
 

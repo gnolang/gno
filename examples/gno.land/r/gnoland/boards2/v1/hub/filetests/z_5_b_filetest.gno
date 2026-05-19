@@ -27,12 +27,12 @@ func init(cur realm) {
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, _ = hub.GetThread(cross, uint64(boardID), uint64(threadID))
+	thread, _ = hub.GetThread(cross2(cur), uint64(boardID), uint64(threadID))
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	reposts := hub.GetReposts(cross, thread.BoardID, thread.ID, 0, thread.RepostCount)
+	reposts := hub.GetReposts(cross2(cur), thread.BoardID, thread.ID, 0, thread.RepostCount)
 
 	for _, t := range reposts {
 		println(t.ID, t.Title)

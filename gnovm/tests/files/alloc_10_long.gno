@@ -1,14 +1,15 @@
+// PKGPATH: gno.land/r/test/alloc_10
 // MAXALLOC: 10000
 
-package main
+package alloc_10
 
 import (
 	"gno.land/r/archive/boards"
 )
 
-func main() {
+func main(cur realm) {
 	// not enough memory to run.
-	_ = boards.CreateBoard(cross, "testboard")
+	_ = boards.CreateBoard(cross2(cur), "testboard")
 }
 
 // Error:

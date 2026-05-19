@@ -41,12 +41,12 @@ func init(cur realm) {
 
 	// Get readonly comment
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comment, _ = hub.GetComment(cross, uint64(boardID), uint64(threadID), uint64(commentID))
+	comment, _ = hub.GetComment(cross2(cur), uint64(boardID), uint64(threadID), uint64(commentID))
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(cross, comment.BoardID, comment.ThreadID, comment.ID, 0, comment.FlagCount)
+	flags := hub.GetFlags(cross2(cur), comment.BoardID, comment.ThreadID, comment.ID, 0, comment.FlagCount)
 
 	for _, f := range flags {
 		println(f.User, f.Reason)

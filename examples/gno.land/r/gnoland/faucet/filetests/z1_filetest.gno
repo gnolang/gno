@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/faucet/filetests/z1_filetest
+
+package z1_filetest
 
 import (
 	"chain"
@@ -14,8 +16,8 @@ func init() {
 }
 
 // assert render with a path and no controllers
-func main() {
-	println(faucet.Render(cross, "path"))
+func main(cur realm) {
+	println(faucet.Render(cross2(cur), "path"))
 }
 
 // Output:

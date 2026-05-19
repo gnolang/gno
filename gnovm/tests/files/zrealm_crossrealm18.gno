@@ -17,11 +17,12 @@ func (fooer) Bar() {
 	println("hello " + runtime.CurrentRealm().PkgPath())
 }
 
-var f crossrealm.Fooer = crossrealm.SetFooer(cross, &fooer{})
+var f crossrealm.Fooer
 
 func init(cur realm) {
 	println("init")
-	// crossrealm.CallFooerFooCur(cross) <-- should panic
+	f = crossrealm.SetFooer(cross2(cur), &fooer{})
+	// crossrealm.CallFooerFooCur(cross2(cur)) <-- should panic
 	crossrealm.CallFooerFooCross(cross2(cur))
 	crossrealm.CallFooerBar()
 	crossrealm.CallFooerBarCrossing(cross2(cur))
@@ -36,5 +37,13 @@ func main(cur realm) {
 	print(".")
 }
 
-// Error:
-// cannot resolve foreign realm RID0C8307F7BBE97FDB07B2D0FA6907B8D67517C02A for cross-realm finalize
+// Output:
+// init
+// hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
+// main
+// hello gno.land/r/crossrealm
+// hello gno.land/r/crossrealm
+// hello gno.land/r/tests/vm/crossrealm
+// .

@@ -23,9 +23,9 @@ func init(cur realm) {
 	threadID = boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	flags := hub.GetFlags(cross, uint64(boardID), uint64(threadID), 0, 0, 1)
+	flags := hub.GetFlags(cross2(cur), uint64(boardID), uint64(threadID), 0, 0, 1)
 	println(len(flags))
 }
 

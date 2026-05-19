@@ -34,9 +34,9 @@ func init(cur realm) {
 	boards2.FlagReply(cross2(cur), boardID, threadID, commentID, "Reason")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comment, found := hub.GetComment(cross, uint64(boardID), uint64(threadID), uint64(commentID))
+	comment, found := hub.GetComment(cross2(cur), uint64(boardID), uint64(threadID), uint64(commentID))
 	if !found {
 		return
 	}

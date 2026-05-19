@@ -17,9 +17,9 @@ func init(cur realm) {
 	boards2.CreateBoard(cross2(cur), "ccc123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	boards := hub.GetBoards(cross, 0, boards2.BoardCount())
+	boards := hub.GetBoards(cross2(cur), 0, boards2.BoardCount())
 
 	for _, b := range boards {
 		println(b.ID, b.Name)

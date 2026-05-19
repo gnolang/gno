@@ -42,9 +42,9 @@ func init(cur realm) {
 	boards2.FlagThread(cross2(cur), boardID, threadID, "Reason")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, found := hub.GetThread(cross, uint64(boardID), uint64(threadID))
+	thread, found := hub.GetThread(cross2(cur), uint64(boardID), uint64(threadID))
 	if !found {
 		return
 	}

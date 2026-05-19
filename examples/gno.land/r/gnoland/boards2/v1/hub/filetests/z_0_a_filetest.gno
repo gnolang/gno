@@ -19,9 +19,9 @@ func init(cur realm) {
 	boardID = boards2.CreateBoard(cross2(cur), "test123", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, found := hub.GetBoard(cross, uint64(boardID))
+	board, found := hub.GetBoard(cross2(cur), uint64(boardID))
 	if !found {
 		return
 	}
