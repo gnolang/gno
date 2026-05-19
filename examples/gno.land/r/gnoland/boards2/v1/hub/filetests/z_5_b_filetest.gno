@@ -14,25 +14,25 @@ var thread hub.Thread
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID := boards2.CreateBoard(cross2(cur), "aaa123", false, false)
-	threadID := boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
+	boardID := boards2.CreateBoard(cross(cur), "aaa123", false, false)
+	threadID := boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 
 	// Create first repost
-	dstBoardID := boards2.CreateBoard(cross2(cur), "bbb123", false, false)
-	boards2.CreateRepost(cross2(cur), boardID, threadID, dstBoardID, "First", "Body")
+	dstBoardID := boards2.CreateBoard(cross(cur), "bbb123", false, false)
+	boards2.CreateRepost(cross(cur), boardID, threadID, dstBoardID, "First", "Body")
 
 	// Create second repost
-	dstBoardID = boards2.CreateBoard(cross2(cur), "ccc123", false, false)
-	boards2.CreateRepost(cross2(cur), boardID, threadID, dstBoardID, "Second", "Body")
+	dstBoardID = boards2.CreateBoard(cross(cur), "ccc123", false, false)
+	boards2.CreateRepost(cross(cur), boardID, threadID, dstBoardID, "Second", "Body")
 
 	// Get readonly thread
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, _ = hub.GetThread(cross2(cur), uint64(boardID), uint64(threadID))
+	thread, _ = hub.GetThread(cross(cur), uint64(boardID), uint64(threadID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	reposts := hub.GetReposts(cross2(cur), thread.BoardID, thread.ID, 0, thread.RepostCount)
+	reposts := hub.GetReposts(cross(cur), thread.BoardID, thread.ID, 0, thread.RepostCount)
 
 	for _, t := range reposts {
 		println(t.ID, t.Title)

@@ -12,14 +12,14 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross2(cur), "TEST123", false, false)
+	boards2.CreateBoard(cross(cur), "TEST123", false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Should fail because board name already exists with a different casing
-	boards2.CreateBoard(cross2(cur), "test123", false, false)
+	boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
 // Error:

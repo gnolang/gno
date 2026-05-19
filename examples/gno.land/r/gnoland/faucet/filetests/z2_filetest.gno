@@ -24,15 +24,15 @@ func main(cur realm) {
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
 	testing.SetRealm(testing.NewUserRealm(adminaddr))
-	err := faucet.AdminAddController(cross2(cur), controlleraddr1)
+	err := faucet.AdminAddController(cross(cur), controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(cross2(cur), controlleraddr2)
+	err = faucet.AdminAddController(cross(cur), controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
-	println(faucet.Render(cross2(cur), ""))
+	println(faucet.Render(cross(cur), ""))
 }
 
 // Output:

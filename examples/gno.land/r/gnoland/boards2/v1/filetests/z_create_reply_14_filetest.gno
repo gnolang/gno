@@ -28,8 +28,8 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, true)
-	tid = boards2.CreateThread(cross2(cur), bid, "Title", "Body")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
@@ -39,7 +39,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Non members should be able to add replies
-	boards2.CreateReply(cross2(cur), bid, tid, 0, comment)
+	boards2.CreateReply(cross(cur), bid, tid, 0, comment)
 
 	// Render content must contain the reply
 	content := boards2.Render("test123/1")

@@ -8,20 +8,20 @@ import (
 
 func main(cur realm) {
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooerGetter(cross2(cur), func() crossrealm.Fooer { return f })
-	crossrealm.CallFooerGetterFooCross(cross2(cur))
+	crossrealm.SetFooerGetter(cross(cur), func() crossrealm.Fooer { return f })
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.SetS("B")
-	crossrealm.CallFooerGetterFooCross(cross2(cur))
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	println(".")
 
 	f.SetS("C")
-	crossrealm.SetFooerGetter(cross2(cur), crossrealm_b.FooerGetter)
-	crossrealm.CallFooerGetterFooCross(cross2(cur))
+	crossrealm.SetFooerGetter(cross(cur), crossrealm_b.FooerGetter)
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	println(".")
 
 	f.SetS("D")
-	crossrealm.SetFooerGetter(cross2(cur), crossrealm_b.FooerGetterBuilder())
-	crossrealm.CallFooerGetterFooCross(cross2(cur))
+	crossrealm.SetFooerGetter(cross(cur), crossrealm_b.FooerGetterBuilder())
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	println(".")
 }
 
@@ -101,12 +101,12 @@ func main(cur realm) {
 //             "PkgPath": "gno.land/r/crossrealm",
 //             "Span": {
 //                 "End": {
-//                     "Column": "77",
+//                     "Column": "76",
 //                     "Line": "11"
 //                 },
 //                 "Num": "0",
 //                 "Pos": {
-//                     "Column": "41",
+//                     "Column": "40",
 //                     "Line": "11"
 //                 }
 //             }
@@ -145,7 +145,7 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "a9137b0c1ba2fbe0a4c917c8e5674cb6dad241df",
+//     +            "Hash": "36efb1f513ace65016206145048e7b880439ed56",
 //     +            "ObjectID": "0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:5"
 //              }
 //          }
@@ -189,7 +189,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "68684cec1e3a40b9022f09802324c8388b874458",
-//     +                "Hash": "eb776e60471377c01ab30af8269a989c47e032ea",
+//     +                "Hash": "304f15dc7576f5bdb3ec81a66072a14aa42ca841",
 //                      "ObjectID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:14"
 //                  }
 //              },
@@ -283,7 +283,7 @@ func main(cur realm) {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "a9137b0c1ba2fbe0a4c917c8e5674cb6dad241df",
+//     -            "Hash": "36efb1f513ace65016206145048e7b880439ed56",
 //     -            "ObjectID": "0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:5"
 //     +            "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:7"
 //              }
@@ -339,7 +339,7 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "eb776e60471377c01ab30af8269a989c47e032ea",
+//     -                "Hash": "304f15dc7576f5bdb3ec81a66072a14aa42ca841",
 //     +                "Hash": "f304224c3678ae566effa9f679429b3552eabcff",
 //                      "ObjectID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:14"
 //                  }

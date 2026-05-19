@@ -24,15 +24,15 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, true)
-	tid = boards2.CreateThread(cross2(cur), bid, "Title", "Body")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Non members should be able to add replies only if they have enough GNOT
-	boards2.CreateReply(cross2(cur), bid, tid, 0, comment)
+	boards2.CreateReply(cross(cur), bid, tid, 0, comment)
 }
 
 // Error:

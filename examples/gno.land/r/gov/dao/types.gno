@@ -193,7 +193,7 @@ func (e *SimpleExecutor) Execute(cur realm) error {
 		return nil
 	}
 
-	return e.callback(cross2(cur))
+	return e.callback(cross(cur))
 }
 
 func (e *SimpleExecutor) String() string {
@@ -222,7 +222,7 @@ func (e *SafeExecutor) Execute(cur realm) error {
 		return errors.New("execution only allowed by validated govDAOs")
 	}
 
-	return e.e.Execute(cross2(cur))
+	return e.e.Execute(cross(cur))
 }
 
 func (e *SafeExecutor) String() string {
@@ -268,7 +268,7 @@ type DAO interface {
 	// will be used to show new data through the dao proxy entrypoint.
 	// Crossing: the chain query layer auto-injects .cur, and
 	// implementations forward cur to internal rlm-aware helpers (mux
-	// RenderRlm + downstream cross2(rlm) reads).
+	// RenderRlm + downstream cross(rlm) reads).
 	Render(cur realm, pkgpath string, path string) string
 }
 

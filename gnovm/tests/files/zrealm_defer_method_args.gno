@@ -19,7 +19,7 @@ func (b *Bag) Add(x, y int) {
 
 func main(cur realm) {
 	b := &Bag{}
-	crossrealm.SetObject(cross2(cur), b)
+	crossrealm.SetObject(cross(cur), b)
 
 	defer b.Add(10, 20)
 	defer b.Add(30, 40) // LIFO: 30,40 fires first, then 10,20

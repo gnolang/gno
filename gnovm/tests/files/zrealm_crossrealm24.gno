@@ -12,8 +12,8 @@ type Struct struct {
 func main(cur realm) {
 	a := 1
 	s := &Struct{A: 100}
-	crossrealm_b.SetClosure(cross2(cur), func() {})
-	crossrealm_b.SetObject(cross2(cur), &a)
+	crossrealm_b.SetClosure(cross(cur), func() {})
+	crossrealm_b.SetObject(cross(cur), &a)
 	//cross(crossrealm_b.SetObject)(&s.A)
 	//cross(crossrealm_b.SetObject)(func() { &s.A })
 	s.A = 123

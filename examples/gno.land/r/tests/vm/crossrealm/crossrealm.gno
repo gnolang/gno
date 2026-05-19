@@ -52,7 +52,7 @@ func CallFooerFooCur(cur realm) {
 }
 
 func CallFooerFooCross(cur realm) {
-	fooer.Foo(cross2(cur))
+	fooer.Foo(cross(cur))
 }
 
 func CallFooerBar() {
@@ -89,7 +89,7 @@ func CallFooerGetterFooCur(cur realm) {
 }
 
 func CallFooerGetterFooCross(cur realm) {
-	fooerGetter().Foo(cross2(cur))
+	fooerGetter().Foo(cross(cur))
 }
 
 // This is a top function that does switch realms.
@@ -130,13 +130,13 @@ func SetClosure2(cur realm, f func(realm)) {
 	Closure2 = f
 }
 func ExecuteClosureCross(cur realm) {
-	Closure2(cross2(cur))
+	Closure2(cross(cur))
 }
 
 // Closure3 mirrors Closure but for non-crossing-with-rlm closures —
 // `func(_ int, rlm realm)`. Whoever sets Closure3 receives cur as a
 // plain value (no realm boundary at invocation time), then can cross
-// internally via cross2(rlm).
+// internally via cross(rlm).
 var Closure3 func(_ int, rlm realm)
 
 func SetClosure3(cur realm, f func(_ int, rlm realm)) {
@@ -173,9 +173,9 @@ func EntryPoint() (noCros *ownable.Ownable) {
 
 // EntryPointWithCrossing is a non-crossing helper that forwards into
 // the (cur realm)-crossing PrevRealmCrossing. Callers pass their own
-// live cur; `cross2(rlm)` does the actual cross.
+// live cur; `cross(rlm)` does the actual cross.
 func EntryPointWithCrossing(_ int, rlm realm) (withCros *ownable.Ownable) {
-	return PrevRealmCrossing(cross2(rlm))
+	return PrevRealmCrossing(cross(rlm))
 }
 
 func PrevRealmNoCrossing() *ownable.Ownable {

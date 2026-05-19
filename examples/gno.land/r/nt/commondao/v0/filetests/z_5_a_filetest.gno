@@ -33,12 +33,12 @@ var (
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross2(cur), "Foo")
+	dao := commondao.New(cross(cur), "Foo")
 	daoID = dao.ID()
 
 	// Configure DAO
@@ -52,7 +52,7 @@ func main(cur realm) {
 	// User must be the caller to Vote()
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Vote(cross2(cur), daoID, proposal.ID(), vote, "")
+	commondao.Vote(cross(cur), daoID, proposal.ID(), vote, "")
 
 	record := proposal.VotingRecord()
 	if record.Size() != 1 {

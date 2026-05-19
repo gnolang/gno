@@ -6,12 +6,12 @@ import "gno.land/r/tests/vm/crossrealm"
 // crossrealm_test -> crossrealm -> crossrealm
 func main(cur realm) {
 	f := func(_ int, rlm realm) {
-		crossrealm.PrintRealms(cross2(rlm))
+		crossrealm.PrintRealms(cross(rlm))
 	}
 
-	crossrealm.SetClosure3(cross2(cur), f)
+	crossrealm.SetClosure3(cross(cur), f)
 
-	crossrealm.ExecuteClosure3(cross2(cur))
+	crossrealm.ExecuteClosure3(cross(cur))
 }
 
 // Output:

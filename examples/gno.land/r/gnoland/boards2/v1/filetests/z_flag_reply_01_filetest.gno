@@ -13,7 +13,7 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FlagReply(cross2(cur), 404, 1, 1, "Reason")
+	boards2.FlagReply(cross(cur), 404, 1, 1, "Reason")
 }
 
 // Error:

@@ -24,7 +24,7 @@ import (
 
 func main(cur realm) {
 	// 1. Initial state.
-	println("counter:", crossrealm_d.GetCounter(cross2(cur))) // 100
+	println("counter:", crossrealm_d.GetCounter(cross(cur))) // 100
 
 	// 2. Non-crossing set → panics, recover catches it.
 	func() {
@@ -38,17 +38,17 @@ func main(cur realm) {
 	}()
 
 	// 3. Counter must still be 100.
-	println("counter after set+recover:", crossrealm_d.GetCounter(cross2(cur)))
+	println("counter after set+recover:", crossrealm_d.GetCounter(cross(cur)))
 
 	// 4. A crossing call that depends on counter.
 	//    Without the fix: counter=0 in memory → DoubleCounter returns 0.
 	//    With the fix: counter=100 → DoubleCounter returns 200.
-	result := crossrealm_d.DoubleCounter(cross2(cur))
+	result := crossrealm_d.DoubleCounter(cross(cur))
 	println("double:", result)
 
 	// 5. Verify the crossing setter works correctly for comparison.
-	crossrealm_d.SetCounterCrossing(cross2(cur), 50)
-	println("after crossing set:", crossrealm_d.GetCounter(cross2(cur))) // 50
+	crossrealm_d.SetCounterCrossing(cross(cur), 50)
+	println("after crossing set:", crossrealm_d.GetCounter(cross(cur))) // 50
 }
 
 // Output:

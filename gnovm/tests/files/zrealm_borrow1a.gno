@@ -46,7 +46,7 @@ func (p *Passthrough) PrintRealms(_ int, rlm realm) {
 }
 
 func (p *Passthrough) printRealm(_ int, rlm realm) {
-	p.S.PrintRealms(cross2(rlm))
+	p.S.PrintRealms(cross(rlm))
 }
 
 var s *Struct
@@ -58,7 +58,7 @@ func init() {
 func main(cur realm) {
 	p := &Passthrough{S: s}
 
-	crossrealm.SetObject(cross2(cur), p) // saved in crossrealm.
+	crossrealm.SetObject(cross(cur), p) // saved in crossrealm.
 
 	p.Mutate() // receiver method borrows crossrealm.
 

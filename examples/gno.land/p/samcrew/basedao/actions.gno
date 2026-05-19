@@ -126,7 +126,7 @@ func NewUnassignRoleAction(payload *ActionUnassignRole) daokit.Action {
 //   - DAOWrapper.Execute → DAOPrivate.executeWithRlm uses
 //     Core.ExecuteWithDispatch to intercept ActionEditProfileKind and
 //     dispatch through editProfileHandler.execute(0, rlm, action),
-//     enabling cross2(rlm) instead of a bare cross.
+//     enabling cross(rlm) instead of a bare cross.
 
 const ActionEditProfileKind = "gno.land/p/samcrew/basedao.EditProfile"
 
@@ -177,7 +177,7 @@ func (h *editProfileHandler) execute(_ int, rlm realm, action daokit.Action) {
 		if len(h.allowedFields) > 0 && !stringSliceContains(h.allowedFields, k) {
 			panic(ufmt.Errorf("unauthorized field %q", k))
 		}
-		h.setter(cross2(rlm), k, v)
+		h.setter(cross(rlm), k, v)
 	}
 }
 

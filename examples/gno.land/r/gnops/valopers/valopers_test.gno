@@ -89,7 +89,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.AbortsWithMessage(t, cur, ErrValoperExists.Error(), func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 	})
 
@@ -104,7 +104,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 0)})
 
 		uassert.AbortsWithMessage(t, cur, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 	})
 
@@ -119,7 +119,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", minFee.Amount-1)})
 
 		uassert.AbortsWithMessage(t, cur, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 	})
 
@@ -134,7 +134,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("gnogno", minFee.Amount)})
 
 		uassert.AbortsWithMessage(t, cur, "incompatible coin denominations: gnogno, ugnot", func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 	})
 
@@ -147,7 +147,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.AbortsWithMessage(t, cur, ErrOperatorSquatGuard.Error(), func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 	})
 
@@ -161,7 +161,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotAborts(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, cur, func() {
@@ -194,7 +194,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 
 		// First registration succeeds.
 		uassert.NotAborts(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		// Second attempt with a different operator addr but the same
@@ -204,7 +204,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.AbortsWithMessage(t, cur, ErrSigningKeyTaken.Error(), func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, other, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, other, info.PubKey)
 		})
 	})
 
@@ -222,7 +222,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.AbortsWithMessage(t, cur, ErrFrontrunValidator.Error(), func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		// Cleanup: clear the seeded valset to avoid leaking into
@@ -255,7 +255,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		// Auth owner must be the operator addr (info.Address), NOT
@@ -269,7 +269,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(info.Address))
 		testing.SetOriginCaller(info.Address)
 		uassert.NotPanics(t, cur, func() {
-			UpdateMoniker(cross2(cur), info.Address, "operator-renamed")
+			UpdateMoniker(cross(cur), info.Address, "operator-renamed")
 		})
 		uassert.Equal(t, "operator-renamed", GetByAddr(info.Address).Moniker)
 
@@ -278,7 +278,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(deployer))
 		testing.SetOriginCaller(deployer)
 		uassert.AbortsContains(t, cur, "caller is not in authorized list", func() {
-			UpdateMoniker(cross2(cur), info.Address, "deployer-attempt")
+			UpdateMoniker(cross(cur), info.Address, "deployer-attempt")
 		})
 	})
 
@@ -295,7 +295,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		v := GetByAddr(info.Address)
@@ -315,14 +315,14 @@ func TestValopers_UpdateAuthMembers(cur realm, t *testing.T) {
 
 		// Add the valoper.
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		// A different caller (not on the auth list) tries to add a member.
 		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		uassert.AbortsWithMessage(t, cur, authorizable.ErrNotSuperuser.Error(), func() {
-			AddToAuthList(cross2(cur), info.Address, test2Address)
+			AddToAuthList(cross(cur), info.Address, test2Address)
 		})
 	})
 
@@ -334,18 +334,18 @@ func TestValopers_UpdateAuthMembers(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, cur, func() {
-			AddToAuthList(cross2(cur), info.Address, test2Address)
+			AddToAuthList(cross(cur), info.Address, test2Address)
 		})
 
 		// A different caller tries to delete a member.
 		testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("attacker")))
 
 		uassert.AbortsWithMessage(t, cur, authorizable.ErrNotSuperuser.Error(), func() {
-			DeleteFromAuthList(cross2(cur), info.Address, test2Address)
+			DeleteFromAuthList(cross(cur), info.Address, test2Address)
 		})
 	})
 
@@ -357,18 +357,18 @@ func TestValopers_UpdateAuthMembers(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, cur, func() {
-			AddToAuthList(cross2(cur), info.Address, test2Address)
+			AddToAuthList(cross(cur), info.Address, test2Address)
 		})
 
 		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		newMoniker := "new moniker"
 		uassert.NotPanics(t, cur, func() {
-			UpdateMoniker(cross2(cur), info.Address, newMoniker)
+			UpdateMoniker(cross(cur), info.Address, newMoniker)
 		})
 
 		uassert.NotPanics(t, cur, func() {
@@ -387,7 +387,7 @@ func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 		info := validValidatorInfo(t)
 
 		uassert.AbortsWithMessage(t, cur, ErrValoperMissing.Error(), func() {
-			UpdateMoniker(cross2(cur), info.Address, "new moniker")
+			UpdateMoniker(cross(cur), info.Address, "new moniker")
 		})
 	})
 
@@ -399,14 +399,14 @@ func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		// Change the caller to someone not on the auth list.
 		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		uassert.AbortsWithMessage(t, cur, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateMoniker(cross2(cur), info.Address, "new moniker")
+			UpdateMoniker(cross(cur), info.Address, "new moniker")
 		})
 	})
 
@@ -418,7 +418,7 @@ func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		invalidMonikers := []string{
@@ -433,7 +433,7 @@ func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 
 		for _, invalidMoniker := range invalidMonikers {
 			uassert.AbortsWithMessage(t, cur, ErrInvalidMoniker.Error(), func() {
-				UpdateMoniker(cross2(cur), info.Address, invalidMoniker)
+				UpdateMoniker(cross(cur), info.Address, invalidMoniker)
 			})
 		}
 	})
@@ -446,11 +446,11 @@ func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.AbortsWithMessage(t, cur, ErrInvalidMoniker.Error(), func() {
-			UpdateMoniker(cross2(cur), info.Address, strings.Repeat("a", MonikerMaxLength+1))
+			UpdateMoniker(cross(cur), info.Address, strings.Repeat("a", MonikerMaxLength+1))
 		})
 	})
 
@@ -462,12 +462,12 @@ func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		newMoniker := "new moniker"
 		uassert.NotPanics(t, cur, func() {
-			UpdateMoniker(cross2(cur), info.Address, newMoniker)
+			UpdateMoniker(cross(cur), info.Address, newMoniker)
 		})
 
 		uassert.NotPanics(t, cur, func() {
@@ -484,7 +484,7 @@ func TestValopers_UpdateDescription(cur realm, t *testing.T) {
 		resetState()
 
 		uassert.AbortsWithMessage(t, cur, ErrValoperMissing.Error(), func() {
-			UpdateDescription(cross2(cur), validValidatorInfo(t).Address, "new description")
+			UpdateDescription(cross(cur), validValidatorInfo(t).Address, "new description")
 		})
 	})
 
@@ -496,13 +496,13 @@ func TestValopers_UpdateDescription(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		uassert.AbortsWithMessage(t, cur, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateDescription(cross2(cur), info.Address, "new description")
+			UpdateDescription(cross(cur), info.Address, "new description")
 		})
 	})
 
@@ -514,11 +514,11 @@ func TestValopers_UpdateDescription(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.AbortsWithMessage(t, cur, ErrInvalidDescription.Error(), func() {
-			UpdateDescription(cross2(cur), info.Address, "")
+			UpdateDescription(cross(cur), info.Address, "")
 		})
 	})
 
@@ -530,11 +530,11 @@ func TestValopers_UpdateDescription(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.AbortsWithMessage(t, cur, ErrInvalidDescription.Error(), func() {
-			UpdateDescription(cross2(cur), info.Address, strings.Repeat("a", DescriptionMaxLength+1))
+			UpdateDescription(cross(cur), info.Address, strings.Repeat("a", DescriptionMaxLength+1))
 		})
 	})
 
@@ -546,12 +546,12 @@ func TestValopers_UpdateDescription(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		newDescription := "new description"
 		uassert.NotPanics(t, cur, func() {
-			UpdateDescription(cross2(cur), info.Address, newDescription)
+			UpdateDescription(cross(cur), info.Address, newDescription)
 		})
 
 		uassert.NotPanics(t, cur, func() {
@@ -568,7 +568,7 @@ func TestValopers_UpdateKeepRunning(cur realm, t *testing.T) {
 		resetState()
 
 		uassert.AbortsWithMessage(t, cur, ErrValoperMissing.Error(), func() {
-			UpdateKeepRunning(cross2(cur), validValidatorInfo(t).Address, false)
+			UpdateKeepRunning(cross(cur), validValidatorInfo(t).Address, false)
 		})
 	})
 
@@ -580,13 +580,13 @@ func TestValopers_UpdateKeepRunning(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		uassert.AbortsWithMessage(t, cur, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateKeepRunning(cross2(cur), info.Address, false)
+			UpdateKeepRunning(cross(cur), info.Address, false)
 		})
 	})
 
@@ -598,11 +598,11 @@ func TestValopers_UpdateKeepRunning(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, cur, func() {
-			UpdateKeepRunning(cross2(cur), info.Address, false)
+			UpdateKeepRunning(cross(cur), info.Address, false)
 		})
 
 		uassert.NotPanics(t, cur, func() {
@@ -619,7 +619,7 @@ func TestValopers_UpdateServerType(cur realm, t *testing.T) {
 		resetState()
 
 		uassert.AbortsWithMessage(t, cur, ErrValoperMissing.Error(), func() {
-			UpdateServerType(cross2(cur), validValidatorInfo(t).Address, ServerTypeCloud)
+			UpdateServerType(cross(cur), validValidatorInfo(t).Address, ServerTypeCloud)
 		})
 	})
 
@@ -631,13 +631,13 @@ func TestValopers_UpdateServerType(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		testing.SetRealm(testing.NewUserRealm(test2Address))
 
 		uassert.AbortsWithMessage(t, cur, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateServerType(cross2(cur), info.Address, ServerTypeCloud)
+			UpdateServerType(cross(cur), info.Address, ServerTypeCloud)
 		})
 	})
 
@@ -649,7 +649,7 @@ func TestValopers_UpdateServerType(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		invalidServerTypes := []string{
@@ -662,7 +662,7 @@ func TestValopers_UpdateServerType(cur realm, t *testing.T) {
 
 		for _, invalidType := range invalidServerTypes {
 			uassert.AbortsWithMessage(t, cur, ErrInvalidServerType.Error(), func() {
-				UpdateServerType(cross2(cur), info.Address, invalidType)
+				UpdateServerType(cross(cur), info.Address, invalidType)
 			})
 		}
 	})
@@ -675,11 +675,11 @@ func TestValopers_UpdateServerType(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{minFee})
 
 		uassert.NotPanics(t, cur, func() {
-			Register(cross2(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, cur, func() {
-			UpdateServerType(cross2(cur), info.Address, ServerTypeCloud)
+			UpdateServerType(cross(cur), info.Address, ServerTypeCloud)
 		})
 
 		uassert.NotPanics(t, cur, func() {
@@ -688,7 +688,7 @@ func TestValopers_UpdateServerType(cur realm, t *testing.T) {
 		})
 
 		uassert.NotPanics(t, cur, func() {
-			UpdateServerType(cross2(cur), info.Address, ServerTypeDataCenter)
+			UpdateServerType(cross(cur), info.Address, ServerTypeDataCenter)
 		})
 
 		uassert.NotPanics(t, cur, func() {

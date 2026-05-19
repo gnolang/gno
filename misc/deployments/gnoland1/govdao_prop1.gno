@@ -101,7 +101,7 @@ func main(cur realm) {
 	// ---- 4. Enable namespace enforcement (r/sys/names) ----
 	// This drops ownership and enables the namespace permission check.
 	// Must be called during genesis; after this, package paths require registration.
-	names.Enable(cross2(cur))
+	names.Enable(cross(cur))
 
 	// ---- 5. Add govDAO T1 member ----
 	// Temporarily manfred (moul) is the sole govDAO member. He will manually
@@ -115,7 +115,7 @@ func main(cur realm) {
 	// ---- 7. Lock down memberstore access ----
 	// From this point on, only gno.land/r/gov/dao/v3/impl can call
 	// memberstore.Get() — matching the production AllowedDAOs configuration.
-	dao.UpdateImpl(cross2(cur), dao.UpdateRequest{
+	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
 }
@@ -123,9 +123,9 @@ func main(cur realm) {
 // govExec creates a proposal, votes YES, and executes it immediately.
 // Works because the deployer is the sole T1 member (100% supermajority).
 func govExec(_ int, rlm realm, r dao.ProposalRequest) {
-	pid := dao.MustCreateProposal(cross2(rlm), r)
-	dao.MustVoteOnProposal(cross2(rlm), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross2(rlm), pid)
+	pid := dao.MustCreateProposal(cross(rlm), r)
+	dao.MustVoteOnProposal(cross(rlm), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(rlm), pid)
 }
 
 func must(err error) {

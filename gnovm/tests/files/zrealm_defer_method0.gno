@@ -22,7 +22,7 @@ func (c *Counter) Inc() {
 
 func main(cur realm) {
 	c := &Counter{N: 0}
-	crossrealm.SetObject(cross2(cur), c)
+	crossrealm.SetObject(cross(cur), c)
 
 	defer c.Inc()
 	println("before defer fires, c.N =", c.N)

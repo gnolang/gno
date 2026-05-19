@@ -25,11 +25,11 @@ import (
 )
 
 func init(cur realm) {
-	crossrealm_f.Add(cross2(cur), crossrealm_f.NewEntry("a", 1))
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("a", 1))
 }
 
 func main(cur realm) {
-	crossrealm_f.Add(cross2(cur), crossrealm_f.NewEntry("c", 3))
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("c", 3))
 	println(crossrealm_f.Len())
 }
 

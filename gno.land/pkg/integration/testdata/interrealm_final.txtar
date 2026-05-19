@@ -182,7 +182,7 @@ func CASE_rA3(cur realm) {
 	//   - alice.TopFuncFnCrossing:             (storage:[], current:alice,  previous:caller)
 	//   - alice.TopFuncFnCrossing.inner:       (storage:[], current:caller, previous:nil)
 	//     (cross doesn't matter in inner)
-	bob.Do(alice.TopFuncFnCrossing(cross2(cur)))      // FAIL: caller != bob
+	bob.Do(alice.TopFuncFnCrossing(cross(cur)))      // FAIL: caller != bob
 }
 
 func CASE_rB1(cur realm) {
@@ -220,7 +220,7 @@ func CASE_rC1(cur realm) {
 	//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 	obj := new(alice.Object)
-	bob.SetObject(cross2(cur), obj)                   // obj persisted in bob
+	bob.SetObject(cross(cur), obj)                   // obj persisted in bob
 	bob.Do(obj.Method)                          // SUCCESS: resides in bob
 }
 
@@ -229,7 +229,7 @@ func CASE_rC2(cur realm) {
 	//  - in bob.Do:                            (storage:[],    current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 	obj := new(alice.Object)
-	alice.SetObject(cross2(cur), obj)                 // obj persisted in alice
+	alice.SetObject(cross(cur), obj)                 // obj persisted in alice
 	bob.Do(obj.Method)                          // FAIL: resides in alice (needs bob)
 }
 
@@ -239,7 +239,7 @@ func CASE_rC3(cur realm) {
 	cls := func() {
 		print(obj)
 	}
-	bob.SetClosure(cross2(cur), cls)                  // obj persisted in bob via cls
+	bob.SetClosure(cross(cur), cls)                  // obj persisted in bob via cls
 	//   - in bob.Do:                           (storage:[],    current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
 	bob.Do(obj.Method)                          // SUCCESS: resides in bob
@@ -251,7 +251,7 @@ func CASE_rC4(cur realm) {
 	cls := func() {
 		print(obj)
 	}
-	alice.SetClosure(cross2(cur), cls)                // obj persisted in alice via cls
+	alice.SetClosure(cross(cur), cls)                // obj persisted in alice via cls
 	//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 	bob.Do(obj.Method)                          // FAIL: alice != bob
@@ -280,7 +280,7 @@ func CASE_pA2(cur realm) {
 /* illegal so omitted
 func CASE_pA3(cur realm) {
 	// CASE pA3: omitted (invalid crossing function)
-	bob.Do(peter.TopFuncFnCrossing(cross2(cur)))      // INVALID (illegal crossing function)
+	bob.Do(peter.TopFuncFnCrossing(cross(cur)))      // INVALID (illegal crossing function)
 }
 */
 
@@ -318,7 +318,7 @@ func CASE_pC1(cur realm) {
 	//  - in bob.Do2:                           (storage:[],    current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 	obj := new(peter.Object)
-	bob.SetObject(cross2(cur), obj)                   // obj persisted in bob
+	bob.SetObject(cross(cur), obj)                   // obj persisted in bob
 	bob.Do2(obj.Method, bob.PrivateFunc)        // SUCCESS: resides in bob
 }
 
@@ -327,7 +327,7 @@ func CASE_pC2(cur realm) {
 	//  - in bob.Do2:                           (storage:[],      current:caller, previous:nil)
 	//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 	obj := new(peter.Object)
-	alice.SetObject(cross2(cur), obj)                 // obj persisted in alice
+	alice.SetObject(cross(cur), obj)                 // obj persisted in alice
 	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: resides in alice (needs bob)
 }
 
@@ -337,7 +337,7 @@ func CASE_pC3(cur realm) {
 	cls := func() {
 		print(obj)
 	}
-	bob.SetClosure(cross2(cur), cls)                  // obj persisted in bob via cls
+	bob.SetClosure(cross(cur), cls)                  // obj persisted in bob via cls
 	//   - in bob.Do2:                          (storage:[],    current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
 	bob.Do2(obj.Method, bob.PrivateFunc)        // SUCCESS: resides in bob
@@ -349,7 +349,7 @@ func CASE_pC4(cur realm) {
 	cls := func() {
 		print(obj)
 	}
-	alice.SetClosure(cross2(cur), cls)                // obj persisted in alice via cls
+	alice.SetClosure(cross(cur), cls)                // obj persisted in alice via cls
 	//   - in bob.Do2:                          (storage:[],      current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: alice != bob
@@ -375,7 +375,7 @@ func CASE_rD1(cur realm) {
 		bob.AllowedList = append(bob.AllowedList, 3)
 		panic("bob.AllowedList should not be mutable via dot selector from an external realm; static error expected")
 	}
-	bob.SetClosure(cross2(cur), cls)
+	bob.SetClosure(cross(cur), cls)
 }
 
 -- alice/gnomod.toml --

@@ -31,7 +31,7 @@ func main(cur realm) {
 	s := &Struct{A: 100}
 	p := &Passthrough{S: s}
 
-	crossrealm.SetObject(cross2(cur), p) // saved in crossrealm.
+	crossrealm.SetObject(cross(cur), p) // saved in crossrealm.
 
 	p.Mutate()
 }

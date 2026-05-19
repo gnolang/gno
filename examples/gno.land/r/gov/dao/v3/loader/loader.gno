@@ -34,5 +34,5 @@ func init(cur realm) {
 
 	// Set the DAO implementation.  AllowedDAOs is intentionally left empty
 	// so that the genesis MsgRun can manipulate the memberstore directly.
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), nil))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), nil))
 }

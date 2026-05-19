@@ -16,11 +16,11 @@ func main(cur realm) {
 	)
 	testing.SetOriginCaller(eoa)
 	// Contrarily to z2_filetest.gno we EXPECT GetPreviousRealms != eoa (#1704)
-	if addr := tests.GetPreviousRealm(cross2(cur)).Address(); addr != eoa {
+	if addr := tests.GetPreviousRealm(cross(cur)).Address(); addr != eoa {
 		println("want tests.GetPreviousRealm().Address ==", eoa, "got", addr)
 	}
 	// When 2 or more realms in the frames, it is also different
-	if addr := tests.GetRSubtestsPreviousRealm(cross2(cur)).Address(); addr != rTestsAddr {
+	if addr := tests.GetRSubtestsPreviousRealm(cross(cur)).Address(); addr != rTestsAddr {
 		println("want GetRSubtestsPreviousRealm().Address ==", rTestsAddr, "got", addr)
 	}
 	println("Done.")

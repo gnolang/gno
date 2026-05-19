@@ -13,7 +13,7 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	bid := boards2.CreateBoard(cross2(cur), "test123", false, false)
+	bid := boards2.CreateBoard(cross(cur), "test123", false, false)
 	println("ID =", bid)
 }
 

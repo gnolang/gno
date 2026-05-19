@@ -108,7 +108,7 @@ package main
 import dao "gno.land/r/gov/dao/v3/init"
 
 func main(cur realm) {
-	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/propose_pause.gno --
@@ -120,8 +120,8 @@ import (
 )
 
 func main(cur realm) {
-	r := names.ProposeSetPaused(cross2(cur), true)
-	dao.MustCreateProposal(cross2(cur), r)
+	r := names.ProposeSetPaused(cross(cur), true)
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/propose_unpause.gno --
@@ -133,8 +133,8 @@ import (
 )
 
 func main(cur realm) {
-	r := names.ProposeSetPaused(cross2(cur), false)
-	dao.MustCreateProposal(cross2(cur), r)
+	r := names.ProposeSetPaused(cross(cur), false)
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- pkg/gnomod.toml --

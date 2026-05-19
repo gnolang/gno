@@ -123,7 +123,7 @@ func parseEntry(entry string) (validators.Validator, error) {
 
 func assertValsetCaller(_ int, rlm realm) {
 	// Defense-in-depth IsCurrent gate. Current call sites all pass live
-	// cur (cross2(cur) from cache.gno / proposal.gno), so this never
+	// cur (cross(cur) from cache.gno / proposal.gno), so this never
 	// fires today — but the helper trusts its rlm input, and a future
 	// caller that threads a stashed/sibling-frame realm value would
 	// silently bypass the PkgPath check below (Class-2 designation

@@ -20,14 +20,14 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Operate on realm DAO members instead of individual boards
-	boards2.InviteMember(cross2(cur), 0, member, boards2.RoleOwner)
+	boards2.InviteMember(cross(cur), 0, member, boards2.RoleOwner)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(member))
 
 	// Create a board as an invited realm member
-	bid := boards2.CreateBoard(cross2(cur), name, false, false)
+	bid := boards2.CreateBoard(cross(cur), name, false, false)
 	println("ID =", bid)
 }
 

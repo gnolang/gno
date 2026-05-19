@@ -8,7 +8,7 @@ import (
 
 func TestID(cur realm, t *testing.T) {
 	u := NewSnowflakeID()
-	func(cur realm) { u.SetMachineID(0, cur) }(cross2(cur))
+	func(cur realm) { u.SetMachineID(0, cur) }(cross(cur))
 	id1 := u.GenerateID()
 	id2 := u.GenerateID()
 	uuid1 := SnowflakeIDToUUIDString(id1)

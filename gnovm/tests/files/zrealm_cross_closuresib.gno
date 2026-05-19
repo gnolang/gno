@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/demo/cross2closuresib
-package cross2closuresib
+// PKGPATH: gno.land/r/demo/crossclosuresib
+package crossclosuresib
 
 // Runtime IsCurrent-strict catches a closure-captured rlm invoked from
 // a SIBLING crossing frame (different from the one that captured rlm).
@@ -7,7 +7,7 @@ package cross2closuresib
 // cross-call into runClosure. When runClosure invokes the closure,
 // runClosure's frame is the topmost crossing frame, not main's —
 // the captured rlm's HIV no longer matches the topmost frame's Cur.
-// cross2(rlm) panics.
+// cross(rlm) panics.
 
 func callee(cur realm) string {
 	return cur.PkgPath()
@@ -25,10 +25,10 @@ func runClosure(cur realm, fn func() string) {
 func main(cur realm) {
 	rlm := cur
 	fn := func() string {
-		return callee(cross2(rlm))
+		return callee(cross(rlm))
 	}
-	runClosure(cross2(cur), fn)
+	runClosure(cross(cur), fn)
 }
 
 // Error:
-// cross2: rlm is not the current cur (stale capture or sibling frame)
+// cross: rlm is not the current cur (stale capture or sibling frame)

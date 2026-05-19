@@ -20,12 +20,12 @@ var dao *pcommondao.CommonDAO
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	dao = commondao.New(cross2(cur), "Foo")
+	dao = commondao.New(cross(cur), "Foo")
 
 	// Configure DAO
 	dao.Members().Add(user)
@@ -34,7 +34,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Execute(cross2(cur), dao.ID(), 404)
+	commondao.Execute(cross(cur), dao.ID(), 404)
 }
 
 // Error:

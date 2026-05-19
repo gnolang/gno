@@ -18,21 +18,21 @@ var parentID uint64
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	// The origin must be the invited user
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Create the root DAO
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	parentID = commondao.New(cross2(cur), "Parent DAO").ID()
+	parentID = commondao.New(cross(cur), "Parent DAO").ID()
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	commondao.NewSubDAO(cross2(cur), "", parentID)
+	commondao.NewSubDAO(cross(cur), "", parentID)
 }
 
 // Error:

@@ -132,8 +132,8 @@ import (
 )
 
 func main(cur realm) {
-	preq := cla.ProposeNewCLA(cross2(cur), "abc123hash", "https://example.com/cla-v1")
-	dao.MustCreateProposal(cross2(cur), preq)
+	preq := cla.ProposeNewCLA(cross(cur), "abc123hash", "https://example.com/cla-v1")
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
 -- proposer/propose_cla2.gno --
@@ -145,8 +145,8 @@ import (
 )
 
 func main(cur realm) {
-	preq := cla.ProposeNewCLA(cross2(cur), "newhash456", "https://example.com/cla-v2")
-	dao.MustCreateProposal(cross2(cur), preq)
+	preq := cla.ProposeNewCLA(cross(cur), "newhash456", "https://example.com/cla-v2")
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
 -- proposer/propose_cla_clear.gno --
@@ -158,8 +158,8 @@ import (
 )
 
 func main(cur realm) {
-	preq := cla.ProposeNewCLA(cross2(cur), "", "")
-	dao.MustCreateProposal(cross2(cur), preq)
+	preq := cla.ProposeNewCLA(cross(cur), "", "")
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
 -- loader/load_govdao.gno --
@@ -178,7 +178,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 -- pkg/gnomod.toml --

@@ -18,7 +18,7 @@ func abort(_ int, rlm realm, f any) {
 	case func():
 		r = revive(f)
 	case func(realm):
-		r = revive(func() { f(cross2(rlm)) })
+		r = revive(func() { f(cross(rlm)) })
 	default:
 		panic("f must be of type func() or func(realm)")
 	}

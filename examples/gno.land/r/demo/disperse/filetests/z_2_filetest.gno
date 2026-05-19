@@ -30,7 +30,7 @@ func main(cur realm) {
 	println("disperse balance after send:", banker_.GetCoins(disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	disperse.DisperseUgnotString(cross2(cur), addressesStr, "150,50")
+	disperse.DisperseUgnotString(cross(cur), addressesStr, "150,50")
 }
 
 // Error:

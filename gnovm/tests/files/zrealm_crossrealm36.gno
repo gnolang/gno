@@ -9,13 +9,13 @@ import (
 )
 
 func main(cur realm) {
-	println("counter:", crossrealm_d.GetCounter(cross2(cur)))
+	println("counter:", crossrealm_d.GetCounter(cross(cur)))
 
 	// No recover — the cross-realm panic aborts everything.
 	crossrealm_d.SetCounter(0)
 
 	// This line is never reached.
-	println("counter after:", crossrealm_d.GetCounter(cross2(cur)))
+	println("counter after:", crossrealm_d.GetCounter(cross(cur)))
 }
 
 // Output:

@@ -24,10 +24,10 @@ var c address = runtime.OriginCaller()
 func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(cross2(cur), c)
+	daov3init.InitWithUsers(cross(cur), c)
 }
 
 func main(cur realm) {
@@ -37,20 +37,20 @@ func main(cur realm) {
 	println("paused before:", users.IsPaused())
 
 	// Propose, vote, execute: pause.
-	dao.MustCreateProposal(cross2(cur), users.NewSetPausedExecutor(cross2(cur), true))
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
-	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
+	dao.MustCreateProposal(cross(cur), users.NewSetPausedExecutor(cross(cur), true))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 	println("paused after pause prop:", users.IsPaused())
 
 	// Propose, vote, execute: unpause.
-	dao.MustCreateProposal(cross2(cur), users.NewSetPausedExecutor(cross2(cur), false))
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
-	dao.ExecuteProposal(cross2(cur), dao.ProposalID(1))
+	dao.MustCreateProposal(cross(cur), users.NewSetPausedExecutor(cross(cur), false))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(1))
 	println("paused after unpause prop:", users.IsPaused())
 
 	// Register works again (the pause check inside Register would have
 	// panicked with ErrPaused had the unpause executor not run).
-	users.Register(cross2(cur), "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 	data, _ := susers.ResolveName("nym-alice123")
 	println("registered alice at:", data.Addr())
 }

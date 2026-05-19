@@ -23,18 +23,18 @@ var (
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	daoID = commondao.New(cross2(cur), "Foo").ID()
+	daoID = commondao.New(cross(cur), "Foo").ID()
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	commondao.TransferOwnership(cross2(cur), daoID, newRealm)
+	commondao.TransferOwnership(cross(cur), daoID, newRealm)
 
 	println(commondao.IsOwner(realmAddr, daoID))
 	println(commondao.IsOwner(newRealm, daoID))

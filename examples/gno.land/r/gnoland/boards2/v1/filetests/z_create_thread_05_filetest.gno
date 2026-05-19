@@ -25,7 +25,7 @@ var bid boards.ID // Operate on board DAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, true)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
@@ -35,7 +35,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Non members should be able to create threads
-	tid := boards2.CreateThread(cross2(cur), bid, title, body)
+	tid := boards2.CreateThread(cross(cur), bid, title, body)
 
 	// Ensure that returned ID is right
 	println(tid == 1)

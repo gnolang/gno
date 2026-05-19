@@ -14,7 +14,7 @@ func main(cur realm) {
 	// Call realm with a user that has not permission to set realm notice
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetRealmNotice(cross2(cur), "Foo")
+	boards2.SetRealmNotice(cross(cur), "Foo")
 }
 
 // Error:

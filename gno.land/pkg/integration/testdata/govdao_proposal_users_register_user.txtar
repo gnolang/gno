@@ -82,7 +82,7 @@ package main
 import dao "gno.land/r/gov/dao/v3/init"
 
 func main(cur realm) {
-	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_register_user_proposal.gno --
@@ -94,8 +94,8 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeRegisterUser(cross2(cur), "user1", address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
-	dao.MustCreateProposal(cross2(cur), r)
+	r := users.ProposeRegisterUser(cross(cur), "user1", address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/create_update_name_proposal.gno --
@@ -107,8 +107,8 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeUpdateName(cross2(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"), "user1alias")
-	dao.MustCreateProposal(cross2(cur), r)
+	r := users.ProposeUpdateName(cross(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"), "user1alias")
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/create_delete_user_proposal.gno --
@@ -120,6 +120,6 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeDeleteUser(cross2(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
-	dao.MustCreateProposal(cross2(cur), r)
+	r := users.ProposeDeleteUser(cross(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
+	dao.MustCreateProposal(cross(cur), r)
 }

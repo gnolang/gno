@@ -40,7 +40,7 @@ type cacheEntry struct {
 // cross-call would see its own pkgpath. Either fails this check.
 func assertValopersCaller(_ int, rlm realm) {
 	// Defense-in-depth IsCurrent gate. Current call sites pass live
-	// cur (cross2(cur) from valopers), so this never fires today — but
+	// cur (cross(cur) from valopers), so this never fires today — but
 	// the helper trusts its rlm input, and any future call that threads
 	// a stashed/sibling-frame realm value with .Previous().PkgPath() ==
 	// valopersRealmPath would silently bypass the gate (Class-2
@@ -143,7 +143,7 @@ func RotateValoperSigningKey(cur realm, op address, oldPubKey, newPubKey string)
 		entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 	}
 	sort.Strings(entries)
-	sysparams.SetValsetProposal(cross2(cur), entries)
+	sysparams.SetValsetProposal(cross(cur), entries)
 
 	chain.Emit(
 		"ValoperRotated",

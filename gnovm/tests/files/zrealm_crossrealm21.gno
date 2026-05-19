@@ -8,10 +8,10 @@ import (
 
 func main(cur realm) {
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooer(cross2(cur), f)
-	crossrealm.CallFooerFooCross(cross2(cur))
+	crossrealm.SetFooer(cross(cur), f)
+	crossrealm.CallFooerFooCross(cross(cur))
 	f.SetS("B")
-	crossrealm.CallFooerFooCross(cross2(cur))
+	crossrealm.CallFooerFooCross(cross(cur))
 	print(".")
 }
 

@@ -17,14 +17,14 @@ var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross2(cur), "Foo")
+	dao := commondao.New(cross(cur), "Foo")
 	dao.Members().Add(user)
 
-	options := commondao.GetOptions(cross2(cur), dao.ID())
+	options := commondao.GetOptions(cross(cur), dao.ID())
 	options.SetAllowChildren(true)
 	options.SetAllowSubDAOPorposals(true)
 
@@ -34,7 +34,7 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross2(cur), daoID, "Name", "INVALID")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, "Name", "INVALID")
 }
 
 // Error:

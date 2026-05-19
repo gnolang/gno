@@ -30,7 +30,7 @@ func TestUpdateNameCallerIdentity(cur realm, t *testing.T) {
 
 		// Register as whitelisted controller
 		testing.SetRealm(testing.NewCodeRealm(controllerPath))
-		urequire.NoError(t, RegisterUser(cross2(cur), "testuser1", testutils.TestAddress("testuser1")))
+		urequire.NoError(t, RegisterUser(cross(cur), "testuser1", testutils.TestAddress("testuser1")))
 
 		// Resolve and update name — should succeed because controller is whitelisted
 		data := ResolveAddress(testutils.TestAddress("testuser1"))
@@ -44,7 +44,7 @@ func TestUpdateNameCallerIdentity(cur realm, t *testing.T) {
 
 		// Register as whitelisted controller
 		testing.SetRealm(testing.NewCodeRealm(controllerPath))
-		urequire.NoError(t, RegisterUser(cross2(cur), "testuser2", testutils.TestAddress("testuser2")))
+		urequire.NoError(t, RegisterUser(cross(cur), "testuser2", testutils.TestAddress("testuser2")))
 
 		data := ResolveAddress(testutils.TestAddress("testuser2"))
 		urequire.NotEqual(t, nil, data)
@@ -66,7 +66,7 @@ func TestDeleteCallerIdentity(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		testing.SetRealm(testing.NewCodeRealm(controllerPath))
-		urequire.NoError(t, RegisterUser(cross2(cur), "deluser1", testutils.TestAddress("deluser1")))
+		urequire.NoError(t, RegisterUser(cross(cur), "deluser1", testutils.TestAddress("deluser1")))
 
 		data := ResolveAddress(testutils.TestAddress("deluser1"))
 		urequire.NotEqual(t, nil, data)
@@ -78,7 +78,7 @@ func TestDeleteCallerIdentity(cur realm, t *testing.T) {
 		cleanStore(t)
 
 		testing.SetRealm(testing.NewCodeRealm(controllerPath))
-		urequire.NoError(t, RegisterUser(cross2(cur), "deluser2", testutils.TestAddress("deluser2")))
+		urequire.NoError(t, RegisterUser(cross(cur), "deluser2", testutils.TestAddress("deluser2")))
 
 		data := ResolveAddress(testutils.TestAddress("deluser2"))
 		urequire.NotEqual(t, nil, data)

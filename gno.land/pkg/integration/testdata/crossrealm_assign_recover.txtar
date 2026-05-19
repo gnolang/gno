@@ -147,7 +147,7 @@ func Attack(cur realm) {
 
 	// Step 2: try to withdraw. Since owner is unchanged, this fails
 	// with "unauthorized".
-	vault.Withdraw(cross2(cur), 1000000)
+	vault.Withdraw(cross(cur), 1000000)
 }
 
 // AttackNoRecover is the negative control: without recover, the
@@ -156,5 +156,5 @@ func AttackNoRecover(cur realm) {
 	myAddr := runtime.CurrentRealm().Address()
 	vault.SetOwner(myAddr)
 	// Never reached.
-	vault.Withdraw(cross2(cur), 1000000)
+	vault.Withdraw(cross(cur), 1000000)
 }

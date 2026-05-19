@@ -18,21 +18,21 @@ func TestSetFeeCollector(cur realm, t *testing.T) {
 	testing.SetRealm(userRealm)
 
 	pr := NewSetFeeCollectorRequest(cur, userRealm.Address())
-	id := dao.MustCreateProposal(cross2(cur), pr)
+	id := dao.MustCreateProposal(cross(cur), pr)
 	_, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 
 	urequire.NotPanics(
 		t, cur,
 		func() {
-			dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
+			dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(id)))
 		},
 	)
 
 	urequire.NotPanics(
 		t, cur,
 		func() {
-			dao.ExecuteProposal(cross2(cur), id)
+			dao.ExecuteProposal(cross(cur), id)
 		},
 	)
 

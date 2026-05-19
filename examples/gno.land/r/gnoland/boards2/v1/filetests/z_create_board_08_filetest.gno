@@ -16,7 +16,7 @@ const (
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross2(cur), name, false, false)
+	boards2.CreateBoard(cross(cur), name, false, false)
 
 	// Unlisted board should not be rendered
 	println(boards2.Render(""))

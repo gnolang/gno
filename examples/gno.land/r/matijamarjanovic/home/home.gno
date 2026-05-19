@@ -37,7 +37,7 @@ func init(cur realm) {
 	modernLink = txlink.NewLink("VoteModern").URL()
 	classicLink = txlink.NewLink("VoteClassic").URL()
 	minimalLink = txlink.NewLink("VoteMinimal").URL()
-	hor.Register(cross2(cur), "Matija Marijanovic's Home Realm", "")
+	hor.Register(cross(cur), "Matija Marijanovic's Home Realm", "")
 }
 
 func UpdatePFP(cur realm, url, caption string) {

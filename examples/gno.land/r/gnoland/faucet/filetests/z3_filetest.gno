@@ -26,25 +26,25 @@ func main(cur realm) {
 		_               = testutils.TestAddress("test2")
 	)
 	testing.SetRealm(testing.NewUserRealm(adminaddr))
-	err := faucet.AdminAddController(cross2(cur), controlleraddr1)
+	err := faucet.AdminAddController(cross(cur), controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(cross2(cur), controlleraddr2)
+	err = faucet.AdminAddController(cross(cur), controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
 	testing.SetRealm(testing.NewUserRealm(controlleraddr1))
-	err = faucet.Transfer(cross2(cur), testaddr1, 1_000_000)
+	err = faucet.Transfer(cross(cur), testaddr1, 1_000_000)
 	if err != "" {
 		panic(err)
 	}
 	testing.SetRealm(testing.NewUserRealm(controlleraddr2))
-	err = faucet.Transfer(cross2(cur), testaddr1, 2_000_000)
+	err = faucet.Transfer(cross(cur), testaddr1, 2_000_000)
 	if err != "" {
 		panic(err)
 	}
-	println(faucet.Render(cross2(cur), ""))
+	println(faucet.Render(cross(cur), ""))
 }
 
 // Output:

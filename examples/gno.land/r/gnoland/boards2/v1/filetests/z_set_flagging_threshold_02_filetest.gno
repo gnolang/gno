@@ -13,7 +13,7 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetFlaggingThreshold(cross2(cur), 1, 0)
+	boards2.SetFlaggingThreshold(cross(cur), 1, 0)
 }
 
 // Error:

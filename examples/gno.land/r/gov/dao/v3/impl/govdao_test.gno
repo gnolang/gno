@@ -20,7 +20,7 @@ var cur realm
 func init(cur realm) {
 	loadMembers(cur)
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 var (
@@ -70,11 +70,11 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	nm1 := testutils.TestAddress("nm1")
 
 	urequire.AbortsWithMessage(t, cur, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func(cur realm) {
-		dao.MustCreateProposal(cross2(cur), NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
+		dao.MustCreateProposal(cross(cur), NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
 	urequire.AbortsWithMessage(t, cur, "proposer is not a member", func(cur realm) {
-		dao.MustCreateProposal(cross2(cur), NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+		dao.MustCreateProposal(cross(cur), NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
 	})
 
 	testing.SetOriginCaller(m1)
@@ -84,28 +84,28 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
 	urequire.Equal(t, int(pid), 0)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m11)
 
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m2)
 
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m3)
 
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
 	testing.SetOriginCaller(m4)
 
 	urequire.AbortsWithMessage(t, cur, "member on specified tier is not allowed to vote on this proposal", func() {
-		dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
+		dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 	})
 
 	testing.SetOriginCaller(m111)
@@ -115,23 +115,23 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 	// 	Option:     dao.NoVote,
 	// 	ProposalID: dao.ProposalID(0),
 	// })
-	dao.MustVoteOnProposalSimple(cross2(cur), 0, "NO")
+	dao.MustVoteOnProposalSimple(cross(cur), 0, "NO")
 
-	urequire.Equal(t, true, strings.Contains(dao.Render(cross2(cur), ""), "Prop #0 - New T2 Member Proposal"))
-	// urequire.Equal(t, true, strings.Contains(dao.Render(cross2(cur), ""), "Author: "+m1.String()))
+	urequire.Equal(t, true, strings.Contains(dao.Render(cross(cur), ""), "Prop #0 - New T2 Member Proposal"))
+	// urequire.Equal(t, true, strings.Contains(dao.Render(cross(cur), ""), "Author: "+m1.String()))
 
 	urequire.AbortsWithMessage(t, cur, "proposal didn't reach supermajority yet: 66.66", func() {
-		dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
+		dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 	})
 
 	testing.SetOriginCaller(m1111)
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.NoVote, dao.ProposalID(0)))
 
-	accepted := dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
+	accepted := dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
 
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "0"), "**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "0"), "NO PERCENT: 81.25%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "0"), "**PROPOSAL HAS BEEN DENIED**"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "0"), "NO PERCENT: 81.25%"))
 }
 
 func TestExecutorCreationRealm(cur realm, t *testing.T) {
@@ -152,7 +152,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 
 	// Create proposal from user realm (user can call DAO directly)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
 
 	// Get the proposal
 	prop := dao.MustGetProposal(pid)
@@ -164,7 +164,7 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	urequire.Equal(t, "gno.land/r/template/contract", prop.ExecutorCreationRealm())
 
 	// Check that it's displayed in the individual proposal render output
-	individualRendered := dao.Render(cross2(cur), pid.String())
+	individualRendered := dao.Render(cross(cur), pid.String())
 	urequire.Equal(t, true, contains(individualRendered, "Executor created in: gno.land/r/template/contract"))
 	urequire.Equal(t, true, contains(individualRendered, "Test executor from template"))
 
@@ -188,41 +188,41 @@ func TestProposalPagination(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid = dao.MustCreateProposal(cross(cur), proposalRequest)
 
 	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
 	urequire.Equal(t, 2, int(pid))
 
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid = dao.MustCreateProposal(cross(cur), proposalRequest)
 	urequire.Equal(t, 3, int(pid))
 
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid = dao.MustCreateProposal(cross(cur), proposalRequest)
 	urequire.Equal(t, 4, int(pid))
 
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid = dao.MustCreateProposal(cross(cur), proposalRequest)
 	urequire.Equal(t, 5, int(pid))
 
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid = dao.MustCreateProposal(cross(cur), proposalRequest)
 	urequire.Equal(t, 6, int(pid))
 
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid = dao.MustCreateProposal(cross(cur), proposalRequest)
 	urequire.Equal(t, 7, int(pid))
 
-	fmt.Println(dao.Render(cross2(cur), ""))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), ""), "### [Prop #7 - New T2 Member Proposal](/r/gov/dao:7)"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), ""), "### [Prop #6 - New T2 Member Proposal](/r/gov/dao:6)"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), ""), "### [Prop #5 - New T2 Member Proposal](/r/gov/dao:5)"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), ""), "### [Prop #4 - New T2 Member Proposal](/r/gov/dao:4)"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), ""), "### [Prop #3 - New T2 Member Proposal](/r/gov/dao:3)"))
+	fmt.Println(dao.Render(cross(cur), ""))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), ""), "### [Prop #7 - New T2 Member Proposal](/r/gov/dao:7)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), ""), "### [Prop #6 - New T2 Member Proposal](/r/gov/dao:6)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), ""), "### [Prop #5 - New T2 Member Proposal](/r/gov/dao:5)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), ""), "### [Prop #4 - New T2 Member Proposal](/r/gov/dao:4)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), ""), "### [Prop #3 - New T2 Member Proposal](/r/gov/dao:3)"))
 
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "?page=2"), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "?page=2"), "### [Prop #1 - Test Proposal](/r/gov/dao:1)"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "?page=2"), "### [Prop #2 - New T2 Member Proposal](/r/gov/dao:2)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "?page=2"), "### [Prop #1 - Test Proposal](/r/gov/dao:1)"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "?page=2"), "### [Prop #0 - New T2 Member Proposal](/r/gov/dao:0)"))
 }
 
 func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
@@ -242,23 +242,23 @@ func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid := dao.MustCreateProposal(cross2(cur), preq)
+	pid := dao.MustCreateProposal(cross(cur), preq)
 	urequire.Equal(t, int(pid), 8)
 
 	// m1 votes yes because that member is interested on it
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m11)
 
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m2)
 
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m3)
 
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(pid)))
 
 	testing.SetOriginCaller(m111)
 
@@ -267,16 +267,16 @@ func TestUpgradeDaoImplementation(cur realm, t *testing.T) {
 	// 	Option:     dao.YesVote,
 	// 	ProposalID: dao.ProposalID(pid),
 	// })
-	dao.MustVoteOnProposalSimple(cross2(cur), int64(pid), "YES")
+	dao.MustVoteOnProposalSimple(cross(cur), int64(pid), "YES")
 
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "8"), "**Proposal is open for votes**"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "8"), "68.42105263157895%"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "8"), "0%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "**Proposal is open for votes**"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "0%"))
 
-	accepted := dao.ExecuteProposal(cross2(cur), dao.ProposalID(pid))
+	accepted := dao.ExecuteProposal(cross(cur), dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), "8"), "YES PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), "8"), "YES PERCENT: 68.42105263157895%"))
 }
 
 func TestAbstainVote(cur realm, t *testing.T) {
@@ -292,39 +292,39 @@ func TestAbstainVote(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
 
 	// m1 votes abstain
-	dao.MustVoteOnProposalSimple(cross2(cur), int64(pid), "ABSTAIN")
+	dao.MustVoteOnProposalSimple(cross(cur), int64(pid), "ABSTAIN")
 
 	// Other members vote YES to reach supermajority
 	testing.SetOriginCaller(m11)
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m111)
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m1111)
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m2)
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 
 	testing.SetOriginCaller(m3)
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 
 	// Verify render shows correct percentages
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), pid.String()), "YES PERCENT: 81.25%"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), pid.String()), "NO PERCENT: 0%"))
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), pid.String()), "ABSTAIN PERCENT: 18.75%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "YES PERCENT: 81.25%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "NO PERCENT: 0%"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "ABSTAIN PERCENT: 18.75%"))
 
 	// Supermajority reached despite one abstain voter
-	accepted := dao.ExecuteProposal(cross2(cur), pid)
+	accepted := dao.ExecuteProposal(cross(cur), pid)
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), pid.String()), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), pid.String()), "**PROPOSAL HAS BEEN ACCEPTED**"))
 
 	// Abstain voter appears in vote list
-	urequire.Equal(t, true, contains(dao.Render(cross2(cur), fmt.Sprintf("%v/votes", int64(pid))), "ABSTAIN"))
+	urequire.Equal(t, true, contains(dao.Render(cross(cur), fmt.Sprintf("%v/votes", int64(pid))), "ABSTAIN"))
 }
 
 func contains(s, substr string) bool {

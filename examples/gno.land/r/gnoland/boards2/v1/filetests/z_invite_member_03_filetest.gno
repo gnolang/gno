@@ -18,7 +18,7 @@ const (
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross2(cur), 0, user, boards.Role("foobar")) // Operate on realm DAO instead of individual boards
+	boards2.InviteMember(cross(cur), 0, user, boards.Role("foobar")) // Operate on realm DAO instead of individual boards
 }
 
 // Error:

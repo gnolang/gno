@@ -9,14 +9,14 @@ import (
 func main(cur realm) {
 	println("From main:")
 	PrintRealm(cur)
-	PrintRealm(cross2(cur))
+	PrintRealm(cross(cur))
 	println(pad("CurrentRealm:"), runtime.CurrentRealm())
 	println(pad("PreviousRealm:"), runtime.PreviousRealm())
 	println("")
 
 	println("From g1user origin:")
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	PrintRealm(cross2(cur))
+	PrintRealm(cross(cur))
 	println(pad("CurrentRealm:"), runtime.CurrentRealm())
 	func() {
 		defer func() {
@@ -29,7 +29,7 @@ func main(cur realm) {
 
 	println("From gno.land/r/sys/users realm:")
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users"))
-	PrintRealm(cross2(cur))
+	PrintRealm(cross(cur))
 	println(pad("CurrentRealm:"), runtime.CurrentRealm())
 	println(pad("PreviousRealm:"), runtime.PreviousRealm())
 }

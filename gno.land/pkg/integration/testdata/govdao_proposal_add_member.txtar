@@ -56,8 +56,8 @@ func main(cur realm) {
 	tier := "T2"
 	portfolio := "this is my portfolio"
 
-	preq := impl.NewAddMemberRequest(cross2(cur), addr, tier, portfolio)
-	dao.MustCreateProposal(cross2(cur), preq)
+	preq := impl.NewAddMemberRequest(cross(cur), addr, tier, portfolio)
+	dao.MustCreateProposal(cross(cur), preq)
 }
 -- debug/check_addresses.gno --
 package main
@@ -86,5 +86,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

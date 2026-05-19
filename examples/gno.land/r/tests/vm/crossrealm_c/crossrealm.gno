@@ -8,7 +8,7 @@ import (
 )
 
 // EntryPoint is a non-crossing helper. Callers thread their own
-// live cur as `rlm`; `passThrough` and the downstream `cross2(rlm)`
+// live cur as `rlm`; `passThrough` and the downstream `cross(rlm)`
 // calls forward it into crossrealm's crossing functions.
 func EntryPoint(_ int, rlm realm) {
 	println("crossrealm_c  EntryPoint: " + runtime.PreviousRealm().PkgPath())
@@ -27,17 +27,17 @@ func passThrough(_ int, rlm realm) {
 	owner = crossrealm.PrevRealmNoCrossing().Owner()
 	println("Owner from crossrealm PrevRealmNoCrossing: " + owner)
 	println()
-	owner = crossrealm.PrevRealmCrossing(cross2(rlm)).Owner()
+	owner = crossrealm.PrevRealmCrossing(cross(rlm)).Owner()
 	println("Owner from crossrealm PrevRealmCrossing: " + owner)
 }
 
 func CurRealmEntryPoint(_ int, rlm realm) {
 
-	println("crossrealm CurRealmWithCrossing: " + crossrealm.CurRealmCrossing(cross2(rlm)).Address())
+	println("crossrealm CurRealmWithCrossing: " + crossrealm.CurRealmCrossing(cross(rlm)).Address())
 	println("crossrealm CurRealmNoCrossing: " + crossrealm.CurRealmNoCrossing().Address())
 
 	println("p_crossrealm CurRealm: " + p_crossrealm.CurrentRealm().Address())
-	println("crossrealm PkgCurRealmWithCrossing: " + crossrealm.PkgCurRealmCrossing(cross2(rlm)).Address())
+	println("crossrealm PkgCurRealmWithCrossing: " + crossrealm.PkgCurRealmCrossing(cross(rlm)).Address())
 	println("crossrealm PkgCurRealmNoCrossing: " + crossrealm.PkgCurRealmNoCrossing().Address())
 
 }

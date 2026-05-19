@@ -21,18 +21,18 @@ var (
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
 
-	bid = boards.CreateBoard(cross2(cur), "test_board")
-	pid = boards.CreateThread(cross2(cur), bid, "First Post in (title)", "Body of the first post. (body)")
-	rid = boards.CreateReply(cross2(cur), bid, pid, pid, "First reply of the First post\n")
+	bid = boards.CreateBoard(cross(cur), "test_board")
+	pid = boards.CreateThread(cross(cur), bid, "First Post in (title)", "Body of the first post. (body)")
+	rid = boards.CreateReply(cross(cur), bid, pid, pid, "First reply of the First post\n")
 }
 
 func main(cur realm) {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	boards.EditPost(cross2(cur), bid, pid, rid, "", "Edited: First reply of the First post\n")
+	boards.EditPost(cross(cur), bid, pid, rid, "", "Edited: First reply of the First post\n")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

@@ -91,7 +91,7 @@ func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []st
 	}
 
 	for i := 0; i < len(addresses); i++ {
-		tokens.TransferFrom(cross2(cur), symbols[i], caller, addresses[i], amounts[i])
+		tokens.TransferFrom(cross(cur), symbols[i], caller, addresses[i], amounts[i])
 	}
 }
 

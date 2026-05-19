@@ -26,11 +26,11 @@ var f *fooer
 func init(cur realm) {
 	f = &fooer{s: "A"}
 	fg := func() crossrealm.Fooer { return f }
-	crossrealm.SetFooerGetter(cross2(cur), fg)
+	crossrealm.SetFooerGetter(cross(cur), fg)
 	f.s = "B"
-	crossrealm.CallFooerGetterFooCross(cross2(cur))
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.s = "C"
-	crossrealm.CallFooerGetterFooCross(cross2(cur))
+	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.s = "D"
 	crossrealm.CallFooerGetterBar()
 }

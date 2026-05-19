@@ -14,11 +14,11 @@ import (
 // newTestToken constructs a Token. The IIFE same-realm cross
 // promotes the test's EOA-origin cur into a fresh /p/grc20
 // CodeRealm cur so NewToken's IsCurrent + non-empty rlm.PkgPath()
-// checks pass. cross2(rlm) is the explicit-rlm form of bare `cross`.
+// checks pass. cross(rlm) is the explicit-rlm form of bare `cross`.
 func newTestToken(_ int, rlm realm, name, symbol string, decimals int) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
 		tok, adm = NewToken(0, cur, name, symbol, decimals)
-	}(cross2(rlm))
+	}(cross(rlm))
 	return
 }
 

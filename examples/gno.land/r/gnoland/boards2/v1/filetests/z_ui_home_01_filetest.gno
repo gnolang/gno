@@ -14,9 +14,9 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross2(cur), "AAA", true, false)
-	boards2.CreateBoard(cross2(cur), "BBB", true, false)
-	boards2.CreateBoard(cross2(cur), "CCC", true, false)
+	boards2.CreateBoard(cross(cur), "AAA", true, false)
+	boards2.CreateBoard(cross(cur), "BBB", true, false)
+	boards2.CreateBoard(cross(cur), "CCC", true, false)
 }
 
 func main() {

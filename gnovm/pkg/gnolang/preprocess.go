@@ -1310,25 +1310,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// special name for compiler-synthesized chain-root cross
 					// calls (keeper.go's MsgCall dispatch). Only valid as the
 					// first arg of a crossing call; at TRANS_LEAVE the outer
-					// call substitutes bare-cross AST (Args[0]=nil, WithCross
-					// =true) so runtime routes through callingCurOrOrigin →
-					// buildOriginRealm — identical to bare `cross`. The dot
-					// prefix makes `.origin` unparseable from user source;
-					// only post-parse AST injection (gno.Nx(".origin")) can
-					// introduce it.
+					// call substitutes the with-cross AST shape (Args[0]=nil,
+					// WithCross=true) so runtime routes through
+					// callingCurOrOrigin → buildOriginRealm to mint an
+					// EOA-origin cur. The dot prefix makes `.origin`
+					// unparseable from user source; only post-parse AST
+					// injection (gno.Nx(".origin")) can introduce it.
 					if ftype != TRANS_CALL_ARG || index != 0 {
 						panic(".origin can only be used as the first argument to a crossing function")
 					}
-					return n, TRANS_CONTINUE
-				case "cross":
-					// `cross` can only be used as the first argument
-					// to a crossing function, for cross-calling.
-					if ftype != TRANS_CALL_ARG || index != 0 {
-						panic("cross can only be used as the first argument to a crossing function (since gno 0.9)")
-					}
-					// special name that is defined in uverse as undefined,
-					// but should not be statically evaluated.
-					// (will be replaced TRANS_LEAVE *CallExpr).
 					return n, TRANS_CONTINUE
 				case nilStr:
 					// nil will be converted to
@@ -1919,9 +1909,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 							return n, TRANS_CONTINUE
 						case "cross":
-							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
-						case "cross2":
-							// cross2(rlm) — the explicit form of bare `cross`.
+							// cross(rlm) — the explicit cross-call form.
 							// Three constraints, all enforced here:
 							//
 							//  (a) The argument must be a bare NameExpr (a
@@ -1930,40 +1918,40 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							//      shim narrows to realm type via the
 							//      gnobuiltins signature.
 							//
-							//  (b) cross2 must appear at Args[0] of a parent
+							//  (b) cross must appear at Args[0] of a parent
 							//      CallExpr (ftype == TRANS_CALL_ARG, index==0).
-							//      Statement-level (`x := cross2(rlm)`),
-							//      non-Args[0] positions (`f(rlm, cross2(rlm))`),
+							//      Statement-level (`x := cross(rlm)`),
+							//      non-Args[0] positions (`f(rlm, cross(rlm))`),
 							//      and ExprStmt usage are all rejected.
 							//
 							//  (c) The parent CallExpr's Func must resolve to
-							//      a crossing function. cross2 at Args[0] of
+							//      a crossing function. cross at Args[0] of
 							//      a non-crossing call is rejected.
 							//
-							// Together these guarantee cross2 only appears where
+							// Together these guarantee cross only appears where
 							// the outer crossing-call's LEAVE handler will pick
 							// it up — preventing the "virtual function" panic
 							// or the silent-identity-return paths.
 							if len(n.Args) != 1 {
-								panic("cross2 takes exactly one argument: the in-scope realm")
+								panic("cross takes exactly one argument: the in-scope realm")
 							}
 							if _, ok := n.Args[0].(*NameExpr); !ok {
-								panic("cross2 argument must be a bare realm-typed identifier (a name, not an expression)")
+								panic("cross argument must be a bare realm-typed identifier (a name, not an expression)")
 							}
 							if ftype != TRANS_CALL_ARG || index != 0 {
-								panic("cross2(rlm) can only be used as the first argument to a crossing-function call")
+								panic("cross(rlm) can only be used as the first argument to a crossing-function call")
 							}
 							pc, ok := ns[len(ns)-1].(*CallExpr)
 							if !ok {
 								// ftype guarantees parent is a CallExpr; sanity.
-								panic("cross2(rlm): internal — parent is not a CallExpr")
+								panic("cross(rlm): internal — parent is not a CallExpr")
 							}
 							// baseOf unwraps DeclaredType to its underlying *FuncType,
 							// so named function types (`type Fn func(realm) error`)
 							// are recognized as crossing-shape calls.
 							pft, _ := baseOf(evalStaticTypeOf(store, last, pc.Func)).(*FuncType)
 							if pft == nil || !pft.IsCrossing() {
-								panic("cross2(rlm) can only be used as the first argument to a crossing-function call")
+								panic("cross(rlm) can only be used as the first argument to a crossing-function call")
 							}
 						case "crossing":
 							panic("crossing() is reserved and deprecated")
@@ -1994,54 +1982,44 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// only happen with a `cur` declared as the first realm argument
 							// of a containing function.
 							if len(n.Args) == 0 {
-								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur, cross, or cross2(rlm))", n))
+								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross(rlm))", n))
 							}
 
-							// cross2(rlm) appears here as a *CallExpr at Args[0]:
+							// cross(rlm) appears here as a *CallExpr at Args[0]:
 							// the inner CallExpr's TRANS_LEAVE (above) has already
 							// validated the shape (exactly one NameExpr arg).
-							// Stash the inner NameExpr's resolved ValuePath on the
-							// outer CallExpr's CrossArgPath so installCrossingCur
-							// can resolve it at runtime, then replace Args[0] with
-							// constNil and set WithCross (same end state as bare
-							// cross). The bare-cross path's Args[0] niltv check at
-							// op_call.go:78 remains satisfied because Args[0] IS
-							// nil for both forms; the cross2-vs-bare distinction
-							// is recorded on CrossArgPath.
+							// Leave Args[0] in place — at runtime the inner cross
+							// native body validates IsCurrent-strict on rlm and
+							// pushes it back unchanged. installCrossingCur peeks
+							// that value and uses it as the new cur's prev.
 							if inner, ok := n.Args[0].(*CallExpr); ok {
 								innerFunc, fnOK := inner.Func.(*ConstExpr)
 								if !fnOK || innerFunc.GetFunc() == nil ||
 									innerFunc.GetFunc().PkgPath != uversePkgPath ||
-									innerFunc.GetFunc().Name != "cross2" {
-									panic(fmt.Sprintf("only `cur`, `cross`, or `cross2(rlm)` allowed as first arg to a crossing function; got call to %v", inner.Func))
+									innerFunc.GetFunc().Name != "cross" {
+									panic(fmt.Sprintf("only `cur` or `cross(rlm)` allowed as first arg to a crossing function; got call to %v", inner.Func))
 								}
-								// cross2(rlm) form. The inner CallExpr's
-								// shape was already validated by the inner
-								// TRANS_LEAVE (one bare NameExpr arg).
-								// Leave Args[0] in place — at runtime the
-								// inner cross2 native body validates
-								// IsCurrent-strict on rlm and pushes it
-								// back unchanged. installCrossingCur peeks
-								// that value and uses it as the new cur's
-								// prev. No path resolution needed; the
-								// normal eval machinery handles whatever
-								// scope rlm comes from (function param,
+								// cross(rlm) form. The inner CallExpr's shape
+								// was already validated by the inner TRANS_LEAVE
+								// (one bare NameExpr arg). No path resolution
+								// needed; the normal eval machinery handles
+								// whatever scope rlm comes from (function param,
 								// closure capture, threaded helper, etc.).
 								n.SetWithCross()
 								goto LEAVE_CALL_EXPR_END_CHECK_CROSSING
 							}
 
 							nx, ok := n.Args[0].(*NameExpr)
-							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") && nx.Name != Name(".origin") {
-								panic(fmt.Sprintf("only `cur`, `cross`, or `cross2(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") {
+								panic(fmt.Sprintf("only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
 							case Name(".origin"):
 								// compiler-internal sentinel for chain-root MsgCall
-								// synthesis. Lowers to bare-cross AST so the runtime
-								// path (installCrossingCur → callingCurOrOrigin →
-								// buildOriginRealm) mints an EOA-origin cur identical
-								// to bare `cross`.
+								// synthesis. Lowers to with-cross AST shape so the
+								// runtime path (installCrossingCur →
+								// callingCurOrOrigin → buildOriginRealm) mints an
+								// EOA-origin cur.
 								n.SetWithCross()
 								n.Args[0] = constNil(nx)
 							case Name(".cur"):
@@ -2107,11 +2085,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// authority — runtime semantics of pkg.Fn(cur, ...) flow
 								// the captured value through installCrossingCur as the
 								// new cur's prev.
-							case Name("cross"):
-								// n is a valid crossing call of a crossing function.
-								n.SetWithCross()
-								// evaluation was skipped TRANS_LEAVE *NameExpr.
-								n.Args[0] = constNil(nx)
 							default:
 								panic("should not happen")
 							} // END Check validity of crossing arg n.Args[0].(*NameExpr).
@@ -2129,7 +2102,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// body, the cross-call goes through the normal precall
 						// path and mints the fresh cur correctly.
 						if n.WithCross && ftype == TRANS_DEFER_CALL {
-							panic("crossing call (`cross` or `cross2(rlm)`) cannot be deferred directly — the deferred-call dispatch path doesn't mint a fresh cur. Wrap in a closure: `defer func() { fn(cross, args...) }()`")
+							panic("crossing call `cross(rlm)` cannot be deferred directly — the deferred-call dispatch path doesn't mint a fresh cur. Wrap in a closure: `defer func() { fn(cross(rlm), args...) }()`")
 						}
 					} // END if ft.IsCrossing()
 
@@ -4501,9 +4474,9 @@ func isRealm(ctx BlockNode) bool {
 //
 // MsgRun ephemeral `/e/` packages may also declare a crossing top-level
 // `main` — the single entry point — so a run script can opt into
-// `func main(cur realm)` + `cross2(cur)` instead of bare `cross`. Only
-// the FuncDecl named `main` is allowed (no helper functions, no
-// function literals), matching the ephemeral one-shot model.
+// `func main(cur realm)` + `cross(cur)`. Only the FuncDecl named `main`
+// is allowed (no helper functions, no function literals), matching the
+// ephemeral one-shot model.
 func crossingAllowed(ctx BlockNode, n BlockNode) bool {
 	if isRealm(ctx) {
 		return true

@@ -50,7 +50,7 @@ func init(cur realm) {
 	salt = rng.Int64()
 
 	// Register to hor
-	hor.Register(cross2(cur), "GnoMaze, A 3D Maze Game", "")
+	hor.Register(cross(cur), "GnoMaze, A 3D Maze Game", "")
 }
 
 // Position represents the X, Y coordinates in the maze
@@ -469,7 +469,7 @@ func Render(cur realm, path string) string {
 	// Generate view
 	view := strings.Join([]string{
 		"<gno-columns>",
-		renderGrid3D(cross2(cur), &p),
+		renderGrid3D(cross(cur), &p),
 		"</gno-columns>",
 	}, "\n\n")
 

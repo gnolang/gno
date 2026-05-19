@@ -75,14 +75,15 @@ func (m *Machine) doOpPrecall() {
 // Two paths, distinguished by what Args[0] evaluated to on the value
 // stack:
 //
-//   - Bare `cross`: the preprocessor replaced Args[0] with a constNil,
-//     so its stack slot is undefined. The new cur's prev comes from
-//     m.callingCurOrOrigin() — a frame walk that finds the topmost
-//     crossing frame's Cur (or the per-tx origin).
+//   - Compiler-synthesized `.origin` (MsgCall chain root): preprocessor
+//     replaced Args[0] with a constNil, so its stack slot is undefined.
+//     The new cur's prev comes from m.callingCurOrOrigin() — a frame
+//     walk that finds the topmost crossing frame's Cur (or the per-tx
+//     origin).
 //
-//   - Explicit `cross2(rlm)`: Args[0] is the inner cross2 CallExpr.
-//     At runtime cross2's native body validates IsCurrent-strict on
-//     rlm and pushes it back unchanged, so the stack slot holds the
+//   - Explicit `cross(rlm)`: Args[0] is the inner cross CallExpr. At
+//     runtime cross's native body validates IsCurrent-strict on rlm
+//     and pushes it back unchanged, so the stack slot holds the
 //     validated realm value. We use it directly as the new cur's
 //     prev — no second IsCurrent check needed here.
 func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath string) {
@@ -92,10 +93,10 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 	argtv := m.PeekValue(cx.NumArgs)
 	var prev TypedValue
 	if argtv.IsUndefined() {
-		// Bare `cross` path.
+		// .origin path.
 		prev = m.callingCurOrOrigin()
 	} else {
-		// cross2(rlm) form: argtv is the realm value cross2 pushed
+		// cross(rlm) form: argtv is the realm value cross pushed
 		// back after its own IsCurrent-strict check.
 		prev = *argtv
 	}
@@ -332,12 +333,12 @@ func (m *Machine) doOpCall() {
 	// rebuild with the per-tx origin so cur.Previous() carries the EOA
 	// addr that runtime.PreviousRealm() surfaces.
 	//
-	// Skip natives: uverse helpers like cross2(rlm realm) realm satisfy
+	// Skip natives: uverse helpers like cross(rlm realm) realm satisfy
 	// ft.IsCrossing() at runtime because their generic X param resolves
 	// to realm, but they were never registered with a preprocess-time
 	// origin placeholder. Inheriting + rebuilding here would replace
 	// the caller-supplied rlm with a fresh uverse-pkgPath realm and
-	// trip cross2's IsCurrent-strict check.
+	// trip cross's IsCurrent-strict check.
 	curIdx := 0
 	if !fr.Receiver.IsUndefined() {
 		curIdx = 1
@@ -348,7 +349,7 @@ func (m *Machine) doOpCall() {
 		// b.Values[curIdx] is a *HeapItemValue wrapper rather than the
 		// realm PointerValue itself. Storing the wrapper on fr.Cur would
 		// hide the underlying HIV from realmHIV (used by .grealm.IsCurrent
-		// and cross2's strict check), making the frame invisible to the
+		// and cross's strict check), making the frame invisible to the
 		// HIV-identity walk. Deref to keep fr.Cur shaped like a normal
 		// PointerValue+HIV realm. The block slot itself must stay heap-
 		// wrapped (the closure-capture preprocess check at doOpFuncLit
@@ -397,7 +398,7 @@ func (m *Machine) doOpCallDeferNativeBody() {
 func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 	// Explicit cross-call always marks a realm boundary, regardless
 	// of whether m.Realm is tracked. /p/ test code that wraps calls
-	// in `func(cur){...}(cross2(cur))` relies on this so panics
+	// in `func(cur){...}(cross(cur))` relies on this so panics
 	// propagating back through the cross frame route to revive(),
 	// not all the way up — even though /p/ packages have no Realm
 	// (pre-Phase-3 / post-Phase-3-revert state). Pulled out of the

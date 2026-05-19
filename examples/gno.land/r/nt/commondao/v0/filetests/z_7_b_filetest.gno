@@ -16,13 +16,13 @@ const (
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.NewSubDAO(cross2(cur), "Foo", 404)
+	commondao.NewSubDAO(cross(cur), "Foo", 404)
 }
 
 // Error:

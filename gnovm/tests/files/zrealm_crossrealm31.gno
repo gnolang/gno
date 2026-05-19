@@ -7,13 +7,13 @@ import "gno.land/r/tests/vm/crossrealm"
 func main(cur realm) {
 	f := func(_ int, rlm realm) {
 		func(cur realm) {
-			crossrealm.PrintRealms(cross2(cur))
-		}(cross2(rlm))
+			crossrealm.PrintRealms(cross(cur))
+		}(cross(rlm))
 	}
 
-	crossrealm.SetClosure3(cross2(cur), f)
+	crossrealm.SetClosure3(cross(cur), f)
 
-	crossrealm.ExecuteClosure3(cross2(cur))
+	crossrealm.ExecuteClosure3(cross(cur))
 }
 
 // Output:

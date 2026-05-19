@@ -36,12 +36,12 @@ func TestCreateRole(cur realm, t *testing.T) {
 		role *Role
 		err  error
 	)
-	func(cur realm) { role, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { role, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
 	uassert.True(t, role != nil, "role should not be nil")
 	uassert.Equal(t, role.Name, roleName)
 
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.Error(t, err, "should fail on duplicate role creation")
 }
 
@@ -50,10 +50,10 @@ func TestGrantRole(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
 
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
 	role, err := roles.FindRole(roleName)
@@ -70,12 +70,12 @@ func TestGrantRoleByNonOwner(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
 
 	// user2 is not the role admin (admin is); GrantRole should fail.
 	testing.SetRealm(testing.NewUserRealm(user2))
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.Error(t, err, "non-owner should not be able to grant roles")
 }
 
@@ -84,12 +84,12 @@ func TestRevokeRole(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
-	func(cur realm) { err = roles.RevokeRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.RevokeRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
 	role, err := roles.FindRole(roleName)
@@ -107,14 +107,14 @@ func TestRenounceRole(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
 	// user1 renounces their own role — must be in user1's context.
 	testing.SetRealm(testing.NewUserRealm(user1))
-	func(cur realm) { err = roles.RenounceRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { err = roles.RenounceRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
 
 	role, err := roles.FindRole(roleName)
@@ -132,15 +132,15 @@ func TestRenounceRoleByNonHolder(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
 	// user2 tries to "renounce" user1's role — must fail because user2
 	// does not hold the role.
 	testing.SetRealm(testing.NewUserRealm(user2))
-	func(cur realm) { err = roles.RenounceRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { err = roles.RenounceRole(0, cur, roleName) }(cross(cur))
 	uassert.Error(t, err, "non-holder must not be able to renounce")
 
 	role, err := roles.FindRole(roleName)
@@ -156,10 +156,10 @@ func TestSetRoleAdmin(cur realm, t *testing.T) {
 		role *Role
 		err  error
 	)
-	func(cur realm) { role, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { role, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
 
-	func(cur realm) { err = role.SetRoleAdmin(0, cur, newAdmin) }(cross2(cur))
+	func(cur realm) { err = role.SetRoleAdmin(0, cur, newAdmin) }(cross(cur))
 	uassert.NoError(t, err, "admin change should succeed")
 
 	uassert.Equal(t, role.Ownable.Owner(), newAdmin, "the new admin should be newAdmin")
@@ -171,11 +171,11 @@ func TestCreateRoleInvalidName(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, "") }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, "") }(cross(cur))
 	uassert.Error(t, err, "should fail on empty role name")
 
 	longRoleName := "thisisaverylongrolenamethatexceedsthenormallimitfortestingpurposes"
-	func(cur realm) { _, err = roles.CreateRole(0, cur, longRoleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, longRoleName) }(cross(cur))
 	uassert.Error(t, err, "should fail on very long role name")
 }
 
@@ -184,13 +184,13 @@ func TestRevokeRoleByNonOwner(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
 	testing.SetRealm(testing.NewUserRealm(user2))
-	func(cur realm) { err = roles.RevokeRole(0, cur, roleName, user1) }(cross2(cur))
+	func(cur realm) { err = roles.RevokeRole(0, cur, roleName, user1) }(cross(cur))
 	uassert.Error(t, err, "non-owner should not be able to revoke roles")
 }
 
@@ -199,7 +199,7 @@ func TestGrantRoleToNonExistentRole(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { err = roles.GrantRole(0, cur, "NonExistentRole", user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, "NonExistentRole", user1) }(cross(cur))
 	uassert.Error(t, err, "should fail when granting non-existent role")
 }
 
@@ -208,7 +208,7 @@ func TestRevokeRoleFromNonExistentRole(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { err = roles.RevokeRole(0, cur, "NonExistentRole", user1) }(cross2(cur))
+	func(cur realm) { err = roles.RevokeRole(0, cur, "NonExistentRole", user1) }(cross(cur))
 	uassert.Error(t, err, "should fail when revoking non-existent role")
 }
 
@@ -217,7 +217,7 @@ func TestRenounceNonExistentRole(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(user1))
 	var err error
-	func(cur realm) { err = roles.RenounceRole(0, cur, "NonExistentRole") }(cross2(cur))
+	func(cur realm) { err = roles.RenounceRole(0, cur, "NonExistentRole") }(cross(cur))
 	uassert.Error(t, err, "should fail when renouncing non-existent role")
 }
 
@@ -229,7 +229,7 @@ func TestDeleteRole(cur realm, t *testing.T) {
 		role *Role
 		err  error
 	)
-	func(cur realm) { role, err = roles.CreateRole(0, cur, roleName) }(cross2(cur))
+	func(cur realm) { role, err = roles.CreateRole(0, cur, roleName) }(cross(cur))
 	uassert.NoError(t, err)
 	uassert.True(t, role != nil, "role should not be nil")
 
@@ -247,15 +247,15 @@ func TestUserToRolesWithMultipleRoles(cur realm, t *testing.T) {
 	// Create two roles
 	testing.SetRealm(testing.NewUserRealm(admin))
 	var err error
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName1) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName1) }(cross(cur))
 	uassert.NoError(t, err)
-	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName2) }(cross2(cur))
+	func(cur realm) { _, err = roles.CreateRole(0, cur, roleName2) }(cross(cur))
 	uassert.NoError(t, err)
 
 	// Grant both roles to user1
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName1, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName1, user1) }(cross(cur))
 	uassert.NoError(t, err)
-	func(cur realm) { err = roles.GrantRole(0, cur, roleName2, user1) }(cross2(cur))
+	func(cur realm) { err = roles.GrantRole(0, cur, roleName2, user1) }(cross(cur))
 	uassert.NoError(t, err)
 
 	// Check if user1 has both roles

@@ -19,18 +19,18 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
-	tid = boards2.CreateThread(cross2(cur), bid, "thread", "thread")
-	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "reply1")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "thread", "thread")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "reply1")
 
 	// Hide reply by flagging it so sub reply can't be submitted
-	boards2.FlagReply(cross2(cur), bid, tid, rid, "reason")
+	boards2.FlagReply(cross(cur), bid, tid, rid, "reason")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateReply(cross2(cur), bid, tid, rid, "reply1.1")
+	boards2.CreateReply(cross(cur), bid, tid, rid, "reply1.1")
 }
 
 // Error:

@@ -19,13 +19,13 @@ var bid boards.ID
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), name, false, false)
+	bid = boards2.CreateBoard(cross(cur), name, false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	bid2, found := boards2.GetBoardIDFromName(cross2(cur), name)
+	bid2, found := boards2.GetBoardIDFromName(cross(cur), name)
 
 	println(found)
 	println(bid2 == bid)

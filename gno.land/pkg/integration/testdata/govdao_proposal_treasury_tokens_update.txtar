@@ -59,12 +59,12 @@ import (
 )
 
 func main(cur realm) {
-	factory.New(cross2(cur), "Token1", "TOKEN1", 3, 0, 0)
-	factory.New(cross2(cur), "Token2", "TOKEN2", 3, 0, 0)
-	factory.New(cross2(cur), "Token3", "TOKEN3", 3, 0, 0)
+	factory.New(cross(cur), "Token1", "TOKEN1", 3, 0, 0)
+	factory.New(cross(cur), "Token2", "TOKEN2", 3, 0, 0)
+	factory.New(cross(cur), "Token3", "TOKEN3", 3, 0, 0)
 
 	factory.Mint(
-		cross2(cur),
+		cross(cur),
 		"TOKEN1",
 		chain.PackageAddress("gno.land/r/gov/dao/v3/treasury"),
 		42,
@@ -80,14 +80,14 @@ import (
 
 func main(cur realm) {
 	tureq := impl.NewTreasuryGRC20TokensUpdate(
-		cross2(cur),
+		cross(cur),
 		[]string{
 			"gno.land/r/demo/defi/grc20factory.TOKEN1",
 			"gno.land/r/demo/defi/grc20factory.TOKEN2",
 			"gno.land/r/demo/defi/grc20factory.TOKEN3",
 		},
 	)
-	dao.MustCreateProposal(cross2(cur), tureq)
+	dao.MustCreateProposal(cross(cur), tureq)
 }
 
 -- loader/load_govdao.gno --
@@ -110,5 +110,5 @@ func init(cur realm) {
 		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

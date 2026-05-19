@@ -69,7 +69,7 @@ func main(cur realm) {
 
 	p := &Passthrough{S: s}
 
-	crossrealm.SetObject(cross2(cur), p) // saved in crossrealm.
+	crossrealm.SetObject(cross(cur), p) // saved in crossrealm.
 
 	p.Mutate() // receiver method borrows crossrealm_b.
 

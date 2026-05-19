@@ -16,13 +16,13 @@ var bid boards.ID
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.Unban(cross2(cur), bid, "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", "")
+	boards2.Unban(cross(cur), bid, "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", "")
 }
 
 // Error:

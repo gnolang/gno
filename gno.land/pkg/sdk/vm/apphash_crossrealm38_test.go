@@ -81,11 +81,11 @@ package crossrealm38impl
 import "gno.land/r/tests/vm/crossrealm_f"
 
 func init(cur realm) {
-	crossrealm_f.Add(cross2(cur), crossrealm_f.NewEntry("a", 1))
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("a", 1))
 }
 
 func AddC(cur realm) {
-	crossrealm_f.Add(cross2(cur), crossrealm_f.NewEntry("c", 3))
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("c", 3))
 }
 `},
 	}

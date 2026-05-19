@@ -18,14 +18,14 @@ func main(cur realm) {
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "alice_123", aliceAddr)
+	uinit.RegisterUser(cross(cur), "alice_123", aliceAddr)
 	testing.SetHeight(123)
 
-	bid := boards.CreateBoard(cross2(cur), "testboard")
-	boards.CreateThread(cross2(cur), bid, "testthread", "testbody")
+	bid := boards.CreateBoard(cross(cur), "testboard")
+	boards.CreateThread(cross(cur), bid, "testthread", "testbody")
 	n := 5000
 	for i := 0; i < n; i++ {
-		boards.CreateReply(cross2(cur), bid, boards.PostID(1), boards.PostID(1), "reply")
+		boards.CreateReply(cross(cur), bid, boards.PostID(1), boards.PostID(1), "reply")
 	}
 	println("ok")
 }

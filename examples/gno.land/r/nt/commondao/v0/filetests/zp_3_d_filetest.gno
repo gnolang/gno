@@ -17,18 +17,18 @@ var daoID uint64
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	daoID = commondao.New(cross2(cur), "Foo").ID()
+	daoID = commondao.New(cross(cur), "Foo").ID()
 
-	options := commondao.GetOptions(cross2(cur), daoID)
+	options := commondao.GetOptions(cross(cur), daoID)
 	options.SetAllowDissolutionProposals(false)
 }
 
 func main(cur realm) {
-	commondao.CreateDissolutionProposal(cross2(cur), daoID)
+	commondao.CreateDissolutionProposal(cross(cur), daoID)
 }
 
 // Error:

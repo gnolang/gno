@@ -32,8 +32,8 @@ func TestPackage(cur realm, t *testing.T) {
 
 	{
 		println("Creating posts and rendering previews...")
-		CreatePost(cross2(cur), "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "lou", "tag1 tag2")
-		CreatePost(cross2(cur), "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "lou", "tag1 tag3")
+		CreatePost(cross(cur), "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "lou", "tag1 tag2")
+		CreatePost(cross(cur), "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "lou", "tag1 tag3")
 		got := Render("")
 		expected := `# Lou's Blog
 
@@ -234,11 +234,11 @@ just now
 
 	{
 		println("Adding comments on a post...")
-		AddCommentToPostBySlug(cross2(cur), "slug1", "comment1")
-		AddCommentToPostBySlug(cross2(cur), "slug2", "comment2")
-		AddCommentToPostBySlug(cross2(cur), "slug1", "comment3")
-		AddCommentToPostBySlug(cross2(cur), "slug2", "comment4")
-		AddCommentToPostBySlug(cross2(cur), "slug1", "comment5")
+		AddCommentToPostBySlug(cross(cur), "slug1", "comment1")
+		AddCommentToPostBySlug(cross(cur), "slug2", "comment2")
+		AddCommentToPostBySlug(cross(cur), "slug1", "comment3")
+		AddCommentToPostBySlug(cross(cur), "slug2", "comment4")
+		AddCommentToPostBySlug(cross(cur), "slug1", "comment5")
 		got := Render("posts/slug2")
 		expected := `# title2
 

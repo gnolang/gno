@@ -16,9 +16,9 @@ var gid groups.GroupID
 
 func main(cur realm) {
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
-	gid = groups.CreateGroup(cross2(cur), "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 
 	// delete member via anon user
@@ -26,7 +26,7 @@ func main(cur realm) {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteMember(cross2(cur), gid, 0)
+	groups.DeleteMember(cross(cur), gid, 0)
 	println(groups.Render(""))
 }
 

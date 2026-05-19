@@ -114,18 +114,18 @@ func main(cur realm) {
 	// Step 1: register the valoper profile so v3.valoperCache has
 	// the (operator -> signing pubkey) binding the executor will
 	// resolve at execution time.
-	valopers.Register(cross2(cur), "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
+	valopers.Register(cross(cur), "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
 
 	// Step 2: build the operator-keyed proposal. v3's executor reads
 	// valoperCache for op=member at execution time and publishes the
 	// signing pubkey it finds there.
 	pr := v3.NewValidatorProposalRequest(
-		cross2(cur),
+		cross(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add e2e-test-validator",
 		"regression for v3 propagation",
 	)
-	dao.MustCreateProposal(cross2(cur), pr)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- loader/load_govdao.gno --
@@ -144,5 +144,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

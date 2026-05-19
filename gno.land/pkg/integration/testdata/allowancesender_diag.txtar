@@ -86,7 +86,7 @@ func InlineCloseBeforeStore(cur realm) {
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	al.Close()
-	diagcallee.Store(cross2(cur), al)
+	diagcallee.Store(cross(cur), al)
 }
 
 // Variant B: close AFTER store, inline (no defer). Hypothesis: if
@@ -97,7 +97,7 @@ func InlineCloseAfterStore(cur realm) {
 	al := allowancesender.New(src,
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	diagcallee.Store(cross2(cur), al)
+	diagcallee.Store(cross(cur), al)
 	al.Close()
 }
 
@@ -110,6 +110,6 @@ func ClosureCallAfterStore(cur realm) {
 	al := allowancesender.New(src,
 		runtime.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	diagcallee.Store(cross2(cur), al)
+	diagcallee.Store(cross(cur), al)
 	(func() { al.Close() })()
 }

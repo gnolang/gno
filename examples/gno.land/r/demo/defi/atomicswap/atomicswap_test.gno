@@ -29,7 +29,7 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
 	testing.SetOriginSend(amount)
-	id, swap := NewCustomCoinSwap(cross2(cur), recipient, hashlockHex, timelock)
+	id, swap := NewCustomCoinSwap(cross(cur), recipient, hashlockHex, timelock)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -53,13 +53,13 @@ func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 
 	// Test claim — recipient calls via the public wrapper.
 	testing.SetRealm(testing.NewUserRealm(recipient))
-	uassert.AbortsWithMessage(t, cur, "invalid preimage", func() { Claim(cross2(cur), id, "invalid") })
-	Claim(cross2(cur), id, "secret")
+	uassert.AbortsWithMessage(t, cur, "invalid preimage", func() { Claim(cross(cur), id, "invalid") })
+	Claim(cross(cur), id, "secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	// Test refund (should fail because already claimed)
-	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross2(cur), id) })
-	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Claim(cross2(cur), id, "secret") })
+	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross(cur), id) })
+	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Claim(cross(cur), id, "secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wgc47h6lta047h6lta047h6l56jtjc
@@ -87,7 +87,7 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
 	testing.SetOriginSend(amount)
-	id, swap := NewCustomCoinSwap(cross2(cur), recipient, hashlockHex, timelock)
+	id, swap := NewCustomCoinSwap(cross(cur), recipient, hashlockHex, timelock)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -102,9 +102,9 @@ func TestNewCustomCoinSwap_Refund(cur realm, t *testing.T) {
 
 	// Test Refund — sender calls via the public wrapper.
 	testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
-	uassert.AbortsWithMessage(t, cur, "timelock not expired", func() { Refund(cross2(cur), id) })
+	uassert.AbortsWithMessage(t, cur, "timelock not expired", func() { Refund(cross(cur), id) })
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
-	Refund(cross2(cur), id)
+	Refund(cross(cur), id)
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	expected = `- status: refunded
@@ -134,7 +134,7 @@ func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(cross2(cur), recipient, hashlockHex, timelock, test20.Token)
+	id, swap := NewCustomGRC20Swap(cross(cur), recipient, hashlockHex, timelock, test20.Token)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -165,8 +165,8 @@ func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 
 	// Test claim
 	testing.SetRealm(testing.NewUserRealm(recipient))
-	uassert.AbortsWithMessage(t, cur, "invalid preimage", func() { Claim(cross2(cur), id, "invalid") })
-	Claim(cross2(cur), id, "secret")
+	uassert.AbortsWithMessage(t, cur, "invalid preimage", func() { Claim(cross(cur), id, "invalid") })
+	Claim(cross(cur), id, "secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	bal = test20.Token.BalanceOf(sender)
@@ -177,8 +177,8 @@ func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 	uassert.Equal(t, bal, int64(70_000))
 
 	// Test refund (should fail because already claimed)
-	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross2(cur), id) })
-	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Claim(cross2(cur), id, "secret") })
+	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross(cur), id) })
+	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Claim(cross(cur), id, "secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wge47h6lta047h6lta047h6l5rk38l
@@ -208,7 +208,7 @@ func TestNewCustomGRC20Swap_Refund(cur realm, t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(cross2(cur), recipient, hashlockHex, timelock, test20.Token)
+	id, swap := NewCustomGRC20Swap(cross(cur), recipient, hashlockHex, timelock, test20.Token)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -233,10 +233,10 @@ func TestNewCustomGRC20Swap_Refund(cur realm, t *testing.T) {
 
 	// Test Refund — sender is still the current realm.
 	testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
-	uassert.AbortsWithMessage(t, cur, "timelock not expired", func() { Refund(cross2(cur), id) })
+	uassert.AbortsWithMessage(t, cur, "timelock not expired", func() { Refund(cross(cur), id) })
 
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
-	Refund(cross2(cur), id)
+	Refund(cross(cur), id)
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	bal = test20.Token.BalanceOf(sender)
@@ -273,7 +273,7 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross2(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20")
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -303,8 +303,8 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 
 	// Test claim
 	testing.SetRealm(testing.NewUserRealm(recipient))
-	uassert.AbortsWithMessage(t, cur, "invalid preimage", func() { Claim(cross2(cur), id, "invalid") })
-	Claim(cross2(cur), id, "secret")
+	uassert.AbortsWithMessage(t, cur, "invalid preimage", func() { Claim(cross(cur), id, "invalid") })
+	Claim(cross(cur), id, "secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	bal = test20.Token.BalanceOf(sender)
@@ -315,8 +315,8 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 	uassert.Equal(t, int64(70_000), bal)
 
 	// Test refund (should fail because already claimed)
-	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross2(cur), id) })
-	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Claim(cross2(cur), id, "secret") })
+	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross(cur), id) })
+	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Claim(cross(cur), id, "secret") })
 
 	expected = `- status: claimed
 - sender: g1wdjkuer9wg697h6lta047h6lta047h6ltt3lty
@@ -345,7 +345,7 @@ func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross2(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20")
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20")
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -370,10 +370,10 @@ func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 
 	// Test Refund — sender is still the current realm.
 	testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
-	uassert.AbortsWithMessage(t, cur, "timelock not expired", func() { Refund(cross2(cur), id) })
+	uassert.AbortsWithMessage(t, cur, "timelock not expired", func() { Refund(cross(cur), id) })
 
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
-	Refund(cross2(cur), id)
+	Refund(cross(cur), id)
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	bal = test20.Token.BalanceOf(sender)
@@ -414,13 +414,13 @@ func TestRender(cur realm, t *testing.T) {
 
 	userTeller := test20.Token.RealmTeller(0, cur)
 	userTeller.Approve(0, cur, rlm, 10_000)
-	bobSwapID, _ := NewCustomGRC20Swap(cross2(cur), bob, hashlockHex, timelock, test20.Token)
+	bobSwapID, _ := NewCustomGRC20Swap(cross(cur), bob, hashlockHex, timelock, test20.Token)
 
 	userTeller.Approve(0, cur, rlm, 20_000)
-	_, _ = NewCustomGRC20Swap(cross2(cur), charly, hashlockHex, timelock, test20.Token)
+	_, _ = NewCustomGRC20Swap(cross(cur), charly, hashlockHex, timelock, test20.Token)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
-	Claim(cross2(cur), bobSwapID, "secret")
+	Claim(cross(cur), bobSwapID, "secret")
 	expected := `- 2: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh -(20000TST)> g1vd5xzunv09047h6lta047h6lta047h6lhsyveh - active
 - 1: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh -(10000TST)> g1vfhkyh6lta047h6lta047h6lta047h6l03vdhu - claimed
 `

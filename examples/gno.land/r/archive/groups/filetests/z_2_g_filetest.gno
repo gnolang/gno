@@ -19,10 +19,10 @@ func main(cur realm) {
 	caller := runtime.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "gnouser123", caller)
+	uinit.RegisterUser(cross(cur), "gnouser123", caller)
 	testing.SetHeight(123)
 
-	gid = groups.CreateGroup(cross2(cur), "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 
 	// delete group via anon user
@@ -30,7 +30,7 @@ func main(cur realm) {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteGroup(cross2(cur), gid)
+	groups.DeleteGroup(cross(cur), gid)
 	println(groups.Render(""))
 }
 

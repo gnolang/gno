@@ -22,17 +22,17 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	srcBID = boards2.CreateBoard(cross2(cur), "src-board", false, false)
-	dstBID = boards2.CreateBoard(cross2(cur), "dst-board", false, false)
+	srcBID = boards2.CreateBoard(cross(cur), "src-board", false, false)
+	dstBID = boards2.CreateBoard(cross(cur), "dst-board", false, false)
 
-	srcTID = boards2.CreateThread(cross2(cur), srcBID, "original title", "original text")
+	srcTID = boards2.CreateThread(cross(cur), srcBID, "original title", "original text")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Success case
-	tID := boards2.CreateRepost(cross2(cur), srcBID, srcTID, dstBID, "repost title", "repost text")
+	tID := boards2.CreateRepost(cross(cur), srcBID, srcTID, dstBID, "repost title", "repost text")
 	p := ufmt.Sprintf("dst-board/%s", tID)
 	out := boards2.Render(p)
 

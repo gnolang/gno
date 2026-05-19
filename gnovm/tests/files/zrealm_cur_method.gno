@@ -16,7 +16,7 @@ func main(cur realm) {
 	mCurNonCross := t.M(cur)
 	println("non-cross: t.M(cur) returns same realm as caller cur:", mCurNonCross == cur)
 
-	mCurCross := t.M(cross2(cur))
+	mCurCross := t.M(cross(cur))
 	println("cross: t.M(cross) returns a different realm (new capture):", mCurCross != cur)
 	println("cross: returned cur same pkg path:", mCurCross.PkgPath() == cur.PkgPath())
 	// After cross-call, the inner cur's prev is the caller's cur (main's).

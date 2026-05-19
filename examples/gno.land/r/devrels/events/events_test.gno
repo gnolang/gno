@@ -27,7 +27,7 @@ func TestAddEvent(cur realm, t *testing.T) {
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
 
-	_, err := AddEvent(cross2(cur), "Event 1", "this event is upcoming", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	_, err := AddEvent(cross(cur), "Event 1", "this event is upcoming", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 
 	urequire.NoError(t, err)
 	got := renderHome(false)
@@ -39,7 +39,7 @@ func TestAddEvent(cur realm, t *testing.T) {
 	e2Start := parsedTimeNow.Add(-time.Hour * 24 * 5)
 	e2End := e2Start.Add(time.Hour * 4)
 
-	_, err = AddEvent(cross2(cur), "Event 2", "this event is in the past", "gno.land", "gnome land", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
+	_, err = AddEvent(cross(cur), "Event 2", "this event is in the past", "gno.land", "gnome land", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
 	urequire.NoError(t, err)
 
 	got = renderHome(false)
@@ -68,23 +68,23 @@ func TestAddEvent(cur realm, t *testing.T) {
 func TestAddEventErrors(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
-	_, err := AddEvent(cross2(cur), "", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
+	_, err := AddEvent(cross(cur), "", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
 	uassert.ErrorIs(t, err, ErrEmptyName)
 
-	_, err = AddEvent(cross2(cur), "sample name", "sample desc", "gno.land", "gnome land", "", "2009-02-13T23:33:31Z")
+	_, err = AddEvent(cross(cur), "sample name", "sample desc", "gno.land", "gnome land", "", "2009-02-13T23:33:31Z")
 	uassert.ErrorContains(t, err, ErrInvalidStartTime.Error())
 
-	_, err = AddEvent(cross2(cur), "sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "")
+	_, err = AddEvent(cross(cur), "sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "")
 	uassert.ErrorContains(t, err, ErrInvalidEndTime.Error())
 
-	_, err = AddEvent(cross2(cur), "sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:30:31Z")
+	_, err = AddEvent(cross(cur), "sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:30:31Z")
 	uassert.ErrorIs(t, err, ErrEndBeforeStart)
 
-	_, err = AddEvent(cross2(cur), "sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31+06:00", "2009-02-13T23:33:31+02:00")
+	_, err = AddEvent(cross(cur), "sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31+06:00", "2009-02-13T23:33:31+02:00")
 	uassert.ErrorIs(t, err, ErrStartEndTimezonemMismatch)
 
 	tooLongDesc := `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean ma`
-	_, err = AddEvent(cross2(cur), "sample name", tooLongDesc, "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
+	_, err = AddEvent(cross(cur), "sample name", tooLongDesc, "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
 	uassert.ErrorContains(t, err, ErrDescriptionTooLong.Error())
 }
 
@@ -94,7 +94,7 @@ func TestDeleteEvent(cur realm, t *testing.T) {
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
 
-	id, err := AddEvent(cross2(cur), "ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	id, err := AddEvent(cross(cur), "ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 	urequire.NoError(t, err)
 
 	got := renderHome(false)
@@ -103,7 +103,7 @@ func TestDeleteEvent(cur realm, t *testing.T) {
 		t.Fatalf("Expected to find ToDelete event in render")
 	}
 
-	DeleteEvent(cross2(cur), id)
+	DeleteEvent(cross(cur), id)
 	got = renderHome(false)
 
 	if strings.Contains(got, "ToDelete") {
@@ -118,7 +118,7 @@ func TestEditEvent(cur realm, t *testing.T) {
 	e1End := e1Start.Add(time.Hour * 4)
 	loc := "gnome land"
 
-	id, err := AddEvent(cross2(cur), "ToDelete", "description", "gno.land", loc, e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	id, err := AddEvent(cross(cur), "ToDelete", "description", "gno.land", loc, e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 	urequire.NoError(t, err)
 
 	newName := "New Name"
@@ -127,7 +127,7 @@ func TestEditEvent(cur realm, t *testing.T) {
 	newST := e1Start.Add(time.Hour)
 	newET := newST.Add(time.Hour)
 
-	EditEvent(cross2(cur), id, newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
+	EditEvent(cross(cur), id, newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
 	edited, _, _ := GetEventByID(id)
 
 	// Check updated values
@@ -145,7 +145,7 @@ func TestInvalidEdit(cur realm, t *testing.T) {
 	testing.SetRealm(suRealm)
 
 	uassert.AbortsWithMessage(t, cur, ErrNoSuchID.Error(), func() {
-		EditEvent(cross2(cur), "123123", "", "", "", "", "", "")
+		EditEvent(cross(cur), "123123", "", "", "", "", "", "")
 	})
 }
 
@@ -191,10 +191,10 @@ func TestRenderEventWidget(cur realm, t *testing.T) {
 	e2Start := parsedTimeNow.Add(time.Hour * 24 * 10) // event 2 is after event 1
 	e2End := e2Start.Add(time.Hour * 4)
 
-	_, err = AddEvent(cross2(cur), "Event 1", "description", "gno.land", "loc", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	_, err = AddEvent(cross(cur), "Event 1", "description", "gno.land", "loc", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 	urequire.NoError(t, err)
 
-	_, err = AddEvent(cross2(cur), "Event 2", "description", "gno.land", "loc", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
+	_, err = AddEvent(cross(cur), "Event 2", "description", "gno.land", "loc", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
 	urequire.NoError(t, err)
 
 	out, err = RenderEventWidget(MaxWidgetSize)

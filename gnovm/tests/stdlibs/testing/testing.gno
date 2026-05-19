@@ -166,7 +166,7 @@ func (t *T) Parallel() {
 // Run executes a sub-test. f can be either `func(*T)` (non-crossing,
 // matching Go's testing.T.Run) or `func(realm, *T)` (crossing). The
 // crossing form receives the parent test's cur as its first parameter
-// — SetRealm calls inside the sub-test patch *that* cur, so cross2(cur)
+// — SetRealm calls inside the sub-test patch *that* cur, so cross(cur)
 // inside the sub-test body works correctly.
 func (t *T) Run(name string, f any) bool {
 	fullName := t.name + "/" + rewrite(name)

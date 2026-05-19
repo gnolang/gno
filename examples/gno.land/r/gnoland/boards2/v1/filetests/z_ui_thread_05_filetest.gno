@@ -22,12 +22,12 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a readonly board and then add a thread
-	boardID := boards2.CreateBoard(cross2(cur), boardName, false, false)
-	threadID = boards2.CreateThread(cross2(cur), boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Flag the thread
-	boards2.SetFlaggingThreshold(cross2(cur), boardID, 1)
-	boards2.FlagThread(cross2(cur), boardID, threadID, "Reason")
+	boards2.SetFlaggingThreshold(cross(cur), boardID, 1)
+	boards2.FlagThread(cross(cur), boardID, threadID, "Reason")
 }
 
 func main() {

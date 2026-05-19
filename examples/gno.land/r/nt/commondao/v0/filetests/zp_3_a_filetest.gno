@@ -19,21 +19,21 @@ var dao *pcommondao.CommonDAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross2(cur), "Foo")
+	dao = commondao.New(cross(cur), "Foo")
 	dao.Members().Add(user)
 
-	options := commondao.GetOptions(cross2(cur), dao.ID())
+	options := commondao.GetOptions(cross(cur), dao.ID())
 	options.SetAllowDissolutionProposals(true)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateDissolutionProposal(cross2(cur), dao.ID())
+	pID := commondao.CreateDissolutionProposal(cross(cur), dao.ID())
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {

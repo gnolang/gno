@@ -25,15 +25,15 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross2(cur), boardName, false, false)
-	threadID = boards2.CreateThread(cross2(cur), boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Create a comments with a reply
-	replyID = boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Second comment")
-	boards2.CreateReply(cross2(cur), boardID, threadID, replyID, "Third comment")
+	replyID = boards2.CreateReply(cross(cur), boardID, threadID, 0, "Second comment")
+	boards2.CreateReply(cross(cur), boardID, threadID, replyID, "Third comment")
 
 	// Flag the comment
-	boards2.FlagReply(cross2(cur), boardID, threadID, replyID, "Reason")
+	boards2.FlagReply(cross(cur), boardID, threadID, replyID, "Reason")
 }
 
 func main() {

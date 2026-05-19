@@ -17,7 +17,7 @@ func init() {
 
 func Render(cur realm, in string) string {
 	// Same-realm: pass cur to govDAO.Render (also crossing, but same realm
-	// so use the literal cur form rather than cross2).
+	// so use the literal cur form rather than cross(cur)).
 	return govDAO.Render(cur, cur.PkgPath(), in)
 }
 

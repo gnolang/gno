@@ -19,17 +19,17 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
-	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 
-	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "Parent")
-	boards2.CreateReply(cross2(cur), bid, tid, rid, "Child reply")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "Parent")
+	boards2.CreateReply(cross(cur), bid, tid, rid, "Child reply")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.DeleteReply(cross2(cur), bid, tid, rid)
+	boards2.DeleteReply(cross(cur), bid, tid, rid)
 
 	// Render content must contain the releted message instead of reply's body
 	println(boards2.Render("test-board/1/2"))

@@ -75,12 +75,12 @@ import (
 func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
-		cross2(cur),
+		cross(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add operator A as validator",
 		"will be sabotaged by KR flip before execute",
 	)
-	dao.MustCreateProposal(cross2(cur), pr)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- loader/load_govdao.gno --
@@ -99,5 +99,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

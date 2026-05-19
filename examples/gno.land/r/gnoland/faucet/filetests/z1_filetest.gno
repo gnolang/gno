@@ -17,7 +17,7 @@ func init() {
 
 // assert render with a path and no controllers
 func main(cur realm) {
-	println(faucet.Render(cross2(cur), "path"))
+	println(faucet.Render(cross(cur), "path"))
 }
 
 // Output:

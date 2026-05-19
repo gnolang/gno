@@ -16,7 +16,7 @@ func init(cur realm) {
 	// genesis-only (height==0) since the security fix; tests run at
 	// DefaultHeight=123, so we temporarily reset and restore.
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
+	uinit.RegisterUser(cross(cur), "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
 	testing.SetHeight(123)
 }
 

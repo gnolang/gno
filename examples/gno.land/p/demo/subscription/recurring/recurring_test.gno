@@ -107,7 +107,7 @@ func TestUpdateAmount_OwnerSucceeds(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	var err error
-	func(cur realm) { err = rs.UpdateAmount(0, cur, 2000) }(cross2(cur))
+	func(cur realm) { err = rs.UpdateAmount(0, cur, 2000) }(cross(cur))
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(2000), rs.GetAmount())
 }
@@ -117,7 +117,7 @@ func TestUpdateAmount_NonOwnerFails(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	var err error
-	func(cur realm) { err = rs.UpdateAmount(0, cur, 3000) }(cross2(cur))
+	func(cur realm) { err = rs.UpdateAmount(0, cur, 3000) }(cross(cur))
 	uassert.ErrorIs(t, err, ErrNotAuthorized)
 }
 

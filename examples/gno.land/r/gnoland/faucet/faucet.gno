@@ -59,7 +59,7 @@ func bankerAddr(cur realm) address {
 
 func Render(cur realm, _ string) string {
 	banker_ := banker.NewReadonlyBanker()
-	balance := banker_.GetCoins(bankerAddr(cross2(cur)))
+	balance := banker_.GetCoins(bankerAddr(cross(cur)))
 
 	output := gMessage
 	if gInPause {

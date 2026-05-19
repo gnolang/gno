@@ -22,18 +22,18 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
-	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "body")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to delete replies
-	boards2.InviteMember(cross2(cur), bid, member, boards2.RoleAdmin)
+	boards2.InviteMember(cross(cur), bid, member, boards2.RoleAdmin)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(member))
 
-	boards2.DeleteReply(cross2(cur), bid, tid, rid)
+	boards2.DeleteReply(cross(cur), bid, tid, rid)
 
 	// Ensure reply doesn't exist
 	println(boards2.Render("test-board/1/2"))

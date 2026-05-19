@@ -23,9 +23,9 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a readonly board and then add a thread
-	boardID := boards2.CreateBoard(cross2(cur), boardName, false, false)
-	threadID = boards2.CreateThread(cross2(cur), boardID, "Foo", "Body")
-	boards2.FreezeBoard(cross2(cur), boardID)
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
+	boards2.FreezeBoard(cross(cur), boardID)
 }
 
 func main() {

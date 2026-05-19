@@ -43,7 +43,7 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 
 	// bob uses the faucet.
 	testing.SetOriginCaller(bob)
-	Faucet(cross2(cur))
+	Faucet(cross(cur))
 
 	// check balances #2.
 	{
@@ -86,7 +86,7 @@ func TestErrConditions(cur realm, t *testing.T) {
 					panic(err)
 				}
 			}},
-			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross2(cur), empty, 1) }},
+			{"Approve(empty, 1))", "invalid address", true, func() { Approve(cross(cur), empty, 1) }},
 		}
 		for _, tc := range tests {
 			if tc.isCross {

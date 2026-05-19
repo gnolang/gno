@@ -213,7 +213,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross2(cur))
+	return test.Echo(cross(cur))
 }`,
 		},
 	}
@@ -378,7 +378,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross2(cur))
+	return test.Echo(cross(cur))
 }`,
 		},
 	}
@@ -998,7 +998,7 @@ package main
 import "gno.land/r/test"
 
 func main(cur realm) {
-	msg := test.Echo(cross2(cur))
+	msg := test.Echo(cross(cur))
 	println(msg)
 }
 `,
@@ -1054,7 +1054,7 @@ package main
 import "gno.land/r/test"
 
 func main(cur realm) {
-	msg := test.Echo(cross2(cur))
+	msg := test.Echo(cross(cur))
 	println(msg)
 }
 `,
@@ -1335,7 +1335,7 @@ import "gno.land/r/foo"
 var Msg string
 func Echo(cur realm, msg string){
 	Msg = msg
-	foo.Bar(cross2(cur), msg)
+	foo.Bar(cross(cur), msg)
 }`},
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPathTest)},
 	}
@@ -1431,7 +1431,7 @@ func UpdateStorage(cur realm, n int) {
 		for _, realmPath := range realms {
 			alias := path.Base(realmPath)
 			imports += fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath)
-			calls += fmt.Sprintf("\t%s.UpdateStorage(cross2(cur), 500)\n", alias)
+			calls += fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias)
 		}
 
 		masterCode := fmt.Sprintf(`package master

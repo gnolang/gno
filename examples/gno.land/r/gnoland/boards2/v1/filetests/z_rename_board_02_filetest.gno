@@ -15,13 +15,13 @@ const (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross2(cur), name, false, false)
+	boards2.CreateBoard(cross(cur), name, false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.RenameBoard(cross2(cur), name, name)
+	boards2.RenameBoard(cross(cur), name, name)
 }
 
 // Error:

@@ -29,11 +29,11 @@ func main(cur realm) {
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(coins)
 	banker.NewBanker(banker.BankerTypeRealmSend, cur).SendCoins(addr1, addrc, coins)
-	wugnot.Deposit(cross2(cur))
+	wugnot.Deposit(cross(cur))
 	printBalances()
 
 	// withdraw of 4242ugnot to addr1
-	wugnot.Withdraw(cross2(cur), 4242)
+	wugnot.Withdraw(cross(cur), 4242)
 	printBalances()
 }
 

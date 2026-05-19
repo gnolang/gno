@@ -19,15 +19,15 @@ var bid boards.ID // Operate on board DAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
 
-	boards2.InviteMember(cross2(cur), bid, admin, boards2.RoleGuest)
+	boards2.InviteMember(cross(cur), bid, admin, boards2.RoleGuest)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross2(cur), bid, "foo", boards2.RoleModerator)
+	boards2.ChangeMemberRole(cross(cur), bid, "foo", boards2.RoleModerator)
 }
 
 // Error:

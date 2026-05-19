@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	tamagotchi.Reset(cross2(cur), "tamagnotchi")
+	tamagotchi.Reset(cross(cur), "tamagnotchi")
 	println(tamagotchi.Render(""))
 }
 

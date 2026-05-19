@@ -81,14 +81,14 @@ func main(cur realm) {
 		memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 		addPubKey  = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	)
-	valopers.Register(cross2(cur), "power-test-validator", "power-update flow regression", "cloud", address(memberAddr), addPubKey)
+	valopers.Register(cross(cur), "power-test-validator", "power-update flow regression", "cloud", address(memberAddr), addPubKey)
 
 	pr := v3.NewValidatorProposalRequest(
-		cross2(cur),
+		cross(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add validator at power 1", "",
 	)
-	dao.MustCreateProposal(cross2(cur), pr)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- run/update_proposal.gno --
@@ -107,11 +107,11 @@ func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 
 	pr := v3.NewValidatorProposalRequest(
-		cross2(cur),
+		cross(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 3)},
 		"Update validator power 1->3", "",
 	)
-	dao.MustCreateProposal(cross2(cur), pr)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- loader/load_govdao.gno --
@@ -130,5 +130,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

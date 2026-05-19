@@ -14,7 +14,7 @@ var (
 
 func init(cur realm) {
 	addr = runtime.OriginCaller()
-	addrInit = tests.InitOriginCaller(cross2(cur))
+	addrInit = tests.InitOriginCaller(cross(cur))
 }
 
 func main(cur realm) {

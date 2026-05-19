@@ -14,7 +14,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Should fail because board name has a space which is not allowed
-	boards2.CreateBoard(cross2(cur), "test 123", false, false)
+	boards2.CreateBoard(cross(cur), "test 123", false, false)
 }
 
 // Error:

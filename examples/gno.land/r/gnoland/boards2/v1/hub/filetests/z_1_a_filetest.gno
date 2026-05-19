@@ -19,13 +19,13 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross2(cur), "origin123", false, false)
-	threadID = boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
+	boardID = boards2.CreateBoard(cross(cur), "origin123", false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	thread, found := hub.GetThread(cross2(cur), uint64(boardID), uint64(threadID))
+	thread, found := hub.GetThread(cross(cur), uint64(boardID), uint64(threadID))
 	if !found {
 		return
 	}

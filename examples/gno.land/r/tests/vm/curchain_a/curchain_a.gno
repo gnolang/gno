@@ -12,5 +12,5 @@ import (
 func A(cur realm) {
 	println("A cur.PkgPath:", cur.PkgPath())
 	println("A prev.PkgPath:", cur.Previous().PkgPath())
-	curchain_b.B(cross2(cur))
+	curchain_b.B(cross(cur))
 }

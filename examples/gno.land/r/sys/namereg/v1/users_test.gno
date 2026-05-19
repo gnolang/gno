@@ -22,7 +22,7 @@ func init(cur realm) {
 	// (guarded on height==0) is a no-op in tests. Temporarily reset height so we
 	// can whitelist this realm as a controller for testing.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 }
 
@@ -47,7 +47,7 @@ func TestRegister_Valid(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
 		urequire.NotPanics(t, cur, func() {
-			Register(cross2(cur), username)
+			Register(cross(cur), username)
 		})
 	}
 }
@@ -63,7 +63,7 @@ func TestRegister_Free(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addr)
 
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), "nym-foxtrot456")
+		Register(cross(cur), "nym-foxtrot456")
 	})
 }
 
@@ -89,7 +89,7 @@ func TestRegister_InvalidFormat(cur realm, t *testing.T) {
 
 	for _, username := range cases {
 		uassert.AbortsWithMessage(t, cur, ErrInvalidFormat.Error(), func() {
-			Register(cross2(cur), username)
+			Register(cross(cur), username)
 		})
 	}
 }
@@ -110,7 +110,7 @@ func TestRegister_ReservedPrefix(cur realm, t *testing.T) {
 
 	for _, username := range cases {
 		uassert.AbortsWithMessage(t, cur, ErrReservedPrefix.Error(), func() {
-			Register(cross2(cur), username)
+			Register(cross(cur), username)
 		})
 	}
 }
@@ -127,7 +127,7 @@ func TestRegister_GiPrefix_Allowed(cur realm, t *testing.T) {
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), "nym-gillette789")
+		Register(cross(cur), "nym-gillette789")
 	})
 }
 
@@ -157,7 +157,7 @@ func TestRegister_Blacklisted(cur realm, t *testing.T) {
 
 	for _, username := range cases {
 		uassert.AbortsWithMessage(t, cur, ErrBlacklisted.Error(), func() {
-			Register(cross2(cur), username)
+			Register(cross(cur), username)
 		})
 	}
 }
@@ -170,7 +170,7 @@ func TestRegister_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), "nym-balloon123")
+		Register(cross(cur), "nym-balloon123")
 	})
 
 	// Then attempt to register a canonical-equivalent variant — same
@@ -180,7 +180,7 @@ func TestRegister_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addr2)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 	uassert.AbortsWithMessage(t, cur, susers.ErrCanonicalCollision.Error(), func() {
-		Register(cross2(cur), "nym-baiioon123")
+		Register(cross(cur), "nym-baiioon123")
 	})
 
 	// Reverse direction also blocked.
@@ -189,7 +189,7 @@ func TestRegister_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addr3)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), "nym-papaiio789")
+		Register(cross(cur), "nym-papaiio789")
 	})
 
 	addr4 := testutils.TestAddress("collision-4")
@@ -197,7 +197,7 @@ func TestRegister_CanonicalCollision(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addr4)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 	uassert.AbortsWithMessage(t, cur, susers.ErrCanonicalCollision.Error(), func() {
-		Register(cross2(cur), "nym-papallo789")
+		Register(cross(cur), "nym-papallo789")
 	})
 }
 
@@ -210,7 +210,7 @@ func TestRegister_SameStemDifferentDigits_Coexist(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addrA)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), "nym-foolbar000")
+		Register(cross(cur), "nym-foolbar000")
 	})
 
 	addrB := testutils.TestAddress("stem-coexist-B")
@@ -218,7 +218,7 @@ func TestRegister_SameStemDifferentDigits_Coexist(cur realm, t *testing.T) {
 	testing.SetOriginCaller(addrB)
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), "nym-foolbar999")
+		Register(cross(cur), "nym-foolbar999")
 	})
 }
 
@@ -229,13 +229,13 @@ func TestRegister_TakenUsername(cur realm, t *testing.T) {
 	username := "nym-zulutwo567"
 
 	urequire.NotPanics(t, cur, func() {
-		Register(cross2(cur), username)
+		Register(cross(cur), username)
 	})
 
 	// Re-registration of the same exact name is rejected by susers via
 	// ErrNameTaken (the nameStore.Has check precedes the canonical check).
 	uassert.AbortsWithMessage(t, cur, susers.ErrNameTaken.Error(), func() {
-		Register(cross2(cur), username)
+		Register(cross(cur), username)
 	})
 }
 
@@ -247,7 +247,7 @@ func TestRegister_InvalidPayment(cur realm, t *testing.T) {
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 12))) // invalid
 
 	uassert.AbortsContains(t, cur, ErrInvalidPayment.Error(), func() {
-		Register(cross2(cur), "nym-yankee345")
+		Register(cross(cur), "nym-yankee345")
 	})
 }
 
@@ -261,7 +261,7 @@ func TestRegister_IntermediateCodeRealmRejected(cur realm, t *testing.T) {
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", registerPrice)))
 
 	uassert.AbortsWithMessage(t, cur, ErrNonUserCall.Error(), func() {
-		Register(cross2(cur), "nym-whisky345")
+		Register(cross(cur), "nym-whisky345")
 	})
 }
 
@@ -279,11 +279,11 @@ func TestRegister_PaymentErrorReflectsCurrentPrice(cur realm, t *testing.T) {
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1_000_000))) // wrong
 
 	uassert.AbortsContains(t, cur, "5000000", func() {
-		Register(cross2(cur), "nym-xrayfox678")
+		Register(cross(cur), "nym-xrayfox678")
 	})
 
 	uassert.AbortsContains(t, cur, ErrInvalidPayment.Error(), func() {
-		Register(cross2(cur), "nym-xrayfox678")
+		Register(cross(cur), "nym-xrayfox678")
 	})
 }
 

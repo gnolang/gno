@@ -66,5 +66,5 @@ func parsePkgPath(path string) string {
 }
 
 func init(cur realm) {
-	hor.Register(cross2(cur), "Derive", "Quickly derive a Gno address from a pkg path.")
+	hor.Register(cross(cur), "Derive", "Quickly derive a Gno address from a pkg path.")
 }

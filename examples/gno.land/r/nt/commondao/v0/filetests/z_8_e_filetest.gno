@@ -18,7 +18,7 @@ var rootID uint64
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
@@ -26,13 +26,13 @@ func init(cur realm) {
 
 	// Create root DAO without subDAOs
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	rootID = commondao.New(cross2(cur), "Root DAO").ID()
+	rootID = commondao.New(cross(cur), "Root DAO").ID()
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	iter := commondao.NewIterator(cross2(cur), rootID)
+	iter := commondao.NewIterator(cross(cur), rootID)
 
 	println("Count =", iter.Count())
 	println(iter.Next())

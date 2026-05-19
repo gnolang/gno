@@ -71,7 +71,7 @@ func main(cur realm) {
 	// reject on entry parse if F1 ever silently regresses. F1 must
 	// panic before we get that far.
 	const fakePubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
-	_ = sysparams.NewSysParamStringsPropRequest(cross2(cur), "node", "valset", "proposed", []string{fakePubKey + ":1000000"})
+	_ = sysparams.NewSysParamStringsPropRequest(cross(cur), "node", "valset", "proposed", []string{fakePubKey + ":1000000"})
 }
 
 -- run/bypass_bytes.gno --
@@ -80,7 +80,7 @@ package main
 import sysparams "gno.land/r/sys/params"
 
 func main(cur realm) {
-	_ = sysparams.NewSysParamBytesPropRequest(cross2(cur), "node", "valset", "proposed", []byte("garbage"))
+	_ = sysparams.NewSysParamBytesPropRequest(cross(cur), "node", "valset", "proposed", []byte("garbage"))
 }
 
 -- run/bypass_bool.gno --
@@ -89,7 +89,7 @@ package main
 import sysparams "gno.land/r/sys/params"
 
 func main(cur realm) {
-	_ = sysparams.NewSysParamBoolPropRequest(cross2(cur), "node", "valset", "dirty", true)
+	_ = sysparams.NewSysParamBoolPropRequest(cross(cur), "node", "valset", "dirty", true)
 }
 
 -- run/legit_nonvalset.gno --
@@ -103,8 +103,8 @@ import (
 func main(cur realm) {
 	// vm:p:chain_domain is a normal governance-managed key. F1 must
 	// not over-reject it.
-	pr := sysparams.NewSysParamStringPropRequest(cross2(cur), "vm", "p", "chain_domain", "test.land")
-	dao.MustCreateProposal(cross2(cur), pr)
+	pr := sysparams.NewSysParamStringPropRequest(cross(cur), "vm", "p", "chain_domain", "test.land")
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- loader/load_govdao.gno --
@@ -123,5 +123,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

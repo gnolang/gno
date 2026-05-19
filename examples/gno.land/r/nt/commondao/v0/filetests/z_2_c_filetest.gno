@@ -14,7 +14,7 @@ func main(cur realm) {
 	// Calling with a user that was not invited
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.New(cross2(cur), "Foo")
+	commondao.New(cross(cur), "Foo")
 }
 
 // Error:

@@ -19,20 +19,20 @@ var daoID uint64
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	// Create a couple of DAOs
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
-	commondao.New(cross2(cur), "A")
-	daoID = commondao.New(cross2(cur), name).ID()
-	commondao.New(cross2(cur), "C")
+	commondao.New(cross(cur), "A")
+	daoID = commondao.New(cross(cur), name).ID()
+	commondao.New(cross(cur), "C")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test"))
 
-	dao := commondao.Get(cross2(cur), daoID)
+	dao := commondao.Get(cross(cur), daoID)
 	if dao == nil {
 		panic("expected DAO to be found")
 	}

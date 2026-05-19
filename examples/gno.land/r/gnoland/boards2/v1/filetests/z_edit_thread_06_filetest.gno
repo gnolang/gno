@@ -25,17 +25,17 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
-	pid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	pid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to edit threads
-	boards2.InviteMember(cross2(cur), bid, admin, boards2.RoleAdmin)
+	boards2.InviteMember(cross(cur), bid, admin, boards2.RoleAdmin)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(admin))
 
-	boards2.EditThread(cross2(cur), bid, pid, title, body)
+	boards2.EditThread(cross(cur), bid, pid, title, body)
 
 	println(boards2.Render(path))
 }

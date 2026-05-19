@@ -27,14 +27,14 @@ var (
 const pageSize = 10
 
 func init(cur realm) {
-	hor.Register(cross2(cur), "Token Hub", "Registry for tokens and NFTs on gno.land")
+	hor.Register(cross(cur), "Token Hub", "Registry for tokens and NFTs on gno.land")
 }
 
 // RegisterToken is a function that uses gno.land/r/demo/defi/grc20reg to register a token
 // RegisterToken registers a token in grc20reg with the given slug.
 // Returns the registry key that can be used to retrieve the token.
 func RegisterToken(cur realm, token *grc20.Token, slug string) string {
-	grc20reg.Register(cross2(cur), token, slug)
+	grc20reg.Register(cross(cur), token, slug)
 	return fqname.Construct(cur.PkgPath(), slug)
 }
 

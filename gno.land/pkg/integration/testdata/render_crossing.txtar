@@ -8,7 +8,7 @@
 ##
 ## The realm under test (gno.land/r/test/render_crossing) declares:
 ##   func Render(cur realm, path string) string
-## and dispatches an internal crossing helper via `cross2(cur)`, exercising
+## and dispatches an internal crossing helper via `cross(cur)`, exercising
 ## the full cur-threading path through the query machine.
 
 loadpkg gno.land/r/test/render_crossing $WORK
@@ -22,7 +22,7 @@ gnokey query vm/qrender --data 'gno.land/r/test/render_crossing:hello'
 # empty origin placeholder.
 stdout 'Render cur.PkgPath\(\) = gno.land/r/test/render_crossing'
 stdout 'Render cur.Previous\(\).PkgPath\(\) = ""'
-# Inner cur (after cross2(cur) into observe) — same realm, but prev
+# Inner cur (after cross(cur) into observe) — same realm, but prev
 # is now Render's frame, so prev.PkgPath() is the realm pkgpath.
 stdout 'observe cur.PkgPath\(\) = gno.land/r/test/render_crossing'
 stdout 'observe cur.Previous\(\).PkgPath\(\) = "gno.land/r/test/render_crossing"'
@@ -39,7 +39,7 @@ gno = "0.9"
 -- render.gno --
 package render_crossing
 
-// observe is a crossing helper. Calling it via cross2(cur) from Render
+// observe is a crossing helper. Calling it via cross(cur) from Render
 // exercises the full cur-threading path through the query machine.
 // Returns the inner cur's pkgpath and its prev's pkgpath.
 func observe(cur realm) (own, prev string) {
@@ -51,9 +51,9 @@ func Render(cur realm, path string) string {
 	// pkgpath of the realm itself, prev is the empty origin.
 	outerOwn := cur.PkgPath()
 	outerPrev := cur.Previous().PkgPath()
-	// Inner cur: cross2(cur) into the same realm. The new frame's cur
+	// Inner cur: cross(cur) into the same realm. The new frame's cur
 	// has the same pkgpath, but prev = the outer Render frame's pkgpath.
-	innerOwn, innerPrev := observe(cross2(cur))
+	innerOwn, innerPrev := observe(cross(cur))
 	return "Render cur.PkgPath() = " + outerOwn +
 		"\nRender cur.Previous().PkgPath() = \"" + outerPrev + "\"" +
 		"\nobserve cur.PkgPath() = " + innerOwn +

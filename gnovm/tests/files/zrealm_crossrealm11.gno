@@ -19,7 +19,7 @@ func Exec(fn func()) {
 }
 
 // ExecRlm mirrors Exec but threads rlm into the callback so it can
-// use `cross2(rlm)` instead of bare cross.
+// use `cross(rlm)` instead of bare cross.
 func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
 	fn(0, rlm)
 }
@@ -84,7 +84,7 @@ func main(cur realm) {
 		{ // with no Exec
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross2(cur))
+				r = tt.callerFnCrossing(cross(cur))
 			} else {
 				r = tt.callerFn()
 			}
@@ -94,7 +94,7 @@ func main(cur realm) {
 		ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross2(rlm))
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
@@ -104,17 +104,17 @@ func main(cur realm) {
 		rtests.ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross2(rlm))
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.ExecSwitchRlm(cross2(cur), func(_ int, rlm realm) {
+		rtests.ExecSwitchRlm(cross(cur), func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross2(rlm))
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}
@@ -124,7 +124,7 @@ func main(cur realm) {
 		ptests.ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross2(rlm))
+				r = tt.callerFnCrossing(cross(rlm))
 			} else {
 				r = tt.callerFn()
 			}

@@ -46,7 +46,7 @@ package main
 import dao "gno.land/r/gov/dao/v3/init"
 
 func main(cur realm) {
-	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_controller_add_proposal.gno --
@@ -58,8 +58,8 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeNewController(cross2(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	dao.MustCreateProposal(cross2(cur), r)
+	r := users.ProposeNewController(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	dao.MustCreateProposal(cross(cur), r)
 }
 
 -- run/register_user1.gno --
@@ -68,7 +68,7 @@ package main
 import "gno.land/r/sys/users"
 
 func main(cur realm) {
-	if err := users.RegisterUser(cross2(cur), "user001", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"); err != nil {
+	if err := users.RegisterUser(cross(cur), "user001", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"); err != nil {
     panic(err.Error())
   }
 }

@@ -96,7 +96,7 @@ package main
 import dao "gno.land/r/gov/dao/v3/init"
 
 func main(cur realm) {
-	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/verify_registered.gno --
@@ -126,6 +126,6 @@ import (
 
 func main(cur realm) {
 	addr := chain.PackageAddress("gno.land/r/sys/namereg/v1")
-	r := users.ProposeControllerRemoval(cross2(cur), addr)
-	dao.MustCreateProposal(cross2(cur), r)
+	r := users.ProposeControllerRemoval(cross(cur), addr)
+	dao.MustCreateProposal(cross(cur), r)
 }

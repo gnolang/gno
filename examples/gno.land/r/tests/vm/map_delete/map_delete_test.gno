@@ -9,7 +9,7 @@ func TestGetMap(t *testing.T) {
 }
 
 func TestDeleteMap(cur realm, t *testing.T) {
-	DeleteMap(cross2(cur), 3)
+	DeleteMap(cross(cur), 3)
 }
 
 func TestGetMapAfterDelete(t *testing.T) {

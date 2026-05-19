@@ -20,16 +20,16 @@ var bid boards.ID // Operate on board DAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), name, false, false)
+	bid = boards2.CreateBoard(cross(cur), name, false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.RenameBoard(cross2(cur), name, newName)
+	boards2.RenameBoard(cross(cur), name, newName)
 
 	// Ensure board is renamed by the default board owner
-	bid2, _ := boards2.GetBoardIDFromName(cross2(cur), newName)
+	bid2, _ := boards2.GetBoardIDFromName(cross(cur), newName)
 	println("IDs match =", bid == bid2)
 }
 

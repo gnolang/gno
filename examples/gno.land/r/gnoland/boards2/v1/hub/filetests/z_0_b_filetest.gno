@@ -16,24 +16,24 @@ var boardID boards.ID
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross2(cur), "test123", false, false)
+	boardID = boards2.CreateBoard(cross(cur), "test123", false, false)
 
 	// Invite member
-	boards2.InviteMember(cross2(cur), boardID, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "admin")
+	boards2.InviteMember(cross(cur), boardID, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "admin")
 
 	// Rename board
-	boards2.RenameBoard(cross2(cur), "test123", "foo123")
+	boards2.RenameBoard(cross(cur), "test123", "foo123")
 
 	// Create a thread
-	boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
+	boards2.CreateThread(cross(cur), boardID, "Title", "Body")
 
 	// Freeze board
-	boards2.FreezeBoard(cross2(cur), boardID)
+	boards2.FreezeBoard(cross(cur), boardID)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	board, found := hub.GetBoard(cross2(cur), uint64(boardID))
+	board, found := hub.GetBoard(cross(cur), uint64(boardID))
 	if !found {
 		return
 	}

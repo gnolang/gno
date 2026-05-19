@@ -14,18 +14,18 @@ var comment hub.Comment
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID := boards2.CreateBoard(cross2(cur), "test123", false, false)
-	threadID := boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
-	commentID := boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Comment")
+	boardID := boards2.CreateBoard(cross(cur), "test123", false, false)
+	threadID := boards2.CreateThread(cross(cur), boardID, "Title", "Body")
+	commentID := boards2.CreateReply(cross(cur), boardID, threadID, 0, "Comment")
 
 	// Get readonly comment
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comment, _ = hub.GetComment(cross2(cur), uint64(boardID), uint64(threadID), uint64(commentID))
+	comment, _ = hub.GetComment(cross(cur), uint64(boardID), uint64(threadID), uint64(commentID))
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	replies := hub.GetReplies(cross2(cur), comment.BoardID, comment.ThreadID, comment.ID, 0, comment.ReplyCount)
+	replies := hub.GetReplies(cross(cur), comment.BoardID, comment.ThreadID, comment.ID, 0, comment.ReplyCount)
 	println(len(replies))
 }
 

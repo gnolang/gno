@@ -22,15 +22,15 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
-	pid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	pid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 }
 
 func main(cur realm) {
 	// Make the next call as an uninvited user
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.FlagThread(cross2(cur), bid, pid, "Reason")
+	boards2.FlagThread(cross(cur), bid, pid, "Reason")
 }
 
 // Error:

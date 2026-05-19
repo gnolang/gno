@@ -16,7 +16,7 @@ const (
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	boards2.RequestInvite(cross2(cur), 404)
+	boards2.RequestInvite(cross(cur), 404)
 }
 
 // Error:

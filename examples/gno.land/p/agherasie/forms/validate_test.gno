@@ -123,16 +123,16 @@ func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 			var err error
 			func(cur realm) {
 				formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", tt.data)
-			}(cross2(cur))
+			}(cross(cur))
 			if err != nil {
 				t.Error(err)
 			}
 
-			// SubmitForm crosses a realm boundary (cross2(cur)), so a
+			// SubmitForm crosses a realm boundary (cross(cur)), so a
 			// panic from it becomes a cross-realm "abort". A plain
 			// defer-recover won't see it; use revive() instead.
 			r := revive(func() {
-				func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross2(cur))
+				func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross(cur))
 			})
 			if r != nil && !tt.expectPanic {
 				t.Errorf("%s panic occurred when not expected: %v", tt.name, r)

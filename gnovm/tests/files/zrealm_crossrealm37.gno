@@ -25,7 +25,7 @@ func main(cur realm) {
 	owner := crossrealm_e.GetOwner()
 	println("owner == attacker: ", owner == attacker)
 
-	crossrealm_e.TransferToken(cross2(cur))
+	crossrealm_e.TransferToken(cross(cur))
 }
 
 // before fix:

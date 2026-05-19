@@ -18,11 +18,11 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and then add 3 threads
-	boardID := boards2.CreateBoard(cross2(cur), boardName, false, false)
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
 
-	boards2.CreateThread(cross2(cur), boardID, "A", "Body")
-	boards2.CreateThread(cross2(cur), boardID, "B", "Body")
-	boards2.CreateThread(cross2(cur), boardID, "C", "Body")
+	boards2.CreateThread(cross(cur), boardID, "A", "Body")
+	boards2.CreateThread(cross(cur), boardID, "B", "Body")
+	boards2.CreateThread(cross(cur), boardID, "C", "Body")
 }
 
 func main() {

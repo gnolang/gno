@@ -14,7 +14,7 @@ var s = "hello world"
 func main(cur realm) {
 	runtime.GC()
 	println("MemStats: ", runtime.MemStats())
-	counter.Increment(cross2(cur))
+	counter.Increment(cross(cur))
 }
 
 // Output:

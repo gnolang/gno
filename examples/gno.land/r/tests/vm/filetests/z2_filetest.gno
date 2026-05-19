@@ -18,8 +18,8 @@ func main(cur realm) {
 		_   = chain.PackageAddress("gno.land/r/tests/vm")
 	)
 	testing.SetOriginCaller(eoa)
-	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross2(cur)).Address())
-	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm(cross2(cur)).Address())
+	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm(cross(cur)).Address())
+	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm(cross(cur)).Address())
 }
 
 // Output:

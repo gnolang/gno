@@ -513,7 +513,7 @@ type FuncValue struct {
 // IsNative reports whether this function is an external native binding
 // (set up via NativeResolver, with NativePkg/NativeName populated and
 // nativeBody filled lazily by Store.GetNative). Returns false for uverse
-// DefineNative helpers (panic, append, cross2, etc.) which only have
+// DefineNative helpers (panic, append, cross, etc.) which only have
 // nativeBody set — those still run host code, but the stacktrace
 // formatter and method-redeclaration logic want to distinguish them.
 // For "does this run host code at all" use fv.nativeBody != nil.

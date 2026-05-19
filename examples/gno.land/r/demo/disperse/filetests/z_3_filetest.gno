@@ -18,15 +18,15 @@ func main(cur realm) {
 
 	testing.SetOriginCaller(mainAddr)
 
-	tokens.New(cross2(cur), "test", "TEST", 4, 0, 0)
-	tokens.Mint(cross2(cur), "TEST", mainAddr, 200)
+	tokens.New(cross(cur), "test", "TEST", 4, 0, 0)
+	tokens.Mint(cross(cur), "TEST", mainAddr, 200)
 	println("main balance before:", tokens.BalanceOf("TEST", mainAddr))
 
-	tokens.Approve(cross2(cur), "TEST", disperseAddr, 200)
+	tokens.Approve(cross(cur), "TEST", disperseAddr, 200)
 	println("disperse allowance before:", tokens.Allowance("TEST", mainAddr, disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	disperse.DisperseGRC20String(cross2(cur), addressesStr, "150TEST,50TEST")
+	disperse.DisperseGRC20String(cross(cur), addressesStr, "150TEST,50TEST")
 
 	println("main balance after:", tokens.BalanceOf("TEST", mainAddr))
 	println("disperse allowance after:", tokens.Allowance("TEST", mainAddr, disperseAddr))

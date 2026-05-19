@@ -77,11 +77,11 @@ func main(cur realm) {
 		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
 	)
 	preq := impl.NewTreasuryPaymentRequest(
-		cross2(cur),
+		cross(cur),
 		payment,
 		"integration test payment",
 	)
-	dao.MustCreateProposal(cross2(cur), preq)
+	dao.MustCreateProposal(cross(cur), preq)
 }
 -- loader/load_govdao.gno --
 package load_govdao
@@ -103,5 +103,5 @@ func init(cur realm) {
 		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

@@ -27,7 +27,7 @@ func init(cur realm) {
 	testing.SetOriginCaller(validAddress)
 
 	// Register a validator and add the proposal
-	valopers.Register(cross2(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
+	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 }
 
 func main() {

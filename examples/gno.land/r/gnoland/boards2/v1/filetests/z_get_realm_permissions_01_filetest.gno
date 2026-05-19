@@ -12,7 +12,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/test"))
 
 	// Calling as a non Boards2 sub realm should fail
-	_ = boards2.GetRealmPermissions(cross2(cur))
+	_ = boards2.GetRealmPermissions(cross(cur))
 }
 
 // Error:

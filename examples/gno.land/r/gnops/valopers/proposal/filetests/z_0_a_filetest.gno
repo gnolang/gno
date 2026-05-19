@@ -26,21 +26,21 @@ const (
 
 func init(cur realm) {
 	testing.SetOriginCaller(g1user)
-	daoinit.InitWithUsers(cross2(cur), g1user)
+	daoinit.InitWithUsers(cross(cur), g1user)
 }
 
 func main(cur realm) {
 	// Register a validator: OriginCaller must equal operator addr (squat guard).
 	testing.SetOriginCaller(validAddress)
-	valopers.Register(cross2(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
+	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 
 	// Switch back to g1user for the GovDAO proposal submission.
 	testing.SetOriginCaller(g1user)
 
 	// Try to make a proposal for a non-existing validator
 	if err := revive(func() {
-		pr := proposal.NewValidatorProposalRequest(cross2(cur), otherAddress)
-		dao.MustCreateProposal(cross2(cur), pr)
+		pr := proposal.NewValidatorProposalRequest(cross(cur), otherAddress)
+		dao.MustCreateProposal(cross(cur), pr)
 	}); err != nil {
 		println("r: ", err)
 	}

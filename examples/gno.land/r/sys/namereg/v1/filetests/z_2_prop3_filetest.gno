@@ -26,24 +26,24 @@ var c address = runtime.OriginCaller()
 func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(cross2(cur), c)
+	daov3init.InitWithUsers(cross(cur), c)
 
 	// Propose raising the price from 0 to 20 GNOT.
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
-	pr := users.ProposeNewRegisterPrice(cross2(cur), 20_000_000)
-	dao.MustCreateProposal(cross2(cur), pr)
+	pr := users.ProposeNewRegisterPrice(cross(cur), 20_000_000)
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 func main(cur realm) {
 	testing.SetOriginCaller(c)
 
 	// Vote and execute.
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
-	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 
 	// New price should be active. Register a user with the new amount;
 	// registration with the old default (0 ugnot) would panic.
@@ -51,7 +51,7 @@ func main(cur realm) {
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
 	testing.SetOriginSend(chain.Coins{{Denom: "ugnot", Amount: 20_000_000}})
-	users.Register(cross2(cur), "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 
 	data, _ := susers.ResolveName("nym-alice123")
 	println("registered alice at:", data.Addr())

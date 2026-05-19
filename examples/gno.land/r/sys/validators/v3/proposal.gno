@@ -198,7 +198,7 @@ func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 			entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 		}
 		sort.Strings(entries)
-		sysparams.SetValsetProposal(cross2(cur), entries)
+		sysparams.SetValsetProposal(cross(cur), entries)
 		return nil
 	}
 

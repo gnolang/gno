@@ -223,16 +223,6 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 						}))
 					}
 				}
-			case *ast.Ident:
-				if sx, ok := c.Parent().(*ast.SelectorExpr); ok && sx.X == node {
-					// Could be an expression like `hello.cross`, so ignore.
-					return true
-				}
-				switch node.Name {
-				case "cross":
-					// it's a realm; we don't have much to add aside from this, for now.
-					node.Name = "nil"
-				}
 			case *ast.CallExpr:
 				// is function call to a native function?
 				// -> rename if unexported, apply `nil,` for the first arg if necessary

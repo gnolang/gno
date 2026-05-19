@@ -16,7 +16,7 @@ var name = strings.Repeat("X", boards2.MaxBoardNameLength+1)
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross2(cur), name, false, false)
+	boards2.CreateBoard(cross(cur), name, false, false)
 }
 
 // Error:

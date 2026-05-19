@@ -419,12 +419,12 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	WithCross bool  // if cross-called with `cur`.
 }
 
-// returns true if x is of form fn(cur,...), fn(cross,...), or
-// fn(cross2(rlm), ...). fn(cur,...) doesn't always mean with cross,
-// because `cur` could be anything; this is a sanity check.
+// returns true if x is of form fn(cur, ...) or fn(cross(rlm), ...).
+// fn(cur, ...) doesn't always mean with cross, because `cur` could
+// be anything; this is a sanity check.
 //
-// For the cross2 form, Args[0] is a *CallExpr whose Func is the
-// const-evaluated uverse `cross2` native. At runtime cross2's body
+// For the cross(rlm) form, Args[0] is a *CallExpr whose Func is the
+// const-evaluated uverse `cross` native. At runtime cross's body
 // validates IsCurrent-strict on rlm and returns it; the outer
 // crossing call's installCrossingCur peeks the evaluated realm
 // value and uses it as the new cur's prev.
@@ -434,11 +434,11 @@ func (x *CallExpr) isLikeWithCross() bool {
 	}
 	switch first := x.Args[0].(type) {
 	case *NameExpr:
-		return first.Name == Name("cross") || first.Name == Name("cur") || first.Name == Name(".origin")
+		return first.Name == Name("cur") || first.Name == Name(".origin")
 	case *CallExpr:
 		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
 			return fcx.GetFunc().PkgPath == uversePkgPath &&
-				fcx.GetFunc().Name == "cross2"
+				fcx.GetFunc().Name == "cross"
 		}
 	}
 	return false
@@ -446,7 +446,7 @@ func (x *CallExpr) isLikeWithCross() bool {
 
 func (x *CallExpr) SetWithCross() {
 	if !x.isLikeWithCross() {
-		panic("expected fn(cur,...) or fn(cross,...)")
+		panic("expected fn(cur, ...) or fn(cross(rlm), ...)")
 	}
 	x.WithCross = true
 }

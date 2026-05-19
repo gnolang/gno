@@ -8,7 +8,7 @@ import (
 )
 
 func main(cur realm) {
-	println(crossrealm.ExecCrossing(cross2(cur), func() string {
+	println(crossrealm.ExecCrossing(cross(cur), func() string {
 		rlm1 := runtime.CurrentRealm()
 		rlm2 := runtime.PreviousRealm()
 		return string(rlm1.Address()) + " " + rlm1.PkgPath() + "\n" + string(rlm2.Address()) + " " + rlm2.PkgPath()

@@ -1,14 +1,14 @@
-// PKGPATH: gno.land/r/demo/cross2closurecap
-package cross2closurecap
+// PKGPATH: gno.land/r/demo/crossclosurecap
+package crossclosurecap
 
-// cross2(rlm) works correctly when rlm was captured by a closure.
+// cross(rlm) works correctly when rlm was captured by a closure.
 // The previous design (stashing the rlm path on the outer CallExpr
 // and resolving it via Block.GetPointerTo at install time) crashed
 // here with a Go nil-deref because closure-captured names live via
 // heap-item indirection, not the parent-block chain. The redesign
-// routes rlm through the normal eval machinery — cross2 is a real
+// routes rlm through the normal eval machinery — cross is a real
 // function call whose argument is evaluated normally, picking up
-// the captured value, then validated via IsCurrent-strict in cross2's
+// the captured value, then validated via IsCurrent-strict in cross's
 // own body before being returned.
 
 func callee(cur realm) string {
@@ -24,10 +24,10 @@ func main(cur realm) {
 	// would fail — see stalerlm.)
 	rlm := cur
 	fn := func() string {
-		return callee(cross2(rlm))
+		return callee(cross(rlm))
 	}
 	println(fn())
 }
 
 // Output:
-// gno.land/r/demo/cross2closurecap
+// gno.land/r/demo/crossclosurecap

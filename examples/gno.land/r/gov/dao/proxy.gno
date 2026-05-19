@@ -27,7 +27,7 @@ func Render(cur realm, p string) string {
 	if dao == nil {
 		return "DAO not initialized"
 	}
-	return dao.Render(cross2(cur), cur.PkgPath(), p)
+	return dao.Render(cross(cur), cur.PkgPath(), p)
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,

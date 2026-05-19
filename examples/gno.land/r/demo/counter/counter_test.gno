@@ -4,7 +4,7 @@ import "testing"
 
 func TestIncrement(cur realm, t *testing.T) {
 	counter = 0
-	val := Increment(cross2(cur))
+	val := Increment(cross(cur))
 	if val != 1 {
 		t.Fatalf("result from Increment(): %d != 1", val)
 	}

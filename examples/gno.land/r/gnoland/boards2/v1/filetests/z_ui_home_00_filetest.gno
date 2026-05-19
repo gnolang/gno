@@ -16,13 +16,13 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create board "AAA" with a single thread
-	boardID := boards2.CreateBoard(cross2(cur), "AAA", true, false)
-	boards2.CreateThread(cross2(cur), boardID, "Foo", "Bar")
+	boardID := boards2.CreateBoard(cross(cur), "AAA", true, false)
+	boards2.CreateThread(cross(cur), boardID, "Foo", "Bar")
 
 	// Create 2 more boards
-	boards2.CreateBoard(cross2(cur), "BBB", true, false)
-	boards2.CreateBoard(cross2(cur), "CCC", true, false)
-	boards2.CreateBoard(cross2(cur), "DDD", false, false) // <-- Unlisted board
+	boards2.CreateBoard(cross(cur), "BBB", true, false)
+	boards2.CreateBoard(cross(cur), "CCC", true, false)
+	boards2.CreateBoard(cross(cur), "DDD", false, false) // <-- Unlisted board
 }
 
 func main() {

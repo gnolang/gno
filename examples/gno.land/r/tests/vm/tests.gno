@@ -38,11 +38,11 @@ func CallIsOriginCall(cur realm) bool {
 }
 
 func CallSubtestsAssertOriginCall(cur realm) {
-	rsubtests.CallAssertOriginCall(cross2(cur))
+	rsubtests.CallAssertOriginCall(cross(cur))
 }
 
 func CallSubtestsIsOriginCall(cur realm) bool {
-	return rsubtests.CallIsOriginCall(cross2(cur))
+	return rsubtests.CallIsOriginCall(cross(cur))
 }
 
 //----------------------------------------
@@ -98,7 +98,7 @@ func GetPreviousRealm(cur realm) runtime.Realm {
 }
 
 func GetRSubtestsPreviousRealm(cur realm) runtime.Realm {
-	return rsubtests.GetPreviousRealm(cross2(cur))
+	return rsubtests.GetPreviousRealm(cross(cur))
 }
 
 func Exec(fn func()) {
@@ -107,7 +107,7 @@ func Exec(fn func()) {
 }
 
 // ExecRlm mirrors Exec but threads the caller's rlm into the callback
-// so the callback can use `cross2(rlm)` instead of bare `cross`.
+// so the callback can use `cross(rlm)` instead of bare `cross`.
 func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
 	fn(0, rlm)
 }
@@ -118,7 +118,7 @@ func ExecSwitch(cur realm, fn func()) {
 
 // ExecSwitchRlm is the rlm-threaded variant of ExecSwitch — crosses
 // into this realm and passes the callee's cur to the callback so
-// the callback can `cross2(rlm)` against the switched realm.
+// the callback can `cross(rlm)` against the switched realm.
 func ExecSwitchRlm(cur realm, fn func(_ int, rlm realm)) {
 	fn(0, cur)
 }
@@ -140,5 +140,5 @@ func BankerOriginSend(cur realm) string {
 }
 
 func RTestsOriginSend(cur realm) string {
-	return rsubtests.BankerOriginSend(cross2(cur))
+	return rsubtests.BankerOriginSend(cross(cur))
 }

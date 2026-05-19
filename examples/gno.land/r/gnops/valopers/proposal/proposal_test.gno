@@ -21,7 +21,7 @@ var cur realm
 var g1user = testutils.TestAddress("g1user")
 
 func init(cur realm) {
-	daoinit.InitWithUsers(cross2(cur), g1user)
+	daoinit.InitWithUsers(cross(cur), g1user)
 }
 
 func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
@@ -56,8 +56,8 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, cur, func() {
-			valopers.Register(cross2(cur), moniker, description, serverType, opAddr, pubKey)
-			valopers.UpdateKeepRunning(cross2(cur), opAddr, false)
+			valopers.Register(cross(cur), moniker, description, serverType, opAddr, pubKey)
+			valopers.UpdateKeepRunning(cross(cur), opAddr, false)
 		})
 
 		urequire.NotPanics(t, cur, func() {
@@ -70,7 +70,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 		urequire.AbortsWithMessage(t, cur, ErrValidatorMissing.Error(), func(cur realm) {
 			pr := NewValidatorProposalRequest(cur, opAddr)
 
-			dao.MustCreateProposal(cross2(cur), pr)
+			dao.MustCreateProposal(cross(cur), pr)
 		})
 	})
 
@@ -79,7 +79,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, cur, func() {
-			valopers.UpdateKeepRunning(cross2(cur), opAddr, true)
+			valopers.UpdateKeepRunning(cross(cur), opAddr, true)
 		})
 
 		var valoper valopers.Valoper
@@ -96,7 +96,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 			testing.SetRealm(testing.NewUserRealm(g1user))
 			pr := NewValidatorProposalRequest(cur, opAddr)
 
-			pid = dao.MustCreateProposal(cross2(cur), pr)
+			pid = dao.MustCreateProposal(cross(cur), pr)
 		})
 
 		proposal, err := dao.GetProposal(pid) // index starts from 0
@@ -128,13 +128,13 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 
 		urequire.NotPanics(t, cur, func() {
 			// Vote the proposal created in the previous test
-			dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+			dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 			// Execute the proposal — callback writes valset:proposed +
 			// dirty=true. v3.IsValidator(signingAddr) below reads the
 			// effective view (proposed-when-dirty) and finds the
 			// just-added validator → enters the ErrSameValues branch.
-			dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
+			dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
 		})
 
 		// Verify the just-added entry exists at the SIGNING address.
@@ -144,8 +144,8 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.AbortsWithMessage(t, cur, ErrSameValues.Error(), func() {
-			pr := NewValidatorProposalRequest(cross2(cur), opAddr)
-			dao.MustCreateProposal(cross2(cur), pr)
+			pr := NewValidatorProposalRequest(cross(cur), opAddr)
+			dao.MustCreateProposal(cross(cur), pr)
 		})
 	})
 }
@@ -164,9 +164,9 @@ func TestValopers_ProposeNewInstructions(cur realm, t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, cur, func() {
-		pr := ProposeNewInstructionsProposalRequest(cross2(cur), newInstructions)
+		pr := ProposeNewInstructionsProposalRequest(cross(cur), newInstructions)
 
-		pid = dao.MustCreateProposal(cross2(cur), pr)
+		pid = dao.MustCreateProposal(cross(cur), pr)
 	})
 
 	proposal, err := dao.GetProposal(pid) // index starts from 0
@@ -195,9 +195,9 @@ func TestValopers_ProposeNewMinFee(cur realm, t *testing.T) {
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, cur, func() {
-		pr := ProposeNewMinFeeProposalRequest(cross2(cur), newMinFee)
+		pr := ProposeNewMinFeeProposalRequest(cross(cur), newMinFee)
 
-		pid = dao.MustCreateProposal(cross2(cur), pr)
+		pid = dao.MustCreateProposal(cross(cur), pr)
 	})
 
 	proposal, err := dao.GetProposal(pid) // index starts from 0

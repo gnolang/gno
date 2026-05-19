@@ -18,7 +18,7 @@ const (
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetFlaggingThreshold(cross2(cur), bid, 1)
+	boards2.SetFlaggingThreshold(cross(cur), bid, 1)
 }
 
 // Error:

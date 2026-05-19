@@ -43,6 +43,6 @@ func init(cur realm) {
 	// duplicate-address / already-deleted entries (re-init across test
 	// realm reuse) just no-op.
 	for _, res := range preRegisteredUsers {
-		susers.RegisterUserIgnoreCanonical(cross2(cur), res.Name, res.Address)
+		susers.RegisterUserIgnoreCanonical(cross(cur), res.Name, res.Address)
 	}
 }

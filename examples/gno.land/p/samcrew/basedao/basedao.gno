@@ -101,7 +101,7 @@ func (w *DAOWrapper) Execute(_ int, rlm realm, id uint64) {
 	}
 	executor := rlm.Previous().Address()
 	// Route through the rlm-aware path: ActionEditProfileKind is dispatched
-	// via editProfileHandler.execute(0, rlm, ...) which uses cross2(rlm).
+	// via editProfileHandler.execute(0, rlm, ...) which uses cross(rlm).
 	// All other action kinds fall through to generic Core dispatch.
 	w.impl.executeWithRlm(0, rlm, executor, id)
 }
@@ -195,7 +195,7 @@ const EventBaseDAOCreated = "BaseDAOCreated"
 // custom action handlers at init time.
 //
 // rlm is threaded into the optional `conf.SetProfileString` callback via
-// cross2(rlm). /p/ production code cannot declare crossing functions, so
+// cross(rlm). /p/ production code cannot declare crossing functions, so
 // rlm is taken as a non-first parameter — callers pass `cur` directly.
 func New(conf *Config, rlm realm) *DAOWrapper {
 	// XXX: emit events from memberstore
@@ -203,7 +203,7 @@ func New(conf *Config, rlm realm) *DAOWrapper {
 	// IsCurrent gate: rlm must be the caller's live cur. Otherwise
 	// RealmPkgPath/RealmAddress (captured below into a long-lived
 	// struct) would be set from a stale or sibling-frame value, and
-	// the cross2(rlm) calls further down would panic anyway when
+	// the cross(rlm) calls further down would panic anyway when
 	// SetProfileString is non-nil. Catch the misuse up-front so the
 	// `SetProfileString == nil` path is also guarded.
 	if !rlm.IsCurrent() {
@@ -234,9 +234,9 @@ func New(conf *Config, rlm realm) *DAOWrapper {
 	}
 
 	if conf.SetProfileString != nil {
-		conf.SetProfileString(cross2(rlm), "DisplayName", conf.Name)
-		conf.SetProfileString(cross2(rlm), "Bio", conf.Description)
-		conf.SetProfileString(cross2(rlm), "Avatar", conf.ImageURI)
+		conf.SetProfileString(cross(rlm), "DisplayName", conf.Name)
+		conf.SetProfileString(cross(rlm), "Bio", conf.Description)
+		conf.SetProfileString(cross(rlm), "Avatar", conf.ImageURI)
 	}
 
 	if !conf.NoDefaultHandlers {

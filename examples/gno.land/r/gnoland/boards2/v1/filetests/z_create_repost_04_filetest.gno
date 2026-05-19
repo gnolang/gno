@@ -22,21 +22,21 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board with a thread
-	origBID := boards2.CreateBoard(cross2(cur), "origin-board", false, false)
-	origTID := boards2.CreateThread(cross2(cur), origBID, "title", "text")
+	origBID := boards2.CreateBoard(cross(cur), "origin-board", false, false)
+	origTID := boards2.CreateThread(cross(cur), origBID, "title", "text")
 
 	// Create a second board and repost a thread using an empty title
-	srcBID = boards2.CreateBoard(cross2(cur), "source-board", false, false)
-	srcTID = boards2.CreateRepost(cross2(cur), origBID, origTID, srcBID, "original title", "original text")
+	srcBID = boards2.CreateBoard(cross(cur), "source-board", false, false)
+	srcTID = boards2.CreateRepost(cross(cur), origBID, origTID, srcBID, "original title", "original text")
 
 	// Create a third board to try reposting the repost
-	dstBID = boards2.CreateBoard(cross2(cur), "destination-board", false, false)
+	dstBID = boards2.CreateBoard(cross(cur), "destination-board", false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateRepost(cross2(cur), srcBID, srcTID, dstBID, "repost title", "repost text")
+	boards2.CreateRepost(cross(cur), srcBID, srcTID, dstBID, "repost title", "repost text")
 }
 
 // Error:

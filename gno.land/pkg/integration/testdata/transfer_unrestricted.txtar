@@ -115,7 +115,7 @@ package main
 import i "gno.land/r/gov/dao/v3/init"
 
 func main(cur realm) {
-	i.InitWithUsers(cross2(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 -- run/propose_unrestricted.gno --
 package main
@@ -126,8 +126,8 @@ import (
 )
 
 func main(cur realm) {
-	pr := params.ProposeAddUnrestrictedAcctsRequest(cross2(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
-  pid := dao.MustCreateProposal(cross2(cur),pr)
+	pr := params.ProposeAddUnrestrictedAcctsRequest(cross(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
+  pid := dao.MustCreateProposal(cross(cur),pr)
   println(pid.String())
 }
 
@@ -140,8 +140,8 @@ import (
 )
 
 func main(cur realm) {
-	pr := params.ProposeRemoveUnrestrictedAcctsRequest(cross2(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
-  pid := dao.MustCreateProposal(cross2(cur),pr)
+	pr := params.ProposeRemoveUnrestrictedAcctsRequest(cross(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
+  pid := dao.MustCreateProposal(cross(cur),pr)
   println(pid.String())
 }
 
@@ -154,7 +154,7 @@ import (
 )
 
 func main(cur realm) {
-	dao.MustVoteOnProposal(cross2(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+	dao.MustVoteOnProposal(cross(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 -- run/exec_proposal.gno --
@@ -165,7 +165,7 @@ import (
 )
 
 func main(cur realm) {
-	ok := dao.ExecuteProposal(cross2(cur),dao.ProposalID(0))
+	ok := dao.ExecuteProposal(cross(cur),dao.ProposalID(0))
   if ok {
     println("OK!")
   }
@@ -179,7 +179,7 @@ import (
 )
 
 func main(cur realm) {
-	dao.MustVoteOnProposal(cross2(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
+	dao.MustVoteOnProposal(cross(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
 }
 -- run/exec_proposal1.gno --
 package main
@@ -189,7 +189,7 @@ import (
 )
 
 func main(cur realm) {
-	ok := dao.ExecuteProposal(cross2(cur),dao.ProposalID(1))
+	ok := dao.ExecuteProposal(cross(cur),dao.ProposalID(1))
   if ok {
     println("OK!")
   }

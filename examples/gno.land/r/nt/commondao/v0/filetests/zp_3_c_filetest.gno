@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	commondao.CreateDissolutionProposal(cross2(cur), 404)
+	commondao.CreateDissolutionProposal(cross(cur), 404)
 }
 
 // Error:

@@ -48,7 +48,7 @@ func GetComment(cur realm, boardID, threadID, commentID uint64) (Comment, bool) 
 // To reverse iterate use a negative count.
 func GetBoards(cur realm, start, count int) []Board {
 	var boards_ []Board
-	boards2.Iterate(cross2(cur), start, count, func(b *boards.Board) bool {
+	boards2.Iterate(cross(cur), start, count, func(b *boards.Board) bool {
 		boards_ = append(boards_, NewSafeBoard(b))
 		return false
 	})
@@ -173,7 +173,7 @@ func GetReplies(cur realm, boardID, threadID, commentID uint64, start, count int
 // GetBoard. Non-crossing helper: rlm is hub's own cur, threaded
 // through from the enclosing crossing function.
 func getBoard(_ int, rlm realm, boardID uint64) (*boards.Board, bool) {
-	return boards2.GetBoard(cross2(rlm), boards.ID(boardID))
+	return boards2.GetBoard(cross(rlm), boards.ID(boardID))
 }
 
 func getThread(_ int, rlm realm, boardID, threadID uint64) (*boards.Post, bool) {

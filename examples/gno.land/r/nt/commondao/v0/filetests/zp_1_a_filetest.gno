@@ -22,22 +22,22 @@ var dao *pcommondao.CommonDAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross2(cur), "Foo")
+	dao = commondao.New(cross(cur), "Foo")
 	dao.Members().Add(user)
 	dao.Members().Add(owner)
 
-	options := commondao.GetOptions(cross2(cur), dao.ID())
+	options := commondao.GetOptions(cross(cur), dao.ID())
 	options.SetAllowTextProposals(true)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateTextProposal(cross2(cur), dao.ID(), title, body, votingDays)
+	pID := commondao.CreateTextProposal(cross(cur), dao.ID(), title, body, votingDays)
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {

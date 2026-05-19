@@ -22,18 +22,18 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
-	tid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "body")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "body")
 
 	// Invite a member using a role with permission to flag replies
-	boards2.InviteMember(cross2(cur), bid, moderator, boards2.RoleModerator)
+	boards2.InviteMember(cross(cur), bid, moderator, boards2.RoleModerator)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(moderator))
 
-	boards2.FlagReply(cross2(cur), bid, tid, rid, "Reason")
+	boards2.FlagReply(cross(cur), bid, tid, rid, "Reason")
 
 	// Render content must contain a message about the hidden reply
 	println(boards2.Render("test-board/1/2"))

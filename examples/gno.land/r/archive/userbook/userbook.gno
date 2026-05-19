@@ -25,7 +25,7 @@ var (
 const signUpEvent = "SignUp"
 
 func init(cur realm) {
-	SignUp(cross2(cur)) // Sign up the deployer
+	SignUp(cross(cur)) // Sign up the deployer
 }
 
 func SignUp(cur realm) string {

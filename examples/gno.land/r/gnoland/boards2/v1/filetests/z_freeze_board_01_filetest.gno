@@ -16,14 +16,14 @@ var bid boards.ID
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
-	boards2.FreezeBoard(cross2(cur), bid)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	boards2.FreezeBoard(cross(cur), bid)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.FreezeBoard(cross2(cur), bid)
+	boards2.FreezeBoard(cross(cur), bid)
 }
 
 // Error:

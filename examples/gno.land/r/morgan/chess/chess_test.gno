@@ -250,7 +250,7 @@ func (testCommandChecker) Checker() {}
 type testCommandFunc func(cur realm, t *testing.T, bufs map[string]string)
 
 func (tc testCommandFunc) Run(cur realm, t *testing.T, bufs map[string]string) {
-	tc(cross2(cur), t, bufs)
+	tc(cross(cur), t, bufs)
 }
 
 // testCommandColorID represents a testCommand, which uses a function of the
@@ -267,7 +267,7 @@ func newTestCommandColorID(fn func(realm, string) string, s string, addr string)
 
 func (tc *testCommandColorID) Run(cur realm, t *testing.T, bufs map[string]string) {
 	testing.SetRealm(testing.NewUserRealm(tc.addr))
-	bufs["result"] = tc.fn(cross2(cur), bufs["id"])
+	bufs["result"] = tc.fn(cross(cur), bufs["id"])
 }
 
 type testCommandNewGame struct {
@@ -277,7 +277,7 @@ type testCommandNewGame struct {
 
 func (tc *testCommandNewGame) Run(cur realm, t *testing.T, bufs map[string]string) {
 	testing.SetRealm(testing.NewUserRealm(tc.w))
-	res := xNewGame(cross2(cur), string(tc.b), tc.seconds, tc.incr)
+	res := xNewGame(cross(cur), string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
 	const idMagicString = `"id":"`
@@ -298,7 +298,7 @@ type testCommandMove struct {
 
 func (tc *testCommandMove) Run(cur realm, t *testing.T, bufs map[string]string) {
 	testing.SetRealm(testing.NewUserRealm(tc.addr))
-	bufs["result"] = MakeMove(cross2(cur), bufs["id"], tc.from, tc.to, tc.promotion)
+	bufs["result"] = MakeMove(cross(cur), bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
 type testCommandGame struct {
@@ -318,7 +318,7 @@ type testCommandPlayer struct {
 }
 
 func (tc *testCommandPlayer) Run(cur realm, t *testing.T, bufs map[string]string) {
-	bufs["result"] = GetPlayer(cross2(cur), tc.addr)
+	bufs["result"] = GetPlayer(cross(cur), tc.addr)
 }
 
 type testCommandCopy struct {
@@ -591,7 +591,7 @@ func runCommandTest(cur realm, t *testing.T, command string) {
 		bufs := make(map[string]string, 3)
 		for _, f := range funcs {
 			if _, ok := f.(interface{ Checker() }); ok {
-				f.Run(cross2(cur), t, bufs)
+				f.Run(cross(cur), t, bufs)
 			} else {
 				catchPanic(cur, f, t, bufs)
 			}
@@ -601,7 +601,7 @@ func runCommandTest(cur realm, t *testing.T, command string) {
 
 func catchPanic(cur realm, tc testCommandRunner, t *testing.T, bufs map[string]string) {
 	// XXX: should prefer testing.Recover, but see: https://github.com/gnolang/gno/issues/1650
-	e := revive(func() { tc.Run(cross2(cur), t, bufs) })
+	e := revive(func() { tc.Run(cross(cur), t, bufs) })
 	if e == nil {
 		bufs["panic"] = ""
 		return

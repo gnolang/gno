@@ -15,14 +15,14 @@ func init(cur realm) {
 	println("s = &Struct{A: 100}")
 	s := &Struct{A: 100}
 	println("crossrealm_b.SetObject(cross, &s.A)")
-	crossrealm_b.SetObject(cross2(cur), &s.A)
+	crossrealm_b.SetObject(cross(cur), &s.A)
 	println("ourS = s")
 	ourS = s
 }
 
 func main(cur realm) {
 	println("crossrealm_b.IncrementObject(cross)")
-	println(crossrealm_b.IncrementObject(cross2(cur)))
+	println(crossrealm_b.IncrementObject(cross(cur)))
 	println(ourS.A)
 }
 

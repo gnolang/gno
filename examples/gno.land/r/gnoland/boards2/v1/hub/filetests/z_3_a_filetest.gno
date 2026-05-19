@@ -16,12 +16,12 @@ var boardID boards.ID
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross2(cur), "test123", false, false)
+	boardID = boards2.CreateBoard(cross(cur), "test123", false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	boards := hub.GetThreads(cross2(cur), uint64(boardID), 0, boards2.BoardCount())
+	boards := hub.GetThreads(cross(cur), uint64(boardID), 0, boards2.BoardCount())
 	println(len(boards))
 }
 

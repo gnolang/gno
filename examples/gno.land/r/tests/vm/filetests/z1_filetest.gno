@@ -7,9 +7,9 @@ import (
 )
 
 func main(cur realm) {
-	println(tests.Counter(cross2(cur)))
-	tests.IncCounter(cross2(cur))
-	println(tests.Counter(cross2(cur)))
+	println(tests.Counter(cross(cur)))
+	tests.IncCounter(cross(cur))
+	println(tests.Counter(cross(cur)))
 }
 
 // Output:

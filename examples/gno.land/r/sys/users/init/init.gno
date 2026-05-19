@@ -25,7 +25,7 @@ import (
 // Bootstrap registers this package as a controller in r/sys/users.
 // Genesis-only via AddControllerAtGenesis's own height==0 gate.
 func Bootstrap(cur realm) {
-	users.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/users/init"))
+	users.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/users/init"))
 }
 
 // RegisterUser registers a new user in r/sys/users at chain genesis.
@@ -40,7 +40,7 @@ func RegisterUser(cur realm, name string, addr address) {
 	if runtime.ChainHeight() != 0 {
 		panic("r/sys/users/init.RegisterUser: genesis-only; use a whitelisted controller post-genesis (e.g. r/sys/namereg/v1.Register)")
 	}
-	if err := users.RegisterUserIgnoreCanonical(cross2(cur), name, addr); err != nil {
+	if err := users.RegisterUserIgnoreCanonical(cross(cur), name, addr); err != nil {
 		panic(err)
 	}
 }

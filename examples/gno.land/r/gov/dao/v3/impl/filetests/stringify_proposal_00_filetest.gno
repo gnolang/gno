@@ -33,7 +33,7 @@ func init(cur realm) {
 
 	// Set up the DAO implementation using proper constructor
 	govDAO := impl.NewGovDAO()
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/v3/impl"}))
 }
 
 func main(cur realm) {
@@ -51,7 +51,7 @@ func main(cur realm) {
 	// Switch to user realm to create the proposal
 	testing.SetOriginCaller(testUser)
 	testing.SetRealm(testing.NewUserRealm(testUser))
-	pid := dao.MustCreateProposal(cross2(cur), proposalRequest)
+	pid := dao.MustCreateProposal(cross(cur), proposalRequest)
 
 	// Get the proposal and test the core functionality
 	prop := dao.MustGetProposal(pid)

@@ -23,7 +23,7 @@ func (s *S) Close() {
 
 func main(cur realm) {
 	s := &S{}
-	crossrealm.SetObject(cross2(cur), s)
+	crossrealm.SetObject(cross(cur), s)
 	(*S).Close(s) // inline method-expression call
 	println("should not print")
 }

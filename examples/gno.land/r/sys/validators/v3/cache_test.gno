@@ -30,7 +30,7 @@ func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 	// Caller realm = valopers; auth check passes.
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
 
-	NotifyValoperChanged(cross2(cur), op, pubKeyA, signingAddr, true)
+	NotifyValoperChanged(cross(cur), op, pubKeyA, signingAddr, true)
 
 	rawEntry, ok := valoperCache.Get(op.String())
 	urequire.True(t, ok, "cache entry must exist")
@@ -41,7 +41,7 @@ func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
 
 	// Subsequent call updates the same slot.
 	signingAddrB := mustAddr(t, pubKeyB)
-	NotifyValoperChanged(cross2(cur), op, pubKeyB, signingAddrB, false)
+	NotifyValoperChanged(cross(cur), op, pubKeyB, signingAddrB, false)
 
 	rawEntry, ok = valoperCache.Get(op.String())
 	urequire.True(t, ok)
@@ -61,14 +61,14 @@ func TestNotifyValoperChanged_RejectsNonValopersCaller(cur realm, t *testing.T) 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/attacker"))
 
 	uassert.AbortsContains(t, cur, "caller realm must be "+valopersRealmPath, func() {
-		NotifyValoperChanged(cross2(cur), op, pubKeyA, signingAddr, true)
+		NotifyValoperChanged(cross(cur), op, pubKeyA, signingAddr, true)
 	})
 
 	// User MsgCall — UserRealm has empty pkgpath; rejected the same way.
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("user")))
 
 	uassert.AbortsContains(t, cur, "caller realm must be "+valopersRealmPath, func() {
-		NotifyValoperChanged(cross2(cur), op, pubKeyA, signingAddr, true)
+		NotifyValoperChanged(cross(cur), op, pubKeyA, signingAddr, true)
 	})
 }
 
@@ -82,7 +82,7 @@ func TestRotateValoperSigningKey_AppliesRotation(cur realm, t *testing.T) {
 	op := testutils.TestAddress("op-A")
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
 
-	RotateValoperSigningKey(cross2(cur), op, pubKeyA, pubKeyB)
+	RotateValoperSigningKey(cross(cur), op, pubKeyA, pubKeyB)
 
 	// After rotation the effective set (proposed-when-dirty) should
 	// contain pubKeyB at the same power; pubKeyA should be gone.
@@ -104,7 +104,7 @@ func TestRotateValoperSigningKey_OperatorNotInValset_NoOp(cur realm, t *testing.
 
 	// Should not panic; no sysparams write expected (dirty stays false).
 	uassert.NotAborts(t, cur, func() {
-		RotateValoperSigningKey(cross2(cur), op, pubKeyA, pubKeyB)
+		RotateValoperSigningKey(cross(cur), op, pubKeyA, pubKeyB)
 	})
 
 	uassert.False(t, sysparams.ValsetDirty(), "dirty bit must remain false on no-op rotation")
@@ -121,13 +121,13 @@ func TestRotateValoperSigningKey_RejectsNonValopersCaller(cur realm, t *testing.
 	// Foreign realm — rejected.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/attacker"))
 	uassert.AbortsContains(t, cur, "caller realm must be "+valopersRealmPath, func() {
-		RotateValoperSigningKey(cross2(cur), op, pubKeyA, pubKeyB)
+		RotateValoperSigningKey(cross(cur), op, pubKeyA, pubKeyB)
 	})
 
 	// User MsgCall — UserRealm pkgpath is "" — rejected.
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("user")))
 	uassert.AbortsContains(t, cur, "caller realm must be "+valopersRealmPath, func() {
-		RotateValoperSigningKey(cross2(cur), op, pubKeyA, pubKeyB)
+		RotateValoperSigningKey(cross(cur), op, pubKeyA, pubKeyB)
 	})
 
 	// Sanity: the valset wasn't mutated by the rejected calls (dirty
@@ -162,7 +162,7 @@ func TestAssertGenesisValopersConsistent_HappyPath(cur realm, t *testing.T) {
 	})
 
 	uassert.NotAborts(t, cur, func() {
-		AssertGenesisValopersConsistent(cross2(cur))
+		AssertGenesisValopersConsistent(cross(cur))
 	})
 }
 
@@ -188,7 +188,7 @@ func TestAssertGenesisValopersConsistent_PanicsOnMissingProfile(cur realm, t *te
 	})
 
 	uassert.AbortsContains(t, cur, "no corresponding valoper profile", func() {
-		AssertGenesisValopersConsistent(cross2(cur))
+		AssertGenesisValopersConsistent(cross(cur))
 	})
 }
 
@@ -199,7 +199,7 @@ func TestAssertGenesisValopersConsistent_EmptyValsetTrivial(cur realm, t *testin
 
 	// Empty valset → assertion trivially holds (no entries to check).
 	uassert.NotAborts(t, cur, func() {
-		AssertGenesisValopersConsistent(cross2(cur))
+		AssertGenesisValopersConsistent(cross(cur))
 	})
 }
 
@@ -209,7 +209,7 @@ func TestAssertGenesisValopersConsistent_RejectsPostGenesis(cur realm, t *testin
 	// Default test height is non-zero (123); the assertion must
 	// refuse to run outside genesis-mode replay.
 	uassert.AbortsContains(t, cur, "only callable during genesis-mode replay", func() {
-		AssertGenesisValopersConsistent(cross2(cur))
+		AssertGenesisValopersConsistent(cross(cur))
 	})
 }
 
@@ -228,11 +228,11 @@ func TestRotateValoperSigningKey_AccumulatesAcrossSameBlock(cur realm, t *testin
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
 
 	// First rotation: A → B. Read-modify-write of GetValsetEffective.
-	RotateValoperSigningKey(cross2(cur), opA, pubKeyA, pubKeyB)
+	RotateValoperSigningKey(cross(cur), opA, pubKeyA, pubKeyB)
 
 	// Second rotation in the same block: C → A. Should not clobber
 	// the first rotation; should read proposed-when-dirty as baseline.
-	RotateValoperSigningKey(cross2(cur), opC, pubKeyC, pubKeyA)
+	RotateValoperSigningKey(cross(cur), opC, pubKeyC, pubKeyA)
 
 	// Final effective set: {pubKeyB:10, pubKeyA:5}. Order may differ
 	// because GetValsetEffective parses sysparams' sorted-string slot

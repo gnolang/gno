@@ -30,7 +30,7 @@ func NewRender(d *GovDAO) *render {
 
 	// Handlers use mux's rlm-aware shape: rlm is supplied at RenderRlm
 	// dispatch time rather than captured at NewRender time. This lets
-	// downstream crossing reads (dao.GetProposal etc.) use cross2(rlm)
+	// downstream crossing reads (dao.GetProposal etc.) use cross(rlm)
 	// without relying on bare cross or restructuring the router.
 	r.HandleFuncRlm("", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(ren.renderActiveProposals(0, rlm, req.RawPath, d))

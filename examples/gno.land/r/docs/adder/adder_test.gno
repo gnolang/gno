@@ -20,10 +20,10 @@ Last Updated: Never
 	}
 
 	// Call Add with a value of 10
-	Add(cross2(cur), 10)
+	Add(cross(cur), 10)
 
 	// Call Add again with a value of -5
-	Add(cross2(cur), -5)
+	Add(cross(cur), -5)
 
 	// Render after two Add calls
 	finalOutput := Render("")

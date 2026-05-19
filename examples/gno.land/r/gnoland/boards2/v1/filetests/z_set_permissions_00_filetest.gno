@@ -26,7 +26,7 @@ func init() {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetPermissions(cross2(cur), bid, perms)
+	boards2.SetPermissions(cross(cur), bid, perms)
 
 	// Owner that setted new permissions is not a member of the new permissions
 	println(boards2.IsMember(bid, owner))

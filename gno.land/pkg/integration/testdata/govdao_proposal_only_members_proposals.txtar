@@ -31,7 +31,7 @@ func main(cur realm) {
 	// Create a simple proposal request with nil executor
 	// The error should come from PreCreateProposal before executor is validated
 	pr := dao.NewProposalRequest("Test Proposal", "This is a test proposal", nil)
-	_, err := dao.CreateProposal(cross2(cur), pr)
+	_, err := dao.CreateProposal(cross(cur), pr)
 	if err != nil {
 		println(err.Error())
 	}
@@ -53,5 +53,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

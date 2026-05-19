@@ -20,44 +20,44 @@ var c address = runtime.OriginCaller()
 func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.
 	testing.SetHeight(0)
-	susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+	susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	testing.SetHeight(123)
 
-	daov3init.InitWithUsers(cross2(cur), c)
+	daov3init.InitWithUsers(cross(cur), c)
 
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewUserRealm(alice))
-	users.Register(cross2(cur), "nym-alice123")
+	users.Register(cross(cur), "nym-alice123")
 
 	// Prop to change name
 	testing.SetOriginCaller(c)
 	testing.SetRealm(testing.NewUserRealm(c))
-	pr := users.ProposeNewName(cross2(cur), alice, "alice_new123")
-	dao.MustCreateProposal(cross2(cur), pr)
+	pr := users.ProposeNewName(cross(cur), alice, "alice_new123")
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 func main(cur realm) {
 	testing.SetOriginCaller(c)
 
 	println("--")
-	println(dao.Render(cross2(cur), ""))
+	println(dao.Render(cross(cur), ""))
 	println("--")
-	println(dao.Render(cross2(cur), "0"))
-	println("--")
-
-	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
-
-	println("--")
-	println(dao.Render(cross2(cur), "0"))
+	println(dao.Render(cross(cur), "0"))
 	println("--")
 
-	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 
 	println("--")
-	println(dao.Render(cross2(cur), "0"))
+	println(dao.Render(cross(cur), "0"))
+	println("--")
+
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(0))
+
+	println("--")
+	println(dao.Render(cross(cur), "0"))
 
 	data, _ := susers.ResolveName("alice_new123")
 	println(data.Addr())

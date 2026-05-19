@@ -9,7 +9,7 @@ import (
 
 func main(cur realm) {
 	// not enough memory to run.
-	_ = boards.CreateBoard(cross2(cur), "testboard")
+	_ = boards.CreateBoard(cross(cur), "testboard")
 }
 
 // Error:

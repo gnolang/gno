@@ -25,7 +25,7 @@ func TestSetUnpaused(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(firstCaller))
 	func(cur realm) {
 		urequire.NoError(t, result.Unpause(0, cur))
-	}(cross2(cur))
+	}(cross(cur))
 	uassert.False(t, result.IsPaused(), "Expected result to be unpaused")
 }
 
@@ -35,7 +35,7 @@ func TestSetPaused(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(firstCaller))
 	func(cur realm) {
 		urequire.NoError(t, result.Pause(0, cur))
-	}(cross2(cur))
+	}(cross(cur))
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
@@ -46,7 +46,7 @@ func TestIsPaused(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(firstCaller))
 	func(cur realm) {
 		urequire.NoError(t, result.Pause(0, cur))
-	}(cross2(cur))
+	}(cross(cur))
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 

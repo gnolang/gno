@@ -323,11 +323,11 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 func main(cur realm) {
-	println(ufmt.Sprintf("- before: %d", tests.Counter(cross2(cur))))
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter(cross2(cur))
+		tests.IncCounter(cross(cur))
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter(cross2(cur))))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
 }`
 
 	caller, err := client.Signer.Info()
@@ -402,11 +402,11 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 func main(cur realm) {
-	println(ufmt.Sprintf("- before: %d", tests.Counter(cross2(cur))))
+	println(ufmt.Sprintf("- before: %d", tests.Counter(cross(cur))))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter(cross2(cur))
+		tests.IncCounter(cross(cur))
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter(cross2(cur))))
+	println(ufmt.Sprintf("- after: %d", tests.Counter(cross(cur))))
 }`
 
 	fileBody2 := `package main

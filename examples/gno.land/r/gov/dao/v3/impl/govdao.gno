@@ -45,7 +45,7 @@ func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (add
 
 	// Verify that the one creating the proposal is a member.
 	caller := runtime.OriginCaller()
-	mem, _ := getMembers(cross2(rlm)).GetMember(caller)
+	mem, _ := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
 		return caller, errors.New("only members can create new proposals")
 	}
@@ -76,7 +76,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	}
 
 	caller := runtime.OriginCaller()
-	mem, tie := getMembers(cross2(rlm)).GetMember(caller)
+	mem, tie := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
 	}
@@ -148,7 +148,7 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 		panic("proposal not found")
 	}
 
-	err := e.Execute(cross2(rlm))
+	err := e.Execute(cross(rlm))
 	if err != nil {
 		status.Accepted = false
 		status.Denied = true

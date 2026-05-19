@@ -56,7 +56,7 @@ func TestCreateForm(cur realm, t *testing.T) {
 		var err error
 		func(cur realm) {
 			id, err = db.CreateForm(0, cur, title, description, openAt, closeAt, data)
-		}(cross2(cur))
+		}(cross(cur))
 		if err != nil {
 			panic(err)
 		}

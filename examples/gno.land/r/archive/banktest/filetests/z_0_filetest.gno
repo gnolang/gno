@@ -27,7 +27,7 @@ func main(cur realm) {
 	banker_.SendCoins(mainaddr, banktestAddr, chain.Coins{{"ugnot", 100_000_000}})
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100_000_000}})
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
-	res := banktest.Deposit(cross2(cur), "ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
+	res := banktest.Deposit(cross(cur), "ugnot", 50_000_000) // bank1 can't send? should be r/demo/bank1 to r/demo/banktest, is bank1 -> bank1.
 	println("Deposit():", res)
 
 	// print main balance after.
@@ -35,7 +35,7 @@ func main(cur realm) {
 	println("main after:", mainbal)
 
 	// simulate a Render(). banker should have given back all coins.
-	res = banktest.Render(cross2(cur), "")
+	res = banktest.Render(cross(cur), "")
 	println(res)
 }
 

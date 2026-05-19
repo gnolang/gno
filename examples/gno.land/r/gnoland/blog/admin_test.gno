@@ -40,7 +40,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(nonAdmin))
 
 		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
-			AdminSetInPause(cross2(cur), true)
+			AdminSetInPause(cross(cur), true)
 		})
 	})
 
@@ -51,7 +51,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(adminAddr))
 
 		uassert.NotAborts(t, cur, func() {
-			AdminSetInPause(cross2(cur), true)
+			AdminSetInPause(cross(cur), true)
 		})
 
 		uassert.True(t, inPause)
@@ -67,7 +67,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		)
 
 		testing.SetRealm(testing.NewUserRealm(adminAddr))
-		AdminSetAdminAddr(cross2(cur), newAdmin)
+		AdminSetAdminAddr(cross(cur), newAdmin)
 
 		uassert.Equal(t, adminAddr, newAdmin)
 
@@ -76,7 +76,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(oldAdmin))
 
 		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
-			AdminSetInPause(cross2(cur), false)
+			AdminSetInPause(cross(cur), false)
 		})
 	})
 }
@@ -89,13 +89,13 @@ func TestBlog_AddRemoveModerator(cur realm, t *testing.T) {
 	// Add the moderator
 	testing.SetOriginCaller(adminAddr)
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminAddModerator(cross2(cur), mod)
+	AdminAddModerator(cross(cur), mod)
 
 	_, found := moderatorList.Get(mod.String())
 	urequire.True(t, found)
 
 	// Remove the moderator
-	AdminRemoveModerator(cross2(cur), mod)
+	AdminRemoveModerator(cross(cur), mod)
 
 	// Make sure the moderator is disabled
 	isMod, _ := moderatorList.Get(mod.String())
@@ -116,12 +116,12 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	// Appoint the moderator
 	testing.SetOriginCaller(adminAddr)
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminAddModerator(cross2(cur), mod)
+	AdminAddModerator(cross(cur), mod)
 
 	// Add a commenter as a mod
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
-	ModAddCommenter(cross2(cur), commenter)
+	ModAddCommenter(cross(cur), commenter)
 
 	_, ok := commenterList.Get(commenter.String())
 	uassert.True(t, ok)
@@ -131,13 +131,13 @@ func TestBlog_AddCommenter(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(rand))
 
 	uassert.AbortsWithMessage(t, cur, errNotModerator.Error(), func() {
-		ModAddCommenter(cross2(cur), testutils.TestAddress("evil"))
+		ModAddCommenter(cross(cur), testutils.TestAddress("evil"))
 	})
 
 	// Remove a commenter
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
-	ModDelCommenter(cross2(cur), commenter)
+	ModDelCommenter(cross(cur), commenter)
 
 	active, _ := commenterList.Get(commenter.String())
 	uassert.False(t, active.(bool))
@@ -154,13 +154,13 @@ func TestBlog_ManagePost(cur realm, t *testing.T) {
 	// Appoint the moderator
 	testing.SetOriginCaller(adminAddr)
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminAddModerator(cross2(cur), mod)
+	AdminAddModerator(cross(cur), mod)
 
 	// Add the post
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModAddPost(
-		cross2(cur),
+		cross(cur),
 		slug, "title", "body", "2022-05-20T13:17:22Z", "moul", "tag",
 	)
 
@@ -168,7 +168,7 @@ func TestBlog_ManagePost(cur realm, t *testing.T) {
 	uassert.NotNil(t, b.GetPost(slug))
 
 	// Remove the post
-	ModRemovePost(cross2(cur), slug)
+	ModRemovePost(cross(cur), slug)
 	uassert.TypedNil(t, b.GetPost(slug))
 }
 
@@ -185,12 +185,12 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	// Appoint the moderator
 	testing.SetOriginCaller(adminAddr)
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminAddModerator(cross2(cur), mod)
+	AdminAddModerator(cross(cur), mod)
 
 	// Add a commenter as a mod
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
-	ModAddCommenter(cross2(cur), commenter)
+	ModAddCommenter(cross(cur), commenter)
 
 	_, ok := commenterList.Get(commenter.String())
 	uassert.True(t, ok)
@@ -199,7 +199,7 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
 	ModAddPost(
-		cross2(cur),
+		cross(cur),
 		slug, "title", "body", "2022-05-20T13:17:22Z", "moul", "tag",
 	)
 
@@ -210,13 +210,13 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	testing.SetOriginCaller(commenter)
 	testing.SetRealm(testing.NewUserRealm(commenter))
 	uassert.NotAborts(t, cur, func() {
-		AddComment(cross2(cur), slug, "comment")
+		AddComment(cross(cur), slug, "comment")
 	})
 
 	// Delete the comment
 	testing.SetOriginCaller(mod)
 	testing.SetRealm(testing.NewUserRealm(mod))
 	uassert.NotAborts(t, cur, func() {
-		ModDelComment(cross2(cur), slug, 0)
+		ModDelComment(cross(cur), slug, 0)
 	})
 }

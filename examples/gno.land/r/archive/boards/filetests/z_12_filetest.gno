@@ -20,17 +20,17 @@ var (
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
 
-	bid1 = boards.CreateBoard(cross2(cur), "test_board1")
-	pid = boards.CreateThread(cross2(cur), bid1, "First Post (title)", "Body of the first post. (body)")
-	bid2 = boards.CreateBoard(cross2(cur), "test_board2")
+	bid1 = boards.CreateBoard(cross(cur), "test_board1")
+	pid = boards.CreateThread(cross(cur), bid1, "First Post (title)", "Body of the first post. (body)")
+	bid2 = boards.CreateBoard(cross(cur), "test_board2")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	rid := boards.CreateRepost(cross2(cur), bid1, pid, "", "Check this out", bid2)
+	rid := boards.CreateRepost(cross(cur), bid1, pid, "", "Check this out", bid2)
 	println(rid)
 	println(boards.Render("test_board2"))
 }

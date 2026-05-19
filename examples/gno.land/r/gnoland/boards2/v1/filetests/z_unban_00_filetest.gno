@@ -19,14 +19,14 @@ var bid boards.ID
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, false)
-	boards2.Ban(cross2(cur), bid, user, boards2.BanDay, "Unpolite behavior")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, false)
+	boards2.Ban(cross(cur), bid, user, boards2.BanDay, "Unpolite behavior")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.Unban(cross2(cur), bid, user, "")
+	boards2.Unban(cross(cur), bid, user, "")
 
 	println(boards2.IsBanned(bid, user))
 }

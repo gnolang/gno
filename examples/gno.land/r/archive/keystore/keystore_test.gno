@@ -64,9 +64,9 @@ func TestRender(cur realm, t *testing.T) {
 			testing.SetOriginCaller(tc.caller)
 			var act string
 			if len(tc.ps) > 0 && tc.ps[0] == "set" {
-				act = strings.TrimSpace(Set(cross2(cur), tc.ps[1], tc.ps[2]))
+				act = strings.TrimSpace(Set(cross(cur), tc.ps[1], tc.ps[2]))
 			} else if len(tc.ps) > 0 && tc.ps[0] == "remove" {
-				act = strings.TrimSpace(Remove(cross2(cur), tc.ps[1]))
+				act = strings.TrimSpace(Remove(cross(cur), tc.ps[1]))
 			} else {
 				act = strings.TrimSpace(Render(p))
 			}

@@ -88,11 +88,11 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 // totalPower computes the total voting power dynamically from current members
 // rather than using a snapshot. See https://github.com/gnolang/gno/pull/5271#discussion_r2952523023
 //
-// Non-crossing: rlm is threaded into the crossing getMembers(cross2(rlm))
+// Non-crossing: rlm is threaded into the crossing getMembers(cross(rlm))
 // call. The proposalStatus methods that compose this (votePowerPercent,
 // YesPercent etc., String) all take `_ int, rlm realm` for the same reason.
 func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
-	members := getMembers(cross2(rlm))
+	members := getMembers(cross(rlm))
 	var tp float64
 	for _, tn := range ps.TiersAllowedToVote {
 		power := memberstore.GetTierPower(tn, members)
@@ -102,7 +102,7 @@ func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 }
 
 func (ps *proposalStatus) votePowerPercent(_ int, rlm realm, votes memberstore.MembersByTier) float64 {
-	members := getMembers(cross2(rlm))
+	members := getMembers(cross(rlm))
 	var vp float64
 	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
 		power := memberstore.GetTierPower(tn, members)
@@ -186,7 +186,7 @@ func writeVotes(_ int, rlm realm, sb *strings.Builder, t memberstore.MembersByTi
 	if t.Size() == 0 {
 		return
 	}
-	members := getMembers(cross2(rlm))
+	members := getMembers(cross(rlm))
 	t.Iterate("", "", func(tn string, value interface{}) bool {
 		_, ok := memberstore.GetTier(tn)
 		if !ok {

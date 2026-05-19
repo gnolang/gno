@@ -14,7 +14,7 @@ func init() {
 
 func main(cur realm) {
 	// NOTE: but it is invalid to modify it using an external realm function.
-	tests.ModifyTestRealmObject(cross2(cur), &somevalue)
+	tests.ModifyTestRealmObject(cross(cur), &somevalue)
 	println(somevalue)
 }
 

@@ -55,7 +55,7 @@ func attack(cur realm) {
 }
 
 func main(cur realm) {
-	attack(cross2(cur))
+	attack(cross(cur))
 }
 
 // Output:

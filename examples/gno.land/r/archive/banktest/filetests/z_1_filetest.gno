@@ -18,7 +18,7 @@ func main(cur realm) {
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
 
-	res := banktest.Deposit(cross2(cur), "ugnot", 101000000)
+	res := banktest.Deposit(cross(cur), "ugnot", 101000000)
 	println(res)
 }
 

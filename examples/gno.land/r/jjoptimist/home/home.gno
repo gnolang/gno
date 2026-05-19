@@ -57,7 +57,7 @@ func getGnomeArt(height int64) string {
 
 func init(cur realm) {
 	creation = time.Now()
-	hor.Register(cross2(cur), "JJoptimist's Home Realm", "")
+	hor.Register(cross(cur), "JJoptimist's Home Realm", "")
 }
 
 func Render(path string) string {

@@ -134,7 +134,7 @@ func TestPanicsContains(cur realm, t *testing.T) {
 func TestAbortsWithMessage(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsWithMessage(mockT, cur, "abort message", func() {
-		tests.ExecSwitch(cross2(cur), func() {
+		tests.ExecSwitch(cross(cur), func() {
 			panic("abort message")
 		})
 		panic("dontcare")
@@ -151,7 +151,7 @@ func TestAbortsWithMessage(cur realm, t *testing.T) {
 	mockT.equals(t, "error: func should abort")
 
 	if uassert.AbortsWithMessage(mockT, cur, "at the disco", func() {
-		tests.ExecSwitch(cross2(cur), func() {
+		tests.ExecSwitch(cross(cur), func() {
 			panic("abort message")
 		})
 		panic("dontcare")
@@ -171,7 +171,7 @@ func TestAbortsWithMessage(cur realm, t *testing.T) {
 
 	// Test case where abort value is not a string
 	if uassert.AbortsWithMessage(mockT, cur, "doesn't matter", func() {
-		tests.ExecSwitch(cross2(cur), func() {
+		tests.ExecSwitch(cross(cur), func() {
 			panic(123) // abort with an integer
 		})
 		panic("dontcare")
@@ -186,7 +186,7 @@ func TestAbortsWithMessage(cur realm, t *testing.T) {
 func TestAbortsContains(cur realm, t *testing.T) {
 	mockT := new(mockTestingT)
 	if !uassert.AbortsContains(mockT, cur, "abort", func() {
-		tests.ExecSwitch(cross2(cur), func() {
+		tests.ExecSwitch(cross(cur), func() {
 			panic("abort message: something happened")
 		})
 		panic("dontcare")
@@ -196,7 +196,7 @@ func TestAbortsContains(cur realm, t *testing.T) {
 	mockT.empty(t)
 
 	if uassert.AbortsContains(mockT, cur, "notfound", func() {
-		tests.ExecSwitch(cross2(cur), func() {
+		tests.ExecSwitch(cross(cur), func() {
 			panic("abort message: something happened")
 		})
 		panic("dontcare")
@@ -224,7 +224,7 @@ func TestNotAborts(cur realm, t *testing.T) {
 	mockT.empty(t)
 
 	if uassert.NotPanics(mockT, cur, func() {
-		tests.ExecSwitch(cross2(cur), func() {
+		tests.ExecSwitch(cross(cur), func() {
 			panic("Abort!")
 		})
 		panic("dontcare")

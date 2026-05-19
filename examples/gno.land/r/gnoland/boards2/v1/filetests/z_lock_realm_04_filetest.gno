@@ -12,14 +12,14 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.LockRealm(cross2(cur), true)
+	boards2.LockRealm(cross(cur), true)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Should fail because realm is already locked
-	boards2.LockRealm(cross2(cur), true)
+	boards2.LockRealm(cross(cur), true)
 }
 
 // Error:

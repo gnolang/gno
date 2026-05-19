@@ -92,7 +92,7 @@ import (
 var record Foo
 
 func init(cur realm) {
-	NewFoo(cross2(cur), "hello")
+	NewFoo(cross(cur), "hello")
 }
 
 type Foo struct {
@@ -137,5 +137,5 @@ import (
  "gno.land/r/foo"
 )
 func main(cur realm) {
-	foo.RealmSend(cross2(cur),"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
+	foo.RealmSend(cross(cur),"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
 }

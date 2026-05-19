@@ -20,7 +20,7 @@ const (
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross2(cur), bid, user, role)
+	boards2.InviteMember(cross(cur), bid, user, role)
 
 	// Check that user is invited
 	println(boards2.HasMemberRole(bid, user, role))

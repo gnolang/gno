@@ -18,22 +18,22 @@ func main(cur realm) {
 
 	testing.SetOriginCaller(mainAddr)
 
-	tokens.New(cross2(cur), "test1", "TEST1", 4, 0, 0)
-	tokens.Mint(cross2(cur), "TEST1", mainAddr, 200)
+	tokens.New(cross(cur), "test1", "TEST1", 4, 0, 0)
+	tokens.Mint(cross(cur), "TEST1", mainAddr, 200)
 	println("main balance before (TEST1):", tokens.BalanceOf("TEST1", mainAddr))
 
-	tokens.New(cross2(cur), "test2", "TEST2", 4, 0, 0)
-	tokens.Mint(cross2(cur), "TEST2", mainAddr, 200)
+	tokens.New(cross(cur), "test2", "TEST2", 4, 0, 0)
+	tokens.Mint(cross(cur), "TEST2", mainAddr, 200)
 	println("main balance before (TEST2):", tokens.BalanceOf("TEST2", mainAddr))
 
-	tokens.Approve(cross2(cur), "TEST1", disperseAddr, 200)
+	tokens.Approve(cross(cur), "TEST1", disperseAddr, 200)
 	println("disperse allowance before (TEST1):", tokens.Allowance("TEST1", mainAddr, disperseAddr))
 
-	tokens.Approve(cross2(cur), "TEST2", disperseAddr, 200)
+	tokens.Approve(cross(cur), "TEST2", disperseAddr, 200)
 	println("disperse allowance before (TEST2):", tokens.Allowance("TEST2", mainAddr, disperseAddr))
 
 	addressesStr := beneficiary1.String() + "," + beneficiary2.String()
-	disperse.DisperseGRC20String(cross2(cur), addressesStr, "200TEST1,200TEST2")
+	disperse.DisperseGRC20String(cross(cur), addressesStr, "200TEST1,200TEST2")
 
 	println("main balance after (TEST1):", tokens.BalanceOf("TEST1", mainAddr))
 	println("main balance after (TEST2):", tokens.BalanceOf("TEST2", mainAddr))

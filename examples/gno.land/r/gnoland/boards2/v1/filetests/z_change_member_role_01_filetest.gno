@@ -20,14 +20,14 @@ var bid boards.ID // Operate on board DAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "foo123", false, false)
-	boards2.InviteMember(cross2(cur), bid, member, boards2.RoleGuest)
+	bid = boards2.CreateBoard(cross(cur), "foo123", false, false)
+	boards2.InviteMember(cross(cur), bid, member, boards2.RoleGuest)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.ChangeMemberRole(cross2(cur), bid, member, newRole)
+	boards2.ChangeMemberRole(cross(cur), bid, member, newRole)
 
 	// Ensure that new role has been changed
 	println(boards2.HasMemberRole(bid, member, newRole))

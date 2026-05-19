@@ -20,7 +20,7 @@ var realmAddr = chain.PackageAddress("gno.land/r/demo/test")
 func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross2(cur), user)
+	commondao.Invite(cross(cur), user)
 }
 
 func main(cur realm) {
@@ -29,7 +29,7 @@ func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
-	dao := commondao.New(cross2(cur), name)
+	dao := commondao.New(cross(cur), name)
 	if dao == nil {
 		panic("expected DAO to be created")
 	}
@@ -37,7 +37,7 @@ func main(cur realm) {
 	println(dao.Name() == name)
 	println(commondao.IsOwner(realmAddr, dao.ID()))
 	println(commondao.IsInvited(user))
-	println(commondao.GetOptions(cross2(cur), dao.ID()) != nil)
+	println(commondao.GetOptions(cross(cur), dao.ID()) != nil)
 }
 
 // Output:

@@ -9,6 +9,6 @@ import (
 
 func init(cur realm) {
 	if runtime.ChainHeight() == 0 {
-		susers.AddControllerAtGenesis(cross2(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
+		susers.AddControllerAtGenesis(cross(cur), chain.PackageAddress("gno.land/r/sys/namereg/v1"))
 	}
 }

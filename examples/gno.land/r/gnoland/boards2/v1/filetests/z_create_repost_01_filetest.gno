@@ -20,15 +20,15 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	srcBID = boards2.CreateBoard(cross2(cur), "src-board", false, false)
-	dstBID = boards2.CreateBoard(cross2(cur), "dst-board", false, false)
+	srcBID = boards2.CreateBoard(cross(cur), "src-board", false, false)
+	dstBID = boards2.CreateBoard(cross(cur), "dst-board", false, false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Repost should fail if source thread doesn't exist
-	boards2.CreateRepost(cross2(cur), srcBID, srcTID, dstBID, "foo", "bar")
+	boards2.CreateRepost(cross(cur), srcBID, srcTID, dstBID, "foo", "bar")
 }
 
 // Error:

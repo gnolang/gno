@@ -73,7 +73,7 @@ func WorkingNew(cur realm) {
 func BuggedNew(cur realm) {
 	callerPtr = pkg.New()
 
-	callee.Register(cross2(cur),callerPtr)
+	callee.Register(cross(cur),callerPtr)
 }
 
 func Set(cur realm,value int) {
@@ -98,12 +98,12 @@ import (
 )
 
 func main(cur realm) {
-	caller.WorkingNew(cross2(cur))
-	caller.Set(cross2(cur),42)
+	caller.WorkingNew(cross(cur))
+	caller.Set(cross(cur),42)
 	println("With WorkingNew:", caller.Get())
 
-	caller.BuggedNew(cross2(cur))
-	caller.Set(cross2(cur),42)
+	caller.BuggedNew(cross(cur))
+	caller.Set(cross(cur),42)
 	println("With BuggedNew:", caller.Get())
 }
 

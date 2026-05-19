@@ -728,19 +728,19 @@ func newTestingDAO(_ int, rlm realm, t *testing.T, threshold float64, members []
 // Crossing wrappers for dao.X calls.
 
 func (c *testingDAOContext) propose(_ int, rlm realm, req daokit.ProposalRequest) (id uint64) {
-	func(cur realm) { id = c.dao.Propose(0, cur, req) }(cross2(rlm))
+	func(cur realm) { id = c.dao.Propose(0, cur, req) }(cross(rlm))
 	return
 }
 
 func (c *testingDAOContext) vote(_ int, rlm realm, id uint64, v daocond.Vote) {
-	func(cur realm) { c.dao.Vote(0, cur, id, v) }(cross2(rlm))
+	func(cur realm) { c.dao.Vote(0, cur, id, v) }(cross(rlm))
 }
 
 func (c *testingDAOContext) execute(_ int, rlm realm, id uint64) {
-	func(cur realm) { c.dao.Execute(0, cur, id) }(cross2(rlm))
+	func(cur realm) { c.dao.Execute(0, cur, id) }(cross(rlm))
 }
 
 func (c *testingDAOContext) instantExecute(_ int, rlm realm, req daokit.ProposalRequest) (id uint64) {
-	func(cur realm) { id = c.dao.InstantExecute(0, cur, req) }(cross2(rlm))
+	func(cur realm) { id = c.dao.InstantExecute(0, cur, req) }(cross(rlm))
 	return
 }

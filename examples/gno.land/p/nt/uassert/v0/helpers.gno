@@ -42,7 +42,7 @@ func checkDidPanic(f any, rlm realm) (didPanic bool, message string) {
 	case func():
 		f()
 	case func(realm):
-		f(cross2(rlm))
+		f(cross(rlm))
 	default:
 		panic("f must be of type func() or func(realm)")
 	}

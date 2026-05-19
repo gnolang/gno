@@ -22,20 +22,20 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test-board", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
 
 	// Invite a moderator to the new board
-	boards2.InviteMember(cross2(cur), bid, moderator, boards2.RoleModerator)
+	boards2.InviteMember(cross(cur), bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread as a moderator
-	pid = boards2.CreateThread(cross2(cur), bid, "Foo", "bar")
+	pid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Flag thread as owner
-	boards2.FlagThread(cross2(cur), bid, pid, "Reason")
+	boards2.FlagThread(cross(cur), bid, pid, "Reason")
 
 	// Ensure thread is not listed
 	println(boards2.Render("test-board"))

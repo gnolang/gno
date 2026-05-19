@@ -63,7 +63,7 @@ func bankerAddr(cur realm) address {
 func Render(cur realm, path string) string {
 	// get realm coins.
 	banker_ := banker.NewReadonlyBanker()
-	coins := banker_.GetCoins(bankerAddr(cross2(cur)))
+	coins := banker_.GetCoins(bankerAddr(cross(cur)))
 
 	// render
 	res := ""

@@ -15,7 +15,7 @@ func TestCreatePostSingle(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(cross2(cur), text1)
+	err := CreatePost(cross(cur), text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
@@ -46,7 +46,7 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(cross2(cur), p.text)
+		err := CreatePost(cross(cur), p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 

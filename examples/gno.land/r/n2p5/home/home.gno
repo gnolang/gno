@@ -15,7 +15,7 @@ var (
 )
 
 func init(cur realm) {
-	hor.Register(cross2(cur), "n2p5's Home Realm", "")
+	hor.Register(cross(cur), "n2p5's Home Realm", "")
 
 }
 

@@ -22,9 +22,9 @@ import (
 
 func main(cur realm) {
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooer(cross2(cur), f)
+	crossrealm.SetFooer(cross(cur), f)
 	f.SetS("ABCD")
-	crossrealm.CallFooerFooCross(cross2(cur))
+	crossrealm.CallFooerFooCross(cross(cur))
 	print(".")
 }
 

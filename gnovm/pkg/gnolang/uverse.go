@@ -399,8 +399,8 @@ func realmHIV(tv *TypedValue) *HeapItemValue {
 
 // realmIsCurrentOnMachine reports whether tv is the topmost crossing
 // frame's Cur, by HIV pointer identity. Used by both .grealm.IsCurrent
-// (informational) and installCrossingCur's cross2 path (authority) —
-// these share a single semantic: rlm.IsCurrent() ⇔ cross2(rlm) accepts.
+// (informational) and installCrossingCur's cross path (authority) —
+// these share a single semantic: rlm.IsCurrent() ⇔ cross(rlm) accepts.
 //
 // Pointer-receiver method dispatch preserves the outer PointerValue, so
 // recvHIV is always populated for any realm value the language allows
@@ -1434,30 +1434,26 @@ func makeUverseNode() {
 			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
 		},
 	)
-	def("cross", undefined) // special keyword for cross-calling
 	def(".cur", undefined)    // special keyword for non-cross-calling main(cur realm)
 	def(".origin", undefined) // sentinel for compiler-synthesized chain-root crossing calls (MsgCall keeper synthesis)
-	// cross2(rlm) is the explicit form of bare `cross`. It coexists
-	// with `cross` during the gno 0.9 migration: where bare `cross`
-	// is a preprocessor-recognized sentinel, cross2(rlm) is a real
-	// runtime function call that validates IsCurrent on rlm and
-	// returns it unchanged.
+	// cross(rlm) is the explicit cross-call form. It validates
+	// IsCurrent on rlm and returns it unchanged.
 	//
 	// When used at Args[0] of a crossing call (the intended usage),
 	// the validated rlm flows through to the outer call's Args[0]
 	// slot; installCrossingCur peeks the realm value and uses it as
 	// the new cur's prev. No second IsCurrent check is needed
-	// downstream because cross2 has already validated.
+	// downstream because cross has already validated.
 	//
-	// realmIsCurrentOnMachine skips cross2's own frame (cross2 is
+	// realmIsCurrentOnMachine skips cross's own frame (cross is a
 	// non-crossing native), finds the most recent crossing frame —
-	// the caller of whatever evaluated cross2(rlm) — and compares
+	// the caller of whatever evaluated cross(rlm) — and compares
 	// rlm's HIV against that frame's Cur by pointer identity. Catches
 	// stale rlm from sibling frames or captured-and-outlived frames.
 	//
 	// The Go-side typechecker shim narrows X to realm via the
-	// .gnobuiltins.gno signature `func cross2(rlm realm) realm`.
-	defNative("cross2",
+	// .gnobuiltins.gno signature `func cross(rlm realm) realm`.
+	defNative("cross",
 		Flds( // param
 			"rlm", GenT("X", nil),
 		),
@@ -1467,7 +1463,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(nil)
 			if !realmIsCurrentOnMachine(m, arg0.TV) {
-				panic("cross2: rlm is not the current cur (stale capture or sibling frame)")
+				panic("cross: rlm is not the current cur (stale capture or sibling frame)")
 			}
 			m.PushValue(*arg0.TV)
 		},

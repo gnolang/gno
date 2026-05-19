@@ -15,7 +15,7 @@ const user = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Vote(cross2(cur), 404, 1, pcommondao.ChoiceYes, "")
+	commondao.Vote(cross(cur), 404, 1, pcommondao.ChoiceYes, "")
 }
 
 // Error:

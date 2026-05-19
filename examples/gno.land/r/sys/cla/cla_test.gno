@@ -32,7 +32,7 @@ func TestSign(cur realm, t *testing.T) {
 	setRequiredHash(testHash1)
 
 	testing.SetRealm(testing.NewUserRealm(testUser1))
-	Sign(cross2(cur), testHash1)
+	Sign(cross(cur), testHash1)
 
 	uassert.True(t, HasValidSignature(address(testUser1)))
 }
@@ -44,7 +44,7 @@ func TestSign_WrongHash(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm(testUser1))
 	uassert.AbortsWithMessage(t, cur, "hash does not match required CLA hash", func() {
-		Sign(cross2(cur), testHash2)
+		Sign(cross(cur), testHash2)
 	})
 
 	uassert.False(t, HasValidSignature(address(testUser1)))
@@ -64,7 +64,7 @@ func TestHasValidSignature_Valid(cur realm, t *testing.T) {
 	setRequiredHash(testHash1)
 
 	testing.SetRealm(testing.NewUserRealm(testUser1))
-	Sign(cross2(cur), testHash1)
+	Sign(cross(cur), testHash1)
 
 	uassert.True(t, HasValidSignature(address(testUser1)))
 }
@@ -83,7 +83,7 @@ func TestSetRequiredHash_ResetsSignatures(cur realm, t *testing.T) {
 	setRequiredHash(testHash1)
 
 	testing.SetRealm(testing.NewUserRealm(testUser1))
-	Sign(cross2(cur), testHash1)
+	Sign(cross(cur), testHash1)
 	uassert.True(t, HasValidSignature(address(testUser1)))
 	uassert.Equal(t, 1, signatures.Size())
 

@@ -142,15 +142,15 @@ package foo
 import "gno.land/r/myrlm"
 
 func A(cur realm) {
-	myrlm.A(cross2(cur))
+	myrlm.A(cross(cur))
 }
 
 func B(cur realm) {
-	myrlm.B(cross2(cur))
+	myrlm.B(cross(cur))
 }
 
 func C(cur realm) {
-	myrlm.C(cross2(cur))
+	myrlm.C(cross(cur))
 }
 -- p/demo/bar/bar.gno --
 package bar
@@ -175,7 +175,7 @@ package main
 import myrlm "gno.land/r/myrlm"
 
 func main(cur realm) {
-	myrlm.A(cross2(cur))
+	myrlm.A(cross(cur))
 }
 -- run/myrlm-b.gno --
 package main
@@ -183,7 +183,7 @@ package main
 import "gno.land/r/myrlm"
 
 func main(cur realm) {
-	myrlm.B(cross2(cur))
+	myrlm.B(cross(cur))
 }
 -- run/myrlm-c.gno --
 package main
@@ -191,7 +191,7 @@ package main
 import "gno.land/r/myrlm"
 
 func main(cur realm) {
-	myrlm.C(cross2(cur))
+	myrlm.C(cross(cur))
 }
 -- run/foo-a.gno --
 package main
@@ -199,7 +199,7 @@ package main
 import "gno.land/r/foo"
 
 func main(cur realm) {
-	foo.A(cross2(cur))
+	foo.A(cross(cur))
 }
 -- run/foo-b.gno --
 package main
@@ -207,7 +207,7 @@ package main
 import "gno.land/r/foo"
 
 func main(cur realm) {
-	foo.B(cross2(cur))
+	foo.B(cross(cur))
 }
 -- run/foo-c.gno --
 package main
@@ -215,7 +215,7 @@ package main
 import "gno.land/r/foo"
 
 func main(cur realm) {
-	foo.C(cross2(cur))
+	foo.C(cross(cur))
 }
 -- run/bar-a.gno --
 package main

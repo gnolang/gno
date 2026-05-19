@@ -13,7 +13,7 @@ func main(cur realm) {
 	fn := def.Executor()
 
 	// Act
-	err := fn(cross2(cur))
+	err := fn(cross(cur))
 
 	// Assert
 	println(err == nil)

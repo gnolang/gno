@@ -20,23 +20,23 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"))
-	boardID = boards2.CreateBoard(cross2(cur), "origin123", false, false)
-	threadID = boards2.CreateThread(cross2(cur), boardID, "Title", "Body")
-	commentID = boards2.CreateReply(cross2(cur), boardID, threadID, 0, "Comment")
+	boardID = boards2.CreateBoard(cross(cur), "origin123", false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Title", "Body")
+	commentID = boards2.CreateReply(cross(cur), boardID, threadID, 0, "Comment")
 
 	// Edit comment
-	boards2.EditReply(cross2(cur), boardID, threadID, commentID, "Test comment")
+	boards2.EditReply(cross(cur), boardID, threadID, commentID, "Test comment")
 
 	// Create a comment reply
-	boards2.CreateReply(cross2(cur), boardID, threadID, commentID, "Reply")
+	boards2.CreateReply(cross(cur), boardID, threadID, commentID, "Reply")
 
 	// Flag comment
-	boards2.FlagReply(cross2(cur), boardID, threadID, commentID, "Reason")
+	boards2.FlagReply(cross(cur), boardID, threadID, commentID, "Reason")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
-	comment, found := hub.GetComment(cross2(cur), uint64(boardID), uint64(threadID), uint64(commentID))
+	comment, found := hub.GetComment(cross(cur), uint64(boardID), uint64(threadID), uint64(commentID))
 	if !found {
 		return
 	}

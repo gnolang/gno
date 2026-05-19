@@ -26,22 +26,22 @@ var (
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, true)
-	tid = boards2.CreateThread(cross2(cur), bid, "Title", "Body")
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 
 	// Create a new reply as a non member user
 	testing.SetRealm(testing.NewUserRealm(user))
-	rid = boards2.CreateReply(cross2(cur), bid, tid, 0, "Comment")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "Comment")
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Delete the reply as the non member user that created it
-	boards2.DeleteReply(cross2(cur), bid, tid, rid)
+	boards2.DeleteReply(cross(cur), bid, tid, rid)
 
 	// Ensure reply doesn't exist
 	println(rid == 2)

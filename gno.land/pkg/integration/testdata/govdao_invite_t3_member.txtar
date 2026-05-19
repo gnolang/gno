@@ -48,7 +48,7 @@ package proxy
 import "gno.land/r/gov/dao/v3/impl"
 
 func CreateMember(cur realm, addr address) {
-	impl.AddMember(cross2(cur), addr)
+	impl.AddMember(cross(cur), addr)
 }
 -- loader/load_govdao.gno --
 package load_govdao
@@ -66,5 +66,5 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(1)) // member address
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }

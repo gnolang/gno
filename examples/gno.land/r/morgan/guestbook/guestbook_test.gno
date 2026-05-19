@@ -13,10 +13,10 @@ func TestSign(cur realm, t *testing.T) {
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	Sign(cross2(cur), "Hello!")
+	Sign(cross(cur), "Hello!")
 
 	testing.SetRealm(testing.NewUserRealm("g1user2"))
-	Sign(cross2(cur), "Hello2!")
+	Sign(cross(cur), "Hello2!")
 
 	res := Render("")
 	t.Log(res)
@@ -34,7 +34,7 @@ func TestSign(cur realm, t *testing.T) {
 func TestSign_FromRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users/init"))
 
-	rec := revive(func() { Sign(cross2(cur), "Hey!") })
+	rec := revive(func() { Sign(cross(cur), "Hey!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -52,9 +52,9 @@ func TestSign_Double(cur realm, t *testing.T) {
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	Sign(cross2(cur), "Hello!")
+	Sign(cross(cur), "Hello!")
 
-	rec := revive(func() { Sign(cross2(cur), "Hello again!") })
+	rec := revive(func() { Sign(cross(cur), "Hello again!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -73,7 +73,7 @@ func TestSign_InvalidMessage(cur realm, t *testing.T) {
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 
-	rec := revive(func() { Sign(cross2(cur), "\x00Hello!") })
+	rec := revive(func() { Sign(cross(cur), "\x00Hello!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -99,14 +99,14 @@ func TestAdminDelete(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
-	Sign(cross2(cur), bad)
+	Sign(cross(cur), bad)
 
 	if rnd := Render(""); !strings.Contains(rnd, bad) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminDelete(cross2(cur), signatureID.String())
+	AdminDelete(cross(cur), signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {
 		t.Error("render contains bad message", rnd)

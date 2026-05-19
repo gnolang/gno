@@ -76,7 +76,7 @@ func Exec(fn func()) {
 }
 
 // ExecRlm mirrors Exec but threads the caller's rlm into the callback
-// so the callback can use `cross2(rlm)` instead of bare `cross`.
+// so the callback can use `cross(rlm)` instead of bare `cross`.
 func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
 	fn(0, rlm)
 }

@@ -16,7 +16,7 @@ var (
 
 func TestNewTodoList(cur realm, t *testing.T) {
 	title := "My Todo List"
-	tlid, _ := NewTodoList(cross2(cur), title)
+	tlid, _ := NewTodoList(cross(cur), title)
 	uassert.Equal(t, 1, tlid, "tlid does not match")
 
 	// get the todolist node from the tree
@@ -31,7 +31,7 @@ func TestNewTodoList(cur realm, t *testing.T) {
 }
 
 func TestAddTask(cur realm, t *testing.T) {
-	AddTask(cross2(cur), 1, "Task 1")
+	AddTask(cross(cur), 1, "Task 1")
 
 	tasks := tdl.GetTasks()
 	uassert.Equal(t, 1, len(tasks), "total task does not match")
@@ -40,21 +40,21 @@ func TestAddTask(cur realm, t *testing.T) {
 }
 
 func TestToggleTaskStatus(cur realm, t *testing.T) {
-	ToggleTaskStatus(cross2(cur), 1, 0)
+	ToggleTaskStatus(cross(cur), 1, 0)
 	task := tdl.GetTasks()[0]
 	uassert.True(t, task.Done, "Expected task to be done, but it is not marked as done")
 
-	ToggleTaskStatus(cross2(cur), 1, 0)
+	ToggleTaskStatus(cross(cur), 1, 0)
 	uassert.False(t, task.Done, "Expected task to be not done, but it is marked as done")
 }
 
 func TestRemoveTask(cur realm, t *testing.T) {
-	RemoveTask(cross2(cur), 1, 0)
+	RemoveTask(cross(cur), 1, 0)
 	tasks := tdl.GetTasks()
 	uassert.Equal(t, 0, len(tasks), "Expected no tasks in the todo list")
 }
 
 func TestRemoveTodoList(cur realm, t *testing.T) {
-	RemoveTodoList(cross2(cur), 1)
+	RemoveTodoList(cross(cur), 1)
 	uassert.Equal(t, 0, todolistTree.Size(), "Expected no tasks in the todo list")
 }

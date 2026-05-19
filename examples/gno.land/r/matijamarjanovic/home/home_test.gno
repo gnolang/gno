@@ -14,7 +14,7 @@ func TestUpdatePFP(cur realm, t *testing.T) {
 	pfp = ""
 	pfpCaption = ""
 
-	UpdatePFP(cross2(cur), "https://example.com/pic.png", "New Caption")
+	UpdatePFP(cross(cur), "https://example.com/pic.png", "New Caption")
 
 	urequire.Equal(t, pfp, "https://example.com/pic.png", "Profile picture URL should be updated")
 	urequire.Equal(t, pfpCaption, "New Caption", "Profile picture caption should be updated")
@@ -24,7 +24,7 @@ func TestUpdateAboutMe(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")))
 	abtMe = ""
 
-	UpdateAboutMe(cross2(cur), "This is my new bio.")
+	UpdateAboutMe(cross(cur), "This is my new bio.")
 
 	urequire.Equal(t, abtMe, "This is my new bio.", "About Me should be updated")
 }
@@ -38,7 +38,7 @@ func TestVoteModern(cur realm, t *testing.T) {
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
-	VoteModern(cross2(cur))
+	VoteModern(cross(cur))
 
 	uassert.Equal(t, int64(75000000), modernVotes, "Modern votes should be calculated correctly")
 	uassert.Equal(t, "modern", currentTheme, "Theme should be updated to modern")
@@ -53,7 +53,7 @@ func TestVoteClassic(cur realm, t *testing.T) {
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
-	VoteClassic(cross2(cur))
+	VoteClassic(cross(cur))
 
 	uassert.Equal(t, int64(75000000), classicVotes, "Classic votes should be calculated correctly")
 	uassert.Equal(t, "classic", currentTheme, "Theme should be updated to classic")
@@ -68,7 +68,7 @@ func TestVoteMinimal(cur realm, t *testing.T) {
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
-	VoteMinimal(cross2(cur))
+	VoteMinimal(cross(cur))
 
 	uassert.Equal(t, int64(75000000), minimalVotes, "Minimal votes should be calculated correctly")
 	uassert.Equal(t, "minimal", currentTheme, "Theme should be updated to minimal")

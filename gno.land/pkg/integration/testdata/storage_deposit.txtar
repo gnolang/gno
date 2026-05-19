@@ -69,7 +69,7 @@ package foo
 var record Foo
 
 func init(cur realm){
-	NewFoo(cross2(cur),"hello")
+	NewFoo(cross(cur),"hello")
 }
 
 type Foo struct{

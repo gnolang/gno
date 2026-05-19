@@ -29,7 +29,7 @@ package main
 import sysparams "gno.land/r/sys/params"
 
 func main(cur realm) {
-	sysparams.SetValsetProposal(cross2(cur), []string{
+	sysparams.SetValsetProposal(cross(cur), []string{
 		"gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj:1000000",
 	})
 }

@@ -22,7 +22,7 @@ var cur realm
 func TestCreateEvent(cur realm, t *testing.T) {
 	// Test successful event creation
 	eventId := CreateEvent(
-		cross2(cur),
+		cross(cur),
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
@@ -40,14 +40,14 @@ func TestCreateEvent(cur realm, t *testing.T) {
 
 	// Test invalid date format
 	urequire.AbortsWithMessage(t, cur, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
-		CreateEvent(cross2(cur), "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
+		CreateEvent(cross(cur), "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
 	})
 }
 
 func TestBuyTicket(cur realm, t *testing.T) {
 	// Setup test event
 	eventId := CreateEvent(
-		cross2(cur),
+		cross(cur),
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
@@ -61,12 +61,12 @@ func TestBuyTicket(cur realm, t *testing.T) {
 	testing.SetOriginCaller(buyer)
 
 	uassert.AbortsWithMessage(t, cur, "Invalid payment amount: needs to be 1000000ugnot", func() {
-		BuyTicket(cross2(cur), eventId)
+		BuyTicket(cross(cur), eventId)
 	})
 
 	// Test successful purchase
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	BuyTicket(cross2(cur), eventId)
+	BuyTicket(cross(cur), eventId)
 
 	event, _ := getEvent(eventId)
 	if event.ticketsSold != 1 {
@@ -81,10 +81,10 @@ func TestBuyTicket(cur realm, t *testing.T) {
 
 	// Test buying sold out event
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	BuyTicket(cross2(cur), eventId) // Buy second ticket
+	BuyTicket(cross(cur), eventId) // Buy second ticket
 
 	uassert.AbortsWithMessage(t, cur, "Event is sold out", func() {
-		BuyTicket(cross2(cur), eventId)
+		BuyTicket(cross(cur), eventId)
 	})
 }
 
@@ -98,7 +98,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
 		token, ledger = grc20.NewToken(0, cur, "Test Token", "TEST", 6)
-	}(cross2(cur))
+	}(cross(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -117,7 +117,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var eventId uint64
 	crossThrough(testing.NewCodeRealm("gno.land/r/jjoptimist/eventix"), func() {
 		eventId = CreateEvent(
-			cross2(cur),
+			cross(cur),
 			"GRC20 Event",
 			"An event with GRC20 payment",
 			"2024-12-31T23:59:59Z",
@@ -143,7 +143,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(buyer))
 
 	// Buy ticket
-	BuyTicket(cross2(cur), eventId)
+	BuyTicket(cross(cur), eventId)
 
 	// Verify purchase
 	event, exists := getEvent(eventId)

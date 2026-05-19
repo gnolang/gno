@@ -14,12 +14,12 @@ func Public(cur realm) {
 
 func main(cur realm) {
 	f := func(cur realm) {
-		Public(cross2(cur))
+		Public(cross(cur))
 	}
 
-	crossrealm.SetClosure2(cross2(cur), f)
+	crossrealm.SetClosure2(cross(cur), f)
 
-	crossrealm.ExecuteClosureCross(cross2(cur))
+	crossrealm.ExecuteClosureCross(cross(cur))
 }
 
 // Output:

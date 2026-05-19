@@ -54,8 +54,8 @@ import (
 
 func main(cur realm) {
 
-  prop := params.NewSysParamStringPropRequest(cross2(cur), "vm", "p", "default_deposit", "1ugnot")
-  dao.MustCreateProposal(cross2(cur),prop)
+  prop := params.NewSysParamStringPropRequest(cross(cur), "vm", "p", "default_deposit", "1ugnot")
+  dao.MustCreateProposal(cross(cur),prop)
 }
 
 -- loader/load_govdao.gno --
@@ -74,7 +74,7 @@ func init(cur realm) {
 
 	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 -- run/vote_proposal.gno --
 package main
@@ -84,7 +84,7 @@ import (
 )
 
 func main(cur realm) {
-  dao.MustVoteOnProposal(cross2(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+  dao.MustVoteOnProposal(cross(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 
@@ -96,7 +96,7 @@ import (
 )
 
 func main(cur realm) {
-  dao.ExecuteProposal(cross2(cur),dao.ProposalID(0))
+  dao.ExecuteProposal(cross(cur),dao.ProposalID(0))
 }
 
 
@@ -112,7 +112,7 @@ package storage
 var record Foo
 
 func init(cur realm){
-	NewFoo(cross2(cur),"hello")
+	NewFoo(cross(cur),"hello")
 }
 
 type Foo struct{

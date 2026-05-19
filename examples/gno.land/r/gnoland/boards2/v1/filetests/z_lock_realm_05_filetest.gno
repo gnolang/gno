@@ -13,13 +13,13 @@ const owner address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"
 func init(cur realm) {
 	// Lock the realm without locking realm members
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.LockRealm(cross2(cur), false)
+	boards2.LockRealm(cross(cur), false)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.LockRealm(cross2(cur), true)
+	boards2.LockRealm(cross(cur), true)
 
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())

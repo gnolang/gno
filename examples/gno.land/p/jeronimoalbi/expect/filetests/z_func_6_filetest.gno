@@ -29,22 +29,22 @@ func Success(realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(caller))
 
-	expect.Func(t, func() { Fail(cross2(cur)) }).ToCrossPanic()
-	expect.Func(t, func() { Fail(cross2(cur)) }).ToCrossPanic().WithMessage(msg)
+	expect.Func(t, func() { Fail(cross(cur)) }).ToCrossPanic()
+	expect.Func(t, func() { Fail(cross(cur)) }).ToCrossPanic().WithMessage(msg)
 
-	expect.Func(t, func() error { Fail(cross2(cur)); return nil }).ToCrossPanic()
-	expect.Func(t, func() error { Fail(cross2(cur)); return nil }).ToCrossPanic().WithMessage(msg)
+	expect.Func(t, func() error { Fail(cross(cur)); return nil }).ToCrossPanic()
+	expect.Func(t, func() error { Fail(cross(cur)); return nil }).ToCrossPanic().WithMessage(msg)
 
-	expect.Func(t, func() any { Fail(cross2(cur)); return nil }).ToCrossPanic()
-	expect.Func(t, func() any { Fail(cross2(cur)); return nil }).ToCrossPanic().WithMessage(msg)
+	expect.Func(t, func() any { Fail(cross(cur)); return nil }).ToCrossPanic()
+	expect.Func(t, func() any { Fail(cross(cur)); return nil }).ToCrossPanic().WithMessage(msg)
 
-	expect.Func(t, func() (any, error) { Fail(cross2(cur)); return nil, nil }).ToCrossPanic()
-	expect.Func(t, func() (any, error) { Fail(cross2(cur)); return nil, nil }).ToCrossPanic().WithMessage(msg)
+	expect.Func(t, func() (any, error) { Fail(cross(cur)); return nil, nil }).ToCrossPanic()
+	expect.Func(t, func() (any, error) { Fail(cross(cur)); return nil, nil }).ToCrossPanic().WithMessage(msg)
 
-	expect.Func(t, func() { Success(cross2(cur)) }).Not().ToCrossPanic()
-	expect.Func(t, func() error { Success(cross2(cur)); return nil }).Not().ToCrossPanic()
-	expect.Func(t, func() any { Success(cross2(cur)); return nil }).Not().ToCrossPanic()
-	expect.Func(t, func() (any, error) { Success(cross2(cur)); return nil, nil }).Not().ToCrossPanic()
+	expect.Func(t, func() { Success(cross(cur)) }).Not().ToCrossPanic()
+	expect.Func(t, func() error { Success(cross(cur)); return nil }).Not().ToCrossPanic()
+	expect.Func(t, func() any { Success(cross(cur)); return nil }).Not().ToCrossPanic()
+	expect.Func(t, func() (any, error) { Success(cross(cur)); return nil, nil }).Not().ToCrossPanic()
 
 	// None should fail, output should be empty
 	print(output.String())

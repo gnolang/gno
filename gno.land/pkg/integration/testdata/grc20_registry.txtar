@@ -43,7 +43,7 @@ func TransferByName(cur realm, name string, to string, amount uint64) string {
 			continue
 		}
 
-		if runtime.CurrentRealm().Address().String() != pair.cb(cross2(cur), address(to), amount) {
+		if runtime.CurrentRealm().Address().String() != pair.cb(cross(cur), address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -62,7 +62,7 @@ import "gno.land/r/registry"
 import "gno.land/r/foo20"
 
 func init(cur realm) {
-	  registry.Register(cross2(cur), "foo20", foo20.Transfer)
+	  registry.Register(cross(cur), "foo20", foo20.Transfer)
 }
 
 -- foo20/gnomod.toml --

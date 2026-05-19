@@ -25,7 +25,7 @@ func main(cur realm) {
 	testing.IssueCoins(banktestAddr, chain.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
-	res := banktest.Deposit(cross2(cur), "ugnot", 55000000)
+	res := banktest.Deposit(cross(cur), "ugnot", 55000000)
 	println("Deposit():", res)
 
 	// print main balance after.
@@ -33,7 +33,7 @@ func main(cur realm) {
 	println("main after:", mainbal) // now 255.
 
 	// simulate a Render().
-	res = banktest.Render(cross2(cur), "")
+	res = banktest.Render(cross(cur), "")
 	println(res)
 }
 

@@ -21,16 +21,16 @@ var f crossrealm.Fooer
 
 func init(cur realm) {
 	println("init")
-	f = crossrealm.SetFooer(cross2(cur), &fooer{})
-	// crossrealm.CallFooerFooCur(cross2(cur)) <-- should panic
-	crossrealm.CallFooerFooCross(cross2(cur))
+	f = crossrealm.SetFooer(cross(cur), &fooer{})
+	// crossrealm.CallFooerFooCur(cross(cur)) <-- should panic
+	crossrealm.CallFooerFooCross(cross(cur))
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross2(cur))
+	crossrealm.CallFooerBarCrossing(cross(cur))
 }
 
 func main(cur realm) {
 	println("main")
-	crossrealm.CallFooerFooCur(cross2(cur))
+	crossrealm.CallFooerFooCur(cross(cur))
 }
 
 // Error:

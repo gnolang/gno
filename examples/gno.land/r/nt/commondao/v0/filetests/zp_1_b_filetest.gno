@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	commondao.CreateTextProposal(cross2(cur), 404, "", "", 0)
+	commondao.CreateTextProposal(cross(cur), 404, "", "", 0)
 }
 
 // Error:

@@ -10,7 +10,7 @@ import (
 var gid groups.GroupID
 
 func main(cur realm) {
-	gid = groups.CreateGroup(cross2(cur), "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 	println(groups.Render(""))
 }

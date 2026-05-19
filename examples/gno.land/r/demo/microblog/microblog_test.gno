@@ -8,12 +8,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-// postAs threads the SetRealm'd cur into m.NewPost via cross2(rlm).
+// postAs threads the SetRealm'd cur into m.NewPost via cross(rlm).
 // Callers SetRealm in the enclosing crossing frame so the cur HIV
 // mutation lands where rlm captures it.
 func postAs(_ int, rlm realm, text string) error {
 	var err error
-	func(cur realm) { err = m.NewPost(0, cur, text) }(cross2(rlm))
+	func(cur realm) { err = m.NewPost(0, cur, text) }(cross(rlm))
 	return err
 }
 

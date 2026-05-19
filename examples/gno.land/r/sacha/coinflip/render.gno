@@ -84,7 +84,7 @@ func renderFooter() string {
 }
 
 func renderBalance(_ int, rlm realm) string {
-	balance := strconv.Itoa(int(GetRealmBalance(cross2(rlm))))
+	balance := strconv.Itoa(int(GetRealmBalance(cross(rlm))))
 	out := md.H2("Balance: " + balance + denom + "\n")
 
 	return out

@@ -83,7 +83,7 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 // (panics when crossing another realm).
 // Use PanicsWithMessage for asserting local panics within the same realm.
 //
-// `rlm` is threaded into the callback via cross2(rlm) when f is func(realm).
+// `rlm` is threaded into the callback via cross(rlm) when f is func(realm).
 // It is ignored for func() callbacks. /p/ production code cannot declare
 // crossing functions, so rlm is taken as the second (non-first) parameter
 // — callers pass `cur` directly.
@@ -100,7 +100,7 @@ func AbortsWithMessage(t TestingT, rlm realm, msg string, f any, msgs ...string)
 	case func():
 		r = revive(f) // revive() captures the value passed to panic()
 	case func(realm):
-		r = revive(func() { f(cross2(rlm)) })
+		r = revive(func() { f(cross(rlm)) })
 	default:
 		panic("f must be of type func() or func(realm)")
 	}
@@ -137,7 +137,7 @@ func AbortsContains(t TestingT, rlm realm, substr string, f any, msgs ...string)
 	if fn, ok := f.(func()); ok {
 		r = revive(fn)
 	} else if fn, ok := f.(func(realm)); ok {
-		r = revive(func() { fn(cross2(rlm)) })
+		r = revive(func() { fn(cross(rlm)) })
 	} else {
 		panic("f must be of type func() or func(realm)")
 	}
@@ -173,7 +173,7 @@ func NotAborts(t TestingT, rlm realm, f any, msgs ...string) bool {
 	case func():
 		r = revive(f) // revive() captures the value passed to panic()
 	case func(realm):
-		r = revive(func() { f(cross2(rlm)) })
+		r = revive(func() { f(cross(rlm)) })
 	default:
 		panic("f must be of type func() or func(realm)")
 	}
@@ -254,7 +254,7 @@ func NotPanics(t TestingT, rlm realm, f any, msgs ...string) bool {
 		case func():
 			f()
 		case func(realm):
-			f(cross2(rlm))
+			f(cross(rlm))
 		default:
 			panic("f must be of type func() or func(realm)")
 		}

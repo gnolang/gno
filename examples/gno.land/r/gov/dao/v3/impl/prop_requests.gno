@@ -41,7 +41,7 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 		// what calls this cb function is r/gov/dao.
 		// therefore we must cross back into v3/impl and then
 		// cross call dao.UpdateRequest().
-		dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(newDao, []string{"gno.land/r/gov/dao/v3/impl", realmPkg}))
+		dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(newDao, []string{"gno.land/r/gov/dao/v3/impl", realmPkg}))
 		return nil
 	}
 
@@ -154,7 +154,7 @@ func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string
 
 	cb := func(cur realm) error {
 		return panictoerr.PanicToError(func() {
-			treasury.Send(cross2(cur), payment)
+			treasury.Send(cross(cur), payment)
 		})
 	}
 
@@ -189,7 +189,7 @@ func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) dao.Proposal
 		return panictoerr.PanicToError(func() {
 			// NOTE:: Consider checking if the newTokenKeys are already registered
 			// in the grc20reg before updating the treasury tokens keys.
-			treasury.SetTokenKeys(cross2(cur), newTokenKeys)
+			treasury.SetTokenKeys(cross(cur), newTokenKeys)
 		})
 	}
 

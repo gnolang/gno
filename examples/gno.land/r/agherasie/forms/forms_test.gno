@@ -24,7 +24,7 @@ func TestGetFormByID(cur realm, t *testing.T) {
 	data := `[{"label":"Name","fieldType":"string","required":true},{"label":"Age","fieldType":"number","required":false},{"label":"Is this a test?","fieldType":"boolean","required":false},{"label":"Favorite Food","fieldType":"['Pizza', 'Schnitzel', 'Burger']","required":true},{"label":"Favorite Foods","fieldType":"{'Pizza', 'Schnitzel', 'Burger'}","required":true}]`
 
 	urequire.NotPanics(t, cur, func() {
-		id := CreateForm(cross2(cur), title, description, openAt, closeAt, data)
+		id := CreateForm(cross(cur), title, description, openAt, closeAt, data)
 
 		form := GetFormByID(id)
 
@@ -41,9 +41,9 @@ func TestGetForms(cur realm, t *testing.T) {
 
 	urequire.NotPanics(t, cur, func() {
 		data1 := `[{"label":"Name","fieldType":"string","required":true}]`
-		CreateForm(cross2(cur), "NameForm", description, openAt, closeAt, data1)
+		CreateForm(cross(cur), "NameForm", description, openAt, closeAt, data1)
 		data2 := `[{"label":"Age","fieldType":"number","required":false}]`
-		CreateForm(cross2(cur), "AgeForm", description, openAt, closeAt, data2)
+		CreateForm(cross(cur), "AgeForm", description, openAt, closeAt, data2)
 
 		forms := GetForms()
 

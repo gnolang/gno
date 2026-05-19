@@ -20,39 +20,39 @@ func main(cur realm) {
 	caller := runtime.OriginCaller() // main123
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "main123", caller)
+	uinit.RegisterUser(cross(cur), "main123", caller)
 	testing.SetHeight(123)
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
 	testing.SetRealm(testing.NewUserRealm(test1))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "test123", test1)
+	uinit.RegisterUser(cross(cur), "test123", test1)
 	testing.SetHeight(123)
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
 	testing.SetRealm(testing.NewUserRealm(test2))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "test223", test2)
+	uinit.RegisterUser(cross(cur), "test223", test2)
 	testing.SetHeight(123)
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
 	testing.SetRealm(testing.NewUserRealm(test3))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross2(cur), "test323", test3)
+	uinit.RegisterUser(cross(cur), "test323", test3)
 	testing.SetHeight(123)
 
 	testing.SetOriginCaller(caller)
 	testing.SetRealm(testing.NewUserRealm(caller))
 
-	gid = groups.CreateGroup(cross2(cur), "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(groups.Render("test_group"))
 
-	groups.AddMember(cross2(cur), gid, test2.String(), 42, "metadata3")
+	groups.AddMember(cross(cur), gid, test2.String(), 42, "metadata3")
 
-	groups.DeleteMember(cross2(cur), gid, 0)
+	groups.DeleteMember(cross(cur), gid, 0)
 	println(groups.RenderGroup(gid))
 }
 

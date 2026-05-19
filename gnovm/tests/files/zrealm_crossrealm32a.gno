@@ -17,9 +17,9 @@ func main(cur realm) {
 		Public(cur)
 	}
 
-	crossrealm.SetClosure2(cross2(cur), f)
+	crossrealm.SetClosure2(cross(cur), f)
 
-	crossrealm.ExecuteClosureCross(cross2(cur))
+	crossrealm.ExecuteClosureCross(cross(cur))
 }
 
 // Output:

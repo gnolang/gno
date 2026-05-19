@@ -20,14 +20,14 @@ var bid boards.ID // Operate on board DAO
 
 func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross2(cur), "test123", false, true)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
 }
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
 	// Non members should be able to create threads only if they have enough GNOT
-	boards2.CreateThread(cross2(cur), bid, "Title", "Body")
+	boards2.CreateThread(cross(cur), bid, "Title", "Body")
 }
 
 // Error:

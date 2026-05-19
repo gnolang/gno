@@ -103,8 +103,8 @@ import (
 var X *registry.Thing
 
 func init(cur realm) {
-	X = registry.NewThing(cross2(cur), "hello")
-	registry.Register(cross2(cur), X, "X")
+	X = registry.NewThing(cross(cur), "hello")
+	registry.Register(cross(cur), X, "X")
 }
 
 func Render(_ string) string {

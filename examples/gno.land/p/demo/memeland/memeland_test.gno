@@ -17,21 +17,21 @@ import (
 func postMemeAs(cur realm, actor address, m *Memeland, data string, timestamp int64) string {
 	testing.SetRealm(testing.NewUserRealm(actor))
 	var id string
-	func(cur realm) { id = m.PostMeme(0, cur, data, timestamp) }(cross2(cur))
+	func(cur realm) { id = m.PostMeme(0, cur, data, timestamp) }(cross(cur))
 	return id
 }
 
 func upvoteAs(cur realm, actor address, m *Memeland, id string) string {
 	testing.SetRealm(testing.NewUserRealm(actor))
 	var result string
-	func(cur realm) { result = m.Upvote(0, cur, id) }(cross2(cur))
+	func(cur realm) { result = m.Upvote(0, cur, id) }(cross(cur))
 	return result
 }
 
 func removePostAs(cur realm, actor address, m *Memeland, id string) string {
 	testing.SetRealm(testing.NewUserRealm(actor))
 	var result string
-	func(cur realm) { result = m.RemovePost(0, cur, id) }(cross2(cur))
+	func(cur realm) { result = m.RemovePost(0, cur, id) }(cross(cur))
 	return result
 }
 
@@ -288,7 +288,7 @@ func TestDeleteByNonAdmin(cur realm, t *testing.T) {
 	postID := postMemeAs(cur, alice, m, "Meme #1", now.Unix())
 
 	// Bob will try to delete meme posted by Alice, which should fail.
-	// removePostAs wraps the call in cross2(cur), so the panic crosses
+	// removePostAs wraps the call in cross(cur), so the panic crosses
 	// a realm boundary and must be caught with revive(); a plain
 	// defer-recover wouldn't see it.
 	bob := testutils.TestAddress("bob")

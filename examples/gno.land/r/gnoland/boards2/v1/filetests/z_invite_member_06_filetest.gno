@@ -13,7 +13,7 @@ const owner address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.InviteMember(cross2(cur), 0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", boards2.RoleGuest)
+	boards2.InviteMember(cross(cur), 0, "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", boards2.RoleGuest)
 }
 
 // Error:

@@ -26,12 +26,12 @@ func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross2(cur), srcBoardName, false, false)
-	threadID = boards2.CreateThread(cross2(cur), boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), srcBoardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Repost thread into a different board
-	dstBoardID := boards2.CreateBoard(cross2(cur), dstBoardName, false, false)
-	repostThreadID = boards2.CreateRepost(cross2(cur), boardID, threadID, dstBoardID, "Bar", "Body2")
+	dstBoardID := boards2.CreateBoard(cross(cur), dstBoardName, false, false)
+	repostThreadID = boards2.CreateRepost(cross(cur), boardID, threadID, dstBoardID, "Bar", "Body2")
 }
 
 func main() {

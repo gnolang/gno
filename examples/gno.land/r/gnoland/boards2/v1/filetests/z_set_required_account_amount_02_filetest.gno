@@ -13,7 +13,7 @@ const owner address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @test2
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.SetRequiredAccountAmount(cross2(cur), 1_000_000)
+	boards2.SetRequiredAccountAmount(cross(cur), 1_000_000)
 }
 
 // Error:

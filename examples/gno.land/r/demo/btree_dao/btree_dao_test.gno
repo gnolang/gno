@@ -32,7 +32,7 @@ func TestPlantTree(cur realm, t *testing.T) {
 		tree.Insert(&TestElement{value: val})
 	}
 
-	err := PlantTree(cross2(cur), tree)
+	err := PlantTree(cross(cur), tree)
 	urequire.NoError(t, err)
 
 	found := false
@@ -46,18 +46,18 @@ func TestPlantTree(cur realm, t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantTree(cross2(cur), tree)
+	err = PlantTree(cross(cur), tree)
 	uassert.Error(t, err)
 
 	emptyTree := btree.New()
-	err = PlantTree(cross2(cur), emptyTree)
+	err = PlantTree(cross(cur), emptyTree)
 	uassert.Error(t, err)
 }
 
 func TestPlantSeed(cur realm, t *testing.T) {
 	setupTest()
 
-	err := PlantSeed(cross2(cur), "Hello DAO!")
+	err := PlantSeed(cross(cur), "Hello DAO!")
 	urequire.NoError(t, err)
 
 	found := false
@@ -73,7 +73,7 @@ func TestPlantSeed(cur realm, t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantSeed(cross2(cur), "")
+	err = PlantSeed(cross(cur), "")
 	uassert.Error(t, err)
 }
 

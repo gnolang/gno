@@ -15,7 +15,7 @@ func TestCreatePostSingle(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	err := CreatePost(cross2(cur), text1)
+	err := CreatePost(cross(cur), text1)
 	uassert.True(t, err == nil, "expected no error")
 
 	// Get the rendered page
@@ -44,7 +44,7 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 		testing.SetRealm(testing.NewUserRealm(authorAddr))
 
 		// Create the post
-		err := CreatePost(cross2(cur), p.text)
+		err := CreatePost(cross(cur), p.text)
 		uassert.True(t, err == nil, "expected no error for post "+p.text)
 	}
 
@@ -65,20 +65,20 @@ func TestReset(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
-	_ = CreatePost(cross2(cur), text1)
+	_ = CreatePost(cross(cur), text1)
 
 	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
 	testing.SetRealm(testing.NewUserRealm(Ownable.Owner()))
-	ResetPosts(cross2(cur))
+	ResetPosts(cross(cur))
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
 
 	text2 := "Some other Text!!"
-	_ = CreatePost(cross2(cur), text2)
+	_ = CreatePost(cross(cur), text2)
 
 	got = Render("")
 	uassert.False(t, strings.Contains(got, text1), "expected render to not contain text1")
