@@ -134,33 +134,30 @@ func TestLobbyGameFound(cur realm, t *testing.T) {
 		},
 	}
 
-	// NOTE: don't wrap subtests in t.Run because the closure captures
-	// `cur` from outer scope and the cross2(cur) refresh-on-SetRealm
-	// magic only works for cur values resolved in the same frame as
-	// the test function. Flatten and prefix with the case name.
 	for _, tc := range tt {
-		println("=== case ", tc.name)
-		cleanup()
-		now := time.Now()
-		for _, p := range tc.pre {
-			lobby[0] = append(lobby[0], lobbyPlayer{
-				joinedAt: now.Add(time.Duration(p.joinedAt) * time.Second),
-				seenAt:   now.Add(time.Duration(p.seenAt) * time.Second),
-				player: &Player{
-					Address: p.id,
-					CategoryInfo: [CategoryMax]CategoryInfo{
-						Blitz: {PlayerRating: &glicko2.PlayerRating{Rating: p.rating}},
+		t.Run(tc.name, func(cur realm, t *testing.T) {
+			cleanup()
+			now := time.Now()
+			for _, p := range tc.pre {
+				lobby[0] = append(lobby[0], lobbyPlayer{
+					joinedAt: now.Add(time.Duration(p.joinedAt) * time.Second),
+					seenAt:   now.Add(time.Duration(p.seenAt) * time.Second),
+					player: &Player{
+						Address: p.id,
+						CategoryInfo: [CategoryMax]CategoryInfo{
+							Blitz: {PlayerRating: &glicko2.PlayerRating{Rating: p.rating}},
+						},
 					},
-				},
-			})
-		}
+				})
+			}
 
-		testing.SetRealm(testing.NewUserRealm(tc.caller))
-		LobbyGameFound(cross2(cur))
+			testing.SetRealm(testing.NewUserRealm(tc.caller))
+			LobbyGameFound(cross2(cur))
 
-		if tc.check != nil {
-			tc.check(t)
-		}
+			if tc.check != nil {
+				tc.check(t)
+			}
+		})
 	}
 }
 

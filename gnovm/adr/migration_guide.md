@@ -104,11 +104,37 @@ frame is a new call frame whose `fr.Cur` is unset. SetRealm targets
 the deepest non-testing frame — which is now the subtest closure —
 where the mutation lands on an empty fr.Cur and silently no-ops.
 
-**Workaround:** flatten t.Run subtests into the parent test function
-when the subtests rely on `SetRealm` + `cross2(cur)` semantics. Use
-`println("=== case ", tc.name)` for readable boundaries. (See the
-`r/morgan/chess/lobby_test.gno TestLobbyGameFound` migration for a
-worked example.)
+**The fix (preferred):** declare the subtest closure as a *crossing*
+closure so it gets its own `fr.Cur`. `testing.T.Run` already accepts
+`func(realm, *testing.T)` as a subtest signature (see
+`testing.gno:195`, routes through `tRunner_cur`):
+
+```go
+t.Run(tc.name, func(cur realm, t *testing.T) {
+    testing.SetRealm(testing.NewUserRealm(tc.caller))
+    SomeCrossingFn(cross2(cur))
+})
+```
+
+Now `SetRealm` walks frames, finds the subtest closure's frame
+(non-testing, has `fr.Cur` set because the closure is a crossing
+fn), and mutates `fr.Cur` in place. The captured `cur` reflects the
+mutation because the closure's `cur` and `fr.Cur` share HIV.
+
+**Methods/funcs inside subtests** that previously took `_ int, rlm
+realm` (non-crossing helper) need to be reconsidered: if they call
+`SetRealm` internally and rely on the mutation reaching `rlm`, they
+need to be crossing methods too (`Method(cur realm, ...)`) so that
+their frame has its own `fr.Cur`. Bridge non-crossing → crossing at
+the call site with `cross2(cur)`.
+
+For an example refactor that threads through methods + an interface,
+see `r/morgan/chess/chess_test.gno`'s `testCommandRunner.Run(cur realm,
+...)` migration.
+
+**Alternative fallback (if subtest crossing-form is undesired):**
+flatten t.Run subtests into the parent test function. Use
+`println("=== case ", tc.name)` for readable boundaries.
 
 ---
 
