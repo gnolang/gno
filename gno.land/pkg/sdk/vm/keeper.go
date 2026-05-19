@@ -851,6 +851,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		return "", err
 	}
 	cx := xn.(*gno.CallExpr)
+	// Replace the parsed bare `cross` at Args[0] with the compiler-internal
+	// `.origin` sentinel. Both lower to the same bare-cross AST at preprocess
+	// (Args[0]=nil, WithCross=true) and the same buildOriginRealm runtime
+	// path. The dot-prefix `.origin` is unparseable from user .gno source
+	// (same property as `.cur`), so this is a compiler-internal primitive.
+	// Eliminates the last bare-`cross` literal in production synthesis.
+	cx.Args[0] = gno.Nx(".origin")
 	hasVarg := ft.HasVarg()
 	// NOTE: nargs = `cur` + user's len(args)
 	nargs := len(msg.Args) + 1

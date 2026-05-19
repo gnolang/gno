@@ -1306,6 +1306,20 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// but should not be statically evaluated.
 					// (will be replaced TRANS_LEAVE *CallExpr).
 					return n, TRANS_CONTINUE
+				case ".origin":
+					// special name for compiler-synthesized chain-root cross
+					// calls (keeper.go's MsgCall dispatch). Only valid as the
+					// first arg of a crossing call; at TRANS_LEAVE the outer
+					// call substitutes bare-cross AST (Args[0]=nil, WithCross
+					// =true) so runtime routes through callingCurOrOrigin →
+					// buildOriginRealm — identical to bare `cross`. The dot
+					// prefix makes `.origin` unparseable from user source;
+					// only post-parse AST injection (gno.Nx(".origin")) can
+					// introduce it.
+					if ftype != TRANS_CALL_ARG || index != 0 {
+						panic(".origin can only be used as the first argument to a crossing function")
+					}
+					return n, TRANS_CONTINUE
 				case "cross":
 					// Special case for gno 0.0.
 					if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
@@ -2041,10 +2055,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							nx, ok := n.Args[0].(*NameExpr)
-							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") && nx.Name != Name(".origin") {
 								panic(fmt.Sprintf("only `cur`, `cross`, or `cross2(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
+							case Name(".origin"):
+								// compiler-internal sentinel for chain-root MsgCall
+								// synthesis. Lowers to bare-cross AST so the runtime
+								// path (installCrossingCur → callingCurOrOrigin →
+								// buildOriginRealm) mints an EOA-origin cur identical
+								// to bare `cross`.
+								n.SetWithCross()
+								n.Args[0] = constNil(nx)
 							case Name(".cur"):
 								if _, ok := skipFile(last).(*PackageNode); !ok {
 									// .cur should only be used from

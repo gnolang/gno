@@ -1443,7 +1443,8 @@ func makeUverseNode() {
 		},
 	)
 	def("cross", undefined) // special keyword for cross-calling
-	def(".cur", undefined)  // special keyword for non-cross-calling main(cur realm)
+	def(".cur", undefined)    // special keyword for non-cross-calling main(cur realm)
+	def(".origin", undefined) // sentinel for compiler-synthesized chain-root crossing calls (MsgCall keeper synthesis)
 	// `cross` used to be a function, but it is now a special value.
 	// XXX make this unavailable in prod 0.9.  Code that refers to this
 	// intermediate name (gno fix > prepare()) will not pass type-checking
