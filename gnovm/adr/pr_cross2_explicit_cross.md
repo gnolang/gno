@@ -123,13 +123,11 @@ transparently.
 
 1. **`gnovm/pkg/gnolang/gotypecheck.go`** — Add `func cross2(rlm realm)
    realm { return rlm }` shim to the gno 0.9 per-package
-   `.gnobuiltins.gno` (alongside `var cross realm`). The 0.0 shim
-   intentionally does NOT declare `cross2` — `cross2` is a 0.9-only
-   construct.
+   `.gnobuiltins.gno` (alongside `var cross realm`).
 
 2. **`gnovm/pkg/gnolang/uverse.go`** — Register `cross2` as a generic
-   native (`defNative("cross2", ...)` with generic X param/result,
-   mirroring `_cross_gno0p0`'s shape). The native body validates
+   native (`defNative("cross2", ...)` with generic X param/result).
+   The native body validates
    `realmIsCurrentStrict` on the argument and panics if false;
    otherwise pushes the argument unchanged. Also factor the existing
    `IsCurrent` method body into a shared `realmIsCurrentOnMachine`
@@ -143,7 +141,7 @@ transparently.
 
 4. **`gnovm/pkg/gnolang/preprocess.go`** — Three checks at preprocess:
    - **Inner `cross2` TRANS_LEAVE** (uverse-func switch, alongside
-     `_cross_gno0p0`, `cross`, `crossing`): validate the call shape
+     `cross`, `crossing`): validate the call shape
      is `cross2(<NameExpr>)` with exactly one bare identifier
      argument. Verify the parent context is `Args[0]` of a
      crossing-function call (ftype == TRANS_CALL_ARG && index == 0,

@@ -1434,34 +1434,9 @@ func makeUverseNode() {
 			m.PushValue(typedString("realm{" + path + ":" + addr + "}"))
 		},
 	)
-	defNative("crossing",
-		nil, // params
-		nil, // results
-		func(m *Machine) {
-			// should not happen since gno 0.9.
-			panic("crossing() is reserved but deprecated")
-		},
-	)
 	def("cross", undefined) // special keyword for cross-calling
 	def(".cur", undefined)    // special keyword for non-cross-calling main(cur realm)
 	def(".origin", undefined) // sentinel for compiler-synthesized chain-root crossing calls (MsgCall keeper synthesis)
-	// `cross` used to be a function, but it is now a special value.
-	// XXX make this unavailable in prod 0.9.  Code that refers to this
-	// intermediate name (gno fix > prepare()) will not pass type-checking
-	// because it isn't available in .gnobuiltins.gno for gno 0.9, but this
-	// name is unnecessarily reserved and brittle.
-	defNative("_cross_gno0p0",
-		Flds( // param
-			"x", GenT("X", nil),
-		),
-		Flds( // results
-			"x", GenT("X", nil),
-		),
-		func(m *Machine) {
-			// This is handled by op_call instead.
-			panic("cross is a virtual function")
-		},
-	)
 	// cross2(rlm) is the explicit form of bare `cross`. It coexists
 	// with `cross` during the gno 0.9 migration: where bare `cross`
 	// is a preprocessor-recognized sentinel, cross2(rlm) is a real
@@ -1480,9 +1455,8 @@ func makeUverseNode() {
 	// rlm's HIV against that frame's Cur by pointer identity. Catches
 	// stale rlm from sibling frames or captured-and-outlived frames.
 	//
-	// Generic X param/result mirrors `_cross_gno0p0`; the Go-side
-	// typechecker shim narrows X to realm via the .gnobuiltins.gno
-	// signature `func cross2(rlm realm) realm`.
+	// The Go-side typechecker shim narrows X to realm via the
+	// .gnobuiltins.gno signature `func cross2(rlm realm) realm`.
 	defNative("cross2",
 		Flds( // param
 			"rlm", GenT("X", nil),

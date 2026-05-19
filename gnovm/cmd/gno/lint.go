@@ -224,7 +224,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tmpkgType := tmpkg.Type.(gno.MemPackageType)
 					m2.Store.AddMemPackage(tmpkg, tmpkgType)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
-						m2.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")
+						m2.ParseMemPackageAsType(tmpkg, tmpkgType), true, true)
 				} else {
 					return tgetter(pkgPath, store)
 				}
@@ -297,7 +297,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// Preprocess fset files (no test files)
 				tm.Store = newProdGnoStore()
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, fset, false, false, "")
+					mpkg.Name, mpkg.Path, fset, false, false)
 				ppkg.AddNormal(pn, fset)
 			}
 			{
@@ -305,7 +305,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// Preprocess fset files (w/ some *_test.gno).
 				tm.Store = newTestGnoStore(false)
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name, mpkg.Path, tfset, false, false, "")
+					mpkg.Name, mpkg.Path, tfset, false, false)
 				ppkg.AddTest(pn, fset)
 			}
 			{
@@ -313,7 +313,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				// Preprocess _test files (all xxx_test *_test.gno).
 				tm.Store = newTestGnoStore(true)
 				pn, _ := tm.PreprocessFiles(
-					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false, "")
+					mpkg.Name+"_test", mpkg.Path+"_test", _tests, false, false)
 				ppkg.AddUnderscoreTests(pn, _tests)
 			}
 			{
@@ -331,7 +331,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						continue
 					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false, "")
+					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
 					ppkg.AddFileTest(pn, fset)
 				}
 			}

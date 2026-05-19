@@ -1321,11 +1321,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					return n, TRANS_CONTINUE
 				case "cross":
-					// Special case for gno 0.0.
-					if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
-						// Do nothing here, TRANS_LEAVE *CallExpr will handle it.
-						return n, TRANS_CONTINUE
-					}
 					// `cross` can only be used as the first argument
 					// to a crossing function, for cross-calling.
 					if ftype != TRANS_CALL_ARG || index != 0 {
@@ -1923,22 +1918,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							return n, TRANS_CONTINUE
-						case "_cross_gno0p0":
-							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
-								// This is only backwards compatibility for the gno 0.9
-								// transpiler/fixer.  cross() is no longer used.
-								// See adr/pr4264_lint_transpile.md for more info.
-								//
-								// Memoize *CallExpr.WithCross.
-								pc, ok := ns[len(ns)-1].(*CallExpr)
-								if !ok {
-									panic("cross(fn) must be followed by a call")
-								}
-								pc.WithCross = true // bypass method with checks.
-							} else {
-								// only way _cross_gno0p0 appears is
-								panic("_cross_gno0p0 is reserved")
-							}
 						case "cross":
 							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
 						case "cross2":
@@ -1987,9 +1966,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								panic("cross2(rlm) can only be used as the first argument to a crossing-function call")
 							}
 						case "crossing":
-							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
-								panic("crossing() is reserved and deprecated")
-							}
+							panic("crossing() is reserved and deprecated")
 						case "attach":
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
@@ -3569,7 +3546,6 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					nx.Type = NameExprTypeHeapUse
 				}
 			case *NameExpr:
-				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE

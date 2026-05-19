@@ -66,10 +66,10 @@ type Address = address
 }
 
 func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
-	gnoBuiltins := ""
-	switch gnoVersion {
-	case GnoVerLatest: // 0.9
-		gnoBuiltins = `package %s
+	if gnoVersion != GnoVerLatest {
+		panic("unsupported gno.mod version " + gnoVersion)
+	}
+	const gnoBuiltins = `package %s
 import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
@@ -79,23 +79,10 @@ func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
 `
-	case GnoVerMissing: // 0.0
-		gnoBuiltins = `package %s
-
-func istypednil(x any) bool { return false } // shim
-func crossing() { } // shim
-func cross[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
-func _cross_gno0p0[F any](fn F) F { return fn } // shim XXX: THIS MUST NOT EXIST IN .gnobuiltins.gno for 0.9!!!
-func revive[F any](fn F) any { return nil } // shim
-`
-	default:
-		panic("unsupported gno.mod version " + gnoVersion)
-	}
-	file := &std.MemFile{
+	return &std.MemFile{
 		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
 		Body: fmt.Sprintf(gnoBuiltins, pkgName),
 	}
-	return file
 }
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
@@ -129,7 +116,6 @@ const (
 	TCLatestStrict  TypeCheckMode = iota // require latest gnomod.toml gno version, forbid drafts
 	TCGenesisStrict                      // require latest gnomod.toml gno version, allow drafts
 	TCLatestRelaxed                      // generate latest gnomod.toml if missing
-	TCGno0p0                             // when gno fix'ing from gno 0.0.
 )
 
 // RequiresLatestGnoMod returns true if the type check mode requires latest gno.mod version
@@ -358,9 +344,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 }
 
 // Minimal AST mutation(s) for Go.
-// For gno 0.0 there was nothing to do besides including .gnobuiltins.gno.
-// For gno 0.9 we need to support init(cur realm), main(cur realm) by
-// removing them and instead setting `cur := cross`; hacky but good enough.
+// Supports init(cur realm), main(cur realm) by removing the param and
+// instead setting `cur := cross`; hacky but good enough.
 func prepareGoGno0p9(f *ast.File) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
@@ -427,18 +412,13 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		}
 		gnoVersion = mod.GetGno()
 	} else {
+		// tcmode is TCLatestRelaxed: missing gnomod.toml → latest.
 		if mod == nil {
-			// cannot be stdlib; ParseCheckGnoMod will generate a
-			// gno.mod with version latest. Sanity check:
+			// cannot be stdlib; ParseCheckGnoMod auto-generates one.
 			if IsStdlib(mpkg.Path) {
 				panic("expected ParseCheckGnoMod() to auto-generate a gno.mod for stdlibs")
 			}
-			switch gimp.tcmode {
-			case TCGno0p0:
-				gnoVersion = GnoVerMissing
-			case TCLatestRelaxed:
-				gnoVersion = GnoVerLatest
-			}
+			gnoVersion = GnoVerLatest
 		} else {
 			gnoVersion = mod.GetGno()
 		}

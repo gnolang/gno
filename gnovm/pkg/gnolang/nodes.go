@@ -140,7 +140,6 @@ const (
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"  // if name expr refers to package.
-	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"      // gno fix this version.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE" // static element type of &x, set on the RefExpr node during preprocessing.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
@@ -440,19 +439,6 @@ func (x *CallExpr) isLikeWithCross() bool {
 		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
 			return fcx.GetFunc().PkgPath == uversePkgPath &&
 				fcx.GetFunc().Name == "cross2"
-		}
-	}
-	return false
-}
-
-// Legacy; only for fixing gno0.0 to gno0.9
-func (x *CallExpr) isCrossing_gno0p0() bool {
-	if x == nil {
-		return false
-	}
-	if nx, ok := unconst(x.Func).(*NameExpr); ok {
-		if nx.Name == "crossing" {
-			return true
 		}
 	}
 	return false
@@ -793,20 +779,6 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 		}
 	}
 	return nil, -1
-}
-
-// Legacy, only for fixing 0.0 to 0.9
-func (ss Body) isCrossing_gno0p0() bool {
-	if len(ss) == 0 {
-		return false
-	}
-	fs := ss[0]
-	xs, ok := fs.(*ExprStmt)
-	if !ok {
-		return false
-	}
-	cx, ok := xs.X.(*CallExpr)
-	return ok && cx.isCrossing_gno0p0()
 }
 
 // ----------------------------------------
