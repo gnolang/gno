@@ -1,0 +1,95 @@
+# End-to-end test for the trust-level update governance proposal in
+# r/sys/validators/v3:
+#
+#   v3.NewTrustLevelPropRequest(num, den, title, description)
+#   -> dao.MustCreateProposal
+#   -> member votes YES
+#   -> dao.ExecuteProposal
+#   -> v3 trust-level executor mutates trustLevelRatio
+#
+# Verifies the FULL ProposalRequest wiring by querying GetTrustLevel()
+# before and after execution. Closes the gap unit tests don't cover
+# (the unit test rebuilds the executor manually because
+# dao.ProposalRequest.executor is unexported).
+#
+# Default trust level is 1/3 (IBC honest-majority floor). This test
+# tightens it to 2/5 = 40%, which is within the [1/3, 2/3] bounds.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/v3/impl
+
+# Load specific govDAO implementation + member registration.
+loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+
+gnoland start
+
+# Pre-state: trust level is the package default 1/3.
+gnokey query vm/qeval --data 'gno.land/r/sys/validators/v3.GetTrustLevel()'
+stdout '1 uint64'
+stdout '3 uint64'
+
+# Submit a proposal to update the trust level to 2/5.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 68_000_000 -chainid=tendermint_test member $WORK/proposer/create_proposal.gno
+stdout OK!
+
+# Proposal is in gov/dao at id 0; title is visible in the rendered output.
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'tighten trust level to 2/5'
+
+# Vote YES.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+# Execute. v3 trust-level executor callback runs -> trustLevelRatio
+# is mutated to {numerator: 2, denominator: 5}.
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 35_000_000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# Post-state: trust level reflects the proposal.
+gnokey query vm/qeval --data 'gno.land/r/sys/validators/v3.GetTrustLevel()'
+stdout '2 uint64'
+stdout '5 uint64'
+
+-- proposer/create_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	pr := v3.NewTrustLevelPropRequest(
+		2, 5,
+		"tighten trust level to 2/5",
+		"require baseline validators to retain at least 40% of previous voting power",
+	)
+	dao.MustCreateProposal(cross, pr)
+}
+
+-- loader/load_govdao.gno --
+package load_govdao
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/v3/memberstore"
+)
+
+func init() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
+	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3})
+
+	dao.UpdateImpl(cross, dao.UpdateRequest{
+		DAO:         impl.GetInstance(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}
