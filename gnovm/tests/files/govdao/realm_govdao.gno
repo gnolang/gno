@@ -26,50 +26,45 @@ func init(cur realm) {
 	dao.UpdateImpl(cross2(cur), dao.NewUpdateRequest(govDAO, nil))
 }
 
-func main() {
-	// run the test as end user instead of the testing realm
+func main(cur realm) {
+	// run the test as end user instead of the testing realm.
+	// SetRealm mutates main's cur HIV in place; subsequent helpers
+	// receive the mutated cur as rlm.
 	testing.SetRealm(testing.NewUserRealm(user1))
-	pid := CreateProposal()
-	VoteProposal(pid)
-	// run the test as another user
-	func() {
-		testing.SetRealm(testing.NewUserRealm(user2))
-		VoteProposal(pid)
-	}()
-	accepted := ExecuteProposal(pid)
+	pid := CreateProposal(0, cur)
+	VoteProposal(0, cur, pid)
+	// switch to another user and vote again. SetRealm must run in
+	// main's crossing frame (not a non-crossing lambda) so the in-place
+	// HIV mutation lands on main's cur — see migration_guide.md §12.
+	testing.SetRealm(testing.NewUserRealm(user2))
+	VoteProposal(0, cur, pid)
+	accepted := ExecuteProposal(0, cur, pid)
 	println(accepted)
-	Render()
+	Render(0, cur)
 }
 
-func CreateProposal() dao.ProposalID {
-	// NewSimpleExecutor takes (_ int, rlm realm, ...); mint a live cur
-	// via a same-realm cross to pass through.
-	var e *dao.SimpleExecutor
-	func(cur realm) {
-		e = dao.NewSimpleExecutor(0, cur,
-			func(realm) error { return nil },
-			"",
-		)
-	}(cross)
-	pid := dao.MustCreateProposal(cross,
+func CreateProposal(_ int, rlm realm) dao.ProposalID {
+	e := dao.NewSimpleExecutor(0, rlm,
+		func(realm) error { return nil },
+		"",
+	)
+	return dao.MustCreateProposal(cross2(rlm),
 		dao.NewProposalRequest("Proposal Title: Dummy proposal", "Description: Do nothing", e),
 	)
-	return pid
 }
 
-func VoteProposal(pid dao.ProposalID) {
+func VoteProposal(_ int, rlm realm, pid dao.ProposalID) {
 	// VoteRequest is /r/gov/dao-declared; use the dao-side constructor
 	// to satisfy the construction-time check.
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, pid))
+	dao.MustVoteOnProposal(cross2(rlm), dao.NewVoteRequest(dao.YesVote, pid))
 }
 
-func ExecuteProposal(pid dao.ProposalID) bool {
-	accepted := dao.ExecuteProposal(cross, pid)
-	return accepted
+func ExecuteProposal(_ int, rlm realm, pid dao.ProposalID) bool {
+	return dao.ExecuteProposal(cross2(rlm), pid)
 }
 
-func Render() {
-	println(dao.Render(cross, ""))
+func Render(_ int, rlm realm) {
+	println(dao.Render(cross2(rlm), ""))
 }
 
 // Output:
