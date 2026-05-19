@@ -343,6 +343,14 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		Output:  opts.WriterForStore(),
 		Store:   tgs,
 		Context: Context("", mpkg.Path, nil),
+		// Force a non-nil allocator so interrealm v2 Phase 2 PkgID
+		// stamping fires during package load. With MaxAllocBytes=0,
+		// NewAllocator returns nil and Alloc.NewXxx allocations
+		// short-circuit the PkgID stamp — fresh objects keep
+		// ObjectInfo.PkgID zero, which makes the IsReadonly /
+		// borrow-rule paths misread cross-package ownership inside
+		// stdlib test runs.
+		MaxAllocBytes: math.MaxInt64,
 		// When testing examples we will find them, so pv, pn, file
 		// block nodes would otherwise become set, but for running
 		// tests on packages not known by the store, it will construct

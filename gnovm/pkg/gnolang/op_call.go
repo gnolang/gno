@@ -395,14 +395,20 @@ func (m *Machine) doOpCallDeferNativeBody() {
 // Used by return and panic operation handlers.
 // Must finalize for returns, and must abort for panics.
 func (m *Machine) isRealmBoundary(cfr *Frame) bool {
+	// Explicit cross-call always marks a realm boundary, regardless
+	// of whether m.Realm is tracked. /p/ test code that wraps calls
+	// in `func(cur){...}(cross2(cur))` relies on this so panics
+	// propagating back through the cross frame route to revive(),
+	// not all the way up — even though /p/ packages have no Realm
+	// (pre-Phase-3 / post-Phase-3-revert state). Pulled out of the
+	// `crlm != nil` guard so it fires on m.Realm==nil too.
+	if cfr.WithCross {
+		return true
+	}
 	crlm := m.Realm
 	if crlm != nil {
 		prlm := cfr.LastRealm
-		if cfr.WithCross {
-			// Even if crlm == prlm, must finalize
-			// to preserve attachment rules.
-			return true
-		} else if crlm != prlm {
+		if crlm != prlm {
 			// .WithCross was already handled;
 			// This is for implicitly crossed
 			// borrow-realms, the storage realm
@@ -436,7 +442,10 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 // Finalize realm updates if realm boundary.
 // NOTE: resource intensive
 func (m *Machine) maybeFinalize(cfr *Frame) {
-	if m.isRealmBoundary(cfr) {
+	if m.isRealmBoundary(cfr) && m.Realm != nil {
+		// m.Realm==nil only happens for /p/ and stdlib (no real realm),
+		// where there's nothing to finalize even though isRealmBoundary
+		// reports the cross-call frame as a boundary for panic-routing.
 		m.Realm.FinalizeRealmTransaction(m.Store)
 	}
 }
