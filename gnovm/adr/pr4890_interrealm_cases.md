@@ -63,7 +63,6 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
    - CASE rC2: method has real receiver (external)                  -- construction-time panic
    - CASE rC3: method has real receiver via closure                 -- construction-time panic
    - CASE rC4: method has real receiver via closure (external)      -- construction-time panic
-   - CASE rC5: method has real receiver via closure too late        -- construction-time panic
 
  * fn is crossing function declared in /r/realm:
    - CASE rD1: direct modification from external closure            -- illegal modification (static)
@@ -93,7 +92,6 @@ account for the difference between realm and pure package.
    - CASE pC2: method has real receiver (external)                  -- Layer 2 + Layer 1 borrow (succeeds)
    - CASE pC3: method has real receiver via closure                 -- Layer 2 + Layer 1 borrow (succeeds)
    - CASE pC4: method has real receiver via closure (external)      -- Layer 2 + Layer 1 borrow (succeeds)
-   - CASE pC5: method has real receiver via closure too late        -- Layer 2 + Layer 1 borrow (succeeds)
 
 ----------------------------------------
 ## NOTEs
@@ -129,7 +127,7 @@ pushes its own realm onto the storage stack (Layer 1), so e.g. in `bob.Do`
 the storage would be `[bob]` rather than `[]`, and inside `alice.TopFunc` it
 would be `[bob,alice]`.  The "FAIL: caller != bob" labels on rA1/rA2/rA3/rB1/rB2
 become SUCCESS because Layer 1 routes the inner `bob.PrivateFunc` write back
-to `/r/bob`; the rB3/rB4/rC1-rC5 labels become "PANIC: cannot allocate
+to `/r/bob`; the rB3/rB4/rC1-rC4 labels become "PANIC: cannot allocate
 gno.land/r/alice.Object in realm gno.land/r/caller" at the `new(alice.Object)`
 line (construction-time enforcement).  The walkthrough is preserved as-is
 because it documents the *case structure* and v1 expectations.  For v2
@@ -225,19 +223,6 @@ outcomes see the case-summary table above and `interrealm_v2.txtar`.
 		//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // FAIL: alice != bob
-		// ----------------------------------------
-		// CASE rC5: method has real receiver via closure too late -- do not storage-cross
-		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
-		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-		obj := new(alice.Object)
-		cls := func() {
-			print(obj)
-			bob.Do(obj.Method)                      // FAIL: not yet persisted
-			bob.SetClosure(cls)                     // obj persisted to bob too late
-			// this would work otherwise:
-			// bob.Do(obj.Method)                   
-		}
-		cls()
 
 		// --------------------------------------------------------------------------------
 		// CASE rD1: direct modification from external closure -- illegal modification
@@ -323,19 +308,6 @@ outcomes see the case-summary table above and `interrealm_v2.txtar`.
 		//   - in bob.Do:                           (storage:[],      current:caller, previous:nil)
 		//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 		bob.Do(obj.Method)                          // FAIL: alice != bob
-		// ----------------------------------------
-		// CASE pC5: method has real receiver via closure too late -- do not storage-cross
-		//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
-		//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-		obj := new(peter.Object)
-		cls := func() {
-			print(obj)
-			bob.Do(obj.Method)                      // FAIL: not yet persisted
-			alice.SetClosure(cls)                   // obj persisted to bob too late
-			// this would work otherwise:
-			// bob.Do(obj.Method)              
-		}
-		cls()
 
 	}
 

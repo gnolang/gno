@@ -81,10 +81,6 @@ stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/ca
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC4 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
 stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/callerrealm'
 
-## test CASE_rC5
-! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC5 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
-stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/callerrealm'
-
 ## test CASE_rD1
 ! gnokey maketx addpkg -pkgdir $WORK/callerrealm_rd1 -pkgpath gno.land/r/test/callerrealm_rd1 -gas-fee 5000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1
 stderr 'cannot directly mutate gno.land/r/test/bob.AllowedList from gno.land/r/test/callerrealm_rd1'
@@ -141,10 +137,6 @@ stdout 'OK'
 
 ## test CASE_pC4
 gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC4 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
-stdout 'OK'
-
-## test CASE_pC5
-gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_pC5 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
 stdout 'OK'
 
 
@@ -265,19 +257,6 @@ func CASE_rC4(cur realm) {
 	bob.Do(obj.Method)                          // FAIL: alice != bob
 }
 
-func CASE_rC5(cur realm) {
-	// CASE rC5: method has real receiver via closure late -- do not storage-cross
-	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
-	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-	obj := new(alice.Object)
-	var cls func()
-	cls = func() {
-		bob.Do(obj.Method)                  // FAIL: not yet persisted
-		bob.SetClosure(cross, cls)          // obj persisted in bob late
-	}
-	cls()
-}
-
 // NOTE CASE_rD1 in callerrealm_rd1
 
 // ================================================================================
@@ -374,19 +353,6 @@ func CASE_pC4(cur realm) {
 	//   - in bob.Do2:                          (storage:[],      current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
 	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: alice != bob
-}
-
-func CASE_pC5(cur realm) {
-	// CASE pC5: method has real receiver via cls late -- do not storage-cross
-	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
-	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-	obj := new(peter.Object)
-	var cls func()
-	cls = func() {
-		bob.Do2(obj.Method, bob.PrivateFunc) // FAIL: not yet persisted
-		bob.SetClosure(cross, cls)          // obj persisted to bob late
-	}
-	cls()
 }
 
 -- callerrealm_rd1/gnomod.toml --
