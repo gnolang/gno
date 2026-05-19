@@ -83,8 +83,8 @@ package main
 
 import i "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	i.InitWithUsers(cross, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+func main(cur realm) {
+	i.InitWithUsers(cross2(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 -- run/propose_collector.gno --
 package main
@@ -94,10 +94,10 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	storage_collector := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
 	pr := params.NewSysParamStringPropRequest("vm", "p", "storage_fee_collector", storage_collector.String())
-	pid := dao.MustCreateProposal(cross, pr)
+	pid := dao.MustCreateProposal(cross2(cur), pr)
 	println(pid.String())
 }
 -- bytesbank/gnomod.toml --

@@ -89,9 +89,9 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	pr := sysparams.NewSysParamInt64PropRequest("node", "valoper", "rotation_period_blocks", 0)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- run/add_proposal.gno --
@@ -102,14 +102,14 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add operator A as validator",
 		"propose-create captures operator addr; signing key resolved at execute",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- loader/load_govdao.gno --

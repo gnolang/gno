@@ -131,9 +131,9 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
+func main(cur realm) {
 	preq := cla.ProposeNewCLA("abc123hash", "https://example.com/cla-v1")
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 
 -- proposer/propose_cla2.gno --
@@ -144,9 +144,9 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
+func main(cur realm) {
 	preq := cla.ProposeNewCLA("newhash456", "https://example.com/cla-v2")
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 
 -- proposer/propose_cla_clear.gno --
@@ -157,9 +157,9 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
+func main(cur realm) {
 	preq := cla.ProposeNewCLA("", "")
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 
 -- loader/load_govdao.gno --

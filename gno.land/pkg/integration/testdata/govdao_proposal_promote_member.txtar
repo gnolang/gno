@@ -70,9 +70,9 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
+func main(cur realm) {
 	preq := impl.NewPromoteMemberRequest(address("g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"), "T3", "T2")
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- proposer/create_proposal.gno --
 package main
@@ -82,13 +82,13 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
+func main(cur realm) {
 	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	fromTier := "T2"
 	toTier := "T3"
 
 	preq := impl.NewPromoteMemberRequest(addr, fromTier, toTier)
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- loader/load_govdao.gno --
 package load_govdao

@@ -79,8 +79,8 @@ package main
 
 import "gno.land/r/test/borrowrealm"
 
-func main() {
-	borrowrealm.MutateCrossing(cross)
+func main(cur realm) {
+	borrowrealm.MutateCrossing(cross2(cur))
 }
 
 -- run/borrowed_object_mutation.gno --
@@ -118,8 +118,8 @@ package main
 
 import "gno.land/r/test/borrowrealm"
 
-func main() {
-	borrowrealm.InspectRealmsCrossing(cross)
+func main(cur realm) {
+	borrowrealm.InspectRealmsCrossing(cross2(cur))
 }
 
 -- run/inspect_realms_non_crossing.gno --
@@ -136,8 +136,8 @@ package main
 
 import "gno.land/r/test/borrowrealm"
 
-func main() {
-	borrowrealm.MutateObjectWithBorrowCrossing(cross)
+func main(cur realm) {
+	borrowrealm.MutateObjectWithBorrowCrossing(cross2(cur))
 }
 
 -- run/mutate_crossing_object.gno --
@@ -145,8 +145,8 @@ package main
 
 import "gno.land/r/test/borrowrealm"
 
-func main() {
-	borrowrealm.Object.MutateCrossing(cross)
+func main(cur realm) {
+	borrowrealm.Object.MutateCrossing(cross2(cur))
 }
 
 -- run/mutate_crossing_object_rooted_at_caller.gno --
@@ -156,8 +156,8 @@ import "gno.land/r/test/borrowrealm"
 
 var obj = borrowrealm.NewObject() // seems to be same thing with obj = borrowrealm.ObjectImpl{}
 
-func main() {
-	obj.MutateCrossingObjectRootedAtCaller(cross)
+func main(cur realm) {
+	obj.MutateCrossingObjectRootedAtCaller(cross2(cur))
 }
 
 -- borrowrealm/gnomod.toml --

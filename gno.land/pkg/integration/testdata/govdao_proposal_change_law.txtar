@@ -36,9 +36,9 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
-	preq := impl.NewChangeLawRequest(cross, impl.NewLaw(50))
-	dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+	preq := impl.NewChangeLawRequest(cross2(cur), impl.NewLaw(50))
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 
 -- loader/load_govdao.gno --

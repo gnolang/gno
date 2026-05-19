@@ -75,8 +75,8 @@ package main
 
 import dao "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	dao.InitWithUsers(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_controller_add_proposal.gno --
@@ -87,9 +87,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeNewController("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dao.MustCreateProposal(cross, r)
+	dao.MustCreateProposal(cross2(cur), r)
 }
 
 -- run/create_controller_add_remove_proposal.gno --
@@ -100,9 +100,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeControllerAdditionAndRemoval("g16dverxg6s6vzha89k22c3zusx6sug5ycjyjq2j", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dao.MustCreateProposal(cross, r)
+	dao.MustCreateProposal(cross2(cur), r)
 }
 
 -- run/register_user1.gno --
@@ -110,8 +110,8 @@ package main
 
 import "gno.land/r/sys/users"
 
-func main() {
-	if err := users.RegisterUser(cross, "user001", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"); err != nil {
+func main(cur realm) {
+	if err := users.RegisterUser(cross2(cur), "user001", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"); err != nil {
     panic(err.Error())
   }
 }
@@ -121,8 +121,8 @@ package main
 
 import "gno.land/r/sys/users"
 
-func main() {
-	if err := users.RegisterUser(cross, "user002", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"); err != nil {
+func main(cur realm) {
+	if err := users.RegisterUser(cross2(cur), "user002", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp"); err != nil {
     panic(err.Error())
   }
 }

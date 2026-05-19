@@ -71,9 +71,9 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	pr := sysparams.NewSysParamInt64PropRequest("node", "valoper", "rotation_period_blocks", 0)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- loader/load_govdao.gno --

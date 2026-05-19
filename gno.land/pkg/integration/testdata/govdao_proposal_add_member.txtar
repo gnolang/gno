@@ -51,13 +51,13 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
+func main(cur realm) {
 	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	tier := "T2"
 	portfolio := "this is my portfolio"
 
-	preq := impl.NewAddMemberRequest(cross, addr, tier, portfolio)
-	dao.MustCreateProposal(cross, preq)
+	preq := impl.NewAddMemberRequest(cross2(cur), addr, tier, portfolio)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- debug/check_addresses.gno --
 package main

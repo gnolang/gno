@@ -675,9 +675,9 @@ package main
 
 import "gno.land/r/foobar/publicrealm"
 
-func main() {
+func main(cur realm) {
 	closure := func() string {
 		return "This code should not run."
 	}
-	publicrealm.SaveYourInterface(cross, closure)
+	publicrealm.SaveYourInterface(cross2(cur), closure)
 }

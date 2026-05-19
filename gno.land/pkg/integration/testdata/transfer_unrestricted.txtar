@@ -114,8 +114,8 @@ package main
 
 import i "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	i.InitWithUsers(cross, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+func main(cur realm) {
+	i.InitWithUsers(cross2(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 -- run/propose_unrestricted.gno --
 package main
@@ -125,9 +125,9 @@ import (
   "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	pr := params.ProposeAddUnrestrictedAcctsRequest("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4","g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
-  pid := dao.MustCreateProposal(cross,pr)
+  pid := dao.MustCreateProposal(cross2(cur),pr)
   println(pid.String())
 }
 
@@ -139,9 +139,9 @@ import (
   "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	pr := params.ProposeRemoveUnrestrictedAcctsRequest("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4","g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
-  pid := dao.MustCreateProposal(cross,pr)
+  pid := dao.MustCreateProposal(cross2(cur),pr)
   println(pid.String())
 }
 
@@ -153,8 +153,8 @@ import (
   "gno.land/r/gov/dao"
 )
 
-func main() {
-	dao.MustVoteOnProposal(cross,dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross2(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 -- run/exec_proposal.gno --
@@ -164,8 +164,8 @@ import (
   "gno.land/r/gov/dao"
 )
 
-func main() {
-	ok := dao.ExecuteProposal(cross,dao.ProposalID(0))
+func main(cur realm) {
+	ok := dao.ExecuteProposal(cross2(cur),dao.ProposalID(0))
   if ok {
     println("OK!")
   }
@@ -178,8 +178,8 @@ import (
   "gno.land/r/gov/dao"
 )
 
-func main() {
-	dao.MustVoteOnProposal(cross,dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross2(cur),dao.NewVoteRequest(dao.YesVote, dao.ProposalID(1)))
 }
 -- run/exec_proposal1.gno --
 package main
@@ -188,8 +188,8 @@ import (
   "gno.land/r/gov/dao"
 )
 
-func main() {
-	ok := dao.ExecuteProposal(cross,dao.ProposalID(1))
+func main(cur realm) {
+	ok := dao.ExecuteProposal(cross2(cur),dao.ProposalID(1))
   if ok {
     println("OK!")
   }

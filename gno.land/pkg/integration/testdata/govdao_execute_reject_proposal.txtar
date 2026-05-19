@@ -35,8 +35,8 @@ package main
 
 import dao "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	dao.InitWithUsers(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_proposal.gno --
@@ -47,8 +47,8 @@ import (
 	"gno.land/r/test/request"
 )
 
-func main() {
-	dao.MustCreateProposal(cross, request.NewProposalRequest())
+func main(cur realm) {
+	dao.MustCreateProposal(cross2(cur), request.NewProposalRequest())
 }
 
 -- request/gnomod.toml --

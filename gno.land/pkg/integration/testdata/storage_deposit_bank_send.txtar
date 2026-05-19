@@ -136,6 +136,6 @@ package main
 import (
  "gno.land/r/foo"
 )
-func main() {
-	foo.RealmSend(cross,"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
+func main(cur realm) {
+	foo.RealmSend(cross2(cur),"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", 1)
 }

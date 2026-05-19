@@ -48,12 +48,12 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
+func main(cur realm) {
 	addr := address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0")
 	reason := "not responding"
 
-	preq := impl.NewWithdrawMemberRequest(cross, addr, reason)
-	dao.MustCreateProposal(cross, preq)
+	preq := impl.NewWithdrawMemberRequest(cross2(cur), addr, reason)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- loader/load_govdao.gno --
 package load_govdao

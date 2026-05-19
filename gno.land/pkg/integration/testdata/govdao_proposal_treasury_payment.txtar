@@ -71,7 +71,7 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 )
 
-func main() {
+func main(cur realm) {
 	payment := treasury.NewCoinsPayment(
 		chain.NewCoins(chain.NewCoin("ugnot", 42)),
 		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), // receiver address
@@ -80,7 +80,7 @@ func main() {
 		payment,
 		"integration test payment",
 	)
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- loader/load_govdao.gno --
 package load_govdao

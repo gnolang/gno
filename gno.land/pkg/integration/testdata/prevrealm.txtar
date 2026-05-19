@@ -133,32 +133,32 @@ package main
 
 import myrlm "gno.land/r/myrlm"
 
-func main() {
-	println(myrlm.A(cross))
+func main(cur realm) {
+	println(myrlm.A(cross2(cur)))
 }
 -- run/myrlm-b.gno --
 package main
 
 import "gno.land/r/myrlm"
 
-func main() {
-	println(myrlm.B(cross))
+func main(cur realm) {
+	println(myrlm.B(cross2(cur)))
 }
 -- run/foo-a.gno --
 package main
 
 import "gno.land/r/foo"
 
-func main() {
-	println(foo.A(cross))
+func main(cur realm) {
+	println(foo.A(cross2(cur)))
 }
 -- run/foo-b.gno --
 package main
 
 import "gno.land/r/foo"
 
-func main() {
-	println(foo.B(cross))
+func main(cur realm) {
+	println(foo.B(cross2(cur)))
 }
 
 -- run/bar-b.gno --

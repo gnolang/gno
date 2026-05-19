@@ -100,11 +100,11 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	// vm:p:chain_domain is a normal governance-managed key. F1 must
 	// not over-reject it.
 	pr := sysparams.NewSysParamStringPropRequest("vm", "p", "chain_domain", "test.land")
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- loader/load_govdao.gno --

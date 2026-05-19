@@ -101,7 +101,7 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	// member's address — used as the OPERATOR address of the valoper
 	// profile (squat guard requires OriginCaller == operator addr).
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
@@ -114,7 +114,7 @@ func main() {
 	// Step 1: register the valoper profile so v3.valoperCache has
 	// the (operator -> signing pubkey) binding the executor will
 	// resolve at execution time.
-	valopers.Register(cross, "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
+	valopers.Register(cross2(cur), "e2e-validator", "regression for v3 propagation", "cloud", address(memberAddr), newPubKey)
 
 	// Step 2: build the operator-keyed proposal. v3's executor reads
 	// valoperCache for op=member at execution time and publishes the
@@ -124,7 +124,7 @@ func main() {
 		"Add e2e-test-validator",
 		"regression for v3 propagation",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- loader/load_govdao.gno --

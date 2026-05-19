@@ -42,9 +42,9 @@ import (
 	gnoblog "gno.land/r/gnoland/blog"
 )
 
-func main() {
-	preq := gnoblog.NewPostProposalRequest(cross, "slug", "title", "body", "1987-06-24T18:25:43.511Z", "author", "tag1, tag2")
-	dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+	preq := gnoblog.NewPostProposalRequest(cross2(cur), "slug", "title", "body", "1987-06-24T18:25:43.511Z", "author", "tag1, tag2")
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 
 -- loader/load_govdao.gno --

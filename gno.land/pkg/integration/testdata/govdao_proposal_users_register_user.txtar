@@ -81,8 +81,8 @@ package main
 
 import dao "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	dao.InitWithUsers(cross, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+func main(cur realm) {
+	dao.InitWithUsers(cross2(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 }
 
 -- run/create_register_user_proposal.gno --
@@ -93,9 +93,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeRegisterUser("user1", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
-	dao.MustCreateProposal(cross, r)
+	dao.MustCreateProposal(cross2(cur), r)
 }
 
 -- run/create_update_name_proposal.gno --
@@ -106,9 +106,9 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeUpdateName("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "user1alias")
-	dao.MustCreateProposal(cross, r)
+	dao.MustCreateProposal(cross2(cur), r)
 }
 
 -- run/create_delete_user_proposal.gno --
@@ -119,7 +119,7 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeDeleteUser("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
-	dao.MustCreateProposal(cross, r)
+	dao.MustCreateProposal(cross2(cur), r)
 }

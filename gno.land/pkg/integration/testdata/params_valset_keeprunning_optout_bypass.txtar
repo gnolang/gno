@@ -62,14 +62,14 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"baseline add",
 		"",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- run/fresh_add_proposal.gno --
@@ -80,14 +80,14 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 2)},
 		"fresh add of opted-out op (must reject)",
 		"",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- run/power_update_pair.gno --
@@ -98,7 +98,7 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v3.NewValidatorProposalRequest(
 		[]v3.ValoperChange{
@@ -108,7 +108,7 @@ func main() {
 		"power update on opted-out operator (passes per current spec)",
 		"",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- loader/load_govdao.gno --

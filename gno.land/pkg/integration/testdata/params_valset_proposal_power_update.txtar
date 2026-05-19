@@ -76,18 +76,18 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	const (
 		memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 		addPubKey  = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	)
-	valopers.Register(cross, "power-test-validator", "power-update flow regression", "cloud", address(memberAddr), addPubKey)
+	valopers.Register(cross2(cur), "power-test-validator", "power-update flow regression", "cloud", address(memberAddr), addPubKey)
 
 	pr := v3.NewValidatorProposalRequest(
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add validator at power 1", "",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- run/update_proposal.gno --
@@ -98,7 +98,7 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	// Power changes are a single-entry upsert: {op, newPower}.
 	// The executor's Power>0 path overwrites the existing entry
 	// in the effective set (Tendermint's natural ValidatorUpdate
@@ -109,7 +109,7 @@ func main() {
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 3)},
 		"Update validator power 1->3", "",
 	)
-	dao.MustCreateProposal(cross, pr)
+	dao.MustCreateProposal(cross2(cur), pr)
 }
 
 -- loader/load_govdao.gno --

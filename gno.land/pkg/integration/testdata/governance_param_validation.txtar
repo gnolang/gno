@@ -75,9 +75,9 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	prop := params.NewSysParamStringPropRequest("vm", "p", "storage_price", "invalid")
-	dao.MustCreateProposal(cross, prop)
+	dao.MustCreateProposal(cross2(cur), prop)
 }
 
 -- run/vote_yes.gno --
@@ -85,8 +85,8 @@ package main
 
 import "gno.land/r/gov/dao"
 
-func main() {
-	dao.MustVoteOnProposal(cross, dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
+func main(cur realm) {
+	dao.MustVoteOnProposal(cross2(cur), dao.NewVoteRequest(dao.YesVote, dao.ProposalID(0)))
 }
 
 -- run/execute_proposal.gno --
@@ -94,6 +94,6 @@ package main
 
 import "gno.land/r/gov/dao"
 
-func main() {
-	dao.ExecuteProposal(cross, dao.ProposalID(0))
+func main(cur realm) {
+	dao.ExecuteProposal(cross2(cur), dao.ProposalID(0))
 }

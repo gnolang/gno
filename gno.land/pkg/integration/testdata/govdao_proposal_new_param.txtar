@@ -40,9 +40,9 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	preq := params.NewSysParamStringPropRequest("vm", "bar", "baz", "qux")
-	dao.MustCreateProposal(cross, preq)
+	dao.MustCreateProposal(cross2(cur), preq)
 }
 
 -- loader/load_govdao.gno --

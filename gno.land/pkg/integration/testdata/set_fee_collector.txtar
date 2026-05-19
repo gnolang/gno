@@ -73,8 +73,8 @@ package main
 
 import i "gno.land/r/gov/dao/v3/init"
 
-func main() {
-	i.InitWithUsers(cross, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+func main(cur realm) {
+	i.InitWithUsers(cross2(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 -- run/propose_collector1.gno --
 package main
@@ -84,10 +84,10 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	collector1 := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
 	pr := params.NewSetFeeCollectorRequest(collector1)
-	pid := dao.MustCreateProposal(cross, pr)
+	pid := dao.MustCreateProposal(cross2(cur), pr)
 	println(pid.String())
 }
 -- run/propose_collector2.gno --
@@ -98,10 +98,10 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	collector2 := address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
 	pr := params.NewSetFeeCollectorRequest(collector2)
-	pid := dao.MustCreateProposal(cross, pr)
+	pid := dao.MustCreateProposal(cross2(cur), pr)
 	println(pid.String())
 }
 -- run/costly.gno --
