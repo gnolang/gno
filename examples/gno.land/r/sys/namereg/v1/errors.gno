@@ -7,9 +7,11 @@ import (
 )
 
 var (
-	ErrNonUserCall     = errors.New("r/sys/namereg: non-user call")
-	ErrPaused          = errors.New("r/sys/namereg: paused")
-	ErrInvalidUsername = errors.New("r/sys/namereg: invalid username")
+	ErrNonUserCall        = errors.New("r/sys/namereg: non-user call")
+	ErrPaused             = errors.New("r/sys/namereg: paused")
+	ErrInvalidUsername    = errors.New("r/sys/namereg: invalid username")
+	ErrNoPaymentExpected  = errors.New("r/sys/namereg: no payment expected")
+	ErrInvalidPaymentCoin = errors.New("r/sys/namereg: fee must be payed in ugnot only")
 
 	// ErrInvalidPayment is the sentinel for "OriginSend amount didn't
 	// match registerPrice." It deliberately omits the price from its

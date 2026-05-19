@@ -251,7 +251,23 @@ func TestRegister_InvalidPayment(cur realm, t *testing.T) {
 	})
 }
 
-func TestRegister_MultipleCoins(t *testing.T) {
+func TestRegister_NoPaymentExpected(t *testing.T) {
+	oldPrice := registerPrice
+	defer func() { registerPrice = oldPrice }()
+	registerPrice = 0 // registration is free
+
+	addr := testutils.TestAddress("payment-payer")
+
+	testing.SetRealm(testing.NewUserRealm(addr))
+	testing.SetOriginCaller(addr)
+	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ufoo", 42))) // invalid: unexpected payment
+
+	uassert.AbortsContains(t, ErrNoPaymentExpected.Error(), func() {
+		Register(cross, "nym-yankee345")
+	})
+}
+
+func TestRegister_InvalidPaymentCoin(t *testing.T) {
 	oldPrice := registerPrice
 	defer func() { registerPrice = oldPrice }()
 	registerPrice = 42
@@ -259,14 +275,14 @@ func TestRegister_MultipleCoins(t *testing.T) {
 	addr := testutils.TestAddress("payment-payer")
 	coins := chain.NewCoins(
 		chain.NewCoin("ugnot", registerPrice),
-		chain.NewCoin("ufoo", registerPrice), // invalid: only ugnot should be allowed
+		chain.NewCoin("ufoo", registerPrice), // invalid: only ugnot should be sent
 	)
 
 	testing.SetRealm(testing.NewUserRealm(addr))
 	testing.SetOriginCaller(addr)
 	testing.SetOriginSend(coins)
 
-	uassert.AbortsContains(t, ErrInvalidPayment.Error(), func() {
+	uassert.AbortsContains(t, ErrInvalidPaymentCoin.Error(), func() {
 		Register(cross, "nym-yankee345")
 	})
 }
