@@ -58,3 +58,31 @@ func excluded(e Entry) bool {
 	}
 	return false
 }
+
+func recentHumanComments(e Entry) int {
+	cutoff := now().AddDate(0, 0, -HotRecentDays)
+	n := 0
+	for _, c := range e.RecentComments {
+		if c.IsBot {
+			continue
+		}
+		if c.CreatedAt.After(cutoff) {
+			n++
+		}
+	}
+	return n
+}
+
+func isHot(e Entry) bool {
+	if recentHumanComments(e) >= HotComments {
+		return true
+	}
+	if e.Reactions >= HotReactions {
+		return true
+	}
+	return false
+}
+
+func isStale(e Entry) bool {
+	return ageDays(e.UpdatedAt) >= StaleDays
+}
