@@ -5,17 +5,17 @@ import (
 	"chain/runtime"
 )
 
-func Stash(cur realm) realm {
-	cur_ := cur
-	println("cur == cur_:", cur == cur_)
-	println("cur.Address:", cur.Address())
-	println("cur.PkgPath:", cur.PkgPath())
-	println("runtime.Current matches:", string(cur.Address()) == string(runtime.CurrentRealm().Address()))
+func Stash(_ int, rlm realm) realm {
+	rlm_ := rlm
+	println("cur == cur_:", rlm == rlm_)
+	println("cur.Address:", rlm.Address())
+	println("cur.PkgPath:", rlm.PkgPath())
+	println("runtime.Current matches:", string(rlm.Address()) == string(runtime.CurrentRealm().Address()))
 	// At the chain root the prev is the EOA origin: non-nil pointer with
 	// empty pkgPath (mirrors runtime.PreviousRealm()'s convention). Calling
 	// .Previous() past the origin panics (mirrors runtime.PreviousRealm()'s
 	// walk-end behavior), so user code checks PkgPath()=="" to stop.
-	prev := cur.Previous()
+	prev := rlm.Previous()
 	println("Previous() at top non-nil:", prev != nil)
 	println("Previous().PkgPath empty:", prev.PkgPath() == "")
 	func() {
@@ -25,11 +25,11 @@ func Stash(cur realm) realm {
 		}()
 		_ = prev.Previous()
 	}()
-	return cur
+	return rlm
 }
 
-func main() {
-	r := Stash(cross)
+func main(cur realm) {
+	r := Stash(0, cur)
 	println("returned non-nil:", r != nil)
 }
 
