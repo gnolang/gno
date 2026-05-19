@@ -7,6 +7,11 @@ Gno.land is a smart contract platform built on a novel interpretation of Go
 decentralized applications with a minimalist approach and excellent developer
 experience.
 
+New here? Start with **[Getting started](builders/getting-started.md)** — the
+shortest path from zero to a working local chain and your first on-chain
+query. Already comfortable with Go and just want the commands? See
+**[Quick Start](builders/quickstart.md)**.
+
 ## Use Gno.land
 
 Start exploring and using Gno.land. Setup essential tools, interact with the
@@ -32,6 +37,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [Deploying Gno packages](builders/deploy-packages.md) - Learn how to deploy your code to Gno.land networks using `gnokey` and understand gas requirements.
 - [Connecting clients](builders/connect-clients-and-apps.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
 - [Become a Gnome](builders/become-a-gnome.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
+- [Cheatsheet](cheatsheet.md) - Essential Gno commands: install, create, test, query, call, deploy.
 
 ## Resources
 

@@ -25,7 +25,8 @@
           "builders/example-minisocial-dapp",
           "builders/deploy-packages",
           "builders/connect-clients-and-apps",
-          "builders/become-a-gnome"
+          "builders/become-a-gnome",
+          "cheatsheet"
         ]
       },
       {
