@@ -35,7 +35,14 @@ func TestParamsString(t *testing.T) {
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
 		fmt.Sprintf("DefaultDeposit: %q\n", p.DefaultDeposit) +
 		fmt.Sprintf("StoragePrice: %q\n", p.StoragePrice) +
-		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector)
+		fmt.Sprintf("StorageFeeCollector: %q\n", p.StorageFeeCollector) +
+		fmt.Sprintf("MinGetReadDepth100: %d\n", p.MinGetReadDepth100) +
+		fmt.Sprintf("MinSetReadDepth100: %d\n", p.MinSetReadDepth100) +
+		fmt.Sprintf("MinWriteDepth100: %d\n", p.MinWriteDepth100) +
+		fmt.Sprintf("FixedGetReadDepth100: %d\n", p.FixedGetReadDepth100) +
+		fmt.Sprintf("FixedSetReadDepth100: %d\n", p.FixedSetReadDepth100) +
+		fmt.Sprintf("FixedWriteDepth100: %d\n", p.FixedWriteDepth100) +
+		fmt.Sprintf("IterNextCostFlat: %d\n", p.IterNextCostFlat)
 
 	// Assert: check if the result matches the expected string.
 	if result != expected {
@@ -44,81 +51,84 @@ func TestParamsString(t *testing.T) {
 }
 
 func TestParamsValidate(t *testing.T) {
-	validAddr := crypto.AddressFromPreimage([]byte("valid"))
 	zeroAddr := crypto.Address{}
 
 	tests := []struct {
 		name    string
-		params  Params
+		modify  func(p Params) Params
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name:    "valid default params",
-			params:  DefaultParams(),
+			modify:  func(p Params) Params { return p },
 			wantErr: false,
 		},
 		{
 			name:    "valid params with empty sysnames path",
-			params:  NewParams("", "example.com", "1000ugnot", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.SysNamesPkgPath = ""; return p },
 			wantErr: false,
 		},
 		{
 			name:    "valid params with empty chain domain",
-			params:  NewParams("gno.land/r/sys/names", "", "1000ugnot", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.ChainDomain = ""; return p },
 			wantErr: false,
 		},
 		{
 			name:    "invalid sysnames package path - not userlib",
-			params:  NewParams("invalid/path", "example.com", "1000ugnot", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.SysNamesPkgPath = "invalid/path"; return p },
 			wantErr: true,
 			errMsg:  "invalid user package path",
 		},
 		{
 			name:    "invalid chain domain - special characters",
-			params:  NewParams("gno.land/r/sys/names", "invalid@domain", "1000ugnot", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.ChainDomain = "invalid@domain"; return p },
 			wantErr: true,
 			errMsg:  "invalid chain domain",
 		},
 		{
 			name:    "invalid chain domain - no TLD",
-			params:  NewParams("gno.land/r/sys/names", "invalid", "1000ugnot", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.ChainDomain = "invalid"; return p },
 			wantErr: true,
 			errMsg:  "invalid chain domain",
 		},
 		{
 			name:    "invalid default deposit - empty",
-			params:  NewParams("gno.land/r/sys/names", "example.com", "", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.DefaultDeposit = ""; return p },
 			wantErr: true,
 			errMsg:  "invalid default storage deposit",
 		},
 		{
 			name:    "invalid default deposit - malformed",
-			params:  NewParams("gno.land/r/sys/names", "example.com", "invalid", "10ugnot", validAddr),
+			modify:  func(p Params) Params { p.DefaultDeposit = "invalid"; return p },
 			wantErr: true,
 			errMsg:  "invalid default storage deposit",
 		},
 		{
 			name:    "invalid storage price - empty",
-			params:  NewParams("gno.land/r/sys/names", "example.com", "1000ugnot", "", validAddr),
+			modify:  func(p Params) Params { p.StoragePrice = ""; return p },
 			wantErr: true,
 			errMsg:  "invalid storage price",
 		},
 		{
 			name:    "invalid storage price - malformed",
-			params:  NewParams("gno.land/r/sys/names", "example.com", "1000ugnot", "invalid", validAddr),
+			modify:  func(p Params) Params { p.StoragePrice = "invalid"; return p },
 			wantErr: true,
 			errMsg:  "invalid storage price",
 		},
 		{
-			name:    "invalid storage price - different denomination",
-			params:  NewParams("gno.land/r/sys/names", "example.com", "1000ugnot", "10uatom", validAddr),
+			name: "invalid storage price - different denomination",
+			modify: func(p Params) Params {
+				p.DefaultDeposit = "1000ugnot"
+				p.StoragePrice = "10uatom"
+				return p
+			},
 			wantErr: true,
 			errMsg:  "storage price \"10uatom\" coins must be a subset of default deposit \"1000ugnot\" coins",
 		},
 		{
 			name:    "invalid storage fee collector - zero address",
-			params:  NewParams("gno.land/r/sys/names", "example.com", "1000ugnot", "10ugnot", zeroAddr),
+			modify:  func(p Params) Params { p.StorageFeeCollector = zeroAddr; return p },
 			wantErr: true,
 			errMsg:  "invalid storage fee collector, cannot be empty",
 		},
@@ -126,10 +136,13 @@ func TestParamsValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.params.Validate()
+			p := tt.modify(DefaultParams())
+			err := p.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
 			} else {
 				require.NoError(t, err)
 			}
@@ -334,54 +347,6 @@ func TestWillSetParamExhaustive(t *testing.T) {
 
 		t.Run(jsonTag, func(t *testing.T) {
 			assert.NotEqual(t, fmt.Sprintf(format, "p:"+jsonTag), call("p:"+jsonTag))
-		})
-	}
-}
-
-func TestParamsValidate(t *testing.T) {
-	valid := DefaultParams()
-
-	tests := []struct {
-		name    string
-		modify  func(p Params) Params
-		wantErr bool
-	}{
-		{
-			name:    "valid default params",
-			modify:  func(p Params) Params { return p },
-			wantErr: false,
-		},
-		{
-			name:    "invalid storage_price",
-			modify:  func(p Params) Params { p.StoragePrice = "invalid"; return p },
-			wantErr: true,
-		},
-		{
-			name:    "empty storage_price",
-			modify:  func(p Params) Params { p.StoragePrice = ""; return p },
-			wantErr: true,
-		},
-		{
-			name:    "invalid chain_domain",
-			modify:  func(p Params) Params { p.ChainDomain = "not/a/domain"; return p },
-			wantErr: true,
-		},
-		{
-			name:    "invalid default_deposit",
-			modify:  func(p Params) Params { p.DefaultDeposit = "garbage"; return p },
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := tt.modify(valid)
-			err := p.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
 		})
 	}
 }

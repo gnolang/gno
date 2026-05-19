@@ -8,17 +8,31 @@ import (
 	"gno.land/p/gnoland/boards/exts/permissions"
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
+)
+
+var (
+	// RealmLink contains Boards2 realm link.
+	// It can be used to generate board TX links from other realms.
+	RealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
+
+	// RequiredAccountAmount contains the required account amount for open board interactions.
+	// The amount requirement is not applied to members that were invited to an open board.
+	// Amount is defined as ugnot.
+	RequiredAccountAmount = int64(3_000_000_000)
+
+	// Notice contains an optional message that is displayed globally within the realm.
+	Notice string
+
+	// Help contains optional Markdown with Boards2 realm help.
+	Help string
 )
 
 // TODO: Refactor globals in favor of a cleaner pattern
 var (
-	gRealmLink        txlink.Realm
-	gNotice           string
-	gHelp             string
-	gListedBoardsByID avl.Tree // string(id) -> *boards.Board
-	gInviteRequests   avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
-	gBannedUsers      avl.Tree // string(board id) -> *avl.Tree(address -> time.Time)
+	gListedBoardsByID bptree.BPTree // string(id) -> *boards.Board
+	gInviteRequests   bptree.BPTree // string(board id) -> *bptree.BPTree(address -> time.Time)
+	gBannedUsers      bptree.BPTree // string(board id) -> *bptree.BPTree(address -> time.Time)
 	gLocked           struct {
 		realm        bool
 		realmMembers bool
@@ -29,16 +43,8 @@ var (
 	gBoards         = boards.NewStorage()
 	gBoardsSequence = boards.NewIdentifierGenerator()
 	gRealmPath      = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), "gno.land")
-	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
-
-	// TODO: Allow updating open account amount though a proposal (GovDAO, CommonDAO?)
-	gOpenAccountAmount = int64(3_000_000_000) // ugnot required for open board actions
+	gPerms          = initRealmPermissions("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // GovDAO T1 multisig
 )
-
-func init() {
-	// Save current realm path so it's available during render calls
-	gRealmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
-}
 
 // initRealmPermissions returns the default realm permissions.
 func initRealmPermissions(owners ...address) boards.Permissions {
@@ -58,21 +64,21 @@ func initRealmPermissions(owners ...address) boards.Permissions {
 }
 
 // getInviteRequests returns invite requests for a board.
-func getInviteRequests(boardID boards.ID) (_ *avl.Tree, found bool) {
+func getInviteRequests(boardID boards.ID) (_ *bptree.BPTree, found bool) {
 	v, exists := gInviteRequests.Get(boardID.Key())
 	if !exists {
 		return nil, false
 	}
-	return v.(*avl.Tree), true
+	return v.(*bptree.BPTree), true
 }
 
 // getBannedUsers returns banned users within a board.
-func getBannedUsers(boardID boards.ID) (_ *avl.Tree, found bool) {
+func getBannedUsers(boardID boards.ID) (_ *bptree.BPTree, found bool) {
 	v, exists := gBannedUsers.Get(boardID.Key())
 	if !exists {
 		return nil, false
 	}
-	return v.(*avl.Tree), true
+	return v.(*bptree.BPTree), true
 }
 
 // mustGetBoardByName returns a board or panics when it's not found.
@@ -139,6 +145,6 @@ func mustGetPermissions(bid boards.ID) boards.Permissions {
 func parseRealmPath(path string) *realmpath.Request {
 	// Make sure request is using current realm path so paths can be parsed during Render
 	r := realmpath.Parse(path)
-	r.Realm = string(gRealmLink)
+	r.Realm = string(RealmLink)
 	return r
 }

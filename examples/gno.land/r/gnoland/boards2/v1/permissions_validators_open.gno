@@ -120,7 +120,7 @@ func validateOpenThreadCreate(perms boards.Permissions, args boards.Args) error 
 	}
 
 	// Require non members to have some GNOT in their accounts
-	if err := checkAccountHasAmount(caller, gOpenAccountAmount); err != nil {
+	if err := checkAccountHasAmount(caller, RequiredAccountAmount); err != nil {
 		return ufmt.Errorf("caller is not allowed to create threads: %s", err)
 	}
 	return nil
@@ -147,7 +147,7 @@ func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
 	}
 
 	// Require non members to have some GNOT in their accounts
-	if err := checkAccountHasAmount(caller, gOpenAccountAmount); err != nil {
+	if err := checkAccountHasAmount(caller, RequiredAccountAmount); err != nil {
 		return ufmt.Errorf("caller is not allowed to comment: %s", err)
 	}
 	return nil
@@ -156,7 +156,7 @@ func validateOpenReplyCreate(perms boards.Permissions, args boards.Args) error {
 func checkAccountHasAmount(addr address, amount int64) error {
 	bnk := banker.NewBanker(banker.BankerTypeReadonly)
 	coins := bnk.GetCoins(addr)
-	if coins.AmountOf("ugnot") < gOpenAccountAmount {
+	if coins.AmountOf("ugnot") < RequiredAccountAmount {
 		amount = amount / 1_000_000 // ugnot -> GNOT
 		return ufmt.Errorf("account amount is lower than %d GNOT", amount)
 	}

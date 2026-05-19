@@ -47,7 +47,7 @@ Check out the links below.
 	// Basic call
 	out += "- [Say Hello](" + txlink.Call("Post", "text", "Hello from txlink!") + ") - A simple, static argument call\n"
 
-	// A link builder including some funds specified in the string format (std.Coin.String())
+	// A link builder including some funds specified in the string format (chain.Coin.String())
 	custom := txlink.NewLink("Post").
 		AddArgs("text", "Support this board with 1ugnot").
 		SetSend("1ugnot").
