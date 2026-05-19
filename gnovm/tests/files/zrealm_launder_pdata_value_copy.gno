@@ -4,22 +4,16 @@ package launderpdata_v
 // /p/-source coverage: direct value-read of a /p/-init-allocated
 // package global into a /r/-realm local.
 //
-// CLOSE_LAUNDER.md scenario 1 predicted this would launder the /p/-
-// bytes to the caller's realm authority. The existing 62 launder
-// filetests only exercised /r/-source paths; this fills the /p/-source
-// gap.
+// The existing 62 zrealm_launder_* filetests only exercised /r/-source
+// paths. This fills the /p/-source gap: a /r/-caller reads a /p/-
+// stamped global by value and tries to mutate the local copy.
 //
-// Empirically the attack does NOT succeed even with the CLOSE_LAUNDER
-// preserve-/p/-stamp variant reverted. The readonly check fires at
+// Empirically the mutation is rejected: the readonly check fires at
 // the LHS-pointer evaluation step (Machine.IsReadonly's RefValue
-// branch or StructValue PkgID check, depending on path) before any
-// Copy gets the chance to re-stamp. So the launder vector described
-// in CLOSE_LAUNDER.md is closed by a layer below the Copy gate; the
-// gate's /p/-extension was redundant for this scenario.
-//
-// This test pins the actual behavior: direct read-by-value of a /p/-
-// global cannot be mutated by a /r/-caller, even post-CLOSE_LAUNDER-
-// revert.
+// branch or StructValue PkgID check, depending on path) before
+// StructValue.Copy gets the chance to re-stamp. The /p/-source bytes
+// are not adoptable into /r/-authority via direct read; the protection
+// layer sits below the Copy gate.
 
 import (
 	"gno.land/p/demo/tests/launderpkg"

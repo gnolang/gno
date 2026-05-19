@@ -8,10 +8,9 @@ package launderf
 // m.Realm stays launderf for TamperMethod's body. The write to
 // o.Field with base.PkgID=laundervictim → readonly panic.
 //
-// CLOSE_LAUNDER not needed; the receiver-borrow exploit only works
-// when the receiver has the victim's stamp, which requires the
-// receiver to be aliased into victim's state (not a fresh attacker
-// literal).
+// The receiver-borrow exploit only works when the receiver has the
+// victim's stamp, which requires the receiver to be aliased into
+// victim's state (not a fresh attacker literal).
 
 import (
 	"gno.land/p/demo/tests/launderattack"

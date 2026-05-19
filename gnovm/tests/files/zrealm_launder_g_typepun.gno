@@ -17,10 +17,9 @@ package launderg
 // victim-stamped, and the write to o.Field inside Set runs with
 // victim authority.
 //
-// CLOSE_LAUNDER doesn't catch this — the data's PkgID stays correctly
-// stamped throughout; the launder is of the METHOD SET, not the
-// stamp. The defense is Case 1 in doOpConvert (restored by this
-// branch): refuse conversion of a foreign-readonly source value.
+// The data's PkgID stays correctly stamped throughout; the launder
+// is of the METHOD SET, not the stamp. The defense is Case 1 in
+// doOpConvert: refuse conversion of a foreign-readonly source value.
 // This blocks the conversion before any method dispatch can happen.
 
 import (

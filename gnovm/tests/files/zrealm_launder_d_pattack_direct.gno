@@ -7,9 +7,8 @@ package launderd
 // sees base.PkgID=laundervictim, m.Realm=launderd → readonly panic.
 //
 // CONCLUSION: /p/attack writing in its own body is closed by the
-// readonly check, NOT by CLOSE_LAUNDER. The data's PkgID stamp stays
-// laundervictim throughout (CLOSE_LAUNDER ensures no laundering on
-// pointer-deref), and the borrow rule doesn't grant /p/attack victim
+// readonly check. The data's PkgID stamp stays laundervictim
+// throughout, and the borrow rule doesn't grant /p/attack victim
 // authority for a non-method call.
 
 import (

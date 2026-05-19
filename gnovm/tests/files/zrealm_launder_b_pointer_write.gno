@@ -4,7 +4,7 @@ package launderb
 // Attack B: attacker receives *g and tries to write directly through
 // the pointer. Closed by the standard readonly check: base.PkgID =
 // laundervictim, m.Realm = launderB (attacker), differ → readonly
-// panic. Not a CLOSE_LAUNDER case.
+// panic.
 
 import (
 	"gno.land/p/demo/tests/launderpkg"

@@ -7,11 +7,11 @@ package laundere
 // switches m.Realm to laundervictim for the duration of Set. Inside
 // Set, the write to o.Field runs with victim authority and succeeds.
 //
-// LOOPHOLE NOT CLOSED BY CLOSE_LAUNDER. The /p/attack package is a
-// thin wrapper around the underlying capability — any /p/ package
-// that imports a /p/ type and re-dispatches through that type's
-// methods inherits the exploit. The borrow rule grants victim
-// authority because the receiver lives in victim's state.
+// Known-open loophole. The /p/attack package is a thin wrapper
+// around the underlying capability — any /p/ package that imports
+// a /p/ type and re-dispatches through that type's methods inherits
+// the exploit. The borrow rule grants victim authority because the
+// receiver lives in victim's state.
 
 import (
 	"gno.land/p/demo/tests/launderattack"

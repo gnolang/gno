@@ -3,15 +3,15 @@ package launderpdata_p
 
 // /p/-source coverage: pointer-deref of a /p/-global from a /r/-realm.
 //
-// CLOSE_LAUNDER.md scenario 3 named this "the laundering trick" —
-// passing a pointer across a realm boundary and letting the receiver
-// deref-copy in its own frame to launder the stamp. The existing
-// launder filetests didn't cover /p/-source variants.
+// Companion to zrealm_launder_pdata_value_copy.gno but exercising the
+// "deferred copy via pointer indirection" path: take address of a
+// /p/-global, dereference in the /r/-frame to obtain a local copy,
+// and try to mutate.
 //
-// Empirically the readonly check fires here too — same outcome as the
-// value-read variant. The /p/-source bytes are not adoptable into
-// /r/-authority via direct deref, regardless of CLOSE_LAUNDER. The
-// protection layer is below the Copy gate.
+// Empirically the readonly check fires here too — same outcome as
+// the value-read variant. The /p/-source bytes are not adoptable
+// into /r/-authority via direct deref. The protection layer sits
+// below the Copy gate.
 
 import (
 	"gno.land/p/demo/tests/launderpkg"

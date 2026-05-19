@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/launderc
 package launderc
 
-// Attack C: THE LOOPHOLE NOT CLOSED BY CLOSE_LAUNDER.
+// Attack C: known-open loophole — /p/-method borrow rule.
 //
 // Attacker obtains a pointer to victim's g via the victim's
 // public-by-design getter, then invokes a /p/-defined method on it.
@@ -9,14 +9,8 @@ package launderc
 // borrows m.Realm to laundervictim for the duration of the /p/
 // method call. Inside the /p/ method body, the write to o.Field
 // sees base.PkgID = laundervictim AND m.Realm = laundervictim —
-// match, no readonly check fires, no Frozen panic. The write
-// succeeds and victim's persistent state is mutated.
-//
-// CLOSE_LAUNDER does NOT close this: the data's PkgID stamp stays
-// laundervictim throughout. The /r/-stamp preservation rule is
-// orthogonal — what enables the write is the borrow rule itself
-// granting victim authority to attacker-initiated /p/-method calls
-// on victim-owned receivers.
+// match, no readonly check fires. The write succeeds and victim's
+// persistent state is mutated.
 //
 // This is the foundational tension in the borrow rule: /p/ methods
 // are designed to mutate /r/ state (so list/map/avl etc. work), but

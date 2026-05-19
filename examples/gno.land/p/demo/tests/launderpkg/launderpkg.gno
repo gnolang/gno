@@ -12,12 +12,12 @@ type Object struct {
 
 // PInitData is a /p/-init-allocated package-level data var. Its
 // StructValue carries ObjectInfo.PkgID = /p/demo/tests/launderpkg.
-// Used by zrealm_launder_pdata_* filetests to demonstrate the
-// /p/-source value-copy launder: post-CLOSE_LAUNDER-revert,
-// StructValue.Copy's IsRealmPkg() gate skips the override for /p/
-// sources, so the fresh NewStruct stamp at currentRealmID stands —
-// a caller realm reading PInitData by value adopts its bytes under
-// its own authority stamp and can mutate freely.
+// Used by zrealm_launder_pdata_* filetests to probe the /p/-source
+// read patterns that the existing 62 /r/-source launder filetests
+// don't cover. Empirically, direct value-read and pointer-deref of
+// PInitData from a /r/-caller both panic readonly tainted — the
+// /p/-source bytes are not adoptable into /r/-authority via these
+// patterns.
 var PInitData = Object{Field: "p-init"}
 
 // Set is the canonical "/p/ helper that mutates /r/-owned state"
