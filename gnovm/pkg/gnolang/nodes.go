@@ -434,7 +434,7 @@ func (x *CallExpr) isLikeWithCross() bool {
 	}
 	switch first := x.Args[0].(type) {
 	case *NameExpr:
-		return first.Name == Name("cur") || first.Name == Name(".origin")
+		return first.Name == Name("cur") || first.Name == Name(".origin") || first.Name == Name("cross1")
 	case *CallExpr:
 		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
 			return fcx.GetFunc().PkgPath == uversePkgPath &&

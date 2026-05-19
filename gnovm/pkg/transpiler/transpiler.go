@@ -223,6 +223,18 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 						}))
 					}
 				}
+			case *ast.Ident:
+				if sx, ok := c.Parent().(*ast.SelectorExpr); ok && sx.X == node {
+					// Could be an expression like `hello.cross1`, so ignore.
+					return true
+				}
+				switch node.Name {
+				case "cross1":
+					// legacy sentinel; at runtime this stack slot must be
+					// undefined so installCrossingCur takes the
+					// callingCurOrOrigin path.
+					node.Name = "nil"
+				}
 			case *ast.CallExpr:
 				// is function call to a native function?
 				// -> rename if unexported, apply `nil,` for the first arg if necessary

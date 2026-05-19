@@ -7,6 +7,10 @@ rule distilled from a concrete pitfall encountered during migration.
 
 This is a living document. Append new learnings as discovered.
 
+**Migrating a codebase from bare `cross`?** Start with §16 — the
+two-step recipe (`cross` → `cross1` → `cross(rlm)`) gets you a
+mechanical bulk rename first, then per-site semantic threading.
+
 ---
 
 ## 1. Crossing-fn vs non-crossing-fn-with-rlm: choosing the form
@@ -491,12 +495,76 @@ rather than mutating a package singleton.
 
 ---
 
+## 16. Two-step migration recipe: bare `cross` → `cross1` → `cross(rlm)`
+
+The gno 0.9 canonical form is `fn(cross(rlm), args...)` where `rlm` is
+the in-scope realm value. Codebases originally written against the
+bare-`cross` sentinel (`fn(cross, args...)`) migrate in **two
+mechanical-then-semantic steps**:
+
+**Step 1 — mechanical: `cross` → `cross1`.**
+
+A pure rename. `cross1` is a uverse-defined legacy sentinel (see
+`uverse.go` `def("cross1", undefined)`, `preprocess.go`
+`case Name("cross1")`) that lowers to **exactly the same AST shape as
+the compiler-synthesized `.origin`**:
+- `n.SetWithCross()` (the call is a crossing call)
+- `n.Args[0] = constNil(nx)` (Args[0] is nil, not a realm value)
+
+Runtime takes the `Args[0]==nil → callingCurOrOrigin →
+buildOriginRealm` path — the same path bare `cross` used to take.
+Behavior is preserved, so this step is safe to bulk-apply with sed/awk
+across the tree without per-site analysis.
+
+This unblocks deleting the bare-`cross` preprocessor branch from gnovm
+(see commit `86b1bd0cf`) while leaving codebases temporarily compilable.
+
+**Step 2 — semantic: `cross1` → `cross(rlm)`.**
+
+This step requires per-call-site judgment: identify which realm value
+is in scope (typically `cur` from the enclosing crossing function, but
+sometimes a captured realm passed via parameter, or a freshly-minted
+`testing.NewUserRealm(...)`), and replace `cross1` with `cross(rlm)`.
+
+Lowering changes: `cross(rlm)` takes the `else` branch in
+`installCrossingCur` and uses `*argtv` directly as the new cur's prev,
+**bypassing** `callingCurOrOrigin`/`buildOriginRealm`. The new cur's
+prev is now a static, statically-validated value rather than something
+dynamically reconstructed from `OriginCaller`.
+
+**Why two steps and not one:** the `cross` → `cross(cur)` rewrite can't
+be applied mechanically — `cur` isn't always the right realm to thread,
+and outside a crossing function `cur` doesn't even exist. Sites that
+look obvious (`Foo(cross, x)` inside `func Bar(cur realm)`) usually do
+become `Foo(cross(cur), x)`, but sites inside non-crossing helpers, in
+test scopes that called `testing.SetRealm`, or in MsgRun `func main()`
+without `(cur realm)` all need different fixes. The `cross1`
+intermediate lets the mechanical sweep land first (compile-clean,
+preserves behavior) and the semantic threading happen at a human pace.
+
+**When you cannot finish Step 2:** leave `cross1` in place. The
+sentinel is intentionally preserved in uverse for exactly this case —
+it isn't a deprecation that will break, it's a long-tail compatibility
+shim. The runtime path (`callingCurOrOrigin → buildOriginRealm`) is
+the same path the compiler-synthesized `.origin` lowering uses for
+MsgCall chain roots, so `cross1` will keep working as long as that
+synthesis does.
+
+See `gnovm/tests/files/zrealm_cross1_legacy.gno` for a minimal example
+asserting that `cross1` and `cross(cur)` produce identical
+`cur.PkgPath()` from the callee — useful as a regression guard if the
+two lowerings ever diverge.
+
+---
+
 ## Appendix: open questions
 
 - **How best to mint a fresh cur after `SetRealm(NewUserRealm)`?**
-  See (2). With the bare-cross sentinel gone, the dynamic-origin path
-  in `buildOriginRealm` is reachable only via the compiler-synthesized
-  `.origin` lowering (MsgCall chain root) — not from user code. Either
-  a user-facing primitive (`cross.fromOrigin()` or similar) or
-  refactoring the SUTs to take caller address explicitly would close
-  this gap.
+  See (2). The dynamic-origin path in `buildOriginRealm` is reachable
+  from user code via `cross1` (the legacy migration sentinel — see
+  §16) and from compiler-synthesized `.origin` (MsgCall chain root).
+  `cross1` is intentionally available as a long-tail shim for this
+  test pattern, so the gap is covered. A named user-facing primitive
+  (e.g. `cross.fromOrigin()`) or refactoring SUTs to take caller
+  address explicitly would still be cleaner — `cross1` reads as a
+  migration tool, not a stable API.
