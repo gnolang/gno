@@ -39,7 +39,7 @@ var preRegisteredUsers = []struct {
 
 func init() {
 	// Add pre-registered users via the bypass path (genesis posture).
-	// Names are curated but the undelying validation implementation could
+	// Names are curated but the underlying validation implementation could
 	// potentially fail if changed and the list of curated names is not updated
 	// accordingly, so registration errors are checked to make sure all
 	// pre-registered names are effectibly registered, otherwise there's a chance
