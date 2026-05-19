@@ -579,19 +579,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.Realm == nil {
+	if pv.IsRealm() && pv.Realm == nil {
 		rlm := ds.GetPackageRealm(pv.PkgPath)
-		if rlm == nil {
-			// Legacy: package persisted before interrealm v2 Phase 3
-			// has no Realm on disk. Synthesize one. Frozen mirrors the
-			// runMemPackage flip rule: immutable packages (/p/, stdlib)
-			// freeze with a math/rand carve-out; /r/ + main + _test stay
-			// mutable.
-			rlm = NewRealm(pv.PkgPath)
-			if pv.PkgID.IsImmutablePkg() && pv.PkgPath != "math/rand" {
-				rlm.Frozen = true
-			}
-		}
 		pv.Realm = rlm
 	}
 	// Re-derive denormalized PkgID cache (interrealm v2 Phase 2; pv.PkgID is

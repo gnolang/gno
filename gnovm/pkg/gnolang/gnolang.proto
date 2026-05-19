@@ -128,7 +128,6 @@ message Realm {
 	uint64 time = 3 [json_name = "Time"];
 	uint64 deposit = 4 [json_name = "Deposit"];
 	uint64 storage = 5 [json_name = "Storage"];
-	bool frozen = 6 [json_name = "Frozen"];
 }
 
 message ObjectID {

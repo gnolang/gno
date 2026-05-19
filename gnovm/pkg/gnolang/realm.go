@@ -171,13 +171,6 @@ type Realm struct {
 	Storage uint64 // Amount of storage used
 	sumDiff int64  // Total size difference from added, updated, or deleted objects
 
-	// Frozen is set to true after a non-realm (/p/, stdlib) package
-	// finishes init. Once frozen, DidUpdate panics on any mutation of
-	// a real object owned by this realm, and assignNewObjectID panics
-	// on any attempt to mint a new NewTime under this realm. Realm
-	// packages (/r/) stay Frozen=false. interrealm v2 Phase 3.
-	Frozen bool
-
 	newCreated []Object
 	newDeleted []Object
 	newEscaped []Object
@@ -216,15 +209,6 @@ type Realm struct {
 // (regardless of which route(s) touched it).
 //
 // interrealm v2 Phase 2b.
-//
-// interrealm v2 Phase 3 note: the sumDiff route (saveObject /
-// removeDeletedObjects) deliberately bypasses the Frozen guard added
-// to assignNewObjectID. Mutating fr.sumDiff on a frozen /p/-realm is
-// acceptable because sumDiff is internal storage-rent accounting, not
-// user-visible state. The Frozen invariant blocks user-visible writes
-// (DidUpdate) and new object-identity minting (assignNewObjectID's
-// Time++), but cross-realm refcount diff accrual must still flow to
-// pay storage rent on cross-realm references.
 func (rlm *Realm) touchForeignRealm(store Store, pid PkgID) *Realm {
 	if rlm.touchedForeignRealms == nil {
 		rlm.touchedForeignRealms = make(map[PkgID]*Realm, 1)
@@ -316,15 +300,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		// readonly check (IsReadonly/isExternalRealm) that prevents reaching
 		// here. If this fires, a pre-check is missing.
 		panic("invariant violation: DidUpdate called on external-realm object without prior readonly check")
-	}
-	if rlm.Frozen {
-		// interrealm v2 Phase 3: /p/ and stdlib packages are
-		// immutable post-init. Direct dot/index mutations of their
-		// persisted state must be rejected, including writes that
-		// the borrow rule has routed to this realm context.
-		panic(fmt.Sprintf(
-			"cannot mutate immutable package %s: object %s",
-			rlm.Path, po.GetObjectID()))
 	}
 	// XXX check if this boosts performance
 	// XXX with broad integration benchmarking.
@@ -1940,15 +1915,6 @@ func (rlm *Realm) nextObjectID() ObjectID {
 //
 // interrealm v2 Phase 2b.
 func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
-	if rlm.Frozen {
-		// interrealm v2 Phase 3: an immutable package (/p/, stdlib) cannot
-		// mint new persistent object identities post-init. Hitting this
-		// means a frozen-realm execution context tried to persist new
-		// state under its own authority.
-		panic(fmt.Sprintf(
-			"cannot assign object ID on frozen realm %s",
-			rlm.Path))
-	}
 	oid := oo.GetObjectID()
 	if oid.IsFinalized() {
 		panic("unexpected already-finalized object id")
@@ -1990,14 +1956,6 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	targetRlm := rlm
 	if oid.PkgID != rlm.ID {
 		targetRlm = rlm.touchForeignRealm(store, oid.PkgID)
-		if targetRlm.Frozen {
-			// interrealm v2 Phase 3: minting NewTime under a foreign
-			// frozen realm would silently advance an immutable
-			// package's object counter. Refuse.
-			panic(fmt.Sprintf(
-				"cannot mint NewTime on frozen foreign realm %s",
-				targetRlm.Path))
-		}
 	}
 	targetRlm.Time++
 	oo.SetNewTime(targetRlm.Time)

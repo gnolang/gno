@@ -4053,9 +4053,6 @@ func evalStaticTypeMachine(store Store, last BlockNode, x Expr) Type {
 			PkgID:   pid,
 		}
 		pv.ObjectInfo.SetPkgID(pid)
-		// interrealm v2 Phase 3 invariant: every PackageValue carries a
-		// non-nil Realm. Throwaway type-evaluation pv, never persisted.
-		pv.SetRealm(NewRealm(pn.PkgPath))
 		store = store.BeginTransaction(nil, nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
@@ -4231,10 +4228,6 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 				PkgID:   pid,
 			}
 			pv.ObjectInfo.SetPkgID(pid)
-			// interrealm v2 Phase 3 invariant: every PackageValue carries
-			// a non-nil Realm. This is a throwaway type-evaluation pv —
-			// the Realm is transient and never persisted.
-			pv.SetRealm(NewRealm(pn.PkgPath))
 			store = store.BeginTransaction(nil, nil, nil, nil)
 			store.SetCachePackage(pv)
 		}

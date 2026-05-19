@@ -20,8 +20,6 @@ func main() {
 // [1 2 3 4]
 
 // Realm:
-// finalizerealm["os"]
-// finalizerealm["os"]
 // finalizerealm["gno.land/r/main"]
 // u[09b6b63cc3f789fda754d95769bbf99bf64c5cb4:4](0)=
 //     @@ -23,6 +23,7 @@
