@@ -77,10 +77,17 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	}
 
 	// Parse the validator key type up-front so the user gets an early
-	// error on a typo before we touch the filesystem.
-	keyType, err := signer.ParseKeyType(cfg.keyType)
-	if err != nil {
-		return err
+	// error on a typo before we touch the filesystem. An empty string
+	// means "use the default scheme" — programmatic callers (e.g. the
+	// lazy-init path in gnoland start) construct secretsInitCfg directly
+	// without going through flag registration.
+	keyType := signer.DefaultKeyType
+	if cfg.keyType != "" {
+		parsed, err := signer.ParseKeyType(cfg.keyType)
+		if err != nil {
+			return err
+		}
+		keyType = parsed
 	}
 
 	var key string
@@ -156,12 +163,6 @@ func overwriteGuard(
 
 	// Secret doesn't exist, initialize it
 	return initFn(path, io)
-}
-
-// initAndSaveValidatorKey generates a validator private key of the default
-// scheme and saves it to the given path.
-func initAndSaveValidatorKey(path string, io commands.IO) error {
-	return initAndSaveValidatorKeyOfType(path, signer.DefaultKeyType, io)
 }
 
 // initAndSaveValidatorKeyOfType generates a validator private key of the
