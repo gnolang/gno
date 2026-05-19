@@ -557,9 +557,9 @@ func (opts *TestOptions) runTestFiles(
 			// sharing the singleton would let one test's SetRealm corrupt
 			// every subsequent package's init cur.
 			if gno.IsRealmPath(mpkg.Path) {
-				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(nil, mpkg.Path, gno.NewOriginRealmTV(nil)))
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(m.Alloc, mpkg.Path, gno.NewOriginRealmTV(m.Alloc)))
 			} else {
-				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewOriginRealmTV(nil))
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewOriginRealmTV(m.Alloc))
 			}
 			m.SetActivePackage(pv)
 		} else {
