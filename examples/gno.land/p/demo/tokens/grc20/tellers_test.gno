@@ -35,13 +35,6 @@ func TestIsCanonicalTeller(cur realm, t *testing.T) {
 		"foreign type embedding a canonical Teller must be rejected")
 }
 
-// asAlice / asBob / asCarl are tiny crossing-function helpers that the
-// CallerTeller-based tests use to enter a fresh crossing frame whose
-// cur.Previous() is the supplied user. SetRealm(NewUserRealm(addr))
-// installs `addr` as the previous-of-the-cross before invoking the
-// closure with `cross` — inside the closure, cur is a live crossing
-// frame's Cur (passes IsCurrent) and cur.Previous().Address() == addr.
-
 func TestTeller(cur realm, t *testing.T) {
 	var (
 		alice = testutils.TestAddress("alice")
@@ -140,19 +133,15 @@ func TestCallerTeller(cur realm, t *testing.T) {
 	checkBalances(1000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0)
 
-	// alice approves bob for 600 of her balance via the teller.
 	testing.SetRealm(testing.NewUserRealm(alice))
 	func(cur realm) { urequire.NoError(t, teller.Approve(0, cur, bob, 600)) }(cross(cur))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	// bob exceeds allowance.
 	testing.SetRealm(testing.NewUserRealm(bob))
 	func(cur realm) { urequire.Error(t, teller.TransferFrom(0, cur, alice, carl, 700)) }(cross(cur))
 	checkBalances(1000, 0, 0)
 	checkAllowances(600, 0, 0, 0, 0, 0)
-
-	// bob transfers 400 within allowance.
 	func(cur realm) { urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, 400)) }(cross(cur))
 	checkBalances(600, 0, 400)
 	checkAllowances(200, 0, 0, 0, 0, 0)

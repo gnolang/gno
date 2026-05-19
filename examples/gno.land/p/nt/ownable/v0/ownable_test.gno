@@ -8,12 +8,6 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-
-// cur is a zero-value realm used as a placeholder when forwarding to
-// uassert/urequire dispatch helpers that gained an `rlm realm` param.
-// These tests pass `func()` callbacks (no crossing inside the callback),
-// so rlm is ignored — a nil realm here is safe.
-var cur realm
 var (
 	alice = testutils.TestAddress("alice")
 	bob   = testutils.TestAddress("bob")
@@ -21,18 +15,21 @@ var (
 
 func TestNewWithAddress(cur realm, t *testing.T) {
 	o := NewWithAddress(alice)
-	uassert.Equal(t, o.Owner(), alice)
+
+	got := o.Owner()
+	uassert.Equal(t, got, alice)
 }
 
 func TestTransferOwnership(cur realm, t *testing.T) {
-	o := NewWithAddress(alice)
-
 	testing.SetRealm(testing.NewUserRealm(alice))
+	o := NewWithAddress(alice)
 	func(cur realm) {
-		urequire.NoError(t, o.TransferOwnership(0, cur, bob))
+		err := o.TransferOwnership(0, cur, bob)
+		urequire.NoError(t, err)
 	}(cross(cur))
 
-	uassert.Equal(t, o.Owner(), bob)
+	got := o.Owner()
+	uassert.Equal(t, got, bob)
 }
 
 func TestTransferOwnershipUnauthorized(cur realm, t *testing.T) {
@@ -45,14 +42,15 @@ func TestTransferOwnershipUnauthorized(cur realm, t *testing.T) {
 }
 
 func TestDropOwnership(cur realm, t *testing.T) {
-	o := NewWithAddress(alice)
-
 	testing.SetRealm(testing.NewUserRealm(alice))
+	o := NewWithAddress(alice)
 	func(cur realm) {
-		urequire.NoError(t, o.DropOwnership(0, cur), "DropOwnership failed")
+		err := o.DropOwnership(0, cur)
+		urequire.NoError(t, err, "DropOwnership failed")
 	}(cross(cur))
 
-	uassert.Empty(t, o.Owner(), "owner should be empty")
+	owner := o.Owner()
+	uassert.Empty(t, owner, "owner should be empty")
 }
 
 func TestDropOwnershipUnauthorized(cur realm, t *testing.T) {
@@ -82,14 +80,14 @@ func TestAssertOwnedBy(cur realm, t *testing.T) {
 }
 
 func TestErrInvalidAddress(cur realm, t *testing.T) {
-	o := NewWithAddress(alice)
-
 	testing.SetRealm(testing.NewUserRealm(alice))
+	o := NewWithAddress(alice)
 	func(cur realm) {
-		uassert.ErrorContains(t, o.TransferOwnership(0, cur, ""), ErrInvalidAddress.Error())
-		uassert.ErrorContains(t,
-			o.TransferOwnership(0, cur, "10000000001000000000100000000010000000001000000000"),
-			ErrInvalidAddress.Error())
+		err := o.TransferOwnership(0, cur, "")
+		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
+
+		err = o.TransferOwnership(0, cur, "10000000001000000000100000000010000000001000000000")
+		uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 	}(cross(cur))
 }
 
@@ -101,7 +99,8 @@ func TestNilReceiver(cur realm, t *testing.T) {
 		t.Errorf("expected empty address but got %v", owner)
 	}
 
-	uassert.False(t, o.OwnedBy(alice))
+	isOwner := o.OwnedBy(alice)
+	uassert.False(t, isOwner)
 
 	defer func() {
 		r := recover()
