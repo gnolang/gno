@@ -114,3 +114,48 @@ func dependsOnOtherCore(e Entry) (string, bool) {
 	}
 	return "", false
 }
+
+func isReadyToMerge(e Entry) bool {
+	if e.Kind != KindPR || e.IsDraft {
+		return false
+	}
+	if e.Mergeable != "MERGEABLE" {
+		return false
+	}
+	if e.StatusCheckRoll != "" && e.StatusCheckRoll != "SUCCESS" {
+		return false
+	}
+	// Latest review per author. If any latest is CHANGES_REQUESTED, block.
+	latest := map[string]Review{}
+	for _, r := range e.Reviews {
+		if r.State == "" {
+			continue
+		}
+		if cur, ok := latest[r.Author]; !ok || r.SubmittedAt.After(cur.SubmittedAt) {
+			latest[r.Author] = r
+		}
+	}
+	approved := false
+	for _, r := range latest {
+		if r.State == "CHANGES_REQUESTED" {
+			return false
+		}
+		if r.State == "APPROVED" {
+			approved = true
+		}
+	}
+	return approved
+}
+
+func isStuck(e Entry) bool {
+	if !e.ReviewRequested {
+		return false
+	}
+	if ageDays(e.CreatedAt) <= StuckOpenDays {
+		return false
+	}
+	if ageDays(e.UpdatedAt) < StuckNoUpdateDays {
+		return false
+	}
+	return true
+}

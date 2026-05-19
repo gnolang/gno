@@ -135,3 +135,106 @@ func TestDependsOnOtherCore(t *testing.T) {
 		t.Errorf("dependsOnOtherCore should be false for non-core")
 	}
 }
+
+func TestIsReadyToMerge(t *testing.T) {
+	cases := []struct {
+		name string
+		e    Entry
+		want bool
+	}{
+		{
+			"approved + green + mergeable",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
+			true,
+		},
+		{
+			"approved but draft",
+			Entry{Kind: KindPR, IsDraft: true, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
+			false,
+		},
+		{
+			"approved but unresolved changes-requested from another reviewer",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+				Reviews: []Review{
+					{Author: "moul", State: "APPROVED", SubmittedAt: mustTime("2026-05-19T00:00:00Z")},
+					{Author: "alice", State: "CHANGES_REQUESTED", SubmittedAt: mustTime("2026-05-18T00:00:00Z")},
+				}},
+			false,
+		},
+		{
+			"approved + reviewer later approved (overriding own changes-requested)",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+				Reviews: []Review{
+					{Author: "alice", State: "CHANGES_REQUESTED", SubmittedAt: mustTime("2026-05-18T00:00:00Z")},
+					{Author: "alice", State: "APPROVED", SubmittedAt: mustTime("2026-05-19T00:00:00Z")},
+				}},
+			true,
+		},
+		{
+			"mergeable unknown",
+			Entry{Kind: KindPR, Mergeable: "UNKNOWN", StatusCheckRoll: "SUCCESS",
+				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
+			false,
+		},
+		{
+			"CI failing",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "FAILURE",
+				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
+			false,
+		},
+		{"issue, not a PR", Entry{Kind: KindIssue}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := isReadyToMerge(c.e); got != c.want {
+				t.Errorf("isReadyToMerge=%v want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestIsStuck(t *testing.T) {
+	fixedNow(t, "2026-05-20T00:00:00Z")
+	cases := []struct {
+		name string
+		e    Entry
+		want bool
+	}{
+		{
+			"opened 35d ago, review requested, no update 10d",
+			Entry{
+				CreatedAt:       mustTime("2026-04-15T00:00:00Z"),
+				UpdatedAt:       mustTime("2026-05-10T00:00:00Z"),
+				ReviewRequested: true,
+			},
+			true,
+		},
+		{
+			"opened 35d ago but no review requested",
+			Entry{
+				CreatedAt:       mustTime("2026-04-15T00:00:00Z"),
+				UpdatedAt:       mustTime("2026-05-10T00:00:00Z"),
+				ReviewRequested: false,
+			},
+			false,
+		},
+		{
+			"opened 35d ago, review requested, updated yesterday",
+			Entry{
+				CreatedAt:       mustTime("2026-04-15T00:00:00Z"),
+				UpdatedAt:       mustTime("2026-05-19T00:00:00Z"),
+				ReviewRequested: true,
+			},
+			false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := isStuck(c.e); got != c.want {
+				t.Errorf("isStuck=%v want %v", got, c.want)
+			}
+		})
+	}
+}
