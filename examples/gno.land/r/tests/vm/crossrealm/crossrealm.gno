@@ -157,8 +157,11 @@ func EntryPoint() (noCros *ownable.Ownable) {
 	return PrevRealmNoCrossing()
 }
 
-func EntryPointWithCrossing() (withCros *ownable.Ownable) {
-	return PrevRealmCrossing(cross)
+// EntryPointWithCrossing is a non-crossing helper that forwards into
+// the (cur realm)-crossing PrevRealmCrossing. Callers pass their own
+// live cur; `cross2(rlm)` does the actual cross.
+func EntryPointWithCrossing(_ int, rlm realm) (withCros *ownable.Ownable) {
+	return PrevRealmCrossing(cross2(rlm))
 }
 
 func PrevRealmNoCrossing() *ownable.Ownable {
