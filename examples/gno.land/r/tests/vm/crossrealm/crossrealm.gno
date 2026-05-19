@@ -133,6 +133,20 @@ func ExecuteClosureCross(cur realm) {
 	Closure2(cross2(cur))
 }
 
+// Closure3 mirrors Closure but for non-crossing-with-rlm closures —
+// `func(_ int, rlm realm)`. Whoever sets Closure3 receives cur as a
+// plain value (no realm boundary at invocation time), then can cross
+// internally via cross2(rlm).
+var Closure3 func(_ int, rlm realm)
+
+func SetClosure3(cur realm, f func(_ int, rlm realm)) {
+	Closure3 = f
+}
+
+func ExecuteClosure3(cur realm) {
+	Closure3(0, cur)
+}
+
 // Closure -> FooUpdate
 func PrintRealms(cur realm) {
 	ufmt.Printf("current realm: %s\n", runtime.CurrentRealm())
