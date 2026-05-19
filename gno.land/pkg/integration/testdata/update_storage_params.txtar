@@ -54,7 +54,7 @@ import (
 
 func main(cur realm) {
 
-  prop := params.NewSysParamStringPropRequest("vm", "p", "default_deposit", "1ugnot")
+  prop := params.NewSysParamStringPropRequest(cross2(cur), "vm", "p", "default_deposit", "1ugnot")
   dao.MustCreateProposal(cross2(cur),prop)
 }
 

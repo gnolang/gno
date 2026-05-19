@@ -71,7 +71,7 @@ import (
 )
 
 func main(cur realm) {
-	preq := impl.NewPromoteMemberRequest(address("g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"), "T3", "T2")
+	preq := impl.NewPromoteMemberRequest(cross2(cur), address("g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"), "T3", "T2")
 	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- proposer/create_proposal.gno --
@@ -87,7 +87,7 @@ func main(cur realm) {
 	fromTier := "T2"
 	toTier := "T3"
 
-	preq := impl.NewPromoteMemberRequest(addr, fromTier, toTier)
+	preq := impl.NewPromoteMemberRequest(cross2(cur), addr, fromTier, toTier)
 	dao.MustCreateProposal(cross2(cur), preq)
 }
 -- loader/load_govdao.gno --

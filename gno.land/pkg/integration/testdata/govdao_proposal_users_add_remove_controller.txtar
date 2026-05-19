@@ -88,7 +88,7 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeNewController("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	r := users.ProposeNewController(cross2(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 	dao.MustCreateProposal(cross2(cur), r)
 }
 
@@ -101,7 +101,7 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeControllerAdditionAndRemoval("g16dverxg6s6vzha89k22c3zusx6sug5ycjyjq2j", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	r := users.ProposeControllerAdditionAndRemoval(cross2(cur), address("g16dverxg6s6vzha89k22c3zusx6sug5ycjyjq2j"), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 	dao.MustCreateProposal(cross2(cur), r)
 }
 

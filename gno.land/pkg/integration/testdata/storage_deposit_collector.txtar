@@ -96,7 +96,7 @@ import (
 
 func main(cur realm) {
 	storage_collector := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
-	pr := params.NewSysParamStringPropRequest("vm", "p", "storage_fee_collector", storage_collector.String())
+	pr := params.NewSysParamStringPropRequest(cross2(cur), "vm", "p", "storage_fee_collector", storage_collector.String())
 	pid := dao.MustCreateProposal(cross2(cur), pr)
 	println(pid.String())
 }

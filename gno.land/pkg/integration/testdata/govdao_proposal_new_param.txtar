@@ -41,7 +41,7 @@ import (
 )
 
 func main(cur realm) {
-	preq := params.NewSysParamStringPropRequest("vm", "bar", "baz", "qux")
+	preq := params.NewSysParamStringPropRequest(cross2(cur), "vm", "bar", "baz", "qux")
 	dao.MustCreateProposal(cross2(cur), preq)
 }
 

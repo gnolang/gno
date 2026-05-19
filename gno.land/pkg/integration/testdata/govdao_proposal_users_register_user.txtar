@@ -94,7 +94,7 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeRegisterUser("user1", "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	r := users.ProposeRegisterUser(cross2(cur), "user1", address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
 	dao.MustCreateProposal(cross2(cur), r)
 }
 
@@ -107,7 +107,7 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeUpdateName("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "user1alias")
+	r := users.ProposeUpdateName(cross2(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"), "user1alias")
 	dao.MustCreateProposal(cross2(cur), r)
 }
 
@@ -120,6 +120,6 @@ import (
 )
 
 func main(cur realm) {
-	r := users.ProposeDeleteUser("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	r := users.ProposeDeleteUser(cross2(cur), address("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"))
 	dao.MustCreateProposal(cross2(cur), r)
 }

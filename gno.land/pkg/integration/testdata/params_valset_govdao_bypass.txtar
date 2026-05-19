@@ -71,7 +71,7 @@ func main() {
 	// reject on entry parse if F1 ever silently regresses. F1 must
 	// panic before we get that far.
 	const fakePubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
-	_ = sysparams.NewSysParamStringsPropRequest("node", "valset", "proposed", []string{fakePubKey + ":1000000"})
+	_ = sysparams.NewSysParamStringsPropRequest(cross2(cur), "node", "valset", "proposed", []string{fakePubKey + ":1000000"})
 }
 
 -- run/bypass_bytes.gno --
@@ -80,7 +80,7 @@ package main
 import sysparams "gno.land/r/sys/params"
 
 func main() {
-	_ = sysparams.NewSysParamBytesPropRequest("node", "valset", "proposed", []byte("garbage"))
+	_ = sysparams.NewSysParamBytesPropRequest(cross2(cur), "node", "valset", "proposed", []byte("garbage"))
 }
 
 -- run/bypass_bool.gno --
@@ -89,7 +89,7 @@ package main
 import sysparams "gno.land/r/sys/params"
 
 func main() {
-	_ = sysparams.NewSysParamBoolPropRequest("node", "valset", "dirty", true)
+	_ = sysparams.NewSysParamBoolPropRequest(cross2(cur), "node", "valset", "dirty", true)
 }
 
 -- run/legit_nonvalset.gno --
@@ -103,7 +103,7 @@ import (
 func main(cur realm) {
 	// vm:p:chain_domain is a normal governance-managed key. F1 must
 	// not over-reject it.
-	pr := sysparams.NewSysParamStringPropRequest("vm", "p", "chain_domain", "test.land")
+	pr := sysparams.NewSysParamStringPropRequest(cross2(cur), "vm", "p", "chain_domain", "test.land")
 	dao.MustCreateProposal(cross2(cur), pr)
 }
 

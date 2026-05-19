@@ -48,7 +48,7 @@ import (
 )
 
 func main(cur realm) {
-	dao.MustCreateProposal(cross2(cur), request.NewProposalRequest())
+	dao.MustCreateProposal(cross2(cur), request.NewProposalRequest(0, cur))
 }
 
 -- request/gnomod.toml --
@@ -64,11 +64,11 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func NewProposalRequest() dao.ProposalRequest {
+func NewProposalRequest(_ int, rlm realm) dao.ProposalRequest {
 	cb := func(realm) error {
 		return errors.New("Boom!")
 	}
 
-	e := dao.NewSimpleExecutor(cb, "")
+	e := dao.NewSimpleExecutor(0, rlm, cb, "")
 	return dao.NewProposalRequest("Test Proposal", "This proposal always fails on execution", e)
 }
