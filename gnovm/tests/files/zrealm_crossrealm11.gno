@@ -18,6 +18,12 @@ func Exec(fn func()) {
 	fn()
 }
 
+// ExecRlm mirrors Exec but threads rlm into the callback so it can
+// use `cross2(rlm)` instead of bare cross.
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
+	fn(0, rlm)
+}
+
 func main(cur realm) {
 	// Create a map of the potential callers, this will give more understandable
 	// output than the bech32 addresses.
@@ -85,40 +91,40 @@ func main(cur realm) {
 			printColumns(baseCallStack+tt.callStackAdd, callersByAddr[r.Address()])
 
 		}
-		Exec(func() {
+		ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross2(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/crossrealm.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.Exec(func() {
+		rtests.ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross2(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.ExecSwitch(cross2(cur), func() {
+		rtests.ExecSwitchRlm(cross2(cur), func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross2(rlm))
 			} else {
 				r = tt.callerFn()
 			}
 			assertRealm(r)
 			printColumns(baseCallStack+" !> r/demo/tests.ExecSwitch"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		ptests.Exec(func() {
+		ptests.ExecRlm(0, cur, func(_ int, rlm realm) {
 			var r runtime.Realm
 			if tt.callerFnCrossing != nil {
-				r = tt.callerFnCrossing(cross)
+				r = tt.callerFnCrossing(cross2(rlm))
 			} else {
 				r = tt.callerFn()
 			}

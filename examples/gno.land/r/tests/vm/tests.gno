@@ -106,8 +106,21 @@ func Exec(fn func()) {
 	fn()
 }
 
+// ExecRlm mirrors Exec but threads the caller's rlm into the callback
+// so the callback can use `cross2(rlm)` instead of bare `cross`.
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
+	fn(0, rlm)
+}
+
 func ExecSwitch(cur realm, fn func()) {
 	fn()
+}
+
+// ExecSwitchRlm is the rlm-threaded variant of ExecSwitch — crosses
+// into this realm and passes the callee's cur to the callback so
+// the callback can `cross2(rlm)` against the switched realm.
+func ExecSwitchRlm(cur realm, fn func(_ int, rlm realm)) {
+	fn(0, cur)
 }
 
 func IsCallerSubPath(cur realm) bool {

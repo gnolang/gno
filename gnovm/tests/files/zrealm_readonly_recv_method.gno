@@ -21,4 +21,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot mutate immutable package gno.land/p/demo/tests: object 4609759cdf9e3b49753fd5632a02365700aff2b6:20
+// cannot mutate immutable package gno.land/p/demo/tests: object 4609759cdf9e3b49753fd5632a02365700aff2b6:21
