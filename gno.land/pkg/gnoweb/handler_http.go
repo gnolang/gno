@@ -408,15 +408,6 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// State explorer (?state, ?state&oid=X) — page path. JSON and
-	// fragment variants were intercepted in Get() before this point.
-	// They never reach prepareIndexBodyView. This branch should be
-	// unreachable now; left as a defensive fallback in case dispatch
-	// order changes.
-	if gnourl.WebQuery.Has("state") {
-		return http.StatusInternalServerError, components.StatusErrorComponent("state dispatch reached prepareIndexBodyView")
-	}
-
 	// Handle Source page
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
 		return h.GetSourceView(ctx, gnourl)
