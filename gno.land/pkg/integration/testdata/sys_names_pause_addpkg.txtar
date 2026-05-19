@@ -120,7 +120,7 @@ import (
 )
 
 func main(cur realm) {
-	r := names.ProposeSetPaused(true)
+	r := names.ProposeSetPaused(cross2(cur), true)
 	dao.MustCreateProposal(cross2(cur), r)
 }
 
@@ -133,7 +133,7 @@ import (
 )
 
 func main(cur realm) {
-	r := names.ProposeSetPaused(false)
+	r := names.ProposeSetPaused(cross2(cur), false)
 	dao.MustCreateProposal(cross2(cur), r)
 }
 

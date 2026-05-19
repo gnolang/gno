@@ -126,7 +126,7 @@ import (
 )
 
 func main(cur realm) {
-	pr := params.ProposeAddUnrestrictedAcctsRequest("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4","g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
+	pr := params.ProposeAddUnrestrictedAcctsRequest(cross2(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
   pid := dao.MustCreateProposal(cross2(cur),pr)
   println(pid.String())
 }
@@ -140,7 +140,7 @@ import (
 )
 
 func main(cur realm) {
-	pr := params.ProposeRemoveUnrestrictedAcctsRequest("g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4","g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
+	pr := params.ProposeRemoveUnrestrictedAcctsRequest(cross2(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4", "g1mtmrdmqfu0aryqfl4aw65n35haw2wdjkh5p4cp")
   pid := dao.MustCreateProposal(cross2(cur),pr)
   println(pid.String())
 }

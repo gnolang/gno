@@ -132,7 +132,7 @@ import (
 )
 
 func main(cur realm) {
-	preq := cla.ProposeNewCLA("abc123hash", "https://example.com/cla-v1")
+	preq := cla.ProposeNewCLA(cross2(cur), "abc123hash", "https://example.com/cla-v1")
 	dao.MustCreateProposal(cross2(cur), preq)
 }
 
@@ -145,7 +145,7 @@ import (
 )
 
 func main(cur realm) {
-	preq := cla.ProposeNewCLA("newhash456", "https://example.com/cla-v2")
+	preq := cla.ProposeNewCLA(cross2(cur), "newhash456", "https://example.com/cla-v2")
 	dao.MustCreateProposal(cross2(cur), preq)
 }
 
@@ -158,7 +158,7 @@ import (
 )
 
 func main(cur realm) {
-	preq := cla.ProposeNewCLA("", "")
+	preq := cla.ProposeNewCLA(cross2(cur), "", "")
 	dao.MustCreateProposal(cross2(cur), preq)
 }
 
