@@ -856,6 +856,7 @@ func (m *Machine) doOpTypeSwitch() {
 	// deferred to a second pass regardless of its textual position.
 	defaultIdx := -1
 	matchedIdx := -1
+matchLoop:
 	for i := range ss.Clauses {
 		cs := &ss.Clauses[i]
 		if len(cs.Cases) == 0 {
@@ -882,11 +883,8 @@ func (m *Machine) doOpTypeSwitch() {
 			}
 			if match {
 				matchedIdx = i
-				break
+				break matchLoop
 			}
-		}
-		if matchedIdx == i {
-			break
 		}
 	}
 	if matchedIdx < 0 {
@@ -931,11 +929,11 @@ func (m *Machine) doOpSwitchClause() {
 	cliv := m.PeekValue(3) // switch clause index (reuse)
 	// Skip default clauses during the matching pass: the default is only
 	// taken if no case matches, regardless of textual position.
-	idx := cliv.GetInt()
-	for int(idx) < len(ss.Clauses) && len(ss.Clauses[idx].Cases) == 0 {
+	idx := int(cliv.GetInt())
+	for idx < len(ss.Clauses) && len(ss.Clauses[idx].Cases) == 0 {
 		idx++
 	}
-	if int(idx) >= len(ss.Clauses) {
+	if idx >= len(ss.Clauses) {
 		// no case clauses matched: run the default clause if present.
 		defaultIdx := -1
 		for i := range ss.Clauses {
@@ -963,7 +961,7 @@ func (m *Machine) doOpSwitchClause() {
 		// else: no default and no match, done.
 	} else {
 		caiv.SetInt(0)
-		cliv.SetInt(idx)
+		cliv.SetInt(int64(idx))
 		cl := &ss.Clauses[idx]
 		// try to match switch clause case(s).
 		m.PushOp(OpSwitchClauseCase)
