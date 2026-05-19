@@ -285,10 +285,14 @@ func BuildOverridePrevField(addr, pkgPath string) TypedValue {
 	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
 }
 
-// buildOriginRealm constructs a per-call origin realm matching
-// runtime.PreviousRealm() at the chain root: addr=OriginCaller,
-// pkgPath="", prev=truly-nil. Fresh per call because OriginCaller can
-// change between init() and main() within the same Machine (the test
+// buildOriginRealm constructs a per-call origin realm matching what
+// runtime.PreviousRealm() (via GetRealm) returns at the chain root for
+// the same execution context: addr=OriginCaller; prev=truly-nil; pkgPath
+// is "" for MsgCall / QueryEval / AddPkg, and is the /e/<addr>/run path
+// for MsgRun. The MsgRun case is the one that keeps cur.Previous() in
+// agreement with runtime.PreviousRealm() inside callees of `/e/` main —
+// closing the IsUserCall() spoof gap. Fresh per call because OriginCaller
+// can change between init() and main() within the same Machine (the test
 // framework sets it after RunMemPackage but before RunMainMaybeCrossing),
 // so a cached origin built at init time would be stale when main runs.
 func buildOriginRealm(m *Machine) TypedValue {
@@ -296,7 +300,14 @@ func buildOriginRealm(m *Machine) TypedValue {
 	if OriginCallerExtractor != nil && m.Context != nil {
 		addr = OriginCallerExtractor(m.Context)
 	}
-	return newRealmHIVPointer(nil, addr, "", TypedValue{})
+	var pkgPath string
+	if len(m.Frames) > 0 {
+		bp := m.Frames[0].LastPackage
+		if bp != nil && IsEphemeralPath(bp.PkgPath) {
+			pkgPath = bp.PkgPath
+		}
+	}
+	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
 }
 
 // NOTE: this init() must run before makeUverseNode() (called from the init
