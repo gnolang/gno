@@ -86,10 +86,10 @@ func ProposeNewName(cur realm, addr address, newName string) dao.ProposalRequest
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	// Check that name is not registered to someone else and if so panic
-	// to avoid creating a proposal that will panic on execution because
-	// username is already taken.
-	if data, _ := susers.ResolveName(newName); data != nil {
+	// Check that name currently is not and has been registered to someone else
+	// and if so panic to avoid creating a proposal that will panic on execution
+	// because username is already taken, so it can't be used anymore.
+	if susers.IsNameTaken(newName) {
 		panic(susers.ErrNameTaken)
 	}
 
