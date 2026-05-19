@@ -51,7 +51,7 @@ Scripts used by the one-line installer:
 
 Building from source requires:
 
-- **Go** — version **1.24+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
+- **Go** — version **1.25+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
 - **Git**
 - **Make**
 
