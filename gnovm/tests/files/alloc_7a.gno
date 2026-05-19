@@ -18,4 +18,4 @@ func main(cur realm) {
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:8986}
+// MemStats:  Allocator{maxBytes:100000000, bytes:8378}

@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"math/bits"
 	"unsafe"
 
@@ -31,8 +32,17 @@ type Allocator struct {
 	currentRealmPath string
 }
 
-// for gonative, which doesn't consider the allocator.
-var nilAllocator = (*Allocator)(nil)
+// fallbackAllocator is for the small set of pure-fn / no-Machine paths
+// that need a valid *Allocator pointer but never produce a persistable
+// composite — e.g. ConvertGetInt (IntType-only conversion), MapList.Append
+// for MapItems (which carry no ObjectInfo), and uverse-init / package-init
+// helpers. Its currentRealmID is zero, so any incidental stamp is a no-op
+// (PkgID.IsZero indistinguishable from "never set"). Its byte budget is
+// MaxInt64 so accounting never throttles.
+//
+// Production paths that *do* produce persistable composites flow through
+// m.Alloc, which has currentRealmID synced via setRealm.
+var fallbackAllocator = NewAllocator(math.MaxInt64)
 
 // Allocation size constants for gas metering.
 //
@@ -291,10 +301,6 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	if alloc == nil {
-		// this can happen for map items just prior to assignment.
-		return
-	}
 	if overflow.Addp(alloc.bytes, size) > alloc.maxBytes {
 		if alloc.collect == nil {
 			// Forked allocators (e.g. the store's tx-scoped allocator
@@ -416,10 +422,10 @@ func (alloc *Allocator) AllocateHeapItem() {
 // Anonymous composites, primitives, /p/, and stdlib types have no
 // declaring-realm constraint and pass through unchecked.
 //
-// nil t and nil alloc skip the check entirely (gonative, preprocess,
-// anonymous sub-allocations).
+// nil t skips the check (anonymous sub-allocations); alloc is assumed
+// non-nil.
 func (alloc *Allocator) checkConstructionTime(t Type) {
-	if alloc == nil || t == nil {
+	if t == nil {
 		return
 	}
 	pid := getDeclaredPkgID(t)
@@ -434,11 +440,8 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 }
 
 // stampPkgID stamps PkgID = alloc.currentRealmID on the given
-// ObjectInfo. nil alloc → no stamp (legacy / preprocess paths).
+// ObjectInfo.
 func (alloc *Allocator) stampPkgID(oi *ObjectInfo) {
-	if alloc == nil {
-		return
-	}
 	oi.SetPkgID(alloc.currentRealmID)
 }
 

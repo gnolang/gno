@@ -621,7 +621,6 @@ func doRecover(stack []BlockNode, n Node) {
 			// re-panic directly if this is a PreprocessError already.
 			panic(r)
 		}
-
 		// before re-throwing the error, append location information to message.
 		last := stack[len(stack)-1]
 		loc := last.GetLocation()
@@ -1879,7 +1878,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// Update func attributes with specified types.
 							n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 							cx := n.Func.(*ConstExpr)
-							fv2 := cx.V.(*FuncValue).Copy(nilAllocator)
+							fv2 := cx.V.(*FuncValue).Copy(store.GetAllocator())
 							fv2.Type = sft
 							cx.T = sft
 							cx.V = fv2
@@ -2050,7 +2049,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								}
 								// evaluation was skipped TRANS_LEAVE *NameExpr.
 								// PackageNode top — no cross ancestor.
-								crlm := NewConcreteRealm(nilAllocator, ctxpn.PkgPath, gOriginRealmTV)
+								crlm := NewConcreteRealm(store.GetAllocator(), ctxpn.PkgPath, gOriginRealmTV)
 								n.Args[0] = toConstExpr(nx, crlm)
 							case Name("cur"): // non-crossing call of a crossing function.
 								// Try to check that called function is local.
@@ -2203,7 +2202,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
 						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(nilAllocator)
+						fv2 := fv.Copy(store.GetAllocator())
 						fv2.Type = sft
 						cx.T = sft
 						cx.V = fv2
@@ -4283,7 +4282,11 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	if cx, ok := x.(*ConstExpr); ok {
 		return cx.TypedValue, nil
 	}
-	pv := pn.NewPackage(nilAllocator) // throwaway
+	// store.GetAllocator() may be nil here — store.BeginTransaction
+	// below forks alloc which propagates nil — and we need a non-nil
+	// alloc for pn.NewPackage. Use fallbackAllocator: this PackageValue
+	// is throwaway, never persisted.
+	pv := pn.NewPackage(fallbackAllocator) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachineWithOptions(MachineOptions{
@@ -4884,7 +4887,11 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(nilAllocator, store, &cx.TypedValue, t, true)
+		// convertConst's store may be nil (e.g. the Preprocess(nil, ...)
+		// special-case in append-iface-nil at line ~1804). The
+		// conversion lands in a ConstExpr that isn't persisted directly,
+		// so use fallbackAllocator: no stamping needed.
+		ConvertTo(fallbackAllocator, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }

@@ -192,8 +192,7 @@ var gConcreteRealmPtrType = &PointerType{Elt: gConcreteRealmType}
 // newRealmHIVPointer builds a *.grealm captured-realm TypedValue from
 // (addr, pkgPath, prevField). All callers that produce a realm value go
 // through this helper to keep the HIV+PointerValue construction in one
-// place. Pass alloc=nil to skip allocator charging (used for the global
-// placeholder origin built at package init).
+// place.
 func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedValue) TypedValue {
 	// Realm-handle values are ephemeral and forbidden from
 	// persistence (see refusePersistRealmHIV). They never reach
@@ -201,20 +200,17 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	// stamp PkgID here. Any attempt to persist them is caught by
 	// the refuse-persist guard with a clearer error than what
 	// cross-realm finalize would produce.
+	//
+	// alloc.NewHeapItem would stamp PkgID = currentRealmID, which
+	// routes through cross-realm finalize. Inline-construct the
+	// HeapItemValue instead, doing accounting but no stamp.
+	alloc.AllocateHeapItem()
 	sv := &StructValue{Fields: []TypedValue{
 		{T: gAddressType, V: StringValue(addr)},
 		{T: StringType, V: StringValue(pkgPath)},
 		prevField,
 	}}
-	var hiv *HeapItemValue
-	if alloc == nil {
-		hiv = &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
-	} else {
-		// alloc.NewHeapItem would stamp PkgID = currentRealmID,
-		// which routes through cross-realm finalize. Bypass it.
-		alloc.AllocateHeapItem()
-		hiv = &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
-	}
+	hiv := &HeapItemValue{Value: TypedValue{T: gConcreteRealmType, V: sv}}
 	return TypedValue{
 		T: gConcreteRealmPtrType,
 		V: PointerValue{TV: &hiv.Value, Base: hiv, Index: 0},
@@ -282,7 +278,7 @@ var OriginCallerExtractor func(ctx any) string
 // `cur.Previous()` after the override surfaces what X_getRealm surfaces
 // as PreviousRealm of the override frame. Exposed for X_setContext.
 func BuildOverridePrevField(addr, pkgPath string) TypedValue {
-	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
+	return newRealmHIVPointer(fallbackAllocator, addr, pkgPath, TypedValue{})
 }
 
 // buildOriginRealm constructs a per-call origin realm matching what
@@ -307,7 +303,7 @@ func buildOriginRealm(m *Machine) TypedValue {
 			pkgPath = bp.PkgPath
 		}
 	}
-	return newRealmHIVPointer(nil, addr, pkgPath, TypedValue{})
+	return newRealmHIVPointer(m.Alloc, addr, pkgPath, TypedValue{})
 }
 
 // NOTE: this init() must run before makeUverseNode() (called from the init
@@ -321,7 +317,7 @@ func init() {
 	gConcreteRealmType.Base.(*StructType).Fields[2].Type = gConcreteRealmPtrType
 
 	// Build the global placeholder origin realm now that types are wired.
-	gOriginRealmTV = newRealmHIVPointer(nil, "", "", TypedValue{})
+	gOriginRealmTV = newRealmHIVPointer(fallbackAllocator, "", "", TypedValue{})
 	gOriginRealmHIV = gOriginRealmTV.V.(PointerValue).Base.(*HeapItemValue)
 }
 
@@ -1541,7 +1537,7 @@ func makeUverseNode() {
 			}
 		},
 	)
-	uverseValue = uverseNode.NewPackage(nilAllocator)
+	uverseValue = uverseNode.NewPackage(fallbackAllocator)
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
+	"math"
 	"path"
 	"reflect"
 	"runtime"
@@ -160,8 +161,18 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 			}
 		}
 		if alloc == nil {
-			alloc = NewAllocator(opts.MaxAllocBytes) // nil if MaxAllocBytes is zero
+			if opts.MaxAllocBytes > 0 {
+				alloc = NewAllocator(opts.MaxAllocBytes)
+			} else {
+				// No budget specified: still need a real allocator so
+				// PkgID stamping works (interrealm v2). Use MaxInt64 as
+				// the "no budget enforcement" sentinel.
+				alloc = NewAllocator(math.MaxInt64)
+			}
 		}
+	}
+	if alloc == nil {
+		panic("NewMachineWithOptions: alloc must be non-nil")
 	}
 	store := opts.Store
 	if store == nil {
@@ -173,7 +184,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
-	if mm.Alloc != nil && !isPreprocessing {
+	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
 		// per-tx preprocess allocator inherited from the store: it's
 		// pre-configured with gasMeter set and collect=nil intentionally
@@ -282,14 +293,12 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // "no realm context."
 func (m *Machine) setRealm(r *Realm) {
 	m.Realm = r
-	if m.Alloc != nil {
-		if r != nil {
-			m.Alloc.currentRealmID = r.ID
-			m.Alloc.currentRealmPath = r.Path
-		} else {
-			m.Alloc.currentRealmID = PkgID{}
-			m.Alloc.currentRealmPath = ""
-		}
+	if r != nil {
+		m.Alloc.currentRealmID = r.ID
+		m.Alloc.currentRealmPath = r.Path
+	} else {
+		m.Alloc.currentRealmID = PkgID{}
+		m.Alloc.currentRealmPath = ""
 	}
 }
 
@@ -599,7 +608,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
-	pv := pn.NewPackage(nilAllocator)
+	pv := pn.NewPackage(m.Alloc)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -618,7 +627,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(nilAllocator, pv)
+	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
