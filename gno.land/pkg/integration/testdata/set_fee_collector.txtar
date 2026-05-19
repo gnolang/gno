@@ -86,7 +86,7 @@ import (
 
 func main(cur realm) {
 	collector1 := address("g1x5zmkv7gws200q887ahhvztvh833d5wpej3f52")
-	pr := params.NewSetFeeCollectorRequest(collector1)
+	pr := params.NewSetFeeCollectorRequest(cross2(cur), collector1)
 	pid := dao.MustCreateProposal(cross2(cur), pr)
 	println(pid.String())
 }
@@ -100,7 +100,7 @@ import (
 
 func main(cur realm) {
 	collector2 := address("g149244zfh3qc7zcspttmmpknkzss4esteg6f086")
-	pr := params.NewSetFeeCollectorRequest(collector2)
+	pr := params.NewSetFeeCollectorRequest(cross2(cur), collector2)
 	pid := dao.MustCreateProposal(cross2(cur), pr)
 	println(pid.String())
 }

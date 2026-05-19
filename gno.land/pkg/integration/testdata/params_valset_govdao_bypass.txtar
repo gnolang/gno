@@ -66,7 +66,7 @@ package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
+func main(cur realm) {
 	// Forge a fake-but-format-valid pubkey so WillSetParam wouldn't
 	// reject on entry parse if F1 ever silently regresses. F1 must
 	// panic before we get that far.
@@ -79,7 +79,7 @@ package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
+func main(cur realm) {
 	_ = sysparams.NewSysParamBytesPropRequest(cross2(cur), "node", "valset", "proposed", []byte("garbage"))
 }
 
@@ -88,7 +88,7 @@ package main
 
 import sysparams "gno.land/r/sys/params"
 
-func main() {
+func main(cur realm) {
 	_ = sysparams.NewSysParamBoolPropRequest(cross2(cur), "node", "valset", "dirty", true)
 }
 

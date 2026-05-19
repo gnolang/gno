@@ -84,6 +84,7 @@ func main(cur realm) {
 	valopers.Register(cross2(cur), "power-test-validator", "power-update flow regression", "cloud", address(memberAddr), addPubKey)
 
 	pr := v3.NewValidatorProposalRequest(
+		cross2(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add validator at power 1", "",
 	)
@@ -106,6 +107,7 @@ func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 
 	pr := v3.NewValidatorProposalRequest(
+		cross2(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 3)},
 		"Update validator power 1->3", "",
 	)

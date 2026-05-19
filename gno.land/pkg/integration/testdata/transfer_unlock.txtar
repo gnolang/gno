@@ -60,7 +60,7 @@ import (
 )
 
 func main(cur realm) {
-	pr := params.ProposeUnlockTransferRequest()
+	pr := params.ProposeUnlockTransferRequest(cross2(cur))
   pid := dao.MustCreateProposal(cross2(cur), pr)
   println(pid.String())
 }

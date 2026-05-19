@@ -120,6 +120,7 @@ func main(cur realm) {
 	// valoperCache for op=member at execution time and publishes the
 	// signing pubkey it finds there.
 	pr := v3.NewValidatorProposalRequest(
+		cross2(cur),
 		[]v3.ValoperChange{v3.NewValoperChange(address(memberAddr), 1)},
 		"Add e2e-test-validator",
 		"regression for v3 propagation",

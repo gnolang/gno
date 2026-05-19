@@ -75,7 +75,7 @@ import (
 )
 
 func main(cur realm) {
-	pr := sysparams.NewSysParamInt64PropRequest("node", "valoper", "rotation_period_blocks", 3)
+	pr := sysparams.NewSysParamInt64PropRequest(cross2(cur), "node", "valoper", "rotation_period_blocks", 3)
 	dao.MustCreateProposal(cross2(cur), pr)
 }
 

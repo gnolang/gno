@@ -126,6 +126,6 @@ import (
 
 func main(cur realm) {
 	addr := chain.PackageAddress("gno.land/r/sys/namereg/v1")
-	r := users.ProposeControllerRemoval(addr)
+	r := users.ProposeControllerRemoval(cross2(cur), addr)
 	dao.MustCreateProposal(cross2(cur), r)
 }
