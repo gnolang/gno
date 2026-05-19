@@ -97,13 +97,13 @@ import (
 	caller "gno.land/r/testing/bug_caller"
 )
 
-func main() {
-	caller.WorkingNew(cross)
-	caller.Set(cross,42)
+func main(cur realm) {
+	caller.WorkingNew(cross2(cur))
+	caller.Set(cross2(cur),42)
 	println("With WorkingNew:", caller.Get())
 
-	caller.BuggedNew(cross)
-	caller.Set(cross,42)
+	caller.BuggedNew(cross2(cur))
+	caller.Set(cross2(cur),42)
 	println("With BuggedNew:", caller.Get())
 }
 
