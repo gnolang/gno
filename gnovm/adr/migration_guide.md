@@ -354,6 +354,147 @@ pattern.
 
 ---
 
+## 12. `func main(cur realm)` works in `/e/` MsgRun scripts
+
+A `maketx run` script is wrapped into an ephemeral `gno.land/e/<addr>/run`
+package and invoked by `RunMain`. Originally only non-crossing
+`func main()` with bare `cross` was supported, because `/e/` is not a
+realm path and `crossingAllowed` (`preprocess.go:4510`) rejects
+crossing-fn declarations in non-realm/non-test packages.
+
+Narrow carve-out now permits a top-level `func main(cur realm)` in
+`/e/` packages — only the FuncDecl named `main`, no helper functions
+and no function literals. Same `.cur` placeholder dispatch as filetest
+crossing-main and `init(cur realm)` in realm packages:
+
+```go
+package main
+import "gno.land/r/foo"
+
+func main(cur realm) {
+    foo.Bar(cross2(cur), "arg")
+}
+```
+
+Semantic equivalence with bare-cross main: the `.cur` synthetic
+invocation does **not** set WithCross on the synthetic CallExpr, so
+the main frame is treated identically by the frame walk in `GetRealm`.
+`runtime.{Current,Previous}Realm()` and `cur.Previous()` produce the
+same values either way.
+
+Touches: `preprocess.go` `crossingAllowed`, `op_call.go`
+`doOpEnterCrossing` (matching runtime carve-out), `gno.land/pkg/sdk/vm/
+keeper.go` `RunMain` → `RunMainMaybeCrossing`.
+
+---
+
+## 13. `buildOriginRealm` propagates `/e/` pkgPath for MsgRun
+
+`buildOriginRealm` (`uverse.go`) builds the "origin realm" used as the
+`prev` of a fresh cur minted by `installCrossingCur`'s bare-cross
+fallback and the `.cur` placeholder swap path. Previously it hardcoded
+`pkgPath=""`, matching the MsgCall-direct-from-EOA shape — but wrong
+for MsgRun, where the calling code lives in `/e/<addr>/run`.
+
+Fix: consult `m.Frames[0].LastPackage.PkgPath` and propagate only when
+`IsEphemeralPath` returns true. MsgCall (synthetic main with empty
+pkgPath), QueryEval (target /r/), and AddPkg (target /r/) are
+unaffected. MsgRun's origin realm now has `pkgPath="/e/<addr>/run"`.
+
+Closes the divergence between `cur.Previous()` and
+`runtime.PreviousRealm()` for MsgRun callees — both now agree that
+the caller is the `/e/` ephemeral run script, not a bare EOA.
+`cur.Previous().IsUserCall()` no longer returns true under MsgRun
+(it would for MsgCall direct from EOA), which is the right answer
+per `CLAUDE.md`'s payment-guard guidance.
+
+---
+
+## 14. Reverted: CLOSE_LAUNDER preserve-/p/-stamp on Copy
+
+For a window, `StructValue.Copy` and `ArrayValue.Copy` preserved the
+source PkgID for `/r/` AND `/p/` (excluding stdlib) — intended to close
+a deferred-pointer-copy launder attack where a `/p/`-stamped value
+passed by pointer across a cross-call could be adopted into the
+caller's realm. That broke legitimate `/p/`-helper-copies-default
+patterns (e.g. `gno.land/p/jeronimoalbi/datasource.NewQuery`'s
+`q := defaultQuery`).
+
+Reverted in `c71fb7bfc`: gate back to `IsRealmPkg()` — preserve only
+`/r/` stamps. `/p/` copies drop the stamp and inherit the caller's
+realm via the fresh `NewStruct`/`NewListArray` stamp.
+
+The original close-launder design was sequenced with Phase 3
+frozen-realm machinery (`Realm.Frozen` + `DidUpdate`/
+`assignNewObjectID` panics on writes to frozen realms). Phase 3 was
+reverted at `7f2efb4f7`; without it, preserve-/p/-stamp alone is the
+worst of both worlds — breaks legit patterns AND doesn't fully close
+laundering at persist time. Until Phase 3 returns, keep both reverted.
+
+The previously-recommended workaround in §9 ("construct fresh inside
+the constructor") is no longer load-bearing — `/p/`-helper-copies-
+default works again.
+
+---
+
+## 15. `/p/` package state is immutable post-init via DidUpdate gate
+
+`Realm.DidUpdate` panics on writes to real (`NewTime > 0`)
+`/p/`-stamped objects in `StageRun` (covers MsgCall, MsgRun,
+QueryEval). Stdlib is exempt (legit `fmt.Println` etc. dispatch
+through the same code path).
+
+The closed attack: `(&pkg.PInitData).PMethod()` — a `/r/`-realm caller
+takes the address of a `/p/`-package-init global, invokes a
+`/p/`-method on it. The borrow rule at `PushFrameCall` Layer 2 shifts
+`m.Realm` to the receiver's package realm. For `/p/` packages
+(`pv.Realm == nil` post Phase-3-revert), the shift sets `m.Realm = nil`.
+The write inside the method body fires `Assign2` with `rlm == nil`,
+which previously short-circuited DidUpdate. Mutation succeeded silently
+in-tx (didn't persist across tx, but did affect later same-tx reads).
+
+The gate, in `realm.go` DidUpdate:
+
+```go
+func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
+    if rlm == nil {
+        if m != nil && m.Stage == StageRun && po != nil && po.GetIsReal() {
+            pid := po.GetObjectID().PkgID
+            if pid.IsImmutablePkg() && !pid.IsStdlibPkg() {
+                panic(fmt.Sprintf("cannot mutate %s: package is immutable post-init", path))
+            }
+        }
+        return
+    }
+    // ...
+}
+```
+
+`Assign2` was updated to always invoke `DidUpdate` (dropping its
+rlm-nil short-circuit), and `Assign2`/`DidUpdate`/`GetPointerAtIndex`
+all gained `*Machine` first param so the gate can read `m.Stage`.
+
+**Preserved (unaffected):**
+- `/r/`-realm internal mutations (m.Realm is /r/, gate's nil-rlm branch
+  doesn't fire).
+- `/p/`-helper methods on `/r/`-stored receivers (the list.Set /
+  avl.Tree pattern): receiver's PkgID is /r/, gate doesn't fire.
+- Stdlib mutations (IsStdlibPkg exempt).
+- `/p/`-init writes (StageAdd, gate doesn't fire).
+
+**Broken (intentional):**
+- `pkg.Singleton.Set(x)` patterns from `/r/` callers — the quirky
+  "/p/-singleton-as-scratchpad" usage where the mutation worked in-tx
+  but never persisted. `object_pointer_pure.txtar` was pinning this;
+  test now asserts the panic.
+
+For `/p/`-helper APIs that previously relied on the singleton pattern,
+the migration is to either (a) move the state to a `/r/`-realm the
+caller owns, or (b) restructure the API to take a `*T` from the caller
+rather than mutating a package singleton.
+
+---
+
 ## Appendix: open questions
 
 - **How best to mint a fresh cur after `SetRealm(NewUserRealm)`?**
