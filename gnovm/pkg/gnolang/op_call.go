@@ -188,10 +188,12 @@ func (m *Machine) doOpEnterCrossing() {
 	if !m.Package.IsRealm() {
 		// Allow crossing functions declared in *_test.gno files so p/
 		// package tests can declare `TestXxx(cur realm, t *testing.T)`
-		// and drive migrated methods. Preprocess already enforces that
-		// production code in non-realm packages cannot declare crossing
-		// functions; this runtime carve-out is the matching gate.
-		if fr1 == nil || fr1.Func == nil || !crossingFromTestFile(fr1.Func) {
+		// and drive migrated methods. Also allow the top-level `main`
+		// in ephemeral /e/ run packages so MsgRun scripts can opt into
+		// `func main(cur realm)`. Preprocess already enforces both
+		// carve-outs; this runtime check is the matching gate.
+		if !IsEphemeralPath(m.Package.PkgPath) &&
+			(fr1 == nil || fr1.Func == nil || !crossingFromTestFile(fr1.Func)) {
 			panic("expected crossing function in a realm package")
 		}
 	}
