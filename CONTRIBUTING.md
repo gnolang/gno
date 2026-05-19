@@ -13,7 +13,7 @@ Thank you for contributing to Gno! This guide will help you get started.
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - Unix environment (Linux/macOS/WSL2)
 - `make` command
 
