@@ -1981,6 +1981,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// This is fine; e.g. somefunc()(cur,...)
 								} else if ftv.IsUndefined() {
 									// Interface... what can we do?
+								} else if ftv.V == nil {
+									// Local variable holding a func value:
+									// static eval couldn't bind the value
+									// (only the type), so we defer the
+									// same-realm check to runtime. The
+									// runtime check at machine.go (~line
+									// where IsCrossing is checked in
+									// PushFrameCall) enforces the same
+									// invariant authoritatively.
 								} else {
 									fpp := ftv.GetUnboundFunc().PkgPath
 									if fpp != ctxpn.PkgPath {
