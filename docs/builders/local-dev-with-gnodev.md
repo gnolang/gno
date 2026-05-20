@@ -95,9 +95,6 @@ code changes.
 Directory watching, as well as transaction replaying, can be disabled with the
 `-no-watch` and `-no-replay` flags, respectively.
 
-With the main features of `gnodev` out of the way, let's dive into a practical
-example.
-
 ## Default test account
 
 `gnodev` uses a standard test account that is consistent across all Gno tooling
@@ -123,6 +120,9 @@ used for local development and testing. Never send real assets to this address
 or use it on any public network.
 
 ## Practical example
+
+With the main features of `gnodev` out of the way, let's dive into a practical
+example.
 
 Let's use the local file structure we set up in the [previous tutorial](anatomy-of-a-gno-package.md):
 
