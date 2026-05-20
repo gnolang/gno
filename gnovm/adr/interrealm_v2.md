@@ -64,10 +64,8 @@ the object.
 
 ### Method dispatch borrow (layered, extends current HEAD)
 
-The borrow rule in `PushFrameCall` now has three layers — Layer 2 was
-extended to cover unreal receivers in interrealm v2, and Layer 3 was
-added as part of the closure-as-capability work to plug the persisted
-`/p/`-declared closure case that neither earlier layer caught:
+The borrow rule in `PushFrameCall` stays in two layers but the second
+layer changes:
 
 ```go
 // Layer 1 (unchanged): /r/-declared callable in foreign realm →
@@ -92,24 +90,6 @@ if recv.IsDefined() {
         if !ownerPkgID.IsZero() &&
             (m.Realm == nil || ownerPkgID != m.Realm.ID) {
             m.setRealm(m.Store.GetRealmByID(ownerPkgID))
-        }
-    }
-}
-
-// Layer 3 (new): /p/-declared closure (FuncLit, not FuncDecl) →
-// borrow to the realm whose authority was active at construction
-// time. fv.GetObjectInfo().ID.PkgID is set by Alloc.stampPkgID at
-// doOpFuncLit using m.Alloc.currentRealmID, so for a closure built
-// inside /r/A.init (even via a /p/-package factory) it is /r/A,
-// not /p/X. Realizes "closure = capability": invoking a persisted
-// closure runs its body under the realm owning its captures.
-if fv.IsClosure {
-    pid := fv.GetObjectInfo().ID.PkgID
-    if !pid.IsZero() && (m.Realm == nil || pid != m.Realm.ID) {
-        if pobj := m.Store.GetObject(ObjectIDFromPkgID(pid)); pobj != nil {
-            if objpv, ok := pobj.(*PackageValue); ok {
-                m.setRealm(objpv.GetRealm())
-            }
         }
     }
 }

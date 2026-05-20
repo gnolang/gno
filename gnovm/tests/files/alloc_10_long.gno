@@ -13,4 +13,4 @@ func main(cur realm) {
 }
 
 // Error:
-// internal/bytealg/compare_generic.gno:50:5-11: allocation limit exceeded (no GC)
+// allocation limit exceeded

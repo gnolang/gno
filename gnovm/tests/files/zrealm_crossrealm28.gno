@@ -44,7 +44,7 @@ func main(cur realm) {
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",
-//     -            "Hash": "5c3b4df4ca7c54a7afa7d5c4fae642c0bc7e5008",
+//     -            "Hash": "96214e77f85612fdb4bb5747733019186d7c0d31",
 //     -            "ObjectID": "0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7"
 //     +            "@type": "/gno.PrimitiveType",
 //     +            "value": "32"
@@ -56,12 +56,12 @@ func main(cur realm) {
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
-//     -                "Hash": "81bbed7e9373819775ba78c77b449e34411a0d1a",
+//     -                "Hash": "8b818130304ab298cb0b239d6af1a796837ca348",
 //     +                "Hash": "e996949245f6e4aeee7ed227417810c09d7639d6",
 //                      "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:13"
 //                  }
 //              },
-// d[0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7](-299)
+// d[0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:7](-297)
 // finalizerealm["gno.land/r/crossrealm"]
 // u[0c8307f7bbe97fdb07b2d0fa6907b8d67517c02a:9](5)=
 //     @@ -1,7 +1,7 @@

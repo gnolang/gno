@@ -1650,7 +1650,6 @@ func copyValueWithRefs(val Value) Value {
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Type:       ft,
 			IsMethod:   cv.IsMethod,
-			IsClosure:  cv.IsClosure,
 			Source:     source,
 			Name:       cv.Name,
 			Parent:     parent,
