@@ -18,10 +18,6 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
-# cutoff: now - WINDOW_DAYS, as RFC3339
-cutoff=$(date -u -d "${WINDOW_DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
-  || gdate -u -d "${WINDOW_DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ)
-
 while IFS= read -r line; do
   # skip blanks and comments
   [[ -z "${line// }" || "$line" =~ ^# ]] && continue
@@ -30,20 +26,16 @@ while IFS= read -r line; do
   name="${repo##*/}"
   out="$DATA_DIR/${owner}--${name}.json"
 
-  echo ">> fetching $repo (cutoff $cutoff)" >&2
+  echo ">> fetching $repo" >&2
 
   query="$(cat "$QUERY_FILE")"
-  # Single page for now. Pagination can be added if a repo has >100 open issues
-  # or PRs updated within the window.
+  # Single page of 50, ordered by UPDATED_AT DESC. Pagination not yet implemented.
   if ! gh api graphql \
         -F owner="$owner" -F name="$name" \
         -f query="$query" > "$out.tmp"; then
-    rc=$?
-    if [[ $rc -ne 0 ]]; then
-      echo "gh-report: failed to fetch $repo (rc=$rc), skipping" >&2
-      rm -f "$out.tmp"
-      continue
-    fi
+    echo "gh-report: failed to fetch $repo, skipping" >&2
+    rm -f "$out.tmp"
+    continue
   fi
 
   # Detect rate-limit errors in body.
