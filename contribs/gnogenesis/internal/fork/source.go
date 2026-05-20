@@ -34,21 +34,23 @@ type Source interface {
 }
 
 // openSource auto-detects the source type from the provided string and
-// returns the appropriate Source implementation.
+// returns the appropriate Source implementation. rpcWorkersPerEndpoint is
+// only consulted when the resolved source is an RPC pool; pass 0 to fall
+// back to defaultWorkersPerEndpoint.
 //
 // Detection order:
-//  1. http:// or https:// prefix → RPC source
-//  2. directory path that exists → local directory source
-//  3. file ending in .json        → single genesis file source
-//  4. file ending in .tar.gz/.tgz → tarball source (future)
-func openSource(s string) (Source, error) {
-	// RPC source
-	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
-		u, err := url.Parse(s)
-		if err != nil {
-			return nil, fmt.Errorf("invalid RPC URL: %w", err)
-		}
-		return newRPCSource(u.String())
+//  1. comma-separated http(s) URLs → multi-endpoint RPC source
+//  2. http:// or https:// prefix   → single-endpoint RPC source
+//  3. directory path that exists   → local directory source
+//  4. file ending in .json          → single genesis file source
+//  5. file ending in .tar.gz/.tgz   → tarball source (future)
+func openSource(s string, rpcWorkersPerEndpoint int) (Source, error) {
+	// RPC source: any comma-bearing input, or anything starting with an
+	// http(s) scheme (after trimming surrounding whitespace), is routed
+	// through openRPCSource which parses one or more URLs.
+	trimmed := strings.TrimSpace(s)
+	if strings.Contains(s, ",") || strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+		return openRPCSource(s, rpcWorkersPerEndpoint)
 	}
 
 	// Local path
@@ -72,4 +74,29 @@ func openSource(s string) (Source, error) {
 	}
 
 	return nil, fmt.Errorf("unrecognised source %q: expected http(s) URL, directory, .json file, or .tar.gz", s)
+}
+
+// openRPCSource parses s as one or more http(s) URLs separated by commas and
+// returns an rpcSource whose client pool spans every URL. Whitespace is
+// trimmed; empty segments are skipped; any non-http(s) segment is an error.
+func openRPCSource(s string, workersPerEndpoint int) (Source, error) {
+	parts := strings.Split(s, ",")
+	urls := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if !strings.HasPrefix(p, "http://") && !strings.HasPrefix(p, "https://") {
+			return nil, fmt.Errorf("--source segment %q must start with http:// or https://", p)
+		}
+		if _, err := url.Parse(p); err != nil {
+			return nil, fmt.Errorf("invalid RPC URL %q: %w", p, err)
+		}
+		urls = append(urls, p)
+	}
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("--source contained no usable URLs")
+	}
+	return newRPCSource(workersPerEndpoint, urls...)
 }
