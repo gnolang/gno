@@ -144,19 +144,19 @@ func TestIsReadyToMerge(t *testing.T) {
 	}{
 		{
 			"approved + green + mergeable",
-			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRollup: "SUCCESS",
 				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
 			true,
 		},
 		{
 			"approved but draft",
-			Entry{Kind: KindPR, IsDraft: true, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+			Entry{Kind: KindPR, IsDraft: true, Mergeable: "MERGEABLE", StatusCheckRollup: "SUCCESS",
 				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
 			false,
 		},
 		{
 			"approved but unresolved changes-requested from another reviewer",
-			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRollup: "SUCCESS",
 				Reviews: []Review{
 					{Author: "moul", State: "APPROVED", SubmittedAt: mustTime("2026-05-19T00:00:00Z")},
 					{Author: "alice", State: "CHANGES_REQUESTED", SubmittedAt: mustTime("2026-05-18T00:00:00Z")},
@@ -165,7 +165,7 @@ func TestIsReadyToMerge(t *testing.T) {
 		},
 		{
 			"approved + reviewer later approved (overriding own changes-requested)",
-			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "SUCCESS",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRollup: "SUCCESS",
 				Reviews: []Review{
 					{Author: "alice", State: "CHANGES_REQUESTED", SubmittedAt: mustTime("2026-05-18T00:00:00Z")},
 					{Author: "alice", State: "APPROVED", SubmittedAt: mustTime("2026-05-19T00:00:00Z")},
@@ -174,13 +174,13 @@ func TestIsReadyToMerge(t *testing.T) {
 		},
 		{
 			"mergeable unknown",
-			Entry{Kind: KindPR, Mergeable: "UNKNOWN", StatusCheckRoll: "SUCCESS",
+			Entry{Kind: KindPR, Mergeable: "UNKNOWN", StatusCheckRollup: "SUCCESS",
 				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
 			false,
 		},
 		{
 			"CI failing",
-			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRoll: "FAILURE",
+			Entry{Kind: KindPR, Mergeable: "MERGEABLE", StatusCheckRollup: "FAILURE",
 				Reviews: []Review{{Author: "moul", State: "APPROVED"}}},
 			false,
 		},
