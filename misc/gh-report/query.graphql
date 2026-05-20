@@ -1,0 +1,94 @@
+query($owner: String!, $name: String!, $issuesCursor: String, $prsCursor: String) {
+  repository(owner: $owner, name: $name) {
+    issues(
+      first: 100
+      states: OPEN
+      orderBy: {field: UPDATED_AT, direction: DESC}
+      after: $issuesCursor
+    ) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number
+        title
+        url
+        createdAt
+        updatedAt
+        author {
+          __typename
+          login
+          ... on User { createdAt }
+        }
+        authorAssociation
+        assignees(first: 10) { nodes { login } }
+        labels(first: 20) { nodes { name } }
+        reactions { totalCount }
+        comments(last: 5) {
+          totalCount
+          nodes {
+            author { __typename login }
+            createdAt
+            body
+          }
+        }
+      }
+    }
+    pullRequests(
+      first: 100
+      states: OPEN
+      orderBy: {field: UPDATED_AT, direction: DESC}
+      after: $prsCursor
+    ) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number
+        title
+        url
+        createdAt
+        updatedAt
+        isDraft
+        mergeable
+        author {
+          __typename
+          login
+          ... on User { createdAt }
+        }
+        authorAssociation
+        assignees(first: 10) { nodes { login } }
+        reviewRequests(first: 20) {
+          nodes {
+            requestedReviewer {
+              ... on User { login }
+            }
+          }
+        }
+        labels(first: 20) { nodes { name } }
+        reactions { totalCount }
+        comments(last: 5) {
+          totalCount
+          nodes {
+            author { __typename login }
+            createdAt
+            body
+          }
+        }
+        reviews(last: 50) {
+          nodes {
+            author { login }
+            state
+            submittedAt
+          }
+        }
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup { state }
+            }
+          }
+        }
+        timelineItems(last: 20, itemTypes: [REVIEW_REQUESTED_EVENT]) {
+          nodes { __typename }
+        }
+      }
+    }
+  }
+}
