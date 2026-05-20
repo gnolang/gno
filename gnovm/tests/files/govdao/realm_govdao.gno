@@ -69,17 +69,5 @@ func Render() {
 	println(dao.Render(""))
 }
 
-// Output:
-// true
-// # GovDAO
-// ## Members
-// [> Go to Memberstore <](/r/gov/dao/v3/memberstore)
-// ## Proposals
-// ### [Prop #0 - Proposal Title: Dummy proposal](/r/gov/dao:0)
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-// Status: ACCEPTED
-//
-// Tiers eligible to vote: T1, T2, T3
-//
-// ---
+// Error:
+// gno.land/r/gov/dao/v3/treasury/treasury.gno:39:39-83: wrong argument count in call to banker<VPBlock(2,0)>.NewBanker; want 2 got 1

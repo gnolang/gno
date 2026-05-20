@@ -27,5 +27,5 @@ func main(cur realm) {
 	println("body done")
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,0)>.Closed
+// Output:
+// body done

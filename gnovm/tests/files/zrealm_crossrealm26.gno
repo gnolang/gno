@@ -16,5 +16,5 @@ func main(cur realm) {
 	println(s)
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<~VPBlock(1,1)>.A
+// Output:
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct)

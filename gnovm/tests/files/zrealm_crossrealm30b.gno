@@ -40,4 +40,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): sa<VPBlock(1,1)>.A
+// sa.A should not be mutable; it should be attached to crossrealm_b.

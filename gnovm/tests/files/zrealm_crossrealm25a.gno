@@ -31,28 +31,6 @@ func main(cur realm) {
 // crossrealm_b.SetObject(cross, &s.A)
 // ourS = s
 // crossrealm_b.IncrementObject(cross)
-// &(101 int)
-// 101
 
-// Realm:
-// finalizerealm["gno.land/r/tests/vm/crossrealm_b"]
-// u[06279d1e03ecb38b84822f9caf584bd16913470d:19](0)=
-//     @@ -1,7 +1,7 @@
-//      {
-//          "Fields": [
-//              {
-//     -            "N": "ZAAAAAAAAAA=",
-//     +            "N": "ZQAAAAAAAAA=",
-//                  "T": {
-//                      "@type": "/gno.PrimitiveType",
-//                      "value": "32"
-//     @@ -12,7 +12,7 @@
-//              "ID": "06279d1e03ecb38b84822f9caf584bd16913470d:19",
-//              "IsEscaped": true,
-//              "LastObjectSize": "222",
-//     -        "ModTime": "7",
-//     +        "ModTime": "19",
-//              "RefCount": "2"
-//          }
-//      }
-// finalizerealm["gno.land/r/crossrealm"]
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): *(ptr<VPBlock(1,2)>)

@@ -24,6 +24,8 @@ func main() {
 // [{1} {2} {3} {4}]
 
 // Realm:
+// finalizerealm["os"]
+// finalizerealm["os"]
 // finalizerealm["gno.land/r/main"]
 // c[09b6b63cc3f789fda754d95769bbf99bf64c5cb4:21](215)={
 //     "Fields": [

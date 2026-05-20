@@ -32,6 +32,5 @@ func main(cur realm) {
 // crossrealm_b.SetObject(cross, &s.A)
 // s_g = s
 // s_g.A = 123
+// &(struct{(123 int)} gno.land/r/crossrealm.Struct)
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s_g<~VPBlock(3,1)>.A

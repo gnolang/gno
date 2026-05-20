@@ -21,5 +21,5 @@ func main(cur realm) {
 	println("after Modify; Field =", p.Field)
 }
 
-// Output:
-// after Modify; Field = modified
+// Error:
+// cannot mutate immutable package gno.land/p/demo/tests: object 4609759cdf9e3b49753fd5632a02365700aff2b6:20

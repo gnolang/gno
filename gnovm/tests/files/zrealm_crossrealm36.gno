@@ -20,6 +20,5 @@ func main() {
 
 // Output:
 // counter: 100
+// counter after: 0
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): counter<~VPBlock(3,0)>

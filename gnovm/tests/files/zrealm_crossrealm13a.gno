@@ -59,7 +59,8 @@ func PrintRealm(cur realm) {
 // PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
 // PrintRealm: PreviousRealm: UserRealm{ g1user }
 // CurrentRealm:              UserRealm{ g1user }
-// PreviousRealm:             frame not found: cannot seek beyond origin caller override
+// PreviousRealm:             UserRealm{ g1user }
+// PreviousRealm:             undefined
 //
 // From gno.land/r/sys/users realm:
 // PrintRealm: CurrentRealm:  CodeRealm{ g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02, gno.land/r/demo/groups }
