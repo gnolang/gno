@@ -94,7 +94,6 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 140.6ns
 	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 195.9ns
 	{Pkg: "chain/banker", Fn: "originSend", Base: 280, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 280.4ns
-	{Pkg: "chain/banker", Fn: "assertCallerIsRealm", Base: 701, SlopeIdx: -1, SlopeKind: SizeFlat},                                                               // flat, median 700.8ns
 	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000
 	{Pkg: "chain/params", Fn: "SetString", Base: 1772, Slope: 135, SlopeIdx: 1, SlopeKind: SizeLenString},                                                        // fit base=1772.3ns slope=0.1323ns/N (=135/1024) R²=0.933
 	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 1643.0ns

@@ -43,7 +43,12 @@ type realm interface {
     Address() address
     PkgPath() string
     Previous() realm
-    Origin() realm
+    IsCode() bool
+    IsUser() bool
+    IsUserCall() bool
+    IsUserRun() bool
+    IsEphemeral() bool
+    IsCurrent() bool
     String() string
 }
 type Realm = realm
@@ -69,6 +74,7 @@ import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
 var cross realm // shim
+func cross2(rlm realm) realm { return rlm } // shim — explicit cross-call form, coexists with bare cross during 0.9 transition. See gnovm/adr/pr_cross2_explicit_cross.md
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address

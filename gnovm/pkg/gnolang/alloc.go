@@ -18,6 +18,17 @@ type Allocator struct {
 	bytes    int64
 	collect  func() (left int64, ok bool) // gc callback
 	gasMeter store.GasMeter
+
+	// currentRealmID mirrors m.Realm.ID at all times. Synced via
+	// Machine.setRealm at every realm transition (interrealm v2 Phase 1).
+	// Used by allocator constructors at Phase 2 to stamp PkgID
+	// onto newly-allocated objects' ObjectInfo without needing a
+	// *Machine reference. Zero when m.Realm is nil.
+	currentRealmID PkgID
+	// currentRealmPath mirrors m.Realm.Path; used in
+	// checkConstructionTime's panic message so users see a readable
+	// realm path rather than an opaque PkgID hex.
+	currentRealmPath string
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -66,7 +77,7 @@ const (
 	_allocMapValue         = 168 // unsafe.Sizeof(MapValue{})
 	_allocBoundMethodValue = 200 // unsafe.Sizeof(BoundMethodValue{})
 	_allocBlock            = 528 // unsafe.Sizeof(Block{})
-	_allocPackageValue     = 272 // unsafe.Sizeof(PackageValue{})
+	_allocPackageValue     = 296 // unsafe.Sizeof(PackageValue{}) — interrealm v2 +24 bytes for PkgID field (Hashlet + alignment)
 	_allocHeapItemValue    = 192 // unsafe.Sizeof(HeapItemValue{})
 	_allocRefNode          = 88  // unsafe.Sizeof(RefNode{}) -- TODO verify
 
@@ -221,6 +232,17 @@ func NewAllocator(maxBytes int64) *Allocator {
 
 func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
 	alloc.collect = f
+}
+
+// GetGasMeter returns the gas meter wired to this allocator (or nil).
+// Used by NewMachineWithOptions when a sub-Machine inherits the
+// preprocess allocator from the store and needs the same gas meter for
+// CPU-gas charging via m.incrCPU.
+func (alloc *Allocator) GetGasMeter() store.GasMeter {
+	if alloc == nil {
+		return nil
+	}
+	return alloc.gasMeter
 }
 
 func (alloc *Allocator) SetGasMeter(gasMeter store.GasMeter) {
@@ -379,22 +401,65 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
+// checkConstructionTime panics if asked to construct a /r/-declared
+// type when the executing realm is different. interrealm v2 Phase 2 — the
+// enforcement of "storage = authority": every meaningfully-constructed
+// /r/-typed object must originate inside its declaring realm.
+//
+// Only fires at user-visible construction sites: composite literals
+// (doOpStructLit/ArrayLit/MapLit/SliceLit*) and the new()/make()
+// uverse builtins. Zero-value defaults (return-slot init, var
+// declarations, copies) are not "construction" in the sense that
+// matters here — they are anonymous placeholders that will be
+// overwritten or carry a copied PkgID.
+//
+// Anonymous composites, primitives, /p/, and stdlib types have no
+// declaring-realm constraint and pass through unchecked.
+//
+// nil t and nil alloc skip the check entirely (gonative, preprocess,
+// anonymous sub-allocations).
+func (alloc *Allocator) checkConstructionTime(t Type) {
+	if alloc == nil || t == nil {
+		return
+	}
+	pid := getDeclaredPkgID(t)
+	if !pid.IsRealmPkg() {
+		return
+	}
+	if pid != alloc.currentRealmID {
+		panic(fmt.Sprintf(
+			"cannot allocate %s in realm %s",
+			t.String(), alloc.currentRealmPath))
+	}
+}
+
+// stampPkgID stamps PkgID = alloc.currentRealmID on the given
+// ObjectInfo. nil alloc → no stamp (legacy / preprocess paths).
+func (alloc *Allocator) stampPkgID(oi *ObjectInfo) {
+	if alloc == nil {
+		return
+	}
+	oi.SetPkgID(alloc.currentRealmID)
+}
+
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }
 
-func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
 	alloc.AllocateListArray(int64(n))
-	return &ArrayValue{
+	av := &ArrayValue{
 		List: make([]TypedValue, n),
 	}
+	alloc.stampPkgID(&av.ObjectInfo)
+	return av
 }
 
-func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
+func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 	if l < 0 || c < 0 {
 		panic(&Exception{Value: typedString("len or cap out of range")})
 	}
@@ -404,24 +469,28 @@ func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
 	}
 
 	alloc.AllocateListArray(int64(c))
-	return &ArrayValue{
+	av := &ArrayValue{
 		List: make([]TypedValue, l, c),
 	}
+	alloc.stampPkgID(&av.ObjectInfo)
+	return av
 }
 
-func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
+func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
 	}
 
 	alloc.AllocateDataArray(int64(n))
-	return &ArrayValue{
+	av := &ArrayValue{
 		Data: make([]byte, n),
 	}
+	alloc.stampPkgID(&av.ObjectInfo)
+	return av
 }
 
-func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
-	av := alloc.NewDataArray(len(data))
+func (alloc *Allocator) NewArrayFromData(t Type, data []byte) *ArrayValue {
+	av := alloc.NewDataArray(t, len(data))
 	copy(av.Data, data)
 	return av
 }
@@ -445,14 +514,19 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 // NOTE: cap(list) is propagated directly into the Gno SliceValue.Maxcap.
 // Callers must ensure cap(list) == len(list) to produce deterministic results
 // across Go versions (Go's append growth strategy is unspecified).
+// SliceValue is not an Object (no ObjectInfo); only the inner ArrayValue
+// (Base) gets PkgID stamped — at currentRealmID since slices/arrays are
+// anonymous composites.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
+	base := &ArrayValue{
+		List: fullList,
+	}
+	alloc.stampPkgID(&base.ObjectInfo)
 	return &SliceValue{
-		Base: &ArrayValue{
-			List: fullList,
-		},
+		Base:   base,
 		Offset: 0,
 		Length: len(list),
 		Maxcap: cap(list),
@@ -466,10 +540,12 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
 	fullData := data[:cap(data)]
+	base := &ArrayValue{
+		Data: fullData,
+	}
+	alloc.stampPkgID(&base.ObjectInfo)
 	return &SliceValue{
-		Base: &ArrayValue{
-			Data: fullData,
-		},
+		Base:   base,
 		Offset: 0,
 		Length: len(data),
 		Maxcap: cap(data),
@@ -477,11 +553,13 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 }
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
-func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
+func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
-	return &StructValue{
+	sv := &StructValue{
 		Fields: fields,
 	}
+	alloc.stampPkgID(&sv.ObjectInfo)
+	return sv
 }
 
 func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
@@ -490,37 +568,48 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 }
 
 // NOTE: fields will be allocated.
-func (alloc *Allocator) NewStructWithFields(fields ...TypedValue) *StructValue {
+func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
-	return alloc.NewStruct(tvs)
+	return alloc.NewStruct(t, tvs)
 }
 
-func (alloc *Allocator) NewMap(size int) *MapValue {
+func (alloc *Allocator) NewMap(t Type, size int) *MapValue {
 	alloc.AllocateMap(int64(size))
 	mv := &MapValue{}
 	mv.MakeMap(size)
+	alloc.stampPkgID(&mv.ObjectInfo)
 	return mv
 }
 
-// Only used for constructing the main package
+// Only used for constructing the main package. Both the PackageValue
+// and its top-level Block share the package's own PkgID — they live
+// in the package's authority.
 func (alloc *Allocator) NewPackageValue(pn *PackageNode) *PackageValue {
 	alloc.AllocatePackageValue()
 	alloc.AllocateBlock(int64(pn.GetNumNames()))
+	pkgID := pn.GetPkgID()
+	blk := &Block{
+		Source: pn,
+	}
+	blk.ObjectInfo.SetPkgID(pkgID)
 	pv := &PackageValue{
-		Block: &Block{
-			Source: pn,
-		},
+		Block:      blk,
 		PkgName:    pn.PkgName,
 		PkgPath:    pn.PkgPath,
+		PkgID:      pkgID,
 		FNames:     nil,
 		FBlocks:    nil,
 		fBlocksMap: make(map[string]*Block),
 	}
+	pv.ObjectInfo.SetPkgID(pkgID)
 
 	return pv
 }
 
+// NewBlock allocates a fresh Block. Blocks belong to the executing
+// package's realm (currentRealmID), since a Block represents a
+// lexical scope inside that realm's running code.
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(alloc, source, parent)
@@ -531,9 +620,11 @@ func (alloc *Allocator) NewType(t Type) Type {
 	return t
 }
 
-func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
+func (alloc *Allocator) NewHeapItem(t Type, tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
-	return &HeapItemValue{Value: tv}
+	hiv := &HeapItemValue{Value: tv}
+	alloc.stampPkgID(&hiv.ObjectInfo)
+	return hiv
 }
 
 // -----------------------------------------------

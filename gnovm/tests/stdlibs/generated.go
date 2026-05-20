@@ -654,6 +654,58 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
+		"makeRealm",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("realm")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("realm")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV)
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			r0 := testlibs_testing.X_makeRealm(
+				m,
+				p0, p1, p2)
+
+			m.PushValue(r0)
+		},
+	},
+	{
+		"testing",
+		"originRealm",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("realm")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := testlibs_testing.X_originRealm(
+				m,
+			)
+
+			m.PushValue(r0)
+		},
+	},
+	{
+		"testing",
 		"setSysParamStrings",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},

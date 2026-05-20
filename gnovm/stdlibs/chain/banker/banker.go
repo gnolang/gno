@@ -96,13 +96,6 @@ func CompactCoins(denoms []string, amounts []int64) std.Coins {
 	return coins
 }
 
-func X_assertCallerIsRealm(m *gno.Machine) {
-	frame := m.Frames[m.NumFrames()-2]
-	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
-		m.PanicString("caller is not a realm")
-	}
-}
-
 func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := execctx.GetContext(m).OriginSend
 	return ExpandCoins(os)

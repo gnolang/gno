@@ -50,11 +50,11 @@ func isOriginCall(m *gno.Machine) bool {
 		// 1. $RealmFuncName
 		// 2. runtime.AssertOriginCall
 		return callFrames == 3
-	case "RunTest": // test is a _test
+	case "RunTest", "runTest_cur": // _test, with or without (cur realm, t *testing.T)
 		// Non-closure frames expected:
-		// 0. testing.RunTest
-		// 1. tRunner
-		// 2. $TestFuncName
+		// 0. testing.RunTest / runTest_cur
+		// 1. tRunner / tRunner_cur
+		// 2. $TestFuncName / $TestFuncName_cur
 		// 3. $RealmFuncName
 		// 4. runtime.AssertOriginCall
 		return callFrames == 5
@@ -94,7 +94,18 @@ func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 		override, overridden := getOverride(m, i)
 		if overridden {
 			if override.PkgPath == "" && crosses < height {
-				m.Panic(typedString("frame not found: cannot seek beyond origin caller override"))
+				// v3a-friendly behavior: a user-realm override
+				// reached before we've accumulated `height`
+				// crossings is the EOA boundary — skip it and
+				// let the switch fallthrough return
+				// ctx.OriginCaller for the matching height.
+				// Previously this panicked with
+				// "cannot seek beyond origin caller override"
+				// which blocked runtime.Caller() in v3a-style
+				// tests where there is no manual cross()
+				// scaffolding above the override.
+				lfr = fr
+				continue
 			}
 		}
 		if !overridden {

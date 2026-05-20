@@ -141,6 +141,16 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
+// IsTestOverlayPath reports whether pkgPath is a transient _test overlay
+// of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
+// gno.land/r/foo_test). Test overlays exist only during test runs and
+// never deploy, so they share the underlying package's authority
+// semantics for interrealm v2 Phase 2 classification.
+func IsTestOverlayPath(pkgPath string) bool {
+	base, ok := strings.CutSuffix(pkgPath, "_test")
+	return ok && (IsPPackagePath(base) || IsRealmPath(base))
+}
+
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {

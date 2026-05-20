@@ -3,8 +3,32 @@
 These are an attempt to go over some cases systematically.  It may help to go
 over these cases, but they are rather repetitive.  In the future as more cases
 are considered, they should be added here systematically, and also duplicated
-in gno.land/pkg/integration/testdata/interrealm_final.txtar.  That file should
+in gno.land/pkg/integration/testdata/interrealm_v2.txtar.  That file should
 ideally be transcribed as a test file that makes use of revive() and "testing".
+
+This document has been updated for **interrealm spec v2** (see
+`gnovm/adr/interrealm_v2.md`).  The v1 case outcomes ("do not storage-cross"
+etc.) are preserved in the three sibling test files
+(`interrealm_final.txtar`, `interrealm_mix_call.txtar`, `interrealm_mix_run.txtar`)
+for historical comparison; the affirmative-coverage v2 test suite lives in
+`interrealm_v2.txtar`.
+
+The two key v2 semantics changes relative to v1:
+
+1. **Layer 1 (declaring-realm borrow) fires uniformly** for every /r/-declared
+   callable — function, method on any receiver shape, closure whose
+   construction site was /r/X, or interface dispatch to an /r/X-declared
+   method.  m.Realm shifts to /r/X for the call duration.  v1 fired this only
+   for some method shapes; v2 makes it uniform, so the "do not storage-cross"
+   cases of v1 now correctly route writes back to the declaring realm at each
+   hop.
+
+2. **Construction-time enforcement.**  Foreign /r/-declared types cannot be
+   constructed via composite literal, `new(...)`, or `make(...)` from outside
+   the declaring realm.  Several v1 cases that used `new(alice.Object)` from a
+   caller realm now fail at construction time rather than at the later
+   storage-cross check.  Use a constructor function (e.g. `alice.NewObject()`)
+   to mint foreign-realm objects through the declaring realm.
 
 "Storage-crossing" is like (regular) crossing for method calls except it
 does not affect CurrentRealm()/PreviousRealm(). Since method calls can
@@ -24,25 +48,25 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 ## fn is declared /r/realm:
 
  * fn is (non-crossing) function declared in /r/realm:
-   - CASE rA1: function declared at package level                   -- do not storage-cross
-   - CASE rA2: function declared in func(...) (non-crossing)        -- do not storage-cross
-   - CASE rA3: function declared in func(cur realm, ...) (crossing) -- do not storage-cross
+   - CASE rA1: function declared at package level                   -- Layer 1 borrows (succeeds)
+   - CASE rA2: function declared in func(...) (non-crossing)        -- Layer 1 borrows (succeeds)
+   - CASE rA3: function declared in func(cur realm, ...) (crossing) -- Layer 1 borrows (succeeds)
 
  * fn is method declared in /r/realm (nil or unreal receiver):
-   - CASE rB1: method has nil receiver                              -- do not storage-cross
-   - CASE rB2: method has nil receiver (external)                   -- do not storage-cross
-   - CASE rB3: method has unreal receiver (inline)                  -- do not storage-cross
-   - CASE rB4: method has unreal receiver (var)                     -- do not storage-cross
+   - CASE rB1: method has nil receiver                              -- Layer 1 borrows (succeeds)
+   - CASE rB2: method has nil receiver (external)                   -- Layer 1 borrows (succeeds)
+   - CASE rB3: method has unreal receiver (inline)                  -- construction-time panic
+   - CASE rB4: method has unreal receiver (var)                     -- construction-time panic
 
  * fn is method declared in /r/realm (real receiver):
-   - CASE rC1: method has real receiver                             -- storage-cross to receiver
-   - CASE rC2: method has real receiver (external)                  -- storage-cross to receiver
-   - CASE rC3: method has real receiver via closure                 -- storage-cross to receiver
-   - CASE rC4: method has real receiver via closure (external)      -- storage-cross to receiver
-   - CASE rC5: method has real receiver via closure too late        -- do not storage-cross
+   - CASE rC1: method has real receiver                             -- construction-time panic
+   - CASE rC2: method has real receiver (external)                  -- construction-time panic
+   - CASE rC3: method has real receiver via closure                 -- construction-time panic
+   - CASE rC4: method has real receiver via closure (external)      -- construction-time panic
+   - CASE rC5: method has real receiver via closure too late        -- construction-time panic
 
  * fn is crossing function declared in /r/realm:
-   - CASE rD1: direct modification from external closure            -- illegal modification
+   - CASE rD1: direct modification from external closure            -- illegal modification (static)
 
 ----------------------------------------
 ## fn is declared in /p/package:
@@ -50,26 +74,26 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 These cases are similar to /r/realm except for CASE rA3 and rD1 since
 /p/package cannot contain crossing functions.
 
-Note that the test cases in interrealm_final.txtar are similar but modified to
+Note that the test cases in interrealm_v2.txtar are similar but modified to
 account for the difference between realm and pure package.
 
  * fn is function declared in /p/package:
-   - CASE pA1: function declared at package level                   -- do not storage-cross
-   - CASE pA2: function declared in func(...) (non-crossing)        -- do not storage-cross
-   - CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function
+   - CASE pA1: function declared at package level                   -- Layer 1 borrows at write site
+   - CASE pA2: function declared in func(...) (non-crossing)        -- Layer 1 borrows at write site
+   - CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function (static)
 
  * fn is method declared in /p/package (nil or unreal receiver):
-   - CASE pB1: method has nil receiver                              -- do not storage-cross
-   - CASE pB2: method has nil receiver (external)                   -- do not storage-cross
-   - CASE pB3: method has unreal receiver (inline)                  -- do not storage-cross
-   - CASE pB4: method has unreal receiver (var)                     -- do not storage-cross
+   - CASE pB1: method has nil receiver                              -- Layer 1 borrows at write site
+   - CASE pB2: method has nil receiver (external)                   -- Layer 1 borrows at write site
+   - CASE pB3: method has unreal receiver (inline)                  -- Layer 1 borrows at write site
+   - CASE pB4: method has unreal receiver (var)                     -- Layer 1 borrows at write site
 
  * fn is method declared in /p/package:
-   - CASE pC1: method has real receiver                             -- storage-cross to receiver
-   - CASE pC2: method has real receiver (external)                  -- storage-cross to receiver
-   - CASE pC3: method has real receiver via closure                 -- storage-cross to receiver
-   - CASE pC4: method has real receiver via closure (external)      -- storage-cross to receiver
-   - CASE pC5: method has real receiver via closure too late        -- do not storage-cross
+   - CASE pC1: method has real receiver                             -- Layer 2 + Layer 1 borrow (succeeds)
+   - CASE pC2: method has real receiver (external)                  -- Layer 2 + Layer 1 borrow (succeeds)
+   - CASE pC3: method has real receiver via closure                 -- Layer 2 + Layer 1 borrow (succeeds)
+   - CASE pC4: method has real receiver via closure (external)      -- Layer 2 + Layer 1 borrow (succeeds)
+   - CASE pC5: method has real receiver via closure too late        -- Layer 2 + Layer 1 borrow (succeeds)
 
 ----------------------------------------
 ## NOTEs
@@ -82,7 +106,35 @@ account for the difference between realm and pure package.
    unattached.
  * Function values are never parents except for the function's captured names.
  * TODO verify all of the above.
+
+ * Under v2, "Layer 1 borrows (succeeds)" means: m.Realm shifts to the
+   declaring realm for the call duration; any write to the declaring realm's
+   own state from inside the body lands cleanly.  For the /r/ cases, the
+   write site is the called fn's body directly; for the /p/ cases, the called
+   fn invokes `bob.PrivateFunc` (which is /r/bob-declared), and Layer 1 fires
+   at THAT inner call — hence "at write site."
+ * "Layer 2 + Layer 1 borrow (succeeds)" describes /p/-methods invoked on a
+   defined foreign receiver: Layer 2 first shifts m.Realm to the receiver's
+   authoring realm, then the inner `bob.PrivateFunc` call fires Layer 1 to
+   /r/bob where the write lands.
+ * "construction-time panic" replaces the v1 "FAIL: caller != bob" outcome for
+   cases that use `new(alice.Object)`.  The construction is rejected before
+   any of the storage-cross logic runs.  Under v2, `alice.NewObject()` (a
+   constructor function declared in /r/alice) is the only way for foreign
+   realms to obtain an `alice.Object`.
 	
+The pseudocode walkthrough below is the **v1** trace.  Under v2 the
+storage-realm annotations would be different — every /r/-declared callable
+pushes its own realm onto the storage stack (Layer 1), so e.g. in `bob.Do`
+the storage would be `[bob]` rather than `[]`, and inside `alice.TopFunc` it
+would be `[bob,alice]`.  The "FAIL: caller != bob" labels on rA1/rA2/rA3/rB1/rB2
+become SUCCESS because Layer 1 routes the inner `bob.PrivateFunc` write back
+to `/r/bob`; the rB3/rB4/rC1-rC5 labels become "PANIC: cannot allocate
+gno.land/r/alice.Object in realm gno.land/r/caller" at the `new(alice.Object)`
+line (construction-time enforcement).  The walkthrough is preserved as-is
+because it documents the *case structure* and v1 expectations.  For v2
+outcomes see the case-summary table above and `interrealm_v2.txtar`.
+
 ```go
 	//========================================
 	// main.go

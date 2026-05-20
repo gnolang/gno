@@ -49,6 +49,10 @@ type Machine struct {
 	Store    Store
 	Context  any
 	GasMeter store.GasMeter
+	// BoundedPanicRender gates makeUnhandledPanicError to use the
+	// bounded printer (see bounded_strings.go). True on validator-
+	// side Machines; false for filetests, REPL, etc.
+	BoundedPanicRender bool
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -82,6 +86,14 @@ type MachineOptions struct {
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
 	SkipPackage   bool // don't get/set package or realm.
+	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
+	// the bounded printer (see bounded_strings.go) so adversarial
+	// panic values (huge strings, deeply-nested composites, etc.)
+	// produce output capped at BoundedRenderBytes rather than
+	// allocating proportional to source size. Set true on every
+	// validator-side Machine; default false preserves the existing
+	// verbose render for filetests, REPL, and other trusted contexts.
+	BoundedPanicRender bool
 }
 
 const (
@@ -123,8 +135,33 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		output = io.Discard
 	}
 	alloc := opts.Alloc
+	// isPreprocessing is true when this Machine inherits the per-tx
+	// preprocess allocator from the store (i.e., it's a sub-Machine
+	// spun up by Preprocess via NewMachine(pkg, store)). When true, the
+	// post-claim SetGCFn / SetGasMeter setup below is skipped: the
+	// preprocess allocator is pre-configured by the keeper with
+	// gasMeter set and collect=nil (hard-cap, no GC retry).
+	isPreprocessing := false
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes) // allocator is nil if MaxAllocBytes is zero
+		// Sub-Machines via NewMachine(pkg, store) pass no Alloc opt.
+		// Pick up the per-tx preprocess allocator from the store if
+		// installed by the keeper (AddPackage / Run handlers).
+		if opts.Store != nil {
+			if pa := opts.Store.GetPreprocessAllocator(); pa != nil {
+				alloc = pa
+				isPreprocessing = true
+				// Inherit the preprocess allocator's gas meter as the
+				// sub-Machine's gas meter so CPU gas (m.incrCPU) and
+				// alloc gas (alloc.Allocate's gasMeter charge) both
+				// bill against the same tx gas budget.
+				if vmGasMeter == nil {
+					vmGasMeter = pa.GetGasMeter()
+				}
+			}
+		}
+		if alloc == nil {
+			alloc = NewAllocator(opts.MaxAllocBytes) // nil if MaxAllocBytes is zero
+		}
 	}
 	store := opts.Store
 	if store == nil {
@@ -136,7 +173,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
-	if mm.Alloc != nil {
+	if mm.Alloc != nil && !isPreprocessing {
+		// Skip GC fn and gas-meter installation when the alloc is the
+		// per-tx preprocess allocator inherited from the store: it's
+		// pre-configured with gasMeter set and collect=nil intentionally
+		// (hard-cap, no GC retry — see store.go preprocessAlloc).
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 		mm.Alloc.SetGasMeter(vmGasMeter)
 	}
@@ -148,6 +189,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.BoundedPanicRender = opts.BoundedPanicRender
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
 		pv := (*PackageValue)(nil)
@@ -223,11 +265,61 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	if err := m.CheckEmpty(); err != nil {
 		panic(errors.Wrap(err, "set package when machine not empty"))
 	}
+	if pv.Realm == nil {
+		// interrealm v2 Phase 3 invariant: every PackageValue carries a
+		// non-nil Realm (per NewPackageValue + fillPackage lazy-synth).
+		panic("invariant violation: SetActivePackage with nil pv.Realm: " + pv.PkgPath)
+	}
 	m.Package = pv
-	m.Realm = pv.GetRealm()
+	m.setRealm(pv.GetRealm())
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
 	}
+}
+
+// setRealm updates both m.Realm and m.Alloc.currentRealmID, keeping
+// them in lock-step. Every m.Realm assignment must route through
+// this helper so the allocator's currentRealmID stays accurate
+// (interrealm v2 Phase 1). Used by allocator constructors at Phase 2 to
+// stamp PkgID onto newly-allocated objects.
+//
+// Accepts nil — clears currentRealmID to PkgID{} which matches
+// "no realm context."
+func (m *Machine) setRealm(r *Realm) {
+	if r == nil && m.Realm != nil {
+		// interrealm v2 Phase 3 tripwire: once m.Realm is non-nil
+		// (after SetActivePackage), it must stay non-nil. A nil
+		// transition indicates a leftover from the pre-plan
+		// throwaway-realm pattern.
+		panic("invariant violation: m.Realm cannot transition non-nil → nil")
+	}
+	m.Realm = r
+	if m.Alloc != nil {
+		if r != nil {
+			m.Alloc.currentRealmID = r.ID
+			m.Alloc.currentRealmPath = r.Path
+		} else {
+			m.Alloc.currentRealmID = PkgID{}
+			m.Alloc.currentRealmPath = ""
+		}
+	}
+}
+
+// setRealmAuthorityOnly updates m.Realm without changing
+// m.Alloc.currentRealmID. Used by the primitive-recv borrow path
+// in PushFrameCall: a value-receiver method on a primitive-underlying
+// defined type has no Object identity for storage-borrow to anchor
+// to, but the receiver type's declaring package is a stable
+// authority anchor. Routing authority there blocks attacker-supplied
+// /p/-impls of foreign interfaces from inheriting borrowed authority
+// (see zrealm_launder_h_pcallback.gno). The allocator's stamping
+// context is deliberately left at the caller's natural realm so the
+// method body's local allocations don't get re-tagged.
+func (m *Machine) setRealmAuthorityOnly(r *Realm) {
+	if r == nil && m.Realm != nil {
+		panic("invariant violation: m.Realm cannot transition non-nil → nil")
+	}
+	m.Realm = r
 }
 
 //----------------------------------------
@@ -340,23 +432,24 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	pv.deriveFBlocksMap(m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
-	var throwaway *Realm
 	if save {
 		// store new package values and types
-		throwaway = m.saveNewPackageValuesAndTypes()
-		if throwaway != nil {
-			m.Realm = throwaway
-		}
+		m.saveNewPackageValuesAndTypes()
 	}
 	// run init functions
 	m.runInitFromUpdates(pv, updates)
 	// save again after init.
 	if save {
-		m.resavePackageValues(throwaway)
+		m.resavePackageValues()
 		// store mempackage; we already validated type.
 		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
-		if throwaway != nil {
-			m.Realm = nil
+		// Flip Frozen for /p/ and stdlib packages, with a carve-out for
+		// math/rand which legitimately maintains globalRand state across
+		// calls. /r/, main, run-path, and _test overlays stay mutable.
+		// interrealm v2 Phase 3.
+		if pv.PkgID.IsImmutablePkg() && pv.PkgPath != "math/rand" {
+			pv.Realm.Frozen = true
+			m.Store.SetPackageRealm(pv.Realm)
 		}
 	}
 
@@ -453,6 +546,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 				CallExpr: fr.Source.(*CallExpr),
 				IsDefer:  fr.IsDefer,
 				FuncLoc:  fr.Func.GetSource(m.Store).GetLocation(),
+				FuncName: stacktraceFuncName(fr),
 			})
 		}
 	}
@@ -476,6 +570,12 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 			return
 		}
 
+		if len(m.Stmts) == 0 {
+			// Finalize-time panics (e.g., persistence checks in saveObject)
+			// run with an empty stmt stack — there's no current statement
+			// to attribute a line to. Leave LastLine zero.
+			return
+		}
 		ls := m.PeekStmt(1)
 		if bs, ok := ls.(*bodyStmt); ok {
 			stacktrace.LastLine = bs.LastStmt().GetLine()
@@ -496,26 +596,19 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
-	rlm := pv.GetRealm()
-	if rlm == nil && pv.IsRealm() {
-		rlm = NewRealm(pv.PkgPath) // throwaway
-	}
+	rlm := pv.GetRealm() // non-nil for every package post-step-2.
 	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
-	if rlm != nil {
-		pb := pv.GetBlock(m.Store)
-		for _, update := range updates {
-			// XXX simplify.
-			if hiv, ok := update.V.(*HeapItemValue); ok {
-				rlm.DidUpdate(pb, nil, hiv)
-			} else {
-				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
-			}
+	pb := pv.GetBlock(m.Store)
+	for _, update := range updates {
+		// XXX simplify.
+		if hiv, ok := update.V.(*HeapItemValue); ok {
+			rlm.DidUpdate(pb, nil, hiv)
+		} else {
+			rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
 		}
 	}
 	m.runInitFromUpdates(pv, updates)
-	if rlm != nil {
-		rlm.FinalizeRealmTransaction(m.Store)
-	}
+	rlm.FinalizeRealmTransaction(m.Store)
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
@@ -554,17 +647,15 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	// Get new values across all files in package.
 	pn.PrepareNewValues(nilAllocator, pv)
 	// save package value.
-	var throwaway *Realm
 	if save {
 		// store new package values and types
-		throwaway = m.saveNewPackageValuesAndTypes()
-		if throwaway != nil {
-			m.Realm = throwaway
-		}
-		m.resavePackageValues(throwaway)
-		if throwaway != nil {
-			m.Realm = nil
-		}
+		m.saveNewPackageValuesAndTypes()
+		m.resavePackageValues()
+		// PreprocessFiles is used for static type-checking flows (lint,
+		// preprocess-only test entry). It does NOT run init() — so the
+		// Frozen flip for immutable packages doesn't apply here. /p/
+		// packages preprocessed via this path remain Frozen=false until
+		// a real AddPackage flow runs runInitFromUpdates.
 	}
 	return pn, pv
 }
@@ -771,23 +862,18 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
 // This happens before any init calls.
-// Returns a throwaway realm package is not a realm,
-// such as stdlibs or /p/ packages.
-func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+// saveNewPackageValuesAndTypes finalizes pv.Realm and persists it.
+// Every PackageValue carries a non-nil Realm (per NewPackageValue);
+// the realm is used uniformly for /r/, /p/, stdlib, main, and
+// run-path. The Frozen flip for immutable packages happens in
+// runMemPackage after init completes. interrealm v2 Phase 3.
+func (m *Machine) saveNewPackageValuesAndTypes() {
 	// save package value and dependencies.
 	pv := m.Package
-	if pv.IsRealm() {
-		rlm := pv.Realm
-		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.Store)
-		// save package realm info.
-		m.Store.SetPackageRealm(rlm)
-	} else { // use a throwaway realm.
-		rlm := NewRealm(pv.PkgPath)
-		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.Store)
-		throwaway = rlm
-	}
+	rlm := pv.Realm
+	rlm.MarkNewReal(pv)
+	rlm.FinalizeRealmTransaction(m.Store)
+	m.Store.SetPackageRealm(rlm)
 	// save declared types — only those that belong to this package.
 	// Aliases to uverse types or to types from other packages have a
 	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
@@ -805,20 +891,14 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	return
 }
 
-// Resave any changes to realm after init calls.
-// Pass in the realm from m.saveNewPackageValuesAndTypes()
-// in case a throwaway was created.
-func (m *Machine) resavePackageValues(rlm *Realm) {
+// Resave any changes to realm after init calls. Uses pv.Realm,
+// which is non-nil for every package post-step-2. interrealm v2 Phase 3.
+func (m *Machine) resavePackageValues() {
 	// save package value and dependencies.
 	pv := m.Package
-	if pv.IsRealm() {
-		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m.Store)
-		// re-save package realm info.
-		m.Store.SetPackageRealm(rlm)
-	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m.Store)
-	}
+	rlm := pv.Realm
+	rlm.FinalizeRealmTransaction(m.Store)
+	m.Store.SetPackageRealm(rlm)
 	// types were already saved, and should not change
 	// even after running the init function.
 }
@@ -853,6 +933,51 @@ func (m *Machine) RunMain() {
 // either main() or main(cur crossing).
 func (m *Machine) RunMainMaybeCrossing() {
 	m.runFunc(StageRun, "main", true)
+}
+
+// MaybeInjectCurForEval prepends `.cur` as the first argument to xx when
+// xx is a CallExpr whose target is a crossing function declared in the
+// current package. This mirrors the init/main optional-cur pattern
+// (runFunc(maybeCrossing=true) above): callers of QueryEval get
+// crossing-aware dispatch for free, so realms can opt into
+// `Render(cur realm, path string) string` (or any crossing getter)
+// without breaking the qeval contract.
+//
+// The injected `.cur` is the preprocessor-special name that resolves
+// (preprocess.go) to NewConcreteRealm(nil, ctxpn.PkgPath, gOriginRealmTV)
+// — i.e., the realm's own authority with origin as previous, treated as
+// "frame -1 already crossed" exactly like init/main.
+//
+// No-op when:
+//   - xx isn't a CallExpr
+//   - the callee isn't a simple NameExpr in this package (selectors,
+//     chained calls, closures, method expressions all fall through)
+//   - the resolved function isn't a crossing function
+//   - the name is unknown (typo'd — let normal eval surface the error)
+//
+// The user MUST omit the cur argument in the query expression. The chain
+// owns the cur for the query path; a user-supplied first arg would land
+// in arg position 2 and fail with an arity/type error at preprocess.
+func (m *Machine) MaybeInjectCurForEval(xx Expr) {
+	ce, ok := xx.(*CallExpr)
+	if !ok {
+		return
+	}
+	nx, ok := ce.Func.(*NameExpr)
+	if !ok {
+		return
+	}
+	pv := m.Package
+	pb := pv.GetBlock(m.Store)
+	pn := pb.GetSource(m.Store).(*PackageNode)
+	if _, ok := pn.GetLocalIndex(nx.Name); !ok {
+		return
+	}
+	ft, ok := pn.GetStaticTypeOf(m.Store, nx.Name).(*FuncType)
+	if !ok || !ft.IsCrossing() {
+		return
+	}
+	ce.Args = append([]Expr{Nx(".cur")}, ce.Args...)
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -2149,7 +2274,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				mrpath,
 			))
 		}
-		m.Realm = pv.GetRealm()
+		m.setRealm(pv.GetRealm())
 		return
 	}
 
@@ -2178,43 +2303,89 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
-	if recv.IsDefined() { // method call
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil { // nil receiver
-			// no switch
-			return
-		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-				// no switch
-				return
-			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
-				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
-				return
-			}
+	// Not cross nor crossing. Layered borrow:
+	//   1. /r/-declared function/method → borrow to method's
+	//      declaring realm (any receiver shape, or top-level
+	//      function). Closes the .Title() class for /r/-declared
+	//      callables: attacker code runs with attacker's
+	//      authority, not victim's.
+	//   2. Otherwise (stdlib or /p/-declared) → if the receiver is
+	//      a real object in a foreign realm, borrow to receiver's
+	//      storage realm. Preserves the existing pattern where
+	//      stdlib + /p/ helpers (grc20, bptree, math/rand, etc.)
+	//      mutate state living in another realm.
+	if IsRealmPath(pv.PkgPath) {
+		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
+			m.setRealm(pv.GetRealm())
 		}
-	} else { // top level function
-		// no switch
 		return
 	}
+	if recv.IsDefined() {
+		obj := recv.GetFirstObject(m.Store)
+		if obj != nil {
+			recvOID := obj.GetObjectInfo().ID
+			if !recvOID.IsZero() &&
+				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				m.setRealm(objpv.GetRealm())
+			}
+		} else if dt, ok := recv.T.(*DeclaredType); ok && dt.PkgPath != "" {
+			// Primitive-underlying defined-type receiver: no Object
+			// identity for storage-borrow to anchor to. Without an
+			// anchor, attacker-supplied /p/-impls of foreign
+			// interfaces dispatched from inside a borrowed body
+			// inherit the borrowed authority and can mutate the
+			// outer victim's state (zrealm_launder_h_pcallback.gno).
+			//
+			// Narrow the anchor to the dangerous SHAPE: a
+			// primitive-receiver method whose signature includes a
+			// pointer to a foreign-/p/-declared type. Legit
+			// methods like time.Duration.String() (no foreign
+			// pointer params) and types.String.Less(other any) (param
+			// not a pointer) are not anchored — they continue to
+			// inherit caller's realm so their local allocations
+			// and reads work normally.
+			//
+			// When the shape matches, anchor authority to the
+			// receiver type's declaring package via
+			// setRealmAuthorityOnly (m.Realm changes; allocator's
+			// stamping context stays at caller's realm). Mark
+			// AuthOnlyShift to suppress the spurious finalize at
+			// frame pop.
+			if ft, ok := fv.Type.(*FuncType); ok && isPrimitiveRecvWithForeignPPtrParam(dt.PkgPath, ft) {
+				pid := PkgIDFromPkgPath(dt.PkgPath)
+				if m.Realm == nil || pid != m.Realm.ID {
+					dtPkgOID := ObjectIDFromPkgID(pid)
+					objpv := m.Store.GetObject(dtPkgOID).(*PackageValue)
+					m.setRealmAuthorityOnly(objpv.GetRealm())
+					m.LastFrame().AuthOnlyShift = true
+				}
+			}
+		}
+	}
+}
+
+// isPrimitiveRecvWithForeignPPtrParam tests whether a method's
+// signature matches the attacker-supplied-impl shape: at least one
+// parameter is a pointer to a /p/-declared type whose package is
+// different from the method's own (recvPkgPath). The method's
+// receiver is assumed to be primitive-underlying (caller verifies).
+func isPrimitiveRecvWithForeignPPtrParam(recvPkgPath string, ft *FuncType) bool {
+	for _, p := range ft.Params {
+		pt, ok := baseOf(p.Type).(*PointerType)
+		if !ok {
+			continue
+		}
+		pdt, ok := pt.Elt.(*DeclaredType)
+		if !ok {
+			continue
+		}
+		if IsPPackagePath(pdt.PkgPath) && pdt.PkgPath != recvPkgPath {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Machine) PopFrame() Frame {
@@ -2294,7 +2465,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
-	m.Realm = fr.LastRealm
+	m.setRealm(fr.LastRealm)
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions
@@ -2509,6 +2680,13 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
 	}
+	// Mirror IsReadonlyBy's HIV exception: an unreal HIV is a
+	// transient heap-promotion wrapper for an escaping local, not
+	// a realm-owned slot. Persisted (real) HIVs fall through to
+	// the standard PkgID gate.
+	if hiv, ok := base.(*HeapItemValue); ok && !hiv.GetIsReal() {
+		return false
+	}
 	return oid.PkgID != m.Realm.ID
 }
 
@@ -2564,7 +2742,10 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
-		hv := m.Alloc.NewHeapItem(tv)
+		// Heap-slot wrapper is anonymous; nil t skips the
+		// construction-time check. The contained composite literal
+		// was already construction-time-checked at its own allocation.
+		hv := m.Alloc.NewHeapItem(nil, tv)
 		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,

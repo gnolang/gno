@@ -50,6 +50,7 @@ type Store interface {
 	SetCachePackage(*PackageValue)
 	GetPackageRealm(pkgPath string) *Realm
 	SetPackageRealm(*Realm)
+	GetRealmByID(pid PkgID) *Realm // interrealm v2: cache-backed PkgID lookup
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
@@ -69,6 +70,8 @@ type Store interface {
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
+	GetPreprocessAllocator() *Allocator
+	SetPreprocessAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -138,7 +141,28 @@ type defaultStore struct {
 	cacheObjects map[ObjectID]Object
 	cacheTypes   map[TypeID]Type
 	cacheNodes   txlog.Map[Location, BlockNode]
-	alloc        *Allocator // for accounting for cached items
+	// cacheRealms is the per-tx *Realm pointer cache, parallel to
+	// cacheObjects. Single source of truth for in-memory *Realm
+	// pointers within a tx — populated by GetPackageRealm and
+	// SetPackageRealm; consulted by GetRealmByID and fillPackage.
+	// Ensures pv.Realm and any other in-tx caller observe the same
+	// pointer (so in-memory Time/sumDiff mutations are visible
+	// everywhere). interrealm v2 Phase 1.
+	cacheRealms map[PkgID]*Realm
+	alloc       *Allocator // for accounting for cached items
+
+	// preprocessAlloc, when non-nil, is the per-tx hard-cap allocator
+	// installed by the keeper (AddPackage / Run) before RunMemPackage.
+	// Sub-Machines spun up during Preprocess (evalStaticType, evalConst,
+	// etc. at preprocess.go:3947, 4112, 4175, 4258) pick it up via
+	// NewMachineWithOptions's nil-Alloc fallback. preAlloc.collect is
+	// nil → Allocate hard-panics on maxBytes overflow rather than
+	// attempting a GC retry (which would undercount because GC doesn't
+	// visit m.Values, the operand stack). gasMeter is shared with the
+	// outer tx Machine so CPU and alloc gas both bill against tx gas.
+	// Inherited via BeginTransaction so nested forked stores see it.
+	// Cleared by the keeper's defer at handler exit; not serialized.
+	preprocessAlloc *Allocator
 
 	// Partially restored package; occupies memory and tracked for GC,
 	// this is more efficient than iterating over cacheObjects.
@@ -184,6 +208,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+		cacheRealms:  make(map[PkgID]*Realm),
 
 		// stdlib byte cache
 		stdlibKeyBytes: make(map[string][]byte),
@@ -218,7 +243,14 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   make(map[TypeID]Type),
 		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		cacheRealms:  make(map[PkgID]*Realm),
 		alloc:        ds.alloc.Fork().Reset(),
+
+		// Inherit the per-tx preprocess allocator so sub-Machines spun
+		// up via NewMachine(pkg, store) inside preprocess (which fork
+		// the store via BeginTransaction first) see the same hard-cap
+		// allocator the keeper installed.
+		preprocessAlloc: ds.preprocessAlloc,
 
 		// stdlib byte cache (shared reference)
 		stdlibKeyBytes: ds.stdlibKeyBytes,
@@ -282,6 +314,14 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 
 func (ds *defaultStore) SetAllocator(alloc *Allocator) {
 	ds.alloc = alloc
+}
+
+func (ds *defaultStore) GetPreprocessAllocator() *Allocator {
+	return ds.preprocessAlloc
+}
+
+func (ds *defaultStore) SetPreprocessAllocator(alloc *Allocator) {
+	ds.preprocessAlloc = alloc
 }
 
 // Used by cmd/gno (e.g. lint) to inject target package as MPTest.
@@ -366,7 +406,9 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 	ds.cacheObjects[oid] = pv
 }
 
-// Some atomic operation.
+// Some atomic operation. Consults cacheRealms before reading from
+// baseStore (interrealm v2 Phase 1); populates the cache on read so that
+// subsequent in-tx callers observe the same *Realm pointer.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -374,6 +416,9 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		defer func() { bm.StopStore(bm.StoreGetPackageRealm, old, size) }()
 	}
 	oid := ObjectIDFromPkgPath(pkgPath)
+	if cached, ok := ds.cacheRealms[oid.PkgID]; ok {
+		return cached
+	}
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get(ds.gctx, []byte(key))
 	if bz == nil {
@@ -392,10 +437,29 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 				oid.PkgID, rlm.ID))
 		}
 	}
+	ds.cacheRealms[oid.PkgID] = rlm
 	return rlm
 }
 
+// GetRealmByID looks up a Realm via the per-tx cache, falling back
+// to a path-resolution + baseStore load on miss. Single source of
+// truth for in-memory *Realm pointers within a tx. interrealm v2 Phase 1;
+// used by PushFrameCall Layer 2 borrow and by cross-realm finalize
+// (Phase 2's touchForeignRealm).
+func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
+	if rlm, ok := ds.cacheRealms[pid]; ok {
+		return rlm
+	}
+	path := pkgPathFromPkgID(ds, pid)
+	if path == "" {
+		return nil
+	}
+	return ds.GetPackageRealm(path)
+}
+
 // An atomic operation to set the package realm info (id counter etc).
+// Refreshes the cacheRealms entry so subsequent in-tx reads see the
+// updated *Realm pointer (interrealm v2 Phase 1).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	var size int
 	if bm.Enabled {
@@ -411,6 +475,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 		trace.Store("ENCODE_REALM", gas, []byte(key), len(bz), "none")
 	}
 	ds.baseStore.Set(ds.gctx, []byte(key), bz)
+	ds.cacheRealms[rlm.ID] = rlm
 	size = len(bz)
 }
 
@@ -514,9 +579,25 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 
 func (ds *defaultStore) fillPackage(pv *PackageValue) {
 	pv.GetBlock(ds) // preload
-	if pv.IsRealm() && pv.Realm == nil {
+	if pv.Realm == nil {
 		rlm := ds.GetPackageRealm(pv.PkgPath)
+		if rlm == nil {
+			// Legacy: package persisted before interrealm v2 Phase 3
+			// has no Realm on disk. Synthesize one. Frozen mirrors the
+			// runMemPackage flip rule: immutable packages (/p/, stdlib)
+			// freeze with a math/rand carve-out; /r/ + main + _test stay
+			// mutable.
+			rlm = NewRealm(pv.PkgPath)
+			if pv.PkgID.IsImmutablePkg() && pv.PkgPath != "math/rand" {
+				rlm.Frozen = true
+			}
+		}
 		pv.Realm = rlm
+	}
+	// Re-derive denormalized PkgID cache (interrealm v2 Phase 2; pv.PkgID is
+	// marked json:"-" so amino skipped it on load).
+	if pv.PkgID.IsZero() {
+		pv.PkgID = PkgIDFromPkgPath(pv.PkgPath)
 	}
 	// Rederive pv.fBlocksMap.
 	pv.deriveFBlocksMap(ds)
@@ -596,8 +677,8 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	}
 	// save object to cache.
 	if debug {
-		if oid.IsZero() {
-			panic("object id cannot be zero")
+		if !oid.IsFinalized() {
+			panic("object id must be finalized at SetObject")
 		}
 		if oo2, exists := ds.cacheObjects[oid]; exists {
 			if oo != oo2 {
@@ -648,8 +729,13 @@ func (ds *defaultStore) DelObject(oo Object) int64 {
 	// No amino compute gas — delete doesn't marshal/unmarshal.
 	oid := oo.GetObjectID()
 	size := oo.GetObjectInfo().LastObjectSize
-	// delete from cache.
+	// delete from cache. Lock-step evict cacheRealms when the object
+	// being deleted is a PackageValue (interrealm v2 Phase 1): keeps the
+	// pv.Realm == cacheRealms[pid] invariant.
 	delete(ds.cacheObjects, oid)
+	if _, isPV := oo.(*PackageValue); isPV {
+		delete(ds.cacheRealms, oid.PkgID)
+	}
 	// delete from backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -1086,6 +1172,8 @@ func (ds *defaultStore) RealmStorageDiffs() map[string]int64 {
 func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	// Lock-step reset cacheRealms (interrealm v2 Phase 1).
+	ds.cacheRealms = make(map[PkgID]*Realm)
 	ds.realmStorageDiffs = make(map[string]int64)
 	ds.opslog = nil // new ops log.
 	ds.SetCachePackage(Uverse())
@@ -1099,6 +1187,17 @@ func (ds *defaultStore) GarbageCollectObjectCache(gcCycle int64) {
 		}
 		if obj.GetLastGCCycle() < gcCycle {
 			delete(ds.cacheObjects, objId)
+			// Lock-step evict cacheRealms (interrealm v2 Phase 1) when a
+			// PackageValue is evicted. Falls back to PkgID derivation
+			// from PkgPath if the PV's PkgID hasn't been stamped yet
+			// (Phase 2 plumbing not fully in place).
+			if pv, isPV := obj.(*PackageValue); isPV {
+				pid := objId.PkgID
+				if pid.IsZero() {
+					pid = PkgIDFromPkgPath(pv.PkgPath)
+				}
+				delete(ds.cacheRealms, pid)
+			}
 		}
 	}
 }
