@@ -102,10 +102,7 @@ example.
 
 `gnodev` uses a standard test account that is consistent across all Gno tooling
 and test scripts. This account is automatically pre-funded with testnet GNOT
-and is available for immediate use in development and testing.
-
-**Important:** This account's mnemonic is publicly known and should **never** be
-used on production networks or with real funds.
+and is available for immediate use in development and testing[^1].
 
 ### Account details
 
@@ -234,4 +231,5 @@ After running gnodev, you can access several components:
 3. The web-based gnodev UI to monitor your node
 
 [^1]: The default deployer address is `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`,
-a.k.a. `test1` - the mnemonic phrase for this address is publicly known.
+a.k.a. `test1` - the mnemonic phrase for this address is publicly known and should **never** be
+used on production networks or with real funds.
