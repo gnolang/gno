@@ -51,15 +51,9 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
-			Name:  "complex file path",
-			Input: "https://gno.land/r/simple/test///...gno",
-			Expected: &GnoURL{
-				Domain:   "gno.land",
-				Path:     "/r/simple/test//",
-				WebQuery: url.Values{},
-				Query:    url.Values{},
-				File:     "...gno",
-			},
+			Name:  "simple with multiple slashes",
+			Input: "https://gno.land/r/hyphen-simple//test",
+			Err:   ErrURLInvalidPath,
 		},
 
 		{
@@ -150,14 +144,26 @@ func TestParseGnoURL(t *testing.T) {
 
 		{
 			Name:  "empty path",
-			Input: "https://gno.land/r/",
+			Input: "https://gno.land",
+			Err:   ErrURLInvalidPath,
+		},
+
+		{
+			Name:  "root path",
+			Input: "https://gno.land/",
 			Expected: &GnoURL{
-				Path:     "/r/",
+				Path:     "/",
 				Args:     "",
 				WebQuery: url.Values{},
 				Query:    url.Values{},
 				Domain:   "gno.land",
 			},
+		},
+
+		{
+			Name:  "root path with multiple slashes",
+			Input: "https://gno.land//",
+			Err:   ErrURLInvalidPath,
 		},
 
 		{

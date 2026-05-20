@@ -247,6 +247,8 @@ func (gnoURL GnoURL) IsDir() bool {
 // The minimum path allowed are the Gno.land prefixed ones so listing can be
 // implemented, for example in Gnoweb "/r/" or "/p/" would list the files or
 // directories within those paths.
+// Expression doesn't validate "//" because at this point the URL path should
+// have been validated or normalized by the Gno.land URL parser.
 var reGnolandPath = regexp.MustCompile(`^/[rpu]/([a-z][a-z0-9_/-]*)*$`)
 
 // IsValidPath checks that path is a valid Gno.land URL path.
@@ -283,6 +285,8 @@ func (gnoURL GnoURL) Username() string {
 // reURLPath matches and validates a standard URL path compatible with Gno.land URL paths.
 // Expression considers that "/" is the minimum valid path allowed and then optionally
 // allows any characters allowed within different Gno.land URL paths.
+// Expression doesn't validate "//" matches for simplicity, this validation is done
+// separately when parsing the URL.
 var reURLPath = regexp.MustCompile(`^/[a-z0-9_/-]*$`)
 
 // ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
@@ -314,7 +318,11 @@ func ParseFromURL(u *url.URL) (*GnoURL, error) {
 		}
 	}
 
-	if !reURLPath.MatchString(upath) {
+	// Check that path contains valid characters or is the root "/" path.
+	// Also make sure it doesn't contain "//" which semantically are not
+	// considered valid within Gno.land package paths. The "//" is checked
+	// using contains to keep the URL path regexp simple.
+	if strings.Contains(upath, "//") || !reURLPath.MatchString(upath) {
 		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
 	}
 
