@@ -102,11 +102,11 @@ stdout '["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"]'
 -- run/user_addr.gno --
 package main
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
 
-	println(runtime.OriginCaller())
+	println(unsafe.OriginCaller())
 
 }
 -- run/load_user.gno --

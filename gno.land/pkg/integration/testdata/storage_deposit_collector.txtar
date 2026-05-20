@@ -107,7 +107,7 @@ gno = "0.9"
 -- bytesbank/bytesbank.gno --
 package bytesbank
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 type unspent struct {
 	dst  address
@@ -134,7 +134,7 @@ func Debit(cur realm, idx int) {
 		panic("already spent")
 	}
 
-	if runtime.PreviousRealm().Address() != u.dst {
+	if unsafe.PreviousRealm().Address() != u.dst {
 		panic("not for you")
 	}
 

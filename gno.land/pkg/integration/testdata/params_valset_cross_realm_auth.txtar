@@ -2,7 +2,7 @@
 # NotifyValoperChanged and RotateValoperSigningKey.
 #
 # Both entrypoints are crossing functions guarded by assertValopersCaller,
-# which requires runtime.PreviousRealm().PkgPath() == gno.land/r/gnops/valopers.
+# which requires unsafe.PreviousRealm().PkgPath() == gno.land/r/gnops/valopers.
 # Per docs/resources/gno-interrealm.md the check works only when (a) the
 # host is a crossing function and (b) it is invoked via `cross` from a
 # crossing function in valopers. A hostile third realm cross-calling

@@ -515,17 +515,17 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 package test
 
 import (
-	"chain/runtime"
 	"chain/banker"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
 	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -572,20 +572,20 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 package test
 
 import (
-	"chain/runtime"
 	"chain/banker"
+	"chain/runtime/unsafe"
 )
 
 var admin address
 
 func init() {
-     admin = runtime.OriginCaller()
+     admin = unsafe.OriginCaller()
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
 	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
@@ -632,15 +632,15 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
 	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -682,15 +682,15 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 1000000}}
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
@@ -736,15 +736,15 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
@@ -839,19 +839,19 @@ package test
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var admin address
 
 func init() {
-	admin = runtime.OriginCaller()
+	admin = unsafe.OriginCaller()
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
@@ -934,10 +934,10 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 		{Name: "script.gno", Body: `
 package main
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
-	addr := runtime.OriginCaller()
+	addr := unsafe.OriginCaller()
 	println("hello world!", addr)
 }
 `},
@@ -1522,7 +1522,7 @@ func TestVMKeeperCLASignature(t *testing.T) {
 	claFiles := []*std.MemFile{
 		{Name: "cla.gno", Body: `package cla
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 var (
 	requiredHash string
@@ -1540,7 +1540,7 @@ func Sign(cur realm, hash string) {
 	if hash != requiredHash {
 		panic("hash does not match required CLA hash")
 	}
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	signatures[caller] = true
 }
 

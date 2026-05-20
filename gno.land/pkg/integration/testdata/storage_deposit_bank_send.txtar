@@ -86,7 +86,7 @@ package foo
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var record Foo
@@ -123,12 +123,12 @@ func StorageDepositAddress(cur realm) string {
 
 func RealmSend(cur realm, to address, amt int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
+	banker_.SendCoins(unsafe.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
 }
 
 func OriginSend(cur realm, to address, amt int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
-	banker_.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
+	banker_.SendCoins(unsafe.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amt}})
 }
 -- run/realm_send.gno --
 package main

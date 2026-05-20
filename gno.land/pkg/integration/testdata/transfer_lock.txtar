@@ -50,14 +50,14 @@ package bank
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func Withdraw(cur realm, denom string, amt int64) string {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	coin := chain.Coins{{denom, amt}}
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
-	pkgaddr := runtime.PreviousRealm().Address()
+	pkgaddr := unsafe.PreviousRealm().Address()
 	banker_.SendCoins(pkgaddr, caller, coin)
 	return "Withdrawn!"
 }

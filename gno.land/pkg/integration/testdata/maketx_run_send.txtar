@@ -18,8 +18,8 @@ stdout '"coins": "\d+ugnot"'
 -- script/script.gno --
 package main
 
-import "chain/banker"
+import "chain/runtime/unsafe"
 
 func main() {
-	println("send:", banker.OriginSend())
+	println("send:", unsafe.OriginSend())
 }

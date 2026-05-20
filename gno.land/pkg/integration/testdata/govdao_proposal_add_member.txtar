@@ -62,12 +62,12 @@ func main(cur realm) {
 -- debug/check_addresses.gno --
 package main
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
 	println("=== Debug info ===")
-	println("Origin caller:", runtime.OriginCaller())
-	currentRealm := runtime.CurrentRealm()
+	println("Origin caller:", unsafe.OriginCaller())
+	currentRealm := unsafe.CurrentRealm()
 	println("Current realm:", currentRealm.String())
 }
 -- loader/load_govdao.gno --

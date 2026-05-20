@@ -82,7 +82,7 @@ package outerrecovergranter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
@@ -107,7 +107,7 @@ func GrantWithOuterRecover(cur realm) {
 
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	defer al.Close()
 

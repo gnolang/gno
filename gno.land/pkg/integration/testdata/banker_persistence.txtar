@@ -81,7 +81,7 @@ package bankera
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/test/bankerb"
 )
@@ -99,8 +99,8 @@ func UseSelfAmount(cur realm, amount int64) {
 	if saved == nil {
 		panic("Phase 1: saved banker is nil after persistence")
 	}
-	caller := runtime.PreviousRealm().Address()
-	pkgaddr := runtime.CurrentRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
+	pkgaddr := unsafe.CurrentRealm().Address()
 	saved.SendCoins(pkgaddr, caller, chain.NewCoins(chain.NewCoin("ugnot", amount)))
 }
 
@@ -122,7 +122,7 @@ package bankerb
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 // Persistent banker received from another realm.
@@ -134,7 +134,7 @@ var donor address
 // Receive accepts a banker from a calling realm and persists it.
 func Receive(cur realm, b banker.Banker) {
 	fromOther = b
-	donor = runtime.PreviousRealm().Address()
+	donor = unsafe.PreviousRealm().Address()
 }
 
 // UseGivenBankerAmount spends `amount` from the donor realm's address
@@ -143,6 +143,6 @@ func UseGivenBankerAmount(cur realm, amount int64) {
 	if fromOther == nil {
 		panic("Phase 2: fromOther banker is nil after persistence")
 	}
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	fromOther.SendCoins(donor, caller, chain.NewCoins(chain.NewCoin("ugnot", amount)))
 }

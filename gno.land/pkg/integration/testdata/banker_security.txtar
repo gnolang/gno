@@ -98,7 +98,7 @@ package malicious
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 // StealWithOriginSend attempts to steal coins from victim using OriginSend banker
@@ -122,7 +122,7 @@ func StealWithRealmSend(cur realm, victim, attacker address, amount int64) {
 func LegitOriginSend(cur realm, to address, amount int64) {
 	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	// Correct: send from realm's own address (which holds coins sent by caller)
-	b.SendCoins(runtime.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amount}})
+	b.SendCoins(unsafe.CurrentRealm().Address(), to, chain.Coins{{"ugnot", amount}})
 }
 
 -- helper/gnomod.toml --

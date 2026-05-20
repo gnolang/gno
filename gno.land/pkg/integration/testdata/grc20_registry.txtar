@@ -22,7 +22,7 @@ stdout 'same address, success!'
 -- registry/registry.gno --
 package registry
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 type transferCb func(cur realm, to address, amount uint64) string
 
@@ -43,7 +43,7 @@ func TransferByName(cur realm, name string, to string, amount uint64) string {
 			continue
 		}
 
-		if runtime.CurrentRealm().Address().String() != pair.cb(cross(cur), address(to), amount) {
+		if unsafe.CurrentRealm().Address().String() != pair.cb(cross(cur), address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -71,9 +71,9 @@ gno = "0.9"
 -- foo20/foo20.gno --
 package foo20
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func Transfer(cur realm, to address, amount uint64) string {
-	println("transfer from=" + runtime.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
-	return runtime.PreviousRealm().Address().String()
+	println("transfer from=" + unsafe.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
+	return unsafe.PreviousRealm().Address().String()
 }

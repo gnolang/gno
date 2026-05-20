@@ -26,7 +26,7 @@
 #     foreign receivers.
 #
 #   Realm-context invariant:  Borrow shifts m.Realm but NOT
-#     runtime.CurrentRealm()/PreviousRealm(); those track only
+#     unsafe.CurrentRealm()/PreviousRealm(); those track only
 #     explicit fn(cross, ...) crossings.
 #
 #   Construction-time:  composite literals, new(), make() of foreign
@@ -302,7 +302,7 @@ stderr 'cannot directly modify readonly tainted object'
 ## ============================================================
 
 ## CTX_BorrowDoesNotShiftCurrentRealm: Layer 1 borrow shifts m.Realm
-## but NOT runtime.CurrentRealm(). Inside the borrowed body,
+## but NOT unsafe.CurrentRealm(). Inside the borrowed body,
 ## CurrentRealm reports caller (or user for top-level user calls).
 ##
 ##   func CTX_BorrowDoesNotShiftCurrentRealm(cur realm) {
@@ -432,7 +432,7 @@ gno = "0.9"
 package owned
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/test/v2lib"
 )
@@ -450,7 +450,7 @@ func (r Resource) Identify() string {
 }
 
 func (r *Resource) RecordRealmTraceForCTX() {
-	trace = "CTX:cur=" + runtime.CurrentRealm().PkgPath()
+	trace = "CTX:cur=" + unsafe.CurrentRealm().PkgPath()
 }
 
 var (
@@ -483,15 +483,15 @@ var Closure = func() {
 
 func PublicSet(cur realm, n int) {
 	global = n
-	trace = "L1_CrossingExplicit:cur=" + runtime.CurrentRealm().PkgPath() +
-		",prev=" + runtime.PreviousRealm().PkgPath()
+	trace = "L1_CrossingExplicit:cur=" + unsafe.CurrentRealm().PkgPath() +
+		",prev=" + unsafe.PreviousRealm().PkgPath()
 }
 
 // RecordValueReceiverTrace is invoked from L1_ValueReceiver. It runs
 // under Layer 1 borrow to /r/owned; from inside, CurrentRealm reports
 // the caller (the realm-context which borrow does NOT shift).
 func RecordValueReceiverTrace() {
-	trace = "L1_ValueReceiver:cur=" + runtime.CurrentRealm().PkgPath()
+	trace = "L1_ValueReceiver:cur=" + unsafe.CurrentRealm().PkgPath()
 }
 
 // MutateSlice — readonly round-trip target.

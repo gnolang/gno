@@ -76,7 +76,7 @@ package vault
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var owner address
@@ -100,7 +100,7 @@ func GetOwner(cur realm) address {
 
 // TransferOwnership is the legitimate crossing setter.
 func TransferOwnership(cur realm, newOwner address) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if caller != owner {
 		panic("unauthorized")
 	}
@@ -108,12 +108,12 @@ func TransferOwnership(cur realm, newOwner address) {
 }
 
 func Withdraw(cur realm, amount int64) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if caller != owner {
 		panic("unauthorized")
 	}
 	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-	pkgAddr := runtime.CurrentRealm().Address()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	b.SendCoins(pkgAddr, caller, chain.Coins{{"ugnot", amount}})
 }
 
@@ -129,14 +129,14 @@ gno = "0.9"
 package attack
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/test/vault"
 )
 
 // Attack attempts to hijack ownership via assign+recover, then withdraw.
 func Attack(cur realm) {
-	myAddr := runtime.CurrentRealm().Address()
+	myAddr := unsafe.CurrentRealm().Address()
 
 	// Step 1: try to hijack ownership. The readonly check blocks the
 	// assignment before it lands in memory. recover() catches the panic.
@@ -153,7 +153,7 @@ func Attack(cur realm) {
 // AttackNoRecover is the negative control: without recover, the
 // readonly panic aborts the entire transaction.
 func AttackNoRecover(cur realm) {
-	myAddr := runtime.CurrentRealm().Address()
+	myAddr := unsafe.CurrentRealm().Address()
 	vault.SetOwner(myAddr)
 	// Never reached.
 	vault.Withdraw(cross(cur), 1000000)

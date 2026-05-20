@@ -63,7 +63,7 @@ package diag2granter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
@@ -73,7 +73,7 @@ import (
 func newAllowance(cur realm) *allowancesender.AllowanceSender {
 	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	return allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 }
 
