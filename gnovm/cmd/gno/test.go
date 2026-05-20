@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/lint/reporters"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -307,9 +308,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
 		var didPanic, didError bool
 		startedAt := time.Now()
-		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
+		didPanic = catchPanicWithReporter(reporters.NewDirectReporter(io.Err()), pkg.Dir, pkgPath, func() {
 			if mod == nil || !mod.Ignore {
-				_, errs := lintTypeCheck(io, pkg.Dir, mpkg, gno.TypeCheckOptions{
+				errs := lintTypeCheck(reporters.NewDirectReporter(io.Err()), pkg.Dir, mpkg, gno.TypeCheckOptions{
 					Getter:     opts.TestStore,
 					TestGetter: opts.TestStore,
 					Mode:       gno.TCLatestRelaxed,
