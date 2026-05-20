@@ -307,6 +307,25 @@ func TestClassify(t *testing.T) {
 	}
 }
 
+func TestClassify_DraftNotStale(t *testing.T) {
+	fixedNow(t, "2026-05-20T00:00:00Z")
+
+	entries := []Entry{
+		// Draft PR with old UpdatedAt — must NOT appear in Stale.
+		{Number: 10, Kind: KindPR, IsDraft: true, UpdatedAt: mustTime("2026-04-01T00:00:00Z")},
+	}
+	r := Classify(entries)
+	for _, s := range r.Sections {
+		if s.Name == "Stale" {
+			for _, e := range s.Entries {
+				if e.Number == 10 {
+					t.Errorf("draft PR #10 must not appear in Stale")
+				}
+			}
+		}
+	}
+}
+
 func equalInts(a, b []int) bool {
 	if len(a) != len(b) {
 		return false

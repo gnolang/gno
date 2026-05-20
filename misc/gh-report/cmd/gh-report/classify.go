@@ -221,9 +221,9 @@ func Classify(entries []Entry) Report {
 				stuck = append(stuck, e)
 				inAny = true
 			}
-		}
-		if !inAny && isStale(e) {
-			stale = append(stale, e)
+			if !inAny && isStale(e) {
+				stale = append(stale, e)
+			}
 		}
 	}
 
