@@ -3,7 +3,7 @@ package home
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
@@ -221,8 +221,8 @@ func SponsorGnoProject(cur realm, projectName string) {
 	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	address_XXX := runtime.OriginCaller()
-	amount := banker.OriginSend()
+	address_XXX := unsafe.OriginCaller()
+	amount := unsafe.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -247,8 +247,8 @@ func SponsorOtherProject(cur realm, projectName string) {
 	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	address_XXX := runtime.OriginCaller()
-	amount := banker.OriginSend()
+	address_XXX := unsafe.OriginCaller()
+	amount := unsafe.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")

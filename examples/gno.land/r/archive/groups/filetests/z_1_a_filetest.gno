@@ -4,7 +4,7 @@ package z_1_a
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -17,7 +17,7 @@ var gid groups.GroupID
 const admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main(cur realm) {
-	caller := runtime.OriginCaller() // main
+	caller := unsafe.OriginCaller() // main
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
 	uinit.RegisterUser(cross(cur), "main123", caller)

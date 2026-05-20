@@ -540,7 +540,7 @@ func checkErr(err error) {
 // runtime.AssertOriginCall() (which is strictly direct MsgCall only).
 //
 // WARNING: do not reuse this helper from any function that reads
-// banker.OriginSend() to verify payment. IsUser() lets a maketx-run script
+// unsafe.OriginSend() to verify payment. IsUser() lets a maketx-run script
 // consume the origin-send envelope before calling us, bypassing the check.
 // For payment paths, use IsUserCall() (EOA only) — see
 // docs/resources/effective-gno.md#verifying-inbound-coin-payments.

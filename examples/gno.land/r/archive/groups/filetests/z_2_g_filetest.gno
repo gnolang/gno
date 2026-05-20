@@ -5,7 +5,7 @@ package z_2_g
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -16,7 +16,7 @@ import (
 var gid groups.GroupID
 
 func main(cur realm) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
 	uinit.RegisterUser(cross(cur), "gnouser123", caller)

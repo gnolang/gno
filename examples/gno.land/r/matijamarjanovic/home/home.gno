@@ -2,6 +2,7 @@ package home
 
 import (
 	"chain/banker"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/moul/md"
@@ -63,7 +64,7 @@ func VoteModern(cur realm) {
 	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
+	ugnotAmount := unsafe.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
@@ -73,7 +74,7 @@ func VoteClassic(cur realm) {
 	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
+	ugnotAmount := unsafe.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
@@ -83,7 +84,7 @@ func VoteMinimal(cur realm) {
 	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
+	ugnotAmount := unsafe.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()

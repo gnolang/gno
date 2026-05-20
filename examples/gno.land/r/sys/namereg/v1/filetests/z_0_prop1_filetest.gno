@@ -4,7 +4,7 @@ package z_0_prop1_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -15,7 +15,7 @@ import (
 )
 
 // Test updating a name via GovDAO
-var c address = runtime.OriginCaller()
+var c address = unsafe.OriginCaller()
 
 func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.

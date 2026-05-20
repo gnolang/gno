@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"time"
 )
 
@@ -34,12 +35,12 @@ func addActivity(act *activity) {
 // or return the specified return amount back to user.
 func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	send := chain.Coins{{returnDenom, returnAmount}}
 	// record activity
 	act := &activity{
 		caller:   caller,
-		sent:     banker.OriginSend(),
+		sent:     unsafe.OriginSend(),
 		returned: send,
 		time:     time.Now(),
 	}

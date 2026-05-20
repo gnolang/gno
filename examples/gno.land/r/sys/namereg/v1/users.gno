@@ -2,7 +2,7 @@ package namereg
 
 import (
 	"chain"
-	"chain/banker"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/moul/fifo"
 	susers "gno.land/r/sys/users"
@@ -61,7 +61,7 @@ func Register(cur realm, username string) {
 		panic(ErrPaused)
 	}
 
-	if banker.OriginSend().AmountOf("ugnot") != registerPrice {
+	if unsafe.OriginSend().AmountOf("ugnot") != registerPrice {
 		panic(errInvalidPayment())
 	}
 

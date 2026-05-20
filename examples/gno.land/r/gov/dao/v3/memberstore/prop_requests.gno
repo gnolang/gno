@@ -1,7 +1,7 @@
 package memberstore
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/nt/bptree/v0"
 
@@ -13,7 +13,7 @@ func NewChangeTiersRequest(cur realm, tiers map[string]Tier) dao.ProposalRequest
 		panic("tiers list is empty")
 	}
 
-	member, _ := Get(0, cur).GetMember(runtime.OriginCaller())
+	member, _ := Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}

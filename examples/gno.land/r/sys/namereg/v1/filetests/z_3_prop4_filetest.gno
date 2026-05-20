@@ -4,7 +4,7 @@ package z_3_prop4_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/r/gov/dao"
@@ -19,7 +19,7 @@ import (
 //  2. propose unpause via NewSetPausedExecutor(false), vote YES, execute,
 //     observe IsPaused() flip back to false.
 //  3. Register works again post-unpause.
-var c address = runtime.OriginCaller()
+var c address = unsafe.OriginCaller()
 
 func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.

@@ -3,7 +3,7 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"sort"
 	"strings"
 	"testing"
@@ -19,7 +19,6 @@ import (
 	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/treasury"
 )
-
 
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
@@ -94,7 +93,7 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 		ledger.Mint(toMint, mintAmount)
 
 		// Add the token and key to the lists.
-		key := fqname.Construct(runtime.CurrentRealm().PkgPath(), symbol)
+		key := fqname.Construct(unsafe.CurrentRealm().PkgPath(), symbol)
 		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
 		keys = append(keys, key)
 	}

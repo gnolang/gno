@@ -1,7 +1,7 @@
 package tokenhub
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 	"testing"
 
@@ -34,7 +34,7 @@ func TestNFTRegistration(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(testRealmPkgPath))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
+	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
 	err := RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1")
 
 	urequire.NoError(t, err, "Should register NFT without error")
@@ -72,27 +72,27 @@ func TestBalanceRetrieval(cur realm, t *testing.T) {
 
 	token, ledger := grc20.NewToken(0, cur, "Test Token", "TEST", 6)
 	RegisterToken(cross(cur), token, "test_token")
-	ledger.Mint(runtime.CurrentRealm().Address(), 1000)
+	ledger.Mint(unsafe.CurrentRealm().Address(), 1000)
 
-	balances := GetUserTokenBalances(runtime.CurrentRealm().Address().String())
+	balances := GetUserTokenBalances(unsafe.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances,
 		"Token:gno.land/r/matijamarjanovic/tokenhub.test_token:1000"), "Should show correct GRC20 balance")
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
-	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
+	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
 	uassert.NoError(t, RegisterNFT(cross(cur), nft.Getter(), "test_nft", "1"))
 
-	balances = GetUserNFTBalances(runtime.CurrentRealm().Address().String())
+	balances = GetUserNFTBalances(unsafe.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances, "NFT:"+testRealmPkgPath+".test_nft.1"), "Should show correct NFT balance")
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err := RegisterMultiToken(cross(cur), mt.Getter(), "1")
 	urequire.NoError(t, err, "Should register multi-token without error")
 
-	balances = GetUserMultiTokenBalances(runtime.CurrentRealm().Address().String())
+	balances = GetUserMultiTokenBalances(unsafe.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(balances, "MultiToken:"+testRealmPkgPath+".1:0"), "Should show multi-token balance")
 
-	nonZeroBalances := GetUserTokenBalancesNonZero(runtime.CurrentRealm().Address().String())
+	nonZeroBalances := GetUserTokenBalancesNonZero(unsafe.CurrentRealm().Address().String())
 	uassert.True(t, strings.Contains(nonZeroBalances,
 		"Token:gno.land/r/matijamarjanovic/tokenhub.test_token:1000"), "Should show non-zero GRC20 balance")
 }
@@ -167,7 +167,7 @@ func TestMustGetFunctions(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(r.(string), "unknown token"), "Panic message should mention unknown token")
 
 	nft := grc721.NewBasicNFT("Must NFT", "MNFT")
-	nft.Mint(runtime.CurrentRealm().Address(), grc721.TokenID("1"))
+	nft.Mint(unsafe.CurrentRealm().Address(), grc721.TokenID("1"))
 	RegisterNFT(cross(cur), nft.Getter(), "must_nft", "1")
 
 	// NFT registration key is cur.Previous().PkgPath() + "." + collection + "." + tokenId

@@ -3,6 +3,7 @@ package home
 import (
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 
 	"gno.land/p/demo/svg"
@@ -83,7 +84,7 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 }
 
 func Donate(cur realm) string {
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	if len(sent) == 0 {
 		return ":c"
 	}

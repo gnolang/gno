@@ -2,7 +2,7 @@ package eventix
 
 import (
 	"chain"
-	"chain/banker"
+	"chain/runtime/unsafe"
 	"strconv"
 	"time"
 
@@ -14,11 +14,11 @@ import (
 )
 
 type Event struct {
-	name         string
-	description  string
-	date         time.Time
-	maxTickets   int
-	price        uint64
+	name        string
+	description string
+	date        time.Time
+	maxTickets  int
+	price       uint64
 	// SECURITY XXX: paymentToken is `any` and accepted from the event
 	// creator. We only check the dynamic type (*grc20.Token or "ugnot"),
 	// not the token's identity. An attacker can deploy their own grc20
@@ -100,7 +100,7 @@ func BuyTicket(cur realm, eventId uint64) {
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
-		if banker.OriginSend().AmountOf("ugnot") != int64(event.price) {
+		if unsafe.OriginSend().AmountOf("ugnot") != int64(event.price) {
 			panic(ufmt.Sprintf("Invalid payment amount: needs to be %dugnot", event.price))
 		}
 	case *grc20.Token:

@@ -84,7 +84,7 @@ func (a *Authorizable) deleteFromAuthList(addr address) error {
 
 // OnAuthList reports whether rlm.Address() is on the auth list. rlm
 // must be the caller's own captured cur (asserted via rlm.IsCurrent()).
-// Pre-migration shape used runtime.CurrentRealm().Address() — vulnerable
+// Pre-migration shape used unsafe.CurrentRealm().Address() — vulnerable
 // to the .Title()-class read where a non-crossing wrapper made the walk
 // return the wrong realm. Explicit rlm closes that.
 func (a *Authorizable) OnAuthList(_ int, rlm realm) error {

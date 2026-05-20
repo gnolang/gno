@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/nestedpkg"
 	rsubtests "gno.land/r/tests/vm/subtests"
@@ -19,10 +19,10 @@ func Counter(cur realm) int {
 }
 
 func CurrentRealmPath(cur realm) string {
-	return runtime.CurrentRealm().PkgPath()
+	return unsafe.CurrentRealm().PkgPath()
 }
 
-var initOriginCaller = runtime.OriginCaller()
+var initOriginCaller = unsafe.OriginCaller()
 
 func InitOriginCaller(cur realm) address {
 	return initOriginCaller
@@ -33,8 +33,8 @@ func CallAssertOriginCall(cur realm) {
 }
 
 func CallIsOriginCall(cur realm) bool {
-	// XXX: consider return !runtime.PreviousRealm().IsCode()
-	return runtime.PreviousRealm().IsUser()
+	// XXX: consider return !unsafe.PreviousRealm().IsCode()
+	return unsafe.PreviousRealm().IsUser()
 }
 
 func CallSubtestsAssertOriginCall(cur realm) {
@@ -94,7 +94,7 @@ func PrintTestNodes() {
 }
 
 func GetPreviousRealm(cur realm) runtime.Realm {
-	return runtime.PreviousRealm()
+	return unsafe.PreviousRealm()
 }
 
 func GetRSubtestsPreviousRealm(cur realm) runtime.Realm {
@@ -136,7 +136,7 @@ func HasCallerSameNamespace(cur realm) bool {
 }
 
 func BankerOriginSend(cur realm) string {
-	return banker.OriginSend().String()
+	return unsafe.OriginSend().String()
 }
 
 func RTestsOriginSend(cur realm) string {

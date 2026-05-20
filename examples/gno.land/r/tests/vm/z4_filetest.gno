@@ -13,7 +13,7 @@ func main(cur realm) {
 	testing.SetOriginSend(chain.Coins{{Denom: "foo", Amount: 42}, {Denom: "ugnot", Amount: 100}})
 	println("tests.BankerOriginSend: " + tests.BankerOriginSend(cross(cur)))
 
-	// banker.OriginSend() always returns the origin send regardless of call
+	// unsafe.OriginSend() always returns the origin send regardless of call
 	// depth.
 	println("tests.RTestsOriginSend: " + tests.RTestsOriginSend(cross(cur)))
 }

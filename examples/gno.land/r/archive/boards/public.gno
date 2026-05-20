@@ -2,8 +2,7 @@ package boards
 
 import (
 	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 )
 
@@ -24,7 +23,7 @@ func CreateBoard(cur realm, name string) BoardID {
 	}
 
 	bid := incGetBoardID()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		panic("unauthorized")
 	}
@@ -36,12 +35,12 @@ func CreateBoard(cur realm, name string) BoardID {
 	return board.id
 }
 
-// checkAnonFee reads banker.OriginSend() to verify the anonymous-posting
+// checkAnonFee reads unsafe.OriginSend() to verify the anonymous-posting
 // fee was attached to the tx. Callers MUST also assert
 // cur.Previous().IsUserCall() before calling — see
 // docs/resources/effective-gno.md#verifying-inbound-coin-payments.
 func checkAnonFee() bool {
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
@@ -54,7 +53,7 @@ func CreateThread(cur realm, bid BoardID, title string, body string) PostID {
 		panic("invalid non-user call")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
@@ -73,7 +72,7 @@ func CreateReply(cur realm, bid BoardID, threadid, postid PostID, body string) P
 		panic("invalid non-user call")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
@@ -104,7 +103,7 @@ func CreateRepost(cur realm, bid BoardID, postid PostID, title string, body stri
 		panic("invalid non-user call")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
 		if !checkAnonFee() {
@@ -135,7 +134,7 @@ func DeletePost(cur realm, bid BoardID, threadid, postid PostID, reason string) 
 		panic("invalid non-user call")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
 		panic("board not exist")
@@ -168,7 +167,7 @@ func EditPost(cur realm, bid BoardID, threadid, postid PostID, title, body strin
 		panic("invalid non-user call")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
 		panic("board not exist")

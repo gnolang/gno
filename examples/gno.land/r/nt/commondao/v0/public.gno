@@ -1,7 +1,7 @@
 package commondao
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/nt/commondao/v0"
@@ -38,7 +38,7 @@ func New(cur realm, name string, options ...Option) *commondao.CommonDAO {
 
 	caller := cur.Previous().Address()
 	if !hasOwnership(caller) {
-		orig := runtime.OriginCaller()
+		orig := unsafe.OriginCaller()
 		assertIsInvited(orig)
 		invites.Remove(orig.String())
 	}

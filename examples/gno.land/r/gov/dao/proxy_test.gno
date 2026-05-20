@@ -1,19 +1,19 @@
 package dao
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
-
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
 const (
 	v3 = "gno.land/r/gov/dao/v3/impl"
 	v4 = "gno.land/r/gov/dao/v4/impl"
@@ -112,7 +112,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 type dummyDao struct{}
 
 func (dd *dummyDao) PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error) {
-	return runtime.OriginCaller(), nil
+	return unsafe.OriginCaller(), nil
 }
 
 func (dd *dummyDao) PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID) {

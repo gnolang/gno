@@ -9,7 +9,7 @@ import (
 
 // Earlier this test also asserted a panic ("action can only be
 // executed by the contract") when called without SetOriginCaller.
-// That panic was emitted by a `runtime.CurrentRealm() == contractAddr`
+// That panic was emitted by a `unsafe.CurrentRealm() == contractAddr`
 // check inside authz.ContractAuthority.Authorize, which has been
 // removed — it was .Title()-bypassable (runtime.CurrentRealm inside a
 // non-crossing closure walks past non-crossing frames to the

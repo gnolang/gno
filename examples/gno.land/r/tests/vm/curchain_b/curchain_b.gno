@@ -1,22 +1,25 @@
 // Package curchain_b is the terminal hop in the multi-level cross-call
 // chain test helpers. It prints the full captured chain visible from this
-// realm, and asserts parity with runtime.CurrentRealm() /
-// runtime.PreviousRealm() at the cross-callee position.
+// realm, and asserts parity with unsafe.CurrentRealm() /
+// unsafe.PreviousRealm() at the cross-callee position.
 package curchain_b
 
-import "chain/runtime"
+import (
+	"chain/runtime/unsafe"
+)
 
 // B is a crossing function that prints the captured chain reached via
-// .Previous() walks and asserts parity with runtime.CurrentRealm() /
-// runtime.PreviousRealm() at the cross-callee position. The chain-root
+// .Previous() walks and asserts parity with unsafe.CurrentRealm() /
+// unsafe.PreviousRealm() at the cross-callee position. The chain-root
 // case is covered separately by zrealm_cur_parity.
 //
 // Chain layout for callsite main -> curchain_a.A -> curchain_b.B:
-//   cur                  = B
-//   cur.Previous()       = A
-//   cur.Previous()^2     = main
-//   cur.Previous()^3     = EOA origin (PkgPath() == "")
-//   cur.Previous()^4     = panics (origin has no further previous)
+//
+//	cur                  = B
+//	cur.Previous()       = A
+//	cur.Previous()^2     = main
+//	cur.Previous()^3     = EOA origin (PkgPath() == "")
+//	cur.Previous()^4     = panics (origin has no further previous)
 func B(cur realm) {
 	println("B cur.PkgPath:", cur.PkgPath())
 	p1 := cur.Previous()
@@ -34,10 +37,10 @@ func B(cur realm) {
 	}()
 
 	// Parity at cross-callee position: cur agrees with
-	// runtime.CurrentRealm(), and cur.Previous() (the caller realm
-	// A) agrees with runtime.PreviousRealm().
-	rc := runtime.CurrentRealm()
-	rp := runtime.PreviousRealm()
+	// unsafe.CurrentRealm(), and cur.Previous() (the caller realm
+	// A) agrees with unsafe.PreviousRealm().
+	rc := unsafe.CurrentRealm()
+	rp := unsafe.PreviousRealm()
 	println("B parity cur==Current:",
 		string(cur.Address()) == string(rc.Address()) &&
 			cur.PkgPath() == rc.PkgPath())

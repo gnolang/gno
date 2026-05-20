@@ -25,7 +25,7 @@ Example:
 			title,
 			body,
 			publicationDate,
-			runtime.OriginCaller().String(),
+			unsafe.OriginCaller().String(),
 			authorsField,
 			tagsField,
 		)

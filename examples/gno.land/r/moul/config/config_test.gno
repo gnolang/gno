@@ -2,7 +2,7 @@ package config
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"testing"
 
@@ -225,7 +225,7 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	handlerExecuted := false // Track if the handler itself gets called
 	contractAuth := authz.NewContractAuthority(contractPath, func(title string, action authz.PrivilegedAction) error {
 		// Simulate contract checking the caller *before* executing
-		caller := runtime.CurrentRealm().Address()
+		caller := unsafe.CurrentRealm().Address()
 		expectedContractAddr := chain.PackageAddress(contractPath)
 		if caller != expectedContractAddr {
 			// Fail before marking executed or running action

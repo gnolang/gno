@@ -1,7 +1,7 @@
 package crossrealm_c
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/tests/p_crossrealm"
 	"gno.land/r/tests/vm/crossrealm"
@@ -11,8 +11,8 @@ import (
 // live cur as `rlm`; `passThrough` and the downstream `cross(rlm)`
 // calls forward it into crossrealm's crossing functions.
 func EntryPoint(_ int, rlm realm) {
-	println("crossrealm_c  EntryPoint: " + runtime.PreviousRealm().PkgPath())
-	println("crossrealm_c  EntryPoint: " + runtime.PreviousRealm().Address())
+	println("crossrealm_c  EntryPoint: " + unsafe.PreviousRealm().PkgPath())
+	println("crossrealm_c  EntryPoint: " + unsafe.PreviousRealm().Address())
 	println(" ")
 	passThrough(0, rlm)
 }

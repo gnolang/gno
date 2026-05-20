@@ -25,7 +25,7 @@ func New() *LociStore {
 
 // Set stores a byte slice in the AVL tree using `rlm.Previous().Address()`
 // as the key. rlm must be the caller's own captured cur (asserted via
-// rlm.IsCurrent()); the previous walk used to be runtime.PreviousRealm()
+// rlm.IsCurrent()); the previous walk used to be unsafe.PreviousRealm()
 // which is forgeable from non-crossing wrappers — an attacker realm
 // could overwrite another realm's slot. With IsCurrent + rlm.Previous(),
 // the slot key is unforgeable.

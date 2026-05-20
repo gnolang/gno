@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -32,7 +33,7 @@ func Deposit(cur realm) {
 	// instead of the actual sender.
 	runtime.AssertOriginCall()
 	caller := cur.Previous().Address()
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	amount := sent.AmountOf("ugnot")
 
 	require(int64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))

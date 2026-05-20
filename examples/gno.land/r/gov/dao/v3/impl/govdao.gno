@@ -2,7 +2,7 @@ package impl
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 
 	"gno.land/p/nt/ufmt/v0"
@@ -44,7 +44,7 @@ func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (add
 	}
 
 	// Verify that the one creating the proposal is a member.
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	mem, _ := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
 		return caller, errors.New("only members can create new proposals")
@@ -75,7 +75,7 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	mem, tie := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
@@ -174,7 +174,7 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 //   - rlm.Previous() is the caller of the proxy.
 //
 // The "called directly by user bypassing the proxy" path (formerly
-// case 2: runtime.CurrentRealm().IsUser()) is gone — the impl methods
+// case 2: unsafe.CurrentRealm().IsUser()) is gone — the impl methods
 // are non-crossing-with-realm-arg now, so a direct user MsgCall to
 // them would not provide a valid rlm; the IsCurrent() check rejects
 // any forged realm. The proxy is the only legitimate entrypoint.
@@ -192,5 +192,5 @@ func (g *GovDAO) isValidCall(_ int, rlm realm) bool {
 	}
 	// MsgRun: proxy was called from the ephemeral run realm; that
 	// realm's package address equals the EOA OriginCaller.
-	return chain.PackageAddress(prev.PkgPath()) == runtime.OriginCaller()
+	return chain.PackageAddress(prev.PkgPath()) == unsafe.OriginCaller()
 }

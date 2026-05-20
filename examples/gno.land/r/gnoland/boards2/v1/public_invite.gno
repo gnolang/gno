@@ -44,7 +44,7 @@ func RequestInvite(cur realm, boardID boards.ID) {
 	}
 
 	// TODO: Request a fee (returned on accept) or registered user to avoid spam?
-	//   WARNING: if a fee is added via banker.OriginSend(), the guard above
+	//   WARNING: if a fee is added via unsafe.OriginSend(), the guard above
 	//   must be tightened to IsUserCall() — IsUser() accepts maketx-run
 	//   ephemeral realms which can consume the origin-send envelope before
 	//   calling us, bypassing the fee. See

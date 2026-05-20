@@ -1,14 +1,14 @@
 package ghverify
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
 )
 
 func TestVerificationLifecycle(cur realm, t *testing.T) {
-	defaultAddress := runtime.OriginCaller()
+	defaultAddress := unsafe.OriginCaller()
 	user1Address := address(testutils.TestAddress("user 1"))
 	user2Address := address(testutils.TestAddress("user 2"))
 

@@ -1,7 +1,7 @@
 package blog
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/lou/blog"
@@ -18,7 +18,7 @@ func CreatePost(cur realm, slug, title, body, publicationDate, authors, tags str
 		title,
 		body,
 		publicationDate,
-		runtime.OriginCaller().String(),
+		unsafe.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
@@ -47,7 +47,7 @@ func UpdatePost(cur realm, id, slug, title, body, publicationDate, authors, tags
 		title,
 		body,
 		publicationDate,
-		runtime.OriginCaller().String(),
+		unsafe.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)
@@ -74,7 +74,7 @@ func UpdatePostBySlug(cur realm, slug, title, body, publicationDate, authors, ta
 		title,
 		body,
 		publicationDate,
-		runtime.OriginCaller().String(),
+		unsafe.OriginCaller().String(),
 		authorsField,
 		tagsField,
 	)

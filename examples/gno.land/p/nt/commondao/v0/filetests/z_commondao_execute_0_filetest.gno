@@ -2,7 +2,7 @@
 package test
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 	"time"
 
@@ -26,7 +26,7 @@ func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, n
 
 func (testPropDef) Executor() commondao.ExecFunc {
 	return func(realm) error {
-		executorPath = runtime.PreviousRealm().PkgPath()
+		executorPath = unsafe.PreviousRealm().PkgPath()
 		return nil
 	}
 }

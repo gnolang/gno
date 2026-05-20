@@ -10,7 +10,7 @@
 package pkgerr
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 
@@ -25,13 +25,13 @@ type pkgErr struct {
 }
 
 // New creates a new pkgErr with the given message. The realm link
-// captured by runtime.CurrentRealm() at THIS call's evaluation is
+// captured by unsafe.CurrentRealm() at THIS call's evaluation is
 // stored on the returned value, so the prefix in Error() reflects
 // the realm that CREATED the error — not whichever realm later
 // happens to call .Error() on it.
 //
 // SECURITY (Class-2-shaped, accepted as display-only): the capture
-// uses runtime.CurrentRealm() inside a non-crossing /p/ function and
+// uses unsafe.CurrentRealm() inside a non-crossing /p/ function and
 // is therefore .Title()-vulnerable (the walk resolves to the
 // most-recent crossing ancestor, not the immediate caller). For the
 // typical package-level-var usage (e.g. `var ErrX = pkgerr.New(...)`
@@ -44,7 +44,7 @@ type pkgErr struct {
 // threat-class taxonomy.
 func New(msg string) error {
 	return &pkgErr{
-		realmPath:   runtime.CurrentRealm().PkgPath(),
+		realmPath:   unsafe.CurrentRealm().PkgPath(),
 		originalErr: errors.New(msg),
 	}
 }
@@ -58,7 +58,7 @@ func Wrap(err error) error {
 	}
 
 	return &pkgErr{
-		realmPath:   runtime.CurrentRealm().PkgPath(),
+		realmPath:   unsafe.CurrentRealm().PkgPath(),
 		originalErr: err,
 	}
 }

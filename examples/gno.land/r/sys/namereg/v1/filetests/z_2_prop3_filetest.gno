@@ -4,7 +4,7 @@ package z_2_prop3_filetest
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -21,7 +21,7 @@ import (
 //     Register with the new amount and watching it succeed (registration
 //     under the old default of 0 ugnot would now panic with the new
 //     price in the error message).
-var c address = runtime.OriginCaller()
+var c address = unsafe.OriginCaller()
 
 func init(cur realm) {
 	// Whitelist this realm as a controller so its Register() can reach r/sys/users.

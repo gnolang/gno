@@ -386,7 +386,7 @@ func (a *ContractAuthority) Authorize(caller address, title string, action Privi
 	executionOnce := once.Once{}
 
 	// wrappedAction enforces at-most-once invocation. The previous
-	// gate `runtime.CurrentRealm() == contractAddr` is removed: it
+	// gate `unsafe.CurrentRealm() == contractAddr` is removed: it
 	// was .Title()-bypassable (runtime.CurrentRealm walks past
 	// non-crossing frames to the most-recent crossing ancestor) and
 	// the trust boundary is now upstream — Authorizer.DoByCurrent /

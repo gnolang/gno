@@ -40,6 +40,7 @@ package atomicswap
 
 import (
 	"chain/banker"
+	"chain/runtime/unsafe"
 	"strconv"
 	"time"
 
@@ -74,7 +75,7 @@ func NewGRC20Swap(cur realm, recipient address, hashlock string, tokenRegistryKe
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
 // It allows specifying a custom timelock duration.
 //
-// Only direct user-call (maketx call) is accepted: banker.OriginSend()
+// Only direct user-call (maketx call) is accepted: unsafe.OriginSend()
 // describes a real receipt at this realm only when the caller is a pure
 // EOA. Intermediate code realms or `maketx run` ephemeral realms can
 // attach -send to the tx but spend the envelope elsewhere, leaving
@@ -85,7 +86,7 @@ func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock t
 		panic("only user-call (maketx call) accepted")
 	}
 	sender := cur.Previous().Address()
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 
 	// Create the swap

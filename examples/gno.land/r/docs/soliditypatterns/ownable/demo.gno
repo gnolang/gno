@@ -1,7 +1,7 @@
 package ownable
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var owner address = ""
@@ -14,7 +14,7 @@ func InitOwner(cur realm) {
 }
 
 func assertOnlyOwner() {
-	if runtime.PreviousRealm().Address() != owner {
+	if unsafe.PreviousRealm().Address() != owner {
 		panic("caller isn't the owner")
 	}
 }

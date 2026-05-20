@@ -1,7 +1,7 @@
 package todolistrealm
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 	"testing"
 
@@ -26,7 +26,7 @@ func TestNewTodoList(cur realm, t *testing.T) {
 
 	uassert.Equal(t, title, tdl.Title, "title does not match")
 	uassert.Equal(t, 1, tlid, "tlid does not match")
-	uassert.Equal(t, tdl.Owner.String(), runtime.OriginCaller().String(), "owner does not match")
+	uassert.Equal(t, tdl.Owner.String(), unsafe.OriginCaller().String(), "owner does not match")
 	uassert.Equal(t, 0, len(tdl.GetTasks()), "Expected no tasks in the todo list")
 }
 

@@ -237,7 +237,7 @@ func (e *SafeExecutor) CreationRealm() string {
 // methods take rlm as their realm-typed parameter in the second position
 // (the `_ int, rlm realm` non-crossing form): callers thread the proxy's
 // cur as data without forcing a realm transition, so the impl's existing
-// runtime.CurrentRealm()-based auth gates (isValidCall, memberstore.Get)
+// unsafe.CurrentRealm()-based auth gates (isValidCall, memberstore.Get)
 // continue to see the proxy realm. Render stays unchanged.
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal

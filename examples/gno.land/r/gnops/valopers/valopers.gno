@@ -3,8 +3,8 @@ package valopers
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"crypto/bech32"
 	"errors"
 	"regexp"
@@ -119,7 +119,7 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // requires the attacker to be able to satisfy OriginCaller==victim,
 // which requires the victim's signing key. r/sys/namereg/v1.Register
 // also gates on IsUserCall, but that's because IT reads
-// banker.OriginSend() for the anti-squatting payment and IsUserCall
+// unsafe.OriginSend() for the anti-squatting payment and IsUserCall
 // is needed to ensure the OriginSend envelope reflects what landed at
 // this realm rather than a phantom payment from a previous frame.
 // valopers.Register has no per-call payment-receipt check (fees are
@@ -136,7 +136,7 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // post-genesis without needing the deployer's auth.
 func Register(cur realm, moniker string, description string, serverType string, addr address, pubKey string) {
 	// Operator-slot squat guard.
-	if runtime.ChainHeight() > 0 && runtime.OriginCaller() != addr {
+	if runtime.ChainHeight() > 0 && unsafe.OriginCaller() != addr {
 		panic(ErrOperatorSquatGuard)
 	}
 
@@ -144,7 +144,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	// governance raises it post-transfer-enablement).
 	if fee := sysparams.GetValoperRegisterFee(); fee > 0 {
 		minFee := chain.NewCoin("ugnot", int64(fee))
-		sentCoins := banker.OriginSend()
+		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
 		}
@@ -287,7 +287,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 //     rotationPeriodBlocks
 //   - signingRegistry uniqueness: derived(newPubKey) not in registry
 //     (active OR retired); permanently blocks key reuse
-//   - fee: banker.OriginSend() >= rotationFee (mirrors Register's
+//   - fee: unsafe.OriginSend() >= rotationFee (mirrors Register's
 //     fee-check pattern)
 //
 // Effect: profile's SigningPubKey/SigningAddress/LastRotationHeight
@@ -318,7 +318,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// rotation_fee defaults to zero pre-transfer-enablement).
 	if fee := sysparams.GetValoperRotationFee(); fee > 0 {
 		minFee := chain.NewCoin("ugnot", int64(fee))
-		sentCoins := banker.OriginSend()
+		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
 		}

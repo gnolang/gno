@@ -3,6 +3,7 @@ package disperse
 import (
 	"chain"
 	"chain/banker"
+	"chain/runtime/unsafe"
 
 	tokens "gno.land/r/demo/defi/grc20factory"
 )
@@ -11,7 +12,7 @@ import (
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
 func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
-	// Reject non-EOA callers: banker.OriginSend() and the realm-balance
+	// Reject non-EOA callers: unsafe.OriginSend() and the realm-balance
 	// check below describe coins that actually landed at this realm only
 	// when the caller is a pure EOA. A `maketx run` ephemeral realm or
 	// intermediate code realm could otherwise consume the envelope and
@@ -20,7 +21,7 @@ func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
 	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	coinSent := banker.OriginSend()
+	coinSent := unsafe.OriginSend()
 	caller := cur.Previous().Address()
 	realmAddr := cur.Address()
 	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)

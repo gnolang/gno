@@ -2,7 +2,7 @@ package boards2
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"regexp"
 	"strconv"
 	"strings"
@@ -574,7 +574,7 @@ func RemoveMember(cur realm, boardID boards.ID, member address) {
 	assertMemberAddressIsValid(member)
 
 	perms := mustGetPermissions(boardID)
-	origin := runtime.OriginCaller()
+	origin := unsafe.OriginCaller()
 	caller := cur.Previous().Address()
 	removeMember := func() {
 		if !perms.RemoveUser(member) {

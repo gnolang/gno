@@ -2,7 +2,7 @@ package authz
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 	"testing"
@@ -510,7 +510,7 @@ func TestContractAuthorityUnauthorizedCaller(cur realm, t *testing.T) {
 	handlerExecutedCorrectly := false // Tracks if handler logic ran correctly
 	handlerErrorMsg := "handler: caller is not the contract"
 	contractHandler := func(title string, action PrivilegedAction) error {
-		caller := runtime.CurrentRealm().Address()
+		caller := unsafe.CurrentRealm().Address()
 		if caller != contractAddr {
 			return errors.New(handlerErrorMsg)
 		}

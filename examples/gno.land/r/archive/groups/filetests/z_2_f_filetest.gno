@@ -4,7 +4,7 @@ package z_2_f
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/r/archive/groups"
@@ -14,7 +14,7 @@ import (
 var gid groups.GroupID
 
 func main(cur realm) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
 	uinit.RegisterUser(cross(cur), "gnouser123", caller)

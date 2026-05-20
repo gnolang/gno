@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/aeddi/panictoerr"
@@ -15,7 +15,7 @@ import (
 )
 
 func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
-	member, _ := memberstore.Get(0, cur).GetMember(runtime.OriginCaller())
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -31,7 +31,7 @@ func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
 }
 
 func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
-	member, _ := memberstore.Get(0, cur).GetMember(runtime.OriginCaller())
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -64,7 +64,7 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get(0, cur).GetMember(runtime.OriginCaller())
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -158,7 +158,7 @@ func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string
 		})
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, 
+	e := dao.NewSimpleExecutor(0, cur,
 		cb,
 		ufmt.Sprintf(
 			"A payment will be sent by the GovDAO treasury.\n\nReason: %s\n\nPayment: %s.",
@@ -195,7 +195,7 @@ func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) dao.Proposal
 
 	bulletList := md.BulletList(newTokenKeys)
 
-	e := dao.NewSimpleExecutor(0, cur, 
+	e := dao.NewSimpleExecutor(0, cur,
 		cb,
 		ufmt.Sprintf(
 			"The list of GRC20 tokens used by the treasury will be updated.\n\nNew Token Keys:\n%s.\n",

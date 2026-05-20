@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"math/rand"
 
 	"gno.land/p/demo/entropy"
@@ -58,7 +59,7 @@ func Withdrawal(cur realm, amount int64) {
 		panic("insufficient balance")
 	}
 
-	banker_.SendCoins(cur.Address(), runtime.OriginCaller(), chain.NewCoins(chain.NewCoin(denom, amount)))
+	banker_.SendCoins(cur.Address(), unsafe.OriginCaller(), chain.NewCoins(chain.NewCoin(denom, amount)))
 }
 
 func flip(choice int) bool {
@@ -72,7 +73,7 @@ func flip(choice int) bool {
 }
 
 func getBet(cur realm) chain.Coin {
-	bet := banker.OriginSend()
+	bet := unsafe.OriginSend()
 	if len(bet) != 1 || bet[0].Denom != denom {
 		panic("bet is invalid")
 	}
@@ -97,7 +98,7 @@ func sendPrize(cur realm, caller address, amount int64) {
 }
 
 func betLogic(cur realm, flipResult bool) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	bet := getBet(cross(cur))
 
 	if flipResult == true {

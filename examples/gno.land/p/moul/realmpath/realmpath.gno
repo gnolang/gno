@@ -28,6 +28,7 @@ package realmpath
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"net/url"
 	"strings"
 )
@@ -75,7 +76,7 @@ func (r *Request) PathPart(index int) string {
 // String rebuilds the URL from the path and query values.
 // If the Realm is not set, it automatically retrieves the current realm path.
 //
-// SECURITY (Class-2-shaped, intentionally accepted): runtime.CurrentRealm()
+// SECURITY (Class-2-shaped, intentionally accepted): unsafe.CurrentRealm()
 // inside a non-crossing /p/ method is .Title()-vulnerable — it walks past
 // non-crossing frames to the most-recent crossing ancestor, not the
 // immediate caller. The lazily-captured r.Realm is therefore NOT a reliable
@@ -91,7 +92,7 @@ func (r *Request) PathPart(index int) string {
 func (r *Request) String() string {
 	// Automatically set the Realm if it is not already defined
 	if r.Realm == "" {
-		r.Realm = runtime.CurrentRealm().PkgPath() // Get the current realm path
+		r.Realm = unsafe.CurrentRealm().PkgPath() // Get the current realm path
 	}
 
 	// Rebuild the path using the realm and path parts

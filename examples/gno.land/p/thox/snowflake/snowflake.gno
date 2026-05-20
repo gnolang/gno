@@ -88,7 +88,7 @@ func (s *SnowflakeID) getTimenow() uint64 {
 
 // SetMachineID derives the machine ID from the caller's address. rlm
 // must be the caller's own captured cur; the caller is
-// rlm.Previous().Address(). Pre-migration used runtime.PreviousRealm()
+// rlm.Previous().Address(). Pre-migration used unsafe.PreviousRealm()
 // which a non-crossing wrapper could spoof, producing a machineID
 // computed from the wrong address.
 func (s *SnowflakeID) SetMachineID(_ int, rlm realm) {
