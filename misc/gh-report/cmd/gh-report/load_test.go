@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"testing"
-	"time"
 )
 
 func TestLoadRepoFile(t *testing.T) {
@@ -49,5 +48,4 @@ func TestLoadRepoFile(t *testing.T) {
 	if pr.AuthorAssociation != "FIRST_TIME_CONTRIBUTOR" {
 		t.Errorf("author assoc: %s", pr.AuthorAssociation)
 	}
-	_ = time.Now
 }
