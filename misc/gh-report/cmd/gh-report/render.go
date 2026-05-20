@@ -21,7 +21,11 @@ func truncTitle(s string) string {
 	if len(s) <= titleMax {
 		return s
 	}
-	return s[:titleMax-1] + "…"
+	r := []rune(s)
+	if len(r) <= titleMax {
+		return s
+	}
+	return string(r[:titleMax-1]) + "…"
 }
 
 func metaBracket(section Section, entry Entry) string {
