@@ -47,11 +47,14 @@ func (m *Microblog) GetPages() []*Page {
 	return pages
 }
 
+// NewPost records a new post. The post's author is set to
+// runtime.Caller().Address() — sourced from a VM machine op, not a
+// passed-in realm value, so the post identity is unforgeable
+// (omarsy-free pattern).
 func (m *Microblog) NewPost(text string) error {
-	author := runtime.OriginCaller()
+	author := runtime.Caller().Address()
 	_, found := m.Pages.Get(author.String())
 	if !found {
-		// make a new page for the new author
 		m.Pages.Set(author.String(), &Page{
 			Author:    author,
 			CreatedAt: time.Now(),

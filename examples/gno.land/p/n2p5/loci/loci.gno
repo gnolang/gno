@@ -25,10 +25,15 @@ func New() *LociStore {
 	}
 }
 
-// Set stores a byte slice in the AVL tree using the `runtime.PreviousRealm().Address()`
-// string as the key.
+// Set stores a byte slice in the AVL tree using runtime.Caller().Address()
+// as the key. The caller identity is sourced from a VM machine op rather
+// than a passed-in `rlm realm` value — no rlm-typed parameter means
+// nothing for an attacker to forge (omarsy-free pattern).
+//
+// Migrated from the v2 `(_ int, rlm realm, value)` shape to the v3a
+// plain signature.
 func (s *LociStore) Set(value []byte) {
-	key := string(runtime.PreviousRealm().Address())
+	key := string(runtime.Caller().Address())
 	s.internal.Set(key, value)
 }
 

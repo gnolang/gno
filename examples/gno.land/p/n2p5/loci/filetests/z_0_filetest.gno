@@ -2,8 +2,6 @@
 package test
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/n2p5/loci"
 )
 
@@ -13,11 +11,9 @@ func init() {
 	store = loci.New()
 }
 
-func main() {
-	caller := runtime.PreviousRealm()
-
+func main(cur realm) {
 	store.Set([]byte("hello, world"))
-	println(string(store.Get(caller.Address())))
+	println(string(store.Get(cur.Previous().Address())))
 }
 
 // Output:
