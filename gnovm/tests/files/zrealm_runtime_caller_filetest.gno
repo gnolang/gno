@@ -15,7 +15,7 @@ import "chain/runtime"
 // `rlm realm` parameter. Under the current substrate the underlying
 // implementation is the same; the API rename is the safety surface.
 
-func main(cur realm) {
+func main() {
 	// Caller mirrors PreviousRealm.
 	caller := runtime.Caller()
 	prev := runtime.PreviousRealm()

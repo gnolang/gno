@@ -111,9 +111,7 @@ func TestErrInvalidAddress(cur realm, t *testing.T) {
 	err = o.TransferOwnership("")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
-	func(cur realm) {
-		err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
-	}(cross)
+	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
 

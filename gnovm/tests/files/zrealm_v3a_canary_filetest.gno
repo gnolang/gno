@@ -13,12 +13,12 @@ import (
 // regular method calls; the canary's ACL checks should resolve to
 // /r/v3acanaryhost's caller (the EOA) as the principal.
 
-func main(cur realm) {
+func main() {
 	// Bootstrap: seed the owner.
 	v3acanary.Init()
 
 	// The seeded owner should be the EOA (our MsgCall signer).
-	eoa := runtime.PreviousRealm().Address()
+	eoa := runtime.Origin().Address()
 	println("owner == eoa:", v3acanary.Owner() == eoa)
 
 	// Owner-authenticated transfer succeeds (caller is the EOA = owner).

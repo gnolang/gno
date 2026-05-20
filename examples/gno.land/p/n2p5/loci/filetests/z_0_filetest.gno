@@ -2,6 +2,8 @@
 package test
 
 import (
+	"chain/runtime"
+
 	"gno.land/p/n2p5/loci"
 )
 
@@ -11,9 +13,11 @@ func init() {
 	store = loci.New()
 }
 
-func main(cur realm) {
+func main() {
 	store.Set([]byte("hello, world"))
-	println(string(store.Get(cur.Previous().Address())))
+	// v3a-idiomatic: identity sourced via runtime.Origin() (the EOA
+	// that initiated the tx). No `cur realm` parameter needed.
+	println(string(store.Get(runtime.Origin().Address())))
 }
 
 // Output:

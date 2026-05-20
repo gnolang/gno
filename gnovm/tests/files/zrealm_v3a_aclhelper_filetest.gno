@@ -23,8 +23,8 @@ import (
 // /p/ frame (which inherited /r/v3aaclhost's realm) and lands on
 // the EOA's MsgCall frame, returning the EOA realm.
 
-func main(cur realm) {
-	eoaAddr := runtime.PreviousRealm().Address()
+func main() {
+	eoaAddr := runtime.Origin().Address()
 
 	// runtime.Caller() inside /p/v3aclhelper sees the EOA.
 	println("matches eoa:", v3aclhelper.CheckCaller(eoaAddr))

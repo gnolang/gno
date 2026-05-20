@@ -9,7 +9,7 @@ import "chain/runtime"
 // (the EOA), and CallerN(2)+ would panic or hit the bounds of the
 // available transitions.
 
-func main(cur realm) {
+func main() {
 	self := runtime.Self()
 	callerN0 := runtime.CallerN(0)
 	callerN1 := runtime.CallerN(1)

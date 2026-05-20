@@ -16,7 +16,7 @@ import (
 // guarantee. Layer-1 borrow + the override walk converge on the
 // same answer.
 
-func main(cur realm) {
+func main() {
 	// Direct call: /p/helper.CallerPath() resolves to the EOA realm
 	// (empty pkgPath since EOA is a user, not a code realm).
 	directPath := v3aclhelper.CallerPath()
