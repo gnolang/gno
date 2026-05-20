@@ -45,6 +45,14 @@ func metaBracket(section Section, entry Entry) string {
 				return fmt.Sprintf("%s/%dd/@%s", kind, d, h)
 			}
 		}
+		for _, h := range OtherCore {
+			needle := "@" + strings.ToLower(h)
+			for _, c := range entry.RecentComments {
+				if strings.Contains(strings.ToLower(c.Body), needle) {
+					return fmt.Sprintf("%s/%dd/@%s", kind, d, h)
+				}
+			}
+		}
 	}
 	return fmt.Sprintf("%s/%dd", kind, d)
 }
