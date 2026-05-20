@@ -135,7 +135,7 @@ func isReadyToMerge(e Entry) bool {
 	if e.Mergeable != "MERGEABLE" {
 		return false
 	}
-	if e.StatusCheckRoll != "" && e.StatusCheckRoll != "SUCCESS" {
+	if e.StatusCheckRollup != "" && e.StatusCheckRollup != "SUCCESS" {
 		return false
 	}
 	// Latest review per author. If any latest is CHANGES_REQUESTED, block.

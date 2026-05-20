@@ -36,8 +36,8 @@ func TestLoadRepoFile(t *testing.T) {
 	if pr.Kind != KindPR || pr.Number != 200 {
 		t.Errorf("PR mismatch: %+v", pr)
 	}
-	if pr.StatusCheckRoll != "SUCCESS" {
-		t.Errorf("status: %q", pr.StatusCheckRoll)
+	if pr.StatusCheckRollup != "SUCCESS" {
+		t.Errorf("status: %q", pr.StatusCheckRollup)
 	}
 	if len(pr.Reviews) != 1 || pr.Reviews[0].State != "APPROVED" {
 		t.Errorf("reviews: %v", pr.Reviews)

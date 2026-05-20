@@ -89,7 +89,7 @@ type rawReviewList struct {
 type rawCommitList struct {
 	Nodes []struct {
 		Commit struct {
-			StatusCheckRollup *struct {
+			StatusCheckRollupup *struct {
 				State string `json:"state"`
 			} `json:"statusCheckRollup"`
 		} `json:"commit"`
@@ -167,8 +167,8 @@ func toEntry(repo string, kind EntryKind, n rawNode) Entry {
 		}
 		e.Reviews = append(e.Reviews, rv)
 	}
-	if len(n.Commits.Nodes) > 0 && n.Commits.Nodes[0].Commit.StatusCheckRollup != nil {
-		e.StatusCheckRoll = n.Commits.Nodes[0].Commit.StatusCheckRollup.State
+	if len(n.Commits.Nodes) > 0 && n.Commits.Nodes[0].Commit.StatusCheckRollupup != nil {
+		e.StatusCheckRollup = n.Commits.Nodes[0].Commit.StatusCheckRollupup.State
 	}
 	for _, ti := range n.TimelineItems.Nodes {
 		if ti.Typename == "ReviewRequestedEvent" {
