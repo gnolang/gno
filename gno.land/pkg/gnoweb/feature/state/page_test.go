@@ -213,6 +213,46 @@ func TestServePageInvalidOID400(t *testing.T) {
 	}
 }
 
+// Garbage `?state&height=…` must 400 instead of silently rendering latest
+// (cache pollution + hidden UX failure on typos). Aligns page path with the
+// fragment path's existing strict ValidateHeight.
+func TestServePageInvalidHeight400(t *testing.T) {
+	for _, raw := range []string{"abc", "-1", "12a", "+1"} {
+		raw := raw
+		t.Run(raw, func(t *testing.T) {
+			h := newPageHandler(&pageMockClient{})
+			u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "height": {raw}}}
+			req := httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
+			status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
+			if status != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d for height=%q", status, http.StatusBadRequest, raw)
+			}
+			if view == nil {
+				t.Fatalf("view is nil; want a status-error view for height=%q", raw)
+			}
+		})
+	}
+}
+
+// Query-form `?height=…` (non-canonical, user-typed) must also 400 when
+// malformed — Height() falls back to Query, so the strict guard must too.
+func TestServePageInvalidQueryHeight400(t *testing.T) {
+	h := newPageHandler(&pageMockClient{})
+	u := &weburl.GnoURL{
+		Path:     "/r/demo",
+		WebQuery: url.Values{"state": {""}},
+		Query:    url.Values{"height": {"abc"}},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/r/demo$state?height=abc", nil)
+	status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+	}
+	if view == nil {
+		t.Fatalf("view is nil; want a status-error view")
+	}
+}
+
 func TestServePageNotFound404(t *testing.T) {
 	h := newPageHandler(&pageMockClient{pkgErr: errors.New("package not found")})
 	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}}}

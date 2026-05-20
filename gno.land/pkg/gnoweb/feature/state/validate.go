@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
 var (
@@ -63,16 +65,30 @@ func ValidateFile(s string) error {
 	return nil
 }
 
-// ValidateHeight returns 0 for empty input (meaning "latest").
+// ValidateHeight returns 0 for empty input (meaning "latest"). Mirrors
+// weburl/parseHeight's rejection of sign prefixes and >19-char inputs so
+// both code paths agree on what's valid.
 func ValidateHeight(s string) (int64, error) {
 	if s == "" {
 		return 0, nil
+	}
+	if len(s) > 19 || s[0] == '+' || s[0] == '-' {
+		return 0, ErrInvalidHeight
 	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil || n < 0 {
 		return 0, ErrInvalidHeight
 	}
 	return n, nil
+}
+
+// ValidateHeightFromURL mirrors GnoURL.Height()'s dual WebQuery/Query
+// lookup but rejects malformed values instead of silently returning 0.
+func ValidateHeightFromURL(u *weburl.GnoURL) (int64, error) {
+	if raw := u.WebQuery.Get("height"); raw != "" {
+		return ValidateHeight(raw)
+	}
+	return ValidateHeight(u.Query.Get("height"))
 }
 
 func ValidateLine(s string) (int, error) {

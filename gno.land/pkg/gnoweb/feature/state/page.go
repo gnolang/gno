@@ -21,7 +21,10 @@ import (
 // on error returns the mapped status plus a renderable status view so the
 // gnoweb wire-in can present it through its standard chrome.
 func (h *Handler) servePage(ctx context.Context, w http.ResponseWriter, r *http.Request, u *weburl.GnoURL) (int, *components.View) {
-	height := u.Height()
+	height, err := ValidateHeightFromURL(u)
+	if err != nil {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid height")
+	}
 
 	oid := u.WebQuery.Get("oid")
 	if oid != "" {
