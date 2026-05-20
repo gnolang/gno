@@ -108,6 +108,7 @@ and is available for immediate use in development and testing[^1].
 
 - **Address:** `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 - **Mnemonic:** `source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast`
+- **Name:** `test1` (registered in r/sys/users)
 
 ### Usage
 
