@@ -101,7 +101,7 @@ example.
 ## Default test account
 
 `gnodev` uses a standard test account that is consistent across all Gno tooling
-and test scripts. This account is automatically pre-funded with testnet GNOT
+and test scripts. This account is automatically pre-funded with locally usable GNOT
 and is available for immediate use in development and testing[^1].
 
 ### Account details
