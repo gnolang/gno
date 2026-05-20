@@ -1174,8 +1174,8 @@ func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *Dec
 	defer recoverToErr(nil, "decode object JSON", &err)
 
 	var resp objectResponse
-	if err := amino.UnmarshalJSON(rawObject, &resp); err != nil {
-		return nil, fmt.Errorf("decode object JSON: %w", err)
+	if cerr := amino.UnmarshalJSON(rawObject, &resp); cerr != nil {
+		return nil, fmt.Errorf("decode object JSON: %w", cerr)
 	}
 
 	info := objectInfoOf(resp.Value)
@@ -1188,7 +1188,7 @@ func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *Dec
 			TypeID string   `json:"typeid"`
 			Type   gno.Type `json:"type"`
 		}
-		if err := amino.UnmarshalJSON(rawType, &typeResp); err != nil || typeResp.Type == nil {
+		if cerr := amino.UnmarshalJSON(rawType, &typeResp); cerr != nil || typeResp.Type == nil {
 			nodes = decodeValueChildren(cfg, resp.Value)
 		} else {
 			nodes = decodeValueChildrenTyped(resp.Value, typeResp.Type, typeResp.TypeID, cfg)

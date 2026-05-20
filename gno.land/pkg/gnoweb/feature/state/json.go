@@ -142,4 +142,5 @@ func writeJSONHeaders(w http.ResponseWriter, height int64) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	w.Header().Set("Cache-Control", cacheControlForHeight(height))
+	w.Header().Set("Vary", "HX-Request")
 }

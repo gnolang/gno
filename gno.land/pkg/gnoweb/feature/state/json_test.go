@@ -249,6 +249,9 @@ func TestServeJSONCacheControlLatest(t *testing.T) {
 	if !strings.Contains(got, "max-age=1") {
 		t.Fatalf("Cache-Control = %q, want max-age=1 for latest height", got)
 	}
+	if v := rec.Header().Get("Vary"); !strings.Contains(v, "HX-Request") {
+		t.Fatalf("Vary = %q, want HX-Request for cache layer consistency with page+frag", v)
+	}
 }
 
 func TestServeJSONCacheControlPinned(t *testing.T) {

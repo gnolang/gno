@@ -108,9 +108,9 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 		if c := root.Children[0]; isFuncKind(&c) {
 			root = c
 			if root.Source != nil && root.Source.File != "" &&
-				h.deps.FileFetcher != nil && h.deps.Highlighter != nil {
-				// Cap like serveFragSource: oversize files skip highlighting
-				// and degrade to the lazy <details>/permalink fallback.
+				h.deps.FileFetcher != nil && h.deps.Highlighter != nil &&
+				ValidateFile(root.Source.File) == nil {
+				// ValidateFile: Source.File is chain-payload, not URL-input.
 				if content, ferr := h.deps.FileFetcher.Fetch(ctx, u.Path, root.Source.File, height); ferr == nil && len(content) <= MaxFragmentFileSize {
 					slice := sliceLines(content, root.Source.StartLine, root.Source.EndLine)
 					if html, herr := h.deps.Highlighter.Render(root.Source.File, slice); herr == nil {
@@ -297,6 +297,7 @@ func writeFragSuccessHeaders(w http.ResponseWriter, height int64) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	w.Header().Set("Cache-Control", cacheControlForHeight(height))
+	w.Header().Set("Vary", "HX-Request")
 }
 
 // htmlEscapePre wraps the bytes in <pre>…</pre> with HTML escaping. Used

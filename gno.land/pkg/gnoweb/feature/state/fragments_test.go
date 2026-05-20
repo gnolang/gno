@@ -102,10 +102,14 @@ type fragFileFetcher struct {
 	body      []byte
 	err       error
 	gotHeight int64
+	gotFile   string
+	calls     int32
 }
 
-func (f *fragFileFetcher) Fetch(_ context.Context, _, _ string, height int64) ([]byte, error) {
+func (f *fragFileFetcher) Fetch(_ context.Context, _, file string, height int64) ([]byte, error) {
 	f.gotHeight = height
+	f.gotFile = file
+	atomic.AddInt32(&f.calls, 1)
 	return f.body, f.err
 }
 
@@ -380,11 +384,17 @@ func TestFragNodeCacheControlLatest(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Header().Get("Cache-Control"), "max-age=1",
 		"latest-mode fragments get the 1s freshness window")
+	assert.Contains(t, rec.Header().Get("Vary"), "HX-Request",
+		"fragment surface must Vary on HX-Request for cache layer consistency")
 }
 
 // fragFuncBody returns a qobject_json payload whose value is a FuncValue
 // carrying a Source RefNode spanning lines 2-4 of "f.gno".
 func fragFuncBody(oid string) []byte {
+	return fragFuncBodyWithFile(oid, "f.gno")
+}
+
+func fragFuncBodyWithFile(oid, file string) []byte {
 	return []byte(fmt.Sprintf(`{
 		"objectid": %q,
 		"value": {
@@ -392,9 +402,9 @@ func fragFuncBody(oid string) []byte {
 			"Type": {"@type": "/gno.FuncType", "Params": [], "Results": []},
 			"Name": "Render",
 			"Source": {"@type": "/gno.RefNode",
-				"Location": {"PkgPath": "gno.land/r/demo", "File": "f.gno",
+				"Location": {"PkgPath": "gno.land/r/demo", "File": %q,
 					"Span": {"Pos": {"Line": "2", "Column": "1"}, "End": {"Line": "4", "Column": "1"}, "Num": "0"}}}}
-	}`, oid))
+	}`, oid, file))
 }
 
 // fragClosureBody returns a qobject_json payload whose value is a FuncValue
@@ -467,6 +477,20 @@ func TestFragNodeFuncDoesNotEmitOOBTag(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.NotContains(t, rec.Body.String(), `hx-swap-oob="true"`,
 		"non-closure must not emit OOB tag swap")
+}
+
+// Source.File is chain-payload, so a `..` traversal must not reach FileFetcher.
+func TestFragNodeRejectsTraversalInSourceFile(t *testing.T) {
+	client := &fragMockClient{objBytes: fragFuncBodyWithFile(fragOID, "../other/x.gno")}
+	ff := &fragFileFetcher{body: []byte("SECRET CONTENT")}
+	h := newFragHandler(client, ff)
+	rec := serveFragReq(t, h, url.Values{"frag": {"node"}, "oid": {fragOID}})
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Zero(t, atomic.LoadInt32(&ff.calls),
+		"hostile Source.File must not reach FileFetcher; got %d call(s) for file=%q", ff.calls, ff.gotFile)
+	assert.NotContains(t, rec.Body.String(), "SECRET CONTENT",
+		"traversal payload must not surface fetched content in the fragment body")
 }
 
 func TestFragNodeInvalidOID(t *testing.T) {

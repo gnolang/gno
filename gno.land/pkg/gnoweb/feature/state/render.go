@@ -50,14 +50,14 @@ func startDepthFor(cfg RenderConfig) int {
 // the handler's existing decode-error log line.
 func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (root StateNode, err error) {
 	defer recoverToErr(nil, "decode object JSON", &err)
-	if err := ctx.Err(); err != nil {
-		return StateNode{}, err
+	if cerr := ctx.Err(); cerr != nil {
+		return StateNode{}, cerr
 	}
 	cfg = clampRenderConfig(cfg)
 
 	var resp objectResponse
-	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
-		return StateNode{}, fmt.Errorf("decode object JSON: %w", err)
+	if cerr := amino.UnmarshalJSON(raw, &resp); cerr != nil {
+		return StateNode{}, fmt.Errorf("decode object JSON: %w", cerr)
 	}
 
 	root = StateNode{
@@ -103,8 +103,8 @@ func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig, offset, li
 // function; the caller sees a clean error and returns 500.
 func parsePackage(raw []byte) (resp pkgResponse, err error) {
 	defer recoverToErr(nil, "decode pkg JSON", &err)
-	if err := amino.UnmarshalJSON(raw, &resp); err != nil {
-		return pkgResponse{}, fmt.Errorf("decode pkg JSON: %w", err)
+	if cerr := amino.UnmarshalJSON(raw, &resp); cerr != nil {
+		return pkgResponse{}, fmt.Errorf("decode pkg JSON: %w", cerr)
 	}
 	return resp, nil
 }
@@ -116,8 +116,8 @@ func parsePackage(raw []byte) (resp pkgResponse, err error) {
 // malformed top-level decl cannot tear the whole page response.
 func decodePackageSlice(ctx context.Context, resp pkgResponse, cfg RenderConfig, indices []int) (nodes []StateNode, err error) {
 	defer recoverToErr(nil, "decode pkg slice", &err)
-	if err := ctx.Err(); err != nil {
-		return nil, err
+	if cerr := ctx.Err(); cerr != nil {
+		return nil, cerr
 	}
 	cfg = clampRenderConfig(cfg)
 	startDepth := startDepthFor(cfg)
