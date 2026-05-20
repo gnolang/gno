@@ -2,7 +2,7 @@
 package borrow
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"fmt"
 
 	"gno.land/r/tests/vm/crossrealm"
@@ -15,8 +15,8 @@ type Struct struct {
 func (s *Struct) Mutate() {
 	s.A += 1
 	fmt.Printf("s.A: %d\n", s.A)
-	fmt.Println("current realm: ", runtime.CurrentRealm())
-	fmt.Println("previous realm: ", runtime.PreviousRealm())
+	fmt.Println("current realm: ", unsafe.CurrentRealm())
+	fmt.Println("previous realm: ", unsafe.PreviousRealm())
 }
 
 type Passthrough struct {

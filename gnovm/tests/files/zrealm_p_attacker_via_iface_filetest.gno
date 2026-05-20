@@ -3,7 +3,7 @@
 package caller
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
@@ -18,14 +18,14 @@ import (
 // inside /r/tests/vm/crossrealm (Layer 1 borrow). The Container is
 // returned to /r/caller still bearing PkgID=crossrealm. When /r/caller
 // invokes the /p/-declared Touch() method, Layer 2 fires:
-// runtime.CurrentRealm() inside Touch reports /r/tests/vm/crossrealm,
+// unsafe.CurrentRealm() inside Touch reports /r/tests/vm/crossrealm,
 // not /r/caller.
 
 func main(cur realm) {
 	c := crossrealm.Make1() // returns *p_crossrealm.Container, PkgID=crossrealm
 	c.Touch()               // /p/-method; Layer 2 borrows m.Realm to crossrealm
 	println("after Touch A=", c.A)
-	println("caller-side CurrentRealm:", runtime.CurrentRealm().PkgPath())
+	println("caller-side CurrentRealm:", unsafe.CurrentRealm().PkgPath())
 }
 
 // Output:

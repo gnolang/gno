@@ -2,7 +2,7 @@
 package testinit
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	tests "gno.land/r/tests/vm"
 )
@@ -13,12 +13,12 @@ var (
 )
 
 func init(cur realm) {
-	addr = runtime.OriginCaller()
+	addr = unsafe.OriginCaller()
 	addrInit = tests.InitOriginCaller(cross(cur))
 }
 
 func main(cur realm) {
-	// `addr` is set by init via runtime.OriginCaller() — now reads the
+	// `addr` is set by init via unsafe.OriginCaller() — now reads the
 	// DefaultCaller because the filetest framework sets OriginCaller
 	// before RunMemPackage (consistent with the package-main path).
 	// `addrInit` is set via a cross-call that mints a fresh cur whose

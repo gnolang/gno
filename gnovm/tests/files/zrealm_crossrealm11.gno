@@ -4,6 +4,7 @@ package crossrealm
 import (
 	"chain"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	ptests "gno.land/p/demo/tests"
 	"gno.land/p/nt/ufmt/v0"
@@ -11,7 +12,7 @@ import (
 )
 
 func getPreviousRealm() runtime.Realm {
-	return runtime.PreviousRealm()
+	return unsafe.PreviousRealm()
 }
 
 func Exec(fn func()) {

@@ -2,14 +2,14 @@
 package curparity
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/curchain_a"
 )
 
 // Parity invariant: for any execution context where both APIs are
-// callable, `cur` (uverse interface) and `runtime.CurrentRealm()` /
-// `runtime.PreviousRealm()` (chain/runtime struct) must agree on
+// callable, `cur` (uverse interface) and `unsafe.CurrentRealm()` /
+// `unsafe.PreviousRealm()` (chain/runtime struct) must agree on
 // addr and pkgPath at the same chain position.
 //
 // Three contexts covered:
@@ -37,11 +37,11 @@ func main(cur realm) {
 }
 
 // curMatchesRuntime checks that the captured `cur` value agrees on
-// addr+pkgPath with what runtime.CurrentRealm() / runtime.PreviousRealm()
+// addr+pkgPath with what unsafe.CurrentRealm() / unsafe.PreviousRealm()
 // would surface in the same execution context.
 func curMatchesRuntime(cur realm) bool {
-	rc := runtime.CurrentRealm()
-	rp := runtime.PreviousRealm()
+	rc := unsafe.CurrentRealm()
+	rp := unsafe.PreviousRealm()
 	if string(cur.Address()) != string(rc.Address()) {
 		return false
 	}

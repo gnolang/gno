@@ -3,7 +3,7 @@
 package caller
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
@@ -24,7 +24,7 @@ func main(cur realm) {
 	// c.B is *crossrealm.LocalStruct (an /r/-declared receiver).
 	// Calling String() on it goes through Layer 1 borrow.
 	println("B:", c.B.String())
-	println("CurrentRealm after return:", runtime.CurrentRealm().PkgPath())
+	println("CurrentRealm after return:", unsafe.CurrentRealm().PkgPath())
 }
 
 // Output:

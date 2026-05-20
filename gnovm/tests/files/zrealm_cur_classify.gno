@@ -2,16 +2,16 @@
 package curclassify
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 // Exercises the classification methods (IsCode / IsUser / IsUserCall /
 // IsUserRun / IsEphemeral) on captured `cur realm` values, and confirms
 // each agrees with the equivalent on the runtime.Realm struct surfaced
-// by runtime.CurrentRealm() / runtime.PreviousRealm().
+// by unsafe.CurrentRealm() / unsafe.PreviousRealm().
 func main(cur realm) {
-	rc := runtime.CurrentRealm()
-	rp := runtime.PreviousRealm()
+	rc := unsafe.CurrentRealm()
+	rp := unsafe.PreviousRealm()
 	prev := cur.Previous()
 
 	// CurrentRealm parity — captured cur is a normal code realm.

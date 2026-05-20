@@ -2,7 +2,7 @@
 package curtest
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func Stash(_ int, rlm realm) realm {
@@ -10,10 +10,10 @@ func Stash(_ int, rlm realm) realm {
 	println("cur == cur_:", rlm == rlm_)
 	println("cur.Address:", rlm.Address())
 	println("cur.PkgPath:", rlm.PkgPath())
-	println("runtime.Current matches:", string(rlm.Address()) == string(runtime.CurrentRealm().Address()))
+	println("runtime.Current matches:", string(rlm.Address()) == string(unsafe.CurrentRealm().Address()))
 	// At the chain root the prev is the EOA origin: non-nil pointer with
-	// empty pkgPath (mirrors runtime.PreviousRealm()'s convention). Calling
-	// .Previous() past the origin panics (mirrors runtime.PreviousRealm()'s
+	// empty pkgPath (mirrors unsafe.PreviousRealm()'s convention). Calling
+	// .Previous() past the origin panics (mirrors unsafe.PreviousRealm()'s
 	// walk-end behavior), so user code checks PkgPath()=="" to stop.
 	prev := rlm.Previous()
 	println("Previous() at top non-nil:", prev != nil)

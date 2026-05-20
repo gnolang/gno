@@ -2,7 +2,7 @@
 package borrow
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"fmt"
 
 	"gno.land/r/tests/vm/crossrealm"
@@ -26,8 +26,8 @@ func (s *Struct) PrintRealms() {
 }
 
 func (s *Struct) printRealms() {
-	fmt.Println(runtime.CurrentRealm())
-	fmt.Println(runtime.PreviousRealm())
+	fmt.Println(unsafe.CurrentRealm())
+	fmt.Println(unsafe.PreviousRealm())
 }
 
 type Passthrough struct {
@@ -53,7 +53,7 @@ func (p *Passthrough) printRealm() {
 var s *Struct
 
 func main(cur realm) {
-	s = &Struct{A: 100}              // saved in borrow_test.
+	s = &Struct{A: 100}                   // saved in borrow_test.
 	crossrealm_b.SetObject(cross(cur), s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}

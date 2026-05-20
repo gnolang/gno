@@ -2,14 +2,14 @@
 package crossrealm
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
 
 func Public(cur realm) {
-	println("current realm: ", runtime.CurrentRealm())
-	println("previous realm: ", runtime.PreviousRealm())
+	println("current realm: ", unsafe.CurrentRealm())
+	println("previous realm: ", unsafe.PreviousRealm())
 }
 
 func main(cur realm) {

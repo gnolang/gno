@@ -2,14 +2,14 @@
 package crossrealm
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/crossrealm_e"
 )
 
 func main(cur realm) {
 	println("owner:", crossrealm_e.GetOwner())
-	attacker := runtime.CurrentRealm().Address()
+	attacker := unsafe.CurrentRealm().Address()
 	println("attacker: ", attacker)
 
 	func() {
@@ -19,7 +19,7 @@ func main(cur realm) {
 				println("exception caught: ", r.(string))
 			}
 		}()
-		crossrealm_e.SetOwner(runtime.CurrentRealm().Address())
+		crossrealm_e.SetOwner(unsafe.CurrentRealm().Address())
 	}()
 
 	owner := crossrealm_e.GetOwner()
@@ -42,4 +42,3 @@ func main(cur realm) {
 // attacker:  g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
 // owner == attacker:  true
 // ===send token to:  g1h2y7mn4d8w5ed08kqt8sdd7tp4j96eahyn6yan
-

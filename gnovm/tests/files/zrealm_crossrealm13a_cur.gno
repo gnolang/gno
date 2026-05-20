@@ -6,7 +6,7 @@ import (
 )
 
 // Exercises the captured `cur realm` handle (uverse interface) against
-// runtime.CurrentRealm() / runtime.PreviousRealm() (chain/runtime struct),
+// unsafe.CurrentRealm() / unsafe.PreviousRealm() (chain/runtime struct),
 // including under successive testing.SetRealm overrides — both APIs
 // produce identical output by design.
 

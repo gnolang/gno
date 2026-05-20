@@ -2,15 +2,15 @@
 package crossrealm
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/crossrealm"
 )
 
 func main(cur realm) {
 	println(crossrealm.ExecCrossing(cross(cur), func() string {
-		rlm1 := runtime.CurrentRealm()
-		rlm2 := runtime.PreviousRealm()
+		rlm1 := unsafe.CurrentRealm()
+		rlm2 := unsafe.PreviousRealm()
 		return string(rlm1.Address()) + " " + rlm1.PkgPath() + "\n" + string(rlm2.Address()) + " " + rlm2.PkgPath()
 	}))
 }
