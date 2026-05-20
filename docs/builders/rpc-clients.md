@@ -1,4 +1,4 @@
-# Connecting Clients and Applications to Gno.land
+# RPC clients
 
 This guide explains how to connect external applications to Gno.land networks
 using clients in different languages. You'll learn how to use the RPC endpoints

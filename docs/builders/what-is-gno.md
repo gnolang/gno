@@ -88,5 +88,5 @@ its sustainable growth.
 ## Getting Started
 
 Ready to write your first Gno program? Continue to:
-- [Anatomy of a Gno Package](./anatomy-of-a-gno-package.md) - Learn the basic structure
-- [Local Development with gnodev](./local-dev-with-gnodev.md) - Set up your local environment
+- [Getting started](./getting-started.md) - Build, run, and deploy your first realm
+- [Local development with `gnodev`](../resources/gnodev.md) - Local node features & flags

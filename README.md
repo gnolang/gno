@@ -86,7 +86,7 @@ repository.
   resources
 - [Gnoscan](https://gnoscan.io) - Blockchain explorer
 - [Gno Studio](https://gno.studio) - Web IDE for Gno development
-- [Become a Gnome](./docs/builders/become-a-gnome.md) - Join the contributor 
+- [Contributor guide](./docs/builders/contributor-guide.md) - Join the contributor 
   community
 
 **Connect & Get Help:**

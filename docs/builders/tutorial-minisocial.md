@@ -1,53 +1,39 @@
-# Example `minisocial` dApp
+# Tutorial: `minisocial` dApp
 
 We will create a MiniSocial [realm](../resources/realms.md),
-a minimalist social media application. This tutorial will showcase a full local
-development flow for Gno, using all the tools covered in previous tutorials.
+a minimalist social media application. This tutorial showcases the full local
+development flow for Gno.
 
-Find the full app on [this link](https://staging.gno.land/r/docs/minisocial/v1).
+Find the full app at [staging.gno.land/r/docs/minisocial/v1](https://staging.gno.land/r/docs/minisocial/v1).
 
 ## Prerequisites
 
-See [Local Development with gnodev](./local-dev-with-gnodev.md) for setup instructions.
+Complete [Getting started](./getting-started.md) first. See
+[`gnodev`](../resources/gnodev.md) for deeper local-node detail.
 
 ## Setup
 
-Start by creating a folder that will contain your Gno code:
+Create a folder, initialize a module, and create three files:
 
 ```sh
-mkdir minisocial
-cd minisocial
-```
-
-Next, initialize a `gnomod.toml` file. This file declares the package path of your
-realm and is used by Gno tools. Run the following command to create a `gnomod.toml` file:
-
-```sh
+mkdir minisocial && cd minisocial
 gno mod init gno.land/r/example/minisocial
-```
-
-In this case, we'll be using the `example` namespace, but you can change this to
-the namespace of your liking later.
-
-Next, in the same folder, start by creating three files:
-
-```sh
 touch types.gno posts.gno render.gno
 ```
 
-While all code can be stored in a single file, separating logical units,
-such as types, business logic, and rendering can make your realm more readable.
+Swap `example` for your own namespace if you plan to deploy this realm — see
+[Namespaces](./getting-started.md#4-before-you-deploy).
+
+While all code can be stored in a single file, separating types, business
+logic, and rendering makes a realm easier to read as it grows.
 
 ## Core functionality
 
 ### `types.gno`
 
-We can use `types.gno` file to store our types and their functionality. We will be
-importing some standard library packages, as well as some pure packages directly
-from the chain.
-
-First, let's declare a `Post` struct that will hold all the data of a single post.
-We import the `time` package, which allows us to handle time-related functionality.
+We use `types.gno` for our types. Let's declare a `Post` struct that will hold
+all the data of a single post, importing the `time` package to handle
+time-related functionality.
 
 [embedmd]:# (../_assets/minisocial/types-1.gno go)
 ```go
@@ -65,32 +51,30 @@ type Post struct {
 }
 ```
 
-The `address` keyword is a built-in keyword type represents a Gno address.
+The `address` keyword is a built-in type that represents a Gno address.
 
 Standard libraries such as `time` are ported over directly from Go. Check out the
 [Go-Gno Compatibility](../resources/go-gno-compatibility.md) page for more info.
 
 ### `posts.gno`
 
-In this file, we will define the main functions for creating, updating, and deleting
-posts. Let's start with top level variables - they are the anchor points of our
-app, as they are persisted to storage after each transaction:
+`posts.gno` holds two things: a `posts` slice that stores every post, and a
+`CreatePost` function that anyone can call via a transaction to add to it.
+Top-level variables like `posts` are persisted to storage after each
+transaction. Create the file like this:
 
-[embedmd]:# (../_assets/minisocial/posts-0.gno go)
+[embedmd]:# (../_assets/minisocial/posts-1.gno go)
 ```go
 package minisocial
 
+import (
+	"chain/runtime" // Special Gno package providing access to the caller
+	"errors"        // For handling errors
+	"time"          // For handling time
+)
+
 var posts []*Post
-```
 
-The `posts` slice will hold our all newly created posts.
-
-Next, in the same file, let's create a function to create new posts. This function
-will be [exported](https://go.dev/tour/basics/3), meaning it will be callable via
-a transaction by anyone.
-
-[embedmd]:# (../_assets/minisocial/posts-1.gno go /\/\/ CreatePost/ $)
-```go
 // CreatePost creates a new post
 // As the function modifies state (i.e. the `posts` slice),
 // it needs to be crossing. This is defined by the first argument being of type `realm`
@@ -103,7 +87,7 @@ func CreatePost(_ realm, text string) error {
 	// Append the new post to the list
 	posts = append(posts, &Post{
 		text:      text,                              // Set the input text
-		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		author:    runtime.PreviousRealm().Address(), // The author's address comes from the previous realm, the one that called this function
 		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 
@@ -118,54 +102,24 @@ A few things to note:
   use `panic()`.
 - To get the caller of `CreatePost`, we need to import `chain/runtime`,
 which provides access to the function caller, and use `runtime.PreviousRealm().Address()`.
-Check out the [realm concept page](../resources/realms.md) & the 
+Check out the [realm concept page](../resources/realms.md) and the
 [`chain/runtime` package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
 included in, instead of the system time.
 
-:::info Lint & format
-
-The `gno` binary provides tooling which can help you write correct code.
-You can use `gno lint` and `gno fmt` to lint and format your code,
-respectively.
-:::
-
 ## Rendering
 
-Let's start building the "front end" of our app.
+Let's build the "front end" of our app.
 
-One of the core features of Gno is that developers can simply provide a Markdown
-view of their realm state directly in Gno, removing the need for using complex
-frontend frameworks, languages, and clients. To learn more about this, check out
+A core feature of Gno is that developers can serve a Markdown view of their
+realm state directly from on-chain code, removing the need for a separate
+frontend framework. To learn more, see
 [Exploring Gno.land](../users/explore-with-gnoweb.md).
 
-The easiest way to develop this part of our Gno app is to run `gnodev`, which
-contains a built-in Gno.land node, a built-in instance of `gnoweb`, fast hot
-reload, and automatic balance premining. Using `gnodev` will allow us to see our
-code changes live.
-
-Let's start by running `gnodev` inside our `minisocial/` folder:
-
-```
-❯ gnodev
-Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-GnoWeb      ┃ I using default package path=gno.land/r/example/minisocial
-Proxy       ┃ I lazy loading is enabled. packages will be loaded only upon a request via a query or transaction. loader=local<threads-full>/root<examples>
-Node        ┃ I packages paths=[gno.land/r/example/minisocial]
-Event       ┃ I sending event to clients clients=0 type=NODE_RESET event={}
-GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
---- READY   ┃ I for commands and help, press `h` took=1.689893s
-```
-
-If we didn't make any errors in our code, we should get the output as presented
-above. If not, follow the stack trace and fix any errors that might have showed up.
-
-Next, we can open the `gnoweb` instance by opening the local listener at
-[`127.0.0.1:8888`](http://127.0.0.1:8888). `gnodev` is configured to open
-the package path you're working on by default.
-
-Since a `Render()` function is not defined yet, `gnoweb` will return an error.
-Let's start fixing this, in `render.gno`:
+Start [`gnodev`](./getting-started.md#run-a-local-chain) in the `minisocial/`
+folder and open [`127.0.0.1:8888`](http://127.0.0.1:8888). Since a `Render()`
+function is not defined yet, `gnoweb` returns an error. Let's fix that in
+`render.gno`:
 
 ```go
 package minisocial
@@ -175,10 +129,9 @@ func Render(_ string) string {
 }
 ```
 
-`gnodev` will detect changes in your code and automatically reload, and you
-should get `MiniSocial`  rendered as a Header 1 in `gnoweb` 🎉
+`gnodev` hot-reloads and you should see `MiniSocial` as a Header 1 in `gnoweb` 🎉
 
-Let's start by slowly adding more and more functionality:
+Let's gradually add more functionality:
 
 [embedmd]:# (../_assets/minisocial/render-0.gno go)
 ```go
@@ -203,7 +156,8 @@ func Render(_ string) string {
 ```
 
 We can now use `gnokey` to call the `CreatePost` function and see how our posts
-look rendered on `gnoweb`. Let's use the [Docs] page to obtain the `gnokey` command:
+look rendered on `gnoweb`. From the gnoweb realm page, the **Docs** tab gives
+you a ready-to-copy `gnokey` command:
 
 ```sh
 gnokey maketx call \
@@ -219,25 +173,39 @@ gnokey maketx call \
 If the transaction went through, we should see `This is my first post` under the
 header.
 
-We can make this a bit prettier by introducing a custom `String()` method on
-the `Post` struct, in `types.gno`:
+We can make this prettier by adding a custom `String()` method on the `Post`
+struct. Update `types.gno` to:
 
-[embedmd]:# (../_assets/minisocial/types-2.gno go /\/\/ String/ $)
+[embedmd]:# (../_assets/minisocial/types-2.gno go)
 ```go
+package minisocial
+
+import (
+	"time" // For handling time operations
+
+	"gno.land/p/nt/ufmt/v0"
+)
+
+// Post defines the main data we keep about each post
+type Post struct {
+	text      string
+	author    address
+	createdAt time.Time
+}
+
 // String stringifies a Post
 func (p Post) String() string {
 	out := p.text + "\n\n"
 
 	// We can use `ufmt` to format strings, and the built-in time library formatting function
-	out += ufmt.Sprintf("_by %s on %s_, ", p.author, p.createdAt.Format("02 Jan 2006, 15:04"))
-	out += "\n\n"
+	out += ufmt.Sprintf("_by %s on %s_\n\n", p.author, p.createdAt.Format("02 Jan 2006, 15:04"))
 
 	return out
 }
 ```
 
 Here, package `ufmt` is used to provide string formatting functionality. It can
-be imported via with `gno.land/p/nt/ufmt/v0`.
+be imported as `gno.land/p/nt/ufmt/v0`.
 
 With this, we can expand our `Render()` function in `render.gno` as follows:
 
@@ -278,7 +246,7 @@ Testing is an essential part of developing reliable applications.
 Here we will cover a simple test case and then showcase a more advanced approach
 using Table-Driven Tests (TDT), a pattern commonly used in Go.
 
-Let's create a `post_test.gno` file, and add the following code:
+Let's create a `posts_test.gno` file, and add the following code:
 
 [embedmd]:# (../_assets/minisocial/posts_test-0.gno go)
 ```go
@@ -373,22 +341,38 @@ ok      .       0.87s
 
 ## Conclusion
 
-Congratulations on completing your first Gno realm!
-Now you're equipped with the required knowledge to venture into Gno.land.
+You've built a multi-file realm with persistent state, markdown rendering,
+and unit tests — congratulations!
 
-Full code of this app can be found on the Staging network, on
-[this link](https://staging.gno.land/r/docs/minisocial).
+Full code of this app can be found on the Staging network, at
+[staging.gno.land/r/docs/minisocial](https://staging.gno.land/r/docs/minisocial).
 
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
 registered in the [Gno.land User Registry](https://staging.gno.land/r/sys/users).
 
-We can import the `gno.land/r/sys/users` realm which provides user data and use
-it to try to resolve the address:
+The `gno.land/r/sys/users` realm provides user data. Update `types.gno` to use
+it when resolving addresses:
 
-[embedmd]:# (../_assets/minisocial/types-2-bonus.gno go /\/\/ String/ $)
+[embedmd]:# (../_assets/minisocial/types-2-bonus.gno go)
 ```go
+package minisocial
+
+import (
+	"time" // For handling time operations
+
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/r/sys/users"
+)
+
+// Post defines the main data we keep about each post
+type Post struct {
+	text      string
+	author    address
+	createdAt time.Time
+}
+
 // String stringifies a Post
 func (p Post) String() string {
 	out := p.text + "\n\n"

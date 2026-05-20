@@ -20,7 +20,7 @@ func CreatePost(_ realm, text string) error {
 	// Append the new post to the list
 	posts = append(posts, &Post{
 		text:      text,                              // Set the input text
-		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		author:    runtime.PreviousRealm().Address(), // The author's address comes from the previous realm, the one that called this function
 		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
 	})
 

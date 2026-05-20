@@ -30,16 +30,13 @@ chain and its dApps.
 Get started with Gno development. Learn how to work with Gno tools, use
 Gno-specific features, connect to Gno apps with clients, and more.
 
-- [Getting started](builders/getting-started.md) - Shortest path from zero to a working local chain and your first on-chain transaction. Install included.
-- [Quick Start](builders/quickstart.md) - Commands-only path for readers who already know Go and want to skip the narrative.
+- [What is Gno](builders/what-is-gno.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Installation](builders/install.md) - Install the Gno toolchain (gnokey, gno, gnodev, gnobro, gnoweb) using the one-line installer, from source, or via Docker.
-- [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
-- [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.
-- [Installing `gno` and developing locally with `gnodev`](builders/local-dev-with-gnodev.md) - Setup a local development environment with a built-in node, hot-reload features, and testing capabilities.
-- [Example `minisocial` dApp](builders/example-minisocial-dapp.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
-- [Deploying Gno packages](builders/deploy-packages.md) - Learn how to deploy your code to Gno.land networks using `gnokey` and understand gas requirements.
-- [Connecting clients](builders/connect-clients-and-apps.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
-- [Become a Gnome](builders/become-a-gnome.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
+- [Getting started](builders/getting-started.md) - Build, run, and deploy your first realm — the full path from zero to a live on-chain package.
+- [Editor Setup](builders/editor-setup.md) - Configure your editor with LSP support, autocompletion, and formatting for `.gno` files.
+- [Tutorial: `minisocial` dApp](builders/tutorial-minisocial.md) - Build a complete social media application while learning the full local development workflow for Gno packages.
+- [RPC clients](builders/rpc-clients.md) - Discover how to connect external applications to Gno.land networks using both Go and JavaScript clients.
+- [Contributor guide](builders/contributor-guide.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
 
 ## Resources
 
@@ -54,6 +51,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
+- [Local development with `gnodev`](resources/gnodev.md) - Reference for the local node, its features and flags, and the hot-reload development loop.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
 - [Interrealm Specification](resources/gno-interrealm.md) - Understand how inter-realm communication works.
