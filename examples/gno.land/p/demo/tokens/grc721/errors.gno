@@ -16,7 +16,6 @@ var (
 	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
 
 	// ERC721Royalty
-	ErrInvalidRoyaltyPercentage     = errors.New("invalid royalty percentage")
+	ErrInvalidRoyaltyBps            = errors.New("invalid royalty bps")
 	ErrInvalidRoyaltyPaymentAddress = errors.New("invalid royalty paymentAddress")
-	ErrCannotCalculateRoyaltyAmount = errors.New("cannot calculate royalty amount")
 )

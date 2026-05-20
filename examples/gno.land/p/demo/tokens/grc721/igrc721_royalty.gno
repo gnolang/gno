@@ -9,6 +9,9 @@ type IGRC2981 interface {
 
 // RoyaltyInfo represents royalty information for a token.
 type RoyaltyInfo struct {
-	PaymentAddress address // PaymentAddress is the address where royalty payment should be sent.
-	Percentage     int64   // Percentage is the royalty percentage. It indicates the percentage of royalty to be paid for each sale. For example : Percentage = 10 => 10%
+	// PaymentAddress is the address where royalty payment should be sent.
+	PaymentAddress address
+	// Bps is the royalty rate in basis points (1/10000). Per EIP-2981,
+	// royaltyAmount = salePrice * Bps / 10000. Example: Bps = 250 => 2.5%.
+	Bps int64
 }

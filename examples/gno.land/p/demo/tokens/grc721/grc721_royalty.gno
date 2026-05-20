@@ -7,11 +7,14 @@ import (
 	"gno.land/p/nt/avl/v0"
 )
 
+// bpsDenominator is the EIP-2981 fee denominator (basis points).
+const bpsDenominator = 10000
+
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
 type royaltyNFT struct {
-	*metadataNFT                   // Embedding metadataNFT for NFT functionality
-	tokenRoyaltyInfo     *avl.Tree // AVL tree to store royalty information for each token
-	maxRoyaltyPercentage int64     // maxRoyaltyPercentage represents the maximum royalty percentage that can be charged every sale
+	*metadataNFT               // Embedding metadataNFT for NFT functionality
+	tokenRoyaltyInfo *avl.Tree // AVL tree to store royalty information for each token
+	maxRoyaltyBps    int64     // maxRoyaltyBps is the maximum allowed royalty in basis points (10000 = 100%).
 }
 
 // Ensure that royaltyNFT implements the IGRC2981 interface.
@@ -23,9 +26,9 @@ func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 	nft := NewNFTWithMetadata(name, symbol)
 
 	return &royaltyNFT{
-		metadataNFT:          nft,
-		tokenRoyaltyInfo:     avl.NewTree(),
-		maxRoyaltyPercentage: 100,
+		metadataNFT:      nft,
+		tokenRoyaltyInfo: avl.NewTree(),
+		maxRoyaltyBps:    bpsDenominator,
 	}
 }
 
@@ -36,9 +39,9 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 		return ErrInvalidRoyaltyPaymentAddress
 	}
 
-	// Check if royalty percentage exceeds maxRoyaltyPercentage
-	if royaltyInfo.Percentage > r.maxRoyaltyPercentage {
-		return ErrInvalidRoyaltyPercentage
+	// Check that royalty bps is within [0, maxRoyaltyBps].
+	if royaltyInfo.Bps < 0 || royaltyInfo.Bps > r.maxRoyaltyBps {
+		return ErrInvalidRoyaltyBps
 	}
 
 	// Check if the caller is the owner of the token
@@ -67,13 +70,12 @@ func (r *royaltyNFT) RoyaltyInfo(tid TokenID, salePrice int64) (address, int64, 
 
 	royaltyInfo := val.(RoyaltyInfo)
 
-	// Calculate royalty amount
-	royaltyAmount, _ := r.calculateRoyaltyAmount(salePrice, royaltyInfo.Percentage)
+	var royaltyAmount int64
+	if product, ok := overflow.Mul64(salePrice, royaltyInfo.Bps); ok {
+		royaltyAmount = product / bpsDenominator
+	} else {
+		royaltyAmount = (salePrice / bpsDenominator) * royaltyInfo.Bps
+	}
 
 	return royaltyInfo.PaymentAddress, royaltyAmount, nil
-}
-
-func (r *royaltyNFT) calculateRoyaltyAmount(salePrice, percentage int64) (int64, error) {
-	royaltyAmount := overflow.Mul64p(salePrice, percentage) / 100
-	return royaltyAmount, nil
 }
