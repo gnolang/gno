@@ -15,7 +15,7 @@ func TestRenderJSON(t *testing.T) {
 		Sections: []Section{
 			{Name: "Hot", Entries: []Entry{
 				{Repo: "gnolang/gno", Number: 100, Kind: KindIssue, Title: "x",
-					URL: "https://github.com/gnolang/gno/issues/100",
+					URL:    "https://github.com/gnolang/gno/issues/100",
 					Author: "moul", UpdatedAt: time.Date(2026, 5, 18, 0, 0, 0, 0, time.UTC),
 					Comments: 5},
 			}},
@@ -45,13 +45,13 @@ func TestRenderMarkdown(t *testing.T) {
 		Sections: []Section{
 			{Name: "Hot", Entries: []Entry{
 				{Repo: "gnolang/gno", Number: 100, Kind: KindIssue, Title: "x",
-					URL: "https://github.com/gnolang/gno/issues/100",
+					URL:    "https://github.com/gnolang/gno/issues/100",
 					Author: "moul", UpdatedAt: time.Date(2026, 5, 18, 0, 0, 0, 0, time.UTC),
 					Comments: 5},
 			}},
 			{Name: "Depends on other core", Entries: []Entry{
 				{Repo: "gnolang/gno", Number: 101, Kind: KindPR, Title: "y",
-					URL: "https://github.com/gnolang/gno/pull/101",
+					URL:    "https://github.com/gnolang/gno/pull/101",
 					Author: "alice", UpdatedAt: time.Date(2026, 5, 19, 0, 0, 0, 0, time.UTC),
 					RequestedReviewer: []string{"thehowl"}},
 			}},

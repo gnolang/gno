@@ -36,10 +36,10 @@ type Entry struct {
 	RecentComments []Comment
 
 	// PR-only fields. Empty for issues.
-	IsDraft         bool
-	Reviews         []Review
+	IsDraft           bool
+	Reviews           []Review
 	StatusCheckRollup string // SUCCESS, FAILURE, PENDING, EXPECTED, ERROR, or ""
-	Mergeable       string // MERGEABLE, CONFLICTING, UNKNOWN
+	Mergeable         string // MERGEABLE, CONFLICTING, UNKNOWN
 
 	// True if the PR has a timeline event "review requested" (for Stuck detection).
 	ReviewRequested bool
