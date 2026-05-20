@@ -70,16 +70,19 @@ implicit borrow:
      receiver's storage realm. Lets generic library methods (`bptree.Set`,
      `grc20.Transfer`, etc.) mutate state living in another realm.
 
-  3. **Closure capture-realm borrow** (`/p/`-declared closures with realm-
-     stamped captures): when a `/p/`-declared closure (i.e., constructed via a
-     FuncLit inside a `/p/` factory like `MakeCounter`) is invoked, the
-     storage-context soft-switches to the realm whose authority was active
-     when the closure was minted — which is the realm owning its captured
-     HIVs. Realizes "closure = capability": invoking a persisted closure runs
-     its body under the realm owning the captures, so writes to captured slots
-     are in-realm. This rule only fires when Rules 1 and 2 don't (i.e., FuncLit
-     in `/p/`, no receiver shift), and is keyed off the FuncValue's stamped
-     PkgID set at `doOpFuncLit`.
+  3. **Closure-capability borrow** (closures built by a `FuncLit` in `/p/`):
+     when such a closure is invoked, the storage-context soft-switches to the
+     realm that created it. A closure carries its creator's authority —
+     storing it elsewhere does not change that.
+
+     Example: if `/r/A.init` calls `/p/X.MakeCounter()`, the returned closure
+     is owned by `/r/A` and can write `/r/A`'s captured state from any caller.
+     Counter-example: an `/r/M` closure over a slice it borrowed from `/r/V`
+     still cannot write `/r/V`, even if `/r/V` stores and runs it.
+
+     This rule fires only when Rules 1 and 2 don't (FuncLit in `/p/`, no
+     receiver shift). Implementation: the FuncValue's `PkgID` is stamped at
+     `doOpFuncLit`.
 
 After an explicit cross-call, both contexts refer to the same realm. They
 diverge under either implicit borrow — realm-context stays the same, storage
@@ -95,7 +98,7 @@ moves.
 | Stdlib or /p/ method, real receiver in different realm | No | Yes (storage) | Yes | Yes |
 | Stdlib or /p/ method, unreal/primitive receiver | No | No | No | No |
 | Stdlib or /p/ top-level function | No | No | No | No |
-| /p/-declared closure (FuncLit), invoked in a different realm than its capture-realm | No | Yes (capture) | Yes | Yes |
+| /p/-declared closure (FuncLit), invoked in a different realm than its minter | No | Yes (minter) | Yes | Yes |
 
 \* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
 shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
@@ -432,14 +435,15 @@ A function declared in p packages (or in stdlib) when called:
  * implicitly storage-borrows to the receiver's resident realm when a method
    is called on a real receiver residing in a different realm. The receiver's
    resident realm is the "borrow realm" for this call.
- * **closures** (FuncLit-constructed values, not top-level FuncDecls)
-   implicitly capture-borrow to the realm whose authority was active at
-   the closure's construction site. Writes to captured names in the
-   closure body run under that realm's authority. This is how persisted
-   `/p/`-declared closures (e.g., the result of `/p/X.MakeCounter()`
-   called from `/r/A.init`) can be safely invoked from `/r/B` — Rule 3
-   borrows `m.Realm` to `/r/A` for the body, so the captured-counter
-   write is in-realm.
+ * **closures** (built by a `FuncLit`, not declared at top level) implicitly
+   capability-borrow to the realm that created them. Writes inside the
+   closure body run under the creator's authority. This is how persisted
+   `/p/`-declared closures (e.g. the result of `/p/X.MakeCounter()` called
+   from `/r/A.init`) can be safely invoked from `/r/B` — Rule 3 borrows
+   `m.Realm` to `/r/A` for the body, so the captured-counter write is
+   in-realm. Conversely, a closure created under `/r/M`'s authority cannot
+   mutate `/r/V`, even if `/r/V` accepts and runs it. The creator's
+   authority is the ceiling.
 
 A function declared in a realm package (`/r/X`) when called:
 

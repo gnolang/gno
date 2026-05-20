@@ -13,6 +13,18 @@ etc.) are preserved in the three sibling test files
 for historical comparison; the affirmative-coverage v2 test suite lives in
 `interrealm_v2.txtar`.
 
+**Closure-capability reclassification.** PR #4890 originally used `ExecGood`
+in `interrealm_final_omarsy.txtar` as the positive control: `peter.F` (called
+from `/r/main`) builds a closure that captures an `/r/alice` slice; alice
+then stores and executes it.
+
+Under Rule 3 of `PushFrameCall`, a closure carries the authority of its
+minter. The closure was minted while `m.Realm = /r/main`, so it cannot
+write `/r/alice` — alice's execution does not raise the closure's authority.
+Both `ExecGood` (renamed `ExecPreviouslyGood`) and `ExecBad` therefore fail
+with the readonly-taint error. To get a closure that writes `/r/A`'s state,
+`/r/A` itself must mint it.
+
 The two key v2 semantics changes relative to v1:
 
 1. **Layer 1 (declaring-realm borrow) fires uniformly** for every /r/-declared

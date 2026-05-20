@@ -97,12 +97,16 @@ if recv.IsDefined() {
 }
 
 // Layer 3 (new): /p/-declared closure (FuncLit, not FuncDecl) →
-// borrow to the realm whose authority was active at construction
-// time. fv.GetObjectInfo().ID.PkgID is set by Alloc.stampPkgID at
+// borrow to the closure's minter: the realm active when doOpFuncLit
+// ran. fv.GetObjectInfo().ID.PkgID is set by Alloc.stampPkgID at
 // doOpFuncLit using m.Alloc.currentRealmID, so for a closure built
-// inside /r/A.init (even via a /p/-package factory) it is /r/A,
-// not /p/X. Realizes "closure = capability": invoking a persisted
-// closure runs its body under the realm owning its captures.
+// inside /r/A.init (even via a /p/-package factory) the minter is
+// /r/A, not /p/X.
+//
+// This realizes "closure = capability". A closure carries its
+// minter's authority; passing it to another realm cannot grant
+// more. /r/M cannot mint a closure that writes /r/V, even if /r/V
+// stores and runs it.
 if fv.IsClosure {
     pid := fv.GetObjectInfo().ID.PkgID
     if !pid.IsZero() && (m.Realm == nil || pid != m.Realm.ID) {
