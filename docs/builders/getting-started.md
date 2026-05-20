@@ -298,10 +298,13 @@ Two things to know before publishing your first package:
 `gno.land/r/alice/…` aren't supported yet — see
 [Users and Teams](../resources/users-and-teams.md).
 
-**CLA.** Some networks require contributors to acknowledge a
+**CLA.** Some networks require contributors to acknowledge and sign a
 [Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md)
-before deploying. If `addpkg` fails with `has not signed the required CLA`,
-sign once at [`r/sys/cla`](https://gno.land/r/sys/cla) and retry.
+before deploying. It is currently off on every network (check
+[betanet](https://gno.land/r/sys/cla) or
+[staging](https://staging.gno.land/r/sys/cla)). If `addpkg` ever
+fails with `has not signed the required CLA`, sign once at
+[`r/sys/cla`](https://gno.land/r/sys/cla) and retry.
 
 ### 4. Deploy your package
 
