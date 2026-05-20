@@ -7,14 +7,25 @@ import (
 
 // Tune these in code as we use the tool.
 const (
-	WindowDays           = 30
-	StaleDays            = 14
-	StuckOpenDays        = 30
-	StuckNoUpdateDays    = 7
-	HotRecentDays        = 7
-	HotComments          = 5
-	HotReactions         = 3
+	WindowDays            = 30
+	StaleDays             = 14
+	StuckOpenDays         = 30
+	StuckNoUpdateDays     = 7
+	HotRecentDays         = 7
+	HotComments           = 5
+	HotReactions          = 3
 	NewContribAccountDays = 90
+)
+
+const (
+	sectionHot                = "Hot"
+	sectionReady              = "Ready to merge"
+	sectionDependsOnJaekwon   = "Depends on @jaekwon"
+	sectionDependsOnMoul      = "Depends on @moul"
+	sectionDependsOnOtherCore = "Depends on other core"
+	sectionNewContrib         = "From new contributors"
+	sectionStuck              = "Stuck"
+	sectionStale              = "Stale"
 )
 
 var (
@@ -228,14 +239,14 @@ func Classify(entries []Entry) Report {
 	}
 
 	r.Sections = nonEmpty(
-		Section{Name: "Hot", Entries: hot},
-		Section{Name: "Ready to merge", Entries: ready},
-		Section{Name: "Depends on @jaekwon", Entries: depJae},
-		Section{Name: "Depends on @moul", Entries: depMoul},
-		Section{Name: "Depends on other core", Entries: depOther},
-		Section{Name: "From new contributors", Entries: newcontrib},
-		Section{Name: "Stuck", Entries: stuck},
-		Section{Name: "Stale", Entries: stale},
+		Section{Name: sectionHot, Entries: hot},
+		Section{Name: sectionReady, Entries: ready},
+		Section{Name: sectionDependsOnJaekwon, Entries: depJae},
+		Section{Name: sectionDependsOnMoul, Entries: depMoul},
+		Section{Name: sectionDependsOnOtherCore, Entries: depOther},
+		Section{Name: sectionNewContrib, Entries: newcontrib},
+		Section{Name: sectionStuck, Entries: stuck},
+		Section{Name: sectionStale, Entries: stale},
 	)
 	return r
 }

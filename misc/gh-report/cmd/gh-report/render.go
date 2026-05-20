@@ -34,7 +34,7 @@ func metaBracket(section Section, entry Entry) string {
 		kind = "PR"
 	}
 	d := ageDays(entry.UpdatedAt)
-	if section.Name == "Depends on other core" {
+	if section.Name == sectionDependsOnOtherCore {
 		for _, h := range OtherCore {
 			if hasAny(entry.RequestedReviewer, h) {
 				return fmt.Sprintf("%s/%dd/@%s", kind, d, h)
