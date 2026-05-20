@@ -109,13 +109,18 @@ func ProposeNewName(addr address, newName string) dao.ProposalRequest {
 	// Use user's address in the title because username could change before
 	// the proposal is executed, which could be misleading when voting.
 	title := ufmt.Sprintf(
-		"User Registry V1: Rename name for [%s](/r/sys/namereg/v1:%s) to `%s`",
+		"User Registry V1: Rename name for %s to `%s`",
+		userData.Addr(),
+		newName,
+	)
+	desc := ufmt.Sprintf(
+		"Renames [%s](/r/sys/namereg/v1:%s) to `%s`", // Allows checking current name
 		userData.Addr(),
 		userData.Addr(),
 		newName,
 	)
 
-	return dao.NewProposalRequest(title, "", e)
+	return dao.NewProposalRequest(title, desc, e)
 }
 
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
@@ -134,7 +139,8 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 	e := dao.NewSimpleExecutor(cb, "")
 
 	desc := ufmt.Sprintf(
-		"After deletion, address `%s` WILL NOT be able to register a new name.",
+		"After deletion [%s](/r/sys/namereg/v1:%s) WILL NOT be able to register a new name.",
+		userData.Addr(),
 		userData.Addr(),
 	)
 	reason = strings.TrimSpace(reason)
@@ -144,11 +150,7 @@ func ProposeDeleteUser(addr address, reason string) dao.ProposalRequest {
 
 	// Use user's address in the title because username could change before
 	// the proposal is executed, which could be misleading when voting.
-	title := ufmt.Sprintf(
-		"User Registry V1: Delete user for [%s](/r/sys/namereg/v1:%s)",
-		userData.Addr(),
-		userData.Addr(),
-	)
+	title := ufmt.Sprintf("User Registry V1: Delete user for %s", userData.Addr())
 
 	return dao.NewProposalRequest(title, desc, e)
 }
