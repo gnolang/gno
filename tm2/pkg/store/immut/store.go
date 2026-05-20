@@ -5,19 +5,32 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-var (
-	_ types.Store          = immutStore{}
-	_ types.DepthEstimator = immutStore{}
-)
+var _ types.Store = immutStore{}
 
 type immutStore struct {
 	parent types.Store
 }
 
-func New(parent types.Store) immutStore {
-	return immutStore{
-		parent: parent,
+// immutStoreDE wraps a depth-estimating parent (e.g. IAVL). Flat stores (e.g.
+// dbadapter) use plain immutStore so FixedGetReadDepth100 in VM gas contexts
+// does not override their 1× ReadCostFlat rate during simulation.
+type immutStoreDE struct {
+	immutStore
+	de types.DepthEstimator
+}
+
+var (
+	_ types.Store          = immutStoreDE{}
+	_ types.DepthEstimator = immutStoreDE{}
+)
+
+// New wraps parent as immutable, forwarding DepthEstimator only if parent has it.
+func New(parent types.Store) types.Store {
+	is := immutStore{parent: parent}
+	if de, ok := parent.(types.DepthEstimator); ok {
+		return immutStoreDE{immutStore: is, de: de}
 	}
+	return is
 }
 
 // Implements Store
@@ -60,26 +73,10 @@ func (is immutStore) Write() {
 	panic("unexpected .Write() on immutStore")
 }
 
-// Forward DepthEstimator to parent so cache.New(immutStore) charges depth-based
-// gas in simulation (same as deliver). Flat-parent fallback of 100 (depth 1.0)
-// equals ReadCostFlat, so non-tree stores are unaffected.
-func (is immutStore) ExpectedGetReadDepth100() int64 {
-	if de, ok := is.parent.(types.DepthEstimator); ok {
-		return de.ExpectedGetReadDepth100()
-	}
-	return 100
+func (i immutStoreDE) CacheWrap() types.Store {
+	return cache.New(i)
 }
 
-func (is immutStore) ExpectedSetReadDepth100() int64 {
-	if de, ok := is.parent.(types.DepthEstimator); ok {
-		return de.ExpectedSetReadDepth100()
-	}
-	return 100
-}
-
-func (is immutStore) ExpectedWriteDepth100() int64 {
-	if de, ok := is.parent.(types.DepthEstimator); ok {
-		return de.ExpectedWriteDepth100()
-	}
-	return 100
-}
+func (i immutStoreDE) ExpectedGetReadDepth100() int64 { return i.de.ExpectedGetReadDepth100() }
+func (i immutStoreDE) ExpectedSetReadDepth100() int64 { return i.de.ExpectedSetReadDepth100() }
+func (i immutStoreDE) ExpectedWriteDepth100() int64   { return i.de.ExpectedWriteDepth100() }

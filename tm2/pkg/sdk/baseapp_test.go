@@ -694,6 +694,48 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
 }
 
+// TestGasUsedBetweenSimulateAndDeliverAfterCommit is a regression test for
+// DepthEstimator forwarding in immutStore: after a Commit, Simulate must
+// charge the same gas as DeliverTx.
+func TestGasUsedBetweenSimulateAndDeliverAfterCommit(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Commit a block so getLastBlockHeader returns height >= 1, ensuring
+	// Simulate uses MultiImmutableCacheWrapWithVersion (the bug path).
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// Begin block 2, then simulate and deliver the same tx.
+	header2 := &bft.Header{ChainID: "test-chain", Height: 2}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header2})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0))
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed)
+}
+
 // One call to DeliverTx should process all the messages, in order.
 func TestMultiMsgDeliverTx(t *testing.T) {
 	t.Parallel()
