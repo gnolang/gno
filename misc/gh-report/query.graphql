@@ -1,7 +1,7 @@
 query($owner: String!, $name: String!, $issuesCursor: String, $prsCursor: String) {
   repository(owner: $owner, name: $name) {
     issues(
-      first: 100
+      first: 50
       states: OPEN
       orderBy: {field: UPDATED_AT, direction: DESC}
       after: $issuesCursor
@@ -33,7 +33,7 @@ query($owner: String!, $name: String!, $issuesCursor: String, $prsCursor: String
       }
     }
     pullRequests(
-      first: 100
+      first: 50
       states: OPEN
       orderBy: {field: UPDATED_AT, direction: DESC}
       after: $prsCursor
@@ -71,7 +71,7 @@ query($owner: String!, $name: String!, $issuesCursor: String, $prsCursor: String
             body
           }
         }
-        reviews(last: 50) {
+        reviews(last: 20) {
           nodes {
             author { login }
             state
@@ -85,7 +85,7 @@ query($owner: String!, $name: String!, $issuesCursor: String, $prsCursor: String
             }
           }
         }
-        timelineItems(last: 20, itemTypes: [REVIEW_REQUESTED_EVENT]) {
+        timelineItems(last: 10, itemTypes: [REVIEW_REQUESTED_EVENT]) {
           nodes { __typename }
         }
       }
