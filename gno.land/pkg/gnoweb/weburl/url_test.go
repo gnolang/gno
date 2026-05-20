@@ -51,6 +51,17 @@ func TestParseGnoURL(t *testing.T) {
 		},
 
 		{
+			Name:  "simple with multiple hyphens",
+			Input: "https://gno.land/r/-hyphen--simple/-test-",
+			Expected: &GnoURL{
+				Domain:   "gno.land",
+				Path:     "/r/-hyphen--simple/-test-",
+				WebQuery: url.Values{},
+				Query:    url.Values{},
+			},
+		},
+
+		{
 			Name:  "simple with multiple slashes",
 			Input: "https://gno.land/r/hyphen-simple//test",
 			Err:   ErrURLInvalidPath,
