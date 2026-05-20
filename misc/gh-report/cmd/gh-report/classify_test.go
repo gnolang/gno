@@ -264,3 +264,57 @@ func TestIsNewContributor(t *testing.T) {
 		})
 	}
 }
+
+func TestClassify(t *testing.T) {
+	fixedNow(t, "2026-05-20T00:00:00Z")
+
+	entries := []Entry{
+		// Excluded (label).
+		{Number: 1, Labels: []string{"wontfix"}, UpdatedAt: mustTime("2026-04-01T00:00:00Z")},
+		// Hot (5 recent comments).
+		{Number: 2, UpdatedAt: mustTime("2026-05-18T00:00:00Z"),
+			RecentComments: []Comment{
+				{Author: "a", CreatedAt: mustTime("2026-05-18T00:00:00Z")},
+				{Author: "b", CreatedAt: mustTime("2026-05-18T00:00:00Z")},
+				{Author: "c", CreatedAt: mustTime("2026-05-18T00:00:00Z")},
+				{Author: "d", CreatedAt: mustTime("2026-05-18T00:00:00Z")},
+				{Author: "e", CreatedAt: mustTime("2026-05-18T00:00:00Z")},
+			}},
+		// Stale fall-through (no other category).
+		{Number: 3, UpdatedAt: mustTime("2026-04-30T00:00:00Z")},
+		// Stale + Depends on Jae (so does NOT appear in Stale).
+		{Number: 4, UpdatedAt: mustTime("2026-04-30T00:00:00Z"),
+			Assignees: []string{"jaekwon"}},
+	}
+	r := Classify(entries)
+	got := map[string][]int{}
+	for _, s := range r.Sections {
+		for _, e := range s.Entries {
+			got[s.Name] = append(got[s.Name], e.Number)
+		}
+	}
+	if !equalInts(got["Hot"], []int{2}) {
+		t.Errorf("Hot=%v want [2]", got["Hot"])
+	}
+	if !equalInts(got["Stale"], []int{3}) {
+		t.Errorf("Stale=%v want [3]", got["Stale"])
+	}
+	if !equalInts(got["Depends on @jaekwon"], []int{4}) {
+		t.Errorf("Depends on @jaekwon=%v want [4]", got["Depends on @jaekwon"])
+	}
+	if len(got["Hot"])+len(got["Stale"])+len(got["Depends on @jaekwon"]) != 3 {
+		t.Errorf("entry #1 should be excluded; total sections entries: %v", got)
+	}
+}
+
+func equalInts(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}

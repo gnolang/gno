@@ -173,3 +173,79 @@ func isNewContributor(e Entry) bool {
 	}
 	return false
 }
+
+// Classify groups entries into ordered sections.
+// An entry may appear in multiple sections (multi-tag) except Stale,
+// which only catches entries that landed in no earlier section.
+func Classify(entries []Entry) Report {
+	r := Report{
+		GeneratedAt: now(),
+		WindowDays:  WindowDays,
+	}
+
+	var hot, ready, depJae, depMoul, depOther, newcontrib, stuck, stale []Entry
+
+	for _, e := range entries {
+		if excluded(e) {
+			continue
+		}
+		inAny := false
+
+		if isHot(e) {
+			hot = append(hot, e)
+			inAny = true
+		}
+		if isReadyToMerge(e) {
+			ready = append(ready, e)
+			inAny = true
+		}
+		// Drafts: keep only Hot signal.
+		if !e.IsDraft {
+			if dependsOn(e, WatchJaekwon) {
+				depJae = append(depJae, e)
+				inAny = true
+			}
+			if dependsOn(e, WatchMoul) {
+				depMoul = append(depMoul, e)
+				inAny = true
+			}
+			if _, ok := dependsOnOtherCore(e); ok {
+				depOther = append(depOther, e)
+				inAny = true
+			}
+			if isNewContributor(e) {
+				newcontrib = append(newcontrib, e)
+				inAny = true
+			}
+			if isStuck(e) {
+				stuck = append(stuck, e)
+				inAny = true
+			}
+		}
+		if !inAny && isStale(e) {
+			stale = append(stale, e)
+		}
+	}
+
+	r.Sections = nonEmpty(
+		Section{Name: "Hot", Entries: hot},
+		Section{Name: "Ready to merge", Entries: ready},
+		Section{Name: "Depends on @jaekwon", Entries: depJae},
+		Section{Name: "Depends on @moul", Entries: depMoul},
+		Section{Name: "Depends on other core", Entries: depOther},
+		Section{Name: "From new contributors", Entries: newcontrib},
+		Section{Name: "Stuck", Entries: stuck},
+		Section{Name: "Stale", Entries: stale},
+	)
+	return r
+}
+
+func nonEmpty(ss ...Section) []Section {
+	var out []Section
+	for _, s := range ss {
+		if len(s.Entries) > 0 {
+			out = append(out, s)
+		}
+	}
+	return out
+}
