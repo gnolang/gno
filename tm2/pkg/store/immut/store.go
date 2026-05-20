@@ -5,7 +5,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-var _ types.Store = immutStore{}
+var (
+	_ types.Store          = immutStore{}
+	_ types.DepthEstimator = immutStore{}
+)
 
 type immutStore struct {
 	parent types.Store
@@ -55,4 +58,28 @@ func (is immutStore) CacheWrap() types.Store {
 // Implements Store
 func (is immutStore) Write() {
 	panic("unexpected .Write() on immutStore")
+}
+
+// Forward DepthEstimator to parent so cache.New(immutStore) charges depth-based
+// gas in simulation (same as deliver). Flat-parent fallback of 100 (depth 1.0)
+// equals ReadCostFlat, so non-tree stores are unaffected.
+func (is immutStore) ExpectedGetReadDepth100() int64 {
+	if de, ok := is.parent.(types.DepthEstimator); ok {
+		return de.ExpectedGetReadDepth100()
+	}
+	return 100
+}
+
+func (is immutStore) ExpectedSetReadDepth100() int64 {
+	if de, ok := is.parent.(types.DepthEstimator); ok {
+		return de.ExpectedSetReadDepth100()
+	}
+	return 100
+}
+
+func (is immutStore) ExpectedWriteDepth100() int64 {
+	if de, ok := is.parent.(types.DepthEstimator); ok {
+		return de.ExpectedWriteDepth100()
+	}
+	return 100
 }
