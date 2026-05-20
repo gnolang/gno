@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/v3acanary"
+gno = "0.9"
