@@ -251,7 +251,7 @@ var reGnolandPath = regexp.MustCompile(`^/[rpu]/([a-z][a-z0-9_/-]*)*$`)
 
 // IsValidPath checks that path is a valid Gno.land URL path.
 // It just validates that the path format can match with Gno.land URL paths, but
-// it doesn't validates semantics, like "/r/", "/p/", etc; Use `IsPure()`,
+// it doesn't validate semantics, like "/r/", "/p/", etc; Use `IsPure()`,
 // `IsRealm()` or similar methods to check for specific URL path cases.
 func (gnoURL GnoURL) IsValidPath() bool {
 	return reGnolandPath.MatchString(gnoURL.Path)
