@@ -2309,6 +2309,14 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//      storage realm. Preserves the existing pattern where
 	//      stdlib + /p/ helpers (grc20, bptree, math/rand, etc.)
 	//      mutate state living in another realm.
+	//   3. Otherwise, if fv is a closure (FuncLit-constructed, not
+	//      a top-level FuncDecl) → borrow to the realm whose
+	//      authority was active when the closure was minted.
+	//      Realizes "closure = capability": invoking a persisted
+	//      closure runs its body under the realm owning its
+	//      captures, so writes to captured HIVs are in-realm at
+	//      every NameExpr write site — no per-write gate needed
+	//      in isExternalRealm.
 	if IsRealmPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
 			m.setRealm(pv.GetRealm())
@@ -2324,6 +2332,33 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				m.setRealm(objpv.GetRealm())
+			}
+		}
+	}
+	// Rule 3: closure capture-realm borrow.
+	//
+	// fv.GetObjectInfo().ID.PkgID is the realm whose currentRealmID
+	// was active at doOpFuncLit (closure construction) time. For
+	// closures persisted into /r/A's state (e.g. /p/X.MakeCounter()
+	// called from /r/A.init), this is /r/A — not /p/X. So borrowing
+	// to it routes correctly even when fv.PkgPath is a /p/.
+	//
+	// IsClosure gates this: top-level FuncDecls also carry a stamped
+	// PkgID (= the declaring package), but they don't represent a
+	// closed-over capability — Rule 1 already handles the /r/-declared
+	// case, and /p/-declared FuncDecls shouldn't shift the realm.
+	//
+	// The zero-PkgID check skips closures constructed in uverse/stdlib
+	// init (no realm context). The equality short-circuit avoids a
+	// redundant setRealm when we're already in the closure's home.
+	if fv.IsClosure {
+		pid := fv.GetObjectInfo().ID.PkgID
+		if !pid.IsZero() && (m.Realm == nil || pid != m.Realm.ID) {
+			pkgOID := ObjectIDFromPkgID(pid)
+			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
+				if objpv, ok := pobj.(*PackageValue); ok {
+					m.setRealm(objpv.GetRealm())
+				}
 			}
 		}
 	}
@@ -2583,9 +2618,7 @@ func readonlyAccessPanic(x Expr) string {
 // Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
 //   - tv is N_Readonly, or
-//   - tv is not an object ("first object" ID is zero), or
-//   - tv is an unreal object (no object id), or
-//   - tv is an object residing in external realm
+//   - tv is a real object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
@@ -2600,9 +2633,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 		}
 	}
 	//   - tv is N_Readonly, or
-	//   - tv is not an object ("first object" ID is zero), or
-	//   - tv is an unreal object (no object id), or
-	//   - tv is an object residing in external realm
+	//   - tv is a real object residing in external realm
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
@@ -2621,11 +2652,21 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
 	}
-	// Mirror IsReadonlyBy's HIV exception: an unreal HIV is a
-	// transient heap-promotion wrapper for an escaping local, not
-	// a realm-owned slot. Persisted (real) HIVs fall through to
-	// the standard PkgID gate.
-	if hiv, ok := base.(*HeapItemValue); ok && !hiv.GetIsReal() {
+	// HIVs are exempt from the external-realm gate at the NameExpr
+	// write path. Two paths reach here:
+	//   - Real HIV in foreign realm: PushFrameCall's Rule 3 already
+	//     borrowed m.Realm to the closure's capture-realm, so by
+	//     the time we get here HIV.PkgID == m.Realm.ID. The check
+	//     would be a no-op anyway; skip to save the comparison.
+	//   - Unreal HIV (transient heap-promotion wrapper for an
+	//     escaping local): not a realm-owned slot — the alloc-site
+	//     PkgID stamp is incidental.
+	//
+	// Deref-through writes (*p = ...) take the PointerValue path
+	// via IsReadonly → IsReadonlyBy, which has its own HIV branch
+	// at ownership.go:468-490; that's still the authoritative gate
+	// for pointer-deref writes obtained via &name.
+	if _, ok := base.(*HeapItemValue); ok {
 		return false
 	}
 	return oid.PkgID != m.Realm.ID

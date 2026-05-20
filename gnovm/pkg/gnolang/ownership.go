@@ -442,9 +442,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 
 // IsReadonlyBy returns true if tv is readonly by realm rid.
 //   - tv is N_Readonly, or
-//   - tv is not an object ("first object" ID is zero), or
-//   - tv is an unreal object (no object id), or
-//   - tv is an object residing in external realm
+//   - tv is a real object residing in external realm
 //
 // This is different from GetFirstObject in two significant ways:
 //  1. IsReadonlyBy does not go through RefValues; for this reason, it
@@ -457,6 +455,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // This function controls heavily the behaviour of
 // [Machine.IsReadonly], and thus the readonly taint behaviour.
 func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
+	// tv is N_Readonly
 	if tv.IsReadonly() {
 		return true
 	}
@@ -524,11 +523,14 @@ func (tv *TypedValue) IsReadonlyBy(rid PkgID) bool {
 		// this, probably doing it wrong.
 		panic("invalid usage of IsReadonly() on heap item")
 	default:
+		// tv is not an object ("first object" ID is zero)
 		return false // e.g. primitive
 	}
+	// tv is an unreal object (no object id)
 	if tvoid.IsZero() {
 		return false
 	}
+	// tv is an object residing in external realm
 	if tvoid.PkgID != rid {
 		return true
 	}

@@ -53,15 +53,15 @@ cross-calls (`fn(cross, ...)`).
 
 **Realm-storage-context** determines where new and modified objects are
 persisted during realm-transaction finalization. It changes on explicit
-cross-calls *and* on implicit borrow-crosses. There are two kinds of implicit
-borrow:
+cross-calls *and* on implicit borrow-crosses. There are three kinds of
+implicit borrow:
 
   1. **Declaring-realm borrow** (any /r/-declared callable): when a function,
      method, or closure declared in `/r/X` is invoked from a different
      realm-storage-context, the storage-context soft-switches to `/r/X` for
      the call duration. This applies to top-level functions, methods (on real,
-     unreal, or primitive receivers), and closures whose construction site
-     was in `/r/X`. It does NOT change realm-context.
+     unreal, or primitive receivers), and closures whose declaring site was in
+     `/r/X`. It does NOT change realm-context.
 
   2. **Storage-realm borrow** (stdlib + /p/ methods on real foreign
      receivers): when a non-`/r/`-declared method (stdlib or `/p/`) is called
@@ -69,6 +69,17 @@ borrow:
      realm-storage-context, the storage-context soft-switches to the
      receiver's storage realm. Lets generic library methods (`bptree.Set`,
      `grc20.Transfer`, etc.) mutate state living in another realm.
+
+  3. **Closure capture-realm borrow** (`/p/`-declared closures with realm-
+     stamped captures): when a `/p/`-declared closure (i.e., constructed via a
+     FuncLit inside a `/p/` factory like `MakeCounter`) is invoked, the
+     storage-context soft-switches to the realm whose authority was active
+     when the closure was minted — which is the realm owning its captured
+     HIVs. Realizes "closure = capability": invoking a persisted closure runs
+     its body under the realm owning the captures, so writes to captured slots
+     are in-realm. This rule only fires when Rules 1 and 2 don't (i.e., FuncLit
+     in `/p/`, no receiver shift), and is keyed off the FuncValue's stamped
+     PkgID set at `doOpFuncLit`.
 
 After an explicit cross-call, both contexts refer to the same realm. They
 diverge under either implicit borrow — realm-context stays the same, storage
@@ -84,6 +95,7 @@ moves.
 | Stdlib or /p/ method, real receiver in different realm | No | Yes (storage) | Yes | Yes |
 | Stdlib or /p/ method, unreal/primitive receiver | No | No | No | No |
 | Stdlib or /p/ top-level function | No | No | No | No |
+| /p/-declared closure (FuncLit), invoked in a different realm than its capture-realm | No | Yes (capture) | Yes | Yes |
 
 \* `runtime.CurrentRealm()` returns the same realm, but `runtime.PreviousRealm()`
 shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
@@ -414,12 +426,20 @@ matches.
 
 A function declared in p packages (or in stdlib) when called:
 
- * inherits the last realm for top-level functions and closures.
+ * inherits the last realm for top-level functions.
  * inherits the last realm when a method is called on an unreal or primitive
    receiver.
  * implicitly storage-borrows to the receiver's resident realm when a method
    is called on a real receiver residing in a different realm. The receiver's
    resident realm is the "borrow realm" for this call.
+ * **closures** (FuncLit-constructed values, not top-level FuncDecls)
+   implicitly capture-borrow to the realm whose authority was active at
+   the closure's construction site. Writes to captured names in the
+   closure body run under that realm's authority. This is how persisted
+   `/p/`-declared closures (e.g., the result of `/p/X.MakeCounter()`
+   called from `/r/A.init`) can be safely invoked from `/r/B` — Rule 3
+   borrows `m.Realm` to `/r/A` for the body, so the captured-counter
+   write is in-realm.
 
 A function declared in a realm package (`/r/X`) when called:
 
