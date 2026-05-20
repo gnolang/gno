@@ -28,11 +28,13 @@ const (
 	sectionStale              = "Stale"
 )
 
-var (
+const (
 	WatchJaekwon = "jaekwon"
 	WatchMoul    = "moul"
-	OtherCore    = []string{"zivkovicmilos", "thehowl", "leohhhn"}
+)
 
+var (
+	OtherCore     = []string{"zivkovicmilos", "thehowl", "leohhhn"}
 	ExcludeLabels = []string{"wontfix", "duplicate", "invalid"}
 )
 
