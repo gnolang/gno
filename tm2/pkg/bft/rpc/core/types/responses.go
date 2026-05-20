@@ -1,12 +1,18 @@
 package core_types
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -23,6 +29,78 @@ type ResultBlockchainInfo struct {
 // Genesis file
 type ResultGenesis struct {
 	Genesis *types.GenesisDoc `json:"genesis"`
+}
+
+// StreamJSON writes the JSON-RPC result body for /genesis incrementally so
+// the entire genesis (which can be hundreds of MB) is never buffered in
+// memory. The non-AppState fields of the doc — including the polymorphic
+// Validators slice that needs amino's `@type`/`value` tagging — are amino-
+// marshaled into a small in-memory buffer (no AppState attached). The
+// AppState is then either streamed by the implementation when it satisfies
+// rpctypes.StreamableResult, or amino-marshaled inline as a fallback.
+//
+// ctx cancellation is propagated to a streaming AppState; it has no effect
+// on the small fixed-size envelope writes, which complete in microseconds.
+func (r *ResultGenesis) StreamJSON(ctx context.Context, w io.Writer) error {
+	if r == nil || r.Genesis == nil {
+		return errors.New("ResultGenesis: nil genesis")
+	}
+
+	// Marshal the doc with AppState detached so we can splice the streamed
+	// AppState in without buffering it. Shallow copy keeps the original
+	// caller's doc untouched.
+	docNoApp := *r.Genesis
+	originalAppState := docNoApp.AppState
+	docNoApp.AppState = nil
+
+	docHead, err := amino.MarshalJSON(&docNoApp)
+	if err != nil {
+		return fmt.Errorf("marshal genesis envelope: %w", err)
+	}
+	if len(docHead) == 0 || docHead[len(docHead)-1] != '}' {
+		return fmt.Errorf("amino genesis envelope has unexpected shape: %q", docHead)
+	}
+
+	// Open `{"genesis":` + amino doc minus its trailing `}`.
+	if _, err := io.WriteString(w, `{"genesis":`); err != nil {
+		return err
+	}
+	headWithoutClose := docHead[:len(docHead)-1]
+	if _, err := w.Write(headWithoutClose); err != nil {
+		return err
+	}
+
+	if originalAppState != nil {
+		// `headWithoutClose` is `{...field:val,...field:val` (no trailing `}`)
+		// or `{` if the doc had no other fields. Distinguish by the last byte:
+		// `{` means we're opening the first field, otherwise we need a comma.
+		separator := `,"app_state":`
+		if headWithoutClose[len(headWithoutClose)-1] == '{' {
+			separator = `"app_state":`
+		}
+		if _, err := io.WriteString(w, separator); err != nil {
+			return err
+		}
+
+		if streamable, ok := originalAppState.(rpctypes.StreamableResult); ok {
+			if err := streamable.StreamJSON(ctx, w); err != nil {
+				return err
+			}
+		} else {
+			appBytes, err := amino.MarshalJSON(originalAppState)
+			if err != nil {
+				return fmt.Errorf("marshal app_state: %w", err)
+			}
+			if _, err := w.Write(appBytes); err != nil {
+				return err
+			}
+		}
+	}
+
+	if _, err := io.WriteString(w, `}}`); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Single block (with meta)
