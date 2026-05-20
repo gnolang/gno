@@ -22,7 +22,7 @@ GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 --- READY   ┃ I for commands and help, press `h` took=1.391020125s
 ```
 
-Open <http://localhost:8888> to browse your realm via the built-in
+Open `http://localhost:8888` to browse your realm via the built-in
 [gnoweb](../users/explore-with-gnoweb.md). The `devtest` account is preloaded
 with funds, so no faucet is needed. Press `h` at any time for the in-terminal
 help menu (see [Interactive controls](#interactive-controls)).
@@ -98,7 +98,7 @@ EVENTS:     []
 TX HASH:    k+WuKgPpoAg+EcR2EnzqxeWqUXB4KhOhg3l6zthSy0I=
 ```
 
-Refresh <http://localhost:8888> to see the updated `Render()` output. The
+Refresh `http://localhost:8888` to see the updated `Render()` output. The
 `devtest` key works out of the box because it's premined (see above); swap it
 for any other key in your keybase.
 

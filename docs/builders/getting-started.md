@@ -4,7 +4,7 @@ Gno.land is a Layer 1 blockchain where smart contracts are written in
 **Gno**, a deterministic variant of Go. If you know Go, you can write
 Gno — minus what doesn't fit on-chain: no goroutines, no `os`/`net`
 stdlibs, and `gno.land/...` imports only. See
-[What is Gno.land?](./what-is-gnolang.md) for the full picture and
+[What is Gno.land?](./what-is-gno.md) for the full picture and
 [Go vs Gno compatibility](../resources/go-gno-compatibility.md) for
 the differences.
 
@@ -63,7 +63,7 @@ gno mod init gno.land/r/myname/myrealm
 This writes a `gnomod.toml` in the current directory, declaring the
 package's on-chain path. Use `gno.land/r/…` for realms (stateful) or
 `gno.land/p/…` for pure packages (stateless — note that pure packages cannot
-import realms; see [import rules](./anatomy-of-a-gno-package.md#import-rules)).
+import realms; see [import rules](../resources/gno-packages.md#import-rules)).
 
 ### Write Gno code
 
@@ -235,7 +235,7 @@ page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
 incrementing.
 
 For more options, see
-[Running a local dev node](./local-dev-with-gnodev.md).
+[Running a local dev node](../resources/gnodev.md).
 
 ## Deploy to a shared network
 
@@ -388,7 +388,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 1. [r/docs](https://staging.gno.land/r/docs) — on-chain tour
 2. [Effective Gno](../resources/effective-gno.md) — idiomatic patterns
-3. [Example: the `minisocial` dApp](./example-minisocial-dapp.md) — end-to-end with deploy
+3. [Example: the `minisocial` dApp](./tutorial-minisocial.md) — end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md) — pricing, estimation, and the "out of gas" fix
 5. [Storage deposit](../resources/storage-deposit.md) — how on-chain storage is paid for, and how to cap it with `-max-deposit`
 
