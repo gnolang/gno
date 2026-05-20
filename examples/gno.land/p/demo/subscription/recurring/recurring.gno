@@ -41,8 +41,8 @@ func NewRecurringSubscription(duration time.Duration, amount int64, payeeAddr ad
 // HasValidSubscription verifies whether subscriber holds an active
 // recurring subscription.
 func (rs *RecurringSubscription) HasValidSubscription(subscriber address) error {
-	expTime, exists := rs.subs.Get(subscriber.String())
-	if !exists {
+	expTime := rs.subs.Get(subscriber.String())
+	if expTime == nil {
 		return ErrNoSub
 	}
 	if time.Now().After(expTime.(time.Time)) {
@@ -67,7 +67,7 @@ func (rs *RecurringSubscription) Subscribe(al *allowancesender.AllowanceSender, 
 	}
 	// Already-sub check first; avoid burning cap-token capacity on a
 	// duplicate that would just be rejected.
-	if expTime, exists := rs.subs.Get(subscriber.String()); exists {
+	if expTime := rs.subs.Get(subscriber.String()); expTime != nil {
 		if time.Now().Before(expTime.(time.Time)) {
 			return ErrAlreadySub
 		}
@@ -79,8 +79,8 @@ func (rs *RecurringSubscription) Subscribe(al *allowancesender.AllowanceSender, 
 
 // GetExpiration returns the subscription expiration for subscriber.
 func (rs *RecurringSubscription) GetExpiration(subscriber address) (time.Time, error) {
-	expTime, exists := rs.subs.Get(subscriber.String())
-	if !exists {
+	expTime := rs.subs.Get(subscriber.String())
+	if expTime == nil {
 		return time.Time{}, ErrNoSub
 	}
 	return expTime.(time.Time), nil

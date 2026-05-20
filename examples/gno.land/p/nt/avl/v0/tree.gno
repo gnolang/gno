@@ -5,7 +5,7 @@ type ITree interface {
 
 	Size() int
 	Has(key string) bool
-	Get(key string) (value any, exists bool)
+	Get(key string) any
 	GetByIndex(index int) (key string, value any)
 	Iterate(start, end string, cb IterCbFn) bool
 	ReverseIterate(start, end string, cb IterCbFn) bool
@@ -47,10 +47,15 @@ func (tree *Tree) Has(key string) (has bool) {
 }
 
 // Get retrieves the value associated with the given key.
-// It returns the value and a boolean indicating whether the key exists.
-func (tree *Tree) Get(key string) (value any, exists bool) {
-	_, value, exists = tree.node.Get(key)
-	return
+// It returns the value if the key exists, or nil if it doesn't.
+// This allows for a simpler usage pattern with type assertions:
+//
+//	if value, ok := tree.Get("key").(MyType); ok {
+//	    // use value
+//	}
+func (tree *Tree) Get(key string) any {
+	_, value, _ := tree.node.Get(key)
+	return value
 }
 
 // GetByIndex retrieves the key-value pair at the specified index in the tree.

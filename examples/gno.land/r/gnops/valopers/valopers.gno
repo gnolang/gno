@@ -372,8 +372,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 
 // GetByAddr fetches the valoper using the operator address, if present.
 func GetByAddr(addr address) Valoper {
-	valoperRaw, exists := valopers.Get(addr.String())
-	if !exists {
+	valoperRaw := valopers.Get(addr.String())
+	if valoperRaw == nil {
 		panic(ErrValoperMissing)
 	}
 
@@ -392,8 +392,8 @@ func Render(fullPath string) string {
 		if len(addr) < 2 || addr[:2] != "g1" {
 			return "invalid address " + addr
 		}
-		valoperRaw, exists := valopers.Get(addr)
-		if !exists {
+		valoperRaw := valopers.Get(addr)
+		if valoperRaw == nil {
 			return "unknown address " + addr
 		}
 		v := valoperRaw.(Valoper)
@@ -463,9 +463,7 @@ func (v Valoper) Render() string {
 
 // isValoper checks if the valoper exists.
 func isValoper(addr address) bool {
-	_, exists := valopers.Get(addr.String())
-
-	return exists
+	return valopers.Has(addr.String())
 }
 
 // validateMoniker checks if the moniker is valid.

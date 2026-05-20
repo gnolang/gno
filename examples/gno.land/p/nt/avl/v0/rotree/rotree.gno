@@ -35,7 +35,7 @@
 //	PublicTree := rotree.Wrap(tree, makeEntrySafeFn)
 //
 //	// Safely access the data
-//	value, _ := roTree.Get("alice")
+//	value := roTree.Get("alice")
 //	user := value.(*User)
 //	// user.Name == "Alice"
 //	// user.Balance == 100
@@ -86,7 +86,7 @@ type ReadOnlyTree struct {
 type IReadOnlyTree interface {
 	Size() int
 	Has(key string) bool
-	Get(key string) (any, bool)
+	Get(key string) any
 	GetByIndex(index int) (string, any)
 	Iterate(start, end string, cb avl.IterCbFn) bool
 	ReverseIterate(start, end string, cb avl.IterCbFn) bool
@@ -119,12 +119,13 @@ func (roTree *ReadOnlyTree) Has(key string) bool {
 }
 
 // Get retrieves the value associated with the given key, converted to a safe format.
-func (roTree *ReadOnlyTree) Get(key string) (any, bool) {
-	value, exists := roTree.tree.Get(key)
-	if !exists {
-		return nil, false
+// It returns the value if the key exists, or nil if it doesn't.
+func (roTree *ReadOnlyTree) Get(key string) any {
+	value := roTree.tree.Get(key)
+	if value == nil {
+		return nil
 	}
-	return roTree.getSafeValue(value), true
+	return roTree.getSafeValue(value)
 }
 
 // GetByIndex retrieves the key-value pair at the specified index in the tree, with the value converted to a safe format.
