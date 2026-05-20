@@ -2,6 +2,7 @@ package namereg
 
 import (
 	"chain"
+	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -20,9 +21,9 @@ var paused = false // XXX: replace with p/moul/authz
 func setPaused(cur realm, newPausedValue bool) {
 	paused = newPausedValue
 	if paused {
-		chain.Emit("NameRegistrationPaused")
+		chain.Emit("NameRegistrationPaused", "by", runtime.PreviousRealm().PkgPath())
 	} else {
-		chain.Emit("NameRegistrationUnpaused")
+		chain.Emit("NameRegistrationUnpaused", "by", runtime.PreviousRealm().PkgPath())
 	}
 }
 
@@ -42,6 +43,7 @@ func setRegisterPrice(cur realm, newPrice int64) {
 	chain.Emit(
 		"NameRegistrationPriceChanged",
 		"price", strconv.FormatInt(newPrice, 10),
+		"by", runtime.PreviousRealm().PkgPath(),
 	)
 }
 
