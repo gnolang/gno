@@ -92,7 +92,7 @@ moves.
 |---|---|---|---|---|
 | `fn(cross, ...)` to same realm | Yes* | No | Yes | Yes |
 | `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
-| `fn(nil, ...)` (non-crossing-call of crossing-function), same realm | No | No | No | No |
+| `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | No | No | No | No |
 | Non-crossing method in own (caller's) realm | No | No | No | No |
 | Non-crossing /r/-declared callable in foreign realm (method, top-level, closure) | No | Yes (declaring) | Yes | Yes |
 | Stdlib or /p/ method, real receiver in different realm | No | Yes (storage) | Yes | Yes |
@@ -410,8 +410,8 @@ import "gno.land/r/alice/extrealm"
 func MyMakeBread(cur realm, ingredients ...any) { ... }
 
 func main(cur realm) {
-    MyMakeBread(nil, "flour", "water") // ok -- non-crossing.
-    extrealm.MakeBread(nil, "flour", "water") // invalid -- external realm function
+    MyMakeBread(cur, "flour", "water") // ok -- non-crossing.
+    extrealm.MakeBread(cur, "flour", "water") // invalid -- external realm function
 }
 ```
 
@@ -644,7 +644,7 @@ For which call types create boundaries, see the
 [summary table](#realm-context-and-realm-storage-context) above. Every
 crossing-call creates a realm boundary even when there is no resulting change
 in realm-context or realm-storage-context. A non-crossing-call of a
-crossing-function or crossing-method (`fn(nil, ...)`) never creates a realm
+crossing-function or crossing-method (`fn(cur, ...)`) never creates a realm
 boundary.
 
 ## Captured Realm Values (`cur realm`)

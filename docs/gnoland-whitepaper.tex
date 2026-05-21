@@ -270,7 +270,7 @@ shifts while the realm-context stays the same.
 \hline
 \lstinline!fn(cross,...)! to diff.\ realm & Yes & Yes & Yes & Yes \\
 \hline
-\lstinline!fn(nil,...)! same-realm crossing-fn non-crossing call & No & No & No & No \\
+\lstinline!fn(cur,...)! same-realm crossing-fn non-crossing call & No & No & No & No \\
 \hline
 Non-crossing method in own (caller's) realm & No & No & No & No \\
 \hline
@@ -577,9 +577,9 @@ func main(cur realm) {
 }
 \end{lstlisting}
 
-When a crossing-function or crossing-method is called with
-\passthrough{\lstinline!nil!} as the first argument instead of
-\passthrough{\lstinline!cross!} it is called a non-crossing-call; and no
+When a crossing-function or crossing-method is called with the in-scope
+\passthrough{\lstinline!cur!} as the first argument instead of
+\passthrough{\lstinline!cross(cur)!} it is called a non-crossing-call; and no
 realm-context nor realm-storage-context change takes place.
 
 \begin{lstlisting}[language=Go]
@@ -589,8 +589,8 @@ import "gno.land/r/alice/extrealm"
 func MyMakeBread(cur realm, ingredients ...any) { ... }
 
 func main(cur realm) {
-    MyMakeBread(nil, "flour", "water") // ok -- non-crossing.
-    extrealm.MakeBread(nil, "flour", "water") // invalid -- external realm function
+    MyMakeBread(cur, "flour", "water") // ok -- non-crossing.
+    extrealm.MakeBread(cur, "flour", "water") // invalid -- external realm function
 }
 \end{lstlisting}
 
@@ -787,7 +787,7 @@ For which call types create boundaries, see the
 Every crossing-call creates a realm boundary even when there is no
 resulting change in realm-context or realm-storage-context. A
 non-crossing-call of a crossing-function or crossing-method
-(\passthrough{\lstinline!fn(nil, ...)!}) never creates a realm boundary.
+(\passthrough{\lstinline!fn(cur, ...)!}) never creates a realm boundary.
 
 \subsection{Realm-Transaction
 Finalization}\label{realm-transaction-finalization}

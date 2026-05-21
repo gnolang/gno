@@ -71,7 +71,7 @@ next cross-call.
 |---|---|---|---|---|
 | `fn(cross, ...)` into same realm | shifts† | unchanged | yes | yes |
 | `fn(cross, ...)` into different realm | shifts | shifts | yes | yes |
-| `fn(nil, ...)` (non-crossing-call of crossing-function), same realm | unchanged | unchanged | no | no |
+| `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | unchanged | unchanged | no | no |
 | Non-crossing call of `/r/X`-declared callable from `/r/Y` | unchanged | shifts to `/r/X` (Rule 1) | yes | yes |
 | Stdlib/`/p/` method on real foreign-stamped receiver | unchanged | shifts to receiver's stamp (Rule 2) | yes | yes |
 | Stdlib/`/p/` method on primitive/nil/unstamped receiver | unchanged | unchanged | no | no |
@@ -322,11 +322,11 @@ Two valid forms:
 // (1) Cross-call. Shifts realm-context AND realm-storage-context
 // to the callee's declaring realm. Returns via realm boundary,
 // finalizing the call.
-MakeBread(cross, "flour", "water")
+MakeBread(cross(cur), "flour", "water")
 
 // (2) Non-crossing call. Used inside the same realm. No realm-context
 // change, no realm-storage-context change, no boundary, no finalization.
-MakeBread(nil, "flour", "water")
+MakeBread(cur, "flour", "water")
 ```
 
 A non-crossing call from `/r/B` of a crossing function declared in
