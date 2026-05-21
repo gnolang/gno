@@ -50,7 +50,7 @@ const txAddr = address("${TX_ADDRESS}")
 func main(cur realm) {
 	// The scenario genesis leaves allowedDAOs empty, so the local transaction
 	// key can bootstrap itself as a GovDAO T1 member for this proposal.
-	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
+	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	r := valr.NewPropRequest(
 		func() []validators.Validator {
@@ -66,7 +66,7 @@ func main(cur realm) {
 		"Add val4 (${VAL4_ADDR}) with power ${VAL4_POWER}",
 	)
 	pid := dao.MustCreateProposal(cross(cur), r)
-	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 	dao.ExecuteProposal(cross(cur), pid)
 }
 
@@ -121,7 +121,7 @@ func main(cur realm) {
 		"Remove val4 (${VAL4_ADDR}) from the validator set",
 	)
 	pid := dao.MustCreateProposal(cross(cur), r)
-	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 	dao.ExecuteProposal(cross(cur), pid)
 }
 GNOEOF

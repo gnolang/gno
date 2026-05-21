@@ -773,8 +773,8 @@ start_node() {
   compose rm -f "$node" >/dev/null 2>&1 || true
   compose up -d "$node" >/dev/null
   _resolve_rpc_port "$node"
-  wait_for_rpc "$node" 120
   _capture_node_logs "$node"
+  wait_for_rpc "$node" 120
   log "started ${node}"
 }
 
@@ -809,8 +809,8 @@ start_all_nodes() {
     compose up -d "${SCENARIO_SENTRIES[@]}" >/dev/null
     for node in "${SCENARIO_SENTRIES[@]}"; do
       _resolve_rpc_port "$node"
-      wait_for_rpc "$node" 120
       _capture_node_logs "$node"
+      wait_for_rpc "$node" 120
     done
   fi
 
@@ -818,8 +818,8 @@ start_all_nodes() {
     compose up -d "${SCENARIO_VALIDATORS[@]}" >/dev/null
     for node in "${SCENARIO_VALIDATORS[@]}"; do
       _resolve_rpc_port "$node"
-      wait_for_rpc "$node" 120
       _capture_node_logs "$node"
+      wait_for_rpc "$node" 120
     done
   fi
 

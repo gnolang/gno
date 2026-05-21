@@ -46,7 +46,7 @@ import (
 const txAddr = address("${TX_ADDRESS}")
 
 func main(cur realm) {
-	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
+	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	// Proposal 1: remove val1 — individually valid.
 	r1 := valr.NewPropRequest(
@@ -62,7 +62,7 @@ func main(cur realm) {
 		"",
 	)
 	pid1 := dao.MustCreateProposal(cross(cur), r1)
-	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid1})
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid1))
 	dao.ExecuteProposal(cross(cur), pid1)
 
 	// Proposal 2: re-add val1 with new power — individually valid.
@@ -82,7 +82,7 @@ func main(cur realm) {
 		"",
 	)
 	pid2 := dao.MustCreateProposal(cross(cur), r2)
-	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid2})
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid2))
 	dao.ExecuteProposal(cross(cur), pid2)
 }
 
