@@ -64,23 +64,28 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 	}
 
 	s = &dataDirTxsSource{dataDir: dataDir}
+	// Cleanup defer: if any later step fails, close whatever DBs got opened
+	// and zero out the returned source so the caller gets the conventional
+	// (nil, err) shape. Error returns below MUST return s (not nil) so this
+	// defer fires against a non-nil receiver; we nil it here after Close.
 	defer func() {
 		if err != nil {
-			s.Close()
+			_ = s.Close()
+			s = nil
 		}
 	}()
 
 	if s.bsDB, err = dbm.NewDB("blockstore", dbm.PebbleDBBackend, dbDir); err != nil {
-		return nil, fmt.Errorf("opening blockstore.db: %w", err)
+		return s, fmt.Errorf("opening blockstore.db: %w", err)
 	}
 	s.blockStore = bstore.NewBlockStore(s.bsDB)
 
 	if s.stateDB, err = dbm.NewDB("state", dbm.PebbleDBBackend, dbDir); err != nil {
-		return nil, fmt.Errorf("opening state.db: %w", err)
+		return s, fmt.Errorf("opening state.db: %w", err)
 	}
 
 	if s.appDB, err = dbm.NewDB("gnolang", dbm.PebbleDBBackend, dbDir); err != nil {
-		return nil, fmt.Errorf("opening gnolang.db: %w", err)
+		return s, fmt.Errorf("opening gnolang.db: %w", err)
 	}
 
 	// Set up a minimal auth keeper on the gnolang multistore so per-signer
@@ -93,7 +98,7 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 	s.cms.MountStoreWithDB(s.mainKey, iavl.StoreConstructor, s.appDB)
 	s.cms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, s.appDB)
 	if err = s.cms.LoadLatestVersion(); err != nil {
-		return nil, fmt.Errorf("loading app multistore: %w", err)
+		return s, fmt.Errorf("loading app multistore: %w", err)
 	}
 	prmk := params.NewParamsKeeper(s.mainKey)
 	s.acck = auth.NewAccountKeeper(

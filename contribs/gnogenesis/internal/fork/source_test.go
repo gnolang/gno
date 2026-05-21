@@ -101,6 +101,55 @@ func TestNewDataDirTxsSource_MissingDBs(t *testing.T) {
 	assert.Contains(t, err.Error(), "blockstore.db")
 }
 
+// TestNewDataDirTxsSource_MissingStateDB and _MissingGnolangDB verify the
+// other two pebbledb subdirs are named when missing — the loop reports the
+// first missing dir it sees.
+func TestNewDataDirTxsSource_MissingStateDB(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "db", "blockstore.db"), 0o755))
+	src, err := newDataDirTxsSource(dir)
+	require.Nil(t, src)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "state.db")
+}
+
+func TestNewDataDirTxsSource_MissingGnolangDB(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "db", "blockstore.db"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "db", "state.db"), 0o755))
+	src, err := newDataDirTxsSource(dir)
+	require.Nil(t, src)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gnolang.db")
+}
+
+// TestNewDataDirTxsSource_PartialInitDoesNotPanic regression-tests the
+// cleanup defer: if dbm.NewDB fails after the defer is installed, returning
+// `nil, err` would zero the named-return s and the defer would dereference
+// nil. The fix returns `s, err` so the defer can Close any opened DBs.
+//
+// Trigger: a regular file at db/blockstore.db passes the pre-allocation
+// os.Stat existence check, then dbm.NewDB fails (PebbleDB expects a
+// directory). All three subpaths exist so we get past the initial loop.
+func TestNewDataDirTxsSource_PartialInitDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	dbDir := filepath.Join(dir, "db")
+	require.NoError(t, os.MkdirAll(dbDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dbDir, "blockstore.db"), []byte("not a db"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dbDir, "state.db"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dbDir, "gnolang.db"), 0o755))
+
+	src, err := newDataDirTxsSource(dir)
+	require.Nil(t, src)
+	require.Error(t, err)
+}
+
 func TestNewFileGenesisSource_Missing(t *testing.T) {
 	t.Parallel()
 
