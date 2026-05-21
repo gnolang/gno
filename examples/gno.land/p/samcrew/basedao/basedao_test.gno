@@ -9,6 +9,7 @@ import (
 	"gno.land/p/samcrew/daocond"
 	"gno.land/p/samcrew/daokit"
 )
+
 var (
 	alice = testutils.TestAddress("alice")
 	bob   = testutils.TestAddress("bob")

@@ -11,12 +11,12 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
 func init(cur realm) {
 	// Unit tests run with DefaultHeight=123, so the production init() in init.gno
 	// (guarded on height==0) is a no-op in tests. Temporarily reset height so we

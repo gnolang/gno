@@ -95,4 +95,3 @@ func CompactCoins(denoms []string, amounts []int64) std.Coins {
 	}
 	return coins
 }
-

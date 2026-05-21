@@ -170,20 +170,20 @@ func init() {
 	}
 }
 
-func GetBareSlice() []launderpkg.Bare         { return gBareSlice }
-func GetBarePtrSlice() []*launderpkg.Bare     { return gBarePtrSlice }
-func GetBareArr() *[3]launderpkg.Bare         { return &gBareArr }
-func GetBarePtrArr() *[3]*launderpkg.Bare     { return &gBarePtrArr }
-func GetBareMap() map[string]launderpkg.Bare  { return gBareMap }
+func GetBareSlice() []launderpkg.Bare            { return gBareSlice }
+func GetBarePtrSlice() []*launderpkg.Bare        { return gBarePtrSlice }
+func GetBareArr() *[3]launderpkg.Bare            { return &gBareArr }
+func GetBarePtrArr() *[3]*launderpkg.Bare        { return &gBarePtrArr }
+func GetBareMap() map[string]launderpkg.Bare     { return gBareMap }
 func GetBarePtrMap() map[string]*launderpkg.Bare { return gBarePtrMap }
 
 func ReadBareSlice0() string      { return gBareSlice[0].Field }
 func ReadBareSlice0Then1() string { return gBareSlice[1].Field }
-func ReadBarePtrSlice0() string { return gBarePtrSlice[0].Field }
-func ReadBareArr0() string      { return gBareArr[0].Field }
-func ReadBarePtrArr0() string   { return gBarePtrArr[0].Field }
-func ReadBareMapA() string      { return gBareMap["a"].Field }
-func ReadBarePtrMapA() string   { return gBarePtrMap["a"].Field }
+func ReadBarePtrSlice0() string   { return gBarePtrSlice[0].Field }
+func ReadBareArr0() string        { return gBareArr[0].Field }
+func ReadBarePtrArr0() string     { return gBarePtrArr[0].Field }
+func ReadBareMapA() string        { return gBareMap["a"].Field }
+func ReadBarePtrMapA() string     { return gBarePtrMap["a"].Field }
 
 // --- Panic/defer/recover helpers ---
 // These victim-side helpers expose scenarios where the m.Realm
@@ -257,7 +257,7 @@ type ImmHook func(*Immutable)
 
 var gHooks []ImmHook
 
-func RegisterHook(h ImmHook)   { gHooks = append(gHooks, h) }
+func RegisterHook(h ImmHook) { gHooks = append(gHooks, h) }
 func RunHooks() {
 	for _, h := range gHooks {
 		h(gImm)

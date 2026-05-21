@@ -41,10 +41,10 @@ type bankerRecord struct {
 // operators must construct their own bankers and NEVER accept pre-built
 // *Banker values from external realms.
 type Banker interface {
-	ID() string                   // Get the ID of the banker.
+	ID() string                     // Get the ID of the banker.
 	Send(int, realm, Payment) error // Send a payment to a recipient.
-	Balances() []Balance          // Get the balances of the banker.
-	Address() string              // Get the address of the banker to receive payments.
+	Balances() []Balance            // Get the balances of the banker.
+	Address() string                // Get the address of the banker to receive payments.
 }
 
 // IsCanonicalBanker reports whether b is one of treasury's canonical

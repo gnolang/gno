@@ -13,12 +13,12 @@ import (
 	"gno.land/p/sys/validators"
 )
 
-
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
 // generateTestValidators generates a dummy validator set
 func generateTestValidators(count int) []validators.Validator {
 	vals := make([]validators.Validator, 0, count)

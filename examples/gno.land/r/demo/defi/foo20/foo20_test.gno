@@ -7,12 +7,12 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
 func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	var (
 		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")

@@ -1,7 +1,6 @@
 package foo20
 
 import (
-
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
 	"gno.land/p/nt/avl/v0"

@@ -9,12 +9,12 @@ import (
 	grc20 "gno.land/r/demo/defi/grc20factory"
 )
 
-
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
 // Test PanicToError with different types as panic value.
 func TestSimplePanicToError(t *testing.T) {
 	err := pte.PanicToError(func() {

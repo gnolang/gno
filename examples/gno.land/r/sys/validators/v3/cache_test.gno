@@ -10,12 +10,12 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
 // These tests pass `func()` callbacks (no crossing inside the callback),
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
+
 // resetCache clears valoperCache so subtests don't leak state.
 func resetCache() {
 	valoperCache = bptree.NewBPTree32()

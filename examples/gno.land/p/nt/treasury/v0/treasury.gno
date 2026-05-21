@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	ErrNoBankerProvided      = errors.New("no banker provided")
-	ErrDuplicateBanker       = errors.New("duplicate banker")
-	ErrBankerNotFound        = errors.New("banker not found")
-	ErrSendPaymentFailed     = errors.New("failed to send payment")
+	ErrNoBankerProvided       = errors.New("no banker provided")
+	ErrDuplicateBanker        = errors.New("duplicate banker")
+	ErrBankerNotFound         = errors.New("banker not found")
+	ErrSendPaymentFailed      = errors.New("failed to send payment")
 	ErrNonCanonicalBankerImpl = errors.New("non-canonical Banker impl: only *CoinsBanker / *GRC20Banker accepted")
 )
 

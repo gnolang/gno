@@ -173,4 +173,4 @@ func OriginRealm() realm {
 }
 
 func makeRealm(addr, pkgPath string, prev realm) realm // injected
-func originRealm() realm                                // injected
+func originRealm() realm                               // injected

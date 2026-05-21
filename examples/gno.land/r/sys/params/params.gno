@@ -44,7 +44,7 @@ func assertNotValsetKey(module, submodule string) {
 
 func NewSysParamStringPropRequest(cur realm, module, submodule, name, value string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamString(module, submodule, name, value) },
 		"",
@@ -53,7 +53,7 @@ func NewSysParamStringPropRequest(cur realm, module, submodule, name, value stri
 
 func NewSysParamInt64PropRequest(cur realm, module, submodule, name string, value int64) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamInt64(module, submodule, name, value) },
 		"",
@@ -62,7 +62,7 @@ func NewSysParamInt64PropRequest(cur realm, module, submodule, name string, valu
 
 func NewSysParamUint64PropRequest(cur realm, module, submodule, name string, value uint64) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamUint64(module, submodule, name, value) },
 		"",
@@ -71,7 +71,7 @@ func NewSysParamUint64PropRequest(cur realm, module, submodule, name string, val
 
 func NewSysParamBoolPropRequest(cur realm, module, submodule, name string, value bool) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamBool(module, submodule, name, value) },
 		"",
@@ -80,7 +80,7 @@ func NewSysParamBoolPropRequest(cur realm, module, submodule, name string, value
 
 func NewSysParamBytesPropRequest(cur realm, module, submodule, name string, value []byte) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamBytes(module, submodule, name, value) },
 		"",
@@ -89,7 +89,7 @@ func NewSysParamBytesPropRequest(cur realm, module, submodule, name string, valu
 
 func NewSysParamStringsPropRequest(cur realm, module, submodule, name string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamStrings(module, submodule, name, value) },
 		"",
@@ -98,7 +98,7 @@ func NewSysParamStringsPropRequest(cur realm, module, submodule, name string, va
 
 func NewSysParamStringsPropRequestWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamStrings(module, submodule, name, value) },
 		title,
@@ -106,7 +106,7 @@ func NewSysParamStringsPropRequestWithTitle(cur realm, module, submodule, name, 
 }
 func NewSysParamStringsPropRequestAddWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.UpdateSysParamStrings(module, submodule, name, value, true) },
 		title,
@@ -114,7 +114,7 @@ func NewSysParamStringsPropRequestAddWithTitle(cur realm, module, submodule, nam
 }
 func NewSysParamStringsPropRequestRemoveWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
 	assertNotValsetKey(module, submodule)
-	return newPropRequest(cur, 
+	return newPropRequest(cur,
 		syskey(module, submodule, name),
 		func() { prms.UpdateSysParamStrings(module, submodule, name, value, false) },
 		title,

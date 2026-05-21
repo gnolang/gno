@@ -63,11 +63,11 @@ func AllocsPerRun2(runs int, f func()) (total int) {
 // T
 
 type T struct {
-	name      string
-	failed    bool
-	skipped   bool
-	subs      []*T
-	parent    *T
+	name    string
+	failed  bool
+	skipped bool
+	subs    []*T
+	parent  *T
 	// cur is the realm threaded down from the top-level crossing test
 	// (set in runTest_cur from InternalTest.Cur). Each sub-T inherits
 	// the parent's cur so t.Run can dispatch a crossing-shaped sub-test

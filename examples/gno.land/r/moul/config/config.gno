@@ -40,14 +40,18 @@ func RemoveManager(cur realm, addr address) error {
 // SECURITY XXX: TransferManagement accepts any Authority impl as the
 // new authority — `newAuthority` is an open interface. Two risks:
 // (a) If the caller passes a foreign Authority impl, the impl's
-//     Authorize method runs with whatever this realm's authority
-//     grants. Hostile impls can always-approve (silent privilege
-//     escalation) or always-deny (DoS / lockout).
+//
+//	Authorize method runs with whatever this realm's authority
+//	grants. Hostile impls can always-approve (silent privilege
+//	escalation) or always-deny (DoS / lockout).
+//
 // (b) Once the new authority is installed, there is no way back if it
-//     turns out hostile — the new authority controls all future
-//     Transfer calls. An attacker who becomes the authority (legit
-//     or via a malicious newAuthority) can install a permanent
-//     DroppedAuthority to lock this realm forever.
+//
+//	turns out hostile — the new authority controls all future
+//	Transfer calls. An attacker who becomes the authority (legit
+//	or via a malicious newAuthority) can install a permanent
+//	DroppedAuthority to lock this realm forever.
+//
 // Fix: restrict newAuthority to canonical authz impls (MemberAuthority,
 // ContractAuthority, etc. from p/moul/authz). Optionally wrap Transfer
 // with a quorum/cooldown check or a one-shot guard so a single
