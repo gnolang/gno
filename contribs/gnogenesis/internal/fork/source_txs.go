@@ -5,7 +5,11 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -124,6 +128,174 @@ func assignTrailingFailedTxSequences(
 		}
 		if uint64(i) < consumed {
 			seq++
+		}
+	}
+}
+
+// ---- shared per-block tx processing pipeline
+
+// txStream accumulates transactions across a block range and resolves
+// per-signer sequences. Owned and called by individual TxsSource
+// implementations (rpcTxsSource, dataDirTxsSource); the dedup lets the
+// two sources differ only in how they obtain blocks/results and how they
+// query account state.
+//
+// queryAccount is invoked lazily on the first appearance of each signer.
+// The function should return nil for accounts not yet on-chain at the
+// halt height; callers typically log a warning in that path.
+type txStream struct {
+	chainID      string
+	queryAccount func(crypto.Address) std.Account
+	io           commands.IO
+
+	txs          []gnoland.TxWithMetadata
+	signerStates map[crypto.Address]*signerState
+}
+
+func newTxStream(chainID string, queryAccount func(crypto.Address) std.Account, io commands.IO) *txStream {
+	return &txStream{
+		chainID:      chainID,
+		queryAccount: queryAccount,
+		io:           io,
+		signerStates: map[crypto.Address]*signerState{},
+	}
+}
+
+// getOrCreateSigner returns the cached signerState for addr, creating one
+// (via queryAccount) on first access.
+func (s *txStream) getOrCreateSigner(addr crypto.Address) *signerState {
+	if ss, ok := s.signerStates[addr]; ok {
+		return ss
+	}
+	acc := s.queryAccount(addr)
+	ss := &signerState{}
+	if acc != nil {
+		ss.accNum = acc.GetAccountNumber()
+		ss.finalSeq = acc.GetSequence()
+	}
+	s.signerStates[addr] = ss
+	return ss
+}
+
+// processBlock decodes each tx in the block, resolves per-signer sequences,
+// and appends the resulting TxWithMetadata entries to s.txs. Returns the
+// number of txs appended (used by the caller for progress reporting).
+//
+// rawTxs and deliverTxs are parallel slices: deliverTxs[i].IsErr() decides
+// whether tx i is treated as failed (sequence buffered for later
+// back-patching) or successful (sequence brute-forced from the signature).
+func (s *txStream) processBlock(h, timestamp int64, rawTxs []bft.Tx, deliverTxs []abci.ResponseDeliverTx) int {
+	txCount := 0
+	for i, rawTx := range rawTxs {
+		var stdTx std.Tx
+		if err := amino.Unmarshal(rawTx, &stdTx); err != nil {
+			s.io.Printf("\n  WARNING: could not decode tx at height %d index %d: %v\n", h, i, err)
+			continue
+		}
+
+		failed := false
+		if i < len(deliverTxs) && deliverTxs[i].IsErr() {
+			failed = true
+		}
+
+		signers := stdTx.GetSigners()
+		sigs := stdTx.GetSignatures()
+		txIdx := len(s.txs)
+
+		signerInfos := make([]gnoland.SignerAccountInfo, len(signers))
+		for j, signer := range signers {
+			ss := s.getOrCreateSigner(signer)
+			signerInfos[j] = gnoland.SignerAccountInfo{
+				Address:    signer,
+				AccountNum: ss.accNum,
+				Sequence:   0,
+			}
+		}
+
+		if !failed {
+			for j, signer := range signers {
+				ss := s.signerStates[signer]
+
+				if !ss.initialized || len(ss.pendingFails) > 0 {
+					lo := ss.seq
+					hi := ss.seq + uint64(len(ss.pendingFails))
+					if !ss.initialized {
+						lo = 0
+						hi = ss.finalSeq
+					}
+
+					var sig std.Signature
+					if j < len(sigs) {
+						sig = sigs[j]
+					}
+
+					resolvedSeq, err := bruteForceSignerSequence(
+						stdTx, sig, ss.accNum, lo, hi, s.chainID)
+					if err != nil {
+						s.io.Printf("\n  WARNING: brute-force failed for signer %s at height %d: %v (using counter %d)\n",
+							signer, h, err, ss.seq)
+						resolvedSeq = ss.seq
+					}
+
+					assignFailedTxSequences(s.txs, ss.pendingFails, ss.seq, resolvedSeq)
+					ss.pendingFails = nil
+					ss.seq = resolvedSeq
+					ss.initialized = true
+				}
+
+				signerInfos[j].Sequence = ss.seq
+				ss.seq++
+			}
+		} else {
+			for j, signer := range signers {
+				ss := s.signerStates[signer]
+				ss.pendingFails = append(ss.pendingFails, &pendingFailedTx{
+					txIndex: txIdx,
+					signerI: j,
+				})
+				signerInfos[j].Sequence = ss.seq
+			}
+		}
+
+		s.txs = append(s.txs, gnoland.TxWithMetadata{
+			Tx: stdTx,
+			Metadata: &gnoland.GnoTxMetadata{
+				Timestamp:   timestamp,
+				BlockHeight: h,
+				ChainID:     s.chainID,
+				Failed:      failed,
+				SignerInfo:  signerInfos,
+			},
+		})
+		txCount++
+	}
+	return txCount
+}
+
+// resolveTrailingFailures back-patches sequence values on any signers that
+// ended the stream with buffered failed txs and no later success to anchor
+// against.
+func (s *txStream) resolveTrailingFailures() {
+	for _, ss := range s.signerStates {
+		if len(ss.pendingFails) == 0 {
+			continue
+		}
+		if !ss.initialized {
+			var consumed uint64
+			if ss.finalSeq > ss.seq {
+				consumed = ss.finalSeq - ss.seq
+			}
+			if consumed > uint64(len(ss.pendingFails)) {
+				ss.seq = ss.finalSeq - uint64(len(ss.pendingFails))
+				consumed = uint64(len(ss.pendingFails))
+			}
+			assignTrailingFailedTxSequences(s.txs, ss.pendingFails, ss.seq, consumed)
+		} else {
+			var consumed uint64
+			if ss.finalSeq > ss.seq {
+				consumed = ss.finalSeq - ss.seq
+			}
+			assignTrailingFailedTxSequences(s.txs, ss.pendingFails, ss.seq, consumed)
 		}
 	}
 }

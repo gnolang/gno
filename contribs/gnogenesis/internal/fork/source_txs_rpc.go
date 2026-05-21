@@ -101,156 +101,37 @@ func (s *rpcTxsSource) LatestHeight(ctx context.Context) (int64, error) {
 // shared sequence-resolution pipeline. chainID is supplied by the caller
 // (sourced from the GenesisSource).
 func (s *rpcTxsSource) FetchTxs(ctx context.Context, chainID string, fromHeight, toHeight int64, io commands.IO) ([]gnoland.TxWithMetadata, error) {
-	var txs []gnoland.TxWithMetadata
-
-	signerStates := map[crypto.Address]*signerState{}
-	getOrCreateSignerState := func(addr crypto.Address) *signerState {
-		if ss, ok := signerStates[addr]; ok {
-			return ss
-		}
-		acc := s.queryAccountAtHeight(ctx, addr, toHeight, io)
-		ss := &signerState{}
-		if acc != nil {
-			ss.accNum = acc.GetAccountNumber()
-			ss.finalSeq = acc.GetSequence()
-		}
-		signerStates[addr] = ss
-		return ss
-	}
+	stream := newTxStream(chainID, func(addr crypto.Address) std.Account {
+		return s.queryAccountAtHeight(ctx, addr, toHeight, io)
+	}, io)
 
 	total := toHeight - fromHeight + 1
 	var processed, txCount int64
 
-	stream := s.newPooledFetcher().FetchRange(ctx, fromHeight, toHeight)
-
-	for r := range stream {
+	blocks := s.newPooledFetcher().FetchRange(ctx, fromHeight, toHeight)
+	for r := range blocks {
 		if r.err != nil {
 			return nil, r.err
 		}
-
 		processed++
 		if processed%1000 == 0 || processed == total {
 			io.Printf("\r  Blocks: %d/%d  Txs: %d", processed, total, txCount)
 		}
-
-		h := r.height
 		block := r.data.block
 		if len(block.Block.Data.Txs) == 0 {
 			continue
 		}
-		results := r.data.results
-		timestamp := block.Block.Header.Time.Unix()
-
-		for i, rawTx := range block.Block.Data.Txs {
-			var stdTx std.Tx
-			if err := amino.Unmarshal(rawTx, &stdTx); err != nil {
-				io.Printf("\n  WARNING: could not decode tx at height %d index %d: %v\n", h, i, err)
-				continue
-			}
-
-			failed := false
-			if i < len(results.Results.DeliverTxs) && results.Results.DeliverTxs[i].IsErr() {
-				failed = true
-			}
-
-			signers := stdTx.GetSigners()
-			sigs := stdTx.GetSignatures()
-			txIdx := len(txs)
-
-			signerInfos := make([]gnoland.SignerAccountInfo, len(signers))
-			for j, signer := range signers {
-				ss := getOrCreateSignerState(signer)
-				signerInfos[j] = gnoland.SignerAccountInfo{
-					Address:    signer,
-					AccountNum: ss.accNum,
-					Sequence:   0,
-				}
-			}
-
-			if !failed {
-				for j, signer := range signers {
-					ss := signerStates[signer]
-
-					if !ss.initialized || len(ss.pendingFails) > 0 {
-						lo := ss.seq
-						hi := ss.seq + uint64(len(ss.pendingFails))
-						if !ss.initialized {
-							lo = 0
-							hi = ss.finalSeq
-						}
-
-						var sig std.Signature
-						if j < len(sigs) {
-							sig = sigs[j]
-						}
-
-						resolvedSeq, err := bruteForceSignerSequence(
-							stdTx, sig, ss.accNum, lo, hi, chainID)
-						if err != nil {
-							io.Printf("\n  WARNING: brute-force failed for signer %s at height %d: %v (using counter %d)\n",
-								signer, h, err, ss.seq)
-							resolvedSeq = ss.seq
-						}
-
-						assignFailedTxSequences(txs, ss.pendingFails, ss.seq, resolvedSeq)
-						ss.pendingFails = nil
-						ss.seq = resolvedSeq
-						ss.initialized = true
-					}
-
-					signerInfos[j].Sequence = ss.seq
-					ss.seq++
-				}
-			} else {
-				for j, signer := range signers {
-					ss := signerStates[signer]
-					ss.pendingFails = append(ss.pendingFails, &pendingFailedTx{
-						txIndex: txIdx,
-						signerI: j,
-					})
-					signerInfos[j].Sequence = ss.seq
-				}
-			}
-
-			txs = append(txs, gnoland.TxWithMetadata{
-				Tx: stdTx,
-				Metadata: &gnoland.GnoTxMetadata{
-					Timestamp:   timestamp,
-					BlockHeight: h,
-					ChainID:     chainID,
-					Failed:      failed,
-					SignerInfo:  signerInfos,
-				},
-			})
-			txCount++
-		}
+		txCount += int64(stream.processBlock(
+			r.height,
+			block.Block.Header.Time.Unix(),
+			block.Block.Data.Txs,
+			r.data.results.Results.DeliverTxs,
+		))
 	}
 
-	for _, ss := range signerStates {
-		if len(ss.pendingFails) == 0 {
-			continue
-		}
-		if !ss.initialized {
-			var consumed uint64
-			if ss.finalSeq > ss.seq {
-				consumed = ss.finalSeq - ss.seq
-			}
-			if consumed > uint64(len(ss.pendingFails)) {
-				ss.seq = ss.finalSeq - uint64(len(ss.pendingFails))
-				consumed = uint64(len(ss.pendingFails))
-			}
-			assignTrailingFailedTxSequences(txs, ss.pendingFails, ss.seq, consumed)
-		} else {
-			var consumed uint64
-			if ss.finalSeq > ss.seq {
-				consumed = ss.finalSeq - ss.seq
-			}
-			assignTrailingFailedTxSequences(txs, ss.pendingFails, ss.seq, consumed)
-		}
-	}
-
+	stream.resolveTrailingFailures()
 	io.Printf("\r  Blocks: %d/%d  Txs: %d\n", processed, total, txCount)
-	return txs, nil
+	return stream.txs, nil
 }
 
 // queryAccountAtHeight queries an account's state at a specific block height
