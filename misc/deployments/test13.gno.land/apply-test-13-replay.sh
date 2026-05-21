@@ -27,12 +27,12 @@
 #          - Unexpected: anything else — printed with full context, audit
 #            step exits non-zero.
 #
-# Pre-requisites:
-#   ./out/base-genesis.json   produced by ./build-test-13-genesis.sh
-#   ./txs.jsonl               pre-fetched gnoland1 historical txs (one
-#                             gnoland.TxWithMetadata per line, amino-JSON;
-#                             not downloaded by this script — see ERROR
-#                             message at runtime for the recipe)
+# Sources (orthogonal — pick one per dimension; defaults shown):
+#   --source-genesis-file PATH   default: ./out/base-genesis.json   produced by ./build-test-13-genesis.sh
+#   --source-genesis-rpc URL     fetch source genesis from an RPC /genesis endpoint
+#   --source-txs-jsonl-file PATH default: ./txs.jsonl               pre-fetched amino-JSONL of gnoland.TxWithMetadata
+#   --source-txs-rpc URLS        fetch txs from RPC(s); comma-separated for failover/parallelism (uses #5693 multi-endpoint fetch)
+#   --source-txs-data-dir PATH   read txs from a halted gnoland data dir (offline PebbleDB reader, #5696)
 #
 # Output:
 #   ./out/genesis.json        the final test-13 hardfork genesis
@@ -40,10 +40,11 @@
 #   ./out/fork-test.log       full `fork test --verbose` log (kept for audit)
 #
 # Usage:
-#   ./apply-test-13-replay.sh              # full assemble + audit
-#   ./apply-test-13-replay.sh --debug      # show every command being run
-#   ./apply-test-13-replay.sh --no-install # reuse previously built binaries
-#   ./apply-test-13-replay.sh --skip-audit # skip the fork-test audit step
+#   ./apply-test-13-replay.sh                                  # use defaults (./out/base-genesis.json + ./txs.jsonl)
+#   ./apply-test-13-replay.sh --debug                          # show every command being run
+#   ./apply-test-13-replay.sh --no-install                     # reuse previously built binaries
+#   ./apply-test-13-replay.sh --skip-audit                     # skip the fork-test audit step
+#   ./apply-test-13-replay.sh --source-txs-rpc <urls,csv>      # fetch txs from RPCs at runtime instead of jsonl
 set -eo pipefail
 
 # =============================================================================
@@ -68,17 +69,101 @@ HALT_HEIGHT=1008282
 DEBUG=false
 NO_INSTALL=false
 SKIP_AUDIT=false
-for arg in "$@"; do
-  case "$arg" in
-  --debug) DEBUG=true ;;
-  --no-install) NO_INSTALL=true ;;
-  --skip-audit) SKIP_AUDIT=true ;;
+SOURCE_GENESIS_FILE=""
+SOURCE_GENESIS_RPC=""
+SOURCE_TXS_JSONL_FILE=""
+SOURCE_TXS_RPC=""
+SOURCE_TXS_DATA_DIR=""
+
+# Validate that the option being parsed has an accompanying value (--key value form).
+require_arg() {
+  if [ "$#" -lt 2 ]; then
+    echo "ERROR: $1 requires a value" >&2
+    exit 1
+  fi
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --debug)
+    DEBUG=true
+    shift
+    ;;
+  --no-install)
+    NO_INSTALL=true
+    shift
+    ;;
+  --skip-audit)
+    SKIP_AUDIT=true
+    shift
+    ;;
+  --source-genesis-file)
+    require_arg "$@"
+    SOURCE_GENESIS_FILE="$2"
+    shift 2
+    ;;
+  --source-genesis-file=*)
+    SOURCE_GENESIS_FILE="${1#*=}"
+    shift
+    ;;
+  --source-genesis-rpc)
+    require_arg "$@"
+    SOURCE_GENESIS_RPC="$2"
+    shift 2
+    ;;
+  --source-genesis-rpc=*)
+    SOURCE_GENESIS_RPC="${1#*=}"
+    shift
+    ;;
+  --source-txs-jsonl-file)
+    require_arg "$@"
+    SOURCE_TXS_JSONL_FILE="$2"
+    shift 2
+    ;;
+  --source-txs-jsonl-file=*)
+    SOURCE_TXS_JSONL_FILE="${1#*=}"
+    shift
+    ;;
+  --source-txs-rpc)
+    require_arg "$@"
+    SOURCE_TXS_RPC="$2"
+    shift 2
+    ;;
+  --source-txs-rpc=*)
+    SOURCE_TXS_RPC="${1#*=}"
+    shift
+    ;;
+  --source-txs-data-dir)
+    require_arg "$@"
+    SOURCE_TXS_DATA_DIR="$2"
+    shift 2
+    ;;
+  --source-txs-data-dir=*)
+    SOURCE_TXS_DATA_DIR="${1#*=}"
+    shift
+    ;;
   *)
-    echo "Unknown argument: $arg"
+    echo "Unknown argument: $1" >&2
     exit 1
     ;;
   esac
 done
+
+# Resolve genesis source — default to local out/base-genesis.json if neither flag given.
+if [ -n "$SOURCE_GENESIS_FILE" ] && [ -n "$SOURCE_GENESIS_RPC" ]; then
+  echo "ERROR: --source-genesis-file and --source-genesis-rpc are mutually exclusive." >&2
+  exit 1
+fi
+
+# Resolve txs source — default to local txs.jsonl if no flag given.
+TXS_SOURCE_COUNT=0
+[ -n "$SOURCE_TXS_JSONL_FILE" ] && TXS_SOURCE_COUNT=$((TXS_SOURCE_COUNT + 1))
+[ -n "$SOURCE_TXS_RPC" ] && TXS_SOURCE_COUNT=$((TXS_SOURCE_COUNT + 1))
+[ -n "$SOURCE_TXS_DATA_DIR" ] && TXS_SOURCE_COUNT=$((TXS_SOURCE_COUNT + 1))
+if [ "$TXS_SOURCE_COUNT" -gt 1 ]; then
+  echo "ERROR: --source-txs-{jsonl-file,rpc,data-dir} are mutually exclusive (pick one)." >&2
+  exit 1
+fi
 
 run() {
   if [ "$DEBUG" = true ]; then
@@ -118,32 +203,49 @@ DEPLOYER_GNOKEY_HOME="$WORK_DIR/gnokey-home"
 
 mkdir -p "$SCRIPT_DIR/out" "$WORK_DIR_BIN"
 
-# Pre-flight checks before we touch anything.
-if [ ! -f "$BASE_GENESIS" ]; then
-  echo "ERROR: $BASE_GENESIS not found — run ./build-test-13-genesis.sh first."
+# Pre-flight checks: resolve the effective sources and verify they're reachable.
+
+# ---- Genesis source: default to BASE_GENESIS if no flag given.
+if [ -z "$SOURCE_GENESIS_FILE" ] && [ -z "$SOURCE_GENESIS_RPC" ]; then
+  SOURCE_GENESIS_FILE="$BASE_GENESIS"
+fi
+if [ -n "$SOURCE_GENESIS_FILE" ] && [ ! -f "$SOURCE_GENESIS_FILE" ]; then
+  echo "ERROR: --source-genesis-file points at $SOURCE_GENESIS_FILE which does not exist." >&2
+  echo "       Run ./build-test-13-genesis.sh first, or pass --source-genesis-rpc / --source-genesis-file <path>." >&2
   exit 1
 fi
-if [ ! -f "$TXS_JSONL" ]; then
+
+# ---- Txs source: default to TXS_JSONL if no flag given.
+if [ "$TXS_SOURCE_COUNT" -eq 0 ]; then
+  SOURCE_TXS_JSONL_FILE="$TXS_JSONL"
+fi
+if [ -n "$SOURCE_TXS_JSONL_FILE" ] && [ ! -f "$SOURCE_TXS_JSONL_FILE" ]; then
   cat >&2 <<EOF
-ERROR: $TXS_JSONL not found.
+ERROR: $SOURCE_TXS_JSONL_FILE not found.
 
 The script expects a pre-fetched gnoland1 historical-tx archive at
-that path. The file is one gnoland.TxWithMetadata per line in amino-
-JSON form. It is NOT downloaded by this script — fetching ~1M blocks
-from rpc.gno.land sequentially takes hours, so we treat it as an
-external input.
+that path (one gnoland.TxWithMetadata per line in amino-JSON form).
 
-To produce it:
+To produce it from RPCs (uses #5693 multi-endpoint parallel fetch):
   go run -C contribs/gnogenesis . fork generate \\
-    --source https://rpc.gno.land \\
-    --halt-height $HALT_HEIGHT \\
-    --chain-id $CHAIN_ID \\
-    --txs-output $TXS_JSONL \\
+    --source-genesis-rpc https://rpc.gnoland1.moul.p2p.team \\
+    --source-txs-rpc <urls,csv> \\
+    --halt-height \$HALT_HEIGHT \\
+    --chain-id \$CHAIN_ID \\
+    --original-chain-id \$ORIGINAL_CHAIN_ID \\
+    --txs-output \$SOURCE_TXS_JSONL_FILE \\
     --output /tmp/throwaway.json
 
 Or, if you already have a cached file from an earlier run, copy it
-to $TXS_JSONL.
+to \$SOURCE_TXS_JSONL_FILE.
+
+Or, pass --source-txs-rpc / --source-txs-data-dir directly to skip
+the cached-file requirement and fetch at script-runtime instead.
 EOF
+  exit 1
+fi
+if [ -n "$SOURCE_TXS_DATA_DIR" ] && [ ! -d "$SOURCE_TXS_DATA_DIR" ]; then
+  echo "ERROR: --source-txs-data-dir points at $SOURCE_TXS_DATA_DIR which does not exist." >&2
   exit 1
 fi
 
@@ -178,29 +280,40 @@ if [ ! -d "$DEPLOYER_GNOKEY_HOME/data/keys.db" ]; then
   exit 1
 fi
 
-# ---- 2. Verify the cached txs.jsonl matches the HALT_HEIGHT we declared
-# The constant at the top has to match the highest BlockHeight in the
-# jsonl, otherwise InitialHeight (HALT+1) lands before the latest tx.
+# ---- 2. Verify the txs source (file modes only)
+# For --source-txs-rpc and --source-txs-data-dir, gnogenesis enforces
+# --halt-height on the fetch side. For --source-txs-jsonl-file, we
+# verify the cached archive's max BlockHeight matches HALT_HEIGHT
+# before doing any work — saves an hour of replay if the cache is stale.
 
-printf "\n=== Step 2/4: Verifying cached txs.jsonl ===\n"
-TXS_COUNT=$(wc -l <"$TXS_JSONL" | tr -d ' ')
-MAX_HEIGHT=$(awk -F'"' '
-  /"block_height"/ {
-    for (i=1; i<=NF; i++) {
-      if ($i == "block_height") {
-        h = $(i+2) + 0
-        if (h > max) max = h
+printf "\n=== Step 2/4: Verifying txs source ===\n"
+if [ -n "$SOURCE_TXS_JSONL_FILE" ]; then
+  TXS_COUNT=$(wc -l <"$SOURCE_TXS_JSONL_FILE" | tr -d ' ')
+  MAX_HEIGHT=$(awk -F'"' '
+    /"block_height"/ {
+      for (i=1; i<=NF; i++) {
+        if ($i == "block_height") {
+          h = $(i+2) + 0
+          if (h > max) max = h
+        }
       }
     }
-  }
-  END { print max+0 }
-' "$TXS_JSONL")
-printf "  txs:        %s\n" "$TXS_COUNT"
-printf "  max height: %s (HALT_HEIGHT = %s)\n" "$MAX_HEIGHT" "$HALT_HEIGHT"
-if [ "$MAX_HEIGHT" -ne "$HALT_HEIGHT" ]; then
-  echo "ERROR: HALT_HEIGHT=$HALT_HEIGHT but txs.jsonl max BlockHeight=$MAX_HEIGHT."
-  echo "       Update the HALT_HEIGHT constant in this script or replace txs.jsonl."
-  exit 1
+    END { print max+0 }
+  ' "$SOURCE_TXS_JSONL_FILE")
+  printf "  mode:       jsonl-file (%s)\n" "$SOURCE_TXS_JSONL_FILE"
+  printf "  txs:        %s\n" "$TXS_COUNT"
+  printf "  max height: %s (HALT_HEIGHT = %s)\n" "$MAX_HEIGHT" "$HALT_HEIGHT"
+  if [ "$MAX_HEIGHT" -ne "$HALT_HEIGHT" ]; then
+    echo "ERROR: HALT_HEIGHT=$HALT_HEIGHT but txs.jsonl max BlockHeight=$MAX_HEIGHT."
+    echo "       Update the HALT_HEIGHT constant in this script or replace the cached jsonl."
+    exit 1
+  fi
+elif [ -n "$SOURCE_TXS_RPC" ]; then
+  printf "  mode:       rpc (%s)\n" "$SOURCE_TXS_RPC"
+  printf "  (gnogenesis fork generate enforces halt-height during fetch)\n"
+else
+  printf "  mode:       data-dir (%s)\n" "$SOURCE_TXS_DATA_DIR"
+  printf "  (gnogenesis fork generate enforces halt-height during read)\n"
 fi
 
 # ---- 3. Build T1 rotation + names.Enable migration .jsonl
@@ -286,21 +399,32 @@ printf "  -> %s (%s migration txs)\n" "$OUT_MIGRATIONS" "$mig_lines"
 
 printf "\n=== Step 4/4: Assembling final genesis (gnogenesis fork generate) ===\n"
 
-# dirSource expects either dir/config/genesis.json or dir/genesis.json,
-# plus dir/txs.jsonl. Symlinks instead of copies — base is 186MB.
-SOURCE_DIR="$WORK_DIR/source"
-rm -rf "$SOURCE_DIR"
-mkdir -p "$SOURCE_DIR/config"
-ln -sf "$BASE_GENESIS" "$SOURCE_DIR/config/genesis.json"
-ln -sf "$TXS_JSONL" "$SOURCE_DIR/txs.jsonl"
-
-run "$GNOGENESIS_BIN" fork generate \
-  --source "$SOURCE_DIR" \
-  --original-chain-id "$ORIGINAL_CHAIN_ID" \
-  --chain-id "$CHAIN_ID" \
-  --halt-height "$HALT_HEIGHT" \
-  --migration-tx "$OUT_MIGRATIONS" \
+GEN_ARGS=(
+  fork generate
+  --original-chain-id "$ORIGINAL_CHAIN_ID"
+  --chain-id "$CHAIN_ID"
+  --halt-height "$HALT_HEIGHT"
+  --migration-tx "$OUT_MIGRATIONS"
   --output "$OUT_GENESIS"
+)
+
+# Genesis source (exactly one of file / rpc)
+if [ -n "$SOURCE_GENESIS_FILE" ]; then
+  GEN_ARGS+=(--source-genesis-file "$SOURCE_GENESIS_FILE")
+else
+  GEN_ARGS+=(--source-genesis-rpc "$SOURCE_GENESIS_RPC")
+fi
+
+# Txs source (exactly one of jsonl-file / rpc / data-dir)
+if [ -n "$SOURCE_TXS_JSONL_FILE" ]; then
+  GEN_ARGS+=(--source-txs-jsonl-file "$SOURCE_TXS_JSONL_FILE")
+elif [ -n "$SOURCE_TXS_RPC" ]; then
+  GEN_ARGS+=(--source-txs-rpc "$SOURCE_TXS_RPC")
+else
+  GEN_ARGS+=(--source-txs-data-dir "$SOURCE_TXS_DATA_DIR")
+fi
+
+run "$GNOGENESIS_BIN" "${GEN_ARGS[@]}"
 
 SHA=$(shasum -a 256 "$OUT_GENESIS" | awk '{print $1}')
 printf "\n  sha256: %s\n" "$SHA"
