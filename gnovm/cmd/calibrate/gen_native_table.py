@@ -80,7 +80,7 @@ NATIVE_SPECS = [
     ("chain/banker", "assertCallerIsRealm", None, "Flat",
      r"BenchmarkNative_Banker_AssertCallerIsRealm-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
-    # ---- chain/params (sets only; payload-bytes slope where applicable) ----
+    # ---- chain/params (payload-bytes slope where applicable) ----
     ("chain/params", "SetBytes", 1, "LenBytes",
      r"BenchmarkNative_Params_SetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/params", "SetString", 1, "LenString",
@@ -91,6 +91,18 @@ NATIVE_SPECS = [
      r"BenchmarkNative_Params_SetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/params", "SetUint64", None, "Flat",
      r"BenchmarkNative_Params_SetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # chain/params getters return (value, found). value is first-declared,
+    # so it lands at stack offset 2.
+    ("chain/params", "GetBytes", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetString", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetBool", None, "Flat",
+     r"BenchmarkNative_Params_GetBool-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetInt64", None, "Flat",
+     r"BenchmarkNative_Params_GetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetUint64", None, "Flat",
+     r"BenchmarkNative_Params_GetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
     # ---- sys/params ----
     # Setters share the (module, submodule, name, val[, add]) shape — the
@@ -157,6 +169,8 @@ NATIVE_SPECS_2D = [
      r"BenchmarkNative_Params_SetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
     ("chain/params", "UpdateParamStrings", 1, "LenSlice",
      r"BenchmarkNative_Params_UpdateStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("chain/params", "GetStrings", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", True),
     ("sys/params", "setSysParamStrings", 3, "LenSlice",
      r"BenchmarkNative_SysParams_SetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
     ("sys/params", "updateSysParamStrings", 3, "LenSlice",

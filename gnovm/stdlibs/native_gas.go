@@ -76,7 +76,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 46 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 52 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                           // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -100,6 +100,11 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 1643.0ns
 	{Pkg: "chain/params", Fn: "SetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 1201.0ns
 	{Pkg: "chain/params", Fn: "SetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 1219.0ns
+	{Pkg: "chain/params", Fn: "GetBytes", Base: 1912, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},        // mirrors chain/params keying plus sys/params bytes return cost
+	{Pkg: "chain/params", Fn: "GetString", Base: 1772, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // mirrors chain/params SetString keying cost
+	{Pkg: "chain/params", Fn: "GetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // mirrors chain/params SetBool keying cost
+	{Pkg: "chain/params", Fn: "GetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // mirrors chain/params SetInt64 keying cost
+	{Pkg: "chain/params", Fn: "GetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // mirrors chain/params SetUint64 keying cost
 	{Pkg: "sys/params", Fn: "setSysParamBytes", Base: 323, Slope: 9703, SlopeIdx: 3, SlopeKind: SizeLenBytes},                                                    // fit base=323.3ns slope=9.4757ns/N (=9703/1024) R²=0.995
 	{Pkg: "sys/params", Fn: "getSysParamBytes", Base: 416, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},   // post-call: base=415.7ns + 10.3357ns/N (=10584/1024) R²=1.000
 	{Pkg: "sys/params", Fn: "setSysParamString", Base: 269, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 269.1ns
@@ -121,6 +126,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain", Fn: "emit", Base: 362, Slope: 40218, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                                    // fit base=361.9ns slope=39.2750ns/N (=40218/1024) R²=0.955
 	{Pkg: "chain/params", Fn: "SetStrings", Base: 1601, Slope: 39842, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                      // fit base=1601.1ns slope=38.9082ns/N (=39842/1024) R²=0.993
 	{Pkg: "chain/params", Fn: "UpdateParamStrings", Base: 1298, Slope: 24077, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                              // fit base=1298.0ns slope=23.5122ns/N (=24077/1024) R²=1.000
+	{Pkg: "chain/params", Fn: "GetStrings", Base: 1601, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},      // mirrors chain/params keying plus sys/params strings return cost
 	{Pkg: "sys/params", Fn: "setSysParamStrings", Base: 341, Slope: 27034, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                 // fit base=341.0ns slope=26.4006ns/N (=27034/1024) R²=0.997
 	{Pkg: "sys/params", Fn: "updateSysParamStrings", Base: 413, Slope: 26861, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                              // fit base=413.4ns slope=26.2318ns/N (=26861/1024) R²=0.998
 	{Pkg: "sys/params", Fn: "getSysParamStrings", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=348.9ns + 22.6713ns/N (=23215/1024) R²=0.999
