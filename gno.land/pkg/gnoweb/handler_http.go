@@ -751,10 +751,8 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 func requestOrigin(r *http.Request) string {
 	host := r.Host
 	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
-		if comma := strings.IndexByte(forwarded, ','); comma >= 0 {
-			forwarded = forwarded[:comma]
-		}
-		if h := strings.TrimSpace(forwarded); h != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		if h := strings.TrimSpace(first); h != "" {
 			host = h
 		}
 	}
