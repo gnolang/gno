@@ -68,6 +68,17 @@ func isOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
+// realmsEqual mirrors execctx.realmsEqual: nil-safe Realm comparison.
+func realmsEqual(a, b *gno.Realm) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.ID == b.ID
+}
+
 func getOverride(m *gno.Machine, i int) (RealmOverride, bool) {
 	fr := &m.Frames[i]
 	ctx := m.Context.(*TestExecContext)
@@ -166,6 +177,104 @@ func X_getRealm(m *gno.Machine, height int) (addr string, pkgPath string) {
 			} else {
 				// e.g. TestFoo(t *testing.Test) in *_test.gno
 				// or main() in *_filetest.gno
+				return string(gno.DerivePkgBech32Addr(path)), path
+			}
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	default:
+		panic("exec kind unspecified")
+	}
+}
+
+// X_getRealmV3a is the auto-cross-aware identity walk used by the
+// v3a primitives (runtime.Caller / Self / CallerN). It differs from
+// X_getRealm in that a frame counts as a realm-cross when the callee
+// is /r/-declared in a realm different from fr.LastRealm — mirroring
+// the Layer-1 borrow rule in PushFrameCall. v2 primitives
+// (CurrentRealm / PreviousRealm) keep using X_getRealm so their
+// established semantics remain unchanged.
+//
+// NOTE: keep in sync with execctx.GetRealmV3a.
+func X_getRealmV3a(m *gno.Machine, height int) (addr string, pkgPath string) {
+	var (
+		ctx       = m.Context.(*TestExecContext)
+		lfr       = m.LastFrame()
+		crosses   int
+		postShift = m.Realm
+	)
+
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+
+		override, overridden := getOverride(m, i)
+		if overridden {
+			if override.PkgPath == "" && crosses < height {
+				lfr = fr
+				continue
+			}
+		}
+		shifted := false
+		if !overridden {
+			if !fr.IsCall() {
+				continue
+			}
+			shifted = !realmsEqual(postShift, fr.LastRealm)
+			if !fr.WithCross && !shifted {
+				lfr = fr
+				postShift = fr.LastRealm
+				continue
+			}
+		}
+
+		if !overridden {
+			if fr.WithCross && !fr.DidCrossing {
+				panic(fmt.Sprintf(
+					"cross(fn) but fn didn't call crossing(): %s.%s",
+					fr.Func.PkgPath,
+					fr.Func.String()))
+			}
+		}
+
+		crosses++
+		if crosses > height {
+			if overridden {
+				caller, pkgPath := override.Addr, override.PkgPath
+				return string(caller), pkgPath
+			} else {
+				currlm := lfr.LastRealm
+				caller, rlmPath := gno.DerivePkgBech32Addr(currlm.Path), currlm.Path
+				return string(caller), rlmPath
+			}
+		}
+		lfr = fr
+		postShift = fr.LastRealm
+	}
+
+	switch m.Stage {
+	case gno.StageAdd:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			return string(gno.DerivePkgBech32Addr(path)), path
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	case gno.StageRun:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			if path == "" {
+				panic("should not happen")
+			} else {
 				return string(gno.DerivePkgBech32Addr(path)), path
 			}
 		case crosses + 1:

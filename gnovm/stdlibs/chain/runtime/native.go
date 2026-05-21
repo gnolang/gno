@@ -47,6 +47,14 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	return execctx.GetRealm(m, height)
 }
 
+// X_getRealmV3a is the binding behind the v3a primitives
+// (runtime.Caller, Self, CallerN). It uses the auto-cross-aware walk
+// so identity-as-query reflects "what realm's code is actually
+// running" — see execctx.GetRealmV3a.
+func X_getRealmV3a(m *gno.Machine, height int) (address, pkgPath string) {
+	return execctx.GetRealmV3a(m, height)
+}
+
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
 // Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
 // gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;

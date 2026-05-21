@@ -24,22 +24,30 @@ func PreviousRealm() Realm {
 	return Realm{address(addr), path}
 }
 
-// Caller returns the realm of the frame that crossed into this realm —
-// the v3a-aligned identity query. Equivalent to PreviousRealm under the
-// current substrate (same walk machinery), but exposed as the canonical
-// new-API name. Library helpers should use Caller() instead of taking a
-// `rlm realm` parameter — that's the v2 pattern omarsy demonstrated is
-// forgeable. The Realm value returned by Caller is a concrete struct
-// constructed by the VM; user code has no path to supply a different
-// Realm where Caller's return was used.
+// Caller returns the realm of the frame that called into the current
+// realm — the v3a-aligned identity query. Library helpers should use
+// Caller() instead of taking a `rlm realm` parameter — the v2 pattern
+// omarsy demonstrated is forgeable. The Realm value returned by Caller
+// is a concrete struct constructed by the VM; user code has no path to
+// supply a different Realm where Caller's return was used.
+//
+// Caller uses an auto-cross-aware walk: a call from /r/A into another
+// /r/B's exported function is recognized as a transition without
+// requiring v2's `cross(fn)` ceremony. The substrate's Layer-1 borrow
+// already shifts m.Realm on such calls; Caller reflects that shift.
+// (v2's PreviousRealm keeps its narrower walk for backwards compat.)
 func Caller() Realm {
-	return PreviousRealm()
+	addr, path := getRealmV3a(1)
+	return Realm{address(addr), path}
 }
 
-// Self returns the realm currently executing this code. Equivalent to
-// CurrentRealm, exposed under the v3a-aligned name.
+// Self returns the realm currently executing this code. Uses the same
+// v3a-aligned walk as Caller, so Self reflects where the code is
+// actually running (m.Realm), including transitions via Layer-1
+// borrow that v2's CurrentRealm does not surface.
 func Self() Realm {
-	return CurrentRealm()
+	addr, path := getRealmV3a(0)
+	return Realm{address(addr), path}
 }
 
 // Origin returns the EOA realm that initiated the transaction (the bottom
@@ -60,7 +68,7 @@ func Origin() Realm {
 // getRealm walk — typically returns the EOA via OriginCaller for
 // n = transitions+1, then panics for n beyond that.
 func CallerN(n int) Realm {
-	addr, path := getRealm(n)
+	addr, path := getRealmV3a(n)
 	return Realm{address(addr), path}
 }
 
@@ -91,4 +99,5 @@ func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string,
 // Variations which don't use named types.
 func originCaller() string
 func getRealm(height int) (address string, pkgPath string)
+func getRealmV3a(height int) (address string, pkgPath string)
 func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)

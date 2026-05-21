@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/v3al2store"
+gno = "0.9"

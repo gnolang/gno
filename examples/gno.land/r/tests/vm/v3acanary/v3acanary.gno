@@ -1,8 +1,12 @@
-// Package v3acanary is a v3a-style reference realm. It demonstrates
-// the ACL pattern using runtime.Caller() instead of v2's `cur realm` /
-// `rlm realm` parameters.
+// Package v3acanary is a v3a-style fixture realm — NOT a reusable
+// Ownable library. It exercises the v3a ACL shape end-to-end so the
+// filetest can assert the security claim. Function names are
+// deliberately verb-prefixed (Seed/Reassign/Clear) instead of
+// Init/TransferOwnership/DropOwnership so this file isn't mistaken
+// for the canonical owner pattern. The canonical owner pattern, if
+// ever needed, belongs under /p/.
 //
-// Compare to v2's Ownable:
+// Compare to v2's Ownable, sketched in spec form:
 //
 //	func (o *Ownable) TransferOwnership(_ int, rlm realm, newOwner address) error {
 //	    if !rlm.IsCurrent() { return ErrUnauthorized }
@@ -21,31 +25,31 @@ package v3acanary
 import "chain/runtime"
 
 var (
-	owner       address
-	initialized bool
+	owner  address
+	seeded bool
 )
 
-// Init seeds the owner to the calling realm's caller. Idempotent.
-// Demonstrates: the EOA that issued the MsgCall is the principal we
-// record, sourced via runtime.Caller() inside a non-crossing helper.
-func Init() {
-	if initialized {
+// Seed records the calling realm as the principal. Idempotent. The
+// v2-style name would be Init; we avoid that here so the fixture
+// can't be mistaken for an Ownable.
+func Seed() {
+	if seeded {
 		return
 	}
 	owner = runtime.Caller().Address()
-	initialized = true
+	seeded = true
 }
 
-// Owner returns the current owner.
+// Owner returns the current principal.
 func Owner() address {
 	return owner
 }
 
-// TransferOwnership transfers to newOwner. Authorization: the caller
+// Reassign moves the principal to newOwner. Authorization: the caller
 // (per runtime.Caller()) must equal the current owner.
 //
 // No `cur realm` / `rlm realm` parameter — the v3a pattern.
-func TransferOwnership(newOwner address) {
+func Reassign(newOwner address) {
 	caller := runtime.Caller().Address()
 	if caller != owner {
 		panic("not owner")
@@ -56,8 +60,8 @@ func TransferOwnership(newOwner address) {
 	owner = newOwner
 }
 
-// DropOwnership clears the owner. Same authorization shape.
-func DropOwnership() {
+// Clear unsets the principal. Same authorization shape.
+func Clear() {
 	caller := runtime.Caller().Address()
 	if caller != owner {
 		panic("not owner")
