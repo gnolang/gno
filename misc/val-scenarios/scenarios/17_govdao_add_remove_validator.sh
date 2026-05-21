@@ -52,7 +52,7 @@ func main(cur realm) {
 	// key can bootstrap itself as a GovDAO T1 member for this proposal.
 	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
-	r := valr.NewPropRequest(
+	r := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -108,7 +108,7 @@ import (
 )
 
 func main(cur realm) {
-	r := valr.NewPropRequest(
+	r := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{

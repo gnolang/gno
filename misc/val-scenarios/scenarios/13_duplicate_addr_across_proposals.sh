@@ -49,7 +49,7 @@ func main(cur realm) {
 	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	// Proposal 1: remove val1 — individually valid.
-	r1 := valr.NewPropRequest(
+	r1 := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -68,7 +68,7 @@ func main(cur realm) {
 	// Proposal 2: re-add val1 with new power — individually valid.
 	// Together with proposal 1, the block-level change slice now contains
 	// two entries for the same address, which crashes the node in EndBlocker.
-	r2 := valr.NewPropRequest(
+	r2 := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{

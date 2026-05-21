@@ -62,12 +62,12 @@ func main(cur realm) {
 	// scenario isn't blocked. Mainnet keeps cooldown=24h; this scenario
 	// specifically exercises back-to-back add+remove and uses the
 	// governance-configurable cooldown to enable that.
-	disableReq := valr.NewCooldownPropRequest(0, "disable cooldown for e2e scenario 18", "")
+	disableReq := valr.NewCooldownPropRequest(cross(cur), 0, "disable cooldown for e2e scenario 18", "")
 	disablePid := dao.MustCreateProposal(cross(cur), disableReq)
 	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, disablePid))
 	dao.ExecuteProposal(cross(cur), disablePid)
 
-	r := valr.NewValidatorProposalRequest(
+	r := valr.NewValidatorProposalRequest(cross(cur), 
 		[]valr.ValoperChange{
 			valr.NewValoperChange(txAddr, ${VAL4_POWER}),
 		},
@@ -116,7 +116,7 @@ import (
 )
 
 func main(cur realm) {
-	r := valr.NewValidatorProposalRequest(
+	r := valr.NewValidatorProposalRequest(cross(cur), 
 		[]valr.ValoperChange{
 			valr.NewValoperChange(address("${TX_ADDRESS}"), 0),
 		},

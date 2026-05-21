@@ -55,7 +55,7 @@ func main(cur realm) {
 	// MsgRun caller at this stage.
 	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
-	r := valr.NewPropRequest(
+	r := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
