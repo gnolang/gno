@@ -559,58 +559,48 @@ two lowerings ever diverge.
 
 ## 17. Stack-walking & tx-origin primitives moved to `chain/runtime/unsafe`
 
-Four dynamic caller-/payment-identity primitives moved out of
-`chain/runtime` and `chain/banker` into a new package
-`chain/runtime/unsafe`. The rename forces call sites to spell out
-`unsafe.X` so the bug class is greppable.
+Four functions moved into a new package, `chain/runtime/unsafe`. They
+are all easy to misuse for authorization, so the new name makes them
+greppable at the call site.
 
-| From | To |
+| Old | New |
 |---|---|
 | `runtime.PreviousRealm()` | `unsafe.PreviousRealm()` |
 | `runtime.CurrentRealm()` | `unsafe.CurrentRealm()` |
 | `runtime.OriginCaller()` | `unsafe.OriginCaller()` |
 | `banker.OriginSend()` | `unsafe.OriginSend()` |
 
-`runtime.AssertOriginCall`, `runtime.ChainID/ChainDomain/ChainHeight`,
-`runtime.GetSessionInfo`, the `runtime.Realm` type and its methods,
-and every `chain/banker` symbol except `OriginSend` stay put. The
-`Realm` struct gained a `runtime.NewRealm(addr, pkgPath)` constructor
-so the unsafe package (which lives outside `chain/runtime`) can return
-`Realm` values — its fields are unexported.
+Everything else in `chain/runtime` and `chain/banker` is unchanged —
+including the `runtime.Realm` type, `AssertOriginCall`, the chain-info
+getters, and the entire `Banker` interface.
 
-**Why each primitive is unsafe.**
+**Why these are unsafe.** They all answer "who is calling me?" or
+"what coins did the user send?" without taking a `cur realm`
+parameter, so they have to walk the call stack at runtime. That walk
+is easy to read wrong:
 
-- **`unsafe.PreviousRealm()`** stack-walks. In a non-crossing helper
-  it identifies whichever realm was outermost-crossing in the call
-  chain, NOT the immediate caller. Pattern-matching from Solidity
-  `msg.sender` here is a security bug. Prefer `cur.Previous()` on a
-  threaded `cur realm` parameter — statically scoped to a crossing
-  function and runtime-validated as a capability token (see §1 and
-  `docs/resources/gno-security.md` Class 1a/1b).
-- **`unsafe.CurrentRealm()`** stack-walks. Inside a `/p/` helper called
-  via Rule-2 storage-borrow it returns the BORROWER'S realm — using
-  equality against an admin address there ships a delegation bug.
-  Prefer `cur.PkgPath()` / `cur.Address()` on a threaded `cur`. When
-  you don't have one, take `_ int, rlm realm` from the caller and
-  assert `rlm.IsCurrent()` at entry.
-- **`unsafe.OriginCaller()`** is Gno's `tx.origin`. Every chain that
-  exposed `tx.origin` has shipped phishing/delegation bugs where a
-  malicious realm called by an EOA acts as that EOA against a third
-  realm relying on origin-as-auth. The historical defense — "but it's
-  tx-level, not stack-walking, so it's safe" — is exactly the false
-  reassurance Solidity gave its users. Prefer `cur.Previous()` for
-  caller-auth; reserve `OriginCaller` for use cases that are
-  intentionally EOA-scoped (event emission, fee attribution) and pair
-  with `runtime.AssertOriginCall()` so misuse panics fail-closed.
-- **`unsafe.OriginSend()`** (formerly `banker.OriginSend()`) is
-  OriginCaller's payment twin. Returns the coin envelope attached at
-  the chain root, visible to every realm in the call chain. A
-  malicious intermediate realm can consume the envelope after a
-  target's payment-verification check passes (TOCTOU). When used for
-  payment verification, pair with `runtime.AssertOriginCall()` AND
-  `runtime.PreviousRealm().IsUserCall()` — **NOT `IsUser()`**, which
-  accepts `maketx run` ephemeral realms that can pre-consume the
-  envelope (see `CLAUDE.md` "Realm-editing gotchas").
+- `PreviousRealm()` and `CurrentRealm()` in a non-crossing helper
+  return the outermost crossing realm, not the immediate caller. An
+  auth check written like `msg.sender` in Solidity gets the wrong
+  answer.
+- `OriginCaller()` is Gno's `tx.origin`. A malicious realm called by
+  the user can act *as* the user against any other realm that trusts
+  this value — same phishing pattern that broke Solidity's `tx.origin`.
+- `OriginSend()` is the payment version of the same problem: every
+  realm in the chain sees the same coin envelope, so an intermediate
+  realm can consume it after your check passes.
+
+**Prefer:** thread a `cur realm` parameter and read `cur.Previous()`.
+That value is built by the runtime, can't be forged, and only points
+at your immediate caller. See §1 for how to convert a non-crossing
+helper into a crossing one.
+
+If you really do need the user (e.g. for an event or a fee), use
+`unsafe.OriginCaller()` paired with `runtime.AssertOriginCall()` so
+the call panics when invoked from inside another realm. Same for
+`unsafe.OriginSend()` — and use `runtime.PreviousRealm().IsUserCall()`,
+not `IsUser()`, since `IsUser()` also accepts `maketx run` scripts
+that can pre-spend the envelope.
 
 **Migration recipe.**
 
@@ -621,14 +611,10 @@ runtime.OriginCaller()   →  unsafe.OriginCaller()
 banker.OriginSend()      →  unsafe.OriginSend()
 ```
 
-Then adjust imports: add `"chain/runtime/unsafe"`; drop
-`"chain/runtime"` and `"chain/banker"` only if no other symbol from
-that package remains in use (the type `runtime.Realm` and
-`banker.NewBanker` are common reasons to keep them).
-
-See §1 (crossing-fn vs non-crossing-helper) for how to thread `cur`
-through a previously-non-crossing API instead of reaching for any of
-these primitives.
+Then add `"chain/runtime/unsafe"` to your imports. You can drop
+`"chain/runtime"` or `"chain/banker"` only if you no longer use any
+other symbol from them — `runtime.Realm` and `banker.NewBanker` are
+common reasons to keep them.
 
 ---
 
