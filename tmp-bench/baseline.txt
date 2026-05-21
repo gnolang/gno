@@ -1,0 +1,36 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M3
+BenchmarkPreprocessCoda/small-8         	    9610	    127822 ns/op	  193294 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	   10000	    133142 ns/op	  193273 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9770	    136376 ns/op	  193289 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9381	    121479 ns/op	  193125 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9586	    124435 ns/op	  193189 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9475	    122517 ns/op	  193112 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9686	    122140 ns/op	  193195 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9728	    133964 ns/op	  193213 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9841	    122962 ns/op	  193129 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/small-8         	    9787	    126774 ns/op	  193219 B/op	    1458 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1026	   1198686 ns/op	 1763170 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1015	   1167761 ns/op	 1763400 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1021	   1174558 ns/op	 1762913 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1015	   1197001 ns/op	 1762588 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1039	   1165858 ns/op	 1762272 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1018	   1166532 ns/op	 1762664 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1036	   1163710 ns/op	 1762866 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1023	   1183111 ns/op	 1762789 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1036	   1166172 ns/op	 1762739 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/medium-8        	    1034	   1164897 ns/op	 1763190 B/op	   13998 allocs/op
+BenchmarkPreprocessCoda/large-8         	     177	   6756430 ns/op	 8996547 B/op	   72779 allocs/op
+BenchmarkPreprocessCoda/large-8         	     177	   6741515 ns/op	 8996751 B/op	   72780 allocs/op
+BenchmarkPreprocessCoda/large-8         	     178	   6907383 ns/op	 8997803 B/op	   72780 allocs/op
+BenchmarkPreprocessCoda/large-8         	     176	   6772146 ns/op	 8998957 B/op	   72781 allocs/op
+BenchmarkPreprocessCoda/large-8         	     178	   6766439 ns/op	 8998749 B/op	   72781 allocs/op
+BenchmarkPreprocessCoda/large-8         	     177	   6724119 ns/op	 8996885 B/op	   72781 allocs/op
+BenchmarkPreprocessCoda/large-8         	     178	   6745748 ns/op	 8995852 B/op	   72781 allocs/op
+BenchmarkPreprocessCoda/large-8         	     177	   6665325 ns/op	 8995794 B/op	   72779 allocs/op
+BenchmarkPreprocessCoda/large-8         	     177	   6808961 ns/op	 8995943 B/op	   72778 allocs/op
+BenchmarkPreprocessCoda/large-8         	     178	   6918969 ns/op	 8994739 B/op	   72779 allocs/op
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	56.199s
