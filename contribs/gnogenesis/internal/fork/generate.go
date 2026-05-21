@@ -292,7 +292,12 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	if !cfg.skipTxs {
 		io.Printf("Step 2/4: Fetching historical transactions (height 1..%d)...\n", cfg.haltHeight)
 
-		txs, err = txsSrc.FetchTxs(ctx, sourceChainID, 1, cfg.haltHeight, io)
+		// Use originalChainID (not sourceChainID) for the tx fetch's sign-bytes
+		// context: orthogonal source flags let the operator point at one chain's
+		// txs and a different chain's genesis (e.g. test-13 BASE genesis + gnoland1
+		// historical txs). The txs were signed under originalChainID, so that is
+		// what bruteForceSignerSequence must verify against.
+		txs, err = txsSrc.FetchTxs(ctx, cfg.originalChainID, 1, cfg.haltHeight, io)
 		if err != nil {
 			return fmt.Errorf("fetching transactions: %w", err)
 		}
