@@ -5,7 +5,7 @@ import (
 	"gno.land/r/tests/vm/v3aprobeb"
 )
 
-// Phase B-min+ cornerstone: 3-hop Layer-1 chain.
+// Walk cornerstone: 3-hop Layer-1 chain.
 // /r/v3awalk3.main → /r/tests/vm/v3aprobeb.ChainProbe →
 // /r/tests/vm/v3aprobe.Probe.
 //

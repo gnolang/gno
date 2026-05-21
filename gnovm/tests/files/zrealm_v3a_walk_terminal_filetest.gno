@@ -3,7 +3,7 @@ package v3awalkterm
 
 import "chain/runtime"
 
-// Phase B-min+ cornerstone: terminal frame.
+// Walk cornerstone: terminal frame.
 //
 // main() makes no nested call — it is the top of the call chain. From
 // inside main's body the substrate has shifted m.Realm from nil to

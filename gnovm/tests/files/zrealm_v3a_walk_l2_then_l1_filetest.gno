@@ -6,7 +6,7 @@ import (
 	"gno.land/r/tests/vm/v3aprobe"
 )
 
-// Phase B-min+ cornerstone: Layer-2 then Layer-1 composed.
+// Walk cornerstone: Layer-2 then Layer-1 composed.
 //
 // Call chain:
 //   /r/v3awalkl2l1.main
@@ -24,10 +24,10 @@ import (
 //   - Caller()     = /r/tests/vm/v3al2store       (post-Layer-2 caller)
 //   - CallerN(2)   = /r/v3awalkl2l1               (outermost)
 //
-// This composition is the part B-min (Layer-1-only walk) couldn't
-// resolve correctly: it would have skipped the Layer-2 frame as
-// "not /r/" and surfaced /r/v3awalkl2l1 as Caller — losing the
-// storage-realm step. B-min+'s m.Realm-shift detector catches it.
+// This composition is the part a Layer-1-only walk couldn't resolve
+// correctly: it would have skipped the Layer-2 frame as "not /r/" and
+// surfaced /r/v3awalkl2l1 as Caller — losing the storage-realm step.
+// The m.Realm-shift detector catches it via the LastRealm chain.
 
 func main() {
 	caller, self, prev := v3al2store.Token.CallProbe(v3aprobe.DeepProbe)

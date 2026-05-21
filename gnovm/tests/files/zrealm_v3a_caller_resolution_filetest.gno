@@ -5,12 +5,12 @@ import (
 	"gno.land/r/tests/vm/v3aprobe"
 )
 
-// Phase B-min security claim, isolated to identity reflection.
+// v3a security claim, isolated to identity reflection.
 //
 // /r/v3aprobehost (this realm) calls /r/tests/vm/v3aprobe.Probe()
-// without `cross` ceremony. Under Phase B-min's auto-cross walk:
+// without `cross` ceremony. Under v3a's auto-cross walk:
 //   - Inside Probe, runtime.Caller() resolves to /r/v3aprobehost
-//     (this realm), not the EOA. Pre-B-min the walk would have
+//     (this realm), not the EOA. A WithCross-only walk would have
 //     skipped past the /r/→/r/ frame and returned the EOA.
 //   - runtime.Self() resolves to /r/tests/vm/v3aprobe (where the
 //     code runs), matching m.Realm after Layer-1 borrow.

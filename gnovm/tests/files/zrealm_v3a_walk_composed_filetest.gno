@@ -6,7 +6,7 @@ import (
 	"gno.land/r/tests/vm/v3aprobe"
 )
 
-// Phase B-min+ cornerstone: /p/ transparent frame then Layer-1.
+// Walk cornerstone: /p/ transparent frame then Layer-1.
 //
 // Call chain: /r/v3awalkcomp → /p/nt/v3acomposed.Run → fn() where
 // fn is the /r/-declared v3aprobe.Probe function value.

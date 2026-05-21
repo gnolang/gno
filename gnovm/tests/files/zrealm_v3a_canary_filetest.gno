@@ -7,12 +7,12 @@ import (
 	"gno.land/r/tests/vm/v3acanary"
 )
 
-// Phase B-min end-to-end: exercise the v3a-style canary realm from
+// End-to-end: exercise the v3a-style canary realm from
 // /r/v3acanaryhost. The canary uses runtime.Caller() for ACL — no
 // `cur realm` / `rlm realm` parameters, no `cross` keyword at the
-// call site. Phase B-min's auto-cross walk makes the call
+// call site. v3a's auto-cross walk makes the call
 // /r/v3acanaryhost → /r/v3acanary register as a realm transition,
-// so Caller() inside Init() resolves to /r/v3acanaryhost (the
+// so Caller() inside Seed() resolves to /r/v3acanaryhost (the
 // immediate caller), not the EOA.
 
 func main() {

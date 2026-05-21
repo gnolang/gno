@@ -5,7 +5,7 @@ import (
 	"gno.land/r/tests/vm/v3al2store"
 )
 
-// Phase B-min+ Layer-2 demonstration.
+// v3a Layer-2 demonstration.
 //
 // v3al2store.Token is a *v3al2helper.Holder stored in
 // /r/tests/vm/v3al2store. When /r/v3al2host accesses Token.Reflect()
@@ -17,10 +17,10 @@ import (
 //             runs, post Layer-2 shift)
 //   - Caller() resolves to /r/v3al2host (this realm)
 //
-// B-min (Layer-1 only) would have missed this because Token.Reflect's
+// A Layer-1-only walk would have missed this because Token.Reflect's
 // fv.PkgPath is /p/nt/v3al2helper (not /r/), so a PkgPath-based
-// detector would skip the frame. B-min+'s m.Realm-shift detector
-// catches it via the LastRealm chain.
+// detector would skip the frame. The m.Realm-shift detector catches
+// it via the LastRealm chain.
 
 func main() {
 	caller, self := v3al2store.Token.Reflect()
