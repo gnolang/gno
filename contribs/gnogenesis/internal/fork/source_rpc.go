@@ -2,36 +2,118 @@ package fork
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	coretypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	bftypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// rpcSource fetches chain state from a live (or recently-halted) node via RPC.
+// rpcFetcherBackoff is the delay between full-cycle retries when every
+// endpoint fails for one height. Kept generous to weather brief 5xx storms.
+const rpcFetcherBackoff = 500 * time.Millisecond
+
+// rpcFetcherMaxCycles caps how many full endpoint-cycles a single height
+// retries before yielding a terminal error.
+const rpcFetcherMaxCycles = 3
+
+// defaultWorkersPerEndpoint is the default number of in-flight block fetches
+// per RPC endpoint when streaming the historical tx range.
+const defaultWorkersPerEndpoint = 4
+
+// rpcSource fetches chain state from one or more live (or recently-halted)
+// RPC endpoints. Single-shot calls (genesis, status, account query) try
+// endpoints in order until one succeeds; the block range fetch uses a
+// concurrent worker pool with per-endpoint semaphores (see pooledFetcher).
+//
+// rpcURLs and clients are parallel slices and immutable after construction;
+// the goroutines spawned by FetchTxs read them concurrently without locking.
 type rpcSource struct {
-	rpcURL string
-	client *rpcclient.RPCClient
+	rpcURLs            []string
+	clients            []*rpcclient.RPCClient
+	workersPerEndpoint int
 }
 
-func newRPCSource(rpcURL string) (*rpcSource, error) {
-	client, err := rpcclient.NewHTTPClient(rpcURL)
-	if err != nil {
-		return nil, fmt.Errorf("creating RPC client for %s: %w", rpcURL, err)
+// errNoEndpoints is returned by tryEndpoints when given an empty client slice.
+var errNoEndpoints = errors.New("no RPC clients configured")
+
+// newRPCSource opens one RPC client per URL. workersPerEndpoint <= 0 means
+// "use defaultWorkersPerEndpoint".
+func newRPCSource(rpcURLs []string, workersPerEndpoint int) (*rpcSource, error) {
+	if len(rpcURLs) == 0 {
+		return nil, fmt.Errorf("at least one RPC URL is required")
 	}
-	return &rpcSource{rpcURL: rpcURL, client: client}, nil
+	if workersPerEndpoint <= 0 {
+		workersPerEndpoint = defaultWorkersPerEndpoint
+	}
+	clients := make([]*rpcclient.RPCClient, 0, len(rpcURLs))
+	for _, u := range rpcURLs {
+		c, err := rpcclient.NewHTTPClient(u)
+		if err != nil {
+			for _, prev := range clients {
+				_ = prev.Close()
+			}
+			return nil, fmt.Errorf("creating RPC client for %s: %w", u, err)
+		}
+		clients = append(clients, c)
+	}
+	return &rpcSource{
+		rpcURLs:            rpcURLs,
+		clients:            clients,
+		workersPerEndpoint: workersPerEndpoint,
+	}, nil
 }
 
-func (s *rpcSource) Description() string { return "RPC" }
-func (s *rpcSource) Close() error        { return s.client.Close() }
+func (s *rpcSource) Description() string {
+	if len(s.clients) > 1 {
+		return fmt.Sprintf("RPC (%d endpoints)", len(s.clients))
+	}
+	return "RPC"
+}
+
+func (s *rpcSource) Close() error {
+	var firstErr error
+	for _, c := range s.clients {
+		if err := c.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+// tryEndpoints calls fn against each client in order, returning the first
+// successful result. Returns errNoEndpoints if clients is empty, or the last
+// error wrapped with endpoint count when every client fails.
+func tryEndpoints[T any](
+	clients []*rpcclient.RPCClient,
+	fn func(*rpcclient.RPCClient) (T, error),
+) (T, error) {
+	var zero T
+	if len(clients) == 0 {
+		return zero, errNoEndpoints
+	}
+	var lastErr error
+	for _, c := range clients {
+		v, err := fn(c)
+		if err == nil {
+			return v, nil
+		}
+		lastErr = err
+	}
+	return zero, fmt.Errorf("all %d endpoint(s) failed: %w", len(clients), lastErr)
+}
 
 func (s *rpcSource) FetchGenesis(ctx context.Context) (*bftypes.GenesisDoc, error) {
-	res, err := s.client.Genesis(ctx)
+	res, err := tryEndpoints(s.clients, func(c *rpcclient.RPCClient) (*coretypes.ResultGenesis, error) {
+		return c.Genesis(ctx)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("RPC genesis call: %w", err)
 	}
@@ -39,7 +121,9 @@ func (s *rpcSource) FetchGenesis(ctx context.Context) (*bftypes.GenesisDoc, erro
 }
 
 func (s *rpcSource) LatestHeight(ctx context.Context) (int64, error) {
-	res, err := s.client.Status(ctx, nil)
+	res, err := tryEndpoints(s.clients, func(c *rpcclient.RPCClient) (*coretypes.ResultStatus, error) {
+		return c.Status(ctx, nil)
+	})
 	if err != nil {
 		return 0, fmt.Errorf("RPC status call: %w", err)
 	}
@@ -95,11 +179,11 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 	total := toHeight - fromHeight + 1
 	var processed, txCount int64
 
-	for h := fromHeight; h <= toHeight; h++ {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
+	stream := s.newPooledFetcher().FetchRange(ctx, fromHeight, toHeight)
+
+	for r := range stream {
+		if r.err != nil {
+			return nil, r.err
 		}
 
 		processed++
@@ -107,22 +191,12 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 			io.Printf("\r  Blocks: %d/%d  Txs: %d", processed, total, txCount)
 		}
 
-		// Fetch block
-		block, err := s.client.Block(ctx, &h)
-		if err != nil {
-			return nil, fmt.Errorf("fetching block %d: %w", h, err)
-		}
-
+		h := r.height
+		block := r.data.block
 		if len(block.Block.Data.Txs) == 0 {
 			continue
 		}
-
-		// Fetch block results to check success/failure
-		results, err := s.client.BlockResults(ctx, &h)
-		if err != nil {
-			return nil, fmt.Errorf("fetching block results %d: %w", h, err)
-		}
-
+		results := r.data.results
 		timestamp := block.Block.Header.Time.Unix()
 
 		for i, rawTx := range block.Block.Data.Txs {
@@ -248,13 +322,15 @@ func (s *rpcSource) FetchTxs(ctx context.Context, fromHeight, toHeight int64, io
 	return txs, nil
 }
 
-// queryAccountAtHeight queries an account's state at a specific block height.
+// queryAccountAtHeight queries an account's state at a specific block height,
+// trying each endpoint in order until one returns without a transport error.
+// An empty response is treated as a valid "no account" answer.
 func (s *rpcSource) queryAccountAtHeight(
 	ctx context.Context, addr crypto.Address, height int64, io commands.IO,
 ) std.Account {
 	path := fmt.Sprintf("auth/accounts/%s", addr)
-	res, err := s.client.ABCIQueryWithOptions(ctx, path, nil, rpcclient.ABCIQueryOptions{
-		Height: height,
+	res, err := tryEndpoints(s.clients, func(c *rpcclient.RPCClient) (*coretypes.ResultABCIQuery, error) {
+		return c.ABCIQueryWithOptions(ctx, path, nil, rpcclient.ABCIQueryOptions{Height: height})
 	})
 	if err != nil {
 		return nil
@@ -282,6 +358,29 @@ func (s *rpcSource) queryAccountAtHeight(
 		return nil
 	}
 	return &acc
+}
+
+// newPooledFetcher wires the rpcSource's client pool into a pooledFetcher
+// instance configured for block range streaming.
+func (s *rpcSource) newPooledFetcher() *pooledFetcher {
+	return &pooledFetcher{
+		numEndpoints:       len(s.clients),
+		workersPerEndpoint: s.workersPerEndpoint,
+		maxCycles:          rpcFetcherMaxCycles,
+		backoff:            rpcFetcherBackoff,
+		fetch: func(ctx context.Context, endpoint int, h int64) (*blockData, error) {
+			c := s.clients[endpoint]
+			block, err := c.Block(ctx, &h)
+			if err != nil {
+				return nil, fmt.Errorf("block %d at %s: %w", h, s.rpcURLs[endpoint], err)
+			}
+			results, err := c.BlockResults(ctx, &h)
+			if err != nil {
+				return nil, fmt.Errorf("block results %d at %s: %w", h, s.rpcURLs[endpoint], err)
+			}
+			return &blockData{block: block, results: results}, nil
+		},
+	}
 }
 
 // bruteForceSignerSequence tries sequences in [lo, hi] to find which makes
