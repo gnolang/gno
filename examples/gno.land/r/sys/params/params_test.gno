@@ -9,29 +9,29 @@ import (
 // the tests located in the r/gov/dao/ directory, specifically in one of the
 // propX_filetest.gno files.
 
-func TestNewStringPropRequest(t *testing.T) {
-	pr := NewSysParamStringPropRequest("foo", "bar", "baz", "qux")
+func TestNewStringPropRequest(cur realm, t *testing.T) {
+	pr := NewSysParamStringPropRequest(cur, "foo", "bar", "baz", "qux")
 	if pr.Title() == "" {
 		t.Errorf("executor shouldn't be nil")
 	}
 }
 
-func TestNewSetHaltRequest(t *testing.T) {
-	pr := NewSetHaltRequest(100_000, "chain/gnoland1.1")
+func TestNewSetHaltRequest(cur realm, t *testing.T) {
+	pr := NewSetHaltRequest(cur, 100_000, "chain/gnoland1.1")
 	if pr.Title() == "" {
 		t.Errorf("proposal title shouldn't be empty")
 	}
 }
 
-func TestNewSetHaltRequestNoVersion(t *testing.T) {
-	pr := NewSetHaltRequest(100_000, "")
+func TestNewSetHaltRequestNoVersion(cur realm, t *testing.T) {
+	pr := NewSetHaltRequest(cur, 100_000, "")
 	if pr.Title() == "" {
 		t.Errorf("proposal title shouldn't be empty")
 	}
 }
 
-func TestNewSetHaltRequestCancel(t *testing.T) {
-	pr := NewSetHaltRequest(0, "")
+func TestNewSetHaltRequestCancel(cur realm, t *testing.T) {
+	pr := NewSetHaltRequest(cur, 0, "")
 	if pr.Title() == "" {
 		t.Errorf("proposal title shouldn't be empty")
 	}

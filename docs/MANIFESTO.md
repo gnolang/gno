@@ -541,9 +541,9 @@ incomplete or primitive message-passing agent architecture; such interop
 function calls generally do not share the same call-stack nor memory space.
 Solidity's implicit `msg.sender` changes on external calls have caused billions
 of dollars in exploits (reentrancy, confused-deputy attacks). In Gno the
-programmer writes `cross` at each call site that changes the realm-context,
-making every trust boundary visible in the source code and checkable by the
-compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
+programmer writes `cross(rlm)` at each call site that changes the
+realm-context, making every trust boundary visible in the source code and
+checkable by the compiler--a small syntactic cost for a huge safety gain. Move (used by Sui and
 Aptos) improves on Solidity with a linear type system that prevents reentrancy,
 but at the cost of a bespoke language unfamiliar to most developers and without
 a shared persistent object graph; inter-module calls in Move still pass values
@@ -1117,8 +1117,8 @@ interactivity.
  * **Gno2.** A future major revision of the Gno language incorporating
    lessons learned from production use. Potential additions include a
    `readonly` modifier for function return types, native syntax for
-   `cross` and `cur realm` (replacing the current overloaded function
-   argument convention), and further language-level support for
+   `cross(rlm)` and `cur realm` (replacing the current overloaded
+   function argument convention), and further language-level support for
    multi-user patterns that emerge from ecosystem usage.
 
  * **Open hardware.** Memristor-based memory systems eliminate the

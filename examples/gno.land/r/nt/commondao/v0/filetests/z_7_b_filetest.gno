@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_7_b_filetest
+
+package z_7_b_filetest
 
 import (
 	"testing"
@@ -11,16 +13,16 @@ const (
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.NewSubDAO(cross, "Foo", 404)
+	commondao.NewSubDAO(cross(cur), "Foo", 404)
 }
 
 // Error:
