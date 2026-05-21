@@ -336,6 +336,20 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 		panic(ErrSigningKeyTaken)
 	}
 
+	// Front-running guard: the derived signing address must not already
+	// be an active validator. Mirrors the same guard in Register
+	// (ErrFrontrunValidator). signingRegistry uniqueness above only
+	// blocks signing addresses that previously went through Register or
+	// UpdateSigningKey — genesis-seeded validators bypassed both, so
+	// their signing addresses are absent from signingRegistry. Without
+	// this check, a valoper could rotate onto such a slot and hijack
+	// it: v3.RotateValoperSigningKey would overwrite the active entry
+	// with this operator's claim, and a subsequent govDAO remove-op
+	// proposal would then delete it.
+	if validators.IsValidator(newSigningAddr) {
+		panic(ErrFrontrunValidator)
+	}
+
 	// Remember the previous signing key for the v3 cross-call.
 	oldPubKey := v.SigningPubKey
 	oldSigningAddr := v.SigningAddress
