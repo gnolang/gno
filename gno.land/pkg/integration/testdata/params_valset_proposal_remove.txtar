@@ -37,7 +37,7 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 20_000_000 -args 0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args 0 -chainid=tendermint_test member
 stdout OK!
 
 # === PROPOSAL 1: ADD VALIDATOR ===
@@ -92,9 +92,9 @@ import (
 	v3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
-	pr := v3.NewCooldownPropRequest(0, "disable cooldown for back-to-back e2e", "testnet only")
-	dao.MustCreateProposal(cross, pr)
+func main(cur realm) {
+	pr := v3.NewCooldownPropRequest(cross(cur), 0, "disable cooldown for back-to-back e2e", "testnet only")
+	dao.MustCreateProposal(cross(cur), pr)
 }
 
 -- run/add_proposal.gno --

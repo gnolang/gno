@@ -19,16 +19,28 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 
 gnoland start
 
+# Disable the 24h valset-update cooldown so this test can chain
+# proposal-execute (#0 add) → another proposal-create (#1, the bypass
+# attempt) without tripping the cooldown gate added in
+# r/sys/validators/v3 (limits.gno).
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/disable_cooldown.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
 # Register operator A with KeepRunning=true (default).
 gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
 stdout OK!
 
-# Add A to valset at power=1 via a normal proposal (id 0).
+# Add A to valset at power=1 via a normal proposal (id 1; id 0 was the
+# cooldown-disable proposal above).
 gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_proposal.gno
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
 stdout OK!
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 0 -broadcast -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -broadcast -chainid=tendermint_test member
 stdout OK!
 
 # Confirm A is in valset at power=1.
@@ -53,6 +65,19 @@ stderr 'duplicate operator in proposal'
 # never reached vote+execute).
 gnokey query params/node:valset:current
 stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+-- run/disable_cooldown.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main(cur realm) {
+	pr := v3.NewCooldownPropRequest(cross(cur), 0, "disable cooldown for back-to-back e2e", "testnet only")
+	dao.MustCreateProposal(cross(cur), pr)
+}
 
 -- run/add_proposal.gno --
 package main
