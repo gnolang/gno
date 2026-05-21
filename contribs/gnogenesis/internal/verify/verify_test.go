@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/mock"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -228,6 +230,113 @@ func TestGenesis_Verify(t *testing.T) {
 		}
 
 		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.NoError(t, cmdErr)
+	})
+
+	t.Run("hardfork-mode genesis with uncovered validator", func(t *testing.T) {
+		// Pre-flight the same invariant gnoland's InitChainer
+		// auto-asserts at boot under PastChainIDs (see
+		// gno.land/pkg/gnoland/app.go shouldAssertValoperCoverage):
+		// every GenesisDoc.Validators entry must have a matching
+		// valopers.Register migration tx in state.Txs that derives
+		// to the same signing address. Otherwise the chain boots
+		// with orphan validators that v3's operator-keyed flow
+		// can't manage. Catching this at verify time means the
+		// failure surfaces during genesis build, not at first boot.
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+
+		// Mark as hardfork-mode: PastChainIDs non-empty triggers the
+		// runtime auto-assertion; the verify-time check uses the same
+		// gate. With no valopers.Register MsgCalls in state.Txs, the
+		// single GenesisDoc.Validators entry is uncovered.
+		state := g.AppState.(gnoland.GnoGenesisState)
+		state.PastChainIDs = []string{"old-chain"}
+		g.AppState = state
+
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{"--genesis-path", tempFile.Name()}
+
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorIs(t, cmdErr, errUncoveredGenesisValidator)
+	})
+
+	t.Run("hardfork-mode genesis with covered validator", func(t *testing.T) {
+		// Positive case for the same gate: when state.Txs contains a
+		// valopers.Register MsgCall whose pubkey argument derives to
+		// the validator's address, the coverage check passes.
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+
+		// Re-use the genesis validator's PubKey as the Register
+		// argument so derive(arg[4]) == Validators[0].Address.
+		valPubKey := g.Validators[0].PubKey
+		pubKeyBech32 := crypto.PubKeyToBech32(valPubKey)
+		opAddr := valPubKey.Address() // any non-zero addr is fine for the verify-time check
+
+		// Sign the Register tx so it passes the existing per-tx
+		// signature loop in execVerify before the coverage check runs.
+		signer := ed25519.GenPrivKey()
+		registerMsg := vm.MsgCall{
+			Caller:  signer.PubKey().Address(),
+			PkgPath: "gno.land/r/gnops/valopers",
+			Func:    "Register",
+			Args:    []string{"moul-1", "moul-1's profile", "cloud", opAddr.String(), pubKeyBech32},
+		}
+		tx := std.Tx{
+			Msgs: []std.Msg{registerMsg},
+			Fee:  std.Fee{GasWanted: 1000000, GasFee: std.NewCoin("ugnot", 20)},
+		}
+		signBytes, err := tx.GetSignBytes(g.ChainID, 0, 0)
+		require.NoError(t, err)
+		signature, err := signer.Sign(signBytes)
+		require.NoError(t, err)
+		tx.Signatures = append(tx.Signatures, std.Signature{
+			PubKey:    signer.PubKey(),
+			Signature: signature,
+		})
+
+		state := g.AppState.(gnoland.GnoGenesisState)
+		state.PastChainIDs = []string{"old-chain"}
+		state.Txs = []gnoland.TxWithMetadata{{Tx: tx}}
+		g.AppState = state
+
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{"--genesis-path", tempFile.Name()}
+
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.NoError(t, cmdErr)
+	})
+
+	t.Run("non-hardfork genesis: coverage check skipped", func(t *testing.T) {
+		// Gate symmetry with shouldAssertValoperCoverage: fresh
+		// chains (empty PastChainIDs) skip the coverage check at
+		// runtime, so verify skips it too. A fresh chain with a
+		// validator but no valoper-seed must still verify cleanly.
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis() // PastChainIDs left empty by default
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{"--genesis-path", tempFile.Name()}
+
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
 	})
