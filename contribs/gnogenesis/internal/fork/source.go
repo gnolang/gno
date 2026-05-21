@@ -98,5 +98,5 @@ func openRPCSource(s string, workersPerEndpoint int) (Source, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("--source contained no usable URLs")
 	}
-	return newRPCSource(workersPerEndpoint, urls...)
+	return newRPCSource(urls, workersPerEndpoint)
 }

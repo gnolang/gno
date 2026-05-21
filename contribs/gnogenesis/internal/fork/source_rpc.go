@@ -2,6 +2,7 @@ package fork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -40,9 +41,12 @@ type rpcSource struct {
 	workersPerEndpoint int
 }
 
+// errNoEndpoints is returned by tryEndpoints when given an empty client slice.
+var errNoEndpoints = errors.New("no RPC clients configured")
+
 // newRPCSource opens one RPC client per URL. workersPerEndpoint <= 0 means
 // "use defaultWorkersPerEndpoint".
-func newRPCSource(workersPerEndpoint int, rpcURLs ...string) (*rpcSource, error) {
+func newRPCSource(rpcURLs []string, workersPerEndpoint int) (*rpcSource, error) {
 	if len(rpcURLs) == 0 {
 		return nil, fmt.Errorf("at least one RPC URL is required")
 	}

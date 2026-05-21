@@ -2,7 +2,6 @@ package fork
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -104,7 +103,7 @@ func (p *pooledFetcher) run(ctx context.Context, from, to int64, out chan<- bloc
 
 	// Worker pool.
 	var wg sync.WaitGroup
-	for w := 0; w < totalWorkers; w++ {
+	for w := range totalWorkers {
 		wg.Go(func() {
 			startEp := w % p.numEndpoints
 			for h := range heights {
@@ -169,22 +168,13 @@ func (p *pooledFetcher) fetchWithFailover(
 		}
 	}()
 
-	for cycle := 0; cycle < p.maxCycles; cycle++ {
-		for k := 0; k < p.numEndpoints; k++ {
+	for cycle := range p.maxCycles {
+		for k := range p.numEndpoints {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-
 			ep := (startEp + k) % p.numEndpoints
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case sems[ep] <- struct{}{}:
-			}
-
-			data, err := p.fetch(ctx, ep, h)
-			<-sems[ep]
-
+			data, err := p.fetchAtEndpoint(ctx, ep, h, sems[ep])
 			if err == nil {
 				return data, nil
 			}
@@ -208,5 +198,15 @@ func (p *pooledFetcher) fetchWithFailover(
 		h, p.numEndpoints, p.maxCycles, lastErr)
 }
 
-// errNoEndpoints is returned by tryEndpoints when given an empty client slice.
-var errNoEndpoints = errors.New("no RPC clients configured")
+// fetchAtEndpoint acquires the endpoint's semaphore, runs the per-endpoint
+// fetch, and releases the semaphore via defer so refactors can't drop the
+// release on a new return path.
+func (p *pooledFetcher) fetchAtEndpoint(ctx context.Context, ep int, h int64, sem chan struct{}) (*blockData, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case sem <- struct{}{}:
+	}
+	defer func() { <-sem }()
+	return p.fetch(ctx, ep, h)
+}
