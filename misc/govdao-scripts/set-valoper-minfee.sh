@@ -35,11 +35,11 @@ import (
 	"gno.land/r/gnops/valopers/proposal"
 )
 
-func main() {
-	r := proposal.ProposeNewMinFeeProposalRequest(cross1, int64(${MIN_FEE}))
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+func main(cur realm) {
+	r := proposal.ProposeNewMinFeeProposalRequest(cross(cur), int64(${MIN_FEE}))
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

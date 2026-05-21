@@ -35,7 +35,7 @@ import (
 	valr "gno.land/r/sys/validators/v2"
 )
 
-func main() {
+func main(cur realm) {
 	r := valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
@@ -48,9 +48,9 @@ func main() {
 		"Remove validator ${ADDR}",
 		"Remove validator ${ADDR} from the validator set",
 	)
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

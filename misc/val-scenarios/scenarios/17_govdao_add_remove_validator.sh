@@ -47,7 +47,7 @@ import (
 
 const txAddr = address("${TX_ADDRESS}")
 
-func main() {
+func main(cur realm) {
 	// The scenario genesis leaves allowedDAOs empty, so the local transaction
 	// key can bootstrap itself as a GovDAO T1 member for this proposal.
 	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
@@ -65,9 +65,9 @@ func main() {
 		"Add validator val4",
 		"Add val4 (${VAL4_ADDR}) with power ${VAL4_POWER}",
 	)
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 
 func must(err error) {
@@ -107,7 +107,7 @@ import (
 	valr "gno.land/r/sys/validators/v2"
 )
 
-func main() {
+func main(cur realm) {
 	r := valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
@@ -120,9 +120,9 @@ func main() {
 		"Remove validator val4",
 		"Remove val4 (${VAL4_ADDR}) from the validator set",
 	)
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GNOEOF
 

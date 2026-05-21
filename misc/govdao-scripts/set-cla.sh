@@ -58,11 +58,11 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
+func main(cur realm) {
 	r := cla.ProposeNewCLA("${CLA_HASH}", "${CLA_URL}")
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

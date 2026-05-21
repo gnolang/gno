@@ -42,7 +42,7 @@ import (
 	valv3 "gno.land/r/sys/validators/v3"
 )
 
-func main() {
+func main(cur realm) {
 	r := valv3.NewValidatorProposalRequest(
 		[]valv3.ValoperChange{
 			{OperatorAddress: address("${ADDR}"), Power: 0},
@@ -50,9 +50,9 @@ func main() {
 		"Remove validator ${ADDR}",
 		"Remove operator ${ADDR} from the active valset.",
 	)
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

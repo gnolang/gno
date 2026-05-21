@@ -44,11 +44,11 @@ import (
 	"gno.land/r/gnops/valopers/proposal"
 )
 
-func main() {
-	r := proposal.NewValidatorProposalRequest(cross1, address("${ADDR}"))
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+func main(cur realm) {
+	r := proposal.NewValidatorProposalRequest(cross(cur), address("${ADDR}"))
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

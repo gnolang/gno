@@ -49,7 +49,7 @@ import (
 // can create and vote on the governance proposal.
 const txAddr = address("${TX_ADDRESS}")
 
-func main() {
+func main(cur realm) {
 	// Bootstrap: add the scenario TX key as a T1 member.
 	// allowedDAOs is empty after genesis so memberstore.Get() is open to any
 	// MsgRun caller at this stage.
@@ -72,9 +72,9 @@ func main() {
 		"Change voting power for ${TARGET_ADDR}",
 		"Set voting power of validator ${TARGET_ADDR} to ${TARGET_POWER}",
 	)
-	pid := dao.MustCreateProposal(cross1, r)
-	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross1, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 
 func must(err error) {
