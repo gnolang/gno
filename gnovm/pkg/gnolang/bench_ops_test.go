@@ -1229,49 +1229,6 @@ func BenchmarkOpUxor_BigInt_1024(b *testing.B) { benchOpUxor_BigInt(b, 1024) }
 func BenchmarkOpUxor_BigInt_4096(b *testing.B) { benchOpUxor_BigInt(b, 4096) }
 
 // ---------------------------------------------------------------------------
-// doOpSliceLit: PopExpr(CompositeLitExpr), pop N values, pop type, push slice.
-// Parameterized by element count.
-// ---------------------------------------------------------------------------
-
-func benchOpSliceLit(b *testing.B, n int) {
-	b.Helper()
-	m := benchMachine()
-	defer m.Release()
-
-	st := m.Alloc.NewType(&SliceType{Elt: IntType, Vrd: false})
-	elts := make([]KeyValueExpr, n)
-	for i := range n {
-		elts[i] = KeyValueExpr{Value: &ConstExpr{}}
-	}
-	litExpr := &CompositeLitExpr{Elts: elts}
-
-	bm.InitMeasure()
-	bm.BeginOpCode(bmSetup)
-	for range b.N {
-		m.PushValue(asValue(st))
-		for i := range n {
-			m.PushValue(TypedValue{T: IntType, N: i2n(int64(i))})
-		}
-		m.PushExpr(litExpr)
-		bm.SwitchOpCode(bmTarget)
-		m.doOpSliceLit()
-		bm.SwitchOpCode(bmSetup)
-		res := m.PeekValue(1)
-		sv := res.V.(*SliceValue)
-		if sv.Length != n {
-			b.Fatalf("expected len %d, got %d", n, sv.Length)
-		}
-		m.Values = m.Values[:0]
-	}
-	reportBenchops(b)
-}
-
-func BenchmarkOpSliceLit_1(b *testing.B)    { benchOpSliceLit(b, 1) }
-func BenchmarkOpSliceLit_10(b *testing.B)   { benchOpSliceLit(b, 10) }
-func BenchmarkOpSliceLit_100(b *testing.B)  { benchOpSliceLit(b, 100) }
-func BenchmarkOpSliceLit_1000(b *testing.B) { benchOpSliceLit(b, 1000) }
-
-// ---------------------------------------------------------------------------
 // doOpArrayLit: PopExpr(CompositeLitExpr), PopValues(N), peek type at bottom, push array.
 // Parameterized by element count.
 // ---------------------------------------------------------------------------
@@ -3569,18 +3526,20 @@ func BenchmarkOpConvert_StringToRunes_10(b *testing.B)   { benchOpConvert_String
 func BenchmarkOpConvert_StringToRunes_100(b *testing.B)  { benchOpConvert_StringToRunes(b, 100) }
 func BenchmarkOpConvert_StringToRunes_1000(b *testing.B) { benchOpConvert_StringToRunes(b, 1000) }
 
-// --- SliceLit2 sparse: maxVal amplification ---
+// ---------------------------------------------------------------------------
+// doOpSliceLit: PopExpr(CompositeLitExpr), PopValues(N), peek type, push slice.
+// Parameterized by element count (dense, no keys).
+// ---------------------------------------------------------------------------
 
-func benchOpSliceLit2_Sparse(b *testing.B, maxIdx int) {
+func benchOpSliceLit(b *testing.B, n int) {
 	b.Helper()
 	m := benchMachine()
 	defer m.Release()
 
-	st := &SliceType{Elt: IntType}
-	// Two keyed elements: index 0 and index maxIdx
-	elts := []KeyValueExpr{
-		{Key: &ConstExpr{}, Value: &ConstExpr{}},
-		{Key: &ConstExpr{}, Value: &ConstExpr{}},
+	st := m.Alloc.NewType(&SliceType{Elt: IntType, Vrd: false})
+	elts := make([]KeyValueExpr, n)
+	for i := range n {
+		elts[i] = KeyValueExpr{Value: &ConstExpr{}}
 	}
 	litExpr := &CompositeLitExpr{Elts: elts}
 
@@ -3588,14 +3547,53 @@ func benchOpSliceLit2_Sparse(b *testing.B, maxIdx int) {
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		m.PushValue(asValue(st))
-		// Push key-value pairs: (0, 1) and (maxIdx, 2)
-		m.PushValue(TypedValue{T: IntType, N: i2n(0)})
+		for i := range n {
+			m.PushValue(TypedValue{T: IntType, N: i2n(int64(i))})
+		}
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpSliceLit()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		sv := res.V.(*SliceValue)
+		if sv.Length != n {
+			b.Fatalf("expected len %d, got %d", n, sv.Length)
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpSliceLit_1(b *testing.B)    { benchOpSliceLit(b, 1) }
+func BenchmarkOpSliceLit_10(b *testing.B)   { benchOpSliceLit(b, 10) }
+func BenchmarkOpSliceLit_100(b *testing.B)  { benchOpSliceLit(b, 100) }
+func BenchmarkOpSliceLit_1000(b *testing.B) { benchOpSliceLit(b, 1000) }
+
+// --- SliceLit sparse: maxVal amplification ---
+
+func benchOpSliceLit_Sparse(b *testing.B, maxIdx int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	st := &SliceType{Elt: IntType}
+	// Two keyed elements: index 0 and index maxIdx (keys read from AST)
+	elts := []KeyValueExpr{
+		{Key: &ConstExpr{TypedValue: TypedValue{T: IntType, N: i2n(0)}}, Value: &ConstExpr{}},
+		{Key: &ConstExpr{TypedValue: TypedValue{T: IntType, N: i2n(int64(maxIdx))}}, Value: &ConstExpr{}},
+	}
+	litExpr := &CompositeLitExpr{Elts: elts}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(asValue(st))
+		// Push only values (keys are read from AST)
 		m.PushValue(TypedValue{T: IntType, N: i2n(1)})
-		m.PushValue(TypedValue{T: IntType, N: i2n(int64(maxIdx))})
 		m.PushValue(TypedValue{T: IntType, N: i2n(2)})
 		m.PushExpr(litExpr)
 		bm.SwitchOpCode(bmTarget)
-		m.doOpSliceLit2()
+		m.doOpSliceLit()
 		bm.SwitchOpCode(bmSetup)
 		res := m.PeekValue(1)
 		rsv := res.V.(*SliceValue)
@@ -3607,10 +3605,10 @@ func benchOpSliceLit2_Sparse(b *testing.B, maxIdx int) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpSliceLit2_Sparse_10(b *testing.B)    { benchOpSliceLit2_Sparse(b, 9) }
-func BenchmarkOpSliceLit2_Sparse_100(b *testing.B)   { benchOpSliceLit2_Sparse(b, 99) }
-func BenchmarkOpSliceLit2_Sparse_1000(b *testing.B)  { benchOpSliceLit2_Sparse(b, 999) }
-func BenchmarkOpSliceLit2_Sparse_10000(b *testing.B) { benchOpSliceLit2_Sparse(b, 9999) }
+func BenchmarkOpSliceLit_Sparse_10(b *testing.B)    { benchOpSliceLit_Sparse(b, 9) }
+func BenchmarkOpSliceLit_Sparse_100(b *testing.B)   { benchOpSliceLit_Sparse(b, 99) }
+func BenchmarkOpSliceLit_Sparse_1000(b *testing.B)  { benchOpSliceLit_Sparse(b, 999) }
+func BenchmarkOpSliceLit_Sparse_10000(b *testing.B) { benchOpSliceLit_Sparse(b, 9999) }
 
 // --- ArrayLit uint8: NewDataArray (flat byte alloc) vs non-uint8 ---
 

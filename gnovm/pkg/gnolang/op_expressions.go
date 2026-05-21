@@ -386,28 +386,11 @@ func (m *Machine) doOpCompositeLit() {
 			m.PushOp(OpEval)
 		}
 	case *SliceType:
-		if len(x.Elts) > 0 && x.Elts[0].Key != nil {
-			m.PushOp(OpSliceLit2)
-			// evaluate item values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				if x.Elts[i].Key == nil {
-					panic("slice composite literal cannot mix keyed and unkeyed elements")
-				}
-				m.PushExpr(x.Elts[i].Value)
-				m.PushOp(OpEval)
-				m.PushExpr(x.Elts[i].Key)
-				m.PushOp(OpEval)
-			}
-		} else {
-			m.PushOp(OpSliceLit)
-			// evaluate item values
-			for i := len(x.Elts) - 1; 0 <= i; i-- {
-				if x.Elts[i].Key != nil {
-					panic("slice composite literal cannot mix keyed and unkeyed elements")
-				}
-				m.PushExpr(x.Elts[i].Value)
-				m.PushOp(OpEval)
-			}
+		m.PushOp(OpSliceLit)
+		// evaluate item values only (keys are read from AST in doOpSliceLit)
+		for i := len(x.Elts) - 1; 0 <= i; i-- {
+			m.PushExpr(x.Elts[i].Value)
+			m.PushOp(OpEval)
 		}
 	case *MapType:
 		m.PushOp(OpMapLit)
@@ -491,70 +474,52 @@ func (m *Machine) doOpArrayLit() {
 	})
 }
 
+
 func (m *Machine) doOpSliceLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts)
-	m.incrCPU(OpCPUSlopeSliceLit * int64(el))
+	ne := len(x.Elts)
 	// peek slice type.
-	st := m.PeekValue(1 + el).V.(TypeValue).Type
-	// construct element buf slice.
-	baseArray := m.Alloc.NewListArray(el)
-	es := baseArray.List
-	m.PopCopyValues(es)
-	// construct and push value.
-	if debug {
-		if m.PopValue().V.(TypeValue).Type != st {
-			panic("should not happen")
+	st := m.PeekValue(1 + ne).V.(TypeValue).Type
+	// first pass: compute length (max index + 1).
+	var maxIdx int64 = -1
+	var idx int64 = -1
+	for _, elt := range x.Elts {
+		if kx := elt.Key; kx != nil {
+			idx = kx.(*ConstExpr).ConvertGetInt()
+		} else {
+			idx++
 		}
-	} else {
-		m.PopValue()
-	}
-	sv := m.Alloc.NewSlice(baseArray, 0, el, el)
-	m.PushValue(TypedValue{
-		T: st,
-		V: sv,
-	})
-}
-
-func (m *Machine) doOpSliceLit2() {
-	x := m.PopExpr().(*CompositeLitExpr)
-	el := len(x.Elts)
-	tvs := m.PopValues(el * 2)
-	// peek slice type.
-	st := m.PeekValue(1).V.(TypeValue).Type
-	// calculate maximum index.
-	var maxVal int64
-	for i := range el {
-		itv := tvs[i*2+0]
-		idx := itv.ConvertGetInt()
-		if idx > maxVal {
-			maxVal = idx
+		if idx > maxIdx {
+			maxIdx = idx
 		}
 	}
-	m.incrCPU(OpCPUSlopeSliceLit2 * (maxVal + 1))
+	length := maxIdx + 1
+	m.incrCPU(OpCPUSlopeSliceLit * length)
 	// construct element buf slice.
-	// alloc before the underlying array constructed
-	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
+	baseArray := m.Alloc.NewListArray(int(length))
 	es := baseArray.List
-
-	for i := range el {
-		itv := tvs[i*2+0]
-		vtv := tvs[i*2+1]
-		idx := itv.ConvertGetInt()
+	vs := m.PopValues(ne)
+	// second pass: fill values using AST keys.
+	idx = -1
+	for i, elt := range x.Elts {
+		if kx := elt.Key; kx != nil {
+			idx = kx.(*ConstExpr).ConvertGetInt()
+		} else {
+			idx++
+		}
 		if es[idx].IsDefined() {
-			// slice index has already been assigned
 			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
 		}
-		es[idx] = vtv.Copy(m.Alloc)
+		es[idx] = vs[i].Copy(m.Alloc)
 	}
-	// fill in empty values.
+	// fill unset elements with zero values.
 	ste := st.Elem()
 	for i, etv := range es {
 		if etv.IsUndefined() {
 			es[i] = defaultTypedValue(m.Alloc, ste)
 		}
 	}
-	// construct and push value.
+	// pop type, push slice.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
@@ -562,7 +527,7 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSlice(baseArray, 0, int(maxVal+1), int(maxVal+1))
+	sv := m.Alloc.NewSlice(baseArray, 0, int(length), int(length))
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
