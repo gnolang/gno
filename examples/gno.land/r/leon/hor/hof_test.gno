@@ -76,7 +76,15 @@ func TestRegister(t *testing.T) {
 	uassert.False(t, itemExists(t, rlmPath2))
 }
 
+func registerItem(t *testing.T, pkgpath string) {
+	t.Helper()
+	testing.SetRealm(testing.NewCodeRealm(pkgpath))
+	Register(cross, validTitle, validDesc)
+}
+
 func TestUpvote(t *testing.T) {
+	registerItem(t, rlmPath)
+
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
@@ -99,6 +107,8 @@ func TestUpvote(t *testing.T) {
 }
 
 func TestDownvote(t *testing.T) {
+	registerItem(t, rlmPath)
+
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
@@ -122,6 +132,8 @@ func TestDownvote(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	registerItem(t, rlmPath)
+
 	userRealm := testing.NewUserRealm(admin)
 	testing.SetRealm(userRealm)
 	testing.SetOriginCaller(admin)
@@ -129,9 +141,6 @@ func TestDelete(t *testing.T) {
 	uassert.AbortsWithMessage(t, ErrNoSuchItem.Error(), func() {
 		Delete(cross, "nonexistentpkgpath")
 	})
-
-	i, _ := exhibition.items.Get(rlmPath)
-	_ = i.(*Item).id
 
 	uassert.NotPanics(t, func() {
 		Delete(cross, rlmPath)

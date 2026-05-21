@@ -9,29 +9,26 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
-var (
-	node any
-	tdl  *todolist.TodoList
-)
+func setupTodoList(t *testing.T, title string) (int, *todolist.TodoList) {
+	t.Helper()
+	tlid, _ := NewTodoList(cross, title)
+	node, _ := todolistTree.Get(strconv.Itoa(tlid))
+	return tlid, node.(*todolist.TodoList)
+}
 
 func TestNewTodoList(t *testing.T) {
 	title := "My Todo List"
-	tlid, _ := NewTodoList(cross, title)
+	tlid, tdl := setupTodoList(t, title)
+
 	uassert.Equal(t, 1, tlid, "tlid does not match")
-
-	// get the todolist node from the tree
-	node, _ = todolistTree.Get(strconv.Itoa(tlid))
-	// convert the node to a TodoList struct
-	tdl = node.(*todolist.TodoList)
-
 	uassert.Equal(t, title, tdl.Title, "title does not match")
-	uassert.Equal(t, 1, tlid, "tlid does not match")
 	uassert.Equal(t, tdl.Owner.String(), runtime.OriginCaller().String(), "owner does not match")
 	uassert.Equal(t, 0, len(tdl.GetTasks()), "Expected no tasks in the todo list")
 }
 
 func TestAddTask(t *testing.T) {
-	AddTask(cross, 1, "Task 1")
+	tlid, tdl := setupTodoList(t, "My Todo List")
+	AddTask(cross, tlid, "Task 1")
 
 	tasks := tdl.GetTasks()
 	uassert.Equal(t, 1, len(tasks), "total task does not match")
@@ -40,21 +37,28 @@ func TestAddTask(t *testing.T) {
 }
 
 func TestToggleTaskStatus(t *testing.T) {
-	ToggleTaskStatus(cross, 1, 0)
+	tlid, tdl := setupTodoList(t, "My Todo List")
+	AddTask(cross, tlid, "Task 1")
+
+	ToggleTaskStatus(cross, tlid, 0)
 	task := tdl.GetTasks()[0]
 	uassert.True(t, task.Done, "Expected task to be done, but it is not marked as done")
 
-	ToggleTaskStatus(cross, 1, 0)
+	ToggleTaskStatus(cross, tlid, 0)
 	uassert.False(t, task.Done, "Expected task to be not done, but it is marked as done")
 }
 
 func TestRemoveTask(t *testing.T) {
-	RemoveTask(cross, 1, 0)
-	tasks := tdl.GetTasks()
-	uassert.Equal(t, 0, len(tasks), "Expected no tasks in the todo list")
+	tlid, tdl := setupTodoList(t, "My Todo List")
+	AddTask(cross, tlid, "Task 1")
+
+	RemoveTask(cross, tlid, 0)
+	uassert.Equal(t, 0, len(tdl.GetTasks()), "Expected no tasks in the todo list")
 }
 
 func TestRemoveTodoList(t *testing.T) {
-	RemoveTodoList(cross, 1)
-	uassert.Equal(t, 0, todolistTree.Size(), "Expected no tasks in the todo list")
+	tlid, _ := setupTodoList(t, "My Todo List")
+
+	RemoveTodoList(cross, tlid)
+	uassert.Equal(t, 0, todolistTree.Size(), "Expected no todolists after removal")
 }

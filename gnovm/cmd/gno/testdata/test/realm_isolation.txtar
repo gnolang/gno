@@ -1,0 +1,58 @@
+gno test -v ./counter
+
+stderr '=== RUN   TestInitRan'
+stderr '--- PASS: TestInitRan'
+stderr '=== RUN   TestCrossingMutates_A'
+stderr '--- PASS: TestCrossingMutates_A'
+stderr '=== RUN   TestCrossingMutates_B'
+stderr '--- PASS: TestCrossingMutates_B'
+
+-- gnowork.toml --
+-- counter/gnomod.toml --
+module = "gno.land/r/demo/counter"
+gno = "0.9"
+
+-- counter/counter.gno --
+package counter
+
+var count int
+
+func init() {
+	count = 7
+}
+
+func Increment(cur realm) {
+	count++
+}
+
+func Get() int {
+	return count
+}
+
+-- counter/counter_test.gno --
+package counter
+
+import "testing"
+
+func TestInitRan(cur realm, t *testing.T) {
+	if Get() != 7 {
+		t.Fatalf("init() did not run in realm: count = %d, want 7", Get())
+	}
+}
+
+func TestCrossingMutates_A(cur realm, t *testing.T) {
+	if Get() != 7 {
+		t.Fatalf("expected fresh state (init=7), got %d", Get())
+	}
+	Increment(cross)
+	Increment(cross)
+	if Get() != 9 {
+		t.Fatalf("after 2 Increments, want 9, got %d", Get())
+	}
+}
+
+func TestCrossingMutates_B(cur realm, t *testing.T) {
+	if Get() != 7 {
+		t.Fatalf("state leaked from TestCrossingMutates_A: count = %d, want 7", Get())
+	}
+}

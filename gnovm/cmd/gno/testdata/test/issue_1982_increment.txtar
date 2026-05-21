@@ -1,0 +1,40 @@
+# ref: https://github.com/gnolang/gno/issues/1982
+
+gno test -v .
+
+stderr '=== RUN   TestIncrement1'
+stderr '--- PASS: TestIncrement1'
+stderr '=== RUN   TestIncrement2'
+stderr '--- PASS: TestIncrement2'
+
+-- gnomod.toml --
+module = "gno.test/p/integ/issue_1982"
+gno = "0.9"
+
+-- counter.gno --
+package counter
+
+var count int
+
+func Increment() {
+	count++
+}
+
+-- counter_test.gno --
+package counter
+
+import "testing"
+
+func TestIncrement1(t *testing.T) {
+	Increment()
+	if count != 1 {
+		t.Fail()
+	}
+}
+
+func TestIncrement2(t *testing.T) {
+	Increment()
+	if count != 1 {
+		t.Fail()
+	}
+}

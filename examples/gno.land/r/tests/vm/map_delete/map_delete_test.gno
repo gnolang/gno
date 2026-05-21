@@ -9,11 +9,11 @@ func TestGetMap(t *testing.T) {
 }
 
 func TestDeleteMap(t *testing.T) {
+	if !GetMap(3) {
+		t.Fatal("precondition: key 3 should exist before delete")
+	}
 	DeleteMap(cross, 3)
-}
-
-func TestGetMapAfterDelete(t *testing.T) {
 	if GetMap(3) {
-		t.Error("Expected false, got ", GetMap(3))
+		t.Error("Expected false after delete, got true")
 	}
 }

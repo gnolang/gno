@@ -188,45 +188,37 @@ func TestExecutorCreationRealm(cur realm, t *testing.T) {
 	urequire.Equal(t, true, contains(individualRendered, "This proposal tests executor creation realm tracking"))
 }
 
+func createMemberProposal(cur realm, nm1 address, portfolio string) dao.ProposalID {
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
+	req := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
+	testing.SetRealm(testing.NewUserRealm(m1))
+	return dao.MustCreateProposal(cross, req)
+}
+
 func TestProposalPagination(cur realm, t *testing.T) {
 	loadMembers()
 	portfolio := "### This is my portfolio:\n\n- THINGS"
-
-	testing.SetOriginCaller(m1)
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-
 	nm1 := testutils.TestAddress("nm1")
 
-	var pid dao.ProposalID
-
-	proposalRequest := NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio)
+	// Build 8 proposals so the assertions below exercise both pages
+	// (page size 5, reverse): page 1 holds pids 7..3, page 2 holds 2..0.
+	// pid 1 uses a different title so the page 2 render assertion can
+	// distinguish it from the surrounding member proposals.
+	pid := createMemberProposal(cur, nm1, portfolio)
+	urequire.Equal(t, 0, int(pid))
 
 	testing.SetOriginCaller(m1)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/contract"))
+	executor := dao.NewSimpleExecutor(func(realm) error { return nil }, "Test executor from template")
 	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross, proposalRequest)
+	pid = dao.MustCreateProposal(cross, dao.NewProposalRequest("Test Proposal", "This proposal tests pagination across two pages", executor))
+	urequire.Equal(t, 1, int(pid))
 
-	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
-	urequire.Equal(t, 2, int(pid))
-
-	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross, proposalRequest)
-	urequire.Equal(t, 3, int(pid))
-
-	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross, proposalRequest)
-	urequire.Equal(t, 4, int(pid))
-
-	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross, proposalRequest)
-	urequire.Equal(t, 5, int(pid))
-
-	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross, proposalRequest)
-	urequire.Equal(t, 6, int(pid))
-
-	testing.SetRealm(testing.NewUserRealm(m1))
-	pid = dao.MustCreateProposal(cross, proposalRequest)
-	urequire.Equal(t, 7, int(pid))
+	for i := 2; i <= 7; i++ {
+		pid = createMemberProposal(cur, nm1, portfolio)
+		urequire.Equal(t, i, int(pid))
+	}
 
 	fmt.Println(dao.Render(""))
 	urequire.Equal(t, true, contains(dao.Render(""), "### [Prop #7 - New T2 Member Proposal](/r/gov/dao:7)"))
@@ -258,7 +250,7 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewUserRealm(m1))
 	pid := dao.MustCreateProposal(cross, preq)
-	urequire.Equal(t, int(pid), 8)
+	urequire.Equal(t, int(pid), 0)
 
 	// m1 votes yes because that member is interested on it
 	dao.MustVoteOnProposal(cross, dao.VoteRequest{
@@ -296,14 +288,15 @@ func TestUpgradeDaoImplementation(t *testing.T) {
 	// })
 	dao.MustVoteOnProposalSimple(cross, int64(pid), "YES")
 
-	urequire.Equal(t, true, contains(dao.Render("8"), "**Proposal is open for votes**"))
-	urequire.Equal(t, true, contains(dao.Render("8"), "68.42105263157895%"))
-	urequire.Equal(t, true, contains(dao.Render("8"), "0%"))
+	pidStr := pid.String()
+	urequire.Equal(t, true, contains(dao.Render(pidStr), "**Proposal is open for votes**"))
+	urequire.Equal(t, true, contains(dao.Render(pidStr), "68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render(pidStr), "0%"))
 
 	accepted := dao.ExecuteProposal(cross, dao.ProposalID(pid))
 	urequire.Equal(t, true, accepted)
-	urequire.Equal(t, true, contains(dao.Render("8"), "**PROPOSAL HAS BEEN ACCEPTED**"))
-	urequire.Equal(t, true, contains(dao.Render("8"), "YES PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render(pidStr), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(dao.Render(pidStr), "YES PERCENT: 68.42105263157895%"))
 }
 
 func TestAbstainVote(cur realm, t *testing.T) {

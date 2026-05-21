@@ -1,0 +1,45 @@
+gno test -v .
+
+stderr '=== RUN   TestInitRan'
+stderr '--- PASS: TestInitRan'
+stderr '=== RUN   TestStateResetBetweenTests_A'
+stderr '--- PASS: TestStateResetBetweenTests_A'
+stderr '=== RUN   TestStateResetBetweenTests_B'
+stderr '--- PASS: TestStateResetBetweenTests_B'
+
+-- gnomod.toml --
+module = "gno.test/p/integ/init_and_isolation"
+gno = "0.9"
+
+-- counter.gno --
+package counter
+
+var X int
+
+func init() {
+	X = 42
+}
+
+-- counter_test.gno --
+package counter
+
+import "testing"
+
+func TestInitRan(t *testing.T) {
+	if X != 42 {
+		t.Fatalf("init() did not run: X = %d, want 42", X)
+	}
+}
+
+func TestStateResetBetweenTests_A(t *testing.T) {
+	if X != 42 {
+		t.Fatalf("expected fresh state with X = 42, got %d", X)
+	}
+	X = 100
+}
+
+func TestStateResetBetweenTests_B(t *testing.T) {
+	if X != 42 {
+		t.Fatalf("state leaked from previous test: X = %d, want 42", X)
+	}
+}

@@ -54,6 +54,9 @@ func TestEvaluationAddContribution(t *testing.T) {
 }
 
 func TestEvaluationUpdateContribution(t *testing.T) {
+	pr := NewPullRequest(id, name, description, status, category)
+	e.AddContribution(pr, address_XXX)
+
 	t.Run("", func(t *testing.T) {
 		status := "Negotiated"
 		ok := e.UpdateContribution(id, status)
