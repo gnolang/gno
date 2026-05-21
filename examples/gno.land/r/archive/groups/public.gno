@@ -2,6 +2,7 @@ package groups
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/r/sys/users"
 )
@@ -19,7 +20,7 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 
 func CreateGroup(cur realm, name string) GroupID {
 	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	usernameOf(caller)
 	url := "/r/demo/groups:" + name
 	group := newGroup(url, name, caller)
@@ -31,7 +32,7 @@ func CreateGroup(cur realm, name string) GroupID {
 
 func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata string) MemberID {
 	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	usernameOf(caller)
 	group := getGroup(gid)
 	if !group.HasPermission(caller, EditPermission) {
@@ -52,7 +53,7 @@ func AddMember(cur realm, gid GroupID, address_XXX string, weight int, metadata 
 
 func DeleteGroup(cur realm, gid GroupID) {
 	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete group")
@@ -62,7 +63,7 @@ func DeleteGroup(cur realm, gid GroupID) {
 
 func DeleteMember(cur realm, gid GroupID, mid MemberID) {
 	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")

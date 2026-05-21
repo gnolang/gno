@@ -43,8 +43,10 @@ var testNativeFns = [][2]string{
 	// testing — context / assertions / regex.
 	{"testing", "getContext"},
 	{"testing", "isRealm"},
+	{"testing", "makeRealm"},
 	{"testing", "matchString"},
 	{"testing", "newRealm"},
+	{"testing", "originRealm"},
 	{"testing", "recoverWithStacktrace"},
 	{"testing", "setContext"},
 	{"testing", "setSysParamBool"},

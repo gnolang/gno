@@ -29,14 +29,14 @@ func seedCache(t *testing.T, entries []struct {
 	}
 }
 
-func TestNewValidatorProposalRequest_RejectsUnknownOperator(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsUnknownOperator(cur realm, t *testing.T) {
 	resetCache()
 	resetLimits()
 
 	op := testutils.TestAddress("ghost-op")
 
-	uassert.PanicsContains(t, "unknown operator", func() {
-		_ = NewValidatorProposalRequest(
+	uassert.PanicsContains(t, cur, "unknown operator", func() {
+		_ = NewValidatorProposalRequest(cur,
 			[]ValoperChange{{OperatorAddress: op, Power: 1}},
 			"add ghost",
 			"",
@@ -44,16 +44,16 @@ func TestNewValidatorProposalRequest_RejectsUnknownOperator(t *testing.T) {
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsEmptyChanges(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsEmptyChanges(cur realm, t *testing.T) {
 	resetCache()
 	resetLimits()
 
-	uassert.PanicsContains(t, errNoValoperChanges, func() {
-		_ = NewValidatorProposalRequest(nil, "title", "")
+	uassert.PanicsContains(t, cur, errNoValoperChanges, func() {
+		_ = NewValidatorProposalRequest(cur, nil, "title", "")
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsEmptyTitle(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsEmptyTitle(cur realm, t *testing.T) {
 	resetCache()
 	resetLimits()
 	op := testutils.TestAddress("op-A")
@@ -63,8 +63,8 @@ func TestNewValidatorProposalRequest_RejectsEmptyTitle(t *testing.T) {
 		keepRunning bool
 	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
 
-	uassert.PanicsContains(t, "proposal title is empty", func() {
-		_ = NewValidatorProposalRequest(
+	uassert.PanicsContains(t, cur, "proposal title is empty", func() {
+		_ = NewValidatorProposalRequest(cur,
 			[]ValoperChange{{OperatorAddress: op, Power: 1}},
 			"   ",
 			"",
@@ -72,7 +72,7 @@ func TestNewValidatorProposalRequest_RejectsEmptyTitle(t *testing.T) {
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsTooManyChanges(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsTooManyChanges(cur realm, t *testing.T) {
 	resetCache()
 	resetLimits()
 
@@ -91,12 +91,12 @@ func TestNewValidatorProposalRequest_RejectsTooManyChanges(t *testing.T) {
 		changes[i] = ValoperChange{OperatorAddress: op, Power: 1}
 	}
 
-	uassert.PanicsContains(t, "max number of allowed validators per proposal is 40", func() {
-		_ = NewValidatorProposalRequest(changes, "too many", "")
+	uassert.PanicsContains(t, cur, "max number of allowed validators per proposal is 40", func() {
+		_ = NewValidatorProposalRequest(cur, changes, "too many", "")
 	})
 }
 
-func TestNewValidatorProposalRequest_DescriptionRendering(t *testing.T) {
+func TestNewValidatorProposalRequest_DescriptionRendering(cur realm, t *testing.T) {
 	resetCache()
 	resetLimits()
 	opA := testutils.TestAddress("op-A")
@@ -110,7 +110,7 @@ func TestNewValidatorProposalRequest_DescriptionRendering(t *testing.T) {
 		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
 
-	pr := NewValidatorProposalRequest(
+	pr := NewValidatorProposalRequest(cur,
 		[]ValoperChange{
 			{OperatorAddress: opA, Power: 5},
 			{OperatorAddress: opB, Power: 0},
@@ -127,7 +127,7 @@ func TestNewValidatorProposalRequest_DescriptionRendering(t *testing.T) {
 	uassert.True(t, contains(desc, opB.String()+": remove"))
 }
 
-func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(cur realm, t *testing.T) {
 	// Creation-time captured changes: ValoperChange refers to opA.
 	// Cache for opA points to pubKeyA at creation. Before execution,
 	// opA's cache entry is updated to pubKeyB. Executor must publish
@@ -147,7 +147,7 @@ func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(t *testing.T) {
 
 	// Build the executor; it captures `changes` by reference (slice
 	// of structs) but resolves SigningPubKey at run-time via cache.
-	exec := newValoperChangeExecutor(changes, trustLevelRatio)
+	exec := newValoperChangeExecutor(cur, changes, trustLevelRatio)
 
 	// Simulate operator rotation: opA's cache entry now points to
 	// pubKeyB. Captured changes slice is unchanged.
@@ -157,7 +157,7 @@ func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(t *testing.T) {
 		KeepRunning:    true,
 	})
 
-	urequire.NoError(t, exec.Execute(cross))
+	urequire.NoError(t, exec.Execute(cross(cur)))
 
 	// Effective valset should contain pubKeyB (post-rotation), not
 	// pubKeyA (creation-time).
@@ -167,7 +167,7 @@ func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(t *testing.T) {
 	uassert.Equal(t, uint64(7), effective[0].VotingPower)
 }
 
-func TestNewValidatorProposalRequest_RemoveOperator(t *testing.T) {
+func TestNewValidatorProposalRequest_RemoveOperator(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	resetLimits()
@@ -185,12 +185,12 @@ func TestNewValidatorProposalRequest_RemoveOperator(t *testing.T) {
 	// Liveness floor: removing the only validator empties the set.
 	// Executor runs inside a crossing dao.Executor.Execute call, so
 	// the panic surfaces as an abort, not a regular panic.
-	uassert.AbortsContains(t, "would empty the validator set", func() {
-		_ = newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}, trustLevelRatio).Execute(cross)
+	uassert.AbortsContains(t, cur, "would empty the validator set", func() {
+		_ = newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opA, Power: 0}}, trustLevelRatio).Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_RemoveLeavesOthers(t *testing.T) {
+func TestNewValidatorProposalRequest_RemoveLeavesOthers(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	resetLimits()
@@ -217,7 +217,7 @@ func TestNewValidatorProposalRequest_RemoveLeavesOthers(t *testing.T) {
 
 	changes := []ValoperChange{{OperatorAddress: opA, Power: 0}}
 	// Build the executor directly (private function, same package).
-	urequire.NoError(t, newValoperChangeExecutor(changes, trustLevelRatio).Execute(cross))
+	urequire.NoError(t, newValoperChangeExecutor(cur, changes, trustLevelRatio).Execute(cross(cur)))
 
 	// Effective set: only opB / pubKeyB remains.
 	effective := sysparams.GetValsetEffective()
@@ -225,7 +225,7 @@ func TestNewValidatorProposalRequest_RemoveLeavesOthers(t *testing.T) {
 	uassert.Equal(t, pubKeyB, effective[0].PubKey)
 }
 
-func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(cur realm, t *testing.T) {
 	resetCache()
 	resetLimits()
 	op := testutils.TestAddress("op-A")
@@ -235,15 +235,15 @@ func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(t *testin
 		keepRunning bool
 	}{{op: op, pubKey: pubKeyA, keepRunning: false}})
 
-	uassert.PanicsContains(t, "KeepRunning=false", func() {
-		_ = NewValidatorProposalRequest(
+	uassert.PanicsContains(t, cur, "KeepRunning=false", func() {
+		_ = NewValidatorProposalRequest(cur,
 			[]ValoperChange{{OperatorAddress: op, Power: 1}},
 			"add opted-out", "",
 		)
 	})
 }
 
-func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T) {
+func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(cur realm, t *testing.T) {
 	// KeepRunning=false is the operator's opt-out signal; removing
 	// such an operator must still be allowed (it's the standard
 	// exit path). Only adds are gated.
@@ -272,17 +272,17 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(t *testing.T
 	})
 
 	// Build proposal succeeds (remove path: Power=0 ignores KeepRunning).
-	pr := NewValidatorProposalRequest(
+	pr := NewValidatorProposalRequest(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 0}},
 		"remove opted-out opA", "",
 	)
 	_ = pr
 
 	// Executor also succeeds.
-	urequire.NoError(t, newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}, trustLevelRatio).Execute(cross))
+	urequire.NoError(t, newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opA, Power: 0}}, trustLevelRatio).Execute(cross(cur)))
 }
 
-func TestNewValidatorProposalRequest_RejectsDuplicateOp(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsDuplicateOp(cur realm, t *testing.T) {
 	// Each operator may appear at most once per proposal; any shape
 	// that mentions the same op twice must panic at create-time.
 	resetCache()
@@ -300,13 +300,13 @@ func TestNewValidatorProposalRequest_RejectsDuplicateOp(t *testing.T) {
 		{{OperatorAddress: op, Power: 0}, {OperatorAddress: op, Power: 0}}, // double remove
 	}
 	for _, changes := range cases {
-		uassert.PanicsContains(t, "duplicate operator in proposal", func() {
-			_ = NewValidatorProposalRequest(changes, "dup", "")
+		uassert.PanicsContains(t, cur, "duplicate operator in proposal", func() {
+			_ = NewValidatorProposalRequest(cur, changes, "dup", "")
 		})
 	}
 }
 
-func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(cur realm, t *testing.T) {
 	// KeepRunning=false is binding: no proposal shape can keep an
 	// opted-out operator in the active set. The dedupe rejection
 	// fires before the KR check is even reached.
@@ -319,8 +319,8 @@ func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(t *test
 		keepRunning bool
 	}{{op: op, pubKey: pubKeyA, keepRunning: false}})
 
-	uassert.PanicsContains(t, "duplicate operator in proposal", func() {
-		_ = NewValidatorProposalRequest(
+	uassert.PanicsContains(t, cur, "duplicate operator in proposal", func() {
+		_ = NewValidatorProposalRequest(cur,
 			[]ValoperChange{
 				{OperatorAddress: op, Power: 0},
 				{OperatorAddress: op, Power: 7},
@@ -330,7 +330,7 @@ func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(t *test
 	})
 }
 
-func TestNewValidatorProposalRequest_UpsertExistingValidator(t *testing.T) {
+func TestNewValidatorProposalRequest_UpsertExistingValidator(cur realm, t *testing.T) {
 	// Single-entry {op, newPower} against an op already in the
 	// effective valset must upsert: the existing entry's power is
 	// overwritten, no remove/re-add ceremony required.
@@ -356,7 +356,7 @@ func TestNewValidatorProposalRequest_UpsertExistingValidator(t *testing.T) {
 	})
 
 	changes := []ValoperChange{{OperatorAddress: opA, Power: 9}}
-	urequire.NoError(t, newValoperChangeExecutor(changes, trustLevelRatio).Execute(cross))
+	urequire.NoError(t, newValoperChangeExecutor(cur, changes, trustLevelRatio).Execute(cross(cur)))
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -367,7 +367,7 @@ func TestNewValidatorProposalRequest_UpsertExistingValidator(t *testing.T) {
 	uassert.Equal(t, uint64(1), powerOf[pubKeyB], "opB unchanged")
 }
 
-func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(cur realm, t *testing.T) {
 	// KeepRunning=true at proposal-create time; operator flips to
 	// false BEFORE the executor runs. Race-safety check rejects.
 	resetValset(t)
@@ -382,7 +382,7 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *te
 	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
 
 	changes := []ValoperChange{{OperatorAddress: op, Power: 5}}
-	exec := newValoperChangeExecutor(changes, trustLevelRatio)
+	exec := newValoperChangeExecutor(cur, changes, trustLevelRatio)
 
 	// Operator flips KeepRunning=false BEFORE the executor runs.
 	valoperCache.Set(op.String(), cacheEntry{
@@ -391,12 +391,12 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(t *te
 		KeepRunning:    false,
 	})
 
-	uassert.AbortsContains(t, "KeepRunning=false at execution", func() {
-		_ = exec.Execute(cross)
+	uassert.AbortsContains(t, cur, "KeepRunning=false at execution", func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(t *testing.T) {
+func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(cur realm, t *testing.T) {
 	// RotateValoperSigningKey publishes valset:proposed before any
 	// subsequent executor reads, so baseline always reflects the
 	// post-rotation state. A later power-update upserts at NEW only;
@@ -421,14 +421,14 @@ func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(t *testing.T) {
 	})
 
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
-	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyC)
-	NotifyValoperChanged(cross, opA, pubKeyC, mustAddr(t, pubKeyC), true)
+	RotateValoperSigningKey(cross(cur), opA, pubKeyA, pubKeyC)
+	NotifyValoperChanged(cross(cur), opA, pubKeyC, mustAddr(t, pubKeyC), true)
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/v3/impl"))
-	urequire.NoError(t, newValoperChangeExecutor(
+	urequire.NoError(t, newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
 		trustLevelRatio,
-	).Execute(cross))
+	).Execute(cross(cur)))
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -442,7 +442,7 @@ func TestNewValidatorProposalRequest_NaturalRotationFlow_NoGhost(t *testing.T) {
 	urequire.Equal(t, 2, len(effective), "exactly two entries — opA(NEW), opB")
 }
 
-func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(t *testing.T) {
+func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(cur realm, t *testing.T) {
 	// Pin executor behavior on a phantom state (cache=NEW,
 	// valset:current=OLD, dirty=false) — unreachable via natural
 	// flow because RotateValoperSigningKey publishes proposed
@@ -470,10 +470,10 @@ func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(t 
 		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
 
-	urequire.NoError(t, newValoperChangeExecutor(
+	urequire.NoError(t, newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
 		trustLevelRatio,
-	).Execute(cross))
+	).Execute(cross(cur)))
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -487,7 +487,7 @@ func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(t 
 		"three entries — phantom-state ghost; this state is unreachable via natural flow")
 }
 
-func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
+func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(cur realm, t *testing.T) {
 	// Same-block ordering: proposal-execute writes proposed
 	// (dirty=true); a subsequent rotation reads proposed-when-dirty
 	// and accumulates the prior power change rather than clobbering
@@ -512,14 +512,14 @@ func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
 		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
 
-	urequire.NoError(t, newValoperChangeExecutor(
+	urequire.NoError(t, newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 3}},
 		trustLevelRatio,
-	).Execute(cross))
+	).Execute(cross(cur)))
 
 	testing.SetRealm(testing.NewCodeRealm(valopersRealmPath))
-	RotateValoperSigningKey(cross, opA, pubKeyA, pubKeyC)
-	NotifyValoperChanged(cross, opA, pubKeyC, mustAddr(t, pubKeyC), true)
+	RotateValoperSigningKey(cross(cur), opA, pubKeyA, pubKeyC)
+	NotifyValoperChanged(cross(cur), opA, pubKeyC, mustAddr(t, pubKeyC), true)
 
 	effective := sysparams.GetValsetEffective()
 	powerOf := map[string]uint64{}
@@ -546,7 +546,7 @@ func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(t *testing.T) {
 // test still passes — it's a contract-pinning test for the panic itself.
 // If the team decides the branch is unreachable enough to drop, this
 // test is the first thing to break.
-func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(cur realm, t *testing.T) {
 	resetValset(t)
 	resetCache()
 	resetLimits()
@@ -558,7 +558,7 @@ func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(t *testing
 		keepRunning bool
 	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
 
-	exec := newValoperChangeExecutor(
+	exec := newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: op, Power: 5}},
 		trustLevelRatio,
 	)
@@ -569,8 +569,8 @@ func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(t *testing
 	_, removed := valoperCache.Remove(op.String())
 	urequire.True(t, removed, "fixture: cache entry must have been present before Remove")
 
-	uassert.AbortsContains(t, "operator vanished from valoperCache between propose and execute", func() {
-		_ = exec.Execute(cross)
+	uassert.AbortsContains(t, cur, "operator vanished from valoperCache between propose and execute", func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 

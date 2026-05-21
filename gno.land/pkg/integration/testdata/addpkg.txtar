@@ -62,7 +62,7 @@ gno = "0.9"
 -- hello.gno --
 package hello
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func SayHello(cur realm) string {
 	return "hello world!"
@@ -76,5 +76,5 @@ func SayHello2(cur realm, s1, s2 string) string {
 }
 
 func PreviousRealm(cur realm) string {
-	return runtime.PreviousRealm().String()
+	return unsafe.PreviousRealm().String()
 }

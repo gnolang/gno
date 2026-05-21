@@ -26,13 +26,13 @@ stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 gnoland start
 
 # Variant A: close BEFORE callee.Store (no taint expected).
-gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func InlineCloseBeforeStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4400000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func InlineCloseBeforeStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4900000 -chainid=tendermint_test user1
 stdout OK!
 
 # Variant B: close AFTER callee.Store, INLINE (no defer wrapper).
 # If this panics with taint, value-based taint is the cause.
 # If this succeeds, the defer mechanism specifically is the issue.
-gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func InlineCloseAfterStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4500000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func InlineCloseAfterStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
 
 # Variant C: close AFTER callee.Store, via inline closure call.
 gnokey maketx call -pkgpath gno.land/r/test/diaggranter -func ClosureCallAfterStore -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4100000 -chainid=tendermint_test user1
@@ -72,7 +72,7 @@ package diaggranter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
@@ -81,23 +81,23 @@ import (
 
 // Variant A: close BEFORE store. Sanity check; should succeed.
 func InlineCloseBeforeStore(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 	al.Close()
-	diagcallee.Store(cross, al)
+	diagcallee.Store(cross(cur), al)
 }
 
 // Variant B: close AFTER store, inline (no defer). Hypothesis: if
 // the taint is value-based (struct now owned by callee), this should
 // panic with "cannot directly modify readonly tainted".
 func InlineCloseAfterStore(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	diagcallee.Store(cross, al)
+	diagcallee.Store(cross(cur), al)
 	al.Close()
 }
 
@@ -106,10 +106,10 @@ func InlineCloseAfterStore(cur realm) {
 // specifically in how method dispatch handles the taint state at
 // invocation vs dispatch time.
 func ClosureCallAfterStore(cur realm) {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	al := allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	diagcallee.Store(cross, al)
+	diagcallee.Store(cross(cur), al)
 	(func() { al.Close() })()
 }

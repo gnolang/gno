@@ -1,8 +1,6 @@
 package commondao
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
@@ -14,18 +12,13 @@ const CommonDAOID uint64 = 1
 
 var (
 	daoID     seqid.ID
-	realmLink txlink.Realm
+	realmLink = txlink.Realm("gno.land/r/nt/commondao/v0")
 	daos      = bptree.NewBPTree32() // string(ID) -> *commondao.CommonDAO
 	ownership = bptree.NewBPTree32() // string(address) -> []uint64(DAO ID)
 	invites   = bptree.NewBPTree32() // string(address) -> address(inviter)
 	trees     = bptree.NewBPTree32() // string(root ID) -> bptree.BPTree(string(DAO ID) -> *commondao.CommonDAO)
 	options   = bptree.NewBPTree32() // string(ID) -> *Options
 )
-
-func init() {
-	// Save current realm path so it's available during render calls
-	realmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
-}
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
 	key := makeIDKey(daoID)

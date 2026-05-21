@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
+	"math"
 	"path"
 	"reflect"
 	"runtime"
@@ -160,8 +161,18 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 			}
 		}
 		if alloc == nil {
-			alloc = NewAllocator(opts.MaxAllocBytes) // nil if MaxAllocBytes is zero
+			if opts.MaxAllocBytes > 0 {
+				alloc = NewAllocator(opts.MaxAllocBytes)
+			} else {
+				// No budget specified: still need a real allocator so
+				// PkgID stamping works. Use MaxInt64 as the "no budget
+				// enforcement" sentinel.
+				alloc = NewAllocator(math.MaxInt64)
+			}
 		}
+	}
+	if alloc == nil {
+		panic("NewMachineWithOptions: alloc must be non-nil")
 	}
 	store := opts.Store
 	if store == nil {
@@ -173,7 +184,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
-	if mm.Alloc != nil && !isPreprocessing {
+	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
 		// per-tx preprocess allocator inherited from the store: it's
 		// pre-configured with gasMeter set and collect=nil intentionally
@@ -266,9 +277,28 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 		panic(errors.Wrap(err, "set package when machine not empty"))
 	}
 	m.Package = pv
-	m.Realm = pv.GetRealm()
+	m.setRealm(pv.GetRealm())
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
+	}
+}
+
+// setRealm updates both m.Realm and m.Alloc.currentRealmID, keeping
+// them in lock-step. Every m.Realm assignment must route through
+// this helper so the allocator's currentRealmID stays accurate.
+// Used by allocator constructors to stamp PkgID onto newly-allocated
+// objects.
+//
+// Accepts nil — clears currentRealmID to PkgID{} which matches
+// "no realm context."
+func (m *Machine) setRealm(r *Realm) {
+	m.Realm = r
+	if r != nil {
+		m.Alloc.currentRealmID = r.ID
+		m.Alloc.currentRealmPath = r.Path
+	} else {
+		m.Alloc.currentRealmID = PkgID{}
+		m.Alloc.currentRealmPath = ""
 	}
 }
 
@@ -387,7 +417,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// store new package values and types
 		throwaway = m.saveNewPackageValuesAndTypes()
 		if throwaway != nil {
-			m.Realm = throwaway
+			m.setRealm(throwaway)
 		}
 	}
 	// run init functions
@@ -398,7 +428,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 		// store mempackage; we already validated type.
 		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
 		if throwaway != nil {
-			m.Realm = nil
+			m.setRealm(nil)
 		}
 	}
 
@@ -519,6 +549,12 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 			return
 		}
 
+		if len(m.Stmts) == 0 {
+			// Finalize-time panics (e.g., persistence checks in saveObject)
+			// run with an empty stmt stack — there's no current statement
+			// to attribute a line to. Leave LastLine zero.
+			return
+		}
 		ls := m.PeekStmt(1)
 		if bs, ok := ls.(*bodyStmt); ok {
 			if last := bs.LastStmt(); last != nil {
@@ -551,9 +587,9 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 		for _, update := range updates {
 			// XXX simplify.
 			if hiv, ok := update.V.(*HeapItemValue); ok {
-				rlm.DidUpdate(pb, nil, hiv)
+				rlm.DidUpdate(m, pb, nil, hiv)
 			} else {
-				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+				rlm.DidUpdate(m, pb, nil, update.GetFirstObject(m.Store))
 			}
 		}
 	}
@@ -567,18 +603,14 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // compile-time errors in the package. It is also used to preprocess files from
 // the package getter for tests, e.g. from "gnovm/tests/files/extern/*", or from
 // "examples/*".
-//   - fixFrom: the version of gno to fix from.
-func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool, fixFrom string) (*PackageNode, *PackageValue) {
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
 	if !withOverrides {
 		if err := checkDuplicates(fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
 		}
 	}
 	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
-	if fixFrom != "" {
-		pn.SetAttribute(ATTR_FIX_FROM, fixFrom)
-	}
-	pv := pn.NewPackage(nilAllocator)
+	pv := pn.NewPackage(m.Alloc)
 	pb := pv.GetBlock(m.Store)
 	m.SetActivePackage(pv)
 	m.Store.SetBlockNode(pn)
@@ -597,18 +629,18 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	// Get new values across all files in package.
-	pn.PrepareNewValues(nilAllocator, pv)
+	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
 	var throwaway *Realm
 	if save {
 		// store new package values and types
 		throwaway = m.saveNewPackageValuesAndTypes()
 		if throwaway != nil {
-			m.Realm = throwaway
+			m.setRealm(throwaway)
 		}
 		m.resavePackageValues(throwaway)
 		if throwaway != nil {
-			m.Realm = nil
+			m.setRealm(nil)
 		}
 	}
 	return pn, pv
@@ -898,6 +930,51 @@ func (m *Machine) RunMain() {
 // either main() or main(cur crossing).
 func (m *Machine) RunMainMaybeCrossing() {
 	m.runFunc(StageRun, "main", true)
+}
+
+// MaybeInjectCurForEval prepends `.cur` as the first argument to xx when
+// xx is a CallExpr whose target is a crossing function declared in the
+// current package. This mirrors the init/main optional-cur pattern
+// (runFunc(maybeCrossing=true) above): callers of QueryEval get
+// crossing-aware dispatch for free, so realms can opt into
+// `Render(cur realm, path string) string` (or any crossing getter)
+// without breaking the qeval contract.
+//
+// The injected `.cur` is the preprocessor-special name that resolves
+// (preprocess.go) to NewConcreteRealm(nil, ctxpn.PkgPath, gOriginRealmTV)
+// — i.e., the realm's own authority with origin as previous, treated as
+// "frame -1 already crossed" exactly like init/main.
+//
+// No-op when:
+//   - xx isn't a CallExpr
+//   - the callee isn't a simple NameExpr in this package (selectors,
+//     chained calls, closures, method expressions all fall through)
+//   - the resolved function isn't a crossing function
+//   - the name is unknown (typo'd — let normal eval surface the error)
+//
+// The user MUST omit the cur argument in the query expression. The chain
+// owns the cur for the query path; a user-supplied first arg would land
+// in arg position 2 and fail with an arity/type error at preprocess.
+func (m *Machine) MaybeInjectCurForEval(xx Expr) {
+	ce, ok := xx.(*CallExpr)
+	if !ok {
+		return
+	}
+	nx, ok := ce.Func.(*NameExpr)
+	if !ok {
+		return
+	}
+	pv := m.Package
+	pb := pv.GetBlock(m.Store)
+	pn := pb.GetSource(m.Store).(*PackageNode)
+	if _, ok := pn.GetLocalIndex(nx.Name); !ok {
+		return
+	}
+	ft, ok := pn.GetStaticTypeOf(m.Store, nx.Name).(*FuncType)
+	if !ok || !ft.IsCrossing() {
+		return
+	}
+	ce.Args = append([]Expr{Nx(".cur")}, ce.Args...)
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -2214,7 +2291,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				mrpath,
 			))
 		}
-		m.Realm = pv.GetRealm()
+		m.setRealm(pv.GetRealm())
 		return
 	}
 
@@ -2243,42 +2320,69 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 
-	// Not cross nor crossing.
-	// Only "soft" switch to storage realm of receiver.
-	var rlm *Realm
-	if recv.IsDefined() { // method call
+	// Not cross nor crossing. Layered borrow:
+	//   1. /r/-declared function/method → borrow to method's
+	//      declaring realm (any receiver shape, or top-level
+	//      function). Closes the .Title() class for /r/-declared
+	//      callables: attacker code runs with attacker's
+	//      authority, not victim's.
+	//   2. Otherwise (stdlib or /p/-declared) → if the receiver is
+	//      a real object in a foreign realm, borrow to receiver's
+	//      storage realm. Preserves the existing pattern where
+	//      stdlib + /p/ helpers (grc20, bptree, math/rand, etc.)
+	//      mutate state living in another realm.
+	//   3. Otherwise, if fv is a closure (FuncLit-constructed, not
+	//      a top-level FuncDecl) → borrow to the realm whose
+	//      authority was active when the closure was minted.
+	//      Realizes "closure = capability": invoking a persisted
+	//      closure runs its body under the realm owning its
+	//      captures, so writes to captured HIVs are in-realm at
+	//      every NameExpr write site — no per-write gate needed
+	//      in isExternalRealm.
+	if IsRealmPath(pv.PkgPath) {
+		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
+			m.setRealm(pv.GetRealm())
+		}
+		return
+	}
+	if recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
-		if obj == nil { // nil receiver
-			// no switch
-			return
-		} else {
+		if obj != nil {
 			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() ||
-				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
-				// no switch
-				return
-			} else {
-				// Implicit switch to storage realm.
-				// Neither cross nor didswitch.
+			if !recvOID.IsZero() &&
+				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = objpv.GetRealm()
-				m.Realm = rlm
-				// DO NOT set DidCrossing here. Make
-				// DidCrossing only happen upon explicit
-				// cross(fn)(...) calls and subsequent calls to
-				// crossing functions from the same realm, to
-				// avoid user confusion. Otherwise whether
-				// DidCrossing happened or not depends on where
-				// the receiver resides, which isn't explicit
-				// enough to avoid confusion.
-				//   fr.DidCrossing = true
-				return
+				m.setRealm(objpv.GetRealm())
 			}
 		}
-	} else { // top level function
-		// no switch
-		return
+	}
+	// Rule 3: closure capture-realm borrow.
+	//
+	// fv.GetObjectInfo().ID.PkgID is the realm whose currentRealmID
+	// was active at doOpFuncLit (closure construction) time. For
+	// closures persisted into /r/A's state (e.g. /p/X.MakeCounter()
+	// called from /r/A.init), this is /r/A — not /p/X. So borrowing
+	// to it routes correctly even when fv.PkgPath is a /p/.
+	//
+	// IsClosure gates this: top-level FuncDecls also carry a stamped
+	// PkgID (= the declaring package), but they don't represent a
+	// closed-over capability — Rule 1 already handles the /r/-declared
+	// case, and /p/-declared FuncDecls shouldn't shift the realm.
+	//
+	// The zero-PkgID check skips closures constructed in uverse/stdlib
+	// init (no realm context). The equality short-circuit avoids a
+	// redundant setRealm when we're already in the closure's home.
+	if fv.IsClosure {
+		pid := fv.GetObjectInfo().ID.PkgID
+		if !pid.IsZero() && (m.Realm == nil || pid != m.Realm.ID) {
+			pkgOID := ObjectIDFromPkgID(pid)
+			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
+				if objpv, ok := pobj.(*PackageValue); ok {
+					m.setRealm(objpv.GetRealm())
+				}
+			}
+		}
 	}
 }
 
@@ -2359,7 +2463,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
-	m.Realm = fr.LastRealm
+	m.setRealm(fr.LastRealm)
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions
@@ -2536,9 +2640,7 @@ func readonlyAccessPanic(x Expr) string {
 // Otherwise returns true iff:
 //   - tv is a ref to (external) package path, or
 //   - tv is N_Readonly, or
-//   - tv is not an object ("first object" ID is zero), or
-//   - tv is an unreal object (no object id), or
-//   - tv is an object residing in external realm
+//   - tv is a real object residing in external realm
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	//  m.Realm is nil → single user mode, nothing is readonly
 	if m.Realm == nil {
@@ -2553,9 +2655,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 		}
 	}
 	//   - tv is N_Readonly, or
-	//   - tv is not an object ("first object" ID is zero), or
-	//   - tv is an unreal object (no object id), or
-	//   - tv is an object residing in external realm
+	//   - tv is a real object residing in external realm
 	return tv.IsReadonlyBy(m.Realm.ID)
 }
 
@@ -2573,6 +2673,23 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	oid := obj.GetObjectID()
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
+	}
+	// HIVs are exempt from the external-realm gate at the NameExpr
+	// write path. Two paths reach here:
+	//   - Real HIV in foreign realm: PushFrameCall's Rule 3 already
+	//     borrowed m.Realm to the closure's capture-realm, so by
+	//     the time we get here HIV.PkgID == m.Realm.ID. The check
+	//     would be a no-op anyway; skip to save the comparison.
+	//   - Unreal HIV (transient heap-promotion wrapper for an
+	//     escaping local): not a realm-owned slot — the alloc-site
+	//     PkgID stamp is incidental.
+	//
+	// Deref-through writes (*p = ...) take the PointerValue path
+	// via IsReadonly → IsReadonlyBy, which has its own HIV branch
+	// at ownership.go:468-490; that's still the authoritative gate
+	// for pointer-deref writes obtained via &name.
+	if _, ok := base.(*HeapItemValue); ok {
+		return false
 	}
 	return oid.PkgID != m.Realm.ID
 }
@@ -2629,7 +2746,10 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
-		hv := m.Alloc.NewHeapItem(tv)
+		// Heap-slot wrapper is anonymous; nil t skips the
+		// construction-time check. The contained composite literal
+		// was already construction-time-checked at its own allocation.
+		hv := m.Alloc.NewHeapItem(nil, tv)
 		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,
