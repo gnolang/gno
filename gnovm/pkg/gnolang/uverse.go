@@ -217,20 +217,17 @@ func newRealmHIVPointer(alloc *Allocator, addr, pkgPath string, prevField TypedV
 	}
 }
 
-// gOriginRealmHIV / gOriginRealmTV is the preprocess-time placeholder
-// origin realm. It stands in for the per-tx EOA realm value during
-// preprocess (when ctx.OriginCaller is not yet known) and is replaced
-// at runtime entry by buildOriginRealm, which builds a real per-tx
-// origin realm with addr=OriginCaller, pkgPath="", prev=truly-nil.
+// gOriginRealmTV is the preprocess-time placeholder origin realm. It
+// stands in for the per-tx EOA realm value during preprocess (when
+// ctx.OriginCaller is not yet known) and is replaced at runtime entry
+// by buildOriginRealm, which builds a real per-tx origin realm with
+// addr=OriginCaller, pkgPath="", prev=truly-nil.
 //
 // Non-nil pointer (with empty fields) rather than a typed-nil: matches
 // runtime.PreviousRealm()'s shape for EOA callers (a zero Realm struct,
 // not a nil). Structural shape (Value.T == gConcreteRealmType AND prev
 // field has V == nil) is the persistent marker — see isOriginRealmHIV.
-var (
-	gOriginRealmHIV *HeapItemValue
-	gOriginRealmTV  TypedValue
-)
+var gOriginRealmTV TypedValue
 
 // isOriginRealmHIV reports whether hiv is an origin / EOA-shaped realm
 // value (prev field truly nil). The shape persists across AST serialize/
@@ -318,7 +315,6 @@ func init() {
 
 	// Build the global placeholder origin realm now that types are wired.
 	gOriginRealmTV = newRealmHIVPointer(fallbackAllocator, "", "", TypedValue{})
-	gOriginRealmHIV = gOriginRealmTV.V.(PointerValue).Base.(*HeapItemValue)
 }
 
 // OriginRealmTV returns the typed-nil *.grealm used as the prev seed for
@@ -435,7 +431,7 @@ func realmIsEphemeral(pkgPath string) bool {
 		return false
 	}
 	// Domain segment must not itself contain a '/'.
-	return strings.Index(pkgPath[:idx], "/") == -1
+	return !strings.Contains(pkgPath[:idx], "/")
 }
 
 // realmIsUserRun reports whether (addr, pkgPath) represents a user-run
@@ -709,7 +705,7 @@ func makeUverseNode() {
 										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 										list[dstStart+i] = newElem
 
-										m.Realm.DidUpdate(m, 
+										m.Realm.DidUpdate(m,
 											arg0Base,
 											oldElem.GetFirstObject(m.Store),
 											newElem.GetFirstObject(m.Store),

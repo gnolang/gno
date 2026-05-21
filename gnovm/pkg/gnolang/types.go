@@ -2965,35 +2965,6 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{
 	}
 }
 
-
-// declaredPkgPath walks Pointer/Declared/Struct type wrappers to
-// find the outermost named type's declaring package. Used by the
-// interrealm v2 allocator's construction-time check (Phase 2) to decide
-// PkgID stamping at allocation time.
-//
-// Returns "" for unnamed composites (anonymous arrays, slices,
-// maps, funcs, channels, native types) — the caller treats this as
-// "no declaring realm constraint; use the allocator's currentRealmID."
-//
-// For struct types, returns the source-file PkgPath whether or not
-// the struct is itself anonymous — anonymous structs at file scope
-// are still attributed to the file's package.
-func declaredPkgPath(t Type) string {
-	for {
-		switch tt := t.(type) {
-		case *PointerType:
-			t = tt.Elt
-			continue
-		case *DeclaredType:
-			return tt.PkgPath
-		case *StructType:
-			return tt.PkgPath
-		default:
-			return ""
-		}
-	}
-}
-
 // GetPkgID returns the cached PkgID for this DeclaredType, computing
 // it lazily on first call from PkgPath. interrealm v2 Phase 2.
 func (dt *DeclaredType) GetPkgID() PkgID {

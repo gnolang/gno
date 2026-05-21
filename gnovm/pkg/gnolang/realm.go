@@ -1913,21 +1913,6 @@ func fillTypesOfValue(store Store, val Value) Value {
 //----------------------------------------
 // persistence
 
-func (rlm *Realm) nextObjectID() ObjectID {
-	if rlm == nil {
-		panic("cannot get next object ID of nil realm")
-	}
-	if rlm.ID.IsZero() {
-		panic("cannot get next object ID of realm without an ID")
-	}
-	rlm.Time++
-	nxtid := ObjectID{
-		PkgID:   rlm.ID,
-		NewTime: rlm.Time, // starts at 1.
-	}
-	return nxtid
-}
-
 // Object gets its NewTime stamped (panics if already finalized).
 // Under interrealm v2 Phase 2:
 //   - PkgID is set at allocation time. Zero PkgID at this point
