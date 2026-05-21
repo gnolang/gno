@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/v3achecker"
+gno = "0.9"
