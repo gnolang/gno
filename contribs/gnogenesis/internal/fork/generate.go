@@ -19,17 +19,97 @@ import (
 )
 
 type generateCfg struct {
-	source                string
-	chainID               string
-	originalChainID       string
-	haltHeight            int64
-	output                string
-	txsOutput             string
-	patchRealms           patchRealmList
-	migrationTxs          stringList
+	// txs source — exactly one of these must be set
+	sourceTxsRPC       string
+	sourceTxsJSONLFile string
+	sourceTxsDataDir   string
+
+	// genesis source — exactly one of these must be set
+	sourceGenesisRPC  string
+	sourceGenesisFile string
+
 	rpcWorkersPerEndpoint int
-	skipTxs               bool
-	noVerify              bool
+
+	chainID         string
+	originalChainID string
+	haltHeight      int64
+	output          string
+	txsOutput       string
+	patchRealms     patchRealmList
+	migrationTxs    stringList
+	skipTxs         bool
+	noVerify        bool
+}
+
+// openTxsSource validates the --source-txs-* flags (exactly one required)
+// and returns the matching TxsSource.
+func (c *generateCfg) openTxsSource() (TxsSource, error) {
+	modes := []struct{ name, value string }{
+		{"--source-txs-rpc", c.sourceTxsRPC},
+		{"--source-txs-jsonl-file", c.sourceTxsJSONLFile},
+		{"--source-txs-data-dir", c.sourceTxsDataDir},
+	}
+	var set []string
+	for _, m := range modes {
+		if m.value != "" {
+			set = append(set, m.name)
+		}
+	}
+	switch len(set) {
+	case 0:
+		names := make([]string, len(modes))
+		for i, m := range modes {
+			names[i] = m.name
+		}
+		return nil, fmt.Errorf("exactly one txs source flag is required (one of %s)", strings.Join(names, ", "))
+	case 1:
+	default:
+		return nil, fmt.Errorf("txs source flags are mutually exclusive (got %s)", strings.Join(set, ", "))
+	}
+
+	switch {
+	case c.sourceTxsRPC != "":
+		return newRPCTxsSource(c.sourceTxsRPC, c.rpcWorkersPerEndpoint)
+	case c.sourceTxsJSONLFile != "":
+		return newJSONLFileTxsSource(c.sourceTxsJSONLFile)
+	case c.sourceTxsDataDir != "":
+		return newDataDirTxsSource(c.sourceTxsDataDir)
+	}
+	return nil, errors.New("unreachable: no txs source flag matched after validation")
+}
+
+// openGenesisSource validates the --source-genesis-* flags (exactly one
+// required) and returns the matching GenesisSource.
+func (c *generateCfg) openGenesisSource() (GenesisSource, error) {
+	modes := []struct{ name, value string }{
+		{"--source-genesis-rpc", c.sourceGenesisRPC},
+		{"--source-genesis-file", c.sourceGenesisFile},
+	}
+	var set []string
+	for _, m := range modes {
+		if m.value != "" {
+			set = append(set, m.name)
+		}
+	}
+	switch len(set) {
+	case 0:
+		names := make([]string, len(modes))
+		for i, m := range modes {
+			names[i] = m.name
+		}
+		return nil, fmt.Errorf("exactly one genesis source flag is required (one of %s)", strings.Join(names, ", "))
+	case 1:
+	default:
+		return nil, fmt.Errorf("genesis source flags are mutually exclusive (got %s)", strings.Join(set, ", "))
+	}
+
+	switch {
+	case c.sourceGenesisRPC != "":
+		return newRPCGenesisSource(c.sourceGenesisRPC)
+	case c.sourceGenesisFile != "":
+		return newFileGenesisSource(c.sourceGenesisFile)
+	}
+	return nil, errors.New("unreachable: no genesis source flag matched after validation")
 }
 
 // patchRealmList accepts repeated --patch-realm flags. Each value is
@@ -67,19 +147,50 @@ The source chain provides the base genesis (balances, validators, auth state)
 and the historical transaction history. Both are embedded in the new genesis
 so the new chain can replay all historical activity starting from the halt height.
 
+The source is specified across two orthogonal dimensions; pick exactly one
+flag from each:
+
+  txs source     --source-txs-rpc <url>
+                 --source-txs-jsonl-file <path>
+                 --source-txs-data-dir <dir>
+
+  genesis source --source-genesis-rpc <url>
+                 --source-genesis-file <path>
+
+Within each dimension flags are mutually exclusive; the two dimensions are
+independent — any txs source pairs with any genesis source.
+
 Examples:
 
-  # From a running or recently-halted node via RPC:
-  gnogenesis fork generate --source http://rpc.gno.land:26657 --chain-id gnoland-1
+  # Everything from one RPC:
+  gnogenesis fork generate \
+    --source-txs-rpc http://rpc.gno.land:26657 \
+    --source-genesis-rpc http://rpc.gno.land:26657 \
+    --chain-id gnoland-1
 
-  # From a local node data directory (offline, reads block store):
-  gnogenesis fork generate --source /var/lib/gnoland --chain-id gnoland-1
+  # Txs from RPC but read the (large) genesis from disk:
+  gnogenesis fork generate \
+    --source-txs-rpc http://rpc.gno.land:26657 \
+    --source-genesis-file /path/to/genesis.json \
+    --chain-id gnoland-1
 
-  # From a pre-exported tarball (genesis.json + txs.jsonl):
-  gnogenesis fork generate --source /tmp/gnoland1-export.tar.gz --chain-id gnoland-1
+  # Everything offline, from a halted gnoland data dir + a separate genesis:
+  gnogenesis fork generate \
+    --source-txs-data-dir /var/lib/gnoland \
+    --source-genesis-file /path/to/genesis.json \
+    --chain-id gnoland-1
+
+  # Reuse a pre-exported txs.jsonl + a stand-alone genesis.json:
+  gnogenesis fork generate \
+    --source-txs-jsonl-file /tmp/gnoland1-txs.jsonl \
+    --source-genesis-file /path/to/genesis.json \
+    --chain-id gnoland-1
 
   # Preview only (skip tx export — fast summary of genesis structure):
-  gnogenesis fork generate --source http://rpc.gno.land:26657 --skip-txs`,
+  gnogenesis fork generate \
+    --source-txs-rpc http://rpc.gno.land:26657 \
+    --source-genesis-rpc http://rpc.gno.land:26657 \
+    --skip-txs`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -89,9 +200,17 @@ Examples:
 }
 
 func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.source, "source", "", "source: RPC URL (or comma-separated list for failover/parallelism), local data dir, or exported file (.json/.jsonl/.tar.gz)")
+	// txs source — exactly one required, mutually exclusive. RPC URLs may be
+	// comma-separated for parallel fetch / failover; the workers-per-endpoint
+	// knob applies only when --source-txs-rpc is selected.
+	fs.StringVar(&c.sourceTxsRPC, "source-txs-rpc", "", "RPC URL (or comma-separated list for failover/parallelism) to fetch historical txs from (Block + BlockResults + account-state ABCIQuery). Mutually exclusive with --source-txs-jsonl-file and --source-txs-data-dir.")
+	fs.StringVar(&c.sourceTxsJSONLFile, "source-txs-jsonl-file", "", "path to a pre-exported amino-JSONL archive of gnoland.TxWithMetadata entries (one per line). Mutually exclusive with --source-txs-rpc and --source-txs-data-dir.")
+	fs.StringVar(&c.sourceTxsDataDir, "source-txs-data-dir", "", "path to a halted gnoland data directory (expects db/{blockstore,state,gnolang}.db, PebbleDB backend). Mutually exclusive with --source-txs-rpc and --source-txs-jsonl-file.")
 	fs.IntVar(&c.rpcWorkersPerEndpoint, "rpc-workers-per-endpoint", defaultWorkersPerEndpoint,
-		"in-flight block fetches per RPC endpoint; ignored for non-RPC sources")
+		"in-flight block fetches per RPC endpoint; only consulted when --source-txs-rpc is set")
+	// genesis source — exactly one required, mutually exclusive
+	fs.StringVar(&c.sourceGenesisRPC, "source-genesis-rpc", "", "RPC URL (or comma-separated list for failover) to fetch the source genesis from (/genesis endpoint). For large chains where /genesis is multi-hundred-MB, prefer --source-genesis-file against a local copy. Mutually exclusive with --source-genesis-file.")
+	fs.StringVar(&c.sourceGenesisFile, "source-genesis-file", "", "path to a local genesis.json file. Mutually exclusive with --source-genesis-rpc.")
 	fs.StringVar(&c.chainID, "chain-id", "gnoland-1", "new chain ID")
 	fs.StringVar(&c.originalChainID, "original-chain-id", "", "source chain ID for signature verification (auto-detected from source genesis if empty)")
 	fs.Int64Var(&c.haltHeight, "halt-height", 0, "block height at which source chain halted (auto-detected from source if 0)")
@@ -114,28 +233,31 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
-	if cfg.source == "" {
-		return errors.New("--source is required (RPC URL, local data dir, or exported file)")
-	}
-
 	if cfg.rpcWorkersPerEndpoint < 1 {
 		return fmt.Errorf("--rpc-workers-per-endpoint must be >= 1, got %d", cfg.rpcWorkersPerEndpoint)
 	}
 
-	src, err := openSource(cfg.source, cfg.rpcWorkersPerEndpoint)
+	txsSrc, err := cfg.openTxsSource()
 	if err != nil {
-		return fmt.Errorf("opening source %q: %w", cfg.source, err)
+		return err
 	}
-	defer src.Close()
+	defer txsSrc.Close()
 
-	io.Printf("Source: %s (%s)\n", src.Description(), cfg.source)
+	genSrc, err := cfg.openGenesisSource()
+	if err != nil {
+		return err
+	}
+	defer genSrc.Close()
+
+	io.Printf("Txs source:     %s\n", txsSrc.Description())
+	io.Printf("Genesis source: %s\n", genSrc.Description())
 
 	// -------------------------------------------------------------------------
-	// Step 1: Fetch base genesis from source
+	// Step 1: Fetch base genesis from genesis source
 	// -------------------------------------------------------------------------
 	io.Println("Step 1/4: Fetching base genesis...")
 
-	baseGenDoc, err := src.FetchGenesis(ctx)
+	baseGenDoc, err := genSrc.FetchGenesis(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching genesis: %w", err)
 	}
@@ -150,9 +272,9 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 		io.Printf("  Original chain ID (auto-detected): %s\n", cfg.originalChainID)
 	}
 
-	// Auto-detect halt height from source
+	// Auto-detect halt height from the txs source
 	if cfg.haltHeight == 0 {
-		h, err := src.LatestHeight(ctx)
+		h, err := txsSrc.LatestHeight(ctx)
 		if err != nil {
 			return fmt.Errorf("detecting halt height: %w", err)
 		}
@@ -170,7 +292,7 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	if !cfg.skipTxs {
 		io.Printf("Step 2/4: Fetching historical transactions (height 1..%d)...\n", cfg.haltHeight)
 
-		txs, err = src.FetchTxs(ctx, 1, cfg.haltHeight, io)
+		txs, err = txsSrc.FetchTxs(ctx, sourceChainID, 1, cfg.haltHeight, io)
 		if err != nil {
 			return fmt.Errorf("fetching transactions: %w", err)
 		}
