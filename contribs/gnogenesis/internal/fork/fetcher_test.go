@@ -252,6 +252,7 @@ func TestPooledFetcher_ContextCancellationClosesChannel(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	out := f.FetchRange(ctx, 1, 100000)
 
 	// Read a few results then cancel.
