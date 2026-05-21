@@ -26,9 +26,9 @@ There are three package categories:
   Holds persistent state. Has its own bech32 address that can send
   and receive coins.
 - **Pure packages (`/p/`)** — library code. May not import `/r/` or
-  `/e/` packages. Has its own persisted realm after Phase 3 (see §3.3),
-  but the realm is frozen after deployment — no persisted state
-  changes after construction.
+  `/e/` packages. Has no persisted `Realm` of its own; mutations to
+  `/p/`-stamped objects outside of package init are blocked at
+  runtime by the /p/-immutability gate (see §3.3).
 - **Ephemeral packages (`/e/`)** — single-use `MsgRun` execution
   with a custom `main()`. May import `/r/` and `/p/` packages.
 
@@ -150,20 +150,27 @@ Two practical consequences:
    for the allocation). See `gnovm/pkg/gnolang/alloc.go`
    `checkConstructionTime`.
 
-### 3.3 Frozen /p/ Realms (Phase 3)
+### 3.3 /p/-Immutability
 
-After Phase 3, every package — including `/p/` and stdlib — has its
-own persisted `Realm` object. For `/p/` and stdlib these realms are
-**frozen** after deployment: their state cannot be mutated. This
-matters for two reasons:
+`/p/` packages and the stdlib have no persisted `Realm` of their own.
+`pv.GetRealm()` returns nil for them; `IsRealmPath` (in
+`gnovm/pkg/gnolang/mempackage.go`) returns true only for `/r/`. Their
+package-level state is re-initialized at the start of each
+transaction that imports them.
 
-- `m.Realm.ID` is always well-defined and non-nil after package init
-  (see §4.5 invariant).
-- Setting `m.Realm` to a frozen `/p/` realm and then trying to write
-  to its state from inside a `/p/`-method body would fail. Borrow
-  rules are designed so this never happens for legitimate library
-  code: Rule 2 borrows to the *receiver's* realm (typically the
-  caller's `/r/`), not to the `/p/`'s own frozen realm.
+Mutations to real `/p/`-stamped objects from outside their own init
+are blocked at runtime. `Realm.DidUpdate` (in
+`gnovm/pkg/gnolang/realm.go`) has a branch on `rlm == nil &&
+m.Stage == StageRun` that panics with
+`"cannot mutate <pkgpath>: package is immutable post-init"` when the
+parent object is real and `/p/`-stamped. Stdlib packages are exempted
+because legitimate stdlib method dispatch also reaches this path.
+
+This gate is what makes `/p/` package state effectively immutable
+post-deployment even though the language permits the syntax of a
+mutation. Combined with Rule 2 (borrowing `m.Realm` to the
+receiver's stamp on `/p/`-method dispatch), it closes the
+`/p/`-attacker-via-interface class.
 
 ## 4. Borrow Rules
 
@@ -291,14 +298,26 @@ filetests `gnovm/tests/files/zrealm_launder_rdata_embed_p.gno`,
 when victim's `/r/`-data embeds or fields a `/p/`-type with such a
 higher-order method.
 
-### 4.5 Invariant: `m.Realm` never becomes nil
+### 4.5 When `m.Realm` is nil
 
-`setRealm` (in `machine.go`) tripwires on `r == nil && m.Realm !=
-nil`. Once any package init has run, `m.Realm` is non-nil for the
-remainder of the transaction. Every `setRealm` callsite is fed by a
-non-nil realm value: `pv.GetRealm()` of a `/r/` or `/p/` package
-(both have a `Realm` after Phase 3), or `fr.LastRealm` (captured at
-push time when `m.Realm` was already non-nil).
+`m.Realm` is nil in two cases:
+
+- During `/p/`-receiver method dispatch: Rule 2 borrows `m.Realm` to
+  `pv.GetRealm()` of the receiver's stamping package, which is nil
+  for `/p/` and stdlib. `m.Realm` stays nil for the duration of the
+  method body and is restored on frame pop via `fr.LastRealm`.
+- During stdlib top-level function calls (same mechanism — no
+  declaring realm to shift to).
+
+Both cases are intentional. The `/p/`-immutability gate in
+`Realm.DidUpdate` (§3.3) fires when `rlm == nil && m.Stage ==
+StageRun` and the object being written is real and `/p/`-stamped —
+catching writes that would otherwise slip through unattributed.
+
+`m.Realm` is non-nil during all other execution: `/r/`-method
+dispatch (Rule 2 borrows to the receiver's `/r/`), declaring-realm
+borrow on Rule 1, closure capture-realm on Rule 3, and the
+top-level frame of a transaction (one of `/r/` or `/e/`).
 
 ## 5. Crossing Functions and Crossing-Methods
 
