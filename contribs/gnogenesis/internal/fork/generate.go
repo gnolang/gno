@@ -363,7 +363,7 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	// -------------------------------------------------------------------------
 	io.Println("Step 4/4: Writing genesis...")
 
-	if err := writeGenesis(cfg.output, newGenDoc, appState); err != nil {
+	if err := writeGenesis(cfg.output, newGenDoc); err != nil {
 		return fmt.Errorf("writing genesis: %w", err)
 	}
 
@@ -477,13 +477,24 @@ func buildHardforkGenesis(
 	return &newGenDoc, &appState, nil
 }
 
-// writeGenesis serializes and writes the genesis to a file.
-func writeGenesis(path string, genDoc *bftypes.GenesisDoc, _ *gnoland.GnoGenesisState) error {
+// writeGenesis serializes and writes the genesis to disk atomically: write
+// to <path>.tmp first, then rename. A mid-write crash leaves the .tmp file
+// behind but never a half-written destination file (which the subsequent
+// verify step would read as garbage).
+func writeGenesis(path string, genDoc *bftypes.GenesisDoc) error {
 	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling genesis: %w", err)
 	}
-	return os.WriteFile(path, data, 0o644)
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", tmp, err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("renaming %s -> %s: %w", tmp, path, err)
+	}
+	return nil
 }
 
 // readMigrationTxs reads a .jsonl file of gnoland.TxWithMetadata entries.
