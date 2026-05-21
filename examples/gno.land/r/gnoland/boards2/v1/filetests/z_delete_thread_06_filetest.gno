@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_delete_thread_06_filetest
+
 // Open board: Test deleting a reply of another non member user
-package main
+package z_delete_thread_06_filetest
 
 // SEND: 1000000ugnot
 
@@ -23,23 +25,23 @@ var (
 	tid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test123", false, true)
+	bid = boards2.CreateBoard(cross(cur), "test123", false, true)
 
 	// Make sure user account has the required amount of GNOT for open board actions
 	testing.IssueCoins(user, chain.Coins{{"ugnot", 3_000_000_000}})
 
 	// Create a new reply as a non member user
 	testing.SetRealm(testing.NewUserRealm(user))
-	tid = boards2.CreateThread(cross, bid, "Title", "Body")
+	tid = boards2.CreateThread(cross(cur), bid, "Title", "Body")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user2))
 
 	// Try to delete the thread of another non member user
-	boards2.DeleteThread(cross, bid, tid)
+	boards2.DeleteThread(cross(cur), bid, tid)
 }
 
 // Error:

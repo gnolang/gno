@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/faucet/filetests/z0_filetest
+
+package z0_filetest
 
 import (
 	"chain"
@@ -14,8 +16,8 @@ func init() {
 }
 
 // assert render with empty path and no controllers
-func main() {
-	println(faucet.Render(""))
+func main(cur realm) {
+	println(faucet.Render(cross(cur), ""))
 }
 
 // Output:
@@ -25,7 +27,7 @@ func main() {
 // Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
-// Package address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
 //
 // Admin: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 //

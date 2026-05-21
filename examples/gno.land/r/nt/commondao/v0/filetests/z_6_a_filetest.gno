@@ -35,15 +35,15 @@ func (propDef) Executor() pdao.ExecFunc {
 	}
 }
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user1)
+	commondao.Invite(cross(cur), user1)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user1))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross, "Foo")
+	dao = commondao.New(cross(cur), "Foo")
 
 	// Configure DAO
 	dao.Members().Add(user1)
@@ -52,10 +52,10 @@ func init() {
 	proposal, _ = dao.Propose(user1, propDef{})
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user1))
 
-	commondao.Execute(cross, dao.ID(), proposal.ID())
+	commondao.Execute(cross(cur), dao.ID(), proposal.ID())
 
 	p := dao.FinishedProposals().Get(proposal.ID())
 	if p == nil {

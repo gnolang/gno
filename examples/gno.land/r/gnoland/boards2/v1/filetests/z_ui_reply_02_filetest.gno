@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_reply_02_filetest
+
 // Render comment/reply view of a flagged comment.
-package main
+package z_ui_reply_02_filetest
 
 import (
 	"testing"
@@ -19,19 +21,19 @@ var (
 	replyID  boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, boardName, false, false)
-	threadID = boards2.CreateThread(cross, boardID, "Foo", "Body")
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
+	threadID = boards2.CreateThread(cross(cur), boardID, "Foo", "Body")
 
 	// Create a comments with a reply
-	replyID = boards2.CreateReply(cross, boardID, threadID, 0, "Second comment")
-	boards2.CreateReply(cross, boardID, threadID, replyID, "Third comment")
+	replyID = boards2.CreateReply(cross(cur), boardID, threadID, 0, "Second comment")
+	boards2.CreateReply(cross(cur), boardID, threadID, replyID, "Third comment")
 
 	// Flag the comment
-	boards2.FlagReply(cross, boardID, threadID, replyID, "Reason")
+	boards2.FlagReply(cross(cur), boardID, threadID, replyID, "Reason")
 }
 
 func main() {

@@ -66,10 +66,10 @@ func renderGame() string {
 	return out
 }
 
-func renderRight() string {
+func renderRight(_ int, rlm realm) string {
 	out := md.Image("Coin Flip Illustration", "https://ipfs.io/ipfs/QmVZxCKz3J5iMHrACNLfFWpfpfcKT2aSmZMfvZsCQnMWbf")
 	out += "\n"
-	out += renderBalance()
+	out += renderBalance(0, rlm)
 	return out
 }
 
@@ -83,17 +83,17 @@ func renderFooter() string {
 	return out
 }
 
-func renderBalance() string {
-	balance := strconv.Itoa(int(GetRealmBalance(cross)))
+func renderBalance(_ int, rlm realm) string {
+	balance := strconv.Itoa(int(GetRealmBalance(cross(rlm))))
 	out := md.H2("Balance: " + balance + denom + "\n")
 
 	return out
 }
 
-func Render(_ string) string {
+func Render(cur realm, _ string) string {
 	out := md.Columns([]string{
 		renderGame(),
-		renderRight(),
+		renderRight(0, cur),
 	}, false)
 
 	out += renderFooter()

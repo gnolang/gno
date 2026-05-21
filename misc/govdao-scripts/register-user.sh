@@ -49,11 +49,11 @@ import (
 	"gno.land/r/sys/users"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeRegisterUser("${USERNAME}", address("${ADDR}"))
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 
