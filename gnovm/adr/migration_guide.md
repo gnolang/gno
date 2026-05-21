@@ -612,17 +612,7 @@ so the unsafe package (which lives outside `chain/runtime`) can return
   accepts `maketx run` ephemeral realms that can pre-consume the
   envelope (see `CLAUDE.md` "Realm-editing gotchas").
 
-**Migration mechanics.**
-
-Both APIs coexisted for one cycle and were then deleted; there is no
-deprecation period in the published tree. Run `gno fix` to migrate
-gno-0.0-style `std.PreviousRealm` etc. — the `stdsplit` mapping table
-(`gnovm/cmd/gno/internal/fix/stdsplit.go`) lands old code directly at
-`chain/runtime/unsafe.*`, skipping the intermediate `chain/runtime` /
-`chain/banker` location these symbols briefly occupied.
-
-For hand-migration of code already on `chain/runtime.PreviousRealm`
-shape:
+**Migration recipe.**
 
 ```
 runtime.PreviousRealm()  →  unsafe.PreviousRealm()
