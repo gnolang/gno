@@ -15,6 +15,7 @@
 //  * 'submodule' can be anything but cannot contain a ':'
 //  * 'submodule' is set to 'p' for keeper param structs.
 //  * The VM keeper of gno.land uses the submodule for realm paths.
+//  * VM realm-scoped parameter names may contain arbitrary bytes, including ':'.
 //
 // Module parameters are sourced from all other keepers, such as AuthKeeper,
 // BankKeeper, and VMKeeper which must be registered with .Register().

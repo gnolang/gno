@@ -119,8 +119,14 @@ func newTestParams() *testParams {
 	return &testParams{values: map[string]any{}}
 }
 
-func (tp *testParams) SetBool(key string, val bool)        { tp.values[key] = val }
-func (tp *testParams) SetBytes(key string, val []byte)     { tp.values[key] = val }
+func (tp *testParams) SetBool(key string, val bool) { tp.values[key] = val }
+func (tp *testParams) SetBytes(key string, val []byte) {
+	if val == nil {
+		delete(tp.values, key)
+		return
+	}
+	tp.values[key] = val
+}
 func (tp *testParams) SetInt64(key string, val int64)      { tp.values[key] = val }
 func (tp *testParams) SetUint64(key string, val uint64)    { tp.values[key] = val }
 func (tp *testParams) SetString(key string, val string)    { tp.values[key] = val }

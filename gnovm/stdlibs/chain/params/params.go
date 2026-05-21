@@ -37,6 +37,11 @@ func SetBytes(m *gno.Machine, key string, val []byte) {
 	execctx.GetContext(m).Params.SetBytes(pk, val)
 }
 
+func SetBytesKey(m *gno.Machine, key []byte, val []byte) {
+	pk := pkeyRaw(m, key)
+	execctx.GetContext(m).Params.SetBytes(pk, val)
+}
+
 func SetStrings(m *gno.Machine, key string, val []string) {
 	pk := pkey(m, key)
 	execctx.GetContext(m).Params.SetStrings(pk, val)
@@ -45,6 +50,13 @@ func SetStrings(m *gno.Machine, key string, val []string) {
 func UpdateParamStrings(m *gno.Machine, key string, val []string, add bool) {
 	pk := pkey(m, key)
 	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
+}
+
+func GetBytesKey(m *gno.Machine, key []byte) ([]byte, bool) {
+	pk := pkeyRaw(m, key)
+	var out []byte
+	ok := execctx.GetContext(m).Params.GetBytes(pk, &out)
+	return out, ok
 }
 
 // NOTE: further validation must happen by implementor of ParamsInterface.
@@ -57,4 +69,14 @@ func pkey(m *gno.Machine, key string) string {
 	}
 	_, rlmPath := execctx.CurrentRealm(m)
 	return fmt.Sprintf("vm:%s:%s", rlmPath, key)
+}
+
+// pkeyRaw builds the realm-prefixed storage key for a raw binary key.
+// Unlike pkey it does not reject ':' in the key: the key is appended verbatim.
+func pkeyRaw(m *gno.Machine, key []byte) string {
+	if len(key) == 0 {
+		m.PanicString("empty param key")
+	}
+	_, rlmPath := execctx.CurrentRealm(m)
+	return "vm:" + rlmPath + ":" + string(key)
 }

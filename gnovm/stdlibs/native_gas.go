@@ -76,7 +76,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 46 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 48 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                           // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -96,6 +96,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/banker", Fn: "originSend", Base: 280, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 280.4ns
 	{Pkg: "chain/banker", Fn: "assertCallerIsRealm", Base: 701, SlopeIdx: -1, SlopeKind: SizeFlat},                                                               // flat, median 700.8ns
 	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000
+	{Pkg: "chain/params", Fn: "SetBytesKey", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                     // mirrors SetBytes with a raw []byte key
+	{Pkg: "chain/params", Fn: "GetBytesKey", Base: 1912, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},     // mirrors chain/params keying plus sys/params bytes return cost
 	{Pkg: "chain/params", Fn: "SetString", Base: 1772, Slope: 135, SlopeIdx: 1, SlopeKind: SizeLenString},                                                        // fit base=1772.3ns slope=0.1323ns/N (=135/1024) R²=0.933
 	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 1643.0ns
 	{Pkg: "chain/params", Fn: "SetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 1201.0ns
