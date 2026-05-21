@@ -20,9 +20,10 @@ var (
 	errUncoveredGenesisValidator = errors.New("genesis validator has no corresponding valopers.Register migration tx")
 )
 
-// The realm + function valopers.Register lives at. Mirrors the
-// constants in contribs/gnogenesis/internal/fork/valoper_seed.go; kept
-// duplicated here to avoid coupling verify to fork.
+// Realm path and function name for the valopers.Register MsgCall the
+// coverage check matches. Mirrors the constants in
+// contribs/gnogenesis/internal/fork/valoper_seed.go; kept duplicated
+// here to avoid coupling verify to fork.
 const (
 	valopersPkgPath    = "gno.land/r/gnops/valopers"
 	valopersRegisterFn = "Register"
@@ -149,8 +150,15 @@ func checkGenesisValoperCoverage(genesis *types.GenesisDoc, state gnoland.GnoGen
 		return nil
 	}
 
-	covered := map[crypto.Address]bool{}
+	covered := make(map[crypto.Address]bool, len(genesis.Validators))
 	for _, tx := range state.Txs {
+		// Runtime gno.land/pkg/gnoland/app.go:779-787 short-circuits
+		// metadata.Failed=true txs before baseApp.Deliver, so a Failed
+		// Register never populates valoperCache. Mirror that here so
+		// verify doesn't report coverage the runtime won't honor.
+		if tx.Metadata != nil && tx.Metadata.Failed {
+			continue
+		}
 		for _, msg := range tx.Tx.Msgs {
 			call, ok := msg.(vm.MsgCall)
 			if !ok {

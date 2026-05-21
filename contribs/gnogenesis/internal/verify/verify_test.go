@@ -283,15 +283,19 @@ func TestGenesis_Verify(t *testing.T) {
 		// argument so derive(arg[4]) == Validators[0].Address.
 		valPubKey := g.Validators[0].PubKey
 		pubKeyBech32 := crypto.PubKeyToBech32(valPubKey)
-		opAddr := valPubKey.Address() // any non-zero addr is fine for the verify-time check
+		// verify ignores Args[3] (operator addr); only Args[4]
+		// (signing pubkey) matters for the coverage check. Runtime
+		// distinguishes the two, but any non-zero addr is fine in
+		// this verify-time test.
+		opAddr := valPubKey.Address()
 
 		// Sign the Register tx so it passes the existing per-tx
 		// signature loop in execVerify before the coverage check runs.
 		signer := ed25519.GenPrivKey()
 		registerMsg := vm.MsgCall{
 			Caller:  signer.PubKey().Address(),
-			PkgPath: "gno.land/r/gnops/valopers",
-			Func:    "Register",
+			PkgPath: valopersPkgPath,
+			Func:    valopersRegisterFn,
 			Args:    []string{"moul-1", "moul-1's profile", "cloud", opAddr.String(), pubKeyBech32},
 		}
 		tx := std.Tx{
@@ -319,6 +323,127 @@ func TestGenesis_Verify(t *testing.T) {
 
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
+	})
+
+	t.Run("hardfork-mode genesis with two validators, only one covered", func(t *testing.T) {
+		// Exercises the partial-coverage path: the uncovered []string
+		// aggregation must list ONLY the uncovered validator, and the
+		// error message must surface that address (not the covered one).
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+
+		// Add a second validator with a distinct pubkey.
+		secondKey := mock.GenPrivKey().PubKey()
+		g.Validators = append(g.Validators, types.GenesisValidator{
+			Address: secondKey.Address(),
+			PubKey:  secondKey,
+			Power:   1,
+			Name:    "uncovered validator",
+		})
+
+		// Build a Register tx that covers ONLY the first validator.
+		coveredPubKey := g.Validators[0].PubKey
+		pubKeyBech32 := crypto.PubKeyToBech32(coveredPubKey)
+		opAddr := coveredPubKey.Address()
+
+		signer := ed25519.GenPrivKey()
+		registerMsg := vm.MsgCall{
+			Caller:  signer.PubKey().Address(),
+			PkgPath: valopersPkgPath,
+			Func:    valopersRegisterFn,
+			Args:    []string{"covered-1", "covered profile", "cloud", opAddr.String(), pubKeyBech32},
+		}
+		tx := std.Tx{
+			Msgs: []std.Msg{registerMsg},
+			Fee:  std.Fee{GasWanted: 1000000, GasFee: std.NewCoin("ugnot", 20)},
+		}
+		signBytes, err := tx.GetSignBytes(g.ChainID, 0, 0)
+		require.NoError(t, err)
+		signature, err := signer.Sign(signBytes)
+		require.NoError(t, err)
+		tx.Signatures = append(tx.Signatures, std.Signature{
+			PubKey:    signer.PubKey(),
+			Signature: signature,
+		})
+
+		state := g.AppState.(gnoland.GnoGenesisState)
+		state.PastChainIDs = []string{"old-chain"}
+		state.Txs = []gnoland.TxWithMetadata{{Tx: tx}}
+		g.AppState = state
+
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{"--genesis-path", tempFile.Name()}
+
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.ErrorIs(t, cmdErr, errUncoveredGenesisValidator)
+		// Only the second (uncovered) validator's address must appear
+		// in the error; the first (covered) must not.
+		assert.Contains(t, cmdErr.Error(), secondKey.Address().String())
+		assert.NotContains(t, cmdErr.Error(), coveredPubKey.Address().String())
+	})
+
+	t.Run("hardfork-mode genesis: Failed Register tx does not cover validator", func(t *testing.T) {
+		// Runtime gno.land/pkg/gnoland/app.go:779-787 short-circuits
+		// metadata.Failed=true txs before baseApp.Deliver runs, so a
+		// Failed Register tx never actually populates valoperCache.
+		// The verify-time check must skip Failed txs the same way,
+		// otherwise verify reports coverage that the runtime ignores —
+		// verify-OK followed by chain-PANIC at boot, the exact
+		// leaky-shift-left this PR is meant to close.
+		t.Parallel()
+
+		tempFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		g := getValidTestGenesis()
+
+		valPubKey := g.Validators[0].PubKey
+		pubKeyBech32 := crypto.PubKeyToBech32(valPubKey)
+		opAddr := valPubKey.Address()
+
+		signer := ed25519.GenPrivKey()
+		registerMsg := vm.MsgCall{
+			Caller:  signer.PubKey().Address(),
+			PkgPath: valopersPkgPath,
+			Func:    valopersRegisterFn,
+			Args:    []string{"moul-1", "moul-1's profile", "cloud", opAddr.String(), pubKeyBech32},
+		}
+		tx := std.Tx{
+			Msgs: []std.Msg{registerMsg},
+			Fee:  std.Fee{GasWanted: 1000000, GasFee: std.NewCoin("ugnot", 20)},
+		}
+		signBytes, err := tx.GetSignBytes(g.ChainID, 0, 0)
+		require.NoError(t, err)
+		signature, err := signer.Sign(signBytes)
+		require.NoError(t, err)
+		tx.Signatures = append(tx.Signatures, std.Signature{
+			PubKey:    signer.PubKey(),
+			Signature: signature,
+		})
+
+		state := g.AppState.(gnoland.GnoGenesisState)
+		state.PastChainIDs = []string{"old-chain"}
+		// Failed=true is the only diff vs the "covered" subtest — the
+		// asymmetry under test.
+		state.Txs = []gnoland.TxWithMetadata{{
+			Tx:       tx,
+			Metadata: &gnoland.GnoTxMetadata{Failed: true},
+		}}
+		g.AppState = state
+
+		require.NoError(t, g.SaveAs(tempFile.Name()))
+
+		cmd := NewVerifyCmd(commands.NewTestIO())
+		args := []string{"--genesis-path", tempFile.Name()}
+
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorIs(t, cmdErr, errUncoveredGenesisValidator)
 	})
 
 	t.Run("non-hardfork genesis: coverage check skipped", func(t *testing.T) {
