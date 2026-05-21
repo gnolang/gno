@@ -102,12 +102,13 @@ func stdsplit(f *ast.File) (fixed bool) {
 	}
 
 	knownImportIdentifiers := map[string]string{
-		"std":           "std",
-		"chain":         "chain",
-		"chain/runtime": "runtime",
-		"chain/params":  "params",
-		"chain/banker":  "banker",
-		"testing":       "testing",
+		"std":                  "std",
+		"chain":                "chain",
+		"chain/runtime":        "runtime",
+		"chain/runtime/unsafe": "unsafe",
+		"chain/params":         "params",
+		"chain/banker":         "banker",
+		"testing":              "testing",
 	}
 
 	var toRename []string
