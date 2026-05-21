@@ -29,7 +29,9 @@ reset_validator val4
 reset_validator val5
 
 # 3/5 validators running — chain must halt.
-assert_chain_halted val1 30
+# Use delta=4: BFT may commit up to 2 in-flight blocks (already pre-committed
+# by val4/val5 before SIGTERM) before truly halting; delta=4 absorbs that.
+assert_chain_halted val1 30 4
 
 start_validator val4
 start_validator val5

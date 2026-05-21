@@ -40,7 +40,7 @@ package atomicswap
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 	"time"
 
@@ -75,24 +75,24 @@ func NewGRC20Swap(cur realm, recipient address, hashlock string, tokenRegistryKe
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
 // It allows specifying a custom timelock duration.
 //
-// Only direct user-call (maketx call) is accepted: banker.OriginSend()
+// Only direct user-call (maketx call) is accepted: unsafe.OriginSend()
 // describes a real receipt at this realm only when the caller is a pure
 // EOA. Intermediate code realms or `maketx run` ephemeral realms can
 // attach -send to the tx but spend the envelope elsewhere, leaving
 // OriginSend() describing a phantom payment that would let the swap
 // drain the realm's pre-existing balance on Claim.
 func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock time.Time) (int, *Swap) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	sender := runtime.PreviousRealm().Address()
-	sent := banker.OriginSend()
+	sender := cur.Previous().Address()
+	sent := unsafe.OriginSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 
 	// Create the swap
 	sendFn := func(cur realm, to address) {
-		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-		pkgAddr := runtime.CurrentRealm().Address()
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+		pkgAddr := cur.Address()
 		banker_.SendCoins(pkgAddr, to, sent)
 	}
 	amountStr := sent.String()
@@ -107,19 +107,19 @@ func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock t
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
 func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
-	sender := runtime.PreviousRealm().Address()
-	curAddr := runtime.CurrentRealm().Address()
+	sender := cur.Previous().Address()
+	curAddr := cur.Address()
 
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
 
-	userTeller := token.RealmTeller()
-	err := userTeller.TransferFrom(sender, curAddr, allowance)
+	userTeller := token.RealmTeller(0, cur)
+	err := userTeller.TransferFrom(0, cur, sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
 
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(cur realm, to address) {
-		err := userTeller.Transfer(to, allowance)
+		err := userTeller.Transfer(0, cur, to, allowance)
 		require(err == nil, "cannot transfer tokens")
 	}
 
@@ -135,13 +135,13 @@ func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock 
 // Claim loads a registered swap and tries to claim it.
 func Claim(cur realm, id int, secret string) {
 	swap := mustGet(id)
-	swap.Claim(secret)
+	swap.Claim(0, cur, secret)
 }
 
 // Refund loads a registered swap and tries to refund it.
 func Refund(cur realm, id int) {
 	swap := mustGet(id)
-	swap.Refund()
+	swap.Refund(0, cur)
 }
 
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.

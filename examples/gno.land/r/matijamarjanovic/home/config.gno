@@ -1,8 +1,6 @@
 package home
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/moul/authz"
 )
 
@@ -14,7 +12,7 @@ var (
 )
 
 func Authorize(cur realm, addr string) {
-	auth.AddMember(runtime.PreviousRealm().Address(), address(addr))
+	auth.AddMember(0, cur, address(addr))
 }
 
 func Address() address {

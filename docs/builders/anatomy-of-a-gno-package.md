@@ -151,8 +151,8 @@ func TestIncrement(t *testing.T) {
 
 By using the `testing` package from the standard library, we can access the
 `testing.T` object that exposes methods which can help us terminate tests in specific cases.
-Next, to satisfy the first argument of the `Increment()` function, we will use the
-built-in `cross`.
+Next, to satisfy the first argument of the `Increment()` function, we will use
+`cross(cur)`, which validates that `cur` is the current realm and forwards it.
 
 :::info
 Common testing patterns found in Go, such as [TDT](https://go.dev/wiki/TableDrivenTests),

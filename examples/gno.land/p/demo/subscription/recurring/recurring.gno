@@ -22,15 +22,16 @@ type RecurringSubscription struct {
 	subs      *avl.Tree // address.String() -> time.Time
 }
 
-// NewRecurringSubscription creates a new recurring subscription. payeeAddr
-// must be valid (typically the constructing realm's own address) and is
-// the fixed destination for every Send pulled by Subscribe.
-func NewRecurringSubscription(duration time.Duration, amount int64, payeeAddr address) *RecurringSubscription {
+// NewRecurringSubscription creates a new recurring subscription. owner is
+// the address authorized to call UpdateAmount. payeeAddr must be valid
+// (typically the constructing realm's own address) and is the fixed
+// destination for every Send pulled by Subscribe.
+func NewRecurringSubscription(owner address, duration time.Duration, amount int64, payeeAddr address) *RecurringSubscription {
 	if !payeeAddr.IsValid() {
 		panic(ErrInvalidPayee)
 	}
 	return &RecurringSubscription{
-		Ownable:   *ownable.New(),
+		Ownable:   *ownable.NewWithAddress(owner),
 		duration:  duration,
 		amount:    amount,
 		payeeAddr: payeeAddr,
@@ -87,8 +88,13 @@ func (rs *RecurringSubscription) GetExpiration(subscriber address) (time.Time, e
 }
 
 // UpdateAmount lets the subscription owner change the per-period amount.
-func (rs *RecurringSubscription) UpdateAmount(newAmount int64) error {
-	if !rs.Owned() {
+// rlm must be the caller's own captured cur; rlm.Previous().Address()
+// must equal the owner.
+func (rs *RecurringSubscription) UpdateAmount(_ int, rlm realm, newAmount int64) error {
+	if !rlm.IsCurrent() {
+		return ErrNotAuthorized
+	}
+	if !rs.OwnedBy(rlm.Previous().Address()) {
 		return ErrNotAuthorized
 	}
 	rs.amount = newAmount
