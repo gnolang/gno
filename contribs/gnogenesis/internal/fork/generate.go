@@ -2,7 +2,6 @@ package fork
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -41,75 +40,76 @@ type generateCfg struct {
 	noVerify        bool
 }
 
-// openTxsSource validates the --source-txs-* flags (exactly one required)
-// and returns the matching TxsSource.
-func (c *generateCfg) openTxsSource() (TxsSource, error) {
-	modes := []struct{ name, value string }{
-		{"--source-txs-rpc", c.sourceTxsRPC},
-		{"--source-txs-jsonl-file", c.sourceTxsJSONLFile},
-		{"--source-txs-data-dir", c.sourceTxsDataDir},
-	}
+// flagChoice pairs a CLI flag name with its current value for pickExactlyOne.
+type flagChoice struct {
+	name  string
+	value string
+}
+
+// pickExactlyOne enforces the mutex+required rule across a group of flags:
+// returns the name of the single set flag, or an error naming the offenders
+// (no flag set / multiple flags set). dimension is included verbatim in the
+// error messages.
+func pickExactlyOne(dimension string, choices []flagChoice) (string, error) {
 	var set []string
-	for _, m := range modes {
-		if m.value != "" {
-			set = append(set, m.name)
+	for _, c := range choices {
+		if c.value != "" {
+			set = append(set, c.name)
 		}
 	}
 	switch len(set) {
-	case 0:
-		names := make([]string, len(modes))
-		for i, m := range modes {
-			names[i] = m.name
-		}
-		return nil, fmt.Errorf("exactly one txs source flag is required (one of %s)", strings.Join(names, ", "))
 	case 1:
+		return set[0], nil
+	case 0:
+		names := make([]string, len(choices))
+		for i, c := range choices {
+			names[i] = c.name
+		}
+		return "", fmt.Errorf("exactly one %s flag is required (one of %s)", dimension, strings.Join(names, ", "))
 	default:
-		return nil, fmt.Errorf("txs source flags are mutually exclusive (got %s)", strings.Join(set, ", "))
+		return "", fmt.Errorf("%s flags are mutually exclusive (got %s)", dimension, strings.Join(set, ", "))
 	}
+}
 
-	switch {
-	case c.sourceTxsRPC != "":
+// openTxsSource validates the --source-txs-* flags (exactly one required)
+// and returns the matching TxsSource.
+func (c *generateCfg) openTxsSource() (TxsSource, error) {
+	chosen, err := pickExactlyOne("txs source", []flagChoice{
+		{"--source-txs-rpc", c.sourceTxsRPC},
+		{"--source-txs-jsonl-file", c.sourceTxsJSONLFile},
+		{"--source-txs-data-dir", c.sourceTxsDataDir},
+	})
+	if err != nil {
+		return nil, err
+	}
+	switch chosen {
+	case "--source-txs-rpc":
 		return newRPCTxsSource(c.sourceTxsRPC, c.rpcWorkersPerEndpoint)
-	case c.sourceTxsJSONLFile != "":
+	case "--source-txs-jsonl-file":
 		return newJSONLFileTxsSource(c.sourceTxsJSONLFile)
-	case c.sourceTxsDataDir != "":
+	case "--source-txs-data-dir":
 		return newDataDirTxsSource(c.sourceTxsDataDir)
 	}
-	return nil, errors.New("unreachable: no txs source flag matched after validation")
+	panic("unreachable: txs source flag validated but no constructor matched")
 }
 
 // openGenesisSource validates the --source-genesis-* flags (exactly one
 // required) and returns the matching GenesisSource.
 func (c *generateCfg) openGenesisSource() (GenesisSource, error) {
-	modes := []struct{ name, value string }{
+	chosen, err := pickExactlyOne("genesis source", []flagChoice{
 		{"--source-genesis-rpc", c.sourceGenesisRPC},
 		{"--source-genesis-file", c.sourceGenesisFile},
+	})
+	if err != nil {
+		return nil, err
 	}
-	var set []string
-	for _, m := range modes {
-		if m.value != "" {
-			set = append(set, m.name)
-		}
-	}
-	switch len(set) {
-	case 0:
-		names := make([]string, len(modes))
-		for i, m := range modes {
-			names[i] = m.name
-		}
-		return nil, fmt.Errorf("exactly one genesis source flag is required (one of %s)", strings.Join(names, ", "))
-	case 1:
-	default:
-		return nil, fmt.Errorf("genesis source flags are mutually exclusive (got %s)", strings.Join(set, ", "))
-	}
-
-	switch {
-	case c.sourceGenesisRPC != "":
+	switch chosen {
+	case "--source-genesis-rpc":
 		return newRPCGenesisSource(c.sourceGenesisRPC)
-	case c.sourceGenesisFile != "":
+	case "--source-genesis-file":
 		return newFileGenesisSource(c.sourceGenesisFile)
 	}
-	return nil, errors.New("unreachable: no genesis source flag matched after validation")
+	panic("unreachable: genesis source flag validated but no constructor matched")
 }
 
 // patchRealmList accepts repeated --patch-realm flags. Each value is
@@ -241,13 +241,21 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	defer txsSrc.Close()
+	defer func() {
+		if cerr := txsSrc.Close(); cerr != nil {
+			io.Printf("WARNING: closing txs source: %v\n", cerr)
+		}
+	}()
 
 	genSrc, err := cfg.openGenesisSource()
 	if err != nil {
 		return err
 	}
-	defer genSrc.Close()
+	defer func() {
+		if cerr := genSrc.Close(); cerr != nil {
+			io.Printf("WARNING: closing genesis source: %v\n", cerr)
+		}
+	}()
 
 	io.Printf("Txs source:     %s\n", txsSrc.Description())
 	io.Printf("Genesis source: %s\n", genSrc.Description())

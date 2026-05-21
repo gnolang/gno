@@ -2,6 +2,7 @@ package fork
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -100,6 +101,10 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 	if err = s.cms.LoadLatestVersion(); err != nil {
 		return s, fmt.Errorf("loading app multistore: %w", err)
 	}
+	// AccountKeeper.GetAccount reads directly from its store key and does
+	// not consult the params keeper — we only need the keeper for its
+	// constructor signature, so no prmk.Register here (the keeper's params
+	// are never queried by the read-only flow we use).
 	prmk := params.NewParamsKeeper(s.mainKey)
 	s.acck = auth.NewAccountKeeper(
 		s.mainKey,
@@ -107,7 +112,6 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 		gnoland.ProtoGnoAccount,
 		gnoland.ProtoGnoSessionAccount,
 	)
-	prmk.Register(auth.ModuleName, s.acck)
 
 	return s, nil
 }
@@ -115,16 +119,16 @@ func newDataDirTxsSource(dataDir string) (s *dataDirTxsSource, err error) {
 func (s *dataDirTxsSource) Description() string { return "gnoland data directory" }
 
 func (s *dataDirTxsSource) Close() error {
-	var firstErr error
+	var errs []error
 	for _, db := range []dbm.DB{s.bsDB, s.stateDB, s.appDB} {
 		if db == nil {
 			continue
 		}
-		if closeErr := db.Close(); closeErr != nil && firstErr == nil {
-			firstErr = closeErr
+		if closeErr := db.Close(); closeErr != nil {
+			errs = append(errs, closeErr)
 		}
 	}
-	return firstErr
+	return errors.Join(errs...)
 }
 
 // LatestHeight returns the highest committed block height in the local
@@ -147,6 +151,21 @@ func (s *dataDirTxsSource) FetchTxs(ctx context.Context, chainID string, fromHei
 	bsHeight := s.blockStore.Height()
 	if toHeight > bsHeight {
 		return nil, fmt.Errorf("requested toHeight=%d exceeds local blockstore height %d", toHeight, bsHeight)
+	}
+	// queryAccountAtHeight reads the multistore at its latest committed
+	// version (older versions may have been pruned). If --halt-height is set
+	// below the snapshot's tip, signer (accNum, finalSeq) are read from a
+	// later state than requested. accNum is stable post-creation and
+	// finalSeq is monotonic, so brute-force still converges for accounts
+	// that existed at toHeight — but accounts created after toHeight will
+	// be visible at the (newer) latest version, mistreated as if existing
+	// at toHeight. Flag this loudly so the operator knows what they're
+	// getting.
+	if toHeight < bsHeight {
+		io.Printf("  WARNING: --halt-height=%d is below the local blockstore tip %d.\n"+
+			"           Account state is read at the snapshot's latest committed version, not at halt-height.\n"+
+			"           For a guaranteed faithful snapshot, truncate the data dir first (e.g. via gnobr).\n",
+			toHeight, bsHeight)
 	}
 
 	signerStates := map[crypto.Address]*signerState{}

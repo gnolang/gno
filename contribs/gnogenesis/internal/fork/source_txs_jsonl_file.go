@@ -11,6 +11,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
+// jsonlFileMaxLineBytes caps the bufio.Scanner buffer used to read each line
+// of a txs JSONL archive. A genesis-mode addpkg tx in particular can carry
+// the full source of a fat realm in a single line, so the cap is generous —
+// 32 MiB comfortably accommodates any realm shape we've seen in practice
+// while still bounding worst-case memory per line.
+const jsonlFileMaxLineBytes = 32 * 1024 * 1024
+
 // jsonlFileTxsSource reads pre-exported transactions from a single .jsonl file.
 // Each line is an amino-JSON gnoland.TxWithMetadata; SignerInfo, BlockHeight,
 // ChainID and Failed are already populated by whoever produced the file —
@@ -37,7 +44,7 @@ func (s *jsonlFileTxsSource) Close() error        { return nil }
 // For multi-hundred-MB archives this is acceptable: the caller uses it
 // only when --halt-height is not specified, and the full FetchTxs that
 // follows reads the file anyway.
-func (s *jsonlFileTxsSource) LatestHeight(_ context.Context) (int64, error) {
+func (s *jsonlFileTxsSource) LatestHeight(ctx context.Context) (int64, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		return 0, fmt.Errorf("opening %s: %w", s.path, err)
@@ -45,9 +52,18 @@ func (s *jsonlFileTxsSource) LatestHeight(_ context.Context) (int64, error) {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 4096), 10*1024*1024)
+	scanner.Buffer(make([]byte, 0, 4096), jsonlFileMaxLineBytes)
 	var maxHeight int64
+	var lineNum int64
 	for scanner.Scan() {
+		lineNum++
+		if lineNum%10_000 == 0 {
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			default:
+			}
+		}
 		line := scanner.Bytes()
 		if len(line) == 0 {
 			continue
@@ -72,7 +88,7 @@ func (s *jsonlFileTxsSource) LatestHeight(_ context.Context) (int64, error) {
 // FetchTxs reads every line and filters by [fromHeight, toHeight]. The
 // chainID parameter is ignored — each line carries its own ChainID in the
 // metadata, produced by an earlier export run.
-func (s *jsonlFileTxsSource) FetchTxs(_ context.Context, _ string, fromHeight, toHeight int64, io commands.IO) ([]gnoland.TxWithMetadata, error) {
+func (s *jsonlFileTxsSource) FetchTxs(ctx context.Context, _ string, fromHeight, toHeight int64, io commands.IO) ([]gnoland.TxWithMetadata, error) {
 	io.Printf("  Reading txs from: %s\n", s.path)
 
 	f, err := os.Open(s.path)
@@ -83,8 +99,17 @@ func (s *jsonlFileTxsSource) FetchTxs(_ context.Context, _ string, fromHeight, t
 
 	var txs []gnoland.TxWithMetadata
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 4096), 10*1024*1024)
+	scanner.Buffer(make([]byte, 0, 4096), jsonlFileMaxLineBytes)
+	var lineNum int64
 	for scanner.Scan() {
+		lineNum++
+		if lineNum%10_000 == 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+			}
+		}
 		line := scanner.Bytes()
 		if len(line) == 0 {
 			continue
