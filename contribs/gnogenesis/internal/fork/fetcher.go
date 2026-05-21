@@ -51,29 +51,36 @@ type pooledFetcher struct {
 // The channel closes once all heights have been delivered, on context
 // cancellation, or after a terminal error.
 func (p *pooledFetcher) FetchRange(ctx context.Context, from, to int64) <-chan blockResult {
-	out := make(chan blockResult)
 	if from > to {
+		out := make(chan blockResult)
 		close(out)
 		return out
 	}
 	if p.numEndpoints <= 0 || p.workersPerEndpoint <= 0 {
-		go func() {
-			defer close(out)
-			err := fmt.Errorf("pooledFetcher: numEndpoints=%d workersPerEndpoint=%d, both must be >= 1",
-				p.numEndpoints, p.workersPerEndpoint)
-			select {
-			case <-ctx.Done():
-			case out <- blockResult{height: from, err: err}:
-			}
-		}()
+		out := make(chan blockResult, 1)
+		out <- blockResult{
+			height: from,
+			err: fmt.Errorf("pooledFetcher: numEndpoints=%d workersPerEndpoint=%d, both must be >= 1",
+				p.numEndpoints, p.workersPerEndpoint),
+		}
+		close(out)
 		return out
 	}
+	out := make(chan blockResult)
 	go p.run(ctx, from, to, out)
 	return out
 }
 
 func (p *pooledFetcher) run(ctx context.Context, from, to int64, out chan<- blockResult) {
 	defer close(out)
+
+	// Own a child context so any early return (terminal error, ctx.Done in
+	// the reorder loop) propagates to producer + workers + fetchWithFailover.
+	// Without this, a terminal-error path closes `out` but leaves background
+	// goroutines fetching and trying to push to workerResults until the
+	// caller's parent ctx eventually cancels.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	totalWorkers := p.numEndpoints * p.workersPerEndpoint
 	heights := make(chan int64, totalWorkers)
