@@ -585,6 +585,16 @@ without `(cur realm)` all need different fixes. The `cross1`
 intermediate lets the mechanical sweep land first (compile-clean,
 preserves behavior) and the semantic threading happen at a human pace.
 
+**Common Step 2 shapes in practice:**
+
+| Where the `cross1` lives | Step 2 transform |
+|---|---|
+| Inside a crossing function `func Bar(cur realm) { Foo(cross1, ...) }` | `Foo(cross(cur), ...)` — thread the enclosing `cur`. |
+| Inside a non-crossing helper that has no realm in scope | Add `(_ int, cur realm, ...)` to the helper signature (no leading `cur` to avoid making it crossing), update callers to pass `(0, cur, ...)`, then `cross1` → `cross(cur)`. |
+| Inside a test fn `func TestX(t *testing.T) { ... cross1 ... }` | Rewrite as `func TestX(cur realm, t *testing.T)` (allowed in `_test.gno` only; see §11), then `cross1` → `cross(cur)`. Every `uassert`/`urequire` helper called inside also needs `cur` threaded as its second argument. |
+| Inside a MsgRun script `package main` + `func main() { ... cross1 ... }` | Rewrite as `func main(cur realm)` (the `/e/` carve-out — see §12), then `cross1` → `cross(cur)`. Scripts that contain multiple `package main` heredocs (e.g. one to drive a proposal, one to assert state afterward) should leave the assert-only heredoc as `func main()` — adding an unused `cur realm` parameter is misleading. |
+| Inside an `init()` that mutates realm state | Rewrite as `init(cur realm)` (same allowance as `main`), then `cross1` → `cross(cur)`. |
+
 **When you cannot finish Step 2:** leave `cross1` in place. The
 sentinel is intentionally preserved in uverse for exactly this case —
 it isn't a deprecation that will break, it's a long-tail compatibility
