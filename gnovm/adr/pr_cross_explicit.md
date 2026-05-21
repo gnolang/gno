@@ -1,9 +1,8 @@
 # cross(rlm): explicit cross-call form
 
-> Historical note: this design originally landed as `cross2(rlm)` while
-> a legacy bare-`cross` sentinel was still in use. After the sentinel
-> was removed, `cross2` was renamed to `cross`. This document describes
-> the resulting canonical form.
+> Note on naming: earlier drafts of this design spelled the explicit
+> form `cross2(rlm)` to coexist with a legacy bare-`cross` sentinel.
+> The sentinel no longer exists; the explicit form is named `cross`.
 
 ## Context
 

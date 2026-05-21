@@ -2,11 +2,11 @@
 package deferfix0
 
 // Test 1: defer-method on a struct constructed in the caller's realm
-// and then handed to another realm for storage. Under interrealm v2
-// Phase 2 (storage = authority, stamped at construction), the struct's
-// PkgID stays at the constructor's realm, so direct field mutation from
-// that same realm succeeds — no readonly-tainted panic, regardless of
-// where the object is currently persisted.
+// and then handed to another realm for storage. Storage is authority
+// and is stamped at construction, so the struct's PkgID stays at the
+// constructor's realm. Direct field mutation from that same realm
+// succeeds — no readonly-tainted panic, regardless of where the
+// object is currently persisted.
 
 import (
 	crossrealm "gno.land/r/tests/vm/crossrealm"

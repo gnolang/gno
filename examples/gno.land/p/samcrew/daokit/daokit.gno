@@ -48,10 +48,11 @@
 //   - The Action / ActionHandler / Resources triangle requires three
 //     coordinated registrations per action kind (Action type,
 //     Handler closure, Resource entry with Condition).
-//   - basedao layers a DAOWrapper / DAOPrivate split on top, with a
-//     recent rlm-aware dispatch carve-out (ExecuteWithDispatch override)
-//     for the one action that needs cross-realm authority. Reading the
-//     execute path requires tracing through three packages.
+//   - basedao layers a DAOWrapper / DAOPrivate split on top.
+//     DAOWrapper.ExecuteWithDispatch routes actions that need
+//     cross-realm authority through an rlm-aware handler before
+//     falling back to the address-typed Core.Execute path. Reading
+//     the execute path requires tracing through three packages.
 //
 // Use at your own risk. If you adopt this package, fork it and
 // harden the items above before exposing it to untrusted input.

@@ -278,13 +278,12 @@ type UpdateRequest struct {
 }
 
 // NewUpdateRequest copies allowedDAOs into a fresh slice owned by
-// /r/gov/dao. Under interrealm v2's storage=authority model, if we stored
-// the caller-passed slice directly, the base ArrayValue would
-// retain PkgID = caller_realm: storage rent would attribute to
-// caller, and /r/gov/dao could not mutate (e.g. append to) its own
-// copy without a DidUpdate panic. The internal copy ensures the
-// UpdateRequest and its AllowedDAOs both live entirely in
-// /r/gov/dao's authority.
+// /r/gov/dao. Under the storage=authority model, if we stored the
+// caller-passed slice directly, the base ArrayValue would retain
+// PkgID = caller_realm: storage rent would attribute to caller, and
+// /r/gov/dao could not mutate (e.g. append to) its own copy without
+// a DidUpdate panic. The internal copy ensures the UpdateRequest
+// and its AllowedDAOs both live entirely in /r/gov/dao's authority.
 func NewUpdateRequest(d DAO, allowedDAOs []string) UpdateRequest {
 	cp := make([]string, len(allowedDAOs))
 	copy(cp, allowedDAOs)

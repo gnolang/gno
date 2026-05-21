@@ -165,8 +165,8 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 				alloc = NewAllocator(opts.MaxAllocBytes)
 			} else {
 				// No budget specified: still need a real allocator so
-				// PkgID stamping works (interrealm v2). Use MaxInt64 as
-				// the "no budget enforcement" sentinel.
+				// PkgID stamping works. Use MaxInt64 as the "no budget
+				// enforcement" sentinel.
 				alloc = NewAllocator(math.MaxInt64)
 			}
 		}
@@ -285,9 +285,9 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 
 // setRealm updates both m.Realm and m.Alloc.currentRealmID, keeping
 // them in lock-step. Every m.Realm assignment must route through
-// this helper so the allocator's currentRealmID stays accurate
-// (interrealm v2 Phase 1). Used by allocator constructors at Phase 2 to
-// stamp PkgID onto newly-allocated objects.
+// this helper so the allocator's currentRealmID stays accurate.
+// Used by allocator constructors to stamp PkgID onto newly-allocated
+// objects.
 //
 // Accepts nil — clears currentRealmID to PkgID{} which matches
 // "no realm context."

@@ -103,10 +103,10 @@ func PkgIDFromPkgPath(path string) PkgID {
 	if IsStdlib(path) {
 		pkgID.Hashlet[0] |= 0x80
 	}
-	// uverse is the VM-builtin runtime; treat it as immutable so
-	// interrealm v2 Phase 2's construction-time check correctly classifies
-	// uverse-declared types (gConcreteRealmType, etc.) as
-	// non-realm. _test overlays are also immutable (see IsTestOverlayPath).
+	// uverse is the VM-builtin runtime; treat it as immutable so the
+	// construction-time check correctly classifies uverse-declared types
+	// (gConcreteRealmType, etc.) as non-realm. _test overlays are also
+	// immutable (see IsTestOverlayPath).
 	if IsStdlib(path) || IsPPackagePath(path) || IsTestOverlayPath(path) || path == uversePkgPath {
 		pkgID.Hashlet[0] |= 0x40
 	}
@@ -136,7 +136,7 @@ func (pid PkgID) IsInternalPkg() bool {
 
 // IsRealmPkg returns true for /r/-declared packages: non-zero PkgID
 // that is neither stdlib nor /p/ (i.e., not immutable). Used by
-// the interrealm v2 Phase 2 construction-time check.
+// the construction-time check.
 func (pid PkgID) IsRealmPkg() bool {
 	return !pid.IsZero() && !pid.IsImmutablePkg()
 }
@@ -187,7 +187,7 @@ type Realm struct {
 	// removeDeletedObjects routing) during this finalize. Drained
 	// at end of finalize: one SetPackageRealm per touched realm
 	// and the foreign sumDiff is added to RealmStorageDiffs at the
-	// owner's path. interrealm v2 Phase 2b. Not serialized.
+	// owner's path. Not serialized.
 	touchedForeignRealms map[PkgID]*Realm `json:"-"`
 }
 
@@ -207,8 +207,6 @@ type Realm struct {
 // Both routes share the same map, so a single Time counter and a
 // single record-save per foreign realm cover all touched objects
 // (regardless of which route(s) touched it).
-//
-// interrealm v2 Phase 2b.
 func (rlm *Realm) touchForeignRealm(store Store, pid PkgID) *Realm {
 	if rlm.touchedForeignRealms == nil {
 		rlm.touchedForeignRealms = make(map[PkgID]*Realm, 1)
@@ -276,12 +274,11 @@ func (rlm *Realm) String() string {
 func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	if rlm == nil {
 		// /p/-immutability gate: in StageRun, reject mutations to real
-		// /p/-stamped objects. The borrow rule shifts m.Realm to the
-		// /p/-package's realm (= nil post Phase 3 revert) when a method
-		// is dispatched on a /p/-stamped receiver, which would otherwise
-		// silently allow writes to /p/-init state. Stdlib is exempt
-		// (legit stdlib dispatch reaches this path too). Init-time
-		// writes are in StageAdd, also exempt.
+		// /p/-stamped objects. m.Realm becomes nil when a method is
+		// dispatched on a /p/-stamped receiver via the borrow rule,
+		// which would otherwise silently allow writes to /p/-init
+		// state. Stdlib is exempt (legit stdlib dispatch reaches this
+		// path too). Init-time writes are in StageAdd, also exempt.
 		if m != nil && m.Stage == StageRun && po != nil && po.GetIsReal() {
 			pid := po.GetObjectID().PkgID
 			if pid.IsImmutablePkg() && !pid.IsStdlibPkg() {
@@ -487,7 +484,6 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// leave the map populated — a stale entry could leak fr.Time /
 	// fr.sumDiff mutations into the next tx via the cached *Realm
 	// pointer (which is also cacheRealms[pid] and pv.Realm).
-	// interrealm v2 Phase 2b.
 	defer func() { rlm.touchedForeignRealms = nil }()
 
 	if debugAssert {
@@ -541,10 +537,10 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	rlm.clearMarks()
 
 	// Update storage differences for this realm and any foreign
-	// realms touched via cross-realm finalize (interrealm v2 Phase 2b).
-	// One SetPackageRealm per touched foreign realm regardless of
-	// how many of its objects were minted/saved/deleted; foreign
-	// sumDiff accrues to the owner's RealmStorageDiffs entry.
+	// realms touched via cross-realm finalize. One SetPackageRealm
+	// per touched foreign realm regardless of how many of its
+	// objects were minted/saved/deleted; foreign sumDiff accrues to
+	// the owner's RealmStorageDiffs entry.
 	realmDiffs := store.RealmStorageDiffs()
 	realmDiffs[rlm.Path] += rlm.sumDiff
 	rlm.sumDiff = 0
@@ -1037,9 +1033,9 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 
 	// set object to store.
 	// NOTE: also sets the hash to object.
-	// interrealm v2 Phase 2b sumDiff routing: foreign-owned objects accrue
-	// to the owner realm's sumDiff, not the executing realm's.
-	// Storage rent attributes to the owner under storage=authority.
+	// sumDiff routing: foreign-owned objects accrue to the owner
+	// realm's sumDiff, not the executing realm's. Storage rent
+	// attributes to the owner under storage=authority.
 	delta := store.SetObject(oo)
 	if oid.PkgID == rlm.ID {
 		rlm.sumDiff += delta
@@ -1070,17 +1066,17 @@ func (rlm *Realm) saveNewEscaped(store Store) {
 // removeDeletedObjects
 
 // removeDeletedObjects deletes each entry in rlm.deleted from the
-// underlying store. interrealm v2 Phase 2b: the negative size delta is
-// routed to the owning realm's sumDiff (foreign objects accrue to
-// their owner, mirroring saveObject's positive-delta routing).
+// underlying store. The negative size delta is routed to the owning
+// realm's sumDiff (foreign objects accrue to their owner, mirroring
+// saveObject's positive-delta routing).
 //
 // Invariant: rlm.deleted is populated exclusively by
 // decRefDeletedDescendants, reachable only from processNewDeletedMarks
 // on objects that had MarkNewDeleted called — which requires
-// GetIsReal() || GetIsNewReal() — and (under interrealm v2 Phase 2 plumbing)
-// have already had assignNewObjectID run during
-// processNewCreatedMarks. So every do here satisfies IsFinalized()
-// and has non-zero PkgID. No explicit guard.
+// GetIsReal() || GetIsNewReal() — and have already had
+// assignNewObjectID run during processNewCreatedMarks. So every do
+// here satisfies IsFinalized() and has non-zero PkgID. No explicit
+// guard.
 func (rlm *Realm) removeDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {
 		oid := do.GetObjectID()
@@ -1914,7 +1910,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 // persistence
 
 // Object gets its NewTime stamped (panics if already finalized).
-// Under interrealm v2 Phase 2:
+//
 //   - PkgID is set at allocation time. Zero PkgID at this point
 //     means an off-allocator construction site was missed by the
 //     audit; loud-fail rather than silently saving under an
@@ -1924,8 +1920,6 @@ func fillTypesOfValue(store Store, val Value) Value {
 //     (rlm.touchForeignRealm). Record the touched foreign realm
 //     so FinalizeRealmTransaction's batch-drain persists it.
 //   - Otherwise, mint NewTime from rlm's counter (the self case).
-//
-// interrealm v2 Phase 2b.
 func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	oid := oo.GetObjectID()
 	if oid.IsFinalized() {
@@ -1949,12 +1943,12 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
 	} else if oid.PkgID != rlm.ID && oid.PkgID.IsStdlibPkg() {
-		// interrealm v2 Phase 3: an unreal object stamped with a
-		// stdlib PkgID arose from a fresh allocation inside a borrowed
-		// stdlib-method body (e.g. dbuf from base64.DecodeString) and
-		// got handed back to the caller for persistence. Stdlib helper
-		// patterns legitimately return such values, so the calling
-		// realm adopts them: re-stamp PkgID to rlm.ID.
+		// An unreal object stamped with a stdlib PkgID arose from a
+		// fresh allocation inside a borrowed stdlib-method body
+		// (e.g. dbuf from base64.DecodeString) and got handed back
+		// to the caller for persistence. Stdlib helper patterns
+		// legitimately return such values, so the calling realm
+		// adopts them: re-stamp PkgID to rlm.ID.
 		//
 		// /p/-method bodies do NOT get this adoption — under the
 		// sandbox semantic, /p/-methods should not be able to silently

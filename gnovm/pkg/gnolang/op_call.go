@@ -402,8 +402,9 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 	// in `func(cur){...}(cross(cur))` relies on this so panics
 	// propagating back through the cross frame route to revive(),
 	// not all the way up — even though /p/ packages have no Realm
-	// (pre-Phase-3 / post-Phase-3-revert state). Pulled out of the
-	// `crlm != nil` guard so it fires on m.Realm==nil too.
+	// (m.Realm is nil under the borrow rule for /p/-stamped
+	// receivers). Pulled out of the `crlm != nil` guard so it fires
+	// on m.Realm==nil too.
 	if cfr.WithCross {
 		return true
 	}

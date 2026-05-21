@@ -21,10 +21,10 @@ type Allocator struct {
 	gasMeter store.GasMeter
 
 	// currentRealmID mirrors m.Realm.ID at all times. Synced via
-	// Machine.setRealm at every realm transition (interrealm v2 Phase 1).
-	// Used by allocator constructors at Phase 2 to stamp PkgID
-	// onto newly-allocated objects' ObjectInfo without needing a
-	// *Machine reference. Zero when m.Realm is nil.
+	// Machine.setRealm at every realm transition. Used by allocator
+	// constructors to stamp PkgID onto newly-allocated objects'
+	// ObjectInfo without needing a *Machine reference. Zero when
+	// m.Realm is nil.
 	currentRealmID PkgID
 	// currentRealmPath mirrors m.Realm.Path; used in
 	// checkConstructionTime's panic message so users see a readable
@@ -408,8 +408,8 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 // checkConstructionTime panics if asked to construct a /r/-declared
-// type when the executing realm is different. interrealm v2 Phase 2 — the
-// enforcement of "storage = authority": every meaningfully-constructed
+// type when the executing realm is different. Enforces the
+// "storage = authority" rule: every meaningfully-constructed
 // /r/-typed object must originate inside its declaring realm.
 //
 // Only fires at user-visible construction sites: composite literals

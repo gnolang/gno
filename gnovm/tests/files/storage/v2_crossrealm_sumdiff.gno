@@ -6,10 +6,10 @@ import (
 	"gno.land/r/tests/vm/crossrealm_b"
 )
 
-// interrealm v2 Phase 2: sumDiff routing — storage cost for objects accrue
-// to their OWNING realm (PkgID), not the realm that triggered the
-// save. Verifies touchedForeignRealms + FinalizeRealmTransaction's
-// batch save / per-realm sumDiff drain.
+// sumDiff routing — storage cost for objects accrues to their
+// OWNING realm (PkgID), not the realm that triggered the save.
+// Verifies touchedForeignRealms + FinalizeRealmTransaction's batch
+// save / per-realm sumDiff drain.
 //
 // f originates in crossrealm_b (`Fooer` is a package-level var there).
 // /r/bar calls crossrealm.SetFooer(f), which stores f's reference

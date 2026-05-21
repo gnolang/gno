@@ -22,8 +22,7 @@
 #   Layer 2 — storage-realm borrow:  a /p/-declared (or stdlib)
 #     method invoked on a defined receiver whose authoring PkgID
 #     differs from m.Realm soft-switches m.Realm to the receiver's
-#     PkgID. Under interrealm v2 Phase 3 this fires for both REAL and UNREAL
-#     foreign receivers.
+#     PkgID. This fires for both REAL and UNREAL foreign receivers.
 #
 #   Realm-context invariant:  Borrow shifts m.Realm but NOT
 #     unsafe.CurrentRealm()/PreviousRealm(); those track only
@@ -33,10 +32,10 @@
 #     /r/-declared types panic at the call site.
 #
 #   Readonly taint:  values read from foreign-realm state carry
-#     N_Readonly; later writes panic, surviving conversions (Phase 4).
+#     N_Readonly; later writes panic, surviving conversions.
 #
 #   Copy semantics:  Copy preserves source PkgID when the source
-#     carries realm authority (Phase 2d); when the source PkgID is
+#     carries realm authority; when the source PkgID is
 #     non-realm (stdlib or /p/ init), the copy is restamped to the
 #     copying realm so a /r/-caller can mutate its own local copy of
 #     a /p/-init default value.
@@ -146,8 +145,8 @@ gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'realValue=2 '
 
 ## L1_ValueReceiver: value-method dispatch creates a copy via
-## VPValMethod → StructValue.Copy (interrealm v2 Phase 2d preserves source
-## PkgID). Borrow targets the declaring realm of the method, not
+## VPValMethod → StructValue.Copy (preserves source PkgID).
+## Borrow targets the declaring realm of the method, not
 ## caller. The body writes its observation to owned.trace, asserted
 ## via qrender below.
 ##
@@ -205,10 +204,9 @@ stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'libA=1 '
 
-## L2_PMethodOnOwnedUnreal: interrealm v2 Phase 3 expansion — Layer 2 fires
-## for unreal foreign receivers too. owned.LibFactory() returns
-## a PkgID=/r/owned LibContainer with NewTime=0; TouchA still
-## borrows to /r/owned.
+## L2_PMethodOnOwnedUnreal: Layer 2 fires for unreal foreign
+## receivers too. owned.LibFactory() returns a PkgID=/r/owned
+## LibContainer with NewTime=0; TouchA still borrows to /r/owned.
 ##
 ##   func L2_PMethodOnOwnedUnreal(cur realm) {
 ##       lc := owned.LibFactory()
@@ -343,10 +341,9 @@ stderr 'intentional panic for unwind test'
 ## ============================================================
 
 ## COPY_PreservesPkgID: value-method dispatch copies the receiver
-## via StructValue.Copy; interrealm v2 Phase 2d preserves source PkgID.
-## (Same mechanism as L1_ValueReceiver, but the trace records the
-## copy's effective declaring realm rather than just the borrow
-## target.)
+## via StructValue.Copy; Copy preserves source PkgID. (Same
+## mechanism as L1_ValueReceiver, but the trace records the copy's
+## effective declaring realm rather than just the borrow target.)
 ##
 ##   func COPY_PreservesPkgID(cur realm) {
 ##       r := owned.Factory()

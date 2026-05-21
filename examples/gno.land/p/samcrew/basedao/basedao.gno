@@ -37,13 +37,13 @@
 //     including empty / unicode / slashes (the last breaks
 //     render-URL construction).
 //
-//   - The recent EditProfile bare-cross fix (commit a632a2dc8)
-//     adds an rlm-aware carve-out via ExecuteWithDispatch +
-//     editProfileStubHandler. If a caller reaches the legacy
-//     DAOPrivate.Execute → Core.Execute path for an EditProfile
-//     proposal, the stub panics AFTER UpdateStatus mutates
-//     Open→Passed, leaving the proposal permanently stuck.
-//     Production daodemo doesn't trigger this; tests don't either.
+//   - EditProfile dispatch uses an rlm-aware path via
+//     ExecuteWithDispatch + editProfileStubHandler. If a caller
+//     reaches the legacy DAOPrivate.Execute → Core.Execute path
+//     for an EditProfile proposal, the stub panics AFTER
+//     UpdateStatus mutates Open→Passed, leaving the proposal
+//     permanently stuck. Production daodemo doesn't trigger this;
+//     tests don't either.
 //
 //   - See p/samcrew/daokit's package doc for additional issues
 //     inherited from the underlying toolkit (re-entrancy via

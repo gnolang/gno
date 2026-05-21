@@ -745,7 +745,7 @@ type StructType struct {
 	typeid TypeID
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
-	// on first GetPkgID() call. Used by interrealm v2 Phase 2's
+	// on first GetPkgID() call. Used by the allocator's
 	// construction-time check via getDeclaredPkgID. Not serialized
 	// (unexported, re-derived deterministically from PkgPath).
 	pkgID PkgID
@@ -1479,7 +1479,7 @@ type DeclaredType struct {
 	sealed bool // for ensuring correctness with recursive types.
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
-	// on first GetPkgID() call. Used by interrealm v2 Phase 2's
+	// on first GetPkgID() call. Used by the allocator's
 	// construction-time check via getDeclaredPkgID. Not serialized.
 	pkgID PkgID
 
@@ -2966,7 +2966,7 @@ func findEmbeddedFieldType(callerPath string, t Type, n Name, m map[Type]struct{
 }
 
 // GetPkgID returns the cached PkgID for this DeclaredType, computing
-// it lazily on first call from PkgPath. interrealm v2 Phase 2.
+// it lazily on first call from PkgPath.
 func (dt *DeclaredType) GetPkgID() PkgID {
 	if dt.pkgID.IsZero() {
 		dt.pkgID = PkgIDFromPkgPath(dt.PkgPath)
@@ -2976,7 +2976,7 @@ func (dt *DeclaredType) GetPkgID() PkgID {
 
 // GetPkgID returns the cached PkgID for this StructType, computing
 // it lazily on first call from PkgPath. Returns zero PkgID for
-// anonymous structs declared in PkgPath="" contexts. interrealm v2 Phase 2.
+// anonymous structs declared in PkgPath="" contexts.
 func (st *StructType) GetPkgID() PkgID {
 	if st.PkgPath == "" {
 		return PkgID{}
@@ -2990,8 +2990,8 @@ func (st *StructType) GetPkgID() PkgID {
 // getDeclaredPkgID walks Pointer/Declared/Struct type wrappers to
 // find the outermost named type's PkgID via cached lookups.
 // Returns zero PkgID for unnamed composites and PkgPath=""
-// anonymous types. Used by the interrealm v2 Phase 2 construction-time
-// check (Allocator.checkConstructionTime).
+// anonymous types. Used by the allocator's construction-time check
+// (Allocator.checkConstructionTime).
 func getDeclaredPkgID(t Type) PkgID {
 	for {
 		switch tt := t.(type) {

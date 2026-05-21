@@ -8,10 +8,10 @@ import (
 	"gno.land/r/tests/vm/crossrealm"
 )
 
-// interrealm v2 Phase 3 positive counterpart: external /r/-declared value
-// held by caller; method dispatch borrows correctly to the declaring
-// realm and the method body can read/inspect its own state without
-// running afoul of the readonly taint.
+// Positive counterpart: external /r/-declared value held by caller;
+// method dispatch borrows correctly to the declaring realm and the
+// method body can read/inspect its own state without running afoul
+// of the readonly taint.
 //
 // Make1 returns a *p_crossrealm.Container whose B field is a local
 // /r/tests/vm/crossrealm.LocalStruct (PkgID=crossrealm). Calling

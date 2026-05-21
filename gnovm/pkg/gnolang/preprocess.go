@@ -4026,8 +4026,7 @@ func evalStaticTypeMachine(store Store, last BlockNode, x Expr) Type {
 		// this used pn.NewPackage previously; however, that function
 		// additionally calls PrepareNewValues, which is not necessary in this
 		// context and incurs in very expensive allocations.
-		// interrealm v2 Phase 2: stamp PkgID on both the PackageValue and
-		// its inner Block.
+		// Stamp PkgID on both the PackageValue and its inner Block.
 		pid := pn.GetPkgID()
 		blk := &Block{
 			Source: pn,
@@ -4199,7 +4198,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// package values are already there that weren't
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
-			// interrealm v2 Phase 2: stamp PkgID on PackageValue + Block.
+			// Stamp PkgID on PackageValue + Block.
 			pid := pn.GetPkgID()
 			blk := &Block{
 				Source: pn,
@@ -5618,8 +5617,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				body:       d.Body,
 				nativeBody: nil,
 			}
-			// interrealm v2 Phase 2: method FuncValue belongs to the
-			// declaring package's realm.
+			// Method FuncValue belongs to the declaring package's
+			// realm.
 			methodFV.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
 			if !dt.TryDefineMethod(methodFV) {
 				// Revert to old function declarations in the package we're preprocessing.
@@ -5649,8 +5648,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				body:       d.Body,
 				nativeBody: nil,
 			}
-			// interrealm v2 Phase 2: top-level function FuncValue belongs
-			// to the declaring package's realm.
+			// Top-level function FuncValue belongs to the declaring
+			// package's realm.
 			fv.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)

@@ -724,9 +724,9 @@ func (m *Machine) doOpFuncLit() {
 		body:       x.Body,
 		nativeBody: nil,
 	}
-	// interrealm v2 Phase 2: closures belong to wherever they were
-	// evaluated (currentRealmID), not their lexical PkgPath.
-	// FuncType has no declaring-realm semantics on its own.
+	// Closures belong to wherever they were evaluated
+	// (currentRealmID), not their lexical PkgPath. FuncType has no
+	// declaring-realm semantics on its own.
 	m.Alloc.stampPkgID(&fv.ObjectInfo)
 	m.PushValue(TypedValue{
 		T: ft,

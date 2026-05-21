@@ -24,9 +24,8 @@ package vm
 // What this test does NOT prove:
 //   - That two different code versions (buggy vs fixed) produce DIFFERENT
 //     apphashes for the same input. Proving that requires a version-gated
-//     runtime switch on getOwner, which doesn't exist in this tree yet.
-//     See the ADR note in the PR description; that work belongs with the
-//     chain-upgrade gating effort, not here.
+//     runtime switch on getOwner, which belongs with the chain-upgrade
+//     gating effort, not here.
 
 import (
 	"fmt"

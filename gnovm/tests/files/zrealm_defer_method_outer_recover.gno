@@ -3,10 +3,10 @@ package deferfixrecover
 
 // Test 7: defer-method on a constructor-owned struct, with an outer
 // defer-recover that would have swallowed any readonly-taint panic
-// under the old finalize-time-ownership model. Under interrealm v2
-// Phase 2 the struct keeps its constructor PkgID even after being
-// stored in another realm, so the deferred `s.Close()` mutates s
-// directly — no panic raised, recover sees nothing to swallow.
+// under the old finalize-time-ownership model. The struct keeps its
+// constructor PkgID even after being stored in another realm, so the
+// deferred `s.Close()` mutates s directly — no panic raised, recover
+// sees nothing to swallow.
 
 import (
 	crossrealm "gno.land/r/tests/vm/crossrealm"

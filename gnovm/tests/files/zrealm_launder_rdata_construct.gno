@@ -11,9 +11,9 @@ package launderrh4
 // realm).
 //
 // Blocked by the construction-time check
-// (alloc.checkConstructionTime, interrealm v2 Phase 2): allocating
-// a /r/-declared type outside its declaring realm panics at the
-// composite literal site, before the impostor ever exists.
+// (alloc.checkConstructionTime): allocating a /r/-declared type
+// outside its declaring realm panics at the composite literal
+// site, before the impostor ever exists.
 
 import (
 	"gno.land/r/tests/vm/launderrvictim"

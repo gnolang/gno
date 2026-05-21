@@ -880,10 +880,10 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("valset:current corrupted panics (chain-internal)", func(t *testing.T) {
 		t.Parallel()
 
-		// Tier 1 semantic flip: corrupted current is no longer
-		// silently recovered. Only chain code writes valset:current
-		// (via ctx-sentinel), so corruption is by definition a
-		// chain-internal bug or store damage and warrants a panic.
+		// Corrupted current panics rather than being silently
+		// recovered. Only chain code writes valset:current (via
+		// ctx-sentinel), so corruption is by definition a chain-
+		// internal bug or store damage and warrants a panic.
 		st := &valsetState{
 			current:  []string{"garbage:not-a-power"},
 			proposed: serializeUpdates(generateValidatorUpdates(t, 1)),

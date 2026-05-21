@@ -64,8 +64,8 @@ stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/ca
 ## The failure mode shifted from "depends on storage realm" (pre-
 ## interrealm v2 success/fail variation) to a uniform construction-time panic. Under
 ## interrealm v2, foreign /r/ types must be constructed via a constructor
-## function (alice.NewObject() etc.) — see Phase 0 refactor of
-## examples/r/gov/dao for the canonical pattern.
+## function (alice.NewObject() etc.) — see examples/r/gov/dao for the
+## canonical pattern.
 ! gnokey maketx call -pkgpath gno.land/r/test/callerrealm -func CASE_rC1 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test runner
 stderr 'cannot allocate gno.land/r/test/alice.Object in realm gno.land/r/test/callerrealm'
 

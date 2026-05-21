@@ -145,7 +145,7 @@ func IsPPackagePath(pkgPath string) bool {
 // of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
 // gno.land/r/foo_test). Test overlays exist only during test runs and
 // never deploy, so they share the underlying package's authority
-// semantics for interrealm v2 Phase 2 classification.
+// semantics for PkgID classification.
 func IsTestOverlayPath(pkgPath string) bool {
 	base, ok := strings.CutSuffix(pkgPath, "_test")
 	return ok && (IsPPackagePath(base) || IsRealmPath(base))

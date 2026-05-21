@@ -410,30 +410,21 @@ per `CLAUDE.md`'s payment-guard guidance.
 
 ---
 
-## 14. Reverted: CLOSE_LAUNDER preserve-/p/-stamp on Copy
+## 14. Copy preserves only `/r/` PkgID
 
-For a window, `StructValue.Copy` and `ArrayValue.Copy` preserved the
-source PkgID for `/r/` AND `/p/` (excluding stdlib) — intended to close
-a deferred-pointer-copy launder attack where a `/p/`-stamped value
-passed by pointer across a cross-call could be adopted into the
-caller's realm. That broke legitimate `/p/`-helper-copies-default
-patterns (e.g. `gno.land/p/jeronimoalbi/datasource.NewQuery`'s
-`q := defaultQuery`).
+`StructValue.Copy` and `ArrayValue.Copy` preserve the source PkgID
+only when the source is `/r/`-declared (`IsRealmPkg()`). `/p/` copies
+drop the stamp and inherit the caller's realm via the fresh
+`NewStruct`/`NewListArray` stamp. This keeps legitimate
+`/p/`-helper-copies-default patterns working (e.g.
+`gno.land/p/jeronimoalbi/datasource.NewQuery`'s `q := defaultQuery`).
 
-Reverted in `c71fb7bfc`: gate back to `IsRealmPkg()` — preserve only
-`/r/` stamps. `/p/` copies drop the stamp and inherit the caller's
-realm via the fresh `NewStruct`/`NewListArray` stamp.
-
-The original close-launder design was sequenced with Phase 3
-frozen-realm machinery (`Realm.Frozen` + `DidUpdate`/
-`assignNewObjectID` panics on writes to frozen realms). Phase 3 was
-reverted at `7f2efb4f7`; without it, preserve-/p/-stamp alone is the
-worst of both worlds — breaks legit patterns AND doesn't fully close
-laundering at persist time. Until Phase 3 returns, keep both reverted.
-
-The previously-recommended workaround in §9 ("construct fresh inside
-the constructor") is no longer load-bearing — `/p/`-helper-copies-
-default works again.
+A deferred-pointer-copy laundering attack — where a `/p/`-stamped
+value passed by pointer across a cross-call could be adopted into
+the caller's realm — is closed elsewhere: the
+`/p/`-immutability gate in `DidUpdate` (see §15) panics on writes
+to real `/p/`-stamped objects in `StageRun`, so the laundered value
+cannot be mutated by the receiving realm.
 
 ---
 
@@ -448,7 +439,8 @@ The closed attack: `(&pkg.PInitData).PMethod()` — a `/r/`-realm caller
 takes the address of a `/p/`-package-init global, invokes a
 `/p/`-method on it. The borrow rule at `PushFrameCall` Layer 2 shifts
 `m.Realm` to the receiver's package realm. For `/p/` packages
-(`pv.Realm == nil` post Phase-3-revert), the shift sets `m.Realm = nil`.
+(`pv.Realm == nil` — `/p/` packages have no `*Realm`), the shift
+sets `m.Realm = nil`.
 The write inside the method body fires `Assign2` with `rlm == nil`,
 which previously short-circuited DidUpdate. Mutation succeeded silently
 in-tx (didn't persist across tx, but did affect later same-tx reads).
@@ -502,7 +494,7 @@ the in-scope realm value. Codebases originally written against the
 bare-`cross` sentinel (`fn(cross, args...)`) migrate in **two
 mechanical-then-semantic steps**:
 
-**Bare `cross` is REJECTED by the preprocessor on this branch.**
+**Bare `cross` is REJECTED by the preprocessor.**
 `preprocess.go` (`case CallExpr` → first-arg switch) accepts only
 `cur`, `.cur`, `.origin`, or `cross1` as the first argument to a
 crossing function. A bare-`cross` callsite now panics with
@@ -526,7 +518,7 @@ Behavior is preserved, so this step is safe to bulk-apply with sed/awk
 across the tree without per-site analysis.
 
 This unblocks deleting the bare-`cross` preprocessor branch from gnovm
-(see commit `86b1bd0cf`) while leaving codebases temporarily compilable.
+while leaving codebases temporarily compilable.
 
 **The Step 1 sed pattern.**
 A naive `\bcross\b` matches the English word "cross" in comments and
@@ -550,7 +542,7 @@ Multi-line `cross,\n` does not occur in the current tree but is not
 handled by the single-line sed; if you encounter one, fix it by hand.
 
 **File-type scope.**
-Bare `cross` lives in three file types on this branch:
+Bare `cross` lives in three file types:
 - `.gno` source.
 - `.sh` shell scripts under `misc/val-scenarios/` and
   `misc/govdao-scripts/` that contain heredoc gno snippets passed to

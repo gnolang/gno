@@ -8,11 +8,11 @@ import (
 	"gno.land/r/tests/vm/crossrealm"
 )
 
-// interrealm v2 Phase 3: /p/-method dispatched on an unreal foreign receiver
-// borrows m.Realm to the receiver's PkgID (Layer 2 expansion).
-// Pre-interrealm-v2 the borrow only fired for REAL foreign receivers; under
-// Phase 2's allocation-time PkgID stamping, unreal receivers also
-// carry their authoring realm's PkgID and Layer 2 follows.
+// /p/-method dispatched on an unreal foreign receiver borrows
+// m.Realm to the receiver's PkgID (Layer 2). Pre-interrealm-v2 the
+// borrow only fired for REAL foreign receivers; with allocation-time
+// PkgID stamping, unreal receivers also carry their authoring realm's
+// PkgID and Layer 2 follows.
 //
 // crossrealm.Make1() returns a *p_crossrealm.Container constructed
 // inside /r/tests/vm/crossrealm (Layer 1 borrow). The Container is

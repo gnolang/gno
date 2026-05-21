@@ -6,13 +6,11 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-// The source-side readonly check in doOpConvert (Case 1) was
-// dropped in interrealm v2 Phase 4 to enable anonymous-struct
-// read patterns, then reintroduced to close the type-pun launder
-// (zrealm_launder_g_typepun.gno): converting a foreign-readonly
-// /p/-value to a parallel /p/-type with mutator methods would
-// otherwise bypass the readonly write check via borrow rule 2.
-// Anonymous-struct reads of foreign values now panic again at
+// The source-side readonly check in doOpConvert (Case 1) closes
+// the type-pun launder (zrealm_launder_g_typepun.gno): converting
+// a foreign-readonly /p/-value to a parallel /p/-type with mutator
+// methods would otherwise bypass the readonly write check via
+// borrow rule 2. Anonymous-struct reads of foreign values panic at
 // the conversion site.
 
 func main() {

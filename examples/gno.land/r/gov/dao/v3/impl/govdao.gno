@@ -173,11 +173,10 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 //     unforgeably (pkg path is set at mint time by installCrossingCur).
 //   - rlm.Previous() is the caller of the proxy.
 //
-// The "called directly by user bypassing the proxy" path (formerly
-// case 2: unsafe.CurrentRealm().IsUser()) is gone — the impl methods
-// are non-crossing-with-realm-arg now, so a direct user MsgCall to
-// them would not provide a valid rlm; the IsCurrent() check rejects
-// any forged realm. The proxy is the only legitimate entrypoint.
+// The proxy is the only legitimate entrypoint. The impl methods are
+// non-crossing and take rlm as a regular argument, so a direct user
+// MsgCall to them cannot supply a valid rlm: the IsCurrent() check
+// rejects any forged or stashed realm value.
 func (g *GovDAO) isValidCall(_ int, rlm realm) bool {
 	if !rlm.IsCurrent() {
 		return false
