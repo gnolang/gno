@@ -342,8 +342,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 
 	// Mark the old registry entry retired. The entry must exist —
 	// it was inserted at Register time.
-	rawOld, ok := signingRegistry.Get(oldSigningAddr.String())
-	if !ok {
+	rawOld := signingRegistry.Get(oldSigningAddr.String())
+	if rawOld == nil {
 		panic(ErrRegistryEntryMissing)
 	}
 	oldEntry := rawOld.(regEntry)

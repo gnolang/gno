@@ -105,8 +105,8 @@ func assertUserIsNotBanned(boardID boards.ID, user address) {
 		return
 	}
 
-	v, found := banned.Get(user.String())
-	if !found {
+	v := banned.Get(user.String())
+	if v == nil {
 		return
 	}
 
