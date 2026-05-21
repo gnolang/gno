@@ -28,16 +28,20 @@ func NewRender(d *GovDAO) *render {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderActiveProposals(req.RawPath, d))
+	// Handlers use mux's rlm-aware shape: rlm is supplied at RenderRlm
+	// dispatch time rather than captured at NewRender time. This lets
+	// downstream crossing reads (dao.GetProposal etc.) use cross(rlm)
+	// without relying on bare cross or restructuring the router.
+	r.HandleFuncRlm("", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderActiveProposals(0, rlm, req.RawPath, d))
 	})
 
-	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderProposalPage(req.GetVar("pid"), d))
+	r.HandleFuncRlm("{pid}", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderProposalPage(0, rlm, req.GetVar("pid"), d))
 	})
 
-	r.HandleFunc("{pid}/votes", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderVotesForProposal(req.GetVar("pid"), d))
+	r.HandleFuncRlm("{pid}/votes", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderVotesForProposal(0, rlm, req.GetVar("pid"), d))
 	})
 
 	ren.router = r
@@ -45,7 +49,7 @@ func NewRender(d *GovDAO) *render {
 	return ren
 }
 
-func (ren *render) Render(pkgPath string, path string) string {
+func (ren *render) Render(_ int, rlm realm, pkgPath string, path string) string {
 	relativePath, found := strings.CutPrefix(pkgPath, runtime.ChainDomain())
 	if !found {
 		panic(ufmt.Sprintf(
@@ -53,10 +57,10 @@ func (ren *render) Render(pkgPath string, path string) string {
 			pkgPath, runtime.ChainDomain()))
 	}
 	ren.relativeRealmPath = relativePath
-	return ren.router.Render(path)
+	return ren.router.RenderRlm(0, rlm, path)
 }
 
-func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
+func (ren *render) renderActiveProposals(_ int, rlm realm, url string, d *GovDAO) string {
 	out := "# GovDAO\n"
 	out += "## Members\n"
 	out += "[> Go to Memberstore <](/r/gov/dao/v3/memberstore)\n"
@@ -72,7 +76,7 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 		if err != nil {
 			continue
 		}
-		out += ren.renderProposalListItem(ufmt.Sprintf("%v", int64(seqpid)), d)
+		out += ren.renderProposalListItem(0, rlm, ufmt.Sprintf("%v", int64(seqpid)), d)
 		out += "---\n\n"
 	}
 
@@ -81,13 +85,13 @@ func (ren *render) renderActiveProposals(url string, d *GovDAO) string {
 	return out
 }
 
-func (ren *render) renderProposalPage(sPid string, d *GovDAO) string {
+func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
 		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
-	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	p, err := dao.GetProposal(dao.ProposalID(pid))
 	if err != nil {
 		return ufmt.Sprintf("# Proposal not found\n\n%s", err.Error())
 	}
@@ -111,7 +115,7 @@ Executor created in: %s
 	}
 
 	out += "\n\n---\n\n"
-	out += ps.String()
+	out += ps.String(0, rlm)
 	out += "\n"
 	out += ufmt.Sprintf("[Detailed voting list](%v:%v/votes)", ren.relativeRealmPath, pid)
 	out += "\n\n---\n\n"
@@ -121,13 +125,13 @@ Executor created in: %s
 	return out
 }
 
-func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
+func (ren *render) renderProposalListItem(_ int, rlm realm, sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
 		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
 	}
 
-	p, err := dao.GetProposal(cross, dao.ProposalID(pid))
+	p, err := dao.GetProposal(dao.ProposalID(pid))
 	if err != nil {
 		return ufmt.Sprintf("# Proposal not found\n\n%s\n\n", err.Error())
 	}
@@ -146,7 +150,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	return out
 }
 
-func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
+func (ren *render) renderVotesForProposal(_ int, rlm realm, sPid string, d *GovDAO) string {
 	pid, err := strconv.ParseInt(sPid, 10, 64)
 	if err != nil {
 		return ufmt.Sprintf("# Error: Invalid proposal ID format.\n\n\n%s\n\n", err.Error())
@@ -159,7 +163,7 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 
 	out := ""
 	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", pid)
-	out += StringifyVotes(ps)
+	out += StringifyVotes(0, rlm, ps)
 
 	return out
 }
