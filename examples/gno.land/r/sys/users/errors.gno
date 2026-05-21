@@ -1,10 +1,7 @@
 package users
 
 import (
-	"chain/runtime"
 	"errors"
-
-	"gno.land/p/nt/ufmt/v0"
 )
 
 const prefix = "r/sys/users: "
@@ -25,21 +22,33 @@ var (
 	ErrDeletedUser    = errors.New(prefix + "cannot register a new username after deleting")
 
 	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
+
+	// ErrInvalidRealm is returned by controller-gated *UserData mutators
+	// when the supplied rlm is not the caller's live cur (i.e.
+	// rlm.IsCurrent() is false). Closes Class-2 designation forgery via
+	// a stored stale realm value whose .Address() resolves to a
+	// whitelisted controller. See docs/resources/gno-security.md.
+	ErrInvalidRealm = errors.New(prefix + "rlm is not the caller's live cur")
 )
 
+// ErrNotWhitelisted stores the failing caller's realm identity as a
+// plain string so the error is a pure data record (no live realm values
+// in its fields).
 type ErrNotWhitelisted struct {
-	Current  runtime.Realm // not whitelisted
-	Previous runtime.Realm // for context
+	Caller string // "CodeRealm{ <addr>, <pkgPath> }" or "UserRealm{ <addr> }" — failed the whitelist check
 }
 
-func NewErrNotWhitelisted() ErrNotWhitelisted {
+// NewErrNotWhitelisted constructs the error with the caller's realm
+// identity captured as a string at construction time. The _ int
+// discriminator keeps this non-crossing (a non-crossing function can't
+// take a `realm`-named-`cur` first param, so we use the standard
+// _ int, rlm realm shape).
+func NewErrNotWhitelisted(_ int, caller realm) ErrNotWhitelisted {
 	return ErrNotWhitelisted{
-		Current:  runtime.CurrentRealm(),
-		Previous: runtime.PreviousRealm(),
+		Caller: caller.String(),
 	}
 }
 
 func (e ErrNotWhitelisted) Error() string {
-	return ufmt.Sprintf("%scurrent realm/user does not exist in whitelist: %v (previous: %v)",
-		prefix, e.Current, e.Previous)
+	return prefix + "caller realm/user does not exist in whitelist: " + e.Caller
 }

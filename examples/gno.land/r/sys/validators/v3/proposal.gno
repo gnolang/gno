@@ -27,6 +27,13 @@ type ValoperChange struct {
 	Power           uint64
 }
 
+func NewValoperChange(operatorAddress address, power uint64) ValoperChange {
+	return ValoperChange{
+		OperatorAddress: operatorAddress,
+		Power:           power,
+	}
+}
+
 const errNoValoperChanges = "no valoper changes proposed"
 
 // NewValidatorProposalRequest builds a GovDAO proposal that, when
@@ -61,7 +68,7 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
 // successful execution. (Power-upsert on an existing op also emits
 // ValidatorAdded with the new power.)
-func NewValidatorProposalRequest(changes []ValoperChange, title, description string) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
 	}
@@ -129,7 +136,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 	// propose and execute. Without this snapshot a same-block sequence
 	// "trust-level-drop executor → valset-change executor" would let
 	// the second proposal pass under the looser ratio.
-	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(changes, trustLevelRatio))
+	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(cur, changes, trustLevelRatio))
 }
 
 // newValoperChangeExecutor builds the GovDAO executor that, on
@@ -148,7 +155,7 @@ func NewValidatorProposalRequest(changes []ValoperChange, title, description str
 // snapshotTrustLevel captures trustLevelRatio at proposal-creation
 // time. The IBC-trust-level rule is checked against this snapshot, not
 // the package-level trustLevelRatio that may have moved by exec time.
-func newValoperChangeExecutor(changes []ValoperChange, snapshotTrustLevel trustRatio) dao.Executor {
+func newValoperChangeExecutor(cur realm, changes []ValoperChange, snapshotTrustLevel trustRatio) dao.Executor {
 	callback := func(cur realm) error {
 		// Cooldown re-check: the binding source of truth. Creation-time
 		// only filters obvious failures; a proposal can sit in GovDAO
@@ -264,10 +271,10 @@ func newValoperChangeExecutor(changes []ValoperChange, snapshotTrustLevel trustR
 			entries = append(entries, v.PubKey+":"+strconv.FormatUint(v.VotingPower, 10))
 		}
 		sort.Strings(entries)
-		sysparams.SetValsetProposal(cross, entries)
+		sysparams.SetValsetProposal(cross(cur), entries)
 		lastValsetUpdate = time.Now()
 		return nil
 	}
 
-	return dao.NewSimpleExecutor(callback, "")
+	return dao.NewSimpleExecutor(0, cur, callback, "")
 }

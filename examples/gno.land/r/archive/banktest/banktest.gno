@@ -4,6 +4,7 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"time"
 )
 
@@ -34,20 +35,20 @@ func addActivity(act *activity) {
 // or return the specified return amount back to user.
 func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 	runtime.AssertOriginCall()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	send := chain.Coins{{returnDenom, returnAmount}}
 	// record activity
 	act := &activity{
 		caller:   caller,
-		sent:     banker.OriginSend(),
+		sent:     unsafe.OriginSend(),
 		returned: send,
 		time:     time.Now(),
 	}
 	addActivity(act)
 	// return if any.
 	if returnAmount > 0 {
-		banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
-		pkgaddr := runtime.CurrentRealm().Address()
+		banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+		pkgaddr := cur.Address()
 		// TODO: use std.Coins constructors, this isn't generally safe.
 		banker_.SendCoins(pkgaddr, caller, send)
 		return "returned!"
@@ -57,13 +58,13 @@ func Deposit(cur realm, returnDenom string, returnAmount int64) string {
 }
 
 func bankerAddr(cur realm) address {
-	return runtime.CurrentRealm().Address()
+	return cur.Address()
 }
 
-func Render(path string) string {
+func Render(cur realm, path string) string {
 	// get realm coins.
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	coins := banker_.GetCoins(bankerAddr(cross))
+	banker_ := banker.NewReadonlyBanker()
+	coins := banker_.GetCoins(bankerAddr(cross(cur)))
 
 	// render
 	res := ""

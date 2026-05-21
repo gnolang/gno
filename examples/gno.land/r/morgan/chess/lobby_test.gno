@@ -8,14 +8,14 @@ import (
 	"gno.land/p/morgan/chess/glicko2"
 )
 
-func TestLobbyJoin(t *testing.T) {
+func TestLobbyJoin(cur realm, t *testing.T) {
 	cleanup()
 	testing.SetRealm(testing.NewUserRealm(white))
-	LobbyJoin(cross, 10*60, 5)
+	LobbyJoin(cross(cur), 10*60, 5)
 	os.Sleep(time.Second * 5)
 	testing.SetRealm(testing.NewUserRealm(black))
-	LobbyJoin(cross, 10*60, 5)
-	res := LobbyGameFound(cross)
+	LobbyJoin(cross(cur), 10*60, 5)
+	res := LobbyGameFound(cross(cur))
 	if res == "null" {
 		t.Errorf("LobbyGameFound is null")
 	}
@@ -29,7 +29,7 @@ func sublobbyToIDs(pl []lobbyPlayer) []string {
 	return s
 }
 
-func TestLobbyGameFound(t *testing.T) {
+func TestLobbyGameFound(cur realm, t *testing.T) {
 	check := func(checker ...func(t *testing.T)) func(t *testing.T) {
 		return func(t *testing.T) {
 			for _, ck := range checker {
@@ -135,7 +135,7 @@ func TestLobbyGameFound(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(cur realm, t *testing.T) {
 			cleanup()
 			now := time.Now()
 			for _, p := range tc.pre {
@@ -152,7 +152,7 @@ func TestLobbyGameFound(t *testing.T) {
 			}
 
 			testing.SetRealm(testing.NewUserRealm(tc.caller))
-			LobbyGameFound(cross)
+			LobbyGameFound(cross(cur))
 
 			if tc.check != nil {
 				tc.check(t)
@@ -161,7 +161,7 @@ func TestLobbyGameFound(t *testing.T) {
 	}
 }
 
-func TestLobbyJoin_HasOpenGames(t *testing.T) {
+func TestLobbyJoin_HasOpenGames(cur realm, t *testing.T) {
 	cleanup()
 	g := &Game{
 		ID:    "123",
@@ -174,7 +174,7 @@ func TestLobbyJoin_HasOpenGames(t *testing.T) {
 	addToUser2Games(black, g)
 
 	testing.SetRealm(testing.NewUserRealm(white))
-	LobbyJoin(cross, 10*60, 5)
+	LobbyJoin(cross(cur), 10*60, 5)
 	if g.State != GameStateAborted {
 		t.Errorf("state wrong: want %d got %d", GameStateAborted, g.State)
 	}
