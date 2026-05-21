@@ -19,16 +19,17 @@ import (
 )
 
 type generateCfg struct {
-	source          string
-	chainID         string
-	originalChainID string
-	haltHeight      int64
-	output          string
-	txsOutput       string
-	patchRealms     patchRealmList
-	migrationTxs    stringList
-	skipTxs         bool
-	noVerify        bool
+	source                string
+	chainID               string
+	originalChainID       string
+	haltHeight            int64
+	output                string
+	txsOutput             string
+	patchRealms           patchRealmList
+	migrationTxs          stringList
+	rpcWorkersPerEndpoint int
+	skipTxs               bool
+	noVerify              bool
 }
 
 // patchRealmList accepts repeated --patch-realm flags. Each value is
@@ -88,7 +89,9 @@ Examples:
 }
 
 func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.source, "source", "", "source: RPC URL, local data dir, or exported file (.json/.jsonl/.tar.gz)")
+	fs.StringVar(&c.source, "source", "", "source: RPC URL (or comma-separated list for failover/parallelism), local data dir, or exported file (.json/.jsonl/.tar.gz)")
+	fs.IntVar(&c.rpcWorkersPerEndpoint, "rpc-workers-per-endpoint", defaultWorkersPerEndpoint,
+		"in-flight block fetches per RPC endpoint; ignored for non-RPC sources")
 	fs.StringVar(&c.chainID, "chain-id", "gnoland-1", "new chain ID")
 	fs.StringVar(&c.originalChainID, "original-chain-id", "", "source chain ID for signature verification (auto-detected from source genesis if empty)")
 	fs.Int64Var(&c.haltHeight, "halt-height", 0, "block height at which source chain halted (auto-detected from source if 0)")
@@ -115,7 +118,11 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 		return errors.New("--source is required (RPC URL, local data dir, or exported file)")
 	}
 
-	src, err := openSource(cfg.source)
+	if cfg.rpcWorkersPerEndpoint < 1 {
+		return fmt.Errorf("--rpc-workers-per-endpoint must be >= 1, got %d", cfg.rpcWorkersPerEndpoint)
+	}
+
+	src, err := openSource(cfg.source, cfg.rpcWorkersPerEndpoint)
 	if err != nil {
 		return fmt.Errorf("opening source %q: %w", cfg.source, err)
 	}
@@ -265,7 +272,6 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	io.Printf("  2. Verify with other validators (share SHA-256):\n")
 	io.Printf("     sha256: $(sha256sum %s | cut -d' ' -f1)\n", cfg.output)
 
-	_ = appState // suppress unused warning (used in summary above)
 	return nil
 }
 
