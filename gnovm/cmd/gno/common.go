@@ -106,6 +106,19 @@ func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
 	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
 }
 
+// filetestExpectsFailure reports whether a filetest body declares an
+// `// Error:` or `// TypeCheckError:` directive — i.e., the file is
+// expected to fail at preprocess, type-check or run-time, and `gno test`
+// validates the actual failure. Lint should not propagate such failures.
+func filetestExpectsFailure(body string) (bool, error) {
+	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
+	if err != nil {
+		return false, fmt.Errorf("error parsing directives: %w", err)
+	}
+	return dirs.First(test.DirectiveError) != nil ||
+		dirs.First(test.DirectiveTypeCheckError) != nil, nil
+}
+
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
 	case *gno.PreprocessError:

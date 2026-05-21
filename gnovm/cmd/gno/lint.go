@@ -323,16 +323,44 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tm.Store = newTestGnoStore(true)
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
-					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
-					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
+					filetestPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
+					filetestPath, err = parsePkgPathDirective(mfile.Body, filetestPath)
 					if err != nil {
 						io.ErrPrintln(err)
 						hasError = true
 						continue
 					}
+					expectsErr, perr := filetestExpectsFailure(mfile.Body)
+					if perr != nil {
+						io.ErrPrintln(perr)
+						hasError = true
+						continue
+					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
-					ppkg.AddFileTest(pn, fset)
+					// Isolate per filetest so a panic on one (e.g. a sealing-
+					// violation regression test) doesn't skip siblings, and so
+					// expected-failure filetests don't fail the whole lint run.
+					func() {
+						defer func() {
+							r := recover()
+							if r == nil {
+								return
+							}
+							if expectsErr {
+								// Filetest declared an expected error directive;
+								// `gno test` validates the actual failure.
+								return
+							}
+							if err, ok := r.(error); ok {
+								printError(io.Err(), dir, filetestPath, err)
+								hasError = true
+							} else {
+								panic(r)
+							}
+						}()
+						pn, _ := tm.PreprocessFiles(pkgName, filetestPath, fset, false, false)
+						ppkg.AddFileTest(pn, fset)
+					}()
 				}
 			}
 

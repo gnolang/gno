@@ -235,12 +235,19 @@ func (mpkg *MemPackage) IsZero() bool {
 	return mpkg.Name == "" && len(mpkg.Files) == 0
 }
 
-// Write all files into dir.
+// Write all files into dir. `_filetest.gno` files are written to a
+// `filetests/` subdir to match the read convention (see
+// gnolang.ReadMemPackage), since MemFile.Name is a flat basename.
 func (mpkg *MemPackage) WriteTo(dir string) error {
-	// fmt.Printf("writing mempackage to %q:\n", dir)
 	for _, mfile := range mpkg.Files {
-		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
-		fpath := filepath.Join(dir, mfile.Name)
+		fdir := dir
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			fdir = filepath.Join(dir, "filetests")
+			if err := os.MkdirAll(fdir, 0o755); err != nil {
+				return err
+			}
+		}
+		fpath := filepath.Join(fdir, mfile.Name)
 		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
 		if err != nil {
 			return err
