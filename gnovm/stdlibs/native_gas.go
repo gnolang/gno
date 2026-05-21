@@ -93,7 +93,6 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/banker", Fn: "bankerTotalCoin", Base: 89, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                    // flat, median 88.6ns
 	{Pkg: "chain/banker", Fn: "bankerIssueCoin", Base: 141, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 140.6ns
 	{Pkg: "chain/banker", Fn: "bankerRemoveCoin", Base: 196, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                  // flat, median 195.9ns
-	{Pkg: "chain/banker", Fn: "originSend", Base: 280, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 280.4ns
 	{Pkg: "chain/params", Fn: "SetBytes", Base: 1912, Slope: 13213, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                        // fit base=1912.0ns slope=12.9035ns/N (=13213/1024) R²=1.000
 	{Pkg: "chain/params", Fn: "SetString", Base: 1772, Slope: 135, SlopeIdx: 1, SlopeKind: SizeLenString},                                                        // fit base=1772.3ns slope=0.1323ns/N (=135/1024) R²=0.933
 	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 1643.0ns
@@ -112,10 +111,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/runtime", Fn: "ChainID", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                           // flat, median 44.8ns
 	{Pkg: "chain/runtime", Fn: "ChainDomain", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 44.5ns
 	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 30.2ns
-	{Pkg: "chain/runtime", Fn: "originCaller", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // flat, median 44.9ns
 	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 148.4ns
 	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 5.0ns
-	{Pkg: "chain/runtime", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                                  // fit base=1003.0ns slope=1.2880ns/N (=1319/1024) R²=0.995
 	// chain/runtime/unsafe natives — same implementations as their chain/runtime / chain/banker counterparts.
 	{Pkg: "chain/runtime/unsafe", Fn: "originCaller", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                              // mirrors chain/runtime.originCaller
 	{Pkg: "chain/runtime/unsafe", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                          // mirrors chain/runtime.getRealm

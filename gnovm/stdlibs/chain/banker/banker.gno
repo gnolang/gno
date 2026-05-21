@@ -206,17 +206,6 @@ func isValidBaseDenom(denom string) bool {
 	return true
 }
 
-func OriginSend() chain.Coins {
-	den, amt := originSend()
-	coins := make(chain.Coins, len(den))
-	for i := range coins {
-		coins[i] = chain.Coin{Denom: den[i], Amount: amt[i]}
-	}
-	return coins
-}
-
-func originSend() (denoms []string, amounts []int64)
-
 // expandNative expands coins for usage within natively bound functions.
 func expandNative(cz chain.Coins) (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))

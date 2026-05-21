@@ -379,32 +379,6 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
-		"chain/banker",
-		"originSend",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]string")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]int64")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0, r1 := libs_chain_banker.X_originSend(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
 		"chain/params",
 		"SetString",
 		[]gno.FieldTypeExpr{
@@ -689,64 +663,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"chain/runtime",
-		"originCaller",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := libs_chain_runtime.X_originCaller(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"chain/runtime",
-		"getRealm",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("int")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  int
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0, r1 := libs_chain_runtime.X_getRealm(
-				m,
-				p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},

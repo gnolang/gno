@@ -96,7 +96,3 @@ func CompactCoins(denoms []string, amounts []int64) std.Coins {
 	return coins
 }
 
-func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
-	os := execctx.GetContext(m).OriginSend
-	return ExpandCoins(os)
-}
