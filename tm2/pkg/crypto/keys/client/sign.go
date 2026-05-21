@@ -96,7 +96,7 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.OutputDocument,
 		"output-document",
 		"",
-		"the signature json document to save. If empty, outputs the signature in the terminal",
+		"the signature json document to save. If empty, updates the tx (file) being signed",
 	)
 }
 

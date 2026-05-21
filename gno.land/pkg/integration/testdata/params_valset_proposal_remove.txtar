@@ -1,5 +1,5 @@
-# Sequential e2e: add a validator (proposal 0), then remove it
-# (proposal 1). Exercises the Power=0 removal path through the full
+# Sequential e2e: add a validator (proposal 1), then remove it
+# (proposal 2). Exercises the Power=0 removal path through the full
 # pipeline:
 #
 #   v3 callback -> reads effective valset, drops removed entry from
@@ -8,6 +8,10 @@
 #   -> EndBlocker reads, diffs current vs proposed
 #   -> emits Power=0 update for removed validator
 #   -> writes valset:current (sans removed)
+#
+# Sequential proposals within seconds of each other normally trip the
+# 24h cooldown. Proposal 0 is therefore a NewCooldownPropRequest(0,
+# ...) that disables the cooldown for the rest of the test.
 #
 # Verifies that the removal half of the v3 flow works end-to-end and
 # valset:current shrinks correctly.
@@ -25,15 +29,26 @@ loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
 
 gnoland start
 
-# === PROPOSAL 0: ADD VALIDATOR ===
+# === PROPOSAL 0: DISABLE COOLDOWN (testnet setup) ===
 
-gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 69_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/disable_cooldown.gno
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 24_000_000 -args 0 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 20_000_000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+# === PROPOSAL 1: ADD VALIDATOR ===
+
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 69_000_000 -chainid=tendermint_test member $WORK/run/add_proposal.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 1 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 35_000_000 -args 1 -chainid=tendermint_test member
 stdout OK!
 
 # Post-add: valset:current contains both genesis + new validator.
@@ -41,27 +56,26 @@ gnokey query params/node:valset:current
 stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
 stdout '","gpub1'
 
-# === PROPOSAL 1: REMOVE THE SAME VALIDATOR ===
+# === PROPOSAL 2: REMOVE THE SAME VALIDATOR ===
 
 gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/remove_proposal.gno
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 2 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 2 -chainid=tendermint_test member
 stdout OK!
 
 # Post-remove: the e2e-test-validator pubkey must be GONE from
-# valset:current. The genesis validator's pubkey (prefix gpub1)
-# must still be present (the comma-separator that proved both
-# validators were there before is also gone — only one remains).
+# valset:current. The genesis validator's pubkey (prefix gpub1) must
+# still be present — only one validator remains.
 gnokey query params/node:valset:current
 ! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
 stdout 'gpub1'
 ! stdout '","gpub1'
 
-# valset:dirty should be false again (EndBlocker consumed proposal 1).
+# valset:dirty should be false again (EndBlocker consumed proposal 2).
 gnokey query params/node:valset:dirty
 stdout 'false'
 
@@ -69,6 +83,19 @@ stdout 'false'
 # add and the remove validator-set transitions.
 gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
 stdout OK!
+
+-- run/disable_cooldown.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v3 "gno.land/r/sys/validators/v3"
+)
+
+func main() {
+	pr := v3.NewCooldownPropRequest(0, "disable cooldown for back-to-back e2e", "testnet only")
+	dao.MustCreateProposal(cross, pr)
+}
 
 -- run/add_proposal.gno --
 package main
