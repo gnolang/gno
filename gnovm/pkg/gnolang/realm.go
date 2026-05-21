@@ -603,9 +603,9 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 
 	// RECURSE GUARD
 	// if NewTime is already stamped, the object has been finalized
-	// in this pass — skip. Under interrealm v2, PkgID is set at allocation
-	// time, so IsZero() (which now checks both fields) is permanently
-	// false post-allocation and cannot be used as the recurse guard.
+	// in this pass — skip. PkgID is set at allocation time, so
+	// IsZero() (which checks both fields) is permanently false
+	// post-allocation and cannot be used as the recurse guard.
 	// IsFinalized() (NewTime != 0) is the correct "already-visited"
 	// signal here, set by assignNewObjectID below.
 	if oo.GetObjectID().IsFinalized() {
