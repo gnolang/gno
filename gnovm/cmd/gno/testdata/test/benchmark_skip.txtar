@@ -1,0 +1,27 @@
+# b.Skip emits `--- SKIP:` header and suppresses the result line,
+# without failing the test run.
+
+gno test -bench Skipped -benchcount 5 .
+
+! stdout .+
+stderr '--- SKIP: BenchmarkSkipped'
+! stderr '--- FAIL: BenchmarkSkipped'
+! stderr 'BenchmarkSkipped\s+5\s+[0-9]+ cycles/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkSkipped(b *testing.B) {
+	b.Skip("intended skip")
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_skip'

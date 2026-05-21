@@ -1,0 +1,32 @@
+! gno test -bench . -benchcount 3 .
+
+! stdout .+
+stderr 'intended failure'
+stderr '--- FAIL: BenchmarkMix'
+stderr '--- FAIL: BenchmarkMix/failing'
+stderr 'BenchmarkMix/ok\s+3\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkMix(b *testing.B) {
+	b.Run("failing", func(b *testing.B) {
+		b.Fatal("intended failure")
+	})
+	b.Run("ok", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink = i
+		}
+	})
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_subbench_fail'

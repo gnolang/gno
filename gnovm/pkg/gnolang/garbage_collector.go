@@ -77,8 +77,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		m.Store.GarbageCollectObjectCache(m.GCCycle)
 	}()
 
-	// We don't need the old value anymore.
-	m.Alloc.Reset()
+	// We don't need the old live byte value anymore.
+	m.Alloc.resetLiveBytesForGC()
 
 	// This is the only place where it's bumped.
 	m.GCCycle += 1

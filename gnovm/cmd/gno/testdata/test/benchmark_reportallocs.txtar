@@ -1,0 +1,46 @@
+# b.ReportAllocs() enables the memory columns for that benchmark even
+# without -benchmem. -benchmem remains a global toggle for all benches.
+
+# With -benchmem, both benches print B/op and allocs/op columns.
+gno test -bench . -benchcount 5 -benchmem .
+
+! stdout .+
+stderr 'BenchmarkWithReportAllocs\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op\s+[0-9]+ B/op\s+[0-9]+ allocs/op'
+stderr 'BenchmarkWithoutReportAllocs\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op\s+[0-9]+ B/op\s+[0-9]+ allocs/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+# Without -benchmem, only the bench that called b.ReportAllocs() prints
+# memory columns.
+gno test -bench . -benchcount 5 .
+
+! stdout .+
+stderr 'BenchmarkWithReportAllocs\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op\s+[0-9]+ B/op\s+[0-9]+ allocs/op'
+stderr 'BenchmarkWithoutReportAllocs\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op$'
+! stderr 'BenchmarkWithoutReportAllocs\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op\s+[0-9]+ B/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var sink []int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkWithReportAllocs(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sink = make([]int, 8)
+	}
+}
+
+func BenchmarkWithoutReportAllocs(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = make([]int, 8)
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_reportallocs'

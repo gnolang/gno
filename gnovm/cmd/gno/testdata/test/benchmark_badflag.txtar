@@ -1,0 +1,34 @@
+# -benchcount must be > 0. Zero or negative values are rejected.
+
+! gno test -bench . -benchcount 0 .
+
+! stdout .+
+stderr '-benchcount must be greater than 0'
+! stderr 'BenchmarkTrivial'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+! gno test -bench . -benchcount -5 .
+
+! stdout .+
+stderr '-benchcount must be greater than 0'
+! stderr 'BenchmarkTrivial'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkTrivial(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_badflag'

@@ -1,0 +1,30 @@
+! gno test -bench . -benchcount 3 .
+
+! stdout .+
+stderr 'testing: nested B.Run is not yet supported'
+stderr '--- FAIL: BenchmarkOuter'
+stderr '--- FAIL: BenchmarkOuter/mid'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkOuter(b *testing.B) {
+	b.Run("mid", func(b *testing.B) {
+		b.Run("inner", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				sink = i
+			}
+		})
+	})
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_subbench_nested'

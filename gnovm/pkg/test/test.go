@@ -236,6 +236,12 @@ type TestOptions struct {
 
 	// Flag to filter tests to run.
 	RunFlag string
+	// Flag to filter benchmarks to run.
+	BenchFlag string
+	// Fixed benchmark iteration count.
+	BenchCount int
+	// Whether to print benchmark memory metrics.
+	BenchMem bool
 	// Flag to stop executing as soon a test fails.
 	FailfastFlag bool
 	// Whether to update filetest directives.
@@ -400,6 +406,41 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		}
 	}
 
+	if opts.BenchFlag != "" && len(tset.Files)+len(itset.Files) > 0 {
+		if opts.BenchCount <= 0 {
+			errs = multierr.Append(errs, fmt.Errorf("-benchcount must be greater than 0"))
+		} else {
+			// Run benchmark files in pkg.
+			if len(tset.Files) > 0 {
+				err := opts.runBenchmarkFiles(mpkg, tset, tgs)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
+			}
+
+			// Benchmark xxx_test pkg.
+			if len(itset.Files) > 0 {
+				var mpkgType gno.MemPackageType
+				if gno.IsStdlib(mpkg.Path) {
+					mpkgType = gno.MPStdlibIntegration
+				} else {
+					mpkgType = gno.MPUserIntegration
+				}
+				itmpkg := &std.MemPackage{
+					Type:  mpkgType,
+					Name:  mpkg.Name + "_test",
+					Path:  mpkg.Path + "_test",
+					Files: itfiles,
+				}
+
+				err := opts.runBenchmarkFiles(itmpkg, itset, tgs)
+				if err != nil {
+					errs = multierr.Append(errs, err)
+				}
+			}
+		}
+	}
+
 	// Testing with *_filetest.gno.
 	if len(ftfiles) > 0 {
 		filter := splitRegexp(opts.RunFlag)
@@ -447,9 +488,127 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	return errs
 }
 
-// Runs *_test.go tests.
-// Not the same as pkg/test/filetest runFiletests()
-// which runs *_filetest.go tests.
+// loadTestPackage ensures mpkg is materialised in tgs and returns its
+// package value for reuse across per-iteration machines. If mpkg was
+// eagerly loaded earlier, the outer machine just re-activates it
+// instead of re-running RunMemPackage.
+func (opts *TestOptions) loadTestPackage(
+	mpkg *std.MemPackage, tgs gno.TransactionStore, alloc *gno.Allocator,
+) *gno.PackageValue {
+	m := Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
+	m.Alloc = alloc
+	if tgs.GetMemPackage(mpkg.Path) == nil {
+		m.RunMemPackage(mpkg, false)
+	} else {
+		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
+	}
+	return m.Package
+}
+
+// panicError formats a run-loop panic into a single error that captures
+// both the Go-side stack and, if available, the Gno machine state. m may
+// be nil if the panic fired before the per-iteration Machine was built.
+func panicError(r any, m *gno.Machine) error {
+	var mStr, stackStr, exStack string
+	if m != nil {
+		mStr = m.String()
+		stackStr = m.Stacktrace().String()
+		exStack = m.ExceptionStacktrace()
+	}
+	err := fmt.Errorf(
+		"panic: %v\ngo stacktrace:\n%v\ngno machine: %v\ngno stacktrace:\n%v",
+		r, string(debug.Stack()), mStr, stackStr,
+	)
+	if exStack != "" {
+		return multierr.Combine(err, errors.New(exStack))
+	}
+	return err
+}
+
+// gnoRunnerSpec names the Gno-side testing entry points for one mode
+// (test vs benchmark). See testRunner and benchRunner.
+type gnoRunnerSpec struct {
+	internalType string // "InternalTest" / "InternalBenchmark"
+	runnerNonCur string // "RunTest" / "RunBenchmark"
+	runnerCur    string // "runTest_cur" / "runBenchmark_cur"
+}
+
+var (
+	testRunner  = gnoRunnerSpec{"InternalTest", "RunTest", "runTest_cur"}
+	benchRunner = gnoRunnerSpec{"InternalBenchmark", "RunBenchmark", "runBenchmark_cur"}
+)
+
+// call invokes testing.RunTest / RunBenchmark for a single discovered
+// func and returns the JSON report produced by the Gno-side runner. m
+// must already have a fresh GasMeter and a reset allocator.
+func (spec gnoRunnerSpec) call(
+	m *gno.Machine, pv *gno.PackageValue, f testFunc, extraArgs ...gno.Expr,
+) string {
+	testingpv := m.Store.GetPackage("testing", false)
+	testingcx := &gno.ConstExpr{TypedValue: gno.TypedValue{
+		T: &gno.PackageType{}, V: testingpv,
+	}}
+	fv := m.Eval(gno.Nx(f.Name))[0].GetFunc()
+
+	var runCX *gno.ConstExpr
+	var fField string
+	var curExpr gno.Expr
+	if fv.IsCrossing() {
+		// Run a test/benchmark with cur passed a special way.
+		//
+		// > TestSomething(cur realm, t *testing.T) {...}
+		// > BenchmarkSomething(cur realm, b *testing.B) {...}
+		//
+		// Normally this isn't possible because stdlibs/testing is a
+		// non-realm, so it cannot have `cur`. And while a realm could
+		// call `func(cur realm){...}(cross)`, some *_test.gno cases want
+		// `cur` to refer to the realm package, while `cur.Previous()`
+		// to refer to no realm--while the `func(cur realm){...}(cross)`
+		// method would have both previous to be the current realm.
+		//
+		// Extract unexposed testing.runTest_cur / runBenchmark_cur.
+		// The Eval must happen while testingpv is active so the
+		// unexposed name resolves; we switch pv back afterwards.
+		m.SetActivePackage(testingpv)
+		runX := gno.Nx(spec.runnerCur)
+		runCX = gno.NewConstExpr(runX, m.Eval(runX)[0])
+		fField = "F_cur"
+		curExpr = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(pv.PkgPath))
+		m.SetActivePackage(pv)
+	} else {
+		// The normal path used when `cur` isn't needed such as in p
+		// package tests/benchmarks, or in realm package tests/benchmarks
+		// where no non-crossing calls are made directly in the body of
+		// the func decl.
+		//
+		// > TestSomething(t *testing.T) {...}
+		// > BenchmarkSomething(b *testing.B) {...}
+		runX := gno.Sel(testingcx, spec.runnerNonCur)
+		runCX = gno.NewConstExpr(runX, m.Eval(runX)[0])
+		fField = "F"
+		curExpr = gno.Nx("nil")
+	}
+
+	// gno.Call's signature is (fn any, args ...any), so we build the arg
+	// list as []any and unpack the trailing positional args. The explicit
+	// runCX / InternalX composite lit bracket the mode-specific extras.
+	callArgs := make([]any, 0, len(extraArgs)+1)
+	for _, e := range extraArgs {
+		callArgs = append(callArgs, e)
+	}
+	callArgs = append(callArgs, &gno.CompositeLitExpr{ // final param: InternalTest / InternalBenchmark
+		Type: gno.Sel(testingcx, spec.internalType),
+		Elts: gno.KeyValueExprs{
+			{Key: gno.X("Name"), Value: gno.Str(f.Name)},
+			{Key: gno.X(fField), Value: gno.Nx(f.Name)},
+			{Key: gno.X("Cur"), Value: curExpr},
+		},
+	})
+	return m.Eval(gno.Call(runCX, callArgs...))[0].GetString()
+}
+
+// runTestFiles runs *_test.gno tests. Not the same as runFiletests,
+// which runs *_filetest.gno tests.
 func (opts *TestOptions) runTestFiles(
 	mpkg *std.MemPackage,
 	files *gno.FileSet,
@@ -458,14 +617,7 @@ func (opts *TestOptions) runTestFiles(
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
-			if st := m.ExceptionStacktrace(); st != "" {
-				errs = multierr.Append(errors.New(st), errs)
-			}
-			errs = multierr.Append(
-				fmt.Errorf("panic: %v\ngo stacktrace:\n%v\ngno machine: %v\ngno stacktrace:\n%v",
-					r, string(debug.Stack()), m.String(), m.Stacktrace()),
-				errs,
-			)
+			errs = multierr.Append(panicError(r, m), errs)
 		}
 	}()
 
@@ -478,15 +630,7 @@ func (opts *TestOptions) runTestFiles(
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(nil)
 
-	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
-	m.Alloc = alloc
-	if tgs.GetMemPackage(mpkg.Path) == nil {
-		m.RunMemPackage(mpkg, false)
-	} else {
-		m.SetActivePackage(tgs.GetPackage(mpkg.Path, false))
-	}
-	pv := m.Package
+	pv := opts.loadTestPackage(mpkg, tgs, alloc)
 
 	// Load the test files into package and save.
 	// m.RunFiles(files.Files...)
@@ -503,50 +647,6 @@ func (opts *TestOptions) runTestFiles(
 		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
-
-		testingpv := m.Store.GetPackage("testing", false)
-		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
-		testingcx := &gno.ConstExpr{TypedValue: testingtv}
-		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
-
-		var runTestX gno.Expr
-		var runTest gno.TypedValue
-		var runTestF string
-		var runTestCur gno.Expr
-		if testfv.IsCrossing() {
-			// Run a test with cur passed a special way.
-			//
-			// > TestSomething(cur realm, t *testing.T) {...}
-			//
-			// Normally this isn't possible because
-			// stdlibs/testing is a non-realm, so it cannot
-			// have `cur`. And while a realm could call `func(cur
-			// realm){...}(cross)`, some *_test.gno test cases want
-			// `cur` to refer to the realm package, while
-			// `cur.Previous()` to refer to no realm--while the
-			// `func(cur realm){...}(cross)` method would have both
-			// previous to be the current realm.
-
-			// Extract unexposed testing.runTestWithRealm.
-			m.SetActivePackage(testingpv)
-			runTestX = gno.Nx("runTest_cur")
-			runTest = m.Eval(runTestX)[0]
-			runTestF = "F_cur"
-			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
-			m.SetActivePackage(pv)
-		} else {
-			// The normal way to test if `cur` isn't needed such as
-			// in p package tests, or in realm package tests where
-			// no non-crossing calls are made directly in the body
-			// of the test func decl.
-			//
-			// > TestSomething(t *testing.T) {...}
-			runTestX = gno.Sel(testingcx, "RunTest")
-			runTest = m.Eval(runTestX)[0]
-			runTestF = "F"
-			runTestCur = gno.Nx("nil")
-		}
-		runTestCX := gno.NewConstExpr(runTestX, runTest)
 
 		if opts.Debug {
 			fileContent := func(ppath, name string) string {
@@ -565,22 +665,12 @@ func (opts *TestOptions) runTestFiles(
 			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
 		}
 
-		eval := m.Eval(gno.Call(
-			runTestCX,                                     // Call testing.RunTest
+		ret := testRunner.call(m, pv, tf,
 			gno.Str(opts.RunFlag),                         // run flag
 			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
 			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
-			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
-				Type: gno.Sel(testingcx, "InternalTest"),
-				Elts: gno.KeyValueExprs{
-					// XXX Consider this.
-					// {Key: gno.X("Name"), Value: gno.Str(mpkg.Path + "/" + tf.Filename + "." + tf.Name)},
-					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
-					{Key: gno.X(runTestF), Value: gno.Nx(tf.Name)},
-					{Key: gno.X("Cur"), Value: runTestCur},
-				},
-			},
-		))
+		)
+
 		if opts.Verbose {
 			fmt.Fprintf(opts.Error, "--- GAS:  %d\n", m.GasMeter.GasConsumed())
 		}
@@ -596,7 +686,6 @@ func (opts *TestOptions) runTestFiles(
 			}
 		}
 
-		ret := eval[0].GetString()
 		if ret == "" {
 			err := fmt.Errorf("failed to execute unit test: %q", tf.Name)
 			errs = multierr.Append(errs, err)
@@ -642,10 +731,95 @@ func (opts *TestOptions) runTestFiles(
 	return errs
 }
 
-// report is a mirror of Gno's stdlibs/testing.Report.
-type report struct {
-	Failed  bool
-	Skipped bool
+func (opts *TestOptions) runBenchmarkFiles(
+	mpkg *std.MemPackage,
+	files *gno.FileSet,
+	tgs gno.TransactionStore,
+) (errs error) {
+	var m *gno.Machine
+	defer func() {
+		if r := recover(); r != nil {
+			errs = multierr.Append(panicError(r, m), errs)
+		}
+	}()
+
+	benchmarks := loadBenchFuncs(mpkg.Name, files)
+	filter := splitRegexp(opts.BenchFlag)
+
+	alloc := gno.NewAllocator(math.MaxInt64)
+	// reset store ops, if any - we only need them for some filetests.
+	opts.TestStore.SetLogStoreOps(nil)
+
+	pv := opts.loadTestPackage(mpkg, tgs, alloc)
+
+	// Filter once, and capture the longest name so result columns line up
+	// (mirrors Go testing's maxLen). Sub-benches from b.Run with longer names
+	// overflow for that line only.
+	filtered := make([]testFunc, 0, len(benchmarks))
+	nameWidth := 0
+	for _, bf := range benchmarks {
+		if !shouldRun(filter, bf.Name) {
+			continue
+		}
+		filtered = append(filtered, bf)
+		if l := len(bf.Name); l > nameWidth {
+			nameWidth = l
+		}
+	}
+
+	for _, bf := range filtered {
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
+		m.Alloc = alloc.Reset()
+		m.SetActivePackage(pv)
+
+		ret := benchRunner.call(m, pv, bf,
+			gno.Str(opts.BenchFlag),                  // bench filter regex (applied inside Gno for sub-benches)
+			gno.Num(strconv.Itoa(opts.BenchCount)),   // fixed N per run
+			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
+		)
+
+		if ret == "" {
+			err := fmt.Errorf("failed to execute benchmark: %q", bf.Name)
+			errs = multierr.Append(errs, err)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s [internal gno benchmark error]", bf.Name)
+			continue
+		}
+
+		var reps benchmarkReports
+		err := json.Unmarshal([]byte(ret), &reps)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			fmt.Fprintf(opts.Error, "--- FAIL: %s [internal gno benchmark error]", bf.Name)
+			continue
+		}
+
+		failfast := false
+		for _, rep := range reps.Reports {
+			name := rep.Name
+			if name == "" {
+				name = bf.Name
+			}
+			if rep.Failed {
+				err := fmt.Errorf("failed: %q", name)
+				errs = multierr.Append(errs, err)
+				if opts.FailfastFlag {
+					failfast = true
+					break
+				}
+				continue
+			}
+			if rep.Skipped {
+				fmt.Fprintf(opts.Error, "--- SKIP: %s\n", name)
+				continue
+			}
+			fmt.Fprintln(opts.Error, formatBenchmarkResult(name, rep, opts.BenchMem, nameWidth))
+		}
+		if failfast {
+			return errs
+		}
+	}
+
+	return errs
 }
 
 type testFunc struct {
@@ -654,26 +828,74 @@ type testFunc struct {
 	Filename string
 }
 
-func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
+func loadFuncs(pkgName string, tfiles *gno.FileSet, prefix string) (rt []testFunc) {
 	for _, tf := range tfiles.Files {
 		for _, d := range tf.Decls {
-			if fd, ok := d.(*gno.FuncDecl); ok {
-				if fd.IsMethod {
-					continue
-				}
-				fname := string(fd.Name)
-				if strings.HasPrefix(fname, "Test") {
-					tf := testFunc{
-						Package:  pkgName,
-						Name:     fname,
-						Filename: tf.FileName,
-					}
-					rt = append(rt, tf)
-				}
+			fd, ok := d.(*gno.FuncDecl)
+			if !ok || fd.IsMethod {
+				continue
 			}
+			fname := string(fd.Name)
+			if !strings.HasPrefix(fname, prefix) {
+				continue
+			}
+			rt = append(rt, testFunc{
+				Package:  pkgName,
+				Name:     fname,
+				Filename: tf.FileName,
+			})
 		}
 	}
 	return
+}
+
+func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
+	return loadFuncs(pkgName, tfiles, "Test")
+}
+
+func loadBenchFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
+	return loadFuncs(pkgName, tfiles, "Benchmark")
+}
+
+// Fixed column widths for benchmark output, matching Go testing's prettyPrint style.
+const (
+	benchColN          = 8
+	benchColCycles     = 12
+	benchColGas        = 12
+	benchColBytes      = 10
+	benchColAllocBytes = 12
+	benchColAllocCount = 10
+)
+
+// formatBenchmarkResult renders a single benchmark result line. nameWidth is
+// the minimum width to which the name is left-padded; pass 0 to skip padding.
+func formatBenchmarkResult(name string, rep benchmarkReport, benchmem bool, nameWidth int) string {
+	n := int64(rep.N)
+	if n <= 0 {
+		n = 1
+	}
+	if nameWidth < len(name) {
+		nameWidth = len(name)
+	}
+	cyclesPerOp := rep.Cycles / n
+	gasPerOp := rep.Gas / n
+	var b strings.Builder
+	fmt.Fprintf(&b, "%-*s\t%*d\t%*d cycles/op\t%*d gas/op",
+		nameWidth, name,
+		benchColN, rep.N,
+		benchColCycles, cyclesPerOp,
+		benchColGas, gasPerOp,
+	)
+	if rep.Bytes > 0 {
+		fmt.Fprintf(&b, "\t%*d bytes/op", benchColBytes, rep.Bytes)
+	}
+	if benchmem || rep.ReportAllocs {
+		fmt.Fprintf(&b, "\t%*d B/op\t%*d allocs/op",
+			benchColAllocBytes, rep.AllocBytes/n,
+			benchColAllocCount, rep.Allocs/n,
+		)
+	}
+	return b.String()
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the mpkg.

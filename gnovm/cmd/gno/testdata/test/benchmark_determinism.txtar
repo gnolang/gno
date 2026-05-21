@@ -1,0 +1,35 @@
+# The VM is deterministic, so running the same benchmark twice at a
+# fixed -benchcount must produce byte-identical result lines.
+
+gno test -bench . -benchcount 10 -benchmem .
+cp stderr run1-all.txt
+exec grep BenchmarkDeterministic run1-all.txt
+cp stdout run1.txt
+
+gno test -bench . -benchcount 10 -benchmem .
+cp stderr run2-all.txt
+exec grep BenchmarkDeterministic run2-all.txt
+cp stdout run2.txt
+
+cmp run1.txt run2.txt
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkDeterministic(b *testing.B) {
+	total := 0
+	for i := 0; i < b.N; i++ {
+		total += i * 3
+	}
+	sink = total
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_determinism'

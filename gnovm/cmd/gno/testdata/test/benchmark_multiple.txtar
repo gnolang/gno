@@ -1,0 +1,40 @@
+# Multiple benchmarks in one file should all run in declaration order.
+
+gno test -bench . -benchcount 3 .
+
+! stdout .+
+stderr 'BenchmarkFirst\s+3\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'BenchmarkSecond\s+3\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'BenchmarkThird\s+3\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkFirst(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i
+	}
+}
+
+func BenchmarkSecond(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i + 1
+	}
+}
+
+func BenchmarkThird(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i + 2
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_multiple'

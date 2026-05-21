@@ -1,0 +1,56 @@
+# -bench regex filtering across multiple benchmarks.
+
+gno test -bench . -benchcount 5 .
+
+! stdout .+
+stderr 'BenchmarkAlpha\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'BenchmarkBeta\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'BenchmarkGamma\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+gno test -bench Beta -benchcount 5 .
+
+! stdout .+
+! stderr 'BenchmarkAlpha\s'
+stderr 'BenchmarkBeta\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+! stderr 'BenchmarkGamma\s'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+gno test -bench 'Alpha$' -benchcount 5 .
+
+! stdout .+
+stderr 'BenchmarkAlpha\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+! stderr 'BenchmarkBeta\s'
+! stderr 'BenchmarkGamma\s'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkAlpha(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i
+	}
+}
+
+func BenchmarkBeta(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i * 2
+	}
+}
+
+func BenchmarkGamma(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sink = i * 3
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_filter'

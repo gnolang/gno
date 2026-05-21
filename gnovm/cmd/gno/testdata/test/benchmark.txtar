@@ -1,0 +1,45 @@
+gno test .
+
+! stdout .+
+! stderr 'BenchmarkCounter'
+stderr 'ok      \. 	\d+\.\d\ds'
+
+gno test -bench . -benchcount 10 -benchmem .
+
+! stdout .+
+stderr 'BenchmarkCounter\s+10\s+[1-9][0-9]* cycles/op\s+[1-9][0-9]* gas/op\s+7 bytes/op\s+[0-9]+ B/op\s+[0-9]+ allocs/op'
+stderr 'ok      \. 	\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func TestRunsByDefault(t *testing.T) {
+	sink = 1
+}
+
+func BenchmarkCounter(b *testing.B) {
+	b.SetBytes(7)
+
+	total := 0
+
+	b.StopTimer()
+	setup := make([]int, 3)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		total += setup[i%len(setup)] + i
+	}
+
+	b.StopTimer()
+	sink = total
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark'

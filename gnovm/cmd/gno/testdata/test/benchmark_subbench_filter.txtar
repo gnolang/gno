@@ -1,0 +1,41 @@
+gno test -bench 'Table/size=100$' -benchcount 5 .
+
+! stdout .+
+! stderr 'BenchmarkTable/size=10\s'
+stderr 'BenchmarkTable/size=100\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+! stderr 'BenchmarkTable/size=1000\s'
+! stderr 'BenchmarkTable\s+5\s+[0-9]+ cycles/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkTable(b *testing.B) {
+	cases := []struct {
+		name string
+		size int
+	}{
+		{"size=10", 10},
+		{"size=100", 100},
+		{"size=1000", 1000},
+	}
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				for j := 0; j < c.size; j++ {
+					sink = j
+				}
+			}
+		})
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_subbench_filter'

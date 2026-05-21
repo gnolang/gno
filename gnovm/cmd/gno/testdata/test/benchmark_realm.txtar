@@ -1,0 +1,28 @@
+# Crossing benchmark signature `func(cur realm, b *testing.B)` routes
+# through runBenchmark_cur.
+
+gno test -bench . -benchcount 5 .
+
+! stdout .+
+stderr 'BenchmarkCrossing\s+5\s+[0-9]+ cycles/op\s+[1-9][0-9]* gas/op'
+stderr 'ok      \.\s+\d+\.\d\ds'
+
+-- bench.gno --
+package bench
+
+var value int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkCrossing(cur realm, b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		value = i
+	}
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_realm'
+gno = "0.9"

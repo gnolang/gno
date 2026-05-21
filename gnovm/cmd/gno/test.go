@@ -27,6 +27,9 @@ type testCmd struct {
 	rootDir             string
 	autoGnomod          bool
 	run                 string
+	bench               string
+	benchCount          int
+	benchMem            bool
 	timeout             time.Duration
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
@@ -50,9 +53,10 @@ file pattern "*_test.gno" or "*_filetest.gno".
 
 The <package> can be directory or file path (relative or absolute).
 
-- "*_test.gno" files work like "*_test.go" files, but they contain only test
-functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
-tests that belong to the same package are supported for now (no "xxx_test").
+- "*_test.gno" files work like "*_test.go" files. Test functions run by
+default, and Benchmark functions run when selected with -bench. Fuzz functions
+aren't supported yet. Similarly, only tests that belong to the same package are
+supported for now (no "xxx_test").
 
 The package path used to execute the "*_test.gno" file is fetched from the
 module name found in 'gno.mod', or else it is set to
@@ -145,6 +149,27 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		"test name filtering pattern",
 	)
 
+	fs.StringVar(
+		&c.bench,
+		"bench",
+		"",
+		"benchmark name filtering pattern",
+	)
+
+	fs.IntVar(
+		&c.benchCount,
+		"benchcount",
+		1,
+		"fixed benchmark iteration count",
+	)
+
+	fs.BoolVar(
+		&c.benchMem,
+		"benchmem",
+		false,
+		"print benchmark memory metrics",
+	)
+
 	fs.DurationVar(
 		&c.timeout,
 		"timeout",
@@ -223,6 +248,9 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	}
 	opts := test.NewTestOptions(cmd.rootDir, stdout, io.Err(), pkgs)
 	opts.RunFlag = cmd.run
+	opts.BenchFlag = cmd.bench
+	opts.BenchCount = cmd.benchCount
+	opts.BenchMem = cmd.benchMem
 	opts.Sync = cmd.updateGoldenTests
 	opts.Verbose = cmd.verbose
 	opts.Metrics = cmd.printRuntimeMetrics

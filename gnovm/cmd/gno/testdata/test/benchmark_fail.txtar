@@ -1,0 +1,39 @@
+# Failed benchmarks (b.Fatal or raw panic) emit only the `--- FAIL:`
+# header, not a cycles/op result line -- matching Go's testing.B.
+
+! gno test -bench Failing -benchcount 3 .
+
+! stdout .+
+stderr 'intended failure'
+stderr '--- FAIL: BenchmarkFailing'
+! stderr 'BenchmarkFailing\s+3\s+[0-9]+ cycles/op'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+! gno test -bench Panic -benchcount 3 .
+
+! stdout .+
+stderr 'panic: boom'
+stderr '--- FAIL: BenchmarkPanic'
+! stderr 'BenchmarkPanic\s+3\s+[0-9]+ cycles/op'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+-- bench.gno --
+package bench
+
+var sink int
+
+-- bench_test.gno --
+package bench
+
+import "testing"
+
+func BenchmarkFailing(b *testing.B) {
+	b.Fatal("intended failure")
+}
+
+func BenchmarkPanic(b *testing.B) {
+	panic("boom")
+}
+
+-- gnomod.toml --
+module = 'gno.test/r/benchmark_fail'
