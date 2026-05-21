@@ -167,7 +167,7 @@ gnokey maketx call \
 -gas-fee 1000000ugnot -gas-wanted 5000000 \
 -chainid "dev" \
 -remote "tcp://127.0.0.1:26657" \
-{MYKEY}
+MyKey
 ```
 
 If the transaction went through, we should see `This is my first post` under the

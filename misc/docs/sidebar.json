@@ -21,6 +21,7 @@
           "builders/what-is-gno",
           "builders/install",
           "builders/getting-started",
+          "builders/quickstart",
           "builders/editor-setup",
           "builders/tutorial-minisocial",
           "builders/rpc-clients",
