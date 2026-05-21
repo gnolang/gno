@@ -23,7 +23,7 @@ func resetLimits() {
 	trustLevelRatio = trustRatio{numerator: 1, denominator: 3}
 }
 
-func TestNewValidatorProposalRequest_RejectsWithinCooldown(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsWithinCooldown(cur realm, t *testing.T) {
 	// Creation-time guard: a proposal cannot even enter GovDAO if the
 	// previous valset update was within the cooldown window.
 	resetValset(t)
@@ -38,15 +38,15 @@ func TestNewValidatorProposalRequest_RejectsWithinCooldown(t *testing.T) {
 		keepRunning bool
 	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
 
-	uassert.PanicsContains(t, errValsetUpdateCooldown, func() {
-		_ = NewValidatorProposalRequest(
+	uassert.PanicsContains(t, cur, errValsetUpdateCooldown, func() {
+		_ = NewValidatorProposalRequest(cur,
 			[]ValoperChange{{OperatorAddress: op, Power: 1}},
 			"add during cooldown", "",
 		)
 	})
 }
 
-func TestNewValidatorProposalRequest_ExecutorRejectsWithinCooldown(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorRejectsWithinCooldown(cur realm, t *testing.T) {
 	// Execution-time guard (the binding source of truth): a proposal
 	// that was created when cooldown was clear can still be rejected
 	// at execute-time if another proposal slipped in between.
@@ -66,18 +66,18 @@ func TestNewValidatorProposalRequest_ExecutorRejectsWithinCooldown(t *testing.T)
 		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
 
-	exec := newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opB, Power: 1}}, trustLevelRatio)
+	exec := newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opB, Power: 1}}, trustLevelRatio)
 
 	// Simulate another proposal having just landed between creation
 	// and execution of this one.
 	lastValsetUpdate = time.Now()
 
-	uassert.AbortsContains(t, errValsetUpdateCooldown, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errValsetUpdateCooldown, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_AllowsAfterCooldown(t *testing.T) {
+func TestNewValidatorProposalRequest_AllowsAfterCooldown(cur realm, t *testing.T) {
 	// Happy path: cooldown elapsed → proposal applies → lastValsetUpdate
 	// is bumped forward by the executor.
 	resetValset(t)
@@ -101,15 +101,15 @@ func TestNewValidatorProposalRequest_AllowsAfterCooldown(t *testing.T) {
 
 	lastValsetUpdate = time.Now().Add(-valsetUpdateCooldown - time.Minute)
 
-	exec := newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 11}}, trustLevelRatio)
-	urequire.NoError(t, exec.Execute(cross1))
+	exec := newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opA, Power: 11}}, trustLevelRatio)
+	urequire.NoError(t, exec.Execute(cross(cur)))
 
 	// Executor should have refreshed the cooldown clock.
 	uassert.True(t, time.Since(lastValsetUpdate) < time.Minute,
 		"executor must bump lastValsetUpdate on success")
 }
 
-func TestNewValidatorProposalRequest_RejectsTrustLevelViolation(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsTrustLevelViolation(cur realm, t *testing.T) {
 	// Baseline: A:10, B:1, C:1 (prevTotal=12, trust threshold = 4 with
 	// 1/3 ratio). Proposal removes A. Retained = 2 (B+C). 2 < 4 →
 	// trust-level violation. Uses only A/B/C so we don't need extra
@@ -136,14 +136,14 @@ func TestNewValidatorProposalRequest_RejectsTrustLevelViolation(t *testing.T) {
 		{op: opC, pubKey: pubKeyC, keepRunning: true},
 	})
 
-	exec := newValoperChangeExecutor([]ValoperChange{{OperatorAddress: opA, Power: 0}}, trustLevelRatio)
+	exec := newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opA, Power: 0}}, trustLevelRatio)
 
-	uassert.AbortsContains(t, errTrustLevelViolated, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errTrustLevelViolated, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsAtTrustLevelBoundary(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsAtTrustLevelBoundary(cur realm, t *testing.T) {
 	// Baseline: A:4, B:3, C:2 (prevTotal=9, threshold = 9/3 = 3).
 	// Proposal removes A and C, retaining only B. retained (BASELINE
 	// VP of survivors) = 3, exactly equal to threshold. 3*3 = 9, 9*1
@@ -175,17 +175,17 @@ func TestNewValidatorProposalRequest_RejectsAtTrustLevelBoundary(t *testing.T) {
 		{op: opC, pubKey: pubKeyC, keepRunning: true},
 	})
 
-	exec := newValoperChangeExecutor([]ValoperChange{
+	exec := newValoperChangeExecutor(cur, []ValoperChange{
 		{OperatorAddress: opA, Power: 0},
 		{OperatorAddress: opC, Power: 0},
 	}, trustLevelRatio)
 
-	uassert.AbortsContains(t, errTrustLevelViolated, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errTrustLevelViolated, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_AllowsJustAboveTrustLevel(t *testing.T) {
+func TestNewValidatorProposalRequest_AllowsJustAboveTrustLevel(cur realm, t *testing.T) {
 	// Companion to RejectsAtTrustLevelBoundary: same baseline, but
 	// retained = threshold + 1 ⇒ must pass. Brackets the boundary on
 	// the passing side so an off-by-one in the comparison surfaces.
@@ -214,15 +214,15 @@ func TestNewValidatorProposalRequest_AllowsJustAboveTrustLevel(t *testing.T) {
 		{op: opC, pubKey: pubKeyC, keepRunning: true},
 	})
 
-	exec := newValoperChangeExecutor([]ValoperChange{
+	exec := newValoperChangeExecutor(cur, []ValoperChange{
 		{OperatorAddress: opB, Power: 0},
 		{OperatorAddress: opC, Power: 0},
 	}, trustLevelRatio)
 
-	urequire.NoError(t, exec.Execute(cross1))
+	urequire.NoError(t, exec.Execute(cross(cur)))
 }
 
-func TestNewValidatorProposalRequest_RejectsJustBelowTrustLevel(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsJustBelowTrustLevel(cur realm, t *testing.T) {
 	// Companion to RejectsAtTrustLevelBoundary: same baseline, but
 	// retained = threshold-1 ⇒ must fail. Brackets the boundary on
 	// the failing side so an off-by-one in the comparison surfaces.
@@ -251,17 +251,17 @@ func TestNewValidatorProposalRequest_RejectsJustBelowTrustLevel(t *testing.T) {
 		{op: opC, pubKey: pubKeyC, keepRunning: true},
 	})
 
-	exec := newValoperChangeExecutor([]ValoperChange{
+	exec := newValoperChangeExecutor(cur, []ValoperChange{
 		{OperatorAddress: opA, Power: 0},
 		{OperatorAddress: opB, Power: 0},
 	}, trustLevelRatio)
 
-	uassert.AbortsContains(t, errTrustLevelViolated, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errTrustLevelViolated, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_ExecutorUsesSnapshotTrustLevel(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorUsesSnapshotTrustLevel(cur realm, t *testing.T) {
 	// Snapshot semantics: the trust-level rule the executor enforces
 	// is the ratio that was in effect at proposal-creation time, NOT
 	// the package-level trustLevelRatio at execute-time. This closes
@@ -299,7 +299,7 @@ func TestNewValidatorProposalRequest_ExecutorUsesSnapshotTrustLevel(t *testing.T
 
 	// Build the executor under the stricter ratio.
 	stricter := trustRatio{numerator: 2, denominator: 3}
-	exec := newValoperChangeExecutor([]ValoperChange{
+	exec := newValoperChangeExecutor(cur, []ValoperChange{
 		{OperatorAddress: opA, Power: 0},
 	}, stricter)
 
@@ -308,12 +308,12 @@ func TestNewValidatorProposalRequest_ExecutorUsesSnapshotTrustLevel(t *testing.T
 	// through.
 	trustLevelRatio = trustRatio{numerator: 1, denominator: 3}
 
-	uassert.AbortsContains(t, errTrustLevelViolated, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errTrustLevelViolated, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewValidatorProposalRequest_RejectsBaselineWipeViaUpsert(t *testing.T) {
+func TestNewValidatorProposalRequest_RejectsBaselineWipeViaUpsert(cur realm, t *testing.T) {
 	// Regression test for the OLD-vs-NEW weights bug: a proposal that
 	// removes most baseline validators and inflates the remaining
 	// survivor's voting power must be rejected, because an IBC light
@@ -352,18 +352,18 @@ func TestNewValidatorProposalRequest_RejectsBaselineWipeViaUpsert(t *testing.T) 
 		{op: opC, pubKey: pubKeyC, keepRunning: true},
 	})
 
-	exec := newValoperChangeExecutor([]ValoperChange{
+	exec := newValoperChangeExecutor(cur, []ValoperChange{
 		{OperatorAddress: opA, Power: 0},
 		{OperatorAddress: opB, Power: 0},
 		{OperatorAddress: opC, Power: 100},
 	}, trustLevelRatio)
 
-	uassert.AbortsContains(t, errTrustLevelViolated, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errTrustLevelViolated, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
 
-func TestNewTrustLevelPropRequest_UpdatesRatio(t *testing.T) {
+func TestNewTrustLevelPropRequest_UpdatesRatio(cur realm, t *testing.T) {
 	resetLimits()
 
 	numBefore, denBefore := GetTrustLevel()
@@ -374,16 +374,16 @@ func TestNewTrustLevelPropRequest_UpdatesRatio(t *testing.T) {
 	// re-built here to drive it directly (ProposalRequest doesn't expose
 	// its Executor). Going through dao.NewSimpleExecutor would duplicate
 	// the factory's branching, so use the private helper instead.
-	_ = NewTrustLevelPropRequest(2, 5, "tighten trust level", "require 40% legacy power")
-	exec := newTrustLevelExecutor(trustRatio{numerator: 2, denominator: 5})
-	urequire.NoError(t, exec.Execute(cross1))
+	_ = NewTrustLevelPropRequest(cur, 2, 5, "tighten trust level", "require 40% legacy power")
+	exec := newTrustLevelExecutor(cur, trustRatio{numerator: 2, denominator: 5})
+	urequire.NoError(t, exec.Execute(cross(cur)))
 
 	numAfter, denAfter := GetTrustLevel()
 	uassert.Equal(t, uint64(2), numAfter)
 	uassert.Equal(t, uint64(5), denAfter)
 }
 
-func TestNewTrustLevelPropRequest_RejectsOutOfBounds(t *testing.T) {
+func TestNewTrustLevelPropRequest_RejectsOutOfBounds(cur realm, t *testing.T) {
 	resetLimits()
 
 	// numerator/denominator must yield a ratio in [1/3, 2/3].
@@ -398,13 +398,13 @@ func TestNewTrustLevelPropRequest_RejectsOutOfBounds(t *testing.T) {
 		{1, 0}, // div-by-zero guard
 	}
 	for _, c := range cases {
-		uassert.PanicsContains(t, errInvalidTrustLevel, func() {
-			_ = NewTrustLevelPropRequest(c.num, c.den, "invalid", "")
+		uassert.PanicsContains(t, cur, errInvalidTrustLevel, func() {
+			_ = NewTrustLevelPropRequest(cur, c.num, c.den, "invalid", "")
 		})
 	}
 }
 
-func TestNewCooldownPropRequest_UpdatesCooldown(t *testing.T) {
+func TestNewCooldownPropRequest_UpdatesCooldown(cur realm, t *testing.T) {
 	resetLimits()
 
 	cdBefore := GetCooldown()
@@ -413,15 +413,15 @@ func TestNewCooldownPropRequest_UpdatesCooldown(t *testing.T) {
 	// NewCooldownPropRequest validates at create-time; the executor is
 	// re-built here to drive it directly (ProposalRequest doesn't
 	// expose its Executor).
-	_ = NewCooldownPropRequest(0, "disable cooldown for testnet", "")
-	exec := newCooldownExecutor(0)
-	urequire.NoError(t, exec.Execute(cross1))
+	_ = NewCooldownPropRequest(cur, 0, "disable cooldown for testnet", "")
+	exec := newCooldownExecutor(cur, 0)
+	urequire.NoError(t, exec.Execute(cross(cur)))
 
 	cdAfter := GetCooldown()
 	uassert.Equal(t, uint64(0), cdAfter)
 }
 
-func TestNewCooldownPropRequest_RejectsOverflowingSeconds(t *testing.T) {
+func TestNewCooldownPropRequest_RejectsOverflowingSeconds(cur realm, t *testing.T) {
 	resetLimits()
 
 	// Any input above cooldownMaxSeconds is rejected at create-time.
@@ -435,18 +435,18 @@ func TestNewCooldownPropRequest_RejectsOverflowingSeconds(t *testing.T) {
 		^uint64(0),             // uint64 max
 	}
 	for _, s := range cases {
-		uassert.PanicsContains(t, errInvalidCooldown, func() {
-			_ = NewCooldownPropRequest(s, "too long", "")
+		uassert.PanicsContains(t, cur, errInvalidCooldown, func() {
+			_ = NewCooldownPropRequest(cur, s, "too long", "")
 		})
 	}
 
 	// Cap itself is accepted.
-	urequire.NotPanics(t, func() {
-		_ = NewCooldownPropRequest(cooldownMaxSeconds, "at cap", "")
+	urequire.NotPanics(t, cur, func() {
+		_ = NewCooldownPropRequest(cur, cooldownMaxSeconds, "at cap", "")
 	})
 }
 
-func TestNewCooldownPropRequest_AllowsBackToBackAfterDisable(t *testing.T) {
+func TestNewCooldownPropRequest_AllowsBackToBackAfterDisable(cur realm, t *testing.T) {
 	// Concrete test of the use case the proposal exists for: after a
 	// cooldown=0 proposal executes, subsequent valset proposals are
 	// no longer blocked by the cooldown (creation OR execution).
@@ -458,7 +458,7 @@ func TestNewCooldownPropRequest_AllowsBackToBackAfterDisable(t *testing.T) {
 	lastValsetUpdate = time.Now()
 
 	// Disable the cooldown via governance.
-	urequire.NoError(t, newCooldownExecutor(0).Execute(cross1))
+	urequire.NoError(t, newCooldownExecutor(cur, 0).Execute(cross(cur)))
 
 	// Now a back-to-back valset proposal must pass cooldown checks.
 	testing.SetSysParamStrings(module, submodule, currKey, []string{
@@ -477,21 +477,21 @@ func TestNewCooldownPropRequest_AllowsBackToBackAfterDisable(t *testing.T) {
 	})
 
 	// Create-time cooldown check uses live cooldown (now 0) — passes.
-	pr := NewValidatorProposalRequest(
+	pr := NewValidatorProposalRequest(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 5}},
 		"upsert opA after cooldown disabled", "",
 	)
 	_ = pr
 
 	// Execute path: same live check, also passes.
-	exec := newValoperChangeExecutor(
+	exec := newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 5}},
 		trustLevelRatio,
 	)
-	urequire.NoError(t, exec.Execute(cross1))
+	urequire.NoError(t, exec.Execute(cross(cur)))
 }
 
-func TestNewValidatorProposalRequest_ExecutorRejectsRatioOverflow(t *testing.T) {
+func TestNewValidatorProposalRequest_ExecutorRejectsRatioOverflow(cur realm, t *testing.T) {
 	// Defense-in-depth: a maliciously-crafted (but in-bounds) ratio
 	// like (2<<40, 3<<40) is accepted by NewTrustLevelPropRequest
 	// (ratio = 2/3, within [1/3, 2/3]). If a future baseline grows
@@ -521,11 +521,11 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRatioOverflow(t *testing.T) 
 	// are individually fine, but whose product against a 2^40 baseline
 	// overflows uint64.
 	bigButValid := trustRatio{numerator: 1 << 40, denominator: 3 << 40}
-	exec := newValoperChangeExecutor([]ValoperChange{
+	exec := newValoperChangeExecutor(cur, []ValoperChange{
 		{OperatorAddress: opA, Power: 1 << 40},
 	}, bigButValid)
 
-	uassert.AbortsContains(t, errTrustLevelOverflow, func() {
-		_ = exec.Execute(cross1)
+	uassert.AbortsContains(t, cur, errTrustLevelOverflow, func() {
+		_ = exec.Execute(cross(cur))
 	})
 }
