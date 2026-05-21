@@ -398,12 +398,15 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	// has lost the operator-keyed management plane for those validators.
 	if cfg.shouldRunValoperCoverageAssertion(req) {
 		if err := assertGenesisValopersConsistent(ctx, cfg.vmk, req); err != nil {
-			return abci.ResponseInitChain{
-				ResponseBase: abci.ResponseBase{
-					Error: abci.StringError(fmt.Errorf("genesis valoper coverage assertion failed: %w", err).Error()),
-				},
-				TxResponses: txResponses,
-			}
+			// Hard-panic so tm2's handshake actually aborts boot.
+			// ResponseInitChain.Error (the previous return shape) is
+			// silently discarded by tm2 — consensus/replay.go:339-342
+			// only checks the Go-level err from InitChainSync, never
+			// the proto Error field. A Go panic propagates as that
+			// Go-level err once baseapp's abci handler unwinds it,
+			// so an uncovered hardfork chain refuses to boot instead
+			// of booting with a broken management plane.
+			panic(fmt.Errorf("genesis valoper coverage assertion failed: %w", err))
 		}
 	}
 
