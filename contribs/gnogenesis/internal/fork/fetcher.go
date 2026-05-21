@@ -34,10 +34,15 @@ type blockResult struct {
 // After all endpoints fail for a given height in one cycle, it sleeps backoff
 // and retries up to maxCycles times before yielding a terminal error.
 //
-// Memory ceiling: the reorder buffer holds at most ~3*numEndpoints*
-// workersPerEndpoint blocks in-flight (heights channel + worker results
-// channel + reorder map). Operators sizing endpoints/workers should bound
-// peak memory by (3 * numEndpoints * workersPerEndpoint) * avg-block-size.
+// Memory: the heights / worker-result channels are bounded at numEndpoints
+// * workersPerEndpoint, but the reorder map is NOT bounded by the pool
+// size. When the next-expected height stalls (one endpoint cycling
+// through retries), every higher height other workers complete lands in
+// the map until the stall resolves. Worst-case stall ≈ per-call timeout *
+// maxCycles. Peak memory during such a stall is roughly stall_window *
+// worker_throughput * avg_block_size, which for multi-MB blocks can
+// reach hundreds of MB to multi-GB. The memory is released as soon as
+// the stalled height resolves (success or terminal error).
 type pooledFetcher struct {
 	numEndpoints       int
 	workersPerEndpoint int

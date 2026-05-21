@@ -65,3 +65,17 @@ func TestOpenSource_RejectsAllEmpty(t *testing.T) {
 	_, err := openSourceTest(",,")
 	require.Error(t, err)
 }
+
+func TestOpenSource_RejectsNonHTTPSchemeInList(t *testing.T) {
+	t.Parallel()
+
+	for _, s := range []string{
+		"ws://localhost:26657,http://b:26657",
+		"http://a:26657,tcp://b:26657",
+		"http://a:26657,ftp://example.org",
+	} {
+		_, err := openSourceTest(s)
+		require.Error(t, err, "input: %s", s)
+		assert.Contains(t, err.Error(), "http")
+	}
+}
