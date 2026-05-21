@@ -323,6 +323,20 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tm.Store = newTestGnoStore(true)
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
+					// Filetests that assert a compile-time failure via
+					// // Error: or // TypeCheckError: are interpreted by
+					// the filetest harness in `gno test`. Preprocessing
+					// them here would surface their expected failure as
+					// a lint error.
+					expectsCompileError, err := filetestExpectsCompileError(mfile.Body)
+					if err != nil {
+						io.ErrPrintln(err)
+						hasError = true
+						continue
+					}
+					if expectsCompileError {
+						continue
+					}
 					pkgPath := fmt.Sprintf("%s_filetest%d", mpkg.Path, i)
 					pkgPath, err = parsePkgPathDirective(mfile.Body, pkgPath)
 					if err != nil {

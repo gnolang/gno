@@ -106,6 +106,25 @@ func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
 	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
 }
 
+// filetestExpectsCompileError reports whether the filetest body declares
+// an // Error: or // TypeCheckError: directive with non-empty content,
+// indicating the filetest asserts a compile-time failure. The filetest
+// harness in gno test interprets these directives; lint must not, or it
+// would surface the expected failure as a lint error.
+func filetestExpectsCompileError(body string) (bool, error) {
+	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
+	if err != nil {
+		return false, fmt.Errorf("error parsing directives: %w", err)
+	}
+	if dirs.FirstDefault(test.DirectiveError, "") != "" {
+		return true, nil
+	}
+	if dirs.FirstDefault(test.DirectiveTypeCheckError, "") != "" {
+		return true, nil
+	}
+	return false, nil
+}
+
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
 	switch err := err.(type) {
 	case *gno.PreprocessError:
