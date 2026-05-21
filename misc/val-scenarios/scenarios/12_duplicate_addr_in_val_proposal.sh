@@ -53,9 +53,9 @@ func main(cur realm) {
 	// Bootstrap: add the scenario TX key as a T1 member.
 	// allowedDAOs is empty after genesis so memberstore.Get() is open to any
 	// MsgRun caller at this stage.
-	must(memberstore.Get().SetMember(memberstore.T1, txAddr, &memberstore.Member{InvitationPoints: 0}))
+	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
 
-	r := valr.NewPropRequest(
+	r := valr.NewPropRequest(cross(cur), 
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -73,7 +73,7 @@ func main(cur realm) {
 		"Set voting power of validator ${TARGET_ADDR} to ${TARGET_POWER}",
 	)
 	pid := dao.MustCreateProposal(cross(cur), r)
-	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, pid))
 	dao.ExecuteProposal(cross(cur), pid)
 }
 
