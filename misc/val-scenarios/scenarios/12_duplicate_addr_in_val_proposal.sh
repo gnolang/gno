@@ -72,9 +72,9 @@ func main() {
 		"Change voting power for ${TARGET_ADDR}",
 		"Set voting power of validator ${TARGET_ADDR} to ${TARGET_POWER}",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross1, r)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross1, pid)
 }
 
 func must(err error) {

@@ -65,9 +65,9 @@ func main() {
 		"Add validator val4",
 		"Add val4 (${VAL4_ADDR}) with power ${VAL4_POWER}",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross1, r)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross1, pid)
 }
 
 func must(err error) {
@@ -120,9 +120,9 @@ func main() {
 		"Remove validator val4",
 		"Remove val4 (${VAL4_ADDR}) from the validator set",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross1, r)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross1, pid)
 }
 GNOEOF
 

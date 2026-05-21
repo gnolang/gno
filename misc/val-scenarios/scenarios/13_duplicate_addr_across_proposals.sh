@@ -61,9 +61,9 @@ func main() {
 		"Remove validator ${TARGET_ADDR}",
 		"",
 	)
-	pid1 := dao.MustCreateProposal(cross, r1)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid1})
-	dao.ExecuteProposal(cross, pid1)
+	pid1 := dao.MustCreateProposal(cross1, r1)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid1})
+	dao.ExecuteProposal(cross1, pid1)
 
 	// Proposal 2: re-add val1 with new power — individually valid.
 	// Together with proposal 1, the block-level change slice now contains
@@ -81,9 +81,9 @@ func main() {
 		"Re-add validator ${TARGET_ADDR}",
 		"",
 	)
-	pid2 := dao.MustCreateProposal(cross, r2)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid2})
-	dao.ExecuteProposal(cross, pid2)
+	pid2 := dao.MustCreateProposal(cross1, r2)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid2})
+	dao.ExecuteProposal(cross1, pid2)
 }
 
 func must(err error) {

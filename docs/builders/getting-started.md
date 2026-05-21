@@ -105,7 +105,7 @@ package myrealm
 import "testing"
 
 func TestIncrement(t *testing.T) {
-	val := Increment(cross)
+	val := Increment(cross1)
 	if val != 1 {
 		t.Fatalf("expected 1, got %d", val)
 	}

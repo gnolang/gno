@@ -36,10 +36,10 @@ import (
 )
 
 func main() {
-	r := proposal.ProposeNewMinFeeProposalRequest(cross, int64(${MIN_FEE}))
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	r := proposal.ProposeNewMinFeeProposalRequest(cross1, int64(${MIN_FEE}))
+	pid := dao.MustCreateProposal(cross1, r)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross1, pid)
 }
 GOEOF
 

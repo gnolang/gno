@@ -50,9 +50,9 @@ func main() {
 		"Remove validator ${ADDR}",
 		"Remove operator ${ADDR} from the active valset.",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross1, r)
+	dao.MustVoteOnProposal(cross1, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross1, pid)
 }
 GOEOF
 

@@ -502,6 +502,15 @@ the in-scope realm value. Codebases originally written against the
 bare-`cross` sentinel (`fn(cross, args...)`) migrate in **two
 mechanical-then-semantic steps**:
 
+**Bare `cross` is REJECTED by the preprocessor on this branch.**
+`preprocess.go` (`case CallExpr` → first-arg switch) accepts only
+`cur`, `.cur`, `.origin`, or `cross1` as the first argument to a
+crossing function. A bare-`cross` callsite now panics with
+`"only cur or cross(rlm) are allowed as the first argument..."` at
+compile time. Step 1 below is therefore **load-bearing for
+compilation**, not optional cleanup — any code merged in from a branch
+that still uses bare `cross` will not compile until renamed.
+
 **Step 1 — mechanical: `cross` → `cross1`.**
 
 A pure rename. `cross1` is a uverse-defined legacy sentinel (see
@@ -518,6 +527,40 @@ across the tree without per-site analysis.
 
 This unblocks deleting the bare-`cross` preprocessor branch from gnovm
 (see commit `86b1bd0cf`) while leaving codebases temporarily compilable.
+
+**The Step 1 sed pattern.**
+A naive `\bcross\b` matches the English word "cross" in comments and
+identifiers like `MessageTypeCrossPanic`, producing false positives.
+The tested pattern matches only the call-site context — `cross`
+immediately preceded by `(` or `,` (with optional whitespace) and
+followed by `,` or `)`:
+
+```bash
+sed -i '' -E 's/([(,][[:space:]]*)cross([,)])/\1cross1\2/g' "$@"
+```
+
+Verified to:
+- Match `Execute(cross)`, `Foo(cross, x)`, `Foo(a, cross, b)`,
+  `Foo(a, cross)`.
+- NOT match `cross(cur)` (new form), `cross-realm` /
+  `cross-multiply` / `crossing` (English compounds and identifiers),
+  or `// the cross-call pattern` (comments).
+
+Multi-line `cross,\n` does not occur in the current tree but is not
+handled by the single-line sed; if you encounter one, fix it by hand.
+
+**File-type scope.**
+Bare `cross` lives in three file types on this branch:
+- `.gno` source.
+- `.sh` shell scripts under `misc/val-scenarios/` and
+  `misc/govdao-scripts/` that contain heredoc gno snippets passed to
+  `gnokey maketx run`. These do execute as gno, so they hit the
+  preprocessor reject path the same as `.gno` files.
+- `.md` documentation under `docs/` whose code blocks teach the
+  language. Doc examples don't fail compilation but readers copying
+  them will hit the preprocessor reject.
+
+Run the sed against all three file types when sweeping.
 
 **Step 2 — semantic: `cross1` → `cross(rlm)`.**
 
@@ -554,6 +597,43 @@ See `gnovm/tests/files/zrealm_cross1_legacy.gno` for a minimal example
 asserting that `cross1` and `cross(cur)` produce identical
 `cur.PkgPath()` from the callee — useful as a regression guard if the
 two lowerings ever diverge.
+
+**Merging upstream `master` into a `cur`-migrated branch.**
+The Step 1 sed clears the literal bare-`cross` issue, but new code
+from upstream typically lands with *three* additional drifts that the
+sed does not touch:
+
+1. **Helper signature drift.** Upstream helpers that build executors
+   or wrap dao calls use master's `dao.NewSimpleExecutor(callback,
+   "")` shape; HEAD has migrated to `(_ int, cur realm, callback,
+   "")`. Compile errors surface as
+   `not enough arguments in call to dao.NewSimpleExecutor — have
+   (func(...), string), want (int, dao.realm, func(...), string)`.
+   Fix by threading `cur realm` through the enclosing helper and
+   passing `(0, cur, callback, "")`.
+
+2. **Caller-chain drift.** When (1) adds `cur realm` to a helper, the
+   helper's callers (often top-level `New...PropRequest` constructors)
+   need `cur realm` too, and so do *their* callers, all the way out to
+   the test boundary. This is a per-callsite sweep, not mechanical.
+
+3. **`Test*` declaration drift.** Master's tests are usually
+   `func TestX(t *testing.T)`. HEAD's migrated APIs and assert helpers
+   (`uassert.AbortsContains`, `urequire.NotPanics`, etc.) now require
+   a realm parameter. Compile errors surface as
+   `not enough arguments in call to uassert.AbortsContains — have
+   (*testing.T, string, func()), want (uassert.TestingT,
+   uassert.realm, string, any, ...string)`.
+   Fix by re-declaring the test as `TestX(cur realm, t *testing.T)`
+   and threading `cur` to every assert helper and SUT call. See
+   `project_runtime_to_cur_migration.md` for the `TestX(cur realm,
+   t *testing.T)` rationale and the `SetRealm + crossing-closure`
+   actor-simulation pattern.
+
+The sed sweep + Step 2 thread happens at one pace; (1)–(3) happen at
+another. Don't conflate them in the same commit — the sed is purely
+mechanical and reviewable as a single rename; the signature/test-fn
+plumbing requires per-call judgment and is a separate pass.
 
 ---
 
