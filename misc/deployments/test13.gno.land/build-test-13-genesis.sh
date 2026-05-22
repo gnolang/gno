@@ -153,7 +153,7 @@ for arg in "$@"; do
   --debug) DEBUG=true ;;
   --no-install) NO_INSTALL=true ;;
   *)
-    echo "Unknown argument: $arg"
+    echo "Unknown argument: $arg" >&2
     exit 1
     ;;
   esac
@@ -203,7 +203,7 @@ if [ "$NO_INSTALL" = true ]; then
   printf "\n=== Step 1/9: Skipping build (--no-install) ===\n"
   for bin in "$GNO_BIN" "$GNOKEY_BIN" "$GNOLAND_BIN" "$GNOGENESIS_BIN"; do
     if [ ! -x "$bin" ]; then
-      echo "ERROR: --no-install but $bin not found. Run without --no-install first."
+      echo "ERROR: --no-install but $bin not found. Run without --no-install first." >&2
       exit 1
     fi
   done
@@ -408,8 +408,8 @@ start_temp_node() {
   local elapsed=0
   while [ "$elapsed" -lt "$NODE_TIMEOUT" ]; do
     if ! kill -0 "$NODE_PID" 2>/dev/null; then
-      echo "ERROR: Node stopped unexpectedly. Last log lines:"
-      tail -20 "$BALANCES_TMP_GNOLAND_LOG"
+      echo "ERROR: Node stopped unexpectedly. Last log lines:" >&2
+      tail -20 "$BALANCES_TMP_GNOLAND_LOG" >&2
       exit 1
     fi
     if curl -sf "http://$NODE_RPC_ADDR/status" >/dev/null 2>&1; then
@@ -420,8 +420,8 @@ start_temp_node() {
     elapsed=$((elapsed + 1))
   done
   kill "$NODE_PID" 2>/dev/null || true
-  echo "ERROR: Node did not start within ${NODE_TIMEOUT}s. Last log lines:"
-  tail -20 "$BALANCES_TMP_GNOLAND_LOG"
+  echo "ERROR: Node did not start within ${NODE_TIMEOUT}s. Last log lines:" >&2
+  tail -20 "$BALANCES_TMP_GNOLAND_LOG" >&2
   exit 1
 }
 
@@ -482,7 +482,7 @@ done <"$BALANCES_TMP_CREATOR_ADDRESSES"
 stop_temp_node
 
 if [ "$all_zero" != true ]; then
-  echo "ERROR: Some balances are not zero after replay. Check $BALANCES_TMP_FILE."
+  echo "ERROR: Some balances are not zero after replay. Check $BALANCES_TMP_FILE." >&2
   exit 1
 fi
 printf "  All balances zero — deployer costs verified\n"
@@ -654,7 +654,7 @@ sed -n '/^    "balances": \[$/,/^    \],*$/{
 }' "$FAUCET_TMP_GENESIS" >"$FAUCET_EXTRAS_FILE"
 extras_count=$(wc -l <"$FAUCET_EXTRAS_FILE" | tr -d ' ')
 if [ "$extras_count" -ne "${#FAUCET_ADDRESSES[@]}" ]; then
-  echo "ERROR: extracted $extras_count balance lines from throwaway genesis, expected ${#FAUCET_ADDRESSES[@]}"
+  echo "ERROR: extracted $extras_count balance lines from throwaway genesis, expected ${#FAUCET_ADDRESSES[@]}" >&2
   exit 1
 fi
 printf "  Extracted %s amino-formatted balance lines from throwaway genesis\n" "$extras_count"

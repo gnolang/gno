@@ -2,8 +2,12 @@
 # apply-test-13-replay.sh — phase 2 of the test-13 genesis build.
 #
 # Takes the base genesis produced by build-test-13-genesis.sh and:
-#   1. Verifies the cached gnoland1 historical-tx archive matches HALT_HEIGHT.
-#   2. Builds a 2-line migration .jsonl with `gnokey maketx call` + `jq`:
+#   1. Builds the gnokey + gnogenesis binaries from the worktree.
+#   2. Verifies the txs source: for --source-txs-jsonl-file, confirms the
+#      cached archive's max BlockHeight matches HALT_HEIGHT; for
+#      --source-txs-rpc / --source-txs-data-dir, gnogenesis enforces
+#      halt-height during fetch/read.
+#   3. Builds a 2-line migration .jsonl with `gnokey maketx call` + `jq`:
 #        a. MsgCall to gno.land/r/test13/rotate.Rotate, signed by the
 #           genesis deployer (Rotate is gated by ChainHeight()==0, not by
 #           caller identity, so any signer with funds works).
@@ -13,19 +17,21 @@
 #           don't hold the multisig key. Genesis replay runs under
 #           --skip-genesis-sig-verification, so the dummy deployer
 #           signature is trusted-but-ignored.
-#   3. Calls `gnogenesis fork generate` to assemble the final genesis:
-#        base + gnoland1 history (with GasReplayMode="source" baked in by
-#        default at line 304-306 of fork/generate.go) + the migration txs.
-#   4. Runs `gnogenesis fork test --verbose --skip-failing-genesis-txs`
-#        against the result and categorizes any failures:
-#          - Expected: r/sys/validators/v2 proposal-execute failures. The
-#            test-13 bootstrap (govdao_prop1_test13.gno) skips the v2
-#            valset seed, so gnoland1 historical txs that propose
-#            add/remove against v2 find an empty store. Cosmetic — master's
-#            EndBlocker reads valset from v3 + GenesisDoc.Validators, not
-#            v2 events, so consensus is unaffected.
-#          - Unexpected: anything else — printed with full context, audit
-#            step exits non-zero.
+#   4. Calls `gnogenesis fork generate` to assemble the final genesis:
+#        base + gnoland1 history (with GasReplayMode="source" so historical
+#        txs use original-chain gas accounting, set in buildHardforkGenesis)
+#        + the valoper-seed + the T1/names migration txs.
+#
+# After Step 4 the audit phase runs `gnogenesis fork test --verbose
+# --skip-failing-genesis-txs` and categorizes any failures. 5 known
+# buckets are tolerated (each documented inline in EXPECTED_PATTERNS):
+#   - r/sys/validators/v2 remove (v2 store unseeded on test-13 by design)
+#   - r/gnops/valopers squat guard added post-gnoland1
+#   - r/gnoland/boards2/v1 owner list narrowed on master
+#   - boards2 missing-board cascade (consequence of the previous)
+#   - boards2 missing-member cascade (consequence of the previous two)
+# Anything else is printed with full context and the audit step exits
+# non-zero.
 #
 # Inputs (consumed; must exist or be reachable before run):
 #   ./out/base-genesis.json   produced by ./build-test-13-genesis.sh — used as --source-genesis-file
@@ -34,11 +40,10 @@
 #   ./out/valoper-seed.jsonl  produced by ./build-test-13-genesis.sh — appended as a --migration-tx
 #                             (one valopers.Register tx per INITIAL_VALSET entry; required by #5701/#5702).
 #
-# Txs source (pick one; defaults to whatever's already present, falling back to RPC):
+# Txs source (default: multi-endpoint RPC fetch against $DEFAULT_TXS_RPC_ENDPOINTS;
+# pass one of the flags below to override):
 #   --source-txs-jsonl-file PATH cached amino-JSONL of gnoland.TxWithMetadata
-#                                (default: ./txs.jsonl when present)
 #   --source-txs-rpc URLS        multi-endpoint RPC fetch (#5693 parallel fetcher), comma-separated
-#                                (default if no cached ./txs.jsonl: $DEFAULT_TXS_RPC_ENDPOINTS)
 #   --source-txs-data-dir PATH   read txs from a halted gnoland data dir (offline PebbleDB reader, #5696)
 #
 # Output:
@@ -47,11 +52,12 @@
 #   ./out/fork-test.log       full `fork test --verbose` log (kept for audit)
 #
 # Usage:
-#   ./apply-test-13-replay.sh                                  # use defaults (./out/base-genesis.json + ./txs.jsonl or RPC)
+#   ./apply-test-13-replay.sh                                  # default: multi-RPC tx fetch
 #   ./apply-test-13-replay.sh --debug                          # show every command being run
 #   ./apply-test-13-replay.sh --no-install                     # reuse previously built binaries
 #   ./apply-test-13-replay.sh --skip-audit                     # skip the fork-test audit step
-#   ./apply-test-13-replay.sh --source-txs-rpc <urls,csv>      # fetch txs from RPCs at runtime instead of jsonl
+#   ./apply-test-13-replay.sh --source-txs-jsonl-file PATH     # use a pre-fetched jsonl instead of RPC
+#   ./apply-test-13-replay.sh --source-txs-data-dir PATH       # use a halted gnoland data dir instead of RPC
 set -eo pipefail
 
 # =============================================================================
@@ -61,15 +67,16 @@ set -eo pipefail
 CHAIN_ID=test-13
 ORIGINAL_CHAIN_ID=gnoland1
 
-# Highest BlockHeight present in the cached txs.jsonl. The script
-# verifies this against the actual jsonl content and aborts on
-# mismatch — keeps the constant honest. The resulting chain starts
-# at InitialHeight = HALT_HEIGHT + 1.
+# Source-chain halt height. Passed to gnogenesis fork generate as
+# --halt-height and enforced on the fetch/read side for every txs source.
+# In --source-txs-jsonl-file mode, the script also cross-checks the cached
+# archive's max BlockHeight against this constant to fail fast on a stale
+# cache. The resulting chain starts at InitialHeight = HALT_HEIGHT + 1.
 HALT_HEIGHT=1485629
 
 # Default RPC endpoint list for --source-txs-rpc. Comma-separated for
-# #5693's multi-endpoint parallel fetcher. Used only when no
-# --source-txs-* flag is passed AND no cached ./txs.jsonl exists.
+# #5693's multi-endpoint parallel fetcher. Used when no --source-txs-*
+# flag is passed.
 DEFAULT_TXS_RPC_ENDPOINTS="http://51.159.14.234:26657,http://163.172.33.181:26657,https://rpc.gnoland1.moul.p2p.team,https://rpc.gnoland1-aeddi-1.gnoland.network,https://rpc.gnoland1-gfanton-1.gnoland.network"
 
 # =============================================================================
@@ -162,7 +169,6 @@ run() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_GENESIS="$SCRIPT_DIR/out/base-genesis.json"
-TXS_JSONL="$SCRIPT_DIR/txs.jsonl"
 OUT_GENESIS="$SCRIPT_DIR/out/genesis.json"
 OUT_MIGRATIONS="$SCRIPT_DIR/out/t1-rotation.jsonl"
 VALOPER_SEED="$SCRIPT_DIR/out/valoper-seed.jsonl"
@@ -203,44 +209,14 @@ if [ ! -f "$VALOPER_SEED" ]; then
   exit 1
 fi
 
-# ---- Txs source: default to cached TXS_JSONL if it exists, otherwise
-# fall back to multi-RPC fetch against DEFAULT_TXS_RPC_ENDPOINTS so
-# the no-flag invocation works against fresh checkouts that haven't
-# pre-cached a txs.jsonl.
+# ---- Txs source: default to multi-RPC fetch against DEFAULT_TXS_RPC_ENDPOINTS.
+# The user can override by passing --source-txs-jsonl-file or
+# --source-txs-data-dir; in those modes the path/dir must exist.
 if [ "$TXS_SOURCE_COUNT" -eq 0 ]; then
-  if [ -f "$TXS_JSONL" ]; then
-    SOURCE_TXS_JSONL_FILE="$TXS_JSONL"
-  else
-    SOURCE_TXS_RPC="$DEFAULT_TXS_RPC_ENDPOINTS"
-  fi
+  SOURCE_TXS_RPC="$DEFAULT_TXS_RPC_ENDPOINTS"
 fi
 if [ -n "$SOURCE_TXS_JSONL_FILE" ] && [ ! -f "$SOURCE_TXS_JSONL_FILE" ]; then
-  cat >&2 <<EOF
-ERROR: $SOURCE_TXS_JSONL_FILE not found.
-
-The script expects a pre-fetched gnoland1 historical-tx archive at
-that path (one gnoland.TxWithMetadata per line in amino-JSON form).
-
-To produce it from RPCs (uses #5693 multi-endpoint parallel fetch):
-  # First grab gnoland1's actual genesis from the GitHub release
-  # (the public /genesis RPC endpoint 502s on the 201MB response):
-  curl -fSL --progress-bar -o /tmp/gnoland1-genesis.json \\
-    'https://github.com/gnolang/gno/releases/download/chain%2Fgnoland1.0/genesis.json'
-  go run -C contribs/gnogenesis . fork generate \\
-    --source-genesis-file /tmp/gnoland1-genesis.json \\
-    --source-txs-rpc <urls,csv> \\
-    --halt-height \$HALT_HEIGHT \\
-    --chain-id \$CHAIN_ID \\
-    --original-chain-id \$ORIGINAL_CHAIN_ID \\
-    --txs-output \$SOURCE_TXS_JSONL_FILE \\
-    --output /tmp/throwaway.json
-
-Or, if you already have a cached file from an earlier run, copy it
-to \$SOURCE_TXS_JSONL_FILE.
-
-Or, pass --source-txs-rpc / --source-txs-data-dir directly to skip
-the cached-file requirement and fetch at script-runtime instead.
-EOF
+  echo "ERROR: --source-txs-jsonl-file points at $SOURCE_TXS_JSONL_FILE which does not exist." >&2
   exit 1
 fi
 if [ -n "$SOURCE_TXS_DATA_DIR" ] && [ ! -d "$SOURCE_TXS_DATA_DIR" ]; then
@@ -254,7 +230,7 @@ if [ "$NO_INSTALL" = true ]; then
   printf "\n=== Step 1/4: Skipping build (--no-install) ===\n"
   for bin in "$GNOKEY_BIN" "$GNOGENESIS_BIN"; do
     if [ ! -x "$bin" ]; then
-      echo "ERROR: --no-install but $bin not found. Run without --no-install first."
+      echo "ERROR: --no-install but $bin not found. Run without --no-install first." >&2
       exit 1
     fi
   done
@@ -274,8 +250,8 @@ fi
 # ran with a clean genesis-work/, that home is gone — abort with a clear
 # message instead of mysteriously failing inside gnokey.
 if [ ! -d "$DEPLOYER_GNOKEY_HOME/data/keys.db" ]; then
-  echo "ERROR: deployer keybase not found at $DEPLOYER_GNOKEY_HOME/data/keys.db"
-  echo "       Re-run ./build-test-13-genesis.sh to repopulate it."
+  echo "ERROR: deployer keybase not found at $DEPLOYER_GNOKEY_HOME/data/keys.db" >&2
+  echo "       Re-run ./build-test-13-genesis.sh to repopulate it." >&2
   exit 1
 fi
 
@@ -303,8 +279,8 @@ if [ -n "$SOURCE_TXS_JSONL_FILE" ]; then
   printf "  txs:        %s\n" "$TXS_COUNT"
   printf "  max height: %s (HALT_HEIGHT = %s)\n" "$MAX_HEIGHT" "$HALT_HEIGHT"
   if [ "$MAX_HEIGHT" -ne "$HALT_HEIGHT" ]; then
-    echo "ERROR: HALT_HEIGHT=$HALT_HEIGHT but txs.jsonl max BlockHeight=$MAX_HEIGHT."
-    echo "       Update the HALT_HEIGHT constant in this script or replace the cached jsonl."
+    echo "ERROR: HALT_HEIGHT=$HALT_HEIGHT but txs.jsonl max BlockHeight=$MAX_HEIGHT." >&2
+    echo "       Update the HALT_HEIGHT constant in this script or replace the cached jsonl." >&2
     exit 1
   fi
 elif [ -n "$SOURCE_TXS_RPC" ]; then
@@ -459,9 +435,9 @@ done
 printf "\r%-60s\r" ""
 
 wait "$FORK_TEST_PID" || {
-  echo "ERROR: gnogenesis fork test exited non-zero."
-  echo "Last 30 lines of log:"
-  tail -30 "$OUT_FORK_TEST_LOG"
+  echo "ERROR: gnogenesis fork test exited non-zero." >&2
+  echo "Last 30 lines of log:" >&2
+  tail -30 "$OUT_FORK_TEST_LOG" >&2
   exit 1
 }
 
@@ -545,7 +521,7 @@ if [ "$UNEXPECTED" -gt 0 ]; then
   printf "\n  UNEXPECTED failures (%s, no matching bucket):\n" "$UNEXPECTED"
   sed 's/^/    /' "$UNEXPECTED_FILE"
   printf "\n  Review %s for full context before continuing to the\n" "$OUT_FORK_TEST_LOG"
-  printf "  5-node cluster test.\n"
+  printf "  cluster test.\n"
   exit 1
 fi
 
