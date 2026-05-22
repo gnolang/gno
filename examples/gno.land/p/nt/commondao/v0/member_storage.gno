@@ -38,6 +38,17 @@ type (
 	}
 )
 
+// IsCanonicalMemberStorage checks wether a member storage is the canonical
+// one, created using the NewMemberStorage or NewMemberStorageWithGrouping
+// functions defined within this package.
+//
+// Use this function at any public entry point that accepts a MemberStorage
+// from an external caller before invoking any of its methods.
+func IsCanonicalMemberStorage(s MemberStorage) bool {
+	_, ok := s.(*memberStorage)
+	return ok
+}
+
 // NewMemberStorage creates a new member storage.
 // Function returns a new member storage that doesn't support member groups.
 // This type of storage is useful when there is no need to group members.

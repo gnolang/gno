@@ -37,6 +37,16 @@ type (
 	}
 )
 
+// IsCanonicalMemberGrouping checks wether a member grouping is the canonical
+// one, created using the NewMemberGrouping function defined within this package.
+//
+// Use this function at any public entry point that accepts a MemberGrouping
+// from an external caller before invoking any of its methods.
+func IsCanonicalMemberGrouping(g MemberGrouping) bool {
+	_, ok := g.(*memberGrouping)
+	return ok
+}
+
 // NewMemberGrouping creates a new members grouping.
 func NewMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
 	g := &memberGrouping{
