@@ -111,7 +111,7 @@ INITIAL_VALSET_OPERATORS=(
 # govdao_prop1_test13.gno's ProposeAddUnrestrictedAcctsRequest call so
 # they can transfer ugnot under the locked-bank regime; the two lists are
 # kept in sync by hand for now (10 entries, low maintenance churn).
-FAUCET_BALANCE=100000000000 # 100M ugnot per faucet
+FAUCET_BALANCE=1000000000000000000 # 1e18 ugnot per faucet (1 trillion GNOT) — ~9.2x headroom under int64 max
 FAUCET_ADDRESSES=(
   g15tjaykkykxa7e8nmtagm2swkphchj4j6rnukes # faucet-01
   g18qhq2fl54lszhmxeyqlvxnwjzc3xpu4nnakclp # faucet-02
