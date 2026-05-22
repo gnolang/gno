@@ -6017,6 +6017,36 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							break
 						}
 						addDep(dt.Name + "." + n.Sel)
+					case VPField:
+						// Handle method expressions (unbound methods) like
+						// T.Method2 where n.X is a type reference.
+						if _, isType := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType); !isType {
+							break
+						}
+						cx, ok := n.X.(*ConstExpr)
+						if !ok {
+							break
+						}
+						tv, ok := cx.V.(TypeValue)
+						if !ok {
+							break
+						}
+						var dt *DeclaredType
+						switch t := tv.Type.(type) {
+						case *DeclaredType:
+							dt = t
+						case *PointerType:
+							dt, ok = t.Elt.(*DeclaredType)
+							if !ok {
+								break
+							}
+						default:
+							break
+						}
+						if dt.PkgPath != pn.PkgPath {
+							break
+						}
+						addDep(dt.Name + "." + n.Sel)
 					}
 				}
 			}
