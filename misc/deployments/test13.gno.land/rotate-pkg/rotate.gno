@@ -46,7 +46,7 @@ func Rotate(cur realm) {
 	if !ok {
 		panic("T1 tier not found")
 	}
-	if err := ms.SetMember(memberstore.T1, newT1, &memberstore.Member{InvitationPoints: tier.InvitationPoints}); err != nil {
+	if err := ms.SetMember(memberstore.T1, newT1, memberstore.NewMember(tier.InvitationPoints)); err != nil {
 		panic(err.Error())
 	}
 	ms.RemoveMember(oldT1)
