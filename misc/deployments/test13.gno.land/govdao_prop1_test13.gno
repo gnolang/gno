@@ -105,9 +105,7 @@ func main(cur realm) {
 	// the sole T1 from manfred (the gnoland1 inherited T1) to the test-13
 	// T1, then Rotate self-ejects from this list. See rotate-pkg/rotate.gno
 	// for the gate ensuring it cannot fire post-genesis.
-	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", "gno.land/r/test13/rotate"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl", "gno.land/r/test13/rotate"}))
 }
 
 // govExec creates a proposal, votes YES, and executes it immediately.
@@ -115,7 +113,7 @@ func main(cur realm) {
 // supermajority).
 func govExec(_ int, rlm realm, r dao.ProposalRequest) {
 	pid := dao.MustCreateProposal(cross(rlm), r)
-	dao.MustVoteOnProposal(cross(rlm), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.MustVoteOnProposal(cross(rlm), dao.NewVoteRequest(dao.YesVote, pid))
 	dao.ExecuteProposal(cross(rlm), pid)
 }
 

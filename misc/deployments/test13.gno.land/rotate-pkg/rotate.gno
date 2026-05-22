@@ -51,7 +51,5 @@ func Rotate(cur realm) {
 	}
 	ms.RemoveMember(oldT1)
 
-	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
