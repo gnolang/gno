@@ -6020,15 +6020,23 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 					case VPField:
 						// Handle method expressions (unbound methods) like
 						// T.Method2 where n.X is a type reference.
+						// The preprocessor assigns VPField to both struct
+						// field access and type-method access; at runtime,
+						// VPField dispatches on the base type: *StructType
+						// for fields, *TypeType for unbound methods
+						// (see values.go). We only enter here when n.X
+						// carries *TypeType, i.e. a method expression.
 						if _, isType := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(*TypeType); !isType {
+							// Not an unbound method expression; struct field
+							// access (also VPField). Skip.
 							break
 						}
 						cx, ok := n.X.(*ConstExpr)
 						if !ok {
 							break
 						}
-						tv, ok := cx.V.(TypeValue)
-						if !ok {
+						tv, ok2 := cx.V.(TypeValue)
+						if !ok2 {
 							break
 						}
 						var dt *DeclaredType
@@ -6036,9 +6044,15 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						case *DeclaredType:
 							dt = t
 						case *PointerType:
-							dt, _ = t.Elt.(*DeclaredType)
+							var ok bool
+							dt, ok = t.Elt.(*DeclaredType)
+							if !ok {
+								panic("should not happen, VPField method on pointer to non-*DeclaredType")
+							}
+						default:
+							panic("should not happen, VPField TypeValue is neither *DeclaredType nor *PointerType")
 						}
-						if dt == nil || dt.PkgPath != pn.PkgPath {
+						if dt.PkgPath != pn.PkgPath {
 							break
 						}
 						addDep(dt.Name + "." + n.Sel)
