@@ -213,6 +213,17 @@ func (m *Machine) doOpRef() {
 	if !ok {
 		panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
 	}
+	// Zero-sized types share a single zerobase address, matching
+	// Go's runtime.zerobase. Go's gc compiler constant-folds &x==&y
+	// to false for distinct zero-sized vars — a non-portable SSA
+	// optimization, not a language requirement. The spec: "pointers
+	// to distinct zero-size variables may or may not be equal."
+	// Gno chooses "may": same address ⇒ equal. Both outcomes are
+	// explicitly permitted.
+	// https://go.dev/ref/spec#Comparison_operators
+	if isZeroSizeType(elt) {
+		xv = m.GetZerobase(elt)
+	}
 	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),

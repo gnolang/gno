@@ -1546,6 +1546,26 @@ func baseOf(t Type) Type {
 	}
 }
 
+// isZeroSizeType reports whether t is a zero-sized type.
+// Go spec: "A struct or array type has size zero if it contains no
+// fields (or elements, respectively) that have a size greater than
+// zero." (https://go.dev/ref/spec#Size_and_alignment_guarantees)
+// Such types are eligible for zerobase sharing in new() and &var.
+func isZeroSizeType(t Type) bool {
+	switch ct := baseOf(t).(type) {
+	case *ArrayType:
+		return ct.Len == 0
+	case *StructType:
+		for _, f := range ct.Fields {
+			if !isZeroSizeType(f.Type) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func unwrapPointerType(t Type) Type {
 	if pt, ok := t.(*PointerType); ok {
 		return pt.Elem()

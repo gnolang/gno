@@ -34,8 +34,9 @@ type Machine struct {
 	Frames        []Frame       // func call stack
 	Package       *PackageValue // active package
 	Realm         *Realm        // active realm
-	Alloc         *Allocator    // memory allocations
-	Exception     *Exception    // last exception
+	Alloc         *Allocator                    // memory allocations
+	zerobaseAllocs map[TypeID]*HeapItemValue     // shared zerobase for zero-sized types
+	Exception     *Exception                    // last exception
 	NumResults    int           // number of results returned
 	Cycles        int64         // number of "cpu" cycles
 	GCCycle       int64         // number of "gc" cycles
@@ -270,6 +271,40 @@ func (m *Machine) Release() {
 		Frames: frames,
 	}
 	machinePool.Put(m)
+}
+
+// GetZerobase returns a PointerValue to a shared zerobase for the given
+// type. All new(T) and &var calls for the same zero-sized type within a
+// machine execution return pointers to the same HeapItemValue, matching
+// Go's runtime.zerobase semantics.
+//
+// Go's gc compiler constant-folds &x==&y to false for distinct
+// zero-sized variables as an SSA-level optimization. Gno does not
+// replicate that. The spec is explicit on both points:
+//
+//   "Two distinct zero-size variables may have the same address"
+//   (Size and alignment guarantees)
+//
+//   "Pointers to distinct zero-size variables may or may not be
+//   equal" (Comparison operators)
+//
+// The gc compiler optimization is a non-portable implementation
+// choice, not a language requirement. Gno follows the spec literal:
+// same address means equal pointers.
+// https://go.dev/ref/spec#Size_and_alignment_guarantees
+// https://go.dev/ref/spec#Comparison_operators
+func (m *Machine) GetZerobase(t Type) PointerValue {
+	if m.zerobaseAllocs == nil {
+		m.zerobaseAllocs = make(map[TypeID]*HeapItemValue)
+	}
+	typeID := t.TypeID()
+	hi, ok := m.zerobaseAllocs[typeID]
+	if !ok {
+		tv := defaultTypedValue(m.Alloc, t)
+		hi = m.Alloc.NewHeapItem(t, tv)
+		m.zerobaseAllocs[typeID] = hi
+	}
+	return PointerValue{TV: &hi.Value, Base: hi, Index: 0}
 }
 
 func (m *Machine) SetActivePackage(pv *PackageValue) {

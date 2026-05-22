@@ -1165,19 +1165,30 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			tt := arg0.TV.GetType()
 			m.Alloc.checkConstructionTime(tt)
-			tv := defaultTypedValue(m.Alloc, tt)
-			m.Alloc.AllocatePointer()
-			hi := m.Alloc.NewHeapItem(tt, tv)
-			m.PushValue(TypedValue{
-				T: m.Alloc.NewType(&PointerType{
-					Elt: tt,
-				}),
-				V: PointerValue{
-					TV:    &hi.Value,
-					Base:  hi,
-					Index: 0,
-				},
-			})
+			if isZeroSizeType(tt) {
+				m.Alloc.AllocatePointer()
+				pv := m.GetZerobase(tt)
+				m.PushValue(TypedValue{
+					T: m.Alloc.NewType(&PointerType{
+						Elt: tt,
+					}),
+					V: pv,
+				})
+			} else {
+				tv := defaultTypedValue(m.Alloc, tt)
+				m.Alloc.AllocatePointer()
+				hi := m.Alloc.NewHeapItem(tt, tv)
+				m.PushValue(TypedValue{
+					T: m.Alloc.NewType(&PointerType{
+						Elt: tt,
+					}),
+					V: PointerValue{
+						TV:    &hi.Value,
+						Base:  hi,
+						Index: 0,
+					},
+				})
+			}
 		},
 	)
 
