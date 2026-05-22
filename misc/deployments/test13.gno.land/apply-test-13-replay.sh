@@ -36,8 +36,12 @@
 #
 # Output:
 #   ./out/genesis.json        the final test-13 hardfork genesis
-#   ./out/t1-rotation.jsonl   the 2 migration txs (kept for audit)
+#   ./out/t1-rotation.jsonl   the 2 T1+names migration txs (kept for audit)
 #   ./out/fork-test.log       full `fork test --verbose` log (kept for audit)
+#
+# Consumed (must exist before run):
+#   ./out/base-genesis.json   produced by ./build-test-13-genesis.sh (unless --source-genesis-* override)
+#   ./out/valoper-seed.jsonl  produced by ./build-test-13-genesis.sh — appended as a 2nd --migration-tx
 #
 # Usage:
 #   ./apply-test-13-replay.sh                                  # use defaults (./out/base-genesis.json + ./txs.jsonl)
@@ -184,6 +188,7 @@ BASE_GENESIS="$SCRIPT_DIR/out/base-genesis.json"
 TXS_JSONL="$SCRIPT_DIR/txs.jsonl"
 OUT_GENESIS="$SCRIPT_DIR/out/genesis.json"
 OUT_MIGRATIONS="$SCRIPT_DIR/out/t1-rotation.jsonl"
+VALOPER_SEED="$SCRIPT_DIR/out/valoper-seed.jsonl"
 OUT_FORK_TEST_LOG="$SCRIPT_DIR/out/fork-test.log"
 WORK_DIR="$SCRIPT_DIR/genesis-work"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
@@ -217,6 +222,12 @@ fi
 if [ -n "$SOURCE_GENESIS_FILE" ] && [ ! -f "$SOURCE_GENESIS_FILE" ]; then
   echo "ERROR: --source-genesis-file points at $SOURCE_GENESIS_FILE which does not exist." >&2
   echo "       Run ./build-test-13-genesis.sh first, or pass --source-genesis-rpc / --source-genesis-file <path>." >&2
+  exit 1
+fi
+
+if [ ! -f "$VALOPER_SEED" ]; then
+  echo "ERROR: $VALOPER_SEED not found — run ./build-test-13-genesis.sh first." >&2
+  echo "       (build step 6 emits this file: one valopers.Register tx per INITIAL_VALSET entry)." >&2
   exit 1
 fi
 
@@ -416,6 +427,7 @@ GEN_ARGS=(
   --original-chain-id "$ORIGINAL_CHAIN_ID"
   --chain-id "$CHAIN_ID"
   --halt-height "$HALT_HEIGHT"
+  --migration-tx "$VALOPER_SEED"
   --migration-tx "$OUT_MIGRATIONS"
   --output "$OUT_GENESIS"
 )

@@ -4,7 +4,7 @@
 # appends gnoland1's historical txs + the T1 rotation migration.
 #
 # This script is a near-clone of misc/deployments/gnoland1/gen-genesis.sh,
-# with four deltas that make the result a "hardfork-ready" base instead
+# with five deltas that make the result a "hardfork-ready" base instead
 # of gnoland1's own genesis:
 #
 #   1. FILTERED_PACKAGES adds the four packages that gnoland1 doesn't ship
@@ -25,8 +25,19 @@
 #      sole T1 from manfred (gnoland1 inherit) to the test-13 T1, then
 #      Rotate self-ejects from AllowedDAOs. See rotate-pkg/rotate.gno for
 #      why proposal-flow rotation is unworkable across migration MsgRuns.
+#   5. INITIAL_VALSET_OPERATORS pairs each founding validator with a
+#      distinct operator address; the new step 6 runs `gnogenesis fork
+#      valoper-seed` to emit a .jsonl of genesis-mode valopers.Register
+#      MsgCalls. Without this, the founding validators boot as orphans
+#      (no v3 operator-keyed management plane) and gnoland's InitChainer
+#      AssertGenesisValopersConsistent fires (#5701 makes this loud,
+#      #5702 catches it at verify time).
 #
-# Output: ./out/base-genesis.json (gitignored).
+# Output:
+#   ./out/base-genesis.json   (gitignored)   — base genesis consumed by apply-test-13-replay.sh
+#   ./out/valoper-seed.jsonl  (gitignored)   — genesis-mode valopers.Register migration txs
+#                                              (one per INITIAL_VALSET entry); consumed by
+#                                              apply-test-13-replay.sh via --migration-tx
 #
 # Usage:
 #   ./build-test-13-genesis.sh              # full build
@@ -74,6 +85,24 @@ FILTERED_PACKAGES=(
 INITIAL_VALSET=(
   "aeddi-1 10 g1s2ht24e85qq3t66gc9sgdvk5kzc38yy68aaqvr gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqfr74tgql2cvzadga2uts62v3f8a5dx66dauaq6sphg3ynuhgl286cce2mn"
   "gfanton-1 10 g1kq98592x93lu29smp6lufjvyj9fqentg93x69f gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqtg9d2yxyp07etaqtdx9ryrsreun6h764ctm6faaa2lgq7e2jd6ecderqe8"
+)
+
+# Operator address for each INITIAL_VALSET entry (same index). MUST be
+# distinct from the signing address — `gnogenesis fork valoper-seed`
+# rejects operator==signing_addr to keep signing-key compromise from
+# collapsing into operator-slot compromise (see valoper_seed.go).
+#
+# Without these profiles seeded, gnoland's InitChainer-side
+# AssertGenesisValopersConsistent fires (#5701 makes this a hard panic)
+# and `gnogenesis verify` fails the new valoper-coverage check (#5702).
+# v3's operator-keyed proposal flow also has no way to manage the
+# founding set without these, leaving orphan validators.
+#
+# TODO(test-13): replace placeholders with addresses the validator
+# owner actually controls before redeploying.
+INITIAL_VALSET_OPERATORS=(
+  "g1aeddi1operatorplaceholderchangemechangeme" # aeddi-1 operator (placeholder)
+  "g1gfanton1operatorplaceholderchangemechange" # gfanton-1 operator (placeholder)
 )
 
 # Faucet balances. Each gets $FAUCET_BALANCE ugnot at genesis. Addresses
@@ -171,7 +200,7 @@ fi
 # ---- 1. Build binaries from source
 
 if [ "$NO_INSTALL" = true ]; then
-  printf "\n=== Step 1/8: Skipping build (--no-install) ===\n"
+  printf "\n=== Step 1/9: Skipping build (--no-install) ===\n"
   for bin in "$GNO_BIN" "$GNOKEY_BIN" "$GNOLAND_BIN" "$GNOGENESIS_BIN"; do
     if [ ! -x "$bin" ]; then
       echo "ERROR: --no-install but $bin not found. Run without --no-install first."
@@ -179,7 +208,7 @@ if [ "$NO_INSTALL" = true ]; then
     fi
   done
 else
-  printf "\n=== Step 1/8: Building binaries ===\n"
+  printf "\n=== Step 1/9: Building binaries ===\n"
   mkdir -p "$WORK_DIR_BIN"
 
   printf "  gno...        "
@@ -201,7 +230,7 @@ fi
 
 # ---- 2. Generate filtered examples genesis txs.
 
-printf "\n=== Step 2/8: Generating addpkg txs ===\n"
+printf "\n=== Step 2/9: Generating addpkg txs ===\n"
 
 printf "  Resolving dependencies...\n"
 pkg_dirs=$(cd "$EXAMPLES_DIR" && "$GNO_BIN" tool deplist -test-dep "${FILTERED_PACKAGES[@]}")
@@ -256,7 +285,7 @@ run "$GNOGENESIS_BIN" txs export "$WORK_DIR_GENESIS_TXS" --genesis-path "$WORK_D
 
 # ---- 3. Generate setup transaction (govdao_prop1_test13.gno)
 
-printf "\n=== Step 3/8: Generating MsgRun setup tx (govdao_prop1_test13.gno) ===\n"
+printf "\n=== Step 3/9: Generating MsgRun setup tx (govdao_prop1_test13.gno) ===\n"
 
 SETUP_FILE="$SCRIPT_DIR/govdao_prop1_test13.gno"
 
@@ -312,7 +341,7 @@ fi
 #   run 2: verify the measured balances land everyone at zero
 # If run 2 disagrees, something is non-deterministic and we abort.
 
-printf "\n=== Step 4/8: Calculating deployer balances ===\n"
+printf "\n=== Step 4/9: Calculating deployer balances ===\n"
 
 WORK_DIR_DEPLOYER_BALANCES="$WORK_DIR/deployers_balances.txt"
 BALANCES_TMP_DIR="$WORK_DIR/balances-work"
@@ -463,7 +492,7 @@ cp "$BALANCES_TMP_FILE" "$WORK_DIR_DEPLOYER_BALANCES"
 # Done before balances — gnogenesis is O(filesize) per call, so adding
 # validators while the file is still small saves ~6 minutes.
 
-printf "\n=== Step 5/8: Adding validators ===\n"
+printf "\n=== Step 5/9: Adding validators ===\n"
 
 for validator in "${INITIAL_VALSET[@]}"; do
   read -r name power address pub_key <<<"$validator"
@@ -471,11 +500,54 @@ for validator in "${INITIAL_VALSET[@]}"; do
   run "$GNOGENESIS_BIN" validator add -name "$name" -power "$power" -address "$address" -pub-key "$pub_key" --genesis-path "$WORK_DIR_GENESIS"
 done
 
-# ---- 6. Add gnoland1-canonical balances (deployer + airdrop)
-# Faucets are deliberately skipped here and appended in step 7 instead;
-# see step 7 for the SignerInfo-ordering rationale.
+# ---- 6. Generate valoper-seed migration .jsonl
+# Builds a CSV from (INITIAL_VALSET, INITIAL_VALSET_OPERATORS) and runs
+# `gnogenesis fork valoper-seed` to produce a deterministic .jsonl of
+# genesis-mode valopers.Register MsgCalls. apply-test-13-replay.sh
+# passes this file via --migration-tx so each founding validator gets a
+# valoper profile + v3 cache entry at genesis-mode replay. Without it
+# the chain boots with orphan validators (no operator-keyed management
+# plane) and gnoland's InitChainer-side AssertGenesisValopersConsistent
+# fires (#5701).
 
-printf "\n=== Step 6/8: Adding deployer + airdrop balances ===\n"
+printf "\n=== Step 6/9: Generating valoper-seed migration .jsonl ===\n"
+
+if [ "${#INITIAL_VALSET_OPERATORS[@]}" -ne "${#INITIAL_VALSET[@]}" ]; then
+  echo "ERROR: INITIAL_VALSET_OPERATORS length (${#INITIAL_VALSET_OPERATORS[@]}) must match INITIAL_VALSET length (${#INITIAL_VALSET[@]})" >&2
+  exit 1
+fi
+
+WORK_DIR_VALOPER_CSV="$WORK_DIR/valoper_profiles.csv"
+WORK_DIR_VALOPER_SEED="$WORK_DIR/valoper-seed.jsonl"
+OUT_VALOPER_SEED="$SCRIPT_DIR/out/valoper-seed.jsonl"
+
+printf "  Building CSV from INITIAL_VALSET + INITIAL_VALSET_OPERATORS...\n"
+{
+  echo "operator_addr,signing_pubkey,moniker,description,server_type"
+  for i in "${!INITIAL_VALSET[@]}"; do
+    read -r name _power _address pub_key <<<"${INITIAL_VALSET[$i]}"
+    op_addr="${INITIAL_VALSET_OPERATORS[$i]}"
+    # description and server_type are templates — edit if a specific
+    # founder needs different metadata. Description must be non-empty
+    # and <=2048 chars; server_type ∈ {cloud, on-prem, data-center}.
+    printf '%s,%s,%s,test-13 founding validator (%s),cloud\n' \
+      "$op_addr" "$pub_key" "$name" "$name"
+  done
+} >"$WORK_DIR_VALOPER_CSV"
+
+printf "  Running gnogenesis fork valoper-seed...\n"
+run "$GNOGENESIS_BIN" fork valoper-seed \
+  --csv "$WORK_DIR_VALOPER_CSV" \
+  --output "$WORK_DIR_VALOPER_SEED" 2>&1 | sed 's/^/    /'
+
+cp "$WORK_DIR_VALOPER_SEED" "$OUT_VALOPER_SEED"
+printf "  -> %s\n" "$OUT_VALOPER_SEED"
+
+# ---- 7. Add gnoland1-canonical balances (deployer + airdrop)
+# Faucets are deliberately skipped here and appended in step 8 instead;
+# see step 8 for the SignerInfo-ordering rationale.
+
+printf "\n=== Step 7/9: Adding deployer + airdrop balances ===\n"
 
 printf "  Adding deployer balances to genesis...\n"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$WORK_DIR_DEPLOYER_BALANCES" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
@@ -517,9 +589,9 @@ airdrop_count=$(wc -l <"$AIRDROP_MERGED_TXT" | tr -d ' ')
 printf "  Adding %s airdrop balances to genesis...\n" "$airdrop_count"
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_MERGED_TXT" --genesis-path "$WORK_DIR_GENESIS" >/dev/null
 
-# ---- 7. Append the 10 test-13 faucet balances at the tail of state.Balances
+# ---- 8. Append the 10 test-13 faucet balances at the tail of state.Balances
 # `gnogenesis balances add` sorts state.Balances by Address.Compare. If we
-# had added faucets in step 6, they would land at sort positions
+# had added faucets in step 7, they would land at sort positions
 # interspersed with the airdrop, shifting every airdrop entry that sorts
 # after them by +1 per shift. That breaks the historical-tx SignerInfo
 # invariant: validateSignerInfo (gno.land/pkg/gnoland/app.go:766)
@@ -527,7 +599,7 @@ run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_MERGED_TXT" --genesi
 # txs.jsonl SignerInfo claims for accNum i — and those numbers come
 # from gnoland1's launch ordering (e.g. manfred at 3,096,261).
 #
-# Note: the 7 NON-manfred deployer addresses ARE in step 6 — they were
+# Note: the 7 NON-manfred deployer addresses ARE in step 7 — they were
 # also in gnoland1's state.Balances at their natural sort positions
 # (gnoland1 used the same deployer mnemonic, so the addresses are
 # byte-identical). That keeps test-13's state.Balances[0..3,262,513]
@@ -549,11 +621,11 @@ run "$GNOGENESIS_BIN" balances add -balance-sheet "$AIRDROP_MERGED_TXT" --genesi
 #
 # Side note: this is the LAST step that touches state.Balances. Any
 # subsequent `gnogenesis balances add` would re-sort and undo the
-# splice, so step 8 (verify) must not modify balances.
+# splice, so step 9 (verify) must not modify balances.
 
-printf "\n=== Step 7/8: Appending 10 faucet balances to state.Balances tail ===\n"
+printf "\n=== Step 8/9: Appending 10 faucet balances to state.Balances tail ===\n"
 
-# 7.1 Build the faucet balance sheet inline.
+# 8.1 Build the faucet balance sheet inline.
 FAUCET_BALANCES_FILE="$WORK_DIR/faucet_balances.txt"
 : >"$FAUCET_BALANCES_FILE"
 for addr in "${FAUCET_ADDRESSES[@]}"; do
@@ -562,14 +634,14 @@ done
 printf "  Faucet balance sheet built (%s entries, %s ugnot each)\n" \
   "${#FAUCET_ADDRESSES[@]}" "$FAUCET_BALANCE"
 
-# 7.2 Throwaway genesis with ONLY the 10 faucets. The amino indenter is
+# 8.2 Throwaway genesis with ONLY the 10 faucets. The amino indenter is
 # the same one the real genesis uses, so the resulting balance lines are
 # format-compatible.
 FAUCET_TMP_GENESIS="$WORK_DIR/faucet_tmp_genesis.json"
 run "$GNOGENESIS_BIN" generate -chain-id "$CHAIN_ID" -genesis-time "$GENESIS_TIME" --output-path "$FAUCET_TMP_GENESIS" 2>&1 | sed 's/^/    /'
 run "$GNOGENESIS_BIN" balances add -balance-sheet "$FAUCET_BALANCES_FILE" --genesis-path "$FAUCET_TMP_GENESIS" >/dev/null
 
-# 7.3 Extract the 10 balance lines from the throwaway genesis. The
+# 8.3 Extract the 10 balance lines from the throwaway genesis. The
 # state.Balances array is delimited by `    "balances": [` and `    ],`
 # (4-space indent — `balances` is one level below the genesis root). The
 # 10 lines come out preserving amino's trailing-comma rule: 9 entries
@@ -587,7 +659,7 @@ if [ "$extras_count" -ne "${#FAUCET_ADDRESSES[@]}" ]; then
 fi
 printf "  Extracted %s amino-formatted balance lines from throwaway genesis\n" "$extras_count"
 
-# 7.4 Splice the 10 lines into the real genesis. Awk passes the file
+# 8.4 Splice the 10 lines into the real genesis. Awk passes the file
 # through line-by-line and, while inside state.Balances, buffers the
 # previously-seen entry. When it reaches the closing bracket it:
 #   - emits the buffered entry with a comma appended (it was the last
@@ -624,9 +696,9 @@ BEGIN { in_bal = 0; prev = "" }
 mv "$WORK_DIR_GENESIS.spliced" "$WORK_DIR_GENESIS"
 printf "  Splice complete\n"
 
-# ---- 8. Verify the generated genesis file
+# ---- 9. Verify the generated genesis file
 
-printf "\n=== Step 8/8: Verifying genesis ===\n"
+printf "\n=== Step 9/9: Verifying genesis ===\n"
 
 run "$GNOGENESIS_BIN" verify -genesis-path "$WORK_DIR_GENESIS"
 printf "  Verification passed\n"
@@ -637,5 +709,6 @@ cp "$WORK_DIR/packages.gen.txt" "$SCRIPT_DIR/packages.gen.txt"
 printf "\n=== Done ===\n"
 printf "  sha256: %s\n" "$(shasum -a 256 "$GENESIS_FILE" | awk '{print $1}')"
 printf "  -> out/base-genesis.json (%s)\n" "$(du -h "$GENESIS_FILE" | cut -f1)"
+printf "  -> out/valoper-seed.jsonl (%s)\n" "$(du -h "$OUT_VALOPER_SEED" | cut -f1)"
 printf "  -> packages.gen.txt (tracked)\n"
 printf "\n  Next: ./apply-test-13-replay.sh\n"
