@@ -27,11 +27,18 @@
 #          - Unexpected: anything else — printed with full context, audit
 #            step exits non-zero.
 #
-# Sources (orthogonal — pick one per dimension; defaults shown):
-#   --source-genesis-file PATH   default: ./out/base-genesis.json   produced by ./build-test-13-genesis.sh
-#   --source-genesis-rpc URL     fetch source genesis from an RPC /genesis endpoint
-#   --source-txs-jsonl-file PATH if no flag, default: ./txs.jsonl when present (cached amino-JSONL of gnoland.TxWithMetadata)
-#   --source-txs-rpc URLS        if no flag and no cached ./txs.jsonl, default: 5-endpoint multi-RPC fetch (see DEFAULT_TXS_RPC_ENDPOINTS)
+# Inputs (consumed; must exist or be reachable before run):
+#   ./out/base-genesis.json   produced by ./build-test-13-genesis.sh — used as --source-genesis-file
+#                             (carries the test-13 valset, packages, govdao setup, faucets, and a
+#                              state.Balances byte-identical to gnoland1's up to the airdrop tail).
+#   ./out/valoper-seed.jsonl  produced by ./build-test-13-genesis.sh — appended as a --migration-tx
+#                             (one valopers.Register tx per INITIAL_VALSET entry; required by #5701/#5702).
+#
+# Txs source (pick one; defaults to whatever's already present, falling back to RPC):
+#   --source-txs-jsonl-file PATH cached amino-JSONL of gnoland.TxWithMetadata
+#                                (default: ./txs.jsonl when present)
+#   --source-txs-rpc URLS        multi-endpoint RPC fetch (#5693 parallel fetcher), comma-separated
+#                                (default if no cached ./txs.jsonl: $DEFAULT_TXS_RPC_ENDPOINTS)
 #   --source-txs-data-dir PATH   read txs from a halted gnoland data dir (offline PebbleDB reader, #5696)
 #
 # Output:
@@ -39,12 +46,8 @@
 #   ./out/t1-rotation.jsonl   the 2 T1+names migration txs (kept for audit)
 #   ./out/fork-test.log       full `fork test --verbose` log (kept for audit)
 #
-# Consumed (must exist before run):
-#   ./out/base-genesis.json   produced by ./build-test-13-genesis.sh (unless --source-genesis-* override)
-#   ./out/valoper-seed.jsonl  produced by ./build-test-13-genesis.sh — appended as a 2nd --migration-tx
-#
 # Usage:
-#   ./apply-test-13-replay.sh                                  # use defaults (./out/base-genesis.json + ./txs.jsonl)
+#   ./apply-test-13-replay.sh                                  # use defaults (./out/base-genesis.json + ./txs.jsonl or RPC)
 #   ./apply-test-13-replay.sh --debug                          # show every command being run
 #   ./apply-test-13-replay.sh --no-install                     # reuse previously built binaries
 #   ./apply-test-13-replay.sh --skip-audit                     # skip the fork-test audit step
@@ -78,8 +81,6 @@ DEFAULT_TXS_RPC_ENDPOINTS="http://51.159.14.234:26657,http://163.172.33.181:2665
 DEBUG=false
 NO_INSTALL=false
 SKIP_AUDIT=false
-SOURCE_GENESIS_FILE=""
-SOURCE_GENESIS_RPC=""
 SOURCE_TXS_JSONL_FILE=""
 SOURCE_TXS_RPC=""
 SOURCE_TXS_DATA_DIR=""
@@ -104,24 +105,6 @@ while [ $# -gt 0 ]; do
     ;;
   --skip-audit)
     SKIP_AUDIT=true
-    shift
-    ;;
-  --source-genesis-file)
-    require_arg "$@"
-    SOURCE_GENESIS_FILE="$2"
-    shift 2
-    ;;
-  --source-genesis-file=*)
-    SOURCE_GENESIS_FILE="${1#*=}"
-    shift
-    ;;
-  --source-genesis-rpc)
-    require_arg "$@"
-    SOURCE_GENESIS_RPC="$2"
-    shift 2
-    ;;
-  --source-genesis-rpc=*)
-    SOURCE_GENESIS_RPC="${1#*=}"
     shift
     ;;
   --source-txs-jsonl-file)
@@ -157,12 +140,6 @@ while [ $# -gt 0 ]; do
     ;;
   esac
 done
-
-# Resolve genesis source — default to local out/base-genesis.json if neither flag given.
-if [ -n "$SOURCE_GENESIS_FILE" ] && [ -n "$SOURCE_GENESIS_RPC" ]; then
-  echo "ERROR: --source-genesis-file and --source-genesis-rpc are mutually exclusive." >&2
-  exit 1
-fi
 
 # Resolve txs source — default to local txs.jsonl if no flag given.
 TXS_SOURCE_COUNT=0
@@ -213,15 +190,10 @@ DEPLOYER_GNOKEY_HOME="$WORK_DIR/gnokey-home"
 
 mkdir -p "$SCRIPT_DIR/out" "$WORK_DIR_BIN"
 
-# Pre-flight checks: resolve the effective sources and verify they're reachable.
+# Pre-flight checks: resolve the effective txs source and verify required inputs exist.
 
-# ---- Genesis source: default to BASE_GENESIS if no flag given.
-if [ -z "$SOURCE_GENESIS_FILE" ] && [ -z "$SOURCE_GENESIS_RPC" ]; then
-  SOURCE_GENESIS_FILE="$BASE_GENESIS"
-fi
-if [ -n "$SOURCE_GENESIS_FILE" ] && [ ! -f "$SOURCE_GENESIS_FILE" ]; then
-  echo "ERROR: --source-genesis-file points at $SOURCE_GENESIS_FILE which does not exist." >&2
-  echo "       Run ./build-test-13-genesis.sh first, or pass --source-genesis-rpc / --source-genesis-file <path>." >&2
+if [ ! -f "$BASE_GENESIS" ]; then
+  echo "ERROR: $BASE_GENESIS not found — run ./build-test-13-genesis.sh first." >&2
   exit 1
 fi
 
@@ -250,8 +222,12 @@ The script expects a pre-fetched gnoland1 historical-tx archive at
 that path (one gnoland.TxWithMetadata per line in amino-JSON form).
 
 To produce it from RPCs (uses #5693 multi-endpoint parallel fetch):
+  # First grab gnoland1's actual genesis from the GitHub release
+  # (the public /genesis RPC endpoint 502s on the 201MB response):
+  curl -fSL --progress-bar -o /tmp/gnoland1-genesis.json \\
+    'https://github.com/gnolang/gno/releases/download/chain%2Fgnoland1.0/genesis.json'
   go run -C contribs/gnogenesis . fork generate \\
-    --source-genesis-rpc https://rpc.gnoland1.moul.p2p.team \\
+    --source-genesis-file /tmp/gnoland1-genesis.json \\
     --source-txs-rpc <urls,csv> \\
     --halt-height \$HALT_HEIGHT \\
     --chain-id \$CHAIN_ID \\
@@ -432,12 +408,7 @@ GEN_ARGS=(
   --output "$OUT_GENESIS"
 )
 
-# Genesis source (exactly one of file / rpc)
-if [ -n "$SOURCE_GENESIS_FILE" ]; then
-  GEN_ARGS+=(--source-genesis-file "$SOURCE_GENESIS_FILE")
-else
-  GEN_ARGS+=(--source-genesis-rpc "$SOURCE_GENESIS_RPC")
-fi
+GEN_ARGS+=(--source-genesis-file "$BASE_GENESIS")
 
 # Txs source (exactly one of jsonl-file / rpc / data-dir)
 if [ -n "$SOURCE_TXS_JSONL_FILE" ]; then
