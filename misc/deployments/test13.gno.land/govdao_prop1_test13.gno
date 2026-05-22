@@ -55,7 +55,7 @@ func main(cur realm) {
 	// ---- 3. Set chain parameters via governance proposals ----
 
 	// Unrestricted addresses (can transfer ugnot even when bank is locked).
-	govExec(0, cur, params.ProposeAddUnrestrictedAcctsRequest(cur,
+	govExec(0, cur, params.ProposeAddUnrestrictedAcctsRequest(cross(cur),
 		address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"), // GovDAO T1 multisig (inherited from gnoland1)
 		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"), // gnoland1 airdrop faucet
 		// ---- test-13 faucets ----
@@ -72,7 +72,7 @@ func main(cur realm) {
 	))
 
 	// Lock ugnot transfers (restricted denom).
-	govExec(0, cur, params.ProposeLockTransferRequest(cur))
+	govExec(0, cur, params.ProposeLockTransferRequest(cross(cur)))
 
 	// ---- 4. (gnoland1 step 4 was names.Enable — skipped for test-13) ----
 	// Master's r/sys/names.Enable checks `PreviousRealm().Address() != admin`
