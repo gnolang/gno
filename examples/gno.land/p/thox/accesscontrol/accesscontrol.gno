@@ -2,7 +2,6 @@ package accesscontrol
 
 import (
 	"chain"
-	"chain/runtime"
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ownable/v0"
@@ -50,13 +49,18 @@ func NewRole(name string, admin address) (*Role, error) {
 	}, nil
 }
 
-// CreateRole create a new role within the realm
-func (rs *Roles) CreateRole(name string) (*Role, error) {
+// CreateRole create a new role within the realm. rlm must be the
+// caller's own captured cur; rlm.Previous().Address() must equal the
+// owner of the Roles container.
+func (rs *Roles) CreateRole(_ int, rlm realm, name string) (*Role, error) {
 	if err := validRoleName(name); err != nil {
 		return nil, ErrNameRole
 	}
 
-	if !rs.Ownable.Owned() {
+	if !rlm.IsCurrent() {
+		return nil, ErrNotOwner
+	}
+	if !rs.Ownable.OwnedBy(rlm.Previous().Address()) {
 		return nil, ErrNotOwner
 	}
 
@@ -98,14 +102,20 @@ func (rs *Roles) FindRole(name string) (*Role, error) {
 	return nil, ErrRoleNotFound
 }
 
-// GrantRole grants a role to an account
-func (rs *Roles) GrantRole(name string, account address) error {
+// GrantRole grants a role to an account. rlm must be the caller's own
+// captured cur; rlm.Previous().Address() must equal the role's
+// admin/owner.
+func (rs *Roles) GrantRole(_ int, rlm realm, name string, account address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.Owned() {
+	if !rlm.IsCurrent() {
+		return ErrNotOwner
+	}
+	caller := rlm.Previous().Address()
+	if !r.Ownable.OwnedBy(caller) {
 		return ErrNotOwner
 	}
 
@@ -123,20 +133,26 @@ func (rs *Roles) GrantRole(name string, account address) error {
 		RoleGrantedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", runtime.CurrentRealm().Address().String(),
+		"sender", caller.String(),
 	)
 
 	return nil
 }
 
-// RevokeRole revokes a role from an account
-func (rs *Roles) RevokeRole(name string, account address) error {
+// RevokeRole revokes a role from an account. rlm must be the caller's
+// own captured cur; rlm.Previous().Address() must equal the role's
+// admin/owner.
+func (rs *Roles) RevokeRole(_ int, rlm realm, name string, account address) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
 	}
 
-	if !r.Ownable.Owned() {
+	if !rlm.IsCurrent() {
+		return ErrNotOwner
+	}
+	caller := rlm.Previous().Address()
+	if !r.Ownable.OwnedBy(caller) {
 		return ErrNotOwner
 	}
 
@@ -158,21 +174,27 @@ func (rs *Roles) RevokeRole(name string, account address) error {
 		RoleRevokedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", runtime.CurrentRealm().Address().String(),
+		"sender", caller.String(),
 	)
 
 	return nil
 }
 
-// RenounceRole allows an account to renounce a role it holds
-func (rs *Roles) RenounceRole(name string) error {
+// RenounceRole allows an account to renounce a role it holds. rlm must
+// be the caller's own captured cur; the renouncer is
+// rlm.Previous().Address(). Closing the forgery here matters: without
+// it, any external realm could force a victim to renounce a role by
+// passing the victim's address as caller.
+func (rs *Roles) RenounceRole(_ int, rlm realm, name string) error {
 	r, err := rs.FindRole(name)
 	if err != nil {
 		return ErrRoleNotFound
 	}
 
-	caller := runtime.OriginCaller()
-
+	if !rlm.IsCurrent() {
+		return ErrAccountNotRole
+	}
+	caller := rlm.Previous().Address()
 	if !r.HasAccount(caller) {
 		return ErrAccountNotRole
 	}
@@ -189,9 +211,12 @@ func (rs *Roles) RenounceRole(name string) error {
 	return nil
 }
 
-// SetRoleAdmin transfers the ownership of the role to a new administrator
-func (r *Role) SetRoleAdmin(admin address) error {
-	if err := r.Ownable.TransferOwnership(admin); err != nil {
+// SetRoleAdmin transfers the ownership of the role to a new
+// administrator. rlm must be the caller's own captured cur and must be
+// the current admin (delegated to ownable.TransferOwnership which
+// re-checks via rlm.Previous().Address()).
+func (r *Role) SetRoleAdmin(_ int, rlm realm, admin address) error {
+	if err := r.Ownable.TransferOwnership(0, rlm, admin); err != nil {
 		return err
 	}
 

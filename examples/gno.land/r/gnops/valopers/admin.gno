@@ -10,8 +10,8 @@ func Auth() *authz.Authorizer {
 	return auth
 }
 
-func updateInstructions(newInstructions string) {
-	err := auth.DoByCurrent("update-instructions", func() error {
+func updateInstructions(_ int, rlm realm, newInstructions string) {
+	err := auth.DoByCurrent(0, rlm, "update-instructions", func() error {
 		instructions = newInstructions
 		return nil
 	})
@@ -22,7 +22,7 @@ func updateInstructions(newInstructions string) {
 
 func NewInstructionsProposalCallback(newInstructions string) func(realm) error {
 	cb := func(cur realm) error {
-		updateInstructions(newInstructions)
+		updateInstructions(0, cur, newInstructions)
 		return nil
 	}
 
