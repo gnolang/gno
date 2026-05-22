@@ -41,11 +41,11 @@ func TestMemberGroupingAdd(t *testing.T) {
 		uassert.ErrorContains(t, err, "member group already exists: Foo", "expect duplication error")
 	})
 
-	t.Run("sealed grouping", func(t *testing.T) {
+	t.Run("sealed grouping", func(cur realm, t *testing.T) {
 		g := commondao.NewMemberGrouping()
 		g = g.Seal().(commondao.MemberGrouping)
 
-		uassert.PanicsWithMessage(t, "type is sealed so it can't be modified", func() {
+		uassert.PanicsWithMessage(t, cur, "type is sealed so it can't be modified", func() {
 			g.Add("Foo")
 		}, "expect panic")
 	})
@@ -98,12 +98,12 @@ func TestMemberGroupingDelete(t *testing.T) {
 		uassert.False(t, g.Has(name), "expect grouping group not to be found")
 	})
 
-	t.Run("sealed grouping", func(t *testing.T) {
+	t.Run("sealed grouping", func(cur realm, t *testing.T) {
 		name := "Foo"
 		g := commondao.NewMemberGrouping()
 		g = g.Seal().(commondao.MemberGrouping)
 
-		uassert.PanicsWithMessage(t, "type is sealed so it can't be modified", func() {
+		uassert.PanicsWithMessage(t, cur, "type is sealed so it can't be modified", func() {
 			g.Delete(name)
 		}, "expect panic")
 	})

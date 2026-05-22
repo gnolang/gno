@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/archive/boards/filetests/z_4_filetest
+
+package z_4_filetest
 
 // SEND: 1000000ugnot
 
@@ -15,22 +17,22 @@ var (
 	pid boards.PostID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
 
-	bid = boards.CreateBoard(cross, "test_board")
-	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
-	pid = boards.CreateThread(cross, bid, "Second Post (title)", "Body of the second post. (body)")
-	rid := boards.CreateReply(cross, bid, pid, pid, "Reply of the second post")
+	bid = boards.CreateBoard(cross(cur), "test_board")
+	boards.CreateThread(cross(cur), bid, "First Post (title)", "Body of the first post. (body)")
+	pid = boards.CreateThread(cross(cur), bid, "Second Post (title)", "Body of the second post. (body)")
+	rid := boards.CreateReply(cross(cur), bid, pid, pid, "Reply of the second post")
 	println(rid)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
-	rid2 := boards.CreateReply(cross, bid, pid, pid, "Second reply of the second post")
+	rid2 := boards.CreateReply(cross(cur), bid, pid, pid, "Second reply of the second post")
 	println(rid2)
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }

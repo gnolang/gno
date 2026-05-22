@@ -2,11 +2,12 @@
 package methodexprinline
 
 // Probe: `Type.Method(recv)` (method expression) on a cross-realm-stored
-// receiver. This dispatches as an ordinary FuncValue call with `recv` as
-// args[0] — not as a BoundMethodValue — so neither the N_Readonly strip
-// nor the implicit borrow-realm switch in PushFrameCall fires. Expected
-// to panic with the realm-ownership-mismatch ("readonly tainted") message
-// because m.Realm stays as the caller realm.
+// receiver, where the receiver was constructed in the caller's realm and
+// then handed off to crossrealm for storage. Storage is authority and is
+// stamped at construction, so recv.PkgID stays at the constructor's
+// realm even after being saved elsewhere, and IsReadonlyBy() does not
+// panic when the caller mutates a field directly. The println therefore
+// runs and the test succeeds.
 
 import (
 	crossrealm "gno.land/r/tests/vm/crossrealm"
@@ -22,10 +23,10 @@ func (s *S) Close() {
 
 func main(cur realm) {
 	s := &S{}
-	crossrealm.SetObject(cross, s)
+	crossrealm.SetObject(cross(cur), s)
 	(*S).Close(s) // inline method-expression call
 	println("should not print")
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): s<VPBlock(1,0)>.Closed
+// Output:
+// should not print

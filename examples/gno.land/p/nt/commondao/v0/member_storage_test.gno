@@ -266,7 +266,7 @@ func TestMemberStorageAdd(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(cur realm, t *testing.T) {
 			// Arrange
 			var got bool
 			storage := tc.setup()
@@ -278,10 +278,10 @@ func TestMemberStorageAdd(t *testing.T) {
 
 			// Assert
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tc.panicMsg, fn)
+				urequire.PanicsWithMessage(t, cur, tc.panicMsg, fn)
 				urequire.False(t, storage.Has(tc.member), "expect member to be missing")
 			} else {
-				urequire.NotPanics(t, fn)
+				urequire.NotPanics(t, cur, fn)
 				urequire.True(t, got == tc.want, "expect member to be added")
 				urequire.True(t, storage.Has(tc.member), "expect member to be found")
 			}
@@ -330,7 +330,7 @@ func TestMemberStorageRemove(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(cur realm, t *testing.T) {
 			// Arrange
 			var got bool
 			storage := tc.setup()
@@ -342,10 +342,10 @@ func TestMemberStorageRemove(t *testing.T) {
 
 			// Assert
 			if tc.panicMsg != "" {
-				urequire.PanicsWithMessage(t, tc.panicMsg, fn)
+				urequire.PanicsWithMessage(t, cur, tc.panicMsg, fn)
 				urequire.True(t, storage.Has(tc.member), "expect member to be found")
 			} else {
-				urequire.NotPanics(t, fn)
+				urequire.NotPanics(t, cur, fn)
 				urequire.True(t, got == tc.want, "expect member to be removed")
 				urequire.False(t, storage.Has(tc.member), "expect member to be missing")
 			}

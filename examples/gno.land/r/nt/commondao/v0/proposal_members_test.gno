@@ -11,7 +11,7 @@ import (
 
 var _ commondao.ProposalDefinition = (*membersUpdatePropDefinition)(nil)
 
-func TestMembersPropDefinitionTally(t *testing.T) {
+func TestMembersPropDefinitionTally(cur realm, t *testing.T) {
 	cases := []struct {
 		name    string
 		members []address
@@ -126,7 +126,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 	}
 }
 
-func TestMembersPropDefinitionExecute(t *testing.T) {
+func TestMembersPropDefinitionExecute(cur realm, t *testing.T) {
 	cases := []struct {
 		name                 string
 		dao                  *commondao.CommonDAO
@@ -213,7 +213,7 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			p := newMembersUpdatePropDefinition(tc.dao, add, remove)
 			fn := p.Executor()
 
-			err := fn(cross)
+			err := fn(cross(cur))
 
 			if tc.errMsg != "" {
 				uassert.ErrorContains(t, err, tc.errMsg, "expect error")

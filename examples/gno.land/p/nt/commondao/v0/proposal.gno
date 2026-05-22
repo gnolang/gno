@@ -126,7 +126,12 @@ func MustValidate(v Validable) {
 }
 
 // MustExecute executes an executable proposal or panics on error.
-func MustExecute(e Executable) {
+//
+// rlm is the realm authority threaded into the executor via cross(rlm).
+// MustExecute itself is not a crossing function (rlm sits in a non-first
+// parameter slot) because /p/ production code cannot declare crossing
+// functions — callers pass `cur` directly as the rlm argument.
+func MustExecute(e Executable, rlm realm) {
 	if e == nil {
 		panic("executable proposal definition is nil")
 	}
@@ -136,7 +141,7 @@ func MustExecute(e Executable) {
 		return
 	}
 
-	if err := fn(cross); err != nil {
+	if err := fn(cross(rlm)); err != nil {
 		panic(err)
 	}
 }

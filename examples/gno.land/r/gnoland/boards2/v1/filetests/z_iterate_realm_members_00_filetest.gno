@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_iterate_realm_members_00_filetest
+
+package z_iterate_realm_members_00_filetest
 
 import (
 	"testing"
@@ -13,16 +15,16 @@ const (
 	bid           = boards.ID(0) // Operate on realm DAO instead of individual boards
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.InviteMember(cross, bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.RoleAdmin)
+	boards2.InviteMember(cross(cur), bid, "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", boards2.RoleAdmin)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/boards2/test"))
 
 	// Calling as a Boards2 sub realm should succeed
-	perms := boards2.GetRealmPermissions()
+	perms := boards2.GetRealmPermissions(cross(cur))
 	perms.IterateUsers(0, perms.UsersCount(), func(u boards.User) bool {
 		println(u.Address, string(u.Roles[0]))
 		return false

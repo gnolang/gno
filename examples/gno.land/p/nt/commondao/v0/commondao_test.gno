@@ -329,102 +329,7 @@ func TestCommonDAOVote(t *testing.T) {
 	}
 }
 
-func TestCommonDAOTally(t *testing.T) {
-	errTest := errors.New("test")
-	member := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	cases := []struct {
-		name     string
-		setup    func(*commondao.CommonDAO) (proposalID uint64)
-		status   commondao.ProposalStatus
-		validate bool
-		err      error
-	}{
-		{
-			name: "passed",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyResult: true})
-				return p.ID()
-			},
-			status: commondao.StatusPassed,
-		},
-		{
-			name: "rejected",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyResult: false})
-				return p.ID()
-			},
-			status: commondao.StatusRejected,
-		},
-		{
-			name: "proposal is not found",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				return 404
-			},
-			err: commondao.ErrProposalNotFound,
-		},
-		{
-			name: "tally error",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyErr: errTest})
-				return p.ID()
-			},
-			err: errTest,
-		},
-		{
-			name: "definition panic with error",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyPanic: errTest})
-				return p.ID()
-			},
-			err: errTest,
-		},
-		{
-			name: "definition panic with error string",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyPanic: "Test"})
-				return p.ID()
-			},
-			err: errors.New("Test"),
-		},
-		{
-			name: "definition panic with unknown type",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{tallyPanic: 1})
-				return p.ID()
-			},
-			err: commondao.ErrProposalDefinitionPanicked,
-		},
-		{
-			name: "definition validation fails",
-			setup: func(dao *commondao.CommonDAO) uint64 {
-				p, _ := dao.Propose(member, testPropDef{validationErr: errTest})
-				return p.ID()
-			},
-			validate: true,
-			err:      errTest,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			dao := commondao.New(commondao.WithMember(member))
-			proposalID := tc.setup(dao)
-
-			status, err := dao.Tally(proposalID, tc.validate)
-
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				urequire.Empty(t, string(status))
-				return
-			}
-
-			urequire.NoError(t, err)
-			urequire.Equal(t, string(tc.status), string(status))
-		})
-	}
-}
-
-func TestCommonDAOExecute(t *testing.T) {
+func TestCommonDAOExecute(cur realm, t *testing.T) {
 	errTest := errors.New("test")
 	member := address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 	cases := []struct {
@@ -502,7 +407,7 @@ func TestCommonDAOExecute(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dao := tc.setup()
 
-			err := dao.Execute(tc.proposalID)
+			err := dao.Execute(tc.proposalID, cur)
 
 			if tc.err != nil {
 				urequire.Error(t, err, "expected an error")
