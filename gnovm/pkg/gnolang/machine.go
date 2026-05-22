@@ -34,9 +34,8 @@ type Machine struct {
 	Frames         []Frame                   // func call stack
 	Package        *PackageValue             // active package
 	Realm          *Realm                    // active realm
-	Alloc          *Allocator                // memory allocations
-	zerobaseAllocs map[TypeID]*HeapItemValue // shared zerobase for zero-sized types
-	Exception      *Exception                // last exception
+	Alloc          *Allocator    // memory allocations
+	Exception      *Exception    // last exception
 	NumResults     int                       // number of results returned
 	Cycles         int64                     // number of "cpu" cycles
 	GCCycle        int64                     // number of "gc" cycles
@@ -55,6 +54,11 @@ type Machine struct {
 	// bounded printer (see bounded_strings.go). True on validator-
 	// side Machines; false for filetests, REPL, etc.
 	BoundedPanicRender bool
+
+	// zerobaseAllocs caches shared HeapItemValues for zero-sized types
+	// so that new(T) and &var return the same address (matching Go's
+	// runtime.zerobase). See GetZerobase.
+	zerobaseAllocs map[TypeID]*HeapItemValue
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
