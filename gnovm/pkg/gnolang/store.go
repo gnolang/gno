@@ -444,7 +444,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 // GetRealmByID looks up a Realm via the per-tx cache, falling back
 // to a path-resolution + baseStore load on miss. Single source of
 // truth for in-memory *Realm pointers within a tx. Used by
-// PushFrameCall Layer 2 borrow and by cross-realm finalize
+// PushFrameCall borrow rule #2 and by cross-realm finalize
 // (touchForeignRealm).
 func (ds *defaultStore) GetRealmByID(pid PkgID) *Realm {
 	if rlm, ok := ds.cacheRealms[pid]; ok {

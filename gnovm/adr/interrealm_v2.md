@@ -64,13 +64,13 @@ the object.
 
 ### Method dispatch borrow (layered, extends current HEAD)
 
-The borrow rule in `PushFrameCall` now has three layers — Layer 2 was
-extended to cover unreal receivers in interrealm v2, and Layer 3 was
+The borrow rule in `PushFrameCall` now has three layers — borrow rule #2 was
+extended to cover unreal receivers in interrealm v2, and borrow rule #3 was
 added as part of the closure-as-capability work to plug the persisted
 `/p/`-declared closure case that neither earlier layer caught:
 
 ```go
-// Layer 1 (unchanged): /r/-declared callable in foreign realm →
+// borrow rule #1 (unchanged): /r/-declared callable in foreign realm →
 // borrow to declaring realm. Covers top-level functions, methods on
 // any receiver shape, and closures lexically declared in /r/X.
 if IsRealmPath(pv.PkgPath) {
@@ -80,7 +80,7 @@ if IsRealmPath(pv.PkgPath) {
     return
 }
 
-// Layer 2 (changed): stdlib or /p/ method on real foreign receiver →
+// borrow rule #2 (changed): stdlib or /p/ method on real foreign receiver →
 // borrow to receiver's PkgID. Under the new model PkgID is set at
 // allocation and equals the authority realm — same for both real and
 // unreal receivers. The borrow now fires for unreal foreign receivers
@@ -96,7 +96,7 @@ if recv.IsDefined() {
     }
 }
 
-// Layer 3 (new): /p/-declared closure (FuncLit, not FuncDecl) →
+// borrow rule #3 (new): /p/-declared closure (FuncLit, not FuncDecl) →
 // borrow to the closure's minter: the realm active when doOpFuncLit
 // ran. fv.GetObjectInfo().ID.PkgID is set by Alloc.stampPkgID at
 // doOpFuncLit using m.Alloc.currentRealmID, so for a closure built
@@ -119,7 +119,7 @@ if fv.IsClosure {
 }
 ```
 
-The key change in Layer 2: PkgID is now reliable for unreal receivers
+The key change in borrow rule #2: PkgID is now reliable for unreal receivers
 (set at allocation, not at link-time), so the borrow can correctly
 target the receiver's authority realm even before finalize. This
 closes the /p/-attacker via interface case: attacker's Evil, allocated
@@ -128,7 +128,7 @@ allocation; method dispatch borrows m.Realm to /r/attacker; mutations
 to victim's state fail the PkgID check.
 
 For the legitimate "external /r/ stored in caller's realm" case:
-Thing's PkgID = /r/foo (declaring realm) from allocation. Layer 1
+Thing's PkgID = /r/foo (declaring realm) from allocation. borrow rule #1
 borrows to /r/foo. Inside Method, t.Field = x writes to Thing whose
 PkgID matches m.Realm. Mutation succeeds.
 
@@ -243,7 +243,7 @@ the greps above):
 | `realm.go:1814` | `!oo.GetIsReal()` panic (toRefValue) | real | **finalized** | keep `GetIsReal` (redef) |
 | `realm.go:1830` | `!oo.GetOwnerID().IsZero()` panic (toRefValue: escaped must have no owner) | **owner reference exists** | **empty** | **stays on `IsZero` (after IsZero redef)** |
 | `realm.go:1921` | `!poid.IsZero()` (getOwner: lazy-load via store iff owner ref exists) | **owner reference exists** | **empty** | **stays on `IsZero` (after IsZero redef)** |
-| `machine.go:2251` | `!recvOID.IsZero()` (PushFrameCall Layer 2 guard) | "receiver has been finalized at least to PkgID stage" | **non-empty (any allocated or finalized receiver)** | **stays on `IsZero` (after IsZero redef)** — under interrealm v2 PkgID is set at allocation, so this correctly admits unreal foreign receivers (the desired Layer 2 expansion); falls through only for truly transient receivers (off-allocator construction sites that missed PkgID stamping, which the finalize-time invariant catches separately) |
+| `machine.go:2251` | `!recvOID.IsZero()` (PushFrameCall borrow rule #2 guard) | "receiver has been finalized at least to PkgID stage" | **non-empty (any allocated or finalized receiver)** | **stays on `IsZero` (after IsZero redef)** — under interrealm v2 PkgID is set at allocation, so this correctly admits unreal foreign receivers (the desired borrow rule #2 expansion); falls through only for truly transient receivers (off-allocator construction sites that missed PkgID stamping, which the finalize-time invariant catches separately) |
 | `machine.go:2550` | `oid.IsZero()` (isExternalRealm: transient/local-var branch) | "transient" | **empty (truly never stamped)** | **stays on `IsZero` (after IsZero redef)**. Note: under interrealm v2, allocator stamps PkgID at allocation for every object that goes through `m.Alloc.*`. Local vars do go through the allocator, so this branch becomes effectively dead for properly-stamped objects. Keep as a defensive fallback and add a comment noting the dead-branch implication. |
 | `ownership.go:76` | `!oid.PkgID.IsZero() && oid.NewTime == 1` (`IsPackage` helper) | "is the package self-ObjectID" | unchanged | keep as-is |
 | `ownership.go:81-90` | `IsZero()` itself | "PkgID is zero" | "both fields zero" | **redefine per Finding #1** |
@@ -743,7 +743,7 @@ Disruption survey of `examples/`:
 The DTO-request pattern in `r/gov/dao` (caller builds a Request,
 ships via `cross`) is the main idiom affected. Wrapping via
 `dao.NewVoteRequest(...)` is a small ergonomic cost in exchange
-for the invariant. Constructors run with Layer 1 borrow to their
+for the invariant. Constructors run with borrow rule #1 to their
 declaring realm, return a /r/-typed value with the correct PkgID
 to the caller, who then passes it on.
 
@@ -786,7 +786,7 @@ is the main idiom in Gno code, (2) field writes on real objects
 are gated by tainted-readonly checks at the SET op, (3) field
 writes on heap (unreal) objects are only visible to the constructing
 realm — they can't be persisted into cross-realm storage without
-going through Layer 1 borrow at the cross-call boundary.
+going through borrow rule #1 at the cross-call boundary.
 
 ### Type-cached PkgID
 
@@ -1068,7 +1068,7 @@ interface gap for value-method dispatch:
    m.Realm=attacker).
 3. Attacker passes Evil to victim (cross-call return).
 4. Victim calls `iface.M()`. Under generic Path B, copy.PkgID =
-   victim. Layer 2 reads PkgID == m.Realm.ID → no borrow. M runs
+   victim. borrow rule #2 reads PkgID == m.Realm.ID → no borrow. M runs
    as victim. `e.Bar.field = x` → po=victimObj (PkgID=victim),
    m.Realm=victim → DidUpdate passes. **Attack succeeds.**
 
@@ -1140,7 +1140,7 @@ pointer-style dispatch), so the variant is needed only for
 Trace under the fix:
 
 - **Attacker attack** (the gap being closed): copy preserves
-  PkgID=attacker. Layer 2 reads PkgID != m.Realm.ID → borrows
+  PkgID=attacker. borrow rule #2 reads PkgID != m.Realm.ID → borrows
   m.Realm to attacker. Inside M, `e.Bar.field = x` — PopAsPointer2's
   IsReadonly check fires (e.Bar's underlying has PkgID=victim,
   m.Realm=attacker, so IsReadonly returns true). **Panic. Attack
@@ -1149,7 +1149,7 @@ Trace under the fix:
 - **Legitimate cross-realm value-method dispatch**: victim does
   `t := /r/foo.NewThing(); t.ValueRead()`. VPValMethod calls
   CopyForReceiver(alloc) — no construction-time check, copy retains PkgID=/r/foo.
-  Layer 1 fires (`ValueRead` is /r/foo-declared) so m.Realm shifts
+  borrow rule #1 fires (`ValueRead` is /r/foo-declared) so m.Realm shifts
   to /r/foo. Inside ValueRead, the body operates on the receiver
   copy (transient, PkgID=/r/foo matches m.Realm.ID). Reads succeed;
   writes to the copy itself don't trip DidUpdate (copy is unreal).
@@ -1293,7 +1293,7 @@ Trace under interrealm v2 *with* readonly machinery preserved:
    computes `ro = m.IsReadonly(base)` — base's PkgID ≠ m.Realm.ID, so
    `ro = true`. Result tv gets `N_Readonly` bit set.
 2. Attacker calls `myrealm.MutateBytes(taintedSlice)`. Arg copy
-   preserves `N_Readonly`. Layer 1 borrow shifts m.Realm to /r/myrealm.
+   preserves `N_Readonly`. borrow rule #1 shifts m.Realm to /r/myrealm.
 3. Inside MutateBytes, `b[0] = 0xff` runs PopAsPointer2 IndexExpr.
    `ro = m.IsReadonly(xv)` returns true via the N_Readonly bit check
    in `IsReadonlyBy` (ownership.go:424+), independent of the PkgID
@@ -1305,7 +1305,7 @@ considered and rejected):
 
 1. Attacker reads `myrealm.GlobalBytes`. No taint propagation. Result
    tv has no N_Readonly bit.
-2. Attacker calls `myrealm.MutateBytes(slice)`. Layer 1 borrow shifts
+2. Attacker calls `myrealm.MutateBytes(slice)`. borrow rule #1 shifts
    m.Realm to /r/myrealm.
 3. `b[0] = 0xff`. DidUpdate sees `slice.underlying.PkgID = /r/myrealm`
    and `rlm.ID = /r/myrealm` — passes. Write succeeds. Attack

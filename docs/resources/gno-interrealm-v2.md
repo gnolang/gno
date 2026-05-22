@@ -72,8 +72,8 @@ next cross-call.
 | `fn(cross, ...)` into same realm | shifts† | unchanged | yes | yes |
 | `fn(cross, ...)` into different realm | shifts | shifts | yes | yes |
 | `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | unchanged | unchanged | no | no |
-| Non-crossing call of `/r/X`-declared callable from `/r/Y` | unchanged | shifts to `/r/X` (Rule 1) | yes | yes |
-| Stdlib/`/p/` method on real foreign-stamped receiver | unchanged | shifts to receiver's stamp (Rule 2) | yes | yes |
+| Non-crossing call of `/r/X`-declared callable from `/r/Y` | unchanged | shifts to `/r/X` (borrow rule #1) | yes | yes |
+| Stdlib/`/p/` method on real foreign-stamped receiver | unchanged | shifts to receiver's stamp (borrow rule #2) | yes | yes |
 | Stdlib/`/p/` method on primitive/nil/unstamped receiver | unchanged | unchanged | no | no |
 | Stdlib/`/p/` top-level function | unchanged | unchanged | no | no |
 
@@ -133,7 +133,7 @@ Two practical consequences:
 1. **Borrow rules can fire on unreal receivers.** Because PkgID is
    set at allocation, an unreal value just returned from a foreign
    realm's constructor already carries its allocating realm's PkgID
-   — the storage-realm borrow (Rule 2) follows immediately.
+   — the storage-realm borrow (borrow rule #2) follows immediately.
 
 2. **Construction-time check.** Composite literals, `new()`, and
    `make()` of a foreign `/r/`-declared type panic when invoked
@@ -145,7 +145,7 @@ Two practical consequences:
 
    Authority cannot be forged by constructing impostor instances of
    another realm's types. Construction must go through a constructor
-   declared in the type's home realm (which triggers Rule 1
+   declared in the type's home realm (which triggers borrow rule #1
    declaring-borrow on call, putting `m.Realm` at the home realm
    for the allocation). See `gnovm/pkg/gnolang/alloc.go`
    `checkConstructionTime`.
@@ -168,7 +168,7 @@ because legitimate stdlib method dispatch also reaches this path.
 
 This gate is what makes `/p/` package state effectively immutable
 post-deployment even though the language permits the syntax of a
-mutation. Combined with Rule 2 (borrowing `m.Realm` to the
+mutation. Combined with borrow rule #2 (borrowing `m.Realm` to the
 receiver's stamp on `/p/`-method dispatch), it closes the
 `/p/`-attacker-via-interface class.
 
@@ -178,7 +178,7 @@ On every function or method call, `PushFrameCall` applies at most
 one implicit borrow rule. The three rules are listed below;
 implementation lives in `gnovm/pkg/gnolang/machine.go`.
 
-### 4.1 Rule 1 — Declaring-realm borrow (`/r/`-declared callables)
+### 4.1 Borrow rule #1 — Declaring-realm borrow (`/r/`-declared callables)
 
 ```go
 if IsRealmPath(pv.PkgPath) {
@@ -201,7 +201,7 @@ code from victim's frame runs that code under attacker's authority,
 not victim's — direct field writes to victim-owned state inside the
 attacker's body fail the readonly check.
 
-### 4.2 Rule 2 — Storage-realm borrow (stdlib / `/p/` methods)
+### 4.2 Borrow rule #2 — Storage-realm borrow (stdlib / `/p/` methods)
 
 ```go
 if recv.IsDefined() {
@@ -229,7 +229,7 @@ generic library helpers operate on caller-owned state:
   whose underlying `*StructValue` is stamped with the realm that
   called `NewToken`.
 
-**Rule 2 does NOT fire when:**
+**Borrow rule #2 does NOT fire when:**
 
 - The receiver has no object identity (`GetFirstObject` returns nil):
   primitive-underlying defined types (`type Mutator int`),
@@ -238,7 +238,7 @@ generic library helpers operate on caller-owned state:
   value. (See §4.4 below for the attack-class implications.)
 - The call is a top-level `/p/` function (no receiver).
 
-### 4.3 Rule 3 — Closure-capability borrow (`/p/`-declared closures)
+### 4.3 Borrow rule #3 — Closure-capability borrow (`/p/`-declared closures)
 
 ```go
 if fv.IsClosure {
@@ -255,8 +255,8 @@ if fv.IsClosure {
 
 When a `FuncLit` evaluates, the resulting closure remembers the
 realm that created it. Later, no matter who invokes the closure or
-where it was stored, Rule 3 sets `m.Realm` to that creator realm
-for the call. (See the Layer 3 code block in
+where it was stored, borrow rule #3 sets `m.Realm` to that creator realm
+for the call. (See the borrow rule #3 code block in
 `gnovm/adr/interrealm_v2.md` for how the creator is recorded.)
 
 This is what **"closure = capability"** means in practice: a closure
@@ -275,16 +275,16 @@ calls it — can give it more.
   safely accept arbitrary `func()`-valued callbacks without being a
   confused deputy.
 
-If the closure's source file lives in `/r/X`, Rule 1 has already
-borrowed to `/r/X` and Rule 3 is a no-op. Rule 3 only matters when
+If the closure's source file lives in `/r/X`, borrow rule #1 has already
+borrowed to `/r/X` and borrow rule #3 is a no-op. borrow rule #3 only matters when
 the closure was written in `/p/` (or in code with no realm of its
 own).
 
 ### 4.4 The No-Anchor Case
 
-When Rule 2 doesn't fire on a `/p/`-method call, the body inherits
+When borrow rule #2 doesn't fire on a `/p/`-method call, the body inherits
 the caller's `m.Realm`. If the caller was *already* borrowed to a
-victim realm (e.g. inside a different Rule-2-borrowed `/p/`-method
+victim realm (e.g. inside a different borrow rule #2ed `/p/`-method
 body that dispatches a `/p/`-callback), the no-anchor body runs
 under the victim's authority. This is the open laundering vector
 documented as the **Apply class**: a `/p/`-method that invokes a
@@ -302,7 +302,7 @@ higher-order method.
 
 `m.Realm` is nil in two cases:
 
-- During `/p/`-receiver method dispatch: Rule 2 borrows `m.Realm` to
+- During `/p/`-receiver method dispatch: borrow rule #2 borrows `m.Realm` to
   `pv.GetRealm()` of the receiver's stamping package, which is nil
   for `/p/` and stdlib. `m.Realm` stays nil for the duration of the
   method body and is restored on frame pop via `fr.LastRealm`.
@@ -315,8 +315,8 @@ StageRun` and the object being written is real and `/p/`-stamped —
 catching writes that would otherwise slip through unattributed.
 
 `m.Realm` is non-nil during all other execution: `/r/`-method
-dispatch (Rule 2 borrows to the receiver's `/r/`), declaring-realm
-borrow on Rule 1, closure capture-realm on Rule 3, and the
+dispatch (borrow rule #2 borrows to the receiver's `/r/`), declaring-realm
+borrow on borrow rule #1, closure capture-realm on borrow rule #3, and the
 top-level frame of a transaction (one of `/r/` or `/e/`).
 
 ## 5. Crossing Functions and Crossing-Methods
@@ -421,7 +421,7 @@ where `m.Realm` (or `runtime.CurrentRealm()`) changes:
 
 - Every explicit `fn(cross, ...)` is a boundary (even when crossing
   into the same realm — the previous-realm-stack shifts).
-- Every implicit borrow (Rule 1 or Rule 2 firing) is a boundary
+- Every implicit borrow (borrow rule #1 or borrow rule #2 firing) is a boundary
   when storage-context changes.
 - A non-crossing call into the *same* storage-context is not a
   boundary.
@@ -516,7 +516,7 @@ if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
 Without this, an attacker could declare a parallel `/p/`-type with
 the same struct layout as a victim-owned `/p/`-value plus a mutator
 method, convert the victim's pointer to the parallel type, and
-invoke the new mutator — Rule 2 would route `m.Realm` to victim's
+invoke the new mutator — borrow rule #2 would route `m.Realm` to victim's
 realm for the duration of the `/p/`-method, so the write would
 succeed under victim authority. Case 1 blocks the conversion at the
 source.
@@ -580,7 +580,7 @@ effectively giving Gno software transactional memory.
 
 A bound method value `mv := recv.M` is a function value that
 remembers its receiver. When invoked later (`mv()`), `PushFrameCall`
-sees `recv` and applies Rule 1 or Rule 2 based on `M`'s declaring
+sees `recv` and applies borrow rule #1 or borrow rule #2 based on `M`'s declaring
 package and `recv`'s PkgID stamp — **at invocation time, not at
 binding time**.
 
@@ -588,7 +588,7 @@ Two practical implications:
 
 1. **Storing a bound method value isn't a safety boundary.** A
    `/p/`-method bound to a victim-stamped receiver, stored anywhere,
-   still Rule-2-borrows to victim when invoked. Verified in
+   still borrow rule #2 borrows to victim when invoked. Verified in
    `zrealm_launder_rdata_mv_stored_bound_mv.gno` and
    `_attacker_stored_mv.gno`.
 
@@ -634,7 +634,7 @@ For every exported function or method in your `/r/` realm:
   before using `cur.Previous()`, `cur.Address()`, or `cur.PkgPath()`?
 - Does it return a pointer that aliases internal mutable state? If
   yes, expect attackers to invoke any method on the returned pointer
-  type that Rule-2-borrows back to you.
+  type that borrow rule #2 borrows back to you.
 - Does it accept an interface or function-value parameter? If yes,
   gate with canonical-type check (`t.(*MyConcrete)` or an
   `IsCanonicalX` predicate). Embedding-based seal patterns are
