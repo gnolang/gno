@@ -43,8 +43,8 @@ import (
 // references the same g1edq4… address that gnoland1's history references.
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
-func main() {
-	ms := memberstore.Get()
+func main(cur realm) {
+	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add temporary deployer as sole T1 member ----
 	// Gives the deployer 100% supermajority so proposals pass.
@@ -55,7 +55,7 @@ func main() {
 	// ---- 3. Set chain parameters via governance proposals ----
 
 	// Unrestricted addresses (can transfer ugnot even when bank is locked).
-	govExec(params.ProposeAddUnrestrictedAcctsRequest(
+	govExec(0, cur, params.ProposeAddUnrestrictedAcctsRequest(
 		address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"), // GovDAO T1 multisig (inherited from gnoland1)
 		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"), // gnoland1 airdrop faucet
 		// ---- test-13 faucets ----
@@ -72,7 +72,7 @@ func main() {
 	))
 
 	// Lock ugnot transfers (restricted denom).
-	govExec(params.ProposeLockTransferRequest())
+	govExec(0, cur, params.ProposeLockTransferRequest())
 
 	// ---- 4. (gnoland1 step 4 was names.Enable — skipped for test-13) ----
 	// Master's r/sys/names.Enable checks `PreviousRealm().Address() != admin`
@@ -105,7 +105,7 @@ func main() {
 	// the sole T1 from manfred (the gnoland1 inherited T1) to the test-13
 	// T1, then Rotate self-ejects from this list. See rotate-pkg/rotate.gno
 	// for the gate ensuring it cannot fire post-genesis.
-	dao.UpdateImpl(cross, dao.UpdateRequest{
+	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", "gno.land/r/test13/rotate"},
 	})
 }
@@ -113,10 +113,10 @@ func main() {
 // govExec creates a proposal, votes YES, and executes it immediately.
 // Works because the deployer is the sole T1 member at call time (100%
 // supermajority).
-func govExec(r dao.ProposalRequest) {
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+func govExec(_ int, rlm realm, r dao.ProposalRequest) {
+	pid := dao.MustCreateProposal(cross(rlm), r)
+	dao.MustVoteOnProposal(cross(rlm), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(rlm), pid)
 }
 
 func must(err error) {

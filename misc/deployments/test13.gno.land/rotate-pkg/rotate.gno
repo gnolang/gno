@@ -41,7 +41,7 @@ func Rotate(cur realm) {
 		panic("rotate is genesis-only")
 	}
 
-	ms := memberstore.Get()
+	ms := memberstore.Get(0, cur)
 	tier, ok := memberstore.GetTier(memberstore.T1)
 	if !ok {
 		panic("T1 tier not found")
@@ -51,7 +51,7 @@ func Rotate(cur realm) {
 	}
 	ms.RemoveMember(oldT1)
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
+	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
 }
