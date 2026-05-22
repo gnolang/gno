@@ -30,8 +30,8 @@
 # Sources (orthogonal — pick one per dimension; defaults shown):
 #   --source-genesis-file PATH   default: ./out/base-genesis.json   produced by ./build-test-13-genesis.sh
 #   --source-genesis-rpc URL     fetch source genesis from an RPC /genesis endpoint
-#   --source-txs-jsonl-file PATH default: ./txs.jsonl               pre-fetched amino-JSONL of gnoland.TxWithMetadata
-#   --source-txs-rpc URLS        fetch txs from RPC(s); comma-separated for failover/parallelism (uses #5693 multi-endpoint fetch)
+#   --source-txs-jsonl-file PATH if no flag, default: ./txs.jsonl when present (cached amino-JSONL of gnoland.TxWithMetadata)
+#   --source-txs-rpc URLS        if no flag and no cached ./txs.jsonl, default: 5-endpoint multi-RPC fetch (see DEFAULT_TXS_RPC_ENDPOINTS)
 #   --source-txs-data-dir PATH   read txs from a halted gnoland data dir (offline PebbleDB reader, #5696)
 #
 # Output:
@@ -59,6 +59,11 @@ ORIGINAL_CHAIN_ID=gnoland1
 # mismatch — keeps the constant honest. The resulting chain starts
 # at InitialHeight = HALT_HEIGHT + 1.
 HALT_HEIGHT=1008282
+
+# Default RPC endpoint list for --source-txs-rpc. Comma-separated for
+# #5693's multi-endpoint parallel fetcher. Used only when no
+# --source-txs-* flag is passed AND no cached ./txs.jsonl exists.
+DEFAULT_TXS_RPC_ENDPOINTS="http://51.159.14.234:26657,http://163.172.33.181:26657,https://rpc.gnoland1.moul.p2p.team,https://rpc.gnoland1-aeddi-1.gnoland.network,https://rpc.gnoland1-gfanton-1.gnoland.network"
 
 # =============================================================================
 # Internal — everything below is glue, you shouldn't need to change it.
@@ -215,9 +220,16 @@ if [ -n "$SOURCE_GENESIS_FILE" ] && [ ! -f "$SOURCE_GENESIS_FILE" ]; then
   exit 1
 fi
 
-# ---- Txs source: default to TXS_JSONL if no flag given.
+# ---- Txs source: default to cached TXS_JSONL if it exists, otherwise
+# fall back to multi-RPC fetch against DEFAULT_TXS_RPC_ENDPOINTS so
+# the no-flag invocation works against fresh checkouts that haven't
+# pre-cached a txs.jsonl.
 if [ "$TXS_SOURCE_COUNT" -eq 0 ]; then
-  SOURCE_TXS_JSONL_FILE="$TXS_JSONL"
+  if [ -f "$TXS_JSONL" ]; then
+    SOURCE_TXS_JSONL_FILE="$TXS_JSONL"
+  else
+    SOURCE_TXS_RPC="$DEFAULT_TXS_RPC_ENDPOINTS"
+  fi
 fi
 if [ -n "$SOURCE_TXS_JSONL_FILE" ] && [ ! -f "$SOURCE_TXS_JSONL_FILE" ]; then
   cat >&2 <<EOF
