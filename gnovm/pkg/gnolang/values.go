@@ -2192,7 +2192,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if high < 0 {
 		panic(NewException(typedString(fmt.Sprintf(
 			"runtime error: invalid slice index %d (index must be non-negative)",
-			low))))
+			high))))
 	}
 	if low > high {
 		panic(NewException(typedString(fmt.Sprintf(

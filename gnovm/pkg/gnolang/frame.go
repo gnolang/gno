@@ -352,6 +352,9 @@ func TrimOriginFile(file string) string {
 // "raised but not yet terminal" case — typically reached only by
 // out-of-VM recoverers that intercept before defers exhaust.
 func (e *Exception) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
 	if e.Abort && e.Descriptor != "" {
 		return e.Descriptor
 	}
