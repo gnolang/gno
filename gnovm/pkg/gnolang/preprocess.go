@@ -621,7 +621,6 @@ func doRecover(stack []BlockNode, n Node) {
 			// re-panic directly if this is a PreprocessError already.
 			panic(r)
 		}
-
 		// before re-throwing the error, append location information to message.
 		last := stack[len(stack)-1]
 		loc := last.GetLocation()
@@ -968,8 +967,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// n.SetAttribute(ATTR_PREPROCESS_INCOMPLETE, true)
 					return n, TRANS_SKIP
 				}
-				// a crossing function can only be declared in a realm.
-				if ft.IsCrossing() && !isRealm(ctx) {
+				// a crossing function can only be declared in a realm
+				// (or, as a carve-out, in any *_test.gno file so p/ tests
+				// can declare `TestXxx(cur realm, t *testing.T)` to drive
+				// migrated methods).
+				if ft.IsCrossing() && !crossingAllowed(ctx, n) {
 					panic(fmt.Sprintf("crossing function literal (realm first argument) declared in non-realm package: %v", n))
 				}
 				// push func body block.
@@ -1073,8 +1075,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// retrieve cached function type.
 				// the type and receiver are already set in predefineRecursively.
 				ft := getType(&n.Type).(*FuncType)
-				// a crossing function can only be declared in a realm.
-				if ft.IsCrossing() && !isRealm(ctx) {
+				// a crossing function can only be declared in a realm
+				// (or, as a carve-out, in any *_test.gno file so p/ tests
+				// can declare `TestXxx(cur realm, t *testing.T)` to drive
+				// migrated methods).
+				if ft.IsCrossing() && !crossingAllowed(ctx, n) {
 					panic(fmt.Sprintf("crossing function (realm first argument) declared in non-realm package: %v", n))
 				}
 				// push func body block.
@@ -1300,20 +1305,29 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// but should not be statically evaluated.
 					// (will be replaced TRANS_LEAVE *CallExpr).
 					return n, TRANS_CONTINUE
-				case "cross":
-					// Special case for gno 0.0.
-					if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
-						// Do nothing here, TRANS_LEAVE *CallExpr will handle it.
-						return n, TRANS_CONTINUE
-					}
-					// `cross` can only be used as the first argument
-					// to a crossing function, for cross-calling.
+				case ".origin":
+					// special name for compiler-synthesized chain-root cross
+					// calls (keeper.go's MsgCall dispatch). Only valid as the
+					// first arg of a crossing call; at TRANS_LEAVE the outer
+					// call substitutes the with-cross AST shape (Args[0]=nil,
+					// WithCross=true) so runtime routes through
+					// callingCurOrOrigin → buildOriginRealm to mint an
+					// EOA-origin cur. The dot prefix makes `.origin`
+					// unparseable from user source; only post-parse AST
+					// injection (gno.Nx(".origin")) can introduce it.
 					if ftype != TRANS_CALL_ARG || index != 0 {
-						panic("cross can only be used as the first argument to a crossing function (since gno 0.9)")
+						panic(".origin can only be used as the first argument to a crossing function")
 					}
-					// special name that is defined in uverse as undefined,
-					// but should not be statically evaluated.
-					// (will be replaced TRANS_LEAVE *CallExpr).
+					return n, TRANS_CONTINUE
+				case "cross1":
+					// legacy sentinel: a migration aid for codebases moving from
+					// the old bare-`cross` form. Lowers to the same with-cross
+					// AST shape as `.origin` (Args[0]=nil, WithCross=true) so
+					// the runtime takes the callingCurOrOrigin path. Migrate
+					// `cross1` → `cross(rlm)` once the in-scope realm is clear.
+					if ftype != TRANS_CALL_ARG || index != 0 {
+						panic("cross1 can only be used as the first argument to a crossing function")
+					}
 					return n, TRANS_CONTINUE
 				case nilStr:
 					// nil will be converted to
@@ -1864,7 +1878,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// Update func attributes with specified types.
 							n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 							cx := n.Func.(*ConstExpr)
-							fv2 := cx.V.(*FuncValue).Copy(nilAllocator)
+							fv2 := cx.V.(*FuncValue).Copy(store.GetAllocator())
 							fv2.Type = sft
 							cx.T = sft
 							cx.V = fv2
@@ -1903,28 +1917,53 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							return n, TRANS_CONTINUE
-						case "_cross_gno0p0":
-							if ctxpn.GetAttribute(ATTR_FIX_FROM) == GnoVerMissing {
-								// This is only backwards compatibility for the gno 0.9
-								// transpiler/fixer.  cross() is no longer used.
-								// See adr/pr4264_lint_transpile.md for more info.
-								//
-								// Memoize *CallExpr.WithCross.
-								pc, ok := ns[len(ns)-1].(*CallExpr)
-								if !ok {
-									panic("cross(fn) must be followed by a call")
-								}
-								pc.WithCross = true // bypass method with checks.
-							} else {
-								// only way _cross_gno0p0 appears is
-								panic("_cross_gno0p0 is reserved")
-							}
 						case "cross":
-							panic("cross(fn)(...) syntax is deprecated, use fn(cross,...)")
-						case "crossing":
-							if ctxpn.GetAttribute(ATTR_FIX_FROM) != GnoVerMissing {
-								panic("crossing() is reserved and deprecated")
+							// cross(rlm) — the explicit cross-call form.
+							// Three constraints, all enforced here:
+							//
+							//  (a) The argument must be a bare NameExpr (a
+							//      realm-typed identifier in scope), not an
+							//      arbitrary expression. The Go typechecker
+							//      shim narrows to realm type via the
+							//      gnobuiltins signature.
+							//
+							//  (b) cross must appear at Args[0] of a parent
+							//      CallExpr (ftype == TRANS_CALL_ARG, index==0).
+							//      Statement-level (`x := cross(rlm)`),
+							//      non-Args[0] positions (`f(rlm, cross(rlm))`),
+							//      and ExprStmt usage are all rejected.
+							//
+							//  (c) The parent CallExpr's Func must resolve to
+							//      a crossing function. cross at Args[0] of
+							//      a non-crossing call is rejected.
+							//
+							// Together these guarantee cross only appears where
+							// the outer crossing-call's LEAVE handler will pick
+							// it up — preventing the "virtual function" panic
+							// or the silent-identity-return paths.
+							if len(n.Args) != 1 {
+								panic("cross takes exactly one argument: the in-scope realm")
 							}
+							if _, ok := n.Args[0].(*NameExpr); !ok {
+								panic("cross argument must be a bare realm-typed identifier (a name, not an expression)")
+							}
+							if ftype != TRANS_CALL_ARG || index != 0 {
+								panic("cross(rlm) can only be used as the first argument to a crossing-function call")
+							}
+							pc, ok := ns[len(ns)-1].(*CallExpr)
+							if !ok {
+								// ftype guarantees parent is a CallExpr; sanity.
+								panic("cross(rlm): internal — parent is not a CallExpr")
+							}
+							// baseOf unwraps DeclaredType to its underlying *FuncType,
+							// so named function types (`type Fn func(realm) error`)
+							// are recognized as crossing-shape calls.
+							pft, _ := baseOf(evalStaticTypeOf(store, last, pc.Func)).(*FuncType)
+							if pft == nil || !pft.IsCrossing() {
+								panic("cross(rlm) can only be used as the first argument to a crossing-function call")
+							}
+						case "crossing":
+							panic("crossing() is reserved and deprecated")
 						case "attach":
 							// reserve attach() so we can support it later.
 							panic("attach() not yet supported")
@@ -1952,13 +1991,53 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// only happen with a `cur` declared as the first realm argument
 							// of a containing function.
 							if len(n.Args) == 0 {
-								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross)", n))
+								panic(fmt.Sprintf("missing realm argument in calling crossing function call %v (expected cur or cross(rlm))", n))
 							}
+
+							// cross(rlm) appears here as a *CallExpr at Args[0]:
+							// the inner CallExpr's TRANS_LEAVE (above) has already
+							// validated the shape (exactly one NameExpr arg).
+							// Leave Args[0] in place — at runtime the inner cross
+							// native body validates IsCurrent-strict on rlm and
+							// pushes it back unchanged. installCrossingCur peeks
+							// that value and uses it as the new cur's prev.
+							if inner, ok := n.Args[0].(*CallExpr); ok {
+								innerFunc, fnOK := inner.Func.(*ConstExpr)
+								if !fnOK || innerFunc.GetFunc() == nil ||
+									innerFunc.GetFunc().PkgPath != uversePkgPath ||
+									innerFunc.GetFunc().Name != "cross" {
+									panic(fmt.Sprintf("only `cur` or `cross(rlm)` allowed as first arg to a crossing function; got call to %v", inner.Func))
+								}
+								// cross(rlm) form. The inner CallExpr's shape
+								// was already validated by the inner TRANS_LEAVE
+								// (one bare NameExpr arg). No path resolution
+								// needed; the normal eval machinery handles
+								// whatever scope rlm comes from (function param,
+								// closure capture, threaded helper, etc.).
+								n.SetWithCross()
+								goto LEAVE_CALL_EXPR_END_CHECK_CROSSING
+							}
+
 							nx, ok := n.Args[0].(*NameExpr)
-							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name("cross") {
-								panic(fmt.Sprintf("only `cur` and `cross` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
+							if !ok || nx.Name != Name("cur") && nx.Name != Name(".cur") && nx.Name != Name(".origin") && nx.Name != Name("cross1") {
+								panic(fmt.Sprintf("only `cur` or `cross(rlm)` are allowed as the first argument to a crossing function but got %s", n.Args[0]))
 							}
 							switch nx.Name {
+							case Name(".origin"):
+								// compiler-internal sentinel for chain-root MsgCall
+								// synthesis. Lowers to with-cross AST shape so the
+								// runtime path (installCrossingCur →
+								// callingCurOrOrigin → buildOriginRealm) mints an
+								// EOA-origin cur.
+								n.SetWithCross()
+								n.Args[0] = constNil(nx)
+							case Name("cross1"):
+								// legacy migration sentinel: same lowering as .origin
+								// (WithCross=true, Args[0]=constNil → runtime takes
+								// callingCurOrOrigin path). Reachable from user source
+								// to ease migration from the old bare-`cross` form.
+								n.SetWithCross()
+								n.Args[0] = constNil(nx)
 							case Name(".cur"):
 								if _, ok := skipFile(last).(*PackageNode); !ok {
 									// .cur should only be used from
@@ -1969,7 +2048,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									panic(fmt.Sprintf("unexpected context for .cur; wanted last.(*PackageNode), got last.(%T)", last))
 								}
 								// evaluation was skipped TRANS_LEAVE *NameExpr.
-								crlm := NewConcreteRealm(ctxpn.PkgPath)
+								// PackageNode top — no cross ancestor.
+								crlm := NewConcreteRealm(store.GetAllocator(), ctxpn.PkgPath, gOriginRealmTV)
 								n.Args[0] = toConstExpr(nx, crlm)
 							case Name("cur"): // non-crossing call of a crossing function.
 								// Try to check that called function is local.
@@ -2012,21 +2092,34 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								default:
 									panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 								}
-								// the `cur` cannot be passed as capture through a func lit.
-								fle, _, found := findFirstClosure(stack, dbn)
-								if found && dbn != fle {
-									panic(fmt.Sprintf("`cur realm` cannot be used as a closure capture, but found %v", fle))
-								}
-							case Name("cross"):
-								// n is a valid crossing call of a crossing function.
-								n.SetWithCross()
-								// evaluation was skipped TRANS_LEAVE *NameExpr.
-								n.Args[0] = constNil(nx)
+								// NOTE: closure-captured cur is allowed here. With pointer-
+								// receiver .grealm methods preserving HIV through dispatch
+								// (see DefineNativePtrMethod), and persistence refusing realm
+								// values (refusePersistRealmHIV), a captured cur cannot
+								// outlive its originating frame across txs. Within a single
+								// tx, the captured cur is a valid handle to its frame's
+								// authority — runtime semantics of pkg.Fn(cur, ...) flow
+								// the captured value through installCrossingCur as the
+								// new cur's prev.
 							default:
 								panic("should not happen")
 							} // END Check validity of crossing arg n.Args[0].(*NameExpr).
 						}
 					LEAVE_CALL_EXPR_END_CHECK_CROSSING:
+						// Reject crossing calls inside `defer`. doOpReturnCallDefers
+						// (op_call.go) doesn't go through doOpPrecall, so
+						// installCrossingCur never mints a fresh cur for the
+						// deferred callee — the Args[0] placeholder stays nil and
+						// the callee crashes on first use of cur. Wrapping the
+						// cross-call in a closure deferred at the closure call
+						// site is the workaround:
+						//   defer func() { f(cross, args...) }()
+						// The closure call is non-crossing; inside the closure
+						// body, the cross-call goes through the normal precall
+						// path and mints the fresh cur correctly.
+						if n.WithCross && ftype == TRANS_DEFER_CALL {
+							panic("crossing call `cross(rlm)` cannot be deferred directly — the deferred-call dispatch path doesn't mint a fresh cur. Wrap in a closure: `defer func() { fn(cross(rlm), args...) }()`")
+						}
 					} // END if ft.IsCrossing()
 
 					hasVarg := ft.HasVarg()
@@ -2109,7 +2202,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
 						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(nilAllocator)
+						fv2 := fv.Copy(store.GetAllocator())
 						fv2.Type = sft
 						cx.T = sft
 						cx.V = fv2
@@ -3442,7 +3535,6 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					nx.Type = NameExprTypeHeapUse
 				}
 			case *NameExpr:
-				// NOTE: Keep in sync maybe with transpile_gno0p0.go/FindMore...
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
@@ -3934,13 +4026,19 @@ func evalStaticTypeMachine(store Store, last BlockNode, x Expr) Type {
 		// this used pn.NewPackage previously; however, that function
 		// additionally calls PrepareNewValues, which is not necessary in this
 		// context and incurs in very expensive allocations.
+		// Stamp PkgID on both the PackageValue and its inner Block.
+		pid := pn.GetPkgID()
+		blk := &Block{
+			Source: pn,
+		}
+		blk.ObjectInfo.SetPkgID(pid)
 		pv := &PackageValue{
-			Block: &Block{
-				Source: pn,
-			},
+			Block:   blk,
 			PkgName: pn.PkgName,
 			PkgPath: pn.PkgPath,
+			PkgID:   pid,
 		}
+		pv.ObjectInfo.SetPkgID(pid)
 		store = store.BeginTransaction(nil, nil, nil, nil)
 		store.SetCachePackage(pv)
 	}
@@ -4100,16 +4198,22 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// package values are already there that weren't
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
+			// Stamp PkgID on PackageValue + Block.
+			pid := pn.GetPkgID()
+			blk := &Block{
+				Source: pn,
+			}
+			blk.ObjectInfo.SetPkgID(pid)
 			pv := &PackageValue{
 				// this used pn.NewPackage previously; however, that function
 				// additionally calls PrepareNewValues, which is not necessary in this
 				// context and incurs in very expensive allocations.
-				Block: &Block{
-					Source: pn,
-				},
+				Block:   blk,
 				PkgName: pn.PkgName,
 				PkgPath: pn.PkgPath,
+				PkgID:   pid,
 			}
+			pv.ObjectInfo.SetPkgID(pid)
 			store = store.BeginTransaction(nil, nil, nil, nil)
 			store.SetCachePackage(pv)
 		}
@@ -4177,7 +4281,11 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 	if cx, ok := x.(*ConstExpr); ok {
 		return cx.TypedValue, nil
 	}
-	pv := pn.NewPackage(nilAllocator) // throwaway
+	// store.GetAllocator() may be nil here — store.BeginTransaction
+	// below forks alloc which propagates nil — and we need a non-nil
+	// alloc for pn.NewPackage. Use fallbackAllocator: this PackageValue
+	// is throwaway, never persisted.
+	pv := pn.NewPackage(fallbackAllocator) // throwaway
 	store = store.BeginTransaction(nil, nil, nil, nil)
 	store.SetCachePackage(pv)
 	m := NewMachineWithOptions(MachineOptions{
@@ -4373,6 +4481,35 @@ func setPreprocessed(x Node) Node {
 func isRealm(ctx BlockNode) bool {
 	pn := packageOf(ctx)
 	return IsRealmPath(pn.PkgPath)
+}
+
+// crossingAllowed reports whether n (a FuncDecl or FuncLitExpr with a
+// realm-first-arg signature) is allowed to be a crossing function in ctx.
+// Crossing functions are allowed in realm packages OR in any *_test.gno
+// file (regardless of package). The test-file carve-out lets `p/` package
+// tests declare `func TestXxx(cur realm, t *testing.T)` and pass `cur`
+// into newly-migrated methods — production code in `p/` still can't
+// define crossing functions.
+//
+// MsgRun ephemeral `/e/` packages may also declare a crossing top-level
+// `main` — the single entry point — so a run script can opt into
+// `func main(cur realm)` + `cross(cur)`. Only the FuncDecl named `main`
+// is allowed (no helper functions, no function literals), matching the
+// ephemeral one-shot model.
+func crossingAllowed(ctx BlockNode, n BlockNode) bool {
+	if isRealm(ctx) {
+		return true
+	}
+	file := n.GetLocation().File
+	if strings.HasSuffix(file, "_test.gno") {
+		return true
+	}
+	if fd, ok := n.(*FuncDecl); ok && fd.Name == "main" {
+		if IsEphemeralPath(packageOf(ctx).PkgPath) {
+			return true
+		}
+	}
+	return false
 }
 
 func packageOf(last BlockNode) *PackageNode {
@@ -4749,7 +4886,11 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(nilAllocator, store, &cx.TypedValue, t, true)
+		// convertConst's store may be nil (e.g. the Preprocess(nil, ...)
+		// special-case in append-iface-nil at line ~1804). The
+		// conversion lands in a ConstExpr that isn't persisted directly,
+		// so use fallbackAllocator: no stamping needed.
+		ConvertTo(fallbackAllocator, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }
@@ -5464,7 +5605,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				panic("should not happen")
 			}
 			// The body may get altered during preprocessing later.
-			if !dt.TryDefineMethod(&FuncValue{
+			methodFV := &FuncValue{
 				Type:       ubft,
 				IsMethod:   true,
 				Source:     d,
@@ -5475,7 +5616,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				Crossing:   ft.IsCrossing(),
 				body:       d.Body,
 				nativeBody: nil,
-			}) {
+			}
+			// Method FuncValue belongs to the declaring package's
+			// realm.
+			methodFV.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
+			if !dt.TryDefineMethod(methodFV) {
 				// Revert to old function declarations in the package we're preprocessing.
 				pkg := packageOf(last)
 				pkg.StaticBlock.revertToOld()
@@ -5503,6 +5648,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				body:       d.Body,
 				nativeBody: nil,
 			}
+			// Top-level function FuncValue belongs to the declaring
+			// package's realm.
+			fv.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
 			if fv.body == nil && store != nil {

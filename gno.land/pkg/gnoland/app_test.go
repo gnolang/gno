@@ -351,6 +351,58 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 	}
 }
 
+// TestInitChainer_PanicsOnValoperCoverageFailure pins that an
+// assertGenesisValopersConsistent failure aborts boot via a Go-level
+// panic, not via the ResponseInitChain.Error field that tm2's
+// consensus/replay.go:339-342 silently discards. Without this guarantee
+// a hardfork chain can boot in a state where genesis validators have no
+// v3 operator-keyed management plane — the safety net would fire but
+// not actually stop the boot.
+func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseCapKey := store.NewStoreKey("baseCapKey")
+	iavlCapKey := store.NewStoreKey("iavlCapKey")
+	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.LoadLatestVersion()
+	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	// vmk.Call is what assertGenesisValopersConsistent invokes; returning
+	// an error from it is the realistic shape of an assertion failure
+	// (uncovered genesis validator → v3 panics → vmk.Call returns the
+	// wrapped error).
+	mock := &mockVMKeeper{
+		callFn: func(_ sdk.Context, _ vm.MsgCall) (string, error) {
+			return "", fmt.Errorf("synthetic v3 assertion: uncovered validator")
+		},
+	}
+
+	cfg := InitChainerConfig{
+		vmk:   mock,
+		acck:  &mockAuthKeeper{},
+		bankk: &mockBankKeeper{},
+		prmk:  &mockParamsKeeper{},
+		gpk:   &mockGasPriceKeeper{},
+	}
+
+	// PastChainIDs + Validators → shouldAssertValoperCoverage returns
+	// true → the assertion runs against the mocked vmk and fails.
+	req := abci.RequestInitChain{
+		Validators: generateValidatorUpdates(t, 1),
+		AppState:   GnoGenesisState{PastChainIDs: []string{"old-chain"}},
+	}
+
+	assert.PanicsWithError(t,
+		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
+		func() { cfg.InitChainer(testCtx, req) },
+		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
+	)
+}
+
 // generateValidatorUpdates generates dummy validator updates
 func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	t.Helper()
@@ -880,10 +932,10 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("valset:current corrupted panics (chain-internal)", func(t *testing.T) {
 		t.Parallel()
 
-		// Tier 1 semantic flip: corrupted current is no longer
-		// silently recovered. Only chain code writes valset:current
-		// (via ctx-sentinel), so corruption is by definition a
-		// chain-internal bug or store damage and warrants a panic.
+		// Corrupted current panics rather than being silently
+		// recovered. Only chain code writes valset:current (via
+		// ctx-sentinel), so corruption is by definition a chain-
+		// internal bug or store damage and warrants a panic.
 		st := &valsetState{
 			current:  []string{"garbage:not-a-power"},
 			proposed: serializeUpdates(generateValidatorUpdates(t, 1)),

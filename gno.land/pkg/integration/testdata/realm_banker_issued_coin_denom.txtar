@@ -80,17 +80,17 @@ package realm_banker
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
-	banker_.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
+	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
-	banker_.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
+	banker_.RemoveCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
 }
 -- long/gnomod.toml --
 module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
@@ -102,17 +102,17 @@ package package89_123456789_123456789_123456789_123456789_123456789_123456789_12
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
-	banker_.IssueCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
+	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
-	banker_.RemoveCoin(addr, runtime.CurrentRealm().CoinDenom(denom), amount)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
+	banker_.RemoveCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
 }
 -- invalid_realm_denom/gnomod.toml --
 module = "gno.land/r/test/invalid_realm_denom"
@@ -124,11 +124,11 @@ package invalid_realm_denom
 import "chain/banker"
 
 func Mint(cur realm, addr address, denom string, amount int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
 	banker_.IssueCoin(addr, denom, amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
-	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
 	banker_.RemoveCoin(addr, denom, amount)
 }
