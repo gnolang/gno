@@ -33,6 +33,7 @@ package main
 
 import (
 	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
 	"gno.land/r/gov/dao/v3/memberstore"
 	"gno.land/r/sys/params"
 )

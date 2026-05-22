@@ -51,5 +51,7 @@ func Rotate(cur realm) {
 	}
 	ms.RemoveMember(oldT1)
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/v3/impl"}))
+	// Pass nil DAO: bootstrap already installed impl.NewGovDAO() into dao.dao;
+	// rotate only narrows AllowedDAOs (removing itself) — DAO ref stays intact.
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, []string{"gno.land/r/gov/dao/v3/impl"}))
 }
