@@ -3,8 +3,8 @@ package valopers
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"crypto/bech32"
 	"errors"
 	"regexp"
@@ -89,14 +89,14 @@ func (v Valoper) Auth() *authorizable.Authorizable {
 
 func AddToAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().AddToAuthList(member); err != nil {
+	if err := v.Auth().AddToAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+	if err := v.Auth().DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
@@ -119,7 +119,7 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // requires the attacker to be able to satisfy OriginCaller==victim,
 // which requires the victim's signing key. r/sys/namereg/v1.Register
 // also gates on IsUserCall, but that's because IT reads
-// banker.OriginSend() for the anti-squatting payment and IsUserCall
+// unsafe.OriginSend() for the anti-squatting payment and IsUserCall
 // is needed to ensure the OriginSend envelope reflects what landed at
 // this realm rather than a phantom payment from a previous frame.
 // valopers.Register has no per-call payment-receipt check (fees are
@@ -136,7 +136,7 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // post-genesis without needing the deployer's auth.
 func Register(cur realm, moniker string, description string, serverType string, addr address, pubKey string) {
 	// Operator-slot squat guard.
-	if runtime.ChainHeight() > 0 && runtime.OriginCaller() != addr {
+	if runtime.ChainHeight() > 0 && unsafe.OriginCaller() != addr {
 		panic(ErrOperatorSquatGuard)
 	}
 
@@ -144,7 +144,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	// governance raises it post-transfer-enablement).
 	if fee := sysparams.GetValoperRegisterFee(); fee > 0 {
 		minFee := chain.NewCoin("ugnot", int64(fee))
-		sentCoins := banker.OriginSend()
+		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
 		}
@@ -181,7 +181,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 		SigningAddress:     signingAddr,
 		LastRotationHeight: runtime.ChainHeight(),
 		KeepRunning:        true,
-		auth:               authorizable.New(ownable.NewWithAddressByPrevious(addr)),
+		auth:               authorizable.New(ownable.NewWithAddress(addr)),
 	}
 
 	if err := v.Validate(); err != nil {
@@ -199,7 +199,7 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	})
 
 	// Refresh v3's cache for this operator.
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // UpdateMoniker updates an existing valoper's moniker.
@@ -212,7 +212,7 @@ func UpdateMoniker(cur realm, addr address, moniker string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update the moniker.
 	v.Moniker = moniker
@@ -231,7 +231,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update the description.
 	v.Description = description
@@ -246,7 +246,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update status.
 	v.KeepRunning = keepRunning
@@ -255,7 +255,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	valopers.Set(addr.String(), v)
 
 	// Refresh v3's cache (KeepRunning is one of the cached fields).
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // UpdateServerType updates an existing valoper's server type.
@@ -268,7 +268,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Update server type.
 	v.ServerType = serverType
@@ -287,7 +287,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 //     rotationPeriodBlocks
 //   - signingRegistry uniqueness: derived(newPubKey) not in registry
 //     (active OR retired); permanently blocks key reuse
-//   - fee: banker.OriginSend() >= rotationFee (mirrors Register's
+//   - fee: unsafe.OriginSend() >= rotationFee (mirrors Register's
 //     fee-check pattern)
 //
 // Effect: profile's SigningPubKey/SigningAddress/LastRotationHeight
@@ -304,7 +304,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v := GetByAddr(addr)
 
 	// Auth: caller must be on operator's auth list.
-	v.Auth().AssertPreviousOnAuthList()
+	v.Auth().AssertPreviousOnAuthList(0, cur)
 
 	// Throttle: limit one rotation per rotation_period_blocks per
 	// operator (per profile, not per caller — multi-member auth lists
@@ -318,7 +318,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// rotation_fee defaults to zero pre-transfer-enablement).
 	if fee := sysparams.GetValoperRotationFee(); fee > 0 {
 		minFee := chain.NewCoin("ugnot", int64(fee))
-		sentCoins := banker.OriginSend()
+		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
 		}
@@ -380,8 +380,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// Apply to consensus via v3, then refresh v3's cache view of the
 	// profile. Order matters only in that both must complete; tx
 	// atomicity rolls back together on any panic.
-	validators.RotateValoperSigningKey(cross, addr, oldPubKey, newPubKey)
-	validators.NotifyValoperChanged(cross, addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
+	validators.RotateValoperSigningKey(cross(cur), addr, oldPubKey, newPubKey)
+	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
 // GetByAddr fetches the valoper using the operator address, if present.

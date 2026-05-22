@@ -19,5 +19,5 @@ func main(cur realm) {
 	println(somevalue)
 }
 
-// Output:
-// (struct{("test_modified" string)} gno.land/r/tests/vm.TestRealmObject)
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): t<VPBlock(1,0)>.Field

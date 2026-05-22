@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"chain/runtime"
 	"strings"
 	"time"
 
@@ -18,7 +17,7 @@ import (
 // - votingDays: The number of days where proposal accepts votes.
 //
 // The default voting period is 7 days.
-func CreateTextProposal(_ realm, daoID uint64, title, body string, votingDays uint8) uint64 {
+func CreateTextProposal(cur realm, daoID uint64, title, body string, votingDays uint8) uint64 {
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !o.AllowTextProposals {
@@ -29,7 +28,7 @@ func CreateTextProposal(_ realm, daoID uint64, title, body string, votingDays ui
 		panic("maximum proposal voting period is 30 days")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertCallerIsMember(caller, dao)
 
 	var votingPeriod time.Duration
@@ -54,14 +53,14 @@ func CreateTextProposal(_ realm, daoID uint64, title, body string, votingDays ui
 // - daoID: ID of the root DAO (required)
 // - newMembers: Comma separated list of addresses to add as members
 // - removeMembers: Comma separated list of member addresses to remove
-func CreateMembersUpdateProposal(_ realm, daoID uint64, newMembers, removeMembers string) uint64 {
+func CreateMembersUpdateProposal(cur realm, daoID uint64, newMembers, removeMembers string) uint64 {
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !o.AllowMembersUpdate {
 		panic("forbidden")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertCallerIsMember(caller, dao)
 
 	toAdd := mustParseStringToAddrset(newMembers)
@@ -85,14 +84,14 @@ func CreateMembersUpdateProposal(_ realm, daoID uint64, newMembers, removeMember
 // - daoID: ID of the parent DAO (required)
 // - name: A name for the SubDAO (required)
 // - members: Comma separated list of addresses to add as members
-func CreateSubDAOProposal(_ realm, daoID uint64, name, members string) uint64 {
+func CreateSubDAOProposal(cur realm, daoID uint64, name, members string) uint64 {
 	dao := mustGetDAO(daoID)
 	o := getOptions(daoID)
 	if !(o.AllowSubDAOProposals && o.AllowChildren) {
 		panic("forbidden")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertCallerIsMember(caller, dao)
 
 	daoMembers := mustParseStringToAddrset(members)
@@ -115,7 +114,7 @@ func CreateSubDAOProposal(_ realm, daoID uint64, name, members string) uint64 {
 //
 // Parameters:
 // - daoID: ID of the DAO to dissolve (required)
-func CreateDissolutionProposal(_ realm, daoID uint64) uint64 {
+func CreateDissolutionProposal(cur realm, daoID uint64) uint64 {
 	// When DAO to dissolve is a SubDAO make sure that proposal is created in the parent DAO
 	dao := mustGetDAO(daoID)
 	dissolveDAO := dao
@@ -128,7 +127,7 @@ func CreateDissolutionProposal(_ realm, daoID uint64) uint64 {
 		panic("forbidden")
 	}
 
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertCallerIsMember(caller, dao)
 
 	def := newDissolvePropDefinition(dissolveDAO)

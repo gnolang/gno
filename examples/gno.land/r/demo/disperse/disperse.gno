@@ -3,29 +3,28 @@ package disperse
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	tokens "gno.land/r/demo/defi/grc20factory"
 )
-
-var realmAddr = runtime.CurrentRealm().Address()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
 func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
-	// Reject non-EOA callers: banker.OriginSend() and the realm-balance
+	// Reject non-EOA callers: unsafe.OriginSend() and the realm-balance
 	// check below describe coins that actually landed at this realm only
 	// when the caller is a pure EOA. A `maketx run` ephemeral realm or
 	// intermediate code realm could otherwise consume the envelope and
 	// have this function disperse pre-existing realm balance to
 	// attacker-chosen addresses.
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	coinSent := banker.OriginSend()
-	caller := runtime.PreviousRealm().Address()
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	coinSent := unsafe.OriginSend()
+	caller := cur.Previous().Address()
+	realmAddr := cur.Address()
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)
@@ -81,7 +80,7 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
 func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []string) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
 		panic(ErrArgLenAndSentLenMismatch)
@@ -93,7 +92,7 @@ func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []st
 	}
 
 	for i := 0; i < len(addresses); i++ {
-		tokens.TransferFrom(cross, symbols[i], caller, addresses[i], amounts[i])
+		tokens.TransferFrom(cross(cur), symbols[i], caller, addresses[i], amounts[i])
 	}
 }
 
