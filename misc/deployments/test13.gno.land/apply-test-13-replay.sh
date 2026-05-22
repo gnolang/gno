@@ -441,19 +441,22 @@ wait "$FORK_TEST_PID" || {
   exit 1
 }
 
-# Parse the verbose log for panic messages. fork test prints each
-# failure across multiple lines:
+# Parse the verbose log for failures. fork test emits each failure as:
 #   [FAIL] height=N error=...
-#   Data: errors.FmtError{format:"<panic message>", args:[]interface {}(nil)}
-# We extract the panic text from the Data: line (more stable than the
-# truncated [FAIL] line) and bucket by known regex. Every bucket maps
-# to a deliberate architectural choice in this hardfork; failures not
-# matching any bucket are unknown and abort.
+#   Data: <ErrorType>{<struct contents>}
+# (The legacy errors.FmtError{format:"<panic>"} envelope used by PR #5653's
+# original bucketing is gone; failures now wrap concrete typed errors.)
+# We extract one "<Type>: <key>" line per failure into FAIL_LINES_FILE
+# and bucket against EXPECTED_PATTERNS. Anything that doesn't match a
+# pattern is reported as UNEXPECTED and aborts the audit.
 
-PANIC_LINES_FILE="$WORK_DIR/fork-test-panics.txt"
-grep -E "^Data: errors\.FmtError\{format:" "$OUT_FORK_TEST_LOG" |
-  sed -E 's/^Data: errors\.FmtError\{format:"([^"]*)".*/\1/' >"$PANIC_LINES_FILE" 2>/dev/null || true
-TOTAL_FAILS=$(wc -l <"$PANIC_LINES_FILE" | tr -d ' ')
+FAIL_LINES_FILE="$WORK_DIR/fork-test-failures.txt"
+grep -E "^Data: " "$OUT_FORK_TEST_LOG" | sed -E '
+  s/^Data: (vm\.TypeCheckError)\{[^"]*Errors:\[\]string\{"([^"]+)".*/\1: \2/
+  s/^Data: (std\.InsufficientFeeError)\{.*/\1: insufficient fee/
+  s/^Data: ([A-Za-z][A-Za-z0-9_.]+)\{.*/\1: (no detail)/
+' >"$FAIL_LINES_FILE" 2>/dev/null || true
+TOTAL_FAILS=$(wc -l <"$FAIL_LINES_FILE" | tr -d ' ')
 
 if [ "$TOTAL_FAILS" -eq 0 ]; then
   printf "  No failed txs.\n"
@@ -466,13 +469,11 @@ fi
 
 # Each spec: pattern || label || why. Triple-pipe separator avoids
 # clashing with regex chars or the explanatory text.
-EXPECTED_PATTERNS=(
-  "^validator doesn't exist\$|||r/sys/validators/v2 remove|||gnoland1's bootstrap seeded v2 with 7 launch validators via govdao_prop1; test-13 skips that seed because master's EndBlocker reads valset from v3 + GenesisDoc.Validators (not v2 events). Historical proposals to remove v2 validators find an empty store and panic at the executor — no consensus impact."
-  "^post-genesis: caller must equal operator address\$|||r/gnops/valopers squat guard added post-gnoland1|||master's valopers added ErrOperatorSquatGuard (commit c307ad175 'VALOPLAN2', after gnoland1 launched). Gnoland1's deployed Register had no such guard, so historical Register txs with caller != operator-addr succeeded there; on master they panic. Affected operator profiles aren't created on test-13."
-  "^unauthorized, user g.+ doesn't have the required permission\$|||r/gnoland/boards2/v1 unauthorized — master narrowed owners|||gnoland1's deployed boards2 initialized gPerms with TWO owners {g16jpf…, GovDAO multisig}; master's boards2 narrowed that to {GovDAO multisig} only. g16jpf… no longer has the owner role, so their CreateBoard / realm-level InviteMember calls panic with unauthorized."
-  "^board does not exist with ID: [0-9]+\$|||r/gnoland/boards2/v1 missing-board cascade|||cascade of the previous bucket: with the two CreateBoard txs failing (g16jpf no longer owner), the boards they would have created don't exist. Subsequent InviteMember/RemoveMember calls targeting those board IDs panic at mustGetBoard."
-  "^member not found\$|||r/gnoland/boards2/v1 missing-member cascade|||cascade of the previous two buckets: with InviteMember failing (board missing), the invited members were never added to the board. Subsequent RemoveMember calls targeting those addresses panic at removeMember."
-)
+# Patterns match against FAIL_LINES_FILE's "<Type>: <key>" lines.
+# Currently empty: PR #5653's original buckets used the pre-#5702
+# errors.FmtError format and don't fire under master's typed errors.
+# Add buckets here as new categories are reviewed and accepted.
+EXPECTED_PATTERNS=()
 
 # Build a single OR'd regex of all expected patterns and split out
 # unexpected lines. Anything still in $UNEXPECTED_FILE is novel.
@@ -487,41 +488,50 @@ for spec in "${EXPECTED_PATTERNS[@]}"; do
 done
 
 UNEXPECTED_FILE="$WORK_DIR/fork-test-unexpected.txt"
-grep -vE "$JOINED_PATTERN" "$PANIC_LINES_FILE" >"$UNEXPECTED_FILE" || true
+if [ -z "$JOINED_PATTERN" ]; then
+  # No expected-patterns configured — every failure is unexpected.
+  cp "$FAIL_LINES_FILE" "$UNEXPECTED_FILE"
+else
+  grep -vE "$JOINED_PATTERN" "$FAIL_LINES_FILE" >"$UNEXPECTED_FILE" || true
+fi
 UNEXPECTED=$(wc -l <"$UNEXPECTED_FILE" | tr -d ' ')
 EXPECTED=$((TOTAL_FAILS - UNEXPECTED))
 
-printf "  total failed txs: %s (out of %s attempted)\n" "$TOTAL_FAILS" "$TXS_COUNT"
+printf "  total failed txs: %s\n" "$TOTAL_FAILS"
 printf "  expected:         %s\n" "$EXPECTED"
 printf "  unexpected:       %s\n" "$UNEXPECTED"
 
-printf "\n  Expected failure breakdown:\n"
-for spec in "${EXPECTED_PATTERNS[@]}"; do
-  pattern="${spec%%|||*}"
-  rest="${spec#*|||}"
-  label="${rest%%|||*}"
-  count=$(grep -cE "$pattern" "$PANIC_LINES_FILE" || true)
-  printf "    %-42s %s\n" "$label" "$count"
-done
+if [ "${#EXPECTED_PATTERNS[@]}" -gt 0 ]; then
+  printf "\n  Expected failure breakdown:\n"
+  for spec in "${EXPECTED_PATTERNS[@]}"; do
+    pattern="${spec%%|||*}"
+    rest="${spec#*|||}"
+    label="${rest%%|||*}"
+    count=$(grep -cE "$pattern" "$FAIL_LINES_FILE" || true)
+    printf "    %-42s %s\n" "$label" "$count"
+  done
 
-printf "\n  Why each bucket is expected:\n"
-for spec in "${EXPECTED_PATTERNS[@]}"; do
-  pattern="${spec%%|||*}"
-  rest="${spec#*|||}"
-  label="${rest%%|||*}"
-  why="${rest#*|||}"
-  count=$(grep -cE "$pattern" "$PANIC_LINES_FILE" || true)
-  if [ "$count" -gt 0 ]; then
-    sample=$(grep -m1 -E "$pattern" "$PANIC_LINES_FILE" || true)
-    printf "    [%s]\n      %s\n      sample panic: %q\n" "$label" "$why" "$sample"
-  fi
-done
+  printf "\n  Why each bucket is expected:\n"
+  for spec in "${EXPECTED_PATTERNS[@]}"; do
+    pattern="${spec%%|||*}"
+    rest="${spec#*|||}"
+    label="${rest%%|||*}"
+    why="${rest#*|||}"
+    count=$(grep -cE "$pattern" "$FAIL_LINES_FILE" || true)
+    if [ "$count" -gt 0 ]; then
+      sample=$(grep -m1 -E "$pattern" "$FAIL_LINES_FILE" || true)
+      printf "    [%s]\n      %s\n      sample: %q\n" "$label" "$why" "$sample"
+    fi
+  done
+fi
 
 if [ "$UNEXPECTED" -gt 0 ]; then
   printf "\n  UNEXPECTED failures (%s, no matching bucket):\n" "$UNEXPECTED"
-  sed 's/^/    /' "$UNEXPECTED_FILE"
-  printf "\n  Review %s for full context before continuing to the\n" "$OUT_FORK_TEST_LOG"
-  printf "  cluster test.\n"
+  printf "  Top-10 by frequency:\n"
+  sort "$UNEXPECTED_FILE" | uniq -c | sort -rn | head -10 |
+    sed 's/^/    /'
+  printf "\n  Full per-failure list: %s\n" "$UNEXPECTED_FILE"
+  printf "  Full fork-test log: %s\n" "$OUT_FORK_TEST_LOG"
   exit 1
 fi
 
