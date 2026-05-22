@@ -724,7 +724,7 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 			panic("should not happen")
 		}
 		switch {
-		case strings.HasSuffix(mfile.Name, "_filetest.gno"):
+		case std.IsFiletestName(mfile.Name):
 			ftfiles = append(ftfiles, mfile)
 		case strings.HasSuffix(mfile.Name, "_test.gno") && mpkg.Name == string(n.PkgName):
 			tset.AddFiles(n)

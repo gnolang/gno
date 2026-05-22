@@ -74,8 +74,8 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") || onlyFiletests {
-			// A _filetest.gno is a package of its own.
+		if std.IsFiletestName(mfile.Name) || onlyFiletests {
+			// A filetest is a package of its own.
 			ftset := &gno.FileSet{}
 			ftset.AddFiles(n)
 			ftests = append(ftests, ftset)

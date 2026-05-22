@@ -19,24 +19,42 @@ const (
 	pkgPathLimit  = 256
 )
 
+// FiletestsDir is the only subdirectory MemFile.Name may sit under.
+// A file in this subdir is identified as a filetest regardless of suffix
+// (see IsFiletestName); the legacy `_filetest.gno` suffix at the package root
+// is still recognized for backward compatibility.
+const FiletestsDir = "filetests"
+
 var (
 	// See also gnovm/pkg/gnolang/mempackage.go.
 	// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
-	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)$`)
+	reBaseName   = `(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)`
+	reFileName   = regexp.MustCompile(`^(filetests\/)?` + reBaseName + `$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
 )
+
+// IsFiletestName reports whether name designates a filetest:
+//   - new style: lives under "filetests/" subdir (any .gno filename)
+//   - legacy:    flat basename ending in "_filetest.gno"
+func IsFiletestName(name string) bool {
+	if strings.HasPrefix(name, FiletestsDir+"/") {
+		return true
+	}
+	return strings.HasSuffix(name, "_filetest.gno")
+}
 
 //----------------------------------------
 // MemFile
 
 // A MemFile is the simplest representation of a "file".
 //
-// File Name must contain a single dot and extension.
-// File Name may be ALLCAPS.xxx or lowercase.xxx; extensions lowercase.
-// e.g. OK:     README.md, readme.md, readme.txt, READ.me
-// e.g. NOT OK: Readme.md, readme.MD, README, .readme
+// File Name may contain a single optional subdirectory prefix "filetests/"
+// followed by the filename; the filename must contain a single dot and
+// extension, and may be ALLCAPS.xxx or lowercase.xxx with a lowercase extension.
+// e.g. OK:     README.md, readme.md, readme.txt, READ.me, filetests/foo.gno
+// e.g. NOT OK: Readme.md, readme.MD, README, .readme, sub/foo.gno
 // File Body can be any string.
 //
 // NOTE: It doesn't have owners or timestamps. Keep this as is for portability.
@@ -235,21 +253,25 @@ func (mpkg *MemPackage) IsZero() bool {
 	return mpkg.Name == "" && len(mpkg.Files) == 0
 }
 
-// Write all files into dir. `_filetest.gno` files are written to a
-// `filetests/` subdir to match the read convention (see
-// gnolang.ReadMemPackage), since MemFile.Name is a flat basename.
+// Write all files into dir. Layout is encoded in MemFile.Name:
+//   - "foo.gno"             → dir/foo.gno
+//   - "filetests/foo.gno"   → dir/filetests/foo.gno
+//   - "foo_filetest.gno"    → dir/filetests/foo_filetest.gno (legacy fallback,
+//     for MemPackages that round-tripped through amino storage before the
+//     filetests/ prefix existed).
 func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
-		fdir := dir
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
-			fdir = filepath.Join(dir, "filetests")
-			if err := os.MkdirAll(fdir, 0o755); err != nil {
-				return err
-			}
+		name := mfile.Name
+		// Legacy fallback: stored packages have flat basenames; rewrite the
+		// _filetest.gno suffix into the filetests/ layout on write.
+		if !strings.Contains(name, "/") && strings.HasSuffix(name, "_filetest.gno") {
+			name = FiletestsDir + "/" + name
 		}
-		fpath := filepath.Join(fdir, mfile.Name)
-		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
-		if err != nil {
+		fpath := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(fpath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(fpath, []byte(mfile.Body), 0o644); err != nil {
 			return err
 		}
 	}
