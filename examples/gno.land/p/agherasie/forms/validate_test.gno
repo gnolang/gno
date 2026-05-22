@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestAnswerFormInvalidForm(t *testing.T) {
+func TestAnswerFormInvalidForm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 	db := NewDB()
 
@@ -119,23 +119,26 @@ func TestAnswerFormInvalidForm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formID, err := db.CreateForm("Test Form", "Test Description", "", "", tt.data)
+			var formID string
+			var err error
+			func(cur realm) {
+				formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", tt.data)
+			}(cross(cur))
 			if err != nil {
 				t.Error(err)
 			}
 
-			defer func() {
-				if r := recover(); r != nil {
-					if tt.expectPanic {
-						return
-					}
-					t.Errorf("%s panic occurred when not expected: %v", tt.name, r)
-				} else if tt.expectPanic {
-					t.Errorf("%s expected panic but didn't occur", tt.name)
-				}
-			}()
-
-			db.SubmitForm(formID, tt.answer)
+			// SubmitForm crosses a realm boundary (cross(cur)), so a
+			// panic from it becomes a cross-realm "abort". A plain
+			// defer-recover won't see it; use revive() instead.
+			r := revive(func() {
+				func(cur realm) { db.SubmitForm(0, cur, formID, tt.answer) }(cross(cur))
+			})
+			if r != nil && !tt.expectPanic {
+				t.Errorf("%s panic occurred when not expected: %v", tt.name, r)
+			} else if r == nil && tt.expectPanic {
+				t.Errorf("%s expected panic but didn't occur", tt.name)
+			}
 		})
 	}
 }

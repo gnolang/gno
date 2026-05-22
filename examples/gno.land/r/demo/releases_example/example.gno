@@ -2,7 +2,7 @@
 package releases_example
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/releases"
 )
@@ -17,7 +17,7 @@ func init() {
 }
 
 func NewRelease(_ realm, name, url, notes string) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}
@@ -25,7 +25,7 @@ func NewRelease(_ realm, name, url, notes string) {
 }
 
 func UpdateAdmin(_ realm, address_XXX address) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}

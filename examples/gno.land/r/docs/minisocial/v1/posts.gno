@@ -1,7 +1,6 @@
 package minisocial
 
 import (
-	"chain/runtime"
 	"errors"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
-func CreatePost(_ realm, text string) error {
+func CreatePost(cur realm, text string) error {
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -20,9 +19,9 @@ func CreatePost(_ realm, text string) error {
 
 	// Append the new post to the list
 	posts = append(posts, &Post{
-		text:      text,                              // Set the input text
-		author:    runtime.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
-		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
+		text:      text,                     // Set the input text
+		author:    cur.Previous().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),               // Capture the time of the transaction, in this case the block timestamp
 	})
 
 	return nil

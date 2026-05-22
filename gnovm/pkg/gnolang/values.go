@@ -212,27 +212,22 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
-func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special cases.
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
-		if rlm != nil && pv.Base != nil {
-			rlm.DidUpdate(pv.Base.(Object), nil, nil)
+		if pv.Base != nil {
+			rlm.DidUpdate(m, pv.Base.(Object), nil, nil)
 		}
 		return
 	}
 	// General case
-	if rlm != nil {
-		if debug && pv.Base == nil {
-			panic("expected non-nil base for assignment")
-		}
-		oo1 := pv.TV.GetFirstObject(store)
-		pv.TV.Assign(alloc, tv2, cu)
-		oo2 := pv.TV.GetFirstObject(store)
-		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
-	} else {
-		pv.TV.Assign(alloc, tv2, cu)
+	oo1 := pv.TV.GetFirstObject(store)
+	pv.TV.Assign(alloc, tv2, cu)
+	oo2 := pv.TV.GetFirstObject(store)
+	if pv.Base != nil {
+		rlm.DidUpdate(m, pv.Base.(Object), oo1, oo2)
 	}
 }
 
@@ -321,22 +316,32 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
+// Copy duplicates an existing ArrayValue. When the source carries a
+// realm PkgID, the result inherits it — copying propagates existing
+// authority rather than minting new authority. When the source PkgID
+// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
+// currentRealmID stamp from NewListArray/NewDataArray stands, so the
+// copy belongs to the realm doing the copying.
+func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
 	}
 	*/
+	var cp *ArrayValue
 	if av.Data == nil {
-		av2 := alloc.NewListArray(len(av.List))
+		cp = alloc.NewListArray(t, len(av.List))
 		for i, tv := range av.List {
-			av2.List[i] = tv.Copy(alloc)
+			cp.List[i] = tv.Copy(alloc)
 		}
-		return av2
+	} else {
+		cp = alloc.NewDataArray(t, len(av.Data))
+		copy(cp.Data, av.Data)
 	}
-	av2 := alloc.NewDataArray(len(av.Data))
-	copy(av2.Data, av.Data)
-	return av2
+	if av.ObjectInfo.ID.PkgID.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	}
+	return cp
 }
 
 // ----------------------------------------
@@ -447,23 +452,30 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
+// Copy duplicates an existing StructValue. When the source carries a
+// realm PkgID, the result inherits it — copying propagates existing
+// authority rather than minting new authority. When the source PkgID
+// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
+// currentRealmID stamp from NewStruct stands, so the copy belongs to
+// the realm doing the copying.
+//
+// Each field is copied individually so value fields stay by-value
+// (e.g. inlined arrays are physically duplicated rather than aliased).
+func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-
-	// Each field needs to be copied individually to ensure that
-	// value fields are copied as such, even though they may be represented
-	// as pointers. A good example of this would be a struct that has
-	// a field that is an array. The value array is represented as a pointer.
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
-
-	return alloc.NewStruct(fields)
+	cp := alloc.NewStruct(t, fields)
+	if sv.ObjectInfo.ID.PkgID.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	}
+	return cp
 }
 
 // ----------------------------------------
@@ -498,6 +510,13 @@ type FuncValue struct {
 	nativeBody func(*Machine) // alternative to Body
 }
 
+// IsNative reports whether this function is an external native binding
+// (set up via NativeResolver, with NativePkg/NativeName populated and
+// nativeBody filled lazily by Store.GetNative). Returns false for uverse
+// DefineNative helpers (panic, append, cross, etc.) which only have
+// nativeBody set — those still run host code, but the stacktrace
+// formatter and method-redeclaration logic want to distinguish them.
+// For "does this run host code at all" use fv.nativeBody != nil.
 func (fv *FuncValue) IsNative() bool {
 	if fv.NativePkg == "" && fv.NativeName == "" {
 		return false
@@ -512,7 +531,7 @@ func (fv *FuncValue) IsNative() bool {
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	alloc.AllocateFunc()
-	return &FuncValue{
+	cp := &FuncValue{
 		Type:       fv.Type,
 		IsMethod:   fv.IsMethod,
 		Source:     fv.Source,
@@ -526,6 +545,12 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
+	// FuncValue.Copy preserves source PkgID. A closure copy is a
+	// re-binding, not a re-creation in a new realm. The function's
+	// identity belongs to where it was declared, captured by the
+	// source.
+	cp.ObjectInfo.SetPkgID(fv.ObjectInfo.ID.PkgID)
+	return cp
 }
 
 func (fv *FuncValue) GetType(store Store) *FuncType {
@@ -799,10 +824,15 @@ type PackageValue struct {
 	Block      Value
 	PkgName    Name
 	PkgPath    string
-	FNames     []string
-	FBlocks    []Value
-	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
-	Private    bool
+	// PkgID is the denormalized cache of PkgIDFromPkgPath(PkgPath).
+	// Set at construction (alloc.go:NewPackageValue, preprocess.go
+	// package-init paths, etc.) and re-derived on load in
+	// fillPackage. NOT serialized — wire format is unchanged.
+	PkgID   PkgID `json:"-"`
+	FNames  []string
+	FBlocks []Value
+	Realm   *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
+	Private bool
 	// NOTE: Realm is persisted separately.
 
 	fBlocksMap map[string]*Block
@@ -1056,11 +1086,11 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.V = cv.Copy(alloc)
 	case *ArrayValue:
 		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
+		cp.V = cv.Copy(alloc, tv.T)
 		cp.N = tv.N // preserve N_Readonly
 	case *StructValue:
 		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
+		cp.V = cv.Copy(alloc, tv.T)
 		cp.N = tv.N // preserve N_Readonly
 	default:
 		cp = tv
@@ -1077,9 +1107,9 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc)
+			cp.V = refObjectValue.Copy(alloc, tv.T)
 		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc)
+			cp.V = refObjectValue.Copy(alloc, tv.T)
 		}
 	default:
 		cp = tv.Copy(alloc)
@@ -1205,7 +1235,9 @@ func (tv *TypedValue) SetInt(n int64) {
 
 func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
-	ConvertTo(nilAllocator, store, tv, IntType, false)
+	// IntType-only conversion: no allocation occurs; fallbackAllocator
+	// is used purely to satisfy the *Allocator argument.
+	ConvertTo(fallbackAllocator, store, tv, IntType, false)
 	return tv.GetInt()
 }
 
@@ -1706,20 +1738,6 @@ func (tv *TypedValue) AssignToBlock(other TypedValue) {
 	}
 }
 
-// Like AssignToBlock but creates a new heap item instead.
-// This should only be used when both the base parent and the value are unreal
-// new values, or call rlm.DidUpdate manually.
-func (tv *TypedValue) DefineToBlock(other TypedValue) {
-	if _, ok := tv.T.(heapItemType); ok {
-		*tv = TypedValue{
-			T: heapItemType{},
-			V: &HeapItemValue{Value: other},
-		}
-	} else {
-		*tv = other
-	}
-}
-
 // NOTE: Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
@@ -1894,6 +1912,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: dtv2,
 		}
+		// Bound method wrapper belongs to the realm doing the
+		// binding; the receiver carries its own PkgID independently.
+		alloc.stampPkgID(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -1931,6 +1952,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Func:     mv,
 			Receiver: ptv, // bound to tv ptr, not dtv.
 		}
+		// Bound method wrapper belongs to the realm doing the binding.
+		alloc.stampPkgID(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -1969,10 +1992,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nilRealm, nilAllocator, store, &iv)
+	return tv.GetPointerAtIndex(nil, nilRealm, fallbackAllocator, store, &iv)
 }
 
-func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
+func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
@@ -2032,8 +2055,9 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
-				// this will get assigned over, so no alloc.
-				*(pv.TV) = defaultTypedValue(nil, vt)
+				// this will get assigned over but the zero-init still
+				// walks struct fields; use the caller's alloc.
+				*(pv.TV) = defaultTypedValue(alloc, vt)
 			}
 		}
 		// Attach mapkey object to the map's ownership tree if changed.
@@ -2042,7 +2066,7 @@ func (tv *TypedValue) GetPointerAtIndex(rlm *Realm, alloc *Allocator, store Stor
 		// Read paths (doOpIndex, debugger) pass nilRealm → DidUpdate is a no-op.
 		newObject := ivk.GetFirstObject(store)
 		if oldObject != newObject {
-			rlm.DidUpdate(mv, oldObject, newObject)
+			rlm.DidUpdate(m, mv, oldObject, newObject)
 		}
 
 		return pv
@@ -2371,14 +2395,18 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 		// Indicates must always be heap item.
 		values[i] = TypedValue{
 			T: heapItemType{},
-			V: alloc.NewHeapItem(TypedValue{}),
+			V: alloc.NewHeapItem(nil, TypedValue{}),
 		}
 	}
-	return &Block{
+	blk := &Block{
 		Source: source,
 		Values: values,
 		Parent: parent,
 	}
+	// Blocks belong to the executing realm (currentRealmID),
+	// representing a lexical scope inside that realm's running code.
+	alloc.stampPkgID(&blk.ObjectInfo)
+	return blk
 }
 
 func (b *Block) GetSource(store Store) BlockNode {
@@ -2499,6 +2527,9 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 				panic("expected name expr heap define type")
 			}
 			hiv := &HeapItemValue{}
+			// Heap slot inherits the Block's PkgID (the lexical
+			// scope's realm).
+			hiv.ObjectInfo.SetPkgID(b.ObjectInfo.ID.PkgID)
 			*ptr.TV = TypedValue{
 				T: heapItemType{},
 				V: hiv,
@@ -2569,9 +2600,12 @@ func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
 	for i := len(b.Values); i < numNames; i++ {
 		tv := sb.Values[i]
 		if heapItems[i] {
+			// Heap-slot wrapper is anonymous; nil t skips the
+			// construction-time check (the contained value's
+			// type may be cross-realm but the slot itself isn't).
 			bvalues = append(bvalues, TypedValue{
 				T: heapItemType{},
-				V: alloc.NewHeapItem(tv),
+				V: alloc.NewHeapItem(nil, tv),
 			})
 		} else {
 			bvalues = append(bvalues, tv)
@@ -2632,15 +2666,16 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 	return alloc.NewStruct(
+		st,
 		defaultStructFields(alloc, st),
 	)
 }
 
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
-		return alloc.NewDataArray(at.Len)
+		return alloc.NewDataArray(at, at.Len)
 	}
-	av := alloc.NewListArray(at.Len)
+	av := alloc.NewListArray(at, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		for i := range at.Len {

@@ -880,10 +880,10 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("valset:current corrupted panics (chain-internal)", func(t *testing.T) {
 		t.Parallel()
 
-		// Tier 1 semantic flip: corrupted current is no longer
-		// silently recovered. Only chain code writes valset:current
-		// (via ctx-sentinel), so corruption is by definition a
-		// chain-internal bug or store damage and warrants a panic.
+		// Corrupted current panics rather than being silently
+		// recovered. Only chain code writes valset:current (via
+		// ctx-sentinel), so corruption is by definition a chain-
+		// internal bug or store damage and warrants a panic.
 		st := &valsetState{
 			current:  []string{"garbage:not-a-power"},
 			proposed: serializeUpdates(generateValidatorUpdates(t, 1)),
@@ -2968,4 +2968,123 @@ func TestEndBlockerHalt(t *testing.T) {
 
 		assert.Equal(t, uint64(0), haltSet, "SetHaltHeight should NOT be called when halt_height=0 (cancelled)")
 	})
+}
+
+// TestInitChainer_StreamingAppState exercises the streaming code path: an
+// AppState delivered as *GenesisStateRef (an on-disk-backed handle) must be
+// applied by loadAppState the same way an in-memory GnoGenesisState would
+// be. This is the goal-test for the type switch in loadAppState — without
+// it InitChain rejects the AppState as "invalid AppState of type
+// *gnoland.GenesisStateRef".
+func TestInitChainer_StreamingAppState(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.AddressFromPreimage([]byte("streaming-init-chain"))
+	state := DefaultGenState()
+	state.Balances = []Balance{
+		{Address: addr, Amount: []std.Coin{{Amount: 1e15, Denom: "ugnot"}}},
+	}
+	state.Txs = nil // exercise type switch only; tx-delivery path covered separately
+
+	src := writeMinimalGenesisFile(t, "dev", state)
+
+	doc, err := LoadStreamingGenesisDoc(src, t.TempDir(), nil)
+	require.NoError(t, err)
+	ref, ok := doc.AppState.(*GenesisStateRef)
+	require.True(t, ok, "fixture loader must produce *GenesisStateRef")
+	require.Equal(t, 1, ref.BalanceCount())
+	require.Equal(t, 0, ref.TxCount())
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	resp := bapp.InitChain(abci.RequestInitChain{
+		Time:    time.Now(),
+		ChainID: "dev",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: defaultBlockParams(),
+		},
+		Validators: []abci.ValidatorUpdate{},
+		AppState:   ref,
+	})
+	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+	assert.Empty(t, resp.TxResponses, "no genesis txs in this fixture")
+}
+
+// TestInitChainer_StreamingAppState_TxParity asserts the streaming
+// code path delivers genesis txs and surfaces responses identically to
+// the in-memory path. Same AppState fed through both paths must produce
+// the same number of tx responses with matching OK/error status.
+func TestInitChainer_StreamingAppState_TxParity(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.AddressFromPreimage([]byte("streaming-tx-parity"))
+	state := DefaultGenState()
+	state.Balances = []Balance{
+		{Address: addr, Amount: []std.Coin{{Amount: 1e15, Denom: "ugnot"}}},
+	}
+	state.Txs = []TxWithMetadata{
+		{
+			Tx: std.Tx{
+				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
+					{Name: "demo.gno", Body: "package demo; func Hello(cur realm) string { return `hello`; }"},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest("gno.land/r/demo")},
+				})},
+				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+				Signatures: []std.Signature{{}},
+			},
+		},
+	}
+
+	initReq := func(appState any) abci.RequestInitChain {
+		return abci.RequestInitChain{
+			Time:    time.Now(),
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block: defaultBlockParams(),
+			},
+			Validators: []abci.ValidatorUpdate{},
+			AppState:   appState,
+		}
+	}
+
+	// In-memory path.
+	memApp, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	memResp := memApp.(*sdk.BaseApp).InitChain(initReq(state))
+	require.True(t, memResp.IsOK(), "in-memory InitChain: %v", memResp)
+	require.Len(t, memResp.TxResponses, 1)
+
+	// Streaming path: same state, marshalled to disk, loaded as ref.
+	src := writeMinimalGenesisFile(t, "dev", state)
+	doc, err := LoadStreamingGenesisDoc(src, t.TempDir(), nil)
+	require.NoError(t, err)
+	ref := doc.AppState.(*GenesisStateRef)
+
+	streamApp, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	streamResp := streamApp.(*sdk.BaseApp).InitChain(initReq(ref))
+	require.True(t, streamResp.IsOK(), "streaming InitChain: %v", streamResp)
+	require.Len(t, streamResp.TxResponses, 1)
+
+	// The two paths must agree on tx outcome.
+	assert.Equal(t, memResp.TxResponses[0].Error, streamResp.TxResponses[0].Error,
+		"in-memory vs streaming tx outcomes must match")
+}
+
+// writeMinimalGenesisFile emits a tm2.GenesisDoc-shaped JSON file under
+// t.TempDir() that wraps the given GnoGenesisState as `app_state`. Uses
+// the same SaveAs serialization the production gnogenesis CLI uses, so
+// the fixture's wire shape matches what LoadStreamingGenesisDoc sees in
+// production.
+func writeMinimalGenesisFile(t *testing.T, chainID string, state GnoGenesisState) string {
+	t.Helper()
+	dst := filepath.Join(t.TempDir(), "genesis.json")
+	doc := &bft.GenesisDoc{
+		ChainID:  chainID,
+		AppState: state,
+	}
+	require.NoError(t, doc.SaveAs(dst))
+	return dst
 }
