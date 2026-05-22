@@ -58,7 +58,7 @@ ORIGINAL_CHAIN_ID=gnoland1
 # verifies this against the actual jsonl content and aborts on
 # mismatch — keeps the constant honest. The resulting chain starts
 # at InitialHeight = HALT_HEIGHT + 1.
-HALT_HEIGHT=1008282
+HALT_HEIGHT=1485629
 
 # Default RPC endpoint list for --source-txs-rpc. Comma-separated for
 # #5693's multi-endpoint parallel fetcher. Used only when no
