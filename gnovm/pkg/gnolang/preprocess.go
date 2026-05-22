@@ -5904,6 +5904,20 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 	}
 }
 
+// extractTypeValue unwraps a type expression to its TypeValue.
+// For method expressions like T.Method or (*T).Method, the X of the
+// SelectorExpr is a type expression that may be wrapped in StarExpr.
+func extractTypeValue(n Node) (TypeValue, bool) {
+	if sx, ok := n.(*StarExpr); ok {
+		n = sx.X
+	}
+	if cx, ok := n.(*ConstExpr); ok {
+		tv, ok := cx.V.(TypeValue)
+		return tv, ok
+	}
+	return TypeValue{}, false
+}
+
 // codaInitOrderDeps records ATTR_DECL_DEPS on package-level *ValueDecl and
 // *FuncDecl nodes by scanning for all references to other package-level names.
 // It must run after preprocess1 (so all NameExpr paths are filled) and before
@@ -6031,12 +6045,8 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 							// access (also VPField). Skip.
 							break
 						}
-						cx, ok := n.X.(*ConstExpr)
+						tv, ok := extractTypeValue(n.X)
 						if !ok {
-							break
-						}
-						tv, ok2 := cx.V.(TypeValue)
-						if !ok2 {
 							break
 						}
 						var dt *DeclaredType
