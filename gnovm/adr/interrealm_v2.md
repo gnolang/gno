@@ -1,3 +1,160 @@
+In the old Gno Interrealm Specification v1, two realm contexts traveled with
+each frame:
+
+  - The crossing realm context (cur / runtime.CurrentRealm()) — the realm
+    identity user code observes, used for tracking agency.
+
+  - The storage realm context (m.Realm) — controls write access to persisted
+    state.
+
+By default, both propagated unchanged from caller to callee. Two cases shifted them:
+
+  1. Crossing call (fn(cross, ...) into a func(cur realm, ...) crossing
+  function): the crossing realm and storage realm both shifted to the callee's
+  declaring package.  The `cur realm` of the caller shifted to `cur.Previous()`
+  of the callee, and likewise `unsafe.CurrentRealm()` to
+  `unsafe.PreviousRealm()`.
+
+  2. Method call on a persisted (real) receiver: only the storage realm shifted
+  to the receiver's persistence realm. Unless the method itself is crossing
+  (first argument == `cur realm`) the agency did not shift, only the write
+  access authority changed to that of the receiver's persistence realm. Thus
+  this was called 'borrowing'.
+  
+Outside these two cases, m.Realm propagated frame-to-frame untouched.
+
+In Gno Interrealm Specification v2 the crossing rule remains the same, but the
+receiver-driven borrow is replaced by three new borrow rules It does not matter
+where the receiver happens to be persisted. Rather, ALL /r/-declared callables
+-- whether a function, method, or closure -- run in the realm context of their
+/r/ package in which the callable is declared. This makes static analysis
+vastly simpler and prevents attacker /r/-declared logic from exploiting a
+victim's realm data.
+
+There are three borrow rules in v2, not one:
+
+  - Borrow rule #1: /r/-declared function/method/closure → borrow to the
+    callable's declaring realm (any receiver shape, or top-level function).
+    /r/attacker code runs with /r/attacker's authority, not victim's.
+
+Before, /r/realmA types could also end up residing in /r/realmB depending on
+where and when things got attached, which was confusing. A registry realm that
+stored many objects from many realms could end up owning all of them; calling
+methods on them then made the registry's other data vulnerable to direct
+modification by any attacker object. Even calling .Title() on a foreign
+interface value could be dangerous.
+
+Now, /r/ type values can only be constructed from within the /r/ realm in which
+they are declared — foreign realms must call constructor functions, which under
+the function borrow rule run in the declaring realm's context. Even if an
+external realm copies the values of structs and arrays, the copies still live
+under the source's /r/ realm. In other words, all /r/realmA.Objects live in
+/r/realmA. Easier to reason about. This is borrow rule #1 of three.
+
+  - Borrow rule #2: (stdlib or /p/-declared) if the receiver of a method is a
+    real, foreign-stamped object, borrow to the realm context that was active
+    when the receiver was *constructed* (and will be stored).
+
+/p/-declared things are different: they're intended as libraries and meant to
+be immutable. In the Gno Interrealm Specification v2, /p/-declared objects get
+stamped upon construction with the ObjectInfo.PkgID of the /r/ realm context
+that constructed them (before, there was no such construction stamping). And
+once ObjectInfo.PkgID is stamped with a /r/ realm, even copies retain that
+source /r/ realm.
+
+  - Borrow rule #3: if fv is a closure (FuncLit) declared in a /p/ package,
+    borrow to the realm context that was active when the closure was
+    *constructed* (and will be stored).
+
+In other words, what storage realm context a /p/ declared closure runs on is
+determined by which realm context instantiated it, not where it ends up being
+persisted. This is similar to borrow rule #2.
+
+In short, for /r/ declared functions, methods, and closures, the borrowed
+storage realm is the realm in which the callable is declared (and constructed).
+For /p/-declared methods and closures, the borrowed storage realm is the realm
+in which the receiver or closure was constructed.
+
+Statements like foo.Bar = x declared in /r/ — in a function, method, or closure
+— can only mutate /r/ types declared in the same realm, or /p/ types
+constructed by the same realm. This makes write-access security much easier to
+reason about.
+
+Some caveats: 
+
+## Foreign Type Value Caveat 
+
+```
+    // PKGPATH: gno.land/r/foreignRealm
+    type MyStruct struct {
+        Field string
+    }
+
+    func (ms *MyStruct) Modify() {
+        ms.Field += "_modified"
+    }
+```
+
+```
+    // PKGPATH: gno.land/r/myRealm
+    var x foreignRealm.MyStruct     <-- ObjectInfo.PkgID = /r/foreignRealm
+    x.Field = "..."                 <-- write fail, /r/myRealm != /r/foreignRealm
+```
+
+The zero value is stamped with ObjectInfo.PkgID = /r/foreignRealm upon (default)
+construction and is persisted under /r/foreignRealm, even though the slot lives
+in /r/myRealm's package block.
+
+```
+    // PKGPATH: gno.land/r/myRealm
+    var x foreignRealm.MyStruct     <-- ObjectInfo.PkgID = /r/foreignRealm
+    x.Modify()                      <-- write fail, /r/myRealm != /r/foreignRealm
+```
+
+Field writes and pointer-receiver method mutations are also blocked:
+/r/foreignRealm cannot modify `x` because the receiver-pointer's .Base resolves
+to /r/myRealm's block.
+
+```
+    // PKGPATH: gno.land/r/myRealm
+    var x foreignRealm.MyStruct     <-- ObjectInfo.PkgID = /r/foreignRealm
+    x = foreignRealm.GlobalMyStruct <-- OK (tags x with N_Readonly taint)
+    x.Field = "..."                 <-- write fail, readonly taint
+    x = *foreignRealm.NewMyStruct() <-- OK (whole-slot replace)
+    x.Field = "..."                 <-- write fail, /r/myRealm != /r/foreignRealm
+    x.Modify()                      <-- write fail, /r/myRealm != /r/foreignRealm
+```
+
+The slot itself, however, is /r/myRealm's. /r/myRealm can replace the slot
+wholesale by assigning the return value of a /r/foreignRealm constructor (e.g.
+`x = *foreignRealm.NewT()`).
+
+```
+    // PKGPATH: gno.land/r/myRealm
+    var x foreignRealm.MyStruct =
+        foreignRealm.MyStruct{Field:"..."} <-- fail at checkConstructionTime
+```
+
+It cannot choose the contents -- composite literals of foreign types are blocked
+at checkConstructionTime.
+
+```
+    // PKGPATH: gno.land/r/myRealm
+    var x *foreignRealm.MyStruct =
+        foreignRealm.NewMyStruct()  <-- ObjectInfo.PkgID = /r/foreignRealm
+    x.Modify()                      <-- OK
+```
+
+Pointer-typed slots (`var x *foreignRealm.T`) follow the standard cross-realm
+pointer model: the pointee lives in /r/foreignRealm's heap, so /r/foreignRealm's
+own non-crossing helpers can mutate it through x. This is the canonical idiom,
+not a caveat.
+
+## TODO: Note more caveats, special cases, and surprises.
+
+----------------------------------
+The following is not yet well organized.
+
 # Interrealm Specification v2 — Realm Authority via Allocation-Time PkgID
 
 Spec for closing the .Title()-attack class across /r/ and /p/ types and
