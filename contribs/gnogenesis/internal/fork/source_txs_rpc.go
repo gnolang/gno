@@ -148,28 +148,27 @@ func (s *rpcTxsSource) queryAccountAtHeight(
 		return nil
 	}
 	if res.Response.Error != nil {
+		io.Printf("\n  WARNING: account query returned error for %s at height %d: %v\n",
+			addr, height, res.Response.Error)
 		return nil
 	}
 	if len(res.Response.Data) == 0 {
+		io.Printf("\n  WARNING: empty account response for %s at height %d\n", addr, height)
 		return nil
 	}
 
-	// Response data is amino JSON (the auth query handler returns JSON).
-	// Try wrapped form first {"BaseAccount": {...}}, then direct.
-	var wrapper struct {
-		BaseAccount std.BaseAccount `json:"BaseAccount"`
-	}
-	if err := amino.UnmarshalJSON(res.Response.Data, &wrapper); err == nil {
-		return &wrapper.BaseAccount
-	}
-
-	var acc std.BaseAccount
+	// Decode as gnoland.GnoAccount; the auth handler returns the concrete
+	// account type the gno.land app installs.
+	var acc gnoland.GnoAccount
 	if err := amino.UnmarshalJSON(res.Response.Data, &acc); err != nil {
 		io.Printf("\n  WARNING: could not decode account %s at height %d: %v\n",
 			addr, height, err)
 		return nil
 	}
-	return &acc
+	if acc.Address.IsZero() {
+		return nil
+	}
+	return &acc.BaseAccount
 }
 
 // newPooledFetcher wires this source's client pool into a pooledFetcher
