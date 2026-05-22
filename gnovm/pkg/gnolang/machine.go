@@ -26,22 +26,22 @@ import (
 
 type Machine struct {
 	// State
-	Ops            []Op                      // main operations
-	Values         []TypedValue              // buffer of values to be operated on
-	Exprs          []Expr                    // pending expressions
-	Stmts          []Stmt                    // pending statements
-	Blocks         []*Block                  // block (scope) stack
-	Frames         []Frame                   // func call stack
-	Package        *PackageValue             // active package
-	Realm          *Realm                    // active realm
-	Alloc          *Allocator    // memory allocations
-	Exception      *Exception    // last exception
-	NumResults     int                       // number of results returned
-	Cycles         int64                     // number of "cpu" cycles
-	GCCycle        int64                     // number of "gc" cycles
-	Stage          Stage                     // pre for static eval, add for package init, run otherwise
-	ReviveEnabled  bool                      // true if revive() enabled (only in testing mode for now)
-	Lastline       int                       // the line the VM is currently executing
+	Ops           []Op          // main operations
+	Values        []TypedValue  // buffer of values to be operated on
+	Exprs         []Expr        // pending expressions
+	Stmts         []Stmt        // pending statements
+	Blocks        []*Block      // block (scope) stack
+	Frames        []Frame       // func call stack
+	Package       *PackageValue // active package
+	Realm         *Realm        // active realm
+	Alloc         *Allocator    // memory allocations
+	Exception     *Exception    // last exception
+	NumResults    int           // number of results returned
+	Cycles        int64         // number of "cpu" cycles
+	GCCycle       int64         // number of "gc" cycles
+	Stage         Stage         // pre for static eval, add for package init, run otherwise
+	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
+	Lastline      int           // the line the VM is currently executing
 
 	Debugger Debugger
 
