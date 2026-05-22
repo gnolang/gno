@@ -30,9 +30,14 @@ func (p Pausable) IsPaused() bool {
 	return p.paused
 }
 
-// Pause sets the state of Pausable to true, meaning all pausable functions are paused
-func (p *Pausable) Pause() error {
-	if !p.o.Owned() {
+// Pause sets the state of Pausable to true, meaning all pausable functions
+// are paused. rlm must be the caller's own captured cur;
+// rlm.Previous().Address() must equal the underlying Ownable's owner.
+func (p *Pausable) Pause(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ownable.ErrUnauthorized
+	}
+	if !p.o.OwnedBy(rlm.Previous().Address()) {
 		return ownable.ErrUnauthorized
 	}
 
@@ -42,9 +47,14 @@ func (p *Pausable) Pause() error {
 	return nil
 }
 
-// Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
-func (p *Pausable) Unpause() error {
-	if !p.o.Owned() {
+// Unpause sets the state of Pausable to false, meaning all pausable
+// functions are resumed. rlm must be the caller's own captured cur;
+// rlm.Previous().Address() must equal the underlying Ownable's owner.
+func (p *Pausable) Unpause(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ownable.ErrUnauthorized
+	}
+	if !p.o.OwnedBy(rlm.Previous().Address()) {
 		return ownable.ErrUnauthorized
 	}
 

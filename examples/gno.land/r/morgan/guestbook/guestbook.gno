@@ -3,7 +3,6 @@
 package guestbook
 
 import (
-	"chain/runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -43,7 +42,7 @@ const (
 
 // Sign signs the guestbook, with the specified message.
 func Sign(cur realm, message string) {
-	prev := runtime.PreviousRealm()
+	prev := cur.Previous()
 	switch {
 	case !prev.IsUser():
 		panic(errNotAUser)

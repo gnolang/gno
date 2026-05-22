@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_edit_reply_06_filetest
+
+package z_edit_reply_06_filetest
 
 import (
 	"testing"
@@ -18,20 +20,20 @@ var (
 	tid, rid boards.ID
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
-	tid = boards2.CreateThread(cross, bid, "Foo", "bar")
-	rid = boards2.CreateReply(cross, bid, tid, 0, "body")
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
+	tid = boards2.CreateThread(cross(cur), bid, "Foo", "bar")
+	rid = boards2.CreateReply(cross(cur), bid, tid, 0, "body")
 
 	// Flag the reply so it's hidden
-	boards2.FlagReply(cross, bid, tid, rid, "reason")
+	boards2.FlagReply(cross(cur), bid, tid, rid, "reason")
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.EditReply(cross, bid, tid, rid, "body")
+	boards2.EditReply(cross(cur), bid, tid, rid, "body")
 }
 
 // Error:

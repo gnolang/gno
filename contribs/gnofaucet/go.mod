@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/gnofaucet
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.25.9
 
 require (
 	github.com/Khan/genqlient v0.8.1

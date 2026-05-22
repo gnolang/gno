@@ -1,11 +1,11 @@
 package blog
 
-func (b *Blog) AddModerator(addr address) error {
-	return b.Authorizable.AddToAuthList(addr)
+func (b *Blog) AddModerator(_ int, rlm realm, addr address) error {
+	return b.Authorizable.AddToAuthList(0, rlm, addr)
 }
 
-func (b *Blog) DeleteModerator(addr address) error {
-	return b.Authorizable.DeleteFromAuthList(addr)
+func (b *Blog) DeleteModerator(_ int, rlm realm, addr address) error {
+	return b.Authorizable.DeleteFromAuthList(0, rlm, addr)
 }
 
 type UserResolver func(input string) (string, bool)

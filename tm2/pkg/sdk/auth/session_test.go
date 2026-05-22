@@ -1020,7 +1020,7 @@ func TestSessionAllowPathsValidation(t *testing.T) {
 			Creator:    masterAddr,
 			SessionKey: spub,
 			ExpiresAt:  ctx.BlockTime().Unix() + 3600,
-			AllowPaths: []string{"gno.land/r/demo/boards", ""},
+			AllowPaths: []string{"vm/exec:gno.land/r/demo/boards", ""},
 		}
 		res := h.Process(ctx, msg)
 		assert.False(t, res.IsOK(), "should reject empty allow_path entry")
@@ -1033,11 +1033,30 @@ func TestSessionAllowPathsValidation(t *testing.T) {
 			Creator:    masterAddr,
 			SessionKey: spub,
 			ExpiresAt:  ctx.BlockTime().Unix() + 3600,
-			AllowPaths: []string{"gno.land/r/demo/boards/"},
+			AllowPaths: []string{"vm/exec:gno.land/r/demo/boards/"},
 		}
 		res := h.Process(ctx, msg)
 		assert.False(t, res.IsOK(), "should reject trailing slash in allow_path")
 		assert.Contains(t, res.Log, "must not end with /")
+	})
+
+	t.Run("MaxAllowPathsPerSession boundary", func(t *testing.T) {
+		// std.MaxAllowPathsPerSession entries — accepted (count check passes;
+		// non-empty entries pass the loose tm2 check). One more — rejected.
+		paths := make([]string, std.MaxAllowPathsPerSession+1)
+		for i := range paths {
+			paths[i] = "x" // any non-empty, non-trailing-slash string
+		}
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr,
+			SessionKey: spub,
+			ExpiresAt:  ctx.BlockTime().Unix() + 3600,
+			AllowPaths: paths,
+		}
+		res := h.Process(ctx, msg)
+		assert.False(t, res.IsOK(), "should reject too many allow_paths")
+		assert.Contains(t, res.Log, "too many allow paths")
 	})
 }
 
@@ -1047,16 +1066,16 @@ func TestSessionSpendPeriodValidation(t *testing.T) {
 	ctx := env.ctx
 	h := NewHandler(env.acck, env.gk)
 
-	t.Run("SpendPeriod exceeds MaxSessionDuration rejected by handler", func(t *testing.T) {
+	t.Run("SpendPeriod exceeds MaxSpendPeriod rejected by handler", func(t *testing.T) {
 		_, spub, _ := tu.KeyTestPubAddr()
 		msg := MsgCreateSession{
 			Creator:     masterAddr,
 			SessionKey:  spub,
 			ExpiresAt:   ctx.BlockTime().Unix() + 3600,
-			SpendPeriod: std.MaxSessionDuration + 1,
+			SpendPeriod: std.MaxSpendPeriod + 1,
 		}
 		res := h.Process(ctx, msg)
-		assert.False(t, res.IsOK(), "should reject spend_period > MaxSessionDuration")
+		assert.False(t, res.IsOK(), "should reject spend_period > MaxSpendPeriod")
 		assert.Contains(t, res.Log, "spend_period exceeds maximum")
 	})
 

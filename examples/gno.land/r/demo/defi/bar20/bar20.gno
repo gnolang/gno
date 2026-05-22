@@ -4,7 +4,6 @@
 package bar20
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -13,16 +12,25 @@ import (
 )
 
 var (
-	Token, adm = grc20.NewToken("Bar", "BAR", 4)
-	UserTeller = Token.CallerTeller()
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+	// UserTeller is intentionally exported for `maketx run` consumption.
+	// It is the canonical *fnTeller (verifiable via grc20.IsCanonicalTeller);
+	// foreign realms reading this var can call its methods, but the methods
+	// resolve the source-of-funds from cur.Previous().Address() via
+	// IsCurrent, so a caller can only spend their OWN balance — not the
+	// reader's. No cur is leaked via this exposure.
+	UserTeller grc20.Teller
 )
 
-func init() {
-	grc20reg.Register(cross, Token, "")
+func init(cur realm) {
+	Token, adm = grc20.NewToken(0, cur, "Bar", "BAR", 4)
+	UserTeller = Token.CallerTeller()
+	grc20reg.Register(cross(cur), Token, "")
 }
 
 func Faucet(cur realm) string {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}
