@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/test
-package test
+// PKGPATH: gno.land/r/test/commondao_execute
+package commondao_execute
 
 import (
 	"testing"
@@ -16,14 +16,14 @@ var (
 	executed bool
 )
 
-type testPropDef struct{}
+type mockPropDef struct{}
 
-func (testPropDef) Title() string                               { return "" }
-func (testPropDef) Body() string                                { return "" }
-func (testPropDef) VotingPeriod() time.Duration                 { return time.Hour } // Voting ends in 1 hour
-func (testPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
+func (mockPropDef) Title() string                               { return "" }
+func (mockPropDef) Body() string                                { return "" }
+func (mockPropDef) VotingPeriod() time.Duration                 { return time.Hour } // Voting ends in 1 hour
+func (mockPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
-func (testPropDef) Executor() commondao.ExecFunc {
+func (mockPropDef) Executor() commondao.ExecFunc {
 	return func(realm) error {
 		executed = true
 		return nil
@@ -35,7 +35,7 @@ func init() {
 		commondao.WithMember(member),
 		commondao.DisableVotingDeadlineCheck(), // Disable to be able to execute before voting deadline
 	)
-	proposal = dao.MustPropose(member, testPropDef{})
+	proposal = dao.MustPropose(member, mockPropDef{})
 }
 
 func main(cur realm) {

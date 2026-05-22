@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/test
-package test
+// PKGPATH: gno.land/r/test/commondao_must_execute
+package commondao_must_execute
 
 import (
 	"gno.land/p/nt/commondao/v0"
