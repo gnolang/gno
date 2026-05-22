@@ -6036,14 +6036,9 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						case *DeclaredType:
 							dt = t
 						case *PointerType:
-							dt, ok = t.Elt.(*DeclaredType)
-							if !ok {
-								break
-							}
-						default:
-							break
+							dt, _ = t.Elt.(*DeclaredType)
 						}
-						if dt.PkgPath != pn.PkgPath {
+						if dt == nil || dt.PkgPath != pn.PkgPath {
 							break
 						}
 						addDep(dt.Name + "." + n.Sel)
