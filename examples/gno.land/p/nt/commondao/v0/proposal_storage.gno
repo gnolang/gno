@@ -26,6 +26,17 @@ type ProposalStorage interface {
 	Iterate(offset, count int, reverse bool, fn func(*Proposal) bool) bool
 }
 
+// IsCanonicalProposalStorage checks wether a proposal storage is the
+// canonical one, created using the NewProposalStorage function defined
+// within this package.
+//
+// Use this function at any public entry point that accepts a ProposalStorage
+// from an external caller before invoking any of its methods.
+func IsCanonicalProposalStorage(p ProposalStorage) bool {
+	_, ok := p.(*proposalStorage)
+	return ok
+}
+
 // NewProposalStorage creates a new proposal storage.
 func NewProposalStorage() ProposalStorage {
 	return &proposalStorage{bptree.NewBPTree32()}

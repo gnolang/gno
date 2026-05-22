@@ -26,6 +26,17 @@ type MemberGroup interface {
 	GetMeta() any
 }
 
+// IsCanonicalMemberGroup checks wether a member group is the canonical
+// one, created using the NewMemberGroup or MustNewMemberGroup functions
+// defined within this package.
+//
+// Use this function at any public entry point that accepts a MemberGroup
+// from an external caller before invoking any of its methods.
+func IsCanonicalMemberGroup(g MemberGroup) bool {
+	_, ok := g.(*memberGroup)
+	return ok
+}
+
 // NewMemberGroup creates a new group of members.
 func NewMemberGroup(name string, members MemberStorage) (MemberGroup, error) {
 	if members == nil {
