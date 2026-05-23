@@ -198,6 +198,7 @@ OUT_GENESIS="$PHASE2_DIR/genesis.json"
 FINAL_GENESIS="$SCRIPT_DIR/genesis.json"
 OUT_MIGRATIONS="$PHASE2_DIR/t1-rotation.jsonl"
 OUT_FORK_TEST_LOG="$PHASE2_DIR/fork-test.log"
+OUT_TXS_CACHE="$PHASE2_DIR/txs.jsonl"
 
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 GNOKEY_CMD="$REPO_ROOT/gno.land/cmd/gnokey"
@@ -414,6 +415,7 @@ GEN_ARGS=(
   --migration-tx "$VALOPER_SEED"
   --migration-tx "$OUT_MIGRATIONS"
   --output "$OUT_GENESIS"
+  --txs-output "$OUT_TXS_CACHE"
 )
 
 GEN_ARGS+=(--source-genesis-file "$BASE_GENESIS")
