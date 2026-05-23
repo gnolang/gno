@@ -1554,7 +1554,7 @@ func baseOf(t Type) Type {
 func isZeroSizeType(t Type) bool {
 	switch ct := baseOf(t).(type) {
 	case *ArrayType:
-		return ct.Len == 0
+		return ct.Len == 0 || isZeroSizeType(ct.Elt)
 	case *StructType:
 		for _, f := range ct.Fields {
 			if !isZeroSizeType(f.Type) {
