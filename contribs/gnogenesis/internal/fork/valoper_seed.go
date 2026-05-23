@@ -49,6 +49,7 @@ const (
 type valoperSeedCfg struct {
 	csvPath string
 	output  string
+	caller  string
 }
 
 type seedRow struct {
@@ -144,6 +145,14 @@ Example (full flow, source is gnoland-1 with v3 NOT pre-deployed):
 func (c *valoperSeedCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.csvPath, "csv", "", "input CSV path (required)")
 	fs.StringVar(&c.output, "output", "", "output .jsonl path (required)")
+	fs.StringVar(&c.caller, "caller", "",
+		"bech32 address used as the MsgCall.Caller (fee payer). Must have "+
+			"genesis balance >= 1 ugnot since the tx fee is 1 ugnot (zero-fee "+
+			"would trip Coin amino zero-collapse on round-trip). Operator "+
+			"address from the CSV row is still passed in MsgCall.Args[3] so "+
+			"valopers.Register registers the right operator; the squat guard "+
+			"that requires caller==operator is bypassed at genesis-mode "+
+			"replay (ChainHeight()==0). Required.")
 }
 
 func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) error {
@@ -152,6 +161,13 @@ func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) err
 	}
 	if cfg.output == "" {
 		return errors.New("--output is required")
+	}
+	if cfg.caller == "" {
+		return errors.New("--caller is required")
+	}
+	callerAddr, err := crypto.AddressFromBech32(cfg.caller)
+	if err != nil {
+		return fmt.Errorf("invalid --caller %q: %w", cfg.caller, err)
 	}
 
 	rows, err := loadAndValidateCSV(cfg.csvPath)
@@ -167,7 +183,7 @@ func execValoperSeed(_ context.Context, cfg *valoperSeedCfg, io commands.IO) err
 
 	var buf strings.Builder
 	for _, r := range rows {
-		tx := buildRegisterTx(r)
+		tx := buildRegisterTx(r, callerAddr)
 		line, err := amino.MarshalJSON(tx)
 		if err != nil {
 			return fmt.Errorf("marshal tx for operator %s: %w", r.OperatorAddr, err)
@@ -326,9 +342,7 @@ func validateRow(row *seedRow, csvRow int) error {
 // MsgCall. Caller is the operator address; OriginCaller during genesis-
 // mode replay therefore equals the operator address, satisfying the
 // realm's squat guard via the ChainHeight()==0 bypass.
-func buildRegisterTx(row seedRow) AnnotatedTx {
-	caller, _ := crypto.AddressFromBech32(row.OperatorAddr)
-
+func buildRegisterTx(row seedRow, caller crypto.Address) AnnotatedTx {
 	msg := vm.MsgCall{
 		Caller:  caller,
 		PkgPath: valopersPkgPath,

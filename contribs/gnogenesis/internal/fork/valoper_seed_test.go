@@ -43,7 +43,9 @@ func runSeed(t *testing.T, dir, csvContent string) (string, error) {
 	t.Helper()
 	csvPath := writeCSV(t, dir, csvContent)
 	outPath := filepath.Join(dir, "out.jsonl")
-	cfg := &valoperSeedCfg{csvPath: csvPath, output: outPath}
+	// Use the gnoland test1 account as a stand-in caller; tests don't care
+	// who the caller is, only that the flag is supplied.
+	cfg := &valoperSeedCfg{csvPath: csvPath, output: outPath, caller: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
 	io := commands.NewTestIO()
 	if err := execValoperSeed(t.Context(), cfg, io); err != nil {
 		return "", err
@@ -80,7 +82,9 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	require.True(t, ok, "first msg is MsgCall")
 	assert.Equal(t, "gno.land/r/gnops/valopers", msg.PkgPath)
 	assert.Equal(t, "Register", msg.Func)
-	assert.Equal(t, opAddrB, msg.Caller.String())
+	// Caller is the --caller flag value (fee payer), NOT the operator.
+	// runSeed passes the gnoland test1 account; operator stays in Args[3].
+	assert.Equal(t, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", msg.Caller.String())
 	require.Len(t, msg.Args, 5)
 	assert.Equal(t, "bob-validator", msg.Args[0])
 	assert.Equal(t, opAddrB, msg.Args[3])
@@ -93,7 +97,10 @@ func TestValoperSeed_HappyPath(t *testing.T) {
 	var second AnnotatedTx
 	require.NoError(t, amino.UnmarshalJSON([]byte(lines[1]), &second))
 	msg2 := second.Tx.Msgs[0].(vm.MsgCall)
-	assert.Equal(t, opAddrA, msg2.Caller.String())
+	// Both txs share the same --caller flag value.
+	assert.Equal(t, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", msg2.Caller.String())
+	// And both operators show up as Args[3] of their respective Register calls.
+	assert.Equal(t, opAddrA, msg2.Args[3])
 }
 
 func TestValoperSeed_Idempotent(t *testing.T) {
