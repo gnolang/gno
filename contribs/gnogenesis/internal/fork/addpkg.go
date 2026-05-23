@@ -118,8 +118,15 @@ func execAddpkg(_ context.Context, cfg *addpkgCfg, io commands.IO, args []string
 			// BlockHeight=0 keeps the .jsonl self-describing — loadMigrationTxs
 			// re-forces it at consume time anyway.
 			tx.Metadata.BlockHeight = 0
-			// Strip signatures: consumer runs with --skip-genesis-sig-verification.
-			tx.Tx.Signatures = []std.Signature{}
+			// One zero-value Signature per signer: the consumer runs with
+			// --skip-genesis-sig-verification so sig verification never runs,
+			// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
+			// equal to len(GetSigners()) before any sig-verify skip applies.
+			signerCount := 0
+			for _, m := range tx.Tx.Msgs {
+				signerCount += len(m.GetSigners())
+			}
+			tx.Tx.Signatures = make([]std.Signature, signerCount)
 			allTxs = append(allTxs, AnnotatedTx{
 				Tx:       tx.Tx,
 				Metadata: tx.Metadata,

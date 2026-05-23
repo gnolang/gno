@@ -343,9 +343,15 @@ func buildRegisterTx(row seedRow) AnnotatedTx {
 	}
 
 	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 0)),
-		Signatures: []std.Signature{},
+		Msgs: []std.Msg{msg},
+		Fee:  std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 0)),
+		// One zero-value Signature per signer: the consumer runs with
+		// --skip-genesis-sig-verification so sig verification never runs,
+		// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
+		// equal to len(GetSigners()) before any sig-verify skip applies.
+		// Mirrors gnoland/genesis.go:241 which uses the same placeholder
+		// pattern for `gnogenesis txs add packages` output.
+		Signatures: make([]std.Signature, len(msg.GetSigners())),
 	}
 
 	return AnnotatedTx{
