@@ -35,6 +35,7 @@ type generateCfg struct {
 	output          string
 	txsOutput       string
 	patchRealms     patchRealmList
+	patchTxs        stringList
 	migrationTxs    stringList
 	skipTxs         bool
 	noVerify        bool
@@ -228,6 +229,14 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 		"Source genesis on disk is NOT modified; the patch is applied in memory "+
 		"before writing the hardfork genesis. Use this to deliver realm upgrades "+
 		"as part of the fork (e.g. adding a new .gno file to an existing realm).")
+	fs.Var(&c.patchTxs, "patch-txs", "patch historical txs in place: repeatable, PATH to a "+
+		".jsonl file of AnnotatedTx entries. Each entry is matched against the "+
+		"fetched source-tx stream by (block_height, signer_info[0].address, "+
+		"signer_info[0].sequence); the source tx body is replaced by the patch "+
+		"body, the original tx is preserved on metadata.original_tx, and "+
+		"metadata.note / metadata.source are populated from the patch. Fails "+
+		"fast on duplicate keys across files and on patch keys that match no "+
+		"source tx.")
 	fs.BoolVar(&c.skipTxs, "skip-txs", false, "skip tx export (only copy genesis structure — useful for quick preview)")
 	fs.BoolVar(&c.noVerify, "no-verify", false, "skip genesis verification after assembly")
 }
@@ -312,12 +321,17 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 
 		io.Printf("  Fetched %d successful transactions\n", len(txs))
 
-		// Write txs to separate file if requested
+		// Write txs to separate file if requested — pre-patch, for audit.
 		if cfg.txsOutput != "" {
 			if err := writeTxsJSONL(cfg.txsOutput, txs); err != nil {
 				return fmt.Errorf("writing txs output: %w", err)
 			}
 			io.Printf("  Txs written to: %s\n", cfg.txsOutput)
+		}
+
+		// Apply --patch-txs rewrites on historical txs (in-memory only).
+		if _, err := applyPatchTxs(txs, cfg.patchTxs, io); err != nil {
+			return fmt.Errorf("--patch-txs: %w", err)
 		}
 	} else {
 		io.Println("Step 2/4: Skipping tx export (--skip-txs)")
