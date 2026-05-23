@@ -1,5 +1,9 @@
 # Interrealm Specification
 
+__This document is outdated, see 
+[`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and
+[`gnovm/adr/interrealm-v2.md`](../../gnovm/adr/interrealm-v2.md)__
+
 ## Introduction
 
 All modern popular programming languages are designed for a single programmer

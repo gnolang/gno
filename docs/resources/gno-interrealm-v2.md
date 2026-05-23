@@ -5,7 +5,8 @@ implemented at current HEAD. It supersedes the historical narrative
 in [`gno-interrealm.md`](./gno-interrealm.md), which traced the
 evolution of the design and remains useful for context. Where this
 document and the v1 spec disagree, this document reflects what the
-VM actually does.
+VM actually does. See also [`gnovm/adr/interrealm-v2.md`](../../gnovm/adr/interrealm-v2.md)
+for a comparison and migration guide.
 
 For threat classes and defensive patterns, see
 [`gno-security.md`](./gno-security.md) and
