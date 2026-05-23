@@ -105,8 +105,9 @@ type TransactionStore interface {
 
 // Gas consumption descriptors.
 const (
-	GasAminoDecodeDesc = "AminoDecodePerByte"
-	GasAminoEncodeDesc = "AminoEncodePerByte"
+	GasComputeMapKeyDesc = "ComputeMapKey"
+	GasAminoDecodeDesc   = "AminoDecodePerByte"
+	GasAminoEncodeDesc   = "AminoEncodePerByte"
 )
 
 // GasConfig defines amino compute gas costs for GnoVM stores.
