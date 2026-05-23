@@ -1,8 +1,5 @@
-# Phase 1 output
-/out/
-/genesis-work/
-/airdrop_balances.txt.gz
-/packages.gen.txt
+# Pipeline working dir (phase-1 + phase-2 intermediates).
+/work/
 
-# Phase 2 cached input (operator-provided gnoland1 historical-tx archive)
-/txs.jsonl
+# Final assembled genesis (moved here from work/phase-2/ on success).
+/genesis.json

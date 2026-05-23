@@ -1,0 +1,34 @@
+# CHECKSUMS.txt — locked sha256 hashes of test-13 build pipeline artifacts.
+#
+# Format (matches `shasum -a 256` / `sha256sum` output exactly):
+#   <sha256>  <path-relative-to-test13.gno.land>
+#
+# Two spaces between hash and path. Blank lines and `#`-prefixed lines are
+# ignored. Each phase script calls `verify_checksum <path>` after producing
+# or downloading an artifact:
+#
+#   - listed + hash matches  → silent pass
+#   - listed + hash differs  → fail, expected vs got printed
+#   - not listed             → note printed with the line to append
+#
+# Workflow: do a fresh end-to-end run, copy the "not listed" lines printed
+# by the scripts here, commit, then any future run that produces a
+# different output will fail loudly.
+#
+# Once a real run is performed, uncomment and replace the placeholder hashes
+# below with the actual computed values.
+
+# ---- Phase 1 artifacts
+
+# <sha256>  work/phase-1/airdrop_balances.txt.gz
+# <sha256>  work/phase-1/packages.gen.txt
+# <sha256>  work/phase-1/genesis_txs.jsonl
+# <sha256>  work/phase-1/base-genesis.json
+# <sha256>  work/phase-1/valoper-seed.jsonl
+
+# ---- Phase 2 artifacts
+
+# <sha256>  work/phase-2/txs.jsonl
+# <sha256>  work/phase-2/t1-rotation.jsonl
+# <sha256>  work/phase-2/genesis.json
+# <sha256>  genesis.json
