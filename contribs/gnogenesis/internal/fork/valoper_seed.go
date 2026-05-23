@@ -344,7 +344,17 @@ func buildRegisterTx(row seedRow) AnnotatedTx {
 
 	tx := std.Tx{
 		Msgs: []std.Msg{msg},
-		Fee:  std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 0)),
+		// Non-zero fee (1 ugnot) so std.Coin survives the amino round-trip:
+		// Coin.MarshalAmino → Coin.String() collapses any zero-amount coin
+		// to "" regardless of denom (tm2/pkg/std/coin.go IsZero short-
+		// circuit), and the binary path in pb3_gen.go's MarshalBinary2 takes
+		// the same route. Round-tripping "" back through UnmarshalAmino
+		// loses the denom and trips Tx.ValidateBasic's IsValid() on the
+		// empty denom. With Amount=1 the denom is preserved; the operator
+		// caller pays one ugnot (pre-funded in phase-1's balance sheet).
+		// Squat guard at gnops/valopers.Register is still bypassed at
+		// genesis-mode because ChainHeight() == 0.
+		Fee: std.NewFee(defaultRegisterGasWanted, std.NewCoin("ugnot", 1)),
 		// One zero-value Signature per signer: the consumer runs with
 		// --skip-genesis-sig-verification so sig verification never runs,
 		// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
