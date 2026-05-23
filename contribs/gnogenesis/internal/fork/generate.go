@@ -329,6 +329,10 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 			io.Printf("  Txs written to: %s\n", cfg.txsOutput)
 		}
 
+		// Annotate historical txs first; --patch-txs below will override to
+		// SourcePatched on matched entries.
+		annotateSource(txs, gnoland.SourceHistorical)
+
 		// Apply --patch-txs rewrites on historical txs (in-memory only).
 		if _, err := applyPatchTxs(txs, cfg.patchTxs, io); err != nil {
 			return fmt.Errorf("--patch-txs: %w", err)
@@ -375,6 +379,7 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 		if err != nil {
 			return fmt.Errorf("migration-tx %s: %w", path, err)
 		}
+		annotateSource(migTxs, gnoland.SourceMigration)
 		appState.Txs = append(appState.Txs, migTxs...)
 		io.Printf("  appended %d migration tx(s) from %s\n", len(migTxs), path)
 	}
@@ -484,6 +489,10 @@ func buildHardforkGenesis(
 		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
 		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
 	}
+
+	// Annotate base-genesis txs (already in appState.Txs) before appending the
+	// historical stream — historical txs were tagged at fetch time.
+	annotateSource(appState.Txs, gnoland.SourceBase)
 
 	// Append historical txs after existing genesis-mode txs
 	// Genesis-mode txs (no metadata or BlockHeight==0): package deploys, setup
