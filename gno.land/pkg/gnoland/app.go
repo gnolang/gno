@@ -731,6 +731,16 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 				ctx = ctx.WithValue(auth.SkipGasMeteringKey{}, true)
 			}
 
+			// Patched txs have had their body rewritten via --patch-txs;
+			// the original signer's signature can no longer verify. The
+			// operator vouches for the new body via the genesis sha256 +
+			// the inline GnoTxMetadata.OriginalTx audit pointer. Skip
+			// signature verification for these txs only — unmodified
+			// historical txs still go through normal sig verification.
+			if metadata.Source == SourcePatched {
+				ctx = ctx.WithValue(auth.SkipSigVerificationKey{}, true)
+			}
+
 			return ctx
 		}
 	}

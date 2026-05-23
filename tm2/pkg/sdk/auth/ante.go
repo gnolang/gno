@@ -186,8 +186,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// ——— Phase 3: Verify signatures, increment sequences ———
 
+		skipSigCtxKey, _ := newCtx.Value(SkipSigVerificationKey{}).(bool)
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
+				continue
+			}
+			if skipSigCtxKey {
 				continue
 			}
 
@@ -479,6 +483,17 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 // Used by gnoland's GasReplayMode="source" during genesis replay to
 // preserve source-chain outcomes when gas requirements have changed.
 type SkipGasMeteringKey struct{}
+
+// SkipSigVerificationKey is a context key used to bypass signature
+// verification on a single replay tx whose body was rewritten on the way
+// into the genesis (e.g. a --patch-txs override). The original signer's
+// signature is invalid by design once the body changes; the operator
+// vouches for the patched body via the genesis sha256 instead.
+//
+// Set only by gnoland's InitChain-time tx wrapper for per-tx replay
+// overrides — never set on a regular block-mode tx context, so post-
+// replay signature checks for normal user txs are unaffected.
+type SkipSigVerificationKey struct{}
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
