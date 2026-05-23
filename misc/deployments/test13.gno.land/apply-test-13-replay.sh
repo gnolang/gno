@@ -395,6 +395,23 @@ else
   GEN_ARGS+=(--source-txs-data-dir "$SOURCE_TXS_DATA_DIR")
 fi
 
+# Patch jsonls: every patches/*.jsonl is fed as a separate --patch-txs flag.
+# fork generate validates them (cross-file dupe, unmatched-key) and fails fast
+# on conflicts. See patches/README.md for authoring.
+PATCHES_DIR="$SCRIPT_DIR/patches"
+PATCH_COUNT=0
+if [ -d "$PATCHES_DIR" ]; then
+  shopt -s nullglob
+  for patch in "$PATCHES_DIR"/*.jsonl; do
+    GEN_ARGS+=(--patch-txs "$patch")
+    PATCH_COUNT=$((PATCH_COUNT + 1))
+  done
+  shopt -u nullglob
+fi
+if [ "$PATCH_COUNT" -gt 0 ]; then
+  printf "  Loading %d patch file(s) from %s/\n" "$PATCH_COUNT" "$PATCHES_DIR"
+fi
+
 run "$GNOGENESIS_BIN" "${GEN_ARGS[@]}"
 
 SHA=$(shasum -a 256 "$OUT_GENESIS" | awk '{print $1}')
