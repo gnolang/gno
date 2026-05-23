@@ -20,11 +20,11 @@
 
 # ---- Phase 1 artifacts
 
-# <sha256>  work/phase-1/airdrop_balances.txt.gz
-# <sha256>  work/phase-1/packages.gen.txt
-# <sha256>  work/phase-1/genesis_txs.jsonl
-# <sha256>  work/phase-1/base-genesis.json
-# <sha256>  work/phase-1/valoper-seed.jsonl
+db510a244428bf22efb9a2b1e1c5c88bf4cb8d020714868066a389300475ab02  work/phase-1/airdrop_balances.txt.gz
+1de8995d34357810747e3a1e03b61cc86eb931335dcfee1c55ab59712f9db929  work/phase-1/packages.gen.txt
+148c07e197c2051fc973bcb3d0ab11971362ea4b729ec3a781c980a08b2ef1e5  work/phase-1/genesis_txs.jsonl
+d36e472b858fa333a8c89901405f347faa2b9ad6a971d4b1912014659aa49a18  work/phase-1/base-genesis.json
+ff966d6f19f2bbedee6ddea8ad365da472b725e67ec9fd908ccb8a1bbf40f919  work/phase-1/valoper-seed.jsonl
 
 # ---- Phase 2 artifacts
 
