@@ -68,11 +68,10 @@ func New(options ...Option) *CommonDAO {
 // security, to avoid an attacker from using malicious types that implement interfaces
 // defined within the `commondao` package.
 //
-// IMPORTANT:
-// Use unsafe CommonDAO if you fully understand `commondao` and the security
-// implication that disabling these checks could have. If checks are disabled it's
-// highly recommended to use the `IsCanonical` functions before calling a method on
-// these interface based types if they are provided by an external caller.
+// IMPORTANT: Use unsafe CommonDAO if you fully understand `commondao` and the
+// security implication that disabling these checks could have. If checks are disabled
+// it's highly recommended to use the `IsCanonical` functions before calling a method
+// on these interface based types if they are provided by an external caller.
 func NewUnsafe(options ...Option) *CommonDAO {
 	disableCanonicalCheck := func(dao *CommonDAO) {
 		dao.disableCanonicalCheck = true
