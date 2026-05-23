@@ -322,11 +322,11 @@ func validateRow(row *seedRow, csvRow int) error {
 	return nil
 }
 
-// buildRegisterTx produces a TxWithMetadata for a single valoper.Register
+// buildRegisterTx produces an AnnotatedTx for a single valoper.Register
 // MsgCall. Caller is the operator address; OriginCaller during genesis-
 // mode replay therefore equals the operator address, satisfying the
 // realm's squat guard via the ChainHeight()==0 bypass.
-func buildRegisterTx(row seedRow) gnoland.TxWithMetadata {
+func buildRegisterTx(row seedRow) AnnotatedTx {
 	caller, _ := crypto.AddressFromBech32(row.OperatorAddr)
 
 	msg := vm.MsgCall{
@@ -348,10 +348,11 @@ func buildRegisterTx(row seedRow) gnoland.TxWithMetadata {
 		Signatures: []std.Signature{},
 	}
 
-	return gnoland.TxWithMetadata{
+	return AnnotatedTx{
 		Tx: tx,
 		Metadata: &gnoland.GnoTxMetadata{
 			BlockHeight: 0, // genesis-mode replay
 		},
+		Reason: fmt.Sprintf("valoper-seed: register %s as %q", row.OperatorAddr, row.Moniker),
 	}
 }
