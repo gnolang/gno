@@ -1,0 +1,73 @@
+# Restore-path gas asymmetry regression test for
+# https://github.com/gnolang/gno/pull/5127 follow-up.
+#
+# Tx1 (addpkg + Insert): stores a realm with a large-keyed map. ComputeMapKey
+# runs on the write path and charges gas via m.GasMeter (#5127 behavior).
+#
+# Tx2 (Lookup, fresh tx): forces a cache miss on the stored MapValue, which
+# triggers fillTypesOfValue → ComputeMapKey on every entry to rebuild vmap.
+# Under #5127, the restore path passed nil *Machine to ComputeMapKey and
+# charged ZERO gas — the asymmetry this follow-up closes.
+#
+# Post-follow-up, ComputeMapKey reaches the meter via store.GetMeter() so
+# both write and restore paths pay symmetrically. The exact GAS USED values
+# below are calibration goldens; a divergence between tx1 and tx2 of *zero*
+# vmap-rebuild gas indicates regression to the pre-follow-up asymmetry.
+
+loadpkg gno.land/r/demo/mapgas $WORK
+
+gnoland start
+
+# Tx1: Insert charges ComputeMapKey via VM path.
+gnokey maketx call -pkgpath gno.land/r/demo/mapgas -func Insert -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+2595329'
+
+# Tx2: Lookup in a fresh tx. cacheObjects is empty per-tx (BeginTransaction
+# allocates a new map), so accessing the stored map triggers loadObjectSafe
+# → fillTypesOfValue → ComputeMapKey on each entry's key. Under the
+# follow-up this charges gas symmetrically with the write path.
+#
+# REGRESSION SIGNAL: if Tx2 gas drops noticeably below the pinned value,
+# the restore-path ComputeMapKey gas is no longer being charged. A revert
+# of the follow-up's Store.GetMeter() routing inside ComputeMapKey would
+# manifest exactly that way.
+gnokey maketx call -pkgpath gno.land/r/demo/mapgas -func Lookup -args 7 -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
+stdout 'GAS USED:\s+1861974'
+stdout '"seven" string'
+
+-- gnomod.toml --
+module = "gno.land/r/demo/mapgas"
+gno = "0.9"
+
+-- mapgas.gno --
+package mapgas
+
+// Big enough that vmap-rebuild cost per entry is observable above the
+// I/O + amino-decode noise floor when the realm is restored cold.
+type bigKey struct {
+	A, B, C, D, E, F, G, H int64
+}
+
+var stored = make(map[bigKey]string)
+
+func init() {
+	// Pre-populate so the realm has a non-trivial map persisted on disk
+	// before the first user-facing tx runs.
+	stored[bigKey{A: 1}] = "one"
+	stored[bigKey{A: 3}] = "three"
+	stored[bigKey{A: 5}] = "five"
+	stored[bigKey{A: 7}] = "seven"
+	stored[bigKey{A: 9}] = "nine"
+}
+
+// Insert adds one more entry. Charges ComputeMapKey on the write path.
+func Insert(cur realm) {
+	stored[bigKey{A: 11, B: 13, C: 17}] = "primes"
+}
+
+// Lookup reads a value by key. In a fresh tx, the first access forces
+// rehydration of `stored` from disk, which (post-follow-up) charges
+// ComputeMapKey on the restore path.
+func Lookup(cur realm, k int64) string {
+	return stored[bigKey{A: k}]
+}

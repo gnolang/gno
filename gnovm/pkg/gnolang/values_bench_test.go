@@ -18,21 +18,20 @@ import (
 // fit gives the per-byte slope in ns/byte. See bench_ops_test.go.
 // ---------------------------------------------------------------------------
 
-func newBenchStoreWithGas() (Store, storetypes.GasMeter) {
-	alloc := NewAllocator(1 << 62)
-	gm := storetypes.NewGasMeter(1 << 62)
-	ds := NewStore(alloc, nil, nil)
-	tx := ds.BeginTransaction(nil, nil, nil, gm)
-	tx.GetAllocator().SetGasMeter(gm)
-	return tx, gm
-}
-
-// benchMachineWithGas wires a gas meter into a benchMachine so
-// ComputeMapKey's m.GasMeter.ConsumeGas path is exercised.
+// benchMachineWithGas wires a gas meter into a benchMachine. NewMachine's
+// defensive alignment ensures the meter also reaches store.GetMeter(), so
+// ComputeMapKey's store-derived charging path sees the same meter the
+// Machine's CPU ops consult.
 func benchMachineWithGas() (*Machine, storetypes.GasMeter) {
 	m := benchMachine()
 	gm := storetypes.NewGasMeter(1 << 62)
 	m.GasMeter = gm
+	if ds, ok := m.Store.(*defaultStore); ok {
+		ds.gasMeter = gm
+		if ds.alloc != nil {
+			ds.alloc.SetGasMeter(gm)
+		}
+	}
 	return m, gm
 }
 
@@ -45,7 +44,7 @@ func benchComputeMapKey(b *testing.B, tv TypedValue) {
 	bm.BeginOpCode(bmSetup)
 	for range b.N {
 		bm.SwitchOpCode(bmTarget)
-		_, _ = tv.ComputeMapKey(m, m.Store, false)
+		_, _ = tv.ComputeMapKey(m.Store, false)
 		bm.SwitchOpCode(bmSetup)
 	}
 	reportBenchops(b)

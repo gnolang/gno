@@ -70,6 +70,11 @@ type Store interface {
 	// UNSTABLE
 	GetAllocator() *Allocator
 	SetAllocator(alloc *Allocator)
+	// GetMeter returns the tx-scoped gas meter (or nil if unmetered).
+	// Passive accessor — Store does not charge gas itself; callers
+	// that perform metered work consult this to find the meter the
+	// transaction was created with at BeginTransaction.
+	GetMeter() store.GasMeter
 	GetPreprocessAllocator() *Allocator
 	SetPreprocessAllocator(alloc *Allocator)
 	NumMemPackages() int64
@@ -315,6 +320,10 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 
 func (ds *defaultStore) SetAllocator(alloc *Allocator) {
 	ds.alloc = alloc
+}
+
+func (ds *defaultStore) GetMeter() store.GasMeter {
+	return ds.gasMeter
 }
 
 func (ds *defaultStore) GetPreprocessAllocator() *Allocator {

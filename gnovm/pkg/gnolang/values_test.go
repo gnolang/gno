@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -367,7 +368,7 @@ func TestComputeMapKey(t *testing.T) {
 			x := m.MustParseExpr(tc.valX)
 			vals := m.Eval(x)
 			require.Len(t, vals, 1)
-			mk, isNaN := vals[0].ComputeMapKey(nil, store, false)
+			mk, isNaN := vals[0].ComputeMapKey(store, false)
 			assert.Equal(t, tc.want, mk)
 			assert.Equal(t, tc.isNaN, isNaN)
 		})
@@ -389,11 +390,46 @@ func TestComputeMapKey_collisions(t *testing.T) {
 			v2 := m.Eval(m.MustParseExpr(pair[1]))
 			require.Len(t, v1, 1)
 			require.Len(t, v2, 1)
-			mk1, nan1 := v1[0].ComputeMapKey(nil, store, false)
-			mk2, nan2 := v2[0].ComputeMapKey(nil, store, false)
+			mk1, nan1 := v1[0].ComputeMapKey(store, false)
+			mk2, nan2 := v2[0].ComputeMapKey(store, false)
 			require.False(t, nan1)
 			require.False(t, nan2)
 			assert.NotEqual(t, mk1, mk2)
 		})
 	}
+}
+
+// TestComputeMapKey_GasViaStoreMeter asserts the follow-up's contract:
+// ComputeMapKey reaches its gas meter via store.GetMeter(), so callers
+// that have a Store but no *Machine (e.g. realm.go's fillTypesOfValue
+// rebuilding vmap on cache miss) still charge gas symmetrically with
+// the write path. A regression — e.g. routing the meter back through
+// *Machine — would silently zero the restore-path charge; this test
+// fails fast at unit-test speed instead of waiting for the txtar.
+func TestComputeMapKey_GasViaStoreMeter(t *testing.T) {
+	// Metered store: simulates the restore-path call shape (no Machine
+	// in scope, but the store carries the tx-scoped meter).
+	alloc := NewAllocator(1 << 30)
+	gm := storetypes.NewGasMeter(1 << 30)
+	ds := NewStore(alloc, nil, nil)
+	ds.gasMeter = gm
+	alloc.SetGasMeter(gm)
+
+	tv := typedInt(42)
+
+	before := gm.GasConsumed()
+	_, isNaN := tv.ComputeMapKey(ds, false)
+	require.False(t, isNaN)
+	delta := gm.GasConsumed() - before
+
+	// Per-call constant must fire. The slope contributes a smaller
+	// amount on top; lower-bound at the per-call constant is a robust
+	// floor that doesn't pin to exact byte counts.
+	require.GreaterOrEqual(t, delta, int64(OpCPUComputeMapKey),
+		"ComputeMapKey via store.GetMeter() must charge at least OpCPUComputeMapKey")
+
+	// Unmetered store: charges nothing and must not panic.
+	ds2 := NewStore(NewAllocator(1<<30), nil, nil)
+	_, isNaN2 := tv.ComputeMapKey(ds2, false)
+	require.False(t, isNaN2)
 }
