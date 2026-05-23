@@ -63,6 +63,24 @@ func NewMemberStorageWithGrouping(options ...MemberGroupingOption) MemberStorage
 	return &memberStorage{grouping: NewMemberGrouping(options...)}
 }
 
+// NewUnsafeMemberStorageWithGrouping a new member storage with support for member
+// groups with the checks for canonical types disabled. Unsafe member storage allow
+// using a grouping factory that returns custom non-canonical member storage
+// implementations.
+//
+// The returned unsafe member storage is unsafe because, if configured, a custom
+// factory function could be used to create the underlying member storage for each
+// new group. If this function is assigned by an untrusted caller it could be used
+// to return a malicious MemberStorage implementation.
+//
+// IMPORTANT: Use unsafe member grouping if you fully understand `commondao` and the
+// security implication that disabling these checks could have. If checks are disabled
+// it's highly recommended to use the `IsCanonical` functions before calling a method
+// on any group created within the unsafe grouping.
+func NewUnsafeMemberStorageWithGrouping(options ...MemberGroupingOption) MemberStorage {
+	return &memberStorage{grouping: NewUnsafeMemberGrouping(options...)}
+}
+
 type memberStorage struct {
 	members  addrset.Set
 	grouping MemberGrouping

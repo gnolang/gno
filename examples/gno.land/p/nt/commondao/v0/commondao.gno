@@ -35,9 +35,11 @@ type CommonDAO struct {
 	finishedProposals          ProposalStorage
 	deleted                    bool // Soft delete
 	disableVotingDeadlineCheck bool
+	disableCanonicalCheck      bool
 }
 
 // New creates a new common DAO.
+// It panics if non-canonical member or proposal storage are assigned.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
 		children:          &list.List{},
@@ -48,7 +50,36 @@ func New(options ...Option) *CommonDAO {
 	for _, apply := range options {
 		apply(dao)
 	}
+
+	// Check that all interface based types are defined by this package.
+	// CommonDAO options allow using custom implementations.
+	if !dao.disableCanonicalCheck {
+		assertDAOStoragesAreCanonical(dao)
+	}
+
 	return dao
+}
+
+// NewUnsafe creates a new common DAO with the checks for canonical types disabled.
+// Unsafe CommonDAO allows using custom member or proposal storage implementaions.
+//
+// Canonical types are types like MemberStorage or ProposalStorage which are interface
+// based types defined by `commondao` package. These types are checked by default, for
+// security, to avoid an attacker from using malicious types that implement interfaces
+// defined within the `commondao` package.
+//
+// IMPORTANT:
+// Use unsafe CommonDAO if you fully understand `commondao` and the security
+// implication that disabling these checks could have. If checks are disabled it's
+// highly recommended to use the `IsCanonical` functions before calling a method on
+// these interface based types if they are provided by an external caller.
+func NewUnsafe(options ...Option) *CommonDAO {
+	disableCanonicalCheck := func(dao *CommonDAO) {
+		dao.disableCanonicalCheck = true
+	}
+
+	options = append([]Option{disableCanonicalCheck}, options...)
+	return New(options...)
 }
 
 // ID returns DAO's unique identifier.
@@ -314,4 +345,18 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 func (dao *CommonDAO) finishProposal(p *Proposal) {
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
+}
+
+func assertDAOStoragesAreCanonical(dao *CommonDAO) {
+	if !IsCanonicalMemberStorage(dao.members) {
+		panic("CommonDAO member storage is not canonical")
+	}
+
+	if !IsCanonicalProposalStorage(dao.activeProposals) {
+		panic("CommonDAO active proposals storage is not canonical")
+	}
+
+	if !IsCanonicalProposalStorage(dao.finishedProposals) {
+		panic("CommonDAO finished proposals storage is not canonical")
+	}
 }

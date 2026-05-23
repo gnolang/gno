@@ -59,10 +59,34 @@ func NewMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
 	return g
 }
 
+// NewUnsafeMemberGrouping creates a new member grouping with the checks for canonical
+// types disabled. Unsafe member groupings allow using a factory that returns custom
+// non-canonical member storage implementations.
+//
+// The returned unsafe member grouping is unsafe because, if configured, a custom
+// factory function could be used to create the underlying member storage for each
+// new group. If this function is assigned by an untrusted caller it could be used
+// to return a malicious MemberStorage implementation.
+//
+// IMPORTANT: Use unsafe member grouping if you fully understand `commondao` and the
+// security implication that disabling these checks could have. If checks are disabled
+// it's highly recommended to use the `IsCanonical` functions before calling a method
+// on any group created within the unsafe grouping.
+func NewUnsafeMemberGrouping(options ...MemberGroupingOption) MemberGrouping {
+	disableCanonicalCheck := func(g MemberGrouping) {
+		grouping := g.(*memberGrouping)
+		grouping.disableCanonicalCheck = true
+	}
+
+	options = append([]MemberGroupingOption{disableCanonicalCheck}, options...)
+	return NewMemberGrouping(options...)
+}
+
 type memberGrouping struct {
-	groups        bptree.BPTree // string(name) -> MemberGroup
-	createStorage func(group string) MemberStorage
-	sealed        bool
+	groups                bptree.BPTree // string(name) -> MemberGroup
+	createStorage         func(group string) MemberStorage
+	sealed                bool
+	disableCanonicalCheck bool
 }
 
 // Seal returns a sealed copy of the grouping.
@@ -87,8 +111,10 @@ func (g memberGrouping) Has(name string) bool {
 	return g.groups.Has(name)
 }
 
-// Add adds an new member group if it doesn't exists.
+// Add adds a new member group if it doesn't exist.
 // It panics when grouping is sealed.
+// It also panics if the storage factory returns a non-canonical MemberStorage,
+// unless the grouping was created with NewUnsafeMemberGrouping.
 func (g *memberGrouping) Add(name string) (MemberGroup, error) {
 	assertNotSealed(g)
 
@@ -96,7 +122,12 @@ func (g *memberGrouping) Add(name string) (MemberGroup, error) {
 		return nil, errors.New("member group already exists: " + name)
 	}
 
-	mg, err := NewMemberGroup(name, g.createStorage(name))
+	storage := g.createStorage(name)
+	if !g.disableCanonicalCheck {
+		assertGroupingMemberStorageIsCanonical(storage)
+	}
+
+	mg, err := NewMemberGroup(name, storage)
 	if err != nil {
 		return nil, err
 	}
@@ -156,4 +187,10 @@ func GetMemberGroups(s MemberStorage, member address) []string {
 		return false
 	})
 	return groups
+}
+
+func assertGroupingMemberStorageIsCanonical(s MemberStorage) {
+	if !IsCanonicalMemberStorage(s) {
+		panic("custom member storage for grouping is not canonical")
+	}
 }

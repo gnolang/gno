@@ -63,9 +63,9 @@ subDAO := commondao.New(
 
 ### 2. ProposalDefinition Type
 
-Proposal definitions are the way proposal types are implemented in `commondao`.
-Definitions are required when creating a new proposal because they define the
-behavior of the proposal.
+Proposal definitions are the way proposal types are implemented in CommonDAO
+package. Definitions are required when creating a new proposal because they
+define the behavior of the proposal.
 
 Generally speaking, proposals can be divided in two types, one are the
 *general* (a.k.a. *text proposals*), and the other are the *executable* ones.
@@ -111,6 +111,7 @@ just counting that a minimum number of certain positive votes have been
 submitted to approve a proposal.
 
 CommonDAO provides a couple of helpers for this, to cover some cases:
+
 - `SelectChoiceByAbsoluteMajority()`
 - `SelectChoiceBySuperMajority()` (using a 2/3s threshold)
 - `SelectChoiceByPlurality()`
@@ -321,3 +322,59 @@ moderators.SetMeta(1)
 moderators.Members().Add("g1...c")
 moderators.Members().Add("g1...d")
 ```
+
+## Security
+
+CommonDAO package is designed to be extensible, each DAO implementations can
+supply custom types for member storage, proposal storage, and member grouping.
+This flexibility introduces a potential attack surface: a caller could substitute
+a malicious or incorrectly implemented type that satisfies an interface but
+behaves unexpectedly. The mechanisms described in this section exist to address
+that risk.
+
+### 1. Canonical Type Checks
+
+CommonDAO package defines several interface-based types, **MemberStorage**,
+**ProposalStorage** and **MemberGrouping**.
+
+Any DAO implementations can supply custom values for these types. Because any
+external caller can provide an implementation of these interfaces, the package
+verifies by default that the concrete type passed in is the one defined within
+CommonDAO package itself. An implementation that passes this check is called
+*canonical*.
+
+This guard exists to prevent a malicious or buggy external implementation from
+being silently accepted. If the check fails the constructor panics immediately,
+making the problem explicit rather than letting it cause subtle failures at
+runtime.
+
+### 2. Safe and Unsafe Constructors
+
+The standard constructors, `New`, `NewMemberStorageWithGrouping`, and
+`NewMemberGrouping`, all enforce the canonical check. They are the right choice
+for the vast majority of DAO implementations and should be preferred unless
+there is a concrete reason to bypass the check.
+
+For advanced use cases, each of these has an unsafe counterpart, `NewUnsafe`,
+`NewUnsafeMemberStorageWithGrouping`, and `NewUnsafeMemberGrouping`. The unsafe
+variants disable the canonical check, allowing a custom non-canonical
+implementation to be used. A typical example is storing members or proposals in
+an external realm rather than within the DAO realm itself.
+
+The unsafe constructors should only be used when the custom implementation is
+fully under the control of the DAO realm author. Never use them when the
+implementation is supplied by an untrusted external caller.
+
+### 3. Manual Verification
+
+When the canonical check is disabled, CommonDAO package provides a set of
+helper functions for manual verification:
+
+- `IsCanonicalMemberStorage()`
+- `IsCanonicalProposalStorage()`
+- `IsCanonicalMemberGrouping()`
+- `IsCanonicalMemberGroup()`
+
+Calling the relevant helper at every public entry point that receives one of
+these types from an external caller, before invoking any of its methods, is
+strongly recommended.
