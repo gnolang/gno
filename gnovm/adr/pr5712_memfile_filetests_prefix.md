@@ -1,4 +1,4 @@
-# ADR: MemFile.Name encodes the `filetests/` subdir
+# PR5712: MemFile.Name encodes the `filetests/` subdir
 
 ## Status
 
