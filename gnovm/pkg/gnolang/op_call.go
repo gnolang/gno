@@ -10,7 +10,7 @@ func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
-		m.Panic(typedString("call of nil function"))
+		m.Panic(typedString("runtime error: call of nil function"))
 	}
 
 	switch fv := v.(type) {

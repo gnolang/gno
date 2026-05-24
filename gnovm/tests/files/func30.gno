@@ -11,7 +11,11 @@ func main() {
 		if err == nil {
 			panic("panic expected")
 		}
+		println(err)
 	}()
 	var f func()
 	f()
 }
+
+// Output:
+// runtime error: call of nil function
