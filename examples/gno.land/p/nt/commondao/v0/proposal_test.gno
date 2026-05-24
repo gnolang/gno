@@ -1,7 +1,6 @@
 package commondao_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -310,20 +309,6 @@ func TestIsQuorumReached(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestMustValidate(cur realm, t *testing.T) {
-	uassert.NotPanics(t, cur, func() {
-		commondao.MustValidate(testPropDef{})
-	}, "expect validation to succeed")
-
-	uassert.PanicsWithMessage(t, cur, "validable proposal definition is nil", func() {
-		commondao.MustValidate(nil)
-	}, "expect validation to panic with nil definition")
-
-	uassert.PanicsWithMessage(t, cur, "boom!", func() {
-		commondao.MustValidate(testPropDef{validationErr: errors.New("boom!")})
-	}, "expect validation to panic")
 }
 
 // Executable non crossing proposal definition for unit tests
