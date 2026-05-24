@@ -5,6 +5,7 @@ package commondao
 type Sealable interface {
 	// Seal returns a sealed copy of the sealable type.
 	// No further changes are accepted on the returned copy once sealed.
+	// The original sealable type remains mutable.
 	Seal() Sealable
 
 	// IsSealed checks if a sealable instance is sealed.
