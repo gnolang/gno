@@ -42,6 +42,16 @@ func TestGetFileKind(t *testing.T) {
 			fileKind: FileKindFiletest,
 		},
 		{
+			name:     "filetest_under_filetests_dir",
+			filename: "filetests/foo.gno",
+			fileKind: FileKindFiletest,
+		},
+		{
+			name:     "filetest_under_filetests_dir_legacy_suffix",
+			filename: "filetests/foo_filetest.gno",
+			fileKind: FileKindFiletest,
+		},
+		{
 			name:     "notgnofile",
 			filename: "foo.gno.bck",
 			fileKind: FileKindOther,

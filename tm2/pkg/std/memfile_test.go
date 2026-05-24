@@ -1,10 +1,13 @@
 package std
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemPackage_Validate(t *testing.T) {
@@ -154,6 +157,109 @@ func TestMemPackage_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsFiletestName(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		name string
+		want bool
+	}{
+		// new-style: filetests/ + .gno
+		{"filetests/foo.gno", true},
+		{"filetests/foo_filetest.gno", true},
+		{"filetests/a.b.gno", true},
+
+		// non-.gno under filetests/ is not a filetest
+		{"filetests/README.md", false},
+		{"filetests/gno.mod", false},
+		{"filetests/foo.toml", false},
+
+		// legacy suffix at the root still counts
+		{"foo_filetest.gno", true},
+
+		// regular files
+		{"foo.gno", false},
+		{"foo_test.gno", false},
+		{"README.md", false},
+	}
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, IsFiletestName(tc.name))
+		})
+	}
+}
+
+func TestMemFile_ValidateBasic_FiletestsDir(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		name  string
+		valid bool
+	}{
+		// allowed
+		{"foo.gno", true},
+		{"filetests/foo.gno", true},
+		{"filetests/foo_filetest.gno", true},
+		{"filetests/a.b.gno", true},
+		{"README.md", true},
+		{"LICENSE", true},
+
+		// rejected
+		{"filetests/README.md", false},   // non-.gno under filetests/
+		{"filetests/foo.toml", false},    // non-.gno under filetests/
+		{"filetests/sub/foo.gno", false}, // nested subdir
+		{"sub/foo.gno", false},           // other subdir
+		{"filetests/", false},            // bare prefix
+		{"/foo.gno", false},              // leading slash
+		{"foo.gno/", false},              // trailing slash
+		{"../foo.gno", false},            // traversal
+	}
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := (&MemFile{Name: tc.name, Body: "x"}).ValidateBasic()
+			if tc.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestMemPackage_WriteTo_FiletestsLayout(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	mpkg := &MemPackage{
+		Name: "hey",
+		Path: "gno.land/r/demo/hey",
+		Files: []*MemFile{
+			{Name: "a.gno", Body: "package hey\n"},
+			{Name: "filetests/new.gno", Body: "package hey\n"},
+			// legacy: bare basename, no prefix in Name
+			{Name: "legacy_filetest.gno", Body: "package hey\n"},
+		},
+	}
+	require.NoError(t, mpkg.WriteTo(dir))
+
+	// New-style: written under filetests/ as encoded in Name.
+	body, err := os.ReadFile(filepath.Join(dir, "filetests", "new.gno"))
+	require.NoError(t, err)
+	assert.Equal(t, "package hey\n", string(body))
+
+	// Legacy fallback: bare *_filetest.gno also routed under filetests/.
+	body, err = os.ReadFile(filepath.Join(dir, "filetests", "legacy_filetest.gno"))
+	require.NoError(t, err)
+	assert.Equal(t, "package hey\n", string(body))
+
+	// Root file stays at the root.
+	body, err = os.ReadFile(filepath.Join(dir, "a.gno"))
+	require.NoError(t, err)
+	assert.Equal(t, "package hey\n", string(body))
 }
 
 func TestSplitFilepath(t *testing.T) {

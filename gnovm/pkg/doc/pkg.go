@@ -58,12 +58,12 @@ func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, erro
 	for _, file := range mpkg.Files {
 		n := file.Name
 		// Ignore files with prefix . or _ like go tools do.
-		// Ignore _filetest.gno, but not _test.gno, as we use those to compute
+		// Ignore filetests, but not _test.gno, as we use those to compute
 		// examples.
 		if !strings.HasSuffix(n, ".gno") ||
 			strings.HasPrefix(n, ".") ||
 			strings.HasPrefix(n, "_") ||
-			strings.HasSuffix(n, "_filetest.gno") {
+			std.IsFiletestName(n) {
 			continue
 		}
 		err := pkg.parseFile(n, file.Body, unexported)

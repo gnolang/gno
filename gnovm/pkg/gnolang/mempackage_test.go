@@ -1,10 +1,13 @@
 package gnolang
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemPackage_Validate(t *testing.T) {
@@ -426,4 +429,108 @@ func TestMemPackage_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateMemPackageAny_FiletestsDir checks that ValidateMemPackageAny
+// only permits .gno files under the filetests/ subdir and rejects other
+// subdirs, traversal, and non-.gno files under filetests/.
+// The basic-name regex in MemFile.ValidateBasic catches most of the rejected
+// cases first; the test asserts on the wrapped "invalid file name" error.
+func TestValidateMemPackageAny_FiletestsDir(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		fname       string
+		errContains string // empty == should validate
+	}{
+		// allowed (a base file `main.gno` is always present)
+		{"filetests/foo.gno", ""},
+		{"filetests/foo_filetest.gno", ""},
+
+		// rejected by the file-name regex via MemFile.ValidateBasic
+		{"filetests/README.md", "invalid file name"},
+		{"filetests/foo.toml", "invalid file name"},
+		{"filetests/sub/foo.gno", "invalid file name"},
+		{"sub/foo.gno", "invalid file name"},
+	}
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.fname, func(t *testing.T) {
+			t.Parallel()
+			mpkg := &std.MemPackage{
+				Type: MPUserAll, // accepts both prod and filetest files
+				Name: "hey",
+				Path: "example.com/r/hey",
+				Files: []*std.MemFile{
+					{Name: "main.gno", Body: "package hey\n"},
+					{Name: tc.fname, Body: "package hey\n"},
+				},
+			}
+			mpkg.Sort()
+			err := ValidateMemPackageAny(mpkg)
+			if tc.errContains == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.errContains)
+			}
+		})
+	}
+}
+
+// TestIsTestFile_FiletestsDir asserts IsTestFile recognizes filetests both
+// by legacy suffix and by membership in the filetests/ subdir.
+func TestIsTestFile_FiletestsDir(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		name string
+		want bool
+	}{
+		{"foo.gno", false},
+		{"foo_test.gno", true},
+		{"foo_filetest.gno", true},
+		{"filetests/foo.gno", true},
+		{"filetests/foo_filetest.gno", true},
+		{"filetests/foo_test.gno", true},
+		{"README.md", false},
+	}
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, IsTestFile(tc.name))
+		})
+	}
+}
+
+// TestReadMemPackage_FiletestsLayout exercises the on-disk → MemPackage
+// pipeline: any .gno file in filetests/ is loaded and gets a filetests/ prefix
+// on MemFile.Name; non-.gno files under filetests/ are ignored.
+func TestReadMemPackage_FiletestsLayout(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gno"), []byte("package hey\n"), 0o644))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "filetests"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "filetests", "new.gno"), []byte("package hey\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "filetests", "legacy_filetest.gno"), []byte("package hey\n"), 0o644))
+	// Should be ignored — non-.gno files belong at the package root.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "filetests", "README.md"), []byte("# nope\n"), 0o644))
+
+	mpkg, err := ReadMemPackage(dir, "example.com/r/hey", MPUserAll)
+	require.NoError(t, err)
+
+	names := make(map[string]bool, len(mpkg.Files))
+	for _, f := range mpkg.Files {
+		names[f.Name] = true
+	}
+	assert.True(t, names["a.gno"], "expected a.gno at root")
+	assert.True(t, names["filetests/new.gno"], "expected filetests/new.gno")
+	assert.True(t, names["filetests/legacy_filetest.gno"], "expected legacy filetest under filetests/")
+	assert.False(t, names["filetests/README.md"], "non-.gno files in filetests/ must be ignored")
+
+	// Round-trip: write and re-read; layout encoded in Name should survive.
+	out := t.TempDir()
+	require.NoError(t, mpkg.WriteTo(out))
+	_, err = os.Stat(filepath.Join(out, "filetests", "new.gno"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(out, "filetests", "legacy_filetest.gno"))
+	require.NoError(t, err)
 }

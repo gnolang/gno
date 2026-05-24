@@ -267,14 +267,11 @@ func (mpfilter MemPackageFilter) FilterGno(mfile *std.MemFile, pname Name) bool 
 	case MPFNone:
 		return false
 	case MPFProd:
-		return endsWithAny(fname, []string{"_test.gno"}) || std.IsFiletestName(fname)
+		return IsTestFile(fname)
 	case MPFTest:
-		if std.IsFiletestName(fname) {
-			return true
-		}
-		return isIntegrationTestFile(pname, fname, fbody)
+		return std.IsFiletestName(fname) || isIntegrationTestFile(pname, fname, fbody)
 	case MPFIntegration:
-		if !endsWithAny(fname, []string{"_test.gno"}) {
+		if !strings.HasSuffix(fname, "_test.gno") {
 			return true
 		}
 		return !isIntegrationTestFile(pname, fname, fbody)
@@ -661,16 +658,15 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 		return false
 	case MPStdlibProd, MPUserProd:
 		// exclude all test files.
-		return endsWithAny(fname, []string{"_test.gno"}) || std.IsFiletestName(fname)
+		return IsTestFile(fname)
 	case MPStdlibTest, MPUserTest:
 		// exclude filetest files, and xxx_test package names.
-		return std.IsFiletestName(fname) ||
-			endsWithAny(string(pname), []string{"_test"})
+		return std.IsFiletestName(fname) || strings.HasSuffix(string(pname), "_test")
 	case MPStdlibIntegration, MPUserIntegration:
 		// only xxx_test *_test.gno files.
 		return std.IsFiletestName(fname) ||
-			!endsWithAny(fname, []string{"_test.gno"}) ||
-			!endsWithAny(string(pname), []string{"_test"})
+			!strings.HasSuffix(fname, "_test.gno") ||
+			!strings.HasSuffix(string(pname), "_test")
 	default:
 		panic("should not happen")
 	}
@@ -734,9 +730,8 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
 	if filetestsDir != "" {
-		// Add any .gno file in the filetests/ subdir. Membership in this
-		// subdir identifies the file as a filetest (the _filetest.gno suffix
-		// is no longer required); see std.IsFiletestName.
+		// Any .gno file in filetests/ is a filetest; non-.gno files belong
+		// at the package root and are ignored here.
 		filetestsFiles, err := os.ReadDir(filetestsDir)
 		if err != nil {
 			return nil, err
@@ -745,16 +740,8 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 			if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
 				continue
 			}
-			if !endsWithAny(file.Name(), goodFileXtns) &&
-				!slices.Contains(goodFiles, strings.ToLower(file.Name())) {
+			if !strings.HasSuffix(file.Name(), ".gno") {
 				continue
-			}
-			if endsWithAny(file.Name(), badFileXtns) {
-				continue
-			}
-			checkPath := filepath.Join(dir, file.Name())
-			if slices.Contains(list, checkPath) {
-				return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
 			}
 			list = append(list, filepath.Join(filetestsDir, file.Name()))
 		}
@@ -806,12 +793,8 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	var errs error            // all errors minus filetest pkg name errors.
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		// If the file lives in the filetests/ subdir, record the prefix on
-		// MemFile.Name so layout is preserved through WriteTo (see
-		// std.MemPackage.WriteTo) and so the file is recognized as a filetest
-		// via std.IsFiletestName regardless of suffix.
 		if filepath.Base(filepath.Dir(fpath)) == std.FiletestsDir {
-			fname = std.FiletestsDir + "/" + fname
+			fname = std.FiletestsPrefix + fname
 		}
 		bz, err := os.ReadFile(fpath)
 		if err != nil {
@@ -825,16 +808,17 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 			// NOTE: the below is (almost) duplicated in ParseMemPackageAsType().
 			// If MPProd, don't even try to read _test.gno or filetest files.
 			if mptype.IsProd() &&
-				(endsWithAny(fname, []string{"_test.gno"}) || std.IsFiletestName(fname)) {
+				(strings.HasSuffix(fname, "_test.gno") || std.IsFiletestName(fname)) {
 				continue
 			}
 			// If MPTest, don't even try to read filetest files.
 			if mptype.IsTest() && std.IsFiletestName(fname) {
 				continue
 			}
-			// If MPIntegration, only read _test.gno files (not filetests).
+			// If MPIntegration, only read flat _test.gno files; anything
+			// under filetests/ is a filetest.
 			if mptype.IsIntegration() &&
-				(!endsWithAny(fname, []string{"_test.gno"}) || std.IsFiletestName(fname)) {
+				(!strings.HasSuffix(fname, "_test.gno") || std.IsFiletestName(fname)) {
 				continue
 			}
 			// Read package name from file.
@@ -961,7 +945,7 @@ func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageT
 		// NOTE: the below is (almost) duplicated in ReadMemPackageFromList().
 		// If MP*Prod, don't even try to read _test.gno or filetest files.
 		if mptype.IsProd() &&
-			(endsWithAny(fname, []string{"_test.gno"}) || std.IsFiletestName(fname)) {
+			(strings.HasSuffix(fname, "_test.gno") || std.IsFiletestName(fname)) {
 			continue
 		}
 		// If MP*Test, don't even try to read filetest files.
@@ -1104,12 +1088,17 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			errs = multierr.Append(errs, fmt.Errorf("invalid file %q: file name cannot start with a dot", fname))
 			continue
 		}
-		// The only permitted subdir is filetests/ (see std.FiletestsDir);
-		// anything else (other subdirs, leading/trailing slash, ..) is rejected.
+		// The only permitted subdir is filetests/ (see std.FiletestsDir),
+		// and only .gno files are allowed there. Other subdirs, leading or
+		// trailing slashes, and non-.gno files under filetests/ are rejected.
 		if strings.Contains(fname, "/") {
-			if !strings.HasPrefix(fname, std.FiletestsDir+"/") ||
-				strings.Contains(strings.TrimPrefix(fname, std.FiletestsDir+"/"), "/") {
-				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: only %q/ subdir is allowed", fname, std.FiletestsDir))
+			rest, ok := strings.CutPrefix(fname, std.FiletestsPrefix)
+			if !ok || strings.Contains(rest, "/") {
+				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: only \"%s/\" subdir is allowed", fname, std.FiletestsDir))
+				continue
+			}
+			if !strings.HasSuffix(rest, ".gno") {
+				errs = multierr.Append(errs, fmt.Errorf("invalid file %q: only .gno files allowed under \"%s/\"", fname, std.FiletestsDir))
 				continue
 			}
 		}
@@ -1198,11 +1187,12 @@ func MustPackageNameFromFileBody(name, body string) Name {
 func WriteToMemPackage(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage, create bool) error {
 	for _, gof := range gofs {
 		fpath := gofset.File(gof.Pos()).Name()
-		_, fname := filepath.Split(fpath)
-		if strings.HasPrefix(fname, ".") {
-			// Hidden files like .gnobuiltins.gno that
-			// start with a dot should not get written to
-			// the mempackage.
+		// Parser filenames are set to path.Join(mpkg.Path, file.Name) by
+		// GoParseMemPackage; strip the package prefix to recover MemFile.Name,
+		// which may carry "filetests/".
+		fname := strings.TrimPrefix(fpath, mpkg.Path+"/")
+		if strings.HasPrefix(filepath.Base(fname), ".") {
+			// Hidden files like .gnobuiltins.gno are not part of the mempackage.
 			continue
 		}
 		mfile := mpkg.GetFile(fname)

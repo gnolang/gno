@@ -408,15 +408,20 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		}
 	}
 
-	// Testing with *_filetest.gno.
+	// Testing with filetests.
 	if len(ftfiles) > 0 {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, "filetests", testFileName)
-			// XXX consider this
-			testName := fsDir + "/" + testFileName
-			// testName := "file/" + testFileName
+			// Both new-style ("filetests/foo.gno") and legacy ("foo_filetest.gno")
+			// names live under fsDir/filetests/ on disk; the displayed test name
+			// drops the prefix so it stays stable across the two forms.
+			diskName := testFileName
+			if !strings.HasPrefix(diskName, std.FiletestsPrefix) {
+				diskName = std.FiletestsPrefix + diskName
+			}
+			testFilePath := filepath.Join(fsDir, diskName)
+			testName := fsDir + "/" + strings.TrimPrefix(testFileName, std.FiletestsPrefix)
 			if !shouldRun(filter, testName) {
 				continue
 			}

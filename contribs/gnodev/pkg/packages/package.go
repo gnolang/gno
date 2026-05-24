@@ -85,7 +85,7 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
 
-		if strings.HasSuffix(file.Name, "_filetest.gno") {
+		if std.IsFiletestName(file.Name) {
 			continue
 		}
 
