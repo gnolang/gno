@@ -166,16 +166,14 @@ proposal := dao.MustPropose(creator, propDef)
 
 The preferred way to submit a vote, once a proposal is created, is by calling
 the `CommonDAO.Vote()` method because it performs sanity checks before a vote
-is considered valid; Alternatively votes can be directly added without sanity
-checks to the proposal's voting record by calling
-`Proposal.VotingRecord().AddVote()`.
+is considered valid.
 
 #### 3.2. Voting Record
 
 Each proposal keeps track of their submitted votes within an internal voting
 record. CommonDAO package defines it as a **VotingRecord** type.
 
-The voting record of a proposal can be getted by calling its
+The readonly voting record of a proposal can be getted by calling its
 `Proposal.VotingRecord()` method.
 
 Right now proposals have a single voting record but the plan is to support

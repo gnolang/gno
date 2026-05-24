@@ -25,9 +25,9 @@ var (
 //
 // IMPORTANT: This type intentionally exposes mutable references so a consumer
 // can compose low-level operations, so all instances of this type must be kept
-// private or wrapped to avoid exposing mutable references like ActiveProposals,
-// Members, Children, or to avoid exposing methods that return mutable references
-// like Propose() or GetProposal().
+// private to avoid exposing mutable references like ActiveProposals, Members,
+// Children, or to avoid exposing methods that return mutable references like
+// Propose() or GetProposal().
 type CommonDAO struct {
 	id                         uint64
 	slug                       string

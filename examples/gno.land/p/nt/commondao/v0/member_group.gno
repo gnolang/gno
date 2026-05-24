@@ -17,6 +17,8 @@ type MemberGroup interface {
 	// Usually can be used to store parameter values which would be useful
 	// during proposal voting or tallying to resolve things like voting
 	// weights or rights for example.
+	// For security it's recommended that any meta value implements the
+	// Sealable interface.
 	SetMeta(any)
 
 	// GetMeta returns the group metadata.
