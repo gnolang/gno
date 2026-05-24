@@ -58,11 +58,13 @@ func TestProposalNew(t *testing.T) {
 
 			urequire.NoError(t, err, "unexpected error")
 			uassert.Equal(t, p.ID(), id)
-			uassert.NotEqual(t, p.Definition(), nil)
+			uassert.NotEmpty(t, p.Title())
+			uassert.NotEmpty(t, p.Body())
 			uassert.True(t, p.Status() == commondao.StatusActive)
 			uassert.Equal(t, p.Creator(), tc.creator)
 			uassert.False(t, p.CreatedAt().IsZero())
-			uassert.NotEqual(t, p.VotingRecord(), nil)
+			urequire.NotEqual(t, p.VotingRecord(), nil)
+			uassert.True(t, p.VotingRecord().IsSealed())
 			uassert.Empty(t, p.StatusReason())
 			uassert.True(t, p.VotingDeadline() == p.CreatedAt().Add(tc.definition.VotingPeriod()))
 		})
@@ -333,8 +335,8 @@ type testPropDef struct {
 	tallyPanic              any
 }
 
-func (testPropDef) Title() string                 { return "" }
-func (testPropDef) Body() string                  { return "" }
+func (testPropDef) Title() string                 { return "Title" }
+func (testPropDef) Body() string                  { return "Body" }
 func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 

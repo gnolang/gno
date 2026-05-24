@@ -327,7 +327,7 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 
 	// Execute proposal only if it's executable
 	if err == nil {
-		if e, ok := p.Definition().(Executable); ok {
+		if e, ok := p.definition.(Executable); ok {
 			if fn := e.Executor(); fn != nil {
 				err = fn(cross(rlm))
 			}

@@ -198,10 +198,19 @@ func (p Proposal) ID() uint64 {
 	return p.id
 }
 
-// Definition returns the proposal definition.
-// Proposal definitions define proposal content and behavior.
-func (p Proposal) Definition() ProposalDefinition {
-	return p.definition
+// Title returns proposal's title.
+func (p Proposal) Title() string {
+	return p.definition.Title()
+}
+
+// Body returns proposal's body.
+func (p Proposal) Body() string {
+	return p.definition.Body()
+}
+
+// VotingPeriod returns the period where votes are allowed after proposal creation.
+func (p Proposal) VotingPeriod() time.Duration {
+	return p.definition.VotingPeriod()
 }
 
 // Status returns the current proposal status.
@@ -219,9 +228,10 @@ func (p Proposal) CreatedAt() time.Time {
 	return p.createdAt
 }
 
-// VotingRecord returns a record that contains all the votes submitted for the proposal.
+// VotingRecord returns a sealed (readonly) record that contains all the votes
+// submitted for the proposal.
 func (p Proposal) VotingRecord() *VotingRecord {
-	return p.record
+	return p.record.Seal().(*VotingRecord)
 }
 
 // StatusReason returns an optional reason that lead to the current proposal status.
@@ -302,7 +312,7 @@ func (p *Proposal) tally(members MemberStorage) (err error) {
 	}()
 
 	ctx := MustNewVotingContext(p.VotingRecord(), members)
-	passes, err := p.Definition().Tally(ctx)
+	passes, err := p.definition.Tally(ctx)
 	if err != nil {
 		return err
 	}
