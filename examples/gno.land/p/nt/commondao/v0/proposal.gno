@@ -70,6 +70,11 @@ type (
 	// ProposalDefinition defines an interface for custom proposal definitions.
 	// These definitions define proposal content and behavior, they esentially
 	// allow the definition for different proposal types.
+	//
+	// IMPORTANT: When creating proposals ensure that any externally-supplied
+	// proposal definition comes from a trusted source, and when possible check
+	// that given definitions are canonical. Never accept a proposal definitions
+	// from an arbitrary external input.
 	ProposalDefinition interface {
 		// Title returns the proposal title.
 		Title() string

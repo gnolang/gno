@@ -21,7 +21,13 @@ var (
 	ErrWithdrawalNotAllowed = errors.New("withdrawal not allowed for proposals with votes")
 )
 
-// CommonDAO defines a DAO.
+// CommonDAO defines a DAO (Decentralized Autonomous Organization).
+//
+// IMPORTANT: This type intentionally exposes mutable references so a consumer
+// can compose low-level operations, so all instances of this type must be kept
+// private or wrapped to avoid exposing mutable references like ActiveProposals,
+// Members, Children, or to avoid exposing methods that return mutable references
+// like Propose() or GetProposal().
 type CommonDAO struct {
 	id                         uint64
 	slug                       string
