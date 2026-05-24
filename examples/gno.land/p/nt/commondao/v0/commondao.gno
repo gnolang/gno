@@ -348,14 +348,14 @@ func (dao *CommonDAO) finishProposal(p *Proposal) {
 
 func assertDAOStoragesAreCanonical(dao *CommonDAO) {
 	if !IsCanonicalMemberStorage(dao.members) {
-		panic("CommonDAO member storage is not canonical")
+		panic("DAO member storage is not canonical")
 	}
 
 	if !IsCanonicalProposalStorage(dao.activeProposals) {
-		panic("CommonDAO active proposals storage is not canonical")
+		panic("DAO active proposals storage is not canonical")
 	}
 
 	if !IsCanonicalProposalStorage(dao.finishedProposals) {
-		panic("CommonDAO finished proposals storage is not canonical")
+		panic("DAO finished proposals storage is not canonical")
 	}
 }

@@ -127,9 +127,11 @@ func (g *memberGrouping) Add(name string) (MemberGroup, error) {
 		assertGroupingMemberStorageIsCanonical(storage)
 	}
 
-	mg, err := NewMemberGroup(name, storage)
-	if err != nil {
-		return nil, err
+	var mg MemberGroup
+	if g.disableCanonicalCheck {
+		mg = NewUnsafeMemberGroup(name, storage)
+	} else {
+		mg = NewMemberGroup(name, storage)
 	}
 
 	g.groups.Set(name, mg)
@@ -191,6 +193,6 @@ func GetMemberGroups(s MemberStorage, member address) []string {
 
 func assertGroupingMemberStorageIsCanonical(s MemberStorage) {
 	if !IsCanonicalMemberStorage(s) {
-		panic("custom member storage for grouping is not canonical")
+		panic("member storage for grouping is not canonical")
 	}
 }
