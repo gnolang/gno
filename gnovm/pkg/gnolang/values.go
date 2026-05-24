@@ -755,9 +755,9 @@ func (mv *MapValue) GetLength() int {
 
 // GetPointerForKey is only used for assignment, so the key
 // is not returned as part of the pointer, and TV is not filled.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(m *Machine, alloc *Allocator, store Store, key TypedValue) PointerValue {
 	// If NaN, instead of computing map key, just append to List.
-	kmk, isNaN := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, false)
 	if !isNaN {
 		if mli, ok := mv.vmap[kmk]; ok {
 			// When assigning to a map item, the key is always equal to that of the
@@ -783,9 +783,9 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key TypedVal
 
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
-func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
+func (mv *MapValue) GetValueForKey(m *Machine, store Store, key *TypedValue) (val TypedValue, ok bool) {
 	// If key is NaN, return default
-	kmk, isNaN := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, false)
 	if isNaN {
 		return
 	}
@@ -796,9 +796,9 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 	return
 }
 
-func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
+func (mv *MapValue) DeleteForKey(m *Machine, store Store, key *TypedValue) {
 	// if key is NaN, do nothing.
-	kmk, isNaN := key.ComputeMapKey(store, false)
+	kmk, isNaN := key.ComputeMapKey(m, store, false)
 	if isNaN {
 		return
 	}
@@ -1594,7 +1594,10 @@ func (tv *TypedValue) Sign() int {
 // isNaN returns whether tv, or any of the values contained within (like in an
 // array or struct) are NaN's; this would make the same tv != to itself, and
 // so shouldn't be included within a vmap.
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isNaN bool) {
+func (tv *TypedValue) ComputeMapKey(m *Machine, store Store, omitType bool) (key MapKey, isNaN bool) {
+	if m != nil && m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(OpCPUComputeMapKey, GasComputeMapKeyDesc)
+	}
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1606,6 +1609,15 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 	}
 	// General case.
 	bz := make([]byte, 0, 64)
+	// Charge per-byte for all bytes appended to bz in this call (TypeID
+	// prefix, av.Data, string content, brackets/separators, uvarint
+	// length headers, children's mk re-appended). This catches every
+	// O(N) work path uniformly, including early isNaN returns.
+	if m != nil && m.GasMeter != nil {
+		defer func() {
+			m.GasMeter.ConsumeGas(int64(len(bz))*OpCPUSlopeComputeMapKeyByte/10, GasComputeMapKeyDesc)
+		}()
+	}
 	if !omitType {
 		// TypeID is human readable and balanced, so appending ":" works.
 		// This keeps ComputeMapKey somewhat human readable esp w/
@@ -1656,7 +1668,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
-				mk, isNaN := ev.ComputeMapKey(store, omitTypes)
+				mk, isNaN := ev.ComputeMapKey(m, store, omitTypes)
 				if isNaN {
 					return "", true
 				}
@@ -1679,7 +1691,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) (key MapKey, isN
 		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			mk, isNaN := fv.ComputeMapKey(store, omitTypes)
+			mk, isNaN := fv.ComputeMapKey(m, store, omitTypes)
 			if isNaN {
 				return "", true
 			}
@@ -1989,10 +2001,10 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 }
 
 // Convenience for GetPointerAtIndex(). Slow.
-func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
+func (tv *TypedValue) GetPointerAtIndexInt(m *Machine, store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
-	return tv.GetPointerAtIndex(nil, nilRealm, fallbackAllocator, store, &iv)
+	return tv.GetPointerAtIndex(m, nilRealm, fallbackAllocator, store, &iv)
 }
 
 func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator, store Store, iv *TypedValue) PointerValue {
@@ -2042,7 +2054,7 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		// as that is the one that matters. this is mostly relevant for -0 / 0.
 		// https://github.com/gnolang/gno/pull/4114
 		var oldObject Object
-		key, isNaN := iv.ComputeMapKey(store, false)
+		key, isNaN := iv.ComputeMapKey(m, store, false)
 		if !isNaN {
 			k, ok := mv.vmap[key]
 			if ok {
@@ -2051,7 +2063,7 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		}
 
 		ivk := iv.Copy(alloc)
-		pv := mv.GetPointerForKey(alloc, store, ivk)
+		pv := mv.GetPointerForKey(m, alloc, store, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
