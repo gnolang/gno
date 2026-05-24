@@ -29,7 +29,8 @@ type (
 		//
 		// Warning: When using context be careful if references/pointers are
 		// assigned to it because they could potentially be accessed anywhere,
-		// which could lead to unwanted indirect modifications.
+		// which could lead to unwanted indirect modifications. For security
+		// it's recommended that any context value implements the Sealable interface.
 		Context any
 	}
 )
@@ -43,6 +44,7 @@ type VotingRecord struct {
 
 // Seal returns a sealed copy of the voting record.
 // No further changes are accepted on the returned copy once sealed.
+// The original voting record remains mutable.
 func (r VotingRecord) Seal() Sealable {
 	r.sealed = true
 	return &r
@@ -92,6 +94,8 @@ func (r VotingRecord) HasVoted(user address) bool {
 }
 
 // GetVote returns a vote.
+// The returned vote seals the context value when voting record is sealed (readonly),
+// or is nil when the original context value is not Sealable.
 func (r VotingRecord) GetVote(user address) (_ Vote, found bool) {
 	if v, found := r.votes.Get(user.String()); found {
 		return r.trySealVote(v.(Vote)), true
