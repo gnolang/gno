@@ -89,6 +89,7 @@ type memberStorage struct {
 
 // Seal returns a sealed copy of the storage.
 // No further changes are accepted on the returned copy once sealed.
+// The original member storage remains mutable.
 func (s memberStorage) Seal() Sealable {
 	s.sealed = true
 	if s.grouping != nil {

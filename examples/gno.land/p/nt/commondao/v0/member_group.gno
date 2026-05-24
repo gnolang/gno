@@ -83,6 +83,7 @@ type memberGroup struct {
 
 // Seal returns a sealed copy of the group.
 // No further changes are accepted on the returned copy once sealed.
+// The original group remains mutable.
 func (g memberGroup) Seal() Sealable {
 	g.sealed = true
 	return &g
