@@ -9,13 +9,8 @@ import (
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
-	if debug {
-		if v == nil {
-			// This may happen due to an undefined uverse or
-			// closure value (which isn't supposed to happen but
-			// may happen due to incomplete initialization).
-			panic("should not happen")
-		}
+	if v == nil {
+		m.Panic(typedString("call of nil function"))
 	}
 
 	switch fv := v.(type) {
