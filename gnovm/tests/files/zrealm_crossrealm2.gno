@@ -14,9 +14,9 @@ func init() {
 
 func main(cur realm) {
 	// NOTE: but it is invalid to modify it using an external realm function.
-	tests.ModifyTestRealmObject(cross, &somevalue)
+	tests.ModifyTestRealmObject(cross(cur), &somevalue)
 	println(somevalue)
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): t<VPBlock(1,1)>.Field
+// cannot directly modify readonly tainted object (use a method or crossing function): t<VPBlock(1,1)>.Field

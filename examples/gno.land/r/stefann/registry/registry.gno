@@ -3,7 +3,7 @@ package registry
 import (
 	"errors"
 
-	"gno.land/p/nt/ownable"
+	"gno.land/p/nt/ownable/v0"
 )
 
 var (
@@ -27,23 +27,23 @@ func BackupAddr() address {
 	return backupAddr
 }
 
-func SetMainAddr(_ realm, addr address) error {
+func SetMainAddr(cur realm, addr address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwnedBy(cur.Previous().Address())
 
 	mainAddr = addr
 	return nil
 }
 
-func SetBackupAddr(_ realm, addr address) error {
+func SetBackupAddr(cur realm, addr address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertOwnedByPrevious()
+	owner.AssertOwnedBy(cur.Previous().Address())
 
 	backupAddr = addr
 	return nil

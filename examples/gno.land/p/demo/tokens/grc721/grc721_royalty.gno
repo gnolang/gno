@@ -1,10 +1,9 @@
 package grc721
 
 import (
-	"chain/runtime"
 	"math/overflow"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 // royaltyNFT represents a non-fungible token (NFT) with royalty functionality.
@@ -30,7 +29,9 @@ func NewNFTWithRoyalty(name string, symbol string) *royaltyNFT {
 }
 
 // SetTokenRoyalty sets the royalty information for a specific token ID.
-func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error {
+// caller must equal the token's owner; the owning realm's wrapper
+// derives caller from rlm.Previous().Address() under IsCurrent.
+func (r *royaltyNFT) SetTokenRoyalty(caller address, tid TokenID, royaltyInfo RoyaltyInfo) error {
 	// Validate the payment address
 	if err := isValidAddress(royaltyInfo.PaymentAddress); err != nil {
 		return ErrInvalidRoyaltyPaymentAddress
@@ -46,7 +47,6 @@ func (r *royaltyNFT) SetTokenRoyalty(tid TokenID, royaltyInfo RoyaltyInfo) error
 	if err != nil {
 		return err
 	}
-	caller := runtime.CurrentRealm().Address()
 	if caller != owner {
 		return ErrCallerIsNotOwner
 	}

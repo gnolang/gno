@@ -1,11 +1,11 @@
 package grc1155
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
 )
 
 const dummyURI = "ipfs://xyz"
@@ -95,7 +95,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -121,7 +121,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid := TokenID("1")
@@ -155,7 +155,7 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")

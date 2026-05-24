@@ -3,10 +3,27 @@ package daokit
 import (
 	"errors"
 
-	"gno.land/p/moul/md"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
+// SECURITY XXX: Action, ActionHandler, and the daocond.Condition /
+// daocond.Ballot interfaces are open extension points. Whatever you
+// register via Core.Resources.Set runs WITH THE DAO'S AUTHORITY when
+// a proposal executes — same level of trust as code inside the DAO
+// package itself. A hostile handler can do anything the DAO can do
+// (modify members, transfer treasury funds via an action that calls
+// a token, etc.). The owning realm is responsible for only registering
+// handlers/conditions from trusted code.
+//
+// Related re-entrancy risk: Core.Execute calls Condition.Eval before
+// running Action. A malicious Condition.Eval can call back into the
+// same DAO (Propose / Vote / Execute on another proposal) during the
+// same crossing frame. IsCurrent still passes because we're inside
+// the original caller's frame, so the re-entrant call runs as the
+// original caller. Same shape as Ethereum's DAO hack.
+// Fix: add a re-entrancy guard in Core.Execute — a package-level lock
+// or per-proposal in-flight flag — set before any user-supplied code
+// (Eval, Action.String, handler Execute) runs and cleared on return.
 type Action interface {
 	String() string
 	Type() string
@@ -82,31 +99,10 @@ func NewExecuteLambdaAction(cb func()) Action {
 	return NewAction(ActionExecuteLambdaKind, cb)
 }
 
-const ActionInstantExecuteKind = "gno.land/p/samcrew/daokit.InstantExecute"
-
-type actionInstantExecute struct {
-	dao DAO
-	req ProposalRequest
-}
-
-func (a *actionInstantExecute) String() string {
-	// XXX: find a way to be explicit about the subdao
-	s := ""
-	s += md.Paragraph(md.Blockquote(a.req.Action.Type()))
-	s += md.Paragraph(a.req.Action.String())
-	return s
-}
-
-func NewInstantExecuteHandler() ActionHandler {
-	return NewActionHandler(ActionInstantExecuteKind, func(i interface{}) {
-		action, ok := i.(*actionInstantExecute)
-		if !ok {
-			panic(errors.New("invalid action type"))
-		}
-		InstantExecute(action.dao, action.req)
-	})
-}
-
-func NewInstantExecuteAction(dao DAO, req ProposalRequest) Action {
-	return NewAction(ActionInstantExecuteKind, &actionInstantExecute{dao: dao, req: req})
-}
+// InstantExecute-as-an-action (NewInstantExecuteHandler /
+// NewInstantExecuteAction) was removed during the rlm-based auth
+// migration: the action-handler callback shape `func(i interface{})`
+// has no rlm in scope, so it cannot drive Propose/Vote/Execute which
+// now all require an IsCurrent-validated rlm. The free function
+// InstantExecute(_ int, rlm realm, d DAO, req) remains for direct
+// caller use.

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/archive/boards/filetests/z_12_b_filetest
+
+package z_12_b_filetest
 
 // SEND: 1000000ugnot
 
@@ -6,18 +8,20 @@ import (
 	"testing"
 
 	"gno.land/r/archive/boards"
-	users "gno.land/r/gnoland/users/v1"
+	uinit "gno.land/r/sys/users/init"
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	users.Register(cross, "gnouser123")
-	bid1 := boards.CreateBoard(cross, "test_board1")
-	pid := boards.CreateThread(cross, bid1, "First Post (title)", "Body of the first post. (body)")
-	bid2 := boards.CreateBoard(cross, "test_board2")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetHeight(123)
+	bid1 := boards.CreateBoard(cross(cur), "test_board1")
+	pid := boards.CreateThread(cross(cur), bid1, "First Post (title)", "Body of the first post. (body)")
+	bid2 := boards.CreateBoard(cross(cur), "test_board2")
 
 	// create a repost to a non-existing board
-	rid := boards.CreateRepost(cross, 5, pid, "", "Check this out", bid2)
+	rid := boards.CreateRepost(cross(cur), 5, pid, "", "Check this out", bid2)
 	println(rid)
 	println(boards.Render("test_board1"))
 }

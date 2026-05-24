@@ -13,10 +13,11 @@ func init() {
 }
 
 func main(cur realm) {
-	// NOTE: it is also valid to modify it using an external realm function.
+	// NOTE: Modifying an external-realm object via a non-crossing method is
+	// allowed by soft crossing.
 	somevalue.Modify()
 	println(somevalue)
 }
 
-// Output:
-// (struct{("test_modified" string)} gno.land/r/tests/vm.TestRealmObject)
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): t<VPBlock(1,0)>.Field

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/leon/hor"
 )
 
@@ -42,7 +42,7 @@ var (
 	endPos, startPos Position
 )
 
-func init() {
+func init(cur realm) {
 	// Generate the map
 	seed := uint64(runtime.ChainHeight())
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
@@ -50,7 +50,7 @@ func init() {
 	salt = rng.Int64()
 
 	// Register to hor
-	hor.Register(cross, "GnoMaze, A 3D Maze Game", "")
+	hor.Register(cross(cur), "GnoMaze, A 3D Maze Game", "")
 }
 
 // Position represents the X, Y coordinates in the maze
@@ -423,7 +423,7 @@ func atoiDefault(s string, def int) int {
 }
 
 // Render renders the game interface
-func Render(path string) string {
+func Render(cur realm, path string) string {
 	u, _ := url.Parse(path)
 	query := u.Query()
 
@@ -433,7 +433,7 @@ func Render(path string) string {
 		Direction: atoiDefault(query.Get("dir"), 0), // Start facing east
 	}
 
-	cpath := strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
+	cpath := strings.TrimPrefix(cur.PkgPath(), runtime.ChainDomain())
 	psum := p.SumCode()
 	reset := "[reset](" + cpath + ")"
 
@@ -469,7 +469,7 @@ func Render(path string) string {
 	// Generate view
 	view := strings.Join([]string{
 		"<gno-columns>",
-		renderGrid3D(cross, &p),
+		renderGrid3D(cross(cur), &p),
 		"</gno-columns>",
 	}, "\n\n")
 

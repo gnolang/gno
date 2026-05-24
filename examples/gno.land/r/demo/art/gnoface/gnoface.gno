@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func Render(path string) string {

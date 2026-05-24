@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/p/archive/groups_test
-package groups_test
+// PKGPATH: gno.land/r/archive/groups/filetests/z_2_d
+package z_2_d
 
 // SEND: 200000000ugnot
 
@@ -7,16 +7,18 @@ import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/groups"
-	users "gno.land/r/gnoland/users/v1"
+	uinit "gno.land/r/sys/users/init"
 )
 
 var gid groups.GroupID
 
-func main() {
-	users.Register(cross, "gnouser123")
-	gid = groups.CreateGroup(cross, "test_group")
+func main(cur realm) {
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	testing.SetHeight(123)
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 
 	// delete member via anon user
@@ -24,9 +26,12 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteMember(cross, gid, 0)
+	groups.DeleteMember(cross(cur), gid, 0)
 	println(groups.Render(""))
 }
 
+// Output:
+// 1
+
 // Error:
-// r/gnoland/users: non-user call
+// unauthorized to delete member

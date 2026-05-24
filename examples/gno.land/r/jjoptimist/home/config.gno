@@ -1,6 +1,6 @@
 package home
 
-import "gno.land/p/nt/ownable"
+import "gno.land/p/nt/ownable/v0"
 
 type Config struct {
 	Title       string
@@ -20,8 +20,8 @@ func GetConfig() Config {
 	return config
 }
 
-func UpdateConfig(_ realm, newTitle, newDescription, newGithub string) {
-	Ownable.AssertOwnedByPrevious()
+func UpdateConfig(cur realm, newTitle, newDescription, newGithub string) {
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 	config.Title = newTitle
 	config.Description = newDescription
 	config.Github = newGithub

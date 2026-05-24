@@ -1,12 +1,11 @@
 package shifumi
 
 import (
-	"chain/runtime"
 	"errors"
 	"strconv"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
 
 	"gno.land/r/sys/users"
 )
@@ -62,19 +61,19 @@ func (g *game) winner() int {
 
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
-func NewGame(_ realm, player address) int {
-	games.Set(id.Next().String(), &game{player1: runtime.PreviousRealm().Address(), player2: player})
+func NewGame(cur realm, player address) int {
+	games.Set(id.Next().String(), &game{player1: cur.Previous().Address(), player2: player})
 	return int(id)
 }
 
 // Play executes a move for the game at index idx, where move can be:
 // 1 (rock), 2 (paper), 3 (scissors).
-func Play(_ realm, idx, move int) {
+func Play(cur realm, idx, move int) {
 	v, ok := games.Get(seqid.ID(idx).String())
 	if !ok {
 		panic("game not found")
 	}
-	if err := v.(*game).play(runtime.PreviousRealm().Address(), move); err != nil {
+	if err := v.(*game).play(cur.Previous().Address(), move); err != nil {
 		panic(err)
 	}
 }

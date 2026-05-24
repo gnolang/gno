@@ -93,7 +93,7 @@ Finally, the results are rendered via an ABCI query call when you visit [/r/demo
 ```go
 func Render(path string) string {
     // get realm coins.
-    banker := std.NewBanker(std.BankerTypeReadonly)
+    banker := std.NewReadonlyBanker()
     coins := banker.GetCoins(std.CurrentRealm().Address())
 
     // render

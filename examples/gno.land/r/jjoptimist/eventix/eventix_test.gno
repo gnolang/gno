@@ -7,16 +7,22 @@ import (
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
-func TestCreateEvent(t *testing.T) {
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+
+func TestCreateEvent(cur realm, t *testing.T) {
 	// Test successful event creation
 	eventId := CreateEvent(
-		cross,
+		cross(cur),
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
@@ -33,15 +39,15 @@ func TestCreateEvent(t *testing.T) {
 	uassert.Equal(t, "Test Event", event.name)
 
 	// Test invalid date format
-	urequire.AbortsWithMessage(t, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
-		CreateEvent(cross, "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
+	urequire.AbortsWithMessage(t, cur, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
+		CreateEvent(cross(cur), "Test", "Test", "invalid-date", "ugnot", 100, 1000000)
 	})
 }
 
-func TestBuyTicket(t *testing.T) {
+func TestBuyTicket(cur realm, t *testing.T) {
 	// Setup test event
 	eventId := CreateEvent(
-		cross,
+		cross(cur),
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
@@ -54,13 +60,13 @@ func TestBuyTicket(t *testing.T) {
 	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	testing.SetOriginCaller(buyer)
 
-	uassert.AbortsWithMessage(t, "Invalid payment amount: needs to be 1000000ugnot", func() {
-		BuyTicket(cross, eventId)
+	uassert.AbortsWithMessage(t, cur, "Invalid payment amount: needs to be 1000000ugnot", func() {
+		BuyTicket(cross(cur), eventId)
 	})
 
 	// Test successful purchase
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	BuyTicket(cross, eventId)
+	BuyTicket(cross(cur), eventId)
 
 	event, _ := getEvent(eventId)
 	if event.ticketsSold != 1 {
@@ -75,20 +81,26 @@ func TestBuyTicket(t *testing.T) {
 
 	// Test buying sold out event
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
-	BuyTicket(cross, eventId) // Buy second ticket
+	BuyTicket(cross(cur), eventId) // Buy second ticket
 
-	uassert.AbortsWithMessage(t, "Event is sold out", func() {
-		BuyTicket(cross, eventId)
+	uassert.AbortsWithMessage(t, cur, "Event is sold out", func() {
+		BuyTicket(cross(cur), eventId)
 	})
 }
 
-func TestBuyTicketWithGRC20(t *testing.T) {
+func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	pkgAddr := chain.PackageAddress("gno.land/r/jjoptimist/eventix")
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
 
-	// Create a test GRC20 token and set up addresses
-	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
+	// Token construction needs a realm-context cur (NewToken asserts
+	// IsCurrent + non-empty PkgPath); SetRealm-to-EOA happens after.
+	var token *grc20.Token
+	var ledger *grc20.PrivateLedger
+	func(cur realm) {
+		token, ledger = grc20.NewToken(0, cur, "Test Token", "TEST", 6)
+	}(cross(cur))
+
+	testing.SetRealm(testing.NewUserRealm(alice))
 	buyer := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	adminAddr := address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
 
@@ -105,7 +117,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	var eventId uint64
 	crossThrough(testing.NewCodeRealm("gno.land/r/jjoptimist/eventix"), func() {
 		eventId = CreateEvent(
-			cross,
+			cross(cur),
 			"GRC20 Event",
 			"An event with GRC20 payment",
 			"2024-12-31T23:59:59Z",
@@ -131,7 +143,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(buyer))
 
 	// Buy ticket
-	BuyTicket(cross, eventId)
+	BuyTicket(cross(cur), eventId)
 
 	// Verify purchase
 	event, exists := getEvent(eventId)

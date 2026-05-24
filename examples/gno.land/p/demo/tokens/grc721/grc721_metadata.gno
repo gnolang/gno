@@ -1,6 +1,6 @@
 package grc721
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
@@ -67,32 +67,32 @@ func (s *metadataNFT) TokenURI(tid TokenID) (string, error) {
 	return s.basicNFT.TokenURI(tid)
 }
 
-func (s *metadataNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
-	return s.basicNFT.SetTokenURI(tid, tURI)
+func (s *metadataNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
+	return s.basicNFT.SetTokenURI(caller, tid, tURI)
 }
 
 func (s *metadataNFT) IsApprovedForAll(owner, operator address) bool {
 	return s.basicNFT.IsApprovedForAll(owner, operator)
 }
 
-func (s *metadataNFT) Approve(to address, tid TokenID) error {
-	return s.basicNFT.Approve(to, tid)
+func (s *metadataNFT) Approve(caller, to address, tid TokenID) error {
+	return s.basicNFT.Approve(caller, to, tid)
 }
 
 func (s *metadataNFT) GetApproved(tid TokenID) (address, error) {
 	return s.basicNFT.GetApproved(tid)
 }
 
-func (s *metadataNFT) SetApprovalForAll(operator address, approved bool) error {
-	return s.basicNFT.SetApprovalForAll(operator, approved)
+func (s *metadataNFT) SetApprovalForAll(caller, operator address, approved bool) error {
+	return s.basicNFT.SetApprovalForAll(caller, operator, approved)
 }
 
-func (s *metadataNFT) SafeTransferFrom(from, to address, tid TokenID) error {
-	return s.basicNFT.SafeTransferFrom(from, to, tid)
+func (s *metadataNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
+	return s.basicNFT.SafeTransferFrom(caller, from, to, tid)
 }
 
-func (s *metadataNFT) TransferFrom(from, to address, tid TokenID) error {
-	return s.basicNFT.TransferFrom(from, to, tid)
+func (s *metadataNFT) TransferFrom(caller, from, to address, tid TokenID) error {
+	return s.basicNFT.TransferFrom(caller, from, to, tid)
 }
 
 func (s *metadataNFT) Mint(to address, tid TokenID) error {

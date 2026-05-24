@@ -24,8 +24,8 @@ No posts.
 
 	// create two posts, list post.
 	{
-		ModAddPost(cross, "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
-		ModAddPost(cross, "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
+		ModAddPost(cross(cur), "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost(cross(cur), "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
 			# Gno.land's blog
@@ -61,7 +61,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
+Published by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
@@ -92,11 +92,11 @@ Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 
 	// add comments.
 	{
-		AddComment(cross, "slug1", "comment1")
-		AddComment(cross, "slug2", "comment2")
-		AddComment(cross, "slug1", "comment3")
-		AddComment(cross, "slug2", "comment4")
-		AddComment(cross, "slug1", "comment5")
+		AddComment(cross(cur), "slug1", "comment1")
+		AddComment(cross(cur), "slug2", "comment2")
+		AddComment(cross(cur), "slug1", "comment3")
+		AddComment(cross(cur), "slug2", "comment4")
+		AddComment(cross(cur), "slug1", "comment5")
 		got := Render("p/slug2")
 		expected := `<main class='gno-tmpl-page'>
 
@@ -110,20 +110,20 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
+Published by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
@@ -153,20 +153,20 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 Written by manfred on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
+Published by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh to Gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
@@ -188,7 +188,7 @@ Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to Gno.land's blog
 	{ // Test remove functionality
 		title := "example title"
 		slug := "testSlug1"
-		ModAddPost(cross, slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost(cross(cur), slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
 
 		got := Render("")
 

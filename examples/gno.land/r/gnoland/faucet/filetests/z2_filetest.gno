@@ -1,10 +1,12 @@
-package main
+// PKGPATH: gno.land/r/gnoland/faucet/filetests/z2_filetest
+
+package z2_filetest
 
 import (
 	"chain"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gnoland/faucet"
 )
 
@@ -15,22 +17,22 @@ func init() {
 }
 
 // assert render with empty path and 2 controllers
-func main() {
+func main(cur realm) {
 	var (
-		adminaddr       = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr       = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)
 	testing.SetRealm(testing.NewUserRealm(adminaddr))
-	err := faucet.AdminAddController(cross, controlleraddr1)
+	err := faucet.AdminAddController(cross(cur), controlleraddr1)
 	if err != "" {
 		panic(err)
 	}
-	err = faucet.AdminAddController(cross, controlleraddr2)
+	err = faucet.AdminAddController(cross(cur), controlleraddr2)
 	if err != "" {
 		panic(err)
 	}
-	println(faucet.Render(""))
+	println(faucet.Render(cross(cur), ""))
 }
 
 // Output:
@@ -40,9 +42,9 @@ func main() {
 // Balance: 200000000ugnot.
 // Total transfers:  (in 0 times).
 //
-// Package address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
 //
-// Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+// Admin: g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
 //
 //  Controllers:
 //

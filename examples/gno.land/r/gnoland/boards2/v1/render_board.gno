@@ -7,8 +7,8 @@ import (
 	"gno.land/p/jeronimoalbi/mdform"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/mdalert"
-	"gno.land/p/nt/mux"
+	"gno.land/p/nt/mdalert/v0"
+	"gno.land/p/nt/mux/v0"
 )
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {

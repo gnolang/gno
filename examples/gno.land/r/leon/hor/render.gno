@@ -6,10 +6,10 @@ import (
 
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/pager"
-	"gno.land/p/nt/fqname"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/sys/users"
 )
@@ -173,8 +173,8 @@ package myrealm
 
 import "gno.land/r/leon/hor"
 
-func init() {
-	hor.Register(cross, "My Gnome App", "This is my submission to the Hall of Realms.")
+func init(cur realm) {
+	hor.Register(cross(cur), "My Gnome App", "This is my submission to the Hall of Realms.")
 }
 ...
 """

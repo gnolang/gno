@@ -3,7 +3,7 @@ package tamagotchi
 import (
 	"time"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Tamagotchi structure

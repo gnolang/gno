@@ -1,11 +1,9 @@
 package datasource
 
-import "gno.land/p/nt/avl"
+import "gno.land/p/nt/avl/v0"
 
 // DefaultQueryRecords defines the default number of records returned by queries.
 const DefaultQueryRecords = 50
-
-var defaultQuery = Query{Count: DefaultQueryRecords}
 
 type (
 	// QueryOption configures datasource queries.
@@ -62,7 +60,10 @@ func WithFilter(field string, value any) QueryOption {
 
 // NewQuery creates a new datasource query.
 func NewQuery(options ...QueryOption) Query {
-	q := defaultQuery
+	// Construct a fresh Query in the caller's realm; copying from a
+	// package-level default would propagate the /p/-readonly taint
+	// and break the apply(&q) options below.
+	q := Query{Count: DefaultQueryRecords}
 	for _, apply := range options {
 		apply(&q)
 	}

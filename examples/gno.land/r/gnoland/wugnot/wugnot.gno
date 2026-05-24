@@ -4,22 +4,27 @@ import (
 	"chain"
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/demo/defi/grc20reg"
 )
 
-var Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0)
+var (
+	Token *grc20.Token
+	adm   *grc20.PrivateLedger
+)
 
 const (
 	ugnotMinDeposit  int64 = 1000
 	wugnotMinDeposit int64 = 1
 )
 
-func init() {
-	grc20reg.Register(cross, Token, "")
+func init(cur realm) {
+	Token, adm = grc20.NewToken(0, cur, "wrapped GNOT", "wugnot", 0)
+	grc20reg.Register(cross(cur), Token, "")
 }
 
 func Deposit(cur realm) {
@@ -27,8 +32,8 @@ func Deposit(cur realm) {
 	// deposit on behalf of the caller and mint wugnot to itself
 	// instead of the actual sender.
 	runtime.AssertOriginCall()
-	caller := runtime.PreviousRealm().Address()
-	sent := banker.OriginSend()
+	caller := cur.Previous().Address()
+	sent := unsafe.OriginSend()
 	amount := sent.AmountOf("ugnot")
 
 	require(int64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
@@ -40,13 +45,13 @@ func Withdraw(cur realm, amount int64) {
 	runtime.AssertOriginCall()
 	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
-	caller := runtime.PreviousRealm().Address()
-	pkgaddr := runtime.CurrentRealm().Address()
+	caller := cur.Previous().Address()
+	pkgaddr := cur.Address()
 	callerBal := Token.BalanceOf(caller)
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 
 	// send swapped ugnots to qcaller
-	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend)
+	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	send := chain.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
 	checkErr(adm.Burn(caller, amount))
@@ -82,17 +87,17 @@ func Allowance(owner, spender address) int64 {
 
 func Transfer(cur realm, to address, amount int64) {
 	userTeller := Token.CallerTeller()
-	checkErr(userTeller.Transfer(to, amount))
+	checkErr(userTeller.Transfer(0, cur, to, amount))
 }
 
 func Approve(cur realm, spender address, amount int64) {
 	userTeller := Token.CallerTeller()
-	checkErr(userTeller.Approve(spender, amount))
+	checkErr(userTeller.Approve(0, cur, spender, amount))
 }
 
 func TransferFrom(cur realm, from, to address, amount int64) {
 	userTeller := Token.CallerTeller()
-	checkErr(userTeller.TransferFrom(from, to, amount))
+	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
 }
 
 func require(condition bool, msg string) {

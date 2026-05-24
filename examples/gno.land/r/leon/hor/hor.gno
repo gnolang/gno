@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/pausable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/pausable/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/r/leon/config"
 )
 
@@ -70,7 +70,7 @@ func Register(cur realm, title, description string) {
 		return
 	}
 
-	submission := runtime.PreviousRealm()
+	submission := cur.Previous()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -119,7 +119,7 @@ func Upvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote)
@@ -141,7 +141,7 @@ func Downvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote)
@@ -157,8 +157,16 @@ func Downvote(cur realm, pkgpath string) {
 	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
+func Pause(cur realm) error {
+	return Pausable.Pause(0, cur)
+}
+
+func Unpause(cur realm) error {
+	return Pausable.Unpause(0, cur)
+}
+
 func Delete(cur realm, pkgpath string) {
-	if !Ownable.OwnedByPrevious() {
+	if !Ownable.OwnedBy(cur.Previous().Address()) {
 		panic(ownable.ErrUnauthorized)
 	}
 

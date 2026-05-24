@@ -2,13 +2,12 @@ package timelock
 
 import (
 	"chain"
-	"chain/runtime"
 	"strconv"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/thox/accesscontrol"
 )
 
@@ -132,9 +131,14 @@ func (tl *TimeLock) Execute(id seqid.ID) error {
 	return nil
 }
 
-// Update the minimum lead time for future operations
-func (tl *TimeLock) UpdateDelay(newDelay uint64) error {
-	if runtime.PreviousRealm().Address() != tl.accessControl.Ownable.Owner() {
+// UpdateDelay changes the minimum lead time for future operations. rlm
+// must be the caller's own captured cur; rlm.Previous().Address() must
+// be the TimeLock's owner.
+func (tl *TimeLock) UpdateDelay(_ int, rlm realm, newDelay uint64) error {
+	if !rlm.IsCurrent() {
+		return ErrUpadateDelay
+	}
+	if rlm.Previous().Address() != tl.accessControl.Ownable.Owner() {
 		return ErrUpadateDelay
 	}
 

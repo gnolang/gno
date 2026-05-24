@@ -5,13 +5,12 @@ package chess
 
 import (
 	"bytes"
-	"chain/runtime"
 	"sort"
 	"strconv"
 	"strings"
 
 	"gno.land/p/morgan/chess/glicko2"
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 	"gno.land/r/sys/users"
 )
 
@@ -76,8 +75,8 @@ var (
 	playerRatings [CategoryMax][]*glicko2.PlayerRating
 )
 
-func GetPlayer(player string) string {
-	addr := parsePlayer(player)
+func GetPlayer(cur realm, player string) string {
+	addr := parsePlayer(0, cur, player)
 	v, ok := playerStore.Get(addr.String())
 	if !ok {
 		panic("player not found")
@@ -265,8 +264,8 @@ func Leaderboard(category string) string {
 //	limit:int id<cmp>int sort:asc/desc
 //	<cmp>: '<' or '>'
 //	<player>: either a bech32 address, "@user" (r/demo/users), or "caller"
-func ListGames(filters string) string {
-	ft := parseFilters(filters)
+func ListGames(cur realm, filters string) string {
+	ft := parseFilters(0, cur, filters)
 	results := make([]*Game, 0, ft.limit)
 	cb := func(g *Game) (stop bool) {
 		if !ft.valid(g) {
@@ -344,7 +343,14 @@ func (l *listGamesFilters) valid(game *Game) bool {
 	return true
 }
 
-func parseFilters(filters string) (r listGamesFilters) {
+// parseFilters parses a filter spec string into a listGamesFilters.
+// callerRlm must be the caller's own live cur; it's threaded into
+// parsePlayer for the "caller" / "@user" / addr resolution sub-cases.
+// IsCurrent guard mirrors parsePlayer's (Class-2 defense).
+func parseFilters(_ int, callerRlm realm, filters string) (r listGamesFilters) {
+	if !callerRlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	// default to desc order
 	r.reverse = true
 
@@ -357,19 +363,19 @@ func parseFilters(filters string) (r listGamesFilters) {
 		filt, pred := part[:idx+1], part[idx+1:]
 		switch filt {
 		case "player:":
-			a := parsePlayer(pred)
+			a := parsePlayer(0, callerRlm, pred)
 			r.filters = append(r.filters, func(g *Game) bool { return g.White == a || g.Black == a })
 			if r.u2gAddr == "" {
 				r.u2gAddr = a
 			}
 		case "white:":
-			a := parsePlayer(pred)
+			a := parsePlayer(0, callerRlm, pred)
 			r.filters = append(r.filters, func(g *Game) bool { return g.White == a })
 			if r.u2gAddr == "" {
 				r.u2gAddr = a
 			}
 		case "black:":
-			a := parsePlayer(pred)
+			a := parsePlayer(0, callerRlm, pred)
 			r.filters = append(r.filters, func(g *Game) bool { return g.Black == a })
 			if r.u2gAddr == "" {
 				r.u2gAddr = a
@@ -404,12 +410,24 @@ func parseBool(s string) bool {
 	panic("invalid bool " + s)
 }
 
-func parsePlayer(s string) address {
+// parsePlayer resolves a player spec — a bech32 address, "@user" (r/sys/users
+// alias), or "caller" — to an address. callerRlm must be the caller's
+// own live cur; "caller" yields callerRlm.Previous().Address() (the
+// realm that called the exported API).
+//
+// SECURITY: the IsCurrent gate closes Class-2 designation forgery —
+// without it, a hostile caller could pass a stashed realm value whose
+// .Previous().Address() resolves to a victim's address and have
+// parsePlayer return it. See docs/resources/gno-security.md.
+func parsePlayer(_ int, callerRlm realm, s string) address {
+	if !callerRlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
 	switch {
 	case s == "":
 		panic("invalid address/user")
 	case s == "caller":
-		return runtime.PreviousRealm().Address()
+		return callerRlm.Previous().Address()
 	case s[0] == '@':
 		u, _ := users.ResolveName(s[1:])
 		if u == nil {

@@ -1,10 +1,10 @@
 package todolist
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 type TodoList struct {
@@ -22,7 +22,7 @@ func NewTodoList(title string) *TodoList {
 	return &TodoList{
 		Title: title,
 		Tasks: avl.NewTree(),
-		Owner: runtime.OriginCaller(),
+		Owner: unsafe.OriginCaller(),
 	}
 }
 

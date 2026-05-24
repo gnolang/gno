@@ -3,7 +3,7 @@ package storage
 import (
 	"strconv"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 func init() {

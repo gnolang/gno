@@ -3,7 +3,7 @@ package md
 import (
 	"strings"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // Builder helps to build a Markdown string from individual elements

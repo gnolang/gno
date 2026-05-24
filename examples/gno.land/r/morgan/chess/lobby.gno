@@ -1,10 +1,9 @@
 package chess
 
 import (
-	"chain/runtime"
 	"time"
 
-	"gno.land/p/nt/avl"
+	"gno.land/p/nt/avl/v0"
 )
 
 type lobbyPlayer struct {
@@ -62,7 +61,7 @@ var (
 )
 
 func LobbyJoin(cur realm, seconds, increment int) {
-	assertOriginCall()
+	assertOriginCall(0, cur)
 	var tc tcLobby
 	switch {
 	case seconds == (60*5) && increment == 0:
@@ -74,14 +73,14 @@ func LobbyJoin(cur realm, seconds, increment int) {
 	}
 
 	// Ensure that user's previous games are finished (or timed out).
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	games := getUserGames(caller)
 	// XXX: temporary to avoid ever prohibiting a user from joining the lobby.
 	// when possible, change back to assertGamesFinished(games)
 	for _, g := range games {
 		if !g.State.IsFinished() {
-			if err := resign(g); err != nil {
+			if err := resign(0, cur, g); err != nil {
 				panic("internal error (could not resign game " + g.ID + "): " + err.Error())
 			}
 		}
@@ -94,7 +93,7 @@ func LobbyJoin(cur realm, seconds, increment int) {
 
 	now := time.Now()
 	lobby[tc] = append(lobby[tc], lobbyPlayer{joinedAt: now, seenAt: now, player: getPlayer(caller)})
-	refreshLobby(tc)
+	refreshLobby(0, cur, tc)
 }
 
 func assertUserNotInLobby(caller address) {
@@ -109,8 +108,11 @@ func assertUserNotInLobby(caller address) {
 
 // refreshLobby serves to run through the lobby, kick timed out users, and see if any users
 // can be matched with the current user.
-func refreshLobby(tc tcLobby) {
-	callerAddr := runtime.PreviousRealm().Address()
+func refreshLobby(_ int, rlm realm, tc tcLobby) {
+	if !rlm.IsCurrent() {
+		panic("unauthorized: rlm is not the caller's live cur")
+	}
+	callerAddr := rlm.Previous().Address()
 	now := time.Now()
 	for idx, player := range lobby[tc] {
 		if player.player.Address == callerAddr {
@@ -217,10 +219,10 @@ var bracketSize = [...]float64{
 }
 
 func LobbyGameFound(cur realm) string {
-	refreshLobby(tcLobby5p0)
-	refreshLobby(tcLobby10p5)
+	refreshLobby(0, cur, tcLobby5p0)
+	refreshLobby(0, cur, tcLobby10p5)
 
-	val, ok := lobbyPlayer2Game.Get(runtime.PreviousRealm().Address().String())
+	val, ok := lobbyPlayer2Game.Get(cur.Previous().Address().String())
 	if !ok {
 		return "null"
 	}
@@ -228,7 +230,7 @@ func LobbyGameFound(cur realm) string {
 }
 
 func LobbyQuit(cur realm) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	for tc, sublob := range lobby {
 		for i, pl := range sublob {
 			if pl.player.Address == caller {

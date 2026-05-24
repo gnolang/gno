@@ -76,7 +76,7 @@ package main
 
 import (
     "gno.land/p/demo/json"
-    "gno.land/p/nt/ufmt"
+    "gno.land/p/nt/ufmt/v0"
 )
 
 func main() {
@@ -100,7 +100,7 @@ package main
 
 import (
     "gno.land/p/demo/json"
-    "gno.land/p/nt/ufmt"
+    "gno.land/p/nt/ufmt/v0"
 )
 
 func main() {
@@ -132,7 +132,7 @@ package main
 
 import (
     "gno.land/p/demo/json"
-    "gno.land/p/nt/ufmt"
+    "gno.land/p/nt/ufmt/v0"
 )
 
 func main() {

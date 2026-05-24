@@ -5,11 +5,20 @@ import (
 
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/urequire"
-	_ "gno.land/r/gnoland/users/v1" // initialize pre-populated user store
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
+	uinit "gno.land/r/sys/users/init"
 )
+
+func init(cur realm) {
+	// Pre-register "demo" user for render tests. uinit.RegisterUser is
+	// genesis-only (height==0) since the security fix; tests run at
+	// DefaultHeight=123, so we temporarily reset and restore.
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "demo", address("g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n"))
+	testing.SetHeight(123)
+}
 
 var (
 	_ datasource.Datasource    = (*Datasource)(nil)
@@ -18,7 +27,7 @@ var (
 	_ datasource.Iterator      = (*iterator)(nil)
 )
 
-func TestDatasourceRecords(t *testing.T) {
+func TestDatasourceRecords(cur realm, t *testing.T) {
 	cases := []struct {
 		name      string
 		items     []*Item
@@ -82,7 +91,7 @@ func TestDatasourceRecords(t *testing.T) {
 	}
 }
 
-func TestDatasourceRecord(t *testing.T) {
+func TestDatasourceRecord(cur realm, t *testing.T) {
 	cases := []struct {
 		name  string
 		items []*Item
@@ -127,7 +136,7 @@ func TestDatasourceRecord(t *testing.T) {
 	}
 }
 
-func TestItemRecord(t *testing.T) {
+func TestItemRecord(cur realm, t *testing.T) {
 	pkgpath := "gno.land/r/demo/test"
 	item := Item{
 		id:          1,

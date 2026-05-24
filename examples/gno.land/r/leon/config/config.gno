@@ -1,21 +1,19 @@
 package config
 
 import (
-	"chain/runtime"
 	"errors"
-	"strings"
 	"time"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/seqid"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/seqid/v0"
 )
+
+const absPath = "/r/leon/config"
 
 var (
 	cfgID   seqid.ID
 	configs = avl.NewTree()
-
-	absPath = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
 
 	// SafeObjects
 	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -32,7 +30,7 @@ type Config struct {
 }
 
 func AddConfig(cur realm, name, lines string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -46,7 +44,7 @@ func AddConfig(cur realm, name, lines string) {
 }
 
 func EditConfig(cur realm, id string, name, lines string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -63,7 +61,7 @@ func EditConfig(cur realm, id string, name, lines string) {
 }
 
 func RemoveConfig(cur realm, id string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -73,7 +71,7 @@ func RemoveConfig(cur realm, id string) {
 }
 
 func UpdateBanner(cur realm, newBanner string) {
-	if !IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !IsAuthorized(cur.Previous().Address()) {
 		panic(ErrUnauthorized)
 	}
 

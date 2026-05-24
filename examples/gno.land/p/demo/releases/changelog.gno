@@ -3,7 +3,7 @@ package releases
 import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type changelog struct {

@@ -1,10 +1,10 @@
 package evaluation
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type Committee struct {
@@ -36,7 +36,7 @@ func (c *Committee) DismissMembers(members []address) []address {
 
 func (c *Committee) AddCategory(name string, criteria []string) bool {
 	// TODO error handling
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(unsafe.OriginCaller()) {
 		return false
 	}
 	category := NewCategory(name, criteria)
@@ -45,7 +45,7 @@ func (c *Committee) AddCategory(name string, criteria []string) bool {
 }
 
 func (c *Committee) ApproveCategory(name string, option string) bool {
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(unsafe.OriginCaller()) {
 		return false
 	}
 
@@ -58,8 +58,8 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 		return false
 	}
 
-	vote := NewVote(runtime.OriginCaller(), option)
-	category.votes.Set(runtime.OriginCaller().String(), vote)
+	vote := NewVote(unsafe.OriginCaller(), option)
+	category.votes.Set(unsafe.OriginCaller().String(), vote)
 	category.Tally()
 
 	// TODO Add threshold factor for a category approval
@@ -81,7 +81,7 @@ func (c *Committee) ApproveCategory(name string, option string) bool {
 
 // TODO error handling
 func (c *Committee) AddContribution(pr *PullRequest, contributor address) (contributionId int, ok bool) {
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(unsafe.OriginCaller()) {
 		return -1, false
 	}
 	// Check the category of the PR matches a category this committee evaluates
@@ -95,7 +95,7 @@ func (c *Committee) AddContribution(pr *PullRequest, contributor address) (contr
 
 // TODO error handling
 func (c *Committee) ApproveContribution(id int, option string) bool {
-	if !c.isMember(runtime.OriginCaller()) {
+	if !c.isMember(unsafe.OriginCaller()) {
 		return false
 	}
 
@@ -109,7 +109,7 @@ func (c *Committee) ApproveContribution(id int, option string) bool {
 		return false
 	}
 
-	vote := NewVote(runtime.OriginCaller(), option)
+	vote := NewVote(unsafe.OriginCaller(), option)
 	contribution.votes = append(contribution.votes, vote)
 	contribution.Tally()
 

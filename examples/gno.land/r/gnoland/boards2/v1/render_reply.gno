@@ -9,8 +9,8 @@ import (
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
@@ -41,7 +41,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(replyID))
+	reply, found := getReply(thread, boards.ID(replyID))
 	if !found {
 		res.Write("Reply not found")
 		return
@@ -137,7 +137,7 @@ func renderEditReply(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	reply, found := thread.Replies.Get(boards.ID(replyID))
+	reply, found := getReply(thread, boards.ID(replyID))
 	if !found {
 		res.Write("Reply not found")
 		return

@@ -1,15 +1,15 @@
 package foo1155
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/tokens/grc1155"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
 	dummyURI         = "ipfs://xyz"
-	admin    address = "g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530"
+	admin    address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 	foo              = grc1155.NewBasicGRC1155Token(dummyURI)
 )
 
@@ -74,7 +74,7 @@ func BatchTransferFrom(_ realm, from, to address, batch []grc1155.TokenID, amoun
 // Admin
 
 func Mint(_ realm, to address, tid grc1155.TokenID, amount int64) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeMint(to, tid, amount)
 	if err != nil {
@@ -83,7 +83,7 @@ func Mint(_ realm, to address, tid grc1155.TokenID, amount int64) {
 }
 
 func MintBatch(_ realm, to address, batch []grc1155.TokenID, amounts []int64) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.SafeBatchMint(to, batch, amounts)
 	if err != nil {
@@ -92,7 +92,7 @@ func MintBatch(_ realm, to address, batch []grc1155.TokenID, amounts []int64) {
 }
 
 func Burn(_ realm, from address, tid grc1155.TokenID, amount int64) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.Burn(from, tid, amount)
 	if err != nil {
@@ -101,7 +101,7 @@ func Burn(_ realm, from address, tid grc1155.TokenID, amount int64) {
 }
 
 func BurnBatch(_ realm, from address, batch []grc1155.TokenID, amounts []int64) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	assertIsAdmin(caller)
 	err := foo.BatchBurn(from, batch, amounts)
 	if err != nil {

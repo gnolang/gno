@@ -27,8 +27,8 @@ import (
 	"gno.land/p/leon/ctg"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/ufmt/v0"
 
 	"gno.land/r/sys/users"
 )
@@ -52,7 +52,7 @@ func init() {
 
 	// Coin info
 	router.HandleFunc("supply/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		// banker := std.NewBanker(std.BankerTypeReadonly)
+		// banker := banker.NewReadonlyBanker()
 		// res.Write(renderAddressBalance(banker, denom, denom))
 		res.Write("The total supply feature is coming soon.")
 	})
@@ -123,7 +123,7 @@ func renderBalances(req *mux.Request) string {
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", originalInput)
 	}
 
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	balances := banker_.GetCoins(address(input))
 
 	if len(balances) == 0 {
@@ -172,7 +172,7 @@ func renderBalances(req *mux.Request) string {
 
 func renderSingleCoinBalance(denom, addr, origInput string, wasConverted bool) string {
 	out := "# Coin balance\n\n"
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 
 	if wasConverted {
 		out += ufmt.Sprintf("> [!NOTE]\n>  Automatically converted `%s` to its Gno equivalent.\n\n", origInput)

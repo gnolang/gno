@@ -1,48 +1,56 @@
-// PKGPATH: gno.land/p/archive/groups_test
-package groups_test
+// PKGPATH: gno.land/r/archive/groups/filetests/z_1_a
+package z_1_a
 
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/groups"
-	users "gno.land/r/gnoland/users/v1"
+	uinit "gno.land/r/sys/users/init"
 )
 
 var gid groups.GroupID
 
 const admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
-func main() {
-	caller := runtime.OriginCaller() // main
+func main(cur realm) {
+	caller := unsafe.OriginCaller() // main
 	testing.SetRealm(testing.NewUserRealm(caller))
-	users.Register(cross, "main123")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "main123", caller)
+	testing.SetHeight(123)
 
 	test1 := testutils.TestAddress("gnouser1")
 	testing.SetOriginCaller(test1)
 	testing.SetRealm(testing.NewUserRealm(test1))
-	users.Register(cross, "test123")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "test123", test1)
+	testing.SetHeight(123)
 
 	test2 := testutils.TestAddress("gnouser2")
 	testing.SetOriginCaller(test2)
 	testing.SetRealm(testing.NewUserRealm(test2))
-	users.Register(cross, "test223")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "test223", test2)
+	testing.SetHeight(123)
 
 	test3 := testutils.TestAddress("gnouser3")
 	testing.SetOriginCaller(test3)
 	testing.SetRealm(testing.NewUserRealm(test3))
-	users.Register(cross, "test323")
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "test323", test3)
+	testing.SetHeight(123)
 
 	testing.SetOriginCaller(caller)
 	testing.SetRealm(testing.NewUserRealm(caller))
 
-	gid = groups.CreateGroup(cross, "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 
-	groups.AddMember(cross, gid, test3.String(), 32, "i am from UAE")
+	groups.AddMember(cross(cur), gid, test3.String(), 32, "i am from UAE")
 	println(groups.Render("test_group"))
 }
 

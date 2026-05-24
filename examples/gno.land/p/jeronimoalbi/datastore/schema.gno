@@ -3,8 +3,8 @@ package datastore
 import (
 	"encoding/binary"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/avl/list"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/avl/v0/list"
 )
 
 // TODO: Support versioning

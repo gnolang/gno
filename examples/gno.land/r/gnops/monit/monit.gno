@@ -7,12 +7,11 @@
 package monit
 
 import (
-	"chain/runtime"
 	"time"
 
-	"gno.land/p/nt/ownable"
-	"gno.land/p/nt/ufmt"
-	"gno.land/p/nt/watchdog"
+	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/p/nt/watchdog/v0"
 )
 
 var (
@@ -21,15 +20,22 @@ var (
 	lastCaller       address
 	watchdogDuration = 5 * time.Minute
 	wd               = watchdog.Watchdog{Duration: watchdogDuration}
-	Ownable          = ownable.NewWithOrigin()
+	Ownable          *ownable.Ownable
 )
+
+func init(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("realm must be initialized by EOA")
+	}
+	Ownable = ownable.NewWithAddress(cur.Previous().Address())
+}
 
 // Incr increments the counter and informs the watchdog that we're alive.
 // This function can be called by anyone.
 func Incr(cur realm) int {
 	counter++
 	lastUpdate = time.Now()
-	lastCaller = runtime.PreviousRealm().Address()
+	lastCaller = cur.Previous().Address()
 	wd.Alive()
 	return counter
 }
@@ -37,9 +43,9 @@ func Incr(cur realm) int {
 // Reset resets the realm state.
 // This function can only be called by the admin.
 func Reset(cur realm) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwnedBy(cur.Previous().Address())
 	counter = 0
-	lastCaller = runtime.PreviousRealm().Address()
+	lastCaller = cur.Previous().Address()
 	lastUpdate = time.Now()
 	wd = watchdog.Watchdog{Duration: watchdogDuration}
 }

@@ -2,14 +2,14 @@
 package releases_example
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/demo/releases"
 )
 
 var (
 	changelog = releases.NewChangelog("example_app")
-	admin     = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @administrator
+	admin     = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func init() {
@@ -17,7 +17,7 @@ func init() {
 }
 
 func NewRelease(_ realm, name, url, notes string) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}
@@ -25,7 +25,7 @@ func NewRelease(_ realm, name, url, notes string) {
 }
 
 func UpdateAdmin(_ realm, address_XXX address) {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if caller != admin {
 		panic("restricted area")
 	}

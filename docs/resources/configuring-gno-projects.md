@@ -20,28 +20,31 @@ auto-convert it to a `gnomod.toml`.
 
 This file defines metadata for your Gno package and can include the following fields:
 
+#### `module`
+
+Defines the canonical **package path** (e.g. `gno.land/r/demo/myapp`). This must
+match the path used in the `addpkg` transaction during deployment.
+
 #### `gno`  
 
 Specifies the **Gno language version**. Currently, only version `"0.9"` is supported.
 
-#### `pkgpath`  
-
-Defines the canonical **package path**. Must exactly match the path used in the
-`addpkg` transaction during deployment (must it right now?).
-
 #### `replace` (coming soon)
 
-Used for **local development and testing**. When set, this field allows local 
+Used for **local development and testing**. When set, this field allows local
 replacement of the package, but will cause `addpkg` to **fail on-chain**. Useful
 for overriding dependencies during local testing.
 
-#### `creator`  
+#### `addpkg`
 
-Specifies the address that will be set as the creator of the package (origin 
-of the transaction). This field is used only during **genesis (block 0)** and
-replaces the default deployer address if set. Primarily used in monorepo setups.
-If not specified, it's automatically set to the address that initiated the `addpkg`
-transaction.
+A section containing on-chain metadata, filled by the VM keeper when a module is
+added. It is not intended for manual use off-chain.
+
+- **`creator`**: the address of the package creator (origin of the transaction).
+  At **genesis (block 0)**, this can override the default deployer address.
+  Primarily used in monorepo setups. If not specified, it's automatically set to
+  the address that initiated the `addpkg` transaction.
+- **`height`**: the block height at which the module was added.
 
 #### `draft`  
 
@@ -59,9 +62,10 @@ Marks the package as private and **unimportable** by any other package. Addition
 - *This flag _does not_ provide any sort of privacy. All code is still fully
   open-source and visible to everyone, including the transactions that were used for deployments.
 
-#### `ignore` 
+#### `ignore`
 
-Coming soon - follow progress [here](https://github.com/gnolang/gno/pull/4413).
+Marks the module to be **ignored by the Gno toolchain** while still being usable
+in development environments.
 
 ### Example
 
@@ -72,20 +76,21 @@ gno = "0.9"
 draft = true
 private = true
 
-[replace]
+[[replace]]
   old = "gno.land/r/test"
   new = "gno.land/r/test/v2"
-[replace]
+
+[[replace]]
   old = "gno.land/r/test/v3"
   new = "../.."
 
 [addpkg]
-    creator = "g1xyz..."
-    height = 123
+  creator = "g1xyz..."
+  height = 123
 ```
 
-Note that this example isn't realistic because we should either replace,
-configure addpkg settings, or do neither, but never both at the same time.
+Note that this example isn't realistic because replace directives and addpkg
+metadata would not normally coexist: replace directives prevent on-chain deployment.
 
 ## Workspaces with `gnowork.toml`
 

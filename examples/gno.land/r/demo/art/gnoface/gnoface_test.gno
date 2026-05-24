@@ -3,8 +3,8 @@ package gnoface
 import (
 	"testing"
 
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 func TestDraw(t *testing.T) {

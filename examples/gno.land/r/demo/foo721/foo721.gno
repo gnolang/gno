@@ -1,20 +1,18 @@
 package foo721
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/demo/tokens/grc721"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
-	admin address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+	admin address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
 )
 
 func init() {
 	mintNNFT(admin, 10)                                     // @administrator (10)
-	mintNNFT("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm", 5) // @hariom (5)
+	mintNNFT("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", 5) // govdao t1 multisig (5)
 }
 
 func mintNNFT(owner address, n int64) {
@@ -60,22 +58,34 @@ func GetApproved(tid grc721.TokenID) address {
 
 // Setters
 
-func Approve(_ realm, user address, tid grc721.TokenID) {
-	err := foo.Approve(user, tid)
+// The Approve / SetApprovalForAll / TransferFrom wrappers are the
+// owning realm's trusted boundary: they derive `caller` from
+// `cur.Previous().Address()` (unforgeable per-frame identity) and
+// hand the address-typed parameter to the concrete writer methods on
+// the unexported `foo *basicNFT`. The basicNFT writer methods take
+// `caller address` only — no rlm crosses the call, so even if the
+// underlying type were ever exposed as an interface, no cur could
+// leak through. See `p/demo/tokens/grc721/igrc721.gno` for the
+// Reader/Writer split doctrine.
+func Approve(cur realm, user address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
+	err := foo.Approve(caller, user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(_ realm, user address, approved bool) {
-	err := foo.SetApprovalForAll(user, approved)
+func SetApprovalForAll(cur realm, user address, approved bool) {
+	caller := cur.Previous().Address()
+	err := foo.SetApprovalForAll(caller, user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(_ realm, from, to address, tid grc721.TokenID) {
-	err := foo.TransferFrom(from, to, tid)
+func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
+	err := foo.TransferFrom(caller, from, to, tid)
 	if err != nil {
 		panic(err)
 	}
@@ -83,8 +93,8 @@ func TransferFrom(_ realm, from, to address, tid grc721.TokenID) {
 
 // Admin
 
-func Mint(_ realm, to address, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Mint(cur realm, to address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
 	if err != nil {
@@ -92,8 +102,8 @@ func Mint(_ realm, to address, tid grc721.TokenID) {
 	}
 }
 
-func Burn(_ realm, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Burn(cur realm, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {

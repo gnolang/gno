@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type membersThresholdCond struct {
@@ -13,6 +13,15 @@ type membersThresholdCond struct {
 	threshold      float64
 }
 
+// SECURITY XXX: MembersThreshold captures two predicate functions
+// (isMemberFn, membersCountFn) at construction. Whoever constructs the
+// condition controls what counts as "is this voter a member" and "how
+// many members exist" — both inputs to the threshold check. Hostile
+// predicates can pass any vote regardless of actual membership, or
+// reject all votes (DoS).
+// In practice these are wired up by basedao/commondao with their own
+// member store, so the DAO author IS the trust boundary. Don't
+// construct a MembersThreshold from external-realm-supplied predicates.
 func MembersThreshold(threshold float64, isMemberFn func(memberId string) bool, membersCountFn func() uint64) Condition {
 	if threshold <= 0 || threshold > 1 {
 		panic(errors.New("invalid threshold"))

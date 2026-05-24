@@ -1,11 +1,11 @@
 package grc1155
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"math/overflow"
 
-	"gno.land/p/nt/avl"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 type basicGRC1155Token struct {
@@ -63,7 +63,7 @@ func (s *basicGRC1155Token) SetApprovalForAll(operator address, approved bool) e
 		return ErrInvalidAddress
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
@@ -87,7 +87,7 @@ func (s *basicGRC1155Token) IsApprovedForAll(owner, operator address) bool {
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
 func (s *basicGRC1155Token) SafeTransferFrom(from, to address, tid TokenID, amount int64) error {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if !s.IsApprovedForAll(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -110,7 +110,7 @@ func (s *basicGRC1155Token) SafeTransferFrom(from, to address, tid TokenID, amou
 // contract recipients are aware of the GRC1155 protocol to prevent
 // tokens from being forever locked.
 func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to address, batch []TokenID, amounts []int64) error {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if !s.IsApprovedForAll(caller, from) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -132,7 +132,7 @@ func (s *basicGRC1155Token) SafeBatchTransferFrom(from, to address, batch []Toke
 // Creates `amount` tokens of token type `id`, and assigns them to `to`. Also checks that
 // contract recipients are using GRC1155 protocol.
 func (s *basicGRC1155Token) SafeMint(to address, tid TokenID, amount int64) error {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 
 	err := s.mintBatch(to, []TokenID{tid}, []int64{amount})
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *basicGRC1155Token) SafeMint(to address, tid TokenID, amount int64) erro
 // Batch version of `SafeMint()`. Also checks that
 // contract recipients are using GRC1155 protocol.
 func (s *basicGRC1155Token) SafeBatchMint(to address, batch []TokenID, amounts []int64) error {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 
 	err := s.mintBatch(to, batch, amounts)
 	if err != nil {
@@ -169,7 +169,7 @@ func (s *basicGRC1155Token) SafeBatchMint(to address, batch []TokenID, amounts [
 
 // Destroys `amount` tokens of token type `id` from `from`.
 func (s *basicGRC1155Token) Burn(from address, tid TokenID, amount int64) error {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 
 	err := s.burnBatch(from, []TokenID{tid}, []int64{amount})
 	if err != nil {
@@ -183,7 +183,7 @@ func (s *basicGRC1155Token) Burn(from address, tid TokenID, amount int64) error 
 
 // Batch version of `Burn()`
 func (s *basicGRC1155Token) BatchBurn(from address, batch []TokenID, amounts []int64) error {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 
 	err := s.burnBatch(from, batch, amounts)
 	if err != nil {
@@ -232,7 +232,7 @@ func (s *basicGRC1155Token) safeBatchTransferFrom(from, to address, batch []Toke
 		}
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	s.beforeTokenTransfer(caller, from, to, batch, amounts)
 
 	for i := 0; i < len(batch); i++ {
@@ -277,7 +277,7 @@ func (s *basicGRC1155Token) mintBatch(to address, batch []TokenID, amounts []int
 		}
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	s.beforeTokenTransfer(caller, zeroAddress, to, batch, amounts)
 
 	for i := 0; i < len(batch); i++ {
@@ -311,7 +311,7 @@ func (s *basicGRC1155Token) burnBatch(from address, batch []TokenID, amounts []i
 		}
 	}
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	s.beforeTokenTransfer(caller, from, zeroAddress, batch, amounts)
 
 	for i := 0; i < len(batch); i++ {

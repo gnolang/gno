@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/testutils"
-	"gno.land/p/nt/uassert"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
 )
 
-func TestRender(t *testing.T) {
+func TestRender(cur realm, t *testing.T) {
 	var (
 		author1 address = testutils.TestAddress("author1")
 		author2 address = testutils.TestAddress("author2")
@@ -64,9 +64,9 @@ func TestRender(t *testing.T) {
 			testing.SetOriginCaller(tc.caller)
 			var act string
 			if len(tc.ps) > 0 && tc.ps[0] == "set" {
-				act = strings.TrimSpace(Set(cross, tc.ps[1], tc.ps[2]))
+				act = strings.TrimSpace(Set(cross(cur), tc.ps[1], tc.ps[2]))
 			} else if len(tc.ps) > 0 && tc.ps[0] == "remove" {
-				act = strings.TrimSpace(Remove(cross, tc.ps[1]))
+				act = strings.TrimSpace(Remove(cross(cur), tc.ps[1]))
 			} else {
 				act = strings.TrimSpace(Render(p))
 			}

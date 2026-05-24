@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/nt/mux"
-	"gno.land/p/nt/seqid"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/mux/v0"
+	"gno.land/p/nt/seqid/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/samcrew/daokit"
 )
 
@@ -101,21 +101,21 @@ func (d *DAOPrivate) ProposalDetailPageView(idu uint64) string {
 
 func (d *DAOPrivate) HomeProfileHeaderView(noprofile bool) string {
 	s := ""
-	name := d.GetProfileString(d.Realm.Address(), "DisplayName", "DAO")
-	description := d.GetProfileString(d.Realm.Address(), "Bio", "Created with daokit")
-	pkgPath := d.Realm.PkgPath()
+	name := d.GetProfileString(d.RealmAddress, "DisplayName", "DAO")
+	description := d.GetProfileString(d.RealmAddress, "Bio", "Created with daokit")
+	pkgPath := d.RealmPkgPath
 	linkPath := getLinkPath(pkgPath)
 
 	if !noprofile {
 		s += ufmt.Sprintf("# %s\n\n", name)
-		imageURI := d.GetProfileString(d.Realm.Address(), "Avatar", "")
+		imageURI := d.GetProfileString(d.RealmAddress, "Avatar", "")
 		if imageURI != "" {
 			s += ufmt.Sprintf("![Image](%s)\n\n", imageURI)
 		}
 		s += ufmt.Sprintf("%s\n\n", description)
 	}
 
-	s += ufmt.Sprintf("> Realm address: %s\n\n", d.Realm.Address())
+	s += ufmt.Sprintf("> Realm address: %s\n\n", d.RealmAddress)
 	s += ufmt.Sprintf("Discover more about this DAO on the [configuration page ⚙️](%s:%s)\n\n", linkPath, CONFIG_PATH)
 	s += ufmt.Sprintf("\n--------------------------------\n")
 
@@ -123,7 +123,7 @@ func (d *DAOPrivate) HomeProfileHeaderView(noprofile bool) string {
 }
 
 func (d *DAOPrivate) HomeMembersView() string {
-	pkgPath := d.Realm.PkgPath()
+	pkgPath := d.RealmPkgPath
 	linkPath := getLinkPath(pkgPath)
 	s := ""
 	s += ufmt.Sprintf("## Members 👤 \n\n")
@@ -141,7 +141,7 @@ func (d *DAOPrivate) HomeMembersView() string {
 }
 
 func (d *DAOPrivate) HomeProposalsView() string {
-	pkgPath := d.Realm.PkgPath()
+	pkgPath := d.RealmPkgPath
 	linkPath := getLinkPath(pkgPath)
 	s := ""
 	s += ufmt.Sprintf("## Proposals 🗳️ \n\n")
@@ -170,7 +170,7 @@ func (d *DAOPrivate) HomeProposalsView() string {
 // CONFIG PAGE COMPONENTS VIEWS
 
 func (d *DAOPrivate) ConfigHeaderView() string {
-	name := d.GetProfileString(d.Realm.Address(), "DisplayName", "DAO")
+	name := d.GetProfileString(d.RealmAddress, "DisplayName", "DAO")
 	s := ""
 	s += ufmt.Sprintf("# %s - Config ⚙️\n\n", name)
 	s += ufmt.Sprintf("\n--------------------------------\n")
@@ -211,7 +211,7 @@ func (d *DAOPrivate) ConfigResourcesView() string {
 // HISTORY PAGE COMPONENTS VIEWS
 
 func (d *DAOPrivate) ProposalHistoryHeaderView() string {
-	name := d.GetProfileString(d.Realm.Address(), "DisplayName", "DAO")
+	name := d.GetProfileString(d.RealmAddress, "DisplayName", "DAO")
 	s := ""
 	s += ufmt.Sprintf("# %s - Proposal History\n\n", name)
 	s += ufmt.Sprintf("\n--------------------------------\n")
@@ -219,7 +219,7 @@ func (d *DAOPrivate) ProposalHistoryHeaderView() string {
 }
 
 func (d *DAOPrivate) ProposalHistoryView() string {
-	pkgPath := d.Realm.PkgPath()
+	pkgPath := d.RealmPkgPath
 	linkPath := getLinkPath(pkgPath)
 	s := ""
 	s += ufmt.Sprintf("## Proposals 🗳️\n\n")
@@ -245,7 +245,7 @@ func (d *DAOPrivate) ProposalHistoryView() string {
 // MEMBER DETAIL PAGE COMPONENTS VIEWS
 
 func (d *DAOPrivate) MemberDetailHeaderView() string {
-	name := d.GetProfileString(d.Realm.Address(), "DisplayName", "DAO")
+	name := d.GetProfileString(d.RealmAddress, "DisplayName", "DAO")
 	s := ""
 	s += ufmt.Sprintf("# %s - Member Detail\n\n", name)
 	s += ufmt.Sprintf("\n--------------------------------\n")
@@ -253,7 +253,7 @@ func (d *DAOPrivate) MemberDetailHeaderView() string {
 }
 
 func (d *DAOPrivate) MemberDetailView(addr string) string {
-	pkgPath := d.Realm.PkgPath()
+	pkgPath := d.RealmPkgPath
 	linkPath := getLinkPath(pkgPath)
 	roles := d.Members.GetMemberRoles(addr)
 	displayName := d.GetProfileString(address(addr), "DisplayName", FALLBACK_DISPLAY_NAME)
@@ -278,7 +278,7 @@ func (d *DAOPrivate) MemberDetailView(addr string) string {
 // PROPOSAL DETAIL PAGE COMPONENTS VIEWS
 
 func (d *DAOPrivate) ProposalDetailHeaderView() string {
-	name := d.GetProfileString(d.Realm.Address(), "DisplayName", "DAO")
+	name := d.GetProfileString(d.RealmAddress, "DisplayName", "DAO")
 	s := ""
 	s += ufmt.Sprintf("# %s - Proposal Detail\n\n", name)
 	s += ufmt.Sprintf("\n--------------------------------\n")
@@ -286,7 +286,7 @@ func (d *DAOPrivate) ProposalDetailHeaderView() string {
 }
 
 func (d *DAOPrivate) ProposalDetailView(idu uint64) string {
-	pkgPath := d.Realm.PkgPath()
+	pkgPath := d.RealmPkgPath
 	linkPath := getLinkPath(pkgPath)
 	id := seqid.ID(idu)
 	proposal := d.Core.Proposals.GetProposal(uint64(id))

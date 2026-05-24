@@ -1,7 +1,7 @@
 package btree_dao
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 	"time"
@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/btree"
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/moul/md"
-	"gno.land/p/nt/ufmt"
+	"gno.land/p/nt/ufmt/v0"
 )
 
 // RegistrationDetails holds the details of a user's registration in the BTree DAO.
@@ -57,7 +57,7 @@ func PlantSeed(_ realm, message string) error {
 // Returns an error if any validation fails or if NFT minting fails.
 func plantImpl(userBTree *btree.BTree, seedMessage string) error {
 	// Get the caller's address
-	userAddress := runtime.OriginCaller()
+	userAddress := unsafe.OriginCaller()
 
 	var nftID string
 	var regDetails *RegistrationDetails

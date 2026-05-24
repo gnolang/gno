@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/nt/urequire"
+	"gno.land/p/nt/urequire/v0"
 )
 
-func TestAnswerForm(t *testing.T) {
+func TestAnswerForm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 
 	db := NewDB()
@@ -40,12 +40,16 @@ func TestAnswerForm(t *testing.T) {
 		}
 	]`
 
-	formID, err := db.CreateForm("Test Form", "Test Description", "", "", data)
+	var formID string
+	var err error
+	func(cur realm) {
+		formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", "", data)
+	}(cross(cur))
 	if err != nil {
 		t.Error(err)
 	}
 	answers := `["Alex", 21, true, 0, [0, 1]]`
-	db.SubmitForm(formID, answers)
+	func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross(cur))
 
 	urequire.True(t, len(db.Answers) == 1, "Expected 1 answer, got", string(len(db.Answers)))
 	urequire.True(t, db.Answers[0].FormID == formID, "Expected form ID", formID, "got", db.Answers[0].FormID)
@@ -53,7 +57,7 @@ func TestAnswerForm(t *testing.T) {
 	urequire.True(t, err == nil, "Submit should not return an error")
 }
 
-func TestAnswerFormDates(t *testing.T) {
+func TestAnswerFormDates(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 	db := NewDB()
 
@@ -70,27 +74,39 @@ func TestAnswerFormDates(t *testing.T) {
 	]`
 	answers := `["Test"]`
 
-	urequire.PanicsWithMessage(t, "Form is closed", func() {
-		formID, err := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
+	urequire.AbortsWithMessage(t, cur, "Form is closed", func() {
+		var formID string
+		var err error
+		func(cur realm) {
+			formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", tomorrow, "", data)
+		}(cross(cur))
 		if err != nil {
 			t.Error(err)
 		}
-		db.SubmitForm(formID, answers)
+		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross(cur))
 	})
 
-	urequire.PanicsWithMessage(t, "Form is closed", func() {
-		formID, err := db.CreateForm("Test Form", "Test Description", "", yesterday, data)
+	urequire.AbortsWithMessage(t, cur, "Form is closed", func() {
+		var formID string
+		var err error
+		func(cur realm) {
+			formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", "", yesterday, data)
+		}(cross(cur))
 		if err != nil {
 			t.Error(err)
 		}
-		db.SubmitForm(formID, answers)
+		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross(cur))
 	})
 
-	urequire.NotPanics(t, func() {
-		formID, err := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
+	urequire.NotAborts(t, cur, func() {
+		var formID string
+		var err error
+		func(cur realm) {
+			formID, err = db.CreateForm(0, cur, "Test Form", "Test Description", yesterday, tomorrow, data)
+		}(cross(cur))
 		if err != nil {
 			panic(err)
 		}
-		db.SubmitForm(formID, answers)
+		func(cur realm) { db.SubmitForm(0, cur, formID, answers) }(cross(cur))
 	})
 }
