@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	g, _ := commondao.NewMemberGroup("name", commondao.NewMemberStorage())
+	g := commondao.NewMemberGroup("name", commondao.NewMemberStorage())
 	println(commondao.IsCanonicalMemberGroup(g))
 }
 

@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// CommonDAO member storage is not canonical
+// DAO member storage is not canonical

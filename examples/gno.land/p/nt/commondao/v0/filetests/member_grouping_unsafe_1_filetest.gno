@@ -32,4 +32,4 @@ func main(cur realm) {
 }
 
 // Error:
-// custom member storage for grouping is not canonical
+// member storage for grouping is not canonical

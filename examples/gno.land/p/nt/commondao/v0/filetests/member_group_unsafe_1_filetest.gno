@@ -1,5 +1,5 @@
-// PKGPATH: gno.land/r/test/member_storage_unsafe
-package member_storage_unsafe
+// PKGPATH: gno.land/r/test/member_group_unsafe
+package member_group_unsafe
 
 import (
 	"gno.land/p/nt/commondao/v0"
@@ -21,15 +21,13 @@ func (mockMemberStorage) IterateByOffset(int, int, commondao.MemberIterFn) bool 
 
 var _ commondao.MemberStorage = (*mockMemberStorage)(nil)
 
-func main(cur realm) {
-	factory := func(string) commondao.MemberStorage {
-		return &mockMemberStorage{}
-	}
+func main() {
+	mock := &mockMemberStorage{}
 
-	// Safe member storage panics when a group is added with a non-canonical storage
-	s := commondao.NewMemberStorageWithGrouping(commondao.UseStorageFactory(factory))
-	s.Grouping().Add("name")
+	// Safe member group panics with a non-canonical member storage
+	commondao.NewMemberGroup("name", mock)
+	println("ok")
 }
 
 // Error:
-// member storage for grouping is not canonical
+// member storage for group is not canonical

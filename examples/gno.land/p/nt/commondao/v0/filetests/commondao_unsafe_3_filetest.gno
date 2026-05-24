@@ -27,4 +27,4 @@ func main() {
 }
 
 // Error:
-// CommonDAO finished proposals storage is not canonical
+// DAO finished proposals storage is not canonical

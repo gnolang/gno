@@ -1,9 +1,6 @@
 package commondao
 
-import (
-	"errors"
-	"strings"
-)
+import "strings"
 
 // MemberGroup defines an interface for a group of members.
 type MemberGroup interface {
@@ -38,29 +35,43 @@ func IsCanonicalMemberGroup(g MemberGroup) bool {
 }
 
 // NewMemberGroup creates a new group of members.
-func NewMemberGroup(name string, members MemberStorage) (MemberGroup, error) {
+// It panics if name is empty, or when members is nil or is not canonical.
+func NewMemberGroup(name string, members MemberStorage) MemberGroup {
+	// Make sure members is canonical so the returned MemberGroup is safe
+	if members != nil && !IsCanonicalMemberStorage(members) {
+		panic("member storage for group is not canonical")
+	}
+
+	// At this point the returned member group is safe. If members is nil it
+	// will panic, otherwise members is a canonical type, so it's safe to be use.
+	return NewUnsafeMemberGroup(name, members)
+}
+
+// NewUnsafeMemberGroup creates a new member group with the checks for canonical
+// types disabled. Unsafe member groups allow using a custom non-canonical member
+// storage implementation.
+//
+// The returned unsafe member group is unsafe because if a custom member storage is
+// assigned by an untrusted caller it could be used to execute malicious code.
+//
+// IMPORTANT: Use unsafe member group if you fully understand `commondao` and the
+// security implication that disabling these checks could have. If canonical checks
+// are disabled it's highly recommended to use the `IsCanonical` functions before
+// calling a method.
+func NewUnsafeMemberGroup(name string, members MemberStorage) MemberGroup {
 	if members == nil {
-		return nil, errors.New("member storage is required")
+		panic("member storage is required")
 	}
 
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, errors.New("member group name is required")
+		panic("member group name is required")
 	}
 
 	return &memberGroup{
 		name:    name,
 		members: members,
-	}, nil
-}
-
-// MustNewMemberGroup creates a new group of members or panics on error.
-func MustNewMemberGroup(name string, members MemberStorage) MemberGroup {
-	g, err := NewMemberGroup(name, members)
-	if err != nil {
-		panic(err)
 	}
-	return g
 }
 
 type memberGroup struct {

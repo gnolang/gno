@@ -9,20 +9,23 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
-func TestMemberGroupNew(t *testing.T) {
-	g, err := commondao.NewMemberGroup("", nil)
-	urequire.ErrorContains(t, err, "member storage is required")
+func TestMemberGroupNew(cur realm, t *testing.T) {
+	urequire.PanicsWithMessage(t, cur, "member storage is required", func() {
+		commondao.NewMemberGroup("", nil)
+	})
 
 	storage := commondao.NewMemberStorage()
-	g, err = commondao.NewMemberGroup("", storage)
-	urequire.ErrorContains(t, err, "member group name is required")
+	urequire.PanicsWithMessage(t, cur, "member group name is required", func() {
+		commondao.NewMemberGroup("", storage)
+	})
 
-	name := "Tier 1"
-	g, err = commondao.NewMemberGroup(name, storage)
-	urequire.NoError(t, err, "expect no error")
-	uassert.Equal(t, name, g.Name(), "expect group name to match")
-	uassert.NotNil(t, g.Members(), "expect members to be not nil")
-	uassert.Nil(t, g.GetMeta(), "expect default group meta to be nil")
+	urequire.NotPanics(t, cur, func() {
+		name := "Tier 1"
+		g := commondao.NewMemberGroup(name, storage)
+		uassert.Equal(t, name, g.Name(), "expect group name to match")
+		uassert.NotNil(t, g.Members(), "expect members to be not nil")
+		uassert.Nil(t, g.GetMeta(), "expect default group meta to be nil")
+	})
 }
 
 func TestMemberGroupSetMeta(t *testing.T) {
@@ -36,15 +39,14 @@ func TestMemberGroupSetMeta(t *testing.T) {
 			name:     "ok",
 			wantMeta: 42,
 			setup: func() commondao.MemberGroup {
-				g, _ := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
-				return g
+				return commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 			},
 		},
 		{
 			name:     "overwrite",
 			wantMeta: 42,
 			setup: func() commondao.MemberGroup {
-				g, _ := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
+				g := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 				g.SetMeta(123)
 				return g
 			},
@@ -53,7 +55,7 @@ func TestMemberGroupSetMeta(t *testing.T) {
 			name:     "sealed group",
 			wantMeta: 1,
 			setup: func() commondao.MemberGroup {
-				g, _ := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
+				g := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 				return g.Seal().(commondao.MemberGroup)
 			},
 			panicMsg: "type is sealed so it can't be modified",
@@ -92,7 +94,7 @@ func TestMemberGroupGetMeta(t *testing.T) {
 			name:     "ok",
 			wantMeta: 42,
 			setup: func() commondao.MemberGroup {
-				g, _ := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
+				g := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 				g.SetMeta(42)
 				return g
 			},
@@ -100,7 +102,7 @@ func TestMemberGroupGetMeta(t *testing.T) {
 		{
 			name: "sealed group",
 			setup: func() commondao.MemberGroup {
-				g, _ := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
+				g := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 				g.SetMeta(42)
 				return g.Seal().(commondao.MemberGroup)
 			},
@@ -110,7 +112,7 @@ func TestMemberGroupGetMeta(t *testing.T) {
 			name:     "sealed group with sealable value",
 			wantMeta: sealableInt(-42), // Negative when sealed
 			setup: func() commondao.MemberGroup {
-				g, _ := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
+				g := commondao.NewMemberGroup("Test", commondao.NewMemberStorage())
 				g.SetMeta(sealableInt(42))
 				return g.Seal().(commondao.MemberGroup)
 			},

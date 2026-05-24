@@ -27,4 +27,4 @@ func main() {
 }
 
 // Error:
-// CommonDAO active proposals storage is not canonical
+// DAO active proposals storage is not canonical
