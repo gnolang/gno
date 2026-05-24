@@ -119,38 +119,6 @@ type (
 	}
 )
 
-// MustValidate validates that a proposal is valid for the current state or panics on error.
-func MustValidate(v Validable) {
-	if v == nil {
-		panic("validable proposal definition is nil")
-	}
-
-	if err := v.Validate(); err != nil {
-		panic(err)
-	}
-}
-
-// MustExecute executes an executable proposal or panics on error.
-//
-// rlm is the realm authority threaded into the executor via cross(rlm).
-// MustExecute itself is not a crossing function (rlm sits in a non-first
-// parameter slot) because /p/ production code cannot declare crossing
-// functions — callers pass `cur` directly as the rlm argument.
-func MustExecute(e Executable, rlm realm) {
-	if e == nil {
-		panic("executable proposal definition is nil")
-	}
-
-	fn := e.Executor()
-	if fn == nil {
-		return
-	}
-
-	if err := fn(cross(rlm)); err != nil {
-		panic(err)
-	}
-}
-
 // NewProposal creates a new DAO proposal.
 func NewProposal(id uint64, creator address, d ProposalDefinition) (*Proposal, error) {
 	if d == nil {
