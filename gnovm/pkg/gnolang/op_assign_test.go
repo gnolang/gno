@@ -2,13 +2,13 @@ package gnolang
 
 import "testing"
 
-// TestDoOpAssign_DuplicateLHS_LeftToRight calls doOpAssign directly with
-// duplicate LHS targets (all pointing to the same block slot) and verifies
-// the assignments run in left-to-right order: rvs[n-1] wins. This is a
-// unit-level guardrail for the bug fixed in
-// "fix(gnovm): assign LHS pointers in left-to-right order for AssignStmt".
-func TestDoOpAssign_DuplicateLHS_LeftToRight(t *testing.T) {
-	for _, n := range []int{2, 3, 5, 17} { // 17 forces the heap-fallback branch
+// TestDoOpAssign_DuplicateNameLHS_LeftToRight: NameExpr LHS aliasing the
+// same block slot. Covers the forward-Assign2 half of the fix: rvs[n-1] wins.
+// (NameExpr's PopAsPointer does not consume value-stack sub-evals, so this
+// case does not exercise the reverse-pop discipline — that's what
+// TestDoOpAssign_DistinctIndexLHS_ReversePop covers.)
+func TestDoOpAssign_DuplicateNameLHS_LeftToRight(t *testing.T) {
+	for _, n := range []int{2, 3, 5, 17} {
 		m := benchMachine()
 		blk, nxs := benchBlockVars(m, 1)
 		lhs := make([]Expr, n)
@@ -28,5 +28,42 @@ func TestDoOpAssign_DuplicateLHS_LeftToRight(t *testing.T) {
 			t.Errorf("n=%d: got %d, want %d (rightmost RHS should win)", n, got, want)
 		}
 		m.Release()
+	}
+}
+
+// TestDoOpAssign_DistinctIndexLHS_ReversePop: IndexExpr LHS with distinct
+// indices on the same slice. The value-stack sub-eval values must be popped
+// in reverse-LHS order; if a future refactor flips the pop loop to forward,
+// lvs[0] would end up pointing at slice[1] and vice versa, swapping the
+// final element values.
+func TestDoOpAssign_DistinctIndexLHS_ReversePop(t *testing.T) {
+	m := benchMachine()
+	defer m.Release()
+
+	st := m.Alloc.NewType(&SliceType{Elt: IntType})
+	baseArray := m.Alloc.NewListArray(nil, 2)
+	baseArray.List[0] = TypedValue{T: IntType, N: i2n(0)}
+	baseArray.List[1] = TypedValue{T: IntType, N: i2n(0)}
+	sv := m.Alloc.NewSlice(baseArray, 0, 2, 2)
+
+	ix := &IndexExpr{} // shape-only placeholder; PopAsPointer reads from the stack, not the AST
+	stmt := &AssignStmt{Lhs: []Expr{ix, ix}, Op: ASSIGN}
+
+	// Production push order (per op_exec.go AssignStmt case + PushForPointer):
+	// Lhs[0].X, Lhs[0].Index, Lhs[1].X, Lhs[1].Index, Rhs[0], Rhs[1].
+	m.PushValue(TypedValue{T: st, V: sv})           // Lhs[0].X
+	m.PushValue(TypedValue{T: IntType, N: i2n(0)})  // Lhs[0].Index
+	m.PushValue(TypedValue{T: st, V: sv})           // Lhs[1].X
+	m.PushValue(TypedValue{T: IntType, N: i2n(1)})  // Lhs[1].Index
+	m.PushValue(TypedValue{T: IntType, N: i2n(10)}) // Rhs[0]
+	m.PushValue(TypedValue{T: IntType, N: i2n(20)}) // Rhs[1]
+	m.PushStmt(stmt)
+	m.doOpAssign()
+
+	if got := baseArray.List[0].GetInt(); got != 10 {
+		t.Errorf("slice[0]: got %d, want 10 (lvs[0] should resolve to index 0)", got)
+	}
+	if got := baseArray.List[1].GetInt(); got != 20 {
+		t.Errorf("slice[1]: got %d, want 20 (lvs[1] should resolve to index 1)", got)
 	}
 }

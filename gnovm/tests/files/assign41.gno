@@ -61,6 +61,16 @@ func multiReturnRHS() {
 	}
 }
 
+// Multi-blank with mixed-type RHS. All blanks alias the same shared slot
+// (Block.Blank), so the reorder changes which RHS value/type lands there
+// last. This smoke-tests that the statement completes without crashing;
+// the realm-finalization-level effect (assertTypeIsPublic against the
+// surviving type) only manifests in realm code and is out of scope here.
+func multiBlankMixedType() {
+	_, _ = "hello", 42
+	_, _ = 1, "two"
+}
+
 func main() {
 	indexSlice()
 	indexMap()
@@ -68,6 +78,7 @@ func main() {
 	selectorExpr()
 	blankInterleaved()
 	multiReturnRHS()
+	multiBlankMixedType()
 	println("ok")
 }
 
