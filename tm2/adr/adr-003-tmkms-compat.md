@@ -22,8 +22,10 @@ staking deployment. tm2 currently has two privval options:
      listeners bypass the allowlist entirely);
   3. no HSM / Ledger / Fortanix / cloud-KMS backends;
   4. no threshold signing (no Horcrux equivalent);
-  5. (since fixed in `0130a1bd0`) HRS double-sign authority lived in
-     gnoland's `priv_validator_state.json` rather than in the signer.
+  5. HRS double-sign authority lived in gnoland's
+     `priv_validator_state.json` rather than in the signer. (Closed by
+     a separate, orthogonal PR adding a signer-side HRS gate to
+     `contribs/gnokms`; landed independently of this stack.)
 
 Closing each of these inside gnokms is multi-month work per item, an
 estimated 6+ months for full feature parity with the Cosmos validator
@@ -89,25 +91,35 @@ Three guiding principles:
    same value on both sides — silent canonical-bytes drift is the
    feared failure mode and we'd rather refuse to start.
 
-### Phases (all shipped on `feat/jae/gnokms-hrs`)
+### PR series
 
-| # | Description | Commit |
-|---|---|---|
-| 0 | amino `binary:"varint"` tag — opt-in plain protobuf varint instead of zigzag | `910b5ad71` |
-| 1 | Re-tag CanonicalProposal/PartSetHeader for upstream byte-compat | `1d3210de2` |
-| 2 | Upstream-shaped Vote/Proposal types | `86bbae90d` |
-| 3 | Three-layer wire-compat test suite vs upstream | `413ed9016` |
-|   | …protoc-generated upstreampb routing | `e34a4f5cd` |
-| 4 | SignerListenerEndpoint + base endpoint (port of cometbft v0.39.1) | `7e070ab1a` |
-|   | SignerClient + RetrySignerClient + socket listener | `9e507a157` |
-|   | Wire upstream listener mode into NewPrivValidatorFromConfig | `aaff0fc87` |
-|   | Security hardening for tmkms-compat path (six fixes) | `2e84471f9` |
-| 5 | Pin protocol version to v0.34 | `edb0de5bf` |
-| 6 | SecretConnection byte-compat verification | `1c48ce60e` |
-|   | tmkms-compat SecretConnection (port of cometbft v0.34 STS, Merlin-bound) | `c401b23fb` |
-| 7 | tmkms binary integration test | `ea10ad550` |
-|   | Wire fixes surfaced by the real-tmkms test | `68282b930` |
-| 8 | Cross-link contribs/gnokms/README.md to the operator doc | `6a7674c9a` |
+The change is split across a three-PR stack (each depends on the
+previous):
+
+**PR1 — Wire format compat** (branch `feat/tmkms-compat/01-amino-canonical-proto`)
+Amino `binary:"varint"` tag, canonical-type retag, upstream-shaped
+Vote/Proposal types, vendored upstream proto defs + generated types,
+three-layer wire-compat test suite, hex-frozen golden vectors against
+upstream Tendermint v0.34.
+
+**PR2 — Network/protocol layer** (branch `feat/tmkms-compat/02-secret-conn-signer-client`)
+SignerListenerEndpoint + base endpoint (port of cometbft v0.39.1),
+SignerClient + RetrySignerClient, socket listener, tmkms-compat
+SecretConnection (port of cometbft v0.34 STS, Merlin-bound),
+SecretConnection byte-compat verification, security hardening for the
+upstream/* internals, protocol-version pin.
+
+**PR3 — Integration & operator surface** (branch `feat/tmkms-compat/03-listener-integration`)
+Wire upstream listener mode into `NewPrivValidatorFromConfig`,
+`[consensus.priv_validator.tmkms_listener]` config block (mutually
+exclusive with `[remote_signer]`), tmkms binary integration test
+(build-tagged), `ci-tmkms-integration.yml` workflow, ADR-003, operator
+doc at `docs/validators/tmkms.md`.
+
+Commit SHAs are intentionally omitted from this table: they change on
+every rebase of the stack, so they go stale faster than the ADR can be
+kept honest. Use `git log` against each PR branch for the per-commit
+history.
 
 ## Architecture
 
