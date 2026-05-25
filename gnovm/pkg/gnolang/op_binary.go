@@ -576,7 +576,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool) bool {
 		// latter case Go's runtime panics regardless of nil-ness.
 		if viaInterface || (lv.V != nil && rv.V != nil) {
 			m.Panic(typedString(fmt.Sprintf(
-				"comparing uncomparable type %s",
+				"runtime error: comparing uncomparable type %s",
 				lv.T.String(),
 			)))
 		}

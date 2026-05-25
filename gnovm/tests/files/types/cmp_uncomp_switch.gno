@@ -17,4 +17,4 @@ func main() {
 }
 
 // Output:
-// recover: comparing uncomparable type map[int]int
+// recover: runtime error: comparing uncomparable type map[int]int
