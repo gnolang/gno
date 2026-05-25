@@ -27,13 +27,18 @@ func (m *Machine) doOpAssign() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
+	// Pop LHS pointers in reverse (matches the LIFO order of sub-eval pushes),
+	// then assign in forward order so that left-to-right assignment semantics
+	// hold for duplicate LHS targets (Go spec §Assignments).
+	lvs := make([]PointerValue, len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		// Pop lhs value and desired type.
-		lv := m.PopAsPointer(s.Lhs[i])
+		lvs[i] = m.PopAsPointer(s.Lhs[i])
+	}
+	for i := range s.Lhs {
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
-		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
+		lvs[i].Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
 
