@@ -89,19 +89,32 @@
 //
 // # Composition rules
 //
-// Safe nestings:
+// Direct sanitize use (when emitting markdown without a builder package):
 //
-//	md.Blockquote(sanitize.Block(userProse))         block, then line-prefix
-//	md.LanguageCodeBlock(sanitize.LanguageName(lang), userCode)
-//	md.Link(sanitize.InlineText(text), sanitize.URL(href))
+//	out := "# " + sanitize.InlineText(userTitle) + "\n\n" +
+//	       sanitize.Block(userBody)
+//	out += sanitize.Blockquote(userQuote)
+//	out += sanitize.LanguageCodeBlock(realmLang, userCode)
 //
-// Wrong:
+// Use with a builder package (e.g. p/moul/md): pass raw user input to
+// the builder helpers that sanitize internally — do NOT pre-wrap with
+// sanitize.*, or the input gets double-escaped (escapers are not
+// idempotent). See the builder's package doc for the per-helper
+// contract. For example, with p/moul/md:
+//
+//	md.Blockquote(userProse)                 // good — md.Blockquote sanitizes
+//	md.LanguageCodeBlock(realmLang, userCode) // good — sanitizes both args
+//	md.Link(userText, userURL)               // good — sanitizes both slots
+//
+//	md.Blockquote(sanitize.Block(userProse))         // BAD: double-wrap
+//	md.Link(sanitize.InlineText(t), sanitize.URL(u)) // BAD: double-wrap
+//
+// Wrong (across all callers):
 //
 //	sanitize.InlineText(sanitize.InlineText(s))   double-wrap (re-escape)
 //	sanitize.TableCell(sanitize.InlineText(s))    TableCell already calls InlineText
 //	sanitize.URL(sanitize.InlineText(href))       inline-escape backslash-escapes `.` `-` `_`
 //	                                              inside the URL, corrupting the host/path
-//	sanitize.Block(md.Blockquote(...))            Block would re-escape the `>` chars
 //	sanitize.Blockquote(sanitize.Blockquote(s))   double-wrap — outer would escape the
 //	                                              inner `> ` prefixes
 //	sanitize.TableCell(multiParagraphProse)       newlines fold to space silently; use a
@@ -120,8 +133,11 @@
 //     (U+0085 NEL, U+2028, U+2029) that some renderers treat as line
 //     breaks. Folded uniformly.
 //   - markdown-structure injection: user content opening a heading,
-//     blockquote, list, code fence, table row, link-reference def,
-//     setext underline, or gnoweb extension delimiter at document level.
+//     blockquote, list, code fence, link-reference def, setext underline,
+//     or gnoweb extension delimiter at document level. (Not GFM tables —
+//     `|` at line start is not escaped because gnoweb does not enable the
+//     GFM table extension. If a downstream renderer enables tables, this
+//     becomes a structural-injection vector.)
 //   - footnote / link-reference namespace pollution: user content
 //     containing `[^name]` or `[text][label]` syntax that would otherwise
 //     resolve against realm-defined footnote definitions or link
@@ -264,8 +280,10 @@ func InlineText(s string) string {
 // Block prepares user content for a top-level BLOCK markdown context
 // where paragraphs, line breaks, code blocks, and other block structure
 // should survive — but where the content must NOT be able to inject
-// new top-level constructs (headings, lists, blockquotes, tables,
-// link-reference definitions).
+// new top-level constructs (headings, lists, blockquotes,
+// link-reference definitions, setext underlines, gnoweb extension
+// delimiters). GFM table-row line leaders (`|`) are NOT escaped — see
+// the threat-model note.
 //
 // Use for any multi-paragraph user-supplied prose that the realm
 // concatenates into its rendered output:
