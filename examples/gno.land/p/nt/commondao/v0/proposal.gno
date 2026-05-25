@@ -52,6 +52,8 @@ type (
 	VoteChoice string
 
 	// ExecFunc defines a type for functions that executes proposals.
+	// The realm argument can be used within the function to check who's
+	// the caller executing the proposal.
 	ExecFunc func(realm) error
 
 	// Proposal defines a DAO proposal.

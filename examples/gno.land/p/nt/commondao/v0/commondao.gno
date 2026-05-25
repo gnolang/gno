@@ -16,6 +16,7 @@ var (
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
 	ErrProposalNotFound     = errors.New("proposal not found")
+	ErrRealmIsNotCaller     = errors.New("rlm is not the caller realm")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 	ErrVotingDeadlinePassed = errors.New("voting deadline has passed")
 	ErrWithdrawalNotAllowed = errors.New("withdrawal not allowed for proposals with votes")
@@ -292,6 +293,10 @@ func (dao *CommonDAO) Tally(proposalID uint64, validate bool) (ProposalStatus, e
 // parameter slot) because /p/ production code cannot declare crossing
 // functions — callers pass `cur` directly as the rlm argument.
 func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return ErrRealmIsNotCaller
+	}
+
 	p := dao.activeProposals.Get(proposalID)
 	if p == nil {
 		return ErrProposalNotFound
