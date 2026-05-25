@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: URL
+// CONTEXT: [email](%s)
+-- input.md --
+mailto:victim@x?cc=evil@y&bcc=evil2@z
+-- output.md --
+mailto:victim@x?cc=evil@y&bcc=evil2@z
+-- output.html --
+<p><a href="mailto:victim@x?cc=evil@y&amp;bcc=evil2@z" rel="noopener nofollow ugc">email<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
