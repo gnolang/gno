@@ -19,13 +19,13 @@ func TestInlineText(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"plain", "plain"},
 		{"a*b", `a\*b`},
-		{"a|b", "a|b"},                          // | NOT escaped
-		{"a=b", "a=b"},                          // = NOT escaped
-		{"line1\nline2", "line1 line2"},          // newline folded
-		{"line1\r\nline2", "line1 line2"},        // CRLF normalized then folded
-		{"a\u2028b", "a b"},                     // U+2028 folded
-		{"a\u0085b", "a b"},                     // NEL folded
-		{"a\u200Bb", "ab"},                      // ZWSP stripped
+		{"a|b", "a|b"},                    // | NOT escaped
+		{"a=b", "a=b"},                    // = NOT escaped
+		{"line1\nline2", "line1 line2"},   // newline folded
+		{"line1\r\nline2", "line1 line2"}, // CRLF normalized then folded
+		{"a\u2028b", "a b"},               // U+2028 folded
+		{"a\u0085b", "a b"},               // NEL folded
+		{"a\u200Bb", "ab"},                // ZWSP stripped
 		{"hello *world*", `hello \*world\*`},
 	}
 	for _, c := range cases {
@@ -96,11 +96,11 @@ func TestURL(t *testing.T) {
 		{"http://example.com", "http://example.com"},
 		{"mailto:a@b.com", "mailto:a@b.com"},
 		{"mailto:a@b.com?body=phish", ""}, // prefill phishing rejected
-		{"//evil.com", ""},                 // protocol-relative rejected
-		{"javascript:alert(1)", ""},        // bad scheme
-		{"/r/foo", "/r/foo"},               // relative
+		{"//evil.com", ""},                // protocol-relative rejected
+		{"javascript:alert(1)", ""},       // bad scheme
+		{"/r/foo", "/r/foo"},              // relative
 		{"./local", "./local"},
-		{"#section", "#section"},           // fragment-only
+		{"#section", "#section"}, // fragment-only
 		{"", ""},
 		{"   ", ""},
 		{"https://a.com/path with space", "https://a.com/path%20with%20space"},
@@ -115,7 +115,7 @@ func TestURL(t *testing.T) {
 func TestImageURL(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"https://example.com/img.png", "https://example.com/img.png"},
-		{"mailto:a@b.com", ""},          // mailto rejected for images
+		{"mailto:a@b.com", ""}, // mailto rejected for images
 		{"data:image/svg+xml,<svg/>", "data:image/svg+xml,%3Csvg/%3E"},
 		{"data:image/png;base64,XXX", "data:image/png;base64,XXX"},
 		{"data:text/html,<script>", ""}, // bad data subset
@@ -153,12 +153,12 @@ func TestBechString(t *testing.T) {
 		want      string
 	}{
 		{addrG, "g", addrG},
-		{addrG, "", addrG},     // any prefix
-		{addrG, "gpub", ""},   // wrong prefix
+		{addrG, "", addrG},  // any prefix
+		{addrG, "gpub", ""}, // wrong prefix
 		{"gpub1abc123def456ghijklmn", "gpub", "gpub1abc123def456ghijklmn"},
 		{"gpub1abc123def456ghijklmn", "", "gpub1abc123def456ghijklmn"},
 		{"b1xyz789abc123def456", "", "b1xyz789abc123def456"}, // any-prefix mode allows b1...
-		{"g1ABC", "g", ""},     // uppercase rejected
+		{"g1ABC", "g", ""}, // uppercase rejected
 		{"x", "g", ""},
 		{"", "g", ""},
 	}

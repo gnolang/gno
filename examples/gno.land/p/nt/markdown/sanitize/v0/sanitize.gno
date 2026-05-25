@@ -251,8 +251,8 @@ func NormalizeBreaks(s string) string {
 //   - bold/italic body: **InlineText(name)**
 //   - image alt text:   ![InlineText(alt)](src)
 //   - single-line block-context slots:
-//                       > [!NOTE] InlineText(title)
-//                       > Author: InlineText(name)
+//     > [!NOTE] InlineText(title)
+//     > Author: InlineText(name)
 //
 // Multi-paragraph prose belongs in Block, not InlineText. InlineText
 // folds every newline to a single space (so paragraph structure is
@@ -272,8 +272,8 @@ func NormalizeBreaks(s string) string {
 // Not idempotent (see package doc).
 func InlineText(s string) string {
 	s = markdown.StripBidiAndZeroWidth(s)
-	s = markdown.NormalizeBreaks(s)        // CM §2.2 \r\n / \r → \n
-	s = foldNewlinesAndSeparators(s, ' ')  // \n + NEL + U+2028/U+2029 → space
+	s = markdown.NormalizeBreaks(s)       // CM §2.2 \r\n / \r → \n
+	s = foldNewlinesAndSeparators(s, ' ') // \n + NEL + U+2028/U+2029 → space
 	return markdown.EscapeInline(s)
 }
 
@@ -414,9 +414,9 @@ func Blockquote(text string) string {
 // image-title slot — the optional quoted text after the URL in any of
 // these forms:
 //
-//   [text](url "TITLE")
-//   ![alt](src "TITLE")
-//   [label]: url "TITLE"
+//	[text](url "TITLE")
+//	![alt](src "TITLE")
+//	[label]: url "TITLE"
 //
 // Escapes the inline-active set plus `"` and `'` (the title delimiters
 // that aren't already in the inline set; `(` and `)` are), so the
@@ -467,13 +467,13 @@ func TableCell(s string) string {
 // markdown — covers attribute values, element bodies, and HTML
 // comment bodies:
 //
-//   <gno-card type="..." caption="X">         attribute value
-//   <gno-alert title="X">                     attribute value
-//   <h5>X</h5>                                element body
-//   <details><summary>X</summary>...          element body
-//   <!-- X -->                                comment body (safe: `>`
-//                                             becomes `&gt;`, so user
-//                                             cannot inject `-->`)
+//	<gno-card type="..." caption="X">         attribute value
+//	<gno-alert title="X">                     attribute value
+//	<h5>X</h5>                                element body
+//	<details><summary>X</summary>...          element body
+//	<!-- X -->                                comment body (safe: `>`
+//	                                          becomes `&gt;`, so user
+//	                                          cannot inject `-->`)
 //
 // HTMLEscape escapes the union of attribute-breaking and body-breaking
 // characters (`<`, `>`, `&`, `"`, `'`), so one function safely serves
@@ -771,9 +771,9 @@ func FootnoteLabel(s string) string {
 // LanguageName validates the language tag (a.k.a. "info string") for
 // a fenced code block — the `go` in:
 //
-//   ```go
-//   fmt.Println("hi")
-//   ```
+//	```go
+//	fmt.Println("hi")
+//	```
 //
 // Charset: ^[a-zA-Z0-9_+-]{1,32}$ — letters, digits, `_`, `+`, `-`,
 // up to 32 bytes. Strips bidi/zero-width first.
@@ -828,8 +828,8 @@ func NestedPrefix(s string) string {
 // Returned length N = max(minCount, longestBacktickRunInContent + 1).
 // Use N backticks both before and after the content:
 //
-//   fence := sanitize.CodeFence(userCode, 3)
-//   out += fence + "\n" + userCode + "\n" + fence + "\n"
+//	fence := sanitize.CodeFence(userCode, 3)
+//	out += fence + "\n" + userCode + "\n" + fence + "\n"
 //
 // Typical minCount values:
 //   - 1 for inline code spans (`x`)
@@ -848,7 +848,7 @@ func CodeFence(content string, minCount int) string {
 }
 
 // InlineCode wraps user content as a CommonMark inline code span — the
-// `code` in `` `code` ``. Use for any user-derived token, identifier,
+// `code` in “ `code` “. Use for any user-derived token, identifier,
 // or short literal that should render in monospace inside running
 // prose: variable names, hashes, hex addresses, token symbols, error
 // codes, package paths, transaction IDs.
@@ -868,7 +868,7 @@ func CodeFence(content string, minCount int) string {
 //     backtick run in the content, so internal backticks can never
 //     close the span prematurely.
 //   - A single space pad is added on each side when content starts or
-//     ends with `` ` `` or space, so leading/trailing backticks render
+//     ends with “ ` “ or space, so leading/trailing backticks render
 //     literally rather than fusing with the fence (the renderer
 //     strips one space from each side per CommonMark spec).
 //

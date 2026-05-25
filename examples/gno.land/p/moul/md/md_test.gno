@@ -23,7 +23,9 @@ func TestHelpers(t *testing.T) {
 		{"Link", func() string { return md.Link("foo", "http://example.com") }, "[foo](http://example.com)"},
 		{"UserLink", func() string { return md.UserLink("moul") }, "[@moul](/u/moul)"},
 		{"Image", func() string { return md.Image("foo", "http://example.com") }, "![foo](http://example.com)"},
-		{"InlineImageWithLink", func() string { return md.InlineImageWithLink("alt", "http://img.example.com/x.png", "http://link.example.com") }, "[![alt](http://img.example.com/x.png)](http://link.example.com)"},
+		{"InlineImageWithLink", func() string {
+			return md.InlineImageWithLink("alt", "http://img.example.com/x.png", "http://link.example.com")
+		}, "[![alt](http://img.example.com/x.png)](http://link.example.com)"},
 		{"FootnoteDefinition", func() string { return md.FootnoteDefinition("foo", "bar") }, "[^foo]:\n    bar\n"},
 		{"LinkReferenceDefinition", func() string {
 			return md.LinkReferenceDefinition("foo", "http://example.com", "")
