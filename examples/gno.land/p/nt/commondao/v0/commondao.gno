@@ -47,6 +47,8 @@ type CommonDAO struct {
 
 // New creates a new common DAO.
 // It panics if non-canonical member or proposal storage are assigned.
+// The returned CommonDAO must never be public because it contains methods
+// that expose internal references that could be modified by an external realm.
 func New(options ...Option) *CommonDAO {
 	dao := NewUnsafe(options...)
 
@@ -75,6 +77,9 @@ func New(options ...Option) *CommonDAO {
 // based types defined by `commondao` package. These types are checked by default, for
 // security, to avoid an attacker from using malicious types that implement interfaces
 // defined within the `commondao` package.
+//
+// The returned CommonDAO must never be public because it contains methods that expose
+// internal references that could be modified by an external realm.
 //
 // IMPORTANT: Use unsafe CommonDAO if you fully understand `commondao` and the
 // security implication that disabling these checks could have. If checks are disabled
@@ -176,6 +181,11 @@ func (dao *CommonDAO) SetDeleted(deleted bool) {
 }
 
 // Propose creates a new DAO proposal.
+//
+// IMPORTANT: It's recommended to ensure that any externally-supplied proposal
+// definitions comes from a trusted source, and when possible check that given
+// definitions are canonical. Never accept a proposal definitions from an
+// arbitrary external input.
 func (dao *CommonDAO) Propose(creator address, d ProposalDefinition) (*Proposal, error) {
 	id, ok := dao.genID.TryNext()
 	if !ok {
