@@ -856,10 +856,11 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 	} else {
 		m[st] = struct{}{}
 	}
-	// Search fields.
+	// Search direct fields first (depth 0). Per Go spec §Selectors a
+	// direct field/method shadows anything at greater depth in embedded
+	// fields, so a hit here wins outright.
 	for i := range st.Fields {
 		sf := &st.Fields[i]
-		// Maybe is a field of the struct.
 		if sf.Name == n {
 			// Ensure exposed or package match.
 			if !isUpper(string(n)) && st.PkgPath != callerPath {
@@ -868,24 +869,54 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 			vp := NewValuePathField(0, uint16(i), n)
 			return []ValuePath{vp}, false, nil, sf.Type, false
 		}
-		// Maybe is embedded within a field.
-		if sf.Embedded {
-			st := sf.Type
-			trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, st, n, m)
-			if accessError2 {
-				// XXX make test case and check against go
-				return nil, false, nil, nil, true
-			} else if trail2 != nil {
-				if trail != nil {
-					// conflict detected. return none.
-					return nil, false, nil, nil, false
-				} else {
-					// remember.
-					vp := NewValuePathField(0, uint16(i), sf.Name)
-					trail, hasPtr, rcvr, field = append([]ValuePath{vp}, trail2...), hasPtr2, rcvr2, field2
-				}
-			}
+	}
+	// Then search embedded fields. Per Go spec the shallowest match
+	// wins; ties at the shallowest depth are ambiguous. Recursion over
+	// Fields is depth-first, so we must compare candidates by trail
+	// length rather than returning the first hit.
+	bestDepth := -1 // -1 means "no candidate seen yet".
+	ambiguous := false
+	for i := range st.Fields {
+		sf := &st.Fields[i]
+		if !sf.Embedded {
+			continue
 		}
+		// Use a per-iteration recursion-guard copy so that visiting
+		// the first embedded field does not poison the lookup of the
+		// second sibling (which would otherwise be skipped when both
+		// reach the same underlying type at different depths).
+		m2 := make(map[Type]struct{}, len(m))
+		for k, v := range m {
+			m2[k] = v
+		}
+		trail2, hasPtr2, rcvr2, field2, accessError2 := findEmbeddedFieldType(callerPath, sf.Type, n, m2)
+		if accessError2 {
+			// XXX make test case and check against go
+			return nil, false, nil, nil, true
+		} else if trail2 == nil {
+			continue
+		}
+		vp := NewValuePathField(0, uint16(i), sf.Name)
+		candidate := append([]ValuePath{vp}, trail2...)
+		depth := len(candidate)
+		switch {
+		case bestDepth == -1 || depth < bestDepth:
+			// First match, or strictly shallower than the
+			// previously-remembered best: take it and clear any
+			// ambiguity from deeper tiers.
+			trail, hasPtr, rcvr, field = candidate, hasPtr2, rcvr2, field2
+			bestDepth = depth
+			ambiguous = false
+		case depth == bestDepth:
+			// Tie at the current shallowest depth — ambiguous per
+			// Go spec. Don't return yet: a later sibling might
+			// still beat this depth and resolve the ambiguity.
+			ambiguous = true
+		}
+		// Otherwise depth > bestDepth; skip.
+	}
+	if ambiguous {
+		return nil, false, nil, nil, false
 	}
 	return // may be found or nil.
 }
