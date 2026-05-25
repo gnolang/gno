@@ -264,6 +264,15 @@ func TestSetBytesNormalization(t *testing.T) {
 	if z.Sign() != 0 || z.String() != "0" {
 		t.Errorf("SetBytes all-zero: sign=%d str=%q, want 0/\"0\"", z.Sign(), z.String())
 	}
+	// Nil and empty inputs decode to canonical zero.
+	z = new(big.Int).SetBytes(nil)
+	if z.Sign() != 0 || z.String() != "0" {
+		t.Errorf("SetBytes(nil): sign=%d str=%q, want 0/\"0\"", z.Sign(), z.String())
+	}
+	z = new(big.Int).SetBytes([]byte{})
+	if z.Sign() != 0 || z.String() != "0" {
+		t.Errorf("SetBytes([]): sign=%d str=%q, want 0/\"0\"", z.Sign(), z.String())
+	}
 }
 
 func TestCmpAbs(t *testing.T) {
@@ -390,6 +399,12 @@ func TestNegAbs(t *testing.T) {
 	if z.Sign() != 0 || z.String() != "0" {
 		t.Errorf("Neg(0) = %s sign=%d, want 0 sign=0", z.String(), z.Sign())
 	}
+	// Abs of zero stays zero.
+	z = big.NewInt(0)
+	z.Abs(z)
+	if z.Sign() != 0 || z.String() != "0" {
+		t.Errorf("Abs(0) = %s sign=%d, want 0 sign=0", z.String(), z.Sign())
+	}
 }
 
 func mustParse(t *testing.T, s string) *big.Int {
@@ -399,4 +414,197 @@ func mustParse(t *testing.T, s string) *big.Int {
 		t.Fatalf("failed to parse %q", s)
 	}
 	return z
+}
+
+// Single-result helpers (Quo/Rem/Div/Mod) take their own native-bridge
+// call path; the pair forms QuoRem/DivMod are tested separately.
+
+func TestQuo(t *testing.T) {
+	tests := []struct {
+		x, y, want string
+	}{
+		{"7", "3", "2"},
+		{"-7", "3", "-2"},
+		{"7", "-3", "-2"},
+		{"-7", "-3", "2"},
+		{"0", "5", "0"},
+	}
+	for _, tc := range tests {
+		got := new(big.Int).Quo(mustParse(t, tc.x), mustParse(t, tc.y)).String()
+		if got != tc.want {
+			t.Errorf("Quo(%s, %s) = %s, want %s", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
+func TestRem(t *testing.T) {
+	tests := []struct {
+		x, y, want string
+	}{
+		{"7", "3", "1"},
+		{"-7", "3", "-1"},
+		{"7", "-3", "1"},
+		{"-7", "-3", "-1"},
+	}
+	for _, tc := range tests {
+		got := new(big.Int).Rem(mustParse(t, tc.x), mustParse(t, tc.y)).String()
+		if got != tc.want {
+			t.Errorf("Rem(%s, %s) = %s, want %s", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
+func TestDiv(t *testing.T) {
+	tests := []struct {
+		x, y, want string
+	}{
+		{"7", "3", "2"},
+		{"-7", "3", "-3"},
+		{"7", "-3", "-2"},
+		{"-7", "-3", "3"},
+	}
+	for _, tc := range tests {
+		got := new(big.Int).Div(mustParse(t, tc.x), mustParse(t, tc.y)).String()
+		if got != tc.want {
+			t.Errorf("Div(%s, %s) = %s, want %s", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
+func TestMod(t *testing.T) {
+	tests := []struct {
+		x, y, want string
+	}{
+		{"7", "3", "1"},
+		{"-7", "3", "2"},
+		{"7", "-3", "1"},
+		{"-7", "-3", "2"},
+	}
+	for _, tc := range tests {
+		got := new(big.Int).Mod(mustParse(t, tc.x), mustParse(t, tc.y)).String()
+		if got != tc.want {
+			t.Errorf("Mod(%s, %s) = %s, want %s", tc.x, tc.y, got, tc.want)
+		}
+	}
+}
+
+func TestDivByZero(t *testing.T) {
+	cases := []struct {
+		name string
+		run  func()
+	}{
+		{"Quo", func() { new(big.Int).Quo(big.NewInt(5), big.NewInt(0)) }},
+		{"Rem", func() { new(big.Int).Rem(big.NewInt(5), big.NewInt(0)) }},
+		{"Div", func() { new(big.Int).Div(big.NewInt(5), big.NewInt(0)) }},
+		{"Mod", func() { new(big.Int).Mod(big.NewInt(5), big.NewInt(0)) }},
+		{"QuoRem", func() {
+			new(big.Int).QuoRem(big.NewInt(5), big.NewInt(0), new(big.Int))
+		}},
+		{"DivMod", func() {
+			new(big.Int).DivMod(big.NewInt(5), big.NewInt(0), new(big.Int))
+		}},
+	}
+	for _, tc := range cases {
+		func() {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("%s by zero did not panic (recover()ed nil)", tc.name)
+				}
+			}()
+			tc.run()
+		}()
+	}
+}
+
+func TestQuoRemDistinctOutputs(t *testing.T) {
+	// Passing the same *Int for z and r must panic: the natural
+	// last-write-wins order would silently overwrite the quotient with
+	// the remainder.
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("QuoRem with z == r did not panic")
+		}
+	}()
+	z := new(big.Int)
+	z.QuoRem(big.NewInt(17), big.NewInt(5), z)
+}
+
+func TestDivModDistinctOutputs(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("DivMod with z == m did not panic")
+		}
+	}()
+	z := new(big.Int)
+	z.DivMod(big.NewInt(17), big.NewInt(5), z)
+}
+
+func TestSetStringEdgeCases(t *testing.T) {
+	// Pin Go-math/big-stdlib behaviors so a future Go upgrade can't
+	// silently shift Gno semantics.
+	tests := []struct {
+		s    string
+		base int
+		want string
+		ok   bool
+	}{
+		{"+1", 10, "1", true},     // leading + accepted
+		{"-0", 10, "0", true},     // canonical zero
+		{"", 10, "", false},       // empty rejected
+		{"0x", 0, "", false},      // dangling base prefix
+		{"0o755", 0, "493", true}, // octal prefix
+		{"5_000", 0, "5000", true}, // digit separator (base 0 only)
+		{"5_000", 10, "", false},  // underscore rejected outside base 0
+	}
+	for _, tc := range tests {
+		z, ok := new(big.Int).SetString(tc.s, tc.base)
+		if ok != tc.ok {
+			t.Errorf("SetString(%q, %d) ok = %v, want %v", tc.s, tc.base, ok, tc.ok)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		if z.String() != tc.want {
+			t.Errorf("SetString(%q, %d) = %s, want %s", tc.s, tc.base, z.String(), tc.want)
+		}
+	}
+}
+
+func TestTextInvalidBase(t *testing.T) {
+	for _, b := range []int{-1, 0, 1, 63, 100} {
+		func(base int) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("Text(%d) did not panic", base)
+				}
+			}()
+			big.NewInt(255).Text(base)
+		}(b)
+	}
+}
+
+func TestZeroCanonical(t *testing.T) {
+	// Every op that can produce zero must produce the canonical form
+	// (Sign == 0, String == "0"). This guards against any future change
+	// to the bridge or Gno-side normalization that would create a
+	// negative-zero or leading-zero-byte state.
+	a := mustParse(t, "100000000000000000000")
+	cases := []struct {
+		name string
+		z    *big.Int
+	}{
+		{"Sub(x,x)", new(big.Int).Sub(a, a)},
+		{"Mul(x,0)", new(big.Int).Mul(a, big.NewInt(0))},
+		{"Mul(0,x)", new(big.Int).Mul(big.NewInt(0), a)},
+		{"Quo(0,x)", new(big.Int).Quo(big.NewInt(0), a)},
+		{"Rem(x,1)", new(big.Int).Rem(a, big.NewInt(1))},
+		{"Mod(x,1)", new(big.Int).Mod(a, big.NewInt(1))},
+	}
+	for _, tc := range cases {
+		if tc.z.Sign() != 0 || tc.z.String() != "0" {
+			t.Errorf("%s: sign=%d str=%q, want 0/\"0\"",
+				tc.name, tc.z.Sign(), tc.z.String())
+		}
+	}
 }

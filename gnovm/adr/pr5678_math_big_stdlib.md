@@ -1,4 +1,4 @@
-# PRxxxx: math/big stdlib (Int subset)
+# PR5678: math/big stdlib (Int subset)
 
 ## Context
 
@@ -113,6 +113,10 @@ Single-slope (`SlopeIdx=1` on the first `[]byte` operand) under-counts
 for binary ops when `|b| > |a|`. A two-dimensional fit (Slope2 on `b`)
 is in scope for the calibration follow-up — the schema already supports
 it; only the placeholder rows here use the single-slope form.
+
+`setString` is the exception: its first parameter is the input `string`,
+not a sign `bool`, so its row uses `SlopeIdx=0` (sloping on the length
+of `s`) rather than `SlopeIdx=1`.
 
 ### Note on PR #5646
 

@@ -6,7 +6,12 @@ import (
 
 // Wire format: a *big.Int is represented as (neg bool, abs []byte) where
 // abs is the big-endian unsigned magnitude with no leading zero bytes
-// (empty/nil for zero).
+// (empty/nil for zero). See gnovm/adr/pr5678_math_big_stdlib.md for the
+// design rationale.
+//
+// All Gno-side setters maintain this canonical form. toBig defends
+// against a non-canonical input anyway by stripping leading zeros and
+// forcing neg=false when the magnitude is empty.
 
 func X_add(aNeg bool, a []byte, bNeg bool, b []byte) (bool, []byte) {
 	return fromBig(new(big.Int).Add(toBig(aNeg, a), toBig(bNeg, b)))
@@ -50,8 +55,16 @@ func X_text(neg bool, abs []byte, base int) string {
 }
 
 func toBig(neg bool, abs []byte) *big.Int {
+	// Skip leading zeros; an all-zero or empty abs decodes to zero.
+	i := 0
+	for i < len(abs) && abs[i] == 0 {
+		i++
+	}
+	abs = abs[i:]
 	x := new(big.Int).SetBytes(abs)
-	if neg {
+	// neg is honored only for non-zero magnitudes — there is no negative
+	// zero in *big.Int and the wire format mirrors that.
+	if neg && len(abs) > 0 {
 		x.Neg(x)
 	}
 	return x

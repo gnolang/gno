@@ -19,7 +19,22 @@ package big
 import (
 	"encoding/binary"
 	"math/bits"
+	"strconv"
 )
+
+func invalidBaseError(base int) string {
+	return "big: invalid base: " + strconv.Itoa(base)
+}
+
+// divCheck panics on the Gno side for y == 0 so the division-by-zero
+// error is a normal recoverable Gno panic instead of a native Go panic
+// surfaced through the genstd bridge (which is not catchable by a
+// realm-level recover()).
+func divCheck(y *Int) {
+	if len(y.abs) == 0 {
+		panic("big: division by zero")
+	}
+}
 
 // An Int represents a signed multi-precision integer. The zero value
 // for Int represents the value 0.
@@ -46,8 +61,11 @@ func NewInt(x int64) *Int {
 // Set sets z to x and returns z.
 func (z *Int) Set(x *Int) *Int {
 	if z != x {
-		z.neg = x.neg
 		z.abs = append(z.abs[:0], x.abs...)
+		// Re-normalize defensively: every other setter enforces the
+		// invariant len(abs) == 0 ⇒ neg == false. Set honors it too even
+		// if x was constructed by an internal path that bypassed it.
+		z.neg = x.neg && len(z.abs) > 0
 	}
 	return z
 }
@@ -137,6 +155,8 @@ func (x *Int) Uint64() uint64 {
 func (x *Int) Int64() int64 {
 	v := int64(x.Uint64())
 	if x.neg {
+		// Inverse of the SetInt64 trick: for x == MinInt64, -v wraps
+		// back to MinInt64 in two's complement, which is what we want.
 		v = -v
 	}
 	return v
@@ -264,7 +284,7 @@ func (x *Int) String() string {
 // is added to the string.
 func (x *Int) Text(base int) string {
 	if base < 2 || base > 62 {
-		panic("invalid base")
+		panic(invalidBaseError(base))
 	}
 	return text(x.neg, x.abs, base)
 }
@@ -281,7 +301,7 @@ func (x *Int) Text(base int) string {
 // Otherwise, the selected base is 10 and no prefix is accepted.
 func (z *Int) SetString(s string, base int) (*Int, bool) {
 	if base != 0 && (base < 2 || base > 62) {
-		panic("invalid base")
+		panic(invalidBaseError(base))
 	}
 	neg, abs, ok := setString(s, base)
 	if !ok {
@@ -314,6 +334,7 @@ func (z *Int) Mul(x, y *Int) *Int {
 // run-time panic occurs. Quo implements truncated division (like Go); see
 // QuoRem for more details.
 func (z *Int) Quo(x, y *Int) *Int {
+	divCheck(y)
 	qNeg, q, _, _ := quoRem(x.neg, x.abs, y.neg, y.abs)
 	z.neg = qNeg
 	z.abs = q
@@ -324,6 +345,7 @@ func (z *Int) Quo(x, y *Int) *Int {
 // run-time panic occurs. Rem implements truncated modulus (like Go); see
 // QuoRem for more details.
 func (z *Int) Rem(x, y *Int) *Int {
+	divCheck(y)
 	_, _, rNeg, r := quoRem(x.neg, x.abs, y.neg, y.abs)
 	z.neg = rNeg
 	z.abs = r
@@ -338,7 +360,16 @@ func (z *Int) Rem(x, y *Int) *Int {
 //
 //	q = x/y      with the result truncated to zero
 //	r = x - y*q
+//
+// The two output receivers z and r must be distinct *Int values (i.e.
+// z != r); passing the same pointer for both panics, since the natural
+// "last write wins" semantics would silently overwrite the quotient
+// with the remainder.
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
+	divCheck(y)
+	if z == r {
+		panic("big: QuoRem requires distinct *Int for quotient and remainder")
+	}
 	qNeg, q, rNeg, rem := quoRem(x.neg, x.abs, y.neg, y.abs)
 	z.neg = qNeg
 	z.abs = q
@@ -351,6 +382,7 @@ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 // run-time panic occurs. Div implements Euclidean division (unlike Go);
 // see DivMod for more details.
 func (z *Int) Div(x, y *Int) *Int {
+	divCheck(y)
 	qNeg, q, _, _ := divMod(x.neg, x.abs, y.neg, y.abs)
 	z.neg = qNeg
 	z.abs = q
@@ -361,6 +393,7 @@ func (z *Int) Div(x, y *Int) *Int {
 // run-time panic occurs. Mod implements Euclidean modulus (unlike Go);
 // see DivMod for more details.
 func (z *Int) Mod(x, y *Int) *Int {
+	divCheck(y)
 	_, _, rNeg, r := divMod(x.neg, x.abs, y.neg, y.abs)
 	z.neg = rNeg
 	z.abs = r
@@ -375,7 +408,16 @@ func (z *Int) Mod(x, y *Int) *Int {
 //
 //	q = x div y  such that
 //	m = x - y*q  with 0 <= m < |y|
+//
+// The two output receivers z and m must be distinct *Int values (i.e.
+// z != m); passing the same pointer for both panics, since the natural
+// "last write wins" semantics would silently overwrite the quotient
+// with the modulus.
 func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
+	divCheck(y)
+	if z == m {
+		panic("big: DivMod requires distinct *Int for quotient and modulus")
+	}
 	qNeg, q, mNeg, mod := divMod(x.neg, x.abs, y.neg, y.abs)
 	z.neg = qNeg
 	z.abs = q
