@@ -45,19 +45,15 @@ func WithVotingPeriod(period time.Duration) Option {
 	}
 }
 
-// SECURITY XXX: WithTally and WithValidation capture caller-supplied
-// callbacks that run during voting and pre-execution. Whoever supplies
-// the callbacks controls the outcome of "did this proposal pass?" and
-// "is this proposal valid?". Hostile callbacks can pass invalid
-// proposals, skew vote counts, or always-deny (DoS).
-// Fix: document that callers must only supply callbacks from trusted
-// code (a registration site, not a public API), or restrict to a
-// canonical-impl allowlist. These callbacks are trust-extensions of
-// the DAO using them — treat like inlining the code into the DAO.
-//
 // WithTally configures a proposal definition to use a custom vote tallying.
 // New definitions tally using simple majority (51%) by default.
 // It panics when tally callback is nil.
+//
+// IMPORTANT: When creating proposal definitions ensure that any
+// externally-supplied tally function comes from a trusted source. Never accept
+// callback functions from an arbitrary external input, these callback are a
+// trust-extensions of the DAO using them, treat them like inlining the code
+// into the DAO.
 func WithTally(cb TallyFunc) Option {
 	if cb == nil {
 		panic("proposal tally callback is nil")
@@ -71,6 +67,12 @@ func WithTally(cb TallyFunc) Option {
 // WithValidation configures a proposal definition to support proposal validation.
 // Validation is done before execution and normally also during proposal rendering.
 // It panics when validation callback is nil.
+//
+// IMPORTANT: When creating proposal definitions ensure that any
+// externally-supplied validaton function comes from a trusted source. Never accept
+// callback functions from an arbitrary external input, these callback are a
+// trust-extensions of the DAO using them, treat them like inlining the code
+// into the DAO.
 func WithValidation(cb func() error) Option {
 	if cb == nil {
 		panic("proposal validation callback is nil")
@@ -83,6 +85,12 @@ func WithValidation(cb func() error) Option {
 
 // WithExecutor configures a proposal definition to support proposal execution.
 // It panics when executor callback is nil.
+//
+// IMPORTANT: When creating proposal definitions ensure that any
+// externally-supplied executor function comes from a trusted source. Never accept
+// callback functions from an arbitrary external input, these callback are a
+// trust-extensions of the DAO using them, treat them like inlining the code
+// into the DAO.
 func WithExecutor(cb commondao.ExecFunc) Option {
 	if cb == nil {
 		panic("proposal executor callback is nil")
