@@ -27,9 +27,20 @@ func (m *Machine) doOpAssign() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
-	// Pop LHS pointers in reverse (matches the LIFO order of sub-eval pushes),
-	// then assign in forward order so that left-to-right assignment semantics
-	// hold for duplicate LHS targets (Go spec §Assignments).
+	// Single-LHS fast path (the overwhelmingly common case): no buffer needed,
+	// no duplicate-LHS ambiguity.
+	if len(s.Lhs) == 1 {
+		lv := m.PopAsPointer(s.Lhs[0])
+		if m.Stage != StagePre && isUntyped(rvs[0].T) && rvs[0].T.Kind() != BoolKind {
+			panic("untyped conversion should not happen at runtime")
+		}
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[0], true)
+		return
+	}
+	// Multi-LHS: pop pointers in reverse (matches the LIFO order of sub-eval
+	// pushes from op_exec.go's AssignStmt case), then assign in forward order
+	// so that left-to-right semantics hold for duplicate LHS targets (Go spec
+	// §Assignments).
 	lvs := make([]PointerValue, len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		lvs[i] = m.PopAsPointer(s.Lhs[i])

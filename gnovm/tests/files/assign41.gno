@@ -38,11 +38,36 @@ func selectorExpr() {
 	}
 }
 
+// Blanks interleaved with duplicate real targets: blanks must not
+// disturb the left-to-right write order of the real LHS.
+func blankInterleaved() {
+	var a int
+	a, _, a, _ = 1, 2, 3, 4
+	if a != 3 {
+		panic(a)
+	}
+}
+
+// Multi-value RHS (single call returning multiple values) into a
+// duplicate LHS. Goes through a different RHS push pattern (one
+// OpEval for the call, multiple values produced).
+func twoVal() (int, int) { return 1, 2 }
+
+func multiReturnRHS() {
+	var a int
+	a, a = twoVal()
+	if a != 2 {
+		panic(a)
+	}
+}
+
 func main() {
 	indexSlice()
 	indexMap()
 	starExpr()
 	selectorExpr()
+	blankInterleaved()
+	multiReturnRHS()
 	println("ok")
 }
 
