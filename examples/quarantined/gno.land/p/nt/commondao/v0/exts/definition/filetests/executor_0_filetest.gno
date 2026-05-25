@@ -3,7 +3,7 @@ package test
 
 import "gno.land/p/nt/commondao/v0/exts/definition"
 
-func executor(realm) error {
+func executor(string) error {
 	return nil
 }
 
@@ -13,7 +13,7 @@ func main(cur realm) {
 	fn := def.Executor()
 
 	// Act
-	err := fn(cross(cur))
+	err := fn(cur.PkgPath())
 
 	// Assert
 	println(err == nil)

@@ -31,7 +31,7 @@ func CreateMemberProposal(cur realm, member address) uint64 {
 	}
 
 	// Define an executor to add the new member to the DAO
-	executor := func(realm) error {
+	executor := func(pkgPath string) error {
 		dao.Members().Add(member)
 		return nil
 	}

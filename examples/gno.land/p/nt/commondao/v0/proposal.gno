@@ -52,9 +52,10 @@ type (
 	VoteChoice string
 
 	// ExecFunc defines a type for functions that executes proposals.
-	// The realm argument can be used within the function to check who's
-	// the caller executing the proposal.
-	ExecFunc func(realm) error
+	// The package path argument can be used within the function to check who's
+	// the caller executing the proposal. The `chain.PackageAddress()` stdlib
+	// function can be used to derive the caller realm address.
+	ExecFunc func(pkgPath string) error
 
 	// Proposal defines a DAO proposal.
 	Proposal struct {

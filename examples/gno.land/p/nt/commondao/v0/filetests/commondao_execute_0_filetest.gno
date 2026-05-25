@@ -2,7 +2,6 @@
 package commondao_execute
 
 import (
-	"chain/runtime/unsafe"
 	"testing"
 	"time"
 
@@ -25,8 +24,8 @@ func (mockPropDef) VotingPeriod() time.Duration                 { return 0 }
 func (mockPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
 func (mockPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
-		executorPath = unsafe.PreviousRealm().PkgPath()
+	return func(pkgPath string) error {
+		executorPath = pkgPath
 		return nil
 	}
 }

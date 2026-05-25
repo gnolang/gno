@@ -24,7 +24,7 @@ func (mockPropDef) VotingPeriod() time.Duration                 { return time.Ho
 func (mockPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
 func (mockPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
+	return func(string) error {
 		executed = true
 		return nil
 	}
