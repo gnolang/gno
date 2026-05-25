@@ -978,7 +978,11 @@ func (m *Machine) doOpSwitchClauseCase() {
 	if debug {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
-	match := isEql(m, cv, tv)
+	// A switch tag whose static type is an interface compares like an
+	// interface equality at runtime — uncomparable dynamic types panic.
+	ss, _ := m.PeekStmt1().(*SwitchStmt)
+	viaInterface := ss != nil && !ss.IsTypeSwitch && ss.X != nil && hasInterfaceStaticType(ss.X)
+	match := isEql(m, cv, tv, viaInterface)
 	if match {
 		// matched clause
 		ss := m.PopStmt().(*SwitchStmt) // pop switch stmt

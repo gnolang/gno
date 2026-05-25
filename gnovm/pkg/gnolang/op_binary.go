@@ -75,7 +75,7 @@ func (m *Machine) doOpLand() {
 }
 
 func (m *Machine) doOpEql() {
-	m.PopExpr()
+	bx := m.PopExpr().(*BinaryExpr)
 
 	// get right and left operands.
 	rv := m.PopValue()
@@ -88,14 +88,14 @@ func (m *Machine) doOpEql() {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
 	// set result in lv.
-	res := isEql(m, lv, rv)
+	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
 }
 
 func (m *Machine) doOpNeq() {
-	m.PopExpr()
+	bx := m.PopExpr().(*BinaryExpr)
 
 	// get right and left operands.
 	rv := m.PopValue()
@@ -105,10 +105,29 @@ func (m *Machine) doOpNeq() {
 	}
 
 	// set result in lv.
-	res := !isEql(m, lv, rv)
+	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
+}
+
+// isInterfaceCmp reports whether either operand of bx has a static interface
+// type. When true, Go's runtime semantics require panicking on any
+// uncomparable dynamic type even if both values are nil-wrapped.
+func isInterfaceCmp(bx *BinaryExpr) bool {
+	return hasInterfaceStaticType(bx.Left) || hasInterfaceStaticType(bx.Right)
+}
+
+func hasInterfaceStaticType(x Expr) bool {
+	if x == nil {
+		return false
+	}
+	t, _ := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+	if t == nil {
+		return false
+	}
+	_, ok := baseOf(t).(*InterfaceType)
+	return ok
 }
 
 func (m *Machine) doOpLss() {
@@ -420,8 +439,13 @@ func (m *Machine) doOpBandn() {
 // ----------------------------------------
 // logic functions
 
+// isEql reports whether lv and rv are equal. viaInterface is true when the
+// comparison originates from operands of static interface type, in which case
+// encountering an uncomparable dynamic type (map/slice/func) at any depth
+// must panic — matching Go's runtime semantics.
+//
 // TODO: can be much faster.
-func isEql(m *Machine, lv, rv *TypedValue) bool {
+func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultTypedValue along the way.
 	lvu := lv.IsUndefined()
@@ -498,11 +522,14 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 			return bytes.Equal(la.Data, ra.Data)
 		}
 		et := at.Elt
+		// Elements whose declared type is an interface must be compared
+		// with interface semantics, so an uncomparable dynamic type panics.
+		elemViaInterface := viaInterface || baseOf(et).Kind() == InterfaceKind
 		for i := range la.GetLength() {
 			m.incrCPU(OpCPUEql)
 			li := la.GetPointerAtIndexInt2(m.Store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(m.Store, i, et).Deref()
-			if !isEql(m, &li, &ri) {
+			if !isEql(m, &li, &ri, elemViaInterface) {
 				return false
 			}
 		}
@@ -510,8 +537,8 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 	case StructKind:
 		ls := lv.V.(*StructValue)
 		rs := rv.V.(*StructValue)
+		lt := baseOf(lv.T).(*StructType)
 		if debug {
-			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
 			if lt.TypeID() != rt.TypeID() {
 				panic("comparison on structs of unequal types")
@@ -524,30 +551,32 @@ func isEql(m *Machine, lv, rv *TypedValue) bool {
 			m.incrCPU(OpCPUEql)
 			lf := ls.GetPointerToInt(m.Store, i).Deref()
 			rf := rs.GetPointerToInt(m.Store, i).Deref()
-			if !isEql(m, &lf, &rf) {
+			// Fields whose declared type is an interface must be compared
+			// with interface semantics, even when the parent comparison is not.
+			fieldViaInterface := viaInterface || baseOf(lt.Fields[i].Type).Kind() == InterfaceKind
+			if !isEql(m, &lf, &rf, fieldViaInterface) {
 				return false
 			}
 		}
 		return true
-	case MapKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("map can only be compared with `nil`")
-			}
+	case InterfaceKind:
+		if lv.V == nil && rv.V == nil {
+			return true
 		}
-		return lv.V == rv.V
-	case SliceKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("slice can only be compared with `nil`")
-			}
+		if lv.V == nil || rv.V == nil {
+			return false
 		}
-		return lv.V == rv.V
-	case FuncKind:
-		if debug {
-			if lv.V != nil && rv.V != nil {
-				panic("function can only be compared with `nil`")
-			}
+		panic("unreachable: non-nil interface with InterfaceKind")
+	case MapKind, SliceKind, FuncKind:
+		// Uncomparable kinds. Direct comparisons are caught at preprocess
+		// time; the only way we reach here is `m == nil` (one side nil) or
+		// a comparison whose static operands are interface-typed — in the
+		// latter case Go's runtime panics regardless of nil-ness.
+		if viaInterface || (lv.V != nil && rv.V != nil) {
+			m.Panic(typedString(fmt.Sprintf(
+				"comparing uncomparable type %s",
+				lv.T.String(),
+			)))
 		}
 		return lv.V == rv.V
 	case PointerKind:
