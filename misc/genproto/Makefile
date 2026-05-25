@@ -19,6 +19,14 @@ all:
 	find ../.. -name "*.pb.go"     -delete
 	mkdir -p proto
 	go run .
+	# exception: tm2/pkg/bft/privval/upstream/upstreampb uses protoc directly
+	# (production code, not via the amino genproto generator) for byte-compat
+	# with upstream Tendermint v0.34's privval socket protocol. Requires
+	# google/protobuf/timestamp.proto from protoc's bundled include directory.
+	cd ../../tm2/pkg/bft/privval/upstream/upstreampb; \
+		protoc --go_out=. --go_opt=paths=source_relative \
+		--proto_path=. --proto_path=$$(dirname $$(which protoc))/../include \
+		upstream.proto
 	# exception: gen .pb.go for folders with .proto files but no package.go.
 	cd ../../tm2/pkg/amino/tests/proto3; \
 		protoc --go_out=. --go_opt=paths=source_relative \
