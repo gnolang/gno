@@ -23,10 +23,15 @@ all:
 	# (production code, not via the amino genproto generator) for byte-compat
 	# with upstream Tendermint v0.34's privval socket protocol. Requires
 	# google/protobuf/timestamp.proto from protoc's bundled include directory.
+	# Applies goimports after protoc — protoc-gen-go emits external imports
+	# above stdlib imports, but tm2's lint (CI 'make fmt') expects the
+	# goimports two-group ordering.
 	cd ../../tm2/pkg/bft/privval/upstream/upstreampb; \
 		protoc --go_out=. --go_opt=paths=source_relative \
 		--proto_path=. --proto_path=$$(dirname $$(which protoc))/../include \
-		upstream.proto
+		upstream.proto; \
+		go run -modfile ../../../../../../misc/devdeps/go.mod \
+		golang.org/x/tools/cmd/goimports -w upstream.pb.go
 	# exception: gen .pb.go for folders with .proto files but no package.go.
 	cd ../../tm2/pkg/amino/tests/proto3; \
 		protoc --go_out=. --go_opt=paths=source_relative \
