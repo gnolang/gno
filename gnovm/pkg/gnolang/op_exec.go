@@ -980,8 +980,9 @@ func (m *Machine) doOpSwitchClauseCase() {
 	}
 	// A switch tag whose static type is an interface compares like an
 	// interface equality at runtime — uncomparable dynamic types panic.
-	ss, _ := m.PeekStmt1().(*SwitchStmt)
-	viaInterface := ss != nil && !ss.IsTypeSwitch && ss.X != nil && hasInterfaceStaticType(ss.X)
+	// ss.X is normalized to `true` for tag-less switches (see go2gno.go).
+	ss := m.PeekStmt1().(*SwitchStmt)
+	viaInterface := !ss.IsTypeSwitch && hasInterfaceStaticType(ss.X)
 	match := isEql(m, cv, tv, viaInterface)
 	if match {
 		// matched clause

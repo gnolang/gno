@@ -560,13 +560,15 @@ func isEql(m *Machine, lv, rv *TypedValue, viaInterface bool) bool {
 		}
 		return true
 	case InterfaceKind:
-		if lv.V == nil && rv.V == nil {
-			return true
-		}
-		if lv.V == nil || rv.V == nil {
+		// Dynamic types are unwrapped before reaching isEql, so T is
+		// InterfaceType only when both sides have no dynamic content.
+		if lv.V != nil || rv.V != nil {
+			if debug {
+				panic("isEql: unexpected non-nil InterfaceType (dynamic type should have been unwrapped)")
+			}
 			return false
 		}
-		panic("unreachable: non-nil interface with InterfaceKind")
+		return true
 	case MapKind, SliceKind, FuncKind:
 		// Uncomparable kinds. Direct comparisons are caught at preprocess
 		// time; the only way we reach here is `m == nil` (one side nil) or
