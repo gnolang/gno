@@ -169,7 +169,7 @@ func TestBechString(t *testing.T) {
 	}
 }
 
-func TestFootnoteRef(t *testing.T) {
+func TestFootnoteLabel(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"note1", "note1"},
 		{"Note_A-1", "Note_A-1"},
@@ -177,8 +177,8 @@ func TestFootnoteRef(t *testing.T) {
 		{"", ""},
 	}
 	for _, c := range cases {
-		if got := FootnoteRef(c.in); got != c.want {
-			t.Errorf("FootnoteRef(%q) = %q, want %q", c.in, got, c.want)
+		if got := FootnoteLabel(c.in); got != c.want {
+			t.Errorf("FootnoteLabel(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

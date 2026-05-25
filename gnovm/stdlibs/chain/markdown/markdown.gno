@@ -67,7 +67,7 @@ func PercentEncodeURL(s string) string // injected
 // lo bit i for codepoint i (0-63) and hi bit i for codepoint i+64
 // (64-127). Bytes >= 128 are rejected outright.
 //
-// INTERNAL. Used by p/nt/md/sanitize.UserName, .FootnoteRef,
+// INTERNAL. Used by p/nt/markdown/sanitize/v0.UserName, .FootnoteLabel,
 // .LanguageName, .BechString matchers.
 func MatchCharsetN(s string, firstLo, firstHi, restLo, restHi uint64, minLen, maxLen int) bool // injected
 

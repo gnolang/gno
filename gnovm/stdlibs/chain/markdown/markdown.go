@@ -548,12 +548,45 @@ func containsAnyByte(s string, bs ...byte) bool {
 	return false
 }
 
-// escapeRefLinkUse neutralizes reference-link uses [text][label] and
-// [text][] by escaping the second [ — prevents user content from
-// invoking realm-defined LRDs through label collision.
+// escapeRefLinkUse neutralizes reference-link uses [text][label],
+// [text][], and footnote-ref invocations [^name] by escaping the
+// offending [ — prevents user content from invoking realm-defined
+// LRDs through label collision or footnote-definitions through
+// footnote-namespace pollution.
+//
+// CM §2.4 governs backslash escapes: backslashes themselves can be
+// escaped, and the parser counts pairs. So if the input is `\[^x]`,
+// a naive `ReplaceAll("[^", "\\[^")` would yield `\\[^x]` which
+// goldmark reads as a literal backslash followed by `[^x]` — the
+// footnote ref survives. We avoid that by tracking the running count
+// of immediately-preceding backslashes and, if it is odd, prepending
+// one more `\` before the escape so the total parity stays odd.
 func escapeRefLinkUse(line string) string {
-	if !strings.Contains(line, "][") {
+	if !strings.Contains(line, "][") && !strings.Contains(line, "[^") {
 		return line
 	}
-	return strings.ReplaceAll(line, "][", "]\\[")
+	var b strings.Builder
+	b.Grow(len(line) + 16)
+	trailingBackslashes := 0
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		needsEscape := c == '[' &&
+			((i+1 < len(line) && line[i+1] == '^') ||
+				(i > 0 && line[i-1] == ']'))
+		if needsEscape {
+			if trailingBackslashes%2 == 1 {
+				b.WriteByte('\\')
+				trailingBackslashes++
+			}
+			b.WriteByte('\\')
+			trailingBackslashes++
+		}
+		b.WriteByte(c)
+		if c == '\\' {
+			trailingBackslashes++
+		} else {
+			trailingBackslashes = 0
+		}
+	}
+	return b.String()
 }

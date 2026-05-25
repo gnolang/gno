@@ -26,10 +26,10 @@ One `.txtar` per case. Three pieces:
 |---|---|---|
 | `// MARKDOWNFUNC: <Name>` | every case | which sanitize helper to invoke |
 | `// CONTEXT: <template>` | escapers / URL filters | surrounding markdown; the sanitized output is substituted at `%s`. `\n` in the template is a real newline. |
-| `// ARGS: <Go literal>` | BechString / CodeFence | extra argument: `"g"` (quoted string) for BechString prefix; `3` (int) for CodeFence minCount |
+| `// ARGS: <Go literal>` | BechString / CodeFence / FootnoteDefinition / LanguageCodeBlock / LinkReferenceDefinition | extra argument(s): `"g"` (quoted string) for BechString prefix, FootnoteDefinition name, or LanguageCodeBlock language tag; `3` (int) for CodeFence minCount; `"url","title"` (two comma-separated quoted strings) for LinkReferenceDefinition |
 | `// INPUT_ESCAPED` | optional | decode Go-string escapes in `input.md` (so you can author CR `\r`, NUL `\x00`, lone control bytes, `\u202E`, etc. — editors normalize line endings, this gets around that) |
 
-Validators (`UserName`, `BechString`, `FootnoteRef`, `LanguageName`,
+Validators (`UserName`, `BechString`, `FootnoteLabel`, `LanguageName`,
 `NestedPrefix`) take no `CONTEXT` directive — their output isn't
 markdown, so there's nothing to render. The case checks only the
 returned string against `output.md`.
@@ -102,31 +102,38 @@ be `kebab-case-describing-what-it-tests.txtar`.
 
 | Helper | Cases | Threats covered |
 |---|---|---|
-| `InlineText` | 10 | bidi/ZWSP/NEL strip, CR-only fold, NUL→FFFD, backslash-escape-order, ampersand-entity, leading/trailing-`#` in ATX context, link-text bracket breakout, `=` and `\|` carve-outs |
-| `Block` | 13 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`), CR / U+2028 / U+2029 fold |
+| `InlineText` | 14 | bidi/ZWSP/NEL strip, CR-only fold, NUL→FFFD, backslash-escape-order, ampersand-entity, leading/trailing-`#` in ATX context, link-text bracket breakout, `=` and `\|` carve-outs |
+| `Block` | 16 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`), CR / U+2028 / U+2029 fold |
+| `Blockquote` | 8 | basic, bidi strip, blank-line preservation, CR normalize, empty input, leading-marker escape, fence autoclose, LRD strip |
 | `LinkTitle` | 4 | quote/apostrophe/paren delimiters, newline fold |
 | `TableCell` | 2 | pipe escape, tab→space |
 | `HTMLEscape` | 5 | attribute injection, element body, ampersand, comment context, `-->` terminator bypass |
-| `URL` | 8 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` `?body=`/`cc=`/`bcc=`, embedded CRLF, relative + fragment accept |
+| `URL` | 10 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` `?body=`/`cc=`/`bcc=`, embedded CRLF, relative + fragment accept |
 | `ImageURL` | 5 | `data:text/html` reject, `data:image/svg+xml` accept, `mailto:` / protocol-relative as image src |
 | `UserName` | 4 | digit-first / uppercase reject, `_`/`-` accept, RLO-stripped-then-validated |
 | `BechString` | 4 | `"g"` prefix, `""` any-prefix (`bc1...`), `"gpub"` prefix, wrong-prefix reject |
-| `FootnoteRef` | 2 | valid charset, space reject |
+| `FootnoteLabel` | 2 | valid charset, space reject |
 | `LanguageName` | 3 | `c++` accept, space reject, newline-injection reject |
 | `NestedPrefix` | 3 | blockquote `>` accept, `##` reject, newline-in-prefix reject |
-| `CodeFence` | 3 | grow-from-3-backticks, grow-from-4-backticks, min-clamp-zero (never-panic invariant) |
+| `CodeFence` | 4 | grow-from-3-backticks, grow-from-4-backticks, min-clamp-zero (never-panic invariant) |
+| `InlineCode` | 5 | basic, embedded backticks, multi-line fold, NUL, leading/trailing backtick padding |
+| `CodeBlock` | 5 | basic, bidi strip, CR normalize, embedded-fence neutralization, empty content |
+| `LanguageCodeBlock` | 3 | valid tag, rejected tag (silent fallback), embedded fence in body |
+| `Link` | 4 | basic, rejected URL, javascript scheme, bracket breakout in text |
+| `FootnoteDefinition` | 3 | basic body, multi-paragraph continuation indentation, rejected name suppresses output |
+| `LinkReferenceDefinition` | 3 | basic label/url, with title, rejected URL suppresses output |
 
-64 fixtures total. Grow the corpus by enumerating the threat surface
+103 fixtures total. Grow the corpus by enumerating the threat surface
 for each helper as new attacks/CVEs/audit findings surface — every
 finding becomes a permanent regression test.
 
 ## Implementation notes
 
-- The driver reimplements `sanitize.X` in Go (calls the same
-  `chain/markdown` natives the gno helpers call). This avoids spawning
-  a gno VM per case (~ms vs ~100ms per case). If drift between the Go
-  reimpl and the gno helpers becomes a concern, add an assertion test
-  that runs a sample of inputs through both and asserts equality.
+- The driver invokes the real `sanitize.X` gno helper through a per-case
+  gno VM (constructed via `CacheWrap` over a shared base store, so cases
+  stay isolated without re-loading the examples directory). This means
+  the test corpus exercises the same code path as production realms —
+  no Go reimplementation to drift against.
 - HTML is rendered with `NewGnoExtension()` — no image validator, so
   cases that depend on validator state should be authored carefully.
   Add `WithImageValidator(...)` to the driver if a case requires it.

@@ -126,7 +126,7 @@ func FlexFrame(lines []string, align WAlignment) string {
 		body += "| " + padLine(lines[i], maxWidth, align, " ") + " |\n"
 	}
 
-	return md.CodeBlock(top+body+bottom) + "\n"
+	return md.CodeBlock(top + body + bottom)
 }
 
 // Frame draws a frame with specific width, height and alignment options.
@@ -170,7 +170,7 @@ func Frame(
 		body += "| " + padLine(line, maxWidth, wAlign, " ") + " |\n"
 	}
 
-	return md.CodeBlock(top+body+bottom) + "\n"
+	return md.CodeBlock(top + body + bottom)
 }
 
 // FixedFrame draws a frame with a fixed width and height, truncating or wrapping content as needed.
@@ -234,7 +234,7 @@ func FixedFrame(
 		body += "| " + padLine(line, width, wAlign, " ") + " |\n"
 	}
 
-	return md.CodeBlock(top+body+bottom) + "\n"
+	return md.CodeBlock(top + body + bottom)
 }
 
 // ProgressBar renders a visual progress bar, the size represents the number of chars in length for the bar.

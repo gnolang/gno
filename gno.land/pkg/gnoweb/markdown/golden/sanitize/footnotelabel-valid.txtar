@@ -1,4 +1,4 @@
-// MARKDOWNFUNC: FootnoteRef
+// MARKDOWNFUNC: FootnoteLabel
 -- input.md --
 Note_A-1
 -- output.md --

@@ -1,4 +1,4 @@
-// MARKDOWNFUNC: FootnoteRef
+// MARKDOWNFUNC: FootnoteLabel
 -- input.md --
 has space
 -- output.md --

@@ -23,8 +23,11 @@ func TestHelpers(t *testing.T) {
 		{"Link", func() string { return md.Link("foo", "http://example.com") }, "[foo](http://example.com)"},
 		{"UserLink", func() string { return md.UserLink("moul") }, "[@moul](/u/moul)"},
 		{"Image", func() string { return md.Image("foo", "http://example.com") }, "![foo](http://example.com)"},
-		{"InlineImageWithLink", func() string { return md.InlineImageWithLink("alt", "image-url", "link-url") }, "[![alt](image-url)](link-url)"},
-		{"Footnote", func() string { return md.Footnote("foo", "bar") }, "[foo]: bar"},
+		{"InlineImageWithLink", func() string { return md.InlineImageWithLink("alt", "http://img.example.com/x.png", "http://link.example.com") }, "[![alt](http://img.example.com/x.png)](http://link.example.com)"},
+		{"FootnoteDefinition", func() string { return md.FootnoteDefinition("foo", "bar") }, "[^foo]:\n    bar\n"},
+		{"LinkReferenceDefinition", func() string {
+			return md.LinkReferenceDefinition("foo", "http://example.com", "")
+		}, "\n\n[foo]: http://example.com\n\n"},
 		{"Paragraph", func() string { return md.Paragraph("foo") }, "foo\n\n"},
 	}
 
@@ -75,9 +78,17 @@ func TestUserLink(t *testing.T) {
 		expected string
 	}{
 		{"username", "moul", "[@moul](/u/moul)"},
-		{"address", "g1blah", "[g1blah](/u/g1blah)"},
-		{"username with special chars", "user_name", "[@user\\_name](/u/user_name)"},
-		{"address with numbers", "g1abc123", "[g1abc123](/u/g1abc123)"},
+		// "g1blah" data part is too short for a bech32 address (min 6
+		// chars after "1"); UserLink validates as a username instead.
+		{"short g1-prefixed string treated as username", "g1blah", "[@g1blah](/u/g1blah)"},
+		// "user_name" is a valid username (charset includes _ and -);
+		// the validator returns it verbatim, so no markdown escape of _.
+		{"username with underscore", "user_name", "[@user_name](/u/user_name)"},
+		// "g1abc123" has a 6-char data part — valid bech32 shape.
+		{"address with 6-char data", "g1abc123", "[g1abc123](/u/g1abc123)"},
+		// invalid identifier (spaces, uppercase, etc.) → empty.
+		{"rejected: spaces", "hello world", ""},
+		{"rejected: uppercase first char", "Alice", ""},
 	}
 
 	for _, tt := range tests {

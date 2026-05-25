@@ -62,9 +62,11 @@ const sanitizeTestdataDir = "golden/sanitize"
 // the base Store loads the examples directory once.
 //
 // The driver gno file is loaded into each per-case Machine as a synthetic
-// package that imports sanitize/v0 and exposes a single Run(fn, input, arg)
-// dispatcher. The Go side then calls m.Eval(`Run("InlineText", "input", "")`)
-// and pops the string result.
+// package that imports sanitize/v0 and exposes a single
+// Run(fn, input, arg, arg2) dispatcher. The Go side then calls
+// m.Eval(`Run("InlineText", "input", "", "")`) and pops the string
+// result. arg2 is used only by the helpers that take three string slots
+// (currently LinkReferenceDefinition: label + url + title).
 
 const driverPkgPath = "gno.land/p/nt/markdown/sanitize/v0/sanitize_test_driver"
 
@@ -76,7 +78,7 @@ import (
 	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
-func Run(fn, input, arg string) string {
+func Run(fn, input, arg, arg2 string) string {
 	switch fn {
 	case "StripBidiAndZeroWidth":
 		return sanitize.StripBidiAndZeroWidth(input)
@@ -100,8 +102,8 @@ func Run(fn, input, arg string) string {
 		return sanitize.UserName(input)
 	case "BechString":
 		return sanitize.BechString(input, arg)
-	case "FootnoteRef":
-		return sanitize.FootnoteRef(input)
+	case "FootnoteLabel":
+		return sanitize.FootnoteLabel(input)
 	case "LanguageName":
 		return sanitize.LanguageName(input)
 	case "NestedPrefix":
@@ -117,6 +119,12 @@ func Run(fn, input, arg string) string {
 		return sanitize.LanguageCodeBlock(arg, input)
 	case "Blockquote":
 		return sanitize.Blockquote(input)
+	case "FootnoteDefinition":
+		// arg = realm-provided footnote name; input = user body text.
+		return sanitize.FootnoteDefinition(arg, input)
+	case "LinkReferenceDefinition":
+		// input = realm-provided label; arg = url; arg2 = title.
+		return sanitize.LinkReferenceDefinition(input, arg, arg2)
 	}
 	panic("unknown sanitize function: " + fn)
 }
@@ -147,7 +155,7 @@ func sanitizeBaseStores(t *testing.T) (storetypes.CommitStore, gno.Store) {
 // transactional gno store on top of that wrap, and never commit. This
 // matches the filetest pattern and prevents one case's package
 // registrations from leaking into the next.
-func callSanitizeGno(t *testing.T, fn, input, arg string) string {
+func callSanitizeGno(t *testing.T, fn, input, arg, arg2 string) string {
 	t.Helper()
 	commit, gnoBase := sanitizeBaseStores(t)
 	tcw := commit.CacheWrap()
@@ -175,7 +183,7 @@ func callSanitizeGno(t *testing.T, fn, input, arg string) string {
 	// Build the call AST directly. gno.X parses a Go-shaped string with
 	// chopBinary heuristics that misfire on quoted string literals, so
 	// we construct CallExpr + BasicLitExpr arguments by hand.
-	expr := gno.Call(gno.Nx("Run"), gno.Str(fn), gno.Str(input), gno.Str(arg))
+	expr := gno.Call(gno.Nx("Run"), gno.Str(fn), gno.Str(input), gno.Str(arg), gno.Str(arg2))
 	results := m.Eval(expr)
 	require.Len(t, results, 1, "Run() must return exactly one value")
 	return results[0].GetString()
@@ -239,7 +247,7 @@ func decodeInput(t *testing.T, raw string) string {
 // gno-side driver — and the Go test code just shuttles strings.
 func applySanitize(t *testing.T, sc sanitizeCase, input string) string {
 	t.Helper()
-	arg := ""
+	arg, arg2 := "", ""
 	switch sc.Func {
 	case "BechString":
 		// BechString's ARGS is a Go string literal; unquote so the gno
@@ -253,12 +261,57 @@ func applySanitize(t *testing.T, sc sanitizeCase, input string) string {
 		unq, err := strconv.Unquote(sc.Args)
 		require.NoError(t, err, "LanguageCodeBlock ARGS must be a quoted Go string literal, got %q", sc.Args)
 		arg = unq
+	case "FootnoteDefinition":
+		// FootnoteDefinition's ARGS is the realm-provided footnote name
+		// as a quoted Go string literal (input.md holds the body text).
+		unq, err := strconv.Unquote(sc.Args)
+		require.NoError(t, err, "FootnoteDefinition ARGS must be a quoted Go string literal, got %q", sc.Args)
+		arg = unq
+	case "LinkReferenceDefinition":
+		// LinkReferenceDefinition's ARGS is two quoted Go string literals
+		// separated by a comma: "url","title". The label comes from
+		// input.md. The title may be the empty string "".
+		url, title, ok := splitTwoQuoted(sc.Args)
+		require.True(t, ok, "LinkReferenceDefinition ARGS must be two comma-separated quoted Go string literals, got %q", sc.Args)
+		arg = url
+		arg2 = title
 	case "CodeFence":
 		// CodeFence's ARGS is an integer; driver re-parses with
 		// strconv.Atoi, so pass through as-is.
 		arg = sc.Args
 	}
-	return callSanitizeGno(t, sc.Func, input, arg)
+	return callSanitizeGno(t, sc.Func, input, arg, arg2)
+}
+
+// splitTwoQuoted parses two comma-separated Go-quoted string literals,
+// tolerating whitespace around the comma. Used for cases that need to
+// thread two realm-provided slots through ARGS.
+func splitTwoQuoted(s string) (a, b string, ok bool) {
+	first, err := strconv.QuotedPrefix(s)
+	if err != nil {
+		return "", "", false
+	}
+	rest := strings.TrimLeft(s[len(first):], " \t")
+	if !strings.HasPrefix(rest, ",") {
+		return "", "", false
+	}
+	rest = strings.TrimLeft(rest[1:], " \t")
+	second, err := strconv.QuotedPrefix(rest)
+	if err != nil {
+		return "", "", false
+	}
+	if strings.TrimSpace(rest[len(second):]) != "" {
+		return "", "", false
+	}
+	au, err := strconv.Unquote(first)
+	if err != nil {
+		return "", "", false
+	}
+	bu, err := strconv.Unquote(second)
+	if err != nil {
+		return "", "", false
+	}
+	return au, bu, true
 }
 
 // substituteContext substitutes the sanitize output into the CONTEXT

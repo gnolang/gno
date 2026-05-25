@@ -1,24 +1,31 @@
-// Package sanitize provides input-cleaning primitives that realm authors
-// wrap around user-supplied strings before flowing them into markdown
-// output. Each helper targets one specific lexical slot (link text,
-// heading text, URL href, table cell, HTML attribute, etc.) and neutralizes
-// the bytes that would otherwise let user content break out of that slot
-// or inject new top-level structure.
+// Package sanitize provides input-cleaning primitives and safe-emit
+// builders for each markdown lexical slot. Realm authors wrap user-
+// supplied strings with these helpers before flowing them into rendered
+// markdown output. Each helper targets one specific slot (link text,
+// heading text, URL href, table cell, HTML attribute, fenced code block,
+// blockquote, footnote definition, link-reference definition, etc.) and
+// neutralizes the bytes that would otherwise let user content break out
+// of that slot or inject new top-level structure.
 //
 // Pick the right helper from the table under "Picking the right helper"
 // below, then wrap each user-supplied argument exactly once at the call
 // site (see "The audit rule").
 //
-// # The audit rule
+// # Wrap once
 //
-// Exactly one sanitize.* wrapper per user-derived argument, at the call
-// site. Double-wrapping is a bug. Markdown-builder packages (e.g.
-// p/moul/md) do NOT sanitize internally — wrapping is the caller's
-// responsibility:
+// The escapers and safe-emit builders in this package (InlineText, Block,
+// LinkTitle, TableCell, HTMLEscape, InlineCode, CodeBlock,
+// LanguageCodeBlock, Blockquote, FootnoteDefinition,
+// LinkReferenceDefinition) are NOT idempotent — applying them twice
+// re-escapes the bytes the first pass added (`\*` becomes `\\\*`, `&amp;`
+// becomes `&amp;amp;`, a fenced block gets re-fenced). Wrap each
+// user-derived string with at most one sanitize.* call.
 //
-//	out += md.H2(sanitize.InlineText(post.Title))                       // good
-//	out += md.H2(post.Title)                                            // BAD: raw user input
-//	out += md.H2(sanitize.InlineText(sanitize.InlineText(post.Title)))  // BAD: double-wrap
+// Some markdown-builder packages (e.g. p/moul/md) sanitize the args of
+// specific helpers internally — see each builder's package doc for the
+// per-helper contract. If the builder sanitizes for you, pass the raw
+// user input; if it doesn't, wrap the input with the right sanitize.*
+// helper at the call site.
 //
 // # Picking the right helper
 //
@@ -42,11 +49,13 @@
 //	`inline code` inside running prose         InlineCode
 //	multi-line fenced code block               CodeBlock
 //	multi-line fenced code with language tag   LanguageCodeBlock
-//	r/sys/users handle                         UserName     (validator)
-//	g1.../gpub1... etc.                        BechString   (validator)
-//	footnote name in [^name]:                  FootnoteRef  (validator)
-//	fenced-code language tag                   LanguageName (validator)
-//	prefix arg to md.Nested                    NestedPrefix (validator)
+//	[^name]: footnote body                     FootnoteDefinition
+//	[label]: url "title" reference def         LinkReferenceDefinition
+//	r/sys/users handle                         UserName       (validator)
+//	g1.../gpub1... etc.                        BechString     (validator)
+//	footnote / LRD label / {#id} anchor name   FootnoteLabel  (validator)
+//	fenced-code language tag                   LanguageName   (validator)
+//	prefix arg to md.Nested                    NestedPrefix   (validator)
 //
 // # Invariants
 //
@@ -57,7 +66,7 @@
 //
 //	Idempotent (calling twice == calling once):
 //	  StripBidiAndZeroWidth, NormalizeBreaks
-//	  UserName, BechString, FootnoteRef, LanguageName, NestedPrefix
+//	  UserName, BechString, FootnoteLabel, LanguageName, NestedPrefix
 //	  URL, ImageURL              (accept→identity; reject→"")
 //
 //	NOT idempotent — never wrap an already-sanitized string:
@@ -67,10 +76,13 @@
 //	  Blockquote                         (re-prefixes `> `, escapes its own prefixes)
 //	  InlineCode, CodeBlock,
 //	  LanguageCodeBlock                  (wrap with a fence — calling twice double-wraps)
+//	  FootnoteDefinition,
+//	  LinkReferenceDefinition            (compose Block/InlineText/URL internally —
+//	                                      passing already-sanitized strings double-escapes)
 //
 //	CodeFence is pure: same inputs always give the same output.
 //
-// Validators (UserName / BechString / FootnoteRef / LanguageName /
+// Validators (UserName / BechString / FootnoteLabel / LanguageName /
 // NestedPrefix) return either the cleaned input verbatim or "". They
 // never partially-sanitize: if the input doesn't match the slot's
 // charset/shape, the answer is rejection.
@@ -110,6 +122,19 @@
 //   - markdown-structure injection: user content opening a heading,
 //     blockquote, list, code fence, table row, link-reference def,
 //     setext underline, or gnoweb extension delimiter at document level.
+//   - footnote / link-reference namespace pollution: user content
+//     containing `[^name]` or `[text][label]` syntax that would otherwise
+//     resolve against realm-defined footnote definitions or link
+//     reference definitions elsewhere on the page. Block escapes the
+//     opening `[` in both shapes.
+//   - shortcut-reference residual: Block escapes the use-side `][` and
+//     `[^` of reference links, but `[bare-label]` shortcut references
+//     remain syntactically valid markdown — escaping every `[` in user
+//     content would break inline-link syntax. If a realm emits LRDs
+//     whose labels collide with text the user is likely to write
+//     (`[help]`, `[click here]`), shortcut-resolution can still happen.
+//     The recommended mitigation is to namespace realm-defined LRD labels
+//     (e.g. `[r/myrealm/help]`) so user text cannot collide.
 //   - URL scheme abuse: javascript:, data:text/html, vbscript:, blob:,
 //     protocol-relative //, mailto: with prefill phishing parameters.
 //     Allowlist-only (URL / ImageURL).
@@ -275,6 +300,11 @@ func InlineText(s string) string {
 //   - Reference-link USES — `[text][label]` syntax — get the `][` pair
 //     escaped to `]\[`, so user content cannot resolve against a
 //     realm-defined `[label]: ...` reference elsewhere on the page.
+//   - Footnote-reference USES — `[^name]` syntax — get the opening
+//     `[` escaped to `\[`, so user content cannot invoke a realm-defined
+//     `[^name]: body` footnote definition elsewhere on the page.
+//     Backslash-parity is preserved (CM §2.4): a preceding `\` doesn't
+//     let the escape collapse into a literal `\\` plus an unescaped `[`.
 //   - Extension delimiter lines (`<gno-card>`, `</gno-columns>`, `|||`,
 //     and similar gnoweb structural markers) get a leading space,
 //     neutralizing them as extension markers while preserving them as
@@ -462,11 +492,17 @@ func HTMLEscape(s string) string {
 // Allowlist:
 //   - http, https
 //   - mailto (rejected if contains ?body= or &body= — prefill phishing)
-//   - schemeless relative URLs starting with /, ./, or ..
-//     (rejects // protocol-relative — tracking-pixel vector)
-//   - empty fragment-only URLs (#anchor)
+//   - any URL WITHOUT a scheme — relative paths (`/path`, `./rel`,
+//     `bare-path`), query-only (`?q=v`), fragment-only (`#anchor`).
+//     A `:` appearing inside the URL (e.g. `/path:foo`, `?q=a:b`) is
+//     NOT a scheme separator per RFC 3986 — only `:` immediately after
+//     a leading `[a-zA-Z][a-zA-Z0-9+.-]*` counts.
 //
-// Returns "" if the URL is empty after trim or fails scheme allowlist.
+// Rejected (have an unknown scheme):
+//   - javascript:, data:, vbscript:, blob:, file:, etc.
+//   - `//host/...` (protocol-relative — tracking-pixel vector)
+//
+// Returns "" if the URL is empty after trim or fails the allowlist.
 func URL(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -519,16 +555,16 @@ func ImageURL(s string) string {
 // charset: first [a-z], rest [a-z0-9_-]. Initialized once at package
 // init.
 var (
-	userNameFirstLo, userNameFirstHi uint64
-	userNameRestLo, userNameRestHi   uint64
-	footnoteFirstLo, footnoteFirstHi uint64
-	footnoteRestLo, footnoteRestHi   uint64
-	langFirstLo, langFirstHi         uint64
-	langRestLo, langRestHi           uint64
-	bechHrpFirstLo, bechHrpFirstHi   uint64
-	bechHrpRestLo, bechHrpRestHi     uint64
-	bechDataFirstLo, bechDataFirstHi uint64
-	bechDataRestLo, bechDataRestHi   uint64
+	userNameFirstLo, userNameFirstHi           uint64
+	userNameRestLo, userNameRestHi             uint64
+	footnoteLabelFirstLo, footnoteLabelFirstHi uint64
+	footnoteLabelRestLo, footnoteLabelRestHi   uint64
+	langFirstLo, langFirstHi                   uint64
+	langRestLo, langRestHi                     uint64
+	bechHrpFirstLo, bechHrpFirstHi             uint64
+	bechHrpRestLo, bechHrpRestHi               uint64
+	bechDataFirstLo, bechDataFirstHi           uint64
+	bechDataRestLo, bechDataRestHi             uint64
 )
 
 func init() {
@@ -543,22 +579,22 @@ func init() {
 	setBit(&userNameRestLo, &userNameRestHi, '_')
 	setBit(&userNameRestLo, &userNameRestHi, '-')
 
-	// FootnoteRef: [A-Za-z0-9_-] for both first and rest.
+	// FootnoteLabel: [A-Za-z0-9_-] for both first and rest.
 	for c := byte('A'); c <= 'Z'; c++ {
-		setBit(&footnoteFirstLo, &footnoteFirstHi, c)
-		setBit(&footnoteRestLo, &footnoteRestHi, c)
+		setBit(&footnoteLabelFirstLo, &footnoteLabelFirstHi, c)
+		setBit(&footnoteLabelRestLo, &footnoteLabelRestHi, c)
 	}
 	for c := byte('a'); c <= 'z'; c++ {
-		setBit(&footnoteFirstLo, &footnoteFirstHi, c)
-		setBit(&footnoteRestLo, &footnoteRestHi, c)
+		setBit(&footnoteLabelFirstLo, &footnoteLabelFirstHi, c)
+		setBit(&footnoteLabelRestLo, &footnoteLabelRestHi, c)
 	}
 	for c := byte('0'); c <= '9'; c++ {
-		setBit(&footnoteFirstLo, &footnoteFirstHi, c)
-		setBit(&footnoteRestLo, &footnoteRestHi, c)
+		setBit(&footnoteLabelFirstLo, &footnoteLabelFirstHi, c)
+		setBit(&footnoteLabelRestLo, &footnoteLabelRestHi, c)
 	}
 	for _, c := range []byte{'_', '-'} {
-		setBit(&footnoteFirstLo, &footnoteFirstHi, c)
-		setBit(&footnoteRestLo, &footnoteRestHi, c)
+		setBit(&footnoteLabelFirstLo, &footnoteLabelFirstHi, c)
+		setBit(&footnoteLabelRestLo, &footnoteLabelRestHi, c)
 	}
 
 	// LanguageName: [a-zA-Z0-9_+-] for both first and rest.
@@ -687,18 +723,28 @@ func BechString(s, prefix string) string {
 	return ""
 }
 
-// FootnoteRef validates a footnote name: ^[A-Za-z0-9_-]{1,64}$.
+// FootnoteLabel validates an identifier used as a footnote name, link-
+// reference-definition label, or {#id} anchor: ^[A-Za-z0-9_-]{1,64}$.
 // Strips bidi/zero-width first. Returns s if valid, "" otherwise.
 //
-// The same charset matches goldmark's auto-anchor-ID extension {#id}
-// (when enabled); use this helper for that slot too.
+// Use for every shape where a markdown identifier is treated as an
+// opaque key by the parser:
 //
-// On "" return, omit the footnote (or anchor) entirely rather than
-// emitting it with raw user bytes — the validation exists to keep
-// untrusted bytes out of the footnote-namespace key.
-func FootnoteRef(s string) string {
+//   - footnote-definition labels:        [^FootnoteLabel(name)]: body
+//   - footnote-reference labels:         see [^FootnoteLabel(name)]
+//   - link-reference-definition labels:  [FootnoteLabel(label)]: url
+//   - reference-link USE labels:         [text][FootnoteLabel(label)]
+//   - goldmark auto-anchor {#id}:        # Heading {#FootnoteLabel(id)}
+//
+// The shared validator name reflects the shared charset and shared
+// security goal — keep untrusted bytes out of any parser-managed
+// identifier slot.
+//
+// On "" return, omit the footnote / LRD / anchor entirely rather than
+// emitting it with raw user bytes.
+func FootnoteLabel(s string) string {
 	s = markdown.StripBidiAndZeroWidth(s)
-	if markdown.MatchCharsetN(s, footnoteFirstLo, footnoteFirstHi, footnoteRestLo, footnoteRestHi, 1, 64) {
+	if markdown.MatchCharsetN(s, footnoteLabelFirstLo, footnoteLabelFirstHi, footnoteLabelRestLo, footnoteLabelRestHi, 1, 64) {
 		return s
 	}
 	return ""
@@ -888,6 +934,117 @@ func LanguageCodeBlock(language, content string) string {
 	return fence + lang + "\n" + content + "\n" + fence + "\n"
 }
 
+// ----- Reference-style definitions -----
+
+// FootnoteDefinition emits a GFM footnote definition — the
+// `[^name]: body` form that introduces a footnote whose body is rendered
+// in the page footer (or wherever the renderer chooses to place it).
+// Other parts of the markdown reference the footnote by writing
+// `[^name]` inline.
+//
+// Use for any realm-rendered footnote where the body text comes from
+// user input. The realm picks the footnote name (passed as `name`,
+// validated by FootnoteLabel — failure here returns ""); the user's
+// content goes in `text`, which is sanitized via Block.
+//
+// Contract:
+//   - `name`: passed raw, validated as a FootnoteLabel
+//     (^[A-Za-z0-9_-]{1,64}$). Reject → return "".
+//   - `text`: passed raw multi-paragraph user prose, cleaned via Block
+//     (bidi-strip, line-ending normalize, LRD strip, block-marker
+//     escape, ref-link USE escape, fence auto-close).
+//
+// Empty body → returns "" (a label without body is not a valid
+// footnote definition; the markdown would parse as a paragraph
+// containing the label).
+//
+// Output shape:
+//
+//	[^name]:
+//	    line 1 of body
+//	    line 2 of body
+//	    ...
+//
+// The label sits on its own line and each body line gets a 4-space
+// indent — the GFM continuation rule that keeps multi-paragraph body
+// text bound to the footnote rather than detaching as a new paragraph.
+//
+// Not idempotent (see package doc): composes Block internally; passing
+// already-sanitized body text double-escapes.
+func FootnoteDefinition(name, text string) string {
+	label := FootnoteLabel(name)
+	if label == "" {
+		return ""
+	}
+	body := strings.TrimRight(Block(text), "\n")
+	if body == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("[^")
+	b.WriteString(label)
+	b.WriteString("]:\n")
+	for _, line := range strings.Split(body, "\n") {
+		if line == "" {
+			b.WriteByte('\n')
+		} else {
+			b.WriteString("    ")
+			b.WriteString(line)
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
+}
+
+// LinkReferenceDefinition emits a CommonMark link reference definition
+// (CM §4.7) — the `[label]: url "title"` form that other parts of the
+// markdown reference by writing `[text][label]` or `[label]` (shortcut).
+//
+// Use for any realm-rendered LRD where the realm owns the label but
+// any of the URL or title come from user input. The user content for
+// the URL goes through URL (allowlist-based — reject → ""); the title
+// goes through LinkTitle (escape).
+//
+// Contract:
+//   - `label`: passed raw, validated as a FootnoteLabel
+//     (^[A-Za-z0-9_-]{1,64}$). Realms should choose a namespaced label
+//     using dashes (e.g. `r-myrealm-help`) so shortcut-reference
+//     invocations from user content can't collide with bare prose
+//     (`[help]`, `[click here]`). `/` is not in the FootnoteLabel
+//     charset; reject → return "".
+//   - `url`: passed raw, sanitized via URL. If URL rejects, the LRD is
+//     skipped (return "").
+//   - `title`: passed raw, sanitized via LinkTitle. Empty title → no
+//     title clause emitted.
+//
+// The output is framed with leading and trailing blank lines so that
+// the definition cannot accidentally fuse with adjacent paragraph
+// content into a setext underline or a continuation line.
+//
+// Not idempotent (see package doc).
+func LinkReferenceDefinition(label, url, title string) string {
+	lbl := FootnoteLabel(label)
+	if lbl == "" {
+		return ""
+	}
+	safeURL := URL(url)
+	if safeURL == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n\n[")
+	b.WriteString(lbl)
+	b.WriteString("]: ")
+	b.WriteString(safeURL)
+	if title != "" {
+		b.WriteString(" \"")
+		b.WriteString(LinkTitle(title))
+		b.WriteString("\"")
+	}
+	b.WriteString("\n\n")
+	return b.String()
+}
+
 // ----- internal helpers -----
 
 // linkSchemeAllowed returns true if s passes the URL helper's scheme
@@ -907,12 +1064,36 @@ func linkSchemeAllowed(s string) bool {
 		// Protocol-relative — reject (tracking-pixel vector).
 		return false
 	}
-	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") {
-		return true
+	// Any URL with an unknown scheme (RFC 3986: `^[a-zA-Z][a-zA-Z0-9+.-]*:`)
+	// is rejected — this blocks `javascript:`, `data:`, `vbscript:`, `blob:`,
+	// and anything else not handled above. URLs without a scheme are
+	// treated as relative and accepted (bare path, query-only, fragment).
+	if hasURLScheme(s) {
+		return false
 	}
-	if strings.HasPrefix(s, "#") {
-		// Fragment-only.
-		return true
+	return true
+}
+
+// hasURLScheme reports whether s begins with a scheme followed by ':'
+// per RFC 3986 (^[a-zA-Z][a-zA-Z0-9+.-]*:). A `:` appearing later in
+// the URL (e.g. `/path:foo` or `?q=a:b`) does not count.
+func hasURLScheme(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	c := s[0]
+	if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if c == ':' {
+			return true
+		}
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '+' || c == '.' || c == '-') {
+			return false
+		}
 	}
 	return false
 }

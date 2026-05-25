@@ -27,7 +27,8 @@ func main() {
 	println(md.Link("Gno", "http://gno.land"))
 	println(md.Image("Alt Text", "http://example.com/image.png"))
 	println(md.InlineImageWithLink("Alt Text", "http://example.com/image.png", "http://example.com"))
-	println(md.Footnote("ref", "This is a footnote"))
+	println(md.FootnoteDefinition("ref", "This is a footnote"))
+	println(md.LinkReferenceDefinition("r-example", "/r/example", ""))
 	println(md.Paragraph("This is a paragraph."))
 
 	println("4 columns in one gno-columns tag:")
@@ -113,7 +114,14 @@ func main() {
 // [Gno](http://gno.land)
 // ![Alt Text](http://example.com/image.png)
 // [![Alt Text](http://example.com/image.png)](http://example.com)
-// [ref]: This is a footnote
+// [^ref]:
+//     This is a footnote
+//
+//
+//
+// [r-example]: /r/example
+//
+//
 // This is a paragraph.
 //
 //
