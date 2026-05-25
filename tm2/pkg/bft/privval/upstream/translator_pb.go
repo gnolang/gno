@@ -88,7 +88,7 @@ func VoteToProto(v *types.Vote) (*upstreampb.Vote, error) {
 		Height:           v.Height,
 		Round:            round,
 		BlockId:          bid,
-		Timestamp:        timestamppb.New(v.Timestamp),
+		Timestamp:        tsOrNil(v.Timestamp),
 		ValidatorAddress: append([]byte(nil), v.ValidatorAddress[:]...),
 		ValidatorIndex:   idx,
 		Signature:        append([]byte(nil), v.Signature...),
@@ -148,7 +148,7 @@ func ProposalToProto(p *types.Proposal) (*upstreampb.Proposal, error) {
 		Round:     round,
 		PolRound:  pol,
 		BlockId:   bid,
-		Timestamp: timestamppb.New(p.Timestamp),
+		Timestamp: tsOrNil(p.Timestamp),
 		Signature: append([]byte(nil), p.Signature...),
 	}, nil
 }
@@ -234,4 +234,15 @@ func narrowInt32(v int, name string) (int32, error) {
 		return 0, fmt.Errorf("%s value %d out of int32 range", name, v)
 	}
 	return int32(v), nil
+}
+
+// tsOrNil returns nil for the zero time so we don't emit a year-0001
+// timestamp on the wire. Upstream Tendermint omits the field when the
+// caller has not set Timestamp; matching that keeps byte-level parity
+// with cometbft for unset-Timestamp votes/proposals.
+func tsOrNil(t time.Time) *timestamppb.Timestamp {
+	if t.IsZero() {
+		return nil
+	}
+	return timestamppb.New(t)
 }
