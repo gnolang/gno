@@ -9,7 +9,7 @@ import (
 
 var wantErr = errors.New("test error")
 
-func executor(realm) error {
+func executor(string) error {
 	return wantErr
 }
 
@@ -19,7 +19,7 @@ func main(cur realm) {
 	fn := def.Executor()
 
 	// Act
-	err := fn(cross(cur))
+	err := fn(cur.PkgPath())
 
 	// Assert
 	println(err == wantErr)

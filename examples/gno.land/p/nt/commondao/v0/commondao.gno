@@ -349,7 +349,7 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 	if err == nil {
 		if e, ok := p.definition.(Executable); ok {
 			if fn := e.Executor(); fn != nil {
-				err = fn(cross(rlm))
+				err = fn(rlm.PkgPath())
 			}
 		}
 	}

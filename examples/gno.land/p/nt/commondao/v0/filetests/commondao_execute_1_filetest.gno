@@ -23,7 +23,7 @@ func (mockPropDef) VotingPeriod() time.Duration                 { return 0 }
 func (mockPropDef) Tally(commondao.VotingContext) (bool, error) { return true, nil }
 
 func (mockPropDef) Executor() commondao.ExecFunc {
-	return func(realm) error {
+	return func(string) error {
 		return errors.New("test error")
 	}
 }
