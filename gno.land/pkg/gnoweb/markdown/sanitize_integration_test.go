@@ -109,6 +109,12 @@ func Run(fn, input, arg string) string {
 	case "CodeFence":
 		n, _ := strconv.Atoi(arg)
 		return sanitize.CodeFence(input, n)
+	case "InlineCode":
+		return sanitize.InlineCode(input)
+	case "CodeBlock":
+		return sanitize.CodeBlock(input)
+	case "LanguageCodeBlock":
+		return sanitize.LanguageCodeBlock(arg, input)
 	}
 	panic("unknown sanitize function: " + fn)
 }
@@ -238,6 +244,12 @@ func applySanitize(t *testing.T, sc sanitizeCase, input string) string {
 		// helper receives the raw prefix.
 		unq, err := strconv.Unquote(sc.Args)
 		require.NoError(t, err, "BechString ARGS must be a quoted Go string literal, got %q", sc.Args)
+		arg = unq
+	case "LanguageCodeBlock":
+		// Language tag is a Go string literal; unquote so the gno helper
+		// receives the raw tag (which it then validates via LanguageName).
+		unq, err := strconv.Unquote(sc.Args)
+		require.NoError(t, err, "LanguageCodeBlock ARGS must be a quoted Go string literal, got %q", sc.Args)
 		arg = unq
 	case "CodeFence":
 		// CodeFence's ARGS is an integer; driver re-parses with

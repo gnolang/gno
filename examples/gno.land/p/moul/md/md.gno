@@ -15,6 +15,8 @@ package md
 import (
 	"strconv"
 	"strings"
+
+	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
 // Bold returns bold text for markdown.
@@ -156,22 +158,37 @@ func Blockquote(text string) string {
 	return sb.String()
 }
 
-// InlineCode returns inline code for markdown.
+// InlineCode wraps the given text as a CommonMark inline code span.
 // Example: InlineCode("foo") => "`foo`"
+//
+// Delegates to sanitize.InlineCode, which cleans the input (bidi-strip,
+// CR/CRLF + NEL + U+2028/U+2029 folded to single space, NUL→U+FFFD)
+// and picks a backtick-run length that outscans any internal backticks.
+// Callers do NOT need to pre-wrap the input.
 func InlineCode(code string) string {
-	return "`" + strings.ReplaceAll(code, "`", "\\`") + "`"
+	return sanitize.InlineCode(code)
 }
 
 // CodeBlock creates a markdown code block.
 // Example: CodeBlock("foo") => "```\nfoo\n```"
+//
+// Delegates to sanitize.CodeBlock, which cleans the content (bidi-strip,
+// CR/CRLF normalize, NEL/U+2028/U+2029 fold, NUL→U+FFFD) and picks a
+// fence wide enough to outscan any backticks in content. Callers do NOT
+// need to pre-wrap content with another sanitize helper.
 func CodeBlock(content string) string {
-	return "```\n" + strings.ReplaceAll(content, "```", "\\```") + "\n```"
+	return sanitize.CodeBlock(content)
 }
 
 // LanguageCodeBlock creates a markdown code block with language-specific syntax highlighting.
 // Example: LanguageCodeBlock("go", "foo") => "```go\nfoo\n```"
+//
+// Delegates to sanitize.LanguageCodeBlock, which validates the language
+// tag (charset ^[a-zA-Z0-9_+-]{1,32}$, falling back to a tagless fence
+// if invalid) and cleans the content as CodeBlock does. Callers do NOT
+// need to pre-wrap either argument.
 func LanguageCodeBlock(language, content string) string {
-	return "```" + language + "\n" + strings.ReplaceAll(content, "```", "\\```") + "\n```"
+	return sanitize.LanguageCodeBlock(language, content)
 }
 
 // HorizontalRule returns a horizontal rule for markdown.

@@ -38,6 +38,9 @@
 //	<h5>X</h5>                                 HTMLEscape
 //	any URL going into ](X)                    URL
 //	any image src going into (X)               ImageURL
+//	`inline code` inside running prose         InlineCode
+//	multi-line fenced code block               CodeBlock
+//	multi-line fenced code with language tag   LanguageCodeBlock
 //	r/sys/users handle                         UserName     (validator)
 //	g1.../gpub1... etc.                        BechString   (validator)
 //	footnote name in [^name]:                  FootnoteRef  (validator)
@@ -60,6 +63,8 @@
 //	  InlineText, LinkTitle, TableCell   (re-escape backslashes)
 //	  HTMLEscape                         (re-escapes `&` → `&amp;`)
 //	  Block                              (re-strips LRDs, may double-escape line leaders)
+//	  InlineCode, CodeBlock,
+//	  LanguageCodeBlock                  (wrap with a fence — calling twice double-wraps)
 //
 //	CodeFence is pure: same inputs always give the same output.
 //
@@ -709,13 +714,118 @@ func NestedPrefix(s string) string {
 // `minCount < 1` is clamped to 1. Empty content returns
 // strings.Repeat("`", max(minCount, 1)). Never panics.
 //
-// Most realms should reach for `md.InlineCode` / `md.CodeBlock` /
-// `md.LanguageCodeBlock` in p/moul/md, which call CodeFence internally
-// and emit the full code block for you. Call CodeFence directly only
-// when you're rolling a custom fence emitter (e.g. a renderer that
-// needs the fence length but emits the body differently).
+// Most realms should reach for InlineCode / CodeBlock /
+// LanguageCodeBlock below, which call CodeFence internally and emit
+// the full code block for you. Call CodeFence directly only when
+// you're rolling a custom fence emitter (e.g. a renderer that needs
+// the fence length but emits the body differently).
 func CodeFence(content string, minCount int) string {
 	return markdown.CodeFence(content, minCount)
+}
+
+// InlineCode wraps user content as a CommonMark inline code span — the
+// `code` in `` `code` ``. Use for any user-derived token, identifier,
+// or short literal that should render in monospace inside running
+// prose: variable names, hashes, hex addresses, token symbols, error
+// codes, package paths, transaction IDs.
+//
+// Inline code spans cannot span lines (a `\n` inside the content would
+// end the span and leave the surrounding backticks as literal text),
+// so all line breaks — CR / CRLF / LF, NEL (U+0085), U+2028, U+2029 —
+// are folded to a single space. If you want each line of user content
+// on its own row, use CodeBlock instead.
+//
+// Behavior:
+//   - Bidi/zero-width controls are stripped (browsers honor bidi marks
+//     inside `<code>`, so leaving them would let stored bytes display
+//     as something different).
+//   - NUL is replaced with U+FFFD.
+//   - The wrapping fence is one backtick longer than the longest
+//     backtick run in the content, so internal backticks can never
+//     close the span prematurely.
+//   - A single space pad is added on each side when content starts or
+//     ends with `` ` `` or space, so leading/trailing backticks render
+//     literally rather than fusing with the fence (the renderer
+//     strips one space from each side per CommonMark spec).
+//
+// Empty input returns "" rather than a literal two-backtick string
+// (which CommonMark parses as text, not as an empty code span). If
+// you use InlineCode as link text and it returns "", omit the link
+// entirely.
+//
+// Not idempotent (see package doc): wraps with a fence, so calling
+// twice double-wraps.
+func InlineCode(content string) string {
+	content = markdown.StripBidiAndZeroWidth(content)
+	content = markdown.NormalizeBreaks(content)
+	content = foldNewlinesAndSeparators(content, ' ')
+	content = replaceNULWithFFFD(content)
+	if content == "" {
+		return ""
+	}
+	fence := markdown.CodeFence(content, 1)
+	pad := ""
+	if content[0] == '`' || content[0] == ' ' ||
+		content[len(content)-1] == '`' || content[len(content)-1] == ' ' {
+		pad = " "
+	}
+	return fence + pad + content + pad + fence
+}
+
+// CodeBlock wraps user content as a CommonMark fenced code block.
+// Use for any user-derived multi-line snippet that should render as a
+// code block: log excerpts, JSON dumps, error backtraces, config
+// snippets, posted code samples.
+//
+// Behavior:
+//   - Bidi/zero-width controls are stripped.
+//   - CR/CRLF line endings are normalized to LF; Unicode separators
+//     (NEL U+0085, U+2028, U+2029) are folded to LF for line-count
+//     consistency.
+//   - NUL is replaced with U+FFFD per CM §2.3.
+//   - The wrapping fence is at least 3 backticks (CM §4.5 minimum) and
+//     sized to outscan internal backticks — an attacker cannot embed
+//     a closing fence in the content.
+//
+// Empty content emits an empty fenced block ("```\n\n```\n"), which is
+// valid CommonMark and renders as an empty `<pre><code></code></pre>`.
+//
+// Not idempotent (see package doc).
+func CodeBlock(content string) string {
+	content = markdown.StripBidiAndZeroWidth(content)
+	content = markdown.NormalizeBreaks(content)
+	content = foldNewlinesAndSeparators(content, '\n')
+	content = replaceNULWithFFFD(content)
+	fence := markdown.CodeFence(content, 3)
+	return fence + "\n" + content + "\n" + fence + "\n"
+}
+
+// LanguageCodeBlock wraps user content as a fenced code block tagged
+// with a programming-language hint (the "info string" after the
+// opening fence, e.g. `go` in ```` ```go ````) so the renderer can
+// apply syntax highlighting.
+//
+// An invalid `language` tag silently falls back to a tagless fence —
+// the helper never returns an error or panics. If a realm author is
+// debugging "why is my Go highlighting gone?", the input failed the
+// language validator (charset ^[a-zA-Z0-9_+-]{1,32}$ after bidi-strip).
+// This fallback exists because an unvalidated tag could contain a
+// newline that injects content (e.g. a heading) onto what becomes the
+// opening fence line.
+//
+// Content is cleaned exactly as in CodeBlock (bidi-strip, CR/CRLF
+// normalize to LF, NEL/U+2028/U+2029 fold to LF, NUL→U+FFFD, fence
+// sized to outscan internal backticks).
+//
+// Not idempotent (see package doc).
+func LanguageCodeBlock(language, content string) string {
+	content = markdown.StripBidiAndZeroWidth(content)
+	content = markdown.NormalizeBreaks(content)
+	content = foldNewlinesAndSeparators(content, '\n')
+	content = replaceNULWithFFFD(content)
+	fence := markdown.CodeFence(content, 3)
+	lang := LanguageName(language) // "" on reject
+	return fence + lang + "\n" + content + "\n" + fence + "\n"
 }
 
 // ----- internal helpers -----

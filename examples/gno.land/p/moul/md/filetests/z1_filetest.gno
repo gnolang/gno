@@ -96,16 +96,18 @@ func main() {
 // > This is a blockquote
 // > Spanning multiple lines
 //
-// `inline \`code\``
+// `` inline `code` ``
 // ```
 // line1
 // line2
 // ```
+//
 // ```go
 // func main() {
 // println("Hello, world!")
 // }
 // ```
+//
 // ---
 //
 // [Gno](http://gno.land)
