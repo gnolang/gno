@@ -130,10 +130,11 @@ func assertSchema(t *testing.T, bz []byte, want []fieldDesc) {
 // ---- PartSetHeader ---------------------------------------------------------
 //
 // upstream's types.proto:
-//   message PartSetHeader {
-//     uint32 total = 1;
-//     bytes  hash  = 2;
-//   }
+//
+//	message PartSetHeader {
+//	  uint32 total = 1;
+//	  bytes  hash  = 2;
+//	}
 func TestUpstream_PartSetHeader_Schema(t *testing.T) {
 	t.Parallel()
 	cdc := codec(t)

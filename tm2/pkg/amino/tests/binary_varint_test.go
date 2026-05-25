@@ -498,4 +498,3 @@ func TestPlainVarint_NListNameDisambiguation(t *testing.T) {
 		assert.Equal(t, 1, count, "expected exactly one `%s` definition, found %d", needle, count)
 	}
 }
-
