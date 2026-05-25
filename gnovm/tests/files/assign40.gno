@@ -14,6 +14,8 @@ func main() {
 	if a != 3 {
 		panic(a)
 	}
+	println("ok")
 }
 
 // Output:
+// ok

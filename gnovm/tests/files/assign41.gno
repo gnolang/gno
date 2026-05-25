@@ -43,6 +43,8 @@ func main() {
 	indexMap()
 	starExpr()
 	selectorExpr()
+	println("ok")
 }
 
 // Output:
+// ok
