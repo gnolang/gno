@@ -48,20 +48,21 @@ type CommonDAO struct {
 // New creates a new common DAO.
 // It panics if non-canonical member or proposal storage are assigned.
 func New(options ...Option) *CommonDAO {
-	dao := &CommonDAO{
-		children:          &list.List{},
-		members:           NewMemberStorage(),
-		activeProposals:   NewProposalStorage(),
-		finishedProposals: NewProposalStorage(),
-	}
-	for _, apply := range options {
-		apply(dao)
+	dao := NewUnsafe(options...)
+
+	// Check that all interface based types are the canonical ones defined
+	// by this package. CommonDAO options allow using custom implementations,
+	// so these checks are done to make sure the returned DAO instace is safe.
+	if !IsCanonicalMemberStorage(dao.members) {
+		panic("DAO member storage is not canonical")
 	}
 
-	// Check that all interface based types are defined by this package.
-	// CommonDAO options allow using custom implementations.
-	if !dao.disableCanonicalCheck {
-		assertDAOStoragesAreCanonical(dao)
+	if !IsCanonicalProposalStorage(dao.activeProposals) {
+		panic("DAO active proposals storage is not canonical")
+	}
+
+	if !IsCanonicalProposalStorage(dao.finishedProposals) {
+		panic("DAO finished proposals storage is not canonical")
 	}
 
 	return dao
@@ -80,12 +81,16 @@ func New(options ...Option) *CommonDAO {
 // it's highly recommended to use the `IsCanonical` functions before calling a method
 // on these interface based types if they are provided by an external caller.
 func NewUnsafe(options ...Option) *CommonDAO {
-	disableCanonicalCheck := func(dao *CommonDAO) {
-		dao.disableCanonicalCheck = true
+	dao := &CommonDAO{
+		children:          &list.List{},
+		members:           NewMemberStorage(),
+		activeProposals:   NewProposalStorage(),
+		finishedProposals: NewProposalStorage(),
 	}
-
-	options = append([]Option{disableCanonicalCheck}, options...)
-	return New(options...)
+	for _, apply := range options {
+		apply(dao)
+	}
+	return dao
 }
 
 // ID returns DAO's unique identifier.
@@ -355,18 +360,4 @@ func (dao *CommonDAO) Execute(proposalID uint64, rlm realm) error {
 func (dao *CommonDAO) finishProposal(p *Proposal) {
 	dao.activeProposals.Remove(p.id)
 	dao.finishedProposals.Add(p)
-}
-
-func assertDAOStoragesAreCanonical(dao *CommonDAO) {
-	if !IsCanonicalMemberStorage(dao.members) {
-		panic("DAO member storage is not canonical")
-	}
-
-	if !IsCanonicalProposalStorage(dao.activeProposals) {
-		panic("DAO active proposals storage is not canonical")
-	}
-
-	if !IsCanonicalProposalStorage(dao.finishedProposals) {
-		panic("DAO finished proposals storage is not canonical")
-	}
 }
