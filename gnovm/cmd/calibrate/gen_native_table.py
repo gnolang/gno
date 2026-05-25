@@ -138,6 +138,28 @@ NATIVE_SPECS = [
     # ---- time ----
     ("time", "now", None, "Flat",
      r"BenchmarkNative_Time_Now-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- chain/markdown (pure CPU, per-byte slope on input string) ----
+    # All 8 natives slope on the first parameter (s/content), kind LenString.
+    # MatchCharsetN slope is fit over bounded sizes only (production callers
+    # cap maxLen ≤ 64); the bench includes larger sizes for fit robustness
+    # but the runtime should still enforce a maxLen guard before charging.
+    ("chain/markdown", "StripBidiAndZeroWidth", 0, "LenString",
+     r"BenchmarkNative_Markdown_StripBidiAndZeroWidth_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "NormalizeBreaks", 0, "LenString",
+     r"BenchmarkNative_Markdown_NormalizeBreaks_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeInline", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeInline_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeTitle", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeTitle_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "PercentEncodeURL", 0, "LenString",
+     r"BenchmarkNative_Markdown_PercentEncodeURL_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "MatchCharsetN", 0, "LenString",
+     r"BenchmarkNative_Markdown_MatchCharsetN_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "CodeFence", 0, "LenString",
+     r"BenchmarkNative_Markdown_CodeFence_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeBlockHazards", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeBlockHazards_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 

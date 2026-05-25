@@ -76,7 +76,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 46 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 54 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -124,6 +124,17 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "sys/params", Fn: "setSysParamStrings", Base: 341, Slope: 27034, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                 // fit base=341.0ns slope=26.4006ns/N (=27034/1024) R²=0.997
 	{Pkg: "sys/params", Fn: "updateSysParamStrings", Base: 413, Slope: 26861, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                              // fit base=413.4ns slope=26.2318ns/N (=26861/1024) R²=0.998
 	{Pkg: "sys/params", Fn: "getSysParamStrings", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=348.9ns + 22.6713ns/N (=23215/1024) R²=0.999
+	// chain/markdown — calibrated from gnovm/cmd/calibrate (M2 ARM64 baseline,
+	// same as the other rows above). Same Xeon 8168 re-calibration caveat
+	// applies; values are stable across re-runs (R² ≥ 0.994 for all eight).
+	{Pkg: "chain/markdown", Fn: "StripBidiAndZeroWidth", Base: 71, Slope: 1882, SlopeIdx: 0, SlopeKind: SizeLenString},  // fit base=71.1ns slope=1.8378ns/N (=1882/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "NormalizeBreaks", Base: 72, Slope: 573, SlopeIdx: 0, SlopeKind: SizeLenString},         // fit base=71.8ns slope=0.5600ns/N (=573/1024) R²=0.994
+	{Pkg: "chain/markdown", Fn: "EscapeInline", Base: 76, Slope: 2041, SlopeIdx: 0, SlopeKind: SizeLenString},           // fit base=75.9ns slope=1.9932ns/N (=2041/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "EscapeTitle", Base: 76, Slope: 2060, SlopeIdx: 0, SlopeKind: SizeLenString},            // fit base=76.1ns slope=2.0120ns/N (=2060/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},       // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},          // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
+	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 114, Slope: 6517, SlopeIdx: 0, SlopeKind: SizeLenString},    // fit base=114.5ns slope=6.3647ns/N (=6517/1024) R²=1.000
 }
 
 func init() {

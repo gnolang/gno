@@ -1,0 +1,102 @@
+// Package markdown provides byte-level primitives for sanitizing
+// user-supplied content before it flows into markdown rendering.
+//
+// Two functions are first-class public APIs (callable directly from
+// realms for non-markdown data hygiene); six are documented as
+// internal building blocks — realm authors should use the matching
+// helpers in p/nt/md/sanitize, which combine these natives with
+// the policy layer (scheme allowlists, charset bitmaps, length
+// bounds, NUL substitution).
+//
+// All functions are pure (string → string or similar), single-pass,
+// O(N) on input length, no compiled regex, no backtracking.
+package markdown
+
+// StripBidiAndZeroWidth removes Unicode bidi controls and zero-width
+// characters: U+200B-D, U+200E-F, U+202A-E, U+2066-9, U+FEFF.
+// Single rune-walk; output allocated to len(s) worst-case.
+//
+// PUBLIC. Useful beyond markdown: cleaning usernames, search queries,
+// any user string that will be displayed or compared.
+func StripBidiAndZeroWidth(s string) string // injected
+
+// NormalizeBreaks unifies \r\n and \r to \n. Single byte scan.
+//
+// PUBLIC. Useful beyond markdown: normalizing user input before
+// storage, comparison, or hashing. Does NOT fold U+2028/U+2029
+// (those are Unicode separators, not CM §2.2 line endings).
+func NormalizeBreaks(s string) string // injected
+
+// EscapeInline backslash-escapes the inline-active CM punctuation set
+// with \ always first. Replaces NUL with U+FFFD per CM §2.3.
+//
+// Set: \ * _ [ ] ( ) ~ > - + . ! ` # < &
+// Intentionally excludes | (only table-active in GFM) and = (only
+// block-active for setext underline).
+//
+// INTERNAL. Used by p/nt/md/sanitize.InlineText.
+func EscapeInline(s string) string // injected
+
+// EscapeTitle backslash-escapes the inline set plus " and ' (the
+// remaining link-title delimiters; ( and ) are already in the inline
+// set). \ always first. Replaces NUL with U+FFFD.
+//
+// INTERNAL. Used by p/nt/md/sanitize.LinkTitle.
+func EscapeTitle(s string) string // injected
+
+// PercentEncodeURL percent-encodes bytes unsafe in CM link destinations.
+//
+// Bytes encoded:
+//   - 0x00-0x20, 0x7F (controls + space)
+//   - " ' ( ) < > \ ` { | } ^
+//   - 0x80-0xFF (UTF-8 high bytes — each byte encoded)
+//   - Bare % not followed by two hex digits
+//
+// Preserved (URL-syntactic):
+//   - A-Z a-z 0-9 - _ . ~ / : ? # [ ] @ ! $ & + , ; = *
+//
+// INTERNAL. Does not apply scheme allowlist. Use the URL or ImageURL
+// helpers in p/nt/md/sanitize for full filtering.
+func PercentEncodeURL(s string) string // injected
+
+// MatchCharsetN runs s against a DFA defined by 128-bit bitmaps for
+// the first-char class and the rest-char class, plus length bounds
+// (in bytes).
+//
+// Bitmap encoding: each pair (lo, hi) covers ASCII codepoints, with
+// lo bit i for codepoint i (0-63) and hi bit i for codepoint i+64
+// (64-127). Bytes >= 128 are rejected outright.
+//
+// INTERNAL. Used by p/nt/md/sanitize.UserName, .FootnoteRef,
+// .LanguageName, .BechString matchers.
+func MatchCharsetN(s string, firstLo, firstHi, restLo, restHi uint64, minLen, maxLen int) bool // injected
+
+// CodeFence returns a string of N backticks where
+// N = max(minCount, longestBacktickRunInContent + 1).
+//
+// minCount < 1 is clamped to 1; never panics. On empty content,
+// returns strings.Repeat("`", max(minCount, 1)).
+//
+// INTERNAL. Used by p/nt/md/sanitize.CodeFence and moul/md
+// InlineCode / CodeBlock / LanguageCodeBlock bug fixes.
+func CodeFence(content string, minCount int) string // injected
+
+// EscapeBlockHazards scans s line by line and applies block-context
+// escaping in a single pass. Steps:
+//  1. Strip CM link reference definitions.
+//  2. Escape line-leading block markers (ATX heading, thematic break,
+//     blockquote, list marker, code fence) by prefixing with \.
+//  3. Escape setext heading underlines following a non-blank line.
+//  4. Escape extension-delimiter lines (gno-* tags, whole-line |||)
+//     by prefixing with space.
+//  5. Reference-link USE escape: [text][label] → [text]\[label].
+//  6. Fold U+2028, U+2029, U+0085 NEL to \n.
+//  7. Auto-close any open code fence at end-of-input.
+//
+// Preserves inline emphasis, code spans, inline links, GFM tables,
+// soft line breaks within paragraphs.
+//
+// INTERNAL. Used by p/nt/md/sanitize.Block. Calling directly without
+// first running StripBidiAndZeroWidth and NormalizeBreaks leaves
+// some hazards uncovered.
+func EscapeBlockHazards(s string) string // injected
