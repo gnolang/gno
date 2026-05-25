@@ -147,15 +147,15 @@ func Nested(content, prefix string) string {
 	return strings.Join(lines, "\n")
 }
 
-// Blockquote returns a blockquote for markdown.
+// Blockquote returns the text as a CommonMark blockquote.
 // Example: Blockquote("foo\nbar") => "> foo\n> bar\n"
+//
+// Delegates to sanitize.Blockquote, which cleans the content (bidi-strip,
+// CR/CRLF/U+2028/U+2029/NEL line-ending normalize, LRD strip, ref-link
+// escape, block-marker escape, fence auto-close) before line-prefixing
+// each line with "> ". Callers do NOT need to pre-wrap the input.
 func Blockquote(text string) string {
-	lines := strings.Split(text, "\n")
-	var sb strings.Builder
-	for _, line := range lines {
-		sb.WriteString("> " + line + "\n")
-	}
-	return sb.String()
+	return sanitize.Blockquote(text)
 }
 
 // InlineCode wraps the given text as a CommonMark inline code span.

@@ -115,6 +115,8 @@ func Run(fn, input, arg string) string {
 		return sanitize.CodeBlock(input)
 	case "LanguageCodeBlock":
 		return sanitize.LanguageCodeBlock(arg, input)
+	case "Blockquote":
+		return sanitize.Blockquote(input)
 	}
 	panic("unknown sanitize function: " + fn)
 }

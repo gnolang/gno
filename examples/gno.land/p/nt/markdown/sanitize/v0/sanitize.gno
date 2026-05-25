@@ -32,6 +32,7 @@
 //	![alt](src)                                InlineText (alt)
 //	> [!NOTE] one-line title                   InlineText
 //	multi-paragraph post body                  Block
+//	multi-line blockquote (`> ` prefixed)      Blockquote
 //	[text](url "title")                        LinkTitle (title)
 //	| cell |                                   TableCell
 //	<gno-card caption="X">                     HTMLEscape
@@ -63,6 +64,7 @@
 //	  InlineText, LinkTitle, TableCell   (re-escape backslashes)
 //	  HTMLEscape                         (re-escapes `&` → `&amp;`)
 //	  Block                              (re-strips LRDs, may double-escape line leaders)
+//	  Blockquote                         (re-prefixes `> `, escapes its own prefixes)
 //	  InlineCode, CodeBlock,
 //	  LanguageCodeBlock                  (wrap with a fence — calling twice double-wraps)
 //
@@ -88,6 +90,8 @@
 //	sanitize.URL(sanitize.InlineText(href))       inline-escape backslash-escapes `.` `-` `_`
 //	                                              inside the URL, corrupting the host/path
 //	sanitize.Block(md.Blockquote(...))            Block would re-escape the `>` chars
+//	sanitize.Blockquote(sanitize.Blockquote(s))   double-wrap — outer would escape the
+//	                                              inner `> ` prefixes
 //	sanitize.TableCell(multiParagraphProse)       newlines fold to space silently; use a
 //	                                              non-table layout for multi-paragraph text
 //
@@ -300,6 +304,62 @@ func Block(s string) string {
 	s = markdown.NormalizeBreaks(s)
 	s = markdown.StripBidiAndZeroWidth(s)
 	return markdown.EscapeBlockHazards(s)
+}
+
+// Blockquote wraps user content as a CommonMark blockquote: each line
+// of the cleaned content gets a "> " prefix so the renderer displays
+// it inside a `<blockquote>` element.
+//
+// Use for any multi-paragraph user-supplied text that the realm wants
+// to render as a quotation: cited posts, attached responses, error
+// snapshots that should visually stand out.
+//
+// The content is first cleaned by Block (bidi-strip, line-ending
+// normalize, LRD strip, ref-link USE escape, block-marker escape,
+// code-fence auto-close at EOF, Unicode-separator fold), then every
+// resulting line — including blank lines — is prefixed with "> ". The
+// user content can still use inline emphasis, code spans, GFM tables,
+// and nested fenced code blocks inside the quote; what it cannot do
+// is open new top-level structure or escape the quote.
+//
+// Empty input returns "".
+//
+// Composition gotcha: Block's EOF code-fence auto-close (added when
+// user content opens a ``` ``` ``` fence without closing it) becomes a
+// "> ```" line at the end of the blockquote. Goldmark parses this
+// correctly as the close of a fenced block inside the quote — the
+// output is structurally safe — but the markdown source looks unusual
+// to a human reviewer. If aesthetic output matters, ensure user
+// content closes its own fences.
+//
+// Trailing newlines in input become quoted blank lines (`> \n`) rather
+// than terminating the quote early — `Blockquote("foo\n\n")` emits
+// `"> foo\n> \n"`. Use `strings.TrimRight(s, "\n")` before passing if
+// you want the quote to end exactly at the last content line.
+//
+// Block does NOT replace NUL with U+FFFD (only the inline-context
+// escapers do); a NUL byte in Block's output passes through into the
+// blockquote. CommonMark §2.3 requires renderers to substitute NUL
+// with U+FFFD at parse time, so display will agree with intent, but
+// stored bytes still contain NUL. Relevant only if the output is
+// hashed or byte-compared.
+//
+// Not idempotent (see package doc): wraps with `> ` per line, so
+// calling twice double-wraps and the outer call's Block step escapes
+// the inner `>` prefixes.
+func Blockquote(text string) string {
+	text = Block(text)
+	if text == "" {
+		return ""
+	}
+	text = strings.TrimSuffix(text, "\n")
+	var sb strings.Builder
+	for _, line := range strings.Split(text, "\n") {
+		sb.WriteString("> ")
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	return sb.String()
 }
 
 // LinkTitle prepares user content for a CommonMark link-title or
