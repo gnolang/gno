@@ -3,7 +3,7 @@
 Definition package is an extension of `gno.land/p/nt/commondao/v0` that provides
 an alternative approach to define custom proposal types.
 
-## Definition
+### Definition
 
 The `Definition` type is an implementation that allows creating custom proposal
 definitions using callback functions and definition options.
@@ -37,7 +37,14 @@ configures the following proposal options:
 - Pre-execution and render validation
 - Execution behavior
 
-Example usage:
+### Security
+
+When creating proposal definitions ensure that any
+externally-supplied function comes from a trusted source. Never accept callback
+functions from an arbitrary external input, these callback are a trust
+extensions of the DAO using them, treat them like inlining the code into the DAO.
+
+### Example usage
 
 [embedmd]:# (filetests/readme_filetest.gno go)
 ```go
