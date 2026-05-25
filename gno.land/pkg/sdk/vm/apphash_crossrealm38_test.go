@@ -24,9 +24,8 @@ package vm
 // What this test does NOT prove:
 //   - That two different code versions (buggy vs fixed) produce DIFFERENT
 //     apphashes for the same input. Proving that requires a version-gated
-//     runtime switch on getOwner, which doesn't exist in this tree yet.
-//     See the ADR note in the PR description; that work belongs with the
-//     chain-upgrade gating effort, not here.
+//     runtime switch on getOwner, which belongs with the chain-upgrade
+//     gating effort, not here.
 
 import (
 	"fmt"
@@ -80,12 +79,12 @@ package crossrealm38impl
 
 import "gno.land/r/tests/vm/crossrealm_f"
 
-func init() {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
+func init(cur realm) {
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("a", 1))
 }
 
 func AddC(cur realm) {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "c", Value: 3})
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("c", 3))
 }
 `},
 	}

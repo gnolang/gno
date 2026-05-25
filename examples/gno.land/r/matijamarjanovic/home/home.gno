@@ -2,7 +2,7 @@ package home
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/moul/md"
@@ -26,7 +26,7 @@ var (
 	minimalLink string
 )
 
-func init() {
+func init(cur realm) {
 	pfp = "https://avatars.githubusercontent.com/u/93043005?s=60&v=4"
 	pfpCaption = "My github profile picture"
 	abtMe = `Blockchain & Full Stack Developer and a Computer Science Student who enjoys hackathons and building cool stuff. My current passion is DeFi. Outside of work, I enjoy travelling, weightlifting and combat sports.`
@@ -38,11 +38,11 @@ func init() {
 	modernLink = txlink.NewLink("VoteModern").URL()
 	classicLink = txlink.NewLink("VoteClassic").URL()
 	minimalLink = txlink.NewLink("VoteMinimal").URL()
-	hor.Register(cross, "Matija Marijanovic's Home Realm", "")
+	hor.Register(cross(cur), "Matija Marijanovic's Home Realm", "")
 }
 
 func UpdatePFP(cur realm, url, caption string) {
-	if err := Auth.DoByPrevious("update_pfp", func() error {
+	if err := Auth.DoByPrevious(0, cur, "update_pfp", func() error {
 		pfp = url
 		pfpCaption = caption
 		return nil
@@ -52,7 +52,7 @@ func UpdatePFP(cur realm, url, caption string) {
 }
 
 func UpdateAboutMe(cur realm, col1 string) {
-	if err := Auth.DoByPrevious("update_about_me", func() error {
+	if err := Auth.DoByPrevious(0, cur, "update_about_me", func() error {
 		abtMe = col1
 		return nil
 	}); err != nil {
@@ -61,40 +61,41 @@ func UpdateAboutMe(cur realm, col1 string) {
 }
 
 func VoteModern(cur realm) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
+	ugnotAmount := unsafe.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteClassic(cur realm) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
+	ugnotAmount := unsafe.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteMinimal(cur realm) {
-	if !runtime.PreviousRealm().IsUserCall() {
+	if !cur.Previous().IsUserCall() {
 		panic("only user-call (maketx call) accepted")
 	}
-	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
+	ugnotAmount := unsafe.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()
 }
 
 func CollectBalance(cur realm) {
-	if err := Auth.DoByPrevious("collect_balance", func() error {
-		banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	if err := Auth.DoByPrevious(0, cur, "collect_balance", func() error {
+		banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		ownerAddr := Address()
-		banker_.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker_.GetCoins(runtime.CurrentRealm().Address()))
+		realmAddr := cur.Address()
+		banker_.SendCoins(realmAddr, ownerAddr, banker_.GetCoins(realmAddr))
 		return nil
 	}); err != nil {
 		panic(err)

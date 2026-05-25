@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_2_a_filetest
+
+package z_2_a_filetest
 
 import (
 	"chain"
@@ -15,19 +17,19 @@ const (
 
 var realmAddr = chain.PackageAddress("gno.land/r/demo/test")
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 }
 
-func main() {
+func main(cur realm) {
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
 
-	dao := commondao.New(cross, name)
+	dao := commondao.New(cross(cur), name)
 	if dao == nil {
 		panic("expected DAO to be created")
 	}
@@ -35,7 +37,7 @@ func main() {
 	println(dao.Name() == name)
 	println(commondao.IsOwner(realmAddr, dao.ID()))
 	println(commondao.IsInvited(user))
-	println(commondao.GetOptions(dao.ID()) != nil)
+	println(commondao.GetOptions(cross(cur), dao.ID()) != nil)
 }
 
 // Output:

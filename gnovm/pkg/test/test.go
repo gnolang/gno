@@ -343,6 +343,14 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		Output:  opts.WriterForStore(),
 		Store:   tgs,
 		Context: Context("", mpkg.Path, nil),
+		// Force a non-nil allocator so interrealm v2 Phase 2 PkgID
+		// stamping fires during package load. With MaxAllocBytes=0,
+		// NewAllocator returns nil and Alloc.NewXxx allocations
+		// short-circuit the PkgID stamp — fresh objects keep
+		// ObjectInfo.PkgID zero, which makes the IsReadonly /
+		// borrow-rule paths misread cross-package ownership inside
+		// stdlib test runs.
+		MaxAllocBytes: math.MaxInt64,
 		// When testing examples we will find them, so pv, pn, file
 		// block nodes would otherwise become set, but for running
 		// tests on packages not known by the store, it will construct
@@ -471,10 +479,12 @@ func (opts *TestOptions) runTestFiles(
 
 	tests := loadTestFuncs(mpkg.Name, files)
 
-	var alloc *gno.Allocator
-	if opts.Metrics {
-		alloc = gno.NewAllocator(math.MaxInt64)
-	}
+	// Always allocate a hard-cap allocator so interrealm v2 Phase 2
+	// PkgID stamping fires during tests the same way it does in
+	// production. With a nil allocator, stampPkgID short-circuits and
+	// every fresh object's ObjectInfo.PkgID stays zero, which lets the
+	// borrow rule (recvOID.IsZero() short-circuit) mask interrealm bugs.
+	alloc := gno.NewAllocator(math.MaxInt64)
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(nil)
 
@@ -533,7 +543,25 @@ func (opts *TestOptions) runTestFiles(
 			runTestX = gno.Nx("runTest_cur")
 			runTest = m.Eval(runTestX)[0]
 			runTestF = "F_cur"
-			runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(mpkg.Path))
+			// For realm test packages, cur represents the realm itself
+			// (addr=derived, pkgPath=mpkg.Path, prev=EOA origin) so test
+			// bodies can call `cur.Previous().Address()` and see the EOA.
+			// For non-realm (p/) test packages, p/ has no realm identity;
+			// seed cur as the EOA origin realm directly so methods called
+			// via `m.M(0, cur, ...)` see `cur.Previous()` panic at the
+			// chain boundary, matching production semantics where an EOA
+			// MsgCall path collapses to the origin at the p/ boundary.
+			//
+			// Both paths use NewOriginRealmTV to allocate a FRESH origin-
+			// shape struct rather than the singleton gOriginRealmTV —
+			// testing.SetRealm mutates fr.Cur's fields in place, so
+			// sharing the singleton would let one test's SetRealm corrupt
+			// every subsequent package's init cur.
+			if gno.IsRealmPath(mpkg.Path) {
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewConcreteRealm(m.Alloc, mpkg.Path, gno.NewOriginRealmTV(m.Alloc)))
+			} else {
+				runTestCur = gno.NewConstExpr(gno.Nx(".cur"), gno.NewOriginRealmTV(m.Alloc))
+			}
 			m.SetActivePackage(pv)
 		} else {
 			// The normal way to test if `cur` isn't needed such as

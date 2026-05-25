@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"math"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -106,7 +107,7 @@ func TestMarkDirtyAncestors_HashConsistency(t *testing.T) {
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
 	iavlStore := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{})
-	st := NewStore(nil, baseStore, iavlStore)
+	st := NewStore(NewAllocator(math.MaxInt64), baseStore, iavlStore)
 
 	pkgPath := "gno.land/r/test_hash"
 	pkgOID := ObjectIDFromPkgPath(pkgPath)

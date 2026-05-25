@@ -1,17 +1,16 @@
 package microposts
 
 import (
-	"chain/runtime"
 	"strconv"
 	"time"
 )
 
 var posts []*Post
 
-func CreatePost(_ realm, text string) {
+func CreatePost(cur realm, text string) {
 	posts = append(posts, &Post{
 		text:      text,
-		author:    runtime.PreviousRealm().Address(), // provided by env
+		author:    cur.Previous().Address(), // provided by env
 		createdAt: time.Now(),
 	})
 }

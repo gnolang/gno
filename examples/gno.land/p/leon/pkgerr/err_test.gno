@@ -11,12 +11,16 @@ const pkgPath = "gno.land/r/leon/test"
 var prefix = strings.TrimPrefix(pkgPath, "gno.land/")
 
 func TestNew(t *testing.T) {
+	// SetRealm BEFORE New: capture happens at construction time now,
+	// so the realm context must be set first. (The previous test
+	// ordering — SetRealm AFTER New — asserted the now-fixed bug
+	// where the prefix was read at .Error()-render time.)
+	testing.SetRealm(testing.NewCodeRealm(pkgPath))
+
 	err := New("my error message")
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
-
-	testing.SetRealm(testing.NewCodeRealm(pkgPath))
 
 	expected := prefix + ": my error message"
 
@@ -52,9 +56,11 @@ func TestUnwrap(t *testing.T) {
 }
 
 func TestErrorMethod(t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm(pkgPath))
+	// Build the struct directly with realmPath set so this test
+	// exercises Error()'s formatting independently of the
+	// New/Wrap construction-time capture.
 	originalErr := errors.New("original error")
-	pkgErr := &pkgErr{originalErr: originalErr}
+	pkgErr := &pkgErr{realmPath: pkgPath, originalErr: originalErr}
 
 	expected := prefix + ": original error"
 	if pkgErr.Error() != expected {
