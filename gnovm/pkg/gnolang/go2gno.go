@@ -241,7 +241,64 @@ func setSpan(fs *token.FileSet, gon ast.Node, n Node) Node {
 	return n
 }
 
+// setSpanFromLeftChild bypasses the leftward Pos() recursion of
+// Pos-recursive AST types (BinaryExpr, CallExpr, IndexExpr,
+// SelectorExpr, SliceExpr, TypeAssertExpr — stdlib defines their
+// Pos() as <leftField>.Pos()). Pos is taken from the already-
+// translated leftmost child's Span; End from gon.End(), which is
+// O(1) for these six types.
+//
+// CALLER must gate on `gon.<leftField>` being the same Go AST type
+// as `gon` itself. This makes the induction
+// `leftChild.GetSpan().Pos == fs.Position(gon.<leftField>.Pos())`
+// hold. Weakening the gate to accept any Expr would break it: the
+// *ast.ParenExpr case unwraps via `return toExpr(fs, gon.X)`, so a
+// ParenExpr-wrapped leftmost child translates to a node whose Span
+// starts at the *inner* expression — one column shy of the `(`.
+func setSpanFromLeftChild(fs *token.FileSet, gon ast.Node, n Node, leftChild Node) {
+	if fs == nil {
+		return
+	}
+	endn := fs.Position(gon.End())
+	n.SetSpan(Span{
+		Pos: leftChild.GetSpan().Pos,
+		End: Pos{Line: endn.Line, Column: endn.Column},
+	})
+}
+
+// setSpanFromRightChild bypasses the rightward End() recursion of
+// End-recursive AST types (StarExpr, UnaryExpr, ArrayType, MapType —
+// stdlib defines their End() as <rightField>.End()). Pos is taken
+// from gon.Pos() (O(1) for these four types: Star / OpPos / Lbrack /
+// Map), End from the translated right child's Span.
+//
+// ChanType is also End-recursive in stdlib but is rejected at parse
+// time by Go2Gno (panicWithPos("channels are not permitted")), so
+// the chain cannot be constructed; no gate for it.
+//
+// CALLER must gate on the recursing field being the same Go AST type
+// as `gon`.
+func setSpanFromRightChild(fs *token.FileSet, gon ast.Node, n Node, rightChild Node) {
+	if fs == nil {
+		return
+	}
+	posn := fs.Position(gon.Pos())
+	n.SetSpan(Span{
+		Pos: Pos{Line: posn.Line, Column: posn.Column},
+		End: rightChild.GetSpan().End,
+	})
+}
+
 // If gon is a *ast.File, the name must be filled later.
+//
+// The deferred setSpan below acts as a default Span setter for every
+// returned node — it short-circuits via IsZero when a case has
+// already set the Span explicitly. Chain-recursive AST types
+// (BinaryExpr, CallExpr, IndexExpr, SelectorExpr, SliceExpr,
+// TypeAssertExpr, StarExpr, UnaryExpr, ArrayType, ChanType, MapType)
+// must call setSpanFromLeftChild / setSpanFromRightChild inside their
+// case to avoid SpanFromGo's O(N) gon.Pos()/gon.End() recursion;
+// other cases let the defer handle it.
 func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	if gon == nil {
 		return nil
@@ -254,6 +311,14 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}()
 	}
 
+	// NOTE: gon.Pos() is O(depth) for the six Pos-recursive AST
+	// types (BinaryExpr, CallExpr, IndexExpr, SelectorExpr,
+	// SliceExpr, TypeAssertExpr); gon.End() is O(depth) for the five
+	// End-recursive types (StarExpr, UnaryExpr, ArrayType, ChanType,
+	// MapType) plus right-leaning BinaryExpr via Y. panicWithPos
+	// below calls Pos() once on the outer gon — fine on the panic
+	// path, but do not introduce per-node Pos()/End() walks without
+	// considering the DoS implications.
 	panicWithPos := func(fmtStr string, args ...any) {
 		pos := fs.Position(gon.Pos())
 		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
@@ -274,74 +339,98 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Value: gon.Value,
 		}
 	case *ast.BinaryExpr:
-		// Default setSpan calls gon.Pos(); stdlib defines
-		// (*ast.BinaryExpr).Pos() = X.Pos() (recurses leftward).
-		// For a chain `1 + 1 + ... + 1` of depth N this is O(N²).
-		// When X is also a BinaryExpr, build Span from the already-
-		// translated children's Spans (each O(1) GetSpan) instead.
-		// Non-chain shapes fall through to the default path so
-		// ParenExpr/Ident column semantics are preserved.
-		// See gnovm/adr/pr5648_spanfromgo_quadratic.md.
 		bx := &BinaryExpr{
 			Left:  toExpr(fs, gon.X),
 			Op:    toWord(gon.Op),
 			Right: toExpr(fs, gon.Y),
 		}
-		if _, chained := gon.X.(*ast.BinaryExpr); chained && fs != nil &&
-			bx.Left != nil && bx.Right != nil {
-			lspan := bx.Left.GetSpan()
-			rspan := bx.Right.GetSpan()
-			if !lspan.IsZero() && !rspan.IsZero() {
-				bx.SetSpan(Span{Pos: lspan.Pos, End: rspan.End})
-			}
+		// Two gates because BinaryExpr is the only AST type with
+		// both Pos- and End-recursion (Pos = X.Pos, End = Y.End).
+		// Left gate fires on left-leaning chains like `1 + 1 + 1`
+		// (the adversarial DoS shape). Right gate covers precedence-
+		// chained shapes like `1 + 2*3*4` where gon.Y is itself a
+		// BinaryExpr — bounded by Go's 5 precedence tiers, so not a
+		// DoS surface, but the gate keeps the pattern symmetric.
+		if _, chained := gon.X.(*ast.BinaryExpr); chained {
+			setSpanFromLeftChild(fs, gon, bx, bx.Left)
+		} else if _, chained := gon.Y.(*ast.BinaryExpr); chained {
+			setSpanFromRightChild(fs, gon, bx, bx.Right)
 		}
 		return bx
 	case *ast.CallExpr:
-		return &CallExpr{
+		cx := &CallExpr{
 			Func: toExpr(fs, gon.Fun),
 			Args: toExprs(fs, gon.Args),
 			Varg: gon.Ellipsis.IsValid(),
 		}
+		if _, chained := gon.Fun.(*ast.CallExpr); chained {
+			setSpanFromLeftChild(fs, gon, cx, cx.Func)
+		}
+		return cx
 	case *ast.IndexExpr:
-		return &IndexExpr{
+		ix := &IndexExpr{
 			X:     toExpr(fs, gon.X),
 			Index: toExpr(fs, gon.Index),
 		}
+		if _, chained := gon.X.(*ast.IndexExpr); chained {
+			setSpanFromLeftChild(fs, gon, ix, ix.X)
+		}
+		return ix
 	case *ast.SelectorExpr:
-		return &SelectorExpr{
+		sx := &SelectorExpr{
 			X:   toExpr(fs, gon.X),
 			Sel: toName(gon.Sel),
 		}
+		if _, chained := gon.X.(*ast.SelectorExpr); chained {
+			setSpanFromLeftChild(fs, gon, sx, sx.X)
+		}
+		return sx
 	case *ast.SliceExpr:
-		return &SliceExpr{
+		sx := &SliceExpr{
 			X:    toExpr(fs, gon.X),
 			Low:  toExpr(fs, gon.Low),
 			High: toExpr(fs, gon.High),
 			Max:  toExpr(fs, gon.Max),
 		}
+		if _, chained := gon.X.(*ast.SliceExpr); chained {
+			setSpanFromLeftChild(fs, gon, sx, sx.X)
+		}
+		return sx
 	case *ast.StarExpr:
-		return &StarExpr{
+		sx := &StarExpr{
 			X: toExpr(fs, gon.X),
 		}
+		if _, chained := gon.X.(*ast.StarExpr); chained {
+			setSpanFromRightChild(fs, gon, sx, sx.X)
+		}
+		return sx
 	case *ast.TypeAssertExpr:
-		return &TypeAssertExpr{
+		tx := &TypeAssertExpr{
 			X:    toExpr(fs, gon.X),
 			Type: toExpr(fs, gon.Type),
 		}
+		if _, chained := gon.X.(*ast.TypeAssertExpr); chained {
+			setSpanFromLeftChild(fs, gon, tx, tx.X)
+		}
+		return tx
 	case *ast.UnaryExpr:
-		switch gon.Op {
-		case token.AND:
-			return &RefExpr{
+		if gon.Op == token.AND {
+			rx := &RefExpr{
 				X: toExpr(fs, gon.X),
 			}
-		case token.ARROW:
-			panicWithPos("channel receive is not permitted")
-		default:
-			return &UnaryExpr{
-				X:  toExpr(fs, gon.X),
-				Op: toWord(gon.Op),
+			if _, chained := gon.X.(*ast.UnaryExpr); chained {
+				setSpanFromRightChild(fs, gon, rx, rx.X)
 			}
+			return rx
 		}
+		ux := &UnaryExpr{
+			X:  toExpr(fs, gon.X),
+			Op: toWord(gon.Op),
+		}
+		if _, chained := gon.X.(*ast.UnaryExpr); chained {
+			setSpanFromRightChild(fs, gon, ux, ux.X)
+		}
+		return ux
 	case *ast.CompositeLit:
 		// If ArrayType with ellipsis for length,
 		// just figure out the length here.
@@ -381,22 +470,34 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				gon.Names)
 		}
 	case *ast.ArrayType:
+		_, chained := gon.Elt.(*ast.ArrayType)
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
-			return &ArrayTypeExpr{
+			ax := &ArrayTypeExpr{
 				Len: nil,
 				Elt: toExpr(fs, gon.Elt),
 			}
+			if chained {
+				setSpanFromRightChild(fs, gon, ax, ax.Elt)
+			}
+			return ax
 		} else if gon.Len == nil {
-			return &SliceTypeExpr{
+			sx := &SliceTypeExpr{
 				Elt: toExpr(fs, gon.Elt),
 				Vrd: false,
 			}
-		} else {
-			return &ArrayTypeExpr{
-				Len: toExpr(fs, gon.Len),
-				Elt: toExpr(fs, gon.Elt),
+			if chained {
+				setSpanFromRightChild(fs, gon, sx, sx.Elt)
 			}
+			return sx
 		}
+		ax := &ArrayTypeExpr{
+			Len: toExpr(fs, gon.Len),
+			Elt: toExpr(fs, gon.Elt),
+		}
+		if chained {
+			setSpanFromRightChild(fs, gon, ax, ax.Elt)
+		}
+		return ax
 	case *ast.Ellipsis:
 		return &SliceTypeExpr{
 			Elt: toExpr(fs, gon.Elt),
@@ -406,16 +507,22 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		return &InterfaceTypeExpr{
 			Methods: toFieldsFromList(fs, gon.Methods),
 		}
+	case *ast.ChanType:
+		panicWithPos("channels are not permitted")
 	case *ast.FuncType:
 		return &FuncTypeExpr{
 			Params:  toFieldsFromList(fs, gon.Params),
 			Results: toFieldsFromList(fs, gon.Results),
 		}
 	case *ast.MapType:
-		return &MapTypeExpr{
+		mx := &MapTypeExpr{
 			Key:   toExpr(fs, gon.Key),
 			Value: toExpr(fs, gon.Value),
 		}
+		if _, chained := gon.Value.(*ast.MapType); chained {
+			setSpanFromRightChild(fs, gon, mx, mx.Value)
+		}
+		return mx
 	case *ast.StructType:
 		return &StructTypeExpr{
 			Fields: toFieldsFromList(fs, gon.Fields),
@@ -504,23 +611,21 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.TypeSwitchStmt:
 		switch as := gon.Assign.(type) {
 		case *ast.AssignStmt:
-			stmt := &SwitchStmt{
+			return &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
-			return stmt
 		case *ast.ExprStmt:
-			stmt := &SwitchStmt{
+			return &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
 				IsTypeSwitch: true,
 				Clauses:      toClauses(fs, gon.Body.List),
 				VarName:      "",
 			}
-			return stmt
 		default:
 			panicWithPos("unexpected *ast.TypeSwitchStmt.Assign type %s",
 				reflect.TypeOf(gon.Assign).String())
@@ -586,8 +691,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			panicWithPos("invalid operation: more than one index")
 		}
 		panicWithPos("invalid operation: indexList is not permitted in Gno")
-	case *ast.ChanType:
-		panicWithPos("channels are not permitted")
 	case *ast.GoStmt:
 		panicWithPos("goroutines are not permitted")
 	case *ast.SendStmt:
