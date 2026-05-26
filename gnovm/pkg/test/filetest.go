@@ -33,6 +33,12 @@ import (
 // If opts.Sync is enabled, and the filetest's golden output has changed,
 // the first string is set to the new generated content of the file.
 // Before the filetest is run it will be type-checked.
+//
+// A file declaring a top-level `// Unsupported: <reason>` directive is
+// short-circuited before any execution: the returned error is a
+// [*SkipError] whose Reason carries the directive's payload. The
+// caller (e.g. the TestFiles walker) is expected to detect this with
+// [errors.As] and convert it to a `t.Skip(reason)`.
 func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store) (string, types.Gas, error) {
 	opts.outWriter.w = opts.Output
 	opts.outWriter.errW = opts.Error
@@ -40,15 +46,59 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
+// SkipError is returned by RunFiletest when the source file declares
+// a top-level `// Unsupported: <reason>` directive. The walker is
+// expected to detect this with [errors.As] and call t.Skip(Reason).
+//
+// Replaces conformance's external skiplist.yaml + compat.go for the
+// in-repo workflow: each file declares its own skip reason inline, so
+// adding a corpus file that exercises an unsupported Gno feature is
+// a single edit — no cross-file coordination.
+type SkipError struct {
+	Reason string
+}
+
+func (e *SkipError) Error() string { return "skipped: " + e.Reason }
+
 // tcheck: only set to false pkg/test.Test(), since `gno test`
 // (cmd/gno/test.go) already type-checked the whole package.
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
-func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (string, types.Gas, error) {
+func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (newContent string, gas types.Gas, retErr error) {
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", 0, fmt.Errorf("error parsing directives: %w", err)
 	}
+
+	// Unsupported short-circuit: declared via a top-level
+	// `// Unsupported: <reason>` directive. Surfaces as a SkipError
+	// the walker turns into t.Skip. Checked before any dispatch /
+	// rescue / machine construction so unsupported files cost nothing.
+	if u := dirs.First(DirectiveUnsupported); u != nil {
+		return "", 0, &SkipError{Reason: u.Content}
+	}
+
+	// Divergence: blessed Gno-vs-Go divergence. Captured here and
+	// re-captured after each PrependPkgPathIfNeeded re-parse below.
+	// The deferred finalize() inverts the verdict: if the match path
+	// produced an error (real divergence) we suppress it and PASS;
+	// if it produced no error (Gno now matches Go) we FAIL with a
+	// "stale directive" message so the directive gets removed.
+	var divergenceReason string
+	if d := dirs.First(DirectiveDivergence); d != nil {
+		divergenceReason = d.Content
+	}
+	defer func() {
+		if divergenceReason == "" {
+			return
+		}
+		if retErr == nil {
+			retErr = fmt.Errorf("stale `// Divergence: %s` directive: Gno's behavior now matches Go; remove the directive",
+				divergenceReason)
+			return
+		}
+		retErr = nil
+	}()
 
 	// .go filetests under tests/files/gocorpus/testdata/ are regression tests for
 	// files lifted from Go's standard test corpus. Three dispatch modes,
@@ -87,11 +137,17 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			if err != nil {
 				return "", 0, fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
 			}
+			if d := dirs.First(DirectiveDivergence); d != nil {
+				divergenceReason = d.Content
+			}
 		case !IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir:
 			source = PrependPkgPathIfNeeded(source)
 			dirs, err = ParseDirectives(bytes.NewReader(source))
 			if err != nil {
 				return "", 0, fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
+			}
+			if d := dirs.First(DirectiveDivergence); d != nil {
+				divergenceReason = d.Content
 			}
 		case dirs.First(DirectiveOutput) == nil:
 			goOut, runErr := runGoSubprocess(source)
@@ -571,6 +627,11 @@ const (
 	DirectiveStorage        = "Storage"
 	DirectiveTypes          = "Types"
 	DirectiveTypeCheckError = "TypeCheckError"
+
+	// Single-line PascalCase meta-directives that short-circuit the
+	// match logic. Reason is the single-line text after the colon.
+	DirectiveUnsupported = "Unsupported"
+	DirectiveDivergence  = "Divergence"
 )
 
 var allDirectives = []string{
@@ -587,6 +648,8 @@ var allDirectives = []string{
 	DirectiveStorage,
 	DirectiveTypes,
 	DirectiveTypeCheckError,
+	DirectiveUnsupported,
+	DirectiveDivergence,
 }
 
 // Directives contains the directives of a file.
@@ -668,6 +731,14 @@ type Directive struct {
 // with content on the following lines.
 var reDirectiveLine = regexp.MustCompile("^(?:([A-Za-z]*):|([A-Z]+): ?(.*))$")
 
+// Single-line PascalCase directives: `Name: content` on one line.
+// Used by meta-directives like `Unsupported:` / `Divergence:` whose
+// payload is a short reason string. PascalCase distinguishes them
+// from the ALLCAPS input-parameter family (PKGPATH/MAXALLOC/SEND),
+// keeping the naming consistent with the existing PascalCase output
+// matchers (Output/Error/...) which use the multi-line form.
+var reDirectiveSingleLinePascal = regexp.MustCompile(`^([A-Z][a-z][A-Za-z]*): (.*)$`)
+
 // ParseDirectives parses all the directives in the filetest given at source.
 func ParseDirectives(source io.Reader) (Directives, error) {
 	sc := bufio.NewScanner(source)
@@ -734,6 +805,17 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 				})
 			continue
 		}
+		// PascalCase single-line directive (e.g. `Unsupported: reason`).
+		if subm2 := reDirectiveSingleLinePascal.FindStringSubmatch(comment); subm2 != nil &&
+			slices.Contains(allDirectives, subm2[1]) {
+			parsed = append(parsed,
+				Directive{
+					Name:     subm2[1],
+					Content:  subm2[2],
+					Complete: true,
+				})
+			continue
+		}
 
 		// Not a directive, just a comment.
 		// If we're already in an incomplete directive, simply append there.
@@ -778,12 +860,23 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 // pathological hang doesn't deadlock CI.
 var goSubprocessTimeout = 30 * time.Second
 
-// runGoSubprocess writes source to a temp .go file and runs it via
-// `go run`, returning the combined stdout+stderr. Used by runFiletest
-// to derive the expected output for .go filetests that ship without
-// an explicit `// Output:` directive — the result is injected as a
-// synthetic Output directive so the existing match logic compares
-// Gno's output against Go's.
+// runGoSubprocess writes source to a temp file and runs it via
+// `go run`, capturing stdout and stderr separately. Used by
+// runFiletest to derive the expected output for .go filetests that
+// ship without an explicit `// Output:` directive — only stdout is
+// injected as the synthetic Output directive so the existing match
+// logic compares Gno's output against Go's stdout.
+//
+// Stderr is captured but NOT returned as expected output: programs
+// that exit non-zero (panic, runtime error, intentional `os.Exit(N)`)
+// have non-deterministic stderr (panic trace line numbers, goroutine
+// IDs) that would never reproducibly match Gno's. Such files must
+// declare an explicit `// Output:` or `// Error:` directive instead
+// of relying on auto-derivation. Timeout is treated the same way.
+//
+// Returns (stdout, nil) on clean exit. Returns ("", err) with a
+// directive-pointing error message on non-zero exit / timeout /
+// exec failure — the caller surfaces this to the contributor.
 func runGoSubprocess(source []byte) (string, error) {
 	dir, err := os.MkdirTemp("", "gno-filetest-go-*")
 	if err != nil {
@@ -798,21 +891,23 @@ func runGoSubprocess(source []byte) (string, error) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", "run", srcPath)
 	cmd.Dir = dir
-	var combined bytes.Buffer
-	cmd.Stdout = &combined
-	cmd.Stderr = &combined
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	runErr := cmd.Run()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return "", fmt.Errorf("`go run` exceeded %s timeout", goSubprocessTimeout)
+		return "", fmt.Errorf("`go run` exceeded %s timeout — add an explicit `// Output:` directive or mark the file `// Unsupported:`",
+			goSubprocessTimeout)
 	}
-	// Some corpus files exit non-zero (panic, exit code) but still
-	// produce output we want to compare against. Treat the combined
-	// output as the expected; only return error when there's no
-	// output AND the command failed (likely the binary isn't on PATH).
-	if runErr != nil && combined.Len() == 0 {
-		return "", fmt.Errorf("`go run` failed with no output: %w", runErr)
+	if runErr != nil {
+		var ee *exec.ExitError
+		if errors.As(runErr, &ee) {
+			return "", fmt.Errorf("`go run` exited %d (stderr-only output is non-deterministic; add an explicit `// Output:` or `// Error:` directive):\n%s",
+				ee.ExitCode(), strings.TrimSpace(stderr.String()))
+		}
+		return "", fmt.Errorf("`go run` failed (is `go` on PATH?): %w", runErr)
 	}
-	return strings.TrimRight(combined.String(), "\n"), nil
+	return strings.TrimRight(stdout.String(), "\n"), nil
 }
 
 // memPackageForTypeCheck wraps mpkg so its files are visible to

@@ -2,6 +2,7 @@ package gnolang_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -128,6 +129,10 @@ func TestFiles(t *testing.T) {
 			}
 			changed, _, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
+				var skip *test.SkipError
+				if errors.As(err, &skip) {
+					t.Skip(skip.Reason)
+				}
 				t.Fatal(err.Error())
 			}
 			if changed != "" {

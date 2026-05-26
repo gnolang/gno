@@ -17,6 +17,11 @@
 
 package main
 
+import "fmt"
+
 func main() {
-	println("canary: .go filetest accepted")
+	// fmt.Println goes to stdout in both Go and Gno; the builtin
+	// `println` would go to stderr in Go but stdout in Gno — a real
+	// divergence we don't want the canary to surface.
+	fmt.Println("canary: .go filetest accepted")
 }

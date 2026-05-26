@@ -78,6 +78,29 @@ See `files/gocorpus/testdata/run/canary.go` (run mode),
 `files/gocorpus/testdata/compile/canary.go` (compile-only) for the
 minimal patterns.
 
+**Escape hatches.** Two single-line meta-directives bypass the
+standard match for files where strict Gno-vs-Go equivalence isn't
+the right contract:
+
+- `// Unsupported: <reason>` — skips the file before any execution
+  (`t.Skip(reason)`). Use for corpus files that exercise Gno feature
+  gaps (channels, goroutines, generics, dot-imports, `complex`
+  types, etc.). Replaces the cross-file skiplist/compat YAML that
+  the external [`gno-go-conformance`](https://github.com/gnolang/gno-go-conformance)
+  tool uses; each file declares its own skip reason inline.
+  Example: `files/gocorpus/testdata/run/unsupported_canary.go`.
+
+- `// Divergence: <category>: <reason>` — blesses a real Gno-vs-Go
+  behavioral difference. The match path's verdict is **inverted**:
+  the test passes iff Gno's behavior actually diverges. If Gno is
+  later fixed and now matches Go, the directive becomes stale and
+  the test FAILS with a "remove the directive" message so blessings
+  don't rot. Categories follow `gno-go-conformance`'s lexicon:
+  `error-wording`, `error-early-bail`, `stdlib-formatting`,
+  `stdlib-symbol-missing`, `stdlib-behavior`, `resource-budget`,
+  `determinism`.
+  Example: `files/gocorpus/testdata/run/divergence_canary.go`.
+
 Notes:
 - Native filetest directives (`// PKGPATH:`, `// Output:`, `// Error:`,
   `// MAXALLOC:`, etc.) are interpreted normally.
