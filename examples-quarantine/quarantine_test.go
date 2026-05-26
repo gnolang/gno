@@ -1,11 +1,9 @@
 // Package quarantine drives gno tests for the quarantined examples set.
+// See README.md for the rule on what lives in examples/ vs examples-quarantine/.
 //
-// Packages under examples-quarantine/ are not part of the test-13 genesis
-// (see misc/quarantine/safe-list.txt for the kept set) but are still
-// exercised here so they remain useful as integration test fodder. The driver
-// builds a unified package list spanning examples/ and examples-quarantine/
-// so cross-tree imports resolve, then runs `gno test` against each
-// quarantined package.
+// The driver builds a unified package list spanning examples/ and
+// examples-quarantine/ so cross-tree imports resolve, then runs `gno test`
+// against each quarantined package.
 //
 // TestQuarantineRealms runs unit tests across the whole quarantine set.
 // TestQuarantineRealmsLoad boots an in-memory gnoland node and loads every
