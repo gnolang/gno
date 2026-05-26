@@ -37,9 +37,12 @@ import (
 )
 
 // TestQuarantineRealms runs `gno test`-equivalent against every package under
-// examples-quarantine/. opts.Packages carries the quarantine set so the
-// runtime resolver finds quarantine→quarantine imports; WithExamples=true
-// adds examples/ as a fallback for quarantine→safe imports.
+// examples-quarantine/. We can't invoke the `gno test` CLI directly because
+// it's rooted in a single workspace (gnowork.toml) and can't resolve
+// quarantine→safe cross-tree imports without reaching for the remote package
+// fetcher. Here, opts.Packages carries the quarantine set so the runtime
+// resolver finds quarantine→quarantine imports, and WithExamples=true adds
+// examples/ as the fallback for quarantine→safe imports.
 func TestQuarantineRealms(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 	quarantineDir := filepath.Join(rootdir, "examples-quarantine")
@@ -108,14 +111,16 @@ func TestQuarantineRealmsLoad(t *testing.T) {
 		if !res.IsErr() {
 			return
 		}
-		pkgPath := "<unknown>"
+
 		for _, msg := range tx.Msgs {
 			if addPkg, ok := msg.(vmm.MsgAddPackage); ok && addPkg.Package != nil {
-				pkgPath = addPkg.Package.Path
-				break
+				pkgPath := addPkg.Package.Path
+				t.Errorf("AddPackage failed at genesis: %s: %s", pkgPath, res.Log)
+				return
 			}
 		}
-		t.Errorf("AddPackage failed at genesis: %s: %s", pkgPath, res.Log)
+
+		t.Errorf("Msgs failed at genesis: %s", res.Log)
 	}
 
 	node, _ := integration.TestingInMemoryNode(t, logger, config)
