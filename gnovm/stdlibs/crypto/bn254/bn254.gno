@@ -54,6 +54,6 @@ func G1Mul(input []byte) []byte { return g1Mul(input) }
 // malformed input / invalid points / coordinates not reduced.
 func PairingCheck(input []byte) []byte { return pairingCheck(input) }
 
-func g1Add(input []byte) []byte         // injected
-func g1Mul(input []byte) []byte         // injected
-func pairingCheck(input []byte) []byte  // injected
+func g1Add(input []byte) []byte        // injected
+func g1Mul(input []byte) []byte        // injected
+func pairingCheck(input []byte) []byte // injected

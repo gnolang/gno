@@ -123,11 +123,11 @@ func TestHashFromByteSlicesThreeItems(t *testing.T) {
 //
 // Tree shape:
 //
-//	        root
-//	       /    \
-//	     i01    i23
-//	     / \    / \
-//	    la  lb lc  ld
+//	    root
+//	   /    \
+//	 i01    i23
+//	 / \    / \
+//	la  lb lc  ld
 func TestVerifySimpleProofValid(t *testing.T) {
 	la := merkle.LeafHash([]byte("a"))
 	lb := merkle.LeafHash([]byte("b"))

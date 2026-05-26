@@ -319,7 +319,7 @@ func TestPairingCheckInvalidLengths(t *testing.T) {
 }
 
 func TestPairingCheckRejectsUnreducedCoordinates(t *testing.T) {
-	_, _, _, g2Gen := bn254.Generators()
+	_, _, _, g2Gen := bn254.Generators() //nolint:dogsled // gnark-crypto returns (g1Gen, g1GenAff, g2Gen, g2GenAff); only g2Gen is needed here.
 	g2Marshal := g2Gen.Marshal()
 
 	p := fpModulusBytes()

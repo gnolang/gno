@@ -114,16 +114,16 @@ type LightHeader struct {
 // Sentinel errors mirroring the Rust `Error` enum. Tests compare against these
 // by identity using errors.Is.
 var (
-	ErrInvalidPublicInput  = errors.New("invalid public input")
-	ErrInvalidPoint        = errors.New("invalid point")
-	ErrInvalidProof        = errors.New("invalid proof")
-	ErrInvalidPok          = errors.New("invalid pok")
-	ErrInvalidCommitment   = errors.New("invalid commitment")
-	ErrInvalidRawProof     = errors.New("invalid raw proof")
-	ErrInvalidHeight       = errors.New("invalid height")
-	ErrInvalidTimestamp    = errors.New("invalid timestamp")
-	ErrInvalidHeaderLen    = errors.New("invalid header encoding length")
-	ErrInvalidChainIDLen   = errors.New("chain id must be at most 31 bytes")
+	ErrInvalidPublicInput = errors.New("invalid public input")
+	ErrInvalidPoint       = errors.New("invalid point")
+	ErrInvalidProof       = errors.New("invalid proof")
+	ErrInvalidPok         = errors.New("invalid pok")
+	ErrInvalidCommitment  = errors.New("invalid commitment")
+	ErrInvalidRawProof    = errors.New("invalid raw proof")
+	ErrInvalidHeight      = errors.New("invalid height")
+	ErrInvalidTimestamp   = errors.New("invalid timestamp")
+	ErrInvalidHeaderLen   = errors.New("invalid header encoding length")
+	ErrInvalidChainIDLen  = errors.New("chain id must be at most 31 bytes")
 )
 
 // ParseZKP decodes a raw proof byte slice in big-endian layout.

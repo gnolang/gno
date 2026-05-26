@@ -87,11 +87,11 @@ func VerifyZKP(chainID string, trustedValidatorsHash []byte, header LightHeader,
 
 	// Slice the proof into its logical pieces. All slices alias zkp — this
 	// package never mutates them.
-	a := zkp[0:64]              // A point in G1
-	b := zkp[64:192]            // B point in G2 (imag-first)
-	c := zkp[192:256]           // C point in G1
-	pc := zkp[256:320]          // ProofCommitment in G1
-	pok := zkp[320:384]         // ProofCommitmentPoK in G1
+	a := zkp[0:64]      // A point in G1
+	b := zkp[64:192]    // B point in G2 (imag-first)
+	c := zkp[192:256]   // C point in G1
+	pc := zkp[256:320]  // ProofCommitment in G1
+	pok := zkp[320:384] // ProofCommitmentPoK in G1
 
 	// Compute the two scalar public inputs.
 	commitmentHash := hashToField(pc)
