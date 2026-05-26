@@ -24,10 +24,11 @@ var defaultStagingOptions = AppConfig{
 	deployKey:           defaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
-	interactive:         false,
-	unsafeAPI:           false,
-	lazyLoader:          false,
-	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	interactive:  false,
+	unsafeAPI:    false,
+	lazyLoader:   false,
+	noQuarantine: true,                              // excluded by default in staging
+	paths:        path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
@@ -74,7 +75,7 @@ func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error 
 			return err
 		}
 
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, defaultBaseResolvers(gnoroot)...)
+		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, defaultBaseResolvers(gnoroot, cfg.AppConfig.noQuarantine)...)
 	}
 
 	return runApp(&cfg.AppConfig, io, args...)

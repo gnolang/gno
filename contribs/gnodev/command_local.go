@@ -18,25 +18,20 @@ import (
 const (
 	DefaultDomain = "gno.land"
 
-	// quarantineSubdir is the subdirectory under examples/ holding packages
-	// that are deliberately kept out of the audited examples set. They live
-	// alongside examples/gno.land/ and are reachable via a separate root
-	// resolver.
+	// quarantineSubdir holds packages kept out of the audited examples set.
 	quarantineSubdir = "quarantine"
 )
 
-// defaultBaseResolvers returns the standard chain for resolving packages from
-// gnoroot/examples/. Both examples/ and examples/quarantine/ are added as
-// independent roots because gnodev's RootResolver does a direct path-join
-// (root/import-path), not a workspace walk, so a single root would miss
-// packages under the quarantine subtree.
-func defaultBaseResolvers(gnoroot string) []packages.Resolver {
+// defaultBaseResolvers returns the example resolver chain. The quarantine
+// subtree is included unless excludeQuarantine is set.
+func defaultBaseResolvers(gnoroot string, excludeQuarantine bool) []packages.Resolver {
 	exampleRoot := filepath.Join(gnoroot, "examples")
-	quarantineRoot := filepath.Join(exampleRoot, quarantineSubdir)
-	return []packages.Resolver{
-		packages.NewRootResolver(exampleRoot),
-		packages.NewRootResolver(quarantineRoot),
+	resolvers := []packages.Resolver{packages.NewRootResolver(exampleRoot)}
+	if !excludeQuarantine {
+		quarantineRoot := filepath.Join(exampleRoot, quarantineSubdir)
+		resolvers = append(resolvers, packages.NewRootResolver(quarantineRoot))
 	}
+	return resolvers
 }
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
@@ -130,7 +125,7 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		if err != nil {
 			return err
 		}
-		baseResolvers = append(baseResolvers, defaultBaseResolvers(gnoroot)...)
+		baseResolvers = append(baseResolvers, defaultBaseResolvers(gnoroot, cfg.noQuarantine)...)
 	}
 
 	// Check if current directory is a valid gno package
