@@ -2102,7 +2102,11 @@ func (tv *TypedValue) GetType() Type {
 }
 
 func (tv *TypedValue) GetFunc() *FuncValue {
-	return tv.V.(*FuncValue)
+	fv, ok := tv.V.(*FuncValue)
+	if !ok {
+		return nil
+	}
+	return fv
 }
 
 func (tv *TypedValue) GetUnboundFunc() *FuncValue {

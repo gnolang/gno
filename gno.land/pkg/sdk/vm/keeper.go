@@ -1237,6 +1237,9 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			continue // must be function
 		}
 		fv := tv.GetFunc()
+		if fv == nil {
+			continue // typed-nil func variable, no signature to expose
+		}
 		if fv.IsMethod {
 			continue // cannot be method
 		}

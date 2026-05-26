@@ -1756,8 +1756,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
-					if cx, ok := n.Func.(*ConstExpr); ok && cx.GetFunc().PkgPath == uversePkgPath {
-						fv := cx.GetFunc()
+					var fv *FuncValue
+					if cx, ok := n.Func.(*ConstExpr); ok {
+						fv = cx.GetFunc()
+					}
+					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
@@ -2201,11 +2204,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// copy the function value with updated type.
 					n.Func.SetAttribute(ATTR_TYPEOF_VALUE, sft)
 					if cx, ok := n.Func.(*ConstExpr); ok {
-						fv := cx.V.(*FuncValue)
-						fv2 := fv.Copy(store.GetAllocator())
-						fv2.Type = sft
-						cx.T = sft
-						cx.V = fv2
+						if fv, ok := cx.V.(*FuncValue); ok {
+							fv2 := fv.Copy(store.GetAllocator())
+							fv2.Type = sft
+							cx.T = sft
+							cx.V = fv2
+						}
 					} else if sft.TypeID() != ft.TypeID() {
 						panic("non-const function value should have no generics")
 					}
