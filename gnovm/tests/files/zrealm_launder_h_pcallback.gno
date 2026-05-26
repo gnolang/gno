@@ -4,18 +4,18 @@ package launderh
 // Attack H: ATTACKER-PROVIDED INTERFACE IMPL WITH PRIMITIVE
 // UNDERLYING TYPE.
 //
-// PushFrameCall's receiver-storage borrow (Rule 2) checks
+// PushFrameCall's receiver-storage borrow (borrow rule #2) checks
 // `recv.GetFirstObject(m.Store) != nil`. For struct/array/map/etc.
 // receivers it returns the first reachable Object whose PkgID stamp
 // is what gets borrowed-to. For a PRIMITIVE-UNDERLYING receiver
 // (int, bool, string, etc.) the value lives in tv.N, not tv.V —
-// GetFirstObject returns nil and Rule 2 silently doesn't fire.
+// GetFirstObject returns nil and borrow rule #2 silently doesn't fire.
 //
 // In the laundervictim setup (data declared in /p/launderpkg), the
 // caller is already running with m.Realm borrowed to /r/laundervictim
-// (the outer UseMutator call hit Rule 2 on the *Object receiver). When
+// (the outer UseMutator call hit borrow rule #2 on the *Object receiver). When
 // the inner m.Run(target) interface-dispatches to EvilMutator.Run,
-// Rule 2 silently no-ops and Run inherits the victim-borrowed m.Realm.
+// borrow rule #2 silently no-ops and Run inherits the victim-borrowed m.Realm.
 // Write to i.Field commits under victim authority.
 //
 // This shape is exploitable ONLY when the victim's logic data is

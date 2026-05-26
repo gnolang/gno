@@ -726,8 +726,8 @@ func (m *Machine) doOpFuncLit() {
 	}
 	// Closures belong to wherever they were evaluated
 	// (currentRealmID), not their lexical PkgPath. FuncType has no
-	// declaring-realm semantics on its own.
-	m.Alloc.stampPkgID(&fv.ObjectInfo)
+	// declaring-realm semantics on its own — pass nil.
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
