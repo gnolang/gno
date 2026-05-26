@@ -8,49 +8,35 @@ rundep=go run -modfile ../misc/devdeps/go.mod
 
 ########################################
 # Environment variables
+# You can overwrite any of the following by passing a different value on the
+# command line, ie. `CGO_ENABLED=1 make test`.
 
 CGO_ENABLED ?= 0
 export CGO_ENABLED
-GOFMT_FLAGS ?= -w
-GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
+# test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 
 ########################################
-# Quarantine test driver
+# Dev tools
+.PHONY: lint
+lint:
+	$(rundep) github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --config ../.github/golangci.yml ./...
+
+.PHONY: fmt
+fmt:
+	go fmt ./...
+	$(rundep) golang.org/x/tools/cmd/goimports -w .
+
+########################################
+# Test suite
 #
-# `make test` runs the Go driver at the root of this directory. The driver
-# builds a unified package list spanning examples/ and examples-quarantine/
-# so cross-tree imports resolve, then runs gno tests against each quarantined
-# package. See ./quarantine_test.go.
+# The Go driver in quarantine_test.go runs gno tests against the quarantine
+# set and a genesis-load smoke test. See README.md and quarantine_test.go for
+# details.
 .PHONY: test
 test:
-	cd .. && go test $(GOTEST_FLAGS) ./examples-quarantine/...
+	go test $(GOTEST_FLAGS) ./...
 
 .PHONY: test.load
 test.load:
-	cd .. && go test $(GOTEST_FLAGS) -run TestQuarantineRealmsLoad ./examples-quarantine/...
-
-.PHONY: transpile
-transpile:
-	go run ../gnovm/cmd/gno tool transpile -v .
-
-.PHONY: build
-build:
-	go run ../gnovm/cmd/gno tool transpile -v --gobuild .
-
-.PHONY: lint
-lint:
-	go run ../gnovm/cmd/gno lint -v ./...
-
-.PHONY: fmt
-GNOFMT_FLAGS ?= -w
-fmt:
-	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
-
-.PHONY: tidy
-tidy:
-	go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy -v --recursive
-
-.PHONY: clean
-clean:
-	find . \( -name "*.gno.gen.go" -or -name ".*.gno.gen_test.go" \) -delete
+	go test $(GOTEST_FLAGS) -run TestQuarantineRealmsLoad ./...
