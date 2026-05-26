@@ -33,19 +33,9 @@ jobs:
   # Consequently we don't invoke the _ci-gno.yml reusable workflow here.
   # Lint/fmt regressions in the quarantine set are tolerated.
 
-  go-driver:
-    name: go-driver
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
-        with:
-          go-version-file: go.mod
-      # The driver runs both TestQuarantineRealms (gno test equivalent over
-      # all quarantine packages) and TestQuarantineRealmsLoad (genesis-load
-      # smoke test on an in-memory node).
-      - run: go test -p 1 -timeout=30m -v ./examples-quarantine/...
-        continue-on-error: true
+  go-tests:
+    uses: ./.github/workflows/_ci-go.yml
+    with:
+      modulepath: "examples-quarantine"
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
