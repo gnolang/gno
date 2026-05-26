@@ -27,7 +27,7 @@ var defaultStagingOptions = AppConfig{
 	interactive:         false,
 	unsafeAPI:           false,
 	lazyLoader:          false,
-	noQuarantine:        true,                            // excluded by default in staging
+	noQuarantine:        true,
 	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,

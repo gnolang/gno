@@ -18,12 +18,11 @@ import (
 const (
 	DefaultDomain = "gno.land"
 
-	// quarantineSubdir holds packages kept out of the audited examples set.
 	quarantineSubdir = "quarantine"
 )
 
-// defaultBaseResolvers returns the example resolver chain. The quarantine
-// subtree is included unless excludeQuarantine is set.
+// defaultBaseResolvers returns root resolvers for examples/ and, unless
+// excludeQuarantine is set, examples/quarantine/.
 func defaultBaseResolvers(gnoroot string, excludeQuarantine bool) []packages.Resolver {
 	exampleRoot := filepath.Join(gnoroot, "examples")
 	resolvers := []packages.Resolver{packages.NewRootResolver(exampleRoot)}

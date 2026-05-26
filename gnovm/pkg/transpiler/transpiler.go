@@ -45,16 +45,13 @@ func PackageDirLocation(s string) string {
 	}
 }
 
-// ImportResolver maps a Gno import path to a path relative to the gno repo
-// root. The relative path is used for both the on-disk existence check and
-// for the rewritten Go import path baked into the emitted .go file. Return
-// ok=false to signal the import is unresolvable.
+// ImportResolver maps a Gno import path to its location relative to the
+// gno repo root. ok=false means the import is unresolvable.
 type ImportResolver func(importPath string) (relPath string, ok bool)
 
-// DefaultResolver mimics the legacy hardcoded behavior: examples/<path> for
-// non-stdlibs, gnovm/stdlibs/<path> for stdlibs. If rootDir is non-empty the
-// resolved path must exist on disk; otherwise existence is skipped (used for
-// test-file transpilation).
+// DefaultResolver returns "examples/<path>" for non-stdlibs and
+// "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it also
+// checks the resolved path exists on disk.
 func DefaultResolver(rootDir string) ImportResolver {
 	return func(importPath string) (string, bool) {
 		rel := PackageDirLocation(importPath)
@@ -96,18 +93,16 @@ func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string)
 	return
 }
 
-// Transpile performs transpilation on the given source code with default
-// hardcoded import resolution (examples/<path> for non-stdlibs).
-//
-// For workspace-aware import resolution (so packages outside examples/ such
-// as examples/quarantine/ can be transpiled), use TranspileWithResolver.
+// Transpile performs transpilation on the given source code. tags can be
+// used to specify build tags; filename helps generate useful error messages
+// and discriminate between test and normal source files. Equivalent to
+// [TranspileWithResolver] with a nil resolver.
 func Transpile(source, tags, filename string) (*Result, error) {
 	return TranspileWithResolver(source, tags, filename, nil)
 }
 
-// TranspileWithResolver is like [Transpile] but consults the supplied
-// resolver to find a package's path-relative-to-rootDir. A nil resolver
-// falls back to [DefaultResolver].
+// TranspileWithResolver is like [Transpile] but uses the supplied resolver
+// for import lookups. A nil resolver falls back to [DefaultResolver].
 func TranspileWithResolver(source, tags, filename string, resolver ImportResolver) (*Result, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, source,
@@ -181,10 +176,7 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 }
 
 type transpileCtx struct {
-	// rootDir is the gno repo root. The resolver returns paths relative to it.
-	rootDir string
-	// resolver maps a Gno import path to its on-disk location (relative to
-	// rootDir). See [ImportResolver].
+	rootDir  string
 	resolver ImportResolver
 	// This should be set if we're working with a file from a standard library.
 	// This allows us to easily check if a function has a native binding, and as

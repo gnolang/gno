@@ -10,13 +10,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// TestExamplesLoad boots an in-memory gnoland node with the full examples/
-// tree (safe set + quarantine subtree) loaded at genesis, and asserts that
-// every AddPackage tx succeeds.
-//
-// The default handler (PanicOnFailingTxResultHandler) aborts genesis on the
-// first failing AddPackage tx. We swap in a collecting handler so a single
-// CI run surfaces every load failure instead of one at a time.
+// TestExamplesLoad boots an in-memory gnoland node and reports any failing
+// genesis AddPackage tx via t.Errorf, so a single run surfaces every load
+// issue.
 func TestExamplesLoad(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 
