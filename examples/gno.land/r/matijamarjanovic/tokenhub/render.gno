@@ -69,9 +69,9 @@ func init(cur realm) {
 }
 
 // GRC721 NFT
-myNFT, myLedger := grc721.NewNFT("My NFT Collection", "MNFT")
+myNFT, myLedger := grc721.NewToken(0, cur, "My NFT Collection", "MNFT")
 myLedger.Mint("g1your_address_here", "1")
-err := tokenhub.RegisterNFT(myNFT, "my_collection", "1")
+err := tokenhub.RegisterNFT(cross(cur), myNFT, "my_collection", "1")
 
 // GRC1155 multi-token
 myMultiToken := grc1155.NewBasicGRC1155Token("https://metadata.example.com/")
@@ -131,14 +131,14 @@ func renderNFT(path string) string {
 	page := nftPager.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
-		nft := item.Value.(*grc721.NFT)
+		nft := item.Value.(*grc721.Token)
 
 		pkgPath, _ := fqname.Parse(item.Key)
 		linkURL := formatLinkURL(pkgPath, 2)
 
 		nftItems = append(nftItems, ufmt.Sprintf("%s (%s) - %s",
-			md.Link(nft.Name(), linkURL),
-			md.InlineCode(nft.Symbol()),
+			md.Link(nft.GetName(), linkURL),
+			md.InlineCode(nft.GetSymbol()),
 			md.InlineCode(item.Key)))
 	}
 
