@@ -145,7 +145,6 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 
 	devnode := &Node{
 		config:            cfg,
-		client:            client.NewLocal(),
 		emitter:           cfg.Emitter,
 		logger:            cfg.Logger,
 		startTime:         startTime,
@@ -616,6 +615,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	select {
 	case <-node.Ready(): // Ok
 		n.Node = node
+		n.client = client.NewLocal(node.RPCEnvironment())
 	case <-ctx.Done():
 		return ctx.Err()
 	}
