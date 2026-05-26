@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"chain"
+
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/bptree/v0"
 )
@@ -94,5 +96,11 @@ func (led *PrivateLedger) SetTokenMetadata(tid grc721.TokenID, m Metadata) error
 	}
 
 	led.entries.Set(tid.String(), m)
+
+	chain.Emit(
+		MetadataUpdateEvent,
+		"token", led.token.ID(),
+		"tokenId", tid.String(),
+	)
 	return nil
 }
