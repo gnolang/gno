@@ -35,10 +35,15 @@ type Event struct {
 }
 
 var (
-	events                        = avl.NewTree()
-	eventCounter           uint64 = 0
-	tickets, ticketsLedger        = grc721.NewNFT("Event Ticket", "EVTIX")
+	events                 = avl.NewTree()
+	eventCounter    uint64 = 0
+	tickets         *grc721.Token
+	ticketsLedger   *grc721.PrivateLedger
 )
+
+func init(cur realm) {
+	tickets, ticketsLedger = grc721.NewToken(0, cur, "Event Ticket", "EVTIX")
+}
 
 func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, maxTickets int, price uint64) uint64 {
 	// validate inputs
