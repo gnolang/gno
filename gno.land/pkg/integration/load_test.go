@@ -10,9 +10,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// TestExamplesLoad boots an in-memory gnoland node and reports any failing
-// genesis AddPackage tx via t.Errorf, so a single run surfaces every load
-// issue.
+// TestExamplesLoad boots an in-memory gnoland node and reports any
+// AddPackage tx that fails at genesis. All failures are collected so a
+// single run surfaces every load issue.
 func TestExamplesLoad(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 
