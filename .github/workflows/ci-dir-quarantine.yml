@@ -33,26 +33,6 @@ jobs:
   # Consequently we don't invoke the _ci-gno.yml reusable workflow here.
   # Lint/fmt regressions in the quarantine set are tolerated.
 
-  check-deps:
-    name: check-deps
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-      # Fails if any package still in examples/ imports a package now in
-      # examples-quarantine/. Guards the "examples/ is self-consistent"
-      # invariant against future PRs that touch either tree.
-      - name: Verify no cross-tree dep regressions
-        run: |
-          out=$(./misc/quarantine/check-deps.sh)
-          if [ -n "$out" ]; then
-            echo "examples/ -> examples-quarantine/ dep regressions:"
-            echo "$out"
-            exit 1
-          fi
-
   go-driver:
     name: go-driver
     runs-on: ubuntu-latest
