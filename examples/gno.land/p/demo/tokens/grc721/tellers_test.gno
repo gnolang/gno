@@ -5,110 +5,114 @@ import (
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/urequire/v0"
 )
 
 const (
-	tellerNFTName   = "TellerNFT"
-	tellerNFTSymbol = "TLR"
+	tellerTokenName   = "TellerToken"
+	tellerTokenSymbol = "TLR"
 )
 
-func TestCallerTeller_TransferFrom(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestCallerTellerImpl(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+	teller := tok.CallerTeller()
+	urequire.True(t, tok != nil)
+	var _ Teller = teller
+}
+
+// evilWrap embeds Teller; the seal-marker pattern (if we had one) would be
+// satisfied via promotion, but IsCanonicalTeller rejects it because *evilWrap
+// is nominally distinct from *fnTeller.
+type evilWrap struct {
+	Teller
+}
+
+func TestIsCanonicalTeller(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+	legit := tok.CallerTeller()
+
+	uassert.True(t, IsCanonicalTeller(legit),
+		"canonical *fnTeller from CallerTeller must pass")
+
+	evil := &evilWrap{Teller: legit}
+	uassert.False(t, IsCanonicalTeller(evil),
+		"foreign type embedding a canonical Teller must be rejected")
+}
+
+func TestCallerTeller_TransferFrom(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
 	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
 
-	teller := nft.CallerTeller()
+	teller := tok.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.TransferFrom(alice, bob, TokenID("1")))
-	}()
+	func(cur realm) {
+		uassert.NoError(t, teller.TransferFrom(0, cur, alice, bob, TokenID("1")))
+	}(cross(cur))
 
-	owner, err := nft.OwnerOf(TokenID("1"))
+	owner, err := tok.OwnerOf(TokenID("1"))
 	uassert.NoError(t, err)
 	uassert.Equal(t, bob.String(), owner.String())
 }
 
-func TestCallerTeller_TransferSugar(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestCallerTeller_Approve(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
 	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
 
-	teller := nft.CallerTeller()
+	teller := tok.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.Transfer(bob, TokenID("1")))
-	}()
+	func(cur realm) {
+		uassert.NoError(t, teller.Approve(0, cur, bob, TokenID("1")))
+	}(cross(cur))
 
-	owner, _ := nft.OwnerOf(TokenID("1"))
-	uassert.Equal(t, bob.String(), owner.String())
-}
-
-func TestCallerTeller_Approve(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
-	alice := testutils.TestAddress("alice")
-	bob := testutils.TestAddress("bob")
-
-	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
-
-	teller := nft.CallerTeller()
-
-	testing.SetRealm(testing.NewUserRealm(alice))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.Approve(bob, TokenID("1")))
-	}()
-
-	got, err := nft.GetApproved(TokenID("1"))
+	got, err := tok.GetApproved(TokenID("1"))
 	uassert.NoError(t, err)
 	uassert.Equal(t, bob.String(), got.String())
 }
 
-func TestCallerTeller_Approve_NotOwner(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestCallerTeller_Approve_NotOwner(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	eve := testutils.TestAddress("eve")
 	bob := testutils.TestAddress("bob")
 
 	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
 
-	teller := nft.CallerTeller()
+	teller := tok.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(eve))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		err := teller.Approve(bob, TokenID("1"))
+	func(cur realm) {
+		err := teller.Approve(0, cur, bob, TokenID("1"))
 		uassert.ErrorIs(t, err, ErrCallerIsNotOwnerOrApproved)
-	}()
+	}(cross(cur))
 }
 
-func TestCallerTeller_TransferFrom_NotApproved(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestCallerTeller_TransferFrom_NotApproved(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	eve := testutils.TestAddress("eve")
 
 	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
 
-	teller := nft.CallerTeller()
+	teller := tok.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(eve))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		err := teller.TransferFrom(alice, bob, TokenID("1"))
+	func(cur realm) {
+		err := teller.TransferFrom(0, cur, alice, bob, TokenID("1"))
 		uassert.ErrorIs(t, err, ErrCallerIsNotOwnerOrApproved)
-	}()
+	}(cross(cur))
 }
 
-func TestCallerTeller_TransferFrom_ViaApprovalForAll(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestCallerTeller_TransferFrom_ViaApprovalForAll(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	op := testutils.TestAddress("operator")
 	bob := testutils.TestAddress("bob")
@@ -116,116 +120,55 @@ func TestCallerTeller_TransferFrom_ViaApprovalForAll(t *testing.T) {
 	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
 	uassert.NoError(t, ledger.SetApprovalForAll(alice, op, true))
 
-	teller := nft.CallerTeller()
+	teller := tok.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(op))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.TransferFrom(alice, bob, TokenID("1")))
-	}()
+	func(cur realm) {
+		uassert.NoError(t, teller.TransferFrom(0, cur, alice, bob, TokenID("1")))
+	}(cross(cur))
 
-	owner, _ := nft.OwnerOf(TokenID("1"))
+	owner, _ := tok.OwnerOf(TokenID("1"))
 	uassert.Equal(t, bob.String(), owner.String())
 }
 
-func TestCallerTeller_SetApprovalForAll(t *testing.T) {
-	nft, _ := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestCallerTeller_SetApprovalForAll(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	op := testutils.TestAddress("operator")
 
-	teller := nft.CallerTeller()
+	teller := tok.CallerTeller()
 
 	testing.SetRealm(testing.NewUserRealm(alice))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.SetApprovalForAll(op, true))
-	}()
+	func(cur realm) {
+		uassert.NoError(t, teller.SetApprovalForAll(0, cur, op, true))
+	}(cross(cur))
 
-	uassert.True(t, nft.IsApprovedForAll(alice, op))
+	uassert.True(t, tok.IsApprovedForAll(alice, op))
 }
 
-func TestCallerTeller_SetTokenURI(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
-	alice := testutils.TestAddress("alice")
-	uri := "ipfs://example/1"
-
-	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
-
-	teller := nft.CallerTeller()
-
-	testing.SetRealm(testing.NewUserRealm(alice))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.SetTokenURI(TokenID("1"), TokenURI(uri)))
-	}()
-
-	got, err := nft.TokenURI(TokenID("1"))
-	uassert.NoError(t, err)
-	uassert.Equal(t, uri, got)
-}
-
-func TestCallerTeller_SetTokenURI_NotOwner(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
-	alice := testutils.TestAddress("alice")
-	eve := testutils.TestAddress("eve")
-
-	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
-
-	teller := nft.CallerTeller()
-
-	testing.SetRealm(testing.NewUserRealm(eve))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		err := teller.SetTokenURI(TokenID("1"), TokenURI("ipfs://x"))
-		uassert.ErrorIs(t, err, ErrCallerIsNotOwner)
-	}()
-}
-
-func TestSafeTransferFrom_AliasesTransferFrom(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
-	alice := testutils.TestAddress("alice")
-	bob := testutils.TestAddress("bob")
-
-	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
-
-	teller := nft.CallerTeller()
-
-	testing.SetRealm(testing.NewUserRealm(alice))
-	func() {
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-		uassert.NoError(t, teller.SafeTransferFrom(alice, bob, TokenID("1")))
-	}()
-
-	owner, _ := nft.OwnerOf(TokenID("1"))
-	uassert.Equal(t, bob.String(), owner.String())
-}
-
-func TestReadonlyTeller_WritesReturnError(t *testing.T) {
-	nft, _ := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestReadonlyTeller_WritesReturnError(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 
-	teller := nft.ReadonlyTeller()
+	teller := tok.ReadonlyTeller()
 
-	uassert.ErrorIs(t, teller.Transfer(alice, TokenID("1")), ErrReadonly)
-	uassert.ErrorIs(t, teller.TransferFrom(alice, alice, TokenID("1")), ErrReadonly)
-	uassert.ErrorIs(t, teller.SafeTransferFrom(alice, alice, TokenID("1")), ErrReadonly)
-	uassert.ErrorIs(t, teller.Approve(alice, TokenID("1")), ErrReadonly)
-	uassert.ErrorIs(t, teller.SetApprovalForAll(alice, true), ErrReadonly)
-
-	err := teller.SetTokenURI(TokenID("1"), TokenURI("ipfs://x"))
-	uassert.ErrorIs(t, err, ErrReadonly)
+	func(cur realm) {
+		uassert.ErrorIs(t, teller.TransferFrom(0, cur, alice, alice, TokenID("1")), ErrReadonly)
+		uassert.ErrorIs(t, teller.Approve(0, cur, alice, TokenID("1")), ErrReadonly)
+		uassert.ErrorIs(t, teller.SetApprovalForAll(0, cur, alice, true), ErrReadonly)
+	}(cross(cur))
 }
 
-func TestReadonlyTeller_ReadsPassThrough(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestReadonlyTeller_ReadsPassThrough(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 
 	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
 
-	teller := nft.ReadonlyTeller()
+	teller := tok.ReadonlyTeller()
 
-	uassert.Equal(t, tellerNFTName, teller.Name())
-	uassert.Equal(t, tellerNFTSymbol, teller.Symbol())
+	uassert.Equal(t, tellerTokenName, teller.GetName())
+	uassert.Equal(t, tellerTokenSymbol, teller.GetSymbol())
 
 	bal, err := teller.BalanceOf(alice)
 	uassert.NoError(t, err)
@@ -236,8 +179,8 @@ func TestReadonlyTeller_ReadsPassThrough(t *testing.T) {
 	uassert.Equal(t, alice.String(), owner.String())
 }
 
-func TestImpersonateTeller_ActsAsAddress(t *testing.T) {
-	nft, ledger := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestImpersonateTeller_ActsAsAddress(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 
@@ -245,36 +188,126 @@ func TestImpersonateTeller_ActsAsAddress(t *testing.T) {
 
 	imp := ledger.ImpersonateTeller(alice)
 
-	// No realm setup needed: accountFn returns alice unconditionally.
-	uassert.NoError(t, imp.Transfer(bob, TokenID("1")))
+	func(cur realm) {
+		uassert.NoError(t, imp.TransferFrom(0, cur, alice, bob, TokenID("1")))
+	}(cross(cur))
 
-	owner, _ := nft.OwnerOf(TokenID("1"))
+	owner, _ := tok.OwnerOf(TokenID("1"))
 	uassert.Equal(t, bob.String(), owner.String())
 }
 
-func TestRealmTeller_Smoke(t *testing.T) {
-	nft, _ := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestRealmTeller_Smoke(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-	teller := nft.RealmTeller()
+	var teller Teller
+	func(cur realm) {
+		teller = tok.RealmTeller(0, cur)
+	}(cross(cur))
 	uassert.True(t, teller != nil, "teller should not be nil")
 }
 
-func TestRealmSubTeller_Smoke(t *testing.T) {
-	nft, _ := NewNFT(tellerNFTName, tellerNFTSymbol)
+func TestRealmSubTeller_Smoke(cur realm, t *testing.T) {
+	tok, _ := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
 
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/test"))
-	teller := nft.RealmSubTeller("vault")
+	var teller Teller
+	func(cur realm) {
+		teller = tok.RealmSubTeller(0, cur, "vault")
+	}(cross(cur))
 	uassert.True(t, teller != nil, "teller should not be nil")
 }
 
-func TestAccountSlugAddr_EmptySlug(t *testing.T) {
+func TestAccountSlugAddr_EmptySlug(cur realm, t *testing.T) {
 	addr := testutils.TestAddress("base")
 	uassert.Equal(t, addr.String(), accountSlugAddr(addr, "").String())
 }
 
-func TestAccountSlugAddr_NonEmptySlug(t *testing.T) {
+func TestAccountSlugAddr_NonEmptySlug(cur realm, t *testing.T) {
 	addr := testutils.TestAddress("base")
 	derived := accountSlugAddr(addr, "vault")
 	uassert.True(t, derived.String() != addr.String(), "derived address should differ from base")
+}
+
+func TestImpersonateTeller_InvalidAddress(cur realm, t *testing.T) {
+	_, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+
+	defer func() {
+		r := recover()
+		uassert.True(t, r != nil, "ImpersonateTeller must panic on empty addr")
+		uassert.True(t, r == ErrInvalidAddress,
+			"ImpersonateTeller must panic with ErrInvalidAddress")
+	}()
+	ledger.ImpersonateTeller(address(""))
+}
+
+func TestCallerTeller_Transfer_ToInvalidAddress(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+	alice := testutils.TestAddress("alice")
+
+	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
+
+	teller := tok.CallerTeller()
+
+	testing.SetRealm(testing.NewUserRealm(alice))
+	func(cur realm) {
+		err := teller.TransferFrom(0, cur, alice, address(""), TokenID("1"))
+		uassert.ErrorIs(t, err, ErrInvalidAddress)
+	}(cross(cur))
+}
+
+func TestCallerTeller_TransferFrom_WrongFrom(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+
+	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
+	uassert.NoError(t, ledger.Approve(bob, TokenID("1")))
+
+	teller := tok.CallerTeller()
+
+	testing.SetRealm(testing.NewUserRealm(bob))
+	func(cur realm) {
+		err := teller.TransferFrom(0, cur, bob, alice, TokenID("1"))
+		uassert.ErrorIs(t, err, ErrTransferFromIncorrectOwner)
+	}(cross(cur))
+}
+
+func TestCallerTeller_Approve_ViaApprovalForAll(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+	alice := testutils.TestAddress("alice")
+	op := testutils.TestAddress("operator")
+	bob := testutils.TestAddress("bob")
+
+	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
+	uassert.NoError(t, ledger.SetApprovalForAll(alice, op, true))
+
+	teller := tok.CallerTeller()
+
+	testing.SetRealm(testing.NewUserRealm(op))
+	func(cur realm) {
+		uassert.NoError(t, teller.Approve(0, cur, bob, TokenID("1")))
+	}(cross(cur))
+
+	got, err := tok.GetApproved(TokenID("1"))
+	uassert.NoError(t, err)
+	uassert.Equal(t, bob.String(), got.String())
+}
+
+func TestCallerTeller_TransferFrom_ResetsApprovalEndToEnd(cur realm, t *testing.T) {
+	tok, ledger := newTestToken(0, cur, tellerTokenName, tellerTokenSymbol)
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	carl := testutils.TestAddress("carl")
+
+	uassert.NoError(t, ledger.Mint(alice, TokenID("1")))
+	uassert.NoError(t, ledger.Approve(bob, TokenID("1")))
+
+	teller := tok.CallerTeller()
+
+	testing.SetRealm(testing.NewUserRealm(bob))
+	func(cur realm) {
+		uassert.NoError(t, teller.TransferFrom(0, cur, alice, carl, TokenID("1")))
+	}(cross(cur))
+
+	_, err := tok.GetApproved(TokenID("1"))
+	uassert.ErrorIs(t, err, ErrTokenIdNotHasApproved)
 }

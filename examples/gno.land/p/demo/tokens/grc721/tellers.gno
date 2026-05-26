@@ -2,205 +2,217 @@ package grc721
 
 import (
 	"chain"
-	"chain/runtime"
 )
 
-// Teller is the high-level NFT API. It composes the read methods exposed
-// by *NFT with caller-resolved write methods.
-//
-// All write methods source the acting principal from the Teller's
-// accountFn, which is fixed at construction by one of the factory
-// methods below (CallerTeller, ReadonlyTeller, RealmTeller,
-// RealmSubTeller, ImpersonateTeller). This is the only place where
-// runtime.PreviousRealm or runtime.CurrentRealm is consulted in the
-// package; *NFT and *PrivateLedger never inspect them.
-type Teller interface {
-	// Reads (mirror *NFT for ergonomics).
-	Name() string
-	Symbol() string
-	BalanceOf(addr address) (int64, error)
-	OwnerOf(tid TokenID) (address, error)
-	TokenURI(tid TokenID) (string, error)
-	GetApproved(tid TokenID) (address, error)
-	IsApprovedForAll(owner, op address) bool
+// CallerTeller returns a GRC721 compatible teller that, at each write call,
+// resolves the caller as rlm.Previous() — the realm that crossed into the
+// caller. rlm must be the caller's own captured cur (asserted via
+// rlm.IsCurrent() inside the Teller methods).
+func (tok *Token) CallerTeller() Teller {
+	if tok == nil {
+		panic("Token cannot be nil")
+	}
 
-	// Writes (caller-resolved via accountFn).
-	Transfer(to address, tid TokenID) error
-	TransferFrom(from, to address, tid TokenID) error
-	SafeTransferFrom(from, to address, tid TokenID) error
-	Approve(to address, tid TokenID) error
-	SetApprovalForAll(op address, approved bool) error
-	SetTokenURI(tid TokenID, uri TokenURI) error
-}
-
-// fnTeller is the canonical Teller implementation. It wraps an *NFT
-// (which provides the read API via embedding) with an accountFn that
-// supplies the acting principal for write methods.
-//
-// A nil accountFn marks the Teller as read-only; write methods return
-// ErrReadonly.
-type fnTeller struct {
-	accountFn func() address
-	*NFT
-}
-
-var _ Teller = (*fnTeller)(nil)
-
-// CallerTeller returns a Teller that resolves the acting principal from
-// runtime.PreviousRealm() on every write call. It is safe to expose
-// publicly so users can manipulate their own tokens directly, or so
-// realms can act through their allowance.
-func (n *NFT) CallerTeller() Teller {
 	return &fnTeller{
-		accountFn: func() address {
-			return runtime.PreviousRealm().Address()
+		accountFn: func(_ int, rlm realm) address {
+			return rlm.Previous().Address()
 		},
-		NFT: n,
+		Token: tok,
 	}
 }
 
-// ReadonlyTeller returns a Teller whose write methods all return
-// ErrReadonly. Read methods pass through to *NFT unchanged.
-func (n *NFT) ReadonlyTeller() Teller {
+// ReadonlyTeller is a GRC721 compatible teller that returns ErrReadonly for
+// any write operation.
+func (tok *Token) ReadonlyTeller() Teller {
+	if tok == nil {
+		panic("Token cannot be nil")
+	}
+
 	return &fnTeller{
 		accountFn: nil,
-		NFT:       n,
+		Token:     tok,
 	}
 }
 
-// RealmTeller captures runtime.PreviousRealm().Address() at construction
-// and uses it for every write call. The captured realm becomes the
-// permanent identity of the resulting Teller — useful for DAOs/treasuries
-// that hold NFTs on behalf of the realm itself.
+// RealmTeller returns a GRC721 compatible teller that will store the
+// caller realm permanently. Calling anything through this teller will
+// result in approval or ownership changes for the realm that initialized
+// the teller. The initializer of this teller should usually never share
+// the resulting Teller from this method except maybe for advanced
+// delegation flows such as a DAO treasury management.
 //
-// WARN: Should be initialized within a crossing function. This way the
-// realm that created the teller will match what PreviousRealm reports.
-func (n *NFT) RealmTeller() Teller {
-	caller := runtime.PreviousRealm().Address()
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// The address is frozen eagerly at construction.
+func (tok *Token) RealmTeller(_ int, rlm realm) Teller {
+	if tok == nil {
+		panic("Token cannot be nil")
+	}
+
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
+
+	caller := rlm.Address()
+
 	return &fnTeller{
-		accountFn: func() address { return caller },
-		NFT:       n,
+		accountFn: func(_ int, _ realm) address {
+			return caller
+		},
+		Token: tok,
 	}
 }
 
-// RealmSubTeller is like RealmTeller but uses chain.PackageAddress of
-// `caller + "/" + slug` as the account, deriving a sub-account address.
+// RealmSubTeller is like RealmTeller but uses the provided slug to derive a
+// subaccount.
 //
-// WARN: Same crossing-function caveat as RealmTeller.
-func (n *NFT) RealmSubTeller(slug string) Teller {
-	caller := runtime.PreviousRealm().Address()
-	account := accountSlugAddr(caller, slug)
+// rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
+// The subaccount address is frozen eagerly at construction.
+func (tok *Token) RealmSubTeller(_ int, rlm realm, slug string) Teller {
+	if tok == nil {
+		panic("Token cannot be nil")
+	}
+
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
+
+	account := accountSlugAddr(rlm.Address(), slug)
+
 	return &fnTeller{
-		accountFn: func() address { return account },
-		NFT:       n,
+		accountFn: func(_ int, _ realm) address {
+			return account
+		},
+		Token: tok,
 	}
 }
 
-// ImpersonateTeller acts as if its caller is the supplied address.
-// Possessing *PrivateLedger is the authorization gate; reserved for
-// admin/migration use.
-func (l *PrivateLedger) ImpersonateTeller(addr address) Teller {
+// ImpersonateTeller returns a GRC721 compatible teller that impersonates as a
+// specified address. This allows operations to be performed as if they were
+// executed by the given address, enabling the caller to manipulate tokens on
+// behalf of that address.
+//
+// It is particularly useful in scenarios where a contract needs to perform
+// actions on behalf of a user or another account, without exposing the
+// underlying logic or requiring direct access to the user's account. The
+// returned teller will use the provided address for all operations, effectively
+// masking the original caller.
+//
+// This method should be used with caution, as it allows for potentially
+// sensitive operations to be performed under the guise of another address.
+func (led *PrivateLedger) ImpersonateTeller(addr address) Teller {
+	if led == nil {
+		panic("Ledger cannot be nil")
+	}
+
+	if !addr.IsValid() {
+		panic(ErrInvalidAddress)
+	}
+
 	return &fnTeller{
-		accountFn: func() address { return addr },
-		NFT:       l.nft,
+		accountFn: func(_ int, _ realm) address {
+			return addr
+		},
+		Token: led.token,
 	}
 }
 
-// Transfer is a sugar over TransferFrom for the case where the caller is
-// the current owner. EIP-721 does not specify Transfer, so this method
-// is a Gno-only convenience.
-func (ft *fnTeller) Transfer(to address, tid TokenID) error {
+// generic tellers methods.
+//
+
+// TransferFrom moves token tid from `from` to `to`. The caller must be the
+// owner of tid, an approved operator for the owner, or the address approved
+// for tid.
+//
+// EIP-721's safeTransferFrom is intentionally not exposed: it would require
+// a registry-based ERC721TokenReceiver check (see
+// https://github.com/gnolang/gno/issues/5546). Implementing it as a
+// TransferFrom alias would leak a false safety guarantee.
+func (ft *fnTeller) TransferFrom(_ int, rlm realm, from, to address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
-	caller := ft.accountFn()
-	return ft.NFT.ledger.Transfer(caller, to, tid)
-}
 
-// TransferFrom moves token tid from `from` to `to`. The caller must be
-// the owner of tid, an approved operator for the owner, or the address
-// approved for tid.
-func (ft *fnTeller) TransferFrom(from, to address, tid TokenID) error {
-	if ft.accountFn == nil {
-		return ErrReadonly
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
 	}
-	caller := ft.accountFn()
+
+	caller := ft.accountFn(0, rlm)
 	if !ft.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
-	return ft.NFT.ledger.Transfer(from, to, tid)
+
+	return ft.Token.ledger.Transfer(from, to, tid)
 }
 
-// SafeTransferFrom currently aliases TransferFrom: there is no
-// registry-based receiver check yet (see
-// https://github.com/gnolang/gno/issues/5546). New code should call
-// TransferFrom directly.
-func (ft *fnTeller) SafeTransferFrom(from, to address, tid TokenID) error {
-	return ft.TransferFrom(from, to, tid)
-}
-
-// Approve: caller must be the owner of tid or an approved-for-all
-// operator of the owner.
-func (ft *fnTeller) Approve(to address, tid TokenID) error {
+func (ft *fnTeller) Approve(_ int, rlm realm, to address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
-	caller := ft.accountFn()
-	owner, err := ft.NFT.OwnerOf(tid)
+
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
+	}
+
+	caller := ft.accountFn(0, rlm)
+
+	owner, err := ft.Token.OwnerOf(tid)
 	if err != nil {
 		return err
 	}
-	if caller != owner && !ft.NFT.IsApprovedForAll(owner, caller) {
+
+	if caller != owner && !ft.Token.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
-	return ft.NFT.ledger.Approve(to, tid)
+
+	return ft.Token.ledger.Approve(to, tid)
 }
 
-func (ft *fnTeller) SetApprovalForAll(op address, approved bool) error {
+func (ft *fnTeller) SetApprovalForAll(_ int, rlm realm, op address, approved bool) error {
 	if ft.accountFn == nil {
 		return ErrReadonly
 	}
-	caller := ft.accountFn()
-	return ft.NFT.ledger.SetApprovalForAll(caller, op, approved)
-}
 
-func (ft *fnTeller) SetTokenURI(tid TokenID, uri TokenURI) error {
-	if ft.accountFn == nil {
-		return ErrReadonly
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
 	}
-	caller := ft.accountFn()
-	owner, err := ft.NFT.OwnerOf(tid)
-	if err != nil {
-		return err
-	}
-	if caller != owner {
-		return ErrCallerIsNotOwner
-	}
-	return ft.NFT.ledger.SetTokenURI(tid, uri)
+
+	caller := ft.accountFn(0, rlm)
+
+	return ft.Token.ledger.SetApprovalForAll(caller, op, approved)
 }
 
 // isApprovedOrOwner reports whether addr is allowed to act on tid:
 // either it owns tid, the owner has approved-for-all addr, or addr is
 // the per-token approved address for tid.
 func (ft *fnTeller) isApprovedOrOwner(addr address, tid TokenID) bool {
-	owner, err := ft.NFT.OwnerOf(tid)
+	owner, err := ft.Token.OwnerOf(tid)
 	if err != nil {
 		return false
 	}
-	if addr == owner || ft.NFT.IsApprovedForAll(owner, addr) {
+
+	if addr == owner || ft.Token.IsApprovedForAll(owner, addr) {
 		return true
 	}
-	approved, err := ft.NFT.GetApproved(tid)
+
+	approved, err := ft.Token.GetApproved(tid)
 	if err != nil {
 		return false
 	}
+
 	return approved == addr
 }
 
+// helpers
+//
+
+// accountSlugAddr returns the address derived from the specified address and slug.
 func accountSlugAddr(addr address, slug string) address {
+	// XXX: use a new `std.XXX` call for this.
 	if slug == "" {
 		return addr
 	}
+
 	key := addr.String() + "/" + slug
-	return chain.PackageAddress(key)
+
+	return chain.PackageAddress(key) // temporarily using this helper
 }
