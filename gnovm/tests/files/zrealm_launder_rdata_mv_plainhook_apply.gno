@@ -7,13 +7,13 @@ package launderrh_mv_plainhook_apply
 //
 // Trace:
 //   1. main → m.Realm = /r/launderrh_mv_plainhook_apply
-//   2. RegisterPlainHook(closure) — Rule 1 → m.Realm = /r/-victim,
+//   2. RegisterPlainHook(closure) — borrow rule #1 → m.Realm = /r/-victim,
 //      closure stored.
-//   3. RunPlainHooks() — Rule 1 → m.Realm = /r/-victim. Body: h().
-//   4. h is /r/-attacker-declared → Rule 1 → m.Realm = /r/-attacker.
+//   3. RunPlainHooks() — borrow rule #1 → m.Realm = /r/-victim. Body: h().
+//   4. h is /r/-attacker-declared → borrow rule #1 → m.Realm = /r/-attacker.
 //   5. Inside h: captured.Apply(EvilWrite). Apply is a /p/-method on
 //      *launderpkg.Immutable; recv is captured *launderpkg.Immutable
-//      aliasing victim memory. Rule 2 → m.Realm = /r/-victim.
+//      aliasing victim memory. borrow rule #2 → m.Realm = /r/-victim.
 //   6. EvilWrite top-level /p/ fn → no shift → write commits under
 //      victim authority.
 //
