@@ -42,8 +42,8 @@ var (
 	}
 )
 
-func init() {
-	hor.Register(cross, "Miko's calculator", "")
+func init(cur realm) {
+	hor.Register(cross(cur), "Miko's calculator", "")
 }
 
 func evaluateValidity(line string) (bool, string) {

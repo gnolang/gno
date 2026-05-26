@@ -46,19 +46,27 @@ func MustGetToken(key string) *grc20.Token {
 	return grc20reg.MustGet(key)
 }
 
-// GetNFT returns an NFT instance for a given key
-func GetNFT(key string) *grc721.NFT {
-	val, ok := registeredNFTs.Get(key)
+// GetNFT returns a reader-only view of an NFT for a given key.
+//
+// SECURITY: the returned IGRC721Reader is data-untrusted. A malicious
+// NFTGetter registered via RegisterNFT can return a Reader that lies
+// about OwnerOf / BalanceOf / etc. Treat aggregator results as display
+// data, not authority data — never gate a transfer or mint on these
+// values. Writes are concrete methods on the owning realm's *basicNFT;
+// to mutate an NFT, call the owning realm's wrapper directly.
+func GetNFT(key string) grc721.IGRC721Reader {
+	nftGetter, ok := registeredNFTs.Get(key)
 	if !ok {
 		return nil
 	}
 	return val.(*grc721.NFT)
 }
 
-// MustGetNFT returns an NFT instance for a given key, panics if the NFT is not found
-func MustGetNFT(key string) *grc721.NFT {
-	nft := GetNFT(key)
-	if nft == nil {
+// MustGetNFT returns a reader-only view of an NFT for a given key,
+// panics if the NFT is not found. See GetNFT for data-trust notes.
+func MustGetNFT(key string) grc721.IGRC721Reader {
+	nftGetter := GetNFT(key)
+	if nftGetter == nil {
 		panic("unknown NFT: " + key)
 	}
 	return nft

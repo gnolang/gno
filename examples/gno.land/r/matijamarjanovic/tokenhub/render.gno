@@ -61,9 +61,12 @@ import (
 	"gno.land/p/demo/tokens/grc1155"
 )
 
-// GRC20 token
-myToken, myLedger := grc20.NewToken("My Token", "MTK", 6)
-myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
+// GRC20 token — must be constructed from a realm context (init or a
+// crossing function) because grc20.NewToken asserts cur.IsCurrent().
+func init(cur realm) {
+	myToken, myLedger := grc20.NewToken(0, cur, "My Token", "MTK", 6)
+	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
+}
 
 // GRC721 NFT
 myNFT, myLedger := grc721.NewNFT("My NFT Collection", "MNFT")

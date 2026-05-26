@@ -1,8 +1,6 @@
 package foo721
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -61,36 +59,51 @@ func GetApproved(tid grc721.TokenID) address {
 
 // Setters
 
-func Approve(_ realm, user address, tid grc721.TokenID) {
-	if err := UserTeller.Approve(user, tid); err != nil {
+// The Approve / SetApprovalForAll / TransferFrom wrappers are the
+// owning realm's trusted boundary: they derive `caller` from
+// `cur.Previous().Address()` (unforgeable per-frame identity) and
+// hand the address-typed parameter to the concrete writer methods on
+// the unexported `foo *basicNFT`. The basicNFT writer methods take
+// `caller address` only — no rlm crosses the call, so even if the
+// underlying type were ever exposed as an interface, no cur could
+// leak through. See `p/demo/tokens/grc721/igrc721.gno` for the
+// Reader/Writer split doctrine.
+func Approve(cur realm, user address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
+	err := foo.Approve(caller, user, tid)
+	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(_ realm, user address, approved bool) {
-	if err := UserTeller.SetApprovalForAll(user, approved); err != nil {
+func SetApprovalForAll(cur realm, user address, approved bool) {
+	caller := cur.Previous().Address()
+	err := foo.SetApprovalForAll(caller, user, approved)
+	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(_ realm, from, to address, tid grc721.TokenID) {
-	if err := UserTeller.TransferFrom(from, to, tid); err != nil {
+func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
+	err := foo.TransferFrom(caller, from, to, tid)
+	if err != nil {
 		panic(err)
 	}
 }
 
 // Admin
 
-func Mint(_ realm, to address, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Mint(cur realm, to address, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	if err := fooLedger.Mint(to, tid); err != nil {
 		panic(err)
 	}
 }
 
-func Burn(_ realm, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+func Burn(cur realm, tid grc721.TokenID) {
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	if err := fooLedger.Burn(tid); err != nil {
 		panic(err)
