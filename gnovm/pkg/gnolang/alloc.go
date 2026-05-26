@@ -342,11 +342,23 @@ func (alloc *Allocator) AllocatePointer() {
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	alloc.Allocate(overflow.Addp(allocArray, size))
+	total, ok := overflow.Add(allocArray, size)
+	if !ok {
+		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
+	}
+	alloc.Allocate(total)
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	alloc.Allocate(overflow.Addp(allocArray, overflow.Mulp(allocArrayItem, items)))
+	bytes, ok := overflow.Mul(allocArrayItem, items)
+	if !ok {
+		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
+	}
+	total, ok := overflow.Add(allocArray, bytes)
+	if !ok {
+		panic(&Exception{Value: typedString("runtime error: makeslice: len out of range")})
+	}
+	alloc.Allocate(total)
 }
 
 func (alloc *Allocator) AllocateSlice() {
