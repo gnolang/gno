@@ -4,9 +4,7 @@ import (
 	"context"
 	"flag"
 	"path"
-	"path/filepath"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -76,8 +74,7 @@ func execStagingCmd(cfg *StagingAppConfig, args []string, io commands.IO) error 
 			return err
 		}
 
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, packages.NewRootResolver(exampleRoot))
+		cfg.AppConfig.resolvers = append(cfg.AppConfig.resolvers, defaultBaseResolvers(gnoroot)...)
 	}
 
 	return runApp(&cfg.AppConfig, io, args...)

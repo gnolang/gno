@@ -9,7 +9,6 @@ on:
       - misc/val-scenarios/**
       - contribs/gnogenesis/**
       - examples/**
-      - examples-quarantine/**
       - Dockerfile
       - gno.land/**
       - gnovm/**
@@ -22,7 +21,6 @@ on:
       - misc/val-scenarios/**
       - contribs/gnogenesis/**
       - examples/**
-      - examples-quarantine/**
       - Dockerfile
       - gno.land/**
       - gnovm/**

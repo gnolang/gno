@@ -9,8 +9,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -150,58 +148,6 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gno
 	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 
-	return txs
-}
-
-// LoadQuarantinePackages loads the quarantined examples (under
-// examples-quarantine/) as genesis txs. It sorts the union of examples/ and
-// examples-quarantine/ to satisfy quarantine->safe dependencies, then returns
-// txs for the quarantine subset only.
-//
-// Callers that already use LoadDefaultPackages (the default in
-// TestingNodeConfig) can pass the result as additional txs; the safe set is
-// deployed first, the quarantine batch is deployed on top.
-//
-// [addpkg] creator directives in gnomod.toml are honored, matching
-// gnoland.LoadPackagesFromDir.
-func LoadQuarantinePackages(t TestingTS, creator bft.Address, gnoroot string) []gnoland.TxWithMetadata {
-	examplesDir := filepath.Join(gnoroot, "examples")
-	quarantineDir := filepath.Join(gnoroot, "examples-quarantine")
-	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-
-	safePkgs, err := packages.ReadPkgListFromDir(examplesDir, gno.MPUserAll)
-	require.NoError(t, err)
-	quarPkgs, err := packages.ReadPkgListFromDir(quarantineDir, gno.MPUserAll)
-	require.NoError(t, err)
-
-	quarDirs := make(map[string]struct{}, len(quarPkgs))
-	for _, p := range quarPkgs {
-		quarDirs[p.Dir] = struct{}{}
-	}
-
-	sorted, err := slices.Concat(safePkgs, quarPkgs).Sort()
-	require.NoError(t, err)
-	sorted = sorted.GetNonIgnoredPkgs()
-
-	txs := make([]gnoland.TxWithMetadata, 0, len(quarPkgs))
-	for _, pkg := range sorted {
-		if _, ok := quarDirs[pkg.Dir]; !ok {
-			continue
-		}
-		mpkg, err := gno.ReadMemPackage(pkg.Dir, pkg.Name, gno.MPUserAll)
-		require.NoError(t, err)
-
-		pkgCreator := creator
-		if mod, err := gno.ParseCheckGnoMod(mpkg); err == nil && mod != nil && mod.AddPkg.Creator != "" {
-			addr, err := crypto.AddressFromBech32(mod.AddPkg.Creator)
-			require.NoError(t, err)
-			pkgCreator = addr
-		}
-
-		tx, err := gnoland.LoadPackage(mpkg, pkgCreator, defaultFee, nil)
-		require.NoError(t, err)
-		txs = append(txs, gnoland.TxWithMetadata{Tx: tx})
-	}
 	return txs
 }
 

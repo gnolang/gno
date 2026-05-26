@@ -11,7 +11,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,14 +87,10 @@ func TestRoutes(t *testing.T) {
 		}
 	)
 
-	// Setup the logger and node. Some routes (/r/tests/vm/deep/very/deep,
-	// /contribute → r/gnoland/pages, /r/docs/optional_render, /p/demo/flow)
-	// resolve to quarantined realms, so load both trees at genesis.
+	// Setup the logger and node
 	logger := log.NewTestingLogger(t)
 	rootdir := gnoenv.RootDir()
-	creator := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	genesis = append(genesis, integration.LoadQuarantinePackages(t, creator, rootdir)...)
 	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, logger, config)
 	defer node.Stop()
@@ -186,12 +181,8 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	// /about, /start, /game-of-realms, /getting-started all resolve to
-	// r/gnoland/pages which lives in examples-quarantine.
 	rootdir := gnoenv.RootDir()
-	creator := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
-	genesis = append(genesis, integration.LoadQuarantinePackages(t, creator, rootdir)...)
 	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()

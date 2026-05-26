@@ -10,7 +10,6 @@ on:
       - gnovm/**
       - tm2/**
       - examples/**
-      - examples-quarantine/**
       - go.mod
       - .github/workflows/ci-dir-gnoland.yml
   workflow_dispatch:

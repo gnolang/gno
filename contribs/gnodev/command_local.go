@@ -15,7 +15,29 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-const DefaultDomain = "gno.land"
+const (
+	DefaultDomain = "gno.land"
+
+	// quarantineSubdir is the subdirectory under examples/ holding packages
+	// that are deliberately kept out of the audited examples set. They live
+	// alongside examples/gno.land/ and are reachable via a separate root
+	// resolver.
+	quarantineSubdir = "quarantine"
+)
+
+// defaultBaseResolvers returns the standard chain for resolving packages from
+// gnoroot/examples/. Both examples/ and examples/quarantine/ are added as
+// independent roots because gnodev's RootResolver does a direct path-join
+// (root/import-path), not a workspace walk, so a single root would miss
+// packages under the quarantine subtree.
+func defaultBaseResolvers(gnoroot string) []packages.Resolver {
+	exampleRoot := filepath.Join(gnoroot, "examples")
+	quarantineRoot := filepath.Join(exampleRoot, quarantineSubdir)
+	return []packages.Resolver{
+		packages.NewRootResolver(exampleRoot),
+		packages.NewRootResolver(quarantineRoot),
+	}
+}
 
 var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
 
@@ -104,13 +126,11 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 			baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
 		}
 
-		// Add examples as root resolver
 		gnoroot, err := gnoenv.GuessRootDir()
 		if err != nil {
 			return err
 		}
-		exampleRoot := filepath.Join(gnoroot, "examples")
-		baseResolvers = append(baseResolvers, packages.NewRootResolver(exampleRoot))
+		baseResolvers = append(baseResolvers, defaultBaseResolvers(gnoroot)...)
 	}
 
 	// Check if current directory is a valid gno package
