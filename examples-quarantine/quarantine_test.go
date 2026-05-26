@@ -143,7 +143,7 @@ func loadQuarantineGenesisTxs(examplesDir, quarantineDir string, creator crypto.
 		}
 		mpkg, err := gno.ReadMemPackage(pkg.Dir, pkg.Name, gno.MPUserAll)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read mempackage %q: %w", pkg.Dir, err)
 		}
 
 		// Honor [addpkg] creator directives in gnomod.toml (mirrors
@@ -161,7 +161,7 @@ func loadQuarantineGenesisTxs(examplesDir, quarantineDir string, creator crypto.
 
 		tx, err := gnoland.LoadPackage(mpkg, pkgCreator, fee, nil)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("load package %q: %w", pkg.Dir, err)
 		}
 		txs = append(txs, gnoland.TxWithMetadata{Tx: tx})
 	}
