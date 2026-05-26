@@ -1,10 +1,12 @@
 // Verifies the filetest walker accepts plain .go files under
-// gnovm/tests/files/testdata/. Letting Go-source files drop in
-// without rename means a per-fix regression test for any file
-// from Go's standard test corpus is just `cp` + commit.
+// gnovm/tests/files/gocorpus/testdata/. Letting Go-source files
+// drop in without rename means a per-fix regression test for any
+// file from Go's standard test corpus is just `cp` + commit.
 //
 // The .go extension is invisible to `go list` / `go build` here
-// because Go's tooling ignores any directory named `testdata/`.
+// because Go's tooling ignores any directory named `testdata/`;
+// the walker additionally enforces that `.go` filetests must live
+// under such a segment.
 //
 // This file ships with no `// Output:` directive — the harness
 // auto-derives the expected output by running it through `go run`

@@ -50,7 +50,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		return "", 0, fmt.Errorf("error parsing directives: %w", err)
 	}
 
-	// .go filetests under tests/files/testdata/ are regression tests for
+	// .go filetests under tests/files/gocorpus/testdata/ are regression tests for
 	// files lifted from Go's standard test corpus. Three dispatch modes,
 	// detected from source content; each is bypassed by an explicit
 	// directive (which serves as the blessed-divergence escape hatch and
@@ -821,8 +821,8 @@ func runGoSubprocess(source []byte) (string, error) {
 // canonical user-source extension; .go in the gno repo conventionally
 // means VM/tooling implementation, which never goes through the
 // typecheck pipeline). For .go files dropped under tests/files/
-// testdata/ as regression tests for Go's standard test corpus, the
-// in-memory MemFile name gets aliased to .gno here so the typecheck
+// gocorpus/testdata/ as regression tests for Go's standard test corpus,
+// the in-memory MemFile name gets aliased to .gno here so the typecheck
 // actually runs. The outer fname (used for parser provenance, error
 // attribution, and the runtime path) stays as .go everywhere else.
 //

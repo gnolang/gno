@@ -21,18 +21,22 @@ Tests with the `_long` suffix are skipped when the `-short` flag is passed.
 
 These tests are largely derived from Yaegi, licensed under Apache 2.0.
 
-### `files/testdata`: filetests with the `.go` extension
+### `files/gocorpus/testdata`: filetests with the `.go` extension
 
 The `TestFiles` walker accepts both `.gno` (the native extension) and
-`.go` files. `.go` filetests live under `files/testdata/`; Go's own
-tooling (`go list`, `go build`, `go test`) ignores any directory named
-`testdata/`, so `.go` files dropped there don't conflict with
-package-discovery elsewhere in the repo.
+`.go` files. `.go` filetests live under `files/gocorpus/testdata/` —
+the `gocorpus/` parent names the purpose ("regression tests for files
+from Go's standard test corpus"); the `testdata/` segment is the
+Go-tooling shield (`go list` / `go build` / `go test` ignore any
+directory named `testdata/`, so `.go` files there don't conflict with
+package-discovery elsewhere in the repo). The walker enforces this:
+`.go` files outside a `testdata/` segment are skipped.
 
 Primary use case: regression tests for files lifted from Go's standard
 test corpus (`/usr/local/go/test/`). After fixing a Gno bug surfaced on
 a corpus file, drop the original `.go` file verbatim into
-`files/testdata/` to lock the fix in CI — no rename, no conversion.
+`files/gocorpus/testdata/` to lock the fix in CI — no rename, no
+conversion.
 
 **Comparison behavior.** The harness picks one of three modes based
 on file content; each is bypassed by the corresponding explicit
@@ -69,10 +73,10 @@ compares Gno's output to Go's. Test passes only when Gno matches Go.
 Bypass with an explicit `// Output:` directive carrying Gno's actual
 output.
 
-See `files/testdata/run/canary.go` (run mode),
-`files/testdata/errorcheck/canary.go` (errorcheck), and
-`files/testdata/compile/canary.go` (compile-only) for the minimal
-patterns.
+See `files/gocorpus/testdata/run/canary.go` (run mode),
+`files/gocorpus/testdata/errorcheck/canary.go` (errorcheck), and
+`files/gocorpus/testdata/compile/canary.go` (compile-only) for the
+minimal patterns.
 
 Notes:
 - Native filetest directives (`// PKGPATH:`, `// Output:`, `// Error:`,
@@ -88,8 +92,9 @@ Notes:
 - LINE/LINE+N substitution in marker patterns is NOT performed;
   literal text stays in the regex (matching is best-effort).
 - For files outside both modes (`// *dir` multi-file tests,
-  gc-internal): don't add them to `testdata/` — convert manually to
-  a Gno filetest with the appropriate native directive instead.
+  gc-internal): don't add them to `gocorpus/testdata/` — convert
+  manually to a Gno filetest with the appropriate native directive
+  instead.
 
 ## `stdlibs`: testing standard libraries
 

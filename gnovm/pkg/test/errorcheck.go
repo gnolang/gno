@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Errorcheck-style support for .go filetests under tests/files/testdata/.
+// Errorcheck-style support for .go filetests under tests/files/gocorpus/testdata/.
 //
 // When a .go filetest carries inline `// ERROR "regex"` markers (Go's
 // standard test corpus convention) and no explicit `// Error:` directive,
