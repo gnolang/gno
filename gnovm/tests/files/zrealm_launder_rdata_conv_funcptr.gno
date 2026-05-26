@@ -10,7 +10,7 @@ package launderrh_conv_funcptr
 // Hypothesis B: Passing the attacker function to victim.ApplyHook
 // is statically allowed (callback param is /r/-declared but attacker
 // can supply such a callback from its own realm). When victim runs
-// h(gImm), the callback runs with attacker's m.Realm (Rule 1 from
+// h(gImm), the callback runs with attacker's m.Realm (borrow rule #1 from
 // the /r/-attacker function's PkgID), so the write to victim-owned
 // gImm.Field hits the readonly check.
 //

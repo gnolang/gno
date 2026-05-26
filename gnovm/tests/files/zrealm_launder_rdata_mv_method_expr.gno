@@ -5,7 +5,7 @@ package launderrh_mv_method_expr
 //
 // `me := (*launderpkg.Immutable).Apply` is the unbound method value
 // — recv is supplied at call time as the first arg. The body of the
-// method is /p/launderpkg-declared (no Rule 1 from /r/). When
+// method is /p/launderpkg-declared (no borrow rule #1 from /r/). When
 // invoked as me(victimImmPtr, EvilWrite), PushFrameCall's receiver-
 // borrow rule fires on the FIRST arg (the recv), which is /r/-stamped
 // → m.Realm = /r/launderrvictim → EvilWrite (top-level /p/) inherits
