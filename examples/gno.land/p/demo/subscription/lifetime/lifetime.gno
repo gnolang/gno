@@ -19,13 +19,14 @@ type LifetimeSubscription struct {
 	subs      *avl.Tree // address.String() -> bool
 }
 
-// NewLifetimeSubscription creates a new lifetime subscription.
-func NewLifetimeSubscription(amount int64, payeeAddr address) *LifetimeSubscription {
+// NewLifetimeSubscription creates a new lifetime subscription. owner is
+// the address authorized to call UpdateAmount.
+func NewLifetimeSubscription(owner address, amount int64, payeeAddr address) *LifetimeSubscription {
 	if !payeeAddr.IsValid() {
 		panic(ErrInvalidPayee)
 	}
 	return &LifetimeSubscription{
-		Ownable:   *ownable.New(),
+		Ownable:   *ownable.NewWithAddress(owner),
 		amount:    amount,
 		payeeAddr: payeeAddr,
 		subs:      avl.NewTree(),
@@ -56,8 +57,13 @@ func (ls *LifetimeSubscription) HasValidSubscription(subscriber address) error {
 }
 
 // UpdateAmount lets the subscription owner change the one-time amount.
-func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
-	if !ls.Owned() {
+// rlm must be the caller's own captured cur; rlm.Previous().Address()
+// must equal the owner.
+func (ls *LifetimeSubscription) UpdateAmount(_ int, rlm realm, newAmount int64) error {
+	if !rlm.IsCurrent() {
+		return ErrNotAuthorized
+	}
+	if !ls.OwnedBy(rlm.Previous().Address()) {
 		return ErrNotAuthorized
 	}
 	ls.amount = newAmount

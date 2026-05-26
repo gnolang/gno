@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestRenderAndAdd(t *testing.T) {
+func TestRenderAndAdd(cur realm, t *testing.T) {
 	// Initial Render output
 	output := Render("")
 	expected := `# Add Example
@@ -20,10 +20,10 @@ Last Updated: Never
 	}
 
 	// Call Add with a value of 10
-	Add(cross, 10)
+	Add(cross(cur), 10)
 
 	// Call Add again with a value of -5
-	Add(cross, -5)
+	Add(cross(cur), -5)
 
 	// Render after two Add calls
 	finalOutput := Render("")

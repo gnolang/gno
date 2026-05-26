@@ -19,7 +19,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
-			vv, exists := mv.GetValueForKey(m.Store, iv)
+			vv, exists := mv.GetValueForKey(m, m.Store, iv)
 			if exists {
 				*xv = vv // reuse as result
 			} else {
@@ -28,7 +28,7 @@ func (m *Machine) doOpIndex1() {
 		}
 	default:
 		// Read-only: pass nilRealm so map key attach DidUpdate is a no-op.
-		res := xv.GetPointerAtIndex(nilRealm, m.Alloc, m.Store, iv)
+		res := xv.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
 	xv.SetReadonly(ro)
@@ -48,7 +48,7 @@ func (m *Machine) doOpIndex2() {
 			*iv = untypedBool(false)             // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
-			vv, exists := mv.GetValueForKey(m.Store, iv)
+			vv, exists := mv.GetValueForKey(m, m.Store, iv)
 			if exists {
 				*xv = vv                // reuse as result
 				*iv = untypedBool(true) // reuse as result
@@ -438,6 +438,7 @@ func (m *Machine) doOpArrayLit() {
 	m.incrCPU(OpCPUSlopeArrayLit * int64(ne))
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
+	m.Alloc.checkConstructionTime(at)
 	bt := baseOf(at).(*ArrayType)
 	// construct array value.
 	av := defaultArrayValue(m.Alloc, bt)
@@ -497,8 +498,11 @@ func (m *Machine) doOpSliceLit() {
 	m.incrCPU(OpCPUSlopeSliceLit * int64(el))
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
-	// construct element buf slice.
-	baseArray := m.Alloc.NewListArray(el)
+	m.Alloc.checkConstructionTime(st)
+	// construct element buf slice. SliceValue is anonymous (st is
+	// the SliceType); the inner ArrayValue.Base is allocated at
+	// currentRealmID. The construction-time check above already gated by st.
+	baseArray := m.Alloc.NewListArray(nil, el)
 	es := baseArray.List
 	m.PopCopyValues(es)
 	// construct and push value.
@@ -522,6 +526,7 @@ func (m *Machine) doOpSliceLit2() {
 	tvs := m.PopValues(el * 2)
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
+	m.Alloc.checkConstructionTime(st)
 	// calculate maximum index.
 	var maxVal int64
 	for i := range el {
@@ -533,8 +538,9 @@ func (m *Machine) doOpSliceLit2() {
 	}
 	m.incrCPU(OpCPUSlopeSliceLit2 * (maxVal + 1))
 	// construct element buf slice.
-	// alloc before the underlying array constructed
-	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
+	// alloc before the underlying array constructed. Anonymous base
+	// array; nil t skips the construction-time check.
+	baseArray := m.Alloc.NewListArray(nil, int(maxVal+1))
 	es := baseArray.List
 
 	for i := range el {
@@ -575,9 +581,10 @@ func (m *Machine) doOpMapLit() {
 	m.incrCPU(OpCPUSlopeMapLit * int64(ne))
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
+	m.Alloc.checkConstructionTime(mt)
 	// bt := baseOf(at).(*MapType)
 	// construct new map value.
-	mv := m.Alloc.NewMap(0)
+	mv := m.Alloc.NewMap(mt, 0)
 	if 0 < ne {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
@@ -585,7 +592,7 @@ func (m *Machine) doOpMapLit() {
 		for i := range ne {
 			ktv := kvs[i*2].Copy(m.Alloc)
 			vtv := kvs[i*2+1]
-			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
+			ptr := mv.GetPointerForKey(m, m.Alloc, m.Store, ktv)
 			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}
@@ -610,6 +617,7 @@ func (m *Machine) doOpStructLit() {
 	m.incrCPU(OpCPUSlopeStructLit * int64(el))
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
+	m.Alloc.checkConstructionTime(xt)
 	st := baseOf(xt).(*StructType)
 	nf := len(st.Fields)
 	fs := []TypedValue(nil)
@@ -666,7 +674,7 @@ func (m *Machine) doOpStructLit() {
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
-	sv := m.Alloc.NewStruct(fs)
+	sv := m.Alloc.NewStruct(xt, fs)
 	m.PushValue(TypedValue{
 		T: xt,
 		V: sv,
@@ -703,21 +711,26 @@ func (m *Machine) doOpFuncLit() {
 			captures = append(captures, *ptr.TV)
 		}
 	}
+	fv := &FuncValue{
+		Type:       ft,
+		IsMethod:   false,
+		IsClosure:  true,
+		Source:     x,
+		Name:       "",
+		Parent:     nil,
+		Captures:   captures,
+		PkgPath:    m.Package.PkgPath,
+		Crossing:   ft.IsCrossing(),
+		body:       x.Body,
+		nativeBody: nil,
+	}
+	// Closures belong to wherever they were evaluated
+	// (currentRealmID), not their lexical PkgPath. FuncType has no
+	// declaring-realm semantics on its own — pass nil.
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	m.PushValue(TypedValue{
 		T: ft,
-		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			IsClosure:  true,
-			Source:     x,
-			Name:       "",
-			Parent:     nil,
-			Captures:   captures,
-			PkgPath:    m.Package.PkgPath,
-			Crossing:   ft.IsCrossing(),
-			body:       x.Body,
-			nativeBody: nil,
-		},
+		V: fv,
 	})
 }
 
@@ -735,35 +748,39 @@ func (m *Machine) doOpConvert() {
 		m.incrCPU(OpCPUConvertNumeric)
 	}
 
-	// BEGIN conversion checks
-	// These protect against inter-realm conversion exploits.
-
-	// Case 1.
-	// Do not allow conversion of value stored in external realm.
-	// Otherwise anyone could convert an external object insecurely.
+	// BEGIN conversion checks — protect against inter-realm
+	// conversion exploits.
+	//
+	// Case 1. Refuse conversion of a value stored in an external
+	// realm (foreign-readonly source). Without this, an attacker can
+	// declare a parallel /p/-type with the same struct layout as a
+	// /p/-typed victim field plus extra mutator methods, then convert
+	// the victim's pointer to the parallel type and invoke the new
+	// mutator — borrow rule 2 routes m.Realm to victim's realm for
+	// the duration of the /p/-method, so the write succeeds under
+	// victim authority. The N_Readonly bit on the converted value
+	// catches direct writes (`p.Field = ...`) but not writes inside
+	// a borrowed /p/-method body. See zrealm_launder_g_typepun.gno.
 	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
 			xvdt.PkgPath == m.Realm.Path {
-			// Except allow if xv.T is m.Realm.
-			// XXX do we need/want this?
+			// Except allow conversion when xv.T is m.Realm's own
+			// declared type — the converting realm already has
+			// write authority over its own values.
 		} else {
 			panic("illegal conversion of readonly or externally stored value")
 		}
 	}
 
-	// Case 2.
-	// Do not allow conversion to type of external realm.
-	// Only code declared within the same realm my perform such
-	// conversions, otherwise the realm could be tricked
-	// into executing a subtle exploit of mutating some
-	// value (say a pointer) stored in its own realm by
-	// a hostile construction converted to look safe.
+	// Case 2. Refuse conversion to a foreign /r/-declared type — the
+	// converting realm cannot forge values of types it doesn't
+	// declare, otherwise it could fabricate "trusted" objects to
+	// hand back to the declaring realm.
 	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
 		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
 			panic("illegal conversion to external realm type")
 		}
 	}
-	// END conversion checks
 
 	// Per-N CPU gas for parameterized conversions.
 	if xv.T != nil {

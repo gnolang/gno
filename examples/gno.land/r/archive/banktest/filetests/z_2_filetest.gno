@@ -10,14 +10,14 @@ import (
 	"gno.land/r/archive/banktest"
 )
 
-func main() {
+func main(cur realm) {
 	banktestAddr := chain.PackageAddress("gno.land/r/archive/banktest")
 	mainaddr := chain.PackageAddress("gno.land/r/demo/bank1")
 
 	// print main balance before.
 	testing.SetOriginCaller(mainaddr)
 
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	banker_ := banker.NewReadonlyBanker()
 	mainbal := banker_.GetCoins(mainaddr)
 	println("main before:", mainbal) // plus OriginSend equals 300.
 
@@ -25,7 +25,7 @@ func main() {
 	testing.IssueCoins(banktestAddr, chain.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
-	res := banktest.Deposit(cross, "ugnot", 55000000)
+	res := banktest.Deposit(cross(cur), "ugnot", 55000000)
 	println("Deposit():", res)
 
 	// print main balance after.
@@ -33,7 +33,7 @@ func main() {
 	println("main after:", mainbal) // now 255.
 
 	// simulate a Render().
-	res = banktest.Render("")
+	res = banktest.Render(cross(cur), "")
 	println(res)
 }
 

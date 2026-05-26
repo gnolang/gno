@@ -29,8 +29,6 @@ stdout '\[{\"type\":\"Burn\",\"attrs\":\[{\"key\":\"slug\",\"value\":\"FNFT\"},{
 package foo721
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/demo/tokens/grc721"
 )
 
@@ -42,21 +40,24 @@ var (
 // Setters
 
 func Approve(cur realm, user address, tid grc721.TokenID) {
-	err := foo.Approve(user, tid)
+	caller := cur.Previous().Address()
+	err := foo.Approve(caller, user, tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func SetApprovalForAll(cur realm, user address, approved bool) {
-	err := foo.SetApprovalForAll(user, approved)
+	caller := cur.Previous().Address()
+	err := foo.SetApprovalForAll(caller, user, approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
-	err := foo.TransferFrom(from, to, tid)
+	caller := cur.Previous().Address()
+	err := foo.TransferFrom(caller, from, to, tid)
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +66,7 @@ func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
 // Admin
 
 func Mint(cur realm, to address, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Mint(to, tid)
 	if err != nil {
@@ -74,7 +75,7 @@ func Mint(cur realm, to address, tid grc721.TokenID) {
 }
 
 func Burn(cur realm, tid grc721.TokenID) {
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {

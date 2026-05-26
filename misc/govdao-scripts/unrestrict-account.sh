@@ -8,12 +8,7 @@
 #   ./unrestrict-account.sh g1abc...123
 #   ./unrestrict-account.sh g1abc...123 g1def...456
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 if [ $# -eq 0 ]; then
@@ -45,12 +40,12 @@ import (
 	"gno.land/r/sys/params"
 )
 
-func main() {
+func main(cur realm) {
 	r := params.ProposeAddUnrestrictedAcctsRequest(
 ${ADDR_ARGS}	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 
@@ -58,8 +53,8 @@ echo "Unrestricting $# account(s):"
 for addr in "$@"; do
   echo "  $addr"
 done
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 

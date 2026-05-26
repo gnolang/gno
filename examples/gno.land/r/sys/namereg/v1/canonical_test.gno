@@ -11,7 +11,7 @@ import (
 // Canonicalize is now a delegating shim to susers.Canonicalize; verify
 // the local export and the upstream produce the same output for the
 // rules namereg/v1 cares about.
-func TestCanonicalize_DelegatesToSusers(t *testing.T) {
+func TestCanonicalize_DelegatesToSusers(cur realm, t *testing.T) {
 	cases := []string{
 		"",
 		"a",
@@ -30,7 +30,7 @@ func TestCanonicalize_DelegatesToSusers(t *testing.T) {
 	}
 }
 
-func TestReservedSet_BuiltFromBlacklist(t *testing.T) {
+func TestReservedSet_BuiltFromBlacklist(cur realm, t *testing.T) {
 	// Sanity: every entry from reservedNames AND its `+s` form must be
 	// in the canonicalized lookup.
 	for _, n := range reservedNames {
@@ -44,7 +44,7 @@ func TestReservedSet_BuiltFromBlacklist(t *testing.T) {
 	}
 }
 
-func TestIsReserved_LiteralAndCanonical(t *testing.T) {
+func TestIsReserved_LiteralAndCanonical(cur realm, t *testing.T) {
 	// Literal entry must be reserved.
 	uassert.True(t, IsReserved("admin"), "admin should be reserved")
 
