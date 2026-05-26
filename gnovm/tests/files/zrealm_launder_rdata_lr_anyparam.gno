@@ -7,15 +7,15 @@ package launderrh2
 // Unlike the /p/-attacker variant (zrealm_launder_rdata_l_anyparam.gno),
 // the attacker here is in /r/ and CAN import /r/launderrvictim, so the
 // type assertion `x.(*launderrvictim.Immutable)` succeeds. The question:
-// does Rule 1 still block the write?
+// does borrow rule #1 still block the write?
 //
 // Trace:
 //   1. /r/launderrh2.main() — m.Realm = /r/launderrh2
-//   2. launderrvictim.UseAnyMutator(...) — /r/-declared, Rule 1 →
+//   2. launderrvictim.UseAnyMutator(...) — /r/-declared, borrow rule #1 →
 //      m.Realm = /r/launderrvictim
 //   3. UseAnyMutator body: m.Run(gImm) interface-dispatches to
 //      EvilMutator.Run
-//   4. EvilMutator.Run is /r/launderrh2-declared, Rule 1 fires →
+//   4. EvilMutator.Run is /r/launderrh2-declared, borrow rule #1 fires →
 //      m.Realm = /r/launderrh2
 //   5. Run body: type-assert succeeds (same import access)
 //   6. `t.Field = "pwnd"` writes /r/launderrvictim-stamped data

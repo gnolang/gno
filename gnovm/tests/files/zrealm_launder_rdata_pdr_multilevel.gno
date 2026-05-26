@@ -6,7 +6,7 @@ package launderrh_pdr_multilevel
 //
 // Trace at deferred callback time:
 //  1. main → m.Realm = attacker
-//  2. CallPDeferApply(EvilWrite) → Rule 1 → m.Realm = victim
+//  2. CallPDeferApply(EvilWrite) → borrow rule #1 → m.Realm = victim
 //  3. body: gWithPtr.Inner.DeferApply(fn) → receiver-borrow on
 //     *launderpkg.Immutable victim-stamped — wait, m.Realm is
 //     ALREADY victim, so the borrow check sees recvOID.PkgID ==
@@ -14,7 +14,7 @@ package launderrh_pdr_multilevel
 //  4. DeferApply body: schedule fn(i) as defer
 //  5. DeferApply returns → defer fires → PushFrameCall(fn, true)
 //     with LastRealm = victim (current m.Realm)
-//  6. fn is top-level /p/ EvilWrite — no Rule 1, no Rule 2 → m.Realm
+//  6. fn is top-level /p/ EvilWrite — no borrow rule #1, no borrow rule #2 → m.Realm
 //     stays victim
 //  7. EvilWrite body: i.Field = ... writes /r/-victim data under
 //     m.Realm = victim → readonly passes → WRITE SUCCEEDS

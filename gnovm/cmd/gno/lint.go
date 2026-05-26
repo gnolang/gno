@@ -330,9 +330,25 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						hasError = true
 						continue
 					}
+					// A filetest may assert a preprocess-time failure
+					// via // Error:; in that case, swallow any panic
+					// here. Exact-message verification is `gno test`'s
+					// job — lint just needs to not flag the expected
+					// failure as a lint error.
+					expectsErr, derr := hasErrorDirective(mfile.Body)
+					if derr != nil {
+						io.ErrPrintln(derr)
+						hasError = true
+						continue
+					}
 					pkgName := string(fset.Files[0].PkgName)
-					pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
-					ppkg.AddFileTest(pn, fset)
+					func() {
+						if expectsErr {
+							defer func() { _ = recover() }()
+						}
+						pn, _ := tm.PreprocessFiles(pkgName, pkgPath, fset, false, false)
+						ppkg.AddFileTest(pn, fset)
+					}()
 				}
 			}
 
