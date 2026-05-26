@@ -45,6 +45,29 @@ func PackageDirLocation(s string) string {
 	}
 }
 
+// ImportResolver maps a Gno import path to a path relative to the gno repo
+// root. The relative path is used for both the on-disk existence check and
+// for the rewritten Go import path baked into the emitted .go file. Return
+// ok=false to signal the import is unresolvable.
+type ImportResolver func(importPath string) (relPath string, ok bool)
+
+// DefaultResolver mimics the legacy hardcoded behavior: examples/<path> for
+// non-stdlibs, gnovm/stdlibs/<path> for stdlibs. If rootDir is non-empty the
+// resolved path must exist on disk; otherwise existence is skipped (used for
+// test-file transpilation).
+func DefaultResolver(rootDir string) ImportResolver {
+	return func(importPath string) (string, bool) {
+		rel := PackageDirLocation(importPath)
+		if rootDir == "" {
+			return rel, true
+		}
+		if _, err := os.Stat(filepath.Join(rootDir, rel)); err != nil {
+			return "", false
+		}
+		return rel, true
+	}
+}
+
 // Result is returned by Transpile, returning the file's imports and output
 // out the transpilation.
 type Result struct {
@@ -73,10 +96,19 @@ func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string)
 	return
 }
 
-// Transpile performs transpilation on the given source code. tags can be used
-// to specify build tags; and filename helps generate useful error messages and
-// discriminate between test and normal source files.
+// Transpile performs transpilation on the given source code with default
+// hardcoded import resolution (examples/<path> for non-stdlibs).
+//
+// For workspace-aware import resolution (so packages outside examples/ such
+// as examples/quarantine/ can be transpiled), use TranspileWithResolver.
 func Transpile(source, tags, filename string) (*Result, error) {
+	return TranspileWithResolver(source, tags, filename, nil)
+}
+
+// TranspileWithResolver is like [Transpile] but consults the supplied
+// resolver to find a package's path-relative-to-rootDir. A nil resolver
+// falls back to [DefaultResolver].
+func TranspileWithResolver(source, tags, filename string, resolver ImportResolver) (*Result, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, source,
 		// SkipObjectResolution -- unused here.
@@ -87,8 +119,9 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	}
 
 	isTestFile := strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno")
+	rootDir := gnoenv.RootDir()
 	ctx := &transpileCtx{
-		rootDir: gnoenv.RootDir(),
+		rootDir: rootDir,
 	}
 	stdlibPrefix := filepath.Join(ctx.rootDir, "gnovm", "stdlibs")
 	if isTestFile {
@@ -99,6 +132,10 @@ func Transpile(source, tags, filename string) (*Result, error) {
 		// enable as such "package checking" also on test files.
 		ctx.rootDir = ""
 	}
+	if resolver == nil {
+		resolver = DefaultResolver(ctx.rootDir)
+	}
+	ctx.resolver = resolver
 	absFilename, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get absolute path of filename: %w", err)
@@ -144,9 +181,11 @@ func Transpile(source, tags, filename string) (*Result, error) {
 }
 
 type transpileCtx struct {
-	// If rootDir is given, we will check that the directory of the import path
-	// exists (using rootDir/packageDirLocation()).
+	// rootDir is the gno repo root. The resolver returns paths relative to it.
 	rootDir string
+	// resolver maps a Gno import path to its on-disk location (relative to
+	// rootDir). See [ImportResolver].
+	resolver ImportResolver
 	// This should be set if we're working with a file from a standard library.
 	// This allows us to easily check if a function has a native binding, and as
 	// such modify its call expressions appropriately.
@@ -170,15 +209,10 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				continue
 			}
 
-			if ctx.rootDir != "" {
-				dirPath := filepath.Join(ctx.rootDir, PackageDirLocation(importPath))
-				if _, err := os.Stat(dirPath); err != nil {
-					if !os.IsNotExist(err) {
-						return nil, err
-					}
-					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q does not exist", importPath))
-					continue
-				}
+			rel, ok := ctx.resolver(importPath)
+			if !ok {
+				errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q does not exist", importPath))
+				continue
 			}
 
 			// Create mapping
@@ -191,8 +225,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				}
 			}
 
-			transp := TranspileImportPath(importPath)
-			importSpec.Path.Value = strconv.Quote(transp)
+			importSpec.Path.Value = strconv.Quote(ImportPrefix + "/" + rel)
 		}
 	}
 
