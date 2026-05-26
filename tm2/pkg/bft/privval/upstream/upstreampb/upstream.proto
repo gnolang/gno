@@ -2,6 +2,19 @@
 // canonical.proto, crypto.proto, and privval/types.proto — sufficient
 // to implement the privval socket protocol for tmkms compatibility.
 //
+// Source pin: tendermint/tendermint @ v0.34.24, commit
+//   014cdcf09844d48f6d30f3e520034b7edffd9670 (2022-11-22).
+// Files captured:
+//   - proto/tendermint/types/canonical.proto
+//   - proto/tendermint/types/types.proto
+//   - proto/tendermint/privval/types.proto
+//   - proto/tendermint/crypto/keys.proto
+// The vendored content here is hand-curated: gogoproto annotations
+// stripped, but field numbers, types, names, and ordering are byte-
+// identical to upstream. When refreshing, update this header with the
+// new SHA + tag, re-strip gogoproto annotations, and regenerate
+// upstream.pb.go (see "To regenerate" below).
+//
 // This package's protoc-generated Go types are used DIRECTLY for wire I/O
 // at the validator/signer boundary. They are NOT test fixtures — they are
 // production code, mirroring how cometbft/privval uses cometbft/proto's

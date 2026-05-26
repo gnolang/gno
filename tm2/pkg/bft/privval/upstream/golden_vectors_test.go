@@ -6,17 +6,29 @@ package upstream_test
 // hand-rolled encoders, stdlibproto_test.go protobuf-go round-trips) all
 // compute the "expected" bytes at runtime. They catch encoder/decoder
 // disagreement, but not silent drift in BOTH sides of the comparison.
+// These hex-frozen tests are the last line: if tm2's wire format drifts,
+// they fail against the frozen bytes even if the other layers stay
+// self-consistent.
 //
-// These tests hard-code the bytes produced by upstream Tendermint v0.34's
-// protoc-generated marshaller (or, for canonical types, by tm2 amino at
-// the time PR #5625 was verified against a real tmkms 0.15.0 binary).
-// If tm2's wire format drifts away from upstream's, these tests fail
-// against the frozen hex even if the other layers stay self-consistent.
+// !!! IMPORTANT: vectors here come from TWO DIFFERENT ORACLES !!!
 //
-// Re-capturing: bytes for the upstream/* types were emitted via
-// upstreampb's protoc-generated Marshal (`proto.Marshal(...)`); bytes
-// for the canonical/* types were emitted via tm2 amino with the bft/types
-// package registered. Both encoders are deterministic for the inputs below.
+//   - upstream/* vectors are oracle-derived from upstreampb's
+//     protoc-generated Marshal (`proto.Marshal(...)`). These are a
+//     genuine third-party byte-equivalence check against upstream
+//     Tendermint v0.34's wire format.
+//
+//   - canonical/* vectors are SELF-derived from tm2 amino itself, at
+//     the time PR #5625 was verified against a real tmkms 0.15.0
+//     binary on the wire. They are NOT recomputed against upstream
+//     protoc; they pin tm2 amino against its own past output. The
+//     upstream-equivalence claim for canonical types rests on (a) the
+//     schema/wire layers in the sibling tests, and (b) that one-time
+//     tmkms 0.15.0 wire interop check at #5625.
+//
+// Re-capturing: emit bytes for upstream/* types via upstreampb's
+// protoc-generated Marshal (`proto.Marshal(...)`); emit bytes for the
+// canonical/* types via tm2 amino with the bft/types package registered.
+// Both encoders are deterministic for the inputs below.
 //
 // One nuance for the upstream/* vectors: upstreampb wraps Timestamp as a
 // nullable `*timestamppb.Timestamp`, so a nil pointer omits the field
