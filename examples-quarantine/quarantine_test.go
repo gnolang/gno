@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -105,11 +104,6 @@ func TestQuarantineRealmsLoad(t *testing.T) {
 
 	logger := log.NewTestingLogger(t)
 	config, _ := integration.TestingNodeConfig(t, rootdir, quarantineTxs...)
-
-	var (
-		failuresMu sync.Mutex
-		failures   []string
-	)
 	config.InitChainerConfig.GenesisTxResultHandler = func(_ sdk.Context, tx std.Tx, res sdk.Result) {
 		if !res.IsErr() {
 			return
@@ -121,9 +115,7 @@ func TestQuarantineRealmsLoad(t *testing.T) {
 				break
 			}
 		}
-		failuresMu.Lock()
-		failures = append(failures, fmt.Sprintf("%s: %s", pkgPath, res.Log))
-		failuresMu.Unlock()
+		t.Errorf("AddPackage failed at genesis: %s: %s", pkgPath, res.Log)
 	}
 
 	node, _ := integration.TestingInMemoryNode(t, logger, config)
@@ -132,12 +124,6 @@ func TestQuarantineRealmsLoad(t *testing.T) {
 			t.Logf("node.Stop: %v", err)
 		}
 	})
-
-	failuresMu.Lock()
-	defer failuresMu.Unlock()
-	for _, f := range failures {
-		t.Errorf("AddPackage failed at genesis: %s", f)
-	}
 }
 
 // loadQuarantineGenesisTxs builds AddPackage txs for every package under
