@@ -157,9 +157,10 @@ func (vm *VMKeeper) Initialize(
 
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
-				PkgPath: "",
-				Output:  vm.Output,
-				Store:   vm.gnoStore,
+				PkgPath:            "",
+				Output:             vm.Output,
+				Store:              vm.gnoStore,
+				BoundedPanicRender: true,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
@@ -306,9 +307,10 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		// XXX: gno.land, vm.domain, other?
-		PkgPath:     pkgPath,
-		Store:       store,
-		SkipPackage: true,
+		PkgPath:            pkgPath,
+		Store:              store,
+		SkipPackage:        true,
+		BoundedPanicRender: true,
 	})
 	defer m.Release()
 	m.RunMemPackage(memPkg, true)
@@ -459,12 +461,13 @@ func (vm *VMKeeper) callRealmBool(
 	defer store.SetPreprocessAllocator(nil)
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    store,
-			Context:  msgCtx,
-			Alloc:    store.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             vm.Output,
+			Store:              store,
+			Context:            msgCtx,
+			Alloc:              store.GetAllocator(),
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m.Release()
 	defer doRecover(m, &err)
@@ -715,12 +718,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    gnostore,
-			Alloc:    gnostore.GetAllocator(),
-			Context:  msgCtx,
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             vm.Output,
+			Store:              gnostore,
+			Alloc:              gnostore.GetAllocator(),
+			Context:            msgCtx,
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m2.Release()
 	defer doRecover(m2, &err)
@@ -832,12 +836,13 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   vm.Output,
-			Store:    gnostore,
-			Context:  msgCtx,
-			Alloc:    gnostore.GetAllocator(),
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             vm.Output,
+			Store:              gnostore,
+			Context:            msgCtx,
+			Alloc:              gnostore.GetAllocator(),
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	xn := m.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
@@ -846,6 +851,14 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		return "", err
 	}
 	cx := xn.(*gno.CallExpr)
+	// Replace the synthesized first argument at Args[0] with the
+	// compiler-internal `.origin` sentinel. At preprocess this lowers to
+	// the with-cross AST shape (Args[0]=nil, WithCross=true); at runtime
+	// installCrossingCur routes through buildOriginRealm to mint an
+	// EOA-origin cur. The dot-prefix `.origin` is unparseable from user
+	// .gno source (same property as `.cur`), so it can only be introduced
+	// here, by the chain-root MsgCall keeper synthesis.
+	cx.Args[0] = gno.Nx(".origin")
 	hasVarg := ft.HasVarg()
 	// NOTE: nargs = `cur` + user's len(args)
 	nargs := len(msg.Args) + 1
@@ -943,19 +956,24 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		}
 		var up gno.UnhandledPanicError
 		if goerrors.As(err, &up) {
-			// Common unhandled panic error, skip machine state.
+			desc := boundedString(up, 0)
+			trace := gno.BoundedExceptionStacktrace(m,
+				gno.MaxStacktraceFrames*gno.BoundedRenderBytes)
 			*e = errors.Wrapf(
-				errors.New(up.Descriptor),
+				errors.New(desc),
 				"VM panic: %s\nStacktrace:\n%s\n",
-				up.Descriptor, m.ExceptionStacktrace(),
+				desc, trace,
 			)
 			return
 		}
 	}
+	panicStr := boundedString(r, 0)
+	trace := gno.BoundedStacktrace(m.Stacktrace(),
+		gno.MaxStacktraceFrames*gno.BoundedRenderBytes)
 	*e = errors.Wrapf(
-		fmt.Errorf("%v", r),
-		"VM panic: %v\nStacktrace:\n%s\n",
-		r, m.Stacktrace().String(),
+		fmt.Errorf("%s", panicStr),
+		"VM panic: %s\nStacktrace:\n%s\n",
+		panicStr, trace,
 	)
 }
 
@@ -1067,12 +1085,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		}
 		m := gno.NewMachineWithOptions(
 			gno.MachineOptions{
-				PkgPath:  "",
-				Output:   output,
-				Store:    gnostore,
-				Alloc:    alloc,
-				Context:  msgCtx,
-				GasMeter: ctx.GasMeter(),
+				PkgPath:            "",
+				Output:             output,
+				Store:              gnostore,
+				Alloc:              alloc,
+				Context:            msgCtx,
+				GasMeter:           ctx.GasMeter(),
+				BoundedPanicRender: true,
 			})
 		defer m.Release()
 		defer doRecover(m, &err)
@@ -1087,17 +1106,18 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   output,
-			Store:    gnostore,
-			Alloc:    alloc,
-			Context:  msgCtx,
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            "",
+			Output:             output,
+			Store:              gnostore,
+			Alloc:              alloc,
+			Context:            msgCtx,
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m2.Release()
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
-	m2.RunMain()
+	m2.RunMainMaybeCrossing()
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
@@ -1335,12 +1355,13 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  pkgPath,
-			Output:   vm.Output,
-			Store:    gnostore,
-			Context:  msgCtx,
-			Alloc:    alloc,
-			GasMeter: ctx.GasMeter(),
+			PkgPath:            pkgPath,
+			Output:             vm.Output,
+			Store:              gnostore,
+			Context:            msgCtx,
+			Alloc:              alloc,
+			GasMeter:           ctx.GasMeter(),
+			BoundedPanicRender: true,
 		})
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
@@ -1348,6 +1369,12 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 	if err != nil {
 		return err
 	}
+	// If the parsed expression is a call to a crossing function in this
+	// package (e.g., `Render(cur realm, ...)` or any `Get*(cur realm, ...)`
+	// getter), prepend `.cur` as the first argument. Same opt-in pattern
+	// as init(cur realm) / main(cur realm): realms that don't declare a
+	// crossing form are unaffected.
+	m.MaybeInjectCurForEval(xx)
 	fn(m, m.Eval(xx))
 	return nil
 }

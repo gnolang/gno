@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_01_filetest
+
 // Render board sorting threads from newest to oldest.
-package main
+package z_ui_board_01_filetest
 
 import (
 	"testing"
@@ -12,15 +14,15 @@ const (
 	boardName         = "TestBoard"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and then add 3 threads
-	boardID := boards2.CreateBoard(cross, boardName, false, false)
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
 
-	boards2.CreateThread(cross, boardID, "A", "Body")
-	boards2.CreateThread(cross, boardID, "B", "Body")
-	boards2.CreateThread(cross, boardID, "C", "Body")
+	boards2.CreateThread(cross(cur), boardID, "A", "Body")
+	boards2.CreateThread(cross(cur), boardID, "B", "Body")
+	boards2.CreateThread(cross(cur), boardID, "C", "Body")
 }
 
 func main() {

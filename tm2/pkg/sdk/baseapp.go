@@ -791,7 +791,10 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 				}
 				return
 			default:
-				log := fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack()))
+				// Defense in depth: clip in case `r` carries
+				// adversarial content from a code path that bypassed
+				// keeper-level bounding.
+				log := clipLog(fmt.Sprintf("recovered: %v\nstack:\n%v", r, string(debug.Stack())))
 				result.Error = ABCIError(std.ErrInternal(log))
 				result.Log = log
 				result.GasWanted = gasWanted

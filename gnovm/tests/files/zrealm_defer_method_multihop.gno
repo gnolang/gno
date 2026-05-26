@@ -21,7 +21,7 @@ func (c *Counter) Inc() {
 
 func main(cur realm) {
 	c := &Counter{N: 0}
-	crossrealm.SetObject(cross, c)
+	crossrealm.SetObject(cross(cur), c)
 	// Re-fetch via getter to confirm crossrealm has it.
 	stored := crossrealm.GetObject().(*Counter)
 	defer stored.Inc()
@@ -30,3 +30,4 @@ func main(cur realm) {
 
 // Output:
 // stored.N before defer fires = 0
+

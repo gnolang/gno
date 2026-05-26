@@ -2,7 +2,6 @@ package grc721
 
 import (
 	"chain"
-	"chain/runtime"
 	"math/overflow"
 	"strconv"
 
@@ -72,7 +71,11 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 	return uri.(string), nil
 }
 
-func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
+// SetTokenURI sets the URI of a token. caller must equal the token's
+// owner. The owning realm's public wrapper is responsible for deriving
+// caller from rlm.Previous().Address() under an rlm.IsCurrent() guard
+// before invoking this method; this method trusts the supplied caller.
+func (s *basicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
 	// check for invalid TokenID
 	if !s.exists(tid) {
 		return false, ErrInvalidTokenId
@@ -83,7 +86,6 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	caller := runtime.PreviousRealm().Address()
 	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
@@ -103,8 +105,11 @@ func (s *basicNFT) IsApprovedForAll(owner, operator address) bool {
 	return approved.(bool)
 }
 
-// Approve approves the input address for particular token
-func (s *basicNFT) Approve(to address, tid TokenID) error {
+// Approve approves the input address for a particular token. caller
+// must be the owner OR an operator approved for all on owner's behalf.
+// The owning realm's wrapper validates IsCurrent and derives caller
+// from rlm.Previous().Address() before calling.
+func (s *basicNFT) Approve(caller, to address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -117,7 +122,6 @@ func (s *basicNFT) Approve(to address, tid TokenID) error {
 		return ErrApprovalToCurrentOwner
 	}
 
-	caller := runtime.PreviousRealm().Address()
 	if caller != owner && !s.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -146,21 +150,23 @@ func (s *basicNFT) GetApproved(tid TokenID) (address, error) {
 	return addr.(address), nil
 }
 
-// SetApprovalForAll can approve the operator to operate on all tokens
-func (s *basicNFT) SetApprovalForAll(operator address, approved bool) error {
+// SetApprovalForAll grants/revokes operator permission across all of
+// the caller's tokens. caller is the owner whose approvals are mutated;
+// the owning realm's wrapper derives it from rlm.Previous().Address()
+// under an IsCurrent() guard.
+func (s *basicNFT) SetApprovalForAll(caller, operator address, approved bool) error {
 	if err := isValidAddress(operator); err != nil {
 		return ErrInvalidAddress
 	}
-
-	caller := runtime.PreviousRealm().Address()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
-// Safely transfers `tokenId` token from `from` to `to`, checking that
+// SafeTransferFrom transfers a token from `from` to `to`, checking that
 // contract recipients are aware of the GRC721 protocol to prevent
-// tokens from being forever locked.
-func (s *basicNFT) SafeTransferFrom(from, to address, tid TokenID) error {
-	caller := runtime.PreviousRealm().Address()
+// tokens from being forever locked. caller must be the owner or an
+// approved operator. The owning realm's wrapper derives caller from
+// rlm.Previous().Address() under an IsCurrent() guard.
+func (s *basicNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -177,9 +183,9 @@ func (s *basicNFT) SafeTransferFrom(from, to address, tid TokenID) error {
 	return nil
 }
 
-// Transfers `tokenId` token from `from` to `to`.
-func (s *basicNFT) TransferFrom(from, to address, tid TokenID) error {
-	caller := runtime.PreviousRealm().Address()
+// TransferFrom transfers a token from `from` to `to`. Same caller
+// contract as SafeTransferFrom.
+func (s *basicNFT) TransferFrom(caller, from, to address, tid TokenID) error {
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -416,8 +422,11 @@ func (s *basicNFT) RenderHome() (str string) {
 	return
 }
 
+// Getter returns an NFTGetter that yields a reader-only view of the NFT.
+// Safe to register with cross-realm aggregators like tokenhub — readers
+// only, no rlm-typed methods, so no cur can be captured via this surface.
 func (n *basicNFT) Getter() NFTGetter {
-	return func() IGRC721 {
+	return func() IGRC721Reader {
 		return n
 	}
 }

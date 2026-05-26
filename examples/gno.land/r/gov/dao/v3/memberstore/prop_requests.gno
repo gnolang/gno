@@ -1,19 +1,19 @@
 package memberstore
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/nt/bptree/v0"
 
 	"gno.land/r/gov/dao"
 )
 
-func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
+func NewChangeTiersRequest(cur realm, tiers map[string]Tier) dao.ProposalRequest {
 	if len(tiers) == 0 {
 		panic("tiers list is empty")
 	}
 
-	member, _ := Get().GetMember(runtime.OriginCaller())
+	member, _ := Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -29,7 +29,7 @@ func NewChangeTiersRequest(tiers map[string]Tier) dao.ProposalRequest {
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(callback, "New set of tiers proposed.")
+	e := dao.NewSimpleExecutor(0, cur, callback, "New set of tiers proposed.")
 
 	return dao.NewProposalRequest("Change Tiers Proposal", "This proposal is looking to change the existing Tiers in memberstore", e)
 }

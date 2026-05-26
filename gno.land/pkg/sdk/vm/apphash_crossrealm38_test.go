@@ -24,9 +24,8 @@ package vm
 // What this test does NOT prove:
 //   - That two different code versions (buggy vs fixed) produce DIFFERENT
 //     apphashes for the same input. Proving that requires a version-gated
-//     runtime switch on getOwner, which doesn't exist in this tree yet.
-//     See the ADR note in the PR description; that work belongs with the
-//     chain-upgrade gating effort, not here.
+//     runtime switch on getOwner, which belongs with the chain-upgrade
+//     gating effort, not here.
 
 import (
 	"fmt"
@@ -50,7 +49,7 @@ import (
 // verify the change is actually consensus-breaking before updating this
 // constant — re-run the zrealm_crossrealm38.gno filetest and inspect the
 // save-set diff first.
-const expectedCrossrealm38Hash = "c71d24ed7b2086b193e46f44cc49de88168d6a88c981cf2d3a6ef47c0ab859d5"
+const expectedCrossrealm38Hash = "daa554529ce43b80c3dedd658de8fe787e0a057e60aa01c897364dd80f9dfc65"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
@@ -80,12 +79,12 @@ package crossrealm38impl
 
 import "gno.land/r/tests/vm/crossrealm_f"
 
-func init() {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "a", Value: 1})
+func init(cur realm) {
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("a", 1))
 }
 
 func AddC(cur realm) {
-	crossrealm_f.Add(cross, &crossrealm_f.Entry{Key: "c", Value: 3})
+	crossrealm_f.Add(cross(cur), crossrealm_f.NewEntry("c", 3))
 }
 `},
 	}
