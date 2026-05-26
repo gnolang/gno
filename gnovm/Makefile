@@ -157,6 +157,21 @@ _test.filetest:
 	@echo "use 'go test pkg/gnolang/files_test.go -test.short --update-golden-tests' to update filetest expectations"
 	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 
+# Run filetests, optionally filtered to a subtree or single file via FILES=...
+# FILES is a path under gnovm/tests/files/; matched against TestFiles' subtest
+# names. Examples:
+#   make filetest                                       # all filetests
+#   make filetest FILES=gocorpus                        # everything under gocorpus/
+#   make filetest FILES=gocorpus/testdata/run           # whole run/ subtree
+#   make filetest FILES=gocorpus/testdata/run/canary.go # single file
+.PHONY: filetest
+filetest:
+ifdef FILES
+	go test ./pkg/gnolang/ -run 'TestFiles$$/$(FILES)' -test.short $(GOTEST_FLAGS)
+else
+	go test ./pkg/gnolang/ -run 'TestFiles$$/' -test.short $(GOTEST_FLAGS)
+endif
+
 ########################################
 # Code gen
 .PHONY: generate

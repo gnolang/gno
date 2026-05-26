@@ -23,101 +23,50 @@ These tests are largely derived from Yaegi, licensed under Apache 2.0.
 
 ### `files/gocorpus/testdata`: filetests with the `.go` extension
 
-The `TestFiles` walker accepts both `.gno` (the native extension) and
-`.go` files. `.go` filetests live under `files/gocorpus/testdata/` —
-the `gocorpus/` parent names the purpose ("regression tests for files
-from Go's standard test corpus"); the `testdata/` segment is the
-Go-tooling shield (`go list` / `go build` / `go test` ignore any
-directory named `testdata/`, so `.go` files there don't conflict with
-package-discovery elsewhere in the repo). The walker enforces this:
-`.go` files outside a `testdata/` segment are skipped.
+`TestFiles` accepts `.go` files dropped under `files/gocorpus/testdata/`
+verbatim — no rename, no conversion. Primary use: regression tests
+for files lifted from Go's standard test corpus (`/usr/local/go/test/`).
+The `testdata/` segment hides `.go` files from `go list` / `go build`
+/ `go test`; the walker rejects `.go` files outside such a segment.
 
-Primary use case: regression tests for files lifted from Go's standard
-test corpus (`/usr/local/go/test/`). After fixing a Gno bug surfaced on
-a corpus file, drop the original `.go` file verbatim into
-`files/gocorpus/testdata/` to lock the fix in CI — no rename, no
-conversion.
+The harness picks a mode from file content; an explicit native
+directive bypasses each mode.
 
-**Comparison behavior.** The harness picks one of three modes based
-on file content; each is bypassed by the corresponding explicit
-directive (the blessed-divergence escape hatch).
+| Mode | Trigger | Pass criterion | Bypass with |
+|---|---|---|---|
+| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | at least one marker matches Gno's preprocess/typecheck/runtime error (loose: Gno bails on first error, per-line matching is too strict) | `// Error:` |
+| compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error | `// TypeCheckError:` or `// Error:` |
+| run | runnable, no `// Output:` | Gno's stdout matches `go run`'s stdout (auto-derived) | `// Output:` |
 
-*Errorcheck mode.* When the source carries inline `// ERROR "regex"`
-markers (Go's standard test corpus convention), the harness applies a
-PKGPATH+synthetic-main rescue (so files declaring `package p` reach
-preprocess+typecheck instead of bouncing on the realm-naming
-requirement), runs the file through Gno, and verifies at least one
-marker's regex matches Gno's preprocess / typecheck / runtime error
-output. Pass criterion is intentionally loose: Gno's preprocessor
-stops at the first error, so requiring per-line marker matches would
-fail most corpus errorcheck files. The signal we want is "Gno
-catches the kind of error gc does", not "Gno enumerates every
-individual error". Bypass with an explicit `// Error:` directive
-carrying Gno's actual error wording.
+For non-`main` files (errorcheck, compile-only), a PKGPATH +
+synthetic-`main` rescue is applied so they reach Gno preprocess
+instead of bouncing on the realm-naming check.
 
-*Compile-only mode.* When the source is not runnable (non-main
-package, or no `func main()`), the harness applies the same
-PKGPATH+synthetic-main rescue and PASSes iff Gno's preprocess and
-the bundled go/types both produce no error. Mirrors gc's `// compile`
-semantics: gc accepts the file and never runs it. Bypass with an
-explicit `// TypeCheckError:` or `// Error:` directive carrying Gno's
-actual error wording — useful when Gno legitimately rejects code gc
-accepts and you want to lock that in (note: gno.land's deploy gate
-runs go/types ahead of Gno preprocess, so divergences here are
-production-shielded).
+Escape hatches — two single-line meta-directives:
 
-*Run mode* (default). When a `.go` filetest is runnable and has no
-explicit `// Output:` directive, the harness derives the expected
-output by running the file through the Go toolchain (`go run`) and
-compares Gno's output to Go's. Test passes only when Gno matches Go.
-Bypass with an explicit `// Output:` directive carrying Gno's actual
-output.
-
-See `files/gocorpus/testdata/run/canary.go` (run mode),
-`files/gocorpus/testdata/errorcheck/canary.go` (errorcheck), and
-`files/gocorpus/testdata/compile/canary.go` (compile-only) for the
-minimal patterns.
-
-**Escape hatches.** Two single-line meta-directives bypass the
-standard match for files where strict Gno-vs-Go equivalence isn't
-the right contract:
-
-- `// Unsupported: <reason>` — skips the file before any execution
-  (`t.Skip(reason)`). Use for corpus files that exercise Gno feature
-  gaps (channels, goroutines, generics, dot-imports, `complex`
-  types, etc.). Replaces the cross-file skiplist/compat YAML that
-  the external [`gno-go-conformance`](https://github.com/gnolang/gno-go-conformance)
-  tool uses; each file declares its own skip reason inline.
-  Example: `files/gocorpus/testdata/run/unsupported_canary.go`.
-
+- `// Unsupported: <reason>` — `t.Skip(reason)` before any execution.
+  Use for feature gaps (channels, goroutines, generics, dot-imports,
+  `complex`, …). Replaces the cross-file skiplist YAML the external
+  [`gno-go-conformance`](https://github.com/gnolang/gno-go-conformance)
+  tool uses. Example: `run/unsupported_canary.go`.
 - `// Divergence: <category>: <reason>` — blesses a real Gno-vs-Go
-  behavioral difference. The match path's verdict is **inverted**:
-  the test passes iff Gno's behavior actually diverges. If Gno is
-  later fixed and now matches Go, the directive becomes stale and
-  the test FAILS with a "remove the directive" message so blessings
-  don't rot. Categories follow `gno-go-conformance`'s lexicon:
+  difference; the match verdict is **inverted** (passes iff Gno
+  actually diverges). When Gno is later fixed, the directive becomes
+  stale and the test FAILS so the blessing doesn't rot. Categories:
   `error-wording`, `error-early-bail`, `stdlib-formatting`,
   `stdlib-symbol-missing`, `stdlib-behavior`, `resource-budget`,
-  `determinism`.
-  Example: `files/gocorpus/testdata/run/divergence_canary.go`.
+  `determinism`. Example: `run/divergence_canary.go`.
+
+Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`.
 
 Notes:
-- Native filetest directives (`// PKGPATH:`, `// Output:`, `// Error:`,
-  `// MAXALLOC:`, etc.) are interpreted normally.
-- Go-corpus directives (`// run`, `// errorcheck`, `// compile`, etc.)
-  on the file's first line are treated as plain comments — only the
-  file's actual behavior is what gets compared.
-- The `go run` subprocess (run mode only) has a 30s timeout; tests
-  are expected to be short-running.
-- `// GC_ERROR` markers are accepted as equivalent to `// ERROR`
-  (corpus files mix them). `// GCCGO_ERROR` is intentionally ignored
-  — this harness mirrors gc semantics.
-- LINE/LINE+N substitution in marker patterns is NOT performed;
-  literal text stays in the regex (matching is best-effort).
-- For files outside both modes (`// *dir` multi-file tests,
-  gc-internal): don't add them to `gocorpus/testdata/` — convert
-  manually to a Gno filetest with the appropriate native directive
-  instead.
+- Go-corpus directives (`// run`, `// errorcheck`, `// compile`, …)
+  on the first line are treated as plain comments.
+- `go run` subprocess has a 30s timeout; `// GCCGO_ERROR` is ignored
+  (mirroring gc); LINE/LINE+N substitution in marker patterns is NOT
+  performed.
+- Multi-file tests (`// *dir`) and gc-internal tests don't fit any
+  mode — convert manually to a Gno filetest instead.
 
 ## `stdlibs`: testing standard libraries
 
