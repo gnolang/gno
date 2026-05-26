@@ -35,10 +35,10 @@ type Event struct {
 }
 
 var (
-	events                 = avl.NewTree()
-	eventCounter    uint64 = 0
-	tickets         *grc721.Token
-	ticketsLedger   *grc721.PrivateLedger
+	events               = avl.NewTree()
+	eventCounter  uint64 = 0
+	tickets       *grc721.Token
+	ticketsLedger *grc721.PrivateLedger
 )
 
 func init(cur realm) {
