@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
@@ -419,7 +418,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				err = fmt.Errorf("node not started, cannot wait for new block")
 				break
 			}
-			err = waitForNewBlock(ts, node.Address())
+			err = waitForNewBlock(ts, node.Address(), defaultPK)
 
 		default:
 			err = fmt.Errorf("not supported command: %q", cmd)
@@ -731,32 +730,63 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 // than the height at submission, since CheckTx happens after submission.
 // Used by txtar tests that need to burn a deterministic number of blocks
 // (e.g. throttle-window tests) without relying on auto-empty-block timing.
-func waitForNewBlock(ts *testscript.TestScript, remote string) error {
-	rpc, err := rpcclient.NewHTTPClient(remote)
+//
+// Built directly against the RPC client (rather than gnoclient) because
+// gnoclient imports this package in its tests, which would create a cycle.
+func waitForNewBlock(ts *testscript.TestScript, remote string, defaultPK crypto.PrivKey) error {
+	cli, err := rpcclient.NewHTTPClient(remote)
 	if err != nil {
 		return fmt.Errorf("create rpc client: %w", err)
 	}
-	signer, err := gnoclient.SignerFromBip39(DefaultAccount_Seed, "tendermint_test", "", 0, 0)
-	if err != nil {
-		return fmt.Errorf("create signer: %w", err)
-	}
-	info, err := signer.Info()
-	if err != nil {
-		return fmt.Errorf("signer info: %w", err)
-	}
-	addr := info.GetAddress()
 
-	cli := gnoclient.Client{Signer: signer, RPCClient: rpc}
-	bres, err := cli.Send(
-		gnoclient.BaseTxCfg{GasFee: "1000000" + ugnot.Denom, GasWanted: 890_000},
-		bank.MsgSend{
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	addr := defaultPK.PubKey().Address()
+	qres, err := cli.ABCIQuery(ctx, "auth/accounts/"+addr.String(), []byte{})
+	if err != nil {
+		return fmt.Errorf("query account: %w", err)
+	}
+	if qres.Response.Error != nil {
+		return fmt.Errorf("query account: %w", qres.Response.Error)
+	}
+	var acct gnoland.GnoAccount
+	if err := amino.UnmarshalJSON(qres.Response.Data, &acct); err != nil {
+		return fmt.Errorf("unmarshal account: %w", err)
+	}
+
+	tx := std.Tx{
+		Msgs: []std.Msg{bank.MsgSend{
 			FromAddress: addr,
 			ToAddress:   addr,
 			Amount:      std.Coins{std.NewCoin(ugnot.Denom, 1)},
-		},
-	)
+		}},
+		Fee: std.NewFee(890_000, std.NewCoin(ugnot.Denom, 1_000_000)),
+	}
+	signBytes, err := tx.GetSignBytes("tendermint_test", acct.BaseAccount.GetAccountNumber(), acct.BaseAccount.GetSequence())
 	if err != nil {
-		return fmt.Errorf("broadcast self-transfer: %w", err)
+		return fmt.Errorf("get sign bytes: %w", err)
+	}
+	sig, err := defaultPK.Sign(signBytes)
+	if err != nil {
+		return fmt.Errorf("sign: %w", err)
+	}
+	tx.Signatures = []std.Signature{{PubKey: defaultPK.PubKey(), Signature: sig}}
+
+	txBytes, err := amino.Marshal(tx)
+	if err != nil {
+		return fmt.Errorf("marshal tx: %w", err)
+	}
+
+	bres, err := cli.BroadcastTxCommit(ctx, txBytes)
+	if err != nil {
+		return fmt.Errorf("broadcast: %w", err)
+	}
+	if bres.CheckTx.IsErr() {
+		return fmt.Errorf("check tx failed: %s", bres.CheckTx.Log)
+	}
+	if bres.DeliverTx.IsErr() {
+		return fmt.Errorf("deliver tx failed: %s", bres.DeliverTx.Log)
 	}
 
 	fmt.Fprintf(ts.Stdout(), "new block at height %d\n", bres.Height)
