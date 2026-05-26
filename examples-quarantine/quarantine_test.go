@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,12 +26,14 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -86,8 +89,9 @@ func TestQuarantineRealms(t *testing.T) {
 // TestingNodeConfig adds the safe examples/ set via LoadDefaultPackages; we
 // append the quarantine txs as additionals so they run on top.
 //
-// gnoland.PanicOnFailingTxResultHandler (wired by TestingMinimalNodeConfig)
-// panics on the first failed AddPackage tx, which surfaces as a test failure.
+// The default handler (PanicOnFailingTxResultHandler) aborts genesis on the
+// first failing AddPackage tx. We swap in a collecting handler so a single
+// CI run surfaces every load failure instead of one at a time.
 func TestQuarantineRealmsLoad(t *testing.T) {
 	rootdir := gnoenv.RootDir()
 	examplesDir := filepath.Join(rootdir, "examples")
@@ -101,12 +105,39 @@ func TestQuarantineRealmsLoad(t *testing.T) {
 
 	logger := log.NewTestingLogger(t)
 	config, _ := integration.TestingNodeConfig(t, rootdir, quarantineTxs...)
+
+	var (
+		failuresMu sync.Mutex
+		failures   []string
+	)
+	config.InitChainerConfig.GenesisTxResultHandler = func(_ sdk.Context, tx std.Tx, res sdk.Result) {
+		if !res.IsErr() {
+			return
+		}
+		pkgPath := "<unknown>"
+		for _, msg := range tx.Msgs {
+			if addPkg, ok := msg.(vmm.MsgAddPackage); ok && addPkg.Package != nil {
+				pkgPath = addPkg.Package.Path
+				break
+			}
+		}
+		failuresMu.Lock()
+		failures = append(failures, fmt.Sprintf("%s: %s", pkgPath, res.Log))
+		failuresMu.Unlock()
+	}
+
 	node, _ := integration.TestingInMemoryNode(t, logger, config)
 	t.Cleanup(func() {
 		if err := node.Stop(); err != nil {
 			t.Logf("node.Stop: %v", err)
 		}
 	})
+
+	failuresMu.Lock()
+	defer failuresMu.Unlock()
+	for _, f := range failures {
+		t.Errorf("AddPackage failed at genesis: %s", f)
+	}
 }
 
 // loadQuarantineGenesisTxs builds AddPackage txs for every package under
