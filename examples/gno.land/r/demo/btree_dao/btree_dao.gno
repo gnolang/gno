@@ -31,10 +31,15 @@ func (rd *RegistrationDetails) Less(than btree.Record) bool {
 }
 
 var (
-	dao, daoLedger = grc721.NewNFT("BTree DAO", "BTDAO")
-	tokenID        = 0
-	members        = btree.New()
+	dao       *grc721.Token
+	daoLedger *grc721.PrivateLedger
+	tokenID   = 0
+	members   = btree.New()
 )
+
+func init(cur realm) {
+	dao, daoLedger = grc721.NewToken(0, cur, "BTree DAO", "BTDAO")
+}
 
 // PlantTree allows a user to plant their B-Tree in the DAO forest.
 // It mints an NFT to the user and registers their tree in the DAO.
@@ -194,7 +199,7 @@ func Render(path string) string {
 
 	sb.WriteString(md.H1("B-Tree DAO Members"))
 	sb.WriteString(md.H2("Total NFTs Minted"))
-	sb.WriteString(ufmt.Sprintf("Total NFTs minted: %d\n\n", dao.TokenCount()))
+	sb.WriteString(ufmt.Sprintf("Total NFTs minted: %d\n\n", dao.TotalSupply()))
 	sb.WriteString(md.H2("Member Stats"))
 	sb.WriteString(ufmt.Sprintf("Total members: %d\n", totalSize))
 	if biggestTree > 0 {
