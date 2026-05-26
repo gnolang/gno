@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -13,6 +14,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+// ResolveExamplePath returns the on-disk directory for a Gno import path
+// inside an examples tree. Checks examplesRoot/<pkgPath> first, then
+// examplesRoot/quarantine/<pkgPath>.
+//
+// XXX: hardcoded fallback. packages.Load is gnowork-aware but reads the
+// workspace root from os.Getwd(); LoadConfig exposes no explicit knob.
+func ResolveExamplePath(examplesRoot, pkgPath string) string {
+	primary := filepath.Join(examplesRoot, pkgPath)
+	if _, err := os.Stat(filepath.Join(primary, "gnomod.toml")); err == nil {
+		return primary
+	}
+	return filepath.Join(examplesRoot, "quarantine", pkgPath)
+}
 
 type PkgsLoader struct {
 	pkgs    []gnomod.Pkg
@@ -187,8 +202,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, dir, name string) error {
 
 		// Add requirements to the queue
 		for _, pkgPath := range currentPkg.Imports {
-			fullPath := filepath.Join(modroot, pkgPath)
-			queue = append(queue, gnomod.Pkg{Dir: fullPath})
+			queue = append(queue, gnomod.Pkg{Dir: ResolveExamplePath(modroot, pkgPath)})
 		}
 	}
 
