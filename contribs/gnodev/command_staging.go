@@ -24,11 +24,11 @@ var defaultStagingOptions = AppConfig{
 	deployKey:           defaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
-	interactive:  false,
-	unsafeAPI:    false,
-	lazyLoader:   false,
-	noQuarantine: true,                              // excluded by default in staging
-	paths:        path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	interactive:         false,
+	unsafeAPI:           false,
+	lazyLoader:          false,
+	noQuarantine:        true,                            // excluded by default in staging
+	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain
 	emptyBlocks:         false,
 	emptyBlocksInterval: 1,
 
