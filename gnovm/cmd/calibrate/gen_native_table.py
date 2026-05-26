@@ -138,6 +138,33 @@ NATIVE_SPECS = [
     # ---- time ----
     ("time", "now", None, "Flat",
      r"BenchmarkNative_Time_Now-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- IBC crypto stdlibs ----
+    ("crypto/keccak256", "sum256", 0, "LenBytes",
+     r"BenchmarkNative_Keccak256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/modexp", "modExp", 2, "LenBytes",
+     r"BenchmarkNative_ModExp_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "g1Add", None, "Flat",
+     r"BenchmarkNative_BN254_G1Add-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "g1Mul", None, "Flat",
+     r"BenchmarkNative_BN254_G1Mul-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "pairingCheck", 0, "LenBytes",
+     # Bench name encodes pair count; the harness sets b.SetBytes(192*pairs),
+     # so the captured group is pair count and we convert below in parse_bench.
+     r"BenchmarkNative_BN254_PairingCheck_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/cometbls", "verifyZKP", None, "Flat",
+     r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "leafHash", 0, "LenBytes",
+     r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "innerHash", None, "Flat",
+     r"BenchmarkNative_Merkle_InnerHash-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
+     # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
+     # + 6 payload), plus 4 for the outer count header.
+     r"BenchmarkNative_Merkle_HashFromByteSlices_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "verifySimpleProof", 4, "LenBytes",
+     # Bench name encodes `total`; aunt count = log2(total), aunts bytes = 32*log2(total).
+     r"BenchmarkNative_Merkle_VerifySimpleProof_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 
