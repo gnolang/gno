@@ -28,8 +28,8 @@ type AppConfig struct {
 	webHome             string
 
 	// Resolver
-	resolvers    varResolver
-	noQuarantine bool
+	resolvers                  varResolver
+	withoutQuarantinedExamples bool
 
 	// Node Configuration
 	logFormat           string
@@ -120,9 +120,9 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.BoolVar(
-		&c.noQuarantine,
+		&c.withoutQuarantinedExamples,
 		"no-quarantine",
-		defaultCfg.noQuarantine,
+		defaultCfg.withoutQuarantinedExamples,
 		"exclude examples/quarantine/ from the default resolver chain",
 	)
 

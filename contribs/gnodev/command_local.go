@@ -124,7 +124,7 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 		if err != nil {
 			return err
 		}
-		baseResolvers = append(baseResolvers, defaultBaseResolvers(gnoroot, cfg.noQuarantine)...)
+		baseResolvers = append(baseResolvers, defaultBaseResolvers(gnoroot, cfg.withoutQuarantinedExamples)...)
 	}
 
 	// Check if current directory is a valid gno package

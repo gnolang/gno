@@ -130,7 +130,7 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 	if resolver == nil {
 		resolver = DefaultResolver(ctx.rootDir)
 	}
-	ctx.resolver = resolver
+	ctx.importResolver = resolver
 	absFilename, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get absolute path of filename: %w", err)
@@ -176,8 +176,8 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 }
 
 type transpileCtx struct {
-	rootDir  string
-	resolver ImportResolver
+	rootDir        string
+	importResolver ImportResolver
 	// This should be set if we're working with a file from a standard library.
 	// This allows us to easily check if a function has a native binding, and as
 	// such modify its call expressions appropriately.
@@ -201,7 +201,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				continue
 			}
 
-			rel, ok := ctx.resolver(importPath)
+			rel, ok := ctx.importResolver(importPath)
 			if !ok {
 				errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q does not exist", importPath))
 				continue
