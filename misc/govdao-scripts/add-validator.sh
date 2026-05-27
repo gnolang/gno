@@ -4,12 +4,7 @@
 # Usage:
 #   ./add-validator.sh <address> <pub_key> [voting_power]
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 50000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
@@ -30,6 +25,15 @@ ADDR="$1"
 PUB_KEY="$2"
 POWER="${3:-1}"
 
+# voting_power must be a positive integer. Tendermint treats Power=0 as
+# a remove operation, which would silently turn this script into a
+# remove if a user passes 0 by mistake. Catch it here.
+if ! [[ "$POWER" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: voting_power must be a positive integer (got: '$POWER')"
+  echo "       use ./rm-validator.sh to remove a validator from the set"
+  exit 1
+fi
+
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
@@ -42,7 +46,7 @@ import (
 	valr "gno.land/r/sys/validators/v2"
 )
 
-func main() {
+func main(cur realm) {
 	r := valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
@@ -56,15 +60,15 @@ func main() {
 		"Add validator ${ADDR}",
 		"Add validator ${ADDR} with power ${POWER}",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 
 echo "Adding validator: ${ADDR} (power=${POWER})"
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 

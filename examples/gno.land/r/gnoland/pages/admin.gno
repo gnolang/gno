@@ -1,7 +1,7 @@
 package gnopages
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/nt/bptree/v0"
@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	// adminAddr = runtime.OriginCaller() // FIXME: find a way to use this from the main's genesis.
+	// adminAddr = unsafe.OriginCaller() // FIXME: find a way to use this from the main's genesis.
 	adminAddr = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
 }
 
@@ -41,7 +41,7 @@ func AdminRemoveModerator(_ realm, addr address) {
 func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -69,14 +69,14 @@ func isModerator(addr address) bool {
 }
 
 func assertIsAdmin() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}

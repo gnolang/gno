@@ -225,12 +225,14 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 				}
 			case *ast.Ident:
 				if sx, ok := c.Parent().(*ast.SelectorExpr); ok && sx.X == node {
-					// Could be an expression like `hello.cross`, so ignore.
+					// Could be an expression like `hello.cross1`, so ignore.
 					return true
 				}
 				switch node.Name {
-				case "cross":
-					// it's a realm; we don't have much to add aside from this, for now.
+				case "cross1":
+					// legacy sentinel; at runtime this stack slot must be
+					// undefined so installCrossingCur takes the
+					// callingCurOrOrigin path.
 					node.Name = "nil"
 				}
 			case *ast.CallExpr:
@@ -394,6 +396,14 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		}
 
 	case *ast.Ident:
+		// cross(rlm) is a gno-level sentinel for explicit cross-realm
+		// dispatch; the preprocessor handles its actual lowering. For
+		// the gno-to-go transpile build, treat it as a pass-through
+		// identity so the resulting Go code compiles.
+		if fe.Name == "cross" && len(ce.Args) == 1 {
+			c.Replace(ce.Args[0])
+			return true
+		}
 		// Is this a native binding?
 		// Note: this is only useful within packages like `std` and `math`.
 		// The logic here is not robust to be generic. It does not account for locally

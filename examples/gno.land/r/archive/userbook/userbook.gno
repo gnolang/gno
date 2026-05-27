@@ -3,7 +3,6 @@ package userbook
 
 import (
 	"chain"
-	"chain/runtime"
 	"time"
 
 	"gno.land/p/nt/avl/v0"
@@ -25,13 +24,13 @@ var (
 
 const signUpEvent = "SignUp"
 
-func init() {
-	SignUp(cross) // Sign up the deployer
+func init(cur realm) {
+	SignUp(cross(cur)) // Sign up the deployer
 }
 
 func SignUp(cur realm) string {
 	// Get transaction caller
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	// Check if the user is already signed up
 	if _, exists := tracker.Get(caller.String()); exists {

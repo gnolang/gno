@@ -8,12 +8,7 @@
 # Usage:
 #   ./add-validator-from-valopers.sh <address>
 #
-# Environment:
-#   GNOKEY_NAME   - gnokey key name (required)
-#   CHAIN_ID      - chain ID (required)
-#   REMOTE        - RPC endpoint (required)
-#   GAS_WANTED    - gas limit (default: 10000000)
-#   GAS_FEE       - gas fee (default: 1000000ugnot)
+# Environment: see README.md.
 set -eo pipefail
 
 GNOKEY_NAME="${GNOKEY_NAME:?GNOKEY_NAME is required}"
@@ -49,17 +44,17 @@ import (
 	"gno.land/r/gnops/valopers/proposal"
 )
 
-func main() {
-	r := proposal.NewValidatorProposalRequest(cross, address("${ADDR}"))
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+func main(cur realm) {
+	r := proposal.NewValidatorProposalRequest(cross(cur), address("${ADDR}"))
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 
 echo "Adding validator from valopers: ${ADDR}"
-echo "  Key: ${GNOKEY_NAME}"
-echo "  Chain: ${CHAIN_ID}"
+echo "  Key:    ${GNOKEY_NAME}"
+echo "  Chain:  ${CHAIN_ID}"
 echo "  Remote: ${REMOTE}"
 echo ""
 

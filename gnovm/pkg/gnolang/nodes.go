@@ -140,7 +140,6 @@ const (
 	ATTR_PACKAGE_REF           GnoAttribute = "ATTR_PACKAGE_REF"
 	ATTR_PACKAGE_DECL          GnoAttribute = "ATTR_PACKAGE_DECL"
 	ATTR_PACKAGE_PATH          GnoAttribute = "ATTR_PACKAGE_PATH"  // if name expr refers to package.
-	ATTR_FIX_FROM              GnoAttribute = "ATTR_FIX_FROM"      // gno fix this version.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE" // static element type of &x, set on the RefExpr node during preprocessing.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
@@ -420,32 +419,26 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	WithCross bool  // if cross-called with `cur`.
 }
 
-// returns true if x is of form fn(cur,...) or fn(cross,...).
-// but fn(cur,...) doesn't always mean with cross,
-// because `cur` could be anything, so this is a sanity check.
+// returns true if x is of form fn(cur, ...) or fn(cross(rlm), ...).
+// fn(cur, ...) doesn't always mean with cross, because `cur` could
+// be anything; this is a sanity check.
+//
+// For the cross(rlm) form, Args[0] is a *CallExpr whose Func is the
+// const-evaluated uverse `cross` native. At runtime cross's body
+// validates IsCurrent-strict on rlm and returns it; the outer
+// crossing call's installCrossingCur peeks the evaluated realm
+// value and uses it as the new cur's prev.
 func (x *CallExpr) isLikeWithCross() bool {
 	if len(x.Args) == 0 {
 		return false
 	}
-	first := x.Args[0]
-	nx, ok := first.(*NameExpr)
-	if !ok {
-		return false
-	}
-	if nx.Name == Name("cross") || nx.Name == Name("cur") {
-		return true
-	}
-	return false
-}
-
-// Legacy; only for fixing gno0.0 to gno0.9
-func (x *CallExpr) isCrossing_gno0p0() bool {
-	if x == nil {
-		return false
-	}
-	if nx, ok := unconst(x.Func).(*NameExpr); ok {
-		if nx.Name == "crossing" {
-			return true
+	switch first := x.Args[0].(type) {
+	case *NameExpr:
+		return first.Name == Name("cur") || first.Name == Name(".origin") || first.Name == Name("cross1")
+	case *CallExpr:
+		if fcx, ok := first.Func.(*ConstExpr); ok && fcx.GetFunc() != nil {
+			return fcx.GetFunc().PkgPath == uversePkgPath &&
+				fcx.GetFunc().Name == "cross"
 		}
 	}
 	return false
@@ -453,7 +446,7 @@ func (x *CallExpr) isCrossing_gno0p0() bool {
 
 func (x *CallExpr) SetWithCross() {
 	if !x.isLikeWithCross() {
-		panic("expected fn(cur,...) or fn(cross,...)")
+		panic("expected fn(cur, ...) or fn(cross(rlm), ...)")
 	}
 	x.WithCross = true
 }
@@ -788,20 +781,6 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	return nil, -1
 }
 
-// Legacy, only for fixing 0.0 to 0.9
-func (ss Body) isCrossing_gno0p0() bool {
-	if len(ss) == 0 {
-		return false
-	}
-	fs := ss[0]
-	xs, ok := fs.(*ExprStmt)
-	if !ok {
-		return false
-	}
-	cx, ok := xs.X.(*CallExpr)
-	return ok && cx.isCrossing_gno0p0()
-}
-
 // ----------------------------------------
 
 // non-pointer receiver to help make immutable.
@@ -1021,6 +1000,15 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 }
 
 func (x *bodyStmt) LastStmt() Stmt {
+	if x.NextBodyIndex <= 0 {
+		// Loop hasn't entered its body yet; return Body[0] so mid-init
+		// stacktraces have a line to point at instead of crashing.
+		// Regression tests: range13.gno, for25.gno.
+		if len(x.Body) == 0 {
+			return nil
+		}
+		return x.Body[0]
+	}
 	return x.Body[x.NextBodyIndex-1]
 }
 
@@ -1035,7 +1023,7 @@ func (x *bodyStmt) String() string {
 	}
 	active := ""
 	if x.Active != nil {
-		if x.NextBodyIndex < 0 || x.NextBodyIndex == len(x.Body) {
+		if x.NextBodyIndex <= 0 || x.NextBodyIndex == len(x.Body) {
 			// none
 		} else if x.Body[x.NextBodyIndex-1] == x.Active {
 			active = "*"
@@ -1325,6 +1313,19 @@ type PackageNode struct {
 	PkgPath  string
 	PkgName  Name
 	*FileSet // provides .GetDeclFor*()
+
+	// pkgID is the lazy-cached PkgID derived from PkgPath.
+	// Not serialized.
+	pkgID PkgID
+}
+
+// GetPkgID returns the cached PkgID for this PackageNode, computing
+// it lazily on first call from PkgPath.
+func (pn *PackageNode) GetPkgID() PkgID {
+	if pn.pkgID.IsZero() {
+		pn.pkgID = PkgIDFromPkgPath(pn.PkgPath)
+	}
+	return pn.pkgID
 }
 
 func PackageNodeLocation(path string) Location {
@@ -1352,16 +1353,24 @@ func (pn *PackageNode) NewPackage(alloc *Allocator) *PackageValue {
 		// other packages are allocted while loading from store.
 		pv = alloc.NewPackageValue(pn)
 	} else {
+		// Stamp PkgID = the package's own ID on both PackageValue
+		// and its inner Block. PackageNode caches PkgID on first
+		// access.
+		pid := pn.GetPkgID()
+		blk := &Block{
+			Source: pn,
+		}
+		blk.ObjectInfo.SetPkgID(pid)
 		pv = &PackageValue{
-			Block: &Block{
-				Source: pn,
-			},
+			Block:      blk,
 			PkgName:    pn.PkgName,
 			PkgPath:    pn.PkgPath,
+			PkgID:      pid,
 			FNames:     nil,
 			FBlocks:    nil,
 			fBlocksMap: make(map[string]*Block),
 		}
+		pv.ObjectInfo.SetPkgID(pid)
 	}
 	// Cannot set ObjectID here; it is not real yet.
 	// BAD: pv.SetObjectID(ObjectIDFromPkgPath(pv.PkgPath))
@@ -1435,9 +1444,14 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 				panic("unexpected heap item")
 			}
 			if heapItems[pvl+i] {
+				// Heap-slot wrappers are anonymous; the contained
+				// value's type can be cross-realm (e.g., package
+				// vars of /r/foreign types) but the HIV slot
+				// itself is not /r/-declared. Pass nil to skip
+				// the construction-time check.
 				nvs[i] = TypedValue{
 					T: heapItemType{},
-					V: alloc.NewHeapItem(nvs[i]),
+					V: alloc.NewHeapItem(nil, nvs[i]),
 				}
 			}
 		}
@@ -1473,8 +1487,22 @@ func (pn *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*
 	fv.nativeBody = native
 }
 
-// DefineNativeMethod defines a native method.
+// DefineNativeMethod defines a native method with a value receiver.
 func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	pn.defineNativeMethod(r, n, ps, rs, native, false)
+}
+
+// DefineNativePtrMethod defines a native method with a pointer receiver
+// (`func (_ *r) n(...)`). Used when the receiver needs to preserve its
+// outer pointer/HIV identity through method dispatch — value-receiver
+// dispatch struct-copies the receiver and drops the outer PointerValue,
+// which matters for types like `.grealm` where HIV-identity is the
+// security primitive.
+func (pn *PackageNode) DefineNativePtrMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
+	pn.defineNativeMethod(r, n, ps, rs, native, true)
+}
+
+func (pn *PackageNode) defineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs, native func(*Machine), ptr bool) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
 	}
@@ -1482,7 +1510,11 @@ func (pn *PackageNode) DefineNativeMethod(r Name, n Name, ps, rs FieldTypeExprs,
 		panic("DefineNative expects a function, but got nil")
 	}
 
-	fd := MthdD(n, Fld("_", Nx(r)), ps, rs, nil)
+	var recvType Expr = Nx(r)
+	if ptr {
+		recvType = &StarExpr{X: Nx(r)}
+	}
+	fd := MthdD(n, Fld("_", recvType), ps, rs, nil)
 	fd = Preprocess(nil, pn, fd).(*FuncDecl)
 	ft := evalStaticType(nil, pn, &fd.Type).(*FuncType)
 	if debug {

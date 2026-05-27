@@ -13,6 +13,12 @@ import (
 	"gno.land/p/sys/validators"
 )
 
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+
 // generateTestValidators generates a dummy validator set
 func generateTestValidators(count int) []validators.Validator {
 	vals := make([]validators.Validator, 0, count)
@@ -148,8 +154,8 @@ func TestGetChanges_BoundedRange(t *testing.T) {
 	uassert.Equal(t, 0, len(GetChanges(h2+1, h2+1)))
 }
 
-func TestGetChanges_PanicsOnInvalidRange(t *testing.T) {
-	uassert.PanicsWithMessage(t, "invalid range: from must be <= to", func() {
+func TestGetChanges_PanicsOnInvalidRange(cur realm, t *testing.T) {
+	uassert.PanicsWithMessage(t, cur, "invalid range: from must be <= to", func() {
 		GetChanges(10, 5)
 	})
 }
