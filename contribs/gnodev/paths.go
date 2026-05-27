@@ -28,31 +28,34 @@ func guessPathGnoMod(dir string) (path string, ok bool) {
 	return modfile.Module, true
 }
 
-// sanitizePathSegment lower-cases s, replaces every char outside [a-z0-9_]
-// with `_`, and ensures the result matches gno's Re_name regex (optional
-// leading `_`, then [a-z], then [a-z0-9_]*). Falls back to "app" when the
-// input has no letters; prepends `d` when needed to satisfy the
-// "must start with a letter" rule.
+// sanitizePathSegment lower-cases s, replaces every non-alphanumeric rune
+// with `_`, collapses runs of `_`, and trims leading `_`. The output matches
+// gno's Re_name regex: must start with `[a-z]`, and `_` separators may only
+// appear between alphanumerics. Falls back to "app" when no letters or
+// digits remain; prepends `d` when the result starts with a digit.
 func sanitizePathSegment(s string) string {
 	s = strings.ToLower(s)
 	var b strings.Builder
 	b.Grow(len(s))
+	prevSep := true // suppresses leading separators
 	for _, r := range s {
 		switch {
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 			b.WriteRune(r)
+			prevSep = false
 		default:
-			b.WriteByte('_')
-		}
-	}
-	out := b.String()
-	for i := 0; i < len(out); i++ {
-		if out[i] >= 'a' && out[i] <= 'z' {
-			if i == 0 || (i == 1 && out[0] == '_') {
-				return out
+			if !prevSep {
+				b.WriteByte('_')
+				prevSep = true
 			}
-			return "d" + out
 		}
 	}
-	return "app"
+	out := strings.TrimRight(b.String(), "_")
+	if !strings.ContainsFunc(out, func(r rune) bool { return r >= 'a' && r <= 'z' }) {
+		return "app"
+	}
+	if out[0] >= '0' && out[0] <= '9' {
+		return "d" + out
+	}
+	return out
 }

@@ -17,14 +17,17 @@ func TestSanitizePathSegment(t *testing.T) {
 		{"gnodev-smoke", "gnodev_smoke"},
 		{"My-App", "my_app"},
 		{"1stproj", "d1stproj"},
-		{"_test", "_test"},
-		{"_1ab", "d_1ab"},
-		{"__abc", "d__abc"},
+		{"_test", "test"},
+		{"_1ab", "d1ab"},
+		{"__abc", "abc"},
+		{"--leading-dash", "leading_dash"},
 		{"123", "app"},
 		{"---", "app"},
 		{"", "app"},
 		{"_", "app"},
 		{"MIXED-Case_123", "mixed_case_123"},
+		{"my.proj", "my_proj"},
+		{"weird name with spaces", "weird_name_with_spaces"},
 	} {
 		t.Run(tc.in, func(t *testing.T) {
 			assert.Equal(t, tc.want, sanitizePathSegment(tc.in))

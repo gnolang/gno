@@ -3,6 +3,7 @@ package packages
 import (
 	"errors"
 	"fmt"
+	"go/token"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -332,71 +333,73 @@ func (l *Loader) LoadWorkspace() ([]*Package, error) {
 
 // LoadAll eagerly loads the workspace, every ExtraRoot, and GNOROOT/examples
 // (when Examples=true). Used by the staging subcommand which wants to
-// materialize every reachable package at startup.
+// materialize every reachable package at startup. The returned slice is
+// topologically sorted: dependencies precede dependents across all roots so
+// genesis deploy can apply packages in order.
 func (l *Loader) LoadAll() ([]*Package, error) {
-	var out []*Package
+	var unified vmpackages.PkgList
 	seen := map[string]struct{}{}
-	appendUnique := func(pkgs []*Package) {
-		for _, p := range pkgs {
+	appendUnique := func(pl vmpackages.PkgList) {
+		for _, p := range pl {
 			if _, dup := seen[p.ImportPath]; dup {
 				continue
 			}
 			seen[p.ImportPath] = struct{}{}
-			out = append(out, p)
+			unified = append(unified, p)
 		}
 	}
 
 	if l.cfg.Workspace != "" {
 		l.cfg.Logger.Info("loading workspace", "workspace", l.cfg.Workspace)
-		pkgs, err := l.loadWithPatterns(l.cfg.Workspace + "/...")
+		ws, err := l.loadWithPatternsVm(l.cfg.Workspace + "/...")
 		if err != nil {
 			return nil, err
 		}
-		l.cfg.Logger.Info("loaded workspace", "packages", len(pkgs))
-		appendUnique(pkgs)
+		l.cfg.Logger.Info("loaded workspace", "packages", len(ws))
+		appendUnique(ws)
 	}
 
-	extraRoots := append([]string(nil), l.cfg.ExtraRoots...)
-	if l.cfg.Examples && l.cfg.GnoRoot != "" {
-		extraRoots = append(extraRoots, filepath.Join(l.cfg.GnoRoot, "examples"))
-	}
+	extraRoots := l.lookupRoots()
 	for i, root := range extraRoots {
 		l.cfg.Logger.Info("loading root", "root", root, "n", i+1, "of", len(extraRoots))
-		pkgs := l.loadRootStandalone(root)
-		l.cfg.Logger.Info("loaded root", "root", root, "packages", len(pkgs))
-		appendUnique(pkgs)
+		rp := l.loadExtraRootVm(root)
+		l.cfg.Logger.Info("loaded root", "root", root, "packages", len(rp))
+		appendUnique(rp)
 	}
 
-	return out, nil
-}
+	// Cross-root, remote, and stdlib deps are not in `unified`; PkgList.Sort
+	// errors on missing deps, so trim them out of each pkg's source imports.
+	// Safe because workspace deps are already pulled in by vmpackages.Load,
+	// and at deploy time every dep we still reference is in `unified`.
+	unified = stripStdlibs(unified)
+	dropMissingDepImports(unified)
 
-// loadRootStandalone loads every gnomod.toml-rooted package found under root
-// by resolving each import path individually. Avoids gnovm.Load's "pattern
-// must be inside workspace" check for roots outside the current workspace.
-// Per-path failures are warning-logged and skipped; the function never
-// returns a top-level error.
-func (l *Loader) loadRootStandalone(root string) []*Package {
-	l.mu.Lock()
-	idx := l.ensureRootIndexLocked(root)
-	paths := make([]string, 0, len(idx))
-	for p := range idx {
-		paths = append(paths, p)
+	sorted, err := unified.Sort()
+	if err != nil {
+		return nil, fmt.Errorf("sort packages: %w", err)
 	}
-	l.mu.Unlock()
-
-	out := make([]*Package, 0, len(paths))
-	for _, p := range paths {
-		pkg, err := l.Resolve(p)
-		if err != nil {
-			l.cfg.Logger.Warn("resolve failed", "path", p, "err", err)
-			continue
-		}
-		out = append(out, pkg)
-	}
-	return out
+	sorted = sorted.GetNonIgnoredPkgs()
+	return l.vmPkgListToPackages(sorted), nil
 }
 
 func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
+	pkgList, err := l.loadWithPatternsVm(patterns...)
+	if err != nil {
+		return nil, err
+	}
+	sorted, err := pkgList.Sort()
+	if err != nil {
+		return nil, fmt.Errorf("sort packages: %w", err)
+	}
+	sorted = sorted.GetNonIgnoredPkgs()
+	return l.vmPkgListToPackages(sorted), nil
+}
+
+// loadWithPatternsVm runs vmpackages.Load with Deps:true and returns the raw
+// (unsorted) PkgList after stripping stdlibs. Used both by loadWithPatterns
+// (which sorts immediately) and by LoadAll (which merges with extra roots
+// before a unified sort).
+func (l *Loader) loadWithPatternsVm(patterns ...string) (vmpackages.PkgList, error) {
 	// l.fetcher and l.cfg are set in New and never mutated; no lock needed.
 	conf := vmpackages.LoadConfig{
 		Deps:                true,
@@ -410,19 +413,77 @@ func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load packages: %w", err)
 	}
-
 	// Drop stdlib packages and stdlib imports. gnovm.Load returns stdlibs and
 	// skips native-stdlib deps during traversal (they're handled by the VM,
 	// not deployed as on-chain packages). Without this filter, pkgList.Sort
 	// fails on native-stdlib imports like "chain" that are never in the list.
-	pkgList = stripStdlibs(pkgList)
+	return stripStdlibs(pkgList), nil
+}
 
-	sorted, err := pkgList.Sort()
-	if err != nil {
-		return nil, fmt.Errorf("sort packages: %w", err)
+// loadExtraRootVm walks one root and returns the packages found there as an
+// unsorted PkgList. Each package's imports are parsed so the caller can run
+// a unified PkgList.Sort against this list combined with other roots.
+// Per-package failures (unreadable mempackage, parse error) are warning-logged
+// and skipped; the function never errors.
+//
+// Note: on first access to a given root, ensureRootIndexLocked walks the
+// entire root under the write lock, briefly blocking concurrent Resolve /
+// LookupFS calls. Acceptable at startup; the per-package ReadMemPackage and
+// Imports work below runs without the lock.
+func (l *Loader) loadExtraRootVm(root string) vmpackages.PkgList {
+	type entry struct{ path, dir string }
+	l.mu.Lock()
+	idx := l.ensureRootIndexLocked(root)
+	entries := make([]entry, 0, len(idx))
+	for p, d := range idx {
+		entries = append(entries, entry{p, d})
 	}
-	sorted = sorted.GetNonIgnoredPkgs()
+	l.mu.Unlock()
 
+	fset := token.NewFileSet()
+	out := make(vmpackages.PkgList, 0, len(entries))
+	var skipped int
+	for _, e := range entries {
+		// Re-parse gnomod.toml to pick up the Ignore flag; scanRoot only
+		// captured the module path. Without this, GetNonIgnoredPkgs lets
+		// ignored realms through and they fail at genesis deploy time.
+		mod, err := gnomod.ParseDir(e.dir)
+		if err != nil {
+			l.cfg.Logger.Warn("parse gnomod.toml failed", "path", e.path, "err", err)
+			skipped++
+			continue
+		}
+		mp, err := gnolang.ReadMemPackage(e.dir, e.path, gnolang.MPUserAll)
+		if err != nil {
+			l.cfg.Logger.Warn("read mempackage failed", "path", e.path, "err", err)
+			skipped++
+			continue
+		}
+		imps, err := vmpackages.Imports(mp, fset)
+		if err != nil {
+			l.cfg.Logger.Warn("parse imports failed", "path", e.path, "err", err)
+			skipped++
+			continue
+		}
+		out = append(out, &vmpackages.Package{
+			Dir:          e.dir,
+			ImportPath:   e.path,
+			Name:         mp.Name,
+			Ignore:       mod.Ignore,
+			Imports:      imps.ToStrings(),
+			ImportsSpecs: imps,
+		})
+	}
+	if skipped > 0 {
+		l.cfg.Logger.Warn("extra-root packages skipped due to load errors", "root", root, "skipped", skipped)
+	}
+	return out
+}
+
+// vmPkgListToPackages converts a sorted vmpackages list into gnodev's Package
+// form, registering each entry in the loader index. Packages with load errors
+// are warning-logged and skipped.
+func (l *Loader) vmPkgListToPackages(sorted vmpackages.SortedPkgList) []*Package {
 	out := make([]*Package, 0, len(sorted))
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -442,7 +503,7 @@ func (l *Loader) loadWithPatterns(patterns ...string) ([]*Package, error) {
 		l.index[p.ImportPath] = p
 		out = append(out, p)
 	}
-	return out, nil
+	return out
 }
 
 // logWriter adapts an slog.Logger to io.Writer for gnovm's Out.
@@ -466,6 +527,38 @@ func (l *Loader) kindForDir(dir string) Kind {
 		return KindRemote
 	}
 	return KindFS
+}
+
+// dropMissingDepImports MUTATES pl: each pkg's source imports (both
+// Imports and ImportsSpecs) lose entries whose paths aren't in pl.
+// Used before PkgList.Sort so that cross-root, remote, or otherwise-absent
+// deps don't block the toposort. Sort errors on any referenced dep missing
+// from the list (see pkglist.go visitPackage), and GetNonIgnoredPkgs walks
+// ImportsSpecs — both views must stay consistent.
+func dropMissingDepImports(pl vmpackages.PkgList) {
+	present := make(map[string]struct{}, len(pl))
+	for _, p := range pl {
+		present[p.ImportPath] = struct{}{}
+	}
+	for _, p := range pl {
+		imps := p.Imports[vmpackages.FileKindPackageSource]
+		kept := imps[:0]
+		for _, imp := range imps {
+			if _, ok := present[imp]; ok {
+				kept = append(kept, imp)
+			}
+		}
+		p.Imports[vmpackages.FileKindPackageSource] = kept
+
+		specs := p.ImportsSpecs[vmpackages.FileKindPackageSource]
+		keptSpecs := specs[:0]
+		for _, sp := range specs {
+			if _, ok := present[sp.PkgPath]; ok {
+				keptSpecs = append(keptSpecs, sp)
+			}
+		}
+		p.ImportsSpecs[vmpackages.FileKindPackageSource] = keptSpecs
+	}
 }
 
 // stripStdlibs returns a pkgList with stdlib packages removed and stdlib

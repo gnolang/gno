@@ -233,6 +233,90 @@ func TestLoader_Reload_PreservesRootIdx(t *testing.T) {
 	)
 }
 
+// TestLoader_LoadAll_SortsExtraRoots verifies LoadAll returns packages in
+// topological order across extra roots (deps before dependents). Genesis
+// deploy applies packages in slice order, so any dependent appearing before
+// its dep fails type-checking.
+func TestLoader_LoadAll_SortsExtraRoots(t *testing.T) {
+	extra := t.TempDir()
+	// Chain: aa imports bb imports cc imports dd imports ee. Package names
+	// must match ^[a-z][a-z0-9_]+$ (validatePkgName, nodes.go), so two
+	// chars minimum. 5 entries give 120 permutations of map iteration
+	// order, only one of which matches topological order — wide enough to
+	// catch a missing sort step.
+	writePkg(t, filepath.Join(extra, "aa"), "gno.land/p/ext/aa",
+		"package aa\nimport _ \"gno.land/p/ext/bb\"\n")
+	writePkg(t, filepath.Join(extra, "bb"), "gno.land/p/ext/bb",
+		"package bb\nimport _ \"gno.land/p/ext/cc\"\n")
+	writePkg(t, filepath.Join(extra, "cc"), "gno.land/p/ext/cc",
+		"package cc\nimport _ \"gno.land/p/ext/dd\"\n")
+	writePkg(t, filepath.Join(extra, "dd"), "gno.land/p/ext/dd",
+		"package dd\nimport _ \"gno.land/p/ext/ee\"\n")
+	writePkg(t, filepath.Join(extra, "ee"), "gno.land/p/ext/ee",
+		"package ee\n")
+
+	// LoadAll requires a workspace context for findLoaderContext. Use an
+	// empty workspace dir so loadWithPatterns is a no-op and we exercise
+	// only the extra-root sort path.
+	ws := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(ws)
+
+	l := New(Config{Workspace: ws, ExtraRoots: []string{extra}, Logger: testLogger()})
+	pkgs, err := l.LoadAll()
+	require.NoError(t, err)
+
+	pos := map[string]int{}
+	for i, p := range pkgs {
+		pos[p.ImportPath] = i
+	}
+	for _, chain := range [][2]string{
+		{"gno.land/p/ext/ee", "gno.land/p/ext/dd"},
+		{"gno.land/p/ext/dd", "gno.land/p/ext/cc"},
+		{"gno.land/p/ext/cc", "gno.land/p/ext/bb"},
+		{"gno.land/p/ext/bb", "gno.land/p/ext/aa"},
+	} {
+		dep, dependent := chain[0], chain[1]
+		di, ok := pos[dep]
+		require.True(t, ok, "%s missing from LoadAll output", dep)
+		dni, ok := pos[dependent]
+		require.True(t, ok, "%s missing from LoadAll output", dependent)
+		assert.Less(t, di, dni, "%s (dep) must come before %s (dependent); got order %v",
+			dep, dependent, pathsOf(pkgs))
+	}
+}
+
+// TestLoader_LoadAll_SkipsIgnoredExtraRootPkgs verifies that a package in an
+// extra root whose gnomod.toml sets `ignore = true` is filtered out by
+// GetNonIgnoredPkgs. The Ignore flag must reach the synthesized
+// vmpackages.Package so the sort+filter chain in LoadAll drops it before
+// genesis deploy.
+func TestLoader_LoadAll_SkipsIgnoredExtraRootPkgs(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "live"), "gno.land/p/ext/live",
+		"package live\n")
+
+	// Ignored package: writePkg only emits `module = ...`; append the ignore line.
+	dropDir := filepath.Join(extra, "dropme")
+	writePkg(t, dropDir, "gno.land/p/ext/dropme", "package dropme\n")
+	mod, err := os.ReadFile(filepath.Join(dropDir, "gnomod.toml"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dropDir, "gnomod.toml"),
+		append(mod, []byte("ignore = true\n")...), 0o644))
+
+	ws := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ws, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(ws)
+
+	l := New(Config{Workspace: ws, ExtraRoots: []string{extra}, Logger: testLogger()})
+	pkgs, err := l.LoadAll()
+	require.NoError(t, err)
+	paths := pathsOf(pkgs)
+	assert.Contains(t, paths, "gno.land/p/ext/live")
+	assert.NotContains(t, paths, "gno.land/p/ext/dropme",
+		"ignore=true extra-root pkg must be filtered out before deploy")
+}
+
 // TestLoader_LoadAll_LogsProgress verifies LoadAll emits progress per root
 // so the user knows it isn't hung.
 func TestLoader_LoadAll_LogsProgress(t *testing.T) {
