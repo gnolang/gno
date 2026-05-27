@@ -207,21 +207,73 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// RUN THE FILETEST /////////////////////////////////////
 	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck)
 
-	// Errorcheck-mode short-circuit: verify the file's inline `// ERROR`
-	// markers against Gno's actual error output (preprocess, typecheck,
-	// or runtime) and return immediately. The match path below — built
-	// for exact-content Output / Error directives — is the wrong shape
-	// for the loose, regex-per-line semantics errorcheck requires.
+	// updated tells whether the directives have been mutated and the
+	// regenerated filetest should be returned (only true under
+	// opts.Sync). Declared here so the errorcheck short-circuit below
+	// can also set it for `// GnoError:` golden refresh.
+	updated := false
+
+	// Errorcheck-mode short-circuit: drive the multi-pass marker
+	// verifier. Pass 0 reuses the initial result above; subsequent
+	// passes create their own machines (Gno's preprocess state is
+	// not idempotent across runs). See [runErrorcheckMultiPass].
+	//
+	// A file is considered opted-in to strict mode if it carries a
+	// `// GnoError:` golden block. Opt-in files propagate multi-pass
+	// failures as test errors and refresh the block under opts.Sync.
+	// Files without the block fall back to the legacy single-pass
+	// loose marker check (preserves backward compatibility for the
+	// upstream-verbatim corpus files that haven't been blessed yet).
 	if len(errorcheckMarkers) > 0 {
-		return "", m.GasMeter.GasConsumed(),
-			VerifyErrorcheckMarkers(errorcheckMarkers, result.Error, result.TypeCheckError)
+		prependedLines := 0
+		if bytes.HasPrefix(source, []byte("// PKGPATH:")) {
+			prependedLines = 1
+		}
+		perLine, mpFailures := opts.runErrorcheckMultiPass(
+			result, source, fname, pkgPath, errorcheckMarkers,
+			prependedLines, tgs, tcheck)
+
+		errDir := dirs.First(DirectiveGnoError)
+		strict := errDir != nil
+		expectedBlock := FormatGnoErrorBlock(perLine)
+
+		switch {
+		case strict && len(mpFailures) > 0:
+			return "", m.GasMeter.GasConsumed(), errors.Join(mpFailures...)
+		case strict:
+			// Strict mode: verify the pinned block matches multi-pass output.
+			if strings.TrimRight(errDir.Content, "\n") != expectedBlock {
+				if opts.Sync {
+					errDir.Content = expectedBlock
+					updated = true
+				} else {
+					return "", m.GasMeter.GasConsumed(),
+						fmt.Errorf("// GnoError: diff:\n%s",
+							unifiedDiff(errDir.Content, expectedBlock))
+				}
+			}
+		case opts.Sync && expectedBlock != "":
+			// No block today, but a clean multi-pass succeeded under
+			// --update-golden-tests: opt the file in.
+			dirs = append(dirs, Directive{Name: DirectiveGnoError, Content: expectedBlock})
+			updated = true
+		default:
+			// Loose-mode fallback: at least one marker must match
+			// Gno's error. Preserves the upstream-verbatim corpus
+			// files that don't yet have a // GnoError: block.
+			if err := VerifyErrorcheckMarkers(errorcheckMarkers, result.Error, result.TypeCheckError); err != nil {
+				return "", m.GasMeter.GasConsumed(), err
+			}
+		}
+		if updated {
+			return dirs.FileTest(), m.GasMeter.GasConsumed(), nil
+		}
+		return "", m.GasMeter.GasConsumed(), nil
 	}
 
-	// updated tells whether the directives have been updated, and as such
-	// a new generated filetest should be returned.
 	// returnErr is used as the return value, and may be a MultiError if
-	// multiple mismatches occurred.
-	updated := false
+	// multiple mismatches occurred. `updated` is declared above the
+	// errorcheck short-circuit so both code paths can flip it.
 	var returnErr error
 	// `match` verifies the content against dir.Content; if different,
 	// either updates dir.Content (for opts.Sync) or appends a new returnErr.
@@ -367,6 +419,135 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	return "", m.GasMeter.GasConsumed(), returnErr
+}
+
+// runErrorcheckMultiPass iteratively verifies every inline `// ERROR`
+// marker in source. Each pass:
+//
+//  1. Reads Gno's error from the prior run (or runs fresh).
+//  2. Extracts the source line Gno errored on.
+//  3. Locates the inline marker at that line and verifies its regex
+//     matches Gno's combined error+typecheck output (loose match —
+//     same lenience as single-pass, just applied per-line).
+//  4. Comments out the matched line in the source so the next pass
+//     surfaces the next error.
+//
+// Pass 0 reuses the `result` already produced by runFiletest's
+// single setup-and-run; subsequent passes spin up a fresh machine
+// each (Gno's preprocess state is not idempotent across runs).
+//
+// Returns a per-marker-line map of cleaned Gno error text (used to
+// populate the `// GnoError:` golden block) and any per-pass
+// failures: marker pattern mismatches, unexpected lines, stuck
+// cases (commenting-out didn't clear the error), or markers left
+// unverified after all passes.
+//
+// prependedLines is the count of lines [PrependPkgPathIfNeeded]
+// added at the top of source (currently 0 or 1) — used to translate
+// Gno's error line numbers back into original-marker coordinates.
+func (opts *TestOptions) runErrorcheckMultiPass(
+	initial runResult, source []byte, fname, pkgPath string,
+	markers []InlineError, prependedLines int,
+	tgs gno.Store, tcheck bool,
+) (map[int]string, []error) {
+	perLine := make(map[int]string)
+	seen := make(map[int]bool)
+	var failures []error
+
+	currentSource := source
+	result := initial
+	for pass := 1; pass <= len(markers)+1; pass++ {
+		combined := strings.TrimSpace(result.Error + "\n" + result.TypeCheckError)
+		if combined == "" {
+			break // Gno accepted the (progressively-neutralized) file.
+		}
+		// Pick the line from Gno's preprocess/runtime error first;
+		// fall back to the typecheck error if Gno didn't report one.
+		gnoLine := ExtractErrorLine(result.Error)
+		if gnoLine == 0 {
+			gnoLine = ExtractErrorLine(result.TypeCheckError)
+		}
+		if gnoLine == 0 {
+			failures = append(failures, fmt.Errorf(
+				"errorcheck pass %d: Gno errored but no source line found in:\n%s",
+				pass, indent(combined, "  ")))
+			break
+		}
+		sourceLine := gnoLine - prependedLines
+		if seen[sourceLine] {
+			failures = append(failures, fmt.Errorf(
+				"errorcheck pass %d: stuck at line %d (commenting-out didn't clear it):\n%s",
+				pass, sourceLine, indent(combined, "  ")))
+			break
+		}
+		seen[sourceLine] = true
+
+		var marker *InlineError
+		for i := range markers {
+			if markers[i].Line == sourceLine {
+				marker = &markers[i]
+				break
+			}
+		}
+		if marker == nil {
+			failures = append(failures, fmt.Errorf(
+				"errorcheck pass %d: Gno errored at line %d but no // ERROR marker is attached there:\n%s",
+				pass, sourceLine, indent(combined, "  ")))
+			break
+		}
+		if !MarkerMatches(*marker, combined) {
+			failures = append(failures, fmt.Errorf(
+				"errorcheck pass %d: marker at line %d patterns %s don't match Gno error:\n%s",
+				pass, sourceLine, strings.Join(marker.Patterns, " | "), indent(combined, "  ")))
+			break
+		}
+		// Store just Gno's preprocess error for the // GnoError:
+		// golden — go/types' output (which lists ALL gc errors at
+		// once) would pollute the per-line entry with messages
+		// about other lines.
+		perLine[sourceLine] = CleanErrorMessage(result.Error)
+
+		// Comment out the matched line so the next pass surfaces the
+		// next error. Use gnoLine (post-prepend coordinates) — that's
+		// what indexes into currentSource.
+		currentSource = CommentOutLine(currentSource, gnoLine)
+
+		// Run the next pass, unless we've verified everything.
+		if len(perLine) >= len(markers) {
+			break
+		}
+		result = opts.runErrorcheckPass(currentSource, fname, pkgPath, tgs, tcheck)
+	}
+
+	// Surface markers that never matched.
+	for _, mk := range markers {
+		if _, ok := perLine[mk.Line]; !ok {
+			failures = append(failures, fmt.Errorf(
+				"errorcheck: marker at line %d (%s) never matched any Gno error",
+				mk.Line, strings.Join(mk.Patterns, " | ")))
+		}
+	}
+	return perLine, failures
+}
+
+// runErrorcheckPass executes one fresh-machine pass for the
+// errorcheck multi-pass driver. Each pass needs its own machine and
+// transaction store because Gno's preprocess records package state
+// that would otherwise carry over between passes (and re-surface as
+// a different error than the source line the caller expects).
+func (opts *TestOptions) runErrorcheckPass(source []byte, fname, pkgPath string, tgs gno.Store, tcheck bool) runResult {
+	tcw := opts.BaseStore.CacheWrap()
+	gasMeter := store.NewInfiniteGasMeter()
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		Output:        &opts.outWriter,
+		Store:         tgs.BeginTransaction(tcw, tcw, nil, gasMeter),
+		Context:       Context("", pkgPath, nil),
+		GasMeter:      gasMeter,
+		Debug:         opts.Debug,
+		ReviveEnabled: true,
+	})
+	defer m.Release()
+	return opts.runTest(m, pkgPath, fname, source, nil, tcheck)
 }
 
 // finalizeGoRunDivergence drives the symmetric Gno-vs-Go verdict for

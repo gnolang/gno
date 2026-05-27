@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -77,6 +78,10 @@ func HasInlineErrorMarkers(source []byte) bool {
 // are intentionally ignored — this harness mirrors gc semantics.
 // LINE/LINE+N substitutions are NOT performed; the literal text
 // stays in the regex (matching is best-effort).
+//
+// Lines that begin with `//` (i.e. pure doc-comment lines that
+// happen to mention `// ERROR "..."` in their prose) are skipped —
+// real markers always trail actual code on the same line.
 func ParseInlineErrors(source []byte) []InlineError {
 	var out []InlineError
 	sc := bufio.NewScanner(bytes.NewReader(source))
@@ -87,6 +92,13 @@ func ParseInlineErrors(source []byte) []InlineError {
 		text := sc.Text()
 		idx := indexErrorMarker(text)
 		if idx < 0 {
+			continue
+		}
+		// Skip doc-comment lines: an `// ERROR "..."` inside narrative
+		// prose is not a real marker. Detect by checking that the
+		// content before the marker is non-empty after stripping
+		// leading whitespace — a real marker is preceded by code.
+		if strings.HasPrefix(strings.TrimLeft(text, " \t"), "//") {
 			continue
 		}
 		patterns := extractQuotedStrings(text[idx:])
@@ -253,6 +265,89 @@ func IsRunnable(source []byte) bool {
 		return false
 	}
 	return funcMainRe.Match(source)
+}
+
+// reErrorLine pulls the first `:N:` line-number reference out of an
+// error string. Gno errors typically format as `path:line:col: msg`
+// or `[stage] path:line:col: msg`; we anchor on the first ":<digits>:"
+// so prefixed-stage variations still match.
+var reErrorLine = regexp.MustCompile(`:(\d+):`)
+
+// ExtractErrorLine returns the first source-line number referenced by
+// errStr, or 0 if none. Used by the errorcheck multi-pass driver to
+// decide which inline `// ERROR` marker the current pass corresponds
+// to. The number is in source-file coordinates; the caller is
+// responsible for subtracting any prepended-line offset.
+func ExtractErrorLine(errStr string) int {
+	m := reErrorLine.FindStringSubmatch(errStr)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+// CommentOutLine replaces line N (1-based) in source with `//`,
+// preserving the total line count so subsequent error line numbers
+// still align. Used by the errorcheck multi-pass driver to neutralize
+// a line whose marker the current pass just verified, freeing the
+// next pass to surface the next error.
+//
+// Out-of-range line returns source unchanged.
+func CommentOutLine(source []byte, line int) []byte {
+	lines := bytes.Split(source, []byte("\n"))
+	if line < 1 || line > len(lines) {
+		return source
+	}
+	lines[line-1] = []byte("//")
+	return bytes.Join(lines, []byte("\n"))
+}
+
+// CleanErrorMessage strips a leading `path:line:col:` prefix from
+// errStr, leaving just the message text. Used when recording a Gno
+// error in the `// GnoError:` golden block so the block doesn't pin
+// volatile file paths or column numbers.
+func CleanErrorMessage(errStr string) string {
+	s := strings.TrimSpace(errStr)
+	// Format: file:line:col: text  → split into 4 parts, take the 4th.
+	parts := strings.SplitN(s, ":", 4)
+	if len(parts) == 4 {
+		// Sanity: parts[1] should be a number (line); parts[2] a number (col).
+		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			return strings.TrimSpace(parts[3])
+		}
+	}
+	// Fall back: try file:line: text (3 parts).
+	parts = strings.SplitN(s, ":", 3)
+	if len(parts) == 3 {
+		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			return strings.TrimSpace(parts[2])
+		}
+	}
+	return s
+}
+
+// FormatGnoErrorBlock serializes a per-line map of Gno error messages
+// into the multi-line body of a `// GnoError:` directive. Output is
+// one line per entry, in ascending line order, in the form:
+//
+//	line N: <Gno's error message>
+//
+// Empty input yields the empty string (caller writes no directive).
+func FormatGnoErrorBlock(perLine map[int]string) string {
+	if len(perLine) == 0 {
+		return ""
+	}
+	lines := make([]int, 0, len(perLine))
+	for n := range perLine {
+		lines = append(lines, n)
+	}
+	sort.Ints(lines)
+	var buf strings.Builder
+	for _, n := range lines {
+		fmt.Fprintf(&buf, "line %d: %s\n", n, perLine[n])
+	}
+	return strings.TrimRight(buf.String(), "\n")
 }
 
 // indent prefixes every line of s with prefix.
