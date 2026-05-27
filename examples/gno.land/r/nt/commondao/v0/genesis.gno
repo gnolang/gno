@@ -1,12 +1,10 @@
 package commondao
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/nt/commondao/v0"
 )
 
-func init() {
+func init(cur realm) {
 	// Create a DAO for the realm
 	id := daoID.Next()
 	dao := commondao.New(
@@ -24,9 +22,10 @@ func init() {
 	// Index DAO
 	daos.Set(id.String(), dao)
 
-	// Make commondao realm the owner of Common DAO
-	commonRealm := runtime.CurrentRealm()
-	ownership.Set(commonRealm.Address().String(), []uint64{CommonDAOID})
+	// Make commondao realm the owner of Common DAO.
+	// cur is the chain-injected init cur for this realm; cur.Address() is
+	// the commondao realm's package address.
+	ownership.Set(cur.Address().String(), []uint64{CommonDAOID})
 
 	// Save DAO configuration
 	options.Set(id.String(), &Options{

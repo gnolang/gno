@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -139,8 +140,14 @@ func (msg MsgCall) ValidateBasic() error {
 	if _, isInt := gno.IsInternalPath(msg.PkgPath); isInt {
 		return ErrInvalidPkgPath("pkgpath must not be of an internal package")
 	}
-	if msg.Func == "" { // XXX
+	if msg.Func == "" {
 		return ErrInvalidExpr("missing function to call")
+	}
+	// msg.Func is spliced into `pkg.{Func}(cross, …)` and handed to the
+	// Go parser at Call time; restrict it to a plain identifier so an
+	// attacker can't inject arbitrary Go expression syntax.
+	if !token.IsIdentifier(msg.Func) {
+		return ErrInvalidExpr("func must be a Go identifier")
 	}
 	if !msg.Send.IsValid() {
 		return std.ErrInvalidCoins(msg.Send.String())

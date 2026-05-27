@@ -16,7 +16,7 @@ func init() {
 	mainAddr = "g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"
 	backupAddr = "g13awn2575t8s2vf3svlprc4dg0e9z5wchejdxk8"
 
-	owner = ownable.NewWithAddressByPrevious(mainAddr)
+	owner = ownable.NewWithAddress(mainAddr)
 }
 
 func MainAddr() address {
@@ -27,23 +27,23 @@ func BackupAddr() address {
 	return backupAddr
 }
 
-func SetMainAddr(_ realm, addr address) error {
+func SetMainAddr(cur realm, addr address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertOwned()
+	owner.AssertOwnedBy(cur.Previous().Address())
 
 	mainAddr = addr
 	return nil
 }
 
-func SetBackupAddr(_ realm, addr address) error {
+func SetBackupAddr(cur realm, addr address) error {
 	if !addr.IsValid() {
 		return errors.New("config: invalid address")
 	}
 
-	owner.AssertOwned()
+	owner.AssertOwnedBy(cur.Previous().Address())
 
 	backupAddr = addr
 	return nil

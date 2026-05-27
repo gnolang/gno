@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_2_e_filetest
+
+package zp_2_e_filetest
 
 import (
 	"testing"
@@ -13,26 +15,26 @@ const (
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross, "Foo")
+	dao := commondao.New(cross(cur), "Foo")
 	dao.Members().Add(user)
 
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross(cur), dao.ID())
 	options.SetAllowChildren(true)
 	options.SetAllowSubDAOPorposals(true)
 
 	daoID = dao.ID()
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateSubDAOProposal(cross, daoID, "Name", "INVALID")
+	commondao.CreateSubDAOProposal(cross(cur), daoID, "Name", "INVALID")
 }
 
 // Error:

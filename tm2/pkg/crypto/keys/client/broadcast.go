@@ -32,6 +32,7 @@ type BroadcastCfg struct {
 	testSimulate bool
 	// max gas limit to use for simulation (optional).
 	simulateMaxGas int64
+	GasFeeMargin   uint64
 }
 
 const simulationMaxGasFallback = int64(math.MaxInt64)
@@ -150,7 +151,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		if res != nil {
 			hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
 			if cfg.DryRun && !hasError {
-				err = estimateGasFee(cli, res)
+				err = estimateGasFee(cli, res, cfg.GasFeeMargin)
 				return res, err
 			}
 			appendSuggestedGasWanted(res)
@@ -214,7 +215,7 @@ func appendSuggestedGasWanted(bres *ctypes.ResultBroadcastTxCommit) {
 	}
 }
 
-func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit) error {
+func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit, gasFeeMargin uint64) error {
 	gasUsed := bres.DeliverTx.GasUsed
 	suggested := suggestedGasWanted(gasUsed)
 
@@ -234,8 +235,8 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 	} else {
 		fee := gasUsed/gp.Gas + 1
 		fee = overflow.Mulp(fee, gp.Price.Amount)
-		// 5% fee buffer to cover the sudden change of gas price
-		feeBuffer := overflow.Mulp(fee, 5) / 100
+		// fee buffer to cover the sudden change of gas price
+		feeBuffer := overflow.Mulp(fee, int64(gasFeeMargin)) / 100
 		fee = overflow.Addp(fee, feeBuffer)
 		s = fmt.Sprintf("estimated gas usage: %d (suggested, with 5%% margin: %d), gas fee: %d%s, current gas price: %s\n", gasUsed, suggested, fee, gp.Price.Denom, gp.String())
 	}

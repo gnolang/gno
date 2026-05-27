@@ -225,9 +225,9 @@ var commandTests = [...]string{
 	`,
 }
 
-func TestCommands(t *testing.T) {
+func TestCommands(cur realm, t *testing.T) {
 	for _, command := range commandTests {
-		runCommandTest(t, command)
+		runCommandTest(cur, t, command)
 	}
 }
 
@@ -238,7 +238,7 @@ func TestCommands(t *testing.T) {
 // parser, however it's not because of this issue:
 // https://github.com/gnolang/gno/issues/1135
 type testCommandRunner interface {
-	Run(t *testing.T, bufs map[string]string)
+	Run(cur realm, t *testing.T, bufs map[string]string)
 }
 
 // testCommandChecker is a wrapper for a runner which is performing a check.
@@ -247,9 +247,11 @@ type testCommandChecker struct{ testCommandRunner }
 
 func (testCommandChecker) Checker() {}
 
-type testCommandFunc func(t *testing.T, bufs map[string]string)
+type testCommandFunc func(cur realm, t *testing.T, bufs map[string]string)
 
-func (tc testCommandFunc) Run(t *testing.T, bufs map[string]string) { tc(t, bufs) }
+func (tc testCommandFunc) Run(cur realm, t *testing.T, bufs map[string]string) {
+	tc(cross(cur), t, bufs)
+}
 
 // testCommandColorID represents a testCommand, which uses a function of the
 // form func(gameID string) string (hence ID), and that takes as the first
@@ -263,9 +265,9 @@ func newTestCommandColorID(fn func(realm, string) string, s string, addr string)
 	return &testCommandColorID{fn, address("g1" + addr)}
 }
 
-func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
+func (tc *testCommandColorID) Run(cur realm, t *testing.T, bufs map[string]string) {
 	testing.SetRealm(testing.NewUserRealm(tc.addr))
-	bufs["result"] = tc.fn(cross, bufs["id"])
+	bufs["result"] = tc.fn(cross(cur), bufs["id"])
 }
 
 type testCommandNewGame struct {
@@ -273,9 +275,9 @@ type testCommandNewGame struct {
 	seconds, incr int
 }
 
-func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
+func (tc *testCommandNewGame) Run(cur realm, t *testing.T, bufs map[string]string) {
 	testing.SetRealm(testing.NewUserRealm(tc.w))
-	res := xNewGame(cross, string(tc.b), tc.seconds, tc.incr)
+	res := xNewGame(cross(cur), string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
 	const idMagicString = `"id":"`
@@ -294,16 +296,16 @@ type testCommandMove struct {
 	promotion chess.Piece
 }
 
-func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
+func (tc *testCommandMove) Run(cur realm, t *testing.T, bufs map[string]string) {
 	testing.SetRealm(testing.NewUserRealm(tc.addr))
-	bufs["result"] = MakeMove(cross, bufs["id"], tc.from, tc.to, tc.promotion)
+	bufs["result"] = MakeMove(cross(cur), bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
 type testCommandGame struct {
 	idWanted string
 }
 
-func (tc *testCommandGame) Run(t *testing.T, bufs map[string]string) {
+func (tc *testCommandGame) Run(cur realm, t *testing.T, bufs map[string]string) {
 	idl := tc.idWanted
 	if idl == "" {
 		idl = bufs["id"]
@@ -315,15 +317,15 @@ type testCommandPlayer struct {
 	addr string
 }
 
-func (tc *testCommandPlayer) Run(t *testing.T, bufs map[string]string) {
-	bufs["result"] = GetPlayer(tc.addr)
+func (tc *testCommandPlayer) Run(cur realm, t *testing.T, bufs map[string]string) {
+	bufs["result"] = GetPlayer(cross(cur), tc.addr)
 }
 
 type testCommandCopy struct {
 	dst, src string
 }
 
-func (tc *testCommandCopy) Run(t *testing.T, bufs map[string]string) {
+func (tc *testCommandCopy) Run(cur realm, t *testing.T, bufs map[string]string) {
 	bufs[tc.dst] = bufs[tc.src]
 }
 
@@ -331,7 +333,7 @@ type testCommandSleep struct {
 	dur time.Duration
 }
 
-func (tc *testCommandSleep) Run(t *testing.T, bufs map[string]string) {
+func (tc *testCommandSleep) Run(cur realm, t *testing.T, bufs map[string]string) {
 	os.Sleep(tc.dur)
 }
 
@@ -343,7 +345,7 @@ type testChecker struct {
 }
 
 func (*testChecker) Checker() {}
-func (tc *testChecker) Run(t *testing.T, bufs map[string]string) {
+func (tc *testChecker) Run(cur realm, t *testing.T, bufs map[string]string) {
 	tc.fn(t, bufs, tc)
 }
 
@@ -358,7 +360,7 @@ func parseCommandTest(t *testing.T, command string) (funcs []testCommandRunner, 
 	var hasPanicChecker bool
 	panicChecker := func(lineNum int, testName string) testCommandRunner {
 		return testCommandChecker{testCommandFunc(
-			func(t *testing.T, bufs map[string]string) {
+			func(cur realm, t *testing.T, bufs map[string]string) {
 				if bufs["panic"] != "" {
 					t.Fatalf("%s:%d: buffer \"panic\" is not empty (%q)", testName, lineNum, bufs["panic"])
 				}
@@ -581,25 +583,25 @@ func parseCommandTest(t *testing.T, command string) (funcs []testCommandRunner, 
 	return
 }
 
-func runCommandTest(t *testing.T, command string) {
+func runCommandTest(cur realm, t *testing.T, command string) {
 	funcs, testName := parseCommandTest(t, command)
 
-	t.Run(testName, func(t *testing.T) {
+	t.Run(testName, func(cur realm, t *testing.T) {
 		cleanup()
 		bufs := make(map[string]string, 3)
 		for _, f := range funcs {
 			if _, ok := f.(interface{ Checker() }); ok {
-				f.Run(t, bufs)
+				f.Run(cross(cur), t, bufs)
 			} else {
-				catchPanic(f, t, bufs)
+				catchPanic(cur, f, t, bufs)
 			}
 		}
 	})
 }
 
-func catchPanic(tc testCommandRunner, t *testing.T, bufs map[string]string) {
+func catchPanic(cur realm, tc testCommandRunner, t *testing.T, bufs map[string]string) {
 	// XXX: should prefer testing.Recover, but see: https://github.com/gnolang/gno/issues/1650
-	e := revive(func() { tc.Run(t, bufs) })
+	e := revive(func() { tc.Run(cross(cur), t, bufs) })
 	if e == nil {
 		bufs["panic"] = ""
 		return
