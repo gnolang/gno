@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/archive/boards/filetests/z_5_c_filetest
+
+package z_5_c_filetest
 
 // SEND: 1000000ugnot
 
@@ -14,21 +16,21 @@ import (
 
 const admin = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	uinit.RegisterUser(cross(cur), "gnouser123", address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 	testing.SetHeight(123)
 	// create board via registered user
-	bid := boards.CreateBoard(cross, "test_board")
+	bid := boards.CreateBoard(cross(cur), "test_board")
 
 	// create post via anon user
 	test2 := testutils.TestAddress("test2")
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 101000000}})
 
-	pid := boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
-	boards.CreateReply(cross, bid, pid, pid, "Reply of the first post")
+	pid := boards.CreateThread(cross(cur), bid, "First Post (title)", "Body of the first post. (body)")
+	boards.CreateReply(cross(cur), bid, pid, pid, "Reply of the first post")
 
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 }
