@@ -555,7 +555,35 @@ func findBracketSpans(s string) []bracketSpan {
 	var spans []bracketSpan
 	i := 0
 	atLineStart := true
+	// nextClose is the byte index of the next `]` at or after i, or
+	// len(s) if no `]` remains. Maintained lazily — we only need to
+	// recompute it when i catches up. Used to short-circuit
+	// scanLinkText on adversarial input like `[[[[…` with no closer,
+	// where every `[` would otherwise force a fresh forward walk to
+	// the next blank line or EOF (O(n²) total). With this check,
+	// each `[` either has a `]` ahead and we run the real scan, or
+	// no `]` remains and we skip the scan in O(1).
+	nextClose := strings.IndexByte(s, ']')
+	if nextClose < 0 {
+		nextClose = len(s)
+	}
+	// scanBudget bounds the *total* work scanLinkText can do across all
+	// `[`s in this input, defending against the `[[[[…]]]]` shape where
+	// every `[` could otherwise force a depth-balanced walk across most
+	// of the input. 8×len(s) leaves plenty of headroom for legitimate
+	// content (real links are short and rare relative to input size)
+	// while capping adversarial work at O(n).
+	scanBudget := 8 * len(s)
 	for i < len(s) {
+		// Advance nextClose past i if needed.
+		if nextClose < i {
+			rel := strings.IndexByte(s[i:], ']')
+			if rel < 0 {
+				nextClose = len(s)
+			} else {
+				nextClose = i + rel
+			}
+		}
 		// Fence open at line-start (0-3 lead spaces, ≥3 backticks or tildes)?
 		if atLineStart {
 			j := i
@@ -600,7 +628,15 @@ func findBracketSpans(s string) []bracketSpan {
 			if c == '!' {
 				openOff = 1
 			}
-			textEnd, ok := scanLinkText(s, i+openOff)
+			if nextClose >= len(s) {
+				// No `]` remains anywhere ahead; scanLinkText will fail.
+				// Skip the scan to keep the walker linear-time even on
+				// adversarial unclosed-bracket input.
+				i++
+				atLineStart = false
+				continue
+			}
+			textEnd, ok := scanLinkText(s, i+openOff, &scanBudget)
 			if !ok {
 				i++
 				atLineStart = false
@@ -707,14 +743,23 @@ func findFenceClose(s string, from int, fenceChar byte, fenceLen int) int {
 
 // scanLinkText scans `[…]` starting at s[i] where s[i] == '['. Returns
 // the byte index of the closing `]` (depth-balanced, escape-aware) and
-// true on success.
-func scanLinkText(s string, i int) (int, bool) {
+// true on success. `budget` is a shared work counter — each byte
+// inspected decrements it, and the scan aborts (returns false) when
+// it hits zero. This caps total pass-1 scan work at O(budget) across
+// all calls, defending against adversarial inputs like
+// `[[[[…]]]]` where every `[` would otherwise force a fresh
+// depth-balanced walk across most of the input (O(n²)).
+func scanLinkText(s string, i int, budget *int) (int, bool) {
 	if i >= len(s) || s[i] != '[' {
 		return 0, false
 	}
 	j := i + 1
 	depth := 1
 	for j < len(s) {
+		if *budget <= 0 {
+			return 0, false
+		}
+		*budget--
 		c := s[j]
 		if c == '\\' && j+1 < len(s) {
 			j += 2

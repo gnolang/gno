@@ -134,7 +134,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},       // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
 	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},          // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
 	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
-	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 114, Slope: 6517, SlopeIdx: 0, SlopeKind: SizeLenString},    // fit base=114.5ns slope=6.3647ns/N (=6517/1024) R²=1.000
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 134, Slope: 20831, SlopeIdx: 0, SlopeKind: SizeLenString},   // fit base=133.8ns slope=20.343ns/N (=20831/1024) R²=1.000 — shape `[×N/2]×N/2` (post bracket-walker worst case)
 }
 
 func init() {

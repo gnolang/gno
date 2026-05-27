@@ -244,14 +244,18 @@ func BenchmarkNative_Markdown_CodeFence_10000(b *testing.B)  { benchMarkdownCode
 func BenchmarkNative_Markdown_CodeFence_100000(b *testing.B) { benchMarkdownCodeFence(b, 100000) }
 
 // ----- EscapeBlockHazards -----
-// Worst case: many short lines, each beginning with `<gno-` — forces
-// per-line split overhead AND full traversal of the extDelimiterPrefixes
-// allowlist via strings.HasPrefix on every line. The `][` substring
-// also exercises escapeRefLinkUse's ReplaceAll path on every line. This
-// is the most per-byte-expensive native in the package.
+// Worst case: N/2 `[`s followed by N/2 `]`s ("match storm"). After the
+// bracket-walker rewrite, this exercises the depth-balanced
+// scanLinkText path AT ITS BUDGET CEILING — the first scan walks
+// O(N) bytes and exhausts the per-call budget, subsequent `[`s abort
+// immediately. The combination of pass-1 budget consumption and
+// pass-2 per-byte escape work makes this shape ~2× the per-byte cost
+// of the prior `<gno-card a][b>` line shape. Picked for gas
+// calibration to bound an adversarial input's wall time.
 func benchMarkdownEscapeBlockHazards(b *testing.B, n int) {
 	b.Helper()
-	s := fillWorstCase(n, "<gno-card a][b>\n")
+	half := n / 2
+	s := strings.Repeat("[", half) + strings.Repeat("]", n-half)
 	m := newDispatchMachine(1)
 	setBlockValueFromGo(m, 0, s)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazards"), nReturns: 1}
