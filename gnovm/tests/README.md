@@ -32,30 +32,51 @@ The `testdata/` segment hides `.go` files from `go list` / `go build`
 The harness picks a mode from file content; an explicit native
 directive bypasses each mode.
 
-| Mode | Trigger | Pass criterion | Bypass with |
-|---|---|---|---|
-| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | at least one marker matches Gno's preprocess/typecheck/runtime error (loose: Gno bails on first error, per-line matching is too strict) | `// Error:` |
-| compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error | `// TypeCheckError:` or `// Error:` |
-| run | runnable, no `// Output:` | Gno's stdout matches `go run`'s stdout (auto-derived) | `// Output:` |
+| Mode | Trigger | Pass criterion |
+|---|---|---|
+| run | runnable (`package main` + `func main()`) | Gno's stdout == `go run`'s stdout |
+| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | at least one marker matches Gno's preprocess/typecheck/runtime error (loose) |
+| compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error |
 
 For non-`main` files (errorcheck, compile-only), a PKGPATH +
 synthetic-`main` rescue is applied so they reach Gno preprocess
 instead of bouncing on the realm-naming check.
 
-Escape hatches — two single-line meta-directives:
+Escape hatches — single-line meta-directives:
 
 - `// Unsupported: <reason>` — `t.Skip(reason)` before any execution.
   Use for feature gaps (channels, goroutines, generics, dot-imports,
   `complex`, …). Replaces the cross-file skiplist YAML the external
   [`gno-go-conformance`](https://github.com/gnolang/gno-go-conformance)
   tool uses. Example: `run/unsupported_canary.go`.
-- `// Divergence: <category>: <reason>` — blesses a real Gno-vs-Go
-  difference; the match verdict is **inverted** (passes iff Gno
-  actually diverges). When Gno is later fixed, the directive becomes
-  stale and the test FAILS so the blessing doesn't rot. Categories:
-  `error-wording`, `error-early-bail`, `stdlib-formatting`,
+
+- For **blessed Gno-vs-Go divergences in run mode**, a triple of
+  pinned-golden directives records both sides + the blessing:
+
+  ```
+  // GnoOutput: <Gno's actual stdout>
+  // GoOutput:  <`go run`'s actual stdout>
+  // Divergence: <category>: <reason>
+  ```
+
+  The harness verifies all three: the pinned outputs must match
+  current actuals, the pinned outputs must differ (otherwise the
+  divergence is stale and the test FAILS with "remove the triple"),
+  and the contributor's category names the kind of difference.
+  Categories: `error-wording`, `error-early-bail`, `stdlib-formatting`,
   `stdlib-symbol-missing`, `stdlib-behavior`, `resource-budget`,
   `determinism`. Example: `run/divergence_canary.go`.
+
+  **Workflow:** copy a corpus file verbatim → run it → if Gno
+  matches Go, done. If diverges, re-run with
+  `--update-golden-tests` and the harness auto-appends the triple
+  (with a `TODO:` placeholder reason the contributor refines).
+
+  *Not yet implemented for errorcheck/compile modes.* Those modes
+  still use the legacy `// Divergence: <reason>` single-line
+  verdict-inversion directive: presence flips the verdict, stale
+  blessings fail loudly, no pinned goldens. (Symmetric `// GnoError:`
+  / `// GoError:` for these modes is planned as a follow-up.)
 
 Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`.
 
