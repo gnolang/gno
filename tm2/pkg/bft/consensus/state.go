@@ -1772,6 +1772,7 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 		return
 	}
 
+	// Avoid re-signing a vote we've already signed for this round; see ADR tm2/adr/pr5348_consensus_avoid_resign.md.
 	blockID := types.BlockID{Hash: hash, PartsHeader: header}
 	if existing := cs.existingSignedVote(type_, address); existing != nil {
 		if existing.BlockID.Equals(blockID) {
