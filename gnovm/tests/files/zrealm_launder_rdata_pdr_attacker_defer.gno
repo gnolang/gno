@@ -2,7 +2,7 @@
 package launderrh_pdr_attacker_defer
 
 // Vector 6: deferred attacker write in main() runs after main()
-// returns. The defer body is a /r/-attacker closure → Rule 1
+// returns. The defer body is a /r/-attacker closure → borrow rule #1
 // borrows m.Realm to attacker. m.Realm at defer time is whatever
 // it was when main exited (attacker).
 //

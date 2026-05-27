@@ -7,7 +7,7 @@ package launderrh_pdr_p_panic
 //
 // Trace:
 //  1. main → m.Realm = attacker
-//  2. attacker.bad() (local fn) → no Rule 1 (not borrowed), m.Realm
+//  2. attacker.bad() (local fn) → no borrow rule #1 (not borrowed), m.Realm
 //     stays attacker (local fn in attacker pkg).
 //  3. inside, attacker calls /p/.SomeFn that panics deliberately
 //     OR triggers a write to a victim object passed in.

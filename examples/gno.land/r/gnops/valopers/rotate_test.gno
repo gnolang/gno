@@ -128,6 +128,38 @@ func TestUpdateSigningKey_RejectsReuseOfActiveKey(cur realm, t *testing.T) {
 	})
 }
 
+func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testing.T) {
+	// Front-running guard: a rotation whose derived signing address is
+	// already an active validator must be rejected. Mirrors the same
+	// guard in Register (valopers.gno: ErrFrontrunValidator). Without
+	// this, any valoper could rotate onto an unregistered (e.g.
+	// genesis-seeded) validator slot — v3's executor would overwrite
+	// the active validator's entry in the effective valset with this
+	// operator's claim, then a subsequent govDAO remove-op proposal
+	// would delete it. signingRegistry uniqueness alone doesn't catch
+	// this case: a genesis-seeded validator never went through
+	// Register or UpdateSigningKey, so its signing address is absent
+	// from signingRegistry.
+	info := registerForRotation(t, cur)
+
+	// Seed v3's valset:current with the address that rotateTargetPubKey
+	// derives to. ValsetEffective is read from valset:current when the
+	// dirty flag is unset, which is the default.
+	testing.SetSysParamStrings("node", "valset", "current",
+		[]string{rotateTargetPubKey + ":1"})
+
+	testing.SkipHeights(testRotationPeriodBlocks + 1)
+	testing.SetRealm(testing.NewUserRealm(info.Address))
+
+	uassert.AbortsWithMessage(t, cur, ErrFrontrunValidator.Error(), func() {
+		UpdateSigningKey(cross(cur), info.Address, rotateTargetPubKey)
+	})
+
+	// Cleanup: clear the seeded valset to avoid leaking into sibling
+	// subtests if the runner doesn't reset package state between them.
+	testing.SetSysParamStrings("node", "valset", "current", []string{})
+}
+
 func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
 	info := registerForRotation(t, cur)
 

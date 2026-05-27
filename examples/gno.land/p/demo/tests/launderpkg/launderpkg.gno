@@ -116,7 +116,7 @@ func (i *Immutable) Apply(fn func(*Immutable)) {
 // receiver. Used by stored-bound-method-value laundering probes:
 // `mv := victimImmPtr.BumpToPwn` has type `func()`, which fits
 // PlainHook = func(). When the bound method value is stored and
-// invoked later from /r/-victim context, recv-borrow Rule 2 fires on
+// invoked later from /r/-victim context, recv-borrow borrow rule #2 fires on
 // the /r/-victim-stamped recv → m.Realm = /r/-victim → write
 // commits.
 func (i *Immutable) BumpToPwn() {

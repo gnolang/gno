@@ -7,7 +7,7 @@
 # trip the readonly panic before the assignment landed in memory, even
 # with a recover() to swallow it.
 #
-# Under interrealm v2, the declaring-realm borrow (Layer 1) shifts m.Realm to
+# Under interrealm v2, the declaring-realm borrow (borrow rule #1) shifts m.Realm to
 # the declaring realm for the duration of any /r/-declared callable —
 # regardless of crossing/non-crossing. Inside SetOwner's body the
 # borrow makes the write owner=o a SAME-REALM mutation, which is
@@ -38,7 +38,7 @@ stdout 'owner: g1dao0000000000000000000000000000000000'
 gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 420001ugnot -gas-wanted 4_200_000 -chainid=tendermint_test attacker
 
 ## FOOTGUN 1: assign+recover via exported non-crossing setter.
-## Under interrealm v2, Layer 1 borrow makes SetOwner's owner=o write a same-
+## Under interrealm v2, borrow rule #1 makes SetOwner's owner=o write a same-
 ## realm mutation. The recover is never triggered (no panic). owner
 ## actually changes in memory; the subsequent Withdraw passes its
 ## owner check and proceeds to banker.SendCoins, which fails because
