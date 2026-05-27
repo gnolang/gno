@@ -1394,9 +1394,9 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 
 		.code {
 			margin: 0;
-			padding: var(--g-space-3) var(--g-space-4);
+			padding: var(--g-space-5) var(--g-space-4);
 			overflow-x: auto;
-			background-color: var(--s-color-bg-surface-primary);
+			background-color: var(--s-color-bg-base);
 			border: var(--s-divider);
 			border-radius: var(--s-rounded-sm);
 
@@ -1420,7 +1420,7 @@ body:has(#state-view-tree:checked) .b-state-toc .toc-tree {
 	}
 
 	.view-tree .source .code {
-		background-color: var(--s-color-bg-base);
+		background-color: var(--s-color-bg-surface-secondary);
 		border: none;
 	}
 
