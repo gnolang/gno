@@ -468,6 +468,16 @@ func escapeLineLeader(line string) (string, byte, int) {
 		if i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
 			return line[:i] + "\\" + line[i:], 0, 0
 		}
+	case '|':
+		// GFM table-row line leader. gnoweb's NewGnoExtension does
+		// not load the GFM Table extension today, so a line-leading
+		// `|` is harmless there — but Block aims to be a portable
+		// defensive primitive: any goldmark consumer that DOES
+		// enable tables could otherwise have user-content table
+		// rows injected at document level (e.g. an empty 2-cell row
+		// `|||` slotted into an existing table). Prepend `\` so the
+		// line renders as literal text in every renderer.
+		return line[:i] + "\\" + line[i:], 0, 0
 	case '`', '~':
 		// Fenced code block: 3+ of ` or ~. Code fences are legitimate
 		// user content (users want to share code); do NOT escape them.

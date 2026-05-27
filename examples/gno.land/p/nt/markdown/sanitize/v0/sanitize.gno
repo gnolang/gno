@@ -134,10 +134,11 @@
 //     breaks. Folded uniformly.
 //   - markdown-structure injection: user content opening a heading,
 //     blockquote, list, code fence, link-reference def, setext underline,
-//     or gnoweb extension delimiter at document level. (Not GFM tables —
-//     `|` at line start is not escaped because gnoweb does not enable the
-//     GFM table extension. If a downstream renderer enables tables, this
-//     becomes a structural-injection vector.)
+//     gnoweb extension delimiter, or GFM table row at document level.
+//     (Line-leading `|` is backslash-escaped for defense-in-depth — gnoweb
+//     does not load the GFM Table extension today, but Block is meant to
+//     be a portable defensive primitive that protects any downstream
+//     goldmark consumer.)
 //   - footnote / link-reference namespace pollution: user content
 //     containing `[^name]` or `[text][label]` syntax that would otherwise
 //     resolve against realm-defined footnote definitions or link
@@ -349,8 +350,11 @@ func InlineText(s string) string {
 //   - Unicode separators U+2028, U+2029, and U+0085 NEL are folded to
 //     `\n` (CommonMark §2.2 doesn't recognize them, but some renderers
 //     do — folding closes that ambiguity).
-//   - Inline emphasis, code spans, inline links, GFM tables, and soft
-//     line breaks within a paragraph are PRESERVED — users can format.
+//   - Inline emphasis, code spans, inline links, and soft line breaks
+//     within a paragraph are PRESERVED — users can format. GFM table
+//     ROWS (line-leading `|`) are escaped to defend against user-content
+//     table injection in downstream renderers that enable the GFM Table
+//     extension. Pipes inside paragraph text remain literal.
 //
 // Not idempotent (see package doc): Block strips LRDs in place, so a
 // second call could behave differently if the first call's output
@@ -374,9 +378,10 @@ func Block(s string) string {
 // normalize, LRD strip, ref-link USE escape, block-marker escape,
 // code-fence auto-close at EOF, Unicode-separator fold), then every
 // resulting line — including blank lines — is prefixed with "> ". The
-// user content can still use inline emphasis, code spans, GFM tables,
-// and nested fenced code blocks inside the quote; what it cannot do
-// is open new top-level structure or escape the quote.
+// user content can still use inline emphasis, code spans, and nested
+// fenced code blocks inside the quote; what it cannot do is open new
+// top-level structure (heading, list, blockquote, GFM table row, etc.)
+// or escape the quote.
 //
 // Empty input returns "".
 //
