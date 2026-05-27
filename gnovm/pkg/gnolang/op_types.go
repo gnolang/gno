@@ -116,9 +116,9 @@ func (m *Machine) doOpStructType() {
 	// allocate (minimum) space for fields
 	fields := make([]FieldType, 0, len(x.Fields))
 	// populate fields
-	for _, ftv := range ftvs {
+	for i, ftv := range ftvs {
 		ft := ftv.V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
+		fillEmbeddedName(&ft, x.Fields[i].Type)
 		fields = append(fields, ft)
 	}
 	// push struct type
@@ -142,7 +142,7 @@ func (m *Machine) doOpInterfaceType() {
 	// pop methods
 	for i := len(x.Methods) - 1; 0 <= i; i-- {
 		ft := m.PopValue().V.(TypeValue).Type.(FieldType)
-		fillEmbeddedName(&ft)
+		fillEmbeddedName(&ft, x.Methods[i].Type)
 		methods[i] = ft
 	}
 	// push interface type

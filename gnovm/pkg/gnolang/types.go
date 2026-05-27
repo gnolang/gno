@@ -2637,8 +2637,13 @@ func defaultTypeOf(t Type) Type {
 	}
 }
 
-func fillEmbeddedName(ft *FieldType) {
+func fillEmbeddedName(ft *FieldType, nameSrc ...Expr) {
 	if ft.Name != "" {
+		return
+	}
+	if n := pickEmbedName(nameSrc); n != "" {
+		ft.Name = n
+		ft.Embedded = true
 		return
 	}
 	switch ct := ft.Type.(type) {
@@ -2690,6 +2695,40 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Type.String()))
 	}
 	ft.Embedded = true
+}
+
+func pickEmbedName(xs []Expr) Name {
+	var zero Name
+	if len(xs) == 0 {
+		return zero
+	}
+	x := xs[0]
+	for {
+		switch e := x.(type) {
+		case *constTypeExpr:
+			if e.Source == nil {
+				return zero
+			}
+			x = e.Source
+		case *ConstExpr:
+			if e.Source == nil {
+				return zero
+			}
+			x = e.Source
+		case *StarExpr:
+			x = e.X
+		default:
+			goto done
+		}
+	}
+done:
+	switch e := x.(type) {
+	case *NameExpr:
+		return e.Name
+	case *SelectorExpr:
+		return e.Sel
+	}
+	return zero
 }
 
 func IsImplementedBy(it Type, ot Type) bool {
