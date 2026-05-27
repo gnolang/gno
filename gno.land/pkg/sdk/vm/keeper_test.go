@@ -214,7 +214,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross)
+	return test.Echo(cross(cur))
 }`,
 		},
 	}
@@ -379,7 +379,7 @@ func Echo(cur realm) string {
 import "gno.land/r/test"
 
 func Echo(cur realm) string {
-	return test.Echo(cross)
+	return test.Echo(cross(cur))
 }`,
 		},
 	}
@@ -516,18 +516,18 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 package test
 
 import (
-	"chain/runtime"
 	"chain/banker"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -573,21 +573,21 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 package test
 
 import (
-	"chain/runtime"
 	"chain/banker"
+	"chain/runtime/unsafe"
 )
 
 var admin address
 
 func init() {
-     admin = runtime.OriginCaller()
+     admin = unsafe.OriginCaller()
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -633,17 +633,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
-	banker := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -683,17 +683,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 1000000}}
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }`},
@@ -737,17 +737,17 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 func init() {
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
 	send := chain.Coins{{"ugnot", 10000000}}
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }`},
@@ -840,20 +840,20 @@ package test
 
 import (
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 var admin address
 
 func init() {
-	admin = runtime.OriginCaller()
+	admin = unsafe.OriginCaller()
 }
 
 func Echo(cur realm, msg string) string {
-	addr := runtime.OriginCaller()
-	pkgAddr := runtime.CurrentRealm().Address()
-	send := banker.OriginSend()
-	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	addr := unsafe.OriginCaller()
+	pkgAddr := unsafe.CurrentRealm().Address()
+	send := unsafe.OriginSend()
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	banker_.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:" + msg
 }
@@ -935,10 +935,10 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 		{Name: "script.gno", Body: `
 package main
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
-	addr := runtime.OriginCaller()
+	addr := unsafe.OriginCaller()
 	println("hello world!", addr)
 }
 `},
@@ -998,8 +998,8 @@ package main
 
 import "gno.land/r/test"
 
-func main() {
-	msg := test.Echo(cross)
+func main(cur realm) {
+	msg := test.Echo(cross(cur))
 	println(msg)
 }
 `,
@@ -1054,8 +1054,8 @@ package main
 
 import "gno.land/r/test"
 
-func main() {
-	msg := test.Echo(cross)
+func main(cur realm) {
+	msg := test.Echo(cross(cur))
 	println(msg)
 }
 `,
@@ -1336,7 +1336,7 @@ import "gno.land/r/foo"
 var Msg string
 func Echo(cur realm, msg string){
 	Msg = msg
-	foo.Bar(cross, msg)
+	foo.Bar(cross(cur), msg)
 }`},
 		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPathTest)},
 	}
@@ -1432,7 +1432,7 @@ func UpdateStorage(cur realm, n int) {
 		for _, realmPath := range realms {
 			alias := path.Base(realmPath)
 			imports += fmt.Sprintf("\t%s \"%s\"\n", alias, realmPath)
-			calls += fmt.Sprintf("\t%s.UpdateStorage(cross, 500)\n", alias)
+			calls += fmt.Sprintf("\t%s.UpdateStorage(cross(cur), 500)\n", alias)
 		}
 
 		masterCode := fmt.Sprintf(`package master
@@ -1523,7 +1523,7 @@ func TestVMKeeperCLASignature(t *testing.T) {
 	claFiles := []*std.MemFile{
 		{Name: "cla.gno", Body: `package cla
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 var (
 	requiredHash string
@@ -1541,7 +1541,7 @@ func Sign(cur realm, hash string) {
 	if hash != requiredHash {
 		panic("hash does not match required CLA hash")
 	}
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	signatures[caller] = true
 }
 

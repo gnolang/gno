@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_board_02_filetest
+
+package z_create_board_02_filetest
 
 import (
 	"testing"
@@ -11,15 +13,15 @@ const (
 	boardName         = "test123"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	boards2.CreateBoard(cross, boardName, false, false)
+	boards2.CreateBoard(cross(cur), boardName, false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, boardName, false, false)
+	boards2.CreateBoard(cross(cur), boardName, false, false)
 }
 
 // Error:
