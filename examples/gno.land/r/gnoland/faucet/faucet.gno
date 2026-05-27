@@ -3,17 +3,16 @@ package faucet
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"errors"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
 	// configurable by admin.
 	gAdminAddr          address = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
-	gControllers                = avl.NewTree()
+	gControllers                = bptree.NewBPTree32()
 	gControllersMaxSize         = 10 // limit it to 10
 	gInPause                    = false
 	gMessage                    = "# Community Faucet.\n\n"
@@ -27,7 +26,7 @@ var (
 )
 
 func Transfer(cur realm, to address, send int64) string {
-	if err := assertIsController(); err != nil {
+	if err := assertIsController(0, cur); err != nil {
 		return err.Error()
 	}
 
@@ -44,8 +43,8 @@ func Transfer(cur realm, to address, send int64) string {
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
-	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
-	pkgaddr := runtime.CurrentRealm().Address()
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	pkgaddr := cur.Address()
 	banker_.SendCoins(pkgaddr, to, sendCoins)
 	return ""
 }
@@ -55,12 +54,12 @@ func GetPerTransferLimit() int64 {
 }
 
 func bankerAddr(cur realm) address {
-	return runtime.CurrentRealm().Address()
+	return cur.Address()
 }
 
-func Render(_ string) string {
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	balance := banker_.GetCoins(bankerAddr(cross))
+func Render(cur realm, _ string) string {
+	banker_ := banker.NewReadonlyBanker()
+	balance := banker_.GetCoins(bankerAddr(cross(cur)))
 
 	output := gMessage
 	if gInPause {
@@ -71,7 +70,7 @@ func Render(_ string) string {
 	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
 	output += ufmt.Sprintf("Total transfers: %s (in %d times).\n\n", gTotalTransferred.String(), gTotalTransfers)
 
-	output += "Package address: " + runtime.CurrentRealm().Address().String() + "\n\n"
+	output += "Package address: " + cur.Address().String() + "\n\n"
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
@@ -86,8 +85,11 @@ func Render(_ string) string {
 	return output
 }
 
-func assertIsController() error {
-	caller := runtime.PreviousRealm().Address()
+func assertIsController(_ int, rlm realm) error {
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized: rlm is not the caller's live cur")
+	}
+	caller := rlm.Previous().Address()
 	ok := gControllers.Has(caller.String())
 	if !ok {
 		return errors.New(caller.String() + " is not on the controller list")

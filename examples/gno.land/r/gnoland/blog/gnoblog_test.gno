@@ -24,8 +24,8 @@ No posts.
 
 	// create two posts, list post.
 	{
-		ModAddPost(cross, "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
-		ModAddPost(cross, "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
+		ModAddPost(cross(cur), "slug1", "title1", "body1", "2022-05-20T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost(cross(cur), "slug2", "title2", "body2", "2022-05-20T13:17:23Z", "moul", "tag1,tag3")
 		got := Render("")
 		expected := `
 			# Gno.land's blog
@@ -92,11 +92,11 @@ Published by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh to Gno.land's blog
 
 	// add comments.
 	{
-		AddComment(cross, "slug1", "comment1")
-		AddComment(cross, "slug2", "comment2")
-		AddComment(cross, "slug1", "comment3")
-		AddComment(cross, "slug2", "comment4")
-		AddComment(cross, "slug1", "comment5")
+		AddComment(cross(cur), "slug1", "comment1")
+		AddComment(cross(cur), "slug2", "comment2")
+		AddComment(cross(cur), "slug1", "comment3")
+		AddComment(cross(cur), "slug2", "comment4")
+		AddComment(cross(cur), "slug1", "comment5")
 		got := Render("p/slug2")
 		expected := `<main class='gno-tmpl-page'>
 
@@ -188,7 +188,7 @@ Published by g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh to Gno.land's blog
 	{ // Test remove functionality
 		title := "example title"
 		slug := "testSlug1"
-		ModAddPost(cross, slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
+		ModAddPost(cross(cur), slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
 
 		got := Render("")
 

@@ -14,7 +14,7 @@ func init() {
 }
 
 func main(cur realm) {
-	crossrealm_b.SetObject(cross, m)
+	crossrealm_b.SetObject(cross(cur), m)
 	rm := crossrealm_b.Object.(map[string]int)
 
 	func() {

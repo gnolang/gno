@@ -322,6 +322,10 @@ type BaseConfig struct {
 	// If non-zero, the node will halt after committing this block height.
 	// Useful for coordinated chain upgrades.
 	HaltHeight int64 `toml:"halt_height" comment:"If non-zero, the node will halt after committing this block height.\n Useful for coordinated chain upgrades."`
+
+	// If non-zero, skip the governance upgrade check at this height.
+	// Use when the validator has already migrated state but the chain is still at halt height.
+	SkipUpgradeHeight int64 `toml:"skip_upgrade_height" comment:"If non-zero, skip the governance upgrade check at this height.\n Use when the validator has already migrated but the chain is still at halt height."`
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
