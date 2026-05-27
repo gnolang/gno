@@ -1401,6 +1401,9 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		dst.T = Float64Type
 		dst.V = nil
 		f, _ := bd.Float64()
+		if f == 0 {
+			f = 0
+		}
 		dst.SetFloat64(math.Float64bits(f))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
@@ -1427,6 +1430,9 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
+		if f32 == 0 {
+			f32 = 0
+		}
 		dst.SetFloat32(math.Float32bits(f32))
 		return
 	case Float64Kind:
@@ -1438,6 +1444,9 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 		}
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
+		}
+		if f64 == 0 {
+			f64 = 0
 		}
 		dst.SetFloat64(math.Float64bits(f64))
 		return
