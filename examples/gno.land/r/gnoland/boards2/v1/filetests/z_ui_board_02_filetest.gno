@@ -1,5 +1,7 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_ui_board_02_filetest
+
 // Render board view with the manage board menu expanded.
-package main
+package z_ui_board_02_filetest
 
 import (
 	"testing"
@@ -12,12 +14,12 @@ const (
 	boardName         = "TestBoard"
 )
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
 	// Create a board and a thread
-	boardID := boards2.CreateBoard(cross, boardName, false, false)
-	boards2.CreateThread(cross, boardID, "A", "Body")
+	boardID := boards2.CreateBoard(cross(cur), boardName, false, false)
+	boards2.CreateThread(cross(cur), boardID, "A", "Body")
 }
 
 func main() {
