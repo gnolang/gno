@@ -454,14 +454,14 @@ func Render(cur realm, path string) string {
 	// Generate commands
 	commands := strings.Join([]string{
 		"<gno-columns>",
-		"|||",
+		"<gno-columns-sep>",
 		ufmt.Sprintf("[▲](%s)", generateDirLink(cpath, &p, "forward")),
-		"|||",
+		"<gno-columns-sep>",
 		"</gno-columns>",
 		"<gno-columns>",
 		ufmt.Sprintf("[◄](%s)", generateDirLink(cpath, &p, "left")),
-		"|||",
-		"|||",
+		"<gno-columns-sep>",
+		"<gno-columns-sep>",
 		ufmt.Sprintf("[►](%s)", generateDirLink(cpath, &p, "right")),
 		"</gno-columns>",
 	}, "\n\n")

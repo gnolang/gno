@@ -270,9 +270,17 @@ func EscapeBlockHazards(s string) string {
 			continue
 		}
 
-		// Extension delimiter lines: prefix with space.
+		// Extension delimiter lines: prefix with backslash so the line's
+		// opening `<` becomes a CM §2.4 inline escape. A leading space
+		// would be ineffective because gnoweb's extension parsers call
+		// util.TrimLeftSpace before tag matching (see ext_columns.go,
+		// ext_alert.go etc.) — the space gets stripped and the parser
+		// sees the bare tag. Backslash survives util.TrimLeftSpace
+		// (which only strips ASCII whitespace and form-feed) and
+		// goldmark's Type-7 HTML block detection (which requires the
+		// first non-whitespace char to be `<`, not `\`).
 		if isExtDelimiter(line) {
-			out.WriteByte(' ')
+			out.WriteByte('\\')
 			out.WriteString(escapeRefLinkUse(line))
 			if writeNL {
 				out.WriteByte('\n')
@@ -379,29 +387,22 @@ func isLRDDefinition(line string) bool {
 	return true
 }
 
-// extDelimiterPrefixes lists the gno-* extension delimiter prefixes
-// and the bare-line column separator |||.
-var extDelimiterPrefixes = []string{
-	"<gno-card", "</gno-card>",
-	"<gno-columns>", "</gno-columns>", "<gno-columns-sep",
-	"<gno-form", "</gno-form>",
-	"<gno-alert", "</gno-alert>",
-	"<gno-head>", "</gno-head>",
-	"<gno-body>", "</gno-body>",
-	"<gno-foot>", "</gno-foot>",
-}
-
+// isExtDelimiter recognises any gnoweb structural-extension delimiter
+// shape via the open/close `<gno-...>` / `</gno-...>` prefixes. The
+// wildcard is intentionally over-permissive: a malformed line like
+// `<gno-x asdf` still trips it, which is fine — the only effect is
+// that the line gets a leading backslash prepended (rendered as a
+// literal `<` per CM §2.4). Future extensions (`<gno-card>`,
+// `<gno-foreign>`, anything later) auto-cover without needing a
+// sanitize-side update.
+//
+// Bare `|||` (the legacy `<gno-columns>` shorthand) is intentionally
+// NOT matched here — the shorthand has been removed from the columns
+// parser, so user content writing `|||` is now harmless paragraph
+// text and doesn't need neutralisation.
 func isExtDelimiter(line string) bool {
 	trim := strings.TrimLeft(line, " \t")
-	if trim == "|||" {
-		return true
-	}
-	for _, p := range extDelimiterPrefixes {
-		if strings.HasPrefix(trim, p) {
-			return true
-		}
-	}
-	return false
+	return strings.HasPrefix(trim, "<gno-") || strings.HasPrefix(trim, "</gno-")
 }
 
 // isSetextUnderline reports whether line is shaped like ^ {0,3}=+[ \t]*$

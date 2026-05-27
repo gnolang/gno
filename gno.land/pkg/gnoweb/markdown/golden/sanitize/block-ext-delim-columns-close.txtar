@@ -6,9 +6,9 @@ inside column
 escaped after close
 -- output.md --
 inside column
- </gno-columns>
+\</gno-columns>
 escaped after close
 -- output.html --
-<p>inside column</p>
-<!-- unexpected/invalid columns tag omitted -->
-<p>escaped after close</p>
+<p>inside column
+&lt;/gno-columns&gt;
+escaped after close</p>

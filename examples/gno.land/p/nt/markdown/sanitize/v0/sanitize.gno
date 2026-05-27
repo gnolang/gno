@@ -323,10 +323,18 @@ func InlineText(s string) string {
 //     `[^name]: body` footnote definition elsewhere on the page.
 //     Backslash-parity is preserved (CM §2.4): a preceding `\` doesn't
 //     let the escape collapse into a literal `\\` plus an unescaped `[`.
-//   - Extension delimiter lines (`<gno-card>`, `</gno-columns>`, `|||`,
-//     and similar gnoweb structural markers) get a leading space,
-//     neutralizing them as extension markers while preserving them as
-//     visible text.
+//   - Extension delimiter lines (any line starting with `<gno-…>` or
+//     `</gno-…>` — `<gno-card>`, `<gno-columns>`, `<gno-form>`,
+//     `<gno-alert>`, future extensions) get a leading backslash so
+//     the opening `<` becomes a CM §2.4 inline escape. The result
+//     renders as literal `<gno-…>` paragraph text. A leading space
+//     would not suffice because gnoweb's extension parsers call
+//     `util.TrimLeftSpace` on the line before tag matching, which
+//     would strip the space and let the tag match anyway; backslash
+//     survives the trim (only ASCII whitespace + form-feed are
+//     stripped) and is consumed by the inline escape phase before
+//     Type-7 HTML block detection can fire (Type-7 requires the
+//     first non-whitespace char to be `<`).
 //   - Fenced code blocks (``` ``` ```, `~~~`) opened by user content
 //     are PASSED THROUGH and the content inside the fence is left
 //     unescaped for markdown purposes (otherwise users couldn't share

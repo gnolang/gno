@@ -58,7 +58,7 @@ just now
 
 
 ---
-|||
+<gno-columns-sep>
 ## [title1](/r/lou/blog:posts/slug1)
 
 
@@ -76,7 +76,7 @@ just now
 
 
 ---
-|||
+<gno-columns-sep>
 </gno-columns>`
 		assertMDEquals(t, got, expected)
 	}

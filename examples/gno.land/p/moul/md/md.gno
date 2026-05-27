@@ -419,6 +419,16 @@ func EscapeText(text string) string {
 // If padded=true & the final <gno-columns> tag is missing column content, an empty
 // column element will be placed to keep the cols per row constant.
 // Padding works only with colsPerRow > 0.
+//
+// Example:
+//
+//	Columns([]string{"A", "B"}, false)
+//	// Returns:
+//	// <gno-columns>
+//	// A
+//	// <gno-columns-sep>
+//	// B
+//	// </gno-columns>
 func Columns(contentByColumn []string, padded bool) string {
 	if len(contentByColumn) == 0 {
 		return ""
@@ -434,7 +444,7 @@ func Columns(contentByColumn []string, padded bool) string {
 
 	for i, column := range contentByColumn {
 		if i > 0 {
-			sb.WriteString("|||\n")
+			sb.WriteString("<gno-columns-sep>\n")
 		}
 		sb.WriteString(column + "\n")
 	}
@@ -451,6 +461,19 @@ const maxColumnsPerRow = 4
 // column element will be placed to keep the cols per row constant.
 // Padding works only with colsPerRow > 0.
 // Note: On standard-size screens, gnoweb handles a max of 4 cols per row.
+//
+// Example:
+//
+//	ColumnsN([]string{"A", "B", "C"}, 2, false)
+//	// Returns:
+//	// <gno-columns>
+//	// A
+//	// <gno-columns-sep>
+//	// B
+//	// </gno-columns>
+//	// <gno-columns>
+//	// C
+//	// </gno-columns>
 func ColumnsN(content []string, colsPerRow int, padded bool) string {
 	if len(content) == 0 {
 		return ""

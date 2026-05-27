@@ -91,7 +91,7 @@ func (b Blog) RenderListGrid(page *pager.Page, gridMode bool, timeFmt string) st
 		if colCount%3 == 0 {
 			out += "</gno-columns>\n"
 		} else if gridMode {
-			out += "|||\n"
+			out += "<gno-columns-sep>\n"
 		}
 	}
 	if colCount%3 != 0 {
@@ -231,7 +231,7 @@ func (b Blog) renderFilteredListing(field, value string, options RenderOptions, 
 		if colCount%3 == 0 {
 			out += "</gno-columns>\n"
 		} else if options.IsGrid {
-			out += "|||\n"
+			out += "<gno-columns-sep>\n"
 		}
 	}
 	if colCount%3 != 0 {

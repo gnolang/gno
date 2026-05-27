@@ -142,7 +142,7 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"lrd-strip", "[evil]: https://bad\n", ""},
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
-		{"ext-delimiter", "<gno-card>\n", " <gno-card>\n"},
+		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
 	}
 	for _, c := range cases {
 		if got := EscapeBlockHazards(c.in); got != c.want {

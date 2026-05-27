@@ -259,7 +259,7 @@ func main() {
 // Result:
 // <gno-columns>
 // Left column content
-// |||
+// <gno-columns-sep>
 // Right column content
 // </gno-columns>
 //
@@ -274,16 +274,16 @@ func main() {
 // Result:
 // <gno-columns>
 // Item 1
-// |||
+// <gno-columns-sep>
 // Item 2
-// |||
+// <gno-columns-sep>
 // Item 3
 // </gno-columns>
 // <gno-columns>
 // Item 4
-// |||
+// <gno-columns-sep>
 // Item 5
-// |||
+// <gno-columns-sep>
 // Item 6
 // </gno-columns>
 //
@@ -379,13 +379,13 @@ func main() {
 // - **Status:** 🟢 Active
 // - **Joined:** January 2024
 //
-// |||
+// <gno-columns-sep>
 // ### Bio
 // > Passionate Gno developer building the future of smart contracts. Love working with blockchain technology and contributing to open source.
 //
-// |||
+// <gno-columns-sep>
 //
-// |||
+// <gno-columns-sep>
 //
 // </gno-columns>
 //
@@ -396,15 +396,15 @@ func main() {
 // - [ ] Deploy to testnet
 // - [ ] Write documentation
 //
-// |||
+// <gno-columns-sep>
 // ### Links
 // - [GitHub](https://github.com/johndoe)
 // - [Portfolio](https://example.com/johndoe)
 // - [LinkedIn](https://linkedin.com/in/johndoe)
 //
-// |||
+// <gno-columns-sep>
 //
-// |||
+// <gno-columns-sep>
 //
 // </gno-columns>
 //
