@@ -17,6 +17,16 @@ var (
 	reHexFloat = regexp.MustCompile(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`)
 )
 
+func bdParseFloat(s string) (*apd.Decimal, apd.Condition, error) {
+	bd, c, err := apd.NewFromString(s)
+	if err != nil {
+		if i := strings.Index(strings.ToLower(s), "e"); i != -1 && i+1 < len(s) && s[i+1] == '-' {
+			return apd.New(0, 0), 0, nil
+		}
+	}
+	return bd, c, err
+}
+
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	m.Lastline = x.GetLine()
@@ -93,7 +103,7 @@ func (m *Machine) doOpEval() {
 
 			if reFloat.MatchString(x.Value) {
 				value := x.Value
-				bd, c, err := apd.NewFromString(value)
+				bd, c, err := bdParseFloat(value)
 				if err != nil {
 					panic(fmt.Sprintf(
 						"invalid decimal constant: %s",
