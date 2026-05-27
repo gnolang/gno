@@ -726,8 +726,8 @@ func (m *Machine) doOpFuncLit() {
 	}
 	// Closures belong to wherever they were evaluated
 	// (currentRealmID), not their lexical PkgPath. FuncType has no
-	// declaring-realm semantics on its own.
-	m.Alloc.stampPkgID(&fv.ObjectInfo)
+	// declaring-realm semantics on its own — pass nil.
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
@@ -768,7 +768,14 @@ func (m *Machine) doOpConvert() {
 			// declared type — the converting realm already has
 			// write authority over its own values.
 		} else {
-			panic("illegal conversion of readonly or externally stored value")
+			sliceType, ok := baseOf(xv.T).(*SliceType)
+			isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
+			if isBytesArray && t.Kind() == StringKind {
+				// Allow conversion from []byte to string
+				// As it does not modify the value stored in the slice.
+			} else {
+				panic("illegal conversion of readonly or externally stored value")
+			}
 		}
 	}
 
