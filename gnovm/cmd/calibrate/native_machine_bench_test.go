@@ -392,6 +392,108 @@ func BenchmarkNative_Params_SetUint64(b *testing.B) {
 	}
 }
 
+func benchParamsGetBytes(b *testing.B, n int) {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	val := make([]byte, n)
+	rand.Read(val)
+	pm.SetBytes("vm:gno.land/r/x:k", val)
+	setBlockValueFromGo(m, 0, "k")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetBytes"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetBytes_1(b *testing.B)    { benchParamsGetBytes(b, 1) }
+func BenchmarkNative_Params_GetBytes_10(b *testing.B)   { benchParamsGetBytes(b, 10) }
+func BenchmarkNative_Params_GetBytes_100(b *testing.B)  { benchParamsGetBytes(b, 100) }
+func BenchmarkNative_Params_GetBytes_1000(b *testing.B) { benchParamsGetBytes(b, 1000) }
+
+func benchParamsGetString(b *testing.B, n int) {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	pm.SetString("vm:gno.land/r/x:k", strings.Repeat("x", n))
+	setBlockValueFromGo(m, 0, "k")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetString"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetString_1(b *testing.B)    { benchParamsGetString(b, 1) }
+func BenchmarkNative_Params_GetString_10(b *testing.B)   { benchParamsGetString(b, 10) }
+func BenchmarkNative_Params_GetString_100(b *testing.B)  { benchParamsGetString(b, 100) }
+func BenchmarkNative_Params_GetString_1000(b *testing.B) { benchParamsGetString(b, 1000) }
+
+func newParamsFlatGetBench(b *testing.B, fn gno.Name, seed func(*mockParams)) *dispatchHarness {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	if seed != nil {
+		seed(pm)
+	}
+	setBlockValueFromGo(m, 0, "k")
+	return &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", fn), nReturns: 2}
+}
+
+func BenchmarkNative_Params_GetBool(b *testing.B) {
+	h := newParamsFlatGetBench(b, "GetBool", func(p *mockParams) { p.SetBool("vm:gno.land/r/x:k", true) })
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetInt64(b *testing.B) {
+	h := newParamsFlatGetBench(b, "GetInt64", func(p *mockParams) { p.SetInt64("vm:gno.land/r/x:k", 42) })
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetUint64(b *testing.B) {
+	h := newParamsFlatGetBench(b, "GetUint64", func(p *mockParams) { p.SetUint64("vm:gno.land/r/x:k", 42) })
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func benchParamsGetStrings(b *testing.B, n, perElemBytes int) {
+	b.Helper()
+	elem := strings.Repeat("x", perElemBytes)
+	val := make([]string, n)
+	for i := range val {
+		val[i] = elem
+	}
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	pm.SetStrings("vm:gno.land/r/x:k", val)
+	setBlockValueFromGo(m, 0, "k")
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetStrings"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetStrings_1_1(b *testing.B)    { benchParamsGetStrings(b, 1, 1) }
+func BenchmarkNative_Params_GetStrings_10_1(b *testing.B)   { benchParamsGetStrings(b, 10, 1) }
+func BenchmarkNative_Params_GetStrings_100_1(b *testing.B)  { benchParamsGetStrings(b, 100, 1) }
+func BenchmarkNative_Params_GetStrings_1000_1(b *testing.B) { benchParamsGetStrings(b, 1000, 1) }
+func BenchmarkNative_Params_GetStrings_2_50(b *testing.B)   { benchParamsGetStrings(b, 2, 50) }
+func BenchmarkNative_Params_GetStrings_2_500(b *testing.B)  { benchParamsGetStrings(b, 2, 500) }
+func BenchmarkNative_Params_GetStrings_2_5000(b *testing.B) { benchParamsGetStrings(b, 2, 5000) }
+func BenchmarkNative_Params_GetStrings_2_50000(b *testing.B) {
+	benchParamsGetStrings(b, 2, 50000)
+}
+
 // ---------------- sys/params ----------------
 // assertSysParamsRealm requires:
 //   Frames[len-1].LastPackage.PkgPath == "sys/params"

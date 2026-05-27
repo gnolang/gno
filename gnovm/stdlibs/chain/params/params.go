@@ -47,6 +47,50 @@ func UpdateParamStrings(m *gno.Machine, key string, val []string, add bool) {
 	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
+// GetString reads a realm-local param previously written with SetString.
+// The bool reports whether the key existed.
+func GetString(m *gno.Machine, key string) (string, bool) {
+	pk := pkey(m, key)
+	var out string
+	ok := execctx.GetContext(m).Params.GetString(pk, &out)
+	return out, ok
+}
+
+func GetBool(m *gno.Machine, key string) (bool, bool) {
+	pk := pkey(m, key)
+	var out bool
+	ok := execctx.GetContext(m).Params.GetBool(pk, &out)
+	return out, ok
+}
+
+func GetInt64(m *gno.Machine, key string) (int64, bool) {
+	pk := pkey(m, key)
+	var out int64
+	ok := execctx.GetContext(m).Params.GetInt64(pk, &out)
+	return out, ok
+}
+
+func GetUint64(m *gno.Machine, key string) (uint64, bool) {
+	pk := pkey(m, key)
+	var out uint64
+	ok := execctx.GetContext(m).Params.GetUint64(pk, &out)
+	return out, ok
+}
+
+func GetBytes(m *gno.Machine, key string) ([]byte, bool) {
+	pk := pkey(m, key)
+	var out []byte
+	ok := execctx.GetContext(m).Params.GetBytes(pk, &out)
+	return out, ok
+}
+
+func GetStrings(m *gno.Machine, key string) ([]string, bool) {
+	pk := pkey(m, key)
+	var out []string
+	ok := execctx.GetContext(m).Params.GetStrings(pk, &out)
+	return out, ok
+}
+
 // NOTE: further validation must happen by implementor of ParamsInterface.
 func pkey(m *gno.Machine, key string) string {
 	if len(key) == 0 {
