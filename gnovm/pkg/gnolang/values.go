@@ -1826,7 +1826,15 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 	case VPDerefValMethod:
 		if tv.V == nil {
-			panic(&Exception{Value: typedString("runtime error: nil pointer dereference")})
+			msg := "runtime error: nil pointer dereference"
+			if pt, ok := tv.T.(*PointerType); ok {
+				if dt, ok := pt.Elt.(*DeclaredType); ok {
+					msg = fmt.Sprintf(
+						"value method %s.%s.%s called using nil *%s pointer",
+						dt.PkgPath, dt.Name, path.Name, dt.Name)
+				}
+			}
+			panic(&Exception{Value: typedRuntimeError(msg)})
 		}
 		dtv2 := tv.V.(PointerValue).TV
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
@@ -2763,6 +2771,16 @@ func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
 	tv.V = StringValue(s)
 	return tv
+}
+
+// typedRuntimeError creates a Gno value of type .runtimeError that implements
+// the Gno error interface. Used for VM-level runtime panics (nil pointer
+// dereference, etc.) so that recover().(error) works as it does in Go.
+func typedRuntimeError(msg string) TypedValue {
+	return TypedValue{
+		T: gRuntimeErrorType,
+		V: &StructValue{Fields: []TypedValue{typedString(msg)}},
+	}
 }
 
 // returns the same tv instance for convenience.
