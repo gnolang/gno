@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[label]: /url
+# heading
+body
+-- output.md --
+\# heading
+body
+-- output.html --
+<p># heading
+body</p>

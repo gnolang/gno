@@ -1,6 +1,9 @@
 package markdown
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestStripBidiAndZeroWidth(t *testing.T) {
 	cases := []struct{ in, want string }{
@@ -138,7 +141,13 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"fence-open-autoclose", "```\nuser code\n", "```\nuser code\n```\n"},
 		{"fence-roundtrip", "```\nuser code\n```\n", "```\nuser code\n```\n"},
 		{"setext-h1", "title\n===\n", "title\n\\===\n"},
-		{"ref-link-use", "[click][evil]\n", "[click]\\[evil]\n"},
+		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
+		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
+		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
+		{"inline-link-preserved", "[text](url)\n", "[text](url)\n"},
+		{"inline-image-preserved", "![alt](src)\n", "![alt](src)\n"},
+		{"multi-line-lrd-stripped", "[lab\nel]: https://e.com\n\nbody\n", "\nbody\n"},
+		{"backslash-escaped-lrd-not-stripped", "[label\\]: url\n", "\\[label\\]: url\n"},
 		{"lrd-strip", "[evil]: https://bad\n", ""},
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
@@ -149,5 +158,40 @@ func TestEscapeBlockHazards(t *testing.T) {
 		if got := EscapeBlockHazards(c.in); got != c.want {
 			t.Errorf("%s: EscapeBlockHazards(%q) = %q, want %q", c.name, c.in, got, c.want)
 		}
+	}
+}
+
+// BenchmarkEscapeBlockHazardsAdversarial exercises bracket-walker
+// inputs that maximize backtrack work in pass 1: repeated well-formed
+// links (linear path), repeated unclosed-link prefixes terminated by a
+// blank line (current super-linear path; see note), and a multi-line
+// LRD label that must scan across newlines. The intent is a wall-clock
+// budget guard against future regressions.
+//
+// NOTE: `unclosed-xN` currently scales worse than linear because every
+// `[` re-scans forward to the blank-line terminator. For N=500/1k/2k/4k
+// the per-op cost grows ~3x per 2x input. Acceptable for realistic
+// realm input sizes (a few KB) but flagged here for follow-up if a
+// caller needs to defend against pathological inputs.
+func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
+	links := strings.Repeat("[a](b)", 1000)
+	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
+	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"links-x1000", links},
+		{"unclosed-x1000", unclosed},
+		{"multiline-lrd-label", mlLRD},
+	}
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(len(c.in)))
+			for i := 0; i < b.N; i++ {
+				_ = EscapeBlockHazards(c.in)
+			}
+		})
 	}
 }

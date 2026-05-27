@@ -6,6 +6,6 @@
 content using [click][evil-ref]
 -- output.md --
 
-content using [click]\[evil-ref]
+content using \[click\]\[evil-ref\]
 -- output.html --
 <p>content using [click][evil-ref]</p>

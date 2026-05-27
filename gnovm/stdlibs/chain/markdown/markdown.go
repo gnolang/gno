@@ -233,6 +233,12 @@ func EscapeBlockHazards(s string) string {
 	// internal breaks.
 	s = foldUnicodeSeparators(s)
 
+	// Pass 1+2: bracket walker. Finds inline link / image / LRD / fence
+	// spans on the whole input, then escapes any unescaped `[` / `]`
+	// outside those spans, and deletes LRD spans entirely. Subsumes the
+	// previous per-line LRD strip and ref-link-use escape.
+	s = escapeBracketsOutsideLinks(s)
+
 	var out strings.Builder
 	out.Grow(len(s) + 16)
 
@@ -243,10 +249,10 @@ func EscapeBlockHazards(s string) string {
 	}
 
 	var (
-		inFence       bool
-		fenceChar     byte
-		fenceLen      int
-		prevNonBlank  bool
+		inFence      bool
+		fenceChar    byte
+		fenceLen     int
+		prevNonBlank bool
 	)
 
 	for idx, line := range lines {
@@ -264,12 +270,6 @@ func EscapeBlockHazards(s string) string {
 			continue
 		}
 
-		// LRD definition: strip entirely.
-		if isLRDDefinition(line) {
-			prevNonBlank = false
-			continue
-		}
-
 		// Extension delimiter lines: prefix with backslash so the line's
 		// opening `<` becomes a CM §2.4 inline escape. A leading space
 		// would be ineffective because gnoweb's extension parsers call
@@ -281,7 +281,7 @@ func EscapeBlockHazards(s string) string {
 		// first non-whitespace char to be `<`, not `\`).
 		if isExtDelimiter(line) {
 			out.WriteByte('\\')
-			out.WriteString(escapeRefLinkUse(line))
+			out.WriteString(line)
 			if writeNL {
 				out.WriteByte('\n')
 			}
@@ -302,7 +302,6 @@ func EscapeBlockHazards(s string) string {
 
 		// Block markers / fence open.
 		escaped, fc, fl := escapeLineLeader(line)
-		escaped = escapeRefLinkUse(escaped)
 		out.WriteString(escaped)
 		if writeNL {
 			out.WriteByte('\n')
@@ -347,44 +346,6 @@ func foldUnicodeSeparators(s string) string {
 		i += sz
 	}
 	return string(out)
-}
-
-// isLRDDefinition matches lines shaped like `^ {0,3}\[[^\]]+\]:\s+\S`.
-// Multi-line LRDs with continuation titles are not handled (the
-// first-line strip is enough for the security goal — the LRD body
-// becomes orphaned text, which renders as a normal paragraph).
-func isLRDDefinition(line string) bool {
-	i := 0
-	for i < len(line) && i < 3 && line[i] == ' ' {
-		i++
-	}
-	if i >= len(line) || line[i] != '[' {
-		return false
-	}
-	i++
-	closeBracket := -1
-	for j := i; j < len(line); j++ {
-		if line[j] == ']' {
-			closeBracket = j
-			break
-		}
-	}
-	if closeBracket < 0 || closeBracket == i || closeBracket+1 >= len(line) {
-		return false
-	}
-	if line[closeBracket+1] != ':' {
-		return false
-	}
-	rest := line[closeBracket+2:]
-	// require at least one whitespace then a non-whitespace
-	j := 0
-	for j < len(rest) && (rest[j] == ' ' || rest[j] == '\t') {
-		j++
-	}
-	if j == 0 || j >= len(rest) {
-		return false
-	}
-	return true
 }
 
 // isExtDelimiter recognises any gnoweb structural-extension delimiter
@@ -559,38 +520,558 @@ func containsAnyByte(s string, bs ...byte) bool {
 	return false
 }
 
-// escapeRefLinkUse neutralizes reference-link uses [text][label],
-// [text][], and footnote-ref invocations [^name] by escaping the
-// offending [ — prevents user content from invoking realm-defined
-// LRDs through label collision or footnote-definitions through
-// footnote-namespace pollution.
+// ---------- escapeBracketsOutsideLinks (replaces escapeRefLinkUse + isLRDDefinition) ----------
 //
-// CM §2.4 governs backslash escapes: backslashes themselves can be
-// escaped, and the parser counts pairs. So if the input is `\[^x]`,
-// a naive `ReplaceAll("[^", "\\[^")` would yield `\\[^x]` which
-// goldmark reads as a literal backslash followed by `[^x]` — the
-// footnote ref survives. We avoid that by tracking the running count
-// of immediately-preceding backslashes and, if it is odd, prepending
-// one more `\` before the escape so the total parity stays odd.
-func escapeRefLinkUse(line string) string {
-	if !strings.Contains(line, "][") && !strings.Contains(line, "[^") {
-		return line
+// Two-pass walker:
+//   Pass 1: find spans for inline links [text](url), images ![alt](src),
+//     LRD definitions [label]: url [title], and fenced code regions. Multi-
+//     line and backslash-aware.
+//   Pass 2: rewrite bytes — preserve link/image/fence spans verbatim, delete
+//     LRD spans, escape any unescaped `[` / `]` outside spans (with
+//     backslash-parity tracking).
+//
+// Closes three previously-documented residuals:
+//   1. Shortcut-ref `[label]` collision with realm-emitted LRDs (both
+//      brackets now escaped → literal text)
+//   2. Multi-line LRD evasion `[lab\nel]: url` (label spans newlines)
+//   3. False-positive over-strip `[label\]: url` (escape-aware `]` scan)
+
+type spanKind byte
+
+const (
+	spanLink  spanKind = iota // [text](url) or ![alt](src) — preserve
+	spanLRD                   // [label]: url ["title"] — delete entirely
+	spanFence                 // fenced code block — preserve (opaque)
+)
+
+type bracketSpan struct {
+	start, end int // [start, end) half-open byte indices
+	kind       spanKind
+}
+
+// findBracketSpans is pass 1 of the bracket walker. Returns sorted,
+// non-overlapping spans.
+func findBracketSpans(s string) []bracketSpan {
+	var spans []bracketSpan
+	i := 0
+	atLineStart := true
+	for i < len(s) {
+		// Fence open at line-start (0-3 lead spaces, ≥3 backticks or tildes)?
+		if atLineStart {
+			j := i
+			// skip up to 3 leading spaces
+			for j < len(s) && j-i < 3 && s[j] == ' ' {
+				j++
+			}
+			if j < len(s) && (s[j] == '`' || s[j] == '~') {
+				fenceChar := s[j]
+				k := j
+				for k < len(s) && s[k] == fenceChar {
+					k++
+				}
+				if k-j >= 3 {
+					// Fence opens. Find close.
+					fenceLen := k - j
+					end := findFenceClose(s, k, fenceChar, fenceLen)
+					spans = append(spans, bracketSpan{start: i, end: end, kind: spanFence})
+					i = end
+					atLineStart = (end > 0 && s[end-1] == '\n')
+					continue
+				}
+			}
+		}
+
+		c := s[i]
+		if c == '\\' && i+1 < len(s) {
+			// Escaped byte — consume both
+			i += 2
+			atLineStart = false
+			continue
+		}
+		if c == '\n' {
+			atLineStart = true
+			i++
+			continue
+		}
+		// Try inline link / image / LRD at this `[` or `![`
+		if c == '[' || (c == '!' && i+1 < len(s) && s[i+1] == '[') {
+			start := i
+			openOff := 0
+			if c == '!' {
+				openOff = 1
+			}
+			textEnd, ok := scanLinkText(s, i+openOff)
+			if !ok {
+				i++
+				atLineStart = false
+				continue
+			}
+			// textEnd points at the closing `]`. Next byte determines what kind.
+			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
+				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
+				end, ok := scanLinkURL(s, textEnd+2)
+				if ok {
+					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLink})
+					i = end
+					atLineStart = false
+					continue
+				}
+			}
+			// LRD candidate: [label]: url …  (only when `!` not prefixing AND only if line starts at line-start position)
+			if c == '[' && atLineStartAt(s, start) {
+				if end, ok := scanLRDTail(s, textEnd+1); ok {
+					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLRD})
+					i = end
+					atLineStart = (end > 0 && s[end-1] == '\n')
+					continue
+				}
+			}
+			// Not a link, image, or LRD — advance past the `[` only
+			i++
+			atLineStart = false
+			continue
+		}
+		// Any other byte
+		if c != ' ' && c != '\t' {
+			atLineStart = false
+		}
+		i++
+	}
+	return spans
+}
+
+// atLineStartAt reports whether byte index pos is at column 0-3 of a line
+// (i.e. preceded only by 0-3 spaces since the last `\n` or start-of-input).
+func atLineStartAt(s string, pos int) bool {
+	// Walk back to find newline or start
+	j := pos - 1
+	spaces := 0
+	for j >= 0 && s[j] == ' ' {
+		spaces++
+		if spaces > 3 {
+			return false
+		}
+		j--
+	}
+	return j < 0 || s[j] == '\n'
+}
+
+// findFenceClose returns the byte index AFTER the closing fence line, or
+// len(s) if no close is found (treat-as-opaque-to-EOF). `from` is the byte
+// index right after the open fence's last fence char.
+func findFenceClose(s string, from int, fenceChar byte, fenceLen int) int {
+	// Skip rest of open fence's line
+	i := from
+	for i < len(s) && s[i] != '\n' {
+		i++
+	}
+	if i < len(s) {
+		i++ // past the newline
+	}
+	// Scan lines
+	for i < len(s) {
+		// line start
+		j := i
+		// 0-3 lead spaces
+		for j < len(s) && j-i < 3 && s[j] == ' ' {
+			j++
+		}
+		// count fence chars
+		k := j
+		for k < len(s) && s[k] == fenceChar {
+			k++
+		}
+		if k-j >= fenceLen {
+			// rest of line must be whitespace
+			rest := k
+			for rest < len(s) && s[rest] != '\n' && (s[rest] == ' ' || s[rest] == '\t') {
+				rest++
+			}
+			if rest >= len(s) || s[rest] == '\n' {
+				if rest < len(s) {
+					rest++
+				}
+				return rest
+			}
+		}
+		// Not a close fence — skip to next line
+		for i < len(s) && s[i] != '\n' {
+			i++
+		}
+		if i < len(s) {
+			i++
+		}
+	}
+	return len(s)
+}
+
+// scanLinkText scans `[…]` starting at s[i] where s[i] == '['. Returns
+// the byte index of the closing `]` (depth-balanced, escape-aware) and
+// true on success.
+func scanLinkText(s string, i int) (int, bool) {
+	if i >= len(s) || s[i] != '[' {
+		return 0, false
+	}
+	j := i + 1
+	depth := 1
+	for j < len(s) {
+		c := s[j]
+		if c == '\\' && j+1 < len(s) {
+			j += 2
+			continue
+		}
+		if c == '[' {
+			depth++
+		} else if c == ']' {
+			depth--
+			if depth == 0 {
+				return j, true
+			}
+		} else if c == '\n' {
+			// Single \n OK inside link text; blank line aborts
+			if j+1 < len(s) && s[j+1] == '\n' {
+				return 0, false
+			}
+		}
+		j++
+	}
+	return 0, false
+}
+
+// scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
+// Returns the byte index AFTER the closing `)` and true on success.
+func scanLinkURL(s string, i int) (int, bool) {
+	// Consume optional leading whitespace
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i < len(s) && s[i] == '\n' {
+		i++
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
+	}
+	// URL body — angle-bracket form or plain
+	if i < len(s) && s[i] == '<' {
+		i++
+		for i < len(s) {
+			c := s[i]
+			if c == '\\' && i+1 < len(s) {
+				i += 2
+				continue
+			}
+			if c == '>' {
+				i++
+				break
+			}
+			if c == '<' {
+				return 0, false
+			}
+			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
+				return 0, false
+			}
+			i++
+		}
+	} else {
+		// Plain URL with balanced parens
+		urlDepth := 1
+		for i < len(s) {
+			c := s[i]
+			if c == '\\' && i+1 < len(s) {
+				i += 2
+				continue
+			}
+			if c == '(' {
+				urlDepth++
+			} else if c == ')' {
+				urlDepth--
+				if urlDepth == 0 {
+					return i + 1, true
+				}
+			} else if c == ' ' || c == '\t' || c == '\n' {
+				// Whitespace after URL — title or close may follow
+				break
+			}
+			i++
+		}
+	}
+	// Skip whitespace before title or close
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
+		if s[i] == '\n' && i+1 < len(s) && s[i+1] == '\n' {
+			return 0, false
+		}
+		i++
+	}
+	// Optional title
+	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
+		closeQ := s[i]
+		if closeQ == '(' {
+			closeQ = ')'
+		}
+		i++
+		for i < len(s) {
+			c := s[i]
+			if c == '\\' && i+1 < len(s) {
+				i += 2
+				continue
+			}
+			if c == closeQ {
+				i++
+				break
+			}
+			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
+				return 0, false
+			}
+			i++
+		}
+		// Whitespace before close
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
+			i++
+		}
+	}
+	if i < len(s) && s[i] == ')' {
+		return i + 1, true
+	}
+	return 0, false
+}
+
+// scanLRDTail scans the `: url [title]` portion of an LRD definition.
+// `i` is the byte index right after the closing `]` of the label.
+// Returns the byte index of the LRD region's end (after the URL or after
+// the title, including a trailing newline if present) and true on success.
+func scanLRDTail(s string, i int) (int, bool) {
+	// Need ':' immediately
+	if i >= len(s) || s[i] != ':' {
+		return 0, false
+	}
+	i++
+	// Need ≥1 space or tab, OR a newline (LRD URL can be on the next line)
+	wsStart := i
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i < len(s) && s[i] == '\n' {
+		i++
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
+	}
+	if i == wsStart {
+		// `:` not followed by whitespace at all — not a valid LRD
+		return 0, false
+	}
+	// URL bytes (no whitespace unless <...> form)
+	urlStart := i
+	if i < len(s) && s[i] == '<' {
+		i++
+		for i < len(s) {
+			c := s[i]
+			if c == '\\' && i+1 < len(s) {
+				i += 2
+				continue
+			}
+			if c == '>' {
+				i++
+				break
+			}
+			if c == '<' || c == '\n' {
+				return 0, false
+			}
+			i++
+		}
+	} else {
+		for i < len(s) {
+			c := s[i]
+			if c == ' ' || c == '\t' || c == '\n' {
+				break
+			}
+			if c == '\\' && i+1 < len(s) {
+				i += 2
+				continue
+			}
+			i++
+		}
+	}
+	if i == urlStart {
+		// Empty destination — not a valid LRD per CM §4.7
+		return 0, false
+	}
+	end := i
+	// Optional title: same line OR next line
+	titleStart := i
+	// Skip whitespace (incl. one newline)
+	sawNL := false
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i < len(s) && s[i] == '\n' {
+		sawNL = true
+		i++
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
+	}
+	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
+		closeQ := s[i]
+		if closeQ == '(' {
+			closeQ = ')'
+		}
+		i++
+		titleOK := false
+		for i < len(s) {
+			c := s[i]
+			if c == '\\' && i+1 < len(s) {
+				i += 2
+				continue
+			}
+			if c == closeQ {
+				i++
+				titleOK = true
+				break
+			}
+			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
+				break
+			}
+			if c == '\n' && isBlockInterrupt(s, i+1) {
+				break
+			}
+			i++
+		}
+		if titleOK {
+			end = i
+		} else {
+			// Title not closed cleanly — drop it from the span, keep URL
+			i = titleStart
+			end = titleStart
+			_ = sawNL
+		}
+	}
+	// Consume trailing newline so the next line starts fresh
+	for end < len(s) && (s[end] == ' ' || s[end] == '\t') {
+		end++
+	}
+	if end < len(s) && s[end] == '\n' {
+		end++
+	}
+	return end, true
+}
+
+// isBlockInterrupt reports whether the line beginning at byte index
+// `lineStart` opens a CommonMark block-level construct that interrupts
+// a paragraph (and thus also interrupts an LRD title continuation).
+// Recognized markers per CM §4.5 / §4.8 / §5.1: ATX heading (`#`),
+// thematic break (`---`, `***`, `___`), blockquote (`>`), list marker
+// (`-`, `*`, `+`, `1.`–`9.`), fenced code (` ``` ` or `~~~`).
+// Does NOT include setext underline — that's tied to the preceding
+// line and doesn't apply within an LRD title scan.
+func isBlockInterrupt(s string, lineStart int) bool {
+	i := lineStart
+	// Up to 3 leading spaces allowed
+	for j := 0; j < 3 && i < len(s) && s[i] == ' '; j++ {
+		i++
+	}
+	if i >= len(s) {
+		return false
+	}
+	c := s[i]
+	switch c {
+	case '#':
+		// ATX heading: `#` then space/tab/newline/EOF
+		j := i
+		for j < len(s) && j < i+6 && s[j] == '#' {
+			j++
+		}
+		if j < len(s) && (s[j] == ' ' || s[j] == '\t' || s[j] == '\n') {
+			return true
+		}
+		return j >= len(s)
+	case '>':
+		return true
+	case '-', '*', '_':
+		// Thematic break: three or more of the same char, optionally
+		// separated by spaces/tabs, to end of line.
+		j, count := i, 0
+		for j < len(s) && s[j] != '\n' {
+			if s[j] == c {
+				count++
+				j++
+				continue
+			}
+			if s[j] == ' ' || s[j] == '\t' {
+				j++
+				continue
+			}
+			break
+		}
+		if count >= 3 && (j >= len(s) || s[j] == '\n') {
+			return true
+		}
+		// List marker (`-` or `*`): followed by space/tab.
+		if (c == '-' || c == '*') && i+1 < len(s) && (s[i+1] == ' ' || s[i+1] == '\t') {
+			return true
+		}
+		return false
+	case '+':
+		if i+1 < len(s) && (s[i+1] == ' ' || s[i+1] == '\t') {
+			return true
+		}
+		return false
+	case '`', '~':
+		// Fenced code: three or more of the same fence char.
+		j := i
+		for j < len(s) && s[j] == c {
+			j++
+		}
+		return j-i >= 3
+	}
+	// Ordered list: 1–9 digits then `.` or `)` then space/tab.
+	if c >= '0' && c <= '9' {
+		j := i
+		for j < len(s) && s[j] >= '0' && s[j] <= '9' && j-i < 9 {
+			j++
+		}
+		if j < len(s) && (s[j] == '.' || s[j] == ')') && j+1 < len(s) && (s[j+1] == ' ' || s[j+1] == '\t' || s[j+1] == '\n') {
+			return true
+		}
+	}
+	return false
+}
+
+// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, leaves
+// link/image/fence spans verbatim, deletes LRD spans, and prepends `\` to
+// any unescaped `[` / `]` outside any span.
+func rewriteWithSpans(s string, spans []bracketSpan) string {
+	if len(spans) == 0 && !strings.ContainsAny(s, "[]") {
+		return s
 	}
 	var b strings.Builder
-	b.Grow(len(line) + 16)
+	b.Grow(len(s) + 16)
+	spanIdx := 0
 	trailingBackslashes := 0
-	for i := 0; i < len(line); i++ {
-		c := line[i]
-		needsEscape := c == '[' &&
-			((i+1 < len(line) && line[i+1] == '^') ||
-				(i > 0 && line[i-1] == ']'))
-		if needsEscape {
-			if trailingBackslashes%2 == 1 {
-				b.WriteByte('\\')
-				trailingBackslashes++
+	i := 0
+	for i < len(s) {
+		// Skip over a span if we're entering one
+		if spanIdx < len(spans) && i == spans[spanIdx].start {
+			sp := spans[spanIdx]
+			spanIdx++
+			if sp.kind == spanLRD {
+				// Delete entirely
+				i = sp.end
+				trailingBackslashes = 0
+				continue
 			}
-			b.WriteByte('\\')
-			trailingBackslashes++
+			// Preserve verbatim
+			b.WriteString(s[sp.start:sp.end])
+			i = sp.end
+			trailingBackslashes = 0
+			continue
+		}
+		c := s[i]
+		if c == '[' || c == ']' {
+			if trailingBackslashes%2 == 0 {
+				// Unescaped — prepend `\`
+				b.WriteByte('\\')
+			}
 		}
 		b.WriteByte(c)
 		if c == '\\' {
@@ -598,6 +1079,13 @@ func escapeRefLinkUse(line string) string {
 		} else {
 			trailingBackslashes = 0
 		}
+		i++
 	}
 	return b.String()
+}
+
+// escapeBracketsOutsideLinks runs pass 1 + pass 2 over the input.
+func escapeBracketsOutsideLinks(s string) string {
+	spans := findBracketSpans(s)
+	return rewriteWithSpans(s, spans)
 }

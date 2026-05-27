@@ -144,21 +144,26 @@
 //     resolve against realm-defined footnote definitions or link
 //     reference definitions elsewhere on the page. Block escapes the
 //     opening `[` in both shapes.
-//   - shortcut-reference residual: Block escapes the use-side `][` and
-//     `[^` of reference links, but `[bare-label]` shortcut references
-//     remain syntactically valid markdown — escaping every `[` in user
-//     content would break inline-link syntax. If a realm emits LRDs
-//     whose labels collide with text the user is likely to write
-//     (`[help]`, `[click here]`), shortcut-resolution can still happen.
-//     The recommended mitigation is to namespace realm-defined LRD labels
-//     (e.g. `[r/myrealm/help]`) so user text cannot collide.
+//   - reference-link / footnote-ref / shortcut-ref collisions:
+//     `[text][label]`, `[^name]`, and bare `[label]` shortcut forms
+//     are ALL neutralized by Block's bracket walk, which preserves
+//     only inline `[text](url)` and `![alt](src)` syntax — everything
+//     else has both `[` and `]` backslash-escaped, so the parser sees
+//     literal text and can't resolve against realm-defined LRDs or
+//     footnote definitions.
+//   - multi-line LRD evasion: Block's walker recognises `[lab\nel]: url`
+//     across newlines (single `\n` OK, blank line aborts) and strips
+//     the whole region. `\]` inside the label is honored as an escaped
+//     literal, so `[label\]: url` is NOT treated as an LRD (renders as
+//     literal text).
 //   - URL scheme abuse: javascript:, data:text/html, vbscript:, blob:,
 //     protocol-relative //, mailto: with prefill phishing parameters.
 //     Allowlist-only (URL / ImageURL).
 //   - HTML attribute / element breakout: `"`, `<`, `>`, `&`, `'` inside
 //     HTML lexical slots. Handled by HTMLEscape.
-//   - CommonMark §2.3 NUL: replaced with U+FFFD by InlineText, LinkTitle,
-//     TableCell, and HTMLEscape.
+//   - CommonMark §2.3 NUL: replaced with U+FFFD by Block, InlineText,
+//     LinkTitle, TableCell, HTMLEscape, InlineCode, CodeBlock, and
+//     LanguageCodeBlock.
 //   - code-fence leakage: a user-opened ``` ``` ``` fence that runs to EOF
 //     with no closing fence, which would otherwise swallow every realm-
 //     emitted line that follows. Block auto-closes any open fence at EOF.
@@ -310,20 +315,28 @@ func InlineText(s string) string {
 //     a non-blank line, which CommonMark interprets as "promote the
 //     preceding line to a heading" — are escaped so user prose can't
 //     retroactively turn a realm-emitted line into a header.
-//   - Link-reference DEFINITIONS — lines shaped `[label]: url [title]`
-//     ("LRD" in CommonMark §4.7) — are stripped. User content cannot
-//     define a reference that other parts of the page might resolve
-//     against. (Multi-line LRDs with continuation titles strip only
-//     the first line; the title continuation falls through as orphan
-//     text, which renders as a normal paragraph — safe but visible.)
-//   - Reference-link USES — `[text][label]` syntax — get the `][` pair
-//     escaped to `]\[`, so user content cannot resolve against a
-//     realm-defined `[label]: ...` reference elsewhere on the page.
-//   - Footnote-reference USES — `[^name]` syntax — get the opening
-//     `[` escaped to `\[`, so user content cannot invoke a realm-defined
-//     `[^name]: body` footnote definition elsewhere on the page.
-//     Backslash-parity is preserved (CM §2.4): a preceding `\` doesn't
-//     let the escape collapse into a literal `\\` plus an unescaped `[`.
+//   - Bracket walker: a whole-input pass identifies inline link
+//     `[text](url)`, image `![alt](src)`, and LRD `[label]: url
+//     [title]` spans (multi-line and backslash-aware), then escapes
+//     any unescaped `[` / `]` that fall OUTSIDE those spans. Net
+//     effect:
+//       * `[text](url)` / `![alt](src)` — preserved verbatim
+//       * `[text][label]` reference-link USE — both bracket pairs
+//         escaped → renders as literal text, can't resolve against
+//         realm-defined LRDs
+//       * `[^name]` footnote-ref — both brackets escaped → literal,
+//         can't invoke realm footnote definitions
+//       * bare `[label]` shortcut-ref — both brackets escaped →
+//         literal, can't collide with realm-emitted LRDs even when
+//         the label is guessable
+//       * `[label]: url` LRD definitions — multi-line label aware
+//         (`[lab\nel]: url` is recognised across newlines); whole
+//         region stripped including title continuation on the next
+//         line. `\]` inside the label is honored as an escape, so
+//         `[label\]: url` is NOT treated as an LRD and stays as
+//         paragraph text.
+//       * literal `[`/`]` in prose (e.g. `array[i]`) — backslash-
+//         escaped → renders as literal `[`/`]` in HTML per CM §2.4.
 //   - Extension delimiter lines (any line starting with `<gno-…>` or
 //     `</gno-…>` — `<gno-card>`, `<gno-columns>`, `<gno-form>`,
 //     `<gno-alert>`, future extensions) get a leading backslash so
@@ -363,6 +376,7 @@ func InlineText(s string) string {
 func Block(s string) string {
 	s = markdown.NormalizeBreaks(s)
 	s = markdown.StripBidiAndZeroWidth(s)
+	s = replaceNULWithFFFD(s)
 	return markdown.EscapeBlockHazards(s)
 }
 
@@ -375,9 +389,10 @@ func Block(s string) string {
 // snapshots that should visually stand out.
 //
 // The content is first cleaned by Block (bidi-strip, line-ending
-// normalize, LRD strip, ref-link USE escape, block-marker escape,
-// code-fence auto-close at EOF, Unicode-separator fold), then every
-// resulting line — including blank lines — is prefixed with "> ". The
+// normalize, NUL→U+FFFD, bracket walker for link/image/LRD spans,
+// block-marker escape, code-fence auto-close at EOF, Unicode-separator
+// fold), then every resulting line — including blank lines — is
+// prefixed with "> ". The
 // user content can still use inline emphasis, code spans, and nested
 // fenced code blocks inside the quote; what it cannot do is open new
 // top-level structure (heading, list, blockquote, GFM table row, etc.)
@@ -397,13 +412,6 @@ func Block(s string) string {
 // than terminating the quote early — `Blockquote("foo\n\n")` emits
 // `"> foo\n> \n"`. Use `strings.TrimRight(s, "\n")` before passing if
 // you want the quote to end exactly at the last content line.
-//
-// Block does NOT replace NUL with U+FFFD (only the inline-context
-// escapers do); a NUL byte in Block's output passes through into the
-// blockquote. CommonMark §2.3 requires renderers to substitute NUL
-// with U+FFFD at parse time, so display will agree with intent, but
-// stored bytes still contain NUL. Relevant only if the output is
-// hashed or byte-compared.
 //
 // Not idempotent (see package doc): wraps with `> ` per line, so
 // calling twice double-wraps and the outer call's Block step escapes

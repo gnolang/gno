@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[unfinished
+-- output.md --
+\[unfinished
+-- output.html --
+<p>[unfinished</p>
