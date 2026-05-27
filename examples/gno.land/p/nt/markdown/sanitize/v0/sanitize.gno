@@ -288,8 +288,7 @@ func InlineText(s string) string {
 // should survive — but where the content must NOT be able to inject
 // new top-level constructs (headings, lists, blockquotes,
 // link-reference definitions, setext underlines, gnoweb extension
-// delimiters). GFM table-row line leaders (`|`) are NOT escaped — see
-// the threat-model note.
+// delimiters, GFM table rows).
 //
 // Use for any multi-paragraph user-supplied prose that the realm
 // concatenates into its rendered output:
@@ -298,76 +297,50 @@ func InlineText(s string) string {
 //   - proposal descriptions, governance motions
 //   - changelog entries, release notes
 //
-// COMPOSITION GOTCHA: Block's EOF fence-autoclose (described below)
-// appends a final fence line. If you wrap Block's output with a
-// line-prefixing builder like md.Blockquote (which prepends `> ` per
-// line) or md.Nested, that closing fence becomes a prefixed line. The
-// output is still safe (the fence still closes correctly) but may
-// render awkwardly. If pixel-perfect output matters, strip a trailing
-// blank fence line after Block.
+// What Block does with each kind of attacker input:
 //
-// Behavior worth knowing:
+//	User attempt                                          | Block's response
+//	------------------------------------------------------|----------------------------------------------------
+//	# heading at line-start                               | escaped → literal `# heading`
+//	> quoted at line-start                                | escaped → literal `>`
+//	- item, * item, + item, 1. item at line-start         | escaped
+//	---, ***, ___ (3+) at line-start                      | escaped
+//	=== or --- on its own line after non-blank text       | escaped (no setext promotion of the line above)
+//	<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at    | escaped (wildcard match) → literal text
+//	  line-start                                          |
+//	| a | b | GFM table row (line-leading `|`)            | escaped → literal `| a | b |`
+//	[text][realm-label] ref-link USE                      | both bracket pairs escaped → \[text\]\[realm-label\]
+//	[^name] footnote-ref                                  | both brackets escaped → \[^name\]
+//	[label] bare shortcut-ref                             | both brackets escaped → \[label\]
+//	[label]: url link-reference definition                | whole region stripped (incl. multi-line label
+//	  (incl. [lab\nel]: url multi-line)                   |   `[lab\nel]: url` and any title continuation)
+//	[label\]: url (backslash-escaped `]`)                 | NOT stripped; brackets escaped → paragraph text
+//	[text](url) inline link, ![alt](src) image            | preserved verbatim
+//	code fence opened without close                       | autoclosed at end of input
+//	NUL byte (\x00)                                       | replaced with U+FFFD
+//	U+2028 / U+2029 / U+0085 (NEL)                        | folded to `\n`
+//	bidi/zero-width controls                              | stripped
 //
-//   - Line-leading block markers (`#`, `>`, `-`, `*`, `+`, `1.`) are
-//     backslash-escaped so user content can't open a new heading, list,
-//     blockquote, or thematic break at the document level.
-//   - Setext underlines — `===` or `---` on a line by itself following
-//     a non-blank line, which CommonMark interprets as "promote the
-//     preceding line to a heading" — are escaped so user prose can't
-//     retroactively turn a realm-emitted line into a header.
-//   - Bracket walker: a whole-input pass identifies inline link
-//     `[text](url)`, image `![alt](src)`, and LRD `[label]: url
-//     [title]` spans (multi-line and backslash-aware), then escapes
-//     any unescaped `[` / `]` that fall OUTSIDE those spans. Net
-//     effect:
-//       * `[text](url)` / `![alt](src)` — preserved verbatim
-//       * `[text][label]` reference-link USE — both bracket pairs
-//         escaped → renders as literal text, can't resolve against
-//         realm-defined LRDs
-//       * `[^name]` footnote-ref — both brackets escaped → literal,
-//         can't invoke realm footnote definitions
-//       * bare `[label]` shortcut-ref — both brackets escaped →
-//         literal, can't collide with realm-emitted LRDs even when
-//         the label is guessable
-//       * `[label]: url` LRD definitions — multi-line label aware
-//         (`[lab\nel]: url` is recognised across newlines); whole
-//         region stripped including title continuation on the next
-//         line. `\]` inside the label is honored as an escape, so
-//         `[label\]: url` is NOT treated as an LRD and stays as
-//         paragraph text.
-//       * literal `[`/`]` in prose (e.g. `array[i]`) — backslash-
-//         escaped → renders as literal `[`/`]` in HTML per CM §2.4.
-//   - Extension delimiter lines (any line starting with `<gno-…>` or
-//     `</gno-…>` — `<gno-card>`, `<gno-columns>`, `<gno-form>`,
-//     `<gno-alert>`, future extensions) get a leading backslash so
-//     the opening `<` becomes a CM §2.4 inline escape. The result
-//     renders as literal `<gno-…>` paragraph text. A leading space
-//     would not suffice because gnoweb's extension parsers call
-//     `util.TrimLeftSpace` on the line before tag matching, which
-//     would strip the space and let the tag match anyway; backslash
-//     survives the trim (only ASCII whitespace + form-feed are
-//     stripped) and is consumed by the inline escape phase before
-//     Type-7 HTML block detection can fire (Type-7 requires the
-//     first non-whitespace char to be `<`).
-//   - Fenced code blocks (``` ``` ```, `~~~`) opened by user content
-//     are PASSED THROUGH and the content inside the fence is left
-//     unescaped for markdown purposes (otherwise users couldn't share
-//     code at all). Note: the global bidi-strip and Unicode-separator
-//     fold (U+2028/U+2029/U+0085) still apply inside the fence — only
-//     the markdown-structure escapes (line-leader, setext, LRD, ref-
-//     link, extension-delimiter) are skipped there. If the user opens
-//     a fence and never closes it, Block appends a matching closing
-//     fence at end of input — preventing the fence from "leaking"
-//     into whatever realm chrome the realm concatenates after Block's
-//     output.
-//   - Unicode separators U+2028, U+2029, and U+0085 NEL are folded to
-//     `\n` (CommonMark §2.2 doesn't recognize them, but some renderers
-//     do — folding closes that ambiguity).
-//   - Inline emphasis, code spans, inline links, and soft line breaks
-//     within a paragraph are PRESERVED — users can format. GFM table
-//     ROWS (line-leading `|`) are escaped to defend against user-content
-//     table injection in downstream renderers that enable the GFM Table
-//     extension. Pipes inside paragraph text remain literal.
+// COMPOSITION GOTCHA: Block's EOF fence-autoclose appends a final
+// fence line. If you wrap Block's output with a line-prefixing
+// builder like md.Blockquote (which prepends `> ` per line) or
+// md.Nested, that closing fence becomes a prefixed line. The output
+// is still safe (the fence still closes correctly) but may render
+// awkwardly. If pixel-perfect output matters, strip a trailing blank
+// fence line after Block.
+//
+// Why backslash and not a space for `<gno-…>` lines: gnoweb's
+// extension parsers call `util.TrimLeftSpace` on the line before tag
+// matching, which would strip a leading space and let the tag match
+// anyway. A leading `\` survives the trim (only ASCII whitespace +
+// form-feed are stripped) and is consumed by the inline escape phase
+// before Type-7 HTML block detection can fire (Type-7 requires the
+// first non-whitespace char to be `<`).
+//
+// Inline emphasis, code spans, inline links, and soft line breaks
+// within a paragraph are PRESERVED — users can format. Pipes that
+// are NOT at line-start stay literal so prose can still write things
+// like `a | b`.
 //
 // Not idempotent (see package doc): Block strips LRDs in place, so a
 // second call could behave differently if the first call's output
