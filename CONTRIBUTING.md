@@ -160,3 +160,5 @@ documents they'd have to parse in full.
 ---
 
 For more documentation, see the [docs](./docs/) folder.
+
+> For maintainers with merge access, see [RELEASING.md](RELEASING.md) for internal processes (versioning, branching, release workflow).

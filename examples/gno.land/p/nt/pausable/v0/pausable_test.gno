@@ -13,39 +13,44 @@ var (
 	o           = ownable.NewWithAddress(firstCaller)
 )
 
-func TestNewFromOwnable(t *testing.T) {
-	testing.SetOriginCaller(firstCaller)
+func TestNewFromOwnable(cur realm, t *testing.T) {
 	result := NewFromOwnable(o)
 
 	urequire.Equal(t, firstCaller.String(), result.Ownable().Owner().String())
 }
 
-func TestSetUnpaused(t *testing.T) {
-	testing.SetOriginCaller(firstCaller)
+func TestSetUnpaused(cur realm, t *testing.T) {
 	result := NewFromOwnable(o)
 
-	result.Unpause()
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	func(cur realm) {
+		urequire.NoError(t, result.Unpause(0, cur))
+	}(cross(cur))
 	uassert.False(t, result.IsPaused(), "Expected result to be unpaused")
 }
 
-func TestSetPaused(t *testing.T) {
-	testing.SetOriginCaller(firstCaller)
+func TestSetPaused(cur realm, t *testing.T) {
 	result := NewFromOwnable(o)
 
-	result.Pause()
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	func(cur realm) {
+		urequire.NoError(t, result.Pause(0, cur))
+	}(cross(cur))
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
-func TestIsPaused(t *testing.T) {
+func TestIsPaused(cur realm, t *testing.T) {
 	result := NewFromOwnable(o)
 	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
 
-	testing.SetOriginCaller(firstCaller)
-	result.Pause()
+	testing.SetRealm(testing.NewUserRealm(firstCaller))
+	func(cur realm) {
+		urequire.NoError(t, result.Pause(0, cur))
+	}(cross(cur))
 	uassert.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
-func TestOwnable(t *testing.T) {
+func TestOwnable(cur realm, t *testing.T) {
 	result := NewFromOwnable(o)
 
 	uassert.Equal(t, result.Ownable().Owner(), o.Owner())

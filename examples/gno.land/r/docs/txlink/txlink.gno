@@ -1,7 +1,6 @@
 package txlink
 
 import (
-	"chain/runtime"
 	"time"
 
 	"gno.land/p/moul/txlink"
@@ -16,9 +15,9 @@ type Message struct {
 var messages []Message
 
 // Post saves a message with the caller as the author
-func Post(_ realm, text string) {
+func Post(cur realm, text string) {
 	msg := Message{
-		Author: runtime.PreviousRealm().Address().String(),
+		Author: cur.Previous().Address().String(),
 		Text:   text,
 		Time:   time.Now(),
 	}
@@ -47,7 +46,7 @@ Check out the links below.
 	// Basic call
 	out += "- [Say Hello](" + txlink.Call("Post", "text", "Hello from txlink!") + ") - A simple, static argument call\n"
 
-	// A link builder including some funds specified in the string format (std.Coin.String())
+	// A link builder including some funds specified in the string format (chain.Coin.String())
 	custom := txlink.NewLink("Post").
 		AddArgs("text", "Support this board with 1ugnot").
 		SetSend("1ugnot").

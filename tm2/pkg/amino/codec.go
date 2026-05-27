@@ -62,7 +62,13 @@ type FieldOptions struct {
 	JSONOmitEmpty bool   // (JSON) omitempty
 	BinFixed64    bool   // (Binary) Encode as fixed64
 	BinFixed32    bool   // (Binary) Encode as fixed32
-	BinFieldNum   uint32 // (Binary) max 1<<29-1
+	// BinPlainVarint encodes a signed integer field as plain protobuf
+	// varint (proto wire-type 0, schema int64/int32) instead of the
+	// default zigzag varint (sint64/sint32). Required for wire-byte
+	// compatibility with upstream Tendermint canonical types and the
+	// privval socket protocol.
+	BinPlainVarint bool   // (Binary) Encode as plain varint, not zigzag
+	BinFieldNum    uint32 // (Binary) max 1<<29-1
 
 	Unsafe         bool // e.g. if this field is a float.
 	WriteEmpty     bool // write empty structs and lists (default false except for pointers)
@@ -95,6 +101,22 @@ func (info *TypeInfo) IsStructOrUnpacked(fopt FieldOptions) bool {
 		return rinfo.Elem.GetTyp3(fopt) == Typ3ByteLength
 	}
 	return false
+}
+
+// IsStructOrUnpackedTopLevel is the top-level (non-struct-field) variant of
+// IsStructOrUnpacked. Top-level contexts (e.g. MarshalReflect / MarshalBinary2
+// entry points, writeReprMarshal / writeReprUnmarshal) have no field-level
+// BinFixed tag, so fopts is zero. Calling this helper instead of passing a
+// literal FieldOptions{} makes the invariant explicit and greppable.
+//
+// NOTE: a future top-level list type whose element's typ3 depends on BinFixed
+// (e.g. `type Fixed64s []int64` used directly as a top-level message) would
+// need the caller to thread a real fopts; today no such type exists and typ3
+// for non-BinFixed Int64 is Varint anyway, so this helper's behavior is
+// identical to IsStructOrUnpacked(FieldOptions{}). Callers must ensure they
+// are genuinely in a top-level context before using this helper.
+func (info *TypeInfo) IsStructOrUnpackedTopLevel() bool {
+	return info.IsStructOrUnpacked(FieldOptions{})
 }
 
 // If this is a slice or array, get .Elem.ReprType until no longer slice or
@@ -144,13 +166,34 @@ func (finfo *FieldInfo) IsPtr() bool {
 }
 
 func (finfo *FieldInfo) ValidateBasic() {
+	// The three binary-encoding tags (fixed32, fixed64, varint) each
+	// select an encoding for the field; at most one may be set. Without
+	// this check, e.g. binary:"fixed32,fixed64" would silently set both
+	// flags and fall through to whichever branch runs first, producing
+	// a confusing "non-32bit type" panic for a 64-bit field — or, worse,
+	// a silent wire mismatch when the type happens to fit both branches.
+	set := 0
+	if finfo.BinFixed32 {
+		set++
+	}
+	if finfo.BinFixed64 {
+		set++
+	}
+	if finfo.BinPlainVarint {
+		set++
+	}
+	if set > 1 {
+		panic("binary tags are mutually exclusive: at most one of fixed32, fixed64, varint")
+	}
+
 	if finfo.BinFixed32 {
 		switch finfo.TypeInfo.GetUltimateElem().Type.Kind() {
-		case reflect.Int32, reflect.Uint32:
-			// ok
-		case reflect.Int, reflect.Uint:
-			// TODO error upon overflow/underflow during conversion.
-			panic("\"fixed32\" not yet supported for int/uint")
+		case reflect.Int32, reflect.Uint32, reflect.Int, reflect.Uint:
+			// ok — Int / Uint are encoded as 4 bytes via narrowing to
+			// int32 / uint32 by every code path (reflect encode/decode
+			// and genproto2 marshal/unmarshal/size). Range overflow at
+			// runtime is currently silent (the Go conversion truncates);
+			// only register fields that fit.
 		default:
 			panic("unexpected tag \"fixed32\" for non-32bit type")
 		}
@@ -161,6 +204,19 @@ func (finfo *FieldInfo) ValidateBasic() {
 			// ok
 		default:
 			panic("unexpected tag \"fixed64\" for non-64bit type")
+		}
+	}
+	if finfo.BinPlainVarint {
+		// Allowed only on signed integer kinds Int, Int32, Int64.
+		// Int8/Int16 use width-specific zigzag decoders today; supporting
+		// plain varint there would require parallel width-specific helpers
+		// that no real-world consumer needs. Unsigned ints already encode
+		// as plain varint by default; the tag is meaningless for them.
+		switch finfo.TypeInfo.GetUltimateElem().Type.Kind() {
+		case reflect.Int, reflect.Int32, reflect.Int64:
+			// ok
+		default:
+			panic("binary:\"varint\" only valid on int/int32/int64 fields")
 		}
 	}
 	if !finfo.Unsafe {
@@ -189,6 +245,24 @@ type Codec struct {
 	fullnameToTypeInfo map[string]*TypeInfo
 	packages           pkg.PackageSet
 	usePBBindings      bool
+	stats              codecStats
+}
+
+// codecStats records how many encodes/decodes went through each path.
+// All fields are atomically updated and safe for concurrent use.
+type codecStats struct {
+	Genproto2Encodes  int64
+	PbbindingsEncodes int64
+	ReflectEncodes    int64
+	Genproto2Decodes  int64
+	PbbindingsDecodes int64
+	ReflectDecodes    int64
+}
+
+// GetStats returns a pointer to the codec's decode-path counters
+// for testing and observability.
+func (cdc *Codec) GetStats() *codecStats {
+	return &cdc.stats
 }
 
 func NewCodec() *Codec {
@@ -295,7 +369,7 @@ func (cdc *Codec) registerType(pkg *Package, rt reflect.Type, typeURL string, po
 	info.Package = pkg
 	info.ConcreteInfo.Registered = true
 	info.ConcreteInfo.PointerPreferred = pointerPreferred
-	info.ConcreteInfo.Name = typeURLtoShortname(typeURL)
+	info.ConcreteInfo.Name = typeURLtoShortname(typeURL) // panics on bad typeURL (programmer error)
 	info.ConcreteInfo.TypeURL = typeURL
 
 	// Separate locking instance,
@@ -447,7 +521,7 @@ func (cdc *Codec) registerTypeInfoWLocked(info *TypeInfo, primary bool) {
 
 	// Everybody's dooing a brand-new dance, now
 	// Come on baby, doo the registration!
-	fullname := typeURLtoFullname(info.TypeURL)
+	fullname := mustTypeURLtoFullname(info.TypeURL) // panics on bad typeURL (programmer error)
 	existing, ok := cdc.fullnameToTypeInfo[fullname]
 	if primary {
 		if ok {
@@ -508,7 +582,10 @@ func (cdc *Codec) getTypeInfoWLocked(rt reflect.Type) (info *TypeInfo, err error
 }
 
 func (cdc *Codec) getTypeInfoFromTypeURLRLock(typeURL string, fopts FieldOptions) (info *TypeInfo, err error) {
-	fullname := typeURLtoFullname(typeURL)
+	fullname, err := typeURLtoFullname(typeURL)
+	if err != nil {
+		return nil, err
+	}
 	return cdc.getTypeInfoFromFullnameRLock(fullname, fopts)
 }
 
@@ -699,7 +776,19 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 				for etype.Kind() == reflect.Ptr {
 					etype = etype.Elem()
 				}
-				typ3 := typeToTyp3(etype, fopts)
+				// Consult the element's ReprType for AminoMarshaler types: a
+				// Go-Struct element whose MarshalAmino returns uint8 (e.g.
+				// ReprElem7) has WIRE kind Varint, not ByteLength. The unpacked
+				// path assumes per-element length prefixing, which doesn't hold
+				// for non-ByteLength wire kinds — without this lookup,
+				// encodeReflectBinaryList would emit packed bytes with bare=true
+				// (no outer key+length wrapper), producing non-roundtrippable
+				// bytes.
+				eTypeInfo, eErr := cdc.getTypeInfoWLocked(etype)
+				if eErr != nil {
+					panic(eErr)
+				}
+				typ3 := typeToTyp3(eTypeInfo.ReprType.Type, fopts)
 				if typ3 == Typ3ByteLength {
 					unpackedList = true
 				}
@@ -749,13 +838,23 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 		}
 	}
 
-	// Parse binary tags.
+	// Parse binary tags. Comma-split so multi-value tags like
+	// binary:"varint,fixed64" can be detected by mutual-exclusion validation
+	// in FieldInfo.ValidateBasic. Without comma-split, the entire string would
+	// fail the switch and silently set neither flag.
 	// NOTE: these get validated later, we don't have TypeInfo yet.
-	switch binTag {
-	case "fixed64":
-		fopts.BinFixed64 = true
-	case "fixed32":
-		fopts.BinFixed32 = true
+	for _, t := range strings.Split(binTag, ",") {
+		switch t {
+		case "fixed64":
+			fopts.BinFixed64 = true
+		case "fixed32":
+			fopts.BinFixed32 = true
+		case "varint":
+			fopts.BinPlainVarint = true
+		case "":
+			// empty token from split when binTag is empty or has trailing
+			// comma — ignore.
+		}
 	}
 
 	// Parse amino tags.
@@ -778,19 +877,32 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 // ----------------------------------------
 // Misc.
 
-func typeURLtoFullname(typeURL string) (fullname string) {
+func typeURLtoFullname(typeURL string) (string, error) {
 	parts := strings.Split(typeURL, "/")
 	if len(parts) == 1 {
-		panic(fmt.Sprintf("invalid type_url \"%v\", must contain at least one slash and be followed by the full name", typeURL))
+		return "", fmt.Errorf("invalid type_url %q: must contain at least one slash and be followed by the full name", typeURL)
 	}
-	return parts[len(parts)-1]
+	return parts[len(parts)-1], nil
 }
 
-func typeURLtoShortname(typeURL string) (name string) {
-	fullname := typeURLtoFullname(typeURL)
+// mustTypeURLtoFullname is for callers (registration paths) where a malformed
+// typeURL is a programming error, not user input; panicking is appropriate.
+func mustTypeURLtoFullname(typeURL string) string {
+	fullname, err := typeURLtoFullname(typeURL)
+	if err != nil {
+		panic(err)
+	}
+	return fullname
+}
+
+// typeURLtoShortname is only called during type registration (startup), so
+// panicking on a malformed typeURL is appropriate: it is a programming error,
+// not a runtime input.
+func typeURLtoShortname(typeURL string) string {
+	fullname := mustTypeURLtoFullname(typeURL)
 	parts := strings.Split(fullname, ".")
 	if len(parts) == 1 {
-		panic(fmt.Sprintf("invalid type_url \"%v\", full name must contain dot", typeURL))
+		panic(fmt.Sprintf("invalid type_url %q, full name must contain dot", typeURL))
 	}
 	return parts[len(parts)-1]
 }
@@ -824,8 +936,19 @@ func typeToTyp3(rt reflect.Type, opts FieldOptions) Typ3 {
 		}
 		return Typ3Varint
 
-	case reflect.Int16, reflect.Int8, reflect.Int,
-		reflect.Uint16, reflect.Uint8, reflect.Uint, reflect.Bool:
+	case reflect.Int, reflect.Uint:
+		// ValidateBasic allows BinFixed64 / BinFixed32 on bare int/uint; the
+		// body encoders write 8 / 4 fixed bytes respectively, so the field-key
+		// typ3 must match the body width.
+		if opts.BinFixed64 {
+			return Typ38Byte
+		}
+		if opts.BinFixed32 {
+			return Typ34Byte
+		}
+		return Typ3Varint
+	case reflect.Int16, reflect.Int8,
+		reflect.Uint16, reflect.Uint8, reflect.Bool:
 		return Typ3Varint
 	case reflect.Float64:
 		return Typ38Byte

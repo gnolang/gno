@@ -1,10 +1,8 @@
 package commondao
 
 import (
-	"chain/runtime"
-
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/seqid/v0"
 )
@@ -14,18 +12,13 @@ const CommonDAOID uint64 = 1
 
 var (
 	daoID     seqid.ID
-	realmLink txlink.Realm
-	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
-	ownership = avl.NewTree() // string(address) -> []uint64(DAO ID)
-	invites   = avl.NewTree() // string(address) -> address(inviter)
-	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(DAO ID) -> *commondao.CommonDAO)
-	options   = avl.NewTree() // string(ID) -> *Options
+	realmLink = txlink.Realm("gno.land/r/nt/commondao/v0")
+	daos      = bptree.NewBPTree32() // string(ID) -> *commondao.CommonDAO
+	ownership = bptree.NewBPTree32() // string(address) -> []uint64(DAO ID)
+	invites   = bptree.NewBPTree32() // string(address) -> address(inviter)
+	trees     = bptree.NewBPTree32() // string(root ID) -> bptree.BPTree(string(DAO ID) -> *commondao.CommonDAO)
+	options   = bptree.NewBPTree32() // string(ID) -> *Options
 )
-
-func init() {
-	// Save current realm path so it's available during render calls
-	realmLink = txlink.Realm(runtime.CurrentRealm().PkgPath())
-}
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
 	key := makeIDKey(daoID)
@@ -43,10 +36,10 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 	return dao
 }
 
-func getTree(rootID uint64) *avl.Tree {
+func getTree(rootID uint64) *bptree.BPTree {
 	key := makeIDKey(rootID)
 	if v, found := trees.Get(key); found {
-		return v.(*avl.Tree)
+		return v.(*bptree.BPTree)
 	}
 	return nil
 }
@@ -109,7 +102,7 @@ func createSubDAO(parent *commondao.CommonDAO, name string, o []Option) *commond
 	rootID := parent.TopParent().ID()
 	tree := getTree(rootID)
 	if tree == nil {
-		tree = avl.NewTree()
+		tree = bptree.NewBPTree32()
 		trees.Set(makeIDKey(rootID), tree)
 	}
 

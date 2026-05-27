@@ -1,11 +1,11 @@
-// PKGPATH: gno.land/p/archive/groups_test
-package groups_test
+// PKGPATH: gno.land/r/archive/groups/filetests/z_2_g
+package z_2_g
 
 // SEND: 1000000ugnot
 
 import (
 	"chain"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -15,12 +15,14 @@ import (
 
 var gid groups.GroupID
 
-func main() {
-	caller := runtime.OriginCaller()
+func main(cur realm) {
+	caller := unsafe.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
-	uinit.RegisterUser(cross, "gnouser123", caller)
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "gnouser123", caller)
+	testing.SetHeight(123)
 
-	gid = groups.CreateGroup(cross, "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
 
 	// delete group via anon user
@@ -28,7 +30,7 @@ func main() {
 	testing.SetOriginCaller(test2)
 	testing.SetOriginSend(chain.Coins{{"ugnot", 9000000}})
 
-	groups.DeleteGroup(cross, gid)
+	groups.DeleteGroup(cross(cur), gid)
 	println(groups.Render(""))
 }
 

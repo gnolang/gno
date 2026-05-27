@@ -76,7 +76,7 @@ The components of these paths are:
 
 Two important facts about package paths:
 - The maximum length of a package path is `256` characters.
-- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#derivepkgaddr)
+- A realm's address is directly derived from its package path, by using [`chain.PackageAddress()`](./gno-stdlibs.md#packageaddress)
 
 ## Namespaces
 
@@ -89,7 +89,7 @@ Initially, all users are granted a default namespace with their address - a
 pseudo-anonymous (PA) namespace - to which the associated address can
 deploy. This namespace has the following format:
 ```
-gno.land/{p,r}/{std.Address}/**
+gno.land/{p,r}/{address}/**
 ```
 
 For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the

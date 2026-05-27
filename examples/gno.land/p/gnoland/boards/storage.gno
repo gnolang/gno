@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 )
 
 type (
@@ -38,14 +38,14 @@ type (
 // NewStorage creates a new boards storage.
 func NewStorage() Storage {
 	return &storage{
-		byID:   avl.NewTree(),
-		byName: avl.NewTree(),
+		byID:   bptree.NewBPTree32(),
+		byName: bptree.NewBPTree32(),
 	}
 }
 
 type storage struct {
-	byID   *avl.Tree // string(Board.ID) -> *Board
-	byName *avl.Tree // Board.Name -> Board.ID
+	byID   *bptree.BPTree // string(Board.ID) -> *Board
+	byName *bptree.BPTree // Board.Name -> Board.ID
 }
 
 // Get returns a board for a specific ID.

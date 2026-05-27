@@ -13,7 +13,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddressByPrevious("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+	Admin    = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
 )
 
 func Render(_ string) string {
@@ -75,7 +75,6 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
-- [Gno by Example](/r/docs/home)
 - [Efficient local development for Gno](https://docs.gno.land/builders/local-dev-with-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
@@ -100,7 +99,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 |||
 
-## [Latest Events](/r/devrels/events)
+## [Latest Events](/events)
 
 :upcoming-events:
 
@@ -224,12 +223,12 @@ func quoteOfTheBlock() string {
 }
 
 func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwned()
+	Admin.AssertOwnedBy(cur.Previous().Address())
 	override = content
 }
 
 func AdminTransferOwnership(cur realm, newOwner address) {
-	if err := Admin.TransferOwnership(newOwner); err != nil {
+	if err := Admin.TransferOwnership(0, cur, newOwner); err != nil {
 		panic(err)
 	}
 }
