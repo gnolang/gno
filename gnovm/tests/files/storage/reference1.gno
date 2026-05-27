@@ -17,7 +17,7 @@ func main() {
 // &(struct{("hello" string)} gno.land/r/storage.foo)
 
 // Storage:
-// gno.land/r/storage: 715
+// gno.land/r/storage: 720
 
 // Realm:
 // finalizerealm["gno.land/r/storage"]
@@ -89,3 +89,22 @@ func main() {
 //              }
 //          }
 //      }
+// u[04f997a9ca158338c03cfc00686d77220a6cf62f:2](5)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "04f997a9ca158338c03cfc00686d77220a6cf62f:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "589",
+//     -        "ModTime": "0",
+//     +        "ModTime": "7",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
+//     @@ -46,7 +46,7 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "62935ca326f3a5ac7d4860379a86f239704e8574",
+//     +                "Hash": "3314ce9087de681f5b652333d0230e0faf9011e9",
+//                      "ObjectID": "04f997a9ca158338c03cfc00686d77220a6cf62f:3"
+//                  }
+//              },

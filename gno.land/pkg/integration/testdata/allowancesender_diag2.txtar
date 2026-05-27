@@ -12,25 +12,25 @@ stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
 gnoland start
 
 # Variant D: defer al.Close() with NO cross call at all. Should succeed.
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseNoCross -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseNoCross -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 3100000 -chainid=tendermint_test user1
 stdout OK!
 
 # Variant E: defer al.Close() + cross call WITHOUT persistence.
 # Callee receives but discards. Does the cross call alone (without
 # persistence) trigger taint on the deferred receiver?
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossNoPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossNoPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 3100000 -chainid=tendermint_test user1
 
 # Variant F: defer + cross + persist. With the VM fix (Defer.IsBoundMethod
 # threading the receiver through PushFrameCall so the implicit borrow-
 # realm switch fires for deferred method calls), this now SUCCEEDS.
 # Pre-fix behavior was a "cannot directly modify readonly tainted" panic.
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersist -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 4600000 -chainid=tendermint_test user1
 stdout OK!
 
 # Variant G: defer + cross + persist + INLINE al.Close() before defer fires.
 # Diagnostic question: does the inline close succeed AND does the
 # deferred close still panic?
-gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersistAlsoInline -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test user1
+gnokey maketx call -pkgpath gno.land/r/test/diag2granter -func DeferCloseCrossPersistAlsoInline -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 5100000 -chainid=tendermint_test user1
 
 -- diag2callee/gnomod.toml --
 module = "gno.land/r/test/diag2callee"
@@ -63,46 +63,46 @@ package diag2granter
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	"gno.land/p/jaekwon/allowancesender/v0"
 
 	"gno.land/r/test/diag2callee"
 )
 
-func newAllowance() *allowancesender.AllowanceSender {
-	src := banker.NewBanker(banker.BankerTypeRealmSend)
+func newAllowance(cur realm) *allowancesender.AllowanceSender {
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	return allowancesender.New(src,
-		runtime.CurrentRealm().Address(),
+		unsafe.CurrentRealm().Address(),
 		chain.NewCoins(chain.NewCoin("ugnot", 1000000)))
 }
 
 // D: defer Close, no cross.
 func DeferCloseNoCross(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
 }
 
 // E: defer Close + cross call but callee does NOT persist.
 func DeferCloseCrossNoPersist(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
-	diag2callee.Receive(cross, al)
+	diag2callee.Receive(cross(cur), al)
 }
 
 // F: defer Close + cross + callee persists. Original failing case.
 func DeferCloseCrossPersist(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
-	diag2callee.Store(cross, al)
+	diag2callee.Store(cross(cur), al)
 }
 
 // G: defer Close + cross + callee persists + INLINE al.Close().
 // Inline close happens BEFORE deferred fires. If inline succeeds and
 // deferred fails, the difference is purely in defer-mechanics.
 func DeferCloseCrossPersistAlsoInline(cur realm) {
-	al := newAllowance()
+	al := newAllowance(cur)
 	defer al.Close()
-	diag2callee.Store(cross, al)
+	diag2callee.Store(cross(cur), al)
 	al.Close() // inline; should succeed per earlier diagnostic
 }

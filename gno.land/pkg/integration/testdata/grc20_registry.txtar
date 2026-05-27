@@ -13,7 +13,7 @@ stdout 'not found'
 
 # add foo20, and foo20wrapper
 gnokey maketx addpkg -pkgdir $WORK/foo20 -pkgpath gno.land/r/foo20 -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
-gnokey maketx addpkg -pkgdir $WORK/foo20wrapper -pkgpath gno.land/r/foo20wrapper -gas-fee 590001ugnot -gas-wanted 5_900_000 -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/foo20wrapper -pkgpath gno.land/r/foo20wrapper -gas-fee 590001ugnot -gas-wanted 6_500_000 -chainid=tendermint_test test1
 
 # we call Transfer with foo20, after it's registered
 gnokey maketx call -pkgpath gno.land/r/registry -func TransferByName -args 'foo20' -args 'g123456789' -args '42' -gas-fee 260001ugnot -gas-wanted 2_600_000 -chainid=tendermint_test test1
@@ -22,7 +22,7 @@ stdout 'same address, success!'
 -- registry/registry.gno --
 package registry
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 type transferCb func(cur realm, to address, amount uint64) string
 
@@ -43,7 +43,7 @@ func TransferByName(cur realm, name string, to string, amount uint64) string {
 			continue
 		}
 
-		if runtime.CurrentRealm().Address().String() != pair.cb(cross, address(to), amount) {
+		if unsafe.CurrentRealm().Address().String() != pair.cb(cross(cur), address(to), amount) {
 			return "invalid address, ownership issue :("
 		}
 
@@ -61,8 +61,8 @@ package foo20wrapper
 import "gno.land/r/registry"
 import "gno.land/r/foo20"
 
-func init() {
-	  registry.Register(cross, "foo20", foo20.Transfer)
+func init(cur realm) {
+	  registry.Register(cross(cur), "foo20", foo20.Transfer)
 }
 
 -- foo20/gnomod.toml --
@@ -71,9 +71,9 @@ gno = "0.9"
 -- foo20/foo20.gno --
 package foo20
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func Transfer(cur realm, to address, amount uint64) string {
-	println("transfer from=" + runtime.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
-	return runtime.PreviousRealm().Address().String()
+	println("transfer from=" + unsafe.PreviousRealm().Address().String() + " to=" + to.String() + " some-amount")
+	return unsafe.PreviousRealm().Address().String()
 }

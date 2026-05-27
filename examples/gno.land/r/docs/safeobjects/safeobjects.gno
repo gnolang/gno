@@ -1,7 +1,7 @@
 package safeobjects
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 )
 
 // ExposedSafeObject methods exposed to the public. However, the methods all
@@ -23,7 +23,7 @@ type SafeObject struct {
 
 // Set is a function only the admin can call
 func (so SafeObject) Set(value string) {
-	if runtime.CurrentRealm().Address() != so.admin {
+	if unsafe.CurrentRealm().Address() != so.admin {
 		panic("caller is not authorized")
 	}
 
@@ -32,7 +32,7 @@ func (so SafeObject) Set(value string) {
 
 // UpdateAdmin is a function only the admin can call
 func (so SafeObject) UpdateAdmin(newAdmin address) {
-	if runtime.CurrentRealm().Address() != so.admin {
+	if unsafe.CurrentRealm().Address() != so.admin {
 		panic("caller is not authorized")
 	}
 

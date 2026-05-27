@@ -95,5 +95,5 @@ package mitm
 import "gno.land/r/gnoland/wugnot"
 
 func ProxyDeposit(cur realm) {
-	wugnot.Deposit(cross)
+	wugnot.Deposit(cross(cur))
 }

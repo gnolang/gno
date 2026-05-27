@@ -35,11 +35,11 @@ stdout 'OK!'
 # ============================================================
 
 # Create proposal to set required CLA hash and URL
-gnokey maketx run -gas-fee 2800001ugnot -gas-wanted 28_000_000 -chainid=tendermint_test member $WORK/proposer/propose_cla1.gno
+gnokey maketx run -gas-fee 2800001ugnot -gas-wanted 32_000_000 -chainid=tendermint_test member $WORK/proposer/propose_cla1.gno
 stdout OK!
 
 # Vote and execute proposal 0
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 0 -args YES -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test member
 stdout OK!
 
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 0 -chainid=tendermint_test member
@@ -58,7 +58,7 @@ stderr 'A Contributor License Agreement'
 # ============================================================
 
 # Alice signs the CLA with correct hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 560001ugnot -gas-wanted 5_600_000 -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "abc123hash" -gas-fee 560001ugnot -gas-wanted 7_300_000 -chainid tendermint_test alice
 stdout 'OK!'
 
 # Verify Alice's signature
@@ -74,14 +74,14 @@ stdout 'OK!'
 # ============================================================
 
 # Create proposal to update hash
-gnokey maketx run -gas-fee 3100001ugnot -gas-wanted 31_000_000 -chainid=tendermint_test member $WORK/proposer/propose_cla2.gno
+gnokey maketx run -gas-fee 3100001ugnot -gas-wanted 32_000_000 -chainid=tendermint_test member $WORK/proposer/propose_cla2.gno
 stdout OK!
 
 # Vote and execute proposal 1
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 1 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 24_000_000 -args 1 -chainid=tendermint_test member
 stdout OK!
 
 # Alice's signature was reset
@@ -93,7 +93,7 @@ stdout 'false bool'
 stderr 'A Contributor License Agreement'
 
 # Alice re-signs with new hash
-gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 560001ugnot -gas-wanted 5_600_000 -chainid tendermint_test alice
+gnokey maketx call -pkgpath gno.land/r/sys/cla -func Sign -args "newhash456" -gas-fee 560001ugnot -gas-wanted 7_300_000 -chainid tendermint_test alice
 stdout 'OK!'
 
 # Now Alice can deploy again
@@ -112,7 +112,7 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 2 -args YES -chainid=tendermint_test member
 stdout OK!
 
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 23_000_000 -args 2 -chainid=tendermint_test member
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 24_000_000 -args 2 -chainid=tendermint_test member
 stdout OK!
 
 # Anyone passes validation when enforcement is disabled
@@ -131,9 +131,9 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
-	preq := cla.ProposeNewCLA("abc123hash", "https://example.com/cla-v1")
-	dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+	preq := cla.ProposeNewCLA(cross(cur), "abc123hash", "https://example.com/cla-v1")
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
 -- proposer/propose_cla2.gno --
@@ -144,9 +144,9 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
-	preq := cla.ProposeNewCLA("newhash456", "https://example.com/cla-v2")
-	dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+	preq := cla.ProposeNewCLA(cross(cur), "newhash456", "https://example.com/cla-v2")
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
 -- proposer/propose_cla_clear.gno --
@@ -157,9 +157,9 @@ import (
 	"gno.land/r/sys/cla"
 )
 
-func main() {
-	preq := cla.ProposeNewCLA("", "")
-	dao.MustCreateProposal(cross, preq)
+func main(cur realm) {
+	preq := cla.ProposeNewCLA(cross(cur), "", "")
+	dao.MustCreateProposal(cross(cur), preq)
 }
 
 -- loader/load_govdao.gno --
@@ -171,17 +171,14 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-func init() {
-	memberstore.Get().SetTier(memberstore.T1)
-	memberstore.Get().SetTier(memberstore.T2)
-	memberstore.Get().SetTier(memberstore.T3)
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
 
-	memberstore.Get().SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), &memberstore.Member{InvitationPoints: 3}) // member address
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3)) // member address
 
-	dao.UpdateImpl(cross, dao.UpdateRequest{
-		DAO:         impl.GetInstance(),
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
 }
 
 -- pkg/gnomod.toml --
