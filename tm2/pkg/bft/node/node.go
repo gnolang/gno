@@ -5,6 +5,7 @@ package node
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -197,9 +198,9 @@ type Node struct {
 	// services
 	evsw              events.EventSwitch
 	stateDB           dbm.DB
-	blockStore        *store.BlockStore // store the blockchain to disk
-	bcReactor         p2p.Reactor       // for fast-syncing
-	mempoolReactor    *mempl.Reactor    // for gossipping transactions
+	blockStore        *store.BlockStore     // store the blockchain to disk
+	bcReactor         *bc.BlockchainReactor // for fast-syncing and restoring from backup
+	mempoolReactor    *mempl.Reactor        // for gossipping transactions
 	mempool           mempl.Mempool
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
@@ -332,7 +333,7 @@ func createBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn bc.SwitchToConsensusFn,
 	logger *slog.Logger,
-) (bcReactor p2p.Reactor, err error) {
+) (bcReactor *bc.BlockchainReactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(
 		state.Copy(),
 		blockExec,
@@ -598,6 +599,10 @@ func NewNode(config *cfg.Config,
 	}
 
 	return node, nil
+}
+
+func (n *Node) Restore(ctx context.Context, blocksIterator bc.BlocksIterator, skipVerification bool) error {
+	return n.bcReactor.Restore(ctx, blocksIterator, skipVerification)
 }
 
 // OnStart starts the Node. It implements service.Service.

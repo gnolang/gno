@@ -62,9 +62,12 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 	t.Parallel()
 
 	db := memdb.NewMemDB()
+	batch := db.NewBatch()
 
 	bsj := &BlockStoreStateJSON{Height: 1000}
-	bsj.Save(db)
+	bsj.Save(batch)
+	batch.WriteSync()
+	batch.Close()
 
 	retrBSJ := LoadBlockStoreStateJSON(db)
 
