@@ -106,8 +106,11 @@ func TestEvidenceByteSize(t *testing.T) {
 	t.Parallel()
 
 	val := NewMockPV()
-	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
-	blockID2 := makeBlockID(tmhash.Sum([]byte("blockhash2")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
+	// Canonical PartSetHeader.Total is uint32 (matches upstream Tendermint
+	// v0.34). math.MaxInt64 used to silently truncate via uint32 cast;
+	// CanonicalizePartSetHeader now panics on out-of-range.
+	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxUint32, tmhash.Sum([]byte("partshash")))
+	blockID2 := makeBlockID(tmhash.Sum([]byte("blockhash2")), math.MaxUint32, tmhash.Sum([]byte("partshash")))
 	const chainID = "mychain"
 	ev := &DuplicateVoteEvidence{
 		PubKey: secp256k1.GenPrivKey().PubKey(), // use secp because it's pubkey is longer
@@ -118,7 +121,10 @@ func TestEvidenceByteSize(t *testing.T) {
 	bz, err := amino.MarshalSized(ev)
 	require.NoError(t, err)
 
-	assert.EqualValues(t, 548, len(bz))
+	// Down from 548 after constraining canonical PartSetHeader.Total to
+	// uint32 (was unconstrained int allowing MaxInt64 = 10-byte varint per
+	// occurrence; now MaxUint32 = 5 bytes per occurrence × 2 BlockIDs).
+	assert.EqualValues(t, 538, len(bz))
 }
 
 func randomDuplicatedVoteEvidence() *DuplicateVoteEvidence {
