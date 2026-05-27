@@ -1756,7 +1756,7 @@ func (cs *ConsensusState) existingSignedVote(type_ types.SignedMsgType, address 
 	case types.PrecommitType:
 		voteSet = cs.Votes.Precommits(cs.Round)
 	default:
-		panic("unknown vote type")
+		panic(fmt.Sprintf("Unexpected vote type %X", type_))
 	}
 
 	return voteSet.GetByAddress(address)
