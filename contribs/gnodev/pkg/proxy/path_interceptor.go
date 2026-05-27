@@ -315,10 +315,12 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	switch path {
 	case ".app/simulate":
 		return handleTx(data, upaths)
-	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
+	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval", "vm/qeval_json":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
-	case "vm/qobject": // ignore
+	case "vm/qobject", "vm/qobject_json", "vm/qobject_binary":
+		// Object queries take an ObjectID, not a package path.
+		// If the object exists in the store, its package is already loaded.
 	default:
 		return fmt.Errorf("unhandled: %q", path)
 	}

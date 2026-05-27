@@ -9,38 +9,24 @@ import (
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
-	if debug {
-		if v == nil {
-			// This may happen due to an undefined uverse or
-			// closure value (which isn't supposed to happen but
-			// may happen due to incomplete initialization).
-			panic("should not happen")
-		}
+	if v == nil {
+		m.Panic(typedString("runtime error: call of nil function"))
 	}
 
 	switch fv := v.(type) {
 	case *FuncValue:
+		m.incrCPU(OpCPUPrecallFunc)
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
 		m.PushOp(OpCall)
 		isCrossing := fv.IsCrossing()
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
-		// If a cross-call of a crossing function,
-		// replace the first nil arg with a new realm.
 		if cx.IsWithCross() {
-			if !isCrossing { // sanity
-				panic("non-crossing function in cross call")
-			}
-			niltv := m.PeekValue(cx.NumArgs)
-			if !niltv.IsUndefined() { // sanity
-				panic(fmt.Sprintf(
-					"expected nil for realm argument in cross call but got %v", niltv))
-			}
-			crlm := NewConcreteRealm(fv.PkgPath)
-			niltv.Assign(m.Alloc, crlm, false)
+			m.installCrossingCur(cx, isCrossing, fv.PkgPath)
 		}
 	case *BoundMethodValue:
+		m.incrCPU(OpCPUPrecallBoundMethod)
 		recv := fv.Receiver
 		m.PushFrameCall(cx, fv.Func, recv, false)
 		m.PushOp(OpCall)
@@ -48,24 +34,17 @@ func (m *Machine) doOpPrecall() {
 		if isCrossing {
 			m.PushOp(OpEnterCrossing)
 		}
-		// If a cross-call of a crossing function,
-		// replace the first nil arg with a new realm.
 		if cx.IsWithCross() {
-			if !isCrossing { // sanity
-				panic("non-crossing function in cross call")
-			}
-			niltv := m.PeekValue(cx.NumArgs)
-			if !niltv.IsUndefined() { // sanity
-				panic(fmt.Sprintf(
-					"expected nil for realm argument in cross call but got %v", niltv))
-			}
-			crlm := NewConcreteRealm(fv.Func.PkgPath)
-			niltv.Assign(m.Alloc, crlm, false)
+			m.installCrossingCur(cx, isCrossing, fv.Func.PkgPath)
 		}
 	case TypeValue:
+		m.incrCPU(OpCPUPrecallTypeConv)
 		// Do not pop type yet.
 		// No need for frames.
 		xv := m.PeekValue(1)
+		// When the preprocessor wraps a shift RHS in uint(),
+		// it sets ATTR_SHIFT_RHS so we can reject negative
+		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
 				m.Panic(typedString(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
@@ -85,7 +64,117 @@ func (m *Machine) doOpPrecall() {
 	}
 }
 
+// installCrossingCur replaces the cross-arg slot with a freshly minted
+// cur realm and records it on the just-pushed frame.
+//
+// Two paths, distinguished by what Args[0] evaluated to on the value
+// stack:
+//
+//   - Compiler-synthesized `.origin` (MsgCall chain root) or the
+//     legacy `cross1` migration sentinel: preprocessor replaced
+//     Args[0] with a constNil, so its stack slot is undefined. The
+//     new cur's prev comes from m.callingCurOrOrigin() — a frame
+//     walk that finds the topmost crossing frame's Cur (or the
+//     per-tx origin).
+//
+//   - Explicit `cross(rlm)`: Args[0] is the inner cross CallExpr. At
+//     runtime cross's native body validates IsCurrent-strict on rlm
+//     and pushes it back unchanged, so the stack slot holds the
+//     validated realm value. We use it directly as the new cur's
+//     prev — no second IsCurrent check needed here.
+func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath string) {
+	if !isCrossing {
+		panic("non-crossing function in cross call")
+	}
+	argtv := m.PeekValue(cx.NumArgs)
+	var prev TypedValue
+	if argtv.IsUndefined() {
+		// .origin / cross1 path.
+		prev = m.callingCurOrOrigin()
+	} else {
+		// cross(rlm) form: argtv is the realm value cross pushed
+		// back after its own IsCurrent-strict check.
+		prev = *argtv
+	}
+	crlm := NewConcreteRealm(m.Alloc, pkgPath, prev)
+	argtv.Assign(m.Alloc, crlm, false)
+	m.LastFrame().Cur = crlm
+}
+
+// curUsesPreprocessOrigin reports whether tv is a captured realm whose
+// prev field is the preprocess-time placeholder origin (addr=""). The
+// placeholder is baked into the `.cur` ConstExpr by preprocess.go for
+// main(cur realm) / init(cur realm); at runtime we detect it so the
+// doOpCall fix can swap in the per-tx origin carrying the real
+// OriginCaller addr. Fully structural — survives AST persistence,
+// because the already-swapped per-tx origin always has a non-empty
+// addr and is naturally suppressed.
+func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
+	sv := derefRealmStruct(tv)
+	if sv == nil || len(sv.Fields) < 3 {
+		return false
+	}
+	prev, ok := sv.Fields[2].V.(PointerValue)
+	if !ok {
+		return false
+	}
+	hiv, _ := prev.Base.(*HeapItemValue)
+	if !isOriginRealmHIV(hiv) {
+		return false
+	}
+	prevSV := hiv.Value.V.(*StructValue)
+	return prevSV.Fields[0].GetString() == ""
+}
+
+// callingCurOrOrigin returns the captured cur TypedValue of the most recent
+// crossing call frame on the stack, or the per-tx origin realm when none
+// exists. The origin realm mirrors runtime.PreviousRealm() at the chain
+// root (addr=OriginCaller, pkgPath="").
+//
+// Skips:
+//   - non-call frames (loops, blocks).
+//   - non-crossing call frames (no WithCross or DidCrossing).
+//   - frames whose Cur has not been set yet (the just-pushed frame at the
+//     top during doOpPrecall — its Cur is assigned right after we return).
+//
+// The walk is intentionally simpler than execctx.GetRealm: we only need
+// the immediate captured prev, not a height-based ancestor selection.
+func (m *Machine) callingCurOrOrigin() TypedValue {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if !fr.IsCall() {
+			continue
+		}
+		if !(fr.WithCross || fr.DidCrossing) {
+			continue
+		}
+		if fr.Cur.T == nil {
+			continue
+		}
+		return fr.Cur
+	}
+	return buildOriginRealm(m)
+}
+
 var gReturnStmt = &ReturnStmt{}
+
+// crossingFromTestFile reports whether fv is a crossing function declared
+// in a *_test.gno file. Used by doOpEnterCrossing to allow `p/` test files
+// to declare and call crossing functions (production p/ code still can't —
+// see crossingAllowed in preprocess.go).
+//
+// fv.FileName is populated for top-level FuncDecls but empty for function
+// literals (closures). For literals we walk to the Source AST node and
+// read its Location.File.
+func crossingFromTestFile(fv *FuncValue) bool {
+	if strings.HasSuffix(fv.FileName, "_test.gno") {
+		return true
+	}
+	if fv.Source == nil {
+		return false
+	}
+	return strings.HasSuffix(fv.Source.GetLocation().File, "_test.gno")
+}
 
 // This used to be the crossing() uverse function.
 // It should be run once upon calling every crossing function,
@@ -94,15 +183,32 @@ func (m *Machine) doOpEnterCrossing() {
 	// Sanity check.
 	fr1 := m.PeekCallFrame(1) // fr1.LastPackage called to create fr1.
 	if !m.Package.IsRealm() {
-		panic("expected crossing function in a realm package")
+		// Allow crossing functions declared in *_test.gno files so p/
+		// package tests can declare `TestXxx(cur realm, t *testing.T)`
+		// and drive migrated methods. Also allow the top-level `main`
+		// in ephemeral /e/ run packages so MsgRun scripts can opt into
+		// `func main(cur realm)`. Preprocess already enforces both
+		// carve-outs; this runtime check is the matching gate.
+		if !IsEphemeralPath(m.Package.PkgPath) &&
+			(fr1 == nil || fr1.Func == nil || !crossingFromTestFile(fr1.Func)) {
+			panic("expected crossing function in a realm package")
+		}
 	}
 
 	// Verify prior fr.WithCross or fr.DidCrossing.
 	// NOTE: fr.WithCross may or may not be true,
 	// crossing() (which sets fr.DidCrossing) can be
 	// stacked.
+	//
+	// PERF: O(n^2) in call-stack depth. PeekCallFrame(i) restarts from the
+	// top of m.Frames every iteration; outer loop runs until the first
+	// crossing ancestor, visiting 1+2+...+D = O(D^2) frames. Fix is to
+	// walk m.Frames once with a cursor, yielding each call frame in
+	// order, which makes the handler O(D). If/when that lands, drop
+	// OpCPUSlopeEnterCrossingQuad and switch this handler to a linear
+	// per-depth charge (OpCPUSlopeEnterCrossing * depth).
 	for i := 1; ; i++ {
-		fri := m.PeekCallFrame(i) // TODO: O(n^2), optimize.
+		fri := m.PeekCallFrame(i) // see PERF note above.
 		if 1 < i && fri == nil {
 			// For stage add, meaning init() AND
 			// global var decls inherit a faux
@@ -115,6 +221,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// runs like cross(fn)(...) which
 			// meains fri.WithCross would have been
 			// found below.
+			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -123,6 +230,7 @@ func (m *Machine) doOpEnterCrossing() {
 			// everything under it is also valid.
 			// fri.DidCrossing && !fri.WithCross
 			// can happen with an implicit switch.
+			m.incrCPU(int64(i) * int64(i) * OpCPUSlopeEnterCrossingQuad / 10)
 			fr1.SetDidCrossing()
 			return
 		}
@@ -132,8 +240,7 @@ func (m *Machine) doOpEnterCrossing() {
 			panic("crossing could not find corresponding cross(fn)(...) call")
 		}
 	}
-	//nolint:govet // detected as unreachable
-	panic("should not happen") // defensive
+	// NOTE: this loop must never exit without setting fr1.DidCrossing or panicking.
 }
 
 func (m *Machine) doOpCall() {
@@ -159,6 +266,8 @@ func (m *Machine) doOpCall() {
 	}
 
 	m.PushBlock(b)
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
 		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
@@ -212,28 +321,92 @@ func (m *Machine) doOpCall() {
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
 	}
+	// Inherit fr.Cur from the block for crossing functions entered without
+	// a cross-call (doOpPrecall sets fr.Cur only for cross-call entries).
+	// Bound-method receivers occupy block[0], so cur is at block[1] for
+	// methods and block[0] otherwise. If the inherited cur's prev is the
+	// preprocess-time placeholder (built without OriginCaller knowledge),
+	// rebuild with the per-tx origin so cur.Previous() carries the EOA
+	// addr that runtime.PreviousRealm() surfaces.
+	//
+	// Skip natives: uverse helpers like cross(rlm realm) realm satisfy
+	// ft.IsCrossing() at runtime because their generic X param resolves
+	// to realm, but they were never registered with a preprocess-time
+	// origin placeholder. Inheriting + rebuilding here would replace
+	// the caller-supplied rlm with a fresh uverse-pkgPath realm and
+	// trip cross's IsCurrent-strict check.
+	curIdx := 0
+	if !fr.Receiver.IsUndefined() {
+		curIdx = 1
+	}
+	if ft.IsCrossing() && fv.nativeBody == nil && fr.Cur.T == nil && len(b.Values) > curIdx {
+		// Unwrap a heap-promoted slot: when cur is captured by a nested
+		// closure, the preprocessor heap-promotes its block slot, so
+		// b.Values[curIdx] is a *HeapItemValue wrapper rather than the
+		// realm PointerValue itself. Storing the wrapper on fr.Cur would
+		// hide the underlying HIV from realmHIV (used by .grealm.IsCurrent
+		// and cross's strict check), making the frame invisible to the
+		// HIV-identity walk. Deref to keep fr.Cur shaped like a normal
+		// PointerValue+HIV realm. The block slot itself must stay heap-
+		// wrapped (the closure-capture preprocess check at doOpFuncLit
+		// expects ptr.TV.T to be heapItemType), so the preprocess-origin
+		// rebuild writes into the HIV's Value field rather than replacing
+		// the slot entry.
+		bvSlot := &b.Values[curIdx]
+		hiv, isHeap := bvSlot.V.(*HeapItemValue)
+		if isHeap {
+			fr.Cur = hiv.Value
+		} else {
+			fr.Cur = *bvSlot
+		}
+		if m.curUsesPreprocessOrigin(&fr.Cur) {
+			fresh := NewConcreteRealm(m.Alloc, fv.PkgPath, buildOriginRealm(m))
+			fr.Cur = fresh
+			if isHeap {
+				hiv.Value = fresh
+			} else {
+				*bvSlot = fresh
+			}
+		}
+	}
 }
 
 func (m *Machine) doOpCallNativeBody() {
-	m.LastFrame().Func.nativeBody(m)
+	fv := m.LastFrame().Func
+	gi := m.chargeNativeGas(fv)
+	fv.nativeBody(m)
+	if gi != nil {
+		m.chargeNativeGasPost(gi)
+	}
 }
 
 func (m *Machine) doOpCallDeferNativeBody() {
 	fv := m.PopValue().V.(*FuncValue)
+	gi := m.chargeNativeGas(fv)
 	fv.nativeBody(m)
+	if gi != nil {
+		m.chargeNativeGasPost(gi)
+	}
 }
 
 // Used by return and panic operation handlers.
 // Must finalize for returns, and must abort for panics.
 func (m *Machine) isRealmBoundary(cfr *Frame) bool {
+	// Explicit cross-call always marks a realm boundary, regardless
+	// of whether m.Realm is tracked. /p/ test code that wraps calls
+	// in `func(cur){...}(cross(cur))` relies on this so panics
+	// propagating back through the cross frame route to revive(),
+	// not all the way up — even though /p/ packages have no Realm
+	// (m.Realm is nil under the borrow rule for /p/-stamped
+	// receivers). Pulled out of the `crlm != nil` guard so it fires
+	// on m.Realm==nil too.
+	if cfr.WithCross {
+		return true
+	}
 	crlm := m.Realm
 	if crlm != nil {
 		prlm := cfr.LastRealm
-		if cfr.WithCross {
-			// Even if crlm == prlm, must finalize
-			// to preserve attachment rules.
-			return true
-		} else if crlm != prlm {
+		if crlm != prlm {
 			// .WithCross was already handled;
 			// This is for implicitly crossed
 			// borrow-realms, the storage realm
@@ -267,7 +440,10 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 // Finalize realm updates if realm boundary.
 // NOTE: resource intensive
 func (m *Machine) maybeFinalize(cfr *Frame) {
-	if m.isRealmBoundary(cfr) {
+	if m.isRealmBoundary(cfr) && m.Realm != nil {
+		// m.Realm==nil only happens for /p/ and stdlib (no real realm),
+		// where there's nothing to finalize even though isRealmBoundary
+		// reports the cross-call frame as a boundary for panic-routing.
 		m.Realm.FinalizeRealmTransaction(m.Store)
 	}
 }
@@ -390,7 +566,12 @@ func (m *Machine) doOpReturnCallDefers() {
 	fv := dfr.Func
 	ft := fv.GetType(m.Store)
 	// Push frame for defer.
-	m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
+	if dfr.IsBoundMethod {
+		// args[0] is the receiver, per popCopyArgs bound-method invariant.
+		m.PushFrameCall(&dfr.Source.Call, fv, dfr.Args[0], true)
+	} else {
+		m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
+	}
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.
@@ -519,10 +700,11 @@ func (m *Machine) doOpDefer() {
 			ds.Call.Varg,
 			recv)
 		cfr.PushDefer(Defer{
-			Func:   fv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
+			Func:          fv,
+			IsBoundMethod: true,
+			Args:          args,
+			Source:        ds,
+			Parent:        lb,
 		})
 	case nil:
 		cfr.PushDefer(Defer{
@@ -539,6 +721,11 @@ func (m *Machine) doOpDefer() {
 // TODO: deprecate UnhandledPanicError and just use the Exception.
 // (use a field to mark transaction abort)
 func (m *Machine) makeUnhandledPanicError() UnhandledPanicError {
+	if m.BoundedPanicRender {
+		return UnhandledPanicError{
+			Descriptor: BoundedSprintException(m.Exception, m, BoundedRenderBytes),
+		}
+	}
 	numExceptions := m.Exception.NumExceptions()
 	exs := make([]string, numExceptions)
 	last := m.Exception

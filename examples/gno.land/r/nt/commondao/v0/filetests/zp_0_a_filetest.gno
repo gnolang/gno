@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_0_a_filetest
+
+package zp_0_a_filetest
 
 import (
 	"testing"
@@ -17,23 +19,23 @@ const (
 
 var dao *pcommondao.CommonDAO
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao = commondao.New(cross, "Foo")
+	dao = commondao.New(cross(cur), "Foo")
 	dao.Members().Add(user)
 
-	options := commondao.GetOptions(dao.ID())
+	options := commondao.GetOptions(cross(cur), dao.ID())
 	options.SetAllowMembersUpdate(true)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	pID := commondao.CreateMembersUpdateProposal(cross, dao.ID(), newMembers, removeMembers)
+	pID := commondao.CreateMembersUpdateProposal(cross(cur), dao.ID(), newMembers, removeMembers)
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {

@@ -20,47 +20,41 @@ func TestSetTokenRoyalty(t *testing.T) {
 	salePrice := int64(1000)
 	expectRoyaltyAmount := int64(100)
 
-	testing.SetOriginCaller(addr1) // addr1
-
 	dummy.mint(addr1, TokenID("1"))
 
-	derr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
+	derr := dummy.SetTokenRoyalty(addr1, TokenID("1"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
 	uassert.NoError(t, derr, "Should not result in error")
 
 	// Test case: Invalid token ID
-	_ = dummy.SetTokenRoyalty(TokenID("3"), RoyaltyInfo{
+	err := dummy.SetTokenRoyalty(addr1, TokenID("3"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     percentage,
 	})
-	uassert.ErrorIs(t, derr, ErrInvalidTokenId)
-
-	testing.SetOriginCaller(addr2) // addr2
-
-	cerr := dummy.SetTokenRoyalty(TokenID("1"), RoyaltyInfo{
-		PaymentAddress: paymentAddress,
-		Percentage:     percentage,
-	})
-	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
+	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
 	// Test case: Invalid payment address
-	aerr := dummy.SetTokenRoyalty(TokenID("4"), RoyaltyInfo{
+	aerr := dummy.SetTokenRoyalty(addr1, TokenID("4"), RoyaltyInfo{
 		PaymentAddress: address("###"), // invalid address
 		Percentage:     percentage,
 	})
 	uassert.ErrorIs(t, aerr, ErrInvalidRoyaltyPaymentAddress)
 
 	// Test case: Invalid percentage
-	perr := dummy.SetTokenRoyalty(TokenID("5"), RoyaltyInfo{
+	perr := dummy.SetTokenRoyalty(addr1, TokenID("5"), RoyaltyInfo{
 		PaymentAddress: paymentAddress,
 		Percentage:     int64(200), // over maxRoyaltyPercentage
 	})
 	uassert.ErrorIs(t, perr, ErrInvalidRoyaltyPercentage)
 
-	// Test case: Retrieving Royalty Info
-	testing.SetOriginCaller(addr1) // addr1
+	// addr2 is not the owner.
+	cerr := dummy.SetTokenRoyalty(addr2, TokenID("1"), RoyaltyInfo{
+		PaymentAddress: paymentAddress,
+		Percentage:     percentage,
+	})
+	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	dummyPaymentAddress, dummyRoyaltyAmount, rerr := dummy.RoyaltyInfo(TokenID("1"), salePrice)
 	uassert.NoError(t, rerr, "RoyaltyInfo error")
