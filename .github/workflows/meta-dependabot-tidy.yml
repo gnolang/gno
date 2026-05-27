@@ -15,6 +15,7 @@ jobs:
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     permissions:
       contents: write # to commit the tidied go.mod/go.sum files
+      pull-requests: write # to close+reopen the PR so CI re-triggers (GITHUB_TOKEN pushes don't)
     steps:
       - name: Checkout code # zizmor: ignore[artipacked]
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -40,9 +41,22 @@ jobs:
           make tidy
 
       - name: Commit changes, if any
+        id: commit
         uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           skip_dirty_check: false # Enable dirty check, and skip unnecessary committing
           commit_message: "Run 'go mod tidy' via GitHub Actions"
+
+      # Pushes made with GITHUB_TOKEN do not retrigger workflows, so CI would
+      # remain stuck on the pre-tidy commit. Close+reopen the PR to fire a
+      # fresh pull_request event against the new HEAD.
+      - name: Re-trigger CI by closing and reopening the PR
+        if: steps.commit.outputs.changes_detected == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr close "$PR_URL"
+          gh pr reopen "$PR_URL"
