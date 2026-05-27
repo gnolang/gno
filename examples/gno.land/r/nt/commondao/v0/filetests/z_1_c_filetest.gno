@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_1_c_filetest
+
+package z_1_c_filetest
 
 import (
 	"testing"
@@ -11,11 +13,11 @@ const (
 	invitee = address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 )
 
-func main() {
+func main(cur realm) {
 	// Call as a users which is not a Common DAO member
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.Invite(cross, invitee)
+	commondao.Invite(cross(cur), invitee)
 }
 
 // Error:

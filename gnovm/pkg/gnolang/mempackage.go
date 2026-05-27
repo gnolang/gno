@@ -141,6 +141,16 @@ func IsPPackagePath(pkgPath string) bool {
 	return true
 }
 
+// IsTestOverlayPath reports whether pkgPath is a transient _test overlay
+// of a published /p/ package or /r/ realm (e.g. gno.land/p/foo_test,
+// gno.land/r/foo_test). Test overlays exist only during test runs and
+// never deploy, so they share the underlying package's authority
+// semantics for PkgID classification.
+func IsTestOverlayPath(pkgPath string) bool {
+	base, ok := strings.CutSuffix(pkgPath, "_test")
+	return ok && (IsPPackagePath(base) || IsRealmPath(base))
+}
+
 // IsStdlib determines whether pkgPath is for a standard library.
 // Dots are not allowed for stdlib paths.
 func IsStdlib(pkgPath string) bool {
@@ -157,6 +167,25 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
+}
+
+// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
+// package — one whose purpose is to host VM-test fixtures, exploit
+// probes, and other test-only support code. Test-namespace packages
+// are allowed to use the `cross` keyword and may be imported only
+// from other test-namespace packages or from test files
+// (_test.gno / _filetest.gno).
+//
+// The set is currently hand-listed (rather than a single prefix like
+// gno.land/p/testing/) so the migration can be staged: rules can be
+// enforced now without moving the packages. A future cleanup will
+// collapse the list as packages move under a single namespace.
+func IsTestPkgPath(pkgPath string) bool {
+	return pkgPath == "gno.land/p/demo/tests" ||
+		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
+		pkgPath == "gno.land/r/tests/vm" ||
+		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
 }
 
 //----------------------------------------

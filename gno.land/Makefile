@@ -84,7 +84,7 @@ test:
 	set -o pipefail; $(MAKE) test.inner 2>&1 | tee "$$log"; status=$$?; \
 	if [ $$status -ne 0 ]; then \
 		echo; echo "==== Failing tests ===="; \
-		grep -E '^(--- FAIL|FAIL\t|panic:)' "$$log" || true; \
+		grep -E '^(--- FAIL|[[:space:]]+--- FAIL|FAIL[[:space:]]|panic:|[[:space:]]+FAIL: testdata/)' "$$log" || true; \
 	fi; \
 	rm -f "$$log"; exit $$status
 

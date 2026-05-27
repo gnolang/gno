@@ -1,10 +1,10 @@
-// PKGPATH: gno.land/p/archive/groups_test
-package groups_test
+// PKGPATH: gno.land/r/archive/groups/filetests/z_1_b
+package z_1_b
 
 // SEND: 1000000ugnot
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 
 	"gno.land/r/archive/groups"
@@ -13,16 +13,16 @@ import (
 
 var gid groups.GroupID
 
-func main() {
-	caller := runtime.OriginCaller()
+func main(cur realm) {
+	caller := unsafe.OriginCaller()
 	testing.SetRealm(testing.NewUserRealm(caller))
 	testing.SetHeight(0)
-	uinit.RegisterUser(cross, "gnouser123", caller)
+	uinit.RegisterUser(cross(cur), "gnouser123", caller)
 	testing.SetHeight(123)
 
-	gid = groups.CreateGroup(cross, "test_group")
+	gid = groups.CreateGroup(cross(cur), "test_group")
 	println(gid)
-	groups.AddMember(cross, 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
+	groups.AddMember(cross(cur), 2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
 	println(groups.Render(""))
 }
 

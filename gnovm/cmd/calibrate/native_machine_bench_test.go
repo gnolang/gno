@@ -242,16 +242,6 @@ func BenchmarkNative_Banker_OriginSend(b *testing.B) {
 	}
 }
 
-func BenchmarkNative_Banker_AssertCallerIsRealm(b *testing.B) {
-	m := newDispatchMachine(0)
-	addContextAndFrames(m, "gno.land/r/caller", "gno.land/r/callee")
-	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/banker", "assertCallerIsRealm"), nReturns: 0}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		h.call()
-	}
-}
-
 // ---------------- chain.emit ----------------
 // Bench grid is 2-D: (nAttrs, perElemBytes). The fitter regresses
 // cost = base + α·nAttrs + β·totalBytes. Constant-byte benches isolate

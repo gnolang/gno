@@ -11,6 +11,7 @@ import (
 	libs_chain_banker "github.com/gnolang/gno/gnovm/stdlibs/chain/banker"
 	libs_chain_params "github.com/gnolang/gno/gnovm/stdlibs/chain/params"
 	libs_chain_runtime "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime"
+	libs_chain_runtime_unsafe "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
 	libs_crypto_ed25519 "github.com/gnolang/gno/gnovm/stdlibs/crypto/ed25519"
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
@@ -378,44 +379,6 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
-		"chain/banker",
-		"assertCallerIsRealm",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			libs_chain_banker.X_assertCallerIsRealm(
-				m,
-			)
-		},
-	},
-	{
-		"chain/banker",
-		"originSend",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]string")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]int64")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0, r1 := libs_chain_banker.X_originSend(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
 		"chain/params",
 		"SetString",
 		[]gno.FieldTypeExpr{
@@ -773,64 +736,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/runtime",
-		"originCaller",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := libs_chain_runtime.X_originCaller(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"chain/runtime",
-		"getRealm",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("int")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
-			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  int
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0, r1 := libs_chain_runtime.X_getRealm(
-				m,
-				p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
-		"chain/runtime",
 		"getSessionInfo",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
@@ -864,6 +769,90 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r3).Elem(),
+			))
+		},
+	},
+	{
+		"chain/runtime/unsafe",
+		"getRealm",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			r0, r1 := libs_chain_runtime_unsafe.X_getRealm(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"chain/runtime/unsafe",
+		"originCaller",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0 := libs_chain_runtime_unsafe.X_originCaller(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"chain/runtime/unsafe",
+		"originSend",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]int64")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1 := libs_chain_runtime_unsafe.X_originSend(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},
@@ -1744,9 +1733,10 @@ var initOrder = [...]string{
 	"math",
 	"strconv",
 	"chain",
-	"chain/runtime",
 	"chain/banker",
 	"chain/params",
+	"chain/runtime",
+	"chain/runtime/unsafe",
 	"crypto/bech32",
 	"encoding/binary",
 	"crypto/chacha20/chacha",

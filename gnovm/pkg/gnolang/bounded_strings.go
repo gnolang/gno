@@ -220,14 +220,6 @@ func BoundedSprintTV(tv TypedValue, m *Machine, lim int) string {
 // "VM panic: <structural>" rather than ErrOutOfGas. The original
 // panic info is preserved, which is the more useful signal.
 func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
-	if m.Alloc == nil {
-		// No allocator means no per-allocation cap; let it run.
-		// (Filetests, REPL, etc. don't take this branch because
-		// the m=nil filter at BoundedSprintTV's entry skips us.)
-		s = tv.Sprint(m)
-		ok = true
-		return
-	}
 	// Snapshot and tighten. boundedRenderAllocCap allows enough
 	// headroom for nested struct rendering at our lim cap; far
 	// less than block-gas worth.

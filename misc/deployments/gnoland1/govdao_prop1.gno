@@ -32,8 +32,8 @@ import (
 // mnemonic.  See loader.gno for the full mnemonic.
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
-func main() {
-	ms := memberstore.Get()
+func main(cur realm) {
+	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add temporary deployer as sole T1 member ----
 	// This gives the deployer 100% supermajority so proposals pass.
@@ -43,7 +43,7 @@ func main() {
 	// 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
 	// Additional validators can be added post-genesis via govDAO proposals
 	// (see misc/govdao-scripts/add-validator.sh or ./govdao add-validator).
-	govExec(valr.NewPropRequest(
+	govExec(0, cur, valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
 				{
@@ -90,18 +90,18 @@ func main() {
 	// ---- 3. Set chain parameters via governance proposals ----
 
 	// Unrestricted addresses (can transfer ugnot even when bank is locked).
-	govExec(params.ProposeAddUnrestrictedAcctsRequest(
+	govExec(0, cur, params.ProposeAddUnrestrictedAcctsRequest(
 		address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh"), // GovDAO T1 multisig
 		address("g148583t5x66zs6p90ehad6l4qefeyaf54s69wql"), // faucet
 	))
 
 	// Lock ugnot transfers (restricted denom).
-	govExec(params.ProposeLockTransferRequest())
+	govExec(0, cur, params.ProposeLockTransferRequest())
 
 	// ---- 4. Enable namespace enforcement (r/sys/names) ----
 	// This drops ownership and enables the namespace permission check.
 	// Must be called during genesis; after this, package paths require registration.
-	names.Enable(cross)
+	names.Enable(cross(cur))
 
 	// ---- 5. Add govDAO T1 member ----
 	// Temporarily manfred (moul) is the sole govDAO member. He will manually
@@ -115,17 +115,17 @@ func main() {
 	// ---- 7. Lock down memberstore access ----
 	// From this point on, only gno.land/r/gov/dao/v3/impl can call
 	// memberstore.Get() — matching the production AllowedDAOs configuration.
-	dao.UpdateImpl(cross, dao.UpdateRequest{
+	dao.UpdateImpl(cross(cur), dao.UpdateRequest{
 		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
 	})
 }
 
 // govExec creates a proposal, votes YES, and executes it immediately.
 // Works because the deployer is the sole T1 member (100% supermajority).
-func govExec(r dao.ProposalRequest) {
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+func govExec(_ int, rlm realm, r dao.ProposalRequest) {
+	pid := dao.MustCreateProposal(cross(rlm), r)
+	dao.MustVoteOnProposal(cross(rlm), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(rlm), pid)
 }
 
 func must(err error) {
