@@ -5,13 +5,19 @@ import (
 	"math"
 	"testing"
 
-	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/poa/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/sys/validators"
 )
+
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
 
 // generateTestValidators generates a dummy validator set
 func generateTestValidators(count int) []validators.Validator {
@@ -32,7 +38,7 @@ func generateTestValidators(count int) []validators.Validator {
 
 func TestValidators_AddRemove(t *testing.T) {
 	// Clear any changes
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 
 	var (
 		vals          = generateTestValidators(100)
@@ -71,7 +77,7 @@ func TestValidators_AddRemove(t *testing.T) {
 	initialRemoveHeight := runtime.ChainHeight()
 
 	// Clear any changes
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 
 	// Remove the validators
 	for _, val := range vals {
@@ -105,7 +111,7 @@ func TestValidators_AddRemove(t *testing.T) {
 // TestGetChanges_BoundedRange verifies that GetChanges(from, to) correctly
 // returns only changes within the [from, to] block range.
 func TestGetChanges_BoundedRange(t *testing.T) {
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 	vp = poa.NewPoA()
 
 	vals := generateTestValidators(3)
@@ -148,14 +154,14 @@ func TestGetChanges_BoundedRange(t *testing.T) {
 	uassert.Equal(t, 0, len(GetChanges(h2+1, h2+1)))
 }
 
-func TestGetChanges_PanicsOnInvalidRange(t *testing.T) {
-	uassert.PanicsWithMessage(t, "invalid range: from must be <= to", func() {
+func TestGetChanges_PanicsOnInvalidRange(cur realm, t *testing.T) {
+	uassert.PanicsWithMessage(t, cur, "invalid range: from must be <= to", func() {
 		GetChanges(10, 5)
 	})
 }
 
 func TestGetChanges_ClampsMaxInt64(t *testing.T) {
-	changes = avl.NewTree()
+	changes = bptree.NewBPTree32()
 
 	vals := generateTestValidators(1)
 

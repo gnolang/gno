@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_thread_00_filetest
+
+package z_create_thread_00_filetest
 
 import (
 	"testing"
@@ -17,15 +19,15 @@ const (
 
 var bid boards.ID
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	bid = boards2.CreateBoard(cross, "test-board", false, false)
+	bid = boards2.CreateBoard(cross(cur), "test-board", false, false)
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	tid := boards2.CreateThread(cross, bid, title, body)
+	tid := boards2.CreateThread(cross(cur), bid, title, body)
 
 	// Ensure that returned ID is right
 	println(tid == 1)

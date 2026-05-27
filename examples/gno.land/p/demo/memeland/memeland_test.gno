@@ -10,14 +10,41 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-func TestPostMeme(t *testing.T) {
-	m := NewMemeland()
-	id := m.PostMeme("Test meme data", time.Now().Unix())
+// postMemeAs / upvoteAs / removePostAs are tiny helpers that thread the
+// migrated (_ int, rlm realm) API: each sets the test realm to the
+// actor's user realm and invokes the call inside a crossing closure so
+// cur.Previous().Address() resolves to actor.
+func postMemeAs(cur realm, actor address, m *Memeland, data string, timestamp int64) string {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var id string
+	func(cur realm) { id = m.PostMeme(0, cur, data, timestamp) }(cross(cur))
+	return id
+}
+
+func upvoteAs(cur realm, actor address, m *Memeland, id string) string {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var result string
+	func(cur realm) { result = m.Upvote(0, cur, id) }(cross(cur))
+	return result
+}
+
+func removePostAs(cur realm, actor address, m *Memeland, id string) string {
+	testing.SetRealm(testing.NewUserRealm(actor))
+	var result string
+	func(cur realm) { result = m.RemovePost(0, cur, id) }(cross(cur))
+	return result
+}
+
+func TestPostMeme(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
+	id := postMemeAs(cur, admin, m, "Test meme data", time.Now().Unix())
 	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
-func TestGetPostsInRangePagination(t *testing.T) {
-	m := NewMemeland()
+func TestGetPostsInRangePagination(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	numOfPosts := 5
@@ -28,7 +55,7 @@ func TestGetPostsInRangePagination(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(data, nextTime.Unix())
+		postMemeAs(cur, admin, m, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -59,8 +86,9 @@ func TestGetPostsInRangePagination(t *testing.T) {
 	}
 }
 
-func TestGetPostsInRangeByTimestamp(t *testing.T) {
-	m := NewMemeland()
+func TestGetPostsInRangeByTimestamp(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	numOfPosts := 5
@@ -71,7 +99,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(data, nextTime.Unix())
+		postMemeAs(cur, admin, m, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -106,24 +134,22 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 	}
 }
 
-func TestGetPostsInRangeByUpvote(t *testing.T) {
-	m := NewMemeland()
+func TestGetPostsInRangeByUpvote(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	alice := testutils.TestAddress("alice")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	memeData1 := "Meme #1"
 	memeData2 := "Meme #2"
 
 	// Create posts at specific times for testing
-	id1 := m.PostMeme(memeData1, now.Unix())
-	id2 := m.PostMeme(memeData2, now.Add(time.Minute).Unix())
+	id1 := postMemeAs(cur, admin, m, memeData1, now.Unix())
+	id2 := postMemeAs(cur, admin, m, memeData2, now.Add(time.Minute).Unix())
 
-	m.Upvote(id1)
-	m.Upvote(id2)
-
-	// Change caller so avoid double upvote panic
-	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
-	m.Upvote(id1)
+	upvoteAs(cur, admin, m, id1)
+	upvoteAs(cur, admin, m, id2)
+	upvoteAs(cur, alice, m, id1)
 
 	// Final upvote count:
 	// Meme #1 - 2 upvote
@@ -153,8 +179,9 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	uassert.True(t, check, ufmt.Sprintf("Expected %s to be before %s", memeData1, memeData2))
 }
 
-func TestBadSortBy(t *testing.T) {
-	m := NewMemeland()
+func TestBadSortBy(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 	now := time.Now()
 
 	numOfPosts := 5
@@ -165,7 +192,7 @@ func TestBadSortBy(t *testing.T) {
 		data := ufmt.Sprintf("Meme #%d", i)
 		memeData = append(memeData, data)
 
-		m.PostMeme(data, nextTime.Unix())
+		postMemeAs(cur, admin, m, data, nextTime.Unix())
 	}
 
 	// Get timestamps
@@ -203,8 +230,8 @@ func TestBadSortBy(t *testing.T) {
 	}
 }
 
-func TestNoPosts(t *testing.T) {
-	m := NewMemeland()
+func TestNoPosts(cur realm, t *testing.T) {
+	m := NewMemeland(testutils.TestAddress("admin"))
 
 	// Add a post to Memeland
 	now := time.Now().Unix()
@@ -214,19 +241,20 @@ func TestNoPosts(t *testing.T) {
 	uassert.Equal(t, jsonStr, "[]")
 }
 
-func TestUpvote(t *testing.T) {
-	m := NewMemeland()
+func TestUpvote(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	m := NewMemeland(admin)
 
 	// Add a post to Memeland
 	now := time.Now().Unix()
-	postID := m.PostMeme("Test meme data", now)
+	postID := postMemeAs(cur, admin, m, "Test meme data", now)
 
 	// Initial upvote count should be 0
 	post := m.getPost(postID)
 	uassert.Equal(t, 0, post.UpvoteTracker.Size())
 
 	// Upvote the post
-	upvoteResult := m.Upvote(postID)
+	upvoteResult := upvoteAs(cur, admin, m, postID)
 	uassert.Equal(t, "upvote successful", upvoteResult)
 
 	// Retrieve the post again and check the upvote count
@@ -234,49 +262,40 @@ func TestUpvote(t *testing.T) {
 	uassert.Equal(t, 1, post.UpvoteTracker.Size())
 }
 
-func TestDelete(t *testing.T) {
+func TestDelete(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
+	bob := testutils.TestAddress("bob")
 
 	// Alice is admin
-	m := NewMemeland()
-
-	// Set caller to Bob
-	bob := testutils.TestAddress("bob")
-	testing.SetRealm(testing.NewUserRealm(bob))
+	m := NewMemeland(alice)
 
 	// Bob adds post to Memeland
 	now := time.Now()
-	postID := m.PostMeme("Meme #1", now.Unix())
+	postID := postMemeAs(cur, bob, m, "Meme #1", now.Unix())
 
 	// Alice removes Bob's post
-	testing.SetRealm(testing.NewUserRealm(alice))
-
-	id := m.RemovePost(postID)
+	id := removePostAs(cur, alice, m, postID)
 	uassert.Equal(t, postID, id, "post IDs not matching")
 	uassert.Equal(t, 0, len(m.Posts), "there should be 0 posts after removing")
 }
 
-func TestDeleteByNonAdmin(t *testing.T) {
+func TestDeleteByNonAdmin(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	testing.SetRealm(testing.NewUserRealm(alice))
-
-	m := NewMemeland()
+	m := NewMemeland(alice)
 
 	// Add a post to Memeland
 	now := time.Now()
-	postID := m.PostMeme("Meme #1", now.Unix())
+	postID := postMemeAs(cur, alice, m, "Meme #1", now.Unix())
 
-	// Bob will try to delete meme posted by Alice, which should fail
+	// Bob will try to delete meme posted by Alice, which should fail.
+	// removePostAs wraps the call in cross(cur), so the panic crosses
+	// a realm boundary and must be caught with revive(); a plain
+	// defer-recover wouldn't see it.
 	bob := testutils.TestAddress("bob")
-	testing.SetRealm(testing.NewUserRealm(bob))
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("code did not panic when it should have")
-		}
-	}()
-
-	// Should panic - caught by defer
-	m.RemovePost(postID)
+	r := revive(func() {
+		removePostAs(cur, bob, m, postID)
+	})
+	if r == nil {
+		t.Errorf("code did not panic when it should have")
+	}
 }

@@ -28,11 +28,11 @@ func testPackage(t *testing.T) {
 ### Metadata
 | Key | Value |
 | --- | --- |
-| ±std.CurrentRealm().PkgPath()± | gno.land/r/test/test |
-| ±std.CurrentRealm().Address()± | g1z7fga7u94pdmamlvcrtvsfwxgsye0qv3rres7n |
-| ±std.PreviousRealm().PkgPath()± |  |
-| ±std.PreviousRealm().Address()± | g1user |
-| ±std.ChainHeight()± | 123 |
+| ±unsafe.CurrentRealm().PkgPath()± | gno.land/r/test/test |
+| ±unsafe.CurrentRealm().Address()± | g1z7fga7u94pdmamlvcrtvsfwxgsye0qv3rres7n |
+| ±unsafe.PreviousRealm().PkgPath()± |  |
+| ±unsafe.PreviousRealm().Address()± | g1user |
+| ±runtime.ChainHeight()± | 123 |
 | ±time.Now().Format(time.RFC3339)± | 2009-02-13T23:31:30Z |
 
 </details>
@@ -60,11 +60,11 @@ func testPackage(t *testing.T) {
 ### Metadata
 | Key | Value |
 | --- | --- |
-| ±std.CurrentRealm().PkgPath()± | gno.land/r/test/test |
-| ±std.CurrentRealm().Address()± | g1z7fga7u94pdmamlvcrtvsfwxgsye0qv3rres7n |
-| ±std.PreviousRealm().PkgPath()± |  |
-| ±std.PreviousRealm().Address()± | g1user |
-| ±std.ChainHeight()± | 123 |
+| ±unsafe.CurrentRealm().PkgPath()± | gno.land/r/test/test |
+| ±unsafe.CurrentRealm().Address()± | g1z7fga7u94pdmamlvcrtvsfwxgsye0qv3rres7n |
+| ±unsafe.PreviousRealm().PkgPath()± |  |
+| ±unsafe.PreviousRealm().Address()± | g1user |
+| ±runtime.ChainHeight()± | 123 |
 | ±time.Now().Format(time.RFC3339)± | 2009-02-13T23:31:30Z |
 
 </details>

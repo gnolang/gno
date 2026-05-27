@@ -59,7 +59,7 @@ func init() {
 		itemsSortedByDownvotes: avl.NewTree(),
 	}
 
-	Ownable = ownable.NewWithAddressByPrevious(config.OwnableMain.Owner()) // OrigSendOwnable?
+	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
 	Pausable = pausable.NewFromOwnable(Ownable)
 }
 
@@ -70,7 +70,7 @@ func Register(cur realm, title, description string) {
 		return
 	}
 
-	submission := runtime.PreviousRealm()
+	submission := cur.Previous()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -119,7 +119,7 @@ func Upvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote)
@@ -141,7 +141,7 @@ func Downvote(cur realm, pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := runtime.PreviousRealm().Address()
+	caller := cur.Previous().Address()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote)
@@ -158,15 +158,15 @@ func Downvote(cur realm, pkgpath string) {
 }
 
 func Pause(cur realm) error {
-	return Pausable.Pause()
+	return Pausable.Pause(0, cur)
 }
 
 func Unpause(cur realm) error {
-	return Pausable.Unpause()
+	return Pausable.Unpause(0, cur)
 }
 
 func Delete(cur realm, pkgpath string) {
-	if !Ownable.Owned() {
+	if !Ownable.OwnedBy(cur.Previous().Address()) {
 		panic(ownable.ErrUnauthorized)
 	}
 

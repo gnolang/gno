@@ -3,11 +3,12 @@
 
 ## Installation
 
-To install `gnodev`, simply clone the monorepo, and run `make install`:
+See the [Installation](./install.md) page for prerequisites and install methods.
 
-```
-git clone git@github.com:gnolang/gno.git
-cd gno && make install
+Once installed, verify that `gnodev` is available:
+
+```sh
+gnodev --help
 ```
 
 ## Overview
@@ -165,7 +166,6 @@ gnokey maketx call \
 -args "42" \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
--broadcast \
 {MYKEY}
 ```
 
