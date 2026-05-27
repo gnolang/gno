@@ -97,7 +97,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	var divergenceReason string // legacy errorcheck/compile inversion path only
 	var isGoRunMode bool
 	var goStdout string
-	if strings.HasSuffix(fname, ".go") {
+	isGoFile := strings.HasSuffix(fname, ".go")
+	// .gno files opt INTO Gno-vs-Go comparison by declaring at least
+	// one of `// GoOutput:` / `// GoError:` / `// Divergence:`. Without
+	// such a directive, .gno files keep their pure-Gno behavior — the
+	// 1600+ existing files are untouched.
+	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
+		dirs.First(DirectiveGoError) != nil ||
+		dirs.First(DirectiveDivergence) != nil
+	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
 		switch {
@@ -125,13 +133,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		default:
 			// Runnable .go corpus file: symmetric Gno-vs-Go.
 			isGoRunMode = true
-			out, _, runErr := runGoToolchain(source)
-			if runErr != nil {
-				return "", 0, fmt.Errorf(".go filetest %s: cannot run via Go toolchain "+
-					"(install go, or mark file `// Unsupported:`): %w", fname, runErr)
-			}
-			goStdout = out
 		}
+	} else if hasGoOptIn && IsRunnable(source) {
+		// .gno run-mode opt-in: harness ALSO runs Go and compares.
+		// The existing `// Output:` directive remains Gno's pinned
+		// golden (handled by the main match loop); the new triple
+		// directives drive the Gno-vs-Go finalize at the end.
+		isGoRunMode = true
+	}
+	if isGoRunMode {
+		out, _, runErr := runGoToolchain(source)
+		if runErr != nil {
+			return "", 0, fmt.Errorf("filetest %s: cannot run via Go toolchain "+
+				"(install go, or mark file `// Unsupported:`): %w", fname, runErr)
+		}
+		goStdout = out
 	}
 
 	// Legacy verdict-inversion for the errorcheck/compile-only modes
@@ -332,10 +348,14 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		dirs = append(dirs, dir)
 	}
 
-	// Symmetric Gno-vs-Go finalize for run-mode .go files.
+	// Symmetric Gno-vs-Go finalize for run-mode .go files or opted-in
+	// .gno files. For .gno, Gno's pinned golden is the existing
+	// `// Output:` directive (already match-checked above); for .go,
+	// it's `// GnoOutput:` (new). Auto-append uses the appropriate
+	// directive name per extension.
 	if isGoRunMode {
 		var newDirs Directives
-		newDirs, returnErr = finalizeGoRunDivergence(dirs, result.Output, goStdout, returnErr, opts.Sync)
+		newDirs, returnErr = finalizeGoRunDivergence(dirs, result.Output, goStdout, returnErr, opts.Sync, isGoFile)
 		if newDirs != nil {
 			dirs = newDirs
 			updated = true
@@ -349,26 +369,35 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", m.GasMeter.GasConsumed(), returnErr
 }
 
-// finalizeGoRunDivergence drives the symmetric Gno-vs-Go verdict for a
-// run-mode .go corpus file once both outputs are known.
+// finalizeGoRunDivergence drives the symmetric Gno-vs-Go verdict for
+// a run-mode file (either a .go corpus file or a .gno file with the
+// Go-comparison opt-in) once both outputs are known.
 //
 //   - With // Divergence: present, the contributor has blessed a real
-//     divergence. The pinned // GnoOutput: and // GoOutput: directives
-//     are match-checked by the main loop above; here we additionally
-//     verify that gnoStdout != goStdout — equal outputs mean Gno now
+//     divergence. The pinned Gno-side and // GoOutput: directives are
+//     match-checked by the main loop above; here we additionally
+//     verify gnoStdout != goStdout — equal outputs mean Gno now
 //     matches Go and the blessing is stale.
 //   - With no // Divergence:, the outputs must match. A diff is a real
-//     regression: under opts.Sync, the harness auto-appends the triple
-//     (// GnoOutput:, // GoOutput:, // Divergence: TODO ...) so the
-//     contributor only edits the category + reason. Otherwise the diff
-//     is returned as an error pointing at the same workflow.
+//     regression: under opts.Sync the harness auto-appends the triple
+//     so the contributor only edits the category + reason. Otherwise
+//     the diff is returned as an error pointing at the same workflow.
+//
+// Gno-side pinned directive: .go files use new // GnoOutput:; .gno
+// files reuse existing // Output: (per the long-standing convention).
+// isGoFile selects between them for auto-append.
 //
 // Returns (newDirs, err). newDirs is non-nil only when sync mode wrote
 // or removed directives — the caller uses it to regenerate the file.
-func finalizeGoRunDivergence(dirs Directives, gnoOutput, goStdout string, prior error, sync bool) (Directives, error) {
+func finalizeGoRunDivergence(dirs Directives, gnoOutput, goStdout string, prior error, sync, isGoFile bool) (Directives, error) {
 	gnoStdout := strings.TrimRight(trimTrailingSpaces(gnoOutput), "\n")
 	goExp := strings.TrimRight(goStdout, "\n")
 	diverges := gnoStdout != goExp
+
+	gnoDir := DirectiveOutput
+	if isGoFile {
+		gnoDir = DirectiveGnoOutput
+	}
 
 	dDir := dirs.First(DirectiveDivergence)
 	if dDir != nil {
@@ -376,10 +405,16 @@ func finalizeGoRunDivergence(dirs Directives, gnoOutput, goStdout string, prior 
 		// match loop; surface their mismatches via `prior`.
 		if !diverges {
 			if sync {
-				// Stale blessing: remove the triple.
-				return removeDirectives(dirs, DirectiveGnoOutput, DirectiveGoOutput, DirectiveDivergence), prior
+				// Stale blessing: remove the divergence triple. For
+				// .gno files keep the long-standing // Output:
+				// (drops only the new triple, not Gno's golden).
+				toRemove := []string{DirectiveGoOutput, DirectiveDivergence}
+				if isGoFile {
+					toRemove = append(toRemove, DirectiveGnoOutput)
+				}
+				return removeDirectives(dirs, toRemove...), prior
 			}
-			stale := fmt.Errorf("stale `// Divergence: %s` directive: Gno's output now matches Go's; remove // GnoOutput, // GoOutput, and // Divergence",
+			stale := fmt.Errorf("stale `// Divergence: %s` directive: Gno's output now matches Go's; remove the divergence triple",
 				dDir.Content)
 			return nil, multierr.Append(prior, stale)
 		}
@@ -392,13 +427,24 @@ func finalizeGoRunDivergence(dirs Directives, gnoOutput, goStdout string, prior 
 	}
 	if sync {
 		new := append(Directives{}, dirs...)
+		if isGoFile {
+			// Pin Gno's side via new // GnoOutput:. .gno files reuse
+			// the existing // Output: directive (added by the main
+			// match loop's sync path), so nothing to do here.
+			new = append(new, Directive{Name: gnoDir, Content: gnoStdout})
+		}
 		new = append(new,
-			Directive{Name: DirectiveGnoOutput, Content: gnoStdout},
 			Directive{Name: DirectiveGoOutput, Content: goExp},
+			// Empty reason is technically valid (the directive is a
+			// boolean blessing); the TODO placeholder nudges the
+			// contributor to pick a category from the advisory
+			// lexicon in tests/README.md and explain why the
+			// divergence is acceptable. The diff itself is already
+			// visible in the two output directives above, so the
+			// reason text is for the *why*, not the *what*.
 			Directive{
-				Name: DirectiveDivergence,
-				Content: fmt.Sprintf("TODO: TODO — Go: %q; Gno: %q (edit category + reason)",
-					goExp, gnoStdout),
+				Name:     DirectiveDivergence,
+				Content:  "TODO: <category>: explain why this divergence is acceptable",
 				Complete: true,
 			},
 		)
@@ -406,7 +452,7 @@ func finalizeGoRunDivergence(dirs Directives, gnoOutput, goStdout string, prior 
 	}
 	diff := unifiedDiff(goExp, gnoStdout)
 	return nil, multierr.Append(prior, fmt.Errorf(
-		"Gno-vs-Go divergence detected — bless with the triple below, or re-run with --update-golden-tests to auto-append:\n%s",
+		"Gno-vs-Go divergence detected — bless with the divergence triple, or re-run with --update-golden-tests to auto-append:\n%s",
 		diff))
 }
 
@@ -760,20 +806,31 @@ var allDirectives = []string{
 	DirectiveGoError,
 }
 
-// singleLinePascalDirectives holds PascalCase directives that always
-// take their content from the same line (single-line form), even when
-// the content is empty. Without this set, the parser's PascalCase-bare
-// rule would treat `// GoOutput:` as a multi-line marker and absorb
-// the subsequent `// Divergence: ...` comment as its content. Members
-// here are recognized as single-line by ParseDirectives before the
-// multi-line check fires.
+// singleLinePascalDirectives holds PascalCase directives whose content
+// is ALWAYS single-line — even when empty — and that must be parsed
+// without the bare-PascalCase multi-line absorbing behavior. Members
+// (currently `Unsupported`, `Divergence`) carry one-line reason text.
+//
+// Other PascalCase directives (Output / Error / GnoOutput / GoOutput /
+// GnoError / GoError / Realm / …) are multi-line markers by default,
+// matching the .gno convention: directive on its own line, then
+// `//`-prefixed content lines, terminated by a blank line or end of
+// file. Inline-content single-line form (`// Output: foo`) is also
+// accepted via the same parser path — see ParseDirectives.
 var singleLinePascalDirectives = map[string]bool{
 	DirectiveUnsupported: true,
 	DirectiveDivergence:  true,
-	DirectiveGnoOutput:   true,
-	DirectiveGoOutput:    true,
-	DirectiveGnoError:    true,
-	DirectiveGoError:     true,
+}
+
+// pinnedGoldenDirectives lists PascalCase directives whose empty
+// content is meaningful and must still be serialized (rather than
+// skipped). `// GoOutput:` with no lines means "Go produces no stdout"
+// — a pinned-golden assertion we want visible in the file.
+var pinnedGoldenDirectives = map[string]bool{
+	DirectiveGnoOutput: true,
+	DirectiveGoOutput:  true,
+	DirectiveGnoError:  true,
+	DirectiveGoError:   true,
 }
 
 // Directives contains the directives of a file.
@@ -820,9 +877,7 @@ func (d Directives) FileTest() string {
 			bld.WriteString("// " + dir.Name + ": " + dir.Content + ll)
 		case singleLinePascalDirectives[dir.Name]:
 			// Single-line PascalCase meta-directives. Always one line,
-			// content (possibly empty) right after the colon. Empty
-			// content (e.g. `// GoOutput:` when Go produces no stdout)
-			// must still be emitted — it's a meaningful pinned value.
+			// content (possibly empty) right after the colon.
 			if dir.Content == "" {
 				bld.WriteString("// " + dir.Name + ":" + ll)
 			} else {
@@ -830,6 +885,14 @@ func (d Directives) FileTest() string {
 			}
 		default:
 			if dir.Content == "" || dir.Content == "\n" {
+				// Pinned-golden directives (`// GoOutput:` etc.) carry
+				// meaning even when empty — "Go produces no stdout"
+				// is a positive assertion. Emit the bare marker plus a
+				// blank-line separator so the parser doesn't absorb
+				// subsequent directives into it.
+				if pinnedGoldenDirectives[dir.Name] {
+					bld.WriteString("// " + dir.Name + ":\n" + ll)
+				}
 				continue
 			}
 			bld.WriteString("// " + dir.Name + ":\n")
@@ -922,21 +985,29 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 			}
 		}
 
-		// PascalCase single-line meta-directive (`Unsupported:`,
-		// `Divergence:`, `GnoOutput:`, `GoOutput:`, `GnoError:`,
-		// `GoError:` — see [singleLinePascalDirectives]). Checked
-		// first so the multi-line PascalCase rule doesn't absorb the
-		// next comment line as content. Content may be empty (e.g.
-		// `// GoOutput:` when Go produces no stdout).
-		if subm2 := reDirectiveSingleLinePascal.FindStringSubmatch(comment); subm2 != nil &&
-			singleLinePascalDirectives[subm2[1]] {
-			parsed = append(parsed,
-				Directive{
-					Name:     subm2[1],
-					Content:  subm2[2],
-					Complete: true,
-				})
-			continue
+		// PascalCase single-line directive. Two acceptance paths:
+		//   1. Name is in [singleLinePascalDirectives] (Unsupported,
+		//      Divergence) — always single-line, content may be empty.
+		//   2. Inline content is non-empty — `// Name: foo` for any
+		//      known PascalCase directive collapses to single-line
+		//      form. Bare `// Name:` falls through to the multi-line
+		//      marker rule below.
+		// Checked before reDirectiveLine so multi-line absorption
+		// doesn't eat the next comment line for case 1.
+		if subm2 := reDirectiveSingleLinePascal.FindStringSubmatch(comment); subm2 != nil {
+			name := subm2[1]
+			content := subm2[2]
+			isSingle := singleLinePascalDirectives[name] ||
+				(content != "" && slices.Contains(allDirectives, name))
+			if isSingle {
+				parsed = append(parsed,
+					Directive{
+						Name:     name,
+						Content:  content,
+						Complete: true,
+					})
+				continue
+			}
 		}
 		// Find if there is a colon (indicating a possible directive).
 		subm := reDirectiveLine.FindStringSubmatch(comment)
@@ -1004,18 +1075,21 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 var goSubprocessTimeout = 30 * time.Second
 
 // runGoToolchain compiles+runs source via the host Go toolchain and
-// returns Go's actual stdout and stderr. Dispatches on source content:
-// runnable files (package main + func main) go through `go run`;
-// non-runnable files (typical errorcheck/compile-only shapes) go
-// through `go build` so non-main packages also compile cleanly. Both
-// stdout and stderr are captured separately — the caller pins them
-// via `// GoOutput:` / `// GoError:` directives for symmetric
-// Gno-vs-Go comparison.
+// returns Go's user-visible output (stdout + stderr combined) and any
+// build/compile errors. Dispatches on source content: runnable files
+// (package main + func main) go through `go run`; non-runnable files
+// go through `go build` so non-main packages also compile cleanly.
+//
+// Stdout and stderr are combined because Gno's runtime exposes one
+// output stream — comparing only Go's stdout would flag the builtin
+// `println` (Go: stderr; Gno: stdout) as a divergence purely from
+// the stream choice, not a real semantic difference. Combining puts
+// the comparison on the same footing as `go test`'s default.
 //
 // Non-zero exit (panic, compile error) is NOT a function-level error
 // — it's the corpus file's expected behavior. The only error returned
 // is a genuine exec failure (Go toolchain not on PATH, timeout).
-func runGoToolchain(source []byte) (stdout, stderr string, err error) {
+func runGoToolchain(source []byte) (output, stderr string, err error) {
 	dir, mkErr := os.MkdirTemp("", "gno-filetest-go-*")
 	if mkErr != nil {
 		return "", "", fmt.Errorf("mkdir temp: %w", mkErr)
@@ -1047,7 +1121,13 @@ func runGoToolchain(source []byte) (stdout, stderr string, err error) {
 		return "", "", fmt.Errorf("`go %s` exceeded %s timeout — mark the file with `// Unsupported:`",
 			args[0], goSubprocessTimeout)
 	}
-	stdout = strings.TrimRight(outBuf.String(), "\n")
+	// Combine stdout and stderr into one user-visible stream — Gno's
+	// runtime has a single output channel, so this puts comparison on
+	// the same footing. Stderr is also returned separately for callers
+	// that want to distinguish (e.g. errorcheck/compile modes that
+	// look at compiler diagnostics specifically).
+	combined := outBuf.String() + errBuf.String()
+	output = strings.TrimRight(combined, "\n")
 	stderr = strings.TrimRight(errBuf.String(), "\n")
 	if runErr != nil {
 		var ee *exec.ExitError
@@ -1057,7 +1137,7 @@ func runGoToolchain(source []byte) (stdout, stderr string, err error) {
 		// Non-zero exit is expected for errorcheck / panic-class
 		// corpus files; stderr carries the diagnostics.
 	}
-	return stdout, stderr, nil
+	return output, stderr, nil
 }
 
 // memPackageForTypeCheck wraps mpkg so its files are visible to

@@ -42,41 +42,86 @@ For non-`main` files (errorcheck, compile-only), a PKGPATH +
 synthetic-`main` rescue is applied so they reach Gno preprocess
 instead of bouncing on the realm-naming check.
 
-Escape hatches — single-line meta-directives:
+Escape hatches:
 
 - `// Unsupported: <reason>` — `t.Skip(reason)` before any execution.
   Use for feature gaps (channels, goroutines, generics, dot-imports,
-  `complex`, …). Replaces the cross-file skiplist YAML the external
-  [`gno-go-conformance`](https://github.com/gnolang/gno-go-conformance)
-  tool uses. Example: `run/unsupported_canary.go`.
+  `complex`, …). Each file declares its own skip reason inline;
+  there's no cross-file skiplist. Example:
+  `gocorpus/testdata/run/unsupported_canary.go`.
 
 - For **blessed Gno-vs-Go divergences in run mode**, a triple of
-  pinned-golden directives records both sides + the blessing:
+  pinned-golden directives records both sides + the blessing.
+  Placed at the bottom of the file (matching the `.gno` `// Output:`
+  convention), with blank-line separators between each entry:
 
   ```
-  // GnoOutput: <Gno's actual stdout>
-  // GoOutput:  <`go run`'s actual stdout>
-  // Divergence: <category>: <reason>
+  // GnoOutput:        # .gno files reuse the existing // Output:
+  // <Gno's output>    # instead of // GnoOutput:.
+
+  // GoOutput:
+  // <`go run`'s output>
+
+  // Divergence: <free-text reason>
   ```
 
   The harness verifies all three: the pinned outputs must match
-  current actuals, the pinned outputs must differ (otherwise the
-  divergence is stale and the test FAILS with "remove the triple"),
-  and the contributor's category names the kind of difference.
-  Categories: `error-wording`, `error-early-bail`, `stdlib-formatting`,
-  `stdlib-symbol-missing`, `stdlib-behavior`, `resource-budget`,
-  `determinism`. Example: `run/divergence_canary.go`.
+  current actuals, the outputs must actually differ (otherwise the
+  divergence is stale and the test FAILS with "remove the divergence
+  triple"). The directive itself is a boolean — its presence blesses
+  the diff visible in `// GnoOutput:` / `// GoOutput:`. The reason
+  text isn't parsed; it exists for the future reader. Example:
+  `gocorpus/testdata/run/divergence_panic.go`.
 
-  **Workflow:** copy a corpus file verbatim → run it → if Gno
-  matches Go, done. If diverges, re-run with
-  `--update-golden-tests` and the harness auto-appends the triple
-  (with a `TODO:` placeholder reason the contributor refines).
+  **Recommended reason shape** (advisory, not enforced by the
+  harness — `// Divergence: <free text>` works too):
+
+  ```
+  // Divergence: <category>: <one-line explanation>
+  ```
+
+  The seven categories below cover the divergences that have shown
+  up so far. They name the *kind* of difference, which helps
+  maintainers triage:
+
+  | Category | Meaning |
+  |---|---|
+  | `error-wording` | Same kind of error or panic, different message text. |
+  | `error-early-bail` | Multi-error file: Gno's preprocessor bails on a different error first, so the set of errors differs. |
+  | `stdlib-formatting` | Same logic, formatted output differs (e.g. `%v` for floats). |
+  | `stdlib-symbol-missing` | Gno doesn't expose this stdlib symbol yet. |
+  | `stdlib-behavior` | Same symbol, different observable behavior. |
+  | `resource-budget` | Exceeds Gno's default alloc/gas budget. |
+  | `determinism` | Output depends on map order, GC timing, or scheduling — non-comparable. |
+
+  Use `unclassified` when none fit. The list is gno's own — feel
+  free to add a new category if a recurring pattern appears.
+
+  **Output comparison.** Go's stdout and stderr are combined for the
+  comparison (Gno has a single output stream). This keeps the
+  comparison on the same footing as `go test`'s default and avoids
+  flagging artifacts like Go's builtin `println` (writes to stderr)
+  as divergences when both runtimes emit the same text.
+
+  **Workflow.** Copy a corpus file verbatim → run it → if Gno
+  matches Go, done. If diverges, re-run with `--update-golden-tests`
+  and the harness auto-appends the triple (with a `TODO:`
+  placeholder reason the contributor refines).
+
+- **`.gno` opt-in.** The same triple works for runnable `.gno`
+  filetests (anywhere under `tests/files/`): the harness invokes the
+  Go toolchain and compares **only when** at least one of
+  `// GoOutput:` / `// GoError:` / `// Divergence:` is present.
+  Without these, `.gno` files keep their pure-Gno behavior — the
+  existing 1600+ files are untouched. Example:
+  `gocorpus/testdata/gno/optin_canary.gno`.
 
   *Not yet implemented for errorcheck/compile modes.* Those modes
   still use the legacy `// Divergence: <reason>` single-line
   verdict-inversion directive: presence flips the verdict, stale
-  blessings fail loudly, no pinned goldens. (Symmetric `// GnoError:`
-  / `// GoError:` for these modes is planned as a follow-up.)
+  blessings fail loudly, no pinned goldens. Symmetric
+  `// GnoError:` / `// GoError:` for these modes is planned as a
+  follow-up.
 
 Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`.
 
