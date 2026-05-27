@@ -76,15 +76,12 @@ type ClientAdapter interface {
 
 	// File fetches the source file from a given package path and
 	// filename. `height = 0` queries the latest block; positive values
-	// pin the query to that historical height — required for the
-	// state explorer's time-travel mode to render source consistent
-	// with the value snapshot.
+	// pin the query to that historical height.
 	File(ctx context.Context, path, filename string, height int64) ([]byte, FileMeta, error)
 
 	// ListFiles lists all source files available in a specified
 	// package path. `height = 0` queries the latest block; non-zero
-	// pins the listing to a historical block so time-travel views
-	// stay consistent between file names and contents.
+	// pins the listing to a historical block.
 	ListFiles(ctx context.Context, path string, height int64) ([]string, error)
 
 	// QueryPath list any path given the specified prefix
@@ -96,8 +93,8 @@ type ClientAdapter interface {
 	Doc(ctx context.Context, path string, height int64) (*doc.JSONDocumentation, error)
 
 	// StatePkg retrieves the root state tree for a package. `height
-	// = 0` queries the latest block; any positive value pins the
-	// query to that historical height (time-travel).
+	// = 0` queries the latest block; positive values are forwarded
+	// to ABCI as-is.
 	StatePkg(ctx context.Context, path string, height int64) ([]byte, error)
 
 	// StateObject retrieves the children of an object by ObjectID at
@@ -237,8 +234,7 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string, height int64) (*doc
 }
 
 // StatePkg retrieves root state tree for a package via vm/qpkg_json.
-// `height = 0` queries the latest block; positive value pins to that
-// historical height (time-travel).
+// `height = 0` queries the latest block.
 func (c *rpcClient) StatePkg(ctx context.Context, path string, height int64) ([]byte, error) {
 	const qpath = "vm/qpkg_json"
 

@@ -96,18 +96,14 @@ func (m *fragMockClient) StateType(context.Context, string, int64) ([]byte, erro
 }
 
 // fragFileFetcher is a tiny components.FileFetcher used by frag=source tests.
-// gotHeight records the last-requested height so tests can pin the
-// time-travel-aware contract on FileFetcher.
 type fragFileFetcher struct {
-	body      []byte
-	err       error
-	gotHeight int64
-	gotFile   string
-	calls     int32
+	body    []byte
+	err     error
+	gotFile string
+	calls   int32
 }
 
-func (f *fragFileFetcher) Fetch(_ context.Context, _, file string, height int64) ([]byte, error) {
-	f.gotHeight = height
+func (f *fragFileFetcher) Fetch(_ context.Context, _, file string, _ int64) ([]byte, error) {
 	f.gotFile = file
 	atomic.AddInt32(&f.calls, 1)
 	return f.body, f.err
@@ -214,37 +210,6 @@ func TestFragNodeHappyPath(t *testing.T) {
 		"happy path renders children via the shared state/node renderer")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&client.objCalls),
 		"one StateObject call per frag=node request")
-}
-
-func TestFragNodeStampsHeight(t *testing.T) {
-	// Set up a ref child so the template emits a nested hx-get URL we can grep.
-	const innerOID = "ffffffffffffffffffffffffffffffffffffffff:9"
-	body := []byte(fmt.Sprintf(`{
-		"objectid": %q,
-		"value": {
-			"@type": "/gno.StructValue",
-			"Fields": [
-				{"T": {"@type": "/gno.RefType", "ID": "gno.land/r/x.User"},
-				 "V": {"@type": "/gno.RefValue", "ObjectID": %q}}
-			]
-		}
-	}`, fragOID, innerOID))
-	client := &fragMockClient{objBodies: map[string][]byte{fragOID: body}}
-	h := newFragHandler(client, nil)
-
-	rec := serveFragReq(t, h, url.Values{
-		"frag":   {"node"},
-		"oid":    {fragOID},
-		"height": {"12345"},
-	})
-	require.Equal(t, http.StatusOK, rec.Code, "got body=%q", rec.Body.String())
-
-	out := rec.Body.String()
-	assert.Contains(t, out, "height=12345",
-		"every nested hx-get must inherit the parent page's height (stale-while-revalidate invariant)")
-
-	assert.Equal(t, "public, max-age=86400, immutable", rec.Header().Get("Cache-Control"),
-		"pinned-height fragments are immutable")
 }
 
 func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
@@ -650,23 +615,6 @@ func TestFragSourceHappyPath(t *testing.T) {
 	assert.Contains(t, body, "line3", "the target line must appear in the highlighted slice")
 }
 
-// frag=source must thread `?height=N` through to FileFetcher so the
-// rendered source matches the pinned value snapshot, not always latest.
-func TestFragSourceThreadsHeight(t *testing.T) {
-	ff := &fragFileFetcher{body: []byte("a\nb\nc\n")}
-	h := newFragHandler(&fragMockClient{}, ff)
-
-	rec := serveFragReq(t, h, url.Values{
-		"frag":   {"source"},
-		"file":   {"foo.gno"},
-		"line":   {"2"},
-		"height": {"42"},
-	})
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, int64(42), ff.gotHeight,
-		"FileFetcher must receive the pinned height, not 0 (latest)")
-}
-
 func TestFragSourceRejectsLargeFile(t *testing.T) {
 	// >256 KB body — the fragment must fall back to the link-only message.
 	big := make([]byte, MaxFragmentFileSize+1)
@@ -724,7 +672,7 @@ func TestFragSourcePermalinkUsesWebargsGrammar(t *testing.T) {
 	assert.Contains(t, body, "/r/demo$", "permalink must use the $webargs grammar with the pkg path")
 	assert.Contains(t, body, "source", "permalink must route to the full-source view")
 	assert.NotContains(t, body, `href="?source`, "the dead relative ?source link must be gone")
-	assert.Contains(t, body, "height=77", "permalink must carry the height param")
+	assert.NotContains(t, body, "height=77", "permalink must not carry the height param (pinning disabled)")
 	assert.Contains(t, body, "#L2", "permalink must anchor at the target line")
 }
 

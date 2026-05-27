@@ -78,7 +78,7 @@ func TestHandleDispatchesByQuery(t *testing.T) {
 func TestHandleEndToEndFragmentFromTemplateURL(t *testing.T) {
 	// Build the URL the way the template does (stateFragNodeHref).
 	oid := "abcdef0123456789abcdef0123456789abcdef01:1"
-	href := string(stateFragNodeHref("/r/demo", oid, "", "", 0, ""))
+	href := string(stateFragNodeHref("/r/demo", oid, "", 0, ""))
 	// Round-trip through net/url and ParseFromURL like a real request would.
 	stdURL, err := url.Parse(href)
 	if err != nil {

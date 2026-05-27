@@ -4,11 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"net/url"
-	"strconv"
 	"strings"
-
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
 //go:embed templates/*.html
@@ -95,27 +91,13 @@ var funcMap = template.FuncMap{
 		}
 	},
 
-	// sourceHref carries ?height=N so time-travel context survives the
-	// hop from a state card to the source tab.
-	"sourceHref": func(pkgPath, file string, line int, height int64) template.URL {
-		wq := url.Values{"source": {""}, "file": {file}}
-		if height > 0 {
-			wq.Set("height", strconv.FormatInt(height, 10))
-		}
-		u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
-		href := u.EncodeWebURL()
-		if line > 0 {
-			href += "#L" + strconv.Itoa(line)
-		}
-		return template.URL(href) //nolint:gosec
-	},
-
 	// hx-get / permalink builders — see helpers.go.
 	"stateFragNodeHref":   stateFragNodeHref,
 	"stateFragSourceHref": stateFragSourceHref,
 	"stateObjectHref":     stateObjectHref,
 	"stateRawJSONHref":    stateRawJSONHref,
 	"stateSourceHref":     stateSourceHref,
+	"sourceHref":          stateSourceHref,
 	"stateBaseHref":       RealmStateHref,
 	"stateSearchBaseHref": stateSearchBaseHref,
 

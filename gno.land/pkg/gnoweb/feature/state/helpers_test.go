@@ -42,12 +42,12 @@ func TestSliceLines(t *testing.T) {
 
 // TestStateObjectHref_RoundtripsThroughWebURL — the encoded ":" inside the
 // OID is the load-bearing case; if URL encoding ever truncates at the
-// colon the time-travel link 404s.
+// colon the object link 404s.
 func TestStateObjectHref_RoundtripsThroughWebURL(t *testing.T) {
 	t.Parallel()
 
 	const oid = "ffffffffffffffffffffffffffffffffffffffff:42"
-	href := stateObjectHref("/r/demo/foo", oid, "", "", "")
+	href := stateObjectHref("/r/demo/foo", oid, "", "")
 	assert.NotEmpty(t, href)
 
 	gnourl, err := weburl.Parse("https://gno.land" + string(href))
@@ -58,23 +58,21 @@ func TestStateObjectHref_RoundtripsThroughWebURL(t *testing.T) {
 	assert.True(t, gnourl.WebQuery.Has("state"), "state flag preserved")
 }
 
-// TestStateObjectHref_StampsTypeAndHeight — tid and height should round-trip
+// TestStateObjectHref_StampsTypeAndView — tid and viewMode should round-trip
 // when present and stay absent when zero.
-func TestStateObjectHref_StampsTypeAndHeight(t *testing.T) {
+func TestStateObjectHref_StampsTypeAndView(t *testing.T) {
 	t.Parallel()
 
-	href := stateObjectHref("/r/demo", "abcd:1", "tid-x", "42", "tree")
+	href := stateObjectHref("/r/demo", "abcd:1", "tid-x", "tree")
 	gnourl, err := weburl.Parse("https://gno.land" + string(href))
 	require.NoError(t, err)
 	assert.Equal(t, "tid-x", gnourl.WebQuery.Get("tid"))
-	assert.Equal(t, "42", gnourl.WebQuery.Get("height"))
 	assert.Equal(t, "tree", gnourl.WebQuery.Get("view"))
 
-	bare := stateObjectHref("/r/demo", "abcd:1", "", "", "")
+	bare := stateObjectHref("/r/demo", "abcd:1", "", "")
 	gnourl, err = weburl.Parse("https://gno.land" + string(bare))
 	require.NoError(t, err)
 	assert.Empty(t, gnourl.WebQuery.Get("tid"))
-	assert.Empty(t, gnourl.WebQuery.Get("height"))
 	assert.Empty(t, gnourl.WebQuery.Get("view"))
 }
 
@@ -84,7 +82,7 @@ func TestStateObjectHref_StampsTypeAndHeight(t *testing.T) {
 func TestStateSourceHref_UsesWebargsGrammar(t *testing.T) {
 	t.Parallel()
 
-	href := stateSourceHref("/r/demo/foo", "bar.gno", 12, "42")
+	href := stateSourceHref("/r/demo/foo", "bar.gno", 12)
 	assert.Contains(t, string(href), "/r/demo/foo$", "must use the $webargs grammar")
 	assert.NotContains(t, string(href), "?source", "the dead ?query form must be gone")
 
@@ -93,13 +91,11 @@ func TestStateSourceHref_UsesWebargsGrammar(t *testing.T) {
 	assert.Equal(t, "/r/demo/foo", gnourl.Path, "full pkg path must be present, not relative")
 	assert.True(t, gnourl.WebQuery.Has("source"), "source flag routes to the full-source view")
 	assert.Equal(t, "bar.gno", gnourl.WebQuery.Get("file"))
-	assert.Equal(t, "42", gnourl.WebQuery.Get("height"))
 	assert.True(t, strings.HasSuffix(string(href), "#L12"), "line anchor appended after encode")
 
-	bare := stateSourceHref("/r/demo", "bar.gno", 0, "")
-	gnourl, err = weburl.Parse("https://gno.land" + string(bare))
+	bare := stateSourceHref("/r/demo", "bar.gno", 0)
+	_, err = weburl.Parse("https://gno.land" + string(bare))
 	require.NoError(t, err)
-	assert.Empty(t, gnourl.WebQuery.Get("height"), "no height stamp when heightParam empty")
 	assert.NotContains(t, string(bare), "#L", "no line anchor when line is 0")
 }
 
@@ -243,14 +239,14 @@ func TestStatePageAnchorHref(t *testing.T) {
 
 	t.Run("on-page-1 pretty omits offset", func(t *testing.T) {
 		t.Parallel()
-		got := string(statePageAnchorHref("/r/foo", "", "pretty", 0, maxTopLevelDecls, "state-a-pretty"))
+		got := string(statePageAnchorHref("/r/foo", "pretty", 0, maxTopLevelDecls, "state-a-pretty"))
 		assert.NotContains(t, got, "offset=")
 		assert.True(t, strings.HasSuffix(got, "#state-a-pretty"))
 	})
 
 	t.Run("cross-page tree carries view+offset", func(t *testing.T) {
 		t.Parallel()
-		got := string(statePageAnchorHref("/r/foo", "", "tree", 5, maxTopLevelDecls, "state-z-tree"))
+		got := string(statePageAnchorHref("/r/foo", "tree", 5, maxTopLevelDecls, "state-z-tree"))
 		assert.Contains(t, got, "offset=5")
 		assert.Contains(t, got, "view=tree")
 		assert.True(t, strings.HasSuffix(got, "#state-z-tree"))

@@ -777,8 +777,7 @@
 
 /* Input-style footprint — same width floor, content distribution and
    hover border as `.b-input` (action-page select). For btn-like
-   triggers that need to read iso a form control (e.g. the state
-   time-travel disclosure). */
+   triggers that need to read iso a form control. */
 .b-btn--input {
 	min-width: var(--g-space-48);
 	justify-content: space-between;
@@ -931,8 +930,8 @@
 
 	/* Padding for `& > select, & > input` lives in the shared
 	   "header form-control" register below — same padding applies
-	   to `.b-state-history > summary` and `.b-state-view-toggle
-	   label` so all header chrome reads as one size class. */
+	   to `.b-state-view-toggle label` so all header chrome reads
+	   as one size class. */
 	& > select,
 	& > input {
 		display: flex;
@@ -962,11 +961,10 @@
 }
 
 /* Shared header form-control padding — `.b-input > input/select`,
-   state's time-travel summary, Pretty/Tree toggle pills. One edit
-   moves all header controls in lockstep. */
+   Pretty/Tree toggle pills. One edit moves all header controls in
+   lockstep. */
 .b-input > select,
 .b-input > input,
-.b-state-history > summary,
 .b-state-view-toggle label {
 	padding: var(--g-space-1-5) var(--g-space-3);
 

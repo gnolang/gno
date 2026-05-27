@@ -15,8 +15,6 @@
 {{ define "fragNode" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
-  {{ $h := .Height }}
-  {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
   {{ $depth := .Depth }}
   {{/* OOB tag injection — populates the empty slot in the pretty
@@ -32,9 +30,9 @@
     {{ if $n.Children }}
       {{ if eq $n.Kind "closure" }}<div class="captures-label" style="--depth: {{ $depth }};">Captured variables:</div>{{ end }}
       {{ if eq $vm "tree" }}
-        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Toplevel" false "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Toplevel" false "ViewMode" $vm) }}
       {{ else }}
-        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Heading" (headingForKind $n.Kind) "HeightParam" $hp) }}
+        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" $depth "Heading" (headingForKind $n.Kind)) }}
       {{ end }}
     {{ else if $n.Preview }}
       <p class="b-state-frag-preview">{{ $n.Preview }}</p>

@@ -54,14 +54,10 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	if err := ValidateOID(oid); err != nil {
 		return writeFragError(w, "Invalid object ID", "Please retry from the page.")
 	}
-	height, err := ValidateHeight(u.WebQuery.Get("height"))
-	if err != nil {
-		return writeFragError(w, "Invalid height", "Please retry from the page.")
-	}
 
-	raw, err := h.deps.Client.StateObject(ctx, oid, height)
+	raw, err := h.deps.Client.StateObject(ctx, oid, 0)
 	if err != nil {
-		return h.fragErrorFromClient(w, err, height, "oid", oid)
+		return h.fragErrorFromClient(w, err, "oid", oid)
 	}
 
 	// Try the typed path first when the URL carries &tid= so struct
@@ -79,7 +75,7 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 		typed bool
 	)
 	if tid != "" {
-		if rawType, terr := h.deps.Client.StateType(ctx, tid, height); terr == nil && len(rawType) > 0 {
+		if rawType, terr := h.deps.Client.StateType(ctx, tid, 0); terr == nil && len(rawType) > 0 {
 			if decoded, derr := DecodeObjectFull(raw, rawType, DefaultFragmentRenderConfig()); derr == nil {
 				root = StateNode{Name: "(object)", Kind: KindStruct, ObjectID: oid, Children: decoded.Nodes}
 				root.Length = intPtr(len(decoded.Nodes))
@@ -111,7 +107,7 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 				h.deps.FileFetcher != nil && h.deps.Highlighter != nil &&
 				ValidateFile(root.Source.File) == nil {
 				// ValidateFile: Source.File is chain-payload, not URL-input.
-				if content, ferr := h.deps.FileFetcher.Fetch(ctx, u.Path, root.Source.File, height); ferr == nil && len(content) <= MaxFragmentFileSize {
+				if content, ferr := h.deps.FileFetcher.Fetch(ctx, u.Path, root.Source.File, 0); ferr == nil && len(content) <= MaxFragmentFileSize {
 					slice := sliceLines(content, root.Source.StartLine, root.Source.EndLine)
 					if html, herr := h.deps.Highlighter.Render(root.Source.File, slice); herr == nil {
 						root.SourceHTML = html
@@ -124,9 +120,8 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	// No eager preview fetch here: ref children stay bare (ShapeRef →
 	// b-state-lazy + hx-get) so the tree stays recursively drillable —
 	// one StateObject RPC per click, no fan-out.
-	hp := heightParam(height)
 	viewMode := CanonicalViewMode(u.WebQuery.Get("view"))
-	EnrichLinks(root.Children, u.Path, hp, viewMode)
+	EnrichLinks(root.Children, u.Path, viewMode)
 
 	// childDepth = parent + 1 always: stateFragNodeHref omits depth=0
 	// from the URL, so missing query still resolves to parent=0.
@@ -136,16 +131,14 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	}
 	childDepth := parentDepth + 1
 
-	writeFragSuccessHeaders(w, height)
+	writeFragSuccessHeaders(w)
 	w.WriteHeader(http.StatusOK)
 	if err := FragNodeTemplate.ExecuteTemplate(w, "fragNode", FragNodeData{
-		Node:        root,
-		PkgPath:     u.Path,
-		Height:      height,
-		HeightParam: hp,
-		ViewMode:    viewMode,
-		Depth:       childDepth,
-		OID:         oid,
+		Node:     root,
+		PkgPath:  u.Path,
+		ViewMode: viewMode,
+		Depth:    childDepth,
+		OID:      oid,
 	}); err != nil {
 		h.deps.Logger.Error("frag=node template execute failed", "oid", oid, "err", err)
 	}
@@ -173,38 +166,31 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 			endLine = n
 		}
 	}
-	height, err := ValidateHeight(u.WebQuery.Get("height"))
-	if err != nil {
-		return writeFragError(w, "Invalid height", "Please retry from the page.")
-	}
 
 	if h.deps.FileFetcher == nil {
 		return writeFragError(w, "Source view unavailable", "Open the file from the source tab.")
 	}
 
-	content, err := h.deps.FileFetcher.Fetch(ctx, u.Path, file, height)
+	content, err := h.deps.FileFetcher.Fetch(ctx, u.Path, file, 0)
 	if err != nil {
-		return h.fragErrorFromClient(w, err, height, "file", file)
+		return h.fragErrorFromClient(w, err, "file", file)
 	}
-
-	heightParam := heightParam(height)
 
 	// Oversize files fall back to a link-only message — never inline the
 	// content. The template renders the b-state-frag-source skeleton with
 	// an empty source body and the "See in code" permalink.
 	if len(content) > MaxFragmentFileSize {
-		writeFragSuccessHeaders(w, height)
+		writeFragSuccessHeaders(w)
 		w.WriteHeader(http.StatusOK)
 		// Static literal, no attacker-controlled input: the only reason
 		// it goes through template.HTML is the FragSourceData.SourceHTML
 		// type contract (trusted-markup chroma output elsewhere).
 		const tooLargeMsg = `<p class="b-state-frag-source-toolarge">File is too large to preview here. Open it in the source tab.</p>`
 		_ = FragSourceTemplate.ExecuteTemplate(w, "fragSource", FragSourceData{
-			SourceHTML:  template.HTML(tooLargeMsg), //nolint:gosec
-			PkgPath:     u.Path,
-			File:        file,
-			Line:        line,
-			HeightParam: heightParam,
+			SourceHTML: template.HTML(tooLargeMsg), //nolint:gosec
+			PkgPath:    u.Path,
+			File:       file,
+			Line:       line,
 		})
 		return http.StatusOK
 	}
@@ -237,14 +223,13 @@ func (h *Handler) serveFragSource(ctx context.Context, w http.ResponseWriter, u 
 		html = htmlEscapePre(slice)
 	}
 
-	writeFragSuccessHeaders(w, height)
+	writeFragSuccessHeaders(w)
 	w.WriteHeader(http.StatusOK)
 	if err := FragSourceTemplate.ExecuteTemplate(w, "fragSource", FragSourceData{
-		SourceHTML:  html,
-		PkgPath:     u.Path,
-		File:        file,
-		Line:        line,
-		HeightParam: heightParam,
+		SourceHTML: html,
+		PkgPath:    u.Path,
+		File:       file,
+		Line:       line,
 	}); err != nil {
 		h.deps.Logger.Error("frag=source template execute failed", "file", file, "err", err)
 	}
@@ -273,12 +258,12 @@ func writeFragError(w http.ResponseWriter, message string, retryHints ...string)
 // fragErrorFromClient maps a ClientAdapter error into the fragment-error
 // pattern, hiding internal-error details from the client while logging
 // the full error server-side. Always returns HTTP 200.
-func (h *Handler) fragErrorFromClient(w http.ResponseWriter, err error, height int64, logKey, logVal string) int {
+func (h *Handler) fragErrorFromClient(w http.ResponseWriter, err error, logKey, logVal string) int {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		h.deps.Logger.Debug("fragment ctx ended", logKey, logVal, "err", err)
 		return writeFragError(w, "Request timed out", "Please retry.")
 	}
-	status, msg := mapClientError(err, height)
+	status, msg := mapClientError(err)
 	switch status {
 	case http.StatusNotFound, http.StatusBadRequest, http.StatusRequestTimeout:
 		return writeFragError(w, msg, "")
@@ -289,14 +274,13 @@ func (h *Handler) fragErrorFromClient(w http.ResponseWriter, err error, height i
 }
 
 // writeFragSuccessHeaders sets the canonical headers for a successful HTML
-// fragment response: nosniff, noindex, and the parent page's cache strategy.
-// Latest height → max-age=1 (collapses thundering herd at block tip); pinned
-// → max-age=86400, immutable (hot audit path).
-func writeFragSuccessHeaders(w http.ResponseWriter, height int64) {
+// fragment response: nosniff, noindex, and max-age=1 (collapses thundering
+// herd at block tip).
+func writeFragSuccessHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-	w.Header().Set("Cache-Control", cacheControlForHeight(height))
+	w.Header().Set("Cache-Control", stateCacheControl)
 	w.Header().Set("Vary", "HX-Request")
 }
 

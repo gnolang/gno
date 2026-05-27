@@ -42,26 +42,6 @@ func TestUXPromiseBookmarkableObjectURL(t *testing.T) {
 	}
 }
 
-// Promise: Time-travel `?height=N` + ↺ Latest link. Pinned height must
-// stamp the immutable Cache-Control AND a Latest link without the
-// height param.
-func TestUXPromiseTimeTravelLatestLink(t *testing.T) {
-	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
-	h := newPageHandler(client)
-	rec := servePageReq(t, h, url.Values{"height": {"42"}}, "/r/demo")
-
-	body := rec.Body.String()
-	if !strings.Contains(body, "@ #42") {
-		t.Errorf("pinned-height badge missing; body head=%q", head(body, 400))
-	}
-	if !strings.Contains(body, "↺ Latest") {
-		t.Errorf("Latest link missing on pinned page; body head=%q", head(body, 400))
-	}
-	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "immutable") {
-		t.Errorf("pinned page Cache-Control = %q, want immutable", cc)
-	}
-}
-
 // Promise: doc comments inline (top-level + doc-index embedded for
 // fragments). The script island MUST be present and contain the doc
 // data so fragments can hydrate doc-comments client-side.
@@ -237,45 +217,6 @@ func TestUXPromiseJSONAPIStable(t *testing.T) {
 	}
 	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "max-age") {
 		t.Errorf("Cache-Control missing on JSON API; got=%q", cc)
-	}
-}
-
-// Promise: ?state&height=N → JSON: pinned height returns immutable
-// cache header.
-func TestUXPromiseJSONPinnedImmutable(t *testing.T) {
-	client := &pageMockClient{pkgBytes: []byte(`{"names":[],"values":[]}`)}
-	h := newPageHandler(client)
-	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "json": {""}, "height": {"42"}}}
-	req := httptest.NewRequest(http.MethodGet, "/r/demo$state&json&height=42", nil)
-	rec := httptest.NewRecorder()
-	h.Handle(context.Background(), rec, req, u)
-
-	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "immutable") {
-		t.Errorf("pinned JSON Cache-Control = %q, want immutable", cc)
-	}
-}
-
-// Promise: height-stamping invariant — every fragment hx-get inherits
-// the parent page's resolved height. Verified end-to-end: a pinned page
-// renders hx-get URLs with &height=N stamped.
-func TestUXPromiseFragmentHeightStamp(t *testing.T) {
-	oid := "abcdef0123456789abcdef0123456789abcdef01:3"
-	pkg := []byte(`{
-	  "names": ["myRef"],
-	  "values": [
-	    {"T": {"@type": "/gno.RefType", "ID": "x.Y"}, "V": {"@type": "/gno.RefValue", "ObjectID": "` + oid + `"}}
-	  ]
-	}`)
-	client := &pageMockClient{pkgBytes: pkg}
-	h := newPageHandler(client)
-	rec := servePageReq(t, h, url.Values{"height": {"42"}}, "/r/demo")
-
-	body := rec.Body.String()
-	if !strings.Contains(body, "frag=node") {
-		t.Errorf("expected at least one frag=node hx-get; body head=%q", head(body, 800))
-	}
-	if !strings.Contains(body, "&height=42") && !strings.Contains(body, "height=42") {
-		t.Errorf("height-stamping invariant broken: hx-get missing &height=42")
 	}
 }
 
@@ -537,7 +478,7 @@ func TestRegressionPlainFuncExpandableInTree(t *testing.T) {
 	var buf strings.Builder
 	if err := PageTemplate.ExecuteTemplate(&buf, "state/node", map[string]any{
 		"Node": fn, "PkgPath": "/r/demo", "Depth": 0,
-		"Toplevel": true, "Height": int64(0), "HeightParam": "", "ViewMode": "tree",
+		"Toplevel": true, "ViewMode": "tree",
 	}); err != nil {
 		t.Fatalf("render state/node: %v", err)
 	}

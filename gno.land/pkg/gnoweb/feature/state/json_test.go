@@ -254,21 +254,8 @@ func TestServeJSONCacheControlLatest(t *testing.T) {
 	}
 }
 
-func TestServeJSONCacheControlPinned(t *testing.T) {
-	h := newJSONHandler(&mockJSONClient{pkgBytes: []byte(`{}`)})
-	rec := serveJSONReq(t, h, url.Values{"height": {"12345"}})
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	got := rec.Header().Get("Cache-Control")
-	if !strings.Contains(got, "max-age=86400") || !strings.Contains(got, "immutable") {
-		t.Fatalf("Cache-Control = %q, want max-age=86400 + immutable for pinned height", got)
-	}
-}
-
 func TestServeJSONNoIndexHeader(t *testing.T) {
-	// X-Robots-Tag on success keeps per-height snapshots out of search engines.
+	// X-Robots-Tag on success keeps the response out of search engines.
 	h := newJSONHandler(&mockJSONClient{pkgBytes: []byte(`{}`)})
 	rec := serveJSONReq(t, h, url.Values{})
 

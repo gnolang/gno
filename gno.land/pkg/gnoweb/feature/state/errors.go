@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -21,12 +20,10 @@ const (
 )
 
 // mapClientError classifies a ClientAdapter error into (status, friendly msg).
-// Mirrors handler_http.go:clientErrorMessage — height > 0 surfaces "block
-// height N is not available" for non-NotFound errors so an out-of-range pin
-// does not surface as a generic 500. NotFound wins regardless of height (a
-// wrong path is wrong at any block). Timeout → 408, bad-request → 400,
-// everything else → 500 with internals hidden.
-func mapClientError(err error, height int64) (status int, message string) {
+// Mirrors handler_http.go:clientErrorMessage. NotFound wins; Timeout → 408,
+// bad-request → 400, oversize upstream → 502, everything else → 500 with
+// internals hidden.
+func mapClientError(err error) (status int, message string) {
 	if err == nil {
 		return http.StatusOK, ""
 	}
@@ -35,14 +32,8 @@ func mapClientError(err error, height int64) (status int, message string) {
 	if strings.Contains(msg, ClientErrPackageNotFound) || strings.Contains(msg, ClientErrObjectNotFound) {
 		return http.StatusNotFound, msg
 	}
-	// Catch the over-cap upstream response before the height branch, otherwise
-	// a real "response too large" gets reported as "block height N is not
-	// available" when the request is height-pinned.
 	if strings.Contains(msg, ClientErrResponseTooLarge) {
 		return http.StatusBadGateway, "upstream response too large"
-	}
-	if height > 0 {
-		return http.StatusBadRequest, fmt.Sprintf("block height %d is not available", height)
 	}
 	switch {
 	case strings.Contains(msg, ClientErrTimeout):

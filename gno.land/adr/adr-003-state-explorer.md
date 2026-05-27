@@ -20,8 +20,8 @@ or writing one-off decoders.
 
 Add a **State** tab to gnoweb that renders the persisted state of any realm or
 package as an interactive, expandable tree. The page is **server-rendered** so
-URLs are shareable, time-travel is bookmarkable, the view screenshots and
-prints correctly, and browsers without JS still produce a working page.
+URLs are shareable, the view screenshots and prints correctly, and browsers
+without JS still produce a working page.
 
 ### Architecture
 
@@ -62,16 +62,16 @@ The CLI-style endpoints from the original design are preserved at the gnoweb
 boundary so external tools (block explorers, IDE plugins, SDKs) keep working:
 
 - `$state&json` — paginated package-level state for the current path; wrapped
-  in `{pkg_path, height, total, offset, limit, names, values}` so consumers
-  can iterate the realm by hopping `offset`/`limit` in cache-friendly steps
+  in `{pkg_path, total, offset, limit, names, values}` so consumers can
+  iterate the realm by hopping `offset`/`limit` in cache-friendly steps
 - `$state&oid=…&json` — a single persisted object by ObjectID (passthrough)
 - `$state&tid=…&json` — a type definition by TypeID (passthrough)
 - proper HTTP statuses — `400` on invalid `oid`/`tid`/`offset`/`limit`,
   `404` on missing package/object, `408` on request timeout, `500` on
   internal error, `502` on upstream response over `maxRPCResponseSize` —
   and a stable `{"error":"…"}` envelope on failure
-- `Cache-Control: max-age=1` for latest, `max-age=86400, immutable` for
-  pinned `?height=N`
+- `Cache-Control: max-age=1` on every response (latest-only; see
+  Historical querying)
 - `Vary: HX-Request` on every response so a shared cache cannot serve a
   partial fragment to a non-htmx visitor (or vice versa)
 
@@ -83,12 +83,13 @@ existing `$source&file=…` route.
 for external consumers that want to decode Amino JSON in the browser. gnoweb
 itself no longer depends on it — the Go decoder is the single source of truth.
 
-### Time-travel
+### Historical querying
 
-Appending `?height=N` to any `$state` URL pins the view to a historical block.
-A `↺ Latest` link rolls back to live. The pinned height propagates into every
-object/type/file fetch in the page, so the entire view is consistent with the
-block the user pinned. Object and type links carry the height across hops.
+Out of scope. Gno object state lives on an unversioned store
+(`baseKey` mounted on `dbadapter`), so an ABCI height pin only rewinds
+the iavl side; combined with `prune_strategy = "syncable"` on deployed
+networks, only the latest block is queryable. The State Explorer
+always renders the latest block; `?height=N` is not honored.
 
 ### Closures
 
@@ -101,14 +102,13 @@ the captured environment.
 ### OID Navigation
 
 The searchbar detects ObjectID patterns (hex `:` int) and redirects to
-`<currentRealm>$state&oid=…`. Time-travel preserved if a `?height=N` is in
-scope.
+`<currentRealm>$state&oid=…`.
 
 ### Pagination, sidebar TOC, and search
 
 Realms with many top-level declarations paginate at `maxTopLevelDecls = 500`
 cards per page; page links carry `&offset=N` and survive search /
-view-mode / height. The sidebar TOC lists every top-level decl (capped at
+view-mode. The sidebar TOC lists every top-level decl (capped at
 `maxSidebarTOC = 1000`) regardless of which paginated window is currently
 decoded, with off-page entries carrying pre-computed `&offset=N#anchor`
 URLs so a click jumps to the right slice and scrolls to the card.
@@ -172,7 +172,6 @@ by construction.
   ticket; the recipient sees the exact same view
 - Pages screenshot and print correctly; crawlers see the full tree
 - Works without JavaScript (degraded UX, full data)
-- Time-travel makes audit narratives reproducible across blocks
 - Single Go decoder eliminates TS-vs-Go drift on the decoded shape
 - SSR critical path is **2 RPCs** (state + doc, fetched in parallel);
   previews, source bodies, and closure captures hydrate on demand via
@@ -303,4 +302,5 @@ Other follow-ups:
   reject for CRLF safety), htmx config locked
   (`allowEval/allowScriptTags/selfRequestsOnly`/no history cache),
   `Vary: HX-Request` on every response, typed `template.URL` /
-  `template.HTML` for escape-by-construction.
+  `template.HTML` for escape-by-construction. Scoped to latest-block
+  rendering (see §Historical querying).

@@ -26,14 +26,11 @@ export class SearchbarController extends BaseController {
 			return;
 		}
 
-		// OID-shaped input redirects to the state view for that object,
-		// preserving ?height=N so time-travel survives the jump.
+		// OID-shaped input redirects to the state view for that object.
 		if (OID_PATTERN.test(raw) && !raw.startsWith("/")) {
 			const realmPath = this.currentRealmPath();
 			if (realmPath) {
-				const h = new URLSearchParams(location.search).get("height");
-				const pin = h && /^\d+$/.test(h) ? `&height=${h}` : "";
-				location.href = `${realmPath}$state&oid=${encodeURIComponent(raw)}${pin}`;
+				location.href = `${realmPath}$state&oid=${encodeURIComponent(raw)}`;
 				return;
 			}
 		}

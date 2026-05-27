@@ -6,8 +6,7 @@ import (
 )
 
 // FileFetcher reads a single file from a package. `height = 0` queries
-// the latest block; a positive value pins to that historical height so
-// time-travel views render source consistent with the value snapshot.
+// the latest block; a positive value pins to that historical height.
 type FileFetcher interface {
 	Fetch(ctx context.Context, pkgPath, fileName string, height int64) ([]byte, error)
 }

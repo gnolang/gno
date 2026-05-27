@@ -61,13 +61,10 @@ func oidTagSlotID(oid string) string {
 
 // stateObjectHref builds a `<pkgPath>$state&oid=...` permalink. tid keeps
 // the destination page type-aware; viewMode keeps a tree-view hop in tree.
-func stateObjectHref(pkgPath, oid, typeID, heightParam, viewMode string) template.URL {
+func stateObjectHref(pkgPath, oid, typeID, viewMode string) template.URL {
 	wq := url.Values{"state": {""}, "oid": {oid}}
 	if typeID != "" {
 		wq.Set("tid", typeID)
-	}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
 	}
 	if viewMode == "tree" {
 		wq.Set("view", "tree")
@@ -82,13 +79,10 @@ func stateObjectHref(pkgPath, oid, typeID, heightParam, viewMode string) templat
 // --depth mechanism as the server-rendered tree (purely presentational).
 // viewMode keeps a tree-view expansion in tree format; pretty (default)
 // stays unstamped so the nginx cache key stays minimal.
-func stateFragNodeHref(pkgPath, oid, typeID, heightParam string, depth int, viewMode string) template.URL {
+func stateFragNodeHref(pkgPath, oid, typeID string, depth int, viewMode string) template.URL {
 	wq := url.Values{"state": {""}, "frag": {"node"}, "oid": {oid}}
 	if typeID != "" {
 		wq.Set("tid", typeID)
-	}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
 	}
 	if depth > 0 {
 		wq.Set("depth", strconv.Itoa(depth))
@@ -103,44 +97,35 @@ func stateFragNodeHref(pkgPath, oid, typeID, heightParam string, depth int, view
 // stateFragSourceHref builds the hx-get URL for a lazy source fragment.
 // endLine (the func's last line) lets the server slice the exact span;
 // 0 falls back to a ±N context window.
-func stateFragSourceHref(pkgPath, file string, line, endLine int, heightParam string) template.URL {
+func stateFragSourceHref(pkgPath, file string, line, endLine int) template.URL {
 	wq := url.Values{"state": {""}, "frag": {"source"}, "file": {file}, "line": {strconv.Itoa(line)}}
 	if endLine > 0 && endLine >= line {
 		wq.Set("end", strconv.Itoa(endLine))
 	}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
-	}
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
 	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
-// stateRawJSONHref builds the `<pkgPath>$state&json[&height=N]` URL for
-// the lazy "Copy package JSON" button — the raw qpkg_json payload the
-// page no longer inlines (memory amp + cache poisoning risk).
-func stateRawJSONHref(pkgPath, heightParam string) template.URL {
+// stateRawJSONHref builds the `<pkgPath>$state&json` URL for the lazy
+// "Copy package JSON" button — the raw qpkg_json payload the page no
+// longer inlines (memory amp + cache poisoning risk).
+func stateRawJSONHref(pkgPath string) template.URL {
 	wq := url.Values{"state": {""}, "json": {""}}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
-	}
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
 	return template.URL(u.EncodeWebURL()) //nolint:gosec
 }
 
-// statePageHref builds the `<pkgPath>$state[&offset=N&limit=M&view=tree&
-// height=H]` permalink for the pagination footer. offset=0 and the
-// default limit are omitted to keep page-1 cache-key parity with the
-// canonical unparameterized state URL.
-func statePageHref(pkgPath, heightParam, viewMode string, offset, limit int) template.URL {
+// statePageHref builds the `<pkgPath>$state[&offset=N&limit=M&view=tree]`
+// permalink for the pagination footer. offset=0 and the default limit are
+// omitted to keep page-1 cache-key parity with the canonical
+// unparameterized state URL.
+func statePageHref(pkgPath, viewMode string, offset, limit int) template.URL {
 	wq := url.Values{"state": {""}}
 	if offset > 0 {
 		wq.Set("offset", strconv.Itoa(offset))
 	}
 	if limit > 0 && limit != maxTopLevelDecls {
 		wq.Set("limit", strconv.Itoa(limit))
-	}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
 	}
 	if viewMode == ViewModeTree {
 		wq.Set("view", ViewModeTree)
@@ -152,17 +137,14 @@ func statePageHref(pkgPath, heightParam, viewMode string, offset, limit int) tem
 // canonicalStateURL builds the URL the address bar should show after a
 // search-driven htmx swap. Mirrors statePageHref's canonical shape but
 // also stamps `search=` when the filter is active. Empty offset / pretty
-// view / empty height stay omitted so page-1 cache-key parity holds.
-func canonicalStateURL(pkgPath, heightParam, viewMode, search string, offset int) template.URL {
+// view stay omitted so page-1 cache-key parity holds.
+func canonicalStateURL(pkgPath, viewMode, search string, offset int) template.URL {
 	wq := url.Values{"state": {""}}
 	if search != "" {
 		wq.Set("search", search)
 	}
 	if offset > 0 {
 		wq.Set("offset", strconv.Itoa(offset))
-	}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
 	}
 	if viewMode == ViewModeTree {
 		wq.Set("view", ViewModeTree)
@@ -172,13 +154,10 @@ func canonicalStateURL(pkgPath, heightParam, viewMode, search string, offset int
 }
 
 // stateSearchBaseHref builds the search input's base href: canonical
-// `<pkg>$state[&height=H][&view=tree]`. The `search=` param is appended
-// by the client at request time.
-func stateSearchBaseHref(pkgPath, heightParam, viewMode string) template.URL {
+// `<pkg>$state[&view=tree]`. The `search=` param is appended by the
+// client at request time.
+func stateSearchBaseHref(pkgPath, viewMode string) template.URL {
 	wq := url.Values{"state": {""}}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
-	}
 	if viewMode == ViewModeTree {
 		wq.Set("view", ViewModeTree)
 	}
@@ -226,8 +205,8 @@ func computeAnchors(names []string) []string {
 // statePageAnchorHref returns statePageHref(...) with a `#fragment`
 // appended. The anchor is encoded as a literal fragment so links to
 // off-page decls land directly on the row after the cross-page hop.
-func statePageAnchorHref(pkgPath, heightParam, viewMode string, offset, limit int, anchor string) template.URL {
-	base := string(statePageHref(pkgPath, heightParam, viewMode, offset, limit))
+func statePageAnchorHref(pkgPath, viewMode string, offset, limit int, anchor string) template.URL {
+	base := string(statePageHref(pkgPath, viewMode, offset, limit))
 	if anchor == "" {
 		return template.URL(base) //nolint:gosec
 	}
@@ -237,7 +216,7 @@ func statePageAnchorHref(pkgPath, heightParam, viewMode string, offset, limit in
 // buildPagination computes the prev/next view-model from a paginated
 // DecodePackage result. Returns nil when total ≤ limit at offset 0.
 // Hrefs are gated on HasPrev/HasNext to skip work on edge pages.
-func buildPagination(pkgPath, heightParam, viewMode string, total, offset, limit int) *Pagination {
+func buildPagination(pkgPath, viewMode string, total, offset, limit int) *Pagination {
 	if total <= limit && offset <= 0 {
 		return nil
 	}
@@ -251,12 +230,12 @@ func buildPagination(pkgPath, heightParam, viewMode string, total, offset, limit
 	}
 	if p.HasPrev {
 		prev := max(start-limit, 0)
-		p.FirstHref = statePageHref(pkgPath, heightParam, viewMode, 0, limit)
-		p.PrevHref = statePageHref(pkgPath, heightParam, viewMode, prev, limit)
+		p.FirstHref = statePageHref(pkgPath, viewMode, 0, limit)
+		p.PrevHref = statePageHref(pkgPath, viewMode, prev, limit)
 	}
 	if p.HasNext {
-		p.NextHref = statePageHref(pkgPath, heightParam, viewMode, end, limit)
-		p.LastHref = statePageHref(pkgPath, heightParam, viewMode, lastPageOffset(total, limit), limit)
+		p.NextHref = statePageHref(pkgPath, viewMode, end, limit)
+		p.LastHref = statePageHref(pkgPath, viewMode, lastPageOffset(total, limit), limit)
 	}
 	if end == start {
 		p.StartNumber = 0 // empty page → honest "Showing 0–0"
@@ -272,25 +251,17 @@ func lastPageOffset(total, limit int) int {
 	return ((total - 1) / limit) * limit
 }
 
-// cacheControlForHeight returns the canonical Cache-Control shared by
-// every state-feature response surface. Pinned heights are immutable
-// (24h); "latest" gets a 1s window matching block time.
-func cacheControlForHeight(height int64) string {
-	if height > 0 {
-		return "public, max-age=86400, immutable"
-	}
-	return "public, max-age=1"
-}
+// stateCacheControl is the Cache-Control header shared by every state-
+// feature response surface — `max-age=1` matches block time and collapses
+// thundering herd at the tip.
+const stateCacheControl = "public, max-age=1"
 
 // stateSourceHref builds the permanent `<pkgPath>$source&file=F` link to
 // the canonical full-source view — the "See in code" target out of a
 // frag=source fragment. Uses the `$webargs` grammar so it routes; the
-// `#L` anchor is appended after EncodeWebURL like sourceHref does.
-func stateSourceHref(pkgPath, file string, line int, heightParam string) template.URL {
+// `#L` anchor is appended after EncodeWebURL.
+func stateSourceHref(pkgPath, file string, line int) template.URL {
 	wq := url.Values{"source": {""}, "file": {file}}
-	if heightParam != "" {
-		wq.Set("height", heightParam)
-	}
 	u := weburl.GnoURL{Path: pkgPath, WebQuery: wq}
 	href := u.EncodeWebURL()
 	if line > 0 {
@@ -302,17 +273,17 @@ func stateSourceHref(pkgPath, file string, line int, heightParam string) templat
 // EnrichLinks walks the StateNode tree and populates Href + OwnerHref
 // from ObjectID/OwnerID. Without this the template's `{{ if $n.Href }}`
 // guards drop every Inspect / Owner / navlink button on the page.
-func EnrichLinks(nodes []StateNode, pkgPath, heightParam, viewMode string) {
+func EnrichLinks(nodes []StateNode, pkgPath, viewMode string) {
 	for i := range nodes {
 		n := &nodes[i]
 		if n.ObjectID != "" {
-			n.Href = stateObjectHref(pkgPath, n.ObjectID, n.TypeID, heightParam, viewMode)
+			n.Href = stateObjectHref(pkgPath, n.ObjectID, n.TypeID, viewMode)
 		}
 		if n.OwnerID != "" {
-			n.OwnerHref = stateObjectHref(pkgPath, n.OwnerID, "", heightParam, viewMode)
+			n.OwnerHref = stateObjectHref(pkgPath, n.OwnerID, "", viewMode)
 		}
 		if len(n.Children) > 0 {
-			EnrichLinks(n.Children, pkgPath, heightParam, viewMode)
+			EnrichLinks(n.Children, pkgPath, viewMode)
 		}
 	}
 }

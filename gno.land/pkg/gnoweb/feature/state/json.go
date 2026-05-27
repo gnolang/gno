@@ -14,7 +14,6 @@ import (
 // the full realm by hopping `offset`/`limit` in cache-friendly steps.
 type pkgJSONWrapper struct {
 	PkgPath string            `json:"pkg_path"`
-	Height  int64             `json:"height"`
 	Total   int               `json:"total"`
 	Offset  int               `json:"offset"`
 	Limit   int               `json:"limit"`
@@ -35,7 +34,6 @@ type pkgJSONWrapper struct {
 // with a nil view since the wire-in interprets nil as "body already
 // written, status set".
 func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) int {
-	height := u.Height()
 	switch {
 	case u.WebQuery.Has("oid"):
 		oid := u.WebQuery.Get("oid")
@@ -43,8 +41,8 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, u *webur
 			writeJSONError(w, http.StatusBadRequest, "invalid object id")
 			return http.StatusBadRequest
 		}
-		return h.serveJSONPassthrough(ctx, w, u, height, func(c context.Context) ([]byte, error) {
-			return h.deps.Client.StateObject(c, oid, height)
+		return h.serveJSONPassthrough(ctx, w, u, func(c context.Context) ([]byte, error) {
+			return h.deps.Client.StateObject(c, oid, 0)
 		})
 	case u.WebQuery.Has("tid"):
 		tid := u.WebQuery.Get("tid")
@@ -52,26 +50,26 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, u *webur
 			writeJSONError(w, http.StatusBadRequest, "invalid type id")
 			return http.StatusBadRequest
 		}
-		return h.serveJSONPassthrough(ctx, w, u, height, func(c context.Context) ([]byte, error) {
-			return h.deps.Client.StateType(c, tid, height)
+		return h.serveJSONPassthrough(ctx, w, u, func(c context.Context) ([]byte, error) {
+			return h.deps.Client.StateType(c, tid, 0)
 		})
 	default:
-		return h.serveJSONPackage(ctx, w, u, height)
+		return h.serveJSONPackage(ctx, w, u)
 	}
 }
 
 // serveJSONPassthrough writes the upstream amino JSON as-is for the
 // already-bounded oid/tid endpoints (single object / single type, capped
 // by maxRPCResponseSize on the fetch side).
-func (h *Handler) serveJSONPassthrough(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL, height int64, fetch func(context.Context) ([]byte, error)) int {
+func (h *Handler) serveJSONPassthrough(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL, fetch func(context.Context) ([]byte, error)) int {
 	raw, err := fetch(ctx)
 	if err != nil {
-		h.deps.Logger.Error("unable to fetch state json", "error", err, "path", u.EncodeURL(), "height", height)
-		status, msg := mapClientError(err, height)
+		h.deps.Logger.Error("unable to fetch state json", "error", err, "path", u.EncodeURL())
+		status, msg := mapClientError(err)
 		writeJSONError(w, status, msg)
 		return status
 	}
-	writeJSONHeaders(w, height)
+	writeJSONHeaders(w)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(raw)
 	return http.StatusOK
@@ -80,7 +78,7 @@ func (h *Handler) serveJSONPassthrough(ctx context.Context, w http.ResponseWrite
 // serveJSONPackage returns the paginated `?state&json` view of qpkg_json.
 // Names/Values stay as opaque json.RawMessage so the upstream amino bytes
 // pass through untouched, wrapped in a {total, offset, limit, …} envelope.
-func (h *Handler) serveJSONPackage(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL, height int64) int {
+func (h *Handler) serveJSONPackage(ctx context.Context, w http.ResponseWriter, u *weburl.GnoURL) int {
 	offset, err := ValidateOffset(u.WebQuery.Get("offset"))
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid offset")
@@ -92,10 +90,10 @@ func (h *Handler) serveJSONPackage(ctx context.Context, w http.ResponseWriter, u
 		return http.StatusBadRequest
 	}
 
-	raw, err := h.deps.Client.StatePkg(ctx, u.Path, height)
+	raw, err := h.deps.Client.StatePkg(ctx, u.Path, 0)
 	if err != nil {
-		h.deps.Logger.Error("unable to fetch state json", "error", err, "path", u.EncodeURL(), "height", height)
-		status, msg := mapClientError(err, height)
+		h.deps.Logger.Error("unable to fetch state json", "error", err, "path", u.EncodeURL())
+		status, msg := mapClientError(err)
 		writeJSONError(w, status, msg)
 		return status
 	}
@@ -115,7 +113,6 @@ func (h *Handler) serveJSONPackage(ctx context.Context, w http.ResponseWriter, u
 
 	body, err := json.Marshal(pkgJSONWrapper{
 		PkgPath: u.Path,
-		Height:  height,
 		Total:   total,
 		Offset:  start,
 		Limit:   limit,
@@ -128,19 +125,18 @@ func (h *Handler) serveJSONPackage(ctx context.Context, w http.ResponseWriter, u
 		return http.StatusInternalServerError
 	}
 
-	writeJSONHeaders(w, height)
+	writeJSONHeaders(w)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 	return http.StatusOK
 }
 
 // writeJSONHeaders stamps the canonical headers for a successful JSON
-// state response. Cache-Control comes from the shared cacheControlForHeight
-// so pinned/latest semantics match the HTML page and fragment surfaces.
-func writeJSONHeaders(w http.ResponseWriter, height int64) {
+// state response. Mirrors the HTML page and fragment surfaces.
+func writeJSONHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-	w.Header().Set("Cache-Control", cacheControlForHeight(height))
+	w.Header().Set("Cache-Control", stateCacheControl)
 	w.Header().Set("Vary", "HX-Request")
 }

@@ -114,7 +114,7 @@ func TestBuildPackageSidebarFull(t *testing.T) {
 
 	// Page 2 with limit 2 → on-page indices = [2, 3].
 	sidebar, truncated := BuildPackageSidebarFull(
-		"/r/foo", names, anchors, kinds, types, 2, 2, "",
+		"/r/foo", names, anchors, kinds, types, 2, 2,
 	)
 	require.NotNil(t, sidebar)
 	assert.False(t, truncated, "7 entries ≤ cap → not truncated")

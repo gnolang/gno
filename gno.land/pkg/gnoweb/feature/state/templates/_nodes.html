@@ -8,11 +8,9 @@
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
   {{ $top := .Toplevel }}
-  {{ $h := .Height }}
-  {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
   {{ range .Nodes }}
-    {{ template "state/node" (dict "Node" . "PkgPath" $pkg "Depth" $depth "Toplevel" $top "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+    {{ template "state/node" (dict "Node" . "PkgPath" $pkg "Depth" $depth "Toplevel" $top "ViewMode" $vm) }}
   {{ end }}
 {{ end }}
 
@@ -28,8 +26,6 @@
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
   {{ $top := .Toplevel }}
-  {{ $h := .Height }}
-  {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
   {{ $id := "" }}{{ if and $top $n.Anchor }}{{ $id = $n.Anchor }}{{ end }}
   {{ $shape := $n.Shape }}
@@ -44,7 +40,7 @@
          so it doesn't toggle the parent); clicking elsewhere in the
          summary toggles + fires the hx-get. */}}
     <details class="b-state-lazy" data-name="{{ $n.Name }}"{{ if $top }} data-kind-group="{{ kindGroup $n.Kind }}"{{ end }}{{ if and $top $id }} id="{{ $id }}-tree"{{ end }} data-tree-key="{{ $n.ObjectID }}"
-             hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp $depth $vm }}"
+             hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $depth $vm }}"
              hx-trigger="toggle once"
              hx-target="find .b-state-node-body"
              hx-swap="innerHTML"
@@ -55,7 +51,7 @@
         <span class="type">{{ $n.Type }}</span>
         {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
         {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
-        <a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $hp $vm }}"
+        <a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $vm }}"
            class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>
       </summary>
       {{/* Doc-comments stay scoped to the pretty card (state/decl). Tree
@@ -74,19 +70,19 @@
         <span class="type">{{ $n.Type }}</span>
         {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
         {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
-        {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine $h }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+        {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         {{ if $n.ObjectID }}<button type="button" class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</button>{{ end }}
-        {{ if $n.ObjectID }}<a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $hp $vm }}"
+        {{ if $n.ObjectID }}<a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $vm }}"
            class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>{{ end }}
       </summary>
       <div class="kids">
         {{ if and (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}
-          {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "Depth" (add $depth 1)) }}
+          {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Depth" (add $depth 1)) }}
         {{ end }}
         {{ if and (eq $n.Kind "closure") $n.Children }}
           <div class="captures-label" style="--depth: {{ add $depth 1 }};">Captured variables:</div>
         {{ end }}
-        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "Toplevel" false "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+        {{ template "state/nodes" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "Toplevel" false "ViewMode" $vm) }}
       </div>
     </details>
 
@@ -96,7 +92,7 @@
       <span class="sep">:</span>
       <span class="type">{{ $n.Type }}</span>
       {{ if $n.Value }}<span class="sep">=</span><span class="val" data-kind="{{ $n.Kind }}" data-type="{{ $n.Type }}" data-value="{{ $n.Value }}">{{ $n.Value }}</span>{{ end }}
-      {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine $h }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+      {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
       {{ if $n.ObjectID }}<button type="button" class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</button>{{ end }}
     </div>
   {{ end }}
@@ -109,12 +105,10 @@
 {{ define "state/source-details" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
-  {{ $h := .Height }}
-  {{ $hp := .HeightParam }}
   {{ $depth := .Depth }}
   {{ with $n.Source }}
   <details class="b-state-source-lazy" style="--depth: {{ $depth }};"
-           hx-get="{{ stateFragSourceHref $pkg .File .StartLine .EndLine $hp }}"
+           hx-get="{{ stateFragSourceHref $pkg .File .StartLine .EndLine }}"
            hx-trigger="toggle once"
            hx-target="find .b-state-source-body"
            hx-swap="innerHTML"
@@ -122,7 +116,7 @@
     <summary>
       <span class="b-state-source-label">Source</span>
       <small class="b-state-source-loc">{{ .File }}:{{ .StartLine }}-{{ .EndLine }}</small>
-      <a href="{{ sourceHref $pkg .File .StartLine $h }}"
+      <a href="{{ sourceHref $pkg .File .StartLine }}"
          class="b-state-permalink" aria-label="See {{ $n.Name }} in code">See in code</a>
     </summary>
     <div class="b-state-source-body" aria-busy="false"></div>

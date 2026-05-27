@@ -20,12 +20,6 @@ type StateData struct {
 	Crumbs     []StateCrumb
 	Sidebar    *StateSidebar
 
-	// Height is the pinned block height (`?height=N`), 0 for latest.
-	Height int64
-
-	// LatestHref is the current URL with height stripped — "go back to live".
-	LatestHref template.URL
-
 	// ListHref is the current URL without `#fragment` — clicked to exit
 	// the CSS focus mode by clearing the hash without a reload.
 	ListHref template.URL
@@ -40,12 +34,6 @@ type StateData struct {
 	// decls, embedded inline so the client-side controller can project
 	// doc-comments onto htmx-loaded fragments without an extra RPC.
 	DocIndexJSON template.JS
-
-	// HeightParam is the resolved decimal height stamped into every
-	// fragment hx-get URL so fragments inherit the parent page's
-	// concrete height during nginx stale-while-revalidate windows.
-	// Empty for unstamped "latest".
-	HeightParam string
 
 	// Pagination is the prev/next view-model for the top-level decls
 	// footer. nil when total ≤ limit at offset 0 (no footer needed).
@@ -156,15 +144,13 @@ type StateCrumb struct {
 
 // FragNodeData renders one node's content as a chrome-less HTML
 // fragment via the shared state/nodes renderer. PkgPath + ViewMode keep
-// nested permalinks correct; Height feeds sourceHref; Depth is the
-// parent row's tree depth so children indent via --depth.
+// nested permalinks correct; Depth is the parent row's tree depth so
+// children indent via --depth.
 type FragNodeData struct {
-	Node        StateNode
-	PkgPath     string
-	Height      int64
-	HeightParam string
-	ViewMode    string
-	Depth       int
+	Node     StateNode
+	PkgPath  string
+	ViewMode string
+	Depth    int
 	// OID is the request's `?oid=…` — preserved separately because the
 	// fragment's promoted root (func/closure inline) has no ObjectID of
 	// its own. Drives the closure-tag OOB-swap target id.
@@ -175,11 +161,10 @@ type FragNodeData struct {
 // — the template does not escape it. PkgPath builds the "See in code"
 // permalink to the canonical full ?source view.
 type FragSourceData struct {
-	SourceHTML  template.HTML
-	PkgPath     string
-	File        string
-	Line        int
-	HeightParam string
+	SourceHTML template.HTML
+	PkgPath    string
+	File       string
+	Line       int
 }
 
 // FragErrorData feeds fragError. Always returned with HTTP 200 so htmx

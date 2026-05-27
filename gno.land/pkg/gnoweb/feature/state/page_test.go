@@ -213,46 +213,6 @@ func TestServePageInvalidOID400(t *testing.T) {
 	}
 }
 
-// Garbage `?state&height=…` must 400 instead of silently rendering latest
-// (cache pollution + hidden UX failure on typos). Aligns page path with the
-// fragment path's existing strict ValidateHeight.
-func TestServePageInvalidHeight400(t *testing.T) {
-	for _, raw := range []string{"abc", "-1", "12a", "+1"} {
-		raw := raw
-		t.Run(raw, func(t *testing.T) {
-			h := newPageHandler(&pageMockClient{})
-			u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}, "height": {raw}}}
-			req := httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
-			status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
-			if status != http.StatusBadRequest {
-				t.Fatalf("status = %d, want %d for height=%q", status, http.StatusBadRequest, raw)
-			}
-			if view == nil {
-				t.Fatalf("view is nil; want a status-error view for height=%q", raw)
-			}
-		})
-	}
-}
-
-// Query-form `?height=…` (non-canonical, user-typed) must also 400 when
-// malformed — Height() falls back to Query, so the strict guard must too.
-func TestServePageInvalidQueryHeight400(t *testing.T) {
-	h := newPageHandler(&pageMockClient{})
-	u := &weburl.GnoURL{
-		Path:     "/r/demo",
-		WebQuery: url.Values{"state": {""}},
-		Query:    url.Values{"height": {"abc"}},
-	}
-	req := httptest.NewRequest(http.MethodGet, "/r/demo$state?height=abc", nil)
-	status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
-	if status != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
-	}
-	if view == nil {
-		t.Fatalf("view is nil; want a status-error view")
-	}
-}
-
 func TestServePageNotFound404(t *testing.T) {
 	h := newPageHandler(&pageMockClient{pkgErr: errors.New("package not found")})
 	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}}}
@@ -266,35 +226,7 @@ func TestServePageNotFound404(t *testing.T) {
 	}
 }
 
-func TestServePagePinnedHeight(t *testing.T) {
-	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
-	h := newPageHandler(client)
-	rec := servePageReq(t, h, url.Values{"height": {"12345"}}, "/r/demo")
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	cc := rec.Header().Get("Cache-Control")
-	if !strings.Contains(cc, "max-age=86400") || !strings.Contains(cc, "immutable") {
-		t.Fatalf("Cache-Control = %q, want max-age=86400 + immutable for pinned height", cc)
-	}
-	body := rec.Body.String()
-	// Every hx-get URL must inherit the resolved height stamp. The
-	// gnoweb $webargs grammar puts height inside the path-attached
-	// webquery (encoded as `&amp;` by html/template in attribute contexts).
-	hxGetCount := strings.Count(body, `hx-get="`)
-	// Height can land in any position of the alpha-sorted webarg list, so
-	// either prefix is valid: `$height=…` (first key) or `&amp;height=…`.
-	heightCount := strings.Count(body, `height=12345`)
-	if hxGetCount == 0 {
-		t.Fatalf("expected at least one hx-get in body\n%s", head(body, 800))
-	}
-	if heightCount < hxGetCount {
-		t.Errorf("hx-get=%d > height-stamp=%d, some fragments not stamped", hxGetCount, heightCount)
-	}
-}
-
-func TestServePageLatestHeight(t *testing.T) {
+func TestServePageCacheControl(t *testing.T) {
 	client := &pageMockClient{pkgBytes: []byte(pageFixturePkg)}
 	h := newPageHandler(client)
 	rec := servePageReq(t, h, url.Values{}, "/r/demo")
@@ -304,12 +236,7 @@ func TestServePageLatestHeight(t *testing.T) {
 	}
 	cc := rec.Header().Get("Cache-Control")
 	if !strings.Contains(cc, "max-age=1") {
-		t.Fatalf("Cache-Control = %q, want max-age=1 for latest height", cc)
-	}
-	body := rec.Body.String()
-	// HeightParam empty → no &height= stamp in hx-get URLs.
-	if strings.Contains(body, "&amp;height=") || strings.Contains(body, "&height=") {
-		t.Errorf("latest mode unexpectedly stamps &height= into hx-get URLs\n%s", head(body, 600))
+		t.Fatalf("Cache-Control = %q, want max-age=1", cc)
 	}
 }
 

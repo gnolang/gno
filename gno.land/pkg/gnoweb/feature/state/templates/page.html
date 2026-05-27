@@ -18,22 +18,6 @@
   </h1>
   <div class="header-info">
     <div class="b-btns">
-      <details class="b-state-history">
-        <summary class="b-btn b-btn--secondary b-btn--input c-with-icon">
-          {{ if .Height }}<span class="badge">@ #{{ .Height }}</span>
-          {{ else }}<span>Time-travel</span>{{ end }}
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-down"></use></svg>
-        </summary>
-        <form method="GET" action="{{ .LatestHref }}" class="form">
-          <div class="b-input">
-            <label for="state-height-input">Block height</label>
-            <input type="number" id="state-height-input" name="height" min="1" placeholder="latest" {{ if .Height }}value="{{ .Height }}"{{ end }} autocomplete="off" class="u-font-mono">
-          </div>
-          <button type="submit" class="b-btn b-btn--secondary">Go</button>
-          {{ if .Height }}<a class="b-link--muted clear" href="{{ .LatestHref }}">↺ Latest</a>{{ end }}
-        </form>
-      </details>
-
       {{ if .Nodes }}
         <fieldset class="b-state-view-toggle" aria-label="State view mode">
           <input type="radio" name="state-view-mode" id="state-view-pretty" value="pretty" data-state-target="view-radio" data-action="change->state#updateView" class="u-sr-only"{{ if ne .ViewMode "tree" }} checked{{ end }}>
@@ -54,7 +38,7 @@
     <div class="state-search b-input" role="search">
       <input type="search" name="search" placeholder="Search declarations"
         value="{{ .SearchQuery }}"
-        hx-get="{{ stateSearchBaseHref .PkgPath .HeightParam .ViewMode }}"
+        hx-get="{{ stateSearchBaseHref .PkgPath .ViewMode }}"
         hx-trigger="input changed delay:200ms, keyup[key=='Enter']"
         hx-target="#state-results"
         hx-swap="innerHTML"
@@ -129,13 +113,11 @@
     {{ if .Nodes }}
       <div class="c-stack">
         {{ $pkg := .PkgPath }}
-        {{ $h := .Height }}
-        {{ $hp := .HeightParam }}
         {{/* Literal "pretty": each container stamps its own fragment URLs
              so the CSS-only Pretty/Tree toggle doesn't leak fragments
              across containers. Mirror in view-tree below. */}}
         {{ range .Nodes }}
-          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" "pretty") }}
+          {{ template "state/decl" (dict "Node" . "PkgPath" $pkg "ViewMode" "pretty") }}
         {{ end }}
       </div>
     {{ else if .SearchQuery }}
@@ -149,7 +131,7 @@
     <div class="view-tree" data-state-target="view-tree">
       <div class="tree">
         {{/* Literal "tree" — see view-pretty above. */}}
-        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "Height" .Height "HeightParam" .HeightParam "ViewMode" "tree") }}
+        {{ template "state/nodes" (dict "Nodes" .Nodes "PkgPath" .PkgPath "Depth" 0 "Toplevel" true "ViewMode" "tree") }}
       </div>
     </div>
   {{ end }}
@@ -185,7 +167,7 @@
         <div class="b-state-export">
           <button type="button" class="b-inline-btn c-with-icon"
             data-controller="copy" data-action="click->copy#copy"
-            data-copy-fetch-value="{{ stateRawJSONHref .PkgPath .HeightParam }}"
+            data-copy-fetch-value="{{ stateRawJSONHref .PkgPath }}"
             title="Copy package JSON" aria-label="Copy package JSON">
             {{ template "state/copy-icon" }}
             <span>Copy package JSON</span>
@@ -263,13 +245,11 @@
 {{ define "state/kind-glyph" }}<span class="kind-glyph" aria-hidden="true">{{ template "state/kind-icon" . }}</span>{{ end }}
 
 {{/* Per-decl card. Adds htmx-expandable details for objects so deep
-     graphs lazy-load. Every hx-get includes &height= when HeightParam
-     is set, and carries a sibling permanent link for no-JS / SEO. */}}
+     graphs lazy-load. Each card carries a sibling permanent link for
+     no-JS / SEO. */}}
 {{ define "state/decl" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
-  {{ $h := .Height }}
-  {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
   <article class="b-state-decl"{{ if $n.Anchor }} id="{{ $n.Anchor }}-pretty"{{ end }} data-kind="{{ $n.Kind }}" data-kind-group="{{ kindGroup $n.Kind }}" data-name="{{ $n.Name }}">
     <header>
@@ -282,7 +262,7 @@
         <span class="subtitle">
           <span class="type">{{ $n.Type }}</span>
           {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
-          {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine $h }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
+          {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine }}" title="Open in Source tab">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         </span>
         {{ if $n.Doc }}
           <p class="description">{{ $n.Doc }}</p>
@@ -388,7 +368,7 @@
            on toggle, never on load, so a page with N funcs can't burst
            N source-fragment GETs. */}}
       {{ if and (or (eq $n.Kind "func") (eq $n.Kind "closure")) $n.Source }}
-        {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "Depth" 0) }}
+        {{ template "state/source-details" (dict "Node" $n "PkgPath" $pkg "Depth" 0) }}
       {{ end }}
 
       {{ if and (eq $n.Kind "closure") $n.Children }}
@@ -396,13 +376,13 @@
       {{ end }}
 
       {{ if $n.Children }}
-        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" 0 "Heading" (headingForKind $n.Kind) "HeightParam" $hp) }}
+        {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" 0 "Heading" (headingForKind $n.Kind)) }}
       {{ else if and $n.ObjectID $n.Expandable (not $n.Source) }}
         {{/* No children pre-loaded → htmx-fetched on user open.
              `not $n.Source` — a node carrying a Source is a func/closure
              already handled by state/source-details above; without this
              guard a preview-promoted func renders BOTH expanders. */}}
-        {{ template "state/node-details" (dict "Node" $n "PkgPath" $pkg "Height" $h "HeightParam" $hp "ViewMode" $vm) }}
+        {{ template "state/node-details" (dict "Node" $n "PkgPath" $pkg "ViewMode" $vm) }}
       {{ else if and $n.Href $n.Preview }}
         <p class="preview">{{ $n.Preview }}</p>
       {{ end }}
@@ -430,7 +410,6 @@
 {{ define "state/node-details" }}
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
-  {{ $hp := .HeightParam }}
   {{ $vm := .ViewMode }}
   {{/* `open` by default so the hydrated table is visible inline,
        matching the pre-lazy preview UX. revealed-once fires when the
@@ -441,7 +420,7 @@
        elements. */}}
   {{/* `open` by default so the hydrated table is visible inline. */}}
   <details open class="b-state-lazy" data-name="{{ $n.Name }}" data-tree-key="{{ $n.ObjectID }}"
-           hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $hp 0 $vm }}"
+           hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID 0 $vm }}"
            hx-trigger="revealed once"
            hx-target="find .b-state-node-body"
            hx-swap="innerHTML"
@@ -462,7 +441,6 @@
 {{ define "state/decl-children" }}
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
-  {{ $hp := .HeightParam }}
   <div class="fields-frame">
     {{ if .Heading }}
       <header class="fields-head" aria-hidden="true">
@@ -473,7 +451,7 @@
     {{ end }}
     <ul class="fields" role="list">
       {{ range .Nodes }}
-        {{ template "state/decl-field" (dict "Node" . "PkgPath" $pkg "Depth" $depth "HeightParam" $hp) }}
+        {{ template "state/decl-field" (dict "Node" . "PkgPath" $pkg "Depth" $depth) }}
       {{ end }}
     </ul>
   </div>
@@ -483,7 +461,6 @@
   {{ $n := .Node }}
   {{ $pkg := .PkgPath }}
   {{ $depth := .Depth }}
-  {{ $hp := .HeightParam }}
   {{/* Shape comes from StateNode.Shape() — same Go-side classifier the
        tree renderer uses, so the two views never diverge. */}}
   {{ $shape := $n.Shape }}
@@ -511,7 +488,7 @@
             <span class="kw">{{ headingForKind $n.Kind }}s of</span>
             <code>{{ $n.Name }}</code>
           </div>
-          {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1) "HeightParam" $hp) }}
+          {{ template "state/decl-children" (dict "Nodes" $n.Children "PkgPath" $pkg "Depth" (add $depth 1)) }}
         </div>
       </details>
     {{ else }}

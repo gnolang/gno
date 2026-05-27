@@ -67,7 +67,7 @@ func BuildPackageSidebar(pkgPath string, nodes []StateNode) *StateSidebar {
 
 // BuildObjectSidebar assembles the aside for a per-object state page,
 // grouping meta into Identity, Lineage, and Storage sections.
-func BuildObjectSidebar(pkgPath, oid, typeID string, height int64, info StateObjectInfoView, nodes []StateNode) *StateSidebar {
+func BuildObjectSidebar(pkgPath, oid, typeID string, info StateObjectInfoView, nodes []StateNode) *StateSidebar {
 	meta := []StateMetaEntry{
 		{Section: "Identity", Label: "Realm", Value: pkgPath, Href: RealmStateHref(pkgPath)},
 		{Label: "Object ID", Value: oid, Mono: true},
@@ -76,10 +76,9 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, height int64, info StateObj
 		meta = append(meta, StateMetaEntry{Label: "Type", Value: typeID, Mono: true})
 	}
 	if info.OwnerID != "" {
-		// Owner link preserves height so time-travel holds across the hop.
 		meta = append(meta, StateMetaEntry{
 			Section: "Lineage", Label: "Owner", Value: ShortenOID(info.OwnerID, oid),
-			Href: stateObjectHref(pkgPath, info.OwnerID, "", heightParam(height), ""),
+			Href: stateObjectHref(pkgPath, info.OwnerID, "", ""),
 			Mono: true,
 		})
 	}
@@ -151,7 +150,7 @@ func buildTOC(nodes []StateNode) []StateTOCEntry {
 // ones point to the cross-page state URL stamped with the right offset.
 // Returns (sidebar, truncated) — truncated is true when allNames exceeds
 // the cap, so the template can render the "+N more" hint.
-func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTypes []string, currentOffset, limit int, heightParam string) (*StateSidebar, bool) {
+func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTypes []string, currentOffset, limit int) (*StateSidebar, bool) {
 	total := len(allNames)
 	if limit <= 0 {
 		limit = maxTopLevelDecls
@@ -191,8 +190,8 @@ func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTyp
 			// so the link reuses the canonical paginated URL (and its
 			// nginx cache key) instead of a per-row offset.
 			off := (i / limit) * limit
-			prettyHref = statePageAnchorHref(pkgPath, heightParam, ViewModePretty, off, limit, anchor+"-pretty")
-			treeHref = statePageAnchorHref(pkgPath, heightParam, ViewModeTree, off, limit, anchor+"-tree")
+			prettyHref = statePageAnchorHref(pkgPath, ViewModePretty, off, limit, anchor+"-pretty")
+			treeHref = statePageAnchorHref(pkgPath, ViewModeTree, off, limit, anchor+"-tree")
 		}
 		entries = append(entries, StateTOCEntry{
 			Label:      allNames[i],

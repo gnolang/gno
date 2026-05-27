@@ -155,7 +155,6 @@ func TestFragNodeTemplateRenders(t *testing.T) {
 				{Name: "field1", Type: "string", Kind: KindPrimitive, Value: "hello"},
 			},
 		},
-		HeightParam: "42",
 	}
 	var buf bytes.Buffer
 	if err := FragNodeTemplate.ExecuteTemplate(&buf, "fragNode", data); err != nil {
@@ -191,11 +190,10 @@ func TestFragErrorTemplateRenders(t *testing.T) {
 
 func TestFragSourceRenders(t *testing.T) {
 	data := FragSourceData{
-		SourceHTML:  template.HTML(`<pre class="chroma">func Hi() {}</pre>`),
-		PkgPath:     "/r/test",
-		File:        "main.gno",
-		Line:        12,
-		HeightParam: "99",
+		SourceHTML: template.HTML(`<pre class="chroma">func Hi() {}</pre>`),
+		PkgPath:    "/r/test",
+		File:       "main.gno",
+		Line:       12,
 	}
 	var buf bytes.Buffer
 	if err := FragSourceTemplate.ExecuteTemplate(&buf, "fragSource", data); err != nil {
@@ -209,7 +207,6 @@ func TestFragSourceRenders(t *testing.T) {
 		`/r/test$`,
 		`file=main.gno`,
 		`source`,
-		`height=99`,
 		`#L12`,
 		"See in code",
 	} {
@@ -219,36 +216,6 @@ func TestFragSourceRenders(t *testing.T) {
 	}
 	if strings.Contains(out, `href="?source`) {
 		t.Errorf("permalink must not use the dead relative ?source form; got:\n%s", out)
-	}
-}
-
-// Stale-while-revalidate invariant: every hx-get URL inherits HeightParam.
-func TestHeightStampedIntoHxGet(t *testing.T) {
-	data := StateData{
-		PkgPath:     "/r/test",
-		HeightParam: "12345",
-		Nodes: []StateNode{
-			{Name: "A", Kind: KindStruct, ObjectID: "abc:1", Expandable: true, Anchor: "a"},
-			{Name: "B", Kind: KindMap, ObjectID: "def:2", Expandable: true, Anchor: "b"},
-			{Name: "Fn", Kind: KindFunc, Source: &SourceLocation{File: "f.gno", StartLine: 5, EndLine: 9}},
-		},
-	}
-	var buf bytes.Buffer
-	if err := PageTemplate.ExecuteTemplate(&buf, "renderPage", data); err != nil {
-		t.Fatalf("render: %v", err)
-	}
-	out := buf.String()
-
-	hxGetCount := strings.Count(out, `hx-get="`)
-	if hxGetCount == 0 {
-		t.Fatalf("expected at least one hx-get attribute, got none\n%s", head(out, 1500))
-	}
-	// Helper-built template.URL values are HTML-escaped on interpolation,
-	// so the height stamp appears as `&amp;height=12345` in the body.
-	heightCount := strings.Count(out, `&amp;height=12345`)
-	if heightCount < hxGetCount {
-		t.Errorf("hx-get count %d > stamped &amp;height=12345 count %d — at least one fragment URL is missing the height stamp",
-			hxGetCount, heightCount)
 	}
 }
 
@@ -267,7 +234,7 @@ func TestPermanentLinkPresentForEveryHxGet(t *testing.T) {
 	}
 	// Production always enriches links before render — the pretty-view
 	// card CTA is the no-JS fallback for state/node-details.
-	EnrichLinks(data.Nodes, data.PkgPath, "", "")
+	EnrichLinks(data.Nodes, data.PkgPath, "")
 	var buf bytes.Buffer
 	if err := PageTemplate.ExecuteTemplate(&buf, "renderPage", data); err != nil {
 		t.Fatalf("render: %v", err)

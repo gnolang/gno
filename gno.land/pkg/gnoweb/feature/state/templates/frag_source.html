@@ -10,7 +10,7 @@
     <header class="b-state-frag-source-head">
       <small class="b-state-frag-source-loc">{{ .File }}{{ if .Line }}:{{ .Line }}{{ end }}</small>
       <a class="b-state-permalink"
-         href="{{ stateSourceHref .PkgPath .File .Line .HeightParam }}"
+         href="{{ stateSourceHref .PkgPath .File .Line }}"
          aria-label="See in code">See in code</a>
     </header>
     <div class="b-state-frag-source-body code">{{ .SourceHTML }}</div>
