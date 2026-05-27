@@ -595,6 +595,74 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"chain/params",
+		"SetBytesKey",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			libs_chain_params.SetBytesKey(
+				m,
+				p0, p1)
+		},
+	},
+	{
+		"chain/params",
+		"GetBytesKey",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			r0, r1 := libs_chain_params.GetBytesKey(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
 		"chain/runtime",
 		"AssertOriginCall",
 		[]gno.FieldTypeExpr{},

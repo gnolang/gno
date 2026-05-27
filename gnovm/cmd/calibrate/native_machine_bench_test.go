@@ -309,6 +309,47 @@ func BenchmarkNative_Params_SetBytes_10(b *testing.B)   { benchParamsSetBytes(b,
 func BenchmarkNative_Params_SetBytes_100(b *testing.B)  { benchParamsSetBytes(b, 100) }
 func BenchmarkNative_Params_SetBytes_1000(b *testing.B) { benchParamsSetBytes(b, 1000) }
 
+func benchParamsSetBytesKey(b *testing.B, n int) {
+	b.Helper()
+	val := make([]byte, n)
+	rand.Read(val)
+	m := newDispatchMachine(2)
+	addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	setBlockValueFromGo(m, 0, []byte{0x01, 0x3a, 0x02})
+	setBlockValueFromGo(m, 1, val)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "SetBytesKey"), nReturns: 0}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_SetBytesKey_1(b *testing.B)    { benchParamsSetBytesKey(b, 1) }
+func BenchmarkNative_Params_SetBytesKey_10(b *testing.B)   { benchParamsSetBytesKey(b, 10) }
+func BenchmarkNative_Params_SetBytesKey_100(b *testing.B)  { benchParamsSetBytesKey(b, 100) }
+func BenchmarkNative_Params_SetBytesKey_1000(b *testing.B) { benchParamsSetBytesKey(b, 1000) }
+
+func benchParamsGetBytesKey(b *testing.B, n int) {
+	b.Helper()
+	m := newDispatchMachine(1)
+	_, pm := addContextAndFrames(m, "gno.land/r/x", "gno.land/r/x")
+	key := []byte{0x01, 0x3a, 0x02}
+	val := make([]byte, n)
+	rand.Read(val)
+	pm.SetBytes("vm:gno.land/r/x:"+string(key), val)
+	setBlockValueFromGo(m, 0, key)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/params", "GetBytesKey"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Params_GetBytesKey_1(b *testing.B)    { benchParamsGetBytesKey(b, 1) }
+func BenchmarkNative_Params_GetBytesKey_10(b *testing.B)   { benchParamsGetBytesKey(b, 10) }
+func BenchmarkNative_Params_GetBytesKey_100(b *testing.B)  { benchParamsGetBytesKey(b, 100) }
+func BenchmarkNative_Params_GetBytesKey_1000(b *testing.B) { benchParamsGetBytesKey(b, 1000) }
+
 func benchParamsSetString(b *testing.B, n int) {
 	b.Helper()
 	m := newDispatchMachine(2)

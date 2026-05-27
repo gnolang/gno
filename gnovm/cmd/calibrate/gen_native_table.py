@@ -80,9 +80,14 @@ NATIVE_SPECS = [
     ("chain/banker", "assertCallerIsRealm", None, "Flat",
      r"BenchmarkNative_Banker_AssertCallerIsRealm-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
-    # ---- chain/params (sets only; payload-bytes slope where applicable) ----
+    # ---- chain/params (payload-bytes slope where applicable) ----
     ("chain/params", "SetBytes", 1, "LenBytes",
      r"BenchmarkNative_Params_SetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "SetBytesKey", 1, "LenBytes",
+     r"BenchmarkNative_Params_SetBytesKey_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # GetBytesKey returns (value, found). value is first-declared, stack offset 2.
+    ("chain/params", "GetBytesKey", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetBytesKey_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/params", "SetString", 1, "LenString",
      r"BenchmarkNative_Params_SetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/params", "SetBool", None, "Flat",

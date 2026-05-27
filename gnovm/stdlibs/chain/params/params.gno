@@ -10,3 +10,11 @@ func SetUint64(key string, val uint64)
 func SetBytes(key string, val []byte)
 func SetStrings(key string, val []string)
 func UpdateParamStrings(key string, val []string, add bool)
+
+// SetBytesKey stores val under a raw binary key. Unlike SetBytes, the key may
+// contain any bytes, including ':'.
+func SetBytesKey(key []byte, val []byte)
+
+// GetBytesKey reads back a value stored with SetBytesKey. It returns
+// (value, true) when the realm-local key is set, and (nil, false) otherwise.
+func GetBytesKey(key []byte) ([]byte, bool)
