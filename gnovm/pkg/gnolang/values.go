@@ -293,12 +293,24 @@ func (av *ArrayValue) GetLength() int {
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	if av.Data == nil {
+		if ii < 0 {
+			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+		}
+		if ii >= len(av.List) {
+			panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
+		}
 		ev := fillValueTV(store, &av.List[ii]) // by reference
 		return PointerValue{
 			TV:    ev,
 			Base:  av,
 			Index: ii,
 		}
+	}
+	if ii < 0 {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
+	}
+	if ii >= len(av.Data) {
+		panic(&Exception{Value: typedString(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
 	}
 	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
