@@ -213,9 +213,13 @@ func (m *Machine) doOpRef() {
 	if !ok {
 		panic("ATTR_REF_ELEM_TYPE not set during preprocessing")
 	}
-	// Zero-sized types share a single zerobase address (see GetZerobase).
+	// Zero-sized types share the per-Store zerobase sentinel
+	// (see Store.Zerobase). xv from PopAsPointer2 is discarded;
+	// any heap-item it created (for &CompositeLit{}) is collected
+	// after this op.
 	if isZeroSizeType(elt) {
-		xv = m.GetZerobase(elt)
+		hi := m.Store.Zerobase(elt)
+		xv = PointerValue{TV: &hi.Value, Base: hi, Index: 0}
 	}
 	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{

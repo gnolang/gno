@@ -114,9 +114,11 @@ var Value error = &myError{}`
 		// Create a FuncType with error return type for signature-based detection
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
-		// In Amino format, error shows as PointerValue with expanded StructValue base
+		// In Amino format, error shows as PointerValue; zero-sized error
+		// types route through the per-Store zerobase sentinel and serialize
+		// as a RefValue rather than an inlined HeapItemValue.
 		require.Contains(t, rep, `"/gno.PointerValue"`)
-		require.Contains(t, rep, `"ObjectInfo"`)
+		require.Contains(t, rep, `"/gno.RefValue"`)
 		require.Contains(t, rep, `"@error":"my error"`)
 	})
 
@@ -141,9 +143,9 @@ var Value error = &myError{}`
 		// Create a FuncType with error return type for signature-based detection
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
-		// In Amino format, error shows as PointerValue with expanded StructValue base
+		// As above: zero-sized myError serializes via the sentinel ref.
 		require.Contains(t, rep, `"/gno.PointerValue"`)
-		require.Contains(t, rep, `"ObjectInfo"`)
+		require.Contains(t, rep, `"/gno.RefValue"`)
 		require.Contains(t, rep, `"@error":""`)
 	})
 }

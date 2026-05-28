@@ -1167,12 +1167,16 @@ func makeUverseNode() {
 			m.Alloc.checkConstructionTime(tt)
 			if isZeroSizeType(tt) {
 				m.Alloc.AllocatePointer()
-				pv := m.GetZerobase(tt)
+				hi := m.Store.Zerobase(tt)
 				m.PushValue(TypedValue{
 					T: m.Alloc.NewType(&PointerType{
 						Elt: tt,
 					}),
-					V: pv,
+					V: PointerValue{
+						TV:    &hi.Value,
+						Base:  hi,
+						Index: 0,
+					},
 				})
 			} else {
 				tv := defaultTypedValue(m.Alloc, tt)

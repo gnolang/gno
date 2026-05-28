@@ -2785,6 +2785,20 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			fillValueTV(store, &cbv.Value)
 			cv.TV = &cbv.Value
 		case RefValue:
+			// Zerobase sentinel: route to the in-memory per-type
+			// sentinel via Store.Zerobase(elt). The element type
+			// lives on the outer PointerType, not on the sentinel
+			// ObjectID, so a Store-level GetObject lookup alone
+			// can't materialize a fresh-tx sentinel that hasn't
+			// been touched locally yet.
+			if cbv.ObjectID.IsZerobase() {
+				elt := baseOf(tv.T).(*PointerType).Elt
+				hi := store.Zerobase(elt)
+				cv.Base = hi
+				cv.TV = &hi.Value
+				tv.V = cv
+				return tv
+			}
 			base := store.GetObject(cbv.ObjectID).(Value)
 			cv.Base = base
 			switch cbv := base.(type) {

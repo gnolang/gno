@@ -54,11 +54,6 @@ type Machine struct {
 	// bounded printer (see bounded_strings.go). True on validator-
 	// side Machines; false for filetests, REPL, etc.
 	BoundedPanicRender bool
-
-	// zerobaseAllocs caches shared HeapItemValues for zero-sized types
-	// so that new(T) and &var return the same address (matching Go's
-	// runtime.zerobase). See GetZerobase.
-	zerobaseAllocs map[TypeID]*HeapItemValue
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -275,40 +270,6 @@ func (m *Machine) Release() {
 		Frames: frames,
 	}
 	machinePool.Put(m)
-}
-
-// GetZerobase returns a PointerValue to a shared zerobase for the given
-// type. All new(T) and &var calls for the same zero-sized type within a
-// machine execution return pointers to the same HeapItemValue, matching
-// Go's runtime.zerobase semantics.
-//
-// Go's gc compiler constant-folds &x==&y to false for distinct
-// zero-sized variables as an SSA-level optimization. Gno does not
-// replicate that. The spec is explicit on both points:
-//
-//	"Two distinct zero-size variables may have the same address"
-//	(Size and alignment guarantees)
-//
-//	"Pointers to distinct zero-size variables may or may not be
-//	equal" (Comparison operators)
-//
-// The gc compiler optimization is a non-portable implementation
-// choice, not a language requirement. Gno follows the spec literal:
-// same address means equal pointers.
-// https://go.dev/ref/spec#Size_and_alignment_guarantees
-// https://go.dev/ref/spec#Comparison_operators
-func (m *Machine) GetZerobase(t Type) PointerValue {
-	if m.zerobaseAllocs == nil {
-		m.zerobaseAllocs = make(map[TypeID]*HeapItemValue)
-	}
-	typeID := t.TypeID()
-	hi, ok := m.zerobaseAllocs[typeID]
-	if !ok {
-		tv := defaultTypedValue(m.Alloc, t)
-		hi = m.Alloc.NewHeapItem(t, tv)
-		m.zerobaseAllocs[typeID] = hi
-	}
-	return PointerValue{TV: &hi.Value, Base: hi, Index: 0}
 }
 
 func (m *Machine) SetActivePackage(pv *PackageValue) {
@@ -2368,7 +2329,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		obj := recv.GetFirstObject(m.Store)
 		if obj != nil {
 			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() &&
+			// The zerobase sentinel HIV has no owning package; skip
+			// the storage-realm borrow when a zero-sized pointer
+			// happens to be the receiver.
+			if !recvOID.IsZero() && !recvOID.IsZerobase() &&
 				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)

@@ -1,0 +1,36 @@
+## Zerobase sentinel: a *struct{} persisted in one tx must compare
+## equal to a freshly-minted new(struct{}) in a later tx. Without
+## the Store-level sentinel, the persisted p would have a per-tx
+## ObjectID and would not equal q.
+
+loadpkg gno.land/r/zerobasebug $WORK
+
+gnoland start
+
+## tx1 was the addpkg (loadpkg), which initialized `var p = new(struct{})`.
+## Call Check() in tx2 to compare the persisted `p` against fresh
+## `new(struct{})` allocations.
+gnokey maketx call -pkgpath gno.land/r/zerobasebug -func Check -gas-fee 5000000ugnot -gas-wanted 2000000 -chainid=tendermint_test test1
+stdout 'p==q=true q==r=true'
+
+-- gnomod.toml --
+module = "gno.land/r/zerobasebug"
+gno = "0.9"
+
+-- zerobasebug.gno --
+package zerobasebug
+
+import "strconv"
+
+// p is initialized at package-init (genesis tx). The pointer is
+// persisted as a reference to the per-Store zerobase sentinel for
+// struct{}; subsequent txs that allocate a *struct{} must hit the
+// same sentinel.
+var p = new(struct{})
+
+func Check(_ realm) string {
+	q := new(struct{})
+	r := new(struct{})
+	return "p==q=" + strconv.FormatBool(p == q) +
+		" q==r=" + strconv.FormatBool(q == r)
+}

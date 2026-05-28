@@ -1,0 +1,48 @@
+## Zerobase sentinel: a *struct{} allocated under r/A must compare
+## equal to one allocated under r/B in the same tx, even when r/B
+## persists its allocation into its own realm-global. The shared
+## sentinel has no realm authority, so neither realm "owns" the
+## HIV — no PkgID leak across realms.
+
+loadpkg gno.land/r/zerobase_b $WORK/b
+loadpkg gno.land/r/zerobase_a $WORK/a
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/zerobase_a -func Demo -gas-fee 5000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout 'pa==pa2=true pa==pb=true'
+
+-- a/gnomod.toml --
+module = "gno.land/r/zerobase_a"
+gno = "0.9"
+
+-- a/a.gno --
+package zerobase_a
+
+import (
+	"strconv"
+
+	b "gno.land/r/zerobase_b"
+)
+
+func Demo(cur realm) string {
+	pa := new(struct{})               // sentinel for r/A
+	pa2 := new(struct{})              // same-realm: identical sentinel
+	pb := b.AllocAndStore(cross(cur)) // cross-realm: same sentinel
+	return "pa==pa2=" + strconv.FormatBool(pa == pa2) +
+		" pa==pb=" + strconv.FormatBool(pa == pb)
+}
+
+-- b/gnomod.toml --
+module = "gno.land/r/zerobase_b"
+gno = "0.9"
+
+-- b/b.gno --
+package zerobase_b
+
+var Stored *struct{} // realm-global forces persistence
+
+func AllocAndStore(cur realm) *struct{} {
+	Stored = new(struct{})
+	return Stored
+}

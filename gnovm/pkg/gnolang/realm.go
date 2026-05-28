@@ -1015,6 +1015,13 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
+	// Defensive: the zerobase sentinel HeapItemValue is in-memory only
+	// and is never owned by any realm. DidUpdate's IsImmutablePkg branch
+	// already skips marking it dirty/new-real, so this should be
+	// unreachable in normal flow.
+	if oid.IsZerobase() {
+		return
+	}
 	if !oid.IsFinalized() {
 		panic("unexpected non-finalized object id at save")
 	}
@@ -1985,6 +1992,13 @@ func toRefValue(val Value) RefValue {
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	} else if oo, ok := val.(Object); ok {
+		// Zerobase sentinel: emit a bare ObjectID ref. The sentinel
+		// is never escaped and never carries a hash; downstream
+		// GetObject resolves the reserved ObjectID back to the
+		// in-memory Store.Zerobase entry for this TypeID.
+		if oid := oo.GetObjectID(); oid.IsZerobase() {
+			return RefValue{ObjectID: oid}
+		}
 		if pv, ok := val.(*PackageValue); ok {
 			if pv.GetIsDirty() {
 				panic("unexpected dirty package " + pv.PkgPath)

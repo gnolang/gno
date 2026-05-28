@@ -54,6 +54,7 @@ type Store interface {
 	GetObject(oid ObjectID) Object
 	GetObjectSafe(oid ObjectID) Object
 	SetObject(Object) int64 // returns size difference of the object
+	Zerobase(t Type) *HeapItemValue
 	GetStagingPackage() *PackageValue
 	SetStagingPackage(pv *PackageValue)
 	DelObject(Object) int64 // returns size difference of the object
@@ -184,6 +185,19 @@ type defaultStore struct {
 
 	// realm storage changes on message level.
 	realmStorageDiffs map[string]int64 // maps realm path to size diff
+
+	// zerobases is the per-Store, per-TypeID cache of zerobase sentinel
+	// HeapItemValues shared by new(T) and &var for zero-sized T.
+	// Created lazily on first reference of a given type. The map (not
+	// its entries) is created in NewStore and the same pointer is
+	// inherited by every transaction store, so the sentinels survive
+	// across txs and across realms — pointer identity is preserved.
+	// Sentinel ObjectIDs are derived deterministically from TypeID
+	// (see zerobaseObjectIDFor); their IsImmutable PkgID short-circuits
+	// DidUpdate's refcount/dirty tracking, so no realm owns or accrues
+	// rent for them.
+	zerobases     map[ObjectID]*HeapItemValue
+	zerobasesByID map[TypeID]*HeapItemValue
 }
 
 var globalAminoCache = sync.OnceValue[*ristretto.Cache[[]byte, Type]](func() *ristretto.Cache[[]byte, Type] {
@@ -221,6 +235,8 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		nativeResolver: nil,
 		gasConfig:      DefaultGasConfig(),
 		aminoCache:     globalAminoCache(),
+		zerobases:      make(map[ObjectID]*HeapItemValue),
+		zerobasesByID:  make(map[TypeID]*HeapItemValue),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -270,6 +286,11 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		opslog:  nil,
 		// reset at the message level
 		realmStorageDiffs: make(map[string]int64),
+
+		// inherit the per-node zerobase sentinels so pointer identity
+		// of zero-sized allocations is preserved across txs.
+		zerobases:     ds.zerobases,
+		zerobasesByID: ds.zerobasesByID,
 	}
 	InitStoreCaches(ds2)
 
@@ -306,6 +327,23 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 	for k, v := range ss.cacheNodes.Iterate() {
 		ds.cacheNodes.Set(k, v)
 	}
+}
+
+// Zerobase returns the per-Store, per-TypeID zerobase sentinel
+// HeapItemValue for the given zero-sized type. Used by `new(T)` and
+// `&var` so all such allocations of T share a single canonical
+// address — preserved across txs and realms. Lazily created on
+// first reference; the same instance is returned forever after.
+func (ds *defaultStore) Zerobase(t Type) *HeapItemValue {
+	tid := t.TypeID()
+	if hi, ok := ds.zerobasesByID[tid]; ok {
+		return hi
+	}
+	hi := &HeapItemValue{Value: defaultTypedValue(ds.alloc, t)}
+	hi.ObjectInfo.ID = zerobaseObjectIDFor(tid)
+	ds.zerobasesByID[tid] = hi
+	ds.zerobases[hi.ObjectInfo.ID] = hi
+	return hi
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {
@@ -493,6 +531,18 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
+	// Zerobase sentinel: resolve to the cached per-type HIV. If the
+	// sentinel hasn't been materialized in this Store yet (e.g., a
+	// fresh tx is loading a persisted pointer before any local
+	// new(T)), return nil and let the loader fall through to
+	// fillTypedValueFromRefValue, which has the outer PointerType
+	// in hand and re-creates the sentinel via Store.Zerobase(elt).
+	if oid.IsZerobase() {
+		if hi, ok := ds.zerobases[oid]; ok {
+			return hi
+		}
+		return nil
+	}
 	// check cache.
 	if oo, exists := ds.cacheObjects[oid]; exists {
 		return oo
@@ -595,6 +645,11 @@ func (ds *defaultStore) fillPackage(pv *PackageValue) {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) int64 {
+	// zerobase sentinel is in-memory only; never written to backing
+	// store and never accrues a size delta.
+	if oo.GetObjectID().IsZerobase() {
+		return 0
+	}
 	var size int
 	if bm.Enabled {
 		old := bm.StartStore(bm.StoreSetObject)
@@ -710,6 +765,11 @@ func (ds *defaultStore) loadForLog(oid ObjectID) Object {
 }
 
 func (ds *defaultStore) DelObject(oo Object) int64 {
+	// Zerobase sentinel is in-memory only and never tracked for
+	// deletion; defensive no-op.
+	if oo.GetObjectID().IsZerobase() {
+		return 0
+	}
 	if bm.Enabled {
 		old := bm.StartStore(bm.StoreDeleteObject)
 		defer func() { bm.StopStore(bm.StoreDeleteObject, old, 0) }()
