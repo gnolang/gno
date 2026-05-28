@@ -645,7 +645,7 @@ func findBracketSpans(s string) []bracketSpan {
 			// textEnd points at the closing `]`. Next byte determines what kind.
 			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
 				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
-				end, ok := scanLinkURL(s, textEnd+2)
+				end, ok := scanLinkURL(s, textEnd+2, &scanBudget)
 				if ok {
 					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLink})
 					i = end
@@ -655,7 +655,7 @@ func findBracketSpans(s string) []bracketSpan {
 			}
 			// LRD candidate: [label]: url …  (only when `!` not prefixing AND only if line starts at line-start position)
 			if c == '[' && atLineStartAt(s, start) {
-				if end, ok := scanLRDTail(s, textEnd+1); ok {
+				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget); ok {
 					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLRD})
 					i = end
 					atLineStart = (end > 0 && s[end-1] == '\n')
@@ -785,7 +785,10 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
 // Returns the byte index AFTER the closing `)` and true on success.
-func scanLinkURL(s string, i int) (int, bool) {
+// Shares the pass-1 scan budget with scanLinkText so an attacker can't
+// chain `[a]([a]([a](…` (which would otherwise let scanLinkURL walk to
+// EOF on every `[`, O(n²)).
+func scanLinkURL(s string, i int, budget *int) (int, bool) {
 	// Consume optional leading whitespace
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
 		i++
@@ -800,6 +803,10 @@ func scanLinkURL(s string, i int) (int, bool) {
 	if i < len(s) && s[i] == '<' {
 		i++
 		for i < len(s) {
+			if *budget <= 0 {
+				return 0, false
+			}
+			*budget--
 			c := s[i]
 			if c == '\\' && i+1 < len(s) {
 				i += 2
@@ -821,6 +828,10 @@ func scanLinkURL(s string, i int) (int, bool) {
 		// Plain URL with balanced parens
 		urlDepth := 1
 		for i < len(s) {
+			if *budget <= 0 {
+				return 0, false
+			}
+			*budget--
 			c := s[i]
 			if c == '\\' && i+1 < len(s) {
 				i += 2
@@ -855,6 +866,10 @@ func scanLinkURL(s string, i int) (int, bool) {
 		}
 		i++
 		for i < len(s) {
+			if *budget <= 0 {
+				return 0, false
+			}
+			*budget--
 			c := s[i]
 			if c == '\\' && i+1 < len(s) {
 				i += 2
@@ -884,7 +899,10 @@ func scanLinkURL(s string, i int) (int, bool) {
 // `i` is the byte index right after the closing `]` of the label.
 // Returns the byte index of the LRD region's end (after the URL or after
 // the title, including a trailing newline if present) and true on success.
-func scanLRDTail(s string, i int) (int, bool) {
+// Shares the pass-1 scan budget so an attacker can't chain
+// `[a]: u\n(x\n[b]: u\n(x\n…` (paren-title with no `)` anywhere — every
+// LRD candidate would otherwise let the title scan walk to EOF, O(n²)).
+func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	// Need ':' immediately
 	if i >= len(s) || s[i] != ':' {
 		return 0, false
@@ -910,6 +928,10 @@ func scanLRDTail(s string, i int) (int, bool) {
 	if i < len(s) && s[i] == '<' {
 		i++
 		for i < len(s) {
+			if *budget <= 0 {
+				return 0, false
+			}
+			*budget--
 			c := s[i]
 			if c == '\\' && i+1 < len(s) {
 				i += 2
@@ -926,6 +948,10 @@ func scanLRDTail(s string, i int) (int, bool) {
 		}
 	} else {
 		for i < len(s) {
+			if *budget <= 0 {
+				return 0, false
+			}
+			*budget--
 			c := s[i]
 			if c == ' ' || c == '\t' || c == '\n' {
 				break
@@ -964,6 +990,10 @@ func scanLRDTail(s string, i int) (int, bool) {
 		i++
 		titleOK := false
 		for i < len(s) {
+			if *budget <= 0 {
+				break
+			}
+			*budget--
 			c := s[i]
 			if c == '\\' && i+1 < len(s) {
 				i += 2

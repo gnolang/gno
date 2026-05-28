@@ -244,18 +244,21 @@ func BenchmarkNative_Markdown_CodeFence_10000(b *testing.B)  { benchMarkdownCode
 func BenchmarkNative_Markdown_CodeFence_100000(b *testing.B) { benchMarkdownCodeFence(b, 100000) }
 
 // ----- EscapeBlockHazards -----
-// Worst case: N/2 `[`s followed by N/2 `]`s ("match storm"). After the
-// bracket-walker rewrite, this exercises the depth-balanced
-// scanLinkText path AT ITS BUDGET CEILING — the first scan walks
-// O(N) bytes and exhausts the per-call budget, subsequent `[`s abort
-// immediately. The combination of pass-1 budget consumption and
-// pass-2 per-byte escape work makes this shape ~2× the per-byte cost
-// of the prior `<gno-card a][b>` line shape. Picked for gas
-// calibration to bound an adversarial input's wall time.
+// Worst case: `[a]: u\n(x\n` repeated (paren-title LRD with no `)`
+// anywhere). After the bracket-walker + scanLinkText + scanLinkURL +
+// scanLRDTail all share a single `scanBudget = 8 × len(s)`, the
+// LRD-title scan branch is the most expensive per-byte path that
+// still falls inside that cap: each `[a]:` triggers scanLRDTail, the
+// title scan opens on `(`, then walks forward looking for `)` until
+// the budget hits zero. After that, all subsequent LRD candidates
+// short-circuit. The combination of pass-1 budget-exhausting forward
+// walks, pass-2 escape of every `[`/`]` outside spans, and the
+// per-line dispatch pass yields the adversarial upper bound. Picked
+// for gas calibration so the slope reflects what a malicious caller
+// can actually force.
 func benchMarkdownEscapeBlockHazards(b *testing.B, n int) {
 	b.Helper()
-	half := n / 2
-	s := strings.Repeat("[", half) + strings.Repeat("]", n-half)
+	s := fillWorstCase(n, "[a]: u\n(x\n")
 	m := newDispatchMachine(1)
 	setBlockValueFromGo(m, 0, s)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazards"), nReturns: 1}
