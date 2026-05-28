@@ -1015,12 +1015,17 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
-	// Defensive: the zerobase sentinel HeapItemValue is in-memory only
-	// and is never owned by any realm. DidUpdate's IsImmutablePkg branch
-	// already skips marking it dirty/new-real, so this should be
-	// unreachable in normal flow.
+	// Zerobase sentinels are in-memory only and have no owning realm.
+	// DidUpdate's IsImmutablePkg branch is responsible for keeping
+	// them out of rlm.newCreated / rlm.updated; reaching here means
+	// that guard was bypassed somewhere — bug, not a recoverable
+	// condition.
 	if oid.IsZerobase() {
-		return
+		panic(fmt.Sprintf(
+			"invariant: zerobase sentinel %s reached saveObject; "+
+				"DidUpdate's IsImmutablePkg branch must skip the sentinel "+
+				"before realm finalization",
+			oid))
 	}
 	if !oid.IsFinalized() {
 		panic("unexpected non-finalized object id at save")
