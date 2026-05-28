@@ -214,14 +214,14 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 		return err
 	}
 
-	tidStr := tid.String()
-	led.tokenApprovals.Remove(tidStr)
-
 	bal, err := led.balanceOf(owner)
 	if err != nil {
 		return err
 	}
 	bal = overflow.Sub64p(bal, 1)
+
+	tidStr := tid.String()
+	led.tokenApprovals.Remove(tidStr)
 
 	ownerStr := owner.String()
 	if bal == 0 {
@@ -271,9 +271,6 @@ func (led *PrivateLedger) Transfer(from, to address, tid TokenID) error {
 		return ErrTransferFromIncorrectOwner
 	}
 
-	tidStr := tid.String()
-	led.tokenApprovals.Remove(tidStr)
-
 	fromBal, err := led.balanceOf(from)
 	if err != nil {
 		return err
@@ -283,6 +280,9 @@ func (led *PrivateLedger) Transfer(from, to address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
+
+	tidStr := tid.String()
+	led.tokenApprovals.Remove(tidStr)
 
 	fromBal = overflow.Sub64p(fromBal, 1)
 	toBal = overflow.Add64p(toBal, 1)
