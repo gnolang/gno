@@ -342,7 +342,7 @@ func (ds *defaultStore) Zerobase(t Type) *HeapItemValue {
 		return hi
 	}
 	hi := &HeapItemValue{Value: defaultTypedValue(ds.alloc, t)}
-	hi.ObjectInfo.ID = zerobaseObjectIDFor(tid)
+	hi.ObjectInfo.ID = zerobaseObjectID
 	ds.zerobasesByID[tid] = hi
 	return hi
 }

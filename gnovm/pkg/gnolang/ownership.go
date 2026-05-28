@@ -108,45 +108,29 @@ func (oid ObjectID) IsFinalized() bool {
 	return oid.NewTime != 0
 }
 
-// zerobasePkgID is the reserved PkgID prefix shared by every
-// per-Store, per-TypeID zerobase sentinel HeapItemValue. The first
-// byte (0x40) sets only the IsImmutable flag — the existing realm
-// machinery (DidUpdate, refcount tracking, dirty marking) skips
-// these sentinels automatically via the immutable-pkg branches.
-// The remaining 156 bits are zero; distinguishable from any real
-// SHA-256-derived PkgID with overwhelming probability.
-//
-// Per-type sentinels share this PkgID and differ in NewTime, derived
-// deterministically from each type's TypeID (see zerobaseObjectIDFor).
-// NewTime is always non-zero so each sentinel is pre-finalized and
-// realm-traversal recurse guards skip it.
+// zerobasePkgID is the reserved PkgID shared by every zerobase
+// sentinel HeapItemValue. The first byte (0x40) sets only the
+// IsImmutable flag — the existing realm machinery (DidUpdate,
+// refcount tracking, dirty marking) skips these sentinels
+// automatically via the immutable-pkg branches. The remaining 156
+// bits are zero; distinguishable from any real SHA-256-derived
+// PkgID with overwhelming probability.
 var zerobasePkgID = PkgID{Hashlet: Hashlet{0x40}}
 
-// IsZerobase returns true iff this ObjectID belongs to the per-Store
-// zerobase sentinel range (PkgID == zerobasePkgID). Per-type
-// sentinels share this PkgID; NewTime distinguishes them.
+// zerobaseObjectID is the reserved ObjectID stamped on every
+// per-Store zerobase sentinel HeapItemValue. All sentinels share
+// this OID: sentinels are differentiated by their *HeapItemValue
+// pointer (and looked up by TypeID in Store.zerobasesByID); the OID
+// only serves to flag "this is a sentinel" at the persistence
+// boundary. NewTime == 1 keeps the sentinel pre-finalized so realm
+// traversal recurse guards skip it.
+var zerobaseObjectID = ObjectID{PkgID: zerobasePkgID, NewTime: 1}
+
+// IsZerobase returns true iff this ObjectID is a zerobase sentinel
+// marker (PkgID == zerobasePkgID). Distinct sentinels still have
+// distinct *HeapItemValue identities; only the ObjectID is shared.
 func (oid ObjectID) IsZerobase() bool {
 	return oid.PkgID == zerobasePkgID
-}
-
-// zerobaseObjectIDFor returns the reserved ObjectID for the zerobase
-// sentinel of TypeID tid. Derives NewTime from the first 8 bytes of
-// the TypeID hash so all validators agree on identity for a given
-// type without persisting the mapping. Collisions are bounded by the
-// 64-bit space and limited to zero-sized types only — astronomically
-// rare and confined to the sentinel range.
-func zerobaseObjectIDFor(tid TypeID) ObjectID {
-	h := HashBytes([]byte(tid))
-	var nt uint64
-	for i := 0; i < 8; i++ {
-		nt = (nt << 8) | uint64(h[i])
-	}
-	// NewTime == 0 marks "not finalized"; bump to 1 if hash collides
-	// with zero to keep the sentinel pre-finalized.
-	if nt == 0 {
-		nt = 1
-	}
-	return ObjectID{PkgID: zerobasePkgID, NewTime: nt}
 }
 
 type ObjectIDer interface {
