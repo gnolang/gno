@@ -22,6 +22,7 @@ func main() {
 // ```go
 // md.Bold("Important text")
 // ```
+//
 // Result: **Important text**
 //
 //
@@ -29,6 +30,7 @@ func main() {
 // ```go
 // md.Italic("Emphasized text")
 // ```
+//
 // Result: *Emphasized text*
 //
 //
@@ -36,6 +38,7 @@ func main() {
 // ```go
 // md.Strikethrough("Deprecated feature")
 // ```
+//
 // Result: ~~Deprecated feature~~
 //
 //
@@ -43,6 +46,7 @@ func main() {
 // ```go
 // md.Bold(md.Italic("Very important"))
 // ```
+//
 // Result: ***Very important***
 //
 //
@@ -58,6 +62,7 @@ func main() {
 // md.H5("Minor heading")
 // md.H6("Smallest heading")
 // ```
+//
 // Result:
 // # Main Title
 // ## Section
@@ -77,6 +82,7 @@ func main() {
 // }
 // md.BulletList(items)
 // ```
+//
 // Result:
 // - First item
 // - Second item
@@ -92,6 +98,7 @@ func main() {
 // }
 // md.OrderedList(steps)
 // ```
+//
 // Result:
 // 1. First step
 // 2. Second step
@@ -109,6 +116,7 @@ func main() {
 // completed := []bool{true, true, false, false}
 // md.TodoList(tasks, completed)
 // ```
+//
 // Result:
 // - [x] Completed task
 // - [x] Another completed task
@@ -128,6 +136,7 @@ func main() {
 //     "  ",
 // )
 // ```
+//
 // Result:
 // - Parent item
 //   - Nested item 1
@@ -140,6 +149,7 @@ func main() {
 // ```go
 // md.Link("Gno Homepage", "https://gno.land")
 // ```
+//
 // Result: [Gno Homepage](https://gno.land)
 //
 //
@@ -147,12 +157,14 @@ func main() {
 // ```go
 // md.UserLink("moul")
 // ```
+//
 // Result: [@moul](/u/moul)
 //
 //
 // ```go
 // md.UserLink("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 // ```
+//
 // Result: [g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5](/u/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)
 //
 //
@@ -160,12 +172,14 @@ func main() {
 // ```go
 // md.Image("Gno Logo", "/public/imgs/gnoland.svg")
 // ```
+//
 // Result:
 // ![Gno Logo](/public/imgs/gnoland.svg)
 // ### Clickable Images
 // ```go
 // md.InlineImageWithLink("Click me!", "/public/imgs/gnoland.svg", "https://gno.land")
 // ```
+//
 // Result:
 // [![Click me\!](/public/imgs/gnoland.svg)](https://gno.land)
 // ## Code
@@ -174,6 +188,7 @@ func main() {
 // ```go
 // "Use " + md.InlineCode("gno test") + " to run tests"
 // ```
+//
 // Result: Use `gno test` to run tests
 //
 //
@@ -181,16 +196,19 @@ func main() {
 // ```go
 // md.CodeBlock("func main() {\n    println(\"Hello, Gno!\")\n}")
 // ```
+//
 // Result:
 // ```
 // func main() {
 //     println("Hello, Gno!")
 // }
 // ```
+//
 // ### Language-specific Code Block
 // ```go
 // md.LanguageCodeBlock("go", "package main\n\nfunc main() {\n    println(\"Hello!\")\n}")
 // ```
+//
 // Result:
 // ```go
 // package main
@@ -199,16 +217,19 @@ func main() {
 //     println("Hello!")
 // }
 // ```
+//
 // ## Blockquotes
 // ```go
 // md.Blockquote("This is an important note.")
 // ```
+//
 // Result:
 // > This is an important note.
 //
 // ```go
 // md.Blockquote("Multi-line quotes\nare also supported\nwith proper formatting.")
 // ```
+//
 // Result:
 // > Multi-line quotes
 // > are also supported
@@ -220,6 +241,7 @@ func main() {
 // ```go
 // md.CollapsibleSection("Click to expand", "Hidden content here!")
 // ```
+//
 // Result:
 // <details><summary>Click to expand</summary>
 //
@@ -233,10 +255,11 @@ func main() {
 //     "Right column content",
 // }, false)
 // ```
+//
 // Result:
 // <gno-columns>
 // Left column content
-// |||
+// <gno-columns-sep>
 // Right column content
 // </gno-columns>
 //
@@ -247,19 +270,20 @@ func main() {
 //     "Item 4", "Item 5", "Item 6",
 // }, 3, true)
 // ```
+//
 // Result:
 // <gno-columns>
 // Item 1
-// |||
+// <gno-columns-sep>
 // Item 2
-// |||
+// <gno-columns-sep>
 // Item 3
 // </gno-columns>
 // <gno-columns>
 // Item 4
-// |||
+// <gno-columns-sep>
 // Item 5
-// |||
+// <gno-columns-sep>
 // Item 6
 // </gno-columns>
 //
@@ -269,21 +293,26 @@ func main() {
 // ```go
 // md.HorizontalRule()
 // ```
+//
 // Result:
 // ---
 //
 // ### Footnotes
 // ```go
-// "This has a footnote[1].\n\n" + md.Footnote("1", "Footnote content here.")
+// "This has a footnote[^1].\n\n" + md.FootnoteDefinition("1", "Footnote content here.")
 // ```
-// Result:
-// This has a footnote[1].
 //
-// [1]: Footnote content here.
+// Result:
+// This has a footnote[^1].
+//
+// [^1]:
+//     Footnote content here.
+//
 // ### Paragraphs
 // ```go
 // md.Paragraph("This ensures proper spacing.")
 // ```
+//
 // Result:
 // This ensures proper spacing.
 //
@@ -337,6 +366,7 @@ func main() {
 //     []bool{true, true, false, false},
 // )
 // ```
+//
 // Result when called with the above parameters:
 // # User Profile: John Doe
 // ---
@@ -349,13 +379,13 @@ func main() {
 // - **Status:** 🟢 Active
 // - **Joined:** January 2024
 //
-// |||
+// <gno-columns-sep>
 // ### Bio
 // > Passionate Gno developer building the future of smart contracts. Love working with blockchain technology and contributing to open source.
 //
-// |||
+// <gno-columns-sep>
 //
-// |||
+// <gno-columns-sep>
 //
 // </gno-columns>
 //
@@ -366,15 +396,15 @@ func main() {
 // - [ ] Deploy to testnet
 // - [ ] Write documentation
 //
-// |||
+// <gno-columns-sep>
 // ### Links
 // - [GitHub](https://github.com/johndoe)
 // - [Portfolio](https://example.com/johndoe)
 // - [LinkedIn](https://linkedin.com/in/johndoe)
 //
-// |||
+// <gno-columns-sep>
 //
-// |||
+// <gno-columns-sep>
 //
 // </gno-columns>
 //

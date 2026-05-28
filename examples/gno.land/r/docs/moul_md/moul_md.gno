@@ -289,10 +289,10 @@ func renderUtilityFunctions() string {
 		) +
 		// Footnotes
 		md.H3("Footnotes") +
-		md.LanguageCodeBlock("go", `"This has a footnote[1].\n\n" + md.Footnote("1", "Footnote content here.")`) +
+		md.LanguageCodeBlock("go", `"This has a footnote[^1].\n\n" + md.FootnoteDefinition("1", "Footnote content here.")`) +
 		"\nResult:\n" +
-		"This has a footnote[1].\n\n" +
-		md.Footnote("1", "Footnote content here.") + "\n" +
+		"This has a footnote[^1].\n\n" +
+		md.FootnoteDefinition("1", "Footnote content here.") + "\n" +
 		// Paragraphs
 		renderExampleWithRawResult(
 			"Paragraphs",

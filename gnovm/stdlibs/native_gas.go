@@ -76,12 +76,13 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 56 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
-// The trailing 10 entries (crypto/bn254, crypto/cometbls, crypto/keccak256,
-// crypto/merkle, crypto/modexp) are draft fits measured on Intel Xeon Silver
-// 4114 — the rest is on Apple M2. The whole table must be regenerated on
-// the reference Xeon 8168 before any consensus-relevant deployment; the IBC
-// rows are flagged "draft" in their trailing comment to make that obvious.
+// 65 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
+// crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
+// on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
+// Apple M2. The whole table must be regenerated on the reference Xeon 8168
+// before any consensus-relevant deployment; the IBC rows are flagged
+// "draft" in their trailing comment to make that obvious.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -129,6 +130,18 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "sys/params", Fn: "setSysParamStrings", Base: 341, Slope: 27034, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                 // fit base=341.0ns slope=26.4006ns/N (=27034/1024) R²=0.997
 	{Pkg: "sys/params", Fn: "updateSysParamStrings", Base: 413, Slope: 26861, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                              // fit base=413.4ns slope=26.2318ns/N (=26861/1024) R²=0.998
 	{Pkg: "sys/params", Fn: "getSysParamStrings", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=348.9ns + 22.6713ns/N (=23215/1024) R²=0.999
+	// chain/markdown — calibrated from gnovm/cmd/calibrate (M2 ARM64 baseline,
+	// same as the other rows above). Same Xeon 8168 re-calibration caveat
+	// applies; values are stable across re-runs (R² ≥ 0.994 for all eight).
+	{Pkg: "chain/markdown", Fn: "StripBidiAndZeroWidth", Base: 71, Slope: 1882, SlopeIdx: 0, SlopeKind: SizeLenString},    // fit base=71.1ns slope=1.8378ns/N (=1882/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "NormalizeBreaks", Base: 72, Slope: 573, SlopeIdx: 0, SlopeKind: SizeLenString},           // fit base=71.8ns slope=0.5600ns/N (=573/1024) R²=0.994
+	{Pkg: "chain/markdown", Fn: "EscapeInline", Base: 76, Slope: 2041, SlopeIdx: 0, SlopeKind: SizeLenString},             // fit base=75.9ns slope=1.9932ns/N (=2041/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "EscapeTitle", Base: 76, Slope: 2060, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=76.1ns slope=2.0120ns/N (=2060/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},         // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},            // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
+	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},                // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
 
 	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
 	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},           // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes

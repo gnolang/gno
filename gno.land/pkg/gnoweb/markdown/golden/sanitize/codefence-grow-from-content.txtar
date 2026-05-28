@@ -1,0 +1,10 @@
+// MARKDOWNFUNC: CodeFence
+// ARGS: 3
+// CONTEXT: %s\nuser code with ``` inside\n%s
+-- input.md --
+user code with ``` inside
+-- output.md --
+````
+-- output.html --
+<pre><code>user code with ``` inside
+</code></pre>
