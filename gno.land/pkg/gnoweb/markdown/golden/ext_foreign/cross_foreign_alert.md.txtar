@@ -1,0 +1,25 @@
+-- input.md --
+before
+
+<gno-foreign>
+> [!NOTE] Heads up
+> alert body inside foreign sandbox
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group" aria-label="external content">
+<div class="gno-foreign__label">external content</div>
+<div class="gno-foreign__body">
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Heads up<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>alert body inside foreign sandbox</p>
+</div>
+</details>
+</div>
+</div>
+<p>after</p>
