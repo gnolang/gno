@@ -35,10 +35,15 @@ type Event struct {
 }
 
 var (
-	events              = avl.NewTree()
-	eventCounter uint64 = 0
-	tickets             = grc721.NewBasicNFT("Event Ticket", "EVTIX")
+	events               = avl.NewTree()
+	eventCounter  uint64 = 0
+	tickets       *grc721.Token
+	ticketsLedger *grc721.PrivateLedger
 )
+
+func init(cur realm) {
+	tickets, ticketsLedger = grc721.NewToken(0, cur, "Event Ticket", "EVTIX")
+}
 
 func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, maxTickets int, price uint64) uint64 {
 	// validate inputs
@@ -113,7 +118,7 @@ func BuyTicket(cur realm, eventId uint64) {
 
 	// Mint NFT ticket
 	tokenId := grc721.TokenID(ufmt.Sprintf("event_%d_ticket_%d", eventId, event.ticketsSold+1))
-	tickets.Mint(buyer, tokenId)
+	ticketsLedger.Mint(buyer, tokenId)
 
 	event.ticketsSold++
 	events.Set(strconv.Itoa(int(eventId)), event)

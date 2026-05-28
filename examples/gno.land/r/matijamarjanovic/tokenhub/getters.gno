@@ -46,30 +46,30 @@ func MustGetToken(key string) *grc20.Token {
 	return grc20reg.MustGet(key)
 }
 
-// GetNFT returns a reader-only view of an NFT for a given key.
+// GetNFT returns the *grc721.Token registered under key, or nil if absent.
 //
-// SECURITY: the returned IGRC721Reader is data-untrusted. A malicious
-// NFTGetter registered via RegisterNFT can return a Reader that lies
-// about OwnerOf / BalanceOf / etc. Treat aggregator results as display
+// SECURITY: the returned value is data-untrusted. The Token pointer comes
+// from whichever realm called RegisterNFT and may have been minted/burned
+// or transferred since registration. Treat aggregator results as display
 // data, not authority data — never gate a transfer or mint on these
-// values. Writes are concrete methods on the owning realm's *basicNFT;
-// to mutate an NFT, call the owning realm's wrapper directly.
-func GetNFT(key string) grc721.IGRC721Reader {
-	nftGetter, ok := registeredNFTs.Get(key)
+// values. Admin writes live on *grc721.PrivateLedger inside the owning
+// realm; to mutate an NFT, call the owning realm's wrapper directly.
+func GetNFT(key string) *grc721.Token {
+	val, ok := registeredNFTs.Get(key)
 	if !ok {
 		return nil
 	}
-	return (nftGetter.(grc721.NFTGetter))()
+	return val.(*grc721.Token)
 }
 
-// MustGetNFT returns a reader-only view of an NFT for a given key,
-// panics if the NFT is not found. See GetNFT for data-trust notes.
-func MustGetNFT(key string) grc721.IGRC721Reader {
-	nftGetter := GetNFT(key)
-	if nftGetter == nil {
+// MustGetNFT returns the *grc721.Token registered under key, panicking if
+// absent. See GetNFT for data-trust notes.
+func MustGetNFT(key string) *grc721.Token {
+	nft := GetNFT(key)
+	if nft == nil {
 		panic("unknown NFT: " + key)
 	}
-	return nftGetter
+	return nft
 }
 
 // GetMultiToken returns a multi-token instance for a given key
@@ -146,8 +146,7 @@ func getNFTBalances(input string) string {
 	var out string
 
 	registeredNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		nftGetter := value.(grc721.NFTGetter)
-		nft := nftGetter()
+		nft := value.(*grc721.Token)
 		key_parts := strings.Split(key, ".")
 		owner, err := nft.OwnerOf(grc721.TokenID(key_parts[len(key_parts)-1]))
 		if err == nil && addr == owner { // show only the nfts owner owns

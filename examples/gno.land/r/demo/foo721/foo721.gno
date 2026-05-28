@@ -6,20 +6,25 @@ import (
 )
 
 var (
-	admin address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
-	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
+	admin      address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
+	foo        *grc721.Token
+	fooLedger  *grc721.PrivateLedger
+	userTeller grc721.Teller
 )
 
-func init() {
+func init(cur realm) {
+	foo, fooLedger = grc721.NewToken(0, cur, "FooNFT", "FNFT")
+	userTeller = foo.CallerTeller()
+
 	mintNNFT(admin, 10)                                     // @administrator (10)
 	mintNNFT("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", 5) // govdao t1 multisig (5)
 }
 
 func mintNNFT(owner address, n int64) {
-	count := foo.TokenCount()
+	count := foo.TotalSupply()
 	for i := count; i < count+n; i++ {
 		tid := grc721.TokenID(ufmt.Sprintf("%d", i))
-		foo.Mint(owner, tid)
+		fooLedger.Mint(owner, tid)
 	}
 }
 
@@ -68,25 +73,19 @@ func GetApproved(tid grc721.TokenID) address {
 // leak through. See `p/demo/tokens/grc721/igrc721.gno` for the
 // Reader/Writer split doctrine.
 func Approve(cur realm, user address, tid grc721.TokenID) {
-	caller := cur.Previous().Address()
-	err := foo.Approve(caller, user, tid)
-	if err != nil {
+	if err := userTeller.Approve(0, cur, user, tid); err != nil {
 		panic(err)
 	}
 }
 
 func SetApprovalForAll(cur realm, user address, approved bool) {
-	caller := cur.Previous().Address()
-	err := foo.SetApprovalForAll(caller, user, approved)
-	if err != nil {
+	if err := userTeller.SetApprovalForAll(0, cur, user, approved); err != nil {
 		panic(err)
 	}
 }
 
 func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
-	caller := cur.Previous().Address()
-	err := foo.TransferFrom(caller, from, to, tid)
-	if err != nil {
+	if err := userTeller.TransferFrom(0, cur, from, to, tid); err != nil {
 		panic(err)
 	}
 }
@@ -96,8 +95,7 @@ func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
 func Mint(cur realm, to address, tid grc721.TokenID) {
 	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
-	err := foo.Mint(to, tid)
-	if err != nil {
+	if err := fooLedger.Mint(to, tid); err != nil {
 		panic(err)
 	}
 }
@@ -105,8 +103,7 @@ func Mint(cur realm, to address, tid grc721.TokenID) {
 func Burn(cur realm, tid grc721.TokenID) {
 	caller := cur.Previous().Address()
 	assertIsAdmin(caller)
-	err := foo.Burn(tid)
-	if err != nil {
+	if err := fooLedger.Burn(tid); err != nil {
 		panic(err)
 	}
 }
@@ -124,8 +121,8 @@ func Render(path string) string {
 
 // Util
 
-func assertIsAdmin(address_XXX address) {
-	if address_XXX != admin {
+func assertIsAdmin(addr address) {
+	if addr != admin {
 		panic("restricted access")
 	}
 }
