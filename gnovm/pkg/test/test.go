@@ -413,15 +413,9 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 		filter := splitRegexp(opts.RunFlag)
 		for _, testFile := range ftfiles {
 			testFileName := testFile.Name
-			// Both new-style ("filetests/foo.gno") and legacy ("foo_filetest.gno")
-			// names live under fsDir/filetests/ on disk; the displayed test name
-			// drops the prefix so it stays stable across the two forms.
-			diskName := testFileName
-			if !strings.HasPrefix(diskName, std.FiletestsPrefix) {
-				diskName = std.FiletestsPrefix + diskName
-			}
-			testFilePath := filepath.Join(fsDir, diskName)
-			testName := fsDir + "/" + strings.TrimPrefix(testFileName, std.FiletestsPrefix)
+			// MemFile.Name is flat; filetests live under fsDir/filetests/ on disk.
+			testFilePath := filepath.Join(fsDir, std.FiletestsDir, testFileName)
+			testName := fsDir + "/" + testFileName
 			if !shouldRun(filter, testName) {
 				continue
 			}
@@ -741,7 +735,7 @@ func parseMemPackageTests(mpkg *std.MemPackage) (tset, itset *gno.FileSet, itfil
 		default:
 			panic(fmt.Sprintf(
 				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
-				mpkg.Name, mpkg.Name, n.PkgName, mfile))
+				mpkg.Name, mpkg.Name, n.PkgName, mfile.Name))
 		}
 	}
 	if errs != nil {

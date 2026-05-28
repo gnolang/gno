@@ -431,25 +431,22 @@ func TestMemPackage_Validate(t *testing.T) {
 	}
 }
 
-// TestValidateMemPackageAny_FiletestsDir checks that ValidateMemPackageAny
-// only permits .gno files under the filetests/ subdir and rejects other
-// subdirs, traversal, and non-.gno files under filetests/.
-// The basic-name regex in MemFile.ValidateBasic catches most of the rejected
-// cases first; the test asserts on the wrapped "invalid file name" error.
-func TestValidateMemPackageAny_FiletestsDir(t *testing.T) {
+// TestValidateMemPackageAny_FlatName asserts ValidateMemPackageAny rejects
+// any MemFile.Name containing a slash — subdirs are a write-routing convention
+// only, not part of the in-memory name.
+func TestValidateMemPackageAny_FlatName(t *testing.T) {
 	t.Parallel()
 	tt := []struct {
 		fname       string
 		errContains string // empty == should validate
 	}{
 		// allowed (a base file `main.gno` is always present)
-		{"filetests/foo.gno", ""},
-		{"filetests/foo_filetest.gno", ""},
+		{"foo.gno", ""},
+		{"foo_filetest.gno", ""},
 
 		// rejected by the file-name regex via MemFile.ValidateBasic
-		{"filetests/README.md", "invalid file name"},
-		{"filetests/foo.toml", "invalid file name"},
-		{"filetests/sub/foo.gno", "invalid file name"},
+		{"filetests/foo.gno", "invalid file name"},
+		{"filetests/foo_filetest.gno", "invalid file name"},
 		{"sub/foo.gno", "invalid file name"},
 	}
 	for _, tc := range tt {
@@ -476,9 +473,9 @@ func TestValidateMemPackageAny_FiletestsDir(t *testing.T) {
 	}
 }
 
-// TestIsTestFile_FiletestsDir asserts IsTestFile recognizes filetests both
-// by legacy suffix and by membership in the filetests/ subdir.
-func TestIsTestFile_FiletestsDir(t *testing.T) {
+// TestIsTestFile_Suffixes asserts IsTestFile recognizes both `_test.gno` and
+// `_filetest.gno` suffixes. MemFile.Name is flat — never a `filetests/` path.
+func TestIsTestFile_Suffixes(t *testing.T) {
 	t.Parallel()
 	tt := []struct {
 		name string
@@ -487,9 +484,6 @@ func TestIsTestFile_FiletestsDir(t *testing.T) {
 		{"foo.gno", false},
 		{"foo_test.gno", true},
 		{"foo_filetest.gno", true},
-		{"filetests/foo.gno", true},
-		{"filetests/foo_filetest.gno", true},
-		{"filetests/foo_test.gno", true},
 		{"README.md", false},
 	}
 	for _, tc := range tt {
@@ -501,36 +495,44 @@ func TestIsTestFile_FiletestsDir(t *testing.T) {
 	}
 }
 
-// TestReadMemPackage_FiletestsLayout exercises the on-disk → MemPackage
-// pipeline: any .gno file in filetests/ is loaded and gets a filetests/ prefix
-// on MemFile.Name; non-.gno files under filetests/ are ignored.
-func TestReadMemPackage_FiletestsLayout(t *testing.T) {
+// TestReadMemPackage_FiletestRouting exercises the on-disk → MemPackage
+// pipeline: any `.gno` file under the filetests/ subdir is loaded with its
+// bare basename as MemFile.Name and Kind=KindFiletest (the subdir IS the
+// classification — no `_filetest.gno` suffix required). Round-trip via WriteTo
+// lands every filetest back under filetests/.
+func TestReadMemPackage_FiletestRouting(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.gno"), []byte("package hey\n"), 0o644))
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "filetests"), 0o755))
+	// New-style filetest: bare basename, no `_filetest.gno` suffix.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "filetests", "new.gno"), []byte("package hey\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "filetests", "legacy_filetest.gno"), []byte("package hey\n"), 0o644))
-	// Should be ignored — non-.gno files belong at the package root.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "filetests", "README.md"), []byte("# nope\n"), 0o644))
+	// Legacy filetest at root, still recognized via suffix.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "legacy_filetest.gno"), []byte("package hey\n"), 0o644))
 
 	mpkg, err := ReadMemPackage(dir, "example.com/r/hey", MPUserAll)
 	require.NoError(t, err)
 
-	names := make(map[string]bool, len(mpkg.Files))
+	byName := make(map[string]*std.MemFile, len(mpkg.Files))
 	for _, f := range mpkg.Files {
-		names[f.Name] = true
+		byName[f.Name] = f
 	}
-	assert.True(t, names["a.gno"], "expected a.gno at root")
-	assert.True(t, names["filetests/new.gno"], "expected filetests/new.gno")
-	assert.True(t, names["filetests/legacy_filetest.gno"], "expected legacy filetest under filetests/")
-	assert.False(t, names["filetests/README.md"], "non-.gno files in filetests/ must be ignored")
+	assert.NotNil(t, byName["a.gno"], "expected a.gno at root")
+	assert.NotNil(t, byName["new.gno"], "filetest loaded with bare basename")
+	assert.Nil(t, byName["filetests/new.gno"], "MemFile.Name must not carry the filetests/ prefix")
+	assert.NotNil(t, byName["legacy_filetest.gno"], "legacy suffix at root still loaded")
+	// Kind is stamped from disk location (or suffix for legacy at root).
+	assert.Equal(t, std.KindFiletest, byName["new.gno"].Kind)
+	assert.Equal(t, std.KindFiletest, byName["legacy_filetest.gno"].Kind)
 
-	// Round-trip: write and re-read; layout encoded in Name should survive.
+	// Round-trip: write and re-read; WriteTo routes filetests under filetests/
+	// regardless of suffix, classifying by Kind (with legacy-suffix fallback).
 	out := t.TempDir()
 	require.NoError(t, mpkg.WriteTo(out))
 	_, err = os.Stat(filepath.Join(out, "filetests", "new.gno"))
 	require.NoError(t, err)
 	_, err = os.Stat(filepath.Join(out, "filetests", "legacy_filetest.gno"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(out, "a.gno"))
 	require.NoError(t, err)
 }

@@ -19,37 +19,45 @@ const (
 	pkgPathLimit  = 256
 )
 
-// FiletestsDir is the only subdirectory MemFile.Name may sit under, and only
-// `.gno` files are permitted there. A `.gno` file in this subdir is identified
-// as a filetest regardless of suffix (see IsFiletestName); the legacy
-// `_filetest.gno` suffix at the package root is still recognized for backward
-// compatibility with stored MemPackages.
-const (
-	FiletestsDir    = "filetests"
-	FiletestsPrefix = FiletestsDir + "/"
-)
-
-const (
-	reBaseName = `(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)`
-	reFiletest = `([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.gno`
-)
+// FiletestsDir is the on-disk subdir where filetests live; it is a
+// write-routing convention only. MemFile.Name is always a flat basename
+// and never carries the "filetests/" prefix.
+const FiletestsDir = "filetests"
 
 // See also gnovm/pkg/gnolang/mempackage.go.
 // NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
 var (
-	reFileName   = regexp.MustCompile(`^(` + FiletestsPrefix + reFiletest + `|` + reBaseName + `)$`)
+	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
 )
 
-// IsFiletestName reports whether name designates a `.gno` filetest:
-//   - new style: lives under "filetests/" with a .gno extension
-//   - legacy:    flat basename ending in "_filetest.gno"
+// MemFileKind classifies a MemFile. The classification used to be derived
+// from string-sniffing the Name suffix; storing it as a field makes the
+// classification explicit and decouples it from a filename convention.
+//
+// The zero value (KindUnknown) is what amino-decoded legacy MemFiles
+// surface as; callers should fall back to suffix sniffing (IsFiletestName)
+// when Kind is Unknown.
+type MemFileKind uint8
+
+const (
+	KindUnknown       MemFileKind = iota // legacy / unset; fall back to suffix
+	KindPackageSource                    // prod .gno file
+	KindTest                             // *_test.gno, same package
+	KindXTest                            // *_test.gno, xxx_test package
+	KindFiletest                         // standalone filetest
+	KindOther                            // non-.gno (md, toml, LICENSE, etc.)
+)
+
+// IsFiletestName reports whether a flat basename matches the legacy
+// `_filetest.gno` suffix convention. It is the legacy fallback classifier
+// used when a MemFile lacks an explicit Kind (e.g. amino-decoded from
+// pre-`Kind` storage). New code that has a MemFile in hand should call
+// (*MemFile).IsFiletest() instead — that picks up new-style filetests
+// whose Name is a bare basename (Kind == KindFiletest).
 func IsFiletestName(name string) bool {
-	if strings.HasPrefix(name, FiletestsPrefix) {
-		return strings.HasSuffix(name, ".gno")
-	}
 	return strings.HasSuffix(name, "_filetest.gno")
 }
 
@@ -58,22 +66,44 @@ func IsFiletestName(name string) bool {
 
 // A MemFile is the simplest representation of a "file".
 //
-// File Name may contain a single optional subdirectory prefix "filetests/"
-// followed by the filename; the filename must contain a single dot and
-// extension, and may be ALLCAPS.xxx or lowercase.xxx with a lowercase extension.
-// Under "filetests/" only `.gno` files are permitted.
-// e.g. OK:     README.md, readme.md, readme.txt, READ.me, filetests/foo.gno
-// e.g. NOT OK: Readme.md, readme.MD, README, .readme, sub/foo.gno,
-//              filetests/README.md, filetests/foo.toml
-// File Body can be any string.
+// File Name must be a single flat basename — no subdirectories. The basename
+// must contain a single dot and extension, and may be ALLCAPS.xxx or
+// lowercase.xxx with a lowercase extension.
+// e.g. OK:     README.md, readme.md, readme.txt, READ.me, foo_filetest.gno
+// e.g. NOT OK: Readme.md, readme.MD, README, .readme,
+//              filetests/foo.gno, sub/foo.gno
+// File Body can be any string. File Kind classifies the file's role
+// (filetest vs. package source vs. test); see MemFileKind.
 //
 // NOTE: It doesn't have owners or timestamps. Keep this as is for portability.
 // Not even date created, ownership, or other attributes.  Just a name, and a
 // body.  This keeps things portable, easy to hash (otherwise need to manage
 // e.g. the encoding and portability of timestamps).
+//
+// NOTE on Kind and the wire format: Kind is **not** in the amino canonical
+// encoding (the hand-rolled MemFile.MarshalBinary2 in pb3_gen.go only encodes
+// Name and Body). This keeps on-chain MemPackage hashes stable across the
+// addition of this field. On amino decode, Kind comes back as KindUnknown;
+// callers must fall back to IsFiletestName(Name) for legacy classification.
+// The field IS serialized to JSON/YAML for tooling/transit.
 type MemFile struct {
-	Name string `json:"name" yaml:"name"`
-	Body string `json:"body" yaml:"body"`
+	Name string      `json:"name" yaml:"name"`
+	Body string      `json:"body" yaml:"body"`
+	Kind MemFileKind `json:"kind,omitempty" yaml:"kind,omitempty"`
+}
+
+// IsFiletest reports whether the file is a filetest. It prefers the explicit
+// Kind field; for legacy MemFiles with Kind == KindUnknown (e.g. amino-decoded
+// from before this field existed), it falls back to the `_filetest.gno`
+// suffix on Name.
+func (mfile *MemFile) IsFiletest() bool {
+	if mfile.Kind == KindFiletest {
+		return true
+	}
+	if mfile.Kind == KindUnknown {
+		return IsFiletestName(mfile.Name)
+	}
+	return false
 }
 
 func (mfile *MemFile) ValidateBasic() error {
@@ -263,30 +293,19 @@ func (mpkg *MemPackage) IsZero() bool {
 	return mpkg.Name == "" && len(mpkg.Files) == 0
 }
 
-// Write all files into dir. Layout is encoded in MemFile.Name:
-//   - "foo.gno"             → dir/foo.gno
-//   - "filetests/foo.gno"   → dir/filetests/foo.gno
-//   - "foo_filetest.gno"    → dir/filetests/foo_filetest.gno (legacy fallback,
-//     for MemPackages that round-tripped through amino storage before the
-//     filetests/ prefix existed).
-//
-// NOTE: the legacy fallback is a one-way migration. A bare `foo_filetest.gno`
-// MemFile, after WriteTo + ReadMemPackage, comes back as `filetests/foo_filetest.gno`
-// — its MemFile.Name has changed, so any digest, sort, or equality check against
-// the original will diverge. Do not WriteTo+re-read packages whose hash you need
-// to preserve.
+// Write all files into dir. Filetests are written to a `filetests/`
+// subdir to match the read convention (see gnolang.ReadMemPackage);
+// MemFile.Name remains a flat basename.
 func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
-		name := mfile.Name
-		// Legacy fallback: route bare _filetest.gno basenames under filetests/
-		// to match the read convention.
-		if IsFiletestName(name) && !strings.HasPrefix(name, FiletestsPrefix) {
-			name = FiletestsPrefix + name
+		fdir := dir
+		if mfile.IsFiletest() {
+			fdir = filepath.Join(dir, FiletestsDir)
+			if err := os.MkdirAll(fdir, 0o755); err != nil {
+				return err
+			}
 		}
-		fpath := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(fpath), 0o755); err != nil {
-			return err
-		}
+		fpath := filepath.Join(fdir, mfile.Name)
 		if err := os.WriteFile(fpath, []byte(mfile.Body), 0o644); err != nil {
 			return err
 		}

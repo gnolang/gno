@@ -3,6 +3,7 @@ package packages
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,16 +43,6 @@ func TestGetFileKind(t *testing.T) {
 			fileKind: FileKindFiletest,
 		},
 		{
-			name:     "filetest_under_filetests_dir",
-			filename: "filetests/foo.gno",
-			fileKind: FileKindFiletest,
-		},
-		{
-			name:     "filetest_under_filetests_dir_legacy_suffix",
-			filename: "filetests/foo_filetest.gno",
-			fileKind: FileKindFiletest,
-		},
-		{
 			name:     "notgnofile",
 			filename: "foo.gno.bck",
 			fileKind: FileKindOther,
@@ -62,6 +53,31 @@ func TestGetFileKind(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := GetFileKind(tc.filename, tc.body, nil)
 			require.Equal(t, tc.fileKind, out)
+		})
+	}
+}
+
+// TestGetMemFileKind asserts GetMemFileKind prefers the explicit Kind field
+// (which carries new-style filetests with bare basenames) and falls back to
+// GetFileKind for legacy MemFiles with Kind unset.
+func TestGetMemFileKind(t *testing.T) {
+	tcs := []struct {
+		name string
+		mf   std.MemFile
+		want FileKind
+	}{
+		{"explicit_filetest_no_suffix", std.MemFile{Name: "foo.gno", Kind: std.KindFiletest}, FileKindFiletest},
+		{"explicit_source", std.MemFile{Name: "foo.gno", Kind: std.KindPackageSource}, FileKindPackageSource},
+		{"explicit_xtest", std.MemFile{Name: "foo_test.gno", Body: "package foo", Kind: std.KindXTest}, FileKindXTest},
+		{"unknown_legacy_filetest_suffix", std.MemFile{Name: "foo_filetest.gno", Kind: std.KindUnknown}, FileKindFiletest},
+		{"unknown_falls_back_to_name", std.MemFile{Name: "foo.gno", Kind: std.KindUnknown}, FileKindPackageSource},
+		{"explicit_test_needs_body_parse", std.MemFile{Name: "foo_test.gno", Body: "package foo_test", Kind: std.KindTest}, FileKindXTest},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			out := GetMemFileKind(&tc.mf, nil)
+			require.Equal(t, tc.want, out)
 		})
 	}
 }

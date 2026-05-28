@@ -34,7 +34,9 @@ func GnoFileKinds() []FileKind {
 	return []FileKind{FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest}
 }
 
-// GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional
+// GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional.
+// For an in-memory MemFile that carries an explicit Kind, prefer GetMemFileKind —
+// it picks up new-style filetests whose Name is a bare basename.
 func GetFileKind(filename string, body string, fset *token.FileSet) FileKind {
 	if !strings.HasSuffix(filename, ".gno") {
 		return FileKindOther
@@ -61,4 +63,28 @@ func GetFileKind(filename string, body string, fset *token.FileSet) FileKind {
 		return FileKindXTest
 	}
 	return FileKindTest
+}
+
+// GetMemFileKind returns the FileKind of a MemFile. It prefers the explicit
+// std.MemFile.Kind set at read time (which carries filetest classification
+// for new-style filetests whose Name is a bare basename) and falls back to
+// name/body inspection via GetFileKind for legacy MemFiles with Kind unset.
+func GetMemFileKind(mfile *std.MemFile, fset *token.FileSet) FileKind {
+	switch mfile.Kind {
+	case std.KindFiletest:
+		return FileKindFiletest
+	case std.KindXTest:
+		return FileKindXTest
+	case std.KindPackageSource:
+		return FileKindPackageSource
+	case std.KindOther:
+		return FileKindOther
+	case std.KindTest:
+		// Could be Test or XTest; distinction needs body parse.
+		return GetFileKind(mfile.Name, mfile.Body, fset)
+	case std.KindUnknown:
+		return GetFileKind(mfile.Name, mfile.Body, fset)
+	default:
+		return FileKindUnknown
+	}
 }

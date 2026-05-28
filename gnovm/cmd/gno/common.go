@@ -74,7 +74,7 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if std.IsFiletestName(mfile.Name) || onlyFiletests {
+		if mfile.IsFiletest() || onlyFiletests {
 			// A filetest is a package of its own.
 			ftset := &gno.FileSet{}
 			ftset.AddFiles(n)

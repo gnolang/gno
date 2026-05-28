@@ -132,7 +132,7 @@ func loadSinglePkg(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir str
 	// since ReadMemPackage is restrictive we should probably consider files another way
 
 	for _, file := range mpkg.Files {
-		fileKind := GetFileKind(file.Name, file.Body, fset)
+		fileKind := GetMemFileKind(file, fset)
 		pkg.Files[fileKind] = append(pkg.Files[fileKind], file.Name)
 	}
 

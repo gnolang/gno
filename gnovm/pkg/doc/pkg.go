@@ -63,7 +63,7 @@ func newPkgDataFromMemPkg(mpkg *std.MemPackage, unexported bool) (*pkgData, erro
 		if !strings.HasSuffix(n, ".gno") ||
 			strings.HasPrefix(n, ".") ||
 			strings.HasPrefix(n, "_") ||
-			std.IsFiletestName(n) {
+			file.IsFiletest() {
 			continue
 		}
 		err := pkg.parseFile(n, file.Body, unexported)

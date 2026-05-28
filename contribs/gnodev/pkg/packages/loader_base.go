@@ -6,8 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type BaseLoader struct {
@@ -83,7 +81,7 @@ func load(path string, fset *token.FileSet, resolver Resolver, visited, stack ma
 			imports[val] = struct{}{}
 		}
 
-		if std.IsFiletestName(fname) {
+		if file.IsFiletest() {
 			continue
 		}
 

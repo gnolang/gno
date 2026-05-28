@@ -591,13 +591,12 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			// parse all.
 		case MPUserProd, MPStdlibProd:
 			// ignore test files.
-			if strings.HasSuffix(file.Name, "_test.gno") ||
-				std.IsFiletestName(file.Name) {
+			if strings.HasSuffix(file.Name, "_test.gno") || file.IsFiletest() {
 				continue
 			}
 		case MPUserTest, MPStdlibTest:
 			// TODO: rename to MPIntegration?
-			if std.IsFiletestName(file.Name) {
+			if file.IsFiletest() {
 				continue
 			}
 		case MPUserIntegration, MPStdlibIntegration:
@@ -619,8 +618,7 @@ func GoParseMemPackage(mpkg *std.MemPackage, fset *token.FileSet) (
 			continue
 		}
 		// The *ast.File passed all filters.
-		if std.IsFiletestName(file.Name) ||
-			mpkg.Type == MPFiletests {
+		if file.IsFiletest() || mpkg.Type == MPFiletests {
 			tgofs = append(tgofs, gof)
 			allgofs = append(allgofs, gof)
 		} else if strings.HasSuffix(file.Name, "_test.gno") &&

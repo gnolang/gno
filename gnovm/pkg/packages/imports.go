@@ -28,7 +28,7 @@ func Imports(pkg *std.MemPackage, fset *token.FileSet) (ImportsMap, error) {
 			return nil, err
 		}
 
-		fileKind := GetFileKind(file.Name, file.Body, fset)
+		fileKind := GetMemFileKind(file, fset)
 
 		for _, im := range imports {
 			if _, ok := seen[fileKind][im.PkgPath]; ok {

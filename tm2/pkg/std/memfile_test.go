@@ -165,23 +165,19 @@ func TestIsFiletestName(t *testing.T) {
 		name string
 		want bool
 	}{
-		// new-style: filetests/ + .gno
-		{"filetests/foo.gno", true},
-		{"filetests/foo_filetest.gno", true},
-		{"filetests/a.b.gno", true},
-
-		// non-.gno under filetests/ is not a filetest
-		{"filetests/README.md", false},
-		{"filetests/gno.mod", false},
-		{"filetests/foo.toml", false},
-
-		// legacy suffix at the root still counts
+		// filetests: identified by suffix only
 		{"foo_filetest.gno", true},
+		{"a.b_filetest.gno", true},
 
 		// regular files
 		{"foo.gno", false},
 		{"foo_test.gno", false},
 		{"README.md", false},
+
+		// MemFile.Name is flat — slashes are never valid in a Name and
+		// IsFiletestName must not be fooled by a "filetests/" prefix.
+		{"filetests/foo.gno", false},
+		{"filetests/foo_filetest.gno", true}, // suffix still matches; the slash is rejected elsewhere (ValidateBasic)
 	}
 	for _, tc := range tt {
 		tc := tc
@@ -192,7 +188,9 @@ func TestIsFiletestName(t *testing.T) {
 	}
 }
 
-func TestMemFile_ValidateBasic_FiletestsDir(t *testing.T) {
+// TestMemFile_ValidateBasic_FlatName asserts MemFile.Name must be a flat
+// basename: no subdirs, no leading/trailing slash, no traversal.
+func TestMemFile_ValidateBasic_FlatName(t *testing.T) {
 	t.Parallel()
 	tt := []struct {
 		name  string
@@ -200,21 +198,18 @@ func TestMemFile_ValidateBasic_FiletestsDir(t *testing.T) {
 	}{
 		// allowed
 		{"foo.gno", true},
-		{"filetests/foo.gno", true},
-		{"filetests/foo_filetest.gno", true},
-		{"filetests/a.b.gno", true},
+		{"foo_filetest.gno", true},
+		{"a.b.gno", true},
 		{"README.md", true},
 		{"LICENSE", true},
 
-		// rejected
-		{"filetests/README.md", false},   // non-.gno under filetests/
-		{"filetests/foo.toml", false},    // non-.gno under filetests/
-		{"filetests/sub/foo.gno", false}, // nested subdir
-		{"sub/foo.gno", false},           // other subdir
-		{"filetests/", false},            // bare prefix
-		{"/foo.gno", false},              // leading slash
-		{"foo.gno/", false},              // trailing slash
-		{"../foo.gno", false},            // traversal
+		// rejected: any subdir
+		{"filetests/foo.gno", false},
+		{"filetests/foo_filetest.gno", false},
+		{"sub/foo.gno", false},
+		{"/foo.gno", false},
+		{"foo.gno/", false},
+		{"../foo.gno", false},
 	}
 	for _, tc := range tt {
 		tc := tc
@@ -230,7 +225,11 @@ func TestMemFile_ValidateBasic_FiletestsDir(t *testing.T) {
 	}
 }
 
-func TestMemPackage_WriteTo_FiletestsLayout(t *testing.T) {
+// TestMemPackage_WriteTo_FiletestRouting asserts WriteTo routes filetests
+// into a `filetests/` subdir on disk, classified by MemFile.Kind (with the
+// legacy `_filetest.gno` suffix as a fallback for KindUnknown), and that
+// non-filetest files stay at the package root.
+func TestMemPackage_WriteTo_FiletestRouting(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -238,20 +237,21 @@ func TestMemPackage_WriteTo_FiletestsLayout(t *testing.T) {
 		Name: "hey",
 		Path: "gno.land/r/demo/hey",
 		Files: []*MemFile{
-			{Name: "a.gno", Body: "package hey\n"},
-			{Name: "filetests/new.gno", Body: "package hey\n"},
-			// legacy: bare basename, no prefix in Name
+			{Name: "a.gno", Body: "package hey\n", Kind: KindPackageSource},
+			// New-style: classified by Kind, no `_filetest.gno` suffix needed.
+			{Name: "new.gno", Body: "package hey\n", Kind: KindFiletest},
+			// Legacy: Kind unset, suffix carries the signal.
 			{Name: "legacy_filetest.gno", Body: "package hey\n"},
 		},
 	}
 	require.NoError(t, mpkg.WriteTo(dir))
 
-	// New-style: written under filetests/ as encoded in Name.
+	// Kind-driven routing: filetest goes under filetests/ even with bare name.
 	body, err := os.ReadFile(filepath.Join(dir, "filetests", "new.gno"))
 	require.NoError(t, err)
 	assert.Equal(t, "package hey\n", string(body))
 
-	// Legacy fallback: bare *_filetest.gno also routed under filetests/.
+	// Legacy-suffix routing: same destination.
 	body, err = os.ReadFile(filepath.Join(dir, "filetests", "legacy_filetest.gno"))
 	require.NoError(t, err)
 	assert.Equal(t, "package hey\n", string(body))
@@ -260,6 +260,29 @@ func TestMemPackage_WriteTo_FiletestsLayout(t *testing.T) {
 	body, err = os.ReadFile(filepath.Join(dir, "a.gno"))
 	require.NoError(t, err)
 	assert.Equal(t, "package hey\n", string(body))
+}
+
+// TestMemFile_IsFiletest covers the Kind-first / suffix-fallback classifier.
+func TestMemFile_IsFiletest(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		name string
+		mf   MemFile
+		want bool
+	}{
+		{"explicit_kind_filetest", MemFile{Name: "foo.gno", Kind: KindFiletest}, true},
+		{"explicit_kind_source", MemFile{Name: "foo_filetest.gno", Kind: KindPackageSource}, false},
+		{"explicit_kind_test", MemFile{Name: "foo.gno", Kind: KindTest}, false},
+		{"unknown_legacy_suffix", MemFile{Name: "foo_filetest.gno", Kind: KindUnknown}, true},
+		{"unknown_no_suffix", MemFile{Name: "foo.gno", Kind: KindUnknown}, false},
+	}
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, tc.mf.IsFiletest())
+		})
+	}
 }
 
 func TestSplitFilepath(t *testing.T) {

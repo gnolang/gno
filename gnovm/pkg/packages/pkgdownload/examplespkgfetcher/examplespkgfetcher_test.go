@@ -5,15 +5,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestFetchPackage_FiletestsLayout asserts the fetcher mirrors ReadMemPackage:
-// every .gno file in filetests/ is loaded with a "filetests/" prefix on its
-// MemFile.Name, non-.gno files in filetests/ are ignored, and a foo.gno at the
-// package root is not blocked by a co-named filetests/foo.gno.
-func TestFetchPackage_FiletestsLayout(t *testing.T) {
+// TestFetchPackage_FiletestRouting asserts the fetcher mirrors ReadMemPackage:
+// any .gno file in filetests/ is loaded with its bare basename as MemFile.Name
+// and Kind=KindFiletest (regardless of suffix); non-.gno files in filetests/
+// are ignored.
+func TestFetchPackage_FiletestRouting(t *testing.T) {
 	t.Parallel()
 	examplesDir := t.TempDir()
 	pkgDir := filepath.Join(examplesDir, "gno.land", "p", "demo", "x")
@@ -23,7 +24,9 @@ func TestFetchPackage_FiletestsLayout(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(pkgDir, rel), []byte(body), 0o644))
 	}
 	write("x.gno", "package x\n")
-	write(filepath.Join("filetests", "x.gno"), "package test\n")
+	// New-style: bare basename in filetests/.
+	write(filepath.Join("filetests", "new.gno"), "package test\n")
+	// Legacy-style: still works.
 	write(filepath.Join("filetests", "legacy_filetest.gno"), "package test\n")
 	// Non-.gno under filetests/ must be ignored.
 	write(filepath.Join("filetests", "README.md"), "# nope\n")
@@ -32,12 +35,15 @@ func TestFetchPackage_FiletestsLayout(t *testing.T) {
 	files, err := f.FetchPackage("gno.land/p/demo/x")
 	require.NoError(t, err)
 
-	names := make(map[string]string, len(files))
+	byName := make(map[string]*std.MemFile, len(files))
 	for _, m := range files {
-		names[m.Name] = m.Body
+		byName[m.Name] = m
 	}
-	assert.Contains(t, names, "x.gno", "root .gno should be present")
-	assert.Contains(t, names, "filetests/x.gno", "filetests prefix must be encoded on Name")
-	assert.Contains(t, names, "filetests/legacy_filetest.gno", "legacy suffix in filetests/ must still load")
-	assert.NotContains(t, names, "filetests/README.md", "non-.gno under filetests/ must be ignored")
+	assert.Contains(t, byName, "x.gno", "root .gno should be present")
+	assert.Contains(t, byName, "new.gno", "filetest loaded with bare basename")
+	assert.Contains(t, byName, "legacy_filetest.gno", "legacy-suffix filetest loaded")
+	assert.NotContains(t, byName, "filetests/new.gno", "MemFile.Name must not carry the filetests/ prefix")
+	assert.NotContains(t, byName, "filetests/README.md", "non-.gno under filetests/ must be ignored")
+	assert.Equal(t, std.KindFiletest, byName["new.gno"].Kind, "Kind stamped from disk location")
+	assert.Equal(t, std.KindFiletest, byName["legacy_filetest.gno"].Kind, "Kind stamped from disk location")
 }

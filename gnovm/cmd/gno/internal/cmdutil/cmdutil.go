@@ -45,11 +45,9 @@ func (ppkg *ProcessedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet
 		panic("filetests must have filesets of length 1")
 	}
 	fname := fset.Files[0].FileName
-	/* NOTE: filetests in tests/files do not end with _filetest.gno.
-	if !strings.HasSuffix(string(fname), "_filetest.gno") {
-		panic(fmt.Sprintf("expected *_filetest.gno but got %q", fname))
-	}
-	*/
+	// NOTE: filetests can be either legacy `_filetest.gno` at the package
+	// root or new-style bare `.gno` under `filetests/`; the latter has no
+	// suffix-based signal in the FileName alone, so we don't assert on it.
 	for _, ftest := range ppkg.FTest {
 		if ftest.Fset.Files[0].FileName == fname {
 			panic(fmt.Sprintf("fileetest with name %q already exists", fname))
@@ -59,9 +57,6 @@ func (ppkg *ProcessedPackage) AddFileTest(pn *gno.PackageNode, fset *gno.FileSet
 }
 
 func (ppkg *ProcessedPackage) GetFileTest(fname string) ProcessedFileSet {
-	if !std.IsFiletestName(fname) {
-		panic(fmt.Sprintf("expected a filetest name but got %q", fname))
-	}
 	for _, ftest := range ppkg.FTest {
 		if ftest.Fset.Files[0].FileName == fname {
 			return ftest

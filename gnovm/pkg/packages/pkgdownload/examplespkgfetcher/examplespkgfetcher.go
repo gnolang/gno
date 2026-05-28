@@ -56,7 +56,14 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, e
 			return nil, fmt.Errorf("read file at %q: %w", filePath, err)
 		}
 
-		res = append(res, &std.MemFile{Name: name, Body: string(body)})
+		// Classify by suffix at the root: filetest files end in `_filetest.gno`
+		// (legacy layout); otherwise KindUnknown lets downstream fall back to
+		// per-name inference for tests vs sources.
+		kind := std.KindUnknown
+		if std.IsFiletestName(name) {
+			kind = std.KindFiletest
+		}
+		res = append(res, &std.MemFile{Name: name, Body: string(body), Kind: kind})
 	}
 	if filetestsDir != "" {
 		filetestsFiles, err := os.ReadDir(filetestsDir)
@@ -67,6 +74,8 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, e
 			if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 				continue
 			}
+			// Any `.gno` file in filetests/ is a filetest. The subdir IS the
+			// classification, surfaced as MemFile.Kind = KindFiletest below.
 			if !strings.HasSuffix(entry.Name(), ".gno") {
 				continue
 			}
@@ -75,9 +84,12 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, e
 			if err != nil {
 				return nil, fmt.Errorf("read file at %q: %w", filePath, err)
 			}
+			// MemFile.Name is a flat basename; the filetests/ subdir is a
+			// write-routing convention on disk, not part of the name.
 			res = append(res, &std.MemFile{
-				Name: std.FiletestsPrefix + entry.Name(),
+				Name: entry.Name(),
 				Body: string(body),
+				Kind: std.KindFiletest,
 			})
 		}
 	}

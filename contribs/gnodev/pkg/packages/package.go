@@ -85,7 +85,7 @@ func validateMemPackage(fset *token.FileSet, mempkg *std.MemPackage) error {
 			return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
 		}
 
-		if std.IsFiletestName(file.Name) {
+		if file.IsFiletest() {
 			continue
 		}
 
