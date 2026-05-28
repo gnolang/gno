@@ -135,6 +135,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},          // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
 	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},   // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
 }
 
 func init() {

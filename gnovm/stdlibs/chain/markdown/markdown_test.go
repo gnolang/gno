@@ -161,6 +161,46 @@ func TestEscapeBlockHazards(t *testing.T) {
 	}
 }
 
+func TestEscapeBlockHazardsRich(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"plain", "hello world\n", "hello world\n"},
+		// Doc-spoof markers PRESERVED in Rich mode.
+		{"atx-heading", "# heading\n", "# heading\n"},
+		{"blockquote", "> quoted\n", "> quoted\n"},
+		{"bullet-list-dash", "- item\n", "- item\n"},
+		{"bullet-list-star", "* item\n", "* item\n"},
+		{"bullet-list-plus", "+ item\n", "+ item\n"},
+		{"ordered-list", "1. item\n", "1. item\n"},
+		{"thematic-break-dash", "---\n", "---\n"},
+		{"thematic-break-star", "***\n", "***\n"},
+		{"thematic-break-underscore", "___\n", "___\n"},
+		{"setext-h1", "title\n===\n", "title\n===\n"},
+		{"setext-h2", "title\n---\n", "title\n---\n"},
+		// Realm-binding defenses STILL ON.
+		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
+		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
+		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
+		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
+		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
+		{"lrd-strip", "[evil]: https://bad\n", ""},
+		{"escaped-lrd-not-stripped", "[label\\]: url\n", "\\[label\\]: url\n"},
+		{"inline-link-preserved", "[t](url)\n", "[t](url)\n"},
+		{"inline-image-preserved", "![alt](src)\n", "![alt](src)\n"},
+		{"fence-open-autoclose", "```\nuser\n", "```\nuser\n```\n"},
+		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
+		{"nel-fold", "a\u0085b\n", "a\nb\n"},
+	}
+	for _, c := range cases {
+		if got := EscapeBlockHazardsRich(c.in); got != c.want {
+			t.Errorf("%s: EscapeBlockHazardsRich(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}
+
 // BenchmarkEscapeBlockHazardsAdversarial exercises bracket-walker
 // inputs that maximize backtrack work in pass 1: repeated well-formed
 // links (linear path), repeated unclosed-link prefixes terminated by a
@@ -191,6 +231,40 @@ func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
 			b.SetBytes(int64(len(c.in)))
 			for i := 0; i < b.N; i++ {
 				_ = EscapeBlockHazards(c.in)
+			}
+		})
+	}
+}
+
+// BenchmarkEscapeBlockHazardsRichAdversarial mirrors the strict
+// variant's adversarial guard for EscapeBlockHazardsRich. The
+// bracket walker, scan-budget cap, and fence state machine are
+// shared with EscapeBlockHazards — Rich mode only skips two
+// per-line escapes — so the same pathological inputs are the
+// right wall-clock budget guards. Adding the parallel benchmark
+// catches regressions specific to the Rich code path (e.g. if a
+// future refactor breaks the bracket walker's budget enforcement
+// for mode=0 only).
+func BenchmarkEscapeBlockHazardsRichAdversarial(b *testing.B) {
+	links := strings.Repeat("[a](b)", 1000)
+	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
+	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
+	parenTitle := strings.Repeat("[a]: u\n(x\n", 100) // calibration shape
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"links-x1000", links},
+		{"unclosed-x1000", unclosed},
+		{"multiline-lrd-label", mlLRD},
+		{"paren-title-x100", parenTitle},
+	}
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(len(c.in)))
+			for i := 0; i < b.N; i++ {
+				_ = EscapeBlockHazardsRich(c.in)
 			}
 		})
 	}

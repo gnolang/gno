@@ -223,7 +223,40 @@ func CodeFence(content string, minCount int) string {
 
 // ---------- EscapeBlockHazards ----------
 
+// blockHazardsMode selects which doc-spoof defenses run inside
+// escapeBlockHazardsImpl. Realm-binding defenses (bracket walker,
+// extension delimiter, GFM pipe, fence state, fold-separators) are
+// unconditional and not represented as flags.
+type blockHazardsMode int
+
+const (
+	modeEscapeLineLeader blockHazardsMode = 1 << iota
+	modeEscapeSetext
+)
+
+// EscapeBlockHazards is the strict variant (used by sanitize.Block).
+// All doc-spoof and realm-binding defenses are on.
 func EscapeBlockHazards(s string) string {
+	return escapeBlockHazardsImpl(s, modeEscapeLineLeader|modeEscapeSetext)
+}
+
+// EscapeBlockHazardsRich is the permissive variant (used by
+// sanitize.BlockRich). Line-leader (#, >, list markers, thematic
+// breaks) and setext-underline escapes are skipped; the user can
+// compose multi-section markdown structure. Realm-binding defenses
+// (bracket walker, <gno-…> extension delimiters, GFM table-row
+// pipes, fence state machine, NUL / bidi / U+2028 folding) all
+// stay on.
+//
+// Cross-boundary setext promotion (user `===`/`---` at start of
+// input reaching back to promote a realm chrome line above it) is
+// neutralized at the Gno layer by sanitize.BlockRich's
+// neuterLeadingSetextIfQualifying pre-pass, not by this native.
+func EscapeBlockHazardsRich(s string) string {
+	return escapeBlockHazardsImpl(s, 0)
+}
+
+func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	if s == "" {
 		return s
 	}
@@ -254,6 +287,8 @@ func EscapeBlockHazards(s string) string {
 		fenceLen     int
 		prevNonBlank bool
 	)
+	escapeLeader := mode&modeEscapeLineLeader != 0
+	escapeSetext := mode&modeEscapeSetext != 0
 
 	for idx, line := range lines {
 		writeNL := idx < len(lines)-1 || trailingNewline
@@ -289,8 +324,9 @@ func EscapeBlockHazards(s string) string {
 			continue
 		}
 
-		// Setext underline (only if previous line was non-blank).
-		if prevNonBlank && isSetextUnderline(line) {
+		// Setext underline (only if previous line was non-blank, and
+		// the strict mode is enabled).
+		if escapeSetext && prevNonBlank && isSetextUnderline(line) {
 			out.WriteByte('\\')
 			out.WriteString(line)
 			if writeNL {
@@ -300,8 +336,12 @@ func EscapeBlockHazards(s string) string {
 			continue
 		}
 
-		// Block markers / fence open.
-		escaped, fc, fl := escapeLineLeader(line)
+		// Block markers / fence open. Always called: fence detection is
+		// unconditional, and the function honors `escapeLeader` for the
+		// doc-spoof markers (#, >, list, HR). The GFM table-row pipe
+		// escape and code-fence detection inside escapeLineLeader are
+		// always on (realm-binding).
+		escaped, fc, fl := escapeLineLeader(line, escapeLeader)
 		out.WriteString(escaped)
 		if writeNL {
 			out.WriteByte('\n')
@@ -395,7 +435,13 @@ func isSetextUnderline(line string) bool {
 // escapeLineLeader escapes a single line-leading block marker by
 // prefixing it with \. Returns the escaped line. If the line opens
 // a code fence, also returns the fence char and length (>=3).
-func escapeLineLeader(line string) (string, byte, int) {
+// escapeLineLeader inspects the leading non-space byte of a line and
+// returns (possibly-escaped line, fence-char, fence-len). The
+// `escapeLeader` flag gates the doc-spoof markers (#, >, list, HR);
+// when false, those markers are preserved verbatim. The GFM table-row
+// pipe escape and fenced-code-block detection are always on (both
+// realm-binding / always-needed).
+func escapeLineLeader(line string, escapeLeader bool) (string, byte, int) {
 	i := 0
 	for i < len(line) && i < 3 && line[i] == ' ' {
 		i++
@@ -407,26 +453,32 @@ func escapeLineLeader(line string) (string, byte, int) {
 	switch c {
 	case '#':
 		// ATX heading: # to ###### followed by space, EOL, or tab
-		j := i
-		for j < len(line) && j-i < 6 && line[j] == '#' {
-			j++
-		}
-		if j-i >= 1 && j-i <= 6 && (j == len(line) || line[j] == ' ' || line[j] == '\t') {
-			return line[:i] + "\\" + line[i:], 0, 0
+		if escapeLeader {
+			j := i
+			for j < len(line) && j-i < 6 && line[j] == '#' {
+				j++
+			}
+			if j-i >= 1 && j-i <= 6 && (j == len(line) || line[j] == ' ' || line[j] == '\t') {
+				return line[:i] + "\\" + line[i:], 0, 0
+			}
 		}
 	case '>':
-		return line[:i] + "\\" + line[i:], 0, 0
-	case '-', '*', '_':
-		// Thematic break: 3+ of -, *, or _ optionally separated by spaces.
-		if isThematicBreak(line, i) {
+		if escapeLeader {
 			return line[:i] + "\\" + line[i:], 0, 0
 		}
-		// Bullet list marker: - or * followed by space.
-		if (c == '-' || c == '*') && i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
-			return line[:i] + "\\" + line[i:], 0, 0
+	case '-', '*', '_':
+		if escapeLeader {
+			// Thematic break: 3+ of -, *, or _ optionally separated by spaces.
+			if isThematicBreak(line, i) {
+				return line[:i] + "\\" + line[i:], 0, 0
+			}
+			// Bullet list marker: - or * followed by space.
+			if (c == '-' || c == '*') && i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
+				return line[:i] + "\\" + line[i:], 0, 0
+			}
 		}
 	case '+':
-		if i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
+		if escapeLeader && i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
 			return line[:i] + "\\" + line[i:], 0, 0
 		}
 	case '|':
@@ -453,14 +505,16 @@ func escapeLineLeader(line string) (string, byte, int) {
 		}
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		// Ordered list marker: 1-9 digits followed by . or ) and space.
-		j := i
-		for j < len(line) && j-i < 9 && line[j] >= '0' && line[j] <= '9' {
-			j++
-		}
-		if j < len(line) && (line[j] == '.' || line[j] == ')') &&
-			j+1 < len(line) && (line[j+1] == ' ' || line[j+1] == '\t') {
-			// Escape the digit run by prefixing the delimiter with \.
-			return line[:j] + "\\" + line[j:], 0, 0
+		if escapeLeader {
+			j := i
+			for j < len(line) && j-i < 9 && line[j] >= '0' && line[j] <= '9' {
+				j++
+			}
+			if j < len(line) && (line[j] == '.' || line[j] == ')') &&
+				j+1 < len(line) && (line[j+1] == ' ' || line[j+1] == '\t') {
+				// Escape the digit run by prefixing the delimiter with \.
+				return line[:j] + "\\" + line[j:], 0, 0
+			}
 		}
 	}
 	return line, 0, 0

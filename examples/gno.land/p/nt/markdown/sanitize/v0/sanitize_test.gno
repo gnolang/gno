@@ -43,8 +43,76 @@ func TestBlock(t *testing.T) {
 		{"```\ncode\n", "```\ncode\n```\n"}, // fence auto-close at EOF
 	}
 	for _, c := range cases {
-		if got := Block(c.in); got != c.want {
+		got := Block(c.in)
+		if got != c.want {
 			t.Errorf("Block(%q) = %q, want %q", c.in, got, c.want)
+		}
+		// Idempotency: Block(Block(in)) must be byte-identical to
+		// Block(in) for every input in the table.
+		twice := Block(got)
+		if twice != got {
+			t.Errorf("Block not idempotent for %q: Block(once)=%q, Block(twice)=%q", c.in, got, twice)
+		}
+	}
+}
+
+func TestBlockRich(t *testing.T) {
+	// BlockRich prepends "\n" to its output as part of the cross-
+	// boundary setext defense. Every expected output here includes
+	// that leading "\n".
+	cases := []struct{ in, want string }{
+		// Block-level markdown that Block escapes — preserved by BlockRich.
+		{"hello world\n", "\nhello world\n"},
+		{"# heading\n", "\n# heading\n"},
+		{"> quote\n", "\n> quote\n"},
+		{"- item\n", "\n- item\n"},
+		{"1. item\n", "\n1. item\n"},
+		{"---\n", "\n\\---\n"},          // first-line setext-h2 → escaped by qualifying-setext pre-pass
+		{"***\n", "\n***\n"},            // thematic break NOT setext-h2 — preserved
+		{"text\n===\n", "\ntext\n===\n"}, // deeper setext preserved (user-authored above)
+		// Realm-binding defenses STILL ON.
+		{"<gno-card>\n", "\n\\<gno-card>\n"},
+		{"[t][l]\n", "\n\\[t\\]\\[l\\]\n"},
+		{"[^name]\n", "\n\\[^name\\]\n"},
+		{"[x]: y\n", "\n"}, // LRD stripped → BlockRich returns just the leading "\n"
+		{"```\ncode\n", "\n```\ncode\n```\n"},
+	}
+	for _, c := range cases {
+		got := BlockRich(c.in)
+		if got != c.want {
+			t.Errorf("BlockRich(%q) = %q, want %q", c.in, got, c.want)
+		}
+		// Idempotency: BlockRich(BlockRich(in)) must be byte-identical
+		// to BlockRich(in) for every input in the table.
+		twice := BlockRich(got)
+		if twice != got {
+			t.Errorf("BlockRich not idempotent for %q: BlockRich(once)=%q, BlockRich(twice)=%q", c.in, got, twice)
+		}
+	}
+}
+
+func TestNeuterLeadingSetextIfQualifying(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"leading-setext-h1", "===\nbody\n", "\\===\nbody\n"},
+		{"leading-setext-h2", "---\nbody\n", "\\---\nbody\n"},
+		{"leading-setext-indented", "   ===\nbody\n", "   \\===\nbody\n"},
+		{"leading-setext-indented-4", "    ===\nbody\n", "    ===\nbody\n"}, // indented code
+		{"leading-setext-trailing-ws", "===   \nbody\n", "\\===   \nbody\n"},
+		{"leading-setext-mixed-chars", "=-=-\nbody\n", "=-=-\nbody\n"}, // mixed; not setext
+		{"leading-setext-has-content", "=== text\nbody\n", "=== text\nbody\n"}, // mixed content
+		{"setext-deeper-untouched", "title\n===\nfoo\n", "title\n===\nfoo\n"},
+		{"leading-thematic-asterisk", "***\nbody\n", "***\nbody\n"}, // not setext, untouched
+		{"leading-thematic-underscore", "___\nbody\n", "___\nbody\n"},
+		{"leading-blank-then-setext", "\n===\nbody\n", "\n\\===\nbody\n"},
+		{"leading-blank-ws-then-setext", "   \n===\nbody\n", "   \n\\===\nbody\n"},
+		{"text-first", "hello\n===\n", "hello\n===\n"}, // text before === — user-authored
+		{"empty", "", ""},
+		{"all-blank", "   \n\n", "   \n\n"},
+		{"only-equals", "===", "\\==="},
+	}
+	for _, c := range cases {
+		if got := neuterLeadingSetextIfQualifying(c.in); got != c.want {
+			t.Errorf("%s: neuterLeadingSetextIfQualifying(%q) = %q, want %q", c.name, c.in, got, c.want)
 		}
 	}
 }

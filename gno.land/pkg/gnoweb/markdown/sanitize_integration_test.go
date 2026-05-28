@@ -88,6 +88,8 @@ func Run(fn, input, arg, arg2 string) string {
 		return sanitize.InlineText(input)
 	case "Block":
 		return sanitize.Block(input)
+	case "BlockRich":
+		return sanitize.BlockRich(input)
 	case "LinkTitle":
 		return sanitize.LinkTitle(input)
 	case "TableCell":
@@ -434,4 +436,117 @@ func addTrailingNewline(b []byte) []byte {
 		return append(b, '\n')
 	}
 	return b
+}
+
+// TestBlockRichSetextCannotReachRealm verifies the cross-boundary
+// setext-promotion defense built into sanitize.BlockRich. A realm that
+// concatenates `realm_chrome + BlockRich(user_input)` must NOT allow
+// the user to promote `realm_chrome`'s last line to a heading by
+// starting their content with `===` or `---`. BlockRich's
+// neuterLeadingSetextIfQualifying pre-pass inserts a `\` before the
+// first `=`/`-` of the first non-blank line of user input if it
+// matches the CM §4.3 setext-underline pattern, which defeats the
+// promotion regardless of whether the realm's tail ended in `\n`.
+func TestBlockRichSetextCannotReachRealm(t *testing.T) {
+	sc := sanitizeCase{Func: "BlockRich"}
+	cases := []struct {
+		name        string
+		realmChrome string
+		userInput   string
+		htmlMustNot string // substring that should NOT appear in rendered HTML
+	}{
+		{
+			name:        "realm-with-trailing-newline-plus-setext-h1",
+			realmChrome: "Welcome to MyRealm\n",
+			userInput:   "===\nattacker text\n",
+			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
+		},
+		{
+			name:        "realm-without-trailing-newline-plus-setext-h1",
+			realmChrome: "Welcome to MyRealm",
+			userInput:   "===\nattacker text\n",
+			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
+		},
+		{
+			name:        "realm-without-trailing-newline-plus-setext-h2",
+			realmChrome: "Realm Banner",
+			userInput:   "---\nattacker text\n",
+			htmlMustNot: "<h2>Realm Banner</h2>",
+		},
+		{
+			name:        "realm-without-trailing-newline-plus-leading-blank-setext",
+			realmChrome: "Realm Banner",
+			userInput:   "\n===\nattacker text\n",
+			htmlMustNot: "<h1>Realm Banner</h1>",
+		},
+		{
+			name:        "realm-without-trailing-newline-plus-indented-setext",
+			realmChrome: "Realm Banner",
+			userInput:   "   ===\nattacker text\n",
+			htmlMustNot: "<h1>Realm Banner</h1>",
+		},
+		{
+			// U+2028 line separator — folded to \n by the native, so
+			// the qualifying-setext pre-pass must also recognize it.
+			name:        "realm-no-trailing-newline-plus-u2028-prefix-setext",
+			realmChrome: "Welcome to MyRealm",
+			userInput:   "\u2028===\nattacker text\n",
+			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
+		},
+		{
+			// U+2029 paragraph separator — same concern.
+			name:        "realm-no-trailing-newline-plus-u2029-prefix-setext",
+			realmChrome: "Realm Banner",
+			userInput:   "\u2029---\nattacker text\n",
+			htmlMustNot: "<h2>Realm Banner</h2>",
+		},
+		{
+			// U+0085 NEL — same concern.
+			name:        "realm-no-trailing-newline-plus-nel-prefix-setext",
+			realmChrome: "Welcome to MyRealm",
+			userInput:   "\u0085===\nattacker text\n",
+			htmlMustNot: "<h1>Welcome to MyRealm</h1>",
+		},
+		{
+			// Deeper-setext attack: user content's first line is text,
+			// but a deeper `===` could promote a merged realm+user line
+			// if the realm concatenates without a separator. The
+			// leading-"\n" output defense forces user content onto a
+			// new line so the realm chrome cannot be merged into the
+			// promoted heading.
+			name:        "realm-no-trailing-newline-plus-deeper-setext-h1",
+			realmChrome: "Welcome to MyRealm",
+			userInput:   "# user title\n===\nbody\n",
+			htmlMustNot: "<h1>Welcome to MyRealm# user title</h1>",
+		},
+		{
+			name:        "realm-no-trailing-newline-plus-deeper-setext-h2",
+			realmChrome: "Realm Banner",
+			userInput:   "user section\n---\nbody\n",
+			htmlMustNot: "<h2>Realm Bannerusersection</h2>",
+		},
+		{
+			name:        "realm-no-trailing-newline-plus-deeper-setext-merging-text",
+			realmChrome: "Realm Banner",
+			userInput:   "user heading\n===\nbody\n",
+			htmlMustNot: "<h1>Realm Banneruser heading</h1>",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			sanitized := applySanitize(t, sc, c.userInput)
+			composed := c.realmChrome + sanitized
+			html := renderMarkdown(t, composed)
+			require.NotContains(t, html, c.htmlMustNot,
+				"setext attack succeeded — realm chrome %q was promoted via user input %q\ncomposed source: %q\nrendered: %q",
+				c.realmChrome, c.userInput, composed, html)
+			// Idempotency: BlockRich(BlockRich(userInput)) must be
+			// byte-identical to BlockRich(userInput) — the cross-
+			// boundary defense must compose cleanly across repeat
+			// calls.
+			twice := applySanitize(t, sc, sanitized)
+			require.Equal(t, sanitized, twice,
+				"BlockRich not idempotent for user input %q", c.userInput)
+		})
+	}
 }

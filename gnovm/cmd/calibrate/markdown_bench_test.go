@@ -276,6 +276,44 @@ func BenchmarkNative_Markdown_EscapeBlockHazards_1000(b *testing.B)   { benchMar
 func BenchmarkNative_Markdown_EscapeBlockHazards_10000(b *testing.B)  { benchMarkdownEscapeBlockHazards(b, 10000) }
 func BenchmarkNative_Markdown_EscapeBlockHazards_100000(b *testing.B) { benchMarkdownEscapeBlockHazards(b, 100000) }
 
+// ----- EscapeBlockHazardsRich -----
+// Same worst-case shape as EscapeBlockHazards (the bracket walker /
+// LRD scan is the per-byte hotspot in both variants). Rich mode skips
+// two per-line checks (line-leader, setext); slope should be slightly
+// lower than the strict variant's, but the gap is dominated by the
+// shared bracket-walker work.
+func benchMarkdownEscapeBlockHazardsRich(b *testing.B, n int) {
+	b.Helper()
+	s := fillWorstCase(n, "[a]: u\n(x\n")
+	m := newDispatchMachine(1)
+	setBlockValueFromGo(m, 0, s)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazardsRich"), nReturns: 1}
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_1(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRich(b, 1)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_10(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRich(b, 10)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_100(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRich(b, 100)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_1000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRich(b, 1000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_10000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRich(b, 10000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_100000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRich(b, 100000)
+}
+
 // Compile-time use of markdownSizes/gno to silence unused warnings if the
 // table is later consumed by a programmatic harness (currently the explicit
 // BenchmarkNative_Markdown_* shape matches the other benches in this dir).

@@ -1,0 +1,10 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+a\x00b
+-- output.md --
+
+a�b
+-- output.html --
+<p>a�b</p>

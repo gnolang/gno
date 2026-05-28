@@ -101,3 +101,21 @@ func CodeFence(content string, minCount int) string // injected
 // first running StripBidiAndZeroWidth and NormalizeBreaks leaves
 // some hazards uncovered.
 func EscapeBlockHazards(s string) string // injected
+
+// EscapeBlockHazardsRich is the permissive variant of
+// EscapeBlockHazards. All realm-binding defenses stay on (bracket
+// walker for link / LRD / ref / footnote / shortcut, extension
+// delimiter `<gno-…>` escape, GFM table-row pipe escape, fence
+// state, NUL / bidi / U+2028 fold), but doc-spoof escapes are
+// skipped — ATX headings (#), blockquote markers (>), list
+// markers (-, *, +, 1.), thematic breaks (---, ***, ___), and
+// setext underlines (===, ---) are preserved.
+//
+// Cross-boundary setext promotion (user content starting with
+// `===`/`---` reaching back to promote a realm chrome line) is
+// NOT defended at this layer — the Gno-side p/nt/md/sanitize.BlockRich
+// wrapper applies a separate qualifying-line escape before calling
+// this native.
+//
+// INTERNAL. Used by p/nt/md/sanitize.BlockRich.
+func EscapeBlockHazardsRich(s string) string // injected
