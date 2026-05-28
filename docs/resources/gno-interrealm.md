@@ -2,7 +2,7 @@
 
 __This document is outdated, see 
 [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and
-[`gnovm/adr/interrealm-v2.md`](../../gnovm/adr/interrealm-v2.md)__
+[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md)__
 
 ## Introduction
 
