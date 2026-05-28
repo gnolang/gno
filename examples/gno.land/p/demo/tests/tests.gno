@@ -2,6 +2,7 @@ package tests
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	psubtests "gno.land/p/demo/tests/subtests"
 )
@@ -9,7 +10,7 @@ import (
 const World = "world"
 
 func CurrentRealmPath() string {
-	return runtime.CurrentRealm().PkgPath()
+	return unsafe.CurrentRealm().PkgPath()
 }
 
 //----------------------------------------
@@ -63,7 +64,7 @@ func ModifyTestRealmObject2c() {
 }
 
 func GetPreviousRealm() runtime.Realm {
-	return runtime.PreviousRealm()
+	return unsafe.PreviousRealm()
 }
 
 func GetPSubtestsPreviousRealm() runtime.Realm {
@@ -73,4 +74,10 @@ func GetPSubtestsPreviousRealm() runtime.Realm {
 // Warning: unsafe pattern.
 func Exec(fn func()) {
 	fn()
+}
+
+// ExecRlm mirrors Exec but threads the caller's rlm into the callback
+// so the callback can use `cross(rlm)` instead of bare `cross`.
+func ExecRlm(_ int, rlm realm, fn func(_ int, rlm realm)) {
+	fn(0, rlm)
 }

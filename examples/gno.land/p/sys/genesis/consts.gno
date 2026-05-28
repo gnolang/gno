@@ -27,7 +27,7 @@ var (
 	Domain = runtime.ChainDomain()
 
 	// XXX: TZ
-	// XXX: Supply = chain.Coins{{"ugnot", banker.NewBanker(banker.BankerTypeReadonly).TotalSupply("ugnot")}}
+	// XXX: Supply = chain.Coins{{"ugnot", banker.NewReadonlyBanker().TotalSupply("ugnot")}}
 )
 
 // Uptime returns the uptime of the chain.

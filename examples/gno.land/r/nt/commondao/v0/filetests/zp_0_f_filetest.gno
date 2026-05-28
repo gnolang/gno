@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_0_f_filetest
+
+package zp_0_f_filetest
 
 import (
 	"testing"
@@ -13,26 +15,26 @@ const (
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross, "Foo")
-	subDAO := commondao.NewSubDAO(cross, "Bar", dao.ID())
+	dao := commondao.New(cross(cur), "Foo")
+	subDAO := commondao.NewSubDAO(cross(cur), "Bar", dao.ID())
 	subDAO.Members().Add(user)
 
 	daoID = dao.ID()
 
-	options := commondao.GetOptions(daoID)
+	options := commondao.GetOptions(cross(cur), daoID)
 	options.SetAllowMembersUpdate(false) // Disallow udpating members
 }
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 
-	commondao.CreateMembersUpdateProposal(cross, daoID, "", "")
+	commondao.CreateMembersUpdateProposal(cross(cur), daoID, "", "")
 }
 
 // Error:

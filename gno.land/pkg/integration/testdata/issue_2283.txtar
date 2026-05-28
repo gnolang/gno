@@ -170,8 +170,8 @@ package users
 
 import (
 	"chain"
-	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"regexp"
 	"strconv"
 	"strings"
@@ -204,12 +204,12 @@ func Register(cur realm, inviter address, name string, profile string) {
 	// assert CallTx call.
 	runtime.AssertOriginCall()
 	// assert invited or paid.
-	caller := runtime.PreviousRealm().Address()
-	if caller != runtime.OriginCaller() {
+	caller := unsafe.PreviousRealm().Address()
+	if caller != unsafe.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 
-	sentCoins := banker.OriginSend()
+	sentCoins := unsafe.OriginSend()
 	minCoin := chain.NewCoin("ugnot", minFee)
 
 	if inviter == "" {
@@ -288,8 +288,8 @@ func Invite(cur realm, invitee string) {
 	// assert CallTx call.
 	runtime.AssertOriginCall()
 	// get caller/inviter.
-	caller := runtime.PreviousRealm().Address()
-	if caller != runtime.OriginCaller() {
+	caller := unsafe.PreviousRealm().Address()
+	if caller != unsafe.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	lines := strings.Split(invitee, "\n")
@@ -327,8 +327,8 @@ func GrantInvites(cur realm, invites string) {
 	// assert CallTx call.
 	runtime.AssertOriginCall()
 	// assert admin.
-	caller := runtime.PreviousRealm().Address()
-	if caller != runtime.OriginCaller() {
+	caller := unsafe.PreviousRealm().Address()
+	if caller != unsafe.OriginCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	if caller != admin {
@@ -378,7 +378,7 @@ func SetMinFee(cur realm, newMinFee int64) {
 	// assert CallTx call.
 	runtime.AssertOriginCall()
 	// assert admin caller.
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -391,7 +391,7 @@ func SetMaxFeeMultiple(cur realm, newMaxFeeMult int64) {
 	// assert CallTx call.
 	runtime.AssertOriginCall()
 	// assert admin caller.
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -448,7 +448,7 @@ func AdminAddRestrictedName(name string) {
 	// assert CallTx call.
 	runtime.AssertOriginCall()
 	// get caller
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	// assert admin
 	if caller != admin {
 		panic("unauthorized")
@@ -588,8 +588,7 @@ package boards
 
 import (
 	"chain"
-	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"regexp"
 	"strconv"
 	"strings"
@@ -1093,11 +1092,11 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
-	if !runtime.PreviousRealm().IsUser() {
+	if !unsafe.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
 	bid := incGetBoardID()
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		panic("unauthorized")
 	}
@@ -1110,7 +1109,7 @@ func CreateBoard(name string) BoardID {
 }
 
 func checkAnonFee() bool {
-	sent := banker.OriginSend()
+	sent := unsafe.OriginSend()
 	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
@@ -1119,10 +1118,10 @@ func checkAnonFee() bool {
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
-	if !runtime.PreviousRealm().IsUser() {
+	if !unsafe.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
@@ -1137,10 +1136,10 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-	if !runtime.PreviousRealm().IsUser() {
+	if !unsafe.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		if !checkAnonFee() {
 			panic("please register, otherwise minimum fee " + strconv.Itoa(gDefaultAnonFee) + " is required if anonymous")
@@ -1167,10 +1166,10 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	if !runtime.PreviousRealm().IsUser() {
+	if !unsafe.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	if usernameOf(caller) == "" {
 		// TODO: allow with gDefaultAnonFee payment.
 		if !checkAnonFee() {
@@ -1197,10 +1196,10 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 }
 
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
-	if !runtime.PreviousRealm().IsUser() {
+	if !unsafe.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
 		panic("board not exist")
@@ -1229,10 +1228,10 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 }
 
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
-	if !runtime.PreviousRealm().IsUser() {
+	if !unsafe.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	board := getBoard(bid)
 	if board == nil {
 		panic("board not exist")

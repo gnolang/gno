@@ -3,9 +3,10 @@
 ## Context
 
 `r/sys/validators/v3` lets GovDAO proposals change the validator set
-via `NewValidatorProposalRequest`. Before this PR there was nothing
-stopping a single approved proposal from replacing the entire valset
-in one shot, or from chaining many updates in quick succession.
+via `NewValidatorProposalRequest`. Without the trust-level + cooldown
+gate described here, nothing stops a single approved proposal from
+replacing the entire valset in one shot, or from chaining many
+updates in quick succession.
 
 Two practical risks follow from that:
 

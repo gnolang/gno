@@ -77,7 +77,7 @@ func GetTrustLevel() (uint64, uint64) {
 // updates trustLevelRatio. The ratio must be in [1/3, 2/3] both at
 // creation and execution time (re-checked in the callback in case bounds
 // change between propose and execute).
-func NewTrustLevelPropRequest(numerator, denominator uint64, title, description string) dao.ProposalRequest {
+func NewTrustLevelPropRequest(cur realm, numerator, denominator uint64, title, description string) dao.ProposalRequest {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
@@ -90,14 +90,14 @@ func NewTrustLevelPropRequest(numerator, denominator uint64, title, description 
 		panic(errInvalidTrustLevel)
 	}
 
-	return dao.NewProposalRequest(title, description, newTrustLevelExecutor(newRatio))
+	return dao.NewProposalRequest(title, description, newTrustLevelExecutor(cur, newRatio))
 }
 
 // newTrustLevelExecutor builds the GovDAO executor that applies a
 // trust-level update. The bounds are re-checked at execute-time in case
 // trustLevelMinAllowed / trustLevelMaxAllowed changed between propose
 // and execute (today they're constants, but the executor stays defensive).
-func newTrustLevelExecutor(newRatio trustRatio) dao.Executor {
+func newTrustLevelExecutor(cur realm, newRatio trustRatio) dao.Executor {
 	callback := func(cur realm) error {
 		if newRatio.lessThan(trustLevelMinAllowed) || trustLevelMaxAllowed.lessThan(newRatio) {
 			panic(errInvalidTrustLevel)
@@ -105,7 +105,7 @@ func newTrustLevelExecutor(newRatio trustRatio) dao.Executor {
 		trustLevelRatio = newRatio
 		return nil
 	}
-	return dao.NewSimpleExecutor(callback, "")
+	return dao.NewSimpleExecutor(0, cur, callback, "")
 }
 
 // GetCooldown returns the currently configured valset-update cooldown,
@@ -125,7 +125,7 @@ func GetCooldown() uint64 {
 // re-checked at execute time against the (now possibly different)
 // live cooldown — this is intentional so governance can both shorten
 // AND lengthen the cooldown without surprises.
-func NewCooldownPropRequest(seconds uint64, title, description string) dao.ProposalRequest {
+func NewCooldownPropRequest(cur realm, seconds uint64, title, description string) dao.ProposalRequest {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
@@ -134,16 +134,16 @@ func NewCooldownPropRequest(seconds uint64, title, description string) dao.Propo
 		panic(errInvalidCooldown)
 	}
 	newCooldown := time.Duration(seconds) * time.Second
-	return dao.NewProposalRequest(title, description, newCooldownExecutor(newCooldown))
+	return dao.NewProposalRequest(title, description, newCooldownExecutor(cur, newCooldown))
 }
 
 // newCooldownExecutor builds the GovDAO executor that applies a
 // cooldown update. Split out for direct testability (ProposalRequest
 // doesn't expose its captured executor).
-func newCooldownExecutor(newCooldown time.Duration) dao.Executor {
+func newCooldownExecutor(cur realm, newCooldown time.Duration) dao.Executor {
 	callback := func(cur realm) error {
 		valsetUpdateCooldown = newCooldown
 		return nil
 	}
-	return dao.NewSimpleExecutor(callback, "")
+	return dao.NewSimpleExecutor(0, cur, callback, "")
 }
