@@ -328,9 +328,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					tm.Store = newTestGnoStore(true)
 					fname := fset.Files[0].FileName
 					mfile := mpkg.GetFile(fname)
-					dirs, derr := parseFiletestDirectives(mfile.Body)
+					dirs, derr := test.ParseDirectives(strings.NewReader(mfile.Body))
 					if derr != nil {
-						io.ErrPrintln(derr)
+						io.ErrPrintln(fmt.Errorf("error parsing directives: %w", derr))
 						hasError = true
 						continue
 					}
@@ -412,7 +412,7 @@ func excludeExpectedTypeCheckErrors(mpkg *std.MemPackage) *std.MemPackage {
 	files := make([]*std.MemFile, 0, len(mpkg.Files))
 	for _, f := range mpkg.Files {
 		if strings.HasSuffix(f.Name, "_filetest.gno") {
-			dirs, err := parseFiletestDirectives(f.Body)
+			dirs, err := test.ParseDirectives(strings.NewReader(f.Body))
 			if err == nil && dirs.First(test.DirectiveTypeCheckError) != nil {
 				continue
 			}

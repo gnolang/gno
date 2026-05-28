@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/scanner"
 	"go/types"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
@@ -96,18 +94,6 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 		}
 	}
 	return
-}
-
-// parseFiletestDirectives parses the directives in a _filetest.gno body.
-// Lint uses the result to route filetests (via // PKGPATH:) and to decide
-// whether to defer expected failures (// Error: / // TypeCheckError:) to
-// `gno test`.
-func parseFiletestDirectives(body string) (test.Directives, error) {
-	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
-	if err != nil {
-		return nil, fmt.Errorf("error parsing directives: %w", err)
-	}
-	return dirs, nil
 }
 
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
