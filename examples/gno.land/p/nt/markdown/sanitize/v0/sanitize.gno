@@ -1317,8 +1317,11 @@ func linkSchemeAllowed(s string) bool {
 		return true
 	}
 	if strings.HasPrefix(s, "mailto:") {
-		// Reject prefill phishing via ?body= or &body=.
-		if strings.Contains(s, "?body=") || strings.Contains(s, "&body=") {
+		// Reject prefill phishing via ?body= or &body=. Per RFC 6068 §2,
+		// mailto <hfname> is case-insensitive, so match against a
+		// lowercased copy of the URL.
+		lower := strings.ToLower(s)
+		if strings.Contains(lower, "?body=") || strings.Contains(lower, "&body=") {
 			return false
 		}
 		return true
