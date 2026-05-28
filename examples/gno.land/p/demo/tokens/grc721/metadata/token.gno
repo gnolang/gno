@@ -70,6 +70,12 @@ func (led *PrivateLedger) SetTokenURI(tid grc721.TokenID, uri grc721.TokenURI) e
 	}
 
 	led.tokenURIs.Set(tid.String(), uri.String())
+
+	chain.Emit(
+		TokenURIUpdateEvent,
+		"token", led.token.ID(),
+		"tokenId", tid.String(),
+	)
 	return nil
 }
 

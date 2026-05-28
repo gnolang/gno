@@ -74,7 +74,10 @@ type PrivateLedger struct {
 
 var ErrMetadataNotSet = errors.New("metadata not set for token")
 
-const MetadataUpdateEvent = "MetadataUpdate"
+const (
+	MetadataUpdateEvent = "MetadataUpdate"
+	TokenURIUpdateEvent = "TokenUriUpdate"
+)
 
 // fnTeller is the canonical Teller implementation. accountFn supplies the
 // acting principal for write methods; a nil accountFn marks the Teller as
