@@ -1,4 +1,3 @@
-// Dedicated to my love, Lexi.
 package keyscli
 
 import (
@@ -47,6 +46,8 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewListCmd(cfg, io),
 		client.NewSignCmd(cfg, io),
 		client.NewVerifyCmd(cfg, io),
+		client.NewRawSignCmd(cfg, io),
+		client.NewRawVerifyCmd(cfg, io),
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
 		client.NewMultisignCmd(cfg, io),
