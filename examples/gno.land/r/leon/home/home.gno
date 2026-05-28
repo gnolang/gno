@@ -3,6 +3,7 @@ package home
 import (
 	"chain/banker"
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 
 	"gno.land/p/demo/svg"
@@ -46,9 +47,9 @@ func Render(path string) string {
 	return out
 }
 
-func init() {
-	hor.Register(cross, "Leon's Home Realm", "")
-	mirror.Register(cross, runtime.CurrentRealm().PkgPath(), Render)
+func init(cur realm) {
+	hor.Register(cross(cur), "Leon's Home Realm", "")
+	mirror.Register(cross(cur), cur.PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
@@ -65,7 +66,7 @@ TODO import r/gh`,
 }
 
 func UpdatePFP(cur realm, url, caption string) {
-	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !config.IsAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -74,7 +75,7 @@ func UpdatePFP(cur realm, url, caption string) {
 }
 
 func UpdateAboutMe(cur realm, col1, col2 string) {
-	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
+	if !config.IsAuthorized(cur.Previous().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -82,14 +83,14 @@ func UpdateAboutMe(cur realm, col1, col2 string) {
 	abtMe[1] = col2
 }
 
-func Donate(_ realm) string {
-	sent := banker.OriginSend()
+func Donate(cur realm) string {
+	sent := unsafe.OriginSend()
 	if len(sent) == 0 {
 		return ":c"
 	}
 
-	banker.NewBanker(banker.BankerTypeOriginSend).SendCoins(
-		runtime.CurrentRealm().Address(),
+	banker.NewBanker(banker.BankerTypeOriginSend, cur).SendCoins(
+		cur.Address(),
 		config.OwnableMain.Owner(),
 		sent,
 	) // wish this was prettier :)

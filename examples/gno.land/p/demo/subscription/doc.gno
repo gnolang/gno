@@ -14,9 +14,10 @@
 //
 //	// In the consumer realm, at deployment:
 //	var recSub = recurring.NewRecurringSubscription(
+//	    ownerAddr,                          // address authorized to call UpdateAmount
 //	    time.Hour*24*30,                    // 30-day periods
 //	    100,                                // 100 ugnot per period
-//	    runtime.CurrentRealm().Address(),   // payee = this realm
+//	    unsafe.CurrentRealm().Address(),   // payee = this realm
 //	)
 //
 //	// Wrapper exposed to users. The wrapper builds an AllowanceSender
@@ -25,9 +26,9 @@
 //	// the wrapper validated) and records `subscriber` as active until
 //	// time.Now() + 30 days.
 //	func Subscribe(_ realm, subscriber address) {
-//	    if !runtime.PreviousRealm().IsUserCall() { panic("EOA only") }
-//	    src := banker.NewBanker(banker.BankerTypeRealmSend)
-//	    al := allowancesender.New(src, runtime.CurrentRealm().Address(),
+//	    if !unsafe.PreviousRealm().IsUserCall() { panic("EOA only") }
+//	    src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+//	    al := allowancesender.New(src, unsafe.CurrentRealm().Address(),
 //	        chain.NewCoins(chain.NewCoin("ugnot", recSub.GetAmount())))
 //	    defer al.Close()
 //	    if err := recSub.Subscribe(al, subscriber); err != nil {
@@ -38,8 +39,9 @@
 // Lifetime Subscription:
 //
 //	var lifeSub = lifetime.NewLifetimeSubscription(
+//	    ownerAddr,                          // address authorized to call UpdateAmount
 //	    500,                                // 500 ugnot one-time
-//	    runtime.CurrentRealm().Address(),
+//	    unsafe.CurrentRealm().Address(),
 //	)
 //
 //	// Same wrapper shape as recurring.

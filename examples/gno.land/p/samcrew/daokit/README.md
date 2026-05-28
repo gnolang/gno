@@ -199,12 +199,27 @@ members := store.GetMembersJSON() // "All Members (JSON):"
 ### 3.3.4 Creating a DAO:
 
 ```go
-func New(conf *Config) (daokit.DAO, *DAOPrivate)
+func New(conf *Config) *DAOWrapper
 ```
 
 #### 3.3.4.1 Key Structures:
-- `DAOPrivate`: Full access to internal DAO state
-- `daokit.DAO`: External interface for DAO interaction
+- `*basedao.DAOWrapper`: The public, rlm-validating surface. Mutating
+  methods take `(_ int, rlm realm, ...)`, validate `rlm.IsCurrent()`,
+  and derive the principal from `rlm.Previous().Address()` before
+  invoking the private impl.
+- `*basedao.DAOPrivate`: Internal impl with address-typed writers.
+  Accessible from the owning realm via `wrapper.Private()` for custom
+  handler registration. **Never expose this externally** — its writer
+  methods trust the supplied caller address (Class-2 designation-forgery
+  if a foreign realm holds it).
+- `daokit.DAO`: Internal dispatch interface (address-typed). **Never
+  store as a public var or return from a public constructor** — exposes
+  designation-forgery surface. Hold `*DAOWrapper` instead.
+
+Sealing via an unexported marker method would NOT defend against
+foreign impls — embedding bypasses the seal. See
+`p/test/seal/filetests/z_seal_*_filetest.gno` for the four bypass
+filetests.
 
 
 ### 3.3.5 Configuration:
@@ -239,10 +254,11 @@ import (
 	"gno.land/r/demo/profile"
 )
 
-var (
-	DAO        daokit.DAO // External interface for DAO interaction
-	daoPrivate *basedao.DAOPrivate // Full access to internal DAO state
-)
+// Hold the concrete *DAOWrapper, NOT the daokit.DAO interface.
+// The wrapper provides rlm-validating methods; the interface is an
+// internal contract that would expose designation-forgery if returned
+// publicly.
+var DAO *basedao.DAOWrapper
 
 func init() {
 	initialRoles := []basedao.RoleInfo{
@@ -267,26 +283,26 @@ func init() {
 	// `and` and `or` use va_args so you can pass as many conditions as needed
 	adminCond := daocond.And(membersMajority, publicRelationships, financeOfficer)
 
-	DAO, daoPrivate = basedao.New(&basedao.Config{
+	DAO = basedao.New(&basedao.Config{
 		Name:             "Demo DAOKIT DAO",
 		Description:      "This is a demo DAO built with DAOKIT",
 		Members:          memberStore,
 		InitialCondition: adminCond,
 		GetProfileString: profile.GetStringField,
 		SetProfileString: profile.SetStringField,
-	})
+	}, cur)
 }
 
-func Vote(proposalID uint64, vote daocond.Vote) {
-	DAO.Vote(proposalID, vote)
+func Vote(cur realm, proposalID uint64, vote daocond.Vote) {
+	DAO.Vote(0, cur, proposalID, vote)
 }
 
-func Execute(proposalID uint64) {
-	DAO.Execute(proposalID)
+func Execute(cur realm, proposalID uint64) {
+	DAO.Execute(0, cur, proposalID)
 }
 
 func Render(path string) string {
-	return daoPrivate.Render(path)
+	return DAO.Render(path)
 }
 ```
 

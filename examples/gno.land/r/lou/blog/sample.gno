@@ -4,7 +4,7 @@ import (
 	"gno.land/p/lou/blog"
 )
 
-func CreateSampleBlog() *blog.Blog {
+func CreateSampleBlog(_ int, rlm realm) *blog.Blog {
 	post1, err := blog.NewPost(
 		"ai-future",
 		"The Future of AI",
@@ -83,12 +83,12 @@ func CreateSampleBlog() *blog.Blog {
 	if err != nil {
 		panic(err)
 	}
-	myBlog.AddPost(post1)
-	myBlog.AddPost(post2)
-	myBlog.AddPost(post3)
+	myBlog.AddPost(0, rlm, post1)
+	myBlog.AddPost(0, rlm, post2)
+	myBlog.AddPost(0, rlm, post3)
 	return myBlog
 }
 
-func Test(_ realm) {
-	CreateSampleBlog()
+func Test(cur realm) {
+	CreateSampleBlog(0, cur)
 }

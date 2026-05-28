@@ -767,10 +767,14 @@ _resolve_control_port() {
 
 start_node() {
   local node="${1:?node required}"
+  # Remove any stopped container so Docker allocates a fresh ephemeral host
+  # port rather than reusing the previous binding, which can conflict when
+  # multiple nodes are restarted in sequence.
+  compose rm -f "$node" >/dev/null 2>&1 || true
   compose up -d "$node" >/dev/null
   _resolve_rpc_port "$node"
-  wait_for_rpc "$node" 120
   _capture_node_logs "$node"
+  wait_for_rpc "$node" 120
   log "started ${node}"
 }
 
@@ -802,20 +806,38 @@ start_all_nodes() {
   # Start sentries first and wait for them before launching validators so
   # that the P2P gateway is ready when validators try to dial out.
   if [ "${#SCENARIO_SENTRIES[@]}" -gt 0 ]; then
-    compose up -d "${SCENARIO_SENTRIES[@]}" >/dev/null
+    local attempt
+    for attempt in 1 2 3; do
+      if compose up -d "${SCENARIO_SENTRIES[@]}" 2>&1 | grep -q "address already in use"; then
+        log "port bind race on attempt ${attempt}; tearing down and retrying"
+        compose down --remove-orphans >/dev/null 2>&1 || true
+        sleep 1
+        continue
+      fi
+      break
+    done
     for node in "${SCENARIO_SENTRIES[@]}"; do
       _resolve_rpc_port "$node"
-      wait_for_rpc "$node" 120
       _capture_node_logs "$node"
+      wait_for_rpc "$node" 120
     done
   fi
 
   if [ "${#SCENARIO_VALIDATORS[@]}" -gt 0 ]; then
-    compose up -d "${SCENARIO_VALIDATORS[@]}" >/dev/null
+    local attempt
+    for attempt in 1 2 3; do
+      if compose up -d "${SCENARIO_VALIDATORS[@]}" 2>&1 | grep -q "address already in use"; then
+        log "port bind race on attempt ${attempt}; tearing down and retrying"
+        compose down --remove-orphans >/dev/null 2>&1 || true
+        sleep 1
+        continue
+      fi
+      break
+    done
     for node in "${SCENARIO_VALIDATORS[@]}"; do
       _resolve_rpc_port "$node"
-      wait_for_rpc "$node" 120
       _capture_node_logs "$node"
+      wait_for_rpc "$node" 120
     done
   fi
 
