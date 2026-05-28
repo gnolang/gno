@@ -76,7 +76,13 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 54 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 65 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
+// crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
+// on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
+// Apple M2. The whole table must be regenerated on the reference Xeon 8168
+// before any consensus-relevant deployment; the IBC rows are flagged
+// "draft" in their trailing comment to make that obvious.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -136,6 +142,23 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},                // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
+
+	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
+	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},           // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes
+	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 14883ns (input fixed 128B)
+	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                                // draft, median 44465ns (input fixed 96B)
+	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes},     // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                       // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},            // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 7513ns (32+32B inputs)
+	{Pkg: "crypto/merkle", Fn: "hashFromByteSlices", Base: 4839, Slope: 188621, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=4839ns slope=184.2ns/N (=188621/1024) on encoded 1..512 items
+	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes},   // draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes
+	// modExp cost is dominated by an O(N^3) big-int chain (Go big.Int.Exp). The
+	// linear schema can't capture that, so the slope below is fit so the charge
+	// matches measured cost at N=256-byte modulus (~6.16ms) and overcharges
+	// smaller inputs / undercharges very large inputs. Re-check before
+	// allowing >256-byte modulus in production realms.
+	{Pkg: "crypto/modexp", Fn: "modExp", Base: 58000, Slope: 24647680, SlopeIdx: 2, SlopeKind: SizeLenBytes}, // draft, calibrated against N=256-byte modulus (cubic underlying, see comment)
 }
 
 func init() {
