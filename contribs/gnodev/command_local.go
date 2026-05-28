@@ -18,17 +18,17 @@ import (
 const (
 	DefaultDomain = "gno.land"
 
-	quarantineSubdir = "quarantine"
+	quarantinedSubdir = "quarantined"
 )
 
 // defaultBaseResolvers returns root resolvers for examples/ and, unless
-// excludeQuarantine is set, examples/quarantine/.
-func defaultBaseResolvers(gnoroot string, excludeQuarantine bool) []packages.Resolver {
+// withoutQuarantinedExamples is set, examples/quarantined/.
+func defaultBaseResolvers(gnoroot string, withoutQuarantinedExamples bool) []packages.Resolver {
 	exampleRoot := filepath.Join(gnoroot, "examples")
 	resolvers := []packages.Resolver{packages.NewRootResolver(exampleRoot)}
-	if !excludeQuarantine {
-		quarantineRoot := filepath.Join(exampleRoot, quarantineSubdir)
-		resolvers = append(resolvers, packages.NewRootResolver(quarantineRoot))
+	if !withoutQuarantinedExamples {
+		quarantinedRoot := filepath.Join(exampleRoot, quarantinedSubdir)
+		resolvers = append(resolvers, packages.NewRootResolver(quarantinedRoot))
 	}
 	return resolvers
 }

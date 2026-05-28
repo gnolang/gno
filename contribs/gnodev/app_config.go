@@ -121,9 +121,9 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 
 	fs.BoolVar(
 		&c.withoutQuarantinedExamples,
-		"no-quarantine",
+		"without-quarantined-examples",
 		defaultCfg.withoutQuarantinedExamples,
-		"exclude examples/quarantine/ from the default resolver chain",
+		"exclude examples/quarantined/ from the default resolver chain",
 	)
 
 	fs.StringVar(

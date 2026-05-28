@@ -118,7 +118,6 @@ FLAGS
   -lazy-loader=true 	enable lazy loader
   -log-format console	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
-  -no-quarantine=false 	exclude examples/quarantine/ from the default resolver chain
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
@@ -133,6 +132,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
+  -without-quarantined-examples=false 	exclude examples/quarantined/ from the default resolver chain
 
 ```
 
@@ -164,7 +164,6 @@ FLAGS
   -lazy-loader=false 	enable lazy loader
   -log-format json	log output format, can be `json` or `console`
   -max-gas 10000000000	set the maximum gas per block
-  -no-quarantine=true 	exclude examples/quarantine/ from the default resolver chain
   -no-replay=false 	do not replay previous transactions upon reload
   -no-watch=false 	do not watch for file changes
   -no-web=false 	disable gnoweb
@@ -179,6 +178,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
+  -without-quarantined-examples=true 	exclude examples/quarantined/ from the default resolver chain
 
 ```
 
