@@ -98,25 +98,16 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 	return
 }
 
-func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
+// parseFiletestDirectives parses the directives in a _filetest.gno body.
+// Lint uses the result to route filetests (via // PKGPATH:) and to decide
+// whether to defer expected failures (// Error: / // TypeCheckError:) to
+// `gno test`.
+func parseFiletestDirectives(body string) (test.Directives, error) {
 	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
 	if err != nil {
-		return "", fmt.Errorf("error parsing directives: %w", err)
+		return nil, fmt.Errorf("error parsing directives: %w", err)
 	}
-	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
-}
-
-// filetestExpectsFailure reports whether a filetest body declares an
-// `// Error:` or `// TypeCheckError:` directive — i.e., the file is
-// expected to fail at preprocess, type-check or run-time, and `gno test`
-// validates the actual failure. Lint should not propagate such failures.
-func filetestExpectsFailure(body string) (bool, error) {
-	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
-	if err != nil {
-		return false, fmt.Errorf("error parsing directives: %w", err)
-	}
-	return dirs.First(test.DirectiveError) != nil ||
-		dirs.First(test.DirectiveTypeCheckError) != nil, nil
+	return dirs, nil
 }
 
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
