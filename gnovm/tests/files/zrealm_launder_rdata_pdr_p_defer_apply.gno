@@ -7,13 +7,13 @@ package launderrh_pdr_p_defer_apply
 // Trace:
 //   1. main → m.Realm = /r/launderrh_pdr_p_defer_apply
 //   2. inner := victim.GetWithPtr().Inner — read access fine
-//   3. inner.DeferApply(EvilWrite) — Rule 2 receiver-borrow on
+//   3. inner.DeferApply(EvilWrite) — borrow rule #2 receiver-borrow on
 //      *launderpkg.Immutable (victim-stamped) → m.Realm = victim
 //   4. DeferApply body: schedule fn(i) as defer
 //   5. DeferApply returns → defer fires → PushFrameCall(fn, true)
 //      with LastRealm = victim (current m.Realm)
-//   6. EvilWrite is top-level /p/ fn → no Rule 1 (not /r/), no
-//      Rule 2 (no receiver) → m.Realm stays victim
+//   6. EvilWrite is top-level /p/ fn → no borrow rule #1 (not /r/), no
+//      borrow rule #2 (no receiver) → m.Realm stays victim
 //   7. EvilWrite body: i.Field = ... writes /r/-victim data with
 //      m.Realm = victim → readonly check sees crlm == storage → no
 //      panic → WRITE SUCCEEDS

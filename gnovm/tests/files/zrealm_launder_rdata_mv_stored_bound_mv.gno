@@ -9,16 +9,16 @@ package launderrh_mv_stored_bound_mv
 //    type is `func()`, fits PlainHook.
 // 3. Attacker registers the bound method value as a PlainHook in
 //    /r/-victim state via RegisterPlainHook.
-// 4. Attacker calls RunPlainHooks(). Inside RunPlainHooks (Rule 1
+// 4. Attacker calls RunPlainHooks(). Inside RunPlainHooks (borrow rule #1
 //    → m.Realm = /r/-victim), the loop body invokes h(). The bound
-//    method value has no Rule-1 body source (it's a /p/-method), but
+//    method value has no borrow rule #1 body source (it's a /p/-method), but
 //    PushFrameCall sees the captured recv pointer is /r/-victim-
-//    stamped → Rule 2 → m.Realm = /r/-victim during BumpToPwn → the
+//    stamped → borrow rule #2 → m.Realm = /r/-victim during BumpToPwn → the
 //    write commits under victim authority.
 //
 // This is a STORED variant where the dangerous function is a bound
 // /p/-method value, no callback parameter is passed at the call site.
-// It exercises the same Rule-2 receiver-borrow primitive as the
+// It exercises the same borrow rule #2 receiver-borrow primitive as the
 // known /p/-method-on-/r/-pointer attack, but through hook storage.
 
 import (

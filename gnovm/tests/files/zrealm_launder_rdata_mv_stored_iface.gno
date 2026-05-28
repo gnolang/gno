@@ -9,7 +9,7 @@ package launderrh_mv_stored_iface
 //    interface boxing?
 //
 // Trace expectation: bound method value carries a closure-like
-// structure that retains the recv. After unbox + invoke, Rule 2
+// structure that retains the recv. After unbox + invoke, borrow rule #2
 // should fire and write succeeds. Method values laundered through
 // interface boxing remain dangerous.
 
