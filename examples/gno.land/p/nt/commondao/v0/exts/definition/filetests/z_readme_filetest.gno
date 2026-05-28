@@ -2,7 +2,7 @@
 package test
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"errors"
 	"time"
 
@@ -48,7 +48,7 @@ func CreateMemberProposal(member address) uint64 {
 	)
 
 	// Create a new proposal
-	p := dao.MustPropose(runtime.PreviousRealm().Address(), def)
+	p := dao.MustPropose(unsafe.PreviousRealm().Address(), def)
 	return p.ID()
 }
 

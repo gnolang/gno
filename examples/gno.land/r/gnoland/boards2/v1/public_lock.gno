@@ -2,7 +2,6 @@ package boards2
 
 import (
 	"chain"
-	"chain/runtime"
 	"strconv"
 
 	"gno.land/p/gnoland/boards"
@@ -16,7 +15,7 @@ import (
 // Realm members can be locked when locking the realm or afterwards.
 // This is relevant for two reasons, one so that members can be modified after the lock.
 // The other is for realm owners, who can delete threads and comments after the lock.
-func LockRealm(_ realm, lockRealmMembers bool) {
+func LockRealm(cur realm, lockRealmMembers bool) {
 	assertRealmMembersAreNotLocked()
 
 	// If realm members are not being locked assert that realm is not locked.
@@ -25,8 +24,8 @@ func LockRealm(_ realm, lockRealmMembers bool) {
 		assertRealmIsNotLocked()
 	}
 
-	caller := runtime.PreviousRealm().Address()
-	gPerms.WithPermission(caller, PermissionRealmLock, boards.Args{}, crossingFn(func() {
+	caller := cur.Previous().Address()
+	gPerms.WithPermission(caller, PermissionRealmLock, boards.Args{}, func() {
 		gLocked.realm = true
 		gLocked.realmMembers = lockRealmMembers
 
@@ -35,7 +34,7 @@ func LockRealm(_ realm, lockRealmMembers bool) {
 			"caller", caller.String(),
 			"lockRealmMembers", strconv.FormatBool(lockRealmMembers),
 		)
-	}))
+	})
 }
 
 // IsRealmLocked checks if boards realm has been locked.

@@ -1,7 +1,7 @@
 package todolist
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"strconv"
 
 	"gno.land/p/nt/avl/v0"
@@ -22,7 +22,7 @@ func NewTodoList(title string) *TodoList {
 	return &TodoList{
 		Title: title,
 		Tasks: avl.NewTree(),
-		Owner: runtime.OriginCaller(),
+		Owner: unsafe.OriginCaller(),
 	}
 }
 

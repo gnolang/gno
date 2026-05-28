@@ -55,7 +55,7 @@ func (m *mockTransport) Remove(p PeerConn) {
 }
 
 type (
-	addDelegate         func(PeerConn)
+	addDelegate         func(PeerConn) error
 	removePeerDelegate  func(types.ID) bool
 	hasDelegate         func(types.ID) bool
 	hasIPDelegate       func(net.IP) bool
@@ -76,10 +76,12 @@ type mockSet struct {
 	numOutboundFn numOutboundDelegate
 }
 
-func (m *mockSet) Add(peer PeerConn) {
+func (m *mockSet) Add(peer PeerConn) error {
 	if m.addFn != nil {
-		m.addFn(peer)
+		return m.addFn(peer)
 	}
+
+	return nil
 }
 
 func (m *mockSet) Remove(key types.ID) bool {

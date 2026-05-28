@@ -56,7 +56,8 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	bank.prmk.GetStruct(ctx, "p", &params)
+	// Bypass store-side gas metering — see auth/params.go for rationale.
+	bank.prmk.GetStruct(ctx.WithGasMeter(nil), "p", &params)
 	return params
 }
 

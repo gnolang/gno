@@ -11,6 +11,7 @@ package debug
 
 import (
 	"chain/runtime"
+	"chain/runtime/unsafe"
 	"time"
 
 	"gno.land/p/moul/md"
@@ -49,10 +50,10 @@ func (d Debug) Render(path string) string {
 		table := mdtable.Table{
 			Headers: []string{"Key", "Value"},
 		}
-		table.Append([]string{"`runtime.CurrentRealm().PkgPath()`", string(runtime.CurrentRealm().PkgPath())})
-		table.Append([]string{"`runtime.CurrentRealm().Address()`", string(runtime.CurrentRealm().Address())})
-		table.Append([]string{"`runtime.PreviousRealm().PkgPath()`", string(runtime.PreviousRealm().PkgPath())})
-		table.Append([]string{"`runtime.PreviousRealm().Address()`", string(runtime.PreviousRealm().Address())})
+		table.Append([]string{"`unsafe.CurrentRealm().PkgPath()`", string(unsafe.CurrentRealm().PkgPath())})
+		table.Append([]string{"`unsafe.CurrentRealm().Address()`", string(unsafe.CurrentRealm().Address())})
+		table.Append([]string{"`unsafe.PreviousRealm().PkgPath()`", string(unsafe.PreviousRealm().PkgPath())})
+		table.Append([]string{"`unsafe.PreviousRealm().Address()`", string(unsafe.PreviousRealm().Address())})
 		table.Append([]string{"`runtime.ChainHeight()`", ufmt.Sprintf("%d", runtime.ChainHeight())})
 		table.Append([]string{"`time.Now().Format(time.RFC3339)`", time.Now().Format(time.RFC3339)})
 		content += table.String()

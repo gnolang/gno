@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_board_08_filetest
+
+package z_create_board_08_filetest
 
 import (
 	"testing"
@@ -11,10 +13,10 @@ const (
 	name          = "TestBoard"
 )
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	boards2.CreateBoard(cross, name, false, false)
+	boards2.CreateBoard(cross(cur), name, false, false)
 
 	// Unlisted board should not be rendered
 	println(boards2.Render(""))
