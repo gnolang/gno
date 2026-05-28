@@ -26,7 +26,7 @@ type IGRC2981 interface {
 // host realm must guard SetTokenRoyalty behind its own admin policy.
 // This Teller surfaces RoyaltyInfo as a safe-to-share read view.
 type Teller interface {
-	RoyaltyInfo(tid grc721.TokenID, salePrice int64) (address, int64, error)
+	IGRC2981
 }
 
 // RoyaltyInfo records the per-token royalty configuration. Bps is the

@@ -54,8 +54,7 @@ type IMetadata interface {
 // SetTokenMetadata behind its own admin policy. This Teller surfaces
 // the read views as safe-to-share.
 type Teller interface {
-	TokenURI(tid grc721.TokenID) (string, error)
-	TokenMetadata(tid grc721.TokenID) (Metadata, error)
+	IMetadata
 }
 
 // PrivateLedger holds per-token tokenURI and Metadata state for the
