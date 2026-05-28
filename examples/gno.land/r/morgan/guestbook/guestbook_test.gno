@@ -8,15 +8,15 @@ import (
 	"gno.land/p/nt/ownable/v0"
 )
 
-func TestSign(t *testing.T) {
+func TestSign(cur realm, t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	Sign(cross, "Hello!")
+	Sign(cross(cur), "Hello!")
 
 	testing.SetRealm(testing.NewUserRealm("g1user2"))
-	Sign(cross, "Hello2!")
+	Sign(cross(cur), "Hello2!")
 
 	res := Render("")
 	t.Log(res)
@@ -31,10 +31,10 @@ func TestSign(t *testing.T) {
 	}
 }
 
-func TestSign_FromRealm(t *testing.T) {
+func TestSign_FromRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/sys/users/init"))
 
-	rec := revive(func() { Sign(cross, "Hey!") })
+	rec := revive(func() { Sign(cross(cur), "Hey!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -46,15 +46,15 @@ func TestSign_FromRealm(t *testing.T) {
 	}
 }
 
-func TestSign_Double(t *testing.T) {
+func TestSign_Double(cur realm, t *testing.T) {
 	// Should not allow signing twice.
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
-	Sign(cross, "Hello!")
+	Sign(cross(cur), "Hello!")
 
-	rec := revive(func() { Sign(cross, "Hello again!") })
+	rec := revive(func() { Sign(cross(cur), "Hello again!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -66,14 +66,14 @@ func TestSign_Double(t *testing.T) {
 	}
 }
 
-func TestSign_InvalidMessage(t *testing.T) {
+func TestSign_InvalidMessage(cur realm, t *testing.T) {
 	// Should not allow control characters in message.
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
 	testing.SetRealm(testing.NewUserRealm("g1user"))
 
-	rec := revive(func() { Sign(cross, "\x00Hello!") })
+	rec := revive(func() { Sign(cross(cur), "\x00Hello!") })
 	if rec == nil {
 		t.Fatal("expected panic")
 	}
@@ -85,7 +85,7 @@ func TestSign_InvalidMessage(t *testing.T) {
 	}
 }
 
-func TestAdminDelete(t *testing.T) {
+func TestAdminDelete(cur realm, t *testing.T) {
 	const (
 		userAddr  address = "g1user"
 		adminAddr address = "g1admin"
@@ -93,20 +93,20 @@ func TestAdminDelete(t *testing.T) {
 
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
-	owner = ownable.NewWithAddressByPrevious(adminAddr)
+	owner = ownable.NewWithAddress(adminAddr)
 	signatureID = 0
 
 	testing.SetRealm(testing.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
-	Sign(cross, bad)
+	Sign(cross(cur), bad)
 
 	if rnd := Render(""); !strings.Contains(rnd, bad) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
 	testing.SetRealm(testing.NewUserRealm(adminAddr))
-	AdminDelete(cross, signatureID.String())
+	AdminDelete(cross(cur), signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {
 		t.Error("render contains bad message", rnd)

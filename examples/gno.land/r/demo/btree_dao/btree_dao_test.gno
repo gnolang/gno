@@ -23,7 +23,7 @@ func (te *TestElement) Less(than btree.Record) bool {
 	return te.value < than.(*TestElement).value
 }
 
-func TestPlantTree(t *testing.T) {
+func TestPlantTree(cur realm, t *testing.T) {
 	setupTest()
 
 	tree := btree.New()
@@ -32,7 +32,7 @@ func TestPlantTree(t *testing.T) {
 		tree.Insert(&TestElement{value: val})
 	}
 
-	err := PlantTree(cross, tree)
+	err := PlantTree(cross(cur), tree)
 	urequire.NoError(t, err)
 
 	found := false
@@ -46,18 +46,18 @@ func TestPlantTree(t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantTree(cross, tree)
+	err = PlantTree(cross(cur), tree)
 	uassert.Error(t, err)
 
 	emptyTree := btree.New()
-	err = PlantTree(cross, emptyTree)
+	err = PlantTree(cross(cur), emptyTree)
 	uassert.Error(t, err)
 }
 
-func TestPlantSeed(t *testing.T) {
+func TestPlantSeed(cur realm, t *testing.T) {
 	setupTest()
 
-	err := PlantSeed(cross, "Hello DAO!")
+	err := PlantSeed(cross(cur), "Hello DAO!")
 	urequire.NoError(t, err)
 
 	found := false
@@ -73,7 +73,7 @@ func TestPlantSeed(t *testing.T) {
 	})
 	uassert.True(t, found)
 
-	err = PlantSeed(cross, "")
+	err = PlantSeed(cross(cur), "")
 	uassert.Error(t, err)
 }
 

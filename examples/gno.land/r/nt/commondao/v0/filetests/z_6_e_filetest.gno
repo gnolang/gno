@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_6_e_filetest
+
+package z_6_e_filetest
 
 import (
 	"testing"
@@ -13,20 +15,20 @@ const (
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	// Invite a user to be able to start creating DAOs
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	// Create a new DAO which gives ownership to `test`
 	testing.SetRealm(testing.NewUserRealm(user))
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/nt/commondao/v0"))
-	dao := commondao.New(cross, "Foo", commondao.AllowExecution(false)) // Disallow execution
+	dao := commondao.New(cross(cur), "Foo", commondao.AllowExecution(false)) // Disallow execution
 	daoID = dao.ID()
 }
 
-func main() {
-	commondao.Execute(cross, daoID, 0)
+func main(cur realm) {
+	commondao.Execute(cross(cur), daoID, 0)
 }
 
 // Error:
