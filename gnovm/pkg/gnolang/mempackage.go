@@ -706,6 +706,30 @@ func classifyMemFileKind(fname string, inFiletestsDir bool) std.MemFileKind {
 	return std.KindPackageSource
 }
 
+// shouldEarlySkipGno reports whether a `.gno` MemFile should be skipped
+// before any further processing under this mptype, based on the file's Kind
+// (preferred) or legacy suffix. Shared by ReadMemPackageFromList and
+// ParseMemPackageAsType — the two sites previously carried near-identical
+// MPProd/MPTest/MPIntegration filter blocks. Non-.gno files always pass
+// through; callers handle them separately.
+func (mptype MemPackageType) shouldEarlySkipGno(mfile *std.MemFile) bool {
+	fname := mfile.Name
+	if !strings.HasSuffix(fname, ".gno") {
+		return false
+	}
+	isTest := strings.HasSuffix(fname, "_test.gno")
+	isFiletest := mfile.IsFiletest()
+	switch {
+	case mptype.IsProd():
+		return isTest || isFiletest
+	case mptype.IsTest():
+		return isFiletest
+	case mptype.IsIntegration():
+		return !isTest || isFiletest
+	}
+	return false
+}
+
 // ReadMemPackage initializes a new MemPackage by reading the OS directory at
 // dir, and saving it with the given pkgPath (import path).  The resulting
 // MemPackage will contain the names and content of all *.gno files, and
@@ -829,11 +853,7 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	var errs error            // all errors minus filetest pkg name errors.
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		// A file is a filetest if it sits under <pkg>/filetests/ on disk
-		// OR carries the legacy `_filetest.gno` suffix at the root.
 		inFiletestsDir := filepath.Base(filepath.Dir(fpath)) == std.FiletestsDir
-		isFiletest := strings.HasSuffix(fname, ".gno") &&
-			(inFiletestsDir || std.IsFiletestName(fname))
 		bz, err := os.ReadFile(fpath)
 		if err != nil {
 			return nil, err
@@ -847,21 +867,7 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 		// Try to derive the package name, but this is not a replacement
 		// for gno.ValidateMemPackage().
 		if strings.HasSuffix(fname, ".gno") {
-			//--------------------------------------------------------------------------------
-			// NOTE: the below is (almost) duplicated in ParseMemPackageAsType().
-			// If MPProd, don't even try to read _test.gno or filetest files.
-			if mptype.IsProd() &&
-				(strings.HasSuffix(fname, "_test.gno") || isFiletest) {
-				continue
-			}
-			// If MPTest, don't even try to read filetest files.
-			if mptype.IsTest() && isFiletest {
-				continue
-			}
-			// If MPIntegration, only read flat _test.gno files; filetests
-			// (whether under filetests/ or by legacy suffix) are excluded.
-			if mptype.IsIntegration() &&
-				(!strings.HasSuffix(fname, "_test.gno") || isFiletest) {
+			if mptype.shouldEarlySkipGno(mfile) {
 				continue
 			}
 			// Read package name from file.
@@ -875,10 +881,8 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 			if mptype.ExcludeGno(mfile, pname2) {
 				continue
 			}
-			// NOTE: the above is (almost) duplicated in ParseMemPackageAsType().
-			//--------------------------------------------------------------------------------
 			// Try to derive the mem package name from suitable files.
-			if mptype.IsFiletests() || isFiletest {
+			if mptype.IsFiletests() || mfile.IsFiletest() {
 				// Filetests may have arbitrary package names.
 				// pname2 (of this file) may be unrelated to
 				// pkgName of the mem package.
@@ -976,19 +980,10 @@ func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageT
 	for _, mfile := range mpkg.Files {
 		fname := mfile.Name
 		// Can't parse non-gno files.
-		if !strings.HasSuffix(fname, ".gno") ||
-			mfile.Name == "gno.mod" {
+		if !strings.HasSuffix(fname, ".gno") || mfile.Name == "gno.mod" {
 			continue // skip spurious or test or gno.mod file.
 		}
-		//--------------------------------------------------------------------------------
-		// NOTE: the below is (almost) duplicated in ReadMemPackageFromList().
-		// If MP*Prod, don't even try to read _test.gno or filetest files.
-		if mptype.IsProd() &&
-			(strings.HasSuffix(fname, "_test.gno") || std.IsFiletestName(fname)) {
-			continue
-		}
-		// If MP*Test, don't even try to read filetest files.
-		if mptype.IsTest() && std.IsFiletestName(fname) {
+		if mptype.shouldEarlySkipGno(mfile) {
 			continue
 		}
 		// Read package name from file.
@@ -1001,8 +996,6 @@ func (m *Machine) ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageT
 		if mptype.ExcludeGno(mfile, pname2) {
 			continue
 		}
-		// NOTE: the above is (almost) duplicated in ReadMemPackageFromList().
-		//--------------------------------------------------------------------------------
 		// Parse the file.
 		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
@@ -1044,7 +1037,7 @@ func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileS
 			panic("should not happen")
 		}
 		switch {
-		case std.IsFiletestName(mfile.Name):
+		case mfile.IsFiletest():
 			ftfiles = append(ftfiles, mfile)
 		case strings.HasSuffix(mfile.Name, "_test.gno") && mpkg.Name == string(n.PkgName):
 			tset.AddFiles(n)

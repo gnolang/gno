@@ -8,48 +8,47 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// FileKind represent the category a gno package file falls in, can be one of:
+// FileKind represents the category a gno package file falls in. It is an
+// alias for [std.MemFileKind] — the same enum that ships on every
+// [std.MemFile] — so a MemFile's Kind and a Package's per-kind file/import
+// buckets share one taxonomy.
 //
-// - [FileKindPackageSource] -> A *.gno file that will be included in the gnovm package
-//
-// - [FileKindTest] -> A *_test.gno file that will be used for testing
-//
-// - [FileKindXTest] -> A *_test.gno file with a package name ending in _test that will be used for blackbox testing
-//
-// - [FileKindFiletest] -> A *_filetest.gno file that will be used for snapshot testing
-//
-// - [FileKindOther] -> Any other file in the package, e.g.: *.toml, README.md, etc...
-type FileKind string
+// JSON map keys (used by `gno list -json`) round-trip as the names defined
+// below; see [std.MemFileKind.MarshalText].
+type FileKind = std.MemFileKind
 
+// Aliases for the std package's MemFileKind constants. New code should use
+// the std.Kind* spellings directly; these aliases exist for callers that
+// historically referred to FileKind*.
 const (
-	FileKindUnknown       FileKind = ""
-	FileKindPackageSource FileKind = "PackageSource"
-	FileKindTest          FileKind = "Test"
-	FileKindXTest         FileKind = "XTest"
-	FileKindFiletest      FileKind = "Filetest"
-	FileKindOther         FileKind = "Other"
+	FileKindUnknown       = std.KindUnknown
+	FileKindPackageSource = std.KindPackageSource
+	FileKindTest          = std.KindTest
+	FileKindXTest         = std.KindXTest
+	FileKindFiletest      = std.KindFiletest
+	FileKindOther         = std.KindOther
 )
 
+// GnoFileKinds returns the file kinds that are part of a Gno package's
+// source set (excludes [FileKindOther] and [FileKindUnknown]).
 func GnoFileKinds() []FileKind {
 	return []FileKind{FileKindPackageSource, FileKindTest, FileKindXTest, FileKindFiletest}
 }
 
-// GetFileKind analyzes a file's name and body to get it's [FileKind], fset is optional.
-// For an in-memory MemFile that carries an explicit Kind, prefer GetMemFileKind —
-// it picks up new-style filetests whose Name is a bare basename.
+// GetFileKind analyzes a file's name and body to derive its [FileKind].
+// fset is optional. For an in-memory MemFile that carries an explicit Kind,
+// prefer [GetMemFileKind] — it picks up new-style filetests whose Name is a
+// bare basename (Kind=Filetest, no `_filetest.gno` suffix).
 func GetFileKind(filename string, body string, fset *token.FileSet) FileKind {
 	if !strings.HasSuffix(filename, ".gno") {
 		return FileKindOther
 	}
-
 	if std.IsFiletestName(filename) {
 		return FileKindFiletest
 	}
-
 	if !strings.HasSuffix(filename, "_test.gno") {
 		return FileKindPackageSource
 	}
-
 	if fset == nil {
 		fset = token.NewFileSet()
 	}
@@ -57,34 +56,23 @@ func GetFileKind(filename string, body string, fset *token.FileSet) FileKind {
 	if err != nil {
 		return FileKindTest
 	}
-	packageName := ast.Name.Name
-
-	if strings.HasSuffix(packageName, "_test") {
+	if strings.HasSuffix(ast.Name.Name, "_test") {
 		return FileKindXTest
 	}
 	return FileKindTest
 }
 
 // GetMemFileKind returns the FileKind of a MemFile. It prefers the explicit
-// std.MemFile.Kind set at read time (which carries filetest classification
-// for new-style filetests whose Name is a bare basename) and falls back to
-// name/body inspection via GetFileKind for legacy MemFiles with Kind unset.
+// Kind field (which carries new-style filetests via [std.KindFiletest]) and
+// falls back to name/body inspection via [GetFileKind] only when Kind is
+// [FileKindUnknown] (e.g. amino-decoded from legacy storage) or when
+// distinguishing Test vs. XTest needs a package-clause parse.
 func GetMemFileKind(mfile *std.MemFile, fset *token.FileSet) FileKind {
 	switch mfile.Kind {
-	case std.KindFiletest:
-		return FileKindFiletest
-	case std.KindXTest:
-		return FileKindXTest
-	case std.KindPackageSource:
-		return FileKindPackageSource
-	case std.KindOther:
-		return FileKindOther
-	case std.KindTest:
-		// Could be Test or XTest; distinction needs body parse.
-		return GetFileKind(mfile.Name, mfile.Body, fset)
-	case std.KindUnknown:
+	case FileKindUnknown, FileKindTest:
+		// KindTest can't tell us Test vs XTest without parsing.
 		return GetFileKind(mfile.Name, mfile.Body, fset)
 	default:
-		return FileKindUnknown
+		return mfile.Kind
 	}
 }

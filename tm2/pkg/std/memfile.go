@@ -51,6 +51,54 @@ const (
 	KindOther                            // non-.gno (md, toml, LICENSE, etc.)
 )
 
+// String returns the canonical string name of the Kind. It also implements
+// encoding.TextMarshaler so map[MemFileKind]V serializes with named keys
+// instead of numeric ones (used by gnovm/pkg/packages for the `gno list -json`
+// wire shape).
+func (k MemFileKind) String() string {
+	switch k {
+	case KindUnknown:
+		return ""
+	case KindPackageSource:
+		return "PackageSource"
+	case KindTest:
+		return "Test"
+	case KindXTest:
+		return "XTest"
+	case KindFiletest:
+		return "Filetest"
+	case KindOther:
+		return "Other"
+	default:
+		return fmt.Sprintf("MemFileKind(%d)", uint8(k))
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (k MemFileKind) MarshalText() ([]byte, error) { return []byte(k.String()), nil }
+
+// UnmarshalText implements encoding.TextUnmarshaler. The empty string and
+// "Unknown" both decode to KindUnknown.
+func (k *MemFileKind) UnmarshalText(b []byte) error {
+	switch string(b) {
+	case "", "Unknown":
+		*k = KindUnknown
+	case "PackageSource":
+		*k = KindPackageSource
+	case "Test":
+		*k = KindTest
+	case "XTest":
+		*k = KindXTest
+	case "Filetest":
+		*k = KindFiletest
+	case "Other":
+		*k = KindOther
+	default:
+		return fmt.Errorf("invalid MemFileKind %q", string(b))
+	}
+	return nil
+}
+
 // IsFiletestName reports whether a flat basename matches the legacy
 // `_filetest.gno` suffix convention. It is the legacy fallback classifier
 // used when a MemFile lacks an explicit Kind (e.g. amino-decoded from
@@ -90,6 +138,17 @@ type MemFile struct {
 	Name string      `json:"name" yaml:"name"`
 	Body string      `json:"body" yaml:"body"`
 	Kind MemFileKind `json:"kind,omitempty" yaml:"kind,omitempty"`
+}
+
+// DiskSubdir returns the on-disk subdirectory (relative to a package's root)
+// where this file should live. Filetests go under FiletestsDir; everything
+// else stays at the root. Shared by MemPackage.WriteTo and pkgdownload.Download
+// so the two writers agree on layout without copy-pasting the rule.
+func (mfile *MemFile) DiskSubdir() string {
+	if mfile.IsFiletest() {
+		return FiletestsDir
+	}
+	return ""
 }
 
 // IsFiletest reports whether the file is a filetest. It prefers the explicit
@@ -293,17 +352,12 @@ func (mpkg *MemPackage) IsZero() bool {
 	return mpkg.Name == "" && len(mpkg.Files) == 0
 }
 
-// Write all files into dir. Filetests are written to a `filetests/`
-// subdir to match the read convention (see gnolang.ReadMemPackage);
-// MemFile.Name remains a flat basename.
+// Write all files into dir. Layout is decided by MemFile.DiskSubdir.
 func (mpkg *MemPackage) WriteTo(dir string) error {
 	for _, mfile := range mpkg.Files {
-		fdir := dir
-		if mfile.IsFiletest() {
-			fdir = filepath.Join(dir, FiletestsDir)
-			if err := os.MkdirAll(fdir, 0o755); err != nil {
-				return err
-			}
+		fdir := filepath.Join(dir, mfile.DiskSubdir())
+		if err := os.MkdirAll(fdir, 0o755); err != nil {
+			return err
 		}
 		fpath := filepath.Join(fdir, mfile.Name)
 		if err := os.WriteFile(fpath, []byte(mfile.Body), 0o644); err != nil {
