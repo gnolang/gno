@@ -16,14 +16,16 @@ type Signer interface {
 	Sign(SignCfg) (*std.Tx, error) // Signs a transaction and returns a signed tx ready for broadcasting.
 	Info() (keys.Info, error)      // Returns key information, including the address.
 	Validate() error               // Checks whether the signer is properly configured.
+	GetMaster() crypto.Address     // The address of the master account if this is a session account.
 }
 
 // SignerFromKeybase represents a signer created from a Keybase.
 type SignerFromKeybase struct {
-	Keybase  keys.Keybase // Stores keys in memory or on disk
-	Account  string       // Account name or bech32 format
-	Password string       // Password for encryption
-	ChainID  string       // Chain ID for transaction signing
+	Keybase  keys.Keybase   // Stores keys in memory or on disk
+	Account  string         // Account name or bech32 format
+	Password string         // Password for encryption
+	ChainID  string         // Chain ID for transaction signing
+	Master   crypto.Address // The address of the master account if this is a session account.
 }
 
 // Validate checks if the signer is properly configured.
@@ -68,14 +70,16 @@ func (s SignerFromKeybase) Info() (keys.Info, error) {
 	return info, nil
 }
 
+func (s SignerFromKeybase) GetMaster() crypto.Address {
+	return s.Master
+}
+
 // SignCfg provides the signing configuration, containing:
 // unsigned transaction data, account number, and account sequence.
-// If Master is not zero, use it to match with tx.GetSigners().
 type SignCfg struct {
 	UnsignedTX     std.Tx
 	SequenceNumber uint64
 	AccountNumber  uint64
-	Master         crypto.Address
 }
 
 // Sign implements the Signer interface for SignerFromKeybase.
@@ -115,13 +119,12 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 		return nil, err
 	}
 	var addr crypto.Address
-	if cfg.Master.IsZero() {
-		addr = pub.Address()
+	if !s.GetMaster().IsZero() {
+		addr = s.GetMaster()
 	} else {
-		addr = cfg.Master
+		addr = pub.Address()
 	}
 	found := false
-	// tx.GetSigners() returns the "Caller" master key, not the signer key in the SignerFromKeybase. singleSigner is a temporarily hack.
 	for i := range tx.Signatures {
 		if signers[i] == addr {
 			found = true

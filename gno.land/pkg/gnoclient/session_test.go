@@ -40,11 +40,15 @@ func TestCallSessionSingle_Integration(t *testing.T) {
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
-	// Make the session account
-	signer := newInMemorySessionSigner(t, "tendermint_test")
+	// Make the master and session account
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	signer := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
 	signerInfo, err := signer.Info()
 	require.NoError(t, err)
-	masterInfo := createSession(t, rpcClient, signerInfo.GetPubKey())
+	createSession(t, rpcClient, masterSigner, signerInfo.GetPubKey())
 
 	// Set up Client
 	client := Client{
@@ -59,7 +63,6 @@ func TestCallSessionSingle_Integration(t *testing.T) {
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
-		Master:         masterInfo.GetAddress(),
 	}
 	msg := vm.MsgCall{
 		Caller:  masterInfo.GetAddress(),
@@ -92,11 +95,15 @@ func TestSendSessionSingle_Integration(t *testing.T) {
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
-	// Make the session account
-	signer := newInMemorySessionSigner(t, "tendermint_test")
+	// Make the master and session account
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	signer := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
 	signerInfo, err := signer.Info()
 	require.NoError(t, err)
-	masterInfo := createSession(t, rpcClient, signerInfo.GetPubKey())
+	createSession(t, rpcClient, masterSigner, signerInfo.GetPubKey())
 
 	// Set up Client
 	client := Client{
@@ -111,7 +118,6 @@ func TestSendSessionSingle_Integration(t *testing.T) {
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
-		Master:         masterInfo.GetAddress(),
 	}
 
 	// Make Send config for a new address on the blockchain
@@ -163,11 +169,15 @@ func TestRunSessionSingle_Integration(t *testing.T) {
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
-	// Make the session account
-	signer := newInMemorySessionSigner(t, "tendermint_test")
+	// Make the master and session account
+	masterSigner := newInMemorySigner(t, "tendermint_test")
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
+
+	signer := newInMemorySessionSigner(t, "tendermint_test", masterInfo.GetAddress())
 	signerInfo, err := signer.Info()
 	require.NoError(t, err)
-	masterInfo := createSession(t, rpcClient, signerInfo.GetPubKey())
+	createSession(t, rpcClient, masterSigner, signerInfo.GetPubKey())
 
 	// Set up Client
 	client := Client{
@@ -182,7 +192,6 @@ func TestRunSessionSingle_Integration(t *testing.T) {
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
-		Master:         masterInfo.GetAddress(),
 	}
 
 	fileBody := `package main
@@ -225,7 +234,7 @@ func main(cur realm) {
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
 }
 
-func newInMemorySessionSigner(t *testing.T, chainid string) *SignerFromKeybase {
+func newInMemorySessionSigner(t *testing.T, chainid string, master crypto.Address) *SignerFromKeybase {
 	t.Helper()
 
 	mnemonic := TestSessionAccount_Seed
@@ -240,21 +249,19 @@ func newInMemorySessionSigner(t *testing.T, chainid string) *SignerFromKeybase {
 		Account:  name,    // Account name or bech32 format
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
+		Master:   master,  // The address of the master account
 	}
 }
 
-// createSession uses the default key from newInMemorySigner to create a session for sessionKey.
-// Return the default (master) key info.
-func createSession(t *testing.T, rpcClient rpcclient.Client, sessionKey crypto.PubKey) keys.Info {
+func createSession(t *testing.T, rpcClient rpcclient.Client, masterSigner Signer, sessionKey crypto.PubKey) {
 	t.Helper()
 
-	masterSigner := newInMemorySigner(t, "tendermint_test")
-	masterInfo, err := masterSigner.Info()
-	require.NoError(t, err)
 	client := Client{
 		Signer:    masterSigner,
 		RPCClient: rpcClient,
 	}
+	masterInfo, err := masterSigner.Info()
+	require.NoError(t, err)
 
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2100000),
@@ -271,6 +278,4 @@ func createSession(t *testing.T, rpcClient rpcclient.Client, sessionKey crypto.P
 	}
 	_, err = client.CreateSession(baseCfg, msg)
 	require.NoError(t, err)
-
-	return masterInfo
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -31,8 +30,6 @@ type BaseTxCfg struct {
 	AccountNumber  uint64 // Account number
 	SequenceNumber uint64 // Sequence number
 	Memo           string // Memo
-	// Master, when set, signs the tx as a session account on behalf of this master key.
-	Master crypto.Address
 }
 
 // Call executes one or more MsgCall calls on the blockchain
@@ -49,7 +46,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcas
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewCallTx makes an unsigned transaction from one or more MsgCall.
@@ -99,7 +96,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastT
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewRunTx makes an unsigned transaction from one or more MsgRun.
@@ -149,7 +146,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadc
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewSendTx makes an unsigned transaction from one or more MsgSend.
@@ -199,7 +196,7 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.Re
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, cfg.Master)
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewAddPackageTx makes an unsigned transaction from one or more MsgAddPackage.
@@ -249,7 +246,7 @@ func (c *Client) CreateSession(cfg BaseTxCfg, msgs ...auth.MsgCreateSession) (*c
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, crypto.Address{})
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewCreateSessionTx makes an unsigned transaction from one or more MsgCreateSession.
@@ -299,7 +296,7 @@ func (c *Client) RevokeSession(cfg BaseTxCfg, msgs ...auth.MsgRevokeSession) (*c
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, crypto.Address{})
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewRevokeSessionTx makes an unsigned transaction from one or more MsgRevokeSession.
@@ -349,7 +346,7 @@ func (c *Client) RevokeAllSessions(cfg BaseTxCfg, msgs ...auth.MsgRevokeAllSessi
 	if err != nil {
 		return nil, err
 	}
-	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber, crypto.Address{})
+	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
 // NewRevokeAllSessionsTx makes an unsigned transaction from one or more MsgRevokeAllSessions.
@@ -386,8 +383,8 @@ func NewRevokeAllSessionsTx(cfg BaseTxCfg, msgs ...auth.MsgRevokeAllSessions) (*
 }
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result
-func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64, master crypto.Address) (*ctypes.ResultBroadcastTxCommit, error) {
-	signedTx, err := c.SignTx(tx, accountNumber, sequenceNumber, master)
+func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
+	signedTx, err := c.SignTx(tx, accountNumber, sequenceNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -396,25 +393,25 @@ func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumb
 
 // SignTx signs a transaction and returns a signed tx ready for broadcasting.
 // If accountNumber or sequenceNumber is 0 then query the blockchain for the value.
-func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64, master crypto.Address) (*std.Tx, error) {
+func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.Tx, error) {
 	if err := c.validateSigner(); err != nil {
 		return nil, err
 	}
-	caller, err := c.Signer.Info()
+	signerInfo, err := c.Signer.Info()
 	if err != nil {
 		return nil, err
 	}
 
 	if sequenceNumber == 0 || accountNumber == 0 {
 		var account *std.BaseAccount
-		if master.IsZero() {
-			account, _, err = c.QueryAccount(caller.GetAddress())
+		if c.Signer.GetMaster().IsZero() {
+			account, _, err = c.QueryAccount(signerInfo.GetAddress())
 			if err != nil {
 				return nil, errors.Wrap(err, "query account")
 			}
 		} else {
 			// Query the session info
-			account, _, err = c.QuerySessionAccount(master, caller.GetAddress())
+			account, _, err = c.QuerySessionAccount(c.Signer.GetMaster(), signerInfo.GetAddress())
 			if err != nil {
 				return nil, errors.Wrap(err, "query session account")
 			}
@@ -427,17 +424,16 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64, master 
 		UnsignedTX:     tx,
 		SequenceNumber: sequenceNumber,
 		AccountNumber:  accountNumber,
-		Master:         master,
 	}
 	signedTx, err := c.Signer.Sign(signCfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "sign")
 	}
-	if !master.IsZero() {
+	if !c.Signer.GetMaster().IsZero() {
 		// Need to set SessionAddr
 		for i := range signedTx.Signatures {
-			if signedTx.Signatures[i].PubKey.Address() == caller.GetAddress() {
-				signedTx.Signatures[i].SessionAddr = caller.GetAddress()
+			if signedTx.Signatures[i].PubKey.Address() == signerInfo.GetAddress() {
+				signedTx.Signatures[i].SessionAddr = signerInfo.GetAddress()
 			}
 		}
 	}
