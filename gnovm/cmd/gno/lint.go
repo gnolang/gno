@@ -9,6 +9,7 @@ import (
 	"go/types"
 	goio "io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -330,7 +331,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					mfile := mpkg.GetFile(fname)
 					dirs, derr := test.ParseDirectives(strings.NewReader(mfile.Body))
 					if derr != nil {
-						io.ErrPrintln(fmt.Errorf("error parsing directives: %w", derr))
+						io.ErrPrintln(derr)
 						hasError = true
 						continue
 					}
@@ -345,23 +346,25 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					// violation regression test) doesn't skip siblings, and so
 					// expected-failure filetests don't fail the whole lint run.
 					func() {
-						defer func() {
-							r := recover()
-							if r == nil {
-								return
-							}
-							if expectsErr {
-								// Filetest declared an expected error directive;
-								// `gno test` validates the actual failure.
-								return
-							}
-							if err, ok := r.(error); ok {
-								printError(io.Err(), dir, filetestPath, err)
-								hasError = true
-							} else {
-								panic(r)
-							}
-						}()
+						if os.Getenv("DEBUG_PANIC") != "1" {
+							defer func() {
+								r := recover()
+								if r == nil {
+									return
+								}
+								if expectsErr {
+									// Filetest declared an expected error directive;
+									// `gno test` validates the actual failure.
+									return
+								}
+								if err, ok := r.(error); ok {
+									printError(io.Err(), dir, filetestPath, err)
+									hasError = true
+								} else {
+									panic(r)
+								}
+							}()
+						}
 						pn, _ := tm.PreprocessFiles(pkgName, filetestPath, fset, false, false)
 						ppkg.AddFileTest(pn, fset)
 					}()

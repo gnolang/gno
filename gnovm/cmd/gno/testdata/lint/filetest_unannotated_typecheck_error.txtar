@@ -1,0 +1,30 @@
+# lint should still flag _filetest.gno files that have a type error but no
+# `// TypeCheckError:` directive — the directive is what defers the failure
+# to `gno test`; absent the directive, lint reports it.
+
+! gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- good.gno --
+package good
+
+func Hello() string { return "hi" }
+
+-- z_bad_filetest.gno --
+// PKGPATH: gno.land/r/test/baddemo
+package baddemo
+
+func main() {
+	var x int = "hello"
+	_ = x
+}
+
+-- gnomod.toml --
+module = "gno.land/p/test/good"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+z_bad_filetest.gno:5:14: cannot use "hello" (untyped string constant) as int value in variable declaration (code=gnoTypeCheckError)
