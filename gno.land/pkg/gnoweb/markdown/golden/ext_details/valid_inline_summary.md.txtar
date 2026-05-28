@@ -1,0 +1,11 @@
+-- input.md --
+:::details **Bold** summary with [link](https://example.com)
+Content.
+:::
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><strong>Bold</strong> summary with <a href="https://example.com" rel="noopener nofollow ugc">link<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></summary>
+<div>
+<p>Content.</p>
+</div>
+</details>

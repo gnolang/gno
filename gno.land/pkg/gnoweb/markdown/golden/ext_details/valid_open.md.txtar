@@ -1,0 +1,11 @@
+-- input.md --
+:::details[open] Visible by default
+Body paragraph.
+:::
+-- output.html --
+<details class="gno-details" open>
+<summary><svg><use href="#ico-arrow"></use></svg>Visible by default</summary>
+<div>
+<p>Body paragraph.</p>
+</div>
+</details>
