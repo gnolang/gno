@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -60,27 +59,26 @@ func (e *ExamplesPackageFetcher) FetchPackage(pkgPath string) ([]*std.MemFile, e
 		res = append(res, &std.MemFile{Name: name, Body: string(body)})
 	}
 	if filetestsDir != "" {
-		// Add filetest files from the subdir, like in ReadMemPackage
 		filetestsFiles, err := os.ReadDir(filetestsDir)
 		if err != nil {
 			return nil, err
 		}
 		for _, entry := range filetestsFiles {
-			name := entry.Name()
-
-			if strings.HasSuffix(name, "_filetest.gno") {
-				if slices.ContainsFunc(res, func(m *std.MemFile) bool { return m.Name == name }) {
-					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", name, pkgDir)
-				}
-
-				filePath := filepath.Join(filetestsDir, name)
-				body, err := os.ReadFile(filePath)
-				if err != nil {
-					return nil, fmt.Errorf("read file at %q: %w", filePath, err)
-				}
-
-				res = append(res, &std.MemFile{Name: name, Body: string(body)})
+			if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+				continue
 			}
+			if !strings.HasSuffix(entry.Name(), ".gno") {
+				continue
+			}
+			filePath := filepath.Join(filetestsDir, entry.Name())
+			body, err := os.ReadFile(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("read file at %q: %w", filePath, err)
+			}
+			res = append(res, &std.MemFile{
+				Name: std.FiletestsPrefix + entry.Name(),
+				Body: string(body),
+			})
 		}
 	}
 

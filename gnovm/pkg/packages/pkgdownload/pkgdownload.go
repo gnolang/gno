@@ -21,6 +21,12 @@ func Download(pkgPath string, dst string, fetcher PackageFetcher) error {
 
 	for _, file := range files {
 		fileDst := filepath.Join(dst, file.Name)
+		// MemFile.Name may carry a "filetests/" prefix.
+		if dir := filepath.Dir(fileDst); dir != dst {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("mkdir for %q: %w", fileDst, err)
+			}
+		}
 		if err := os.WriteFile(fileDst, []byte(file.Body), 0o644); err != nil {
 			return fmt.Errorf("write file at %q: %w", fileDst, err)
 		}

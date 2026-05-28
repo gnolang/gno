@@ -4,6 +4,8 @@ import (
 	"go/parser"
 	"go/token"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // FileKind represent the category a gno package file falls in, can be one of:
@@ -38,7 +40,7 @@ func GetFileKind(filename string, body string, fset *token.FileSet) FileKind {
 		return FileKindOther
 	}
 
-	if strings.HasSuffix(filename, "_filetest.gno") {
+	if std.IsFiletestName(filename) {
 		return FileKindFiletest
 	}
 

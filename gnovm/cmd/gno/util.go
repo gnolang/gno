@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -109,6 +111,12 @@ func walkDirForGnoFiles(root string, addPath func(path string)) error {
 		}
 
 		parentDir := filepath.Dir(currPath)
+		// Files under filetests/ belong to the enclosing package, not to a
+		// separate "filetests" package — collapse to the parent dir so the
+		// walker reports the actual package once.
+		if filepath.Base(parentDir) == std.FiletestsDir {
+			parentDir = filepath.Dir(parentDir)
+		}
 		if _, found := visited[parentDir]; found {
 			return nil
 		}
@@ -169,6 +177,11 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 			}
 
 			parentDir := filepath.Dir(curpath)
+			// See walkDirForGnoFiles: filetests/ contents belong to the
+			// enclosing package, not to a separate "filetests" package.
+			if filepath.Base(parentDir) == std.FiletestsDir {
+				parentDir = filepath.Dir(parentDir)
+			}
 			if _, found := visited[parentDir]; found {
 				return nil
 			}

@@ -19,24 +19,52 @@ const (
 	pkgPathLimit  = 256
 )
 
+// FiletestsDir is the only subdirectory MemFile.Name may sit under, and only
+// `.gno` files are permitted there. A `.gno` file in this subdir is identified
+// as a filetest regardless of suffix (see IsFiletestName); the legacy
+// `_filetest.gno` suffix at the package root is still recognized for backward
+// compatibility with stored MemPackages.
+const (
+	FiletestsDir    = "filetests"
+	FiletestsPrefix = FiletestsDir + "/"
+)
+
+const (
+	reBaseName = `(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)`
+	reFiletest = `([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.gno`
+)
+
+// See also gnovm/pkg/gnolang/mempackage.go.
+// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
 var (
-	// See also gnovm/pkg/gnolang/mempackage.go.
-	// NOTE: DO NOT MODIFY without a pre/post ADR and discussions with core GnoVM and gno.land teams.
-	reFileName   = regexp.MustCompile(`^(([a-z0-9_\-]+|[A-Z0-9_\-]+)(\.[a-z0-9_]+)*\.[a-z0-9_]{1,7}|LICENSE|license|LICENCE|licence|README)$`)
+	reFileName   = regexp.MustCompile(`^(` + FiletestsPrefix + reFiletest + `|` + reBaseName + `)$`)
 	rePkgName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgPathURL = regexp.MustCompile(`^([a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}(\/[a-z0-9\-_]+)+$`)
 	rePkgPathStd = regexp.MustCompile(`^([a-z][a-z0-9_]*\/)*[a-z][a-z0-9_]+$`)
 )
+
+// IsFiletestName reports whether name designates a `.gno` filetest:
+//   - new style: lives under "filetests/" with a .gno extension
+//   - legacy:    flat basename ending in "_filetest.gno"
+func IsFiletestName(name string) bool {
+	if strings.HasPrefix(name, FiletestsPrefix) {
+		return strings.HasSuffix(name, ".gno")
+	}
+	return strings.HasSuffix(name, "_filetest.gno")
+}
 
 //----------------------------------------
 // MemFile
 
 // A MemFile is the simplest representation of a "file".
 //
-// File Name must contain a single dot and extension.
-// File Name may be ALLCAPS.xxx or lowercase.xxx; extensions lowercase.
-// e.g. OK:     README.md, readme.md, readme.txt, READ.me
-// e.g. NOT OK: Readme.md, readme.MD, README, .readme
+// File Name may contain a single optional subdirectory prefix "filetests/"
+// followed by the filename; the filename must contain a single dot and
+// extension, and may be ALLCAPS.xxx or lowercase.xxx with a lowercase extension.
+// Under "filetests/" only `.gno` files are permitted.
+// e.g. OK:     README.md, readme.md, readme.txt, READ.me, filetests/foo.gno
+// e.g. NOT OK: Readme.md, readme.MD, README, .readme, sub/foo.gno,
+//              filetests/README.md, filetests/foo.toml
 // File Body can be any string.
 //
 // NOTE: It doesn't have owners or timestamps. Keep this as is for portability.
@@ -235,14 +263,31 @@ func (mpkg *MemPackage) IsZero() bool {
 	return mpkg.Name == "" && len(mpkg.Files) == 0
 }
 
-// Write all files into dir.
+// Write all files into dir. Layout is encoded in MemFile.Name:
+//   - "foo.gno"             → dir/foo.gno
+//   - "filetests/foo.gno"   → dir/filetests/foo.gno
+//   - "foo_filetest.gno"    → dir/filetests/foo_filetest.gno (legacy fallback,
+//     for MemPackages that round-tripped through amino storage before the
+//     filetests/ prefix existed).
+//
+// NOTE: the legacy fallback is a one-way migration. A bare `foo_filetest.gno`
+// MemFile, after WriteTo + ReadMemPackage, comes back as `filetests/foo_filetest.gno`
+// — its MemFile.Name has changed, so any digest, sort, or equality check against
+// the original will diverge. Do not WriteTo+re-read packages whose hash you need
+// to preserve.
 func (mpkg *MemPackage) WriteTo(dir string) error {
-	// fmt.Printf("writing mempackage to %q:\n", dir)
 	for _, mfile := range mpkg.Files {
-		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))
-		fpath := filepath.Join(dir, mfile.Name)
-		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
-		if err != nil {
+		name := mfile.Name
+		// Legacy fallback: route bare _filetest.gno basenames under filetests/
+		// to match the read convention.
+		if IsFiletestName(name) && !strings.HasPrefix(name, FiletestsPrefix) {
+			name = FiletestsPrefix + name
+		}
+		fpath := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(fpath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(fpath, []byte(mfile.Body), 0o644); err != nil {
 			return err
 		}
 	}

@@ -3,6 +3,8 @@ package components
 import (
 	"regexp"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
@@ -84,7 +86,7 @@ func SourceView(data SourceData) *View {
 		case file == ReadmeFileName:
 			tocData.ReadmeFile = item
 
-		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
+		case strings.HasSuffix(file, "_test.gno") || std.IsFiletestName(file):
 			tocData.GnoTestFiles = append(tocData.GnoTestFiles, item)
 
 		case strings.HasSuffix(file, ".gno"):

@@ -74,8 +74,8 @@ func sourceAndTestFileset(mpkg *std.MemPackage, onlyFiletests bool) (
 			continue // Skip empty files
 		}
 		all.AddFiles(n)
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") || onlyFiletests {
-			// A _filetest.gno is a package of its own.
+		if std.IsFiletestName(mfile.Name) || onlyFiletests {
+			// A filetest is a package of its own.
 			ftset := &gno.FileSet{}
 			ftset.AddFiles(n)
 			ftests = append(ftests, ftset)
@@ -106,17 +106,17 @@ func parsePkgPathDirective(body string, defaultPkgPath string) (string, error) {
 	return dirs.FirstDefault(test.DirectivePkgPath, defaultPkgPath), nil
 }
 
-// hasErrorDirective reports whether the filetest body declares an
-// // Error: directive. Used by lint to decide whether to swallow a
-// preprocess panic (the directive is the filetest author asserting the
-// error is expected; exact-message verification belongs to `gno test`,
-// not lint).
-func hasErrorDirective(body string) (bool, error) {
+// filetestExpectsFailure reports whether a filetest body declares an
+// `// Error:` or `// TypeCheckError:` directive — i.e., the file is
+// expected to fail at preprocess, type-check or run-time, and `gno test`
+// validates the actual failure. Lint should not propagate such failures.
+func filetestExpectsFailure(body string) (bool, error) {
 	dirs, err := test.ParseDirectives(bytes.NewReader([]byte(body)))
 	if err != nil {
 		return false, fmt.Errorf("error parsing directives: %w", err)
 	}
-	return dirs.First(test.DirectiveError) != nil, nil
+	return dirs.First(test.DirectiveError) != nil ||
+		dirs.First(test.DirectiveTypeCheckError) != nil, nil
 }
 
 func printError(w io.WriteCloser, dir, pkgPath string, err error) {
