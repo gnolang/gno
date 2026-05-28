@@ -67,8 +67,8 @@ func TestBlockRich(t *testing.T) {
 		{"> quote\n", "\n> quote\n"},
 		{"- item\n", "\n- item\n"},
 		{"1. item\n", "\n1. item\n"},
-		{"---\n", "\n\\---\n"},          // first-line setext-h2 → escaped by qualifying-setext pre-pass
-		{"***\n", "\n***\n"},            // thematic break NOT setext-h2 — preserved
+		{"---\n", "\n\\---\n"},           // first-line setext-h2 → escaped by qualifying-setext pre-pass
+		{"***\n", "\n***\n"},             // thematic break NOT setext-h2 — preserved
 		{"text\n===\n", "\ntext\n===\n"}, // deeper setext preserved (user-authored above)
 		// Realm-binding defenses STILL ON.
 		{"<gno-card>\n", "\n\\<gno-card>\n"},
@@ -98,7 +98,7 @@ func TestNeuterLeadingSetextIfQualifying(t *testing.T) {
 		{"leading-setext-indented", "   ===\nbody\n", "   \\===\nbody\n"},
 		{"leading-setext-indented-4", "    ===\nbody\n", "    ===\nbody\n"}, // indented code
 		{"leading-setext-trailing-ws", "===   \nbody\n", "\\===   \nbody\n"},
-		{"leading-setext-mixed-chars", "=-=-\nbody\n", "=-=-\nbody\n"}, // mixed; not setext
+		{"leading-setext-mixed-chars", "=-=-\nbody\n", "=-=-\nbody\n"},         // mixed; not setext
 		{"leading-setext-has-content", "=== text\nbody\n", "=== text\nbody\n"}, // mixed content
 		{"setext-deeper-untouched", "title\n===\nfoo\n", "title\n===\nfoo\n"},
 		{"leading-thematic-asterisk", "***\nbody\n", "***\nbody\n"}, // not setext, untouched

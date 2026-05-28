@@ -636,6 +636,7 @@ func neuterLeadingSetextIfQualifying(s string) string {
 //     `#`/`>`/etc., then Blockquote's Block step escapes them again.
 //   - BlockRich(Blockquote(s)) doesn't make sense: Blockquote already
 //     line-prefixed with `> `; BlockRich expects raw user content.
+//
 // If you want a blockquote whose body can contain headings, lists, or
 // other block-level structure, line-prefix `BlockRich(s)` with `> `
 // yourself (or wait for a `BlockquoteRich` helper to be added).

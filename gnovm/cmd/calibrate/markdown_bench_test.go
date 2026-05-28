@@ -67,12 +67,18 @@ func benchMarkdownStripBidi(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Markdown_StripBidiAndZeroWidth_1(b *testing.B)      { benchMarkdownStripBidi(b, 1) }
-func BenchmarkNative_Markdown_StripBidiAndZeroWidth_10(b *testing.B)     { benchMarkdownStripBidi(b, 10) }
-func BenchmarkNative_Markdown_StripBidiAndZeroWidth_100(b *testing.B)    { benchMarkdownStripBidi(b, 100) }
-func BenchmarkNative_Markdown_StripBidiAndZeroWidth_1000(b *testing.B)   { benchMarkdownStripBidi(b, 1000) }
-func BenchmarkNative_Markdown_StripBidiAndZeroWidth_10000(b *testing.B)  { benchMarkdownStripBidi(b, 10000) }
-func BenchmarkNative_Markdown_StripBidiAndZeroWidth_100000(b *testing.B) { benchMarkdownStripBidi(b, 100000) }
+func BenchmarkNative_Markdown_StripBidiAndZeroWidth_1(b *testing.B)   { benchMarkdownStripBidi(b, 1) }
+func BenchmarkNative_Markdown_StripBidiAndZeroWidth_10(b *testing.B)  { benchMarkdownStripBidi(b, 10) }
+func BenchmarkNative_Markdown_StripBidiAndZeroWidth_100(b *testing.B) { benchMarkdownStripBidi(b, 100) }
+func BenchmarkNative_Markdown_StripBidiAndZeroWidth_1000(b *testing.B) {
+	benchMarkdownStripBidi(b, 1000)
+}
+func BenchmarkNative_Markdown_StripBidiAndZeroWidth_10000(b *testing.B) {
+	benchMarkdownStripBidi(b, 10000)
+}
+func BenchmarkNative_Markdown_StripBidiAndZeroWidth_100000(b *testing.B) {
+	benchMarkdownStripBidi(b, 100000)
+}
 
 // ----- NormalizeBreaks -----
 // Worst case: every byte triggers the slow-path branch (alternating
@@ -90,12 +96,18 @@ func benchMarkdownNormalizeBreaks(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Markdown_NormalizeBreaks_1(b *testing.B)      { benchMarkdownNormalizeBreaks(b, 1) }
-func BenchmarkNative_Markdown_NormalizeBreaks_10(b *testing.B)     { benchMarkdownNormalizeBreaks(b, 10) }
-func BenchmarkNative_Markdown_NormalizeBreaks_100(b *testing.B)    { benchMarkdownNormalizeBreaks(b, 100) }
-func BenchmarkNative_Markdown_NormalizeBreaks_1000(b *testing.B)   { benchMarkdownNormalizeBreaks(b, 1000) }
-func BenchmarkNative_Markdown_NormalizeBreaks_10000(b *testing.B)  { benchMarkdownNormalizeBreaks(b, 10000) }
-func BenchmarkNative_Markdown_NormalizeBreaks_100000(b *testing.B) { benchMarkdownNormalizeBreaks(b, 100000) }
+func BenchmarkNative_Markdown_NormalizeBreaks_1(b *testing.B)   { benchMarkdownNormalizeBreaks(b, 1) }
+func BenchmarkNative_Markdown_NormalizeBreaks_10(b *testing.B)  { benchMarkdownNormalizeBreaks(b, 10) }
+func BenchmarkNative_Markdown_NormalizeBreaks_100(b *testing.B) { benchMarkdownNormalizeBreaks(b, 100) }
+func BenchmarkNative_Markdown_NormalizeBreaks_1000(b *testing.B) {
+	benchMarkdownNormalizeBreaks(b, 1000)
+}
+func BenchmarkNative_Markdown_NormalizeBreaks_10000(b *testing.B) {
+	benchMarkdownNormalizeBreaks(b, 10000)
+}
+func BenchmarkNative_Markdown_NormalizeBreaks_100000(b *testing.B) {
+	benchMarkdownNormalizeBreaks(b, 100000)
+}
 
 // ----- EscapeInline -----
 // Worst case: every byte is in the escape set (all `*` → every byte
@@ -159,12 +171,20 @@ func benchMarkdownPercentEncodeURL(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Markdown_PercentEncodeURL_1(b *testing.B)      { benchMarkdownPercentEncodeURL(b, 1) }
-func BenchmarkNative_Markdown_PercentEncodeURL_10(b *testing.B)     { benchMarkdownPercentEncodeURL(b, 10) }
-func BenchmarkNative_Markdown_PercentEncodeURL_100(b *testing.B)    { benchMarkdownPercentEncodeURL(b, 100) }
-func BenchmarkNative_Markdown_PercentEncodeURL_1000(b *testing.B)   { benchMarkdownPercentEncodeURL(b, 1000) }
-func BenchmarkNative_Markdown_PercentEncodeURL_10000(b *testing.B)  { benchMarkdownPercentEncodeURL(b, 10000) }
-func BenchmarkNative_Markdown_PercentEncodeURL_100000(b *testing.B) { benchMarkdownPercentEncodeURL(b, 100000) }
+func BenchmarkNative_Markdown_PercentEncodeURL_1(b *testing.B)  { benchMarkdownPercentEncodeURL(b, 1) }
+func BenchmarkNative_Markdown_PercentEncodeURL_10(b *testing.B) { benchMarkdownPercentEncodeURL(b, 10) }
+func BenchmarkNative_Markdown_PercentEncodeURL_100(b *testing.B) {
+	benchMarkdownPercentEncodeURL(b, 100)
+}
+func BenchmarkNative_Markdown_PercentEncodeURL_1000(b *testing.B) {
+	benchMarkdownPercentEncodeURL(b, 1000)
+}
+func BenchmarkNative_Markdown_PercentEncodeURL_10000(b *testing.B) {
+	benchMarkdownPercentEncodeURL(b, 10000)
+}
+func BenchmarkNative_Markdown_PercentEncodeURL_100000(b *testing.B) {
+	benchMarkdownPercentEncodeURL(b, 100000)
+}
 
 // ----- MatchCharsetN -----
 // Worst case: input matches the charset for its entire length — forces
@@ -212,12 +232,14 @@ func benchMarkdownMatchCharsetN(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Markdown_MatchCharsetN_1(b *testing.B)      { benchMarkdownMatchCharsetN(b, 1) }
-func BenchmarkNative_Markdown_MatchCharsetN_10(b *testing.B)     { benchMarkdownMatchCharsetN(b, 10) }
-func BenchmarkNative_Markdown_MatchCharsetN_100(b *testing.B)    { benchMarkdownMatchCharsetN(b, 100) }
-func BenchmarkNative_Markdown_MatchCharsetN_1000(b *testing.B)   { benchMarkdownMatchCharsetN(b, 1000) }
-func BenchmarkNative_Markdown_MatchCharsetN_10000(b *testing.B)  { benchMarkdownMatchCharsetN(b, 10000) }
-func BenchmarkNative_Markdown_MatchCharsetN_100000(b *testing.B) { benchMarkdownMatchCharsetN(b, 100000) }
+func BenchmarkNative_Markdown_MatchCharsetN_1(b *testing.B)     { benchMarkdownMatchCharsetN(b, 1) }
+func BenchmarkNative_Markdown_MatchCharsetN_10(b *testing.B)    { benchMarkdownMatchCharsetN(b, 10) }
+func BenchmarkNative_Markdown_MatchCharsetN_100(b *testing.B)   { benchMarkdownMatchCharsetN(b, 100) }
+func BenchmarkNative_Markdown_MatchCharsetN_1000(b *testing.B)  { benchMarkdownMatchCharsetN(b, 1000) }
+func BenchmarkNative_Markdown_MatchCharsetN_10000(b *testing.B) { benchMarkdownMatchCharsetN(b, 10000) }
+func BenchmarkNative_Markdown_MatchCharsetN_100000(b *testing.B) {
+	benchMarkdownMatchCharsetN(b, 100000)
+}
 
 // ----- CodeFence -----
 // CodeFence always scans the full content. All-backtick input exercises
@@ -269,12 +291,24 @@ func benchMarkdownEscapeBlockHazards(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkNative_Markdown_EscapeBlockHazards_1(b *testing.B)      { benchMarkdownEscapeBlockHazards(b, 1) }
-func BenchmarkNative_Markdown_EscapeBlockHazards_10(b *testing.B)     { benchMarkdownEscapeBlockHazards(b, 10) }
-func BenchmarkNative_Markdown_EscapeBlockHazards_100(b *testing.B)    { benchMarkdownEscapeBlockHazards(b, 100) }
-func BenchmarkNative_Markdown_EscapeBlockHazards_1000(b *testing.B)   { benchMarkdownEscapeBlockHazards(b, 1000) }
-func BenchmarkNative_Markdown_EscapeBlockHazards_10000(b *testing.B)  { benchMarkdownEscapeBlockHazards(b, 10000) }
-func BenchmarkNative_Markdown_EscapeBlockHazards_100000(b *testing.B) { benchMarkdownEscapeBlockHazards(b, 100000) }
+func BenchmarkNative_Markdown_EscapeBlockHazards_1(b *testing.B) {
+	benchMarkdownEscapeBlockHazards(b, 1)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_10(b *testing.B) {
+	benchMarkdownEscapeBlockHazards(b, 10)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_100(b *testing.B) {
+	benchMarkdownEscapeBlockHazards(b, 100)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_1000(b *testing.B) {
+	benchMarkdownEscapeBlockHazards(b, 1000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_10000(b *testing.B) {
+	benchMarkdownEscapeBlockHazards(b, 10000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_100000(b *testing.B) {
+	benchMarkdownEscapeBlockHazards(b, 100000)
+}
 
 // ----- EscapeBlockHazardsRich -----
 // Same worst-case shape as EscapeBlockHazards (the bracket walker /

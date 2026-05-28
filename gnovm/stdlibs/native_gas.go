@@ -127,14 +127,14 @@ var calibratedNativeGas = []nativeGasEntry{
 	// chain/markdown — calibrated from gnovm/cmd/calibrate (M2 ARM64 baseline,
 	// same as the other rows above). Same Xeon 8168 re-calibration caveat
 	// applies; values are stable across re-runs (R² ≥ 0.994 for all eight).
-	{Pkg: "chain/markdown", Fn: "StripBidiAndZeroWidth", Base: 71, Slope: 1882, SlopeIdx: 0, SlopeKind: SizeLenString},  // fit base=71.1ns slope=1.8378ns/N (=1882/1024) R²=0.998
-	{Pkg: "chain/markdown", Fn: "NormalizeBreaks", Base: 72, Slope: 573, SlopeIdx: 0, SlopeKind: SizeLenString},         // fit base=71.8ns slope=0.5600ns/N (=573/1024) R²=0.994
-	{Pkg: "chain/markdown", Fn: "EscapeInline", Base: 76, Slope: 2041, SlopeIdx: 0, SlopeKind: SizeLenString},           // fit base=75.9ns slope=1.9932ns/N (=2041/1024) R²=0.995
-	{Pkg: "chain/markdown", Fn: "EscapeTitle", Base: 76, Slope: 2060, SlopeIdx: 0, SlopeKind: SizeLenString},            // fit base=76.1ns slope=2.0120ns/N (=2060/1024) R²=0.995
-	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},       // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
-	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},          // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
-	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
-	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},   // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
+	{Pkg: "chain/markdown", Fn: "StripBidiAndZeroWidth", Base: 71, Slope: 1882, SlopeIdx: 0, SlopeKind: SizeLenString},    // fit base=71.1ns slope=1.8378ns/N (=1882/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "NormalizeBreaks", Base: 72, Slope: 573, SlopeIdx: 0, SlopeKind: SizeLenString},           // fit base=71.8ns slope=0.5600ns/N (=573/1024) R²=0.994
+	{Pkg: "chain/markdown", Fn: "EscapeInline", Base: 76, Slope: 2041, SlopeIdx: 0, SlopeKind: SizeLenString},             // fit base=75.9ns slope=1.9932ns/N (=2041/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "EscapeTitle", Base: 76, Slope: 2060, SlopeIdx: 0, SlopeKind: SizeLenString},              // fit base=76.1ns slope=2.0120ns/N (=2060/1024) R²=0.995
+	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},         // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},            // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
+	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},                // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
 }
 

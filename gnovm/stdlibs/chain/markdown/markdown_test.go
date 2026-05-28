@@ -8,9 +8,9 @@ import (
 func TestStripBidiAndZeroWidth(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"plain", "plain"},
-		{"a\u200Bb", "ab"},          // ZWSP
+		{"a\u200Bb", "ab"},               // ZWSP
 		{"a\u202Eevil\u202Cb", "aevilb"}, // RLO + PDF
-		{"\uFEFFstart", "start"},    // BOM
+		{"\uFEFFstart", "start"},         // BOM
 		{"clean\nbreak", "clean\nbreak"},
 	}
 	for _, c := range cases {
@@ -67,7 +67,7 @@ func TestPercentEncodeURL(t *testing.T) {
 		{"http://a.com/x", "http://a.com/x"},
 		{"a b", "a%20b"},
 		{"a<b", "a%3Cb"},
-		{"a%20b", "a%20b"}, // already encoded, preserved
+		{"a%20b", "a%20b"},   // already encoded, preserved
 		{"a%zzb", "a%25zzb"}, // bare %
 	}
 	for _, c := range cases {
@@ -115,10 +115,10 @@ func TestCodeFence(t *testing.T) {
 		want    string
 	}{
 		{"", 3, "```"},
-		{"```", 3, "````"},                  // 3 backticks → 4-fence
-		{"a `b` c", 3, "```"},               // longest run is 1, min wins
-		{"a ``` b ```` c", 3, "`````"},      // longest run 4, +1 = 5
-		{"", 0, "`"},                        // min < 1 clamped to 1
+		{"```", 3, "````"},             // 3 backticks → 4-fence
+		{"a `b` c", 3, "```"},          // longest run is 1, min wins
+		{"a ``` b ```` c", 3, "`````"}, // longest run 4, +1 = 5
+		{"", 0, "`"},                   // min < 1 clamped to 1
 	}
 	for _, c := range cases {
 		if got := CodeFence(c.content, c.min); got != c.want {

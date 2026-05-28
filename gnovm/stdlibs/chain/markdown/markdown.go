@@ -819,14 +819,15 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 			j += 2
 			continue
 		}
-		if c == '[' {
+		switch c {
+		case '[':
 			depth++
-		} else if c == ']' {
+		case ']':
 			depth--
 			if depth == 0 {
 				return j, true
 			}
-		} else if c == '\n' {
+		case '\n':
 			// Single \n OK inside link text; blank line aborts
 			if j+1 < len(s) && s[j+1] == '\n' {
 				return 0, false
