@@ -11,10 +11,11 @@ output across CPU architectures.
   and calls `m.RunFiles` + `m.RunMain`. The machine's `Output` is
   wired to `os.Stdout`.
 - `corpus.gno` — a `package main` gno program that imports
-  `crypto/sha256`, `crypto/ed25519`, `crypto/chacha20`,
-  `crypto/bech32`, `crypto/subtle`, `hash/adler32`, ... and prints
-  one canonical `<op> <args_hex...> <output>` line per case via gno's
-  `println`.
+  `crypto/sha256`, `crypto/keccak256`, `crypto/ed25519`,
+  `crypto/chacha20`, `crypto/bech32`, `crypto/subtle`,
+  `crypto/modexp`, `crypto/merkle`, `crypto/bn254`, `hash/adler32`,
+  ... and prints one canonical `<op> <args_hex...> <output>` line per
+  case via gno's `println`.
 
 The driver is a separate binary from the `gno` CLI on purpose: it
 avoids the CLI surface (flag parsing, lint, fmt, project loading) and

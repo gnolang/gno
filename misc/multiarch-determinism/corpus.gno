@@ -10,8 +10,12 @@ package main
 
 import (
 	"crypto/bech32"
+	"crypto/bn254"
 	"crypto/chacha20"
 	"crypto/ed25519"
+	"crypto/keccak256"
+	"crypto/merkle"
+	"crypto/modexp"
 	"crypto/sha256"
 	"crypto/subtle"
 	"hash/adler32"
@@ -191,13 +195,92 @@ func runAdler32() {
 	}
 }
 
+func runKeccak256() {
+	inputs := [][]byte{
+		nil,
+		{0x00},
+		seq(31), seq(32), seq(33),
+		seq(63), seq(64), seq(65),
+		seq(127), seq(128), seq(129),
+		zeros(256), ones(256), seq(256),
+		seq(1000), seq(8192),
+	}
+	for _, in := range inputs {
+		h := keccak256.Sum256(in)
+		emit("keccak256", toHex(in), toHex(h[:]))
+	}
+}
+
+func runModExp() {
+	type tc struct{ base, exp, mod string }
+	cases := []tc{
+		// 2^10 mod 1000 = 1024 mod 1000 = 24
+		{"02", "0a", "03e8"},
+		// 3^5 mod 7 = 243 mod 7 = 5
+		{"03", "05", "07"},
+		// Identity: anything ^ 0 mod m = 1
+		{"deadbeef", "00", "ff"},
+		// Larger: 5^17 mod 2^32
+		{"05", "11", "0100000000"},
+		// Modulus 1 → always 0
+		{"deadbeefcafebabe", "01020304", "01"},
+	}
+	for _, c := range cases {
+		out := modexp.ModExp(fromHex(c.base), fromHex(c.exp), fromHex(c.mod))
+		emit("modexp", c.base, c.exp, c.mod, toHex(out))
+	}
+}
+
+func runMerkle() {
+	// LeafHash on a few inputs.
+	leafInputs := [][]byte{nil, {0x00}, seq(32), seq(128)}
+	for _, in := range leafInputs {
+		out := merkle.LeafHash(in)
+		emit("merkle-leaf", toHex(in), toHex(out))
+	}
+	// InnerHash on a couple of (left, right) pairs.
+	pairs := [][2][]byte{
+		{zeros(32), ones(32)},
+		{seq(32), seq(32)},
+	}
+	for _, p := range pairs {
+		out := merkle.InnerHash(p[0], p[1])
+		emit("merkle-inner", toHex(p[0]), toHex(p[1]), toHex(out))
+	}
+}
+
+func runBN254() {
+	// G1Add — verbatim vectors from EIP-196 bn256Add test set.
+	g1AddCases := []string{
+		// cdetrio11: G + G = 2G
+		"0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+		// chfast1: non-trivial point addition
+		"18b18acfb4c2c30276db5411368e7185b311dd124691610c5d3b74034e093dc9063c909c4720840cb5134cb9f59fa749755796819658d32efc0d288198f3726607c2b7f58a84bd6145f00c9c2bc0bb1a187f20ff2c92963a88019e7c6a014eed06614e20c147e940f2d70da3f74c9a17df361706a4485c742bd6788478fa17d7",
+	}
+	for _, in := range g1AddCases {
+		out := bn254.G1Add(fromHex(in))
+		emit("bn254-g1add", in, toHex(out))
+	}
+	// G1Mul — G * 2 (scalar = 2).
+	g1MulIn := "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002" +
+		"0000000000000000000000000000000000000000000000000000000000000002"
+	emit("bn254-g1mul", g1MulIn, toHex(bn254.G1Mul(fromHex(g1MulIn))))
+	// PairingCheck — empty input is the identity, expected true (32 bytes, value 1).
+	pcOut := bn254.PairingCheck(nil)
+	emit("bn254-pairing", "", toHex(pcOut))
+}
+
 func main() {
 	// Calls are ordered; each runner emits cases in a fixed order. The
 	// stable per-line format makes diffing across architectures trivial.
 	runSHA256()
+	runKeccak256()
 	runEd25519Verify()
 	runChaCha20()
 	runBech32()
 	runSubtleXOR()
 	runAdler32()
+	runModExp()
+	runMerkle()
+	runBN254()
 }
