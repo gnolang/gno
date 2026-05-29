@@ -147,6 +147,12 @@ func TestEscapeBlockHazards(t *testing.T) {
 		// usual line-leader escape.
 		{"fence-backtick-in-info-rejected", "```a`b\n<gno-card>\n", "```a`b\n\\<gno-card>\n"},
 		{"fence-tilde-info-string-allowed", "~~~lang~tag\nx\n", "~~~lang~tag\nx\n~~~\n"},
+		// Bracket walker MUST also reject the backtick-info-string
+		// "fence" — otherwise it treats lines below as opaque fence
+		// interior and skips LRD strip + bracket escape, letting an
+		// attacker smuggle realm-targeted ref-link definitions past
+		// the walker.
+		{"fence-walker-backtick-in-info-rejected", "```a`b\n\n[evil]: https://bad\n\n[evil]\n", "```a`b\n\n\n\\[evil\\]\n"},
 		{"setext-h1", "title\n===\n", "title\n\\===\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
@@ -241,6 +247,9 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"fence-open-autoclose", "```\nuser\n", "```\nuser\n```\n"},
 		{"fence-backtick-in-info-rejected", "```a`b\n<gno-card>\n", "```a`b\n\\<gno-card>\n"},
 		{"fence-tilde-info-string-allowed", "~~~lang~tag\nx\n", "~~~lang~tag\nx\n~~~\n"},
+		// Bracket walker MUST also reject the backtick-info-string
+		// "fence" — see strict variant above for explanation.
+		{"fence-walker-backtick-in-info-rejected", "```a`b\n\n[evil]: https://bad\n\n[evil]\n", "```a`b\n\n\n\\[evil\\]\n"},
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
 		// CM §4.6 HTML block types 1-5 — escaped in Rich mode too

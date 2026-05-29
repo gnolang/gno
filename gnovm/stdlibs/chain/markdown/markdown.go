@@ -526,6 +526,21 @@ func isHTMLBlockType1to5Opener(line string) bool {
 	return false
 }
 
+// hasBacktickBeforeNewline reports whether s[from:] contains a `
+// before the next `\n` or EOF. Used to enforce CM §4.5: a backtick
+// fence opener whose info string contains another backtick does NOT
+// open a fence. Three call sites in this file share this predicate
+// (escapeLineLeader, isBlockInterrupt, findBracketSpans); keeping
+// them on one helper prevents drift if the rule ever evolves.
+func hasBacktickBeforeNewline(s string, from int) bool {
+	for i := from; i < len(s) && s[i] != '\n'; i++ {
+		if s[i] == '`' {
+			return true
+		}
+	}
+	return false
+}
+
 // hasCaseInsensitivePrefix reports whether s begins with prefix using
 // ASCII-only case folding (A-Z → a-z). prefix MUST be lowercase ASCII;
 // Type 1 tag names (`script`, `pre`, `style`, `textarea`) all qualify.
@@ -655,10 +670,7 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 			j++
 		}
 		if j-i >= 3 {
-			if c == '`' && strings.IndexByte(line[j:], '`') >= 0 {
-				// Info string contains `: not a valid backtick fence
-				// per CM §4.5. Treat as paragraph text — no fence state,
-				// no escape. Next line still gets full defenses.
+			if c == '`' && hasBacktickBeforeNewline(line, j) {
 				return line, 0, 0
 			}
 			return line, c, j - i
@@ -812,6 +824,18 @@ func findBracketSpans(s string) []bracketSpan {
 					k++
 				}
 				if k-j >= 3 {
+					// CM §4.5: backtick fences with a backtick in the
+					// info string do NOT open. Without this check the
+					// walker treats subsequent lines as fence interior
+					// (skipping LRD strip + bracket escape) while
+					// goldmark treats them as paragraph — letting an
+					// attacker smuggle a ref-link definition past the
+					// walker.
+					if fenceChar == '`' && hasBacktickBeforeNewline(s, k) {
+						i = k
+						atLineStart = false
+						continue
+					}
 					// Fence opens. Find close.
 					fenceLen := k - j
 					end := findFenceClose(s, k, fenceChar, fenceLen)
@@ -1320,13 +1344,8 @@ func isBlockInterrupt(s string, lineStart int) bool {
 		if j-i < 3 {
 			return false
 		}
-		if c == '`' {
-			// Scan to end of line for any `.
-			for k := j; k < len(s) && s[k] != '\n'; k++ {
-				if s[k] == '`' {
-					return false
-				}
-			}
+		if c == '`' && hasBacktickBeforeNewline(s, j) {
+			return false
 		}
 		return true
 	}
