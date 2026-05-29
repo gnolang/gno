@@ -8,6 +8,14 @@ gnoland start
 gnokey maketx call -pkgpath gno.land/r/foo721 -func Mint -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args 1  -gas-fee 920001ugnot -gas-wanted 9_200_000 -chainid=tendermint_test test1
 stdout '\[{\"type\":\"Mint\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"to\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
 
+# SetTokenURI
+gnokey maketx call -pkgpath gno.land/r/foo721 -func SetTokenURI -args 1 -args testuri -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"TokenUriUpdate\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
+
+# SetMetadata
+gnokey maketx call -pkgpath gno.land/r/foo721 -func SetMetadata -args 1 -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '\[{\"type\":\"MetadataUpdate\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"}.*\]'
+
 # Approve
 gnokey maketx call -pkgpath gno.land/r/foo721 -func Approve -args g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj -args 1  -gas-fee 890001ugnot -gas-wanted 8_900_000 -chainid=tendermint_test test1
 stdout '\[{\"type\":\"Approval\",\"attrs\":\[{\"key\":\"token\",\"value\":\"gno.land/r/foo721.FNFT\"},{\"key\":\"owner\",\"value\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},{\"key\":\"to\",\"value\":\"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj\"},{\"key\":\"tokenId\",\"value\":\"1\"}\],\"pkg_path\":\"gno.land/p/demo/tokens/grc721\"},.*\]'
@@ -63,6 +71,20 @@ func TransferFrom(cur realm, from, to address, tid grc721.TokenID) {
 	caller := cur.Previous().Address()
 	err := foo.TransferFrom(caller, from, to, tid)
 	if err != nil {
+		panic(err)
+	}
+}
+
+func SetTokenURI(cur realm, tid grc721.TokenID, uri string) {
+	caller := cur.Previous().Address()
+	if _, err := foo.SetTokenURI(caller, tid, grc721.TokenURI(uri)); err != nil {
+		panic(err)
+	}
+}
+
+func SetMetadata(cur realm, tid grc721.TokenID) {
+	meta := grc721.NewNFTWithMetadata(0, cur, "FooNFT", "FNFT")
+	if err := meta.SetTokenMetadata(tid, grc721.Metadata{}); err != nil {
 		panic(err)
 	}
 }
