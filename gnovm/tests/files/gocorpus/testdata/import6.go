@@ -43,6 +43,8 @@ import "c:/foo"  // ERROR "import path contains invalid character|invalid charac
 // line 18: invalid zero package path in testStore().pkgGetter
 
 // GoTypeCheckError:
+// line 17: invalid import path (empty string)
+// line 18: invalid import path (empty string)
 // line 19: invalid import path (invalid character U+0000)
 // line 20: invalid import path (invalid character U+005C '\')
 // line 21: invalid import path (invalid character U+007F)

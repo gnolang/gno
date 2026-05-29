@@ -21,3 +21,6 @@ func main() {
 
 // GnoError:
 // line 14: illegal byte order mark (and 4 more errors)
+
+// GoTypeCheckError:
+// line 14: illegal byte order mark (and 4 more errors)

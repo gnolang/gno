@@ -13,3 +13,6 @@ var f func(arg int) = fn // ERROR "different parameter types|cannot use fn .*typ
 
 // GnoError:
 // line 12: cannot use func(float32) as func(int)
+
+// GoTypeCheckError:
+// line 12: cannot use fn (value of type func(a float32)) as func(arg int) value in variable declaration

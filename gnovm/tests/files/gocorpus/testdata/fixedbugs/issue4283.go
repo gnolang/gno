@@ -20,4 +20,5 @@ func F2() bool {
 // line 12: <nil> is not comparable
 
 // GoTypeCheckError:
+// line 12: invalid operation: nil == nil (operator == not defined on untyped nil)
 // line 16: invalid operation: nil != nil (operator != not defined on untyped nil)

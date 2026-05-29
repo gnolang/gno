@@ -14,3 +14,6 @@ func foo() (a, b, c int) {
 
 // GnoError:
 // line 12: expected ';', found 2.01 (and 1 more errors)
+
+// GoTypeCheckError:
+// line 12: expected ';', found 2.01 (and 1 more errors)

@@ -125,24 +125,31 @@ Escape hatches:
   "regex"` markers, the harness walks the per-line errors and pins them
   in two golden blocks at the bottom of the file:
     - `// GnoError:` — **Gno's own** static (preprocess) / runtime errors.
-    - `// GoTypeCheckError:` — errors the **go/types guard** catches
-      that Gno's own preprocess **didn't** (the guard's unique
-      contribution — lines both catch aren't duplicated here). go/types
-      is the Go type checker that gno.land's deploy gate runs *ahead* of
-      GnoVM preprocess; it's not Gno's own behavior, so it gets its own
-      block. Crucially it still rejects even when GnoVM preprocess is
-      permissive, and reports every error in one pass (no first-error
-      bail), so it often covers markers GnoVM preprocess bails before
-      reaching.
+    - `// GoTypeCheckError:` — the **go/types guard's** full per-line
+      errors. go/types is the Go type checker that gno.land's deploy
+      gate runs *ahead* of GnoVM preprocess; it's not Gno's own
+      behavior, so it gets its own block. It still rejects even when
+      GnoVM preprocess is permissive, and reports every error in one
+      pass (no first-error bail), so it often covers markers GnoVM
+      preprocess bails before reaching. Listed in full (not deduped
+      against `// GnoError:`) so the `GnoError ⊆ GoTypeCheckError`
+      relation below is visible in-file.
 
-  A third block, `// KnownIssue:`, pins Gno's errors on lines that carry
-  **no gc marker** — i.e. Gno rejects code gc accepts (over-strict; a
-  Gno bug to fix). It's kept out of `// GnoError:` so legitimate
-  behavior isn't conflated with bugs. The file still passes (the
-  go/types guard's coverage is the contract); when Gno is fixed and
-  stops erroring there, the block goes stale → re-sync removes it.
-  Example: `const2.go` (Gno wrongly rejects the literal `1e+500000000`
-  while go/types correctly flags only the overflow on use).
+  The model: a Gno error is **legitimate** if gc marks that line or the
+  go/types guard also caught it — `// GnoError:` lines are a subset of
+  (markers ∪ go/types). Any Gno error left over — Gno rejecting code
+  *both* gc and the guard accept — is **over-strict** and goes to the
+  `// KnownIssue:` block (below) instead.
+
+  A third block, `// KnownIssue:`, pins the over-strict Gno errors —
+  lines Gno rejects that **neither** a gc marker **nor** the go/types
+  guard backs (Gno rejects code both accept; a Gno bug to fix). Kept
+  out of `// GnoError:` so legitimate behavior isn't conflated with
+  bugs. The file still passes (the go/types guard's coverage is the
+  contract); when Gno is fixed and stops erroring there, the block goes
+  stale → re-sync removes it. Example: `const2.go` (Gno wrongly rejects
+  the literal `1e+500000000` while go/types correctly flags only the
+  overflow on use).
 
   The inline `// ERROR` markers are upstream (gc) **provenance**, NOT a
   pass/fail gate — wording may differ (the whole point of the migrated

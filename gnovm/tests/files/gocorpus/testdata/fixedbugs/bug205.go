@@ -20,3 +20,8 @@ func main() {
 // line 14: type should be numeric
 // line 15: type should be numeric
 // line 16: cannot use untyped Bigint as StringKind
+
+// GoTypeCheckError:
+// line 14: cannot convert "hi" (untyped string constant) to type int
+// line 15: cannot convert "hi" (untyped string constant) to type int
+// line 16: cannot use 0 (untyped int constant) as string value in map index

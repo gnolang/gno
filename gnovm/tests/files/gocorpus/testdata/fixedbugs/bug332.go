@@ -18,3 +18,6 @@ func (t *T) F() {} // ERROR "undefined.*T"
 
 // GnoError:
 // line 17: name T not defined in fileset with files [bug332.go]
+
+// GoTypeCheckError:
+// line 17: undefined: T

@@ -26,6 +26,8 @@ func main() {
 // line 16: expected declaration, found 'return'
 
 // GoTypeCheckError:
+// line 15: undefined: b
+// line 16: undefined: b
 // line 20: not enough arguments in call to mine
 // 	have ()
 // 	want (unknown type)

@@ -18,3 +18,7 @@ func main() {
 // GnoError:
 // line 14: wrong argument count in call to (const (recover func() interface {}))
 // line 15: wrong argument count in call to (const (recover func() interface {}))
+
+// GoTypeCheckError:
+// line 14: invalid operation: too many arguments for recover(1) (expected 0, found 1)
+// line 15: invalid operation: too many arguments for recover(1) (expected 0, found 1)

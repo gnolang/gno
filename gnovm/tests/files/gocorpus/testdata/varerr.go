@@ -18,3 +18,7 @@ func main() {
 // GnoError:
 // line 13: name asdf not declared
 // line 15: cannot assign to uverse new
+
+// GoTypeCheckError:
+// line 13: undefined: asdf
+// line 15: new (built-in) must be called

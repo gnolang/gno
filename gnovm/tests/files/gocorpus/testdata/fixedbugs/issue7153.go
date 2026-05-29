@@ -12,3 +12,6 @@ var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type unt
 
 // GnoError:
 // line 11: name a not defined in fileset with files [issue7153.go]
+
+// GoTypeCheckError:
+// line 11: undefined: a

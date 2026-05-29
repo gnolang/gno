@@ -25,3 +25,7 @@ func _() {
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)
 // line 16: expected declaration, found 'for'
+
+// GoTypeCheckError:
+// line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)
+// line 16: expected declaration, found 'for'

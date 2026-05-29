@@ -12,3 +12,6 @@ func (*i) bar() // ERROR "not a type|expected type"
 
 // GnoError:
 // line 11: invalid operation: cannot indirect i<VPBlock(2,0)> (variable of type int)
+
+// GoTypeCheckError:
+// line 11: i is not a type

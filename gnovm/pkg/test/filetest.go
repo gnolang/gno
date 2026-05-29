@@ -281,40 +281,35 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				indent(strings.TrimSpace(result.Error+"\n"+result.TypeCheckError), "  "))
 		}
 
-		// Split Gno's own errors by whether the line carries a gc marker.
-		// Marked → `// GnoError:` (legitimate, matches gc's expectation).
-		// Unmarked → `// KnownIssue:` — Gno errors where gc accepts
-		// (over-strict; a Gno bug to fix), kept out of GnoError so it's
-		// not mistaken for legitimate behavior.
+		// Split Gno's own errors by whether they're backed by the gc
+		// markers or the go/types guard. A Gno error is legitimate if
+		// gc marks that line OR go/types also caught it — then it goes
+		// to `// GnoError:`. If NEITHER does, Gno rejects code both gc
+		// and the guard accept — that's over-strict, a Gno bug, and goes
+		// to `// KnownIssue:` so it's not mistaken for legitimate
+		// behavior. (Per the model: GnoError's lines are a subset of
+		// the markers ∪ go/types; the leftover is the KnownIssue.)
 		marked := make(map[int]bool, len(errorcheckMarkers))
 		for _, mk := range errorcheckMarkers {
 			marked[mk.Line] = true
 		}
-		gnoErrMarked := make(map[int]string)
+		gnoErr := make(map[int]string)
 		knownIssue := make(map[int]string)
 		for ln, msg := range gnoErrLines {
-			if marked[ln] {
-				gnoErrMarked[ln] = msg
+			_, inGuard := goTCLines[ln]
+			if marked[ln] || inGuard {
+				gnoErr[ln] = msg
 			} else {
 				knownIssue[ln] = msg
 			}
 		}
-		// The go/types guard's value is catching what Gno's OWN
-		// preprocess misses, so its block records only lines Gno didn't
-		// already report — avoids duplicating every line both catch.
-		goTCUnique := make(map[int]string)
-		for ln, msg := range goTCLines {
-			if _, gnoHas := gnoErrLines[ln]; !gnoHas {
-				goTCUnique[ln] = msg
-			}
-		}
 
 		// Coverage: a marker counts as covered if Gno's own preprocess
-		// OR the go/types guard caught it. (Unmarked over-strict errors
-		// don't count.) Partial coverage → `// GnoIncomplete:`.
+		// OR the go/types guard caught it. (Over-strict KnownIssue
+		// lines don't count.) Partial coverage → `// GnoIncomplete:`.
 		covered := 0
 		for _, mk := range errorcheckMarkers {
-			_, a := gnoErrMarked[mk.Line]
+			_, a := gnoErr[mk.Line]
 			_, b := goTCLines[mk.Line]
 			if a || b {
 				covered++
@@ -328,9 +323,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				covered, total)
 		}
 
+		// GoTypeCheckError lists the guard's FULL catch (not deduped) so
+		// the GnoError ⊆ GoTypeCheckError relation is visible in-file.
 		sections := []goldenSection{
-			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErrMarked)},
-			{name: DirectiveGoTypeCheckError, block: FormatGnoErrorBlock(goTCUnique)},
+			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGoTypeCheckError, block: FormatGnoErrorBlock(goTCLines)},
 			{name: DirectiveKnownIssue, block: FormatGnoErrorBlock(knownIssue)},
 		}
 		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, incompleteNote, sections)

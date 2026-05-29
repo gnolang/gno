@@ -12,3 +12,6 @@ var a = []int{
 
 // GnoError:
 // line 10: missing ',' before newline in composite literal
+
+// GoTypeCheckError:
+// line 10: missing ',' before newline in composite literal

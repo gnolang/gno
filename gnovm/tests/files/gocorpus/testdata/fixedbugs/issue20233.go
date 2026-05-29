@@ -12,3 +12,6 @@ var f = func(...A) // ERROR "undefined: A"
 
 // GnoError:
 // line 11: name A not defined in fileset with files [issue20233.go]
+
+// GoTypeCheckError:
+// line 11: undefined: A

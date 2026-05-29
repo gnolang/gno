@@ -18,3 +18,6 @@ func _() {
 
 // GnoError:
 // line 11: name Wrong not defined in fileset with files [issue21988.go]
+
+// GoTypeCheckError:
+// line 11: undefined: Wrong

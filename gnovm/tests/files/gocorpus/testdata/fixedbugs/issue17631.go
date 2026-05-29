@@ -23,3 +23,6 @@ func main() {
 
 // GnoError:
 // line 20: struct type struct{about string
+
+// GoTypeCheckError:
+// line 20: unknown field updates in struct literal of type struct{about string

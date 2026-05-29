@@ -362,3 +362,6 @@ func _() {
 // line 312: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].S
 // line 313: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
 // line 314: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].T
+
+// GoTypeCheckError:
+// line 25: cannot use t (variable of struct type T) as S value in assignment

@@ -28,3 +28,6 @@ func main() {
 
 // GnoError:
 // line 25: main.Foo does not implement main.T (wrong type for method M)
+
+// GoTypeCheckError:
+// line 25: cannot use Foo{} (value of struct type Foo) as T value in variable declaration: Foo does not implement T (Foo.M is a field, not a method)

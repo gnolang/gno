@@ -41,6 +41,11 @@ import (
 // GoTypeCheckError:
 // line 14: "bufio" imported and not used
 // line 15: "bytes" imported and not used
+// line 16: could not import crypto/x509 (unknown import path "crypto/x509")
+// line 17: could not import flag (unknown import path "flag")
 // line 18: "fmt" imported and not used
 // line 19: "io" imported and not used
+// line 20: could not import io/ioutil (unknown import path "io/ioutil")
+// line 21: could not import log (unknown import path "log")
 // line 22: "math" imported and not used
+// line 23: could not import math/big (unknown import path "math/big")

@@ -73,3 +73,9 @@ func g() {
 // line 30: illegal label declaration (and 7 more errors)
 // line 37: illegal label declaration (and 6 more errors)
 // line 43: illegal label declaration (and 4 more errors)
+
+// GoTypeCheckError:
+// line 24: illegal label declaration (and 7 more errors)
+// line 30: illegal label declaration (and 5 more errors)
+// line 37: illegal label declaration (and 4 more errors)
+// line 43: illegal label declaration (and 2 more errors)

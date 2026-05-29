@@ -21,3 +21,6 @@ var x = E{}.m // ERROR "initialization cycle|depends upon itself"
 
 // GnoError:
 // line 20: circular dependency: x -> T.m -> x
+
+// GoTypeCheckError:
+// line 20: initialization cycle for x

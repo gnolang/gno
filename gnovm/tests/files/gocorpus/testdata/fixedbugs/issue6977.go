@@ -44,6 +44,7 @@ type U9 interface { M32; M64 } // ERROR "duplicate method .*m"
 // 	previous declaration at issue6977.go:38:21
 
 // GoTypeCheckError:
+// line 37: duplicate method m
 // line 38: duplicate method m
 // line 39: duplicate method m
 // line 40: duplicate method m

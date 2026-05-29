@@ -19,3 +19,7 @@ func f() {
 // GnoError:
 // line 12: expected ';', found true (and 2 more errors)
 // line 15: expected declaration, found 'switch'
+
+// GoTypeCheckError:
+// line 12: expected ';', found true (and 2 more errors)
+// line 15: expected declaration, found 'switch'

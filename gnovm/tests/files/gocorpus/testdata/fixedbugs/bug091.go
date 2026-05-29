@@ -27,3 +27,6 @@ func main() {
 
 // GnoError:
 // line 20: name c not declared
+
+// GoTypeCheckError:
+// line 20: undefined: c

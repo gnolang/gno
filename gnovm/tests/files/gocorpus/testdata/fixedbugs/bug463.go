@@ -25,4 +25,5 @@ func main() {
 // line 12: invalid recursive value: a -> a
 
 // GoTypeCheckError:
+// line 12: initialization cycle: a refers to itself
 // line 16: initialization cycle for A

@@ -23,3 +23,4 @@ func main() {
 
 // GoTypeCheckError:
 // line 16: invalid operation: shifted operand 1 (type float64) must be integer
+// line 17: invalid operation: shifted operand 1 (type float64) must be integer

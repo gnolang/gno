@@ -14,3 +14,6 @@ func f(s string) {
 
 // GnoError:
 // line 12: cannot use uint8 as float64
+
+// GoTypeCheckError:
+// line 12: cannot use s[2] (value of type byte) as float64 value in variable declaration

@@ -26,3 +26,10 @@ func main() {
 // line 18: cannot use (undefined) as type int in argument to make
 // line 19: cannot use (true <untyped> bool) as type int in argument to make
 // line 20: cannot use ("abc" <untyped> string) as type int in argument to make
+
+// GoTypeCheckError:
+// line 16: cannot convert nil to type int
+// line 17: cannot convert nil to type int
+// line 18: cannot convert nil to type int
+// line 19: cannot convert true (untyped bool constant) to type int
+// line 20: cannot convert "abc" (untyped string constant) to type int

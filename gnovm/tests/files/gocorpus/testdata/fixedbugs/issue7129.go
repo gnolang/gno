@@ -24,3 +24,8 @@ func main() {
 // line 18: cannot use bool as int
 // line 19: cannot use untyped bool as IntKind
 // line 20: cannot use untyped bool as IntKind
+
+// GoTypeCheckError:
+// line 18: cannot use g() (value of type bool) as int value in argument to f
+// line 19: cannot use true (untyped bool constant) as int value in argument to f
+// line 20: cannot use true (untyped bool constant) as int value in argument to h

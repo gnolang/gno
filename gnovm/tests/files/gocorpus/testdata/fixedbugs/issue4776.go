@@ -10,3 +10,6 @@ type MyInt int32 // ERROR "package statement must be first|package clause"
 
 // GnoError:
 // line 9: expected 'package', found 'type'
+
+// GoTypeCheckError:
+// line 9: expected 'package', found 'type'

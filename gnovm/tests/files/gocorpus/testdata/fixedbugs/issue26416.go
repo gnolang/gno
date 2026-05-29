@@ -30,3 +30,8 @@ var (
 // line 24: struct type struct{t2f1 int
 // line 25: struct type struct{t3f1 int
 // line 26: struct type struct{t3f1 int
+
+// GoTypeCheckError:
+// line 24: unknown field t1f1 in struct literal of type t2
+// line 25: unknown field t1f2 in struct literal of type t3
+// line 26: unknown field t2f1 in struct literal of type t3

@@ -15,3 +15,7 @@ func main() {
 // GnoError:
 // line 11: operator + not defined on: StringKind
 // line 12: operator + not defined on: StringKind
+
+// GoTypeCheckError:
+// line 11: invalid operation: operator + not defined on "hello" (untyped string constant)
+// line 12: invalid operation: operator + not defined on x (variable of type string)

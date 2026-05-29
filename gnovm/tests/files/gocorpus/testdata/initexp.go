@@ -37,3 +37,6 @@ func b8() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 
 // GnoError:
 // line 15: circular dependency: x -> z -> x
+
+// GoTypeCheckError:
+// line 15: initialization cycle for x

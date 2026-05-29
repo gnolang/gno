@@ -16,3 +16,6 @@ func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
 
 // GnoError:
 // line 13: 2: redeclaration of method Reader.Buffered
+
+// GoTypeCheckError:
+// line 13: cannot define new methods on non-local type bufio.Reader
