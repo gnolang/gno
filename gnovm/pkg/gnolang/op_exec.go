@@ -209,7 +209,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil && !isDiscardedValue(bs.Value) {
+			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
@@ -845,11 +845,6 @@ func (m *Machine) doOpIfCond() {
 	}
 }
 
-// isDiscardedValue helper to know if value is '_' discarded
-func isDiscardedValue(e Expr) bool {
-	namexp, ok := e.(*NameExpr)
-	return ok && namexp.Name == blankIdentifier
-}
 
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
