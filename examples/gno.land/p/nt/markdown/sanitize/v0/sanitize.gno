@@ -670,21 +670,28 @@ func Blockquote(text string) string {
 //     GFM table-row openers, bracket walker, fence autoclose,
 //     NUL / bidi / Unicode-separator folding).
 //
-// Output shape:
+// Output shape — every non-empty result begins with "\n" and ends
+// with "\n\n":
 //
-//   - The result starts with a leading "\n", matching BlockRich's
-//     contract. This guarantees a clean blockquote opener even when
-//     the realm concatenates `chrome + BlockquoteRich(user)` without
-//     its own newline separator — without the leading "\n", chrome
-//     ending without a newline followed by "> quoted" would render
-//     `>` as literal paragraph text instead of opening a blockquote.
-//   - BlockRich's own leading "\n" is stripped before line-prefixing,
-//     so the output never carries a redundant empty quoted line
-//     (`> \n`) at the top.
-//   - The cross-boundary setext defense BlockRich provides is also
+//   - Leading "\n" guarantees a clean blockquote opener even when the
+//     realm concatenates `chrome + BlockquoteRich(user)` without its
+//     own newline separator. Without the leading "\n", chrome ending
+//     mid-line followed by "> quoted" would render `>` as literal
+//     paragraph text instead of opening a blockquote.
+//   - Trailing "\n\n" (blank line) cleanly ends the blockquote so a
+//     realm appending `BlockquoteRich(user) + chrome` cannot pull
+//     chrome bytes into the quote via CommonMark §5.2 lazy
+//     continuation. Without the trailing blank line, paragraph chrome
+//     immediately after BlockquoteRich would render inside the quote.
+//   - BlockRich's own leading "\n" is stripped before line-prefixing
+//     (otherwise the output would carry a redundant empty `> ` quoted
+//     line at the top), then re-prepended once at the BlockquoteRich
+//     boundary.
+//   - The cross-boundary setext defense BlockRich provides is
 //     redundant inside a blockquote: a setext underline inside `> `
 //     content can only promote a line in the same blockquote, never
-//     reach realm bytes (different CM container).
+//     reach realm bytes (different CM container). BlockRich still
+//     applies it, harmlessly.
 //
 // What attacker input produces what (rows that differ from
 // Blockquote are marked CHANGED):
@@ -720,8 +727,10 @@ func Blockquote(text string) string {
 // `BlockquoteRich(BlockquoteRich(s))` produces `> > content`,
 // nesting the quote a level deeper each pass.
 //
-// Empty input (after the leading-"\n" prepend) returns "" — the
-// helper does not emit a "\n" for an otherwise-empty quote.
+// Empty input (or input that reduces to nothing after BlockRich,
+// e.g. a lone link-reference definition) returns "" — no blockquote
+// is emitted and neither the leading "\n" nor the trailing "\n\n"
+// shape applies.
 func BlockquoteRich(text string) string {
 	text = BlockRich(text)
 	// BlockRich always prefixes a "\n" for cross-boundary setext
@@ -733,18 +742,25 @@ func BlockquoteRich(text string) string {
 	if text == "" {
 		return ""
 	}
-	text = strings.TrimSuffix(text, "\n")
+	// Strip ALL trailing newlines so the loop produces exactly one
+	// `> line` per content line, then append `\n\n` at the end so the
+	// blockquote terminates cleanly (see "Output shape" above).
+	text = strings.TrimRight(text, "\n")
+	if text == "" {
+		return ""
+	}
 	var sb strings.Builder
-	// Re-prepend a "\n" so the realm can concatenate
-	// `chrome + BlockquoteRich(user)` without ending up with the
-	// first `>` mid-line. Matches BlockRich's "starts with \n"
-	// contract for caller ergonomics.
+	// Leading "\n" so `chrome + BlockquoteRich(user)` cannot land the
+	// first `>` mid-line.
 	sb.WriteByte('\n')
 	for _, line := range strings.Split(text, "\n") {
 		sb.WriteString("> ")
 		sb.WriteString(line)
 		sb.WriteByte('\n')
 	}
+	// Trailing blank line so `BlockquoteRich(user) + chrome` cannot
+	// pull chrome into the quote via lazy continuation.
+	sb.WriteByte('\n')
 	return sb.String()
 }
 
