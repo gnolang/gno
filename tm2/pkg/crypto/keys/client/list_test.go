@@ -40,14 +40,14 @@ func Test_execList(t *testing.T) {
 	}
 	for _, tt := range testData {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set current home
 			rootCfg := &BaseCfg{
 				BaseOptions: BaseOptions{
 					Home: tt.kbDir,
 				},
 			}
 			cfg := &ListCfg{
-				RootCfg: rootCfg,
+				RootCfg:         rootCfg,
+				MultisigMembers: multisigMembersNone,
 			}
 
 			args := tt.args
@@ -58,102 +58,102 @@ func Test_execList(t *testing.T) {
 	}
 }
 
-func Test_execList_MultisigDefaultDisplay(t *testing.T) {
-	t.Parallel()
+func newMultisigListTestSetup(t *testing.T, numKeys int) (string, []secp256k1.PrivKeySecp256k1, multisig.PubKeyMultisigThreshold) {
+	t.Helper()
 
 	kbHome := t.TempDir()
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
 	require.NoError(t, err)
 
-	privKeys := []secp256k1.PrivKeySecp256k1{
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
+	privKeys := make([]secp256k1.PrivKeySecp256k1, numKeys)
+	pubKeys := make([]crypto.PubKey, numKeys)
+	for i := range privKeys {
+		privKeys[i] = secp256k1.GenPrivKey()
+		pubKeys[i] = privKeys[i].PubKey()
+		require.NoError(t, kb.ImportPrivKey(t.Name()+"k"+string(rune('0'+i)), privKeys[i], ""))
 	}
 
-	require.NoError(t, kb.ImportPrivKey("k0", privKeys[0], ""))
-	require.NoError(t, kb.ImportPrivKey("k1", privKeys[1], ""))
-	require.NoError(t, kb.ImportPrivKey("k2", privKeys[2], ""))
-
-	msPub := multisig.NewPubKeyMultisigThreshold(
-		2,
-		[]crypto.PubKey{
-			privKeys[0].PubKey(),
-			privKeys[1].PubKey(),
-			privKeys[2].PubKey(),
-		},
-	)
-
-	_, err = kb.CreateMulti("multisig-012", msPub)
+	msPub := multisig.NewPubKeyMultisigThreshold(1, pubKeys).(multisig.PubKeyMultisigThreshold)
+	_, err = kb.CreateMulti("ms", msPub)
 	require.NoError(t, err)
+
+	return kbHome, privKeys, msPub
+}
+
+func Test_execList_MultisigNone(t *testing.T) {
+	t.Parallel()
+
+	kbHome, _, msPub := newMultisigListTestSetup(t, 3)
 
 	var out bytes.Buffer
 	io := commands.NewTestIO()
 	io.SetOut(commands.WriteNopCloser(&out))
 
 	cfg := &ListCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home: kbHome,
-			},
-		},
+		RootCfg:         &BaseCfg{BaseOptions: BaseOptions{Home: kbHome}},
+		MultisigMembers: multisigMembersNone,
 	}
 
 	require.NoError(t, execList(cfg, nil, io))
 
 	output := out.String()
 	assert.Contains(t, output, "pub: "+crypto.PubKeyToBech32(msPub))
-	assert.NotContains(t, output, msPub.String())
+	for _, pk := range msPub.PubKeys {
+		assert.NotContains(t, output, "\n  "+pk.String())
+	}
 }
 
-func Test_execList_MultisigMembersDisplay(t *testing.T) {
+func Test_execList_MultisigShort(t *testing.T) {
 	t.Parallel()
 
-	kbHome := t.TempDir()
-	kb, err := keys.NewKeyBaseFromDir(kbHome)
-	require.NoError(t, err)
-
-	privKeys := []secp256k1.PrivKeySecp256k1{
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-	}
-
-	require.NoError(t, kb.ImportPrivKey("k0", privKeys[0], ""))
-	require.NoError(t, kb.ImportPrivKey("k1", privKeys[1], ""))
-	require.NoError(t, kb.ImportPrivKey("k2", privKeys[2], ""))
-
-	msPub := multisig.NewPubKeyMultisigThreshold(
-		2,
-		[]crypto.PubKey{
-			privKeys[0].PubKey(),
-			privKeys[1].PubKey(),
-			privKeys[2].PubKey(),
-		},
-	)
-
-	_, err = kb.CreateMulti("multisig-012", msPub)
-	require.NoError(t, err)
+	const numKeys = 5
+	kbHome, privKeys, msPub := newMultisigListTestSetup(t, numKeys)
 
 	var out bytes.Buffer
 	io := commands.NewTestIO()
 	io.SetOut(commands.WriteNopCloser(&out))
 
 	cfg := &ListCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home: kbHome,
-			},
-		},
-		ShowMultisigMembers: true,
+		RootCfg:         &BaseCfg{BaseOptions: BaseOptions{Home: kbHome}},
+		MultisigMembers: multisigMembersShort,
 	}
 
 	require.NoError(t, execList(cfg, nil, io))
 
 	output := out.String()
-	for _, pk := range msPub.(multisig.PubKeyMultisigThreshold).PubKeys {
-		assert.Contains(t, output, "\n  "+pk.String()+"\n")
+	assert.Contains(t, output, "pub: "+crypto.PubKeyToBech32(msPub))
+
+	// Count how many member pubkeys appear in the output.
+	shown := 0
+	for _, pk := range privKeys {
+		if bytes.Contains([]byte(output), []byte("  "+pk.PubKey().String())) {
+			shown++
+		}
 	}
-	assert.Contains(t, output, "pub:")
-	assert.NotContains(t, output, crypto.PubKeyToBech32(msPub))
+	assert.Equal(t, multisigMembersShortLimit, shown)
+	assert.Contains(t, output, "... and 2 more (use -multisig-members=full to see all)")
+}
+
+func Test_execList_MultisigFull(t *testing.T) {
+	t.Parallel()
+
+	kbHome, _, msPub := newMultisigListTestSetup(t, 3)
+
+	var out bytes.Buffer
+	io := commands.NewTestIO()
+	io.SetOut(commands.WriteNopCloser(&out))
+
+	cfg := &ListCfg{
+		RootCfg:         &BaseCfg{BaseOptions: BaseOptions{Home: kbHome}},
+		MultisigMembers: multisigMembersFull,
+	}
+
+	require.NoError(t, execList(cfg, nil, io))
+
+	output := out.String()
+	assert.Contains(t, output, "pub: "+crypto.PubKeyToBech32(msPub))
+	for _, pk := range msPub.PubKeys {
+		assert.Contains(t, output, "\n  "+pk.String())
+	}
+	assert.NotContains(t, output, "... and")
 }
