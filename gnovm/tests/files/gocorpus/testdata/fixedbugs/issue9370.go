@@ -178,64 +178,15 @@ var (
 // line 124: operator ^ not defined on: InterfaceKind
 
 // GoTypeCheckError:
-// line 36: invalid operation: e >= c (operator >= not defined on interface)
-// line 39: invalid operation: c >= e (operator >= not defined on interface)
-// line 43: invalid operation: i >= c (operator >= not defined on interface)
-// line 46: invalid operation: c >= i (operator >= not defined on interface)
-// line 50: invalid operation: e >= n (operator >= not defined on interface)
-// line 53: invalid operation: n >= e (operator >= not defined on interface)
-// line 56: invalid operation: i == n (mismatched types I and int)
-// line 57: invalid operation: i != n (mismatched types I and int)
-// line 58: invalid operation: i >= n (mismatched types I and int)
-// line 59: invalid operation: n == i (mismatched types int and I)
-// line 60: invalid operation: n != i (mismatched types int and I)
-// line 61: invalid operation: n >= i (mismatched types int and I)
-// line 65: invalid operation: e >= 1 (operator >= not defined on interface)
-// line 68: invalid operation: 1 >= e (operator >= not defined on interface)
-// line 70: cannot convert 1 (untyped int constant) to type interface{Method()}
-// line 71: cannot convert 1 (untyped int constant) to type interface{Method()}
-// line 72: cannot convert 1 (untyped int constant) to type interface{Method()}
-// line 73: cannot convert 1 (untyped int constant) to type interface{Method()}
-// line 74: cannot convert 1 (untyped int constant) to type interface{Method()}
-// line 75: cannot convert 1 (untyped int constant) to type interface{Method()}
 // line 77: invalid operation: e == f (func can only be compared to nil)
 // line 78: invalid operation: e != f (func can only be compared to nil)
-// line 79: invalid operation: e >= f (operator >= not defined on interface)
 // line 80: invalid operation: f == e (func can only be compared to nil)
 // line 81: invalid operation: f != e (func can only be compared to nil)
-// line 82: invalid operation: f >= e (operator >= not defined on func)
-// line 84: invalid operation: i == f (mismatched types I and func())
-// line 85: invalid operation: i != f (mismatched types I and func())
-// line 86: invalid operation: i >= f (mismatched types I and func())
-// line 87: invalid operation: f == i (mismatched types func() and I)
-// line 88: invalid operation: f != i (mismatched types func() and I)
-// line 89: invalid operation: f >= i (mismatched types func() and I)
 // line 91: invalid operation: e == g (func can only be compared to nil)
 // line 92: invalid operation: e != g (func can only be compared to nil)
-// line 93: invalid operation: e >= g (operator >= not defined on interface)
 // line 94: invalid operation: g == e (func can only be compared to nil)
 // line 95: invalid operation: g != e (func can only be compared to nil)
-// line 96: invalid operation: g >= e (operator >= not defined on func)
 // line 98: invalid operation: i == g (func can only be compared to nil)
 // line 99: invalid operation: i != g (func can only be compared to nil)
-// line 100: invalid operation: i >= g (operator >= not defined on interface)
 // line 101: invalid operation: g == i (func can only be compared to nil)
 // line 102: invalid operation: g != i (func can only be compared to nil)
-// line 103: invalid operation: g >= i (operator >= not defined on func)
-// line 105: cannot use _ as value or type
-// line 106: cannot use _ as value or type
-// line 107: cannot use _ as value or type
-// line 108: cannot use _ as value or type
-// line 109: cannot use _ as value or type
-// line 110: cannot use _ as value or type
-// line 112: cannot use _ as value or type
-// line 113: cannot use _ as value or type
-// line 114: cannot use _ as value or type
-// line 115: cannot use _ as value or type
-// line 116: cannot use _ as value or type
-// line 117: cannot use _ as value or type
-// line 119: cannot use _ as value or type
-// line 121: invalid operation: e ^ c (mismatched types interface{} and C)
-// line 122: invalid operation: c ^ e (mismatched types C and interface{})
-// line 123: invalid operation: 1 ^ e (mismatched types int and interface{})
-// line 124: invalid operation: e ^ 1 (mismatched types interface{} and int)

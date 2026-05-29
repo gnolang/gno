@@ -24,5 +24,4 @@ func main() {
 // line 17: struct type struct{} has no field X
 
 // GoTypeCheckError:
-// line 17: unknown field X in struct literal of type T
 // line 19: cannot use 1 (untyped int constant) as string value in variable declaration

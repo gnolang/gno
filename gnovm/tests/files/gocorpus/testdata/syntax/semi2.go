@@ -13,6 +13,3 @@ func main() {
 
 // GnoError:
 // line 10: expected '{', found newline (and 2 more errors)
-
-// GoTypeCheckError:
-// line 10: expected '{', found newline (and 2 more errors)

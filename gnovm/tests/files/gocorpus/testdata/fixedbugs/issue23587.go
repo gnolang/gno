@@ -16,6 +16,3 @@ func _(x int) {
 
 // GnoError:
 // line 14: expected ';', found '~' (and 1 more errors)
-
-// GoTypeCheckError:
-// line 14: expected ';', found '~' (and 1 more errors)

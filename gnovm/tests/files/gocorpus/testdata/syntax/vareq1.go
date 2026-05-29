@@ -10,6 +10,3 @@ var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement|une
 
 // GnoError:
 // line 9: expected ';', found '{'
-
-// GoTypeCheckError:
-// line 9: expected ';', found '{'

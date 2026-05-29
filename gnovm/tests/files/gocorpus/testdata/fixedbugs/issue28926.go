@@ -27,6 +27,5 @@ func main() {
 // line 16: name G not declared
 
 // GoTypeCheckError:
-// line 16: undefined: G
 // line 18: undefined: E
 // line 22: undefined: T

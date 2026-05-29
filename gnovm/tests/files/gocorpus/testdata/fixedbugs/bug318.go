@@ -13,6 +13,3 @@ const i int = ui // ERROR "type"
 
 // GnoError:
 // line 12: cannot use uint as int
-
-// GoTypeCheckError:
-// line 12: cannot use ui (constant 0 of type uint) as int value in constant declaration

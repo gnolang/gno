@@ -11,6 +11,3 @@ var x = c.String()	// ERROR "String"
 
 // GnoError:
 // line 10: unexpected selector expression type gnolang.PrimitiveType
-
-// GoTypeCheckError:
-// line 10: c.String undefined (type untyped int has no field or method String)

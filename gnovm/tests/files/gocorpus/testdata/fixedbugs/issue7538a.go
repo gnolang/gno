@@ -16,6 +16,3 @@ _:
 
 // GnoError:
 // line 14: label _ undefined
-
-// GoTypeCheckError:
-// line 14: label _ not declared

@@ -29,11 +29,3 @@ func main() {
 // line 18: invalid operation: (mismatched types <untyped> bool and <untyped> string)
 // line 22: cannot use untyped Bigint as StringKind
 // line 24: wrong argument count in call to f<VPBlock(3,0)>
-
-// GoTypeCheckError:
-// line 16: invalid operation: "a" > 10 (mismatched types untyped string and untyped int)
-// line 18: invalid operation: "gopher" == true (mismatched types untyped string and untyped bool)
-// line 22: invalid operation: 3 < "x" (mismatched types untyped int and untyped string)
-// line 24: too many arguments in call to f
-// 	have (number, number, string)
-// 	want (int, uint)

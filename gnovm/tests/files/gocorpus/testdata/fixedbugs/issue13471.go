@@ -36,16 +36,3 @@ func main() {
 // line 21: invalid decimal constant: 1e646456
 // line 22: bigint overflows target kind
 // line 24: bigint overflows target kind
-
-// GoTypeCheckError:
-// line 12: cannot use 1e646456992 (untyped float constant 1e+646456992) as int64 value in constant declaration (truncated)
-// line 13: cannot use 1e64645699 (untyped float constant 1e+64645699) as int32 value in constant declaration (truncated)
-// line 14: cannot use 1e6464569 (untyped float constant 1e+6464569) as int16 value in constant declaration (truncated)
-// line 15: cannot use 1e646456 (untyped float constant 1e+646456) as int8 value in constant declaration (truncated)
-// line 16: cannot use 1e64645 (untyped float constant 1e+64645) as int value in constant declaration (truncated)
-// line 18: cannot use 1e646456992 (untyped float constant 1e+646456992) as int64 value in constant declaration (truncated)
-// line 19: cannot use 1e646456992 (untyped float constant 1e+646456992) as uint64 value in constant declaration (truncated)
-// line 20: cannot use 1e6464569 (untyped float constant 1e+6464569) as uint16 value in constant declaration (truncated)
-// line 21: cannot use 1e646456 (untyped float constant 1e+646456) as uint8 value in constant declaration (truncated)
-// line 22: cannot use 1e64645 (untyped float constant 1e+64645) as uint value in constant declaration (truncated)
-// line 24: cannot use 1e64645 (untyped float constant 1e+64645) as rune value in constant declaration (truncated)

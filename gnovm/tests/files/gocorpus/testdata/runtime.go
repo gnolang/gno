@@ -22,6 +22,3 @@ func main() {
 
 // GnoError:
 // line 20: cannot access runtime.printbool from main
-
-// GoTypeCheckError:
-// line 20: undefined: runtime.printbool

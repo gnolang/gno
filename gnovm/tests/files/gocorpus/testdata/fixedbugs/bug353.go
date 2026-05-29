@@ -31,6 +31,3 @@ func main() {
 
 // GnoError:
 // line 16: name ReadWriterCloser not declared
-
-// GoTypeCheckError:
-// line 16: undefined: io.ReadWriterCloser

@@ -17,7 +17,3 @@ func main() {
 // GnoError:
 // line 13: cannot assign to uverse true
 // line 14: cannot assign to uverse byte
-
-// GoTypeCheckError:
-// line 13: cannot assign to true (neither addressable nor a map index expression)
-// line 14: byte (type) is not an expression

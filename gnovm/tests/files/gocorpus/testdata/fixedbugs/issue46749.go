@@ -50,18 +50,3 @@ var (
 // line 34: operator + not defined on: InterfaceKind
 // line 35: operator + not defined on: InterfaceKind
 // line 36: operator + not defined on: InterfaceKind
-
-// GoTypeCheckError:
-// line 15: invalid operation: "" + b (mismatched types untyped string and bool)
-// line 16: invalid operation: "" + i (mismatched types untyped string and int)
-// line 17: invalid operation: "" + nil (mismatched types untyped string and untyped nil)
-// line 21: invalid operation: s + false (mismatched types string and untyped bool)
-// line 22: invalid operation: s + 1 (mismatched types string and untyped int)
-// line 23: invalid operation: s + nil (mismatched types string and untyped nil)
-// line 27: invalid operation: "" + false (mismatched types untyped string and untyped bool)
-// line 28: invalid operation: "" + 1 (mismatched types untyped string and untyped int)
-// line 32: invalid operation: b + 1 (mismatched types bool and untyped int)
-// line 33: invalid operation: i + false (mismatched types int and untyped bool)
-// line 34: invalid operation: iface + 1 (mismatched types interface{} and int)
-// line 35: invalid operation: iface + 1.0 (mismatched types interface{} and float64)
-// line 36: invalid operation: iface + false (mismatched types interface{} and bool)

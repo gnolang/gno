@@ -13,6 +13,3 @@ import (
 
 // GnoError:
 // line 10: expected ';', found ','
-
-// GoTypeCheckError:
-// line 10: expected ';', found ','

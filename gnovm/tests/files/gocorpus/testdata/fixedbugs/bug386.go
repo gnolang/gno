@@ -14,7 +14,3 @@ func g() error { return -1 }  // ERROR "cannot use -1 (.type int.)?|has no metho
 // GnoError:
 // line 10: <untyped> bigint does not implement .uverse.error (missing method Error)
 // line 12: <untyped> bigint does not implement .uverse.error (missing method Error)
-
-// GoTypeCheckError:
-// line 10: cannot use 0 (constant of type int) as error value in return statement: int does not implement error (missing method Error)
-// line 12: cannot use -1 (constant of type int) as error value in return statement: int does not implement error (missing method Error)

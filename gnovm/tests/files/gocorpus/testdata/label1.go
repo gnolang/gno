@@ -138,6 +138,4 @@ L5:
 // line 96: invalid break label L1
 // line 99: invalid continue label L1
 // line 106: continue not in for statement
-// line 108: invalid continue label on
 // line 111: break not in for, switch, or select statement
-// line 113: invalid break label dance

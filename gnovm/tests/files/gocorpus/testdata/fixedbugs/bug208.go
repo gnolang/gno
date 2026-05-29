@@ -20,6 +20,3 @@ var _ = T{f: 1}
 
 // GnoError:
 // line 17: name f not defined in fileset with files [bug208.go]
-
-// GoTypeCheckError:
-// line 17: undefined: f

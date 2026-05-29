@@ -12,6 +12,3 @@ func f(x int /* // GC_ERROR "unexpected newline"
 
 // GnoError:
 // line 9: missing ',' before newline in parameter list
-
-// GoTypeCheckError:
-// line 9: missing ',' before newline in parameter list

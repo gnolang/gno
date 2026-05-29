@@ -22,6 +22,3 @@ var (
 
 // GnoError:
 // line 20: circular dependency: x -> T.pm -> x
-
-// GoTypeCheckError:
-// line 20: initialization cycle for x

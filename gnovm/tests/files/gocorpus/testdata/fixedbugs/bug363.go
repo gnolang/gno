@@ -24,5 +24,4 @@ func main() {
 // line 13: operator << not defined on: BigdecKind
 
 // GoTypeCheckError:
-// line 13: invalid operation: shifted operand 1 (type float64) must be integer
 // line 16: invalid operation: shifted operand 1 (type float64) must be integer

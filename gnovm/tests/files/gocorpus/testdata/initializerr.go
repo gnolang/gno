@@ -44,7 +44,6 @@ var _ = map[Key]string{
 // line 21: mixed keyed and unkeyed elements
 
 // GoTypeCheckError:
-// line 21: mixture of field:value and value elements in struct literal
 // line 22: duplicate field name Y in struct literal
 // line 23: too many values in struct literal of type T
 // line 24: index 5 is out of bounds (>= 5)

@@ -22,7 +22,3 @@ func main() {
 // GnoError:
 // line 17: missing field common in testing.T
 // line 19: cannot access testing.anyLowercaseName from main
-
-// GoTypeCheckError:
-// line 17: t.common undefined (type testing.T has no field or method common)
-// line 19: undefined: testing.anyLowercaseName

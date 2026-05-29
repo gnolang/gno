@@ -10,6 +10,3 @@ var x⊛y int	// ERROR "invalid character .* in identifier"
 
 // GnoError:
 // line 9: illegal character U+229B '⊛'
-
-// GoTypeCheckError:
-// line 9: illegal character U+229B '⊛'

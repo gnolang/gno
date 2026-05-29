@@ -17,6 +17,3 @@ var x = fx // ERROR "initialization cycle|depends upon itself"
 
 // GnoError:
 // line 16: circular dependency: x -> fx -> x
-
-// GoTypeCheckError:
-// line 16: initialization cycle for x

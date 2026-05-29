@@ -14,7 +14,3 @@ func main() {
 // GnoError:
 // line 10: name s not declared
 // line 11: name s not declared
-
-// GoTypeCheckError:
-// line 10: undefined: s
-// line 11: undefined: s

@@ -35,7 +35,6 @@ func main() {
 // line 10: invalid package name _
 
 // GoTypeCheckError:
-// line 10: invalid package name _
 // line 16: cannot define new methods on non-local type int
 // line 25: cannot use _ as value or type
 // line 26: cannot use _ as value or type

@@ -18,7 +18,3 @@ func main() {
 // GnoError:
 // line 13: operator << not defined on: Float64Kind
 // line 14: operator << not defined on: StringKind
-
-// GoTypeCheckError:
-// line 13: invalid operation: shifted operand 1 (type float64) must be integer
-// line 14: invalid operation: shifted operand 1 (type string) must be integer

@@ -11,6 +11,3 @@ package% // ERROR "unexpected %|package name must be an identifier|after package
 
 // GnoError:
 // line 10: expected 'IDENT', found '%'
-
-// GoTypeCheckError:
-// line 10: expected 'IDENT', found '%'

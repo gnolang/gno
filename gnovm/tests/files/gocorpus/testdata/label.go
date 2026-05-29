@@ -75,6 +75,4 @@ L10:
 // line 21: label L3 declared and not used
 // line 24: label L4 declared and not used
 // line 27: label L5 declared and not used
-// line 31: label L6 already declared
 // line 53: label defalt declared and not used
-// line 64: label go2 not declared

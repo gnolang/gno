@@ -299,6 +299,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				knownIssue[ln] = msg
 			}
 		}
+		// The go/types guard's value is catching what Gno's OWN
+		// preprocess misses, so its block records only lines Gno didn't
+		// already report — avoids duplicating every line both catch.
+		goTCUnique := make(map[int]string)
+		for ln, msg := range goTCLines {
+			if _, gnoHas := gnoErrLines[ln]; !gnoHas {
+				goTCUnique[ln] = msg
+			}
+		}
 
 		// Coverage: a marker counts as covered if Gno's own preprocess
 		// OR the go/types guard caught it. (Unmarked over-strict errors
@@ -321,7 +330,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 
 		sections := []goldenSection{
 			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErrMarked)},
-			{name: DirectiveGoTypeCheckError, block: FormatGnoErrorBlock(goTCLines)},
+			{name: DirectiveGoTypeCheckError, block: FormatGnoErrorBlock(goTCUnique)},
 			{name: DirectiveKnownIssue, block: FormatGnoErrorBlock(knownIssue)},
 		}
 		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, incompleteNote, sections)

@@ -13,6 +13,3 @@ func foo(x foo) {} // ERROR "expected type|not a type"
 
 // GnoError:
 // line 12: invalid recursive type: foo -> foo
-
-// GoTypeCheckError:
-// line 12: foo is not a type

@@ -13,6 +13,3 @@ func main() {
 
 // GnoError:
 // line 11: expected statement, found 'else' (and 1 more errors)
-
-// GoTypeCheckError:
-// line 11: expected statement, found 'else' (and 1 more errors)

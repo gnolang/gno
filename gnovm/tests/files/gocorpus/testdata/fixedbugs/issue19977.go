@@ -17,6 +17,3 @@ func Foo() {
 
 // GnoError:
 // line 12: name a not declared
-
-// GoTypeCheckError:
-// line 12: undefined: a

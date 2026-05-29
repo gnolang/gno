@@ -125,13 +125,15 @@ Escape hatches:
   "regex"` markers, the harness walks the per-line errors and pins them
   in two golden blocks at the bottom of the file:
     - `// GnoError:` — **Gno's own** static (preprocess) / runtime errors.
-    - `// GoTypeCheckError:` — the **go/types guard's** errors. go/types
+    - `// GoTypeCheckError:` — errors the **go/types guard** catches
+      that Gno's own preprocess **didn't** (the guard's unique
+      contribution — lines both catch aren't duplicated here). go/types
       is the Go type checker that gno.land's deploy gate runs *ahead* of
       GnoVM preprocess; it's not Gno's own behavior, so it gets its own
       block. Crucially it still rejects even when GnoVM preprocess is
-      permissive, so it's a real guard worth pinning separately. It also
-      reports every error in one pass (no first-error bail), so it often
-      covers markers GnoVM preprocess bails before reaching.
+      permissive, and reports every error in one pass (no first-error
+      bail), so it often covers markers GnoVM preprocess bails before
+      reaching.
 
   A third block, `// KnownIssue:`, pins Gno's errors on lines that carry
   **no gc marker** — i.e. Gno rejects code gc accepts (over-strict; a

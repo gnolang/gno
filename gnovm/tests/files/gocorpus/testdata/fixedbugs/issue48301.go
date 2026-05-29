@@ -14,6 +14,3 @@ func _() {
 
 // GnoError:
 // line 12: invalid recursive type: T -> T
-
-// GoTypeCheckError:
-// line 12: invalid recursive type: T refers to itself

@@ -24,8 +24,3 @@ func main() {
 // line 16: missing field floats in main.it
 // line 18: expected declaration, found i2
 // line 19: expected declaration, found _
-
-// GoTypeCheckError:
-// line 16: i1.floats undefined (type it has no field or method floats, but does have field Floats)
-// line 18: unknown field floats in struct literal of type it, but does have Floats
-// line 19: unknown field InneR in struct literal of type it, but does have inner
