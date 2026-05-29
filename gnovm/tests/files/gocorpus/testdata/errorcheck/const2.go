@@ -30,3 +30,5 @@ const MaxInt512 = (1<<256 - 1) * (1<<256 + 1)
 const _ = MaxInt512 + 1  // ERROR "constant addition overflow"
 const _ = MaxInt512 ^ -1 // ERROR "constant bitwise XOR overflow"
 const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
+
+// GnoEarlyBail: Gno rejects the oversized decimal literal '1e+500000000' (line 25, unmarked) before reaching the constant-overflow markers on later lines.

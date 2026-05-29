@@ -287,20 +287,74 @@ func ExtractErrorLine(errStr string) int {
 	return n
 }
 
-// CommentOutLine replaces line N (1-based) in source with `//`,
-// preserving the total line count so subsequent error line numbers
-// still align. Used by the errorcheck multi-pass driver to neutralize
-// a line whose marker the current pass just verified, freeing the
-// next pass to surface the next error.
+// rePackageDecl matches a top-level package declaration line.
+var rePackageDecl = regexp.MustCompile(`^package \w+`)
+
+// NeutralizeLine neutralizes line N (1-based) so the next multi-pass
+// surfaces the NEXT error, preserving the total line count so later
+// error line numbers still align.
 //
+// A package declaration is rewritten to `package main` rather than
+// commented out: the package clause is the file's one global
+// dependency, so blanking it (e.g. an `// ERROR "invalid package
+// name"` test on `package _`) would leave a structurally-invalid file
+// and block iteration to the remaining markers. Rewriting to a valid
+// `package main` lets the multi-pass continue. Every other line is an
+// independent statement and is simply replaced with `//`.
+//
+// Returns the new source and whether the neutralized line was a
+// package declaration (the caller then switches pkgPath to "main").
 // Out-of-range line returns source unchanged.
-func CommentOutLine(source []byte, line int) []byte {
+func NeutralizeLine(source []byte, line int) (out []byte, wasPackage bool) {
 	lines := bytes.Split(source, []byte("\n"))
 	if line < 1 || line > len(lines) {
-		return source
+		return source, false
 	}
-	lines[line-1] = []byte("//")
-	return bytes.Join(lines, []byte("\n"))
+	if rePackageDecl.Match(bytes.TrimLeft(lines[line-1], " \t")) {
+		lines[line-1] = []byte("package main")
+		wasPackage = true
+	} else {
+		lines[line-1] = []byte("//")
+	}
+	return bytes.Join(lines, []byte("\n")), wasPackage
+}
+
+// errorForLine returns the cleaned message for the error keyed on
+// gnoLine, preferring a preprocess segment over a go/types one and
+// falling back to the first available segment. Used to record one
+// clean per-line entry in the `// GnoError:` golden block rather than
+// a whole joined multi-error string.
+func errorForLine(errSegs, tcSegs []string, gnoLine int) string {
+	key := fmt.Sprintf(":%d:", gnoLine)
+	for _, group := range [][]string{errSegs, tcSegs} {
+		for _, seg := range group {
+			if strings.Contains(seg, key) {
+				return CleanErrorMessage(seg)
+			}
+		}
+	}
+	// No line-keyed segment (e.g. an error without a position): fall
+	// back to the first segment of whichever stream is non-empty.
+	for _, group := range [][]string{errSegs, tcSegs} {
+		if len(group) > 0 {
+			return CleanErrorMessage(group[0])
+		}
+	}
+	return ""
+}
+
+// gnoErrSegments splits a Gno error string on "; " — Gno joins
+// multiple preprocess errors into one message with that separator.
+// Each segment is an independent `path:line:col: msg`. Whitespace is
+// trimmed; empty segments are dropped.
+func gnoErrSegments(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, "; ") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // CleanErrorMessage strips a leading `path:line:col:` prefix from

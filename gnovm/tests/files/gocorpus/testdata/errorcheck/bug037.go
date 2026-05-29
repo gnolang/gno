@@ -10,3 +10,6 @@ func main() {
 	s := vlong(0);  // ERROR "undef"
 	_ = s
 }
+
+// GnoError:
+// line 10: undefined: vlong

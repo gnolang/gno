@@ -97,6 +97,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	var divergenceReason string // legacy errorcheck/compile inversion path only
 	var isGoRunMode bool
 	var goStdout string
+	// originalSource is the file as-authored, before any in-memory
+	// PKGPATH/synthetic-main rescue. Golden writes serialize against
+	// THIS, never the rescued source — the rescue transforms must
+	// not be persisted (gocorpus files stay upstream-verbatim).
+	originalSource := source
+	// prependedLines is how many lines the rescue added at the top
+	// (0 or 1), used to translate Gno's error line numbers back into
+	// original-file coordinates for marker lookup.
+	prependedLines := 0
 	isGoFile := strings.HasSuffix(fname, ".go")
 	// .gno files opt INTO Gno-vs-Go comparison by declaring at least
 	// one of `// GoOutput:` / `// GoError:` / `// Divergence:`. Without
@@ -105,30 +114,39 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
 		dirs.First(DirectiveGoError) != nil ||
 		dirs.First(DirectiveDivergence) != nil
+	prependRescue := func() error {
+		source = PrependPkgPathIfNeeded(source)
+		// We prepended a PKGPATH line iff source now starts with one
+		// and the original didn't — detect by-construction rather than
+		// sniffing (a file that legitimately ships its own PKGPATH
+		// must not be miscounted).
+		if bytes.HasPrefix(source, []byte("// PKGPATH:")) &&
+			!bytes.HasPrefix(originalSource, []byte("// PKGPATH:")) {
+			prependedLines = 1
+		}
+		// Re-parse: the prepended `// PKGPATH:` line must be visible to
+		// the directive parser.
+		dirs, err = ParseDirectives(bytes.NewReader(source))
+		if err != nil {
+			return fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
+		}
+		if d := dirs.First(DirectiveDivergence); d != nil {
+			divergenceReason = d.Content
+		}
+		return nil
+	}
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
 		switch {
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			errorcheckMarkers = ParseInlineErrors(source)
-			source = PrependPkgPathIfNeeded(source)
-			// Re-parse: PrependPkgPathIfNeeded may have prepended a
-			// `// PKGPATH:` line, which the directive parser needs to see.
-			dirs, err = ParseDirectives(bytes.NewReader(source))
-			if err != nil {
-				return "", 0, fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
-			}
-			if d := dirs.First(DirectiveDivergence); d != nil {
-				divergenceReason = d.Content
+			if err := prependRescue(); err != nil {
+				return "", 0, err
 			}
 		case !IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir:
-			source = PrependPkgPathIfNeeded(source)
-			dirs, err = ParseDirectives(bytes.NewReader(source))
-			if err != nil {
-				return "", 0, fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
-			}
-			if d := dirs.First(DirectiveDivergence); d != nil {
-				divergenceReason = d.Content
+			if err := prependRescue(); err != nil {
+				return "", 0, err
 			}
 		default:
 			// Runnable .go corpus file: symmetric Gno-vs-Go.
@@ -213,62 +231,60 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// can also set it for `// GnoError:` golden refresh.
 	updated := false
 
-	// Errorcheck-mode short-circuit: drive the multi-pass marker
-	// verifier. Pass 0 reuses the initial result above; subsequent
-	// passes create their own machines (Gno's preprocess state is
-	// not idempotent across runs). See [runErrorcheckMultiPass].
+	// Errorcheck-mode short-circuit: strict-by-default multi-pass.
+	// Pass 0 reuses the initial result above; subsequent passes create
+	// their own machines (Gno's preprocess state is not idempotent
+	// across runs). See [runErrorcheckMultiPass].
 	//
-	// A file is considered opted-in to strict mode if it carries a
-	// `// GnoError:` golden block. Opt-in files propagate multi-pass
-	// failures as test errors and refresh the block under opts.Sync.
-	// Files without the block fall back to the legacy single-pass
-	// loose marker check (preserves backward compatibility for the
-	// upstream-verbatim corpus files that haven't been blessed yet).
+	// Every inline `// ERROR` marker must be verified against Gno's
+	// actual per-line error, AND a `// GnoError:` golden block pinning
+	// Gno's wording must be present and match. There is no loose
+	// fallback: a partial match (some markers unverified) is a failure,
+	// because a passing test that silently skips markers drops exactly
+	// the signal this harness exists to capture.
+	//
+	// Files that can't be strict-verified — Gno errors on an unmarked
+	// line, a structural first error (`package _`) blocks iteration, or
+	// Gno's wording diverges from gc's — must be explicitly resolved:
+	//   - `// Unsupported: <reason>` to skip (handled before dispatch), or
+	//   - `// Divergence: <reason>` to bless (the legacy verdict-inversion
+	//     defer above turns the multi-pass failure into a PASS).
 	if len(errorcheckMarkers) > 0 {
-		prependedLines := 0
-		if bytes.HasPrefix(source, []byte("// PKGPATH:")) {
-			prependedLines = 1
-		}
-		perLine, mpFailures := opts.runErrorcheckMultiPass(
+		// divergenceReason isn't used by errorcheck (it has its own
+		// `// GnoEarlyBail:` mechanism); clear it so the compile-only
+		// verdict-inversion defer doesn't process this branch's return.
+		divergenceReason = ""
+
+		perLine, stopErr := opts.runErrorcheckMultiPass(
 			result, source, fname, pkgPath, errorcheckMarkers,
 			prependedLines, tgs, tcheck)
-
-		errDir := dirs.First(DirectiveGnoError)
-		strict := errDir != nil
 		expectedBlock := FormatGnoErrorBlock(perLine)
+		fullyVerified := stopErr == nil && len(perLine) == len(errorcheckMarkers)
+		bail := dirs.First(DirectiveGnoEarlyBail)
+		gas := m.GasMeter.GasConsumed()
 
 		switch {
-		case strict && len(mpFailures) > 0:
-			return "", m.GasMeter.GasConsumed(), errors.Join(mpFailures...)
-		case strict:
-			// Strict mode: verify the pinned block matches multi-pass output.
-			if strings.TrimRight(errDir.Content, "\n") != expectedBlock {
-				if opts.Sync {
-					errDir.Content = expectedBlock
-					updated = true
-				} else {
-					return "", m.GasMeter.GasConsumed(),
-						fmt.Errorf("// GnoError: diff:\n%s",
-							unifiedDiff(errDir.Content, expectedBlock))
-				}
-			}
-		case opts.Sync && expectedBlock != "":
-			// No block today, but a clean multi-pass succeeded under
-			// --update-golden-tests: opt the file in.
-			dirs = append(dirs, Directive{Name: DirectiveGnoError, Content: expectedBlock})
-			updated = true
-		default:
-			// Loose-mode fallback: at least one marker must match
-			// Gno's error. Preserves the upstream-verbatim corpus
-			// files that don't yet have a // GnoError: block.
-			if err := VerifyErrorcheckMarkers(errorcheckMarkers, result.Error, result.TypeCheckError); err != nil {
-				return "", m.GasMeter.GasConsumed(), err
-			}
+		case fullyVerified && bail != nil:
+			// Gno now reaches every marker — the early-bail note is stale.
+			return "", gas, fmt.Errorf(
+				"stale `// GnoEarlyBail:` directive: Gno now verifies all %d markers; remove it",
+				len(errorcheckMarkers))
+		case !fullyVerified && bail == nil:
+			// Partial coverage with no declared reason → fail. The
+			// multi-pass stopped before checking every marker; either
+			// fix Gno / the file, or declare `// GnoEarlyBail: <reason>`.
+			return "", gas, fmt.Errorf(
+				"errorcheck: verified %d of %d markers, then stopped: %v\n"+
+					"resolve the underlying issue, or declare `// GnoEarlyBail: <reason>` "+
+					"to bless partial coverage (the verified markers stay pinned in // GnoError:)",
+				len(perLine), len(errorcheckMarkers), stopErr)
 		}
-		if updated {
-			return dirs.FileTest(), m.GasMeter.GasConsumed(), nil
-		}
-		return "", m.GasMeter.GasConsumed(), nil
+		// fullyVerified (strict) or blessed-partial: record / verify the
+		// `// GnoError:` block. For partial files it pins exactly the
+		// markers Gno DID reach, so a regression on any of them still
+		// fails — the bail note only excuses the unreached ones.
+		newContent, err := opts.resolveGnoErrorBlock(originalSource, dirs.First(DirectiveGnoError), expectedBlock)
+		return newContent, gas, err
 	}
 
 	// returnErr is used as the return value, and may be a MultiError if
@@ -421,6 +437,89 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", m.GasMeter.GasConsumed(), returnErr
 }
 
+// resolveGnoErrorBlock reconciles the `// GnoError:` golden block
+// against expectedBlock (Gno's freshly-captured per-line wording).
+//
+//   - expectedBlock == "": nothing to pin (e.g. a blessed file whose
+//     Gno error landed on no marker line) — leave the file as-is.
+//   - block absent: write it under opts.Sync; otherwise FAIL telling
+//     the contributor to re-run with --update-golden-tests.
+//   - block present but stale: refresh under opts.Sync; otherwise FAIL
+//     with the diff.
+//
+// Returns (newContent, err): newContent is non-empty only when sync
+// rewrote the file (the caller returns it to trigger the rewrite).
+func (opts *TestOptions) resolveGnoErrorBlock(originalSource []byte, errDir *Directive, expectedBlock string) (string, error) {
+	if expectedBlock == "" {
+		return "", nil
+	}
+	switch {
+	case errDir == nil:
+		if opts.Sync {
+			return opts.writeGnoErrorGolden(originalSource, expectedBlock), nil
+		}
+		return "", fmt.Errorf(
+			"errorcheck: no `// GnoError:` block present; re-run with "+
+				"--update-golden-tests to record Gno's per-line wording:\n%s",
+			indent(expectedBlock, "  "))
+	case strings.TrimRight(errDir.Content, "\n") != expectedBlock:
+		if opts.Sync {
+			return opts.writeGnoErrorGolden(originalSource, expectedBlock), nil
+		}
+		return "", fmt.Errorf("// GnoError: diff:\n%s",
+			unifiedDiff(errDir.Content, expectedBlock))
+	}
+	return "", nil
+}
+
+// writeGnoErrorGolden returns the file content for an errorcheck
+// golden update: the original (upstream-verbatim) source with a
+// trailing `// GnoError:` block appended. It serializes against
+// originalSource — NOT the PKGPATH/synthetic-main-rescued source —
+// so the in-memory rescue transforms are never persisted.
+//
+// If originalSource already carries a `// GnoError:` block (refresh
+// case), that trailing block is replaced rather than duplicated.
+func (opts *TestOptions) writeGnoErrorGolden(originalSource []byte, block string) string {
+	body := stripTrailingGnoErrorBlock(string(originalSource))
+	body = strings.TrimRight(body, "\n")
+	var sb strings.Builder
+	sb.WriteString(body)
+	sb.WriteString("\n\n// GnoError:\n")
+	for _, line := range strings.Split(block, "\n") {
+		if line == "" {
+			sb.WriteString("//\n")
+			continue
+		}
+		sb.WriteString("// ")
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+// stripTrailingGnoErrorBlock removes a trailing `// GnoError:` comment
+// block (the directive line and all following `//` comment lines) from
+// src, so a golden refresh replaces rather than appends. Returns src
+// unchanged if no such block is present.
+func stripTrailingGnoErrorBlock(src string) string {
+	lines := strings.Split(src, "\n")
+	// Walk back over trailing blank lines.
+	end := len(lines)
+	for end > 0 && strings.TrimSpace(lines[end-1]) == "" {
+		end--
+	}
+	// Walk back over the comment block.
+	start := end
+	for start > 0 && strings.HasPrefix(strings.TrimSpace(lines[start-1]), "//") {
+		start--
+	}
+	if start < end && strings.HasPrefix(strings.TrimSpace(lines[start]), "// GnoError:") {
+		return strings.Join(lines[:start], "\n")
+	}
+	return src
+}
+
 // runErrorcheckMultiPass iteratively verifies every inline `// ERROR`
 // marker in source. Each pass:
 //
@@ -449,17 +548,17 @@ func (opts *TestOptions) runErrorcheckMultiPass(
 	initial runResult, source []byte, fname, pkgPath string,
 	markers []InlineError, prependedLines int,
 	tgs gno.Store, tcheck bool,
-) (map[int]string, []error) {
-	perLine := make(map[int]string)
+) (perLine map[int]string, stopErr error) {
+	perLine = make(map[int]string)
 	seen := make(map[int]bool)
-	var failures []error
 
 	currentSource := source
+	currentPkgPath := pkgPath
 	result := initial
 	for pass := 1; pass <= len(markers)+1; pass++ {
 		combined := strings.TrimSpace(result.Error + "\n" + result.TypeCheckError)
 		if combined == "" {
-			break // Gno accepted the (progressively-neutralized) file.
+			return perLine, nil // Gno accepted the neutralized file: clean finish.
 		}
 		// Pick the line from Gno's preprocess/runtime error first;
 		// fall back to the typecheck error if Gno didn't report one.
@@ -468,17 +567,15 @@ func (opts *TestOptions) runErrorcheckMultiPass(
 			gnoLine = ExtractErrorLine(result.TypeCheckError)
 		}
 		if gnoLine == 0 {
-			failures = append(failures, fmt.Errorf(
-				"errorcheck pass %d: Gno errored but no source line found in:\n%s",
-				pass, indent(combined, "  ")))
-			break
+			return perLine, fmt.Errorf(
+				"pass %d: Gno errored but no source line found in:\n%s",
+				pass, indent(combined, "  "))
 		}
 		sourceLine := gnoLine - prependedLines
 		if seen[sourceLine] {
-			failures = append(failures, fmt.Errorf(
-				"errorcheck pass %d: stuck at line %d (commenting-out didn't clear it):\n%s",
-				pass, sourceLine, indent(combined, "  ")))
-			break
+			return perLine, fmt.Errorf(
+				"pass %d: stuck at line %d (neutralizing didn't clear it):\n%s",
+				pass, sourceLine, indent(combined, "  "))
 		}
 		seen[sourceLine] = true
 
@@ -490,44 +587,61 @@ func (opts *TestOptions) runErrorcheckMultiPass(
 			}
 		}
 		if marker == nil {
-			failures = append(failures, fmt.Errorf(
-				"errorcheck pass %d: Gno errored at line %d but no // ERROR marker is attached there:\n%s",
-				pass, sourceLine, indent(combined, "  ")))
-			break
+			return perLine, fmt.Errorf(
+				"pass %d: Gno errored at line %d but no // ERROR marker is attached there:\n%s",
+				pass, sourceLine, indent(combined, "  "))
 		}
-		if !MarkerMatches(*marker, combined) {
-			failures = append(failures, fmt.Errorf(
-				"errorcheck pass %d: marker at line %d patterns %s don't match Gno error:\n%s",
-				pass, sourceLine, strings.Join(marker.Patterns, " | "), indent(combined, "  ")))
-			break
+		// Match the marker against Gno's error. Both Gno's preprocess
+		// output and go/types join multiple errors with "; " into one
+		// string, so an $-anchored marker (e.g. `... in map$`) would be
+		// defeated by trailing follow-on errors. Try each "; "-separated
+		// segment of both streams, then the combined text as a last
+		// resort. (A line may be caught by preprocess, by go/types, or
+		// both — e.g. `undefined` is go/types-only.) Record the segment
+		// that actually matched as the golden — NOT a re-derived
+		// line-keyed segment, which can be a different (e.g. internal)
+		// error that happens to carry the same line number.
+		errSegs := gnoErrSegments(result.Error)
+		tcSegs := gnoErrSegments(result.TypeCheckError)
+		segs := append(errSegs, tcSegs...)
+		matchedSeg := ""
+		for _, seg := range segs {
+			if MarkerMatches(*marker, seg) {
+				matchedSeg = seg
+				break
+			}
 		}
-		// Store just Gno's preprocess error for the // GnoError:
-		// golden — go/types' output (which lists ALL gc errors at
-		// once) would pollute the per-line entry with messages
-		// about other lines.
-		perLine[sourceLine] = CleanErrorMessage(result.Error)
+		switch {
+		case matchedSeg != "":
+			perLine[sourceLine] = CleanErrorMessage(matchedSeg)
+		case MarkerMatches(*marker, combined):
+			// Matched only the whole combined blob (rare). Pin the
+			// line-keyed segment for a clean golden entry.
+			perLine[sourceLine] = errorForLine(errSegs, tcSegs, gnoLine)
+		default:
+			return perLine, fmt.Errorf(
+				"pass %d: marker at line %d patterns %s don't match Gno error:\n%s",
+				pass, sourceLine, strings.Join(marker.Patterns, " | "), indent(combined, "  "))
+		}
 
-		// Comment out the matched line so the next pass surfaces the
-		// next error. Use gnoLine (post-prepend coordinates) — that's
-		// what indexes into currentSource.
-		currentSource = CommentOutLine(currentSource, gnoLine)
-
-		// Run the next pass, unless we've verified everything.
 		if len(perLine) >= len(markers) {
-			break
+			return perLine, nil // every marker verified.
 		}
-		result = opts.runErrorcheckPass(currentSource, fname, pkgPath, tgs, tcheck)
-	}
 
-	// Surface markers that never matched.
-	for _, mk := range markers {
-		if _, ok := perLine[mk.Line]; !ok {
-			failures = append(failures, fmt.Errorf(
-				"errorcheck: marker at line %d (%s) never matched any Gno error",
-				mk.Line, strings.Join(mk.Patterns, " | ")))
+		// Neutralize the matched line so the next pass surfaces the
+		// next error. A package declaration is rewritten to
+		// `package main` (and pkgPath switched to match) so iteration
+		// can continue past an invalid-package-name test; any other
+		// line is commented out. gnoLine is post-prepend coordinates,
+		// which is what indexes into currentSource.
+		var wasPkg bool
+		currentSource, wasPkg = NeutralizeLine(currentSource, gnoLine)
+		if wasPkg {
+			currentPkgPath = "main"
 		}
+		result = opts.runErrorcheckPass(currentSource, fname, currentPkgPath, tgs, tcheck)
 	}
-	return perLine, failures
+	return perLine, fmt.Errorf("exceeded %d passes (possible cycle)", len(markers)+1)
 }
 
 // runErrorcheckPass executes one fresh-machine pass for the
@@ -947,6 +1061,11 @@ const (
 	// match logic. Reason is the single-line text after the colon.
 	DirectiveUnsupported = "Unsupported"
 	DirectiveDivergence  = "Divergence"
+	// DirectiveGnoEarlyBail blesses partial errorcheck coverage: Gno
+	// stopped (structural error, unmarked line) before reaching every
+	// inline `// ERROR` marker. The markers Gno DID reach stay pinned
+	// in the `// GnoError:` block; this note excuses only the rest.
+	DirectiveGnoEarlyBail = "GnoEarlyBail"
 
 	// Symmetric Gno-vs-Go golden directives for .go corpus files.
 	// They mirror existing native directives but split the actual
@@ -981,6 +1100,7 @@ var allDirectives = []string{
 	DirectiveTypeCheckError,
 	DirectiveUnsupported,
 	DirectiveDivergence,
+	DirectiveGnoEarlyBail,
 	DirectiveGnoOutput,
 	DirectiveGoOutput,
 	DirectiveGnoError,
@@ -999,8 +1119,9 @@ var allDirectives = []string{
 // file. Inline-content single-line form (`// Output: foo`) is also
 // accepted via the same parser path — see ParseDirectives.
 var singleLinePascalDirectives = map[string]bool{
-	DirectiveUnsupported: true,
-	DirectiveDivergence:  true,
+	DirectiveUnsupported:  true,
+	DirectiveDivergence:   true,
+	DirectiveGnoEarlyBail: true,
 }
 
 // pinnedGoldenDirectives lists PascalCase directives whose empty

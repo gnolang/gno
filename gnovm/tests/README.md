@@ -35,7 +35,7 @@ directive bypasses each mode.
 | Mode | Trigger | Pass criterion |
 |---|---|---|
 | run | runnable (`package main` + `func main()`) | Gno's stdout == `go run`'s stdout |
-| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | multi-pass: each marker matches Gno's error on that line; legacy loose fallback when `// GnoError:` block is absent |
+| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | strict multi-pass: every marker matches Gno's error on its line, pinned in a `// GnoError:` block (partial coverage needs `// GnoEarlyBail:`) |
 | compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error |
 
 For non-`main` files (errorcheck, compile-only), a PKGPATH +
@@ -121,34 +121,40 @@ Escape hatches:
   directive: presence flips the verdict, stale blessings fail loudly,
   no pinned goldens.
 
-- **Errorcheck multi-pass + `// GnoError:` golden.** For files with
-  inline `// ERROR "regex"` markers, the harness iterates the source:
-  each pass runs Gno, finds the marker on the line Gno errored at,
-  verifies the marker's regex matches Gno's error, then comments
-  that line out and continues. This verifies *every* marker, not
-  just the first one Gno hits.
+- **Errorcheck multi-pass + `// GnoError:` golden (strict by default).**
+  For files with inline `// ERROR "regex"` markers the harness
+  iterates the source: each pass runs Gno, finds the marker on the
+  line Gno errored at, verifies the marker's regex matches Gno's
+  error, then neutralizes that line and continues. This verifies
+  *every* marker, not just the first one Gno hits. Details:
+    - Gno joins multiple errors with `; ` and bundles a go/types pass;
+      markers are matched against each `; `-separated segment of both
+      streams, so `$`-anchored patterns still match.
+    - A `package <x>` line is neutralized to `package main` (not
+      commented out) so iteration can continue past an
+      invalid-package-name test — the package clause is the file's one
+      global dependency.
 
-  The verdict is determined by whether the file carries a
-  `// GnoError:` golden block at the bottom:
+  Verdict:
+  - **All markers verified** → the file must carry a `// GnoError:`
+    block (bottom of file) pinning Gno's actual per-line wording, and
+    it must match. No block → FAIL "run --update-golden-tests"; stale
+    block → FAIL diff (refresh under sync). The reader sees both
+    contracts: inline `// ERROR` = gc's expectation (regex,
+    upstream-verbatim); `// GnoError:` = Gno's actual wording.
+  - **Partial coverage** (Gno bails before reaching every marker —
+    an unmarked line, a neutralized line that orphans dependent code,
+    or a Gno internal error) → FAIL, *unless* the file declares
+    `// GnoEarlyBail: <reason>`. With it: the markers Gno DID reach
+    stay pinned in `// GnoError:` (regression on any of them still
+    fails); the directive excuses only the unreached ones. If Gno
+    later reaches all markers, the directive goes stale → FAIL.
+  - `// Unsupported:` is reserved for files the harness shouldn't run
+    at all (feature gaps: generics, channels, …), not for early-bails.
 
-  ```
-  // GnoError:
-  // line 16: missing arguments to append
-  // line 17: cannot use ... on first argument
-  // line 18: too many arguments to append
-  ```
-
-  - **With** `// GnoError:` (strict mode): every marker must verify
-    AND the block must match the multi-pass output line-by-line.
-    Failures fail the test. `--update-golden-tests` refreshes the
-    block. Reader sees both contracts:
-    - inline `// ERROR "regex"` = gc's expectation (upstream-verbatim, regex)
-    - `// GnoError:` = Gno's actual wording per line (golden-managed)
-  - **Without** `// GnoError:` (loose fallback): only the legacy
-    single-pass loose check applies — at least one marker must
-    match. Upstream-verbatim files that haven't been blessed yet
-    keep passing. `--update-golden-tests` writes the block,
-    opting the file into strict mode.
+  There is **no loose fallback** — a partial match is a failure, never
+  a silent pass, because skipping markers drops exactly the signal
+  this harness captures.
 
 Canaries: `gocorpus/testdata/{run,errorcheck,compile}/canary.go`.
 
