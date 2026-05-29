@@ -1,0 +1,10 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+[evil]: https://attacker.example.com
+body paragraph
+-- output.md --
+
+body paragraph
+-- output.html --
+<p>body paragraph</p>

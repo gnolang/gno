@@ -268,14 +268,14 @@ This approach allows for a more consistent rendering experience across different
 ### Columns
 
 Gno-Flavored Markdown introduces a column layout system that uses special tags. You can create columns with
-±<gno-columns>± blocks and separate the content with ±|||±.
+±<gno-columns>± blocks and separate the content with ±<gno-columns-sep>±.
 
 #### Basic Syntax
 ±±±markdown
 <gno-columns>
 Left content
 
-|||
+<gno-columns-sep>
 
 Right content
 </gno-columns>
@@ -288,7 +288,7 @@ Right content
 <gno-columns>
 Left content
 
-|||
+<gno-columns-sep>
 
 Right content
 </gno-columns>
@@ -309,19 +309,19 @@ one row.
 <gno-columns>
 First column
 
-|||
+<gno-columns-sep>
 
 Second column
 
-|||
+<gno-columns-sep>
 
 Third column
 
-|||
+<gno-columns-sep>
 
 Fourth column
 
-|||
+<gno-columns-sep>
 
 Fifth column
 </gno-columns>
@@ -334,19 +334,19 @@ Fifth column
 <gno-columns>
 First column
 
-|||
+<gno-columns-sep>
 
 Second column
 
-|||
+<gno-columns-sep>
 
 Third column
 
-|||
+<gno-columns-sep>
 
 Fourth column
 
-|||
+<gno-columns-sep>
 
 Fifth column
 </gno-columns>
@@ -364,7 +364,7 @@ Columns can be mixed with any markdown content
 ### Text Section
 Paragraph with _formatting_
 
-|||
+<gno-columns-sep>
 
 My Image ![Alt](/public/imgs/gnoland.svg)
 </gno-columns>
@@ -378,7 +378,7 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 ### Text Section
 Paragraph with _formatting_
 
-|||
+<gno-columns-sep>
 
 My Image ![Alt](/public/imgs/gnoland.svg)
 </gno-columns>

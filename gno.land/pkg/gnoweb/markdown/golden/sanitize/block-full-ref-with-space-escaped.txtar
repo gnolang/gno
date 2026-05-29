@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[text] [label]
+-- output.md --
+\[text\] \[label\]
+-- output.html --
+<p>[text] [label]</p>
