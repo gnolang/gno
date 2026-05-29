@@ -36,6 +36,10 @@ var (
 	members = btree.New()
 )
 
+func init(cur realm) {
+	dao.SetOrigRealm(0, cur) // bind origin realm for event IDs
+}
+
 // PlantTree allows a user to plant their B-Tree in the DAO forest.
 // It mints an NFT to the user and registers their tree in the DAO.
 // Returns an error if the tree is already planted, empty, or if NFT minting fails.

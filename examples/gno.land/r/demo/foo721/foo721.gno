@@ -10,7 +10,8 @@ var (
 	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
 )
 
-func init() {
+func init(cur realm) {
+	foo.SetOrigRealm(0, cur)                                // bind origin realm for event IDs
 	mintNNFT(admin, 10)                                     // @administrator (10)
 	mintNNFT("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh", 5) // govdao t1 multisig (5)
 }

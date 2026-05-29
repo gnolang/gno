@@ -12,6 +12,7 @@ import (
 type basicNFT struct {
 	name              string
 	symbol            string
+	origRealm         string   // owning realm's package path; bound via SetOrigRealm
 	owners            avl.Tree // tokenId -> OwnerAddress
 	balances          avl.Tree // OwnerAddress -> TokenCount
 	tokenApprovals    avl.Tree // TokenId -> ApprovedAddress
@@ -36,6 +37,29 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 func (s *basicNFT) Name() string      { return s.name }
 func (s *basicNFT) Symbol() string    { return s.symbol }
 func (s *basicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
+
+func (s *basicNFT) ID() string {
+	if s.origRealm == "" {
+		return s.symbol
+	}
+	return s.origRealm + "." + s.symbol
+}
+
+func (s *basicNFT) SetOrigRealm(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
+
+	pkgPath := rlm.PkgPath()
+	if pkgPath == "" {
+		panic(ErrNotRealm)
+	}
+	if s.origRealm != "" {
+		panic(ErrRealmAlreadyBound)
+	}
+
+	s.origRealm = pkgPath
+}
 
 // BalanceOf returns balance of input address
 func (s *basicNFT) BalanceOf(addr address) (int64, error) {
@@ -131,7 +155,7 @@ func (s *basicNFT) Approve(caller, to address, tid TokenID) error {
 
 	chain.Emit(
 		ApprovalEvent,
-		"slug", s.symbol,
+		"token", s.ID(),
 		"owner", owner.String(),
 		"to", to.String(),
 		"tokenId", tidStr,
@@ -240,7 +264,7 @@ func (s *basicNFT) Burn(tid TokenID) error {
 
 	chain.Emit(
 		BurnEvent,
-		"slug", s.symbol,
+		"token", s.ID(),
 		"from", ownerStr,
 		"tokenId", tidStr,
 	)
@@ -263,7 +287,7 @@ func (s *basicNFT) setApprovalForAll(owner, operator address, approved bool) err
 
 	chain.Emit(
 		ApprovalForAllEvent,
-		"slug", s.symbol,
+		"token", s.ID(),
 		"owner", owner.String(),
 		"to", operator.String(),
 		"approved", strconv.FormatBool(approved),
@@ -326,7 +350,7 @@ func (s *basicNFT) transfer(from, to address, tid TokenID) error {
 
 	chain.Emit(
 		TransferEvent,
-		"slug", s.symbol,
+		"token", s.ID(),
 		"from", fromStr,
 		"to", toStr,
 		"tokenId", tidStr,
@@ -366,7 +390,7 @@ func (s *basicNFT) mint(to address, tid TokenID) error {
 
 	chain.Emit(
 		MintEvent,
-		"slug", s.symbol,
+		"token", s.ID(),
 		"to", toStr,
 		"tokenId", tidStr,
 	)

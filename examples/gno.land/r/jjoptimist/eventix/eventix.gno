@@ -40,6 +40,10 @@ var (
 	tickets             = grc721.NewBasicNFT("Event Ticket", "EVTIX")
 )
 
+func init(cur realm) {
+	tickets.SetOrigRealm(0, cur) // bind origin realm for event IDs
+}
+
 func CreateEvent(_ realm, name, description, dateStr string, paymentToken any, maxTickets int, price uint64) uint64 {
 	// validate inputs
 	if maxTickets <= 0 {
