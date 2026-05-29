@@ -68,8 +68,9 @@ func init(cur realm) {
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 }
 
-// GRC721 NFT
-myNFT := grc721.NewBasicNFT("My NFT Collection", "MNFT")
+// GRC721 NFT — like grc20.NewToken, must be constructed from a realm
+// context because grc721.NewBasicNFT asserts cur.IsCurrent().
+myNFT := grc721.NewBasicNFT(0, cur, "My NFT Collection", "MNFT")
 myNFT.Mint("g1your_address_here", "1")
 err := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
 

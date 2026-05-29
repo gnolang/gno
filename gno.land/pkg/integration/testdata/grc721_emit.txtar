@@ -34,11 +34,11 @@ import (
 
 var (
 	admin address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	foo           = grc721.NewBasicNFT("FooNFT", "FNFT")
+	foo   *grc721.BasicNFT
 )
 
 func init(cur realm) {
-	foo.SetOrigRealm(0, cur)
+	foo = grc721.NewBasicNFT(0, cur, "FooNFT", "FNFT")
 }
 
 // Setters

@@ -9,10 +9,10 @@ import (
 	"gno.land/p/nt/ufmt/v0"
 )
 
-type basicNFT struct {
+type BasicNFT struct {
 	name              string
 	symbol            string
-	origRealm         string   // owning realm's package path; bound via SetOrigRealm
+	origRealm         string   // owning realm's package path, captured at construction
 	owners            avl.Tree // tokenId -> OwnerAddress
 	balances          avl.Tree // OwnerAddress -> TokenCount
 	tokenApprovals    avl.Tree // TokenId -> ApprovedAddress
@@ -20,11 +20,20 @@ type basicNFT struct {
 	operatorApprovals avl.Tree // "OwnerAddress:OperatorAddress" -> bool
 }
 
-// Returns new basic NFT
-func NewBasicNFT(name string, symbol string) *basicNFT {
-	return &basicNFT{
-		name:   name,
-		symbol: symbol,
+// Returns new basic NFT bound to the calling realm (rlm.PkgPath() becomes origRealm).
+func NewBasicNFT(_ int, rlm realm, name, symbol string) *BasicNFT {
+	if !rlm.IsCurrent() {
+		panic(ErrSpoofedRealm)
+	}
+	pkgPath := rlm.PkgPath()
+	if pkgPath == "" {
+		panic(ErrNotRealm)
+	}
+
+	return &BasicNFT{
+		name:      name,
+		symbol:    symbol,
+		origRealm: pkgPath,
 
 		owners:            avl.Tree{},
 		balances:          avl.Tree{},
@@ -34,35 +43,16 @@ func NewBasicNFT(name string, symbol string) *basicNFT {
 	}
 }
 
-func (s *basicNFT) Name() string      { return s.name }
-func (s *basicNFT) Symbol() string    { return s.symbol }
-func (s *basicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
+func (s *BasicNFT) Name() string      { return s.name }
+func (s *BasicNFT) Symbol() string    { return s.symbol }
+func (s *BasicNFT) TokenCount() int64 { return int64(s.owners.Size()) }
 
-func (s *basicNFT) ID() string {
-	if s.origRealm == "" {
-		return s.symbol
-	}
+func (s *BasicNFT) ID() string {
 	return s.origRealm + "." + s.symbol
 }
 
-func (s *basicNFT) SetOrigRealm(_ int, rlm realm) {
-	if !rlm.IsCurrent() {
-		panic(ErrSpoofedRealm)
-	}
-
-	pkgPath := rlm.PkgPath()
-	if pkgPath == "" {
-		panic(ErrNotRealm)
-	}
-	if s.origRealm != "" {
-		panic(ErrRealmAlreadyBound)
-	}
-
-	s.origRealm = pkgPath
-}
-
 // BalanceOf returns balance of input address
-func (s *basicNFT) BalanceOf(addr address) (int64, error) {
+func (s *BasicNFT) BalanceOf(addr address) (int64, error) {
 	if err := isValidAddress(addr); err != nil {
 		return 0, err
 	}
@@ -76,7 +66,7 @@ func (s *basicNFT) BalanceOf(addr address) (int64, error) {
 }
 
 // OwnerOf returns owner of input token id
-func (s *basicNFT) OwnerOf(tid TokenID) (address, error) {
+func (s *BasicNFT) OwnerOf(tid TokenID) (address, error) {
 	owner, found := s.owners.Get(string(tid))
 	if !found {
 		return "", ErrInvalidTokenId
@@ -86,7 +76,7 @@ func (s *basicNFT) OwnerOf(tid TokenID) (address, error) {
 }
 
 // TokenURI returns the URI of input token id
-func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
+func (s *BasicNFT) TokenURI(tid TokenID) (string, error) {
 	uri, found := s.tokenURIs.Get(tid.String())
 	if !found {
 		return "", ErrInvalidTokenId
@@ -99,7 +89,7 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 // owner. The owning realm's public wrapper is responsible for deriving
 // caller from rlm.Previous().Address() under an rlm.IsCurrent() guard
 // before invoking this method; this method trusts the supplied caller.
-func (s *basicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
+func (s *BasicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool, error) {
 	// check for invalid TokenID
 	if !s.exists(tid) {
 		return false, ErrInvalidTokenId
@@ -119,7 +109,7 @@ func (s *basicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool
 
 // IsApprovedForAll returns true if operator is approved for all by the owner.
 // Otherwise, returns false
-func (s *basicNFT) IsApprovedForAll(owner, operator address) bool {
+func (s *BasicNFT) IsApprovedForAll(owner, operator address) bool {
 	key := owner.String() + ":" + operator.String()
 	approved, found := s.operatorApprovals.Get(key)
 	if !found {
@@ -133,7 +123,7 @@ func (s *basicNFT) IsApprovedForAll(owner, operator address) bool {
 // must be the owner OR an operator approved for all on owner's behalf.
 // The owning realm's wrapper validates IsCurrent and derives caller
 // from rlm.Previous().Address() before calling.
-func (s *basicNFT) Approve(caller, to address, tid TokenID) error {
+func (s *BasicNFT) Approve(caller, to address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -165,7 +155,7 @@ func (s *basicNFT) Approve(caller, to address, tid TokenID) error {
 }
 
 // GetApproved return the approved address for token
-func (s *basicNFT) GetApproved(tid TokenID) (address, error) {
+func (s *BasicNFT) GetApproved(tid TokenID) (address, error) {
 	addr, found := s.tokenApprovals.Get(tid.String())
 	if !found {
 		return zeroAddress, ErrTokenIdNotHasApproved
@@ -178,7 +168,7 @@ func (s *basicNFT) GetApproved(tid TokenID) (address, error) {
 // the caller's tokens. caller is the owner whose approvals are mutated;
 // the owning realm's wrapper derives it from rlm.Previous().Address()
 // under an IsCurrent() guard.
-func (s *basicNFT) SetApprovalForAll(caller, operator address, approved bool) error {
+func (s *BasicNFT) SetApprovalForAll(caller, operator address, approved bool) error {
 	if err := isValidAddress(operator); err != nil {
 		return ErrInvalidAddress
 	}
@@ -190,7 +180,7 @@ func (s *basicNFT) SetApprovalForAll(caller, operator address, approved bool) er
 // tokens from being forever locked. caller must be the owner or an
 // approved operator. The owning realm's wrapper derives caller from
 // rlm.Previous().Address() under an IsCurrent() guard.
-func (s *basicNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
+func (s *BasicNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error {
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -209,7 +199,7 @@ func (s *basicNFT) SafeTransferFrom(caller, from, to address, tid TokenID) error
 
 // TransferFrom transfers a token from `from` to `to`. Same caller
 // contract as SafeTransferFrom.
-func (s *basicNFT) TransferFrom(caller, from, to address, tid TokenID) error {
+func (s *BasicNFT) TransferFrom(caller, from, to address, tid TokenID) error {
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -223,13 +213,13 @@ func (s *basicNFT) TransferFrom(caller, from, to address, tid TokenID) error {
 }
 
 // Mints `tokenId` and transfers it to `to`.
-func (s *basicNFT) Mint(to address, tid TokenID) error {
+func (s *BasicNFT) Mint(to address, tid TokenID) error {
 	return s.mint(to, tid)
 }
 
 // Mints `tokenId` and transfers it to `to`. Also checks that
 // contract recipients are using GRC721 protocol
-func (s *basicNFT) SafeMint(to address, tid TokenID) error {
+func (s *BasicNFT) SafeMint(to address, tid TokenID) error {
 	err := s.mint(to, tid)
 	if err != nil {
 		return err
@@ -242,7 +232,7 @@ func (s *basicNFT) SafeMint(to address, tid TokenID) error {
 	return nil
 }
 
-func (s *basicNFT) Burn(tid TokenID) error {
+func (s *BasicNFT) Burn(tid TokenID) error {
 	owner, err := s.OwnerOf(tid)
 	if err != nil {
 		return err
@@ -277,7 +267,7 @@ func (s *basicNFT) Burn(tid TokenID) error {
 /* Helper methods */
 
 // Helper for SetApprovalForAll()
-func (s *basicNFT) setApprovalForAll(owner, operator address, approved bool) error {
+func (s *BasicNFT) setApprovalForAll(owner, operator address, approved bool) error {
 	if owner == operator {
 		return ErrApprovalToCurrentOwner
 	}
@@ -297,7 +287,7 @@ func (s *basicNFT) setApprovalForAll(owner, operator address, approved bool) err
 }
 
 // Helper for TransferFrom() and SafeTransferFrom()
-func (s *basicNFT) transfer(from, to address, tid TokenID) error {
+func (s *BasicNFT) transfer(from, to address, tid TokenID) error {
 	if err := isValidAddress(from); err != nil {
 		return ErrInvalidAddress
 	}
@@ -362,7 +352,7 @@ func (s *basicNFT) transfer(from, to address, tid TokenID) error {
 }
 
 // Helper for Mint() and SafeMint()
-func (s *basicNFT) mint(to address, tid TokenID) error {
+func (s *BasicNFT) mint(to address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -400,7 +390,7 @@ func (s *basicNFT) mint(to address, tid TokenID) error {
 	return nil
 }
 
-func (s *basicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
+func (s *BasicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
 	owner, found := s.owners.Get(tid.String())
 	if !found {
 		return false
@@ -420,25 +410,25 @@ func (s *basicNFT) isApprovedOrOwner(addr address, tid TokenID) bool {
 }
 
 // Checks if token id already exists
-func (s *basicNFT) exists(tid TokenID) bool {
+func (s *BasicNFT) exists(tid TokenID) bool {
 	_, found := s.owners.Get(tid.String())
 	return found
 }
 
-func (s *basicNFT) beforeTokenTransfer(from, to address, firstTokenId TokenID, batchSize int64) {
+func (s *BasicNFT) beforeTokenTransfer(from, to address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) afterTokenTransfer(from, to address, firstTokenId TokenID, batchSize int64) {
+func (s *BasicNFT) afterTokenTransfer(from, to address, firstTokenId TokenID, batchSize int64) {
 	// TODO: Implementation
 }
 
-func (s *basicNFT) checkOnGRC721Received(from, to address, tid TokenID) bool {
+func (s *BasicNFT) checkOnGRC721Received(from, to address, tid TokenID) bool {
 	// TODO: Implementation
 	return true
 }
 
-func (s *basicNFT) RenderHome() (str string) {
+func (s *BasicNFT) RenderHome() (str string) {
 	str += ufmt.Sprintf("# %s ($%s)\n\n", s.name, s.symbol)
 	str += ufmt.Sprintf("* **Total supply**: %d\n", s.TokenCount())
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
@@ -449,7 +439,7 @@ func (s *basicNFT) RenderHome() (str string) {
 // Getter returns an NFTGetter that yields a reader-only view of the NFT.
 // Safe to register with cross-realm aggregators like tokenhub — readers
 // only, no rlm-typed methods, so no cur can be captured via this surface.
-func (n *basicNFT) Getter() NFTGetter {
+func (n *BasicNFT) Getter() NFTGetter {
 	return func() IGRC721Reader {
 		return n
 	}

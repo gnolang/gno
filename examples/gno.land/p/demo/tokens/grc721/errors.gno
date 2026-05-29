@@ -15,10 +15,9 @@ var (
 	ErrCallerIsNotOwnerOrApproved  = errors.New("caller is not token owner or approved")
 	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
 
-	// SetOrigRealm
-	ErrSpoofedRealm      = errors.New("rlm does not match the current crossing frame")
-	ErrNotRealm          = errors.New("rlm must be a realm (got EOA/origin)")
-	ErrRealmAlreadyBound = errors.New("origin realm already bound")
+	// NewBasicNFT realm binding
+	ErrSpoofedRealm = errors.New("rlm does not match the current crossing frame")
+	ErrNotRealm     = errors.New("rlm must be a realm (got EOA/origin)")
 
 	// ERC721Royalty
 	ErrInvalidRoyaltyPercentage     = errors.New("invalid royalty percentage")

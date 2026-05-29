@@ -12,29 +12,40 @@ var (
 	dummyNFTSymbol = "DNFT"
 )
 
-func TestNewBasicNFT(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+// newDummyNFT constructs a dummy NFT. The IIFE same-realm cross promotes
+// the test's EOA-origin cur into a /p/grc721 CodeRealm cur so NewBasicNFT's
+// IsCurrent + non-empty PkgPath checks pass.
+func newDummyNFT(_ int, rlm realm) *BasicNFT {
+	var nft *BasicNFT
+	func(cur realm) {
+		nft = NewBasicNFT(0, cur, dummyNFTName, dummyNFTSymbol)
+	}(cross(rlm))
+	return nft
+}
+
+func TestNewBasicNFT(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 }
 
-func TestName(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestName(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	name := dummy.Name()
 	uassert.Equal(t, dummyNFTName, name)
 }
 
-func TestSymbol(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestSymbol(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	symbol := dummy.Symbol()
 	uassert.Equal(t, dummyNFTSymbol, symbol)
 }
 
-func TestTokenCount(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestTokenCount(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	count := dummy.TokenCount()
@@ -47,8 +58,8 @@ func TestTokenCount(t *testing.T) {
 	uassert.Equal(t, int64(2), count)
 }
 
-func TestBalanceOf(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestBalanceOf(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -72,8 +83,8 @@ func TestBalanceOf(t *testing.T) {
 	uassert.Equal(t, int64(1), balanceAddr2)
 }
 
-func TestOwnerOf(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestOwnerOf(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -96,8 +107,8 @@ func TestOwnerOf(t *testing.T) {
 	uassert.Equal(t, addr2.String(), owner.String())
 }
 
-func TestIsApprovedForAll(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestIsApprovedForAll(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -107,8 +118,8 @@ func TestIsApprovedForAll(t *testing.T) {
 	uassert.False(t, isApprovedForAll)
 }
 
-func TestSetApprovalForAll(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestSetApprovalForAll(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	caller := testutils.TestAddress("caller")
@@ -132,18 +143,18 @@ func TestSetApprovalForAll(t *testing.T) {
 	uassert.False(t, isApprovedForAll)
 }
 
-func TestGetApproved(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestGetApproved(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	_, err := dummy.GetApproved(TokenID("invalid"))
 	uassert.Error(t, err, "should result in error")
 }
 
-func TestApprove(t *testing.T) {
+func TestApprove(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -162,10 +173,10 @@ func TestApprove(t *testing.T) {
 	uassert.Equal(t, addr.String(), approvedAddr.String())
 }
 
-func TestTransferFrom(t *testing.T) {
+func TestTransferFrom(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -192,10 +203,10 @@ func TestTransferFrom(t *testing.T) {
 	uassert.Equal(t, addr.String(), owner.String())
 }
 
-func TestSafeTransferFrom(t *testing.T) {
+func TestSafeTransferFrom(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -222,8 +233,8 @@ func TestSafeTransferFrom(t *testing.T) {
 	uassert.Equal(t, addr.String(), owner.String())
 }
 
-func TestMint(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestMint(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -246,8 +257,8 @@ func TestMint(t *testing.T) {
 	uassert.Equal(t, addr1.String(), owner.String())
 }
 
-func TestBurn(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestBurn(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -263,8 +274,8 @@ func TestBurn(t *testing.T) {
 	uassert.Error(t, err, "should result in error")
 }
 
-func TestSetTokenURI(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestSetTokenURI(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	addr1 := address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
@@ -289,8 +300,8 @@ func TestSetTokenURI(t *testing.T) {
 	uassert.Equal(t, string(tokenURI), string(dummyTokenURI))
 }
 
-func TestIsApprovedOrOwner(t *testing.T) {
-	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+func TestIsApprovedOrOwner(cur realm, t *testing.T) {
+	dummy := newDummyNFT(0, cur)
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	var (
