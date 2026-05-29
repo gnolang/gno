@@ -28,6 +28,25 @@ import (
 // KindGnoForeign is the node kind for ForeignNode.
 var KindGnoForeign = ast.NewNodeKind("GnoForeign")
 
+// defaultForeignLabel is the aria-label / visible label used when a
+// <gno-foreign> opener carries no (or an empty) label attribute. Shared
+// by the parser (Open) and the renderer so the two cannot drift.
+const defaultForeignLabel = "external content"
+
+// MaxGnoForeignBlocksPerConvert caps the number of <gno-foreign> blocks
+// one Convert call will admit. Beyond this count, foreign openers fall
+// through to raw HTML (safe-mode strips them). Unlike the cross-family
+// nesting depth (nestdepth.go), this is a foreign-specific MONOTONIC
+// per-Convert total — never decremented — so it lives here, with the
+// foreign parser that maintains it, not in the shared depth helper.
+const MaxGnoForeignBlocksPerConvert = 100
+
+// gnoForeignBlockKey stores the monotonic per-Convert count of
+// <gno-foreign> openers admitted so far, maintained directly via
+// pc.Get / pc.Set in Open. Its lifecycle is not stack-shaped (never
+// decremented), so it does not use the nestdepth Push/Pop helper.
+var gnoForeignBlockKey = parser.NewContextKey()
+
 // ForeignNode is the AST node for a `<gno-foreign>` block. The body
 // bytes are collected verbatim by the outer parser and handed to an
 // inner goldmark instance at render time.
@@ -97,6 +116,16 @@ func parseForeignLineTag(line []byte) (foreignTagKind, string) {
 		return foreignTagNone, ""
 	}
 	tok := toks[0]
+	// CASE-INSENSITIVE by construction: golang.org/x/net/html lowercases
+	// tag names, so `<GNO-FOREIGN>` / `<Gno-Foreign>` also reach here as
+	// "gno-foreign". This matches the sibling gno-* extensions
+	// (ext_columns.go does the same). The realm-side escaper
+	// (foreign.isForeignSentinelLine) MUST mirror this case-folding; a
+	// case-variant sentinel left unescaped in foreign body bytes would
+	// otherwise be recognized here and break the sandbox boundary. Do
+	// NOT change this to a case-sensitive compare in isolation — the
+	// escaper and parser can't be kept in lockstep across the Gno/Go
+	// boundary, so case-insensitive is the safer shared invariant.
 	if tok.Data != "gno-foreign" {
 		return foreignTagNone, ""
 	}
@@ -172,7 +201,7 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	reader.AdvanceToEOL()
 
 	if label == "" {
-		label = "external content"
+		label = defaultForeignLabel
 	}
 	node := &ForeignNode{
 		Label:        label,
@@ -305,7 +334,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 
 	label := n.Label
 	if label == "" {
-		label = "external content"
+		label = defaultForeignLabel
 	}
 	escLabel := htmlpkg.EscapeString(label)
 	fmt.Fprintf(w, "<div class=\"gno-foreign\" role=\"group\" aria-label=\"%s\">\n", escLabel)

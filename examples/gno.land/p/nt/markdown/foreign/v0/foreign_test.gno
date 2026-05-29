@@ -122,6 +122,67 @@ func TestForeign_EscapesGnoForeignWithExtraContent(t *testing.T) {
 	}
 }
 
+func TestForeign_EscapesCaseVariantClose(t *testing.T) {
+	// The renderer-side parser recognizes tags case-insensitively
+	// (goldmark's tokenizer lowercases tag names). A case-variant close
+	// left unescaped would terminate the outer block early and let
+	// trailing body render OUTSIDE the sandbox. The helper must escape
+	// `</GNO-FOREIGN>` just like `</gno-foreign>`.
+	got := Foreign("foo\n</GNO-FOREIGN>\nbar")
+	if strings.Contains(got, "\n</GNO-FOREIGN>\nbar") {
+		t.Errorf("case-variant close not escaped — sandbox-escape vector: %q", got)
+	}
+	if !strings.Contains(got, "&lt;/GNO-FOREIGN>") {
+		t.Errorf("expected escaped case-variant close: %q", got)
+	}
+}
+
+func TestForeign_EscapesCaseVariantOpen(t *testing.T) {
+	// A case-variant opener left unescaped would be picked up by the
+	// parser as a nested inner foreign (framingDepth++), causing the
+	// helper's own outer-close to be consumed as a fake inner close and
+	// capturing trailing realm content into the sandbox.
+	got := Foreign("foo\n<GNO-FOREIGN>\nbar")
+	if !strings.Contains(got, "\n&lt;GNO-FOREIGN>\n") {
+		t.Errorf("case-variant opener not escaped — capture vector: %q", got)
+	}
+}
+
+func TestForeign_EscapesMixedCaseSentinel(t *testing.T) {
+	// Mixed-case forms (the most likely hand-crafted evasion) must also
+	// be caught, including the attribute-bearing mixed-case opener.
+	for _, in := range []string{
+		"<Gno-Foreign>",
+		"</Gno-Foreign>",
+		`<GNO-foreign label="x">`,
+		"</gNo-fOrEiGn>",
+	} {
+		got := Foreign(in)
+		if !strings.Contains(got, "&lt;") {
+			t.Errorf("mixed-case sentinel %q not escaped: %q", in, got)
+		}
+	}
+}
+
+func TestForeignWithLabel_StripsBidiAndZeroWidth(t *testing.T) {
+	// A bidi-override (U+202E) or zero-width (U+200C) run in the label
+	// is invisible-spoof payload; it must be stripped before the label
+	// is spliced into the opener attribute.
+	got := ForeignWithLabel("a\u202eb\u200cc", "body")
+	if !strings.Contains(got, `label="abc"`) {
+		t.Errorf("expected bidi/zero-width-stripped label: %q", got)
+	}
+}
+
+func TestForeignWithLabel_UnicodeSeparatorsBecomeSpaces(t *testing.T) {
+	// U+2028 / U+2029 / U+0085 must not survive in the single-line
+	// opener attribute; they fold to spaces like ASCII line breaks.
+	got := ForeignWithLabel("a\u2028b\u2029c\u0085d", "body")
+	if !strings.Contains(got, `label="a b c d"`) {
+		t.Errorf("expected space-folded label: %q", got)
+	}
+}
+
 func TestForeign_DoesNotEscapeUnrelatedTagPrefix(t *testing.T) {
 	// `<gno-foreignx>` is a DIFFERENT tag name. The helper's
 	// recognizer requires `<gno-foreign` to be followed by `>` or

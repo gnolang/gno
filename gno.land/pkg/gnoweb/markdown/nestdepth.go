@@ -17,10 +17,9 @@
 // the caller can refuse cleanly. Pop clamps at 0 to avoid
 // underflow in the face of unbalanced transformer Pops.
 //
-// The block-count counter (gnoForeignBlockKey) is a separate,
-// monotonic per-Convert total maintained directly by the foreign
-// parser via pc.Get / pc.Set — see ext_foreign.go. It is not
-// stack-shaped, so it does not use this helper.
+// The foreign-specific monotonic block-count counter is NOT here —
+// it is not stack-shaped, so it lives with the foreign parser in
+// ext_foreign.go (see MaxGnoForeignBlocksPerConvert / gnoForeignBlockKey).
 package markdown
 
 import "github.com/yuin/goldmark/parser"
@@ -35,17 +34,6 @@ const MaxGnoNestDepth = 4
 // The same key is pre-seeded into inner-instance contexts via
 // Seed so the cap is global across opaque-body boundaries.
 var gnoNestDepthKey = parser.NewContextKey()
-
-// gnoForeignBlockKey stores the monotonic per-Convert count of
-// <gno-foreign> openers admitted so far. Maintained directly by
-// ext_foreign.go (not via this helper) because its lifecycle is
-// not stack-shaped — it is never decremented.
-var gnoForeignBlockKey = parser.NewContextKey()
-
-// MaxGnoForeignBlocksPerConvert caps the number of <gno-foreign>
-// blocks one Convert call will admit. Beyond this count, foreign
-// openers fall through to raw HTML.
-const MaxGnoForeignBlocksPerConvert = 100
 
 // Get returns the current gno-* nesting depth on pc. Returns 0
 // when the key is absent (a freshly-created parser.Context starts

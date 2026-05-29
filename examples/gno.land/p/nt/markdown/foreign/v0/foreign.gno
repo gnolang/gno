@@ -14,7 +14,10 @@
 // cannot terminate the outer block prematurely.
 package foreign
 
-import "strings"
+import (
+	"chain/markdown"
+	"strings"
+)
 
 // Foreign wraps body in a `<gno-foreign>` ... `</gno-foreign>` sandbox
 // block. The returned string is ready to concatenate into a larger
@@ -83,15 +86,22 @@ func ForeignWithLabel(label, body string) string {
 func wrapForeign(rawLabel, body string) string {
 	label := sanitizeLabel(rawLabel)
 
-	// Normalize line endings.
-	body = strings.ReplaceAll(body, "\r\n", "\n")
-	body = strings.ReplaceAll(body, "\r", "\n")
+	// Normalize line endings (CR/CRLF → LF). The parser matches the
+	// sentinel close against \n-delimited lines, so mixed line endings
+	// would otherwise shift the match boundary. CR/CRLF → LF ONLY: do
+	// not fold Unicode separators here — they must stay verbatim in the
+	// body so the inner renderer sees the foreign markdown unaltered.
+	body = markdown.NormalizeBreaks(body)
 
 	// Mangle any line that would terminate the outer block or open
 	// an inner one. Covers bare and attribute-bearing forms of both
 	// the opener and the closer (see step 2 in the package doc).
 	var b strings.Builder
-	b.Grow(len(body) + len("\n\n<gno-foreign>\n</gno-foreign>\n\n") + len(label) + len(` label=""`))
+	// b accumulates only the body lines (the opener/closer envelope is
+	// concatenated separately below), so len(body) is the exact size in
+	// the common case. Sentinel lines that expand `<`→`&lt;` may force
+	// one growth — rare enough not to pre-size for.
+	b.Grow(len(body))
 	lines := strings.Split(body, "\n")
 	for i, line := range lines {
 		if isForeignSentinelLine(trimSentinel(line)) {
@@ -119,12 +129,20 @@ func wrapForeign(rawLabel, body string) string {
 // sanitizeLabel makes a user-supplied label safe to splice into an
 // HTML attribute value on the gno-foreign opener line.
 func sanitizeLabel(s string) string {
-	// Drop NUL and map other ASCII control characters to spaces.
+	// Strip bidi-override and zero-width controls FIRST — same ordering
+	// as the sanitize package's HTMLEscape — so invisible reordering or
+	// zero-width payloads can't survive into the rendered label.
+	s = markdown.StripBidiAndZeroWidth(s)
+	// Drop NUL; map other ASCII controls AND the Unicode line/paragraph
+	// separators (U+2028, U+2029, U+0085 NEL) to spaces. The opener is a
+	// single line, so any of these surviving in the label would either
+	// add a control payload or, for the separators, render as a stray
+	// line break inside the attribute.
 	s = strings.Map(func(r rune) rune {
 		if r == 0 {
 			return -1
 		}
-		if r < 0x20 || r == 0x7f {
+		if r < 0x20 || r == 0x7f || r == 0x2028 || r == 0x2029 || r == 0x0085 {
 			return ' '
 		}
 		return r
@@ -146,6 +164,16 @@ func sanitizeLabel(s string) string {
 // parser would reject (e.g., unknown attribute keys on the opener)
 // are mangled, since the only downside is that the user-visible
 // literal text shows verbatim instead of being raw-HTML-stripped.
+//
+// The tag-name match is case-INSENSITIVE. goldmark's html.Tokenizer
+// lowercases tag names before the renderer-side parser
+// (parseForeignLineTag in ext_foreign.go) compares them, so the parser
+// recognizes `<GNO-FOREIGN>`, `<Gno-Foreign>`, etc. as sentinels. This
+// escaper MUST mirror that case-folding — otherwise a case-variant
+// sentinel slips past here and reaches the (case-insensitive) parser,
+// where it either closes the outer block early (escaping the sandbox)
+// or opens a phantom inner block that consumes the helper's own close
+// (capturing trailing realm content).
 func isForeignSentinelLine(s string) bool {
 	const (
 		openPrefix  = "<gno-foreign"
@@ -153,9 +181,9 @@ func isForeignSentinelLine(s string) bool {
 	)
 	var rest string
 	switch {
-	case strings.HasPrefix(s, closePrefix):
+	case hasASCIIFoldPrefix(s, closePrefix):
 		rest = s[len(closePrefix):]
-	case strings.HasPrefix(s, openPrefix):
+	case hasASCIIFoldPrefix(s, openPrefix):
 		rest = s[len(openPrefix):]
 	default:
 		return false
@@ -168,6 +196,26 @@ func isForeignSentinelLine(s string) bool {
 	// different tag — leave it alone.
 	c := rest[0]
 	return c == '>' || c == ' ' || c == '\t'
+}
+
+// hasASCIIFoldPrefix reports whether s begins with prefix, comparing
+// ASCII letters case-insensitively. prefix must be lowercase ASCII;
+// folding is ASCII-only on purpose (Unicode case folding would
+// over-match, and the sentinel envelope is pure ASCII anyway).
+func hasASCIIFoldPrefix(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	for i := 0; i < len(prefix); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != prefix[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // trimSentinel returns line with the leading 0-3 spaces and trailing

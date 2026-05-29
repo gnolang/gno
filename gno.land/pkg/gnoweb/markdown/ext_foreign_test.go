@@ -86,6 +86,35 @@ func TestForeign_NestedDepth2(t *testing.T) {
 	}
 }
 
+func TestForeign_CaseVariantCloseEquivalentToLowercase(t *testing.T) {
+	// The parser recognizes the close tag case-INSENSITIVELY (goldmark's
+	// html.Tokenizer lowercases tag names). Locking this: a case-variant
+	// close must produce byte-identical output to the lowercase close —
+	// i.e. it terminates the outer block the same way, so "after" renders
+	// outside the sandbox in both. The realm-side escaper
+	// (foreign.isForeignSentinelLine) mirrors this case-folding; if the
+	// parser is ever made case-sensitive without updating the escaper,
+	// this test breaks and flags the divergence.
+	lower := renderForeignTestCase(t, "\n\n<gno-foreign>\ninside\n</gno-foreign>\nafter\n\n")
+	upper := renderForeignTestCase(t, "\n\n<gno-foreign>\ninside\n</GNO-FOREIGN>\nafter\n\n")
+	if lower != upper {
+		t.Errorf("case-variant close must match lowercase close.\nlower:\n%s\nupper:\n%s", lower, upper)
+	}
+}
+
+func TestForeign_CaseVariantInnerOpenEquivalentToLowercase(t *testing.T) {
+	// A case-variant inner opener must bump the body-framing depth just
+	// like a lowercase one (so the matching inner close stays in the body
+	// rather than closing the outer block), AND open a nested sandbox at
+	// the inner-render level. Byte-equivalence to the all-lowercase
+	// nesting proves case-insensitivity holds through BOTH parser passes.
+	lower := renderForeignTestCase(t, "\n\n<gno-foreign>\n<gno-foreign>\ninner\n</gno-foreign>\nmid\n</gno-foreign>\n\n")
+	upper := renderForeignTestCase(t, "\n\n<gno-foreign>\n<GNO-FOREIGN>\ninner\n</gno-foreign>\nmid\n</gno-foreign>\n\n")
+	if lower != upper {
+		t.Errorf("case-variant inner open must match lowercase.\nlower:\n%s\nupper:\n%s", lower, upper)
+	}
+}
+
 func TestForeign_DepthCapAt5_FifthRefused(t *testing.T) {
 	// 5 nested <gno-foreign> openers — the 5th must be rejected
 	// (cap is 4 across the gno-* family).
