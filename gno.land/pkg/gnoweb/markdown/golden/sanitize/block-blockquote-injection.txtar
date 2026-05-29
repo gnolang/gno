@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+> attacker quote
+-- output.md --
+\> attacker quote
+-- output.html --
+<p>&gt; attacker quote</p>

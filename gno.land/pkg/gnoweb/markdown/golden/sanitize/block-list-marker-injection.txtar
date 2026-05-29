@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+- item one
+1. ordered item
+-- output.md --
+\- item one
+1\. ordered item
+-- output.html --
+<p>- item one
+1. ordered item</p>

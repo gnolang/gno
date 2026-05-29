@@ -1926,7 +1926,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		}
 		// Bound method wrapper belongs to the realm doing the
 		// binding; the receiver carries its own PkgID independently.
-		alloc.stampPkgID(&bmv.ObjectInfo)
+		// Pass nil to stamp with currentRealmID.
+		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -1965,7 +1966,8 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Receiver: ptv, // bound to tv ptr, not dtv.
 		}
 		// Bound method wrapper belongs to the realm doing the binding.
-		alloc.stampPkgID(&bmv.ObjectInfo)
+		// Pass nil to stamp with currentRealmID.
+		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2417,7 +2419,8 @@ func NewBlock(alloc *Allocator, source BlockNode, parent *Block) *Block {
 	}
 	// Blocks belong to the executing realm (currentRealmID),
 	// representing a lexical scope inside that realm's running code.
-	alloc.stampPkgID(&blk.ObjectInfo)
+	// Pass nil to stamp with currentRealmID.
+	alloc.stampPkgID(&blk.ObjectInfo, nil)
 	return blk
 }
 

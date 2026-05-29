@@ -131,11 +131,11 @@ func (m *Machine) doOpExec(op Op) {
 					continue
 				}
 				// For-loop init re-allocates the heap slot in the
-				// current realm.
+				// current realm. HIV is a wrapper; pass nil.
 				newHIV := &HeapItemValue{
 					Value: hiv.Value,
 				}
-				m.Alloc.stampPkgID(&newHIV.ObjectInfo)
+				m.Alloc.stampPkgID(&newHIV.ObjectInfo, nil)
 				last.Values[i].V = newHIV
 			}
 			// run post if exists.

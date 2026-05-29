@@ -6,16 +6,16 @@ package launderrh_mv_higher_order_chain
 // against a captured /r/-victim-stamped /p/-pointer.
 //
 // 1. main → m.Realm = /r/-attacker
-// 2. RegisterPlainHook(closureA) — Rule 1 → victim. closureA stored.
+// 2. RegisterPlainHook(closureA) — borrow rule #1 → victim. closureA stored.
 // 3. main calls runViaTrampoline() — local helper that wraps the
 //    victim call inside another function value indirection.
-// 4. trampoline() invokes launderrvictim.RunPlainHooks(). Rule 1 →
+// 4. trampoline() invokes launderrvictim.RunPlainHooks(). borrow rule #1 →
 //    m.Realm = /r/-victim.
-// 5. RunPlainHooks calls closureA() — /r/-attacker body → Rule 1 →
+// 5. RunPlainHooks calls closureA() — /r/-attacker body → borrow rule #1 →
 //    m.Realm = /r/-attacker.
 // 6. Inside closureA: chainHelper() — local /r/-attacker function
 //    that further indirects to captured.Apply(EvilWrite).
-// 7. Apply is /p/-method, recv is /r/-victim-stamped → Rule 2 →
+// 7. Apply is /p/-method, recv is /r/-victim-stamped → borrow rule #2 →
 //    m.Realm = /r/-victim during Apply.
 // 8. EvilWrite is /p/-top-level → no shift → write commits under
 //    victim authority → SUCCEEDS.

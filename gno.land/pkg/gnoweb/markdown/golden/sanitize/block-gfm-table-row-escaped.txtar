@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+| a | b |
+|---|---|
+| c | d |
+-- output.md --
+\| a | b |
+\|---|---|
+\| c | d |
+-- output.html --
+<p>| a | b |
+|---|---|
+| c | d |</p>
