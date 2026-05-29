@@ -42,6 +42,8 @@ const (
 	TransferEvent       = "Transfer"
 	ApprovalEvent       = "Approval"
 	ApprovalForAllEvent = "ApprovalForAll"
+	TokenURIUpdateEvent = "TokenUriUpdate"
+	MetadataUpdateEvent = "MetadataUpdate"
 )
 
 // NFTGetter returns a reader-only view of an NFT. Aggregators (such as

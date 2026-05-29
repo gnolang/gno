@@ -109,6 +109,13 @@ func (s *BasicNFT) SetTokenURI(caller address, tid TokenID, tURI TokenURI) (bool
 		return false, ErrCallerIsNotOwner
 	}
 	s.tokenURIs.Set(tid.String(), tURI.String())
+
+	chain.Emit(
+		TokenURIUpdateEvent,
+		"token", s.ID(),
+		"tokenId", tid.String(),
+	)
+
 	return true, nil
 }
 

@@ -1,6 +1,10 @@
 package grc721
 
-import "gno.land/p/nt/avl/v0"
+import (
+	"chain"
+
+	"gno.land/p/nt/avl/v0"
+)
 
 // metadataNFT represents an NFT with metadata extensions.
 type metadataNFT struct {
@@ -23,6 +27,13 @@ func NewNFTWithMetadata(_ int, rlm realm, name, symbol string) *metadataNFT {
 func (s *metadataNFT) SetTokenMetadata(tid TokenID, metadata Metadata) error {
 	// Set the metadata for the token ID in the extensions AVL tree
 	s.extensions.Set(tid.String(), metadata)
+
+	chain.Emit(
+		MetadataUpdateEvent,
+		"token", s.ID(),
+		"tokenId", tid.String(),
+	)
+
 	return nil
 }
 
