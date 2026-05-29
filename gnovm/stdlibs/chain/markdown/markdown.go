@@ -256,8 +256,10 @@ func EscapeBlockHazards(s string) string {
 // breaks), setext-underline, and GFM table-row `|` escapes are all
 // skipped — the user can compose multi-section markdown structure
 // including tables. Realm-binding defenses (bracket walker,
-// <gno-…> extension delimiters, fence state machine, NUL / bidi /
-// U+2028 folding) stay on.
+// <gno-…> extension delimiters, CM §4.6 HTML block types 1-5
+// openers, fence state machine, NUL / bidi / U+2028 folding) stay
+// on — these are mode-independent security defenses, not stylistic
+// preferences.
 //
 // Cross-paragraph promotion (user `===`/`---` setext or
 // `|---|---|` table-separator at start of input reaching back into
@@ -328,6 +330,29 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		// goldmark's Type-7 HTML block detection (which requires the
 		// first non-whitespace char to be `<`, not `\`).
 		if isExtDelimiter(line) {
+			out.WriteByte('\\')
+			out.WriteString(line)
+			if writeNL {
+				out.WriteByte('\n')
+			}
+			prevNonBlank = true
+			continue
+		}
+
+		// CM §4.6 HTML block types 1-5: prefix with backslash so the
+		// leading `<` becomes a CM §2.4 inline escape and goldmark's
+		// HTML block parser (which requires the first non-whitespace
+		// char to be `<`) refuses to open. Types 1-5 are the
+		// blank-line-NON-terminating shapes (`<script>`, `<pre>`,
+		// `<style>`, `<textarea>`, `<!--`, `<?…?>`, `<!DOCTYPE…>`,
+		// `<![CDATA[…]]>`) — without this defense user content opening
+		// any of them would consume realm chrome appended afterward
+		// (until a type-specific close token or EOF). Types 6 and 7
+		// close on a blank line, so sanitize.BlockRich's "\n\n"
+		// envelope already bounds them; we don't escape those.
+		// Fires unconditionally in both strict and Rich modes — this
+		// is a security defense, not stylistic.
+		if isHTMLBlockType1to5Opener(line) {
 			out.WriteByte('\\')
 			out.WriteString(line)
 			if writeNL {
@@ -416,6 +441,88 @@ func foldUnicodeSeparators(s string) string {
 func isExtDelimiter(line string) bool {
 	trim := strings.TrimLeft(line, " \t")
 	return strings.HasPrefix(trim, "<gno-") || strings.HasPrefix(trim, "</gno-")
+}
+
+// isHTMLBlockType1to5Opener reports whether line opens a CommonMark
+// §4.6 HTML block of type 1, 2, 3, 4, or 5 — the types that do NOT
+// close on a blank line. Types 6 and 7 close on a blank line per
+// goldmark's `Continue` (parser/html_block.go), so the leading +
+// trailing "\n\n" envelope in sanitize.BlockRich already bounds them;
+// we only need to neutralize 1-5 here.
+//
+// Detection mirrors goldmark's regexes at parser/html_block.go:79-92
+// (case-insensitive Type 1 tag name; case-sensitive Types 2/3/4/5;
+// ASCII space-only indent of 0-3 columns — tabs are deliberately NOT
+// allowed since goldmark uses `[ ]{0,3}` literal, divergent from
+// isExtDelimiter's `TrimLeft(line, " \t")`).
+//
+// Type 4 uses `[A-Z]` (one uppercase letter) where goldmark's regex
+// is `[A-Z]+` — equivalent for opener detection because any line
+// goldmark would accept under `+` also satisfies the single-letter
+// check.
+func isHTMLBlockType1to5Opener(line string) bool {
+	// 0-3 ASCII-space indent.
+	i := 0
+	for i < 3 && i < len(line) && line[i] == ' ' {
+		i++
+	}
+	if i >= len(line) || line[i] != '<' {
+		return false
+	}
+	rest := line[i+1:]
+	if len(rest) == 0 {
+		return false
+	}
+	// Type 2: <!--
+	if strings.HasPrefix(rest, "!--") {
+		return true
+	}
+	// Type 5: <![CDATA[ (case-sensitive)
+	if strings.HasPrefix(rest, "![CDATA[") {
+		return true
+	}
+	// Type 4: <![A-Z]
+	if len(rest) >= 2 && rest[0] == '!' && rest[1] >= 'A' && rest[1] <= 'Z' {
+		return true
+	}
+	// Type 3: <?
+	if rest[0] == '?' {
+		return true
+	}
+	// Type 1: <(script|pre|style|textarea) followed by \s, >, /, or EOL.
+	for _, name := range [...]string{"script", "pre", "style", "textarea"} {
+		if hasCaseInsensitivePrefix(rest, name) {
+			after := rest[len(name):]
+			if len(after) == 0 {
+				return true
+			}
+			c := after[0]
+			if c == ' ' || c == '\t' || c == '>' || c == '/' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasCaseInsensitivePrefix reports whether s begins with prefix using
+// ASCII-only case folding (A-Z → a-z). prefix MUST be lowercase ASCII;
+// Type 1 tag names (`script`, `pre`, `style`, `textarea`) all qualify.
+// No Unicode case folding — CM's HTML block 1 names are ASCII-only.
+func hasCaseInsensitivePrefix(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	for i := 0; i < len(prefix); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != prefix[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // isSetextUnderline reports whether line is shaped like ^ {0,3}=+[ \t]*$

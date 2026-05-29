@@ -152,6 +152,23 @@
 //     user content cannot inject `<table>`-shaped structure; permissive
 //     BlockRich preserves table rows so authors can compose `<table>`
 //     elements (gnoweb loads extension.Table per render_config.go).
+//   - HTML block type 1-5 absorption: CommonMark §4.6 HTML block types 1
+//     (`<script>`, `<pre>`, `<style>`, `<textarea>`), 2 (`<!--`), 3
+//     (`<?`), 4 (`<!UPPER`), and 5 (`<![CDATA[`) do NOT close on a blank
+//     line — they only close on a type-specific token (`</tag>`, `-->`,
+//     `?>`, `>`, `]]>`) or EOF. Without a defense, user content opening
+//     any of these would swallow realm chrome appended afterward. Both
+//     Block and BlockRich line-escape the openers (prepend `\`) so the
+//     block never opens; this defense is unconditional in both modes.
+//     Types 6 and 7 close on a blank line, so BlockRich's `\n\n`
+//     paragraph envelope already bounds them and no escape is needed.
+//   - realm-discipline boundary (caller's responsibility, not enforced):
+//     callers should emit realm chrome at flush-left column 0 around
+//     `BlockRich(user)`. Indented chrome (4+ leading spaces, list-item
+//     continuations, footnote-definition body, or an unclosed Type 1
+//     HTML tag in realm chrome before the call) can extend across blank
+//     lines into user content or vice versa. The sanitizer cannot
+//     defend against malformed realm chrome — only against user input.
 //   - footnote / link-reference namespace pollution: user content
 //     containing `[^name]` or `[text][label]` syntax that would otherwise
 //     resolve against realm-defined footnote definitions or link
@@ -352,6 +369,9 @@ func InlineText(s string) string {
 //	<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at    | escaped (wildcard match) → literal text
 //	  line-start                                          |
 //	| a | b | GFM table row (line-leading `|`)            | escaped → literal `| a | b |`
+//	<!--, <script>, <pre>, <style>, <textarea>, <?…?>,    | escaped (\<…) → literal text;
+//	  <!DOCTYPE…>, <![CDATA[…]]> at line-start            |   blocks goldmark from opening a
+//	  (CM §4.6 HTML block types 1-5)                      |   blank-line-NON-terminating HTML block
 //	[text][realm-label] ref-link USE                      | both bracket pairs escaped → \[text\]\[realm-label\]
 //	[^name] footnote-ref                                  | both brackets escaped → \[^name\]
 //	[label] bare shortcut-ref                             | both brackets escaped → \[label\]
@@ -484,6 +504,9 @@ func Block(s string) string {
 //	----------------------------------------------|--------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
+//	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — Types 1-5 don't close
+//	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   on blank lines, so `\n\n` envelope
+//	  at line-start (CM §4.6 HTML block types 1-5)|   doesn't isolate them; explicit escape
 //	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
 //	[^name] footnote-ref                          | both brackets escaped [SAME]
 //	[label] bare shortcut-ref                     | both brackets escaped [SAME]
@@ -519,6 +542,19 @@ func Block(s string) string {
 // realm concatenation doesn't get a stray blank line.
 // Still, wrap each user-supplied string exactly once — chained
 // sanitization adds no value and burns gas.
+//
+// Realm-discipline boundary: BlockRich defends user input against
+// every cross-paragraph attack listed above, but it CANNOT defend
+// against malformed REALM chrome. Specifically, callers should emit
+// realm chrome at flush-left column 0 around `BlockRich(user)`. If
+// the realm chrome BEFORE the call contains an unclosed CM §4.6
+// Type 1 HTML tag (`<script>`, `<pre>`, `<style>`, `<textarea>`),
+// the `\n\n` envelope does NOT close it (Type 1 closes only on the
+// matching close tag), and user-controlled `</tag>` content can
+// then prematurely terminate it. Indented chrome (4+ leading
+// spaces, list-item continuations, footnote-definition body) can
+// likewise extend across the envelope into user content. Keep
+// chrome flush-left and Type 1 tags closed within the chrome.
 //
 // PREVIEW: BlockquoteRich is currently the only in-tree caller of
 // BlockRich; the API and the `"\n\n"` output shape may evolve once
@@ -787,6 +823,9 @@ func Blockquote(text string) string {
 //	----------------------------------------------|------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
+//	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — CM §4.6 Types 1-5
+//	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   don't close on blank lines; without escape
+//	  at line-start                               |   they would swallow chrome past the `> ` quote
 //	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
 //	[^name] footnote-ref                          | both brackets escaped [SAME]
 //	[label] bare shortcut-ref                     | both brackets escaped [SAME]

@@ -43,7 +43,12 @@ func TestBlock(t *testing.T) {
 		{"hello world\n", "hello world\n"},
 		{"# heading\n", "\\# heading\n"},
 		{"> quote\n", "\\> quote\n"},
-		{"| a | b |\n", "\\| a | b |\n"},    // GFM table-row escaped in strict mode
+		{"| a | b |\n", "\\| a | b |\n"}, // GFM table-row escaped in strict mode
+		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
+		{"<script>x</script>\n", "\\<script>x</script>\n"},
+		{"<!-- comment -->\n", "\\<!-- comment -->\n"},
+		{"<?php x ?>\n", "\\<?php x ?>\n"},
+		{"<!DOCTYPE html>\n", "\\<!DOCTYPE html>\n"},
 		{"```\ncode\n", "```\ncode\n```\n"}, // fence auto-close at EOF
 	}
 	for _, c := range cases {
@@ -80,6 +85,12 @@ func TestBlockRich(t *testing.T) {
 		{"| H |\n|---|\n| a |\n", "\n\n| H |\n|---|\n| a |\n\n"}, // full table renders as <table>
 		// Realm-binding defenses STILL ON.
 		{"<gno-card>\n", "\n\n\\<gno-card>\n\n"},
+		// CM §4.6 HTML block types 1-5 — escaped in Rich mode too
+		// (defense is mode-independent).
+		{"<script>x</script>\n", "\n\n\\<script>x</script>\n\n"},
+		{"<!-- comment -->\n", "\n\n\\<!-- comment -->\n\n"},
+		{"<?php x ?>\n", "\n\n\\<?php x ?>\n\n"},
+		{"<!DOCTYPE html>\n", "\n\n\\<!DOCTYPE html>\n\n"},
 		{"[t][l]\n", "\n\n\\[t\\]\\[l\\]\n\n"},
 		{"[^name]\n", "\n\n\\[^name\\]\n\n"},
 		// LRD-only input strips to nothing; empty-after-escape short-
