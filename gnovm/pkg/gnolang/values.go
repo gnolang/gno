@@ -316,12 +316,18 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 }
 
-// Copy duplicates an existing ArrayValue. When the source carries a
-// realm PkgID, the result inherits it — copying propagates existing
-// authority rather than minting new authority. When the source PkgID
-// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
-// currentRealmID stamp from NewListArray/NewDataArray stands, so the
-// copy belongs to the realm doing the copying.
+// Copy duplicates an existing ArrayValue. Authority is type-driven, matching
+// the split rule in stampPkgID (PR #5706): if the array type is /r/-declared,
+// the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
+// stamp from NewListArray/NewDataArray stands, so the copy belongs to the
+// realm doing the copying.
+//
+// Previously this method propagated the source's runtime PkgID whenever it
+// was an /r/ PkgID. That leaked foreign authority into /p/-typed copies
+// produced by value-assignments like `*z = *x` (e.g. uint256 Set), causing
+// `cannot directly modify readonly tainted object` panics when a /r/ realm
+// performed in-place arithmetic on a /p/-typed value handed in from another
+// /r/. See https://github.com/gnolang/gno/issues/5736.
 func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
@@ -338,8 +344,8 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	if av.ObjectInfo.ID.PkgID.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(av.ObjectInfo.ID.PkgID)
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(pid)
 	}
 	return cp
 }
@@ -452,15 +458,17 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 	}
 }
 
-// Copy duplicates an existing StructValue. When the source carries a
-// realm PkgID, the result inherits it — copying propagates existing
-// authority rather than minting new authority. When the source PkgID
-// is non-realm (stdlib or /p/ init: no intrinsic authority), the fresh
-// currentRealmID stamp from NewStruct stands, so the copy belongs to
-// the realm doing the copying.
+// Copy duplicates an existing StructValue. Authority is type-driven, matching
+// the split rule in stampPkgID (PR #5706): if the struct type is /r/-declared,
+// the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
+// stamp from NewStruct stands, so the copy belongs to the realm doing the
+// copying.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
+//
+// Previously this method propagated the source's runtime PkgID whenever it
+// was an /r/ PkgID. See ArrayValue.Copy for the issue (gh #5736) and rationale.
 func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
@@ -472,8 +480,8 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	if sv.ObjectInfo.ID.PkgID.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(sv.ObjectInfo.ID.PkgID)
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		cp.ObjectInfo.SetPkgID(pid)
 	}
 	return cp
 }
@@ -1087,11 +1095,17 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		cp.N = tv.N // preserve N_Readonly
+		// N_Readonly is not preserved across deep copy. cv.Copy
+		// produces a fresh, independent heap value; the sticky bit
+		// marks "this TV observes external state", which no longer
+		// applies once we hold private data. The cross-realm-write
+		// defense is enforced at the pointer-deref check
+		// (PopAsPointer2 → IsReadonly), independent of this path —
+		// see gh #5736.
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-		cp.N = tv.N // preserve N_Readonly
+		// See ArrayValue case above.
 	default:
 		cp = tv
 	}
