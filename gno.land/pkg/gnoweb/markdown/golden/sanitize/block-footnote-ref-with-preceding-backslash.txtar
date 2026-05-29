@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+// Attacker writes a single backslash before [^name] in an attempt to make
+// the escape Block adds collapse into a literal `\\` pair, leaving the
+// `[^name]` invocation unescaped. The byte-walk parity rule prepends an
+// extra backslash so the total count stays odd; the rendered HTML must
+// NOT contain a footnote-ref. See CommonMark §2.4.
+-- input.md --
+\[^realm-footnote]
+-- output.md --
+\[^realm-footnote\]
+-- output.html --
+<p>[^realm-footnote]</p>

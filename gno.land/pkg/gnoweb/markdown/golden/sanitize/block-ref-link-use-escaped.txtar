@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+see [xxx][yyy] now
+-- output.md --
+see \[xxx\]\[yyy\] now
+-- output.html --
+<p>see [xxx][yyy] now</p>

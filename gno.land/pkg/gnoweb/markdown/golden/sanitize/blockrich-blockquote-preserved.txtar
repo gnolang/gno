@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+> quoted
+-- output.md --
+
+> quoted
+-- output.html --
+<blockquote>
+<p>quoted</p>
+</blockquote>

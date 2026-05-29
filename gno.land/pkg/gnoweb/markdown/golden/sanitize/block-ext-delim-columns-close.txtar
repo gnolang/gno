@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+inside column
+</gno-columns>
+escaped after close
+-- output.md --
+inside column
+\</gno-columns>
+escaped after close
+-- output.html --
+<p>inside column
+&lt;/gno-columns&gt;
+escaped after close</p>

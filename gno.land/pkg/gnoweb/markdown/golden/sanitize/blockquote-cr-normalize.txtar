@@ -1,0 +1,15 @@
+// MARKDOWNFUNC: Blockquote
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+foo\r\nbar\rbaz
+-- output.md --
+> foo
+> bar
+> baz
+-- output.html --
+<blockquote>
+<p>foo
+bar
+baz</p>
+</blockquote>

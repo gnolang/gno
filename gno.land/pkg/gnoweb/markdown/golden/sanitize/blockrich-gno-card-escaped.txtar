@@ -1,0 +1,15 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+<gno-card>
+attacker
+</gno-card>
+-- output.md --
+
+\<gno-card>
+attacker
+\</gno-card>
+-- output.html --
+<p>&lt;gno-card&gt;
+attacker
+&lt;/gno-card&gt;</p>
