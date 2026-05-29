@@ -52,7 +52,10 @@ import (
 // Hash bumped 2026-05-26: adding crypto/{bn254,cometbls,cometblszk,keccak256,merkle,modexp}
 // to the genesis stdlib set shifts the iavlStore Merkle root. New stdlibs always do — this
 // PR is the test13 chain-upgrade vehicle, so the shift is intentional.
-const expectedCrossrealm38Hash = "e37075fb6a103445adc4d83ecb95e1bd3ba839a709eac873db2f95d56f9010ac"
+// Hash bumped 2026-05-29: the strings stdlib source changed (explode no longer re-encodes
+// invalid UTF-8) and new strings test files were added. Stdlib sources, including _test.gno
+// files, are committed to genesis via MPStdlibAll, so any edit shifts the Merkle root.
+const expectedCrossrealm38Hash = "fb07264a5218ef4257ab2eeab3c0f231db98aadb9ee307f52f2aa6bd0bb90460"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
