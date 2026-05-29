@@ -1,0 +1,18 @@
+// MARKDOWNFUNC: BlockquoteRich
+// CONTEXT: %s
+-- input.md --
+| H1 | H2 |
+|----|----|
+| a  | b  |
+-- output.md --
+
+> | H1 | H2 |
+> |----|----|
+> | a  | b  |
+
+-- output.html --
+<blockquote>
+<p>| H1 | H2 |
+|----|----|
+| a  | b  |</p>
+</blockquote>

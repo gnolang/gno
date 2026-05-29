@@ -180,9 +180,11 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"thematic-break-underscore", "___\n", "___\n"},
 		{"setext-h1", "title\n===\n", "title\n===\n"},
 		{"setext-h2", "title\n---\n", "title\n---\n"},
+		// GFM tables PRESERVED in Rich mode (line-leading `|` not escaped).
+		{"gfm-table-row", "| a | b |\n", "| a | b |\n"},
+		{"gfm-table-full", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n"},
 		// Realm-binding defenses STILL ON.
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
-		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},

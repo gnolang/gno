@@ -43,6 +43,7 @@ func TestBlock(t *testing.T) {
 		{"hello world\n", "hello world\n"},
 		{"# heading\n", "\\# heading\n"},
 		{"> quote\n", "\\> quote\n"},
+		{"| a | b |\n", "\\| a | b |\n"},   // GFM table-row escaped in strict mode
 		{"```\ncode\n", "```\ncode\n```\n"}, // fence auto-close at EOF
 	}
 	for _, c := range cases {
@@ -60,25 +61,33 @@ func TestBlock(t *testing.T) {
 }
 
 func TestBlockRich(t *testing.T) {
-	// BlockRich prepends "\n" to its output as part of the cross-
-	// boundary setext defense. Every expected output here includes
-	// that leading "\n".
+	// BlockRich prepends "\n\n" — a CM §4.8 blank line — so user
+	// content starts its own paragraph, isolated from realm chrome.
+	// Every non-empty expected output here begins with that "\n\n".
 	cases := []struct{ in, want string }{
 		// Block-level markdown that Block escapes — preserved by BlockRich.
-		{"hello world\n", "\nhello world\n"},
-		{"# heading\n", "\n# heading\n"},
-		{"> quote\n", "\n> quote\n"},
-		{"- item\n", "\n- item\n"},
-		{"1. item\n", "\n1. item\n"},
-		{"---\n", "\n\\---\n"},           // first-line setext-h2 → escaped by qualifying-setext pre-pass
-		{"***\n", "\n***\n"},             // thematic break NOT setext-h2 — preserved
-		{"text\n===\n", "\ntext\n===\n"}, // deeper setext preserved (user-authored above)
+		{"hello world\n", "\n\nhello world\n"},
+		{"# heading\n", "\n\n# heading\n"},
+		{"> quote\n", "\n\n> quote\n"},
+		{"- item\n", "\n\n- item\n"},
+		{"1. item\n", "\n\n1. item\n"},
+		{"---\n", "\n\n\\---\n"},            // first-line setext-h2 → escaped by qualifying-setext pre-pass
+		{"***\n", "\n\n***\n"},              // thematic break NOT setext-h2 — preserved
+		{"text\n===\n", "\n\ntext\n===\n"},  // deeper setext preserved (user-authored above)
+		{"body\n===\nmore\n", "\n\nbody\n===\nmore\n"}, // cross-paragraph attack: realm `chrome\n\nbody\n===\nmore` keeps realm in its own paragraph
+		// GFM tables PRESERVED in Rich mode.
+		{"| a | b |\n", "\n\n| a | b |\n"},
+		{"| H |\n|---|\n| a |\n", "\n\n| H |\n|---|\n| a |\n"}, // full table renders as <table>
 		// Realm-binding defenses STILL ON.
-		{"<gno-card>\n", "\n\\<gno-card>\n"},
-		{"[t][l]\n", "\n\\[t\\]\\[l\\]\n"},
-		{"[^name]\n", "\n\\[^name\\]\n"},
-		{"[x]: y\n", "\n"}, // LRD stripped → BlockRich returns just the leading "\n"
-		{"```\ncode\n", "\n```\ncode\n```\n"},
+		{"<gno-card>\n", "\n\n\\<gno-card>\n"},
+		{"[t][l]\n", "\n\n\\[t\\]\\[l\\]\n"},
+		{"[^name]\n", "\n\n\\[^name\\]\n"},
+		// LRD-only input strips to nothing; empty-after-escape short-
+		// circuits to "" so realm concatenation doesn't leak a stray
+		// blank line.
+		{"[x]: y\n", ""},
+		{"", ""}, // empty input → empty output, no stray blank line
+		{"```\ncode\n", "\n\n```\ncode\n```\n"},
 	}
 	for _, c := range cases {
 		got := BlockRich(c.in)

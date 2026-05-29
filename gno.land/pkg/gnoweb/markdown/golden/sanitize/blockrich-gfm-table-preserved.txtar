@@ -1,0 +1,19 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+| Col A | Col B |
+|-------|-------|
+| 1     | 2     |
+| 3     | 4     |
+-- output.md --
+
+
+| Col A | Col B |
+|-------|-------|
+| 1     | 2     |
+| 3     | 4     |
+-- output.html --
+<p>| Col A | Col B |
+|-------|-------|
+| 1     | 2     |
+| 3     | 4     |</p>

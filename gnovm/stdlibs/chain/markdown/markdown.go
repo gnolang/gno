@@ -223,35 +223,38 @@ func CodeFence(content string, minCount int) string {
 
 // ---------- EscapeBlockHazards ----------
 
-// blockHazardsMode selects which doc-spoof defenses run inside
-// escapeBlockHazardsImpl. Realm-binding defenses (bracket walker,
-// extension delimiter, GFM pipe, fence state, fold-separators) are
-// unconditional and not represented as flags.
+// blockHazardsMode selects which doc-spoof and table-injection
+// defenses run inside escapeBlockHazardsImpl. Realm-binding defenses
+// that stay unconditional (bracket walker, extension delimiter,
+// fence state machine, Unicode-separator fold) are not represented
+// as flags.
 type blockHazardsMode int
 
 const (
 	modeEscapeLineLeader blockHazardsMode = 1 << iota
 	modeEscapeSetext
+	modeEscapePipe
 )
 
 // EscapeBlockHazards is the strict variant (used by sanitize.Block).
-// All doc-spoof and realm-binding defenses are on.
+// All doc-spoof, setext, and GFM-table-row defenses are on.
 func EscapeBlockHazards(s string) string {
-	return escapeBlockHazardsImpl(s, modeEscapeLineLeader|modeEscapeSetext)
+	return escapeBlockHazardsImpl(s, modeEscapeLineLeader|modeEscapeSetext|modeEscapePipe)
 }
 
 // EscapeBlockHazardsRich is the permissive variant (used by
 // sanitize.BlockRich). Line-leader (#, >, list markers, thematic
-// breaks) and setext-underline escapes are skipped; the user can
-// compose multi-section markdown structure. Realm-binding defenses
-// (bracket walker, <gno-…> extension delimiters, GFM table-row
-// pipes, fence state machine, NUL / bidi / U+2028 folding) all
-// stay on.
+// breaks), setext-underline, and GFM table-row `|` escapes are all
+// skipped — the user can compose multi-section markdown structure
+// including tables. Realm-binding defenses (bracket walker,
+// <gno-…> extension delimiters, fence state machine, NUL / bidi /
+// U+2028 folding) stay on.
 //
-// Cross-boundary setext promotion (user `===`/`---` at start of
-// input reaching back to promote a realm chrome line above it) is
-// neutralized at the Gno layer by sanitize.BlockRich's
-// neuterLeadingSetextIfQualifying pre-pass, not by this native.
+// Cross-paragraph promotion (user `===`/`---` setext or
+// `|---|---|` table-separator at start of input reaching back into
+// preceding realm chrome) is neutralized at the Gno layer by
+// sanitize.BlockRich emitting a leading `\n\n` (CM blank line, i.e.
+// paragraph break) before the user content.
 func EscapeBlockHazardsRich(s string) string {
 	return escapeBlockHazardsImpl(s, 0)
 }
@@ -289,6 +292,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	)
 	escapeLeader := mode&modeEscapeLineLeader != 0
 	escapeSetext := mode&modeEscapeSetext != 0
+	escapePipe := mode&modeEscapePipe != 0
 
 	for idx, line := range lines {
 		writeNL := idx < len(lines)-1 || trailingNewline
@@ -337,11 +341,10 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		}
 
 		// Block markers / fence open. Always called: fence detection is
-		// unconditional, and the function honors `escapeLeader` for the
-		// doc-spoof markers (#, >, list, HR). The GFM table-row pipe
-		// escape and code-fence detection inside escapeLineLeader are
-		// always on (realm-binding).
-		escaped, fc, fl := escapeLineLeader(line, escapeLeader)
+		// unconditional. `escapeLeader` gates the doc-spoof markers
+		// (#, >, list, HR) and `escapePipe` gates the GFM table-row
+		// `|` escape; both are on in strict mode and off in Rich.
+		escaped, fc, fl := escapeLineLeader(line, escapeLeader, escapePipe)
 		out.WriteString(escaped)
 		if writeNL {
 			out.WriteByte('\n')
@@ -433,15 +436,17 @@ func isSetextUnderline(line string) bool {
 }
 
 // escapeLineLeader escapes a single line-leading block marker by
-// prefixing it with \. Returns the escaped line. If the line opens
-// a code fence, also returns the fence char and length (>=3).
-// escapeLineLeader inspects the leading non-space byte of a line and
-// returns (possibly-escaped line, fence-char, fence-len). The
-// `escapeLeader` flag gates the doc-spoof markers (#, >, list, HR);
-// when false, those markers are preserved verbatim. The GFM table-row
-// pipe escape and fenced-code-block detection are always on (both
-// realm-binding / always-needed).
-func escapeLineLeader(line string, escapeLeader bool) (string, byte, int) {
+// prefixing it with \. Returns (possibly-escaped line, fence-char,
+// fence-len) — fence char/len are returned when the line opens a
+// code fence (length >= 3).
+//
+// The `escapeLeader` flag gates the doc-spoof markers (#, >, list,
+// HR); when false, those markers are preserved verbatim. The
+// `escapePipe` flag gates the GFM table-row `|` escape; when false,
+// line-leading `|` is preserved so user content can render as a
+// table. Fenced-code-block detection is always on (state machine
+// tracking, not a defense).
+func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte, int) {
 	i := 0
 	for i < len(line) && i < 3 && line[i] == ' ' {
 		i++
@@ -482,15 +487,14 @@ func escapeLineLeader(line string, escapeLeader bool) (string, byte, int) {
 			return line[:i] + "\\" + line[i:], 0, 0
 		}
 	case '|':
-		// GFM table-row line leader. gnoweb's NewGnoExtension does
-		// not load the GFM Table extension today, so a line-leading
-		// `|` is harmless there — but Block aims to be a portable
-		// defensive primitive: any goldmark consumer that DOES
-		// enable tables could otherwise have user-content table
-		// rows injected at document level (e.g. an empty 2-cell row
-		// `|||` slotted into an existing table). Prepend `\` so the
-		// line renders as literal text in every renderer.
-		return line[:i] + "\\" + line[i:], 0, 0
+		// GFM table-row line leader. gnoweb loads
+		// extension.Table (see render_config.go), so a line-leading
+		// `|` followed by a delimiter line forms a real table.
+		// Block keeps tables out of user content (strict posture);
+		// BlockRich preserves them so authors can compose tables.
+		if escapePipe {
+			return line[:i] + "\\" + line[i:], 0, 0
+		}
 	case '`', '~':
 		// Fenced code block: 3+ of ` or ~. Code fences are legitimate
 		// user content (users want to share code); do NOT escape them.

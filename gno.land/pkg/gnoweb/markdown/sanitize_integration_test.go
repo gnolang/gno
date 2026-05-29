@@ -121,6 +121,8 @@ func Run(fn, input, arg, arg2 string) string {
 		return sanitize.LanguageCodeBlock(arg, input)
 	case "Blockquote":
 		return sanitize.Blockquote(input)
+	case "BlockquoteRich":
+		return sanitize.BlockquoteRich(input)
 	case "FootnoteDefinition":
 		// arg = realm-provided footnote name; input = user body text.
 		return sanitize.FootnoteDefinition(arg, input)

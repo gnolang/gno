@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: realm chrome line%s
+-- input.md --
+body line
+===
+more body
+-- output.md --
+
+
+body line
+===
+more body
+-- output.html --
+<p>realm chrome line</p>
+<h1>body line</h1>
+<p>more body</p>
