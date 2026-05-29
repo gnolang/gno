@@ -434,13 +434,30 @@ func foldUnicodeSeparators(s string) string {
 // `<gno-foreign>`, anything later) auto-cover without needing a
 // sanitize-side update.
 //
+// Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
+// trip). Go's html.Tokenizer (used by the extension block parsers in
+// gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
+// before the per-extension matcher runs, so an uppercase or mixed-
+// case opener still opens the block. The sanitizer therefore must
+// match the same byte-shape envelope the parsers do — otherwise
+// `<GNO-columns>` slips past the sanitizer and opens a columns
+// container in goldmark, swallowing realm chrome.
+//
 // Bare `|||` (the legacy `<gno-columns>` shorthand) is intentionally
 // NOT matched here — the shorthand has been removed from the columns
 // parser, so user content writing `|||` is now harmless paragraph
 // text and doesn't need neutralisation.
 func isExtDelimiter(line string) bool {
 	trim := strings.TrimLeft(line, " \t")
-	return strings.HasPrefix(trim, "<gno-") || strings.HasPrefix(trim, "</gno-")
+	if len(trim) == 0 || trim[0] != '<' {
+		return false
+	}
+	rest := trim[1:]
+	// Optional `/` for close tags.
+	if len(rest) > 0 && rest[0] == '/' {
+		rest = rest[1:]
+	}
+	return hasCaseInsensitivePrefix(rest, "gno-")
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark

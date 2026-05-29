@@ -152,6 +152,10 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},          // case-insensitive
+		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},   // case-insensitive
+		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
+		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},          // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
@@ -217,6 +221,9 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"gfm-table-full", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n"},
 		// Realm-binding defenses STILL ON.
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
+		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
+		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
