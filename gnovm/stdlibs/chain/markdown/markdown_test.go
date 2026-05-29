@@ -140,6 +140,13 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ordered-list", "1. item\n", "1\\. item\n"},
 		{"fence-open-autoclose", "```\nuser code\n", "```\nuser code\n```\n"},
 		{"fence-roundtrip", "```\nuser code\n```\n", "```\nuser code\n```\n"},
+		// CM §4.5: backtick fences with a backtick in the info string
+		// do NOT open. Without this check, the sanitizer thinks a fence
+		// opened and skips defenses on subsequent lines while goldmark
+		// keeps parsing block markers. Line 2 must therefore get the
+		// usual line-leader escape.
+		{"fence-backtick-in-info-rejected", "```a`b\n<gno-card>\n", "```a`b\n\\<gno-card>\n"},
+		{"fence-tilde-info-string-allowed", "~~~lang~tag\nx\n", "~~~lang~tag\nx\n~~~\n"},
 		{"setext-h1", "title\n===\n", "title\n\\===\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
@@ -232,6 +239,8 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"inline-link-preserved", "[t](url)\n", "[t](url)\n"},
 		{"inline-image-preserved", "![alt](src)\n", "![alt](src)\n"},
 		{"fence-open-autoclose", "```\nuser\n", "```\nuser\n```\n"},
+		{"fence-backtick-in-info-rejected", "```a`b\n<gno-card>\n", "```a`b\n\\<gno-card>\n"},
+		{"fence-tilde-info-string-allowed", "~~~lang~tag\nx\n", "~~~lang~tag\nx\n~~~\n"},
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
 		// CM §4.6 HTML block types 1-5 — escaped in Rich mode too

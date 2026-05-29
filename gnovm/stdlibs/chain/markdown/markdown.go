@@ -225,9 +225,10 @@ func CodeFence(content string, minCount int) string {
 
 // blockHazardsMode selects which doc-spoof and table-injection
 // defenses run inside escapeBlockHazardsImpl. Realm-binding defenses
-// that stay unconditional (bracket walker, extension delimiter,
-// fence state machine, Unicode-separator fold) are not represented
-// as flags.
+// that stay unconditional in BOTH strict and Rich modes (bracket
+// walker, <gno-…> extension delimiter, CM §4.6 HTML block types 1-5
+// openers, fenced-code-block state machine, U+2028/U+2029/U+0085
+// fold) are not represented as flags — they always fire.
 type blockHazardsMode int
 
 const (
@@ -257,15 +258,18 @@ func EscapeBlockHazards(s string) string {
 // skipped — the user can compose multi-section markdown structure
 // including tables. Realm-binding defenses (bracket walker,
 // <gno-…> extension delimiters, CM §4.6 HTML block types 1-5
-// openers, fence state machine, NUL / bidi / U+2028 folding) stay
-// on — these are mode-independent security defenses, not stylistic
-// preferences.
+// openers, fenced-code-block state machine, U+2028/U+2029/U+0085
+// fold) stay on — these are mode-independent security defenses,
+// not stylistic preferences. NUL→U+FFFD replacement and
+// bidi/zero-width strip run at the Gno layer (sanitize.BlockRich)
+// before reaching this native, not here.
 //
 // Cross-paragraph promotion (user `===`/`---` setext or
-// `|---|---|` table-separator at start of input reaching back into
-// preceding realm chrome) is neutralized at the Gno layer by
-// sanitize.BlockRich emitting a leading `\n\n` (CM blank line, i.e.
-// paragraph break) before the user content.
+// `|---|---|` table-separator at start or end of input reaching
+// into adjacent realm chrome) is neutralized at the Gno layer by
+// sanitize.BlockRich emitting `\n\n` (CM blank line, i.e.
+// paragraph break) on BOTH sides of the user content — symmetric
+// isolation against backward and forward attacks.
 func EscapeBlockHazardsRich(s string) string {
 	return escapeBlockHazardsImpl(s, 0)
 }
@@ -633,11 +637,30 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 		// user content (users want to share code); do NOT escape them.
 		// Just mark the fence as open so the EOF auto-close can fire if
 		// the user never closes it.
+		//
+		// CM §4.5: for BACKTICK fences only, the info string MUST NOT
+		// contain another backtick. Goldmark enforces this — if the
+		// info string contains a `, no fence opens (the line is paragraph
+		// text). The sanitizer MUST mirror this exactly, or it would
+		// treat the line as a fence open while goldmark treats subsequent
+		// lines as paragraph content where line-leader / extension /
+		// HTML-block defenses normally apply. Without the check, an
+		// attacker can write "```a`b" to make the sanitizer believe a
+		// fence opened and skip defenses on `<gno-…>`, `<!--`, `===`,
+		// `#`, `|---|`, etc. on the following lines, while goldmark
+		// happily opens those blocks. Tilde fences are NOT subject to
+		// this rule (tildes ARE allowed in tilde-fence info strings).
 		j := i
 		for j < len(line) && line[j] == c {
 			j++
 		}
 		if j-i >= 3 {
+			if c == '`' && strings.IndexByte(line[j:], '`') >= 0 {
+				// Info string contains `: not a valid backtick fence
+				// per CM §4.5. Treat as paragraph text — no fence state,
+				// no escape. Next line still gets full defenses.
+				return line, 0, 0
+			}
 			return line, c, j - i
 		}
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -1284,12 +1307,28 @@ func isBlockInterrupt(s string, lineStart int) bool {
 		}
 		return false
 	case '`', '~':
-		// Fenced code: three or more of the same fence char.
+		// Fenced code: three or more of the same fence char. Mirror
+		// CM §4.5: backtick fences with a backtick in the info string
+		// do NOT open (goldmark rejects them). Without this check, the
+		// bracket walker's LRD-title scan would terminate on a line
+		// goldmark treats as paragraph text — a parser-state mismatch
+		// of the same shape that drove the escapeLineLeader fix.
 		j := i
 		for j < len(s) && s[j] == c {
 			j++
 		}
-		return j-i >= 3
+		if j-i < 3 {
+			return false
+		}
+		if c == '`' {
+			// Scan to end of line for any `.
+			for k := j; k < len(s) && s[k] != '\n'; k++ {
+				if s[k] == '`' {
+					return false
+				}
+			}
+		}
+		return true
 	}
 	// Ordered list: 1–9 digits then `.` or `)` then space/tab.
 	if c >= '0' && c <= '9' {

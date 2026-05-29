@@ -13,13 +13,14 @@
 //
 // # Wrap once
 //
-// The escapers and safe-emit builders in this package (InlineText, Block,
-// LinkTitle, TableCell, HTMLEscape, InlineCode, CodeBlock,
-// LanguageCodeBlock, Blockquote, BlockquoteRich, FootnoteDefinition,
-// LinkReferenceDefinition) are NOT idempotent — applying them twice
-// re-escapes the bytes the first pass added (`\*` becomes `\\\*`, `&amp;`
-// becomes `&amp;amp;`, a fenced block gets re-fenced). Wrap each
-// user-derived string with at most one sanitize.* call.
+// Most escapers and safe-emit builders in this package are NOT
+// idempotent — applying them twice re-escapes bytes the first pass
+// added (`\*` becomes `\\\*`, `&amp;` becomes `&amp;amp;`, a fenced
+// block gets re-fenced). Wrap each user-derived string with at most
+// one sanitize.* call. Block and BlockRich are exceptions —
+// idempotent by design — but the at-most-once rule is still the
+// safest default. See the "Idempotence classes" enumeration below
+// for the full breakdown.
 //
 // Some markdown-builder packages (e.g. p/moul/md) sanitize the args of
 // specific helpers internally — see each builder's package doc for the
@@ -123,6 +124,15 @@
 //	                                              inside the URL, corrupting the host/path
 //	sanitize.Blockquote(sanitize.Blockquote(s))   double-wrap — outer would escape the
 //	                                              inner `> ` prefixes
+//	sanitize.Block(sanitize.BlockRich(s))         double-sanitize — strict Block re-escapes
+//	                                              the markers BlockRich preserved (headings,
+//	                                              lists, tables); BlockRich's rich structure
+//	                                              renders as literal text after Block escapes
+//	                                              its line-leaders
+//	sanitize.BlockRich(sanitize.Block(s))         pointless double-sanitize — Block already
+//	                                              escaped every line-leader to `\#`/`\>`/etc.;
+//	                                              BlockRich preserves the backslash escapes
+//	                                              as visible artifacts in user prose
 //	sanitize.Blockquote(sanitize.BlockRich(s))    double-sanitize — Blockquote's Block step
 //	                                              re-escapes the markers BlockRich preserved
 //	sanitize.BlockRich(sanitize.Blockquote(s))    nonsense — Blockquote already line-prefixed

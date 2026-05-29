@@ -47,6 +47,7 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"golang.org/x/tools/txtar"
@@ -337,8 +338,21 @@ func renderMarkdown(t *testing.T, src string) string {
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
 	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	// Mirror gnoweb's production extension chain (render_config.go:43-54)
+	// so goldens exercise the same parser configuration users hit. Without
+	// extension.Table, the table-related fixtures would render as plain
+	// paragraphs instead of <table>, masking whether the sanitizer's
+	// table-preservation / cross-paragraph-isolation claims actually hold
+	// under production parsing.
 	ext := NewGnoExtension()
-	m := goldmark.New()
+	m := goldmark.New(
+		goldmark.WithExtensions(
+			extension.Strikethrough,
+			extension.Table,
+			extension.Footnote,
+			extension.TaskList,
+		),
+	)
 	ext.Extend(m)
 	node := m.Parser().Parse(text.NewReader([]byte(src)), ctxOpts)
 	var buf bytes.Buffer
