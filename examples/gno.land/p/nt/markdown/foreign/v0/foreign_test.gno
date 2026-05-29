@@ -47,12 +47,14 @@ func TestForeign_NormalizesBareCR(t *testing.T) {
 
 func TestForeign_EscapesSentinelClose(t *testing.T) {
 	// Unbalanced </gno-foreign> in body would terminate the outer
-	// block early. Verify it's escaped to literal text.
+	// block early. Verify it's escaped to literal text — only the
+	// leading "<" is replaced with "&lt;"; the trailing ">" stays
+	// literal (rendering as visible ">" in HTML).
 	got := Foreign("foo\n</gno-foreign>\nbar")
 	if strings.Contains(got, "\n</gno-foreign>\nbar") {
 		t.Errorf("unbalanced close not escaped: %q", got)
 	}
-	if !strings.Contains(got, "&lt;/gno-foreign&gt;") {
+	if !strings.Contains(got, "&lt;/gno-foreign>") {
 		t.Errorf("expected escaped close: %q", got)
 	}
 }
@@ -61,9 +63,7 @@ func TestForeign_EscapesSentinelOpen(t *testing.T) {
 	// A bare opener inside body (without matching close in body)
 	// would be picked up as a nested inner foreign. Escape it.
 	got := Foreign("foo\n<gno-foreign>\nbar")
-	// Outer opener stays literal (first line after the leading
-	// blanks); only the inner sentinel match gets escaped.
-	if !strings.Contains(got, "\n&lt;gno-foreign&gt;\n") {
+	if !strings.Contains(got, "\n&lt;gno-foreign>\n") {
 		t.Errorf("expected escaped inner opener: %q", got)
 	}
 }
@@ -72,28 +72,76 @@ func TestForeign_EscapesIndentedSentinel(t *testing.T) {
 	// Parser strips 0-3 leading spaces before matching; helper
 	// must mirror that to catch indented sentinels.
 	got := Foreign("foo\n   </gno-foreign>\nbar")
-	if !strings.Contains(got, "&lt;/gno-foreign&gt;") {
+	if !strings.Contains(got, "&lt;/gno-foreign>") {
 		t.Errorf("indented sentinel not escaped: %q", got)
 	}
 }
 
-func TestForeign_DoesNotEscapeAttributeBearing(t *testing.T) {
-	// `<gno-foreign label="x">` is not a sentinel match (parser
-	// rejects attribute-bearing tags). Body should be untouched.
-	body := `<gno-foreign label="x">`
-	got := Foreign(body)
-	if !strings.Contains(got, body) {
-		t.Errorf("attribute-bearing tag was modified: %q", got)
+func TestForeign_EscapesAttributeBearingOpener(t *testing.T) {
+	// `<gno-foreign label="x">` IS recognized by the parser as a
+	// nested opener. If left unmangled, the parser bumps framingDepth
+	// when it sees this line in body bytes, and then consumes the
+	// helper's own outer-close as a fake "inner close" — capturing
+	// realm content that follows the helper's output INTO the
+	// sandbox. Verify the helper escapes the leading "<".
+	got := Foreign(`<gno-foreign label="x">`)
+	if strings.Contains(got, `<gno-foreign label="x">`) {
+		t.Errorf("attribute-bearing opener was NOT mangled — escape vector:\n%q", got)
+	}
+	if !strings.Contains(got, `&lt;gno-foreign label="x">`) {
+		t.Errorf("expected leading '<' escaped: %q", got)
 	}
 }
 
-func TestForeign_DoesNotEscapePartialMatch(t *testing.T) {
-	// `<gno-foreign> extra` has trailing content; tokenizer yields
-	// more than one token so it's not a sentinel match. Leave it.
-	body := "<gno-foreign> extra text"
+func TestForeign_EscapesAttributeBearingCloser(t *testing.T) {
+	// golang.org/x/net/html zeroes the Attr slice on end tags, so the
+	// parser recognizes ANY `</gno-foreign attr…>` form as a sentinel
+	// close. Leaving such a line unmangled in body bytes would close
+	// the outer block early (framingDepth=0 case in the parser's
+	// Continue), letting body content that follows render OUTSIDE
+	// the sandbox at top level. Verify the helper escapes it.
+	got := Foreign(`</gno-foreign label="x">`)
+	if strings.Contains(got, `> </gno-foreign label="x"> </gno-foreign>`) {
+		t.Errorf("attribute-bearing closer was NOT mangled — escape vector:\n%q", got)
+	}
+	if !strings.Contains(got, `&lt;/gno-foreign label="x">`) {
+		t.Errorf("expected leading '<' escaped: %q", got)
+	}
+}
+
+func TestForeign_EscapesGnoForeignWithExtraContent(t *testing.T) {
+	// `<gno-foreign> extra` would not be recognized as a sentinel by
+	// the parser (tokenizer yields 2 tokens). But the helper is
+	// over-inclusive on purpose: anything that looks like a
+	// gno-foreign tag opener or closer gets mangled. Predictable
+	// behavior beats narrow matching that diverges from the parser
+	// on attribute-bearing forms.
+	got := Foreign("<gno-foreign> extra text")
+	if !strings.Contains(got, "&lt;gno-foreign> extra text") {
+		t.Errorf("expected over-inclusive mangle of `<gno-foreign> extra`: %q", got)
+	}
+}
+
+func TestForeign_DoesNotEscapeUnrelatedTagPrefix(t *testing.T) {
+	// `<gno-foreignx>` is a DIFFERENT tag name. The helper's
+	// recognizer requires `<gno-foreign` to be followed by `>` or
+	// whitespace; the trailing `x` keeps this line untouched.
+	body := "<gno-foreignx>"
 	got := Foreign(body)
 	if !strings.Contains(got, body) {
-		t.Errorf("partial-match line was modified: %q", got)
+		t.Errorf("unrelated tag prefix should not be mangled: %q", got)
+	}
+}
+
+func TestForeign_DoesNotEscapeSelfClosingForm(t *testing.T) {
+	// `<gno-foreign/>` is not recognized by the parser (tokenizer
+	// emits SelfClosingTagToken, which `parseForeignLineTag` skips).
+	// The helper similarly does not mangle it — the trailing `/`
+	// after the tag name disambiguates from sentinel forms.
+	body := `<gno-foreign/>`
+	got := Foreign(body)
+	if !strings.Contains(got, body) {
+		t.Errorf("self-closing form should not be mangled: %q", got)
 	}
 }
 
@@ -191,7 +239,7 @@ func TestForeignWithLabel_PreservesBodyNormalization(t *testing.T) {
 	if strings.Contains(got, "\r") {
 		t.Errorf("CRLF not normalized in labeled variant: %q", got)
 	}
-	if !strings.Contains(got, "&lt;/gno-foreign&gt;") {
+	if !strings.Contains(got, "&lt;/gno-foreign>") {
 		t.Errorf("sentinel not escaped in labeled variant: %q", got)
 	}
 }

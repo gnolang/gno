@@ -26,12 +26,28 @@ import "strings"
 //     uses byte-equal matching against the sentinel close tag, so
 //     mixed line endings would otherwise change the match boundary.
 //
-//  2. Any line whose trimmed content is exactly the sentinel tag
-//     `<gno-foreign>` or `</gno-foreign>` is HTML-escaped (the leading
-//     `<` becomes `&lt;`). The parser tokenizes line bytes literally,
-//     so the escaped form is seen as text and cannot terminate the
-//     outer block. Realm authors who want genuine nested gno-foreign
-//     should compose Foreign calls explicitly: Foreign(Foreign(inner)).
+//  2. Any line whose trimmed content looks like a gno-foreign tag
+//     opener OR closer — bare (`<gno-foreign>`, `</gno-foreign>`) or
+//     attribute-bearing (`<gno-foreign label="x">`, `</gno-foreign
+//     attr="…">`, etc.) — is neutralized by HTML-escaping the leading
+//     `<` to `&lt;`. The parser tokenizes line bytes literally, so the
+//     escaped form is seen as text and cannot terminate the outer
+//     block or open an unintended inner block.
+//
+//     Crucially, BOTH open-tag and close-tag attribute-bearing forms
+//     are neutralized. The parser recognizes a bare `<gno-foreign>`
+//     opener, a labeled `<gno-foreign label="x">` opener, and ANY
+//     `</gno-foreign…>` closer (golang.org/x/net/html drops attrs on
+//     end tags before our recognizer sees them, so attr-bearing
+//     closers are sentinel-equivalent). Leaving any of those forms
+//     un-neutralized in body bytes would let attacker-supplied
+//     markdown adjust the parser's framing-depth counter and either
+//     consume the helper's own close (capturing trailing realm
+//     content into the sandbox) or close the outer block early
+//     (escaping the sandbox entirely).
+//
+//     Realm authors who want genuine nested gno-foreign should
+//     compose Foreign calls explicitly: Foreign(Foreign(inner)).
 //
 //  3. A leading and trailing blank line are emitted around the
 //     opener / closer. CommonMark §4.6 forbids Type-7 HTML blocks
@@ -71,16 +87,21 @@ func wrapForeign(rawLabel, body string) string {
 	body = strings.ReplaceAll(body, "\r\n", "\n")
 	body = strings.ReplaceAll(body, "\r", "\n")
 
-	// Mangle any line that would terminate the outer block.
+	// Mangle any line that would terminate the outer block or open
+	// an inner one. Covers bare and attribute-bearing forms of both
+	// the opener and the closer (see step 2 in the package doc).
 	var b strings.Builder
 	b.Grow(len(body) + len("\n\n<gno-foreign>\n</gno-foreign>\n\n") + len(label) + len(` label=""`))
 	lines := strings.Split(body, "\n")
 	for i, line := range lines {
-		switch trimSentinel(line) {
-		case "<gno-foreign>":
-			line = strings.Replace(line, "<gno-foreign>", "&lt;gno-foreign&gt;", 1)
-		case "</gno-foreign>":
-			line = strings.Replace(line, "</gno-foreign>", "&lt;/gno-foreign&gt;", 1)
+		if isForeignSentinelLine(trimSentinel(line)) {
+			// Escape just the leading `<` so the html tokenizer
+			// sees this as text instead of a tag. Preserve any 0-3
+			// leading spaces the parser's trim would have stripped.
+			idx := strings.Index(line, "<")
+			if idx >= 0 {
+				line = line[:idx] + "&lt;" + line[idx+1:]
+			}
 		}
 		b.WriteString(line)
 		if i < len(lines)-1 {
@@ -115,6 +136,38 @@ func sanitizeLabel(s string) string {
 	s = strings.ReplaceAll(s, "<", "&lt;")
 	s = strings.ReplaceAll(s, ">", "&gt;")
 	return strings.TrimSpace(s)
+}
+
+// isForeignSentinelLine reports whether s (already trimmed via
+// trimSentinel) looks like a gno-foreign opener or closer that the
+// parser would recognize. Matches both bare forms (`<gno-foreign>`,
+// `</gno-foreign>`) and attribute-bearing forms (`<gno-foreign attr…>`,
+// `</gno-foreign attr…>`). Over-inclusive on purpose: even forms the
+// parser would reject (e.g., unknown attribute keys on the opener)
+// are mangled, since the only downside is that the user-visible
+// literal text shows verbatim instead of being raw-HTML-stripped.
+func isForeignSentinelLine(s string) bool {
+	const (
+		openPrefix  = "<gno-foreign"
+		closePrefix = "</gno-foreign"
+	)
+	var rest string
+	switch {
+	case strings.HasPrefix(s, closePrefix):
+		rest = s[len(closePrefix):]
+	case strings.HasPrefix(s, openPrefix):
+		rest = s[len(openPrefix):]
+	default:
+		return false
+	}
+	if len(rest) == 0 {
+		return false // unterminated tag, parser wouldn't match either
+	}
+	// Tag name must end at '>' (bare form) or whitespace (attribute
+	// form). Anything else (e.g., `<gno-foreign-other>`) is a
+	// different tag — leave it alone.
+	c := rest[0]
+	return c == '>' || c == ' ' || c == '\t'
 }
 
 // trimSentinel returns line with the leading 0-3 spaces and trailing

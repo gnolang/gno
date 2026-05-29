@@ -152,6 +152,31 @@ func TestForeign_OpenerWithMultipleAttributes_FallsThrough(t *testing.T) {
 	}
 }
 
+func TestForeign_AttributeBearingCloseRecognizedAsSentinel(t *testing.T) {
+	// golang.org/x/net/html zeroes the Attr slice on end tags, so the
+	// parser cannot tell `</gno-foreign>` from `</gno-foreign attr…>`.
+	// This drives the realm-helper escape vector: the helper must
+	// mangle attribute-bearing closers, not just bare `</gno-foreign>`.
+	// This test pins the parser-side behavior so the helper-side fix
+	// has a contract to match against.
+	src := "\n\n<gno-foreign>\nfoo\n</gno-foreign label=\"x\">\nAFTER\n\n"
+	got := renderForeignTestCase(t, src)
+	if !strings.Contains(got, `<div class="gno-foreign"`) {
+		t.Fatalf("outer foreign missing: %s", got)
+	}
+	// "AFTER" must render OUTSIDE the foreign body (the attr-bearing
+	// close terminated the outer block).
+	bodyStart := strings.Index(got, `<div class="gno-foreign__body">`)
+	bodyEnd := strings.Index(got[bodyStart:], "</div>\n</div>")
+	if bodyStart < 0 || bodyEnd < 0 {
+		t.Fatalf("could not locate foreign body boundaries:\n%s", got)
+	}
+	bodySlice := got[bodyStart : bodyStart+bodyEnd]
+	if strings.Contains(bodySlice, "AFTER") {
+		t.Errorf("attr-bearing close did NOT terminate outer; AFTER trapped inside body:\n%s", got)
+	}
+}
+
 func TestForeign_LabelHTMLSpecialCharsEscaped(t *testing.T) {
 	// HTML entities in the attribute decode to special characters in
 	// the parsed label. The renderer must HTML-escape them back so

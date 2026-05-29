@@ -187,7 +187,11 @@ func (*foreignParser) Continue(n ast.Node, reader text.Reader, pc parser.Context
 	fn := n.(*ForeignNode)
 	line, _ := reader.PeekLine()
 	if len(line) == 0 {
-		// EOF: let the AST transformer synth-close.
+		// EOF: close the block. Mark Closed so the AST transformer's
+		// defensive synth-close path is a no-op and doesn't double-Pop
+		// the depth counter (goldmark calls parser.Close on every
+		// opened block at EOF — see foreignASTTransformer.Transform).
+		fn.Closed = true
 		return parser.Close
 	}
 
@@ -251,13 +255,16 @@ func (*foreignParser) CanAcceptIndentedLine() bool { return false }
 
 type foreignASTTransformer struct{}
 
-// Transform walks the document POST-ORDER and synth-closes any
-// ForeignNode whose Closed field is still false (the outer parser
-// hit EOF before seeing the matching close tag). Each synth-close
-// also Pops the depth counter, keeping it balanced for the rest of
-// the document. LIFO order is load-bearing: an outer foreign Popped
-// before its still-open inner foreign would underflow or strand the
-// counter.
+// Transform walks the document POST-ORDER as defense-in-depth: in
+// practice, every successfully-opened ForeignNode reaches
+// foreignParser.Close (goldmark calls Close on every opened block at
+// EOF), and both the normal-close and EOF-close paths in Continue
+// set fn.Closed = true before returning parser.Close. So this loop
+// never finds a !Closed node in well-behaved goldmark runs and the
+// Pop here is dead code under normal operation. The Pop remains as a
+// belt-and-suspenders guard against a hypothetical goldmark contract
+// violation; LIFO post-order ensures correct ordering if it ever
+// fires.
 //
 // Block-count counter is NOT decremented — see comment on
 // foreignParser.Open.
@@ -314,7 +321,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// global across the inner/outer boundary. gnoForeignBlockKey is
 	// intentionally NOT seeded — each Convert maintains its own
 	// per-Convert block-count.
-	innerCtx.Set(gnoNestDepthKey, n.DepthAtParse)
+	Seed(innerCtx, n.DepthAtParse)
 	if err := innerGM.Convert(n.Body, w, parser.WithContext(innerCtx)); err != nil {
 		// Inner parse/render failure: surface as a stripped HTML
 		// comment rather than aborting the outer render. The body
