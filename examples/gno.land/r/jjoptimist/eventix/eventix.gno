@@ -37,7 +37,7 @@ type Event struct {
 var (
 	events              = avl.NewTree()
 	eventCounter uint64 = 0
-	tickets             *grc721.BasicNFT
+	tickets      *grc721.BasicNFT
 )
 
 func init(cur realm) {
