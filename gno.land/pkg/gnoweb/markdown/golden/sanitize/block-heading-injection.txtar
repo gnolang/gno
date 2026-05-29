@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+# attacker controlled heading
+
+regular paragraph
+-- output.md --
+\# attacker controlled heading
+
+regular paragraph
+-- output.html --
+<p># attacker controlled heading</p>
+<p>regular paragraph</p>

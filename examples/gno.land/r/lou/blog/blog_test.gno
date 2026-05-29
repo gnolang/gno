@@ -58,7 +58,7 @@ just now
 
 
 ---
-|||
+<gno-columns-sep>
 ## [title1](/r/lou/blog:posts/slug1)
 
 
@@ -76,7 +76,7 @@ just now
 
 
 ---
-|||
+<gno-columns-sep>
 </gno-columns>`
 		assertMDEquals(t, got, expected)
 	}
@@ -99,7 +99,7 @@ body2
 
 **Publisher:** [g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs](/u/g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs)
 
-**Tags:** [#tag1](/r/lou/blog:tags/tag1), [#tag3](/r/lou/blog:tags/tag3)
+**Tags:** [\#tag1](/r/lou/blog:tags/tag1), [\#tag3](/r/lou/blog:tags/tag3)
 
 
 ❤️ 0
@@ -257,7 +257,7 @@ body2
 
 **Publisher:** [g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs](/u/g1pfyhn0d7g4tnp6wft9ge4cuu88ppr9u8mdggfs)
 
-**Tags:** [#tag1](/r/lou/blog:tags/tag1), [#tag3](/r/lou/blog:tags/tag3)
+**Tags:** [\#tag1](/r/lou/blog:tags/tag1), [\#tag3](/r/lou/blog:tags/tag3)
 
 
 ❤️ 0

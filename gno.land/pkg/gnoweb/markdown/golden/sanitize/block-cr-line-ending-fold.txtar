@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+a\r\n\r# FAKE HEADING
+-- output.md --
+a
+
+\# FAKE HEADING
+-- output.html --
+<p>a</p>
+<p># FAKE HEADING</p>

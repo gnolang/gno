@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+user wrote [^realm-footnote] in their post
+-- output.md --
+user wrote \[^realm-footnote\] in their post
+-- output.html --
+<p>user wrote [^realm-footnote] in their post</p>
