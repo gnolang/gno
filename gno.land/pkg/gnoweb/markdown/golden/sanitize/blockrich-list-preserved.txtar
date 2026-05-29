@@ -8,6 +8,7 @@
 
 - item one
 - item two
+
 -- output.html --
 <ul>
 <li>item one</li>

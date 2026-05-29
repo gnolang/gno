@@ -234,12 +234,21 @@ const (
 	modeEscapeLineLeader blockHazardsMode = 1 << iota
 	modeEscapeSetext
 	modeEscapePipe
+
+	// modeStrict is the strict-mode policy: all doc-spoof defenses
+	// on. ANY new bit added to blockHazardsMode MUST be OR'd in here
+	// so EscapeBlockHazards's strict posture stays the union of all
+	// defenses. Forgetting to extend this constant silently weakens
+	// strict callers (sanitize.Block) — there is no compile-time or
+	// test-level catch for the omission besides per-defense unit
+	// tests.
+	modeStrict = modeEscapeLineLeader | modeEscapeSetext | modeEscapePipe
 )
 
 // EscapeBlockHazards is the strict variant (used by sanitize.Block).
 // All doc-spoof, setext, and GFM-table-row defenses are on.
 func EscapeBlockHazards(s string) string {
-	return escapeBlockHazardsImpl(s, modeEscapeLineLeader|modeEscapeSetext|modeEscapePipe)
+	return escapeBlockHazardsImpl(s, modeStrict)
 }
 
 // EscapeBlockHazardsRich is the permissive variant (used by

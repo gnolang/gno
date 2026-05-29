@@ -10,6 +10,7 @@ attacker
 \<gno-card>
 attacker
 \</gno-card>
+
 -- output.html --
 <p>&lt;gno-card&gt;
 attacker

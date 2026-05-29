@@ -10,6 +10,7 @@ more body
 body line
 ===
 more body
+
 -- output.html --
 <p>realm chrome line</p>
 <h1>body line</h1>

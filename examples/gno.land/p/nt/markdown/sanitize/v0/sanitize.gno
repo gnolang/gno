@@ -39,6 +39,8 @@
 //	![alt](src)                                InlineText (alt)
 //	> [!NOTE] one-line title                   InlineText
 //	multi-paragraph post body                  Block
+//	multi-paragraph post body w/ rich block    BlockRich
+//	  structure (headings, lists, tables, etc.)
 //	multi-line blockquote (`> ` prefixed)      Blockquote
 //	multi-line blockquote w/ rich block body   BlockquoteRich
 //	[text](url "title")                        LinkTitle (title)
@@ -69,11 +71,14 @@
 //	  StripBidiAndZeroWidth, NormalizeBreaks
 //	  UserName, BechString, FootnoteLabel, LanguageName, NestedPrefix
 //	  URL, ImageURL              (accept→identity; reject→"")
+//	  Block                      (bracket walker treats \[/\] as ordinary;
+//	                              line-leader escapes don't re-fire on
+//	                              already-escaped `\#` etc.)
+//	  BlockRich                  (TrimLeft/TrimRight + "\n\n" wrap is stable)
 //
 //	NOT idempotent — never wrap an already-sanitized string:
 //	  InlineText, LinkTitle, TableCell   (re-escape backslashes)
 //	  HTMLEscape                         (re-escapes `&` → `&amp;`)
-//	  Block                              (re-strips LRDs, may double-escape line leaders)
 //	  Blockquote, BlockquoteRich         (re-prefixes `> `, nesting the quote each pass)
 //	  InlineCode, CodeBlock,
 //	  LanguageCodeBlock                  (wrap with a fence — calling twice double-wraps)
@@ -118,6 +123,13 @@
 //	                                              inside the URL, corrupting the host/path
 //	sanitize.Blockquote(sanitize.Blockquote(s))   double-wrap — outer would escape the
 //	                                              inner `> ` prefixes
+//	sanitize.Blockquote(sanitize.BlockRich(s))    double-sanitize — Blockquote's Block step
+//	                                              re-escapes the markers BlockRich preserved
+//	sanitize.BlockRich(sanitize.Blockquote(s))    nonsense — Blockquote already line-prefixed
+//	                                              with `> `; BlockRich expects raw user content
+//	sanitize.BlockquoteRich(sanitize.BlockRich(s)) double-wrap — Rich + Rich nests twice
+//	sanitize.BlockRich(sanitize.TableCell(s))     wrong slot — use TableCell for cell content,
+//	                                              BlockRich for multi-paragraph block content
 //	sanitize.TableCell(multiParagraphProse)       newlines fold to space silently; use a
 //	                                              non-table layout for multi-paragraph text
 //
@@ -400,23 +412,35 @@ func Block(s string) string {
 //     Unicode-separator folding). GFM table-row openers are
 //     PRESERVED (see "Tables" below).
 //
-// Cross-paragraph safety: BlockRich's output begins with "\n\n" —
-// a CM §4.8 blank line — so user content is guaranteed to start
-// its own paragraph, isolated from anything the realm emitted
-// before it. This single mechanism closes two distinct attacks:
+// Cross-paragraph safety: BlockRich's output begins with "\n\n"
+// AND ends with "\n\n" — CM §4.8 blank lines on both sides — so
+// user content is guaranteed to occupy its own paragraph(s),
+// isolated from anything the realm emits before OR after. Symmetric
+// isolation closes four distinct attacks:
 //
-//   - Cross-paragraph setext promotion. User content
+//   - Cross-paragraph setext promotion (backward). User content
 //     `body\n===\nmore` concatenated after realm chrome (no
 //     trailing `\n`) would, without paragraph isolation, place
 //     "chrome\nbody" in one paragraph; the `===` setext underline
 //     would then promote that merged paragraph to H1, hijacking
 //     realm chrome. The leading "\n\n" forces a paragraph break.
 //
-//   - Cross-paragraph GFM table promotion. User content beginning
-//     with `|---|---|` (a table delimiter row) would, without a
-//     blank-line break, retroactively turn the preceding realm
-//     line into a `<thead>`. Paragraph isolation prevents the
-//     table-detection scan from crossing the boundary.
+//   - Cross-paragraph GFM table promotion (backward). User content
+//     beginning with `|---|---|` (a table delimiter row) would,
+//     without a blank-line break, retroactively turn the preceding
+//     realm line into a `<thead>`. Paragraph isolation prevents
+//     the table-detection scan from crossing the boundary.
+//
+//   - Cross-paragraph GFM table promotion (forward). Realm chrome
+//     appended immediately after BlockRich(user) that begins with
+//     `|---|` would, without a trailing blank line, extend user's
+//     last line into a table header and pull realm chrome into the
+//     body row. The trailing "\n\n" prevents the merge.
+//
+//   - Lazy paragraph continuation (forward). Paragraph-shaped realm
+//     chrome appended immediately after BlockRich(user) would, via
+//     CM §5.2, merge into user's trailing paragraph and inherit any
+//     block-level decoration it carries.
 //
 // First-line qualifying-setext escape (the
 // `neuterLeadingSetextIfQualifying` pre-pass) remains in place as
@@ -496,8 +520,9 @@ func Block(s string) string {
 // Still, wrap each user-supplied string exactly once — chained
 // sanitization adds no value and burns gas.
 //
-// PREVIEW: no realm in the current tree calls BlockRich. The API may
-// be revised once a real caller informs concrete needs.
+// PREVIEW: BlockquoteRich is currently the only in-tree caller of
+// BlockRich; the API and the `"\n\n"` output shape may evolve once
+// direct callers emerge.
 func BlockRich(s string) string {
 	s = markdown.NormalizeBreaks(s)
 	s = markdown.StripBidiAndZeroWidth(s)
@@ -512,22 +537,31 @@ func BlockRich(s string) string {
 	s = foldSeparatorsToNewline(s)
 	s = neuterLeadingSetextIfQualifying(s)
 	s = markdown.EscapeBlockHazardsRich(s)
-	// Ensure the output starts with "\n\n" — a CM §4.8 blank line —
-	// so user content is GUARANTEED to begin its own paragraph,
-	// isolated from anything the realm emitted before it. This closes
-	// two cross-paragraph attacks:
+	// Ensure the output BOTH starts AND ends with "\n\n" — CM §4.8
+	// blank lines on each side — so user content is GUARANTEED to
+	// occupy its own paragraph(s), isolated from anything the realm
+	// emits before OR after. Symmetric isolation closes four attacks:
 	//
-	//  1. Deeper-setext: user content `body\n===\nmore` concatenated
-	//     after realm chrome (no trailing `\n`) would otherwise place
-	//     "chrome\nbody" in one paragraph; the `===` setext underline
-	//     would then promote that merged paragraph to H1, hijacking
-	//     realm chrome. A blank line between chrome and user content
-	//     prevents the merge.
-	//  2. GFM table-row promotion: user content beginning with
-	//     `|---|---|` (a table delimiter row) would, without a blank-
-	//     line break, retroactively promote the preceding realm line
-	//     into a `<thead>` cell. Paragraph isolation prevents the
-	//     table-detection scan from crossing the boundary.
+	//  Backward (closed by leading "\n\n"):
+	//   1. Deeper-setext: user content `body\n===\nmore` concatenated
+	//      after realm chrome (no trailing `\n`) would otherwise place
+	//      "chrome\nbody" in one paragraph; the `===` setext underline
+	//      would then promote that merged paragraph to H1, hijacking
+	//      realm chrome.
+	//   2. GFM table-row promotion: user content beginning with
+	//      `|---|---|` (a table delimiter row) would, without a blank-
+	//      line break, retroactively promote the preceding realm line
+	//      into a `<thead>` cell.
+	//
+	//  Forward (closed by trailing "\n\n"):
+	//   3. GFM table-row promotion in reverse: realm appending its own
+	//      chrome immediately after BlockRich(user), where chrome
+	//      starts with `|---|`, would extend user's last line into a
+	//      table header and pull realm chrome into the body row.
+	//   4. Lazy paragraph continuation: realm appending paragraph-
+	//      shaped chrome immediately after BlockRich(user) would, via
+	//      CM §5.2 lazy-continuation, merge into user's trailing
+	//      paragraph and inherit any block-level decoration it carries.
 	//
 	// `neuterLeadingSetextIfQualifying` above is now belt-and-
 	// suspenders for the first-line setext case: even if the blank-
@@ -535,17 +569,19 @@ func BlockRich(s string) string {
 	// the first-line escape still blocks the simplest setext shape.
 	//
 	// Empty post-escape result short-circuits to "" so realm
-	// concatenation doesn't leak a stray blank line for trivially
-	// empty inputs (e.g. a lone link-reference definition that
-	// strips entirely).
+	// concatenation doesn't leak stray blank lines for trivially empty
+	// inputs (e.g. a lone link-reference definition that strips
+	// entirely).
 	//
-	// Idempotency: TrimLeft strips ALL leading "\n"s, then the
-	// prepend adds exactly two. Stable across passes.
+	// Idempotency: TrimLeft and TrimRight strip ALL leading/trailing
+	// "\n"s, then the wrap adds exactly two on each side. Stable
+	// across passes.
 	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
 	if s == "" {
 		return ""
 	}
-	return "\n\n" + s
+	return "\n\n" + s + "\n\n"
 }
 
 // foldSeparatorsToNewline replaces U+0085 NEL (0xC2 0x85),
@@ -776,14 +812,13 @@ func Blockquote(text string) string {
 // shape applies.
 func BlockquoteRich(text string) string {
 	text = BlockRich(text)
-	// BlockRich prepends "\n\n" (a CM blank line) so user content is
-	// paragraph-isolated from realm chrome. Inside a blockquote that
-	// defense is redundant — the `> ` marker creates the container
-	// boundary — and the leading whitespace would line-prefix to one
-	// or two useless `> ` empty quoted lines. Strip ALL leading "\n"s
-	// so the body starts clean. (TrimLeft, not TrimPrefix, handles
-	// the new two-newline prefix and any historical single-newline
-	// shape both.)
+	// BlockRich wraps user content with "\n\n" on each side for
+	// cross-paragraph isolation. Inside a blockquote both wraps are
+	// redundant — the `> ` marker creates the container boundary —
+	// and they would line-prefix to two useless `> ` empty quoted
+	// lines top and bottom. Strip ALL leading and trailing "\n"s so
+	// the body starts and ends clean; this helper re-wraps with `\n`
+	// + body + `\n\n` below.
 	text = strings.TrimLeft(text, "\n")
 	if text == "" {
 		return ""

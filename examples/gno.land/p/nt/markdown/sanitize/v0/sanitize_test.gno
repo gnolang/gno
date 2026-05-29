@@ -43,7 +43,7 @@ func TestBlock(t *testing.T) {
 		{"hello world\n", "hello world\n"},
 		{"# heading\n", "\\# heading\n"},
 		{"> quote\n", "\\> quote\n"},
-		{"| a | b |\n", "\\| a | b |\n"},   // GFM table-row escaped in strict mode
+		{"| a | b |\n", "\\| a | b |\n"},    // GFM table-row escaped in strict mode
 		{"```\ncode\n", "```\ncode\n```\n"}, // fence auto-close at EOF
 	}
 	for _, c := range cases {
@@ -61,33 +61,33 @@ func TestBlock(t *testing.T) {
 }
 
 func TestBlockRich(t *testing.T) {
-	// BlockRich prepends "\n\n" — a CM §4.8 blank line — so user
-	// content starts its own paragraph, isolated from realm chrome.
-	// Every non-empty expected output here begins with that "\n\n".
+	// BlockRich wraps every non-empty output with "\n\n" — CM §4.8
+	// blank lines — on BOTH sides, so user content is paragraph-
+	// isolated from any realm chrome that precedes OR follows it.
 	cases := []struct{ in, want string }{
 		// Block-level markdown that Block escapes — preserved by BlockRich.
-		{"hello world\n", "\n\nhello world\n"},
-		{"# heading\n", "\n\n# heading\n"},
-		{"> quote\n", "\n\n> quote\n"},
-		{"- item\n", "\n\n- item\n"},
-		{"1. item\n", "\n\n1. item\n"},
-		{"---\n", "\n\n\\---\n"},            // first-line setext-h2 → escaped by qualifying-setext pre-pass
-		{"***\n", "\n\n***\n"},              // thematic break NOT setext-h2 — preserved
-		{"text\n===\n", "\n\ntext\n===\n"},  // deeper setext preserved (user-authored above)
-		{"body\n===\nmore\n", "\n\nbody\n===\nmore\n"}, // cross-paragraph attack: realm `chrome\n\nbody\n===\nmore` keeps realm in its own paragraph
+		{"hello world\n", "\n\nhello world\n\n"},
+		{"# heading\n", "\n\n# heading\n\n"},
+		{"> quote\n", "\n\n> quote\n\n"},
+		{"- item\n", "\n\n- item\n\n"},
+		{"1. item\n", "\n\n1. item\n\n"},
+		{"---\n", "\n\n\\---\n\n"},                       // first-line setext-h2 → escaped by qualifying-setext pre-pass
+		{"***\n", "\n\n***\n\n"},                         // thematic break NOT setext-h2 — preserved
+		{"text\n===\n", "\n\ntext\n===\n\n"},             // deeper setext preserved (user-authored above)
+		{"body\n===\nmore\n", "\n\nbody\n===\nmore\n\n"}, // cross-paragraph backward attack: realm `chrome\n\nbody\n===\nmore` keeps realm in its own paragraph
 		// GFM tables PRESERVED in Rich mode.
-		{"| a | b |\n", "\n\n| a | b |\n"},
-		{"| H |\n|---|\n| a |\n", "\n\n| H |\n|---|\n| a |\n"}, // full table renders as <table>
+		{"| a | b |\n", "\n\n| a | b |\n\n"},
+		{"| H |\n|---|\n| a |\n", "\n\n| H |\n|---|\n| a |\n\n"}, // full table renders as <table>
 		// Realm-binding defenses STILL ON.
-		{"<gno-card>\n", "\n\n\\<gno-card>\n"},
-		{"[t][l]\n", "\n\n\\[t\\]\\[l\\]\n"},
-		{"[^name]\n", "\n\n\\[^name\\]\n"},
+		{"<gno-card>\n", "\n\n\\<gno-card>\n\n"},
+		{"[t][l]\n", "\n\n\\[t\\]\\[l\\]\n\n"},
+		{"[^name]\n", "\n\n\\[^name\\]\n\n"},
 		// LRD-only input strips to nothing; empty-after-escape short-
 		// circuits to "" so realm concatenation doesn't leak a stray
 		// blank line.
 		{"[x]: y\n", ""},
 		{"", ""}, // empty input → empty output, no stray blank line
-		{"```\ncode\n", "\n\n```\ncode\n```\n"},
+		{"```\ncode\n", "\n\n```\ncode\n```\n\n"},
 	}
 	for _, c := range cases {
 		got := BlockRich(c.in)
@@ -99,6 +99,40 @@ func TestBlockRich(t *testing.T) {
 		twice := BlockRich(got)
 		if twice != got {
 			t.Errorf("BlockRich not idempotent for %q: BlockRich(once)=%q, BlockRich(twice)=%q", c.in, got, twice)
+		}
+	}
+}
+
+func TestBlockRich_LeadingBlankLineGuaranteed(t *testing.T) {
+	// Every non-empty result begins with "\n\n" so `chrome +
+	// BlockRich(user)` cannot place the user's first line in the same
+	// paragraph as the realm's last line (which would let a deeper
+	// `===` or `|---|` in user content retroactively promote realm
+	// chrome).
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j", "| a |\n|---|\n| 1 |"} {
+		got := BlockRich(in)
+		if got == "" {
+			continue
+		}
+		if !strings.HasPrefix(got, "\n\n") {
+			t.Errorf("BlockRich(%q) = %q; expected leading '\\n\\n'", in, got)
+		}
+	}
+}
+
+func TestBlockRich_TrailingBlankLineGuaranteed(t *testing.T) {
+	// Every non-empty result ends with "\n\n" so `BlockRich(user) +
+	// chrome` cannot extend user's last paragraph into the realm's
+	// next line (CM §5.2 lazy continuation, or a realm-supplied
+	// `|---|` row retroactively promoting user's last line into a
+	// `<thead>` header).
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j", "| H |\n|---|\n| a |"} {
+		got := BlockRich(in)
+		if got == "" {
+			continue
+		}
+		if !strings.HasSuffix(got, "\n\n") {
+			t.Errorf("BlockRich(%q) = %q; expected trailing '\\n\\n'", in, got)
 		}
 	}
 }
