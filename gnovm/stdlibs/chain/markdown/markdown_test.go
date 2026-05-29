@@ -165,10 +165,10 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
-		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},          // case-insensitive
-		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},   // case-insensitive
+		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},        // case-insensitive
+		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"}, // case-insensitive
 		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
-		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},          // not `gno-`
+		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
@@ -192,10 +192,10 @@ func TestEscapeBlockHazards(t *testing.T) {
 		// form, so no Type 5 block opens — defense-in-depth via the
 		// walker, even without the new detector firing.
 		{"html-type5-cdata", "<![CDATA[x]]>\n", "<!\\[CDATA\\[x\\]\\]>\n"},
-		{"html-3-space-indent", "   <!-- x -->\n", "\\   <!-- x -->\n"},   // \ at byte 0; spaces preserved after
+		{"html-3-space-indent", "   <!-- x -->\n", "\\   <!-- x -->\n"},             // \ at byte 0; spaces preserved after
 		{"html-4-space-indent-not-matched", "    <!-- x -->\n", "    <!-- x -->\n"}, // 4+ = indented code
 		{"html-inline-not-matched", "paragraph <!-- inline -->\n", "paragraph <!-- inline -->\n"},
-		{"html-crlf", "<!-- x -->\r\n", "\\<!-- x -->\r\n"}, // CRLF passes through at native level (NormalizeBreaks runs in sanitize wrappers)
+		{"html-crlf", "<!-- x -->\r\n", "\\<!-- x -->\r\n"},        // CRLF passes through at native level (NormalizeBreaks runs in sanitize wrappers)
 		{"html-already-escaped", "\\<script>x\n", "\\<script>x\n"}, // backslash at byte 0 → no re-escape
 	}
 	for _, c := range cases {
