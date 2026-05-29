@@ -27,7 +27,8 @@ func main() {
 	println(md.Link("Gno", "http://gno.land"))
 	println(md.Image("Alt Text", "http://example.com/image.png"))
 	println(md.InlineImageWithLink("Alt Text", "http://example.com/image.png", "http://example.com"))
-	println(md.Footnote("ref", "This is a footnote"))
+	println(md.FootnoteDefinition("ref", "This is a footnote"))
+	println(md.LinkReferenceDefinition("r-example", "/r/example", ""))
 	println(md.Paragraph("This is a paragraph."))
 
 	println("4 columns in one gno-columns tag:")
@@ -96,22 +97,31 @@ func main() {
 // > This is a blockquote
 // > Spanning multiple lines
 //
-// `inline \`code\``
+// `` inline `code` ``
 // ```
 // line1
 // line2
 // ```
+//
 // ```go
 // func main() {
 // println("Hello, world!")
 // }
 // ```
+//
 // ---
 //
 // [Gno](http://gno.land)
 // ![Alt Text](http://example.com/image.png)
 // [![Alt Text](http://example.com/image.png)](http://example.com)
-// [ref]: This is a footnote
+// [^ref]:
+//     This is a footnote
+//
+//
+//
+// [r-example]: /r/example
+//
+//
 // This is a paragraph.
 //
 //
@@ -119,13 +129,13 @@ func main() {
 // <gno-columns>
 // Column1
 // content1
-// |||
+// <gno-columns-sep>
 // Column2
 // content2
-// |||
+// <gno-columns-sep>
 // Column3
 // content3
-// |||
+// <gno-columns-sep>
 // Column4
 // content4
 // </gno-columns>
@@ -134,30 +144,30 @@ func main() {
 // <gno-columns>
 // Row1Column1
 // content1
-// |||
+// <gno-columns-sep>
 // Row1Column2
 // content2
-// |||
+// <gno-columns-sep>
 // Row1Column3
 // content3
 // </gno-columns>
 // <gno-columns>
 // Row2Column1
 // content1
-// |||
+// <gno-columns-sep>
 // Row2Column2
 // content2
-// |||
+// <gno-columns-sep>
 // Row2Column3
 // content3
 // </gno-columns>
 // <gno-columns>
 // Row3Column1
 // content1
-// |||
+// <gno-columns-sep>
 // Row3Column2
 // content2
-// |||
+// <gno-columns-sep>
 // Row3Column3
 // content3
 // </gno-columns>
@@ -166,11 +176,11 @@ func main() {
 // <gno-columns>
 // Column1
 // content1
-// |||
+// <gno-columns-sep>
 // Column2
 // content2
-// |||
+// <gno-columns-sep>
 //
-// |||
+// <gno-columns-sep>
 //
 // </gno-columns>

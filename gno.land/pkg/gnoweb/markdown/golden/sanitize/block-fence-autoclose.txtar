@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+```
+user code without close
+-- output.md --
+```
+user code without close
+```
+-- output.html --
+<pre><code>user code without close
+</code></pre>
