@@ -27,14 +27,7 @@ const (
 	MaxReplyLength = 10000
 )
 
-var (
-	reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
-
-	// Minimalistic Markdown line prefix checks that if allowed would
-	// break the current UI when submitting a reply. It denies replies
-	// with headings, blockquotes or horizontal lines.
-	reDeniedReplyLinePrefixes = regexp.MustCompile(`(?m)^\s*(#|---|>)+`)
-)
+var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
 
 // SetHelp sets or updates boards realm help content.
 func SetHelp(cur realm, content string) {
@@ -785,13 +778,9 @@ func assertReplyBodyIsValid(body string) {
 		panic("reply is too long, maximum allowed is " + n + " characters")
 	}
 
-	if reDeniedReplyLinePrefixes.MatchString(body) {
-		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
-	}
-
-	if strings.Contains(body, "gno-form") {
-		panic("Gno-Flavored Markdown forms are not allowed in replies")
-	}
+	// No markdown-structure or gno-form blacklist here: reply bodies
+	// render inside a <gno-foreign> sandbox (see indentForeignBody),
+	// which contains block structure and omits forms at render time.
 }
 
 func assertMembersUpdateIsEnabled(boardID boards.ID) {

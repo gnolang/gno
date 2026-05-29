@@ -9,12 +9,13 @@ import (
 	"gno.land/p/leon/svgbtn"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/nt/markdown/foreign/v0"
 	"gno.land/p/nt/mdalert/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-func renderPost(post *boards.Post, path, indent string, levels int) string {
+func renderPost(post *boards.Post, path, indent string, levels int, budget *int) string {
 	var b strings.Builder
 
 	// Thread reposts might not have a title, if so get title from source thread
@@ -32,7 +33,7 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	}
 
 	b.WriteString(indent + "\n")
-	b.WriteString(renderPostContent(post, indent, levels))
+	b.WriteString(renderPostContent(post, indent, levels, budget))
 
 	if post.Replies.Size() == 0 {
 		return b.String()
@@ -45,14 +46,14 @@ func renderPost(post *boards.Post, path, indent string, levels int) string {
 	}
 
 	if path != "" {
-		b.WriteString(renderTopLevelReplies(post, path, indent, levels-1))
+		b.WriteString(renderTopLevelReplies(post, path, indent, levels-1, budget))
 	} else {
-		b.WriteString(renderSubReplies(post, indent, levels-1))
+		b.WriteString(renderSubReplies(post, indent, levels-1, budget))
 	}
 	return b.String()
 }
 
-func renderPostContent(post *boards.Post, indent string, levels int) string {
+func renderPostContent(post *boards.Post, indent string, levels int, budget *int) string {
 	var b strings.Builder
 
 	// Author and date header
@@ -75,7 +76,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 		return b.String()
 	}
 
-	srcContent, srcPost := renderSourcePost(post, indent)
+	srcContent, srcPost := renderSourcePost(post, indent, budget)
 	if boards.IsRepost(post) && srcPost != nil {
 		msg := ufmt.Sprintf(
 			"Original thread is %s  \nCreated by %s on %s",
@@ -90,7 +91,7 @@ func renderPostContent(post *boards.Post, indent string, levels int) string {
 
 	// Render repost body before original thread's body
 	if post.Body != "" {
-		b.WriteString(indentBody(indent, post.Body) + "\n")
+		b.WriteString(indentForeignBody(indent, post.Body, budget) + "\n")
 		if srcContent != "" {
 			// Add extra line to separate repost content from original thread content
 			b.WriteString("\n")
@@ -169,6 +170,7 @@ func renderPostInner(post *boards.Post) string {
 		s         string
 		threadID  = post.ThreadID
 		thread, _ = getThread(post.Board, threadID)
+		budget    = maxRenderedBodies
 	)
 
 	// Fully render parent if it's not a repost.
@@ -180,14 +182,14 @@ func renderPostInner(post *boards.Post) string {
 			parent, _ = getReply(thread, parentID)
 		}
 
-		s += renderPost(parent, "", "", 0) + "\n"
+		s += renderPost(parent, "", "", 0, &budget) + "\n"
 	}
 
-	s += renderPost(post, "", "> ", 5)
+	s += renderPost(post, "", "> ", 5, &budget)
 	return s
 }
 
-func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
+func renderSourcePost(post *boards.Post, indent string, budget *int) (string, *boards.Post) {
 	if !boards.IsRepost(post) {
 		return "", nil
 	}
@@ -210,7 +212,7 @@ func renderSourcePost(post *boards.Post, indent string) (string, *boards.Post) {
 		return indentBody(indent, "⚠ Source post has been flagged as inappropriate"), nil
 	}
 
-	return indentBody(indent, srcPost.Body) + "\n\n", srcPost
+	return indentForeignBody(indent, srcPost.Body, budget) + "\n\n", srcPost
 }
 
 func renderFlagPost(res *mux.ResponseWriter, req *mux.Request) {
@@ -498,7 +500,7 @@ func renderReplyPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(backLink + "\n\n")
 		res.Write(
 			md.Paragraph(ufmt.Sprintf("Replying to a comment posted by %s:", userLink(reply.Creator))) +
-				md.Blockquote(reply.Body),
+				foreign.ForeignWithLabel("Quoted comment", reply.Body),
 		)
 	} else {
 		res.Write(md.H1(board.Name + ": Comment"))

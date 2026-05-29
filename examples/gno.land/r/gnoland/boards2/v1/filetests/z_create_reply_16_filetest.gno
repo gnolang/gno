@@ -1,8 +1,13 @@
 // PKGPATH: gno.land/r/gnoland/boards2/v1/filetests/z_create_reply_16_filetest
 
+// A reply may now contain a <gno-form>. The write-time blacklist used to
+// reject it; now the reply body renders inside a <gno-foreign> sandbox
+// whose inner renderer does not load forms (gnoweb safe-mode omits the
+// raw HTML at render). See BOARD_FOREIGN.md.
 package z_create_reply_16_filetest
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/gnoland/boards"
@@ -23,8 +28,13 @@ func init(cur realm) {
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
+	// Previously rejected ("forms are not allowed in replies").
 	boards2.CreateReply(cross(cur), bid, tid, 0, "<gno-form><gno-select name=\"foo\" value=\"\" /></gno-form>")
+
+	// Accepted; the body is wrapped in a gno-foreign sandbox.
+	content := boards2.Render("test-board/1")
+	println(strings.Contains(content, "<gno-foreign>"))
 }
 
-// Error:
-// Gno-Flavored Markdown forms are not allowed in replies
+// Output:
+// true

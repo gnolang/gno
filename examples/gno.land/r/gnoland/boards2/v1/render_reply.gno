@@ -53,7 +53,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(renderPostInner(reply))
 }
 
-func renderTopLevelReplies(post *boards.Post, path, indent string, levels int) string {
+func renderTopLevelReplies(post *boards.Post, path, indent string, levels int, budget *int) string {
 	p, err := pager.New(path, post.Replies.Size(), pager.WithPageSize(pageSizeReplies))
 	if err != nil {
 		panic(err)
@@ -62,10 +62,15 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int) s
 	var (
 		b              strings.Builder
 		commentsIndent = indent + "> "
+		truncated      bool
 	)
 
 	render := func(reply *boards.Post) bool {
-		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1))
+		if *budget <= 0 {
+			truncated = true
+			return true // stop: render budget exhausted (see maxRenderedBodies)
+		}
+		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget))
 		return false
 	}
 
@@ -89,6 +94,10 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int) s
 
 	post.Replies.Iterate(p.Offset(), count, render)
 
+	if truncated {
+		b.WriteString(indent + "\n" + commentsIndent + "_Some replies not shown (thread too large to render in full)._\n")
+	}
+
 	if p.HasPages() {
 		b.WriteString(md.HorizontalRule())
 		b.WriteString(pager.Picker(p))
@@ -96,16 +105,25 @@ func renderTopLevelReplies(post *boards.Post, path, indent string, levels int) s
 	return b.String()
 }
 
-func renderSubReplies(post *boards.Post, indent string, levels int) string {
+func renderSubReplies(post *boards.Post, indent string, levels int, budget *int) string {
 	var (
 		b              strings.Builder
 		commentsIndent = indent + "> "
+		truncated      bool
 	)
 
 	post.Replies.Iterate(0, post.Replies.Size(), func(reply *boards.Post) bool {
-		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1))
+		if *budget <= 0 {
+			truncated = true
+			return true // stop: render budget exhausted (see maxRenderedBodies)
+		}
+		b.WriteString(indent + "\n" + renderPost(reply, "", commentsIndent, levels-1, budget))
 		return false
 	})
+
+	if truncated {
+		b.WriteString(indent + "\n" + commentsIndent + md.Link("More replies — view full thread", makeReplyURI(post)) + "\n")
+	}
 	return b.String()
 }
 

@@ -18,6 +18,12 @@ import (
 const (
 	pageSizeDefault = 6
 	pageSizeReplies = 10
+
+	// maxRenderedBodies caps user bodies wrapped in <gno-foreign> per
+	// page render, with margin under gnoweb's MaxGnoForeignBlocksPerConvert
+	// (100, beyond which blocks blank silently). On reaching it the tree
+	// stops descending and shows a truncation notice. See BOARD_FOREIGN.md.
+	maxRenderedBodies = 90
 )
 
 const menuManageBoard = "manageBoard"

@@ -18,6 +18,7 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
@@ -371,14 +372,31 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // render (NOT a package-level singleton) so each foreign block
 // gets isolated parser/renderer state.
 //
-// Loaded extensions: the structural gno-* extensions that exist
-// today (foreign, columns, alert) plus the link extension. Image
-// validator is wired through if non-nil. gno-form is intentionally
-// NOT loaded — forms are interactive UI and never permitted in
-// foreign-controlled bytes. When CARD.md ships, gno-card joins
-// the load list.
+// Loaded extensions: the GFM content extensions production gnoweb
+// loads (Strikethrough, Table, Footnote, TaskList — see
+// render_config.go) so user content renders identically inside the
+// sandbox as it would at top level, plus the structural gno-*
+// extensions that exist today (foreign, columns, alert) and the link
+// extension. Image validator is wired through if non-nil.
+//
+// The GFM four are content-only (no raw HTML, no scripting); safe mode
+// (no WithUnsafe) still strips raw HTML and unrecognized tags like
+// <gno-form>. gno-form is intentionally NOT loaded — forms are
+// interactive UI and never permitted in foreign-controlled bytes. When
+// CARD.md ships, gno-card joins the load list.
+//
+// Auto-heading-IDs are intentionally NOT enabled here (unlike the outer
+// instance): heading anchors inside an opaque sandbox are low-value and
+// would multiply the cross-block ID-collision noise (see FOREIGN.md).
 func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdown {
-	m := goldmark.New()
+	m := goldmark.New(
+		goldmark.WithExtensions(
+			extension.Strikethrough,
+			extension.Table,
+			extension.Footnote,
+			extension.TaskList,
+		),
+	)
 	ExtForeign.Extend(m, imgValidator) // self — allows nested <gno-foreign>
 	ExtColumns.Extend(m)
 	ExtAlerts.Extend(m)
