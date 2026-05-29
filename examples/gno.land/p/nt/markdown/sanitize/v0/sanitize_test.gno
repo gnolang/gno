@@ -1,6 +1,9 @@
 package sanitize
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestStripBidiAndZeroWidthRe(t *testing.T) {
 	// Re-export sanity check.
@@ -88,6 +91,83 @@ func TestBlockRich(t *testing.T) {
 		if twice != got {
 			t.Errorf("BlockRich not idempotent for %q: BlockRich(once)=%q, BlockRich(twice)=%q", c.in, got, twice)
 		}
+	}
+}
+
+func TestBlockquoteRich(t *testing.T) {
+	// BlockquoteRich strips BlockRich's leading "\n", line-prefixes
+	// each remaining line with "> ", then re-prepends a single "\n"
+	// so the realm can safely concatenate
+	// `chrome + BlockquoteRich(user)` without ending up with `>` mid-
+	// line.
+	cases := []struct{ name, in, want string }{
+		{"plain text", "hello world\n", "\n> hello world\n"},
+		{"atx heading preserved", "# heading\n", "\n> # heading\n"},
+		{"nested blockquote", "> nested\n", "\n> > nested\n"},
+		{"list item preserved", "- item\n", "\n> - item\n"},
+		{"ordered list preserved", "1. item\n", "\n> 1. item\n"},
+		{"first-line setext escaped", "---\n", "\n> \\---\n"},
+		{"deeper setext preserved", "text\n===\n", "\n> text\n> ===\n"},
+		{"thematic break asterisks preserved", "***\n", "\n> ***\n"},
+		// Realm-binding defenses still on.
+		{"gno extension escaped", "<gno-card>\n", "\n> \\<gno-card>\n"},
+		{"ref-link use escaped", "[t][l]\n", "\n> \\[t\\]\\[l\\]\n"},
+		{"footnote escaped", "[^name]\n", "\n> \\[^name\\]\n"},
+		// LRDs are stripped by BlockRich entirely; trimming the
+		// resulting bare "\n" leaves empty input and the helper
+		// returns "" without emitting a blockquote.
+		{"lrd alone strips to empty", "[x]: y\n", ""},
+		// Code fence autoclose at EOF lands inside the quote.
+		{"unclosed fence autoclosed", "```\ncode\n", "\n> ```\n> code\n> ```\n"},
+		// Multi-paragraph preserves the inner blank line (rendered
+		// as a quoted blank line `> \n`).
+		{"multi-paragraph preserves blank", "a\n\nb\n", "\n> a\n> \n> b\n"},
+		// Empty / blank-only input collapses cleanly to "".
+		{"empty input", "", ""},
+		// CRLF normalized through BlockRich.
+		{"crlf normalized", "a\r\nb\n", "\n> a\n> b\n"},
+		// NUL replaced with U+FFFD by BlockRich.
+		{"nul replaced", "x\x00y\n", "\n> x\uFFFDy\n"},
+	}
+	for _, c := range cases {
+		got := BlockquoteRich(c.in)
+		if got != c.want {
+			t.Errorf("%s: BlockquoteRich(%q) = %q, want %q", c.name, c.in, got, c.want)
+		}
+	}
+}
+
+func TestBlockquoteRich_DoubleWrapNestsQuote(t *testing.T) {
+	// Not idempotent: calling twice nests the quote one level
+	// deeper. Documented behavior — confirms the godoc claim.
+	once := BlockquoteRich("foo\n")
+	twice := BlockquoteRich(once)
+	if want := "\n> > foo\n"; twice != want {
+		t.Errorf("BlockquoteRich(BlockquoteRich(%q)) = %q, want %q", "foo\n", twice, want)
+	}
+}
+
+func TestBlockquoteRich_LeadingNewlineGuaranteed(t *testing.T) {
+	// Every non-empty result starts with "\n" so realm concatenation
+	// like `chrome + BlockquoteRich(user)` doesn't place `>` mid-line.
+	for _, in := range []string{"x", "x\n", "# h", "- i\n- j"} {
+		got := BlockquoteRich(in)
+		if got == "" {
+			continue
+		}
+		if got[0] != '\n' {
+			t.Errorf("BlockquoteRich(%q) = %q; expected leading '\\n'", in, got)
+		}
+	}
+}
+
+func TestBlockquoteRich_NoStrayEmptyQuotedLine(t *testing.T) {
+	// BlockRich's own leading "\n" must be stripped before
+	// line-prefixing — otherwise the output would start with a
+	// useless `> \n` empty quoted line.
+	got := BlockquoteRich("foo\n")
+	if strings.HasPrefix(got, "\n> \n") {
+		t.Errorf("BlockquoteRich leaked BlockRich's leading '\\n' as `> \\n`: %q", got)
 	}
 }
 

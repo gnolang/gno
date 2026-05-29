@@ -15,7 +15,7 @@
 //
 // The escapers and safe-emit builders in this package (InlineText, Block,
 // LinkTitle, TableCell, HTMLEscape, InlineCode, CodeBlock,
-// LanguageCodeBlock, Blockquote, FootnoteDefinition,
+// LanguageCodeBlock, Blockquote, BlockquoteRich, FootnoteDefinition,
 // LinkReferenceDefinition) are NOT idempotent — applying them twice
 // re-escapes the bytes the first pass added (`\*` becomes `\\\*`, `&amp;`
 // becomes `&amp;amp;`, a fenced block gets re-fenced). Wrap each
@@ -40,6 +40,7 @@
 //	> [!NOTE] one-line title                   InlineText
 //	multi-paragraph post body                  Block
 //	multi-line blockquote (`> ` prefixed)      Blockquote
+//	multi-line blockquote w/ rich block body   BlockquoteRich
 //	[text](url "title")                        LinkTitle (title)
 //	| cell |                                   TableCell
 //	<gno-card caption="X">                     HTMLEscape
@@ -73,7 +74,7 @@
 //	  InlineText, LinkTitle, TableCell   (re-escape backslashes)
 //	  HTMLEscape                         (re-escapes `&` → `&amp;`)
 //	  Block                              (re-strips LRDs, may double-escape line leaders)
-//	  Blockquote                         (re-prefixes `> `, escapes its own prefixes)
+//	  Blockquote, BlockquoteRich         (re-prefixes `> `, nesting the quote each pass)
 //	  InlineCode, CodeBlock,
 //	  LanguageCodeBlock                  (wrap with a fence — calling twice double-wraps)
 //	  FootnoteDefinition,
@@ -637,9 +638,8 @@ func neuterLeadingSetextIfQualifying(s string) string {
 //   - BlockRich(Blockquote(s)) doesn't make sense: Blockquote already
 //     line-prefixed with `> `; BlockRich expects raw user content.
 //
-// If you want a blockquote whose body can contain headings, lists, or
-// other block-level structure, line-prefix `BlockRich(s)` with `> `
-// yourself (or wait for a `BlockquoteRich` helper to be added).
+// For a quoted body that can contain headings, lists, nested quotes,
+// or thematic breaks, use BlockquoteRich.
 func Blockquote(text string) string {
 	text = Block(text)
 	if text == "" {
@@ -647,6 +647,99 @@ func Blockquote(text string) string {
 	}
 	text = strings.TrimSuffix(text, "\n")
 	var sb strings.Builder
+	for _, line := range strings.Split(text, "\n") {
+		sb.WriteString("> ")
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+// BlockquoteRich is the permissive counterpart of Blockquote. Both
+// wrap user content as a CommonMark blockquote (each line prefixed
+// with `> `), but they differ in what block-level structure inside
+// the quote survives:
+//
+//   - Blockquote escapes line-leading block markers, so the quoted
+//     body is paragraph-shaped — `# x` inside a Blockquote stays a
+//     literal `#`.
+//   - BlockquoteRich PRESERVES line-leading block markers, so the
+//     quoted body can compose ATX headings, lists, thematic breaks,
+//     nested blockquotes (`> > nested`), and other block-level
+//     structure. Realm-binding defenses stay on (extension delimiters,
+//     GFM table-row openers, bracket walker, fence autoclose,
+//     NUL / bidi / Unicode-separator folding).
+//
+// Output shape:
+//
+//   - The result starts with a leading "\n", matching BlockRich's
+//     contract. This guarantees a clean blockquote opener even when
+//     the realm concatenates `chrome + BlockquoteRich(user)` without
+//     its own newline separator — without the leading "\n", chrome
+//     ending without a newline followed by "> quoted" would render
+//     `>` as literal paragraph text instead of opening a blockquote.
+//   - BlockRich's own leading "\n" is stripped before line-prefixing,
+//     so the output never carries a redundant empty quoted line
+//     (`> \n`) at the top.
+//   - The cross-boundary setext defense BlockRich provides is also
+//     redundant inside a blockquote: a setext underline inside `> `
+//     content can only promote a line in the same blockquote, never
+//     reach realm bytes (different CM container).
+//
+// What attacker input produces what (rows that differ from
+// Blockquote are marked CHANGED):
+//
+//	User attempt                                  | BlockquoteRich response
+//	----------------------------------------------|------------------------------------------------
+//	# heading                                     | preserved as `> # heading` [CHANGED]
+//	> nested quote                                | preserved as `> > nested quote` [CHANGED]
+//	- item, * item, + item, 1. item               | preserved as `> - item` etc. [CHANGED]
+//	---, ***, ___ thematic break                  | preserved [CHANGED]
+//	=== or --- setext underline                   | preserved when preceded by user text;
+//	                                              | escaped (\===/\---) if first non-blank
+//	                                              | line of input [CHANGED]
+//	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
+//	| a | b | GFM table row (line-leading |)      | escaped → literal `| a | b |` [SAME]
+//	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
+//	[^name] footnote-ref                          | both brackets escaped [SAME]
+//	[label] bare shortcut-ref                     | both brackets escaped [SAME]
+//	[label]: url link-reference definition        | whole region stripped [SAME]
+//	[text](url), ![alt](src)                      | preserved verbatim [SAME]
+//	code fence opened without close               | autoclosed at end of input [SAME]
+//	NUL byte (\x00)                               | replaced with U+FFFD [SAME]
+//	U+2028 / U+2029 / U+0085 (NEL)                | folded to `\n` [SAME]
+//	bidi/zero-width controls                      | stripped [SAME]
+//
+// Use BlockquoteRich when the realm wants to render user content as
+// a quotation that itself reads like authored markdown — the visual
+// CSS containment of `<blockquote>` already demotes inner headings
+// relative to realm chrome, so the "inner headings need a sandbox"
+// caveat that applies to BlockRich at top level does not apply here.
+//
+// Not idempotent: like Blockquote, calling twice double-wraps —
+// `BlockquoteRich(BlockquoteRich(s))` produces `> > content`,
+// nesting the quote a level deeper each pass.
+//
+// Empty input (after the leading-"\n" prepend) returns "" — the
+// helper does not emit a "\n" for an otherwise-empty quote.
+func BlockquoteRich(text string) string {
+	text = BlockRich(text)
+	// BlockRich always prefixes a "\n" for cross-boundary setext
+	// safety against realm chrome. Inside a blockquote, that defense
+	// is redundant (the `> ` marker isolates the container), and the
+	// leading "\n" would line-prefix to a useless leading `> ` empty
+	// quoted line. Strip it so the body starts clean.
+	text = strings.TrimPrefix(text, "\n")
+	if text == "" {
+		return ""
+	}
+	text = strings.TrimSuffix(text, "\n")
+	var sb strings.Builder
+	// Re-prepend a "\n" so the realm can concatenate
+	// `chrome + BlockquoteRich(user)` without ending up with the
+	// first `>` mid-line. Matches BlockRich's "starts with \n"
+	// contract for caller ergonomics.
+	sb.WriteByte('\n')
 	for _, line := range strings.Split(text, "\n") {
 		sb.WriteString("> ")
 		sb.WriteString(line)
