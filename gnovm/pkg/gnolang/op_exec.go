@@ -845,10 +845,10 @@ func (m *Machine) doOpIfCond() {
 	}
 }
 
-// isDiscardedValue helper to know if value is '_' discarted
+// isDiscardedValue helper to know if value is '_' discarded
 func isDiscardedValue(e Expr) bool {
 	namexp, ok := e.(*NameExpr)
-	return ok && namexp.Name == "_"
+	return ok && namexp.Name == blankIdentifier
 }
 
 func (m *Machine) doOpTypeSwitch() {
