@@ -40,8 +40,9 @@ func TestForeign_EmptyBody(t *testing.T) {
 	if !strings.Contains(got, `<div class="gno-foreign__body">`) {
 		t.Errorf("missing body div in:\n%s", got)
 	}
-	if !strings.Contains(got, `aria-label="external content"`) {
-		t.Errorf("missing default aria-label in:\n%s", got)
+	// No label attribute → no label strip and no aria-label (no default).
+	if strings.Contains(got, "gno-foreign__label") || strings.Contains(got, "aria-label") {
+		t.Errorf("unlabeled foreign should have no label strip/aria-label in:\n%s", got)
 	}
 }
 
@@ -153,11 +154,15 @@ func TestForeign_OpenerWithLabel(t *testing.T) {
 }
 
 func TestForeign_OpenerWithEmptyLabel(t *testing.T) {
-	// Empty label falls back to the default "external content".
+	// An empty label= renders no label strip and no aria-label (there is
+	// no default label text).
 	src := "\n\n<gno-foreign label=\"\">\nbody\n</gno-foreign>\n\n"
 	got := renderForeignTestCase(t, src)
-	if !strings.Contains(got, `aria-label="external content"`) {
-		t.Errorf("missing default aria-label fallback in:\n%s", got)
+	if !strings.Contains(got, `<div class="gno-foreign__body">`) {
+		t.Errorf("missing body div in:\n%s", got)
+	}
+	if strings.Contains(got, "gno-foreign__label") || strings.Contains(got, "aria-label") {
+		t.Errorf("empty label should produce no label strip/aria-label in:\n%s", got)
 	}
 }
 

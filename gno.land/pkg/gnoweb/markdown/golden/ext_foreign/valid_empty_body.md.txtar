@@ -7,8 +7,7 @@ before
 after
 -- output.html --
 <p>before</p>
-<div class="gno-foreign" role="group" aria-label="external content">
-<div class="gno-foreign__label">external content</div>
+<div class="gno-foreign" role="group">
 <div class="gno-foreign__body">
 </div>
 </div>

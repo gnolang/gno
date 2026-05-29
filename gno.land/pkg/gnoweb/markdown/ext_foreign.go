@@ -29,11 +29,6 @@ import (
 // KindGnoForeign is the node kind for ForeignNode.
 var KindGnoForeign = ast.NewNodeKind("GnoForeign")
 
-// defaultForeignLabel is the aria-label / visible label used when a
-// <gno-foreign> opener carries no (or an empty) label attribute. Shared
-// by the parser (Open) and the renderer so the two cannot drift.
-const defaultForeignLabel = "external content"
-
 // MaxGnoForeignBlocksPerConvert caps the number of <gno-foreign> blocks
 // one Convert call will admit. Beyond this count, foreign openers fall
 // through to raw HTML (safe-mode strips them). Unlike the cross-family
@@ -201,9 +196,8 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	pc.Set(gnoForeignBlockKey, blockCount+1)
 	reader.AdvanceToEOL()
 
-	if label == "" {
-		label = defaultForeignLabel
-	}
+	// Label stays empty when the opener carries no label attribute; the
+	// renderer then omits the label strip entirely (no default text).
 	node := &ForeignNode{
 		Label:        label,
 		DepthAtParse: depthBefore + 1,
@@ -333,13 +327,17 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 		return ast.WalkContinue, nil
 	}
 
-	label := n.Label
-	if label == "" {
-		label = defaultForeignLabel
+	// An empty label renders no label strip and no aria-label — the box
+	// is just an unlabeled group. A non-empty label (e.g. from
+	// ForeignWithLabel) renders both the visible strip and the
+	// accessible name. No "external content" default.
+	if label := n.Label; label != "" {
+		escLabel := htmlpkg.EscapeString(label)
+		fmt.Fprintf(w, "<div class=\"gno-foreign\" role=\"group\" aria-label=\"%s\">\n", escLabel)
+		fmt.Fprintf(w, "<div class=\"gno-foreign__label\">%s</div>\n", escLabel)
+	} else {
+		fmt.Fprintln(w, `<div class="gno-foreign" role="group">`)
 	}
-	escLabel := htmlpkg.EscapeString(label)
-	fmt.Fprintf(w, "<div class=\"gno-foreign\" role=\"group\" aria-label=\"%s\">\n", escLabel)
-	fmt.Fprintf(w, "<div class=\"gno-foreign__label\">%s</div>\n", escLabel)
 	fmt.Fprintln(w, `<div class="gno-foreign__body">`)
 
 	// Inner goldmark instance: built per-render (NOT a package-level

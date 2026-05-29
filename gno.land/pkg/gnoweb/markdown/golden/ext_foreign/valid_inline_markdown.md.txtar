@@ -10,8 +10,7 @@ A second paragraph with a [link](https://example.org/).
 after
 -- output.html --
 <p>before</p>
-<div class="gno-foreign" role="group" aria-label="external content">
-<div class="gno-foreign__label">external content</div>
+<div class="gno-foreign" role="group">
 <div class="gno-foreign__body">
 <p>A paragraph with <strong>bold</strong> and <em>italic</em> and <code>code</code>.</p>
 <p>A second paragraph with a <a href="https://example.org/">link</a>.</p>

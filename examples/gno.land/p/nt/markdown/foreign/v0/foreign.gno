@@ -67,9 +67,9 @@ func Foreign(body string) string {
 
 // ForeignWithLabel wraps body like Foreign but emits an explicit
 // `label="…"` attribute on the opener so the rendered sandbox carries
-// a caller-supplied label (e.g., "Pulled from /r/foo") in place of
-// the default "external content". The label is sanitized so it
-// cannot inject HTML or break out of the attribute value:
+// a caller-supplied label (e.g., "Pulled from /r/foo") shown as a
+// strip above the body. The label is sanitized so it cannot inject
+// HTML or break out of the attribute value:
 //
 //   - NUL bytes are dropped.
 //   - Other control characters (U+0000–U+001F, U+007F) become spaces.
@@ -77,8 +77,8 @@ func Foreign(body string) string {
 //   - Leading/trailing whitespace is trimmed.
 //
 // A label that is empty after sanitization behaves identically to
-// Foreign (no attribute emitted; the renderer uses its default
-// "external content" label).
+// Foreign: no attribute is emitted, and the renderer shows the sandbox
+// box with NO label strip (there is no default label text).
 func ForeignWithLabel(label, body string) string {
 	return wrapForeign(label, body)
 }
