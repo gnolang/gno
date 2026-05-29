@@ -39,17 +39,25 @@ func TestInlineText(t *testing.T) {
 }
 
 func TestBlock(t *testing.T) {
+	// Block wraps every non-empty output with "\n\n" — CM §4.8 blank
+	// lines — on BOTH sides, so user content is paragraph-isolated
+	// from any realm chrome that precedes OR follows it. Bounds CM
+	// §4.6 HTML block types 6/7 (`<div>`, `<table>`, …) which are not
+	// escaped in any mode and would otherwise consume appended chrome.
 	cases := []struct{ in, want string }{
-		{"hello world\n", "hello world\n"},
-		{"# heading\n", "\\# heading\n"},
-		{"> quote\n", "\\> quote\n"},
-		{"| a | b |\n", "\\| a | b |\n"}, // GFM table-row escaped in strict mode
+		{"hello world\n", "\n\nhello world\n\n"},
+		{"# heading\n", "\n\n\\# heading\n\n"},
+		{"> quote\n", "\n\n\\> quote\n\n"},
+		{"| a | b |\n", "\n\n\\| a | b |\n\n"}, // GFM table-row escaped in strict mode
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
-		{"<script>x</script>\n", "\\<script>x</script>\n"},
-		{"<!-- comment -->\n", "\\<!-- comment -->\n"},
-		{"<?php x ?>\n", "\\<?php x ?>\n"},
-		{"<!DOCTYPE html>\n", "\\<!DOCTYPE html>\n"},
-		{"```\ncode\n", "```\ncode\n```\n"}, // fence auto-close at EOF
+		{"<script>x</script>\n", "\n\n\\<script>x</script>\n\n"},
+		{"<!-- comment -->\n", "\n\n\\<!-- comment -->\n\n"},
+		{"<?php x ?>\n", "\n\n\\<?php x ?>\n\n"},
+		{"<!DOCTYPE html>\n", "\n\n\\<!DOCTYPE html>\n\n"},
+		{"```\ncode\n", "\n\n```\ncode\n```\n\n"}, // fence auto-close at EOF
+		// Empty / strip-to-empty inputs short-circuit (no stray blank line).
+		{"[x]: y\n", ""},
+		{"", ""},
 	}
 	for _, c := range cases {
 		got := Block(c.in)

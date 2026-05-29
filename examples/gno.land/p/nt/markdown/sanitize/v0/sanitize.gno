@@ -356,6 +356,18 @@ func InlineText(s string) string {
 // link-reference definitions, setext underlines, gnoweb extension
 // delimiters, GFM table rows).
 //
+// Output shape: every non-empty result begins AND ends with "\n\n" —
+// CM §4.8 blank lines on both sides — so user content is guaranteed
+// to occupy its own paragraph(s), isolated from any realm chrome that
+// precedes OR follows it. This bounds CM §4.6 HTML block types 6 and
+// 7 (`<div>`, `<table>`, `<form>`, arbitrary `<foo>` tags) which
+// close on a blank line and are NOT escaped in any mode, and it
+// defeats first-line setext promotion (`===`/`---`) that strict-mode
+// escapes miss when the previous line is blank in the user input but
+// non-blank in the concatenated realm output. Empty input (or input
+// that strips entirely, e.g. a lone LRD) returns "" — no envelope is
+// emitted.
+//
 // Use for any multi-paragraph user-supplied prose that the realm
 // concatenates into its rendered output:
 //   - post bodies, comments, replies
@@ -425,7 +437,36 @@ func Block(s string) string {
 	s = markdown.NormalizeBreaks(s)
 	s = markdown.StripBidiAndZeroWidth(s)
 	s = replaceNULWithFFFD(s)
-	return markdown.EscapeBlockHazards(s)
+	s = markdown.EscapeBlockHazards(s)
+	// Symmetric "\n\n" envelope — same pattern BlockRich uses for the
+	// same reasons (see BlockRich docstring "Cross-paragraph safety").
+	// Strict mode escapes most line-leading hazards (setext, GFM table
+	// row, CM §4.6 HTML types 1-5, list/heading/HR markers), but two
+	// hazards remain that only a blank-line break can close:
+	//
+	//   - CM §4.6 HTML block types 6 and 7 (`<div>`, `<table>`,
+	//     `<form>`, arbitrary `<foo>` tags) are NOT escaped in any mode
+	//     — they close on a blank line per CM. Without a trailing
+	//     "\n\n", a `<div>` at the end of user content extends into
+	//     appended realm chrome.
+	//
+	//   - First-line setext: strict mode's setext escape only fires
+	//     when the previous line is non-blank IN THE USER'S INPUT.
+	//     A user whose first line is `===` slips past, and concatenated
+	//     after `chrome\n` would promote chrome to H1. The leading
+	//     "\n\n" forces a paragraph break so chrome cannot be merged.
+	//
+	// TrimLeft/TrimRight + fixed wrap is idempotent: Block(Block(s)) is
+	// byte-identical to Block(s). Empty post-escape result short-
+	// circuits to "" so realm concatenation doesn't leak stray blank
+	// lines for trivially empty inputs (e.g. lone LRD that strips
+	// entirely).
+	s = strings.TrimLeft(s, "\n")
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return ""
+	}
+	return "\n\n" + s + "\n\n"
 }
 
 // BlockRich is the permissive counterpart of Block. Both are safe
@@ -725,14 +766,27 @@ func neuterLeadingSetextIfQualifying(s string) string {
 // The content is first cleaned by Block (bidi-strip, line-ending
 // normalize, NUL→U+FFFD, bracket walker for link/image/LRD spans,
 // block-marker escape, code-fence auto-close at EOF, Unicode-separator
-// fold), then every resulting line — including blank lines — is
-// prefixed with "> ". The
-// user content can still use inline emphasis, code spans, and nested
-// fenced code blocks inside the quote; what it cannot do is open new
-// top-level structure (heading, list, blockquote, GFM table row, etc.)
-// or escape the quote.
+// fold). Block's "\n\n" cross-paragraph envelope is then stripped —
+// the `> ` marker creates the container boundary, so the envelope
+// would only line-prefix to empty `> ` lines top and bottom — and
+// every remaining line is prefixed with "> ". The user content can
+// still use inline emphasis, code spans, and nested fenced code blocks
+// inside the quote; what it cannot do is open new top-level structure
+// (heading, list, blockquote, GFM table row, etc.) or escape the
+// quote.
 //
-// Empty input returns "".
+// Output shape — every non-empty result begins with "\n" and ends
+// with "\n\n" (same shape as BlockquoteRich):
+//
+//   - Leading "\n" guarantees a clean blockquote opener even when the
+//     realm concatenates `chrome + Blockquote(user)` without its own
+//     newline separator.
+//   - Trailing "\n\n" (blank line) cleanly ends the blockquote so a
+//     realm appending `Blockquote(user) + chrome` cannot pull chrome
+//     bytes into the quote via CommonMark §5.2 lazy continuation.
+//
+// Empty input (or input that strips entirely, e.g. a lone LRD)
+// returns "" — no blockquote is emitted.
 //
 // Composition gotcha: Block's EOF code-fence auto-close (added when
 // user content opens a ``` ``` ``` fence without closing it) becomes a
@@ -741,11 +795,6 @@ func neuterLeadingSetextIfQualifying(s string) string {
 // output is structurally safe — but the markdown source looks unusual
 // to a human reviewer. If aesthetic output matters, ensure user
 // content closes its own fences.
-//
-// Trailing newlines in input become quoted blank lines (`> \n`) rather
-// than terminating the quote early — `Blockquote("foo\n\n")` emits
-// `"> foo\n> \n"`. Use `strings.TrimRight(s, "\n")` before passing if
-// you want the quote to end exactly at the last content line.
 //
 // Not idempotent (see package doc): wraps with `> ` per line, so
 // calling twice double-wraps and the outer call's Block step escapes
@@ -761,16 +810,29 @@ func neuterLeadingSetextIfQualifying(s string) string {
 // or thematic breaks, use BlockquoteRich.
 func Blockquote(text string) string {
 	text = Block(text)
+	// Block wraps its output with "\n\n" on each side for cross-
+	// paragraph isolation. Inside a blockquote both wraps are redundant
+	// — the `> ` marker creates the container boundary — and they
+	// would line-prefix to two useless `> ` empty quoted lines top and
+	// bottom. Strip ALL leading and trailing "\n"s so the body starts
+	// and ends clean; this helper re-wraps with `\n` + body + `\n\n`
+	// below (same shape as BlockquoteRich).
+	text = strings.TrimLeft(text, "\n")
 	if text == "" {
 		return ""
 	}
-	text = strings.TrimSuffix(text, "\n")
+	text = strings.TrimRight(text, "\n")
+	if text == "" {
+		return ""
+	}
 	var sb strings.Builder
+	sb.WriteByte('\n')
 	for _, line := range strings.Split(text, "\n") {
 		sb.WriteString("> ")
 		sb.WriteString(line)
 		sb.WriteByte('\n')
 	}
+	sb.WriteByte('\n')
 	return sb.String()
 }
 
@@ -1478,7 +1540,11 @@ func FootnoteDefinition(name, text string) string {
 	if label == "" {
 		return ""
 	}
-	body := strings.TrimRight(Block(text), "\n")
+	// Block now wraps with "\n\n" on both sides for cross-paragraph
+	// isolation; inside a footnote-definition's 4-space-indented body
+	// the wrap would line-prefix to blank padding lines, so strip ALL
+	// leading and trailing "\n"s before continuation-indenting.
+	body := strings.Trim(Block(text), "\n")
 	if body == "" {
 		return ""
 	}

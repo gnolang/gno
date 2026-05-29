@@ -3,6 +3,9 @@
 -- input.md --
 [foo](/a(b)c)
 -- output.md --
+
+
 [foo](/a(b)c)
+
 -- output.html --
 <p><a href="/a(b)c">foo</a></p>

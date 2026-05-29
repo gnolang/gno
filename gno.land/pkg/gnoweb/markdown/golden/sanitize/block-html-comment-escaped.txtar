@@ -3,6 +3,9 @@
 -- input.md --
 <!-- user comment -->
 -- output.md --
+
+
 \<!-- user comment -->
+
 -- output.html --
 <p>&lt;!-- user comment --&gt;</p>

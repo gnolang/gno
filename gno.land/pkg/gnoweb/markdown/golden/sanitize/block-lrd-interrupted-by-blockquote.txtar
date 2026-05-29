@@ -5,8 +5,11 @@
 > quoted
 body
 -- output.md --
+
+
 \> quoted
 body
+
 -- output.html --
 <p>&gt; quoted
 body</p>
