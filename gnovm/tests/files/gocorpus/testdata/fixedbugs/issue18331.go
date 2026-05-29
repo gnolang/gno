@@ -21,5 +21,5 @@ func hey() { // ERROR "can only use //go:noescape with external func implementat
 
 // GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-// GnoError:
+// KnownIssue:
 // line 10: function foo does not have a body but is not natively defined (did you build after pulling from the repository?)

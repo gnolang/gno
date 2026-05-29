@@ -95,9 +95,6 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 
 // GnoIncomplete: covered 40 of 42 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-// GnoError:
-// line 12: unknown import path unsafe
-
 // GoTypeCheckError:
 // line 33: Int8 * 100 (constant 10100 of type int8) overflows int8
 // line 35: 1000 (untyped int constant) overflows int8
@@ -139,3 +136,6 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 90: nil is not constant
 // line 91: string([]byte(nil)) (value of type string) is not constant
 // line 94: (*int)(nil) (value of type *int) is not constant
+
+// KnownIssue:
+// line 12: unknown import path unsafe

@@ -16,3 +16,4 @@ type T2 /* // ERROR "(semicolon.*|EOF) in type declaration" */
 
 // GoTypeCheckError:
 // line 9: expected type, found newline (and 1 more errors)
+// line 11: expected type, found newline

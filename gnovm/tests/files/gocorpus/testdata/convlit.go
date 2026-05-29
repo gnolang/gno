@@ -75,9 +75,6 @@ var _ Tbyte = "abc" // ERROR "cannot use|incompatible|invalid|cannot convert"
 
 // GnoIncomplete: covered 18 of 21 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-// GnoError:
-// line 12: unknown import path unsafe
-
 // GoTypeCheckError:
 // line 17: cannot convert 1.5 (untyped float constant) to type int
 // line 18: cannot convert 1.5 (untyped float constant) to type int
@@ -97,3 +94,6 @@ var _ Tbyte = "abc" // ERROR "cannot use|incompatible|invalid|cannot convert"
 // line 63: cannot use ss (variable of string type Tstring) as []byte value in variable declaration
 // line 73: cannot use "abc" (untyped string constant) as Trune value in variable declaration
 // line 74: cannot use "abc" (untyped string constant) as Tbyte value in variable declaration
+
+// KnownIssue:
+// line 12: unknown import path unsafe

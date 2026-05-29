@@ -16,8 +16,8 @@ var (
 	c int = a
 )
 
-// GnoError:
-// line 13: invalid recursive value: x -> a -> b -> c -> a
-
 // GoTypeCheckError:
 // line 14: initialization cycle for a
+
+// KnownIssue:
+// line 13: invalid recursive value: x -> a -> b -> c -> a

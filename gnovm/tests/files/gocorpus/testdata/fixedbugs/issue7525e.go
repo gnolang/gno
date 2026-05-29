@@ -14,8 +14,8 @@ var x struct { // GC_ERROR "initialization cycle: x refers to itself"
 	c [unsafe.Alignof(x.c)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
 }
 
-// GnoError:
-// line 11: unknown import path unsafe
-
 // GoTypeCheckError:
 // line 13: initialization cycle: x refers to itself
+
+// KnownIssue:
+// line 11: unknown import path unsafe

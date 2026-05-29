@@ -31,11 +31,13 @@ func main() {
       _ = v1 == v2 // ERROR "cannot be compared|non-comparable|cannot compare v1 == v2"
 }
 
-// GnoIncomplete: covered 2 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-
 // GnoError:
 // line 10: invalid package name _
-// line 16: 2: should not happen
 
 // GoTypeCheckError:
 // line 10: invalid package name _
+// line 16: cannot define new methods on non-local type int
+// line 25: cannot use _ as value or type
+// line 26: cannot use _ as value or type
+// line 28: t._ undefined (type struct{_ int} has no field or method _)
+// line 31: invalid operation: v1 == v2 (struct containing []int cannot be compared)

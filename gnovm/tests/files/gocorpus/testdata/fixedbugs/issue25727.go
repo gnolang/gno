@@ -22,9 +22,9 @@ var _ = &foo{bAr: 10} // ERROR "cannot refer to unexported field bAr in struct l
 
 // GnoIncomplete: covered 2 of 5 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-// GnoError:
-// line 9: unknown import path net/http
-
 // GoTypeCheckError:
 // line 14: unknown field bAr in struct literal of type foo, but does have bar
 // line 21: unknown field bAr in struct literal of type foo, but does have bar
+
+// KnownIssue:
+// line 9: unknown import path net/http

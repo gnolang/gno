@@ -64,9 +64,6 @@ type M1 map[S]int
 
 var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
 
-// GnoError:
-// line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-
 // GoTypeCheckError:
 // line 21: cannot slice unaddressable value [3]int{…} (value of type [3]int)
 // line 22: cannot slice unaddressable value m[0] (map index expression of type [3]int)
@@ -78,3 +75,6 @@ var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
 // line 48: missing type in composite literal
 // line 49: invalid composite literal type TP
 // line 50: invalid composite literal type Ti
+
+// KnownIssue:
+// line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

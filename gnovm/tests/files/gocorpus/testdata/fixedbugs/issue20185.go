@@ -24,9 +24,9 @@ func G() {
 	}
 }
 
-// GnoError:
-// line 15: name t not declared
-
 // GoTypeCheckError:
 // line 13: nil is not an interface
 // line 22: x (untyped int constant 1) is not an interface
+
+// KnownIssue:
+// line 15: name t not declared

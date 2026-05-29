@@ -32,3 +32,5 @@ func i() {
 
 // GoTypeCheckError:
 // line 12: missing ',' before newline in argument list (and 3 more errors)
+// line 20: missing ',' before newline in argument list (and 2 more errors)
+// line 24: missing ',' before newline in composite literal (and 2 more errors)

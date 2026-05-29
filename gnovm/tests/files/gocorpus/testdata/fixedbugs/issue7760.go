@@ -26,9 +26,6 @@ const _ = []rune("") // ERROR "is not (a )?constant|invalid constant type"
 
 // GnoIncomplete: covered 6 of 8 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-// GnoError:
-// line 11: unknown import path unsafe
-
 // GoTypeCheckError:
 // line 16: cannot convert uintptr(1) (constant 1 of type uintptr) to type myPointer
 // line 19: cannot convert uintptr(1) (constant 1 of type uintptr) to type myPointer
@@ -36,3 +33,6 @@ const _ = []rune("") // ERROR "is not (a )?constant|invalid constant type"
 // line 22: cannot convert uintptr(1) (constant 1 of type uintptr) to type myPointer
 // line 24: []byte("") (value of type []byte) is not constant
 // line 25: []rune("") (value of type []rune) is not constant
+
+// KnownIssue:
+// line 11: unknown import path unsafe

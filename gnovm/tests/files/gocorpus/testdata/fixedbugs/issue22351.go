@@ -10,8 +10,8 @@ import "unsafe"
 
 const _ = uint64(unsafe.Offsetof(T{}.F)) // ERROR "undefined"
 
-// GnoError:
-// line 9: unknown import path unsafe
-
 // GoTypeCheckError:
 // line 11: undefined: T
+
+// KnownIssue:
+// line 9: unknown import path unsafe

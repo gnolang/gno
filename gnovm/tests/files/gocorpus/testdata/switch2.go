@@ -47,3 +47,7 @@ func f() {
 
 // GoTypeCheckError:
 // line 14: expected ':', found ';' (and 5 more errors)
+// line 18: expected ':', found ';' (and 4 more errors)
+// line 28: expected ';', found 'case' (and 3 more errors)
+// line 33: expected ';', found 'default' (and 2 more errors)
+// line 37: expected '}', found 'if' (and 1 more errors)

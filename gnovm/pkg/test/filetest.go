@@ -281,13 +281,31 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				indent(strings.TrimSpace(result.Error+"\n"+result.TypeCheckError), "  "))
 		}
 
-		// Coverage: a marker counts as covered if EITHER Gno's own
-		// preprocess/runtime OR the go/types guard caught it. Partial
-		// coverage → `// GnoIncomplete:` so the file is findable for a
-		// future runnable-variant fix.
+		// Split Gno's own errors by whether the line carries a gc marker.
+		// Marked → `// GnoError:` (legitimate, matches gc's expectation).
+		// Unmarked → `// KnownIssue:` — Gno errors where gc accepts
+		// (over-strict; a Gno bug to fix), kept out of GnoError so it's
+		// not mistaken for legitimate behavior.
+		marked := make(map[int]bool, len(errorcheckMarkers))
+		for _, mk := range errorcheckMarkers {
+			marked[mk.Line] = true
+		}
+		gnoErrMarked := make(map[int]string)
+		knownIssue := make(map[int]string)
+		for ln, msg := range gnoErrLines {
+			if marked[ln] {
+				gnoErrMarked[ln] = msg
+			} else {
+				knownIssue[ln] = msg
+			}
+		}
+
+		// Coverage: a marker counts as covered if Gno's own preprocess
+		// OR the go/types guard caught it. (Unmarked over-strict errors
+		// don't count.) Partial coverage → `// GnoIncomplete:`.
 		covered := 0
 		for _, mk := range errorcheckMarkers {
-			_, a := gnoErrLines[mk.Line]
+			_, a := gnoErrMarked[mk.Line]
 			_, b := goTCLines[mk.Line]
 			if a || b {
 				covered++
@@ -302,8 +320,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 
 		sections := []goldenSection{
-			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErrLines)},
+			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErrMarked)},
 			{name: DirectiveGoTypeCheckError, block: FormatGnoErrorBlock(goTCLines)},
+			{name: DirectiveKnownIssue, block: FormatGnoErrorBlock(knownIssue)},
 		}
 		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, incompleteNote, sections)
 		return newContent, gas, err
@@ -545,7 +564,7 @@ func writeErrorcheckGolden(originalSource []byte, incompleteNote string, section
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoIncomplete, DirectiveGnoError, DirectiveGoTypeCheckError,
+	DirectiveGnoIncomplete, DirectiveGnoError, DirectiveGoTypeCheckError, DirectiveKnownIssue,
 }
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or
@@ -626,32 +645,41 @@ func (opts *TestOptions) runErrorcheckMultiPass(
 		markerByLine[mk.Line] = mk
 	}
 
-	// Phase 1: the go/types guard (which gno.land's deploy gate runs
-	// ahead of GnoVM preprocess) reports ALL its errors in one pass —
-	// no first-error bail — so record every marked line it catches,
-	// even when GnoVM preprocess bailed earlier on some other line.
-	// These are NOT Gno's own behavior, so they go to goTCLines (the
-	// `// GoTypeCheckError:` block), separate from GnoVM's preprocess.
-	initTc := gnoErrSegments(initial.TypeCheckError)
-	for _, mk := range markers {
-		gnoLn := mk.Line + prependedLines
-		if segHasLine(initTc, gnoLn) {
-			m := mk
-			goTCLines[mk.Line] = errorForLine(nil, initTc, gnoLn, &m)
+	// recordGoTypes folds the go/types guard's per-line catches for any
+	// not-yet-covered marker into goTCLines. go/types reports ALL its
+	// errors in one pass (no first-error bail) and is run every pass —
+	// some catches only surface AFTER neutralization (e.g. a method on a
+	// non-local type, reachable only once an invalid `package _` is
+	// rewritten to `package main`). First pass to catch a line wins
+	// (the initial, un-neutralized run is most authoritative for the
+	// lines it does reach).
+	recordGoTypes := func(r runResult) {
+		tcSegs := gnoErrSegments(r.TypeCheckError)
+		for _, mk := range markers {
+			if _, done := goTCLines[mk.Line]; done {
+				continue
+			}
+			gnoLn := mk.Line + prependedLines
+			if segHasLine(tcSegs, gnoLn) {
+				m := mk
+				goTCLines[mk.Line] = errorForLine(nil, tcSegs, gnoLn, &m)
+			}
 		}
 	}
 
-	// Phase 2: GnoVM preprocess iteration — Gno's OWN static errors.
-	// Preprocess bails on the first error, so neutralize that line and
-	// re-run to surface the next (package decls → `package main`, else
-	// commented out). Records into gnoErrLines (the `// GnoError:`
-	// block). On pass 1 an unmarked error is Gno's genuine first
-	// rejection (recorded); on a later pass it's a neutralize artifact
-	// (orphaned body, …) so stop without recording.
+	// GnoVM preprocess iteration — Gno's OWN static errors. Preprocess
+	// bails on the first error, so neutralize that line and re-run to
+	// surface the next (package decls → `package main`, else commented
+	// out). Each pass also sweeps the go/types guard (recordGoTypes).
+	// GnoVM errors go to gnoErrLines (the `// GnoError:` block); an
+	// internal "should not happen" assertion is not a real diagnostic,
+	// so it's skipped there (the real error, if any, is go/types').
 	currentSource := source
 	currentPkgPath := pkgPath
 	result := initial
 	for pass := 1; pass <= len(markers)+1; pass++ {
+		recordGoTypes(result)
+
 		gnoLine := ExtractErrorLine(result.Error)
 		if gnoLine == 0 {
 			return gnoErrLines, goTCLines // no preprocess error left
@@ -664,14 +692,23 @@ func (opts *TestOptions) runErrorcheckMultiPass(
 
 		errSegs := gnoErrSegments(result.Error)
 		marker, marked := markerByLine[sourceLine]
-		if !marked {
+		switch {
+		case !marked:
+			// Unmarked GnoVM error: genuine first rejection on pass 1
+			// (record, unless internal noise); a neutralize artifact
+			// later. Either way, stop the GnoVM iteration.
 			if pass == 1 {
-				gnoErrLines[sourceLine] = errorForLine(errSegs, nil, gnoLine, nil)
+				if msg := errorForLine(errSegs, nil, gnoLine, nil); msg != "" && !internalNoise(msg) {
+					gnoErrLines[sourceLine] = msg
+				}
 			}
 			return gnoErrLines, goTCLines
-		}
-		if _, done := gnoErrLines[sourceLine]; !done {
-			gnoErrLines[sourceLine] = errorForLine(errSegs, nil, gnoLine, &marker)
+		default:
+			if _, done := gnoErrLines[sourceLine]; !done {
+				if msg := errorForLine(errSegs, nil, gnoLine, &marker); msg != "" && !internalNoise(msg) {
+					gnoErrLines[sourceLine] = msg
+				}
+			}
 		}
 
 		// Neutralize and continue. gnoLine is post-prepend coords,
@@ -1134,6 +1171,13 @@ const (
 	// not Gno — even when GnoVM preprocess is permissive, this guard
 	// still rejects, and that's worth pinning on its own.
 	DirectiveGoTypeCheckError = "GoTypeCheckError"
+	// DirectiveKnownIssue pins Gno's errors at lines that carry NO gc
+	// marker — i.e. Gno rejects code gc accepts (over-strict). Recorded
+	// here instead of `// GnoError:` so it's clearly a Gno bug to fix,
+	// not legitimate behavior. The file still passes (the go/types
+	// guard's coverage remains the contract); when Gno is fixed and
+	// stops erroring there, this block goes stale → re-sync removes it.
+	DirectiveKnownIssue = "KnownIssue"
 )
 
 var allDirectives = []string{
@@ -1158,6 +1202,7 @@ var allDirectives = []string{
 	DirectiveGnoError,
 	DirectiveGoError,
 	DirectiveGoTypeCheckError,
+	DirectiveKnownIssue,
 }
 
 // singleLinePascalDirectives holds PascalCase directives whose content

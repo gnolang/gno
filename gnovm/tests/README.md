@@ -133,10 +133,19 @@ Escape hatches:
       reports every error in one pass (no first-error bail), so it often
       covers markers GnoVM preprocess bails before reaching.
 
+  A third block, `// KnownIssue:`, pins Gno's errors on lines that carry
+  **no gc marker** — i.e. Gno rejects code gc accepts (over-strict; a
+  Gno bug to fix). It's kept out of `// GnoError:` so legitimate
+  behavior isn't conflated with bugs. The file still passes (the
+  go/types guard's coverage is the contract); when Gno is fixed and
+  stops erroring there, the block goes stale → re-sync removes it.
+  Example: `const2.go` (Gno wrongly rejects the literal `1e+500000000`
+  while go/types correctly flags only the overflow on use).
+
   The inline `// ERROR` markers are upstream (gc) **provenance**, NOT a
   pass/fail gate — wording may differ (the whole point of the migrated
   "known divergences"). What the test verifies is that the pinned
-  behavior hasn't *changed*: both blocks must match. Mechanics:
+  behavior hasn't *changed*: the blocks must match. Mechanics:
     - go/types is captured once from the initial run (all its errors).
       GnoVM preprocess bails on the first error, so the harness
       neutralizes that line and re-runs to surface the next.

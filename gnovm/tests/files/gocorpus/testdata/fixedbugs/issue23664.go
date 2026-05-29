@@ -22,3 +22,4 @@ func f() {
 
 // GoTypeCheckError:
 // line 12: expected ';', found true (and 2 more errors)
+// line 15: expected declaration, found 'switch'

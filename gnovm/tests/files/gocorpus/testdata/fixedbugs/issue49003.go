@@ -11,8 +11,8 @@ func f(s string) int {
 	}
 } // ERROR "missing return"
 
-// GnoError:
-// line 9: 2: [function "f" does not terminate]
-
 // GoTypeCheckError:
 // line 12: missing return
+
+// KnownIssue:
+// line 9: 2: [function "f" does not terminate]

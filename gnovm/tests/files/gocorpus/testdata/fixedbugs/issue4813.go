@@ -51,9 +51,6 @@ var (
 	t7 = T[vc] // ERROR "non-integer|must be integer"
 )
 
-// GnoError:
-// line 19: name complex not defined in fileset with files [issue4813.go]
-
 // GoTypeCheckError:
 // line 31: f2 (untyped float constant 2.1) truncated to int
 // line 33: c2 (untyped complex constant (2 + 1i)) truncated to int
@@ -67,3 +64,6 @@ var (
 // line 49: c2 (untyped complex constant (2 + 1i)) truncated to int
 // line 50: invalid argument: index vf (variable of type float64) must be integer
 // line 51: invalid argument: index vc (variable of type complex128) must be integer
+
+// KnownIssue:
+// line 19: name complex not defined in fileset with files [issue4813.go]

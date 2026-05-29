@@ -12,5 +12,5 @@ var f = func() { // ERROR "unexpected EOF|expected .*}.*"
 
 // GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 
-// GnoError:
+// KnownIssue:
 // line 13: expected '(', found main

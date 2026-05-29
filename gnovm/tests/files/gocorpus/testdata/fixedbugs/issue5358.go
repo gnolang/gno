@@ -16,8 +16,8 @@ func main() {
 	f(g()) // ERROR "as int value in|incompatible type"
 }
 
-// GnoError:
-// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
 // GoTypeCheckError:
 // line 16: cannot use g() (value of type []int) as int value in argument to f
+
+// KnownIssue:
+// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)

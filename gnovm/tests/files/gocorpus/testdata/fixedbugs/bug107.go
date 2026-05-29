@@ -15,8 +15,8 @@ func f() (os int) {
 	 return 0
 }
 
-// GnoError:
-// line 9: name FileInfo not declared
-
 // GoTypeCheckError:
 // line 13: os.Open undefined (type int has no field or method Open)
+
+// KnownIssue:
+// line 9: name FileInfo not declared

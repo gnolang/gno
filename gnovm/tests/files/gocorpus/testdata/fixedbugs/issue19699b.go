@@ -13,8 +13,8 @@ func f() bool {
 	}
 } // ERROR "missing return( at end of function)?"
 
-// GnoError:
-// line 9: 2: [function "f" does not terminate]
-
 // GoTypeCheckError:
 // line 14: missing return
+
+// KnownIssue:
+// line 9: 2: [function "f" does not terminate]

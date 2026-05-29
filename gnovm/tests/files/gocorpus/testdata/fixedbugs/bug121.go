@@ -22,3 +22,4 @@ type J interface {
 
 // GoTypeCheckError:
 // line 12: expected ';', found ',' (and 2 more errors)
+// line 16: expected ';', found T (and 1 more errors)
