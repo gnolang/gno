@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+---
+
+paragraph after
+-- output.md --
+\---
+
+paragraph after
+-- output.html --
+<p>---</p>
+<p>paragraph after</p>

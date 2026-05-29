@@ -167,7 +167,7 @@ func renderMT(path string) string {
 
 		mtItems = append(mtItems, ufmt.Sprintf("%s %s - %s",
 			md.Bold("TokenID:"),
-			md.Link(md.InlineCode(info.TokenID), linkURL),
+			md.Link(info.TokenID, linkURL),
 			md.InlineCode(item.Key)))
 	}
 

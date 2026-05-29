@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+array[i] = value[j]
+-- output.md --
+array\[i\] = value\[j\]
+-- output.html --
+<p>array[i] = value[j]</p>
