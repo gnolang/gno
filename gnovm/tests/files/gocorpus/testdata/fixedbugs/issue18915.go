@@ -21,6 +21,10 @@ func _() {
 }
 
 // GnoIncomplete: covered 2 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)
 // line 16: expected declaration, found 'for'
+
+// GoTypeCheckError:
+// line 13: expected boolean expression, found assignment (missing parentheses around composite literal?) (and 2 more errors)

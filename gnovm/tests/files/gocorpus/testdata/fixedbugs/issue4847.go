@@ -23,5 +23,5 @@ var matchAny = matcher(matchList) // ERROR "initialization cycle|depends upon it
 
 func matchAnyFn(s *S) (err E) { return matchAny(s) }
 
-// GnoError:
+// GoTypeCheckError:
 // line 22: initialization cycle for matchAny

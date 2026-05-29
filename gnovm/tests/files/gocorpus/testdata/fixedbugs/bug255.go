@@ -20,6 +20,13 @@ func ff() string
 
 var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant|must be constant"
 
-// GnoIncomplete: covered 0 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// GoTypeCheckError:
+// line 11: array length 1.5 (untyped float constant) must be integer
+// line 12: array length "abc" (untyped string constant) must be integer
+// line 13: invalid array length nil
+// line 15: undefined array length ee or missing type constraint
+// line 16: invalid array length 1 << 65 (untyped int constant 36893488147419103232)
+// line 21: array length len([1]string{…}) (value of type int) must be constant

@@ -21,7 +21,7 @@ func main() {
 	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make|index -1.* must not be negative"
 }
 
-// GnoError:
+// GoTypeCheckError:
 // line 16: invalid operation: not enough arguments for append() (expected 1, found 0)
 // line 17: not enough arguments in call to append
 // 	have ([]int...)
@@ -29,5 +29,5 @@ func main() {
 // line 18: too many arguments in call to append
 // 	have ([]int, number, []int...)
 // 	want ([]int, ...int)
-// line 20: cannot use []int as int
+// line 20: cannot use make([]int, 0) (value of type []int) as int value in argument to append
 // line 21: invalid argument: index -1 (constant of type int) must not be negative

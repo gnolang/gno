@@ -33,8 +33,13 @@ func bad() {
 	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T"
 }
 
-// GnoIncomplete: covered 3 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
+// line 25: cannot use _ as value or type
+// line 27: cannot use _ as value or type
+// line 31: cannot use _ as value or type
+
+// GoTypeCheckError:
 // line 25: unknown field _ in struct literal of type T
 // line 27: unknown field _ in struct literal of type T
 // line 31: unknown field _ in struct literal of type T
+// line 33: unknown field _ in struct literal of type T

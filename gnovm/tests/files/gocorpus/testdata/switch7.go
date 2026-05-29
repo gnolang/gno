@@ -33,6 +33,11 @@ func f4(e interface{}) {
 	}
 }
 
-// GnoIncomplete: covered 0 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 16: 3: duplicate type int in type switch
+
+// GoTypeCheckError:
+// line 18: duplicate case int in type switch
+// line 21: duplicate case error in type switch
+// line 23: duplicate case fmt.Stringer in type switch
+// line 30: duplicate case struct{i int "tag1"} in type switch

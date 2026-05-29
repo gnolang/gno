@@ -35,7 +35,7 @@ directive bypasses each mode.
 | Mode | Trigger | Pass criterion |
 |---|---|---|
 | run | runnable (`package main` + `func main()`) | Gno's stdout == `go run`'s stdout |
-| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | golden snapshot: Gno's per-line errors pinned in a `// GnoError:` block (markers are gc provenance, not a gate) |
+| errorcheck | inline `// ERROR "regex"` (or `// GC_ERROR`) markers | golden snapshot: per-line errors pinned in `// GnoError:` (Gno's own) + `// GoTypeCheckError:` (go/types guard); markers are gc provenance, not a gate |
 | compile-only | not runnable (non-`main` package or no `func main()`) | Gno preprocess **and** go/types both produce no error |
 
 For non-`main` files (errorcheck, compile-only), a PKGPATH +
@@ -121,37 +121,43 @@ Escape hatches:
   directive: presence flips the verdict, stale blessings fail loudly,
   no pinned goldens.
 
-- **Errorcheck golden snapshot (`// GnoError:`).** For files with
-  inline `// ERROR "regex"` markers, the harness walks Gno's per-line
-  errors and pins them in a `// GnoError:` block at the bottom of the
-  file. The inline `// ERROR` markers are upstream (gc) **provenance**,
-  NOT a pass/fail gate — Gno's wording is allowed to differ from gc's
-  (the whole point of the migrated "known divergences"). What the test
-  verifies is that Gno's behavior hasn't *changed*: the golden must
-  match. Mechanics:
-    - Each pass runs Gno, records its clean per-line error, neutralizes
-      that line, and re-runs to surface the next error.
-    - Gno joins multiple errors with `; ` and bundles a go/types pass;
-      the per-line message is extracted from the matching `; `-segment
-      (internal "should not happen" assertions are skipped in favor of
-      the real diagnostic).
+- **Errorcheck golden snapshot.** For files with inline `// ERROR
+  "regex"` markers, the harness walks the per-line errors and pins them
+  in two golden blocks at the bottom of the file:
+    - `// GnoError:` — **Gno's own** static (preprocess) / runtime errors.
+    - `// GoTypeCheckError:` — the **go/types guard's** errors. go/types
+      is the Go type checker that gno.land's deploy gate runs *ahead* of
+      GnoVM preprocess; it's not Gno's own behavior, so it gets its own
+      block. Crucially it still rejects even when GnoVM preprocess is
+      permissive, so it's a real guard worth pinning separately. It also
+      reports every error in one pass (no first-error bail), so it often
+      covers markers GnoVM preprocess bails before reaching.
+
+  The inline `// ERROR` markers are upstream (gc) **provenance**, NOT a
+  pass/fail gate — wording may differ (the whole point of the migrated
+  "known divergences"). What the test verifies is that the pinned
+  behavior hasn't *changed*: both blocks must match. Mechanics:
+    - go/types is captured once from the initial run (all its errors).
+      GnoVM preprocess bails on the first error, so the harness
+      neutralizes that line and re-runs to surface the next.
+    - Gno joins multiple errors with `; `; the per-line message is the
+      matching `; `-segment, marker-aligned when several apply (internal
+      "should not happen" assertions are skipped for the real one).
     - A `package <x>` line is neutralized to `package main` (not
       commented out) so iteration continues past an invalid-package-name
       test — the package clause is the file's one global dependency.
-    - On pass 1 an error on an *unmarked* line is Gno's genuine first
-      error (recorded, then stop — captures files where Gno bails before
-      the marked lines); on a later pass it's a neutralization artifact
-      (stop without recording).
+    - On pass 1 a GnoVM error on an *unmarked* line is Gno's genuine
+      first error (recorded); on a later pass it's a neutralization
+      artifact (skipped).
 
   Verdict:
-  - Golden present and matches → PASS. No block → FAIL "run
-    `--update-golden-tests`"; stale block → FAIL diff (refresh under
-    sync). The block is the contract; a regression in Gno's per-line
-    behavior shifts it → FAIL.
-  - Gno doesn't reject the file at all (no error anywhere) → FAIL: a
-    leniency divergence (Gno more permissive than gc). Mark
-    `// Unsupported: <reason>` if intentional (e.g. Gno doesn't run
-    gc's liveness / stack-frame analysis), since there's no error to pin.
+  - Both blocks present and matching → PASS. Missing/stale block → FAIL
+    "run `--update-golden-tests`" / diff. The blocks are the contract;
+    any change in either checker's per-line behavior shifts them → FAIL.
+  - Neither Gno nor the go/types guard rejects the file (gc does) → FAIL:
+    a real leniency divergence. Mark `// Unsupported: <reason>` if
+    intentional (e.g. Gno runs neither gc's liveness nor stack-frame
+    analysis, and neither does go/types), since there's no error to pin.
 
   **Partial coverage (`// GnoIncomplete:`).** When Gno bails in the
   declaration/preprocess phase before reaching every marker, the golden

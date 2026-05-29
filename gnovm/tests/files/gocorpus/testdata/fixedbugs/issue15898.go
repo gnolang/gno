@@ -17,6 +17,9 @@ func f(e interface{}) {
 	}
 }
 
-// GnoIncomplete: covered 0 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 10: 3: duplicate type nil in type switch
+
+// GoTypeCheckError:
+// line 11: duplicate case nil in type switch
+// line 16: duplicate case nil in type switch

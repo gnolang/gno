@@ -13,4 +13,7 @@ var z struct { // GC_ERROR "initialization cycle: z refers to itself"
 }
 
 // GnoError:
+// line 11: 2: invalid recursive type: z -> z
+
+// GoTypeCheckError:
 // line 11: initialization cycle: z refers to itself

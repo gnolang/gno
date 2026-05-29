@@ -93,6 +93,49 @@ const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
 const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type|is not a constant|not constant"
 const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a constant|not constant"
 
-// GnoIncomplete: covered 0 of 42 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+// GnoIncomplete: covered 40 of 42 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 12: unknown import path unsafe
+
+// GoTypeCheckError:
+// line 33: Int8 * 100 (constant 10100 of type int8) overflows int8
+// line 35: 1000 (untyped int constant) overflows int8
+// line 36: constant 1000 overflows int8
+// line 37: 1000 (untyped int constant) overflows int8
+// line 38: constant 1000 overflows int8
+// line 39: 2 * Int8 (constant 202 of type int8) overflows int8
+// line 40: Int8 * Const (constant 10403 of type int8) overflows int8
+// line 43: Uint8 * Uint8 (constant 10404 of type uint8) overflows uint8
+// line 44: -1 (untyped int constant) overflows uint8
+// line 46: Uint8 - Uint8 - Uint8 (constant -102 of type uint8) overflows uint8
+// line 47: constant -1 overflows uint8
+// line 51: constant -1 overflows uint8
+// line 52: constant -1 overflows uint8
+// line 53: constant -1 overflows uint8
+// line 55: cannot use (1 << 10) (untyped int constant 1024) as byte value in variable declaration (overflows)
+// line 56: byte(1) << 10 (constant 1024 of type byte) overflows byte
+// line 57: cannot use 1000 (untyped int constant) as byte value in variable declaration (overflows)
+// line 58: constant 1000 overflows byte
+// line 59: byte(100) * byte(100) (constant 10000 of type byte) overflows byte
+// line 60: byte(100) * 100 (constant 10000 of type byte) overflows byte
+// line 61: 1000 (untyped int constant) overflows byte
+// line 63: constant 1000 overflows byte
+// line 64: invalid operation: division by zero
+// line 67: Big * Big (constant 1e+600 of type float64) overflows float64
+// line 68: float64(Big) * Big (constant 1e+600 of type float64) overflows float64
+// line 69: Big * Big (constant 1e+600 of type float64) overflows float64
+// line 70: invalid operation: division by zero
+// line 71: invalid operation: operator % not defined on 1000 (untyped float constant)
+// line 77: cannot use Int8 (constant 101 of type int8) as int value in argument to f
+// line 78: cannot use Minus1 (constant -1 of type int8) as int value in argument to f
+// line 79: cannot use Uint8 (constant 102 of type uint8) as int value in argument to f
+// line 81: cannot use Float32 (constant 104.5 of type float32) as int value in argument to f
+// line 82: cannot use Float64 (constant 105.5 of type float64) as int value in argument to f
+// line 83: cannot use ConstFloat (untyped float constant 106.5) as int value in argument to f (truncated)
+// line 85: cannot use Big (constant 1e+300 of type float64) as int value in argument to f
+// line 86: cannot use String (untyped string constant "abc") as int value in argument to f
+// line 87: cannot use Bool (untyped bool constant true) as int value in argument to f
+// line 90: nil is not constant
+// line 91: string([]byte(nil)) (value of type string) is not constant
+// line 94: (*int)(nil) (value of type *int) is not constant

@@ -23,6 +23,10 @@ func main() {
 	}
 }
 
-// GnoIncomplete: covered 1 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
+// line 16: name G not declared
+
+// GoTypeCheckError:
 // line 16: undefined: G
+// line 18: undefined: E
+// line 22: undefined: T

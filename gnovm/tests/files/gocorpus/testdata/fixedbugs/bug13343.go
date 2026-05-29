@@ -18,4 +18,7 @@ func f() (int, int) {
 func main() {}
 
 // GnoError:
+// line 10: circular dependency: a -> f -> c -> b
+
+// GoTypeCheckError:
 // line 10: initialization cycle for b

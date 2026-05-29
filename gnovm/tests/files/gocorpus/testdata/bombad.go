@@ -18,5 +18,9 @@ func main() {
 }
 
 // GnoIncomplete: covered 1 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
+// line 14: illegal byte order mark (and 4 more errors)
+
+// GoTypeCheckError:
 // line 14: illegal byte order mark (and 4 more errors)

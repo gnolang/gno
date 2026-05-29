@@ -41,5 +41,6 @@ func good40() {
 }
 
 // GnoIncomplete: covered 0 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 14: function printnl does not have a body but is not natively defined (did you build after pulling from the repository?)

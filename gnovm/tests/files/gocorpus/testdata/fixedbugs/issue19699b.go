@@ -13,6 +13,8 @@ func f() bool {
 	}
 } // ERROR "missing return( at end of function)?"
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 9: 2: [function "f" does not terminate]
+
+// GoTypeCheckError:
+// line 14: missing return

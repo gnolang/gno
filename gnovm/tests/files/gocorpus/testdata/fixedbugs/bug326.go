@@ -39,6 +39,9 @@ func ii() (int, error) {
 }
 
 // GnoError:
+// line 22: expected 2 return values
+
+// GoTypeCheckError:
 // line 22: not enough return values
 // 	have ()
 // 	want (int, error)

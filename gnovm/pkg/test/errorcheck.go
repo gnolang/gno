@@ -377,6 +377,18 @@ func errorForLine(errSegs, tcSegs []string, gnoLine int, marker *InlineError) st
 	return ""
 }
 
+// segHasLine reports whether any segment is keyed on gnoLine (i.e.
+// contains a `:<gnoLine>:` position).
+func segHasLine(segs []string, gnoLine int) bool {
+	key := fmt.Sprintf(":%d:", gnoLine)
+	for _, s := range segs {
+		if strings.Contains(s, key) {
+			return true
+		}
+	}
+	return false
+}
+
 // gnoErrSegments splits a Gno error string on "; " — Gno joins
 // multiple preprocess errors into one message with that separator.
 // Each segment is an independent `path:line:col: msg`. Whitespace is

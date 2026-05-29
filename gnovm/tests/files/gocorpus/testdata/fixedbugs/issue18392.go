@@ -14,4 +14,7 @@ type A interface {
 }
 
 // GnoError:
+// line 13: unknown *DeclaredType method named Fn
+
+// GoTypeCheckError:
 // line 13: A.Fn is not a type

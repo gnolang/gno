@@ -15,6 +15,12 @@ func main() {
 }
 
 // GnoError:
+// line 10: missing init expr for b<!VPInvalid(0)>
+// line 11: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: 2
+// line 12: assignment mismatch: 2 variable(s) but 1 value(s)
+// line 13: assignment mismatch: 2 variable(s) but 3 value(s)
+
+// GoTypeCheckError:
 // line 10: assignment mismatch: 2 variables but 1 value
 // line 11: assignment mismatch: 1 variable but 2 values
 // line 12: assignment mismatch: 2 variables but 1 value

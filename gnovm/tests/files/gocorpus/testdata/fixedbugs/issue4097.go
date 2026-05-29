@@ -9,5 +9,5 @@ package foo
 var s [][10]int
 const m = len(s[len(s)-1]) // ERROR "is not a constant|is not constant" 
 
-// GnoError:
+// GoTypeCheckError:
 // line 10: len(s[len(s) - 1]) (value of type int) is not constant

@@ -22,6 +22,8 @@ uetli:~/Source/go1/usr/gri/gosrc gri$ 6g bug.go && 6l bug.6 && 6.out
 4882
 */
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 9: 2: [function "f" does not terminate]
+
+// GoTypeCheckError:
+// line 14: missing return

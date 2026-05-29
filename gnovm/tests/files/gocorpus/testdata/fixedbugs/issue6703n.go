@@ -24,5 +24,5 @@ var (
 	x = f().m() // ERROR "initialization cycle|depends upon itself"
 )
 
-// GnoError:
+// GoTypeCheckError:
 // line 24: initialization cycle for x

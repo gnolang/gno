@@ -32,6 +32,10 @@ func main() {
 }
 
 // GnoIncomplete: covered 2 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 10: invalid package name _
-// line 16: cannot define new methods on non-local type int
+// line 16: 2: should not happen
+
+// GoTypeCheckError:
+// line 10: invalid package name _

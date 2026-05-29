@@ -38,10 +38,23 @@ func main() {
 // line 18: cannot assign to const n
 // line 19: cannot assign to const cs
 // line 20: cannot assign to uverse true
+// line 25: cannot assign to (const (1 <untyped> bigint))
+// line 26: cannot assign to (const ("hi" <untyped> string))
+// line 27: cannot assign to uverse nil
+// line 28: cannot assign to (const (len func(interface {}) int))((const ("" string)))
+// line 29: cannot assign to (const-type []int){}
+// line 32: cannot assign to x<VPBlock(1,4)> + (const (1 int))
+
+// GoTypeCheckError:
+// line 13: cannot assign to s[1:2] (neither addressable nor a map index expression)
+// line 14: cannot assign to s[3] (neither addressable nor a map index expression)
+// line 18: cannot assign to n (neither addressable nor a map index expression)
+// line 19: cannot assign to cs (neither addressable nor a map index expression)
+// line 20: cannot assign to true (neither addressable nor a map index expression)
 // line 23: cannot assign to struct field m[0].n in map
 // line 25: cannot assign to 1 (neither addressable nor a map index expression)
 // line 26: cannot assign to "hi" (neither addressable nor a map index expression)
 // line 27: cannot assign to nil (neither addressable nor a map index expression)
 // line 28: cannot assign to len("") (neither addressable nor a map index expression)
-// line 29: cannot assign to (const-type []int){}
-// line 32: cannot assign to x<VPBlock(1,4)> + (const (1 int))
+// line 29: cannot assign to []int{} (neither addressable nor a map index expression)
+// line 32: cannot assign to x + 1 (neither addressable nor a map index expression)

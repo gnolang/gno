@@ -14,6 +14,12 @@ func main() {
 }
 
 // GnoError:
+// line 8: cannot convert (const (undefined)) to ArrayKind
+// line 9: cannot use nil as [10]int value in variable declaration
+// line 11: use of untyped nil in variable declaration
+// line 13: cannot use nil as [10]int value in assignment
+
+// GoTypeCheckError:
 // line 8: cannot convert nil to type [10]int
 // line 9: cannot use nil as [10]int value in variable declaration
 // line 11: use of untyped nil in variable declaration

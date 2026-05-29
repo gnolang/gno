@@ -19,6 +19,10 @@ func main() {
 	if f < 1 { }	// ERROR "conver|incompatible|invalid"
 }
 
-// GnoIncomplete: covered 0 of 3 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// GoTypeCheckError:
+// line 12: cannot use "a" (untyped string constant) as int value in array or slice literal
+// line 13: invalid composite literal type int
+// line 19: cannot convert 1 (untyped int constant) to type func() int

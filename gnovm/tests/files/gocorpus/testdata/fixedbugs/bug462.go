@@ -20,6 +20,8 @@ func main() {
 	}
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 11: name Open not declared
+
+// GoTypeCheckError:
+// line 19: invalid field name os.File in struct literal

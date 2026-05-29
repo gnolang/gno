@@ -20,6 +20,6 @@ func f2() {
 	println(a)
 }
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-// GnoError:
+// GoTypeCheckError:
 // line 10: a redeclared in this block
+// line 17: a redeclared in this block

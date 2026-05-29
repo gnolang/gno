@@ -14,6 +14,8 @@ var x struct { // GC_ERROR "initialization cycle: x refers to itself"
 	a [unsafe.Sizeof(x.a)]int // GCCGO_ERROR "array bound|typechecking loop|invalid expression"
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 11: unknown import path unsafe
+
+// GoTypeCheckError:
+// line 13: initialization cycle: x refers to itself

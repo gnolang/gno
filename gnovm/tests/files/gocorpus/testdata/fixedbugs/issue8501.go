@@ -18,5 +18,9 @@ func F() {
 }
 
 // GnoError:
+// line 16: name complex not declared
+// line 17: name complex not declared
+
+// GoTypeCheckError:
 // line 16: invalid operation: not enough arguments for complex(1.0) (expected 2, found 1)
 // line 17: invalid operation: not enough arguments for complex(t.f) (expected 2, found 1)

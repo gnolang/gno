@@ -19,6 +19,8 @@ var _ = T{
 	},
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 16: 2: types cannot be elided in composite literals for struct types
+
+// GoTypeCheckError:
+// line 17: missing type in composite literal

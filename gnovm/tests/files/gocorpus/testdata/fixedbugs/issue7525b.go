@@ -13,4 +13,7 @@ var y struct { // GC_ERROR "initialization cycle: y refers to itself"
 }
 
 // GnoError:
+// line 11: 2: invalid recursive type: y -> y
+
+// GoTypeCheckError:
 // line 11: initialization cycle: y refers to itself

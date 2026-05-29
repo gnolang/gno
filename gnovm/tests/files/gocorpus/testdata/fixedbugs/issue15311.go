@@ -20,5 +20,9 @@ var t = T{
 }
 
 // GnoError:
+// line 18: name foo not declared
+// line 19: name bar not declared
+
+// GoTypeCheckError:
 // line 18: invalid field name foo.toInt in struct literal
 // line 19: invalid field name bar.toString in struct literal

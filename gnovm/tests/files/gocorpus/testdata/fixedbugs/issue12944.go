@@ -12,6 +12,8 @@ const (
 	_ = unsafe.Sizeof([0]byte{}[0]) // ERROR "out of bounds"
 )
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 9: unknown import path unsafe
+
+// GoTypeCheckError:
+// line 12: invalid argument: index 0 out of bounds [0:0]

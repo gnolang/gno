@@ -27,4 +27,7 @@ local scopes (function scopes)
 */
 
 // GnoError:
+// line 12: name P not declared
+
+// GoTypeCheckError:
 // line 12: undefined: P

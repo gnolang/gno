@@ -17,10 +17,7 @@ type b interface {
 	valid(...int)
 }
 
-// GnoError:
+// GnoIncomplete: covered 1 of 6 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
+// GoTypeCheckError:
 // line 9: can only use ... with final parameter (and 5 more errors)
-// line 10: can only use ... with final parameter (and 4 more errors)
-// line 11: can only use ... with final parameter (and 3 more errors)
-// line 13: can only use ... with final parameter (and 2 more errors)
-// line 15: can only use ... with final parameter (and 1 more errors)
-// line 16: can only use ... with final parameter

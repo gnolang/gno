@@ -127,25 +127,76 @@ var (
 )
 
 // GnoError:
+// line 36: operator >= not defined on: InterfaceKind
+// line 39: operator >= not defined on: InterfaceKind
+// line 43: operator >= not defined on: InterfaceKind
+// line 46: operator >= not defined on: InterfaceKind
+// line 50: operator >= not defined on: InterfaceKind
+// line 53: operator >= not defined on: InterfaceKind
+// line 56: invalid operation: (mismatched types int and main.I)
+// line 57: invalid operation: (mismatched types int and main.I)
+// line 58: operator >= not defined on: InterfaceKind
+// line 59: invalid operation: (mismatched types int and main.I)
+// line 60: invalid operation: (mismatched types int and main.I)
+// line 61: operator >= not defined on: InterfaceKind
+// line 65: operator >= not defined on: InterfaceKind
+// line 68: operator >= not defined on: InterfaceKind
+// line 70: invalid operation: (mismatched types <untyped> bigint and main.I)
+// line 71: invalid operation: (mismatched types <untyped> bigint and main.I)
+// line 72: operator >= not defined on: InterfaceKind
+// line 73: invalid operation: (mismatched types <untyped> bigint and main.I)
+// line 74: invalid operation: (mismatched types <untyped> bigint and main.I)
+// line 75: operator >= not defined on: InterfaceKind
+// line 79: operator >= not defined on: InterfaceKind
+// line 82: operator >= not defined on: InterfaceKind
+// line 84: invalid operation: (mismatched types func() and main.I)
+// line 85: invalid operation: (mismatched types func() and main.I)
+// line 86: operator >= not defined on: InterfaceKind
+// line 87: invalid operation: (mismatched types func() and main.I)
+// line 88: invalid operation: (mismatched types func() and main.I)
+// line 89: operator >= not defined on: InterfaceKind
+// line 93: operator >= not defined on: InterfaceKind
+// line 96: operator >= not defined on: InterfaceKind
+// line 100: operator >= not defined on: InterfaceKind
+// line 103: operator >= not defined on: InterfaceKind
+// line 105: name _ not defined in fileset with files [issue9370.go]
+// line 106: name _ not defined in fileset with files [issue9370.go]
+// line 107: name _ not defined in fileset with files [issue9370.go]
+// line 108: name _ not defined in fileset with files [issue9370.go]
+// line 109: name _ not defined in fileset with files [issue9370.go]
+// line 110: name _ not defined in fileset with files [issue9370.go]
+// line 112: name _ not defined in fileset with files [issue9370.go]
+// line 113: name _ not defined in fileset with files [issue9370.go]
+// line 114: name _ not defined in fileset with files [issue9370.go]
+// line 115: name _ not defined in fileset with files [issue9370.go]
+// line 116: name _ not defined in fileset with files [issue9370.go]
+// line 117: name _ not defined in fileset with files [issue9370.go]
+// line 119: name _ not defined in fileset with files [issue9370.go]
+// line 121: operator ^ not defined on: InterfaceKind
+// line 122: operator ^ not defined on: InterfaceKind
+// line 123: operator ^ not defined on: InterfaceKind
+// line 124: operator ^ not defined on: InterfaceKind
+
+// GoTypeCheckError:
 // line 36: invalid operation: e >= c (operator >= not defined on interface)
 // line 39: invalid operation: c >= e (operator >= not defined on interface)
 // line 43: invalid operation: i >= c (operator >= not defined on interface)
 // line 46: invalid operation: c >= i (operator >= not defined on interface)
 // line 50: invalid operation: e >= n (operator >= not defined on interface)
 // line 53: invalid operation: n >= e (operator >= not defined on interface)
-// line 56: invalid operation: (mismatched types int and main.I)
-// line 57: invalid operation: (mismatched types int and main.I)
+// line 56: invalid operation: i == n (mismatched types I and int)
+// line 57: invalid operation: i != n (mismatched types I and int)
 // line 58: invalid operation: i >= n (mismatched types I and int)
-// line 59: invalid operation: (mismatched types int and main.I)
-// line 60: invalid operation: (mismatched types int and main.I)
+// line 59: invalid operation: n == i (mismatched types int and I)
+// line 60: invalid operation: n != i (mismatched types int and I)
 // line 61: invalid operation: n >= i (mismatched types int and I)
 // line 65: invalid operation: e >= 1 (operator >= not defined on interface)
 // line 68: invalid operation: 1 >= e (operator >= not defined on interface)
-// line 70: invalid operation: (mismatched types <untyped> bigint and main.I)
-// line 71: invalid operation: (mismatched types <untyped> bigint and main.I)
+// line 70: cannot convert 1 (untyped int constant) to type interface{Method()}
+// line 71: cannot convert 1 (untyped int constant) to type interface{Method()}
 // line 72: cannot convert 1 (untyped int constant) to type interface{Method()}
-// line 73: invalid operation: (mismatched types <untyped> bigint and main.I)
-// line 74: invalid operation: (mismatched types <untyped> bigint and main.I)
+// line 73: cannot convert 1 (untyped int constant) to type interface{Method()}
+// line 74: cannot convert 1 (untyped int constant) to type interface{Method()}
 // line 75: cannot convert 1 (untyped int constant) to type interface{Method()}
 // line 77: invalid operation: e == f (func can only be compared to nil)
 // line 78: invalid operation: e != f (func can only be compared to nil)
@@ -153,11 +204,11 @@ var (
 // line 80: invalid operation: f == e (func can only be compared to nil)
 // line 81: invalid operation: f != e (func can only be compared to nil)
 // line 82: invalid operation: f >= e (operator >= not defined on func)
-// line 84: invalid operation: (mismatched types func() and main.I)
-// line 85: invalid operation: (mismatched types func() and main.I)
+// line 84: invalid operation: i == f (mismatched types I and func())
+// line 85: invalid operation: i != f (mismatched types I and func())
 // line 86: invalid operation: i >= f (mismatched types I and func())
-// line 87: invalid operation: (mismatched types func() and main.I)
-// line 88: invalid operation: (mismatched types func() and main.I)
+// line 87: invalid operation: f == i (mismatched types func() and I)
+// line 88: invalid operation: f != i (mismatched types func() and I)
 // line 89: invalid operation: f >= i (mismatched types func() and I)
 // line 91: invalid operation: e == g (func can only be compared to nil)
 // line 92: invalid operation: e != g (func can only be compared to nil)

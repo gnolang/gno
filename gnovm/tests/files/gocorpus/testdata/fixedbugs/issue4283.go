@@ -16,6 +16,9 @@ func F2() bool {
 	return nil != nil	// ERROR "invalid"
 }
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
+// line 12: <nil> is not comparable
+
+// GoTypeCheckError:
 // line 12: invalid operation: nil == nil (operator == not defined on untyped nil)
+// line 16: invalid operation: nil != nil (operator != not defined on untyped nil)

@@ -17,5 +17,5 @@ func (T) m() int {
 
 var x = T.m(0) // ERROR "initialization cycle|depends upon itself"
 
-// GnoError:
+// GoTypeCheckError:
 // line 18: initialization cycle for x

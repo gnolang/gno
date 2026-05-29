@@ -11,4 +11,7 @@ func main() {
 }
 
 // GnoError:
+// line 10: name n not declared
+
+// GoTypeCheckError:
 // line 10: undefined: n

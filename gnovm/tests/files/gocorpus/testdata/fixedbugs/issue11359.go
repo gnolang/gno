@@ -12,3 +12,6 @@ var ۶ = 0 // ERROR "identifier cannot begin with digit"
 
 // GnoError:
 // line 11: illegal character U+06F6 '۶'
+
+// GoTypeCheckError:
+// line 11: illegal character U+06F6 '۶'

@@ -21,5 +21,6 @@ func f() { // GC_ERROR "stack frame too large"
 }
 
 // GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 20: name KeepAlive not declared

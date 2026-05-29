@@ -13,5 +13,9 @@ var b = [...]int{x: 1} // ERROR "constant"
 var c = map[int]int{x: 1}
 
 // GnoError:
+// line 11: slice/array literals may not contain non-const keys
+// line 12: slice/array literals may not contain non-const keys
+
+// GoTypeCheckError:
 // line 11: index x must be integer constant
 // line 12: index x must be integer constant

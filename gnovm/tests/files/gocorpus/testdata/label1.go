@@ -121,7 +121,23 @@ L5:
 	}
 }
 
-// GnoIncomplete: covered 2 of 15 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
+// line 108: label on undefined (and 1 more errors)
+// line 113: label dance undefined
+
+// GoTypeCheckError:
+// line 18: continue not in for statement
+// line 22: continue not in for statement
+// line 46: invalid continue label L2
+// line 53: invalid continue label L2
+// line 64: invalid continue label L3
+// line 72: invalid break label L4
+// line 75: invalid continue label L4
+// line 85: invalid break label L5
+// line 88: invalid continue label L5
+// line 96: invalid break label L1
+// line 99: invalid continue label L1
+// line 106: continue not in for statement
 // line 108: invalid continue label on
+// line 111: break not in for, switch, or select statement
 // line 113: invalid break label dance

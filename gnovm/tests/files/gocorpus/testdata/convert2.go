@@ -329,8 +329,9 @@ func _() {
 }
 
 // GnoIncomplete: covered 31 of 48 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
-// line 25: cannot use t (variable of struct type T) as S value in assignment
+// line 25: cannot use main[main/convert2.go:18:1-32:2].T as main[main/convert2.go:18:1-32:2].S without explicit conversion
 // line 45: cannot use main[main/convert2.go:34:1-52:2].T as main[main/convert2.go:34:1-52:2].S without explicit conversion
 // line 66: cannot use main[main/convert2.go:54:1-73:2].T as main[main/convert2.go:54:1-73:2].S without explicit conversion
 // line 94: cannot use main[main/convert2.go:75:1-101:2].T as main[main/convert2.go:75:1-101:2].S without explicit conversion
@@ -361,3 +362,6 @@ func _() {
 // line 312: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].S
 // line 313: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
 // line 314: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].T
+
+// GoTypeCheckError:
+// line 25: cannot use t (variable of struct type T) as S value in assignment

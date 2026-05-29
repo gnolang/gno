@@ -67,8 +67,12 @@ func g() {
 }
 
 // GnoIncomplete: covered 4 of 7 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 24: illegal label declaration (and 9 more errors)
 // line 30: illegal label declaration (and 7 more errors)
 // line 37: illegal label declaration (and 6 more errors)
 // line 43: illegal label declaration (and 4 more errors)
+
+// GoTypeCheckError:
+// line 24: illegal label declaration (and 7 more errors)

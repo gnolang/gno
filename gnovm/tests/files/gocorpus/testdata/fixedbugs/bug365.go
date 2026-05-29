@@ -21,6 +21,8 @@ func main() {
 	_ = s.Num // no error here please
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 14: 2: name foo not defined in fileset with files [bug365.go]
+
+// GoTypeCheckError:
+// line 15: undefined: foo

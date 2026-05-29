@@ -8,5 +8,5 @@ package p
 
 type init byte // ERROR "cannot declare init - must be func"
 
-// GnoError:
+// GoTypeCheckError:
 // line 9: cannot declare init - must be func

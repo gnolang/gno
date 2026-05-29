@@ -21,4 +21,7 @@ func f() {
 var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|initialization cycle"
 
 // GnoError:
+// line 21: circular dependency: m -> f -> m
+
+// GoTypeCheckError:
 // line 21: initialization cycle for m

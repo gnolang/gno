@@ -23,6 +23,22 @@ func main() {
 	g(1, 0.5, "hello", 4, []int{5, 6}...) // ERROR "too many arguments|truncated to integer"
 }
 
-// GnoIncomplete: covered 0 of 5 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// GoTypeCheckError:
+// line 16: not enough arguments in call to f
+// 	have (number, number, string)
+// 	want (string, int, float64, string)
+// line 18: too many arguments in call to f
+// 	have (number, number, string, number, number)
+// 	want (string, int, float64, string)
+// line 19: not enough arguments in call to g
+// 	have (number, number)
+// 	want (string, int, float64, ...string)
+// line 21: not enough arguments in call to g
+// 	have (number, number, []int...)
+// 	want (string, int, float64, ...string)
+// line 23: too many arguments in call to f
+// 	have (number, number, string, number, number)
+// 	want (string, int, float64, string)

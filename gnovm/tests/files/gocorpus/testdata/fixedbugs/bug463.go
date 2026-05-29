@@ -21,6 +21,9 @@ const (
 func main() {
 }
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
+// line 12: invalid recursive value: a -> a
+
+// GoTypeCheckError:
 // line 12: initialization cycle: a refers to itself
+// line 16: initialization cycle for A

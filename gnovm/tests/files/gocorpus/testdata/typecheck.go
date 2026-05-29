@@ -21,7 +21,16 @@ func main() {
 	c = mine() // ERROR "undefined.*c|not enough arguments"
 }
 
-// GnoIncomplete: covered 2 of 4 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
-// line 15: undefined: b
+// line 15: 2: name b not defined in fileset with files [typecheck.go]
 // line 16: expected declaration, found 'return'
+
+// GoTypeCheckError:
+// line 15: undefined: b
+// line 16: undefined: b
+// line 20: not enough arguments in call to mine
+// 	have ()
+// 	want (unknown type)
+// line 21: not enough arguments in call to mine
+// 	have ()
+// 	want (unknown type)

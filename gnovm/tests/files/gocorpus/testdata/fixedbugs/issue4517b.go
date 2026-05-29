@@ -8,5 +8,5 @@ package p
 
 const init = 1 // ERROR "cannot declare init - must be func"
 
-// GnoError:
+// GoTypeCheckError:
 // line 9: cannot declare init - must be func

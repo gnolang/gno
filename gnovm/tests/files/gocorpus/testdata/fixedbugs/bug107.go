@@ -15,6 +15,8 @@ func f() (os int) {
 	 return 0
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 9: name FileInfo not declared
+
+// GoTypeCheckError:
+// line 13: os.Open undefined (type int has no field or method Open)

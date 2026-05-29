@@ -10,5 +10,6 @@ import "unsafe"
 var v = unsafe.Sizeof  // ERROR "not in function call|must be called"
 
 // GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
 // line 9: unknown import path unsafe

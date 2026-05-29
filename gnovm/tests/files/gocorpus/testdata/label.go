@@ -64,8 +64,17 @@ L10:
 	goto go2 // ERROR "label go2 not defined|reference to undefined label .*go2"
 }
 
-// GnoIncomplete: covered 2 of 8 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 31: L6 redeclared in this block
 // 	previous declaration at label.go:29:1 (and 1 more errors)
 // line 64: label go2 undefined
+
+// GoTypeCheckError:
+// line 16: label L1 declared and not used
+// line 19: label L2 declared and not used
+// line 21: label L3 declared and not used
+// line 24: label L4 declared and not used
+// line 27: label L5 declared and not used
+// line 31: label L6 already declared
+// line 53: label defalt declared and not used
+// line 64: label go2 not declared

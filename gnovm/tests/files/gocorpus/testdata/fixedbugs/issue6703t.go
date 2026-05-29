@@ -17,5 +17,5 @@ func (*T) pm() int {
 
 var x = (*T).pm(nil) // ERROR "initialization cycle|depends upon itself"
 
-// GnoError:
+// GoTypeCheckError:
 // line 18: initialization cycle for x

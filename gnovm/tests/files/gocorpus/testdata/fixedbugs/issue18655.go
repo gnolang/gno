@@ -21,7 +21,7 @@ func (*T) m() {} // ERROR "already declared|redefinition"
 func (*A) m() {} // ERROR "already declared|redefinition"
 func (*B) m() {} // ERROR "already declared|redefinition"
 
-// GnoError:
+// GoTypeCheckError:
 // line 14: method T.m already declared at gno.land/p/filetest/p/issue18655.go:14:10
 // line 15: method T.m already declared at gno.land/p/filetest/p/issue18655.go:14:10
 // line 16: method T.m already declared at gno.land/p/filetest/p/issue18655.go:14:10

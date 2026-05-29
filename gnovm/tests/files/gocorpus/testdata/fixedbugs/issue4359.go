@@ -18,6 +18,8 @@ func f() {
 	_ = t.x
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 12: 2: name T1 not defined in fileset with files [issue4359.go]
+
+// GoTypeCheckError:
+// line 13: undefined: T1

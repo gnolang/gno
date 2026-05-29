@@ -22,5 +22,5 @@ func pf() *T {
 
 var x = pf().pm() // ERROR "initialization cycle|depends upon itself" 
 
-// GnoError:
+// GoTypeCheckError:
 // line 23: initialization cycle for x

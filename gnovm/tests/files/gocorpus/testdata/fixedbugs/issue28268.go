@@ -29,6 +29,6 @@ func _() {
 	x.E()   // no follow-on error here
 }
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
-// GnoError:
+// GoTypeCheckError:
 // line 19: field and method with the same name b
+// line 20: field and method with the same name E

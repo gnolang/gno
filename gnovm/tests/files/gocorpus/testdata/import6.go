@@ -39,23 +39,27 @@ import "/foo"  // ERROR "import path cannot be absolute path|not used"
 import "c:/foo"  // ERROR "import path contains invalid character|invalid character"
 
 // GnoError:
+// line 17: invalid zero package path in testStore().pkgGetter
+// line 18: invalid zero package path in testStore().pkgGetter
+
+// GoTypeCheckError:
 // line 17: invalid import path (empty string)
 // line 18: invalid import path (empty string)
 // line 19: invalid import path (invalid character U+0000)
-// line 20: unknown import path \x00
-// line 21: unknown import path 
-// line 22: unknown import path \x7f
-// line 23: unknown import path a!
-// line 24: unknown import path a!
-// line 25: unknown import path a b
-// line 26: unknown import path a b
-// line 27: unknown import path a\b
-// line 28: unknown import path a\\b
-// line 29: unknown import path "`a`"
-// line 30: unknown import path \"a\"
-// line 31: unknown import path €€
-// line 32: unknown import path \x80\x80
-// line 33: unknown import path ÿFD
-// line 34: unknown import path \xFFFD
-// line 38: unknown import path /foo
+// line 20: invalid import path (invalid character U+005C '\')
+// line 21: invalid import path (invalid character U+007F)
+// line 22: invalid import path (invalid character U+005C '\')
+// line 23: invalid import path (invalid character U+0021 '!')
+// line 24: invalid import path (invalid character U+0021 '!')
+// line 25: invalid import path (invalid character U+0020 ' ')
+// line 26: invalid import path (invalid character U+0020 ' ')
+// line 27: invalid import path (invalid character U+005C '\')
+// line 28: invalid import path (invalid character U+005C '\')
+// line 29: invalid import path (invalid character U+0022 '"')
+// line 30: invalid import path (invalid character U+005C '\')
+// line 31: invalid import path (invalid character U+FFFD 'ï¿½')
+// line 32: invalid import path (invalid character U+005C '\')
+// line 33: invalid import path (invalid character U+FFFD 'ï¿½')
+// line 34: invalid import path (invalid character U+005C '\')
+// line 38: could not import /foo (unknown import path "/foo")
 // line 39: invalid import path (invalid character U+003A ':')

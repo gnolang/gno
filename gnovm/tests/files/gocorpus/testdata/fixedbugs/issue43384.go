@@ -124,7 +124,22 @@ func _() {
 }
 
 // GnoIncomplete: covered 18 of 24 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
+
 // GnoError:
+// line 41: should not happen
+// line 46: should not happen
+// line 47: should not happen
+// line 48: should not happen
+// line 56: should not happen
+// line 62: should not happen
+// line 97: should not happen
+// line 102: should not happen
+// line 103: should not happen
+// line 104: should not happen
+// line 112: should not happen
+// line 118: should not happen
+
+// GoTypeCheckError:
 // line 40: p.Mv undefined (type P3 has no field or method Mv)
 // line 41: (&p).Mv undefined (type *P3 has no field or method Mv)
 // line 42: (*&p).Mv undefined (type P3 has no field or method Mv)
@@ -137,9 +152,3 @@ func _() {
 // line 61: p.Mp undefined (type P4 has no field or method Mp)
 // line 62: (&p).Mp undefined (type *P4 has no field or method Mp)
 // line 63: (*&p).Mp undefined (type P4 has no field or method Mp)
-// line 97: should not happen
-// line 102: should not happen
-// line 103: should not happen
-// line 104: should not happen
-// line 112: should not happen
-// line 118: should not happen

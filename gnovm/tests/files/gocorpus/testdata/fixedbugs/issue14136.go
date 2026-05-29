@@ -20,6 +20,9 @@ func main() {
 	_ = s
 }
 
-// GnoIncomplete: covered 1 of 2 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
+// line 17: struct type struct{} has no field X
+
+// GoTypeCheckError:
 // line 17: unknown field X in struct literal of type T
+// line 19: cannot use 1 (untyped int constant) as string value in variable declaration

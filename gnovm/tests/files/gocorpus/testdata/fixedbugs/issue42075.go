@@ -15,6 +15,8 @@ type T struct { // ERROR "recursive type"
 	f T
 }
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 9: unknown import path unsafe
+
+// GoTypeCheckError:
+// line 11: invalid recursive type: T refers to itself

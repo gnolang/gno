@@ -16,6 +16,8 @@ var (
 	c int = a
 )
 
-// GnoIncomplete: covered 0 of 1 markers; Gno bailed before the rest — a runnable variant is needed to exercise them
 // GnoError:
 // line 13: invalid recursive value: x -> a -> b -> c -> a
+
+// GoTypeCheckError:
+// line 14: initialization cycle for a

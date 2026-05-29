@@ -12,4 +12,7 @@ func f() {
 }
 
 // GnoError:
+// line 11: operator |= not defined on: BoolKind
+
+// GoTypeCheckError:
 // line 11: invalid operation: operator | not defined on a (variable of type bool)

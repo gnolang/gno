@@ -21,6 +21,13 @@ func main() {
 }
 
 // GnoError:
+// line 16: cannot use (undefined) as type int in argument to make
+// line 17: cannot use (undefined) as type int in argument to make
+// line 18: cannot use (undefined) as type int in argument to make
+// line 19: cannot use (true <untyped> bool) as type int in argument to make
+// line 20: cannot use ("abc" <untyped> string) as type int in argument to make
+
+// GoTypeCheckError:
 // line 16: cannot convert nil to type int
 // line 17: cannot convert nil to type int
 // line 18: cannot convert nil to type int
