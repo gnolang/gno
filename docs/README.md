@@ -7,12 +7,6 @@ Gno.land is a smart contract platform built on a novel interpretation of Go
 decentralized applications with a minimalist approach and excellent developer
 experience.
 
-New here? Start with **[Getting started](builders/getting-started.md)** — the
-shortest path from zero to a working local chain and your first on-chain
-transaction (install included). Already comfortable with Go and just want
-the commands? See **[Quick Start](builders/quickstart.md)**. Need Docker, a
-source build, or a specific version? See **[Installation](builders/install.md)**.
-
 ## Use Gno.land
 
 Start exploring and using Gno.land. Setup essential tools, interact with the
