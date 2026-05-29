@@ -35,7 +35,7 @@ func main() {
 }
 
 // Output:
-// zzz2
+// 2
 // 3
 // 5
 // 7
