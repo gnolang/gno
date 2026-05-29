@@ -5,9 +5,11 @@ first
 
 second
 -- output.md --
+
 > first
 > 
 > second
+
 -- output.html --
 <blockquote>
 <p>first</p>
